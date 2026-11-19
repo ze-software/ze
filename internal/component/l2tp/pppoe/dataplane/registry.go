@@ -2,7 +2,7 @@
 // Related: session.go -- validated resource ownership returned by a provider
 
 // Package dataplane selects a registered PPPoE session provider. It contains no
-// backend imports: each provider registers its own factory from init.
+// backend imports: each provider registers its own access preparer from init.
 package dataplane
 
 import (
@@ -33,7 +33,7 @@ type Request struct {
 }
 
 // OpenFunc creates one session. Ownership of any nonnil result passes to the
-// caller even on error; Backend.Open closes that result before refusing it.
+// caller even on error; Access.Open closes that result before refusing it.
 // A successful result MUST come from NewOpenedSession.
 type OpenFunc func(context.Context, Request) (OpenedSession, error)
 
@@ -44,16 +44,12 @@ type PrepareFunc func(context.Context, string) (Access, error)
 
 // Backend is an exact registry selection. Only a successful lookup can create
 // one; its nil interface is invalid, and callers cannot construct a zero value.
-// Prepare and Open are safe for concurrent use if their registered factories
-// are also safe.
+// Prepare is safe for concurrent use if its registered preparer is also safe.
 type Backend interface {
 	Name() string
 	// Prepare requires a nonnil context. A successful caller MUST Close the
 	// access after stopping its sessions and discovery dispatch.
 	Prepare(context.Context, string) (Access, error)
-	// Open requires a nonnil context. A successful caller MUST close Dataplane
-	// and CloseTransport when their respective ownership lifetimes end.
-	Open(context.Context, Request) (OpenedSession, error)
 	// WatchLifecycle returns explicit absence for a stable provider. A changing
 	// provider's caller MUST subscribe before preparation and Close before
 	// joining its sole lifecycle worker. No notification proves native release.
@@ -64,14 +60,14 @@ type Backend interface {
 
 var sessionDataplanes sessionRegistry
 
-// RegisterSessionDataplane registers a provider's factory, normally from its
+// RegisterSessionDataplane registers a provider's preparer, normally from its
 // register.go init. Names use the shared node-name syntax, bounded to 63 bytes.
-// An optional fourth argument declares one changing provider's lifecycle
+// An optional third argument declares one changing provider's lifecycle
 // source; omission explicitly declares a stable provider. Explicit nil or
-// multiple lifecycle factories are refused, as are invalid names, nil native
-// factories/preparers and duplicate names. Safe for concurrent use.
-func RegisterSessionDataplane(name string, open OpenFunc, prepare PrepareFunc, lifecycle ...SubscribeLifecycleFunc) error {
-	return sessionDataplanes.register(name, open, prepare, lifecycle...)
+// multiple lifecycle factories are refused, as are invalid names, nil
+// preparers and duplicate names. Safe for concurrent use.
+func RegisterSessionDataplane(name string, prepare PrepareFunc, lifecycle ...SubscribeLifecycleFunc) error {
+	return sessionDataplanes.register(name, prepare, lifecycle...)
 }
 
 // LookupSessionDataplane selects exactly name. An unavailable provider returns
@@ -94,18 +90,14 @@ type sessionRegistry struct {
 }
 
 type sessionProvider struct {
-	open      OpenFunc
 	prepare   PrepareFunc
 	subscribe SubscribeLifecycleFunc
 }
 
-func (r *sessionRegistry) register(name string, open OpenFunc, prepare PrepareFunc, lifecycle ...SubscribeLifecycleFunc) error {
+func (r *sessionRegistry) register(name string, prepare PrepareFunc, lifecycle ...SubscribeLifecycleFunc) error {
 	const nameMax = 63
 	if err := naming.ValidateNodeName("PPPoE session backend", name, nameMax); err != nil {
 		return err
-	}
-	if open == nil {
-		return fmt.Errorf("PPPoE session backend %q has no open factory", name)
 	}
 	if prepare == nil {
 		return fmt.Errorf("PPPoE session backend %q has no access preparer", name)
@@ -129,7 +121,7 @@ func (r *sessionRegistry) register(name string, open OpenFunc, prepare PrepareFu
 	if r.providers == nil {
 		r.providers = make(map[string]sessionProvider)
 	}
-	r.providers[name] = sessionProvider{open: open, prepare: prepare, subscribe: subscribe}
+	r.providers[name] = sessionProvider{prepare: prepare, subscribe: subscribe}
 	return nil
 }
 
@@ -145,7 +137,7 @@ func (r *sessionRegistry) lookup(name string) (Backend, error) {
 		return nil, fmt.Errorf("PPPoE session backend %q is unavailable (registered: %s)",
 			name, strings.Join(names, ", "))
 	}
-	return &sessionBackend{name: name, open: provider.open, prepare: provider.prepare, subscribe: provider.subscribe}, nil
+	return &sessionBackend{name: name, prepare: provider.prepare, subscribe: provider.subscribe}, nil
 }
 
 func (r *sessionRegistry) names() []string {
@@ -163,7 +155,6 @@ func (r *sessionRegistry) names() []string {
 // selection. Its fields remain immutable after lookup.
 type sessionBackend struct {
 	name      string
-	open      OpenFunc
 	prepare   PrepareFunc
 	subscribe SubscribeLifecycleFunc
 }
@@ -196,30 +187,6 @@ func (b *sessionBackend) Prepare(ctx context.Context, name string) (Access, erro
 		return nil, fmt.Errorf("PPPoE session backend %q returned no access", b.name)
 	}
 	return access, nil
-}
-
-func (b *sessionBackend) Open(ctx context.Context, request Request) (OpenedSession, error) {
-	if nilResource(ctx) {
-		return nil, fmt.Errorf("PPPoE session backend %q requires a context", b.name)
-	}
-	opened, err := b.open(ctx, request)
-	if !nilResource(opened) {
-		// Embedding an exported interface can inherit its unexported marker.
-		// Require the constructor's concrete result, not the marker alone.
-		if _, constructed := opened.(*openedSession); !constructed {
-			err = errors.Join(err, errors.New("session result was not created by NewOpenedSession"))
-		}
-	}
-	if err != nil {
-		if !nilResource(opened) {
-			err = errors.Join(err, closeSessionResult(opened))
-		}
-		return nil, fmt.Errorf("PPPoE session backend %q: %w", b.name, err)
-	}
-	if nilResource(opened) {
-		return nil, fmt.Errorf("PPPoE session backend %q returned no session", b.name)
-	}
-	return opened, nil
 }
 
 func closeSessionResult(opened OpenedSession) error {

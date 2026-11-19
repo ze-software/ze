@@ -18,6 +18,15 @@ import (
 	"github.com/ze-software/ze/internal/component/l2tp/pppoe"
 )
 
+// releaseOwners MUST run after channel stop and all phase/discovery/frame-reader
+// joins. Preserve both close outcomes; a panicking unit close cannot strand the
+// independent backend. Close returns this retained outcome on subsequent calls.
+func (s *sessionLink) releaseOwners(closeUnit, closeBackend func() error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.closeErr = errors.Join(s.closeErr, closeClientOwner(closeUnit), closeClientOwner(closeBackend))
+}
+
 // TestClientPreflightRefusalPrecedesDiscovery observes the public dialer's
 // actual preflight ordering with a private logical refusal. No public creator
 // or Created owner is forged to make the discovery or transport path run.

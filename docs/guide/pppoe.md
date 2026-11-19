@@ -105,10 +105,30 @@ deadline, while replies within one negotiation cannot extend it.
 Discovery runs only when `enabled` is true and the block lists at least one
 `interface`. A `pppoe` block with no `interface` entry answers no PADI.
 
+Named access interfaces use the session provider registered for `interface
+backend`. The default `netlink` provider uses kernel PPP sessions. A build
+without the selected provider refuses the access-interface paths before apply;
+the VPP provider requires the `ze_vpp` build tag. With that provider installed,
+VPP access also requires `vpp enabled true` and `vpp lcp enabled true` so the
+control frames have a Linux device paired with the VPP interface.
+A `pppoe` block with no access interface remains valid under VPP. This check
+applies to the access concentrator; `interface pppoe-client` is separate.
+<!-- source: internal/component/l2tp/pppoe/backend_gate.go -- validateBackendGate -->
+<!-- source: internal/component/l2tp/pppoe/register.go -- original-tree validator registration -->
+<!-- source: internal/component/l2tp/plugins/pppoe-vpp/startup.go -- validateControlPlane, startupRequired -->
+
+The VPP provider declares its startup requirements automatically: configured
+VPP access loads `pppoe_plugin.so` and selects
+`pppoe { enable-pass-nd-and-dhcpv6 }`. There is no second PPPoE plugin toggle.
+These settings carry discovery and PPP control frames to Ze; the startup flag
+also punts subscriber IPv6 control traffic.
+<!-- source: internal/component/l2tp/plugins/pppoe-vpp/startup.go -- registerStartup -->
+
 ### Changing the configuration
 
 A committed change to the `pppoe` block applies to the running access
-concentrator at once, with no restart:
+concentrator as below. The backend's startup requirements must already be
+present: VPP selects its plugin set and startup sections when it starts.
 
 | Change | Effect |
 |--------|--------|

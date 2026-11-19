@@ -51,14 +51,15 @@ func newDNSSession(t *testing.T, secondary string) *dnsSession {
 		LocalIP: netip.MustParseAddr("192.0.2.2"),
 		PeerIP:  netip.MustParseAddr("192.0.2.1"),
 		Changes: h.changes, Done: h.done,
-		Cleanup: func() {},
+		Cleanup:      func() error { return nil },
+		NativeWriter: logicalNativeWriter{h.backend, "wan"},
 	}
 	sess.PrimaryDNS = netip.MustParseAddr("192.0.2.53")
 	if secondary != "" {
 		sess.SecondaryDNS = netip.MustParseAddr(secondary)
 	}
 	cfg := PPPoEClientConfig{Name: "wan", RoutePriority: 73, Timing: testPPPoETiming}
-	h.client = NewPPPoEClient(cfg, &fakeDialer{sess: sess}, h.backend, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	h.client = NewPPPoEClient(cfg, &fakeDialer{sess: sess}, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	h.client.resolvers = h.resolvers
 	go func() { h.ended <- h.client.runSession() }()
 	synctest.Wait()
@@ -67,7 +68,7 @@ func newDNSSession(t *testing.T, secondary string) *dnsSession {
 }
 
 func (h *dnsSession) stop() {
-	close(h.client.stopCh)
+	h.client.stopOnce.Do(func() { close(h.client.stopCh) })
 	synctest.Wait()
 }
 
@@ -173,7 +174,7 @@ func TestShowInterfacePPPoEClientDNSServers(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		h := newDNSSession(t, "192.0.2.54")
 		defer h.stop()
-		idle := NewPPPoEClient(PPPoEClientConfig{Name: "backup", SourceInterface: "eth2"}, &fakeDialer{}, nil,
+		idle := NewPPPoEClient(PPPoEClientConfig{Name: "backup", SourceInterface: "eth2"}, &fakeDialer{},
 			slog.New(slog.NewTextHandler(io.Discard, nil)))
 		var mu sync.Mutex
 		saved := globalPPPoEClients.Load()

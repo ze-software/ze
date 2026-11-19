@@ -68,7 +68,11 @@ func TestDialOSNameSourceInterface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Dial through logical source-interface wan (os-name zec0): %v", err)
 	}
-	t.Cleanup(sess.Cleanup)
+	t.Cleanup(func() {
+		if err := sess.Cleanup(); err != nil {
+			t.Error(err)
+		}
+	})
 	if sess.SessionID != 45 {
 		t.Fatalf("session ID = %d, want 45", sess.SessionID)
 	}

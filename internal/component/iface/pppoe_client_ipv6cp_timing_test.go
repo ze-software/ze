@@ -74,12 +74,12 @@ func TestPPPoEClientIPv6CPReloadKeepsSnapshot(t *testing.T) {
 		d := &timingDialer{session: &session}
 		entry, _, err := ipv6cpTimingEntry(t, "")
 		require.NoError(t, err)
-		active := startTimingClients(t, &ifaceConfig{PPPoEClient: []pppoeClientEntry{entry}}, d)
+		active, activeMu := startTimingClients(t, &ifaceConfig{PPPoEClient: []pppoeClientEntry{entry}}, d)
 		synctest.Wait()
 		running := active["pppoe0"]
 		changed, _, err := ipv6cpTimingEntry(t, "500")
 		require.NoError(t, err)
-		reconcilePPPoEClients(&ifaceConfig{PPPoEClient: []pppoeClientEntry{changed}}, active, nil, slog.Default(), nil)
+		reconcilePPPoEClients(&ifaceConfig{PPPoEClient: []pppoeClientEntry{changed}}, active, activeMu, slog.Default(), nil)
 		synctest.Wait()
 		require.Same(t, running, active["pppoe0"])
 		configs, _ := d.snapshot()

@@ -480,13 +480,14 @@ func TestSLAACUnitWithRoutePriorityKeepsAnIPv6DefaultRoute(t *testing.T) {
 // runSession to reach the default-route install.
 func pppoeTestSession(done <-chan struct{}) PPPoESession {
 	return PPPoESession{
-		SessionID: 7,
-		UnitNum:   0,
-		NegMTU:    1492,
-		LocalIP:   netip.MustParseAddr("192.0.2.42"),
-		PeerIP:    netip.MustParseAddr("192.0.2.1"),
-		Done:      done,
-		Cleanup:   func() {},
+		SessionID:    7,
+		UnitNum:      0,
+		NegMTU:       1492,
+		LocalIP:      netip.MustParseAddr("192.0.2.42"),
+		PeerIP:       netip.MustParseAddr("192.0.2.1"),
+		Done:         done,
+		Cleanup:      func() error { return nil },
+		NativeWriter: logicalNativeWriter{nil, "pppoe0"},
 	}
 }
 
@@ -681,15 +682,20 @@ func TestPPPoEDefaultRouteTakesTheLearnedMetric(t *testing.T) {
 			done := make(chan struct{})
 			t.Cleanup(func() { close(done) })
 			previous := pppoeDialerVar
-			SetPPPoEDialer(&fakeDialer{sess: pppoeTestSession(done)})
+			recorder := &routeRecorder{}
+			session := pppoeTestSession(done)
+			session.NativeWriter = logicalNativeWriter{recorder, "pppoe0"}
+			SetPPPoEDialer(&fakeDialer{sess: session})
 			t.Cleanup(func() { pppoeDialerVar = previous })
 
-			recorder := &routeRecorder{}
 			activeClients := map[string]*PPPoEClient{}
-			reconcilePPPoEClients(cfg, activeClients, recorder, slog.Default(), nil)
+			var activeMu sync.Mutex
+			reconcilePPPoEClients(cfg, activeClients, &activeMu, slog.Default(), nil)
 			t.Cleanup(func() {
 				for _, c := range activeClients {
-					c.Stop()
+					if err := c.Stop(); err != nil {
+						t.Error(err)
+					}
 				}
 			})
 

@@ -24,11 +24,18 @@ type AccessRecovery interface {
 	Settle(context.Context) error
 }
 
+// RecoverableAccessOwner is a live session owner with an original cleanup path.
+// Failed preparations need only AccessRecovery and cannot open sessions.
+type RecoverableAccessOwner interface {
+	AccessOwner
+	AccessRecovery
+}
+
 // NewRecoverableAccess consumes owner on every outcome, exactly as NewAccess.
 // It binds recovery to this concrete original owner without exposing that owner
 // or permitting an embedded Access to acquire its settlement authority.
 // Recovery MUST bind to the private constructed lease before interface publication.
-func NewRecoverableAccess(info AccessInfo, owner AccessRecovery) (Access, error) {
+func NewRecoverableAccess(info AccessInfo, owner RecoverableAccessOwner) (Access, error) {
 	if err := validateAccess(info); err != nil {
 		return nil, RefuseAccess(err, owner)
 	}

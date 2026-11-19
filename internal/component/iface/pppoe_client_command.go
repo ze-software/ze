@@ -27,15 +27,17 @@ const PPPoEClientCommand = "show interface pppoe-client"
 // where runEngine never published its clients.
 var errPPPoEClientsNotRunning = errors.New("PPPoE client status unavailable: the interface plugin has not started its PPPoE clients")
 
-// pppoeClientSet is the running engine's client map and the lock that
-// guards it. runEngine publishes it once; reconcilePPPoEClients changes the
-// map only under mu.
+// pppoeClientSet is the original client registry and its map lock. The first
+// engine publishes it; later engines reuse it while unresolved original cleanup
+// remains. Map reads and compare-pointer removals hold mu; callbacks never do.
 type pppoeClientSet struct {
-	mu     *sync.Mutex
-	active map[string]*PPPoEClient
+	mu              *sync.Mutex
+	active          map[string]*PPPoEClient
+	cleanupReporter pppoeCleanupReporter // current ready SDK; guarded by mu
 }
 
-// globalPPPoEClients is the set runEngine published, nil before it runs.
+// globalPPPoEClients is nil before first startup and retains the same registry
+// across engine restarts, including any client whose native cleanup is pending.
 var globalPPPoEClients atomic.Pointer[pppoeClientSet]
 
 // pppoeClientAnswer is the answer of PPPoEClientCommand over set.

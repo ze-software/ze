@@ -4,15 +4,16 @@
 package iface
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/netip"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config/system"
-	"github.com/ze-software/ze/internal/core/rtproto"
 )
 
 // PPPoE client session states.
@@ -115,9 +116,12 @@ type PPPoESession struct {
 	// The caller may finish configuring the session device, which carries the
 	// configured name and not ppp<UnitNum>, while retaining ownership.
 	UnitNum int
-	LocalIP netip.Addr
-	PeerIP  netip.Addr
-	NegMTU  uint16
+	// NativeWriter carries this Dial's exact original-unit capability. UnitNum
+	// and the configured name are labels, never native lookup authority.
+	NativeWriter NativePPPWriter
+	LocalIP      netip.Addr
+	PeerIP       netip.Addr
+	NegMTU       uint16
 	// PrimaryDNS and SecondaryDNS are the RFC 1877 servers IPCP learned. An
 	// invalid address means the access concentrator supplied none.
 	PrimaryDNS   netip.Addr
@@ -129,7 +133,9 @@ type PPPoESession struct {
 	// Applied MUST be called by the consumer of Changes after it has applied
 	// a result (MTU, address pair, default route and DNS lease), with that
 	// result's Seq, including a result that changed nothing or whose route
-	// install only warned. After an LCP or IPCP renegotiation the session
+	// install only warned. Pending or explicitly unavailable native outcomes
+	// MUST end application before Applied or another native mutation.
+	// After an LCP or IPCP renegotiation the session
 	// keeps IPv4, and IPv6 when IPv6CP opened, discarded until Applied
 	// reports that result, so no packet leaves with the replaced address or
 	// MTU (pppd's lcp_up sets the MTU before link_established opens the
@@ -139,19 +145,23 @@ type PPPoESession struct {
 	// Done is closed when the session ends (echo timeout, LCP terminate).
 	// The PPPoEClient selects on this to detect session loss.
 	Done <-chan struct{}
-	// Cleanup releases the unit reservation and other kernel resources and
-	// sends PADT. The caller MUST invoke it on every successful Dial result,
-	// including interface-setup failure, and MUST finish all use of UnitNum
-	// before doing so. Cleanup is idempotent.
-	Cleanup func()
+	// Cleanup stops the original transport and workers, sends PADT, and
+	// retires the exact unit before settling its writer and backend. The caller
+	// MUST invoke nonnil Cleanup even when Dial fails, and MUST finish native
+	// use first. It reports every cause; ErrNativePPPPending retains custody
+	// and forbids another admission until a later call explicitly completes.
+	// Repeated calls retry pending cleanup only, never a native mutation.
+	Cleanup func() error
 }
 
 // PPPoEClient manages a single PPPoE client session lifecycle.
 type PPPoEClient struct {
-	cfg     PPPoEClientConfig
-	backend Backend
-	dialer  PPPoEDialer
-	logger  *slog.Logger
+	cfg             PPPoEClientConfig
+	native          NativePPPWriter
+	registry        *pppoeClientSet      // immutable after publication; same actual map/mutex
+	nativeAdmission pppoeNativeAdmission // guarded by admissionMutex
+	dialer          PPPoEDialer
+	logger          *slog.Logger
 
 	mu      sync.Mutex
 	state   pppoeSessionState
@@ -174,19 +184,25 @@ type PPPoEClient struct {
 	// drives the client alone. Set before Start and never written after.
 	sessionEnded func(name string)
 
-	stopCh chan struct{}
-	done   chan struct{}
+	stopCh          chan struct{}
+	done            chan struct{}
+	stopOnce        sync.Once
+	startOnce       sync.Once
+	cleanupBusy     atomic.Bool
+	pendingCleanup  func() error // one original session; protected by mu
+	cleanupErr      error        // latest actual cleanup result; protected by mu
+	cleanupReportAt time.Time    // next bounded history report; protected by mu
 }
 
 // NewPPPoEClient creates a PPPoE client from config. Call Start to begin.
-func NewPPPoEClient(cfg PPPoEClientConfig, dialer PPPoEDialer, backend Backend, logger *slog.Logger) *PPPoEClient { //nolint:gocritic // hugeParam: the public value signature establishes an owned config snapshot, off the data plane.
+func NewPPPoEClient(cfg PPPoEClientConfig, dialer PPPoEDialer, logger *slog.Logger) *PPPoEClient { //nolint:gocritic // hugeParam: the public value signature establishes an owned config snapshot, off the data plane.
 	return &PPPoEClient{
-		cfg:     cfg,
-		backend: backend,
-		dialer:  dialer,
-		logger:  logger.With("pppoe-client", cfg.Name, "src-iface", cfg.SourceInterface),
-		state:   sessStateDisconnected,
-		pppUnit: -1,
+		cfg:             cfg,
+		dialer:          dialer,
+		logger:          logger.With("pppoe-client", cfg.Name, "src-iface", cfg.SourceInterface),
+		state:           sessStateDisconnected,
+		nativeAdmission: pppoeNativeIdle,
+		pppUnit:         -1,
 		// The process writer the hub configures, as the DHCP client uses.
 		resolvers: system.ProcessResolvers(),
 		stopCh:    make(chan struct{}),
@@ -194,15 +210,30 @@ func NewPPPoEClient(cfg PPPoEClientConfig, dialer PPPoEDialer, backend Backend, 
 	}
 }
 
-// Start launches the PPPoE client session goroutine.
+// Start launches the session worker once. Safe for concurrent use with Stop.
+// A client stopped before its worker starts never dials and still publishes done.
 func (c *PPPoEClient) Start() {
-	go c.run()
+	c.startOnce.Do(func() {
+		if c.stopped() {
+			close(c.done)
+			return
+		}
+		go c.run()
+	})
 }
 
-// Stop signals the client to shut down and waits for cleanup.
-func (c *PPPoEClient) Stop() {
-	close(c.stopCh)
+// Stop permanently fences Dial, joins the worker and retries original cleanup.
+// Safe for concurrent use. A Pending result retains custody; callers MUST keep
+// this client and retry Stop before replacing it. Terminal causes remain reported.
+func (c *PPPoEClient) Stop() error {
+	c.stopOnce.Do(func() { close(c.stopCh) })
+	c.Start() // A stopped client that never started still publishes done.
 	<-c.done
+	err := c.finishCleanup()
+	c.mu.Lock()
+	result := errors.Join(c.cleanupErr, err)
+	c.mu.Unlock()
+	return result
 }
 
 // Status returns a snapshot of the client state.
@@ -263,7 +294,7 @@ func (c *PPPoEClient) stopped() bool {
 	select {
 	case <-c.stopCh:
 		return true
-	case <-time.After(0):
+	default:
 		return false
 	}
 }
@@ -273,7 +304,14 @@ func (c *PPPoEClient) run() {
 	defer close(c.done)
 
 	for {
+		if c.stopped() {
+			return
+		}
 		err := c.runSession()
+		if errors.Is(err, ErrNativePPPPending) {
+			c.logger.Warn("pppoe-client: original native cleanup remains pending", "error", err,
+				"code", pppoeCleanupDoctorCode, "fix", pppoeCleanupRecovery(err))
+		}
 		if err == nil || errors.Is(err, errStopped) {
 			return
 		}
@@ -320,7 +358,10 @@ func (c *PPPoEClient) setTiming(timing PPPoEClientTiming) {
 
 // runSession executes one complete PPPoE client session: discovery,
 // LCP/auth/NCP negotiation, interface setup, then monitors until teardown.
-func (c *PPPoEClient) runSession() error {
+func (c *PPPoEClient) runSession() (result error) {
+	if err := c.finishCleanup(); err != nil {
+		return err
+	}
 	c.mu.Lock()
 	c.state = sessStateDiscovery
 	c.sessID = 0
@@ -333,16 +374,37 @@ func (c *PPPoEClient) runSession() error {
 	c.mu.Unlock()
 
 	// PPPoE Discovery + LCP + Auth + NCP via the Dialer abstraction.
-	sess, err := c.dialer.Dial(dialCfg, c.stopCh, c.logger)
-	if err != nil {
+	if err := c.beginNativeDial(); err != nil {
 		return err
 	}
-	defer sess.Cleanup()
+	sess, err := c.dialer.Dial(dialCfg, c.stopCh, c.logger)
+	c.finishNativeDial(sess.Cleanup != nil, err)
+	if sess.Cleanup != nil {
+		c.mu.Lock()
+		c.pendingCleanup = sess.Cleanup
+		c.mu.Unlock()
+		defer func() { result = errors.Join(result, c.finishCleanup()) }()
+	}
+	if err != nil {
+		if sess.Cleanup == nil {
+			if sess.NativeWriter != nil {
+				return errors.Join(err, c.retainMissingCleanup(sess))
+			}
+		}
+		return err
+	}
+	if sess.Cleanup == nil {
+		return c.retainMissingCleanup(sess)
+	}
+	if sess.NativeWriter == nil {
+		return errors.Join(ErrNativePPPUnavailable, errors.New("pppoe-client: negotiated original has no native writer"))
+	}
+	c.native = sess.NativeWriter
 	// The leases end with the session, on every return path below.
 	defer c.endSessionLeases()
 
-	// The dialer creates the kernel device under its configured name through
-	// rtnetlink, so every backend call below addresses the device by that name.
+	// The configured name is diagnostic and selects existing IPv6 sysctls.
+	// Native mutations use only the original writer returned by this Dial.
 	ifname := c.cfg.Name
 	mtuApplied := int(sess.NegMTU)
 	if c.cfg.MTU > 0 {
@@ -360,11 +422,11 @@ func (c *PPPoEClient) runSession() error {
 	var linkLocalApplied netip.Addr
 
 	// AC-7: Set MTU on the ppp interface.
-	if c.backend != nil {
-		if err := c.backend.SetMTU(ifname, mtuApplied); err != nil {
+	if c.native != nil {
+		if err := c.nativeWrite(func(ctx context.Context) error { return c.native.SetMTU(ctx, mtuApplied) }); err != nil {
 			return err
 		}
-		if err := c.backend.SetAdminUp(ifname); err != nil {
+		if err := c.nativeWrite(func(ctx context.Context) error { return c.native.SetAdminUp(ctx) }); err != nil {
 			return err
 		}
 		if c.cfg.IPv6.Enabled {
@@ -376,9 +438,7 @@ func (c *PPPoEClient) runSession() error {
 		// AC-5: Apply server-assigned address as P2P link.
 		if sess.LocalIP.IsValid() {
 			if sess.PeerIP.IsValid() {
-				localCIDR := netip.PrefixFrom(sess.LocalIP, 32).String()
-				peerCIDR := netip.PrefixFrom(sess.PeerIP, 32).String()
-				if err := c.backend.AddAddressP2P(ifname, localCIDR, peerCIDR); err != nil {
+				if err := c.addNativePair(sess.LocalIP, sess.PeerIP); err != nil {
 					return err
 				}
 			}
@@ -386,8 +446,11 @@ func (c *PPPoEClient) runSession() error {
 		// AC-8: Install default route unless no-default-route is set.
 		if !c.cfg.NoDefaultRoute {
 			if sess.PeerIP.IsValid() {
-				if err := c.backend.AddRoute(ifname, "0.0.0.0/0", sess.PeerIP.String(), c.cfg.RoutePriority, rtproto.Iface); err != nil {
+				if err := c.addNativeRoute(sess.PeerIP); err != nil {
 					c.warnRouteApply(ifname, sess.PeerIP, err)
+					if pppoeNativeRefused(err) {
+						return err
+					}
 				} else {
 					routeApplied = sess.PeerIP
 				}
@@ -424,13 +487,13 @@ func (c *PPPoEClient) runSession() error {
 			if !ok {
 				return errors.New("pppoe-client: session change source closed")
 			}
-			if c.backend != nil {
+			if c.native != nil {
 				mtu := int(next.NegMTU)
 				if c.cfg.MTU > 0 {
 					mtu = min(mtu, c.cfg.MTU)
 				}
 				if mtu != mtuApplied {
-					if err := c.backend.SetMTU(ifname, mtu); err != nil {
+					if err := c.nativeWrite(func(ctx context.Context) error { return c.native.SetMTU(ctx, mtu) }); err != nil {
 						return err
 					}
 					mtuApplied = mtu
@@ -448,7 +511,7 @@ func (c *PPPoEClient) runSession() error {
 				}
 				// RFC 5072 Section 5: the link-local follows IPv6CP, and
 				// IPv4 is untouched by it (RFC 7084 WLL-3).
-				applied, err := applyPPPoELinkLocal(c.backend, ifname, linkLocalApplied, next.LinkLocal)
+				applied, err := c.applyNativeLinkLocal(linkLocalApplied, next.LinkLocal)
 				if err != nil {
 					return err
 				}
@@ -490,23 +553,27 @@ func (c *PPPoEClient) withdrawPPPoEIPv4(ifname string, routeApplied, routeRetire
 	// A route is owned only after a successful install, so an owned route
 	// is removed even when no-default-route would not install it again.
 	if routeApplied.IsValid() {
-		if err := c.backend.RemoveRoute(ifname, "0.0.0.0/0", routeApplied.String(), c.cfg.RoutePriority, rtproto.Iface); err != nil {
+		if err := c.removeNativeRoute(*routeApplied); err != nil {
 			c.warnRouteRemoval(ifname, *routeApplied, err)
+			if pppoeNativeRefused(err) {
+				return err
+			}
 		} else {
 			*routeApplied = netip.Addr{}
 		}
 	}
 	if routeRetired.IsValid() {
-		if err := c.backend.RemoveRoute(ifname, "0.0.0.0/0", routeRetired.String(), c.cfg.RoutePriority, rtproto.Iface); err != nil {
+		if err := c.removeNativeRoute(*routeRetired); err != nil {
 			c.warnRouteRemoval(ifname, *routeRetired, err)
+			if pppoeNativeRefused(err) {
+				return err
+			}
 		} else {
 			*routeRetired = netip.Addr{}
 		}
 	}
 	if pairApplied[0].IsValid() {
-		if err := c.backend.RemoveAddressP2P(ifname,
-			netip.PrefixFrom(pairApplied[0], 32).String(),
-			netip.PrefixFrom(pairApplied[1], 32).String()); err != nil {
+		if err := c.removeNativePair(pairApplied[0], pairApplied[1]); err != nil {
 			return err
 		}
 		*pairApplied = [2]netip.Addr{}
@@ -520,16 +587,17 @@ func (c *PPPoEClient) withdrawPPPoEIPv4(ifname string, routeApplied, routeRetire
 func (c *PPPoEClient) applyPPPoEIPv4(ifname string, next PPPoEResult, routeApplied, routeRetired *netip.Addr, pairApplied *[2]netip.Addr) error {
 	pair := [2]netip.Addr{next.LocalIP, next.PeerIP}
 	if pair != *pairApplied {
-		if err := c.backend.AddAddressP2P(ifname,
-			netip.PrefixFrom(next.LocalIP, 32).String(),
-			netip.PrefixFrom(next.PeerIP, 32).String()); err != nil {
+		if err := c.addNativePair(next.LocalIP, next.PeerIP); err != nil {
 			return err
 		}
 	}
 	if !c.cfg.NoDefaultRoute {
 		if next.PeerIP != *routeApplied {
-			if err := c.backend.AddRoute(ifname, "0.0.0.0/0", next.PeerIP.String(), c.cfg.RoutePriority, rtproto.Iface); err != nil {
+			if err := c.addNativeRoute(next.PeerIP); err != nil {
 				c.warnRouteApply(ifname, next.PeerIP, err)
+				if pppoeNativeRefused(err) {
+					return err
+				}
 			} else {
 				// Linux fib_table_insert replaces the prefix/metric slot.
 				// Keep one failed cleanup, not a backlog of replaced gateways.
@@ -544,8 +612,11 @@ func (c *PPPoEClient) applyPPPoEIPv4(ifname string, next PPPoEResult, routeAppli
 			}
 		}
 		if routeRetired.IsValid() {
-			if err := c.backend.RemoveRoute(ifname, "0.0.0.0/0", routeRetired.String(), c.cfg.RoutePriority, rtproto.Iface); err != nil {
+			if err := c.removeNativeRoute(*routeRetired); err != nil {
 				c.warnRouteRemoval(ifname, *routeRetired, err)
+				if pppoeNativeRefused(err) {
+					return err
+				}
 			} else {
 				*routeRetired = netip.Addr{}
 			}
@@ -555,9 +626,7 @@ func (c *PPPoEClient) applyPPPoEIPv4(ifname string, next PPPoEResult, routeAppli
 		// A session that came up without IPv4, or whose IPv4 was withdrawn,
 		// holds no pair, and an absent pair has nothing to remove.
 		if pairApplied[0].IsValid() {
-			if err := c.backend.RemoveAddressP2P(ifname,
-				netip.PrefixFrom(pairApplied[0], 32).String(),
-				netip.PrefixFrom(pairApplied[1], 32).String()); err != nil {
+			if err := c.removeNativePair(pairApplied[0], pairApplied[1]); err != nil {
 				return err
 			}
 		}
@@ -641,8 +710,9 @@ func SetPPPoEDialer(d PPPoEDialer) { pppoeDialerVar = d }
 // reconcilePPPoEClients starts clients for new config entries, stops
 // clients whose config was removed or disabled. Each client it starts calls
 // sessionEnded with its name when a session ends (PPPoEClient.sessionEnded);
-// nil calls nothing. Caller holds pppoeMu.
-func reconcilePPPoEClients(cfg *ifaceConfig, active map[string]*PPPoEClient, b Backend, log *slog.Logger, sessionEnded func(name string)) {
+// nil calls nothing. activeMu MUST be the same mutex that guards active.
+// No registry lock spans Stop, native I/O or sessionEnded callbacks.
+func reconcilePPPoEClients(cfg *ifaceConfig, active map[string]*PPPoEClient, activeMu *sync.Mutex, log *slog.Logger, sessionEnded func(name string)) {
 	if pppoeDialerVar == nil {
 		return
 	}
@@ -655,39 +725,63 @@ func reconcilePPPoEClients(cfg *ifaceConfig, active map[string]*PPPoEClient, b B
 		}
 	}
 
-	// Stop clients removed, disabled, or whose config changed.
+	activeMu.Lock()
+	snapshot := make(map[string]*PPPoEClient, len(active))
 	for name, client := range active {
-		entry, ok := desired[name]
-		if !ok {
-			log.Info("pppoe-client: stopping removed client", "name", name)
-			client.Stop()
-			delete(active, name)
-			continue
-		}
-		// Preserve the comparison's value snapshot rather than borrowing live config.
+		snapshot[name] = client
+	}
+	activeMu.Unlock()
+	for name, client := range snapshot {
+		entry, wanted := desired[name]
+		client.mu.Lock()
 		running := client.cfg
+		client.mu.Unlock()
+		stop := !wanted
+		if client.stopped() {
+			stop = true
+		}
 		if pppoeClientConfigChanged(&running, &entry) {
-			log.Info("pppoe-client: restarting client (config changed)", "name", name)
-			client.Stop()
-			delete(active, name)
+			stop = true
+		}
+		if stop {
+			err := client.Stop()
+			if err != nil {
+				log.Warn("pppoe-client: original client cleanup failed", "name", name, "error", err,
+					"code", pppoeCleanupDoctorCode, "fix", pppoeCleanupRecovery(err))
+			}
+			if errors.Is(err, ErrNativePPPPending) {
+				continue
+			}
+			activeMu.Lock()
+			if active[name] == client {
+				delete(active, name)
+			}
+			activeMu.Unlock()
 			continue
 		}
-		if client.cfg.Timing != entry.Timing {
-			log.Info("pppoe-client: timing changed; the next session uses it", "name", name)
+		if running.Timing != entry.Timing {
 			client.setTiming(entry.Timing)
 		}
 	}
 
-	// Start clients that are new or were restarted above.
-	for name := range desired {
-		entry := desired[name]
-		if _, running := active[name]; running {
+	// Publish desired clients without allocating native resources. Their real
+	// Dial takes a fresh synchronized admission check; transient native work
+	// cannot drop a desired config entry or require another config event.
+	for name, entry := range desired {
+		client := NewPPPoEClient(pppoeClientConfigFrom(&entry), pppoeDialerVar, log)
+		client.sessionEnded = sessionEnded
+		client.registry = pppoeRegistryFor(active, activeMu)
+		activeMu.Lock()
+		_, exists := active[name]
+		if !exists {
+			active[name] = client
+		}
+		activeMu.Unlock()
+		if exists {
 			continue
 		}
-		client := NewPPPoEClient(pppoeClientConfigFrom(&entry), pppoeDialerVar, b, log)
-		client.sessionEnded = sessionEnded
+		// Stop can win after publication; Start's terminal fence cannot Dial.
 		client.Start()
-		active[name] = client
 		log.Info("pppoe-client: started client", "name", name, "src-iface", entry.SourceInterface)
 	}
 }

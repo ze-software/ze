@@ -67,7 +67,7 @@ func prepareKernelPPPSetup(ev kernelSetupEvent, backend pppkernel.InterfaceOpera
 		return nil, opererr.Wrap(err, "L2TP cannot create its original PPP interface",
 			"The kernel backend cannot retain creation-bound counters for this subscriber.", "ze doctor")
 	}
-	return func() (pppSessionFDs, error) { return pppSetupReal(ev, creator) }, nil
+	return func() (pppSessionFDs, error) { return pppSetupWithNativeBackend(ev, creator, backend) }, nil
 }
 
 func originalKernelPPPConfig(owners *kernelPPPOwners, backend pppkernel.InterfaceOperations) (pppkernel.SessionConfig, error) {
@@ -136,7 +136,7 @@ func closeOriginalKernelPPP(owners *kernelPPPOwners, transport *os.File, closeTr
 	var operations [3]kernelPPPCloseOperation
 	if owners != nil {
 		if owners.unit != nil {
-			operations[0] = kernelPPPCloseOperation{identity: owners.unit, close: owners.unit.Close}
+			operations[0] = kernelPPPCloseOperation{identity: owners.unit, close: func() error { return closeOriginalKernelNativeUnit(owners.unit) }}
 		}
 		if owners.channel != nil {
 			operations[1] = kernelPPPCloseOperation{identity: owners.channel, close: owners.channel.Close}

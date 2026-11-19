@@ -15,18 +15,26 @@ import (
 	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
 )
 
-type accessConfigurationOwner struct{ closes int }
+type accessConfigurationOwner struct {
+	closes int
+	open   dataplane.OpenFunc
+}
 
 func (o *accessConfigurationOwner) Close() error { o.closes++; return nil }
+
+func (o *accessConfigurationOwner) Open(ctx context.Context, request dataplane.Request) (dataplane.OpenedSession, error) {
+	if o.open == nil {
+		return nil, errors.New("test does not open sessions")
+	}
+	return o.open(ctx, request)
+}
 
 var accessConfigurationTestID atomic.Uint64
 
 func accessConfigurationBackend(t *testing.T, prepare dataplane.PrepareFunc) dataplane.Backend {
 	t.Helper()
 	name := fmt.Sprintf("access-configuration-%d", accessConfigurationTestID.Add(1))
-	err := dataplane.RegisterSessionDataplane(name, func(context.Context, dataplane.Request) (dataplane.OpenedSession, error) {
-		return nil, errors.New("test does not open sessions")
-	}, prepare)
+	err := dataplane.RegisterSessionDataplane(name, prepare)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,11 +201,12 @@ func TestInterfaceServerUsesPreparedAccessSnapshot(t *testing.T) {
 	})
 	var got dataplane.Request
 	cause := errors.New("factory reached")
-	name := fmt.Sprintf("access-configuration-%d", accessConfigurationTestID.Add(1))
-	err := dataplane.RegisterSessionDataplane(name, func(_ context.Context, request dataplane.Request) (dataplane.OpenedSession, error) {
+	owner.open = func(_ context.Context, request dataplane.Request) (dataplane.OpenedSession, error) {
 		got = request
 		return nil, cause
-	}, func(context.Context, string) (dataplane.Access, error) {
+	}
+	name := fmt.Sprintf("access-configuration-%d", accessConfigurationTestID.Add(1))
+	err := dataplane.RegisterSessionDataplane(name, func(context.Context, string) (dataplane.Access, error) {
 		return nil, errors.New("snapshot must not be resolved again")
 	})
 	if err != nil {

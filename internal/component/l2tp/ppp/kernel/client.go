@@ -51,11 +51,12 @@ func (clientIPv6Mode) clientUnitRequest() {}
 
 // Private logical test operations do not implement any public owner factory.
 type clientPairOps struct {
-	prepare func(*claimedSessionPair) error
-	connect func(*claimedSessionPair) error
-	read    func(*claimedSessionPair, bool, []byte) (int, error)
-	write   func(*claimedSessionPair, []byte) (int, error)
-	unit    func(*claimedSessionPair, clientUnitRequest) error
+	prepare    func(*claimedSessionPair) error
+	connect    func(*claimedSessionPair) error
+	disconnect func(*claimedSessionPair) error
+	read       func(*claimedSessionPair, bool, []byte) (int, error)
+	write      func(*claimedSessionPair, []byte) (int, error)
+	unit       func(*claimedSessionPair, clientUnitRequest) error
 }
 
 // NewClientSession consumes EVERY newly supplied owner on EVERY outcome,
@@ -77,6 +78,9 @@ func newClientSession(cfg SessionConfig, ops clientPairOps, closers sessionPairC
 	}
 	if ops.connect == nil {
 		return nil, errors.New("ppp: client has no original-pair attachment")
+	}
+	if ops.disconnect == nil {
+		return nil, errors.New("ppp: client has no original-pair disconnect")
 	}
 	if ops.read == nil {
 		return nil, errors.New("ppp: client has no ordered original-file reader")
@@ -225,9 +229,10 @@ func (client *ClientSession) unitOperation(request clientUnitRequest) error {
 	return nil
 }
 
-// CloseChannel stops writes and ends at most one bounded read attempt. It
-// retains the unit and backend. The caller MUST join every consumer, then call
-// CloseUnit before closing the independent backend.
+// CloseChannel disconnects the same attached original pair while BOTH files
+// remain live, then physically closes the channel to stop writes/read attempts.
+// Every disconnect/close cause is retained. The caller MUST join every consumer
+// and sample the original counters before CloseUnit, then release its backend.
 func (client *ClientSession) CloseChannel() error {
 	if !client.valid() {
 		return io.ErrClosedPipe
@@ -235,7 +240,16 @@ func (client *ClientSession) CloseChannel() error {
 	pair := client.pair
 	pair.mu.Lock()
 	defer pair.mu.Unlock()
-	return pair.closeChannel()
+	if pair.channelClosed {
+		return pair.channelErr
+	}
+	var disconnectErr error
+	if client.input.attached() {
+		disconnectErr = closeOriginalSessionFile(func() error { return client.ops.disconnect(pair) })
+	}
+	closeErr := pair.closeChannel()
+	pair.channelErr = errors.Join(disconnectErr, closeErr)
+	return pair.channelErr
 }
 
 // CloseUnit MUST follow CloseChannel and every consumer's join. Worker joins

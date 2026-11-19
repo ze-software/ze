@@ -22,6 +22,7 @@ type CreatedChannel struct {
 	ready        bool
 	closed       bool
 	closeErr     error
+	retirement   nativePPPChannelRetirement
 	sessionClaim *claimedCreatedChannel
 	namespace    *capturedSessionNamespace
 	poll         func(*os.File) error
@@ -34,31 +35,29 @@ func (channel *CreatedChannel) WithDescriptor(operation func(int) error) error {
 	if operation == nil {
 		return errors.New("ppp: missing original channel operation")
 	}
-	channel.mu.Lock()
-	if channel.closed {
-		channel.mu.Unlock()
-		return os.ErrClosed
-	}
-	if channel.file == nil {
-		channel.mu.Unlock()
-		return os.ErrClosed
-	}
-	file := channel.file
-	channel.mu.Unlock()
-	connection, err := file.SyscallConn()
-	if err != nil {
-		return err
-	}
-	var operationErr error
-	if err := connection.Control(func(fd uintptr) { operationErr = operation(int(fd)) }); err != nil {
-		return err
-	}
-	return operationErr
+	return channel.withOriginalNativeChannelFile(func(file *os.File) error {
+		connection, err := file.SyscallConn()
+		if err != nil {
+			return err
+		}
+		var operationErr error
+		if err := connection.Control(func(fd uintptr) { operationErr = operation(int(fd)) }); err != nil {
+			return err
+		}
+		return operationErr
+	})
 }
 
+// Close attempts this same original file's first actual close once. Before
+// forgetting it, the caller MUST use WaitNativePPPChannelRetired and retain
+// custody on failure; namespace/history errors are reported independently.
+// Safe concurrently. A nil Close is harmless but grants no retirement proof.
 func (channel *CreatedChannel) Close() error {
 	if channel == nil {
 		return nil
+	}
+	if channel.self != channel {
+		return errors.New("ppp: copied or unminted channel cannot close original custody")
 	}
 	channel.closeMu.Lock()
 	defer channel.closeMu.Unlock()
@@ -75,6 +74,7 @@ func (channel *CreatedChannel) Close() error {
 	var err error
 	if file != nil {
 		err = file.Close()
+		channel.finishNativeChannelFileClose(err)
 	}
 	err = errors.Join(err, namespace.Close())
 	channel.mu.Lock()

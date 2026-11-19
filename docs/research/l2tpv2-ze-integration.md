@@ -1251,12 +1251,51 @@ while waiting, and a delayed counter reply does not delay original unit Close.
 <!-- source: internal/component/l2tp/ppp/kernel/created_unit_retirement.go -- CreatedUnit.WaitNativePPPUnitRetired, publishNativeUnitRetirementLocked -->
 <!-- source: internal/component/l2tp/ppp/kernel/session_unit_retention.go -- CreatedUnit.retainNativeUnit, nativePPPUnitHold.close -->
 
+The server's native-release status projects that same physical retirement
+ledger in addition to remote-duplicate and local-writer custody. A completed
+writer socket cannot confirm release when the original file, a short borrow or
+the retained duplicate has no successful close result. Separate namespace or
+write history does not retain a unit whose physical retirement is confirmed.
+The status query performs no native operation and never retries a failed close.
+<!-- source: internal/component/l2tp/ppp/kernel/session_release.go -- session.NativeReleasePending -->
+<!-- source: internal/component/l2tp/ppp/kernel/created_unit_retirement.go -- CreatedUnit.nativeRetirementPending -->
+
 The provider never closes the unit on the caller's behalf. Native withdrawal
 that needs retirement to settle must not block final exact-owner Close, and a
 native-release seal must not wait for that same retirement before releasing
 its duplicate. The caller retains uncertain writers and cleanup causes through
 this ordering; a passive join cannot resolve a cycle in its caller's ownership.
 <!-- source: internal/component/l2tp/ppp/kernel/created_unit_retirement.go -- CreatedUnit.WaitNativePPPUnitRetired -->
+
+Server sessions and the CPE bind a separate native mutation capability to the
+actual created unit. The captured backend constructs it in that original unit's
+retained namespace. The creator and counter backend identity remain unchanged;
+names, indices and unit numbers are labels and cannot construct a writer.
+MTU, administrative state, birth alias, address pairs and routes use this
+original-file writer. Production factories refuse native admission when binding
+is unavailable. An original-descriptor handle can still expose counters without
+a writer, but every native mutation refuses that missing authority.
+
+A server serializes its domain intents separately from native acknowledgement
+waiting. Close can therefore stop the original files while an acknowledgement
+is missing. Address and route intents are retained before submission, and a late
+success cannot enable a family after that session stopped. Address withdrawal
+passes the complete original local/peer pair and prefix lengths.
+
+The caller MUST capture its final original counters and stop protocol use before
+Close. Close does not query counters. It closes the original streams, attempts
+the existing remote release seal and its retained duplicate, and only then
+settles and closes the guarded writer. An unresolved local writer cannot become
+a prerequisite of that physical close. A genuinely unresolved independent
+remote seal still retains its exact unit duplicate. Successful physical unit
+retirement removes only that unit's retained local intents; it does not grant a
+remote seal or erase a failure cause. Partial binding and failed native socket
+cleanup retain the original unit, writer and backend for bounded retry.
+While the independent remote seal retains that duplicate, Close defers local
+writer settlement and closure. It does not turn deliberate remote retention
+into a local retirement timeout that survives later successful seal release.
+<!-- source: internal/component/l2tp/ppp/kernel/created_unit_operations.go -- BindNativeOperations, CloseNativeOperations -->
+<!-- source: internal/component/l2tp/ppp/kernel/session_native_operations.go -- beginNativeMutation, closeNativeOperations -->
 
 The kernel session constructor consumes the original typed channel and unit
 owners. The channel producer proves the original PPPoX socket namespace and
@@ -1268,9 +1307,9 @@ was copied or already consumed. Descriptor labels supply no resource custody.
 The interruptible streams keep those same original files. Original-file death
 refuses admission, and every partial wrapper or panic retains cleanup custody.
 Counter reads release the operation gate and discard a reply after Close or an
-identity, native birth or original lease change. Rename preservation concerns
-raw counter reads. Existing name-addressed interface operations retain their
-current contracts.
+identity, native birth or original lease change. Counters retain their original
+reader across rename; interface mutations require the separate original-file
+writer and never reconstruct authority from the former interface name.
 <!-- source: internal/component/l2tp/ppp/kernel/created_unit.go -- UnitCreator.Create, CreatedUnit.Counters, CreatedUnit.Close -->
 <!-- source: internal/component/l2tp/ppp/kernel/created_unit_linux.go -- NewUnitCreator, createOriginalPPPUnit, pollOriginalPPPUnit -->
 <!-- source: internal/component/l2tp/ppp/kernel/created_channel_linux.go -- CreatePPPChannel, originalPPPChannelNamespace, captureOriginalPPPChannel -->
@@ -1755,8 +1794,10 @@ release after the same policy seals future operations and confirms earlier
 cleanup. A returned error or an unreachable Go object does not retain ownership.
 <!-- source: internal/component/l2tp/ppp/session_release.go -- NativeReleaseSeal, NativeReleaseHandle -->
 
-Kernel route programming shares that session's exclusive PPP unit lease and
-mutex. Before invoking a backend add, the handle retains the destination,
+Kernel route programming retains that session's exclusive original PPP unit
+and reserves domain intent under a short session mutex. No owner lock or
+descriptor lease spans the native acknowledgement wait; Close remains able to
+retire the original. Before invoking a backend add, the handle retains the destination,
 gateway, metric and protocol as a cleanup receipt, including an uncertain add
 that returns an error. Withdrawal with no matching receipt performs no native
 operation. A failed withdrawal preserves both its error and receipt for retry;

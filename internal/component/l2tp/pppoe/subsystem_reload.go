@@ -270,7 +270,11 @@ func (s *Subsystem) newInterfaceServer(ic *InterfaceConfig, p *Parameters, backe
 			request.Device = access.Device()
 			request.ControlDevice = access.ControlDevice()
 			request.Namespace = access.Namespace()
-			return backend.Open(ctx, request)
+			opened, err := access.Open(ctx, request)
+			if err != nil {
+				return nil, fmt.Errorf("PPPoE session backend %q: %w", backend.Name(), err)
+			}
+			return opened, nil
 		},
 		peerLeft:  s.peerLeftSession,
 		relayWake: s.relayWake,

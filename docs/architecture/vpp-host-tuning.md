@@ -30,6 +30,13 @@ YANG. It is consumed on the build host at image-assembly time, before any
 target YANG config exists. Optional `image.memory-bytes` bounds the reservation
 at 50% and also sizes the QEMU `-m` value for `ze appliance run`.
 
+Explicit `vpp.memory.hugepage-size default` requests native base pages for
+buffers and statistics instead of a hugepage reservation. The doctor recognizes
+that exact mode; an unknown page mode is an error, and explicit `2M` and `1G`
+retain their reservation checks. Neither a missing reservation nor native
+startup failure changes the selected mode.
+<!-- source: internal/component/vpp/doctor_linux.go -- evaluateVPPHugepages -->
+
 ## CPU isolation is an image fact too
 
 `image.isolated-cpus` sits beside `image.hugepages` in the appliance

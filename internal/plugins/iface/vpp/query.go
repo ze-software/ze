@@ -190,7 +190,12 @@ func (b *vppBackendImpl) detailsByName(name string) (*interfaces.SwInterfaceDeta
 		return nil, err
 	}
 	if idx, ok := b.names.lookupIndex(name); ok {
-		return b.dumpByIndex(interface_types.InterfaceIndex(idx))
+		details, err := b.dumpByIndex(interface_types.InterfaceIndex(idx))
+		if err != nil {
+			return nil, err
+		}
+		b.names.learnNativeName(uint32(details.SwIfIndex), trimCString(details.InterfaceName))
+		return details, nil
 	}
 	details, err := b.dumpByName(name)
 	if err != nil {
@@ -198,6 +203,7 @@ func (b *vppBackendImpl) detailsByName(name string) (*interfaces.SwInterfaceDeta
 	}
 	for i := range details {
 		if trimCString(details[i].InterfaceName) == name {
+			b.names.learnNativeName(uint32(details[i].SwIfIndex), name)
 			return &details[i], nil
 		}
 	}

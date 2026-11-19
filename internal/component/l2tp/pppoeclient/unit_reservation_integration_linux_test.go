@@ -117,7 +117,11 @@ func TestPADTRetainsUnitUntilOwnerCleanup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("real Dial: %v", err)
 	}
-	t.Cleanup(sess.Cleanup)
+	t.Cleanup(func() {
+		if err := sess.Cleanup(); err != nil {
+			t.Error(err)
+		}
+	})
 	clientLink, err := netlink.LinkByName("zec0")
 	if err != nil {
 		t.Fatal(err)
@@ -156,7 +160,9 @@ func TestPADTRetainsUnitUntilOwnerCleanup(t *testing.T) {
 	if err != nil || configured.Attrs().MTU != 1300 {
 		t.Fatalf("owner MTU setup did not survive PADT: link=%v error=%v", configured, err)
 	}
-	sess.Cleanup()
+	if err := sess.Cleanup(); err != nil {
+		t.Fatal(err)
+	}
 	if err := unix.IoctlSetPointerInt(contender, newUnit, sess.UnitNum); err != nil {
 		t.Fatalf("Cleanup did not release %s for reuse: %v", name, err)
 	}
@@ -167,7 +173,9 @@ func TestPADTRetainsUnitUntilOwnerCleanup(t *testing.T) {
 	if err := netlink.LinkSetMTU(reused, 1400); err != nil {
 		t.Fatal(err)
 	}
-	sess.Cleanup()
+	if err := sess.Cleanup(); err != nil {
+		t.Fatal(err)
+	}
 	reused, err = netlink.LinkByName(name)
 	if err != nil || reused.Attrs().MTU != 1400 {
 		t.Fatalf("repeated old Cleanup damaged replacement: link=%v error=%v", reused, err)

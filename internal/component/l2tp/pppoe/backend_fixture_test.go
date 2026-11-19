@@ -39,6 +39,10 @@ type fixtureAccessOwner struct{}
 
 func (fixtureAccessOwner) Close() error { return nil }
 
+func (fixtureAccessOwner) Open(context.Context, dataplane.Request) (dataplane.OpenedSession, error) {
+	return nil, errors.New("policy fixture unexpectedly opened a session")
+}
+
 func fixturePrepareConfiguration(t *testing.T, interfaces []InterfaceConfig) (dataplane.Backend, *accessConfiguration) {
 	t.Helper()
 	backend, err := selectedSessionBackend()
@@ -68,9 +72,7 @@ func fixtureSelectBackend(t *testing.T) {
 		if fixtureBackendErr != nil {
 			return
 		}
-		fixtureBackendErr = dataplane.RegisterSessionDataplane(name, func(context.Context, dataplane.Request) (dataplane.OpenedSession, error) {
-			return nil, errors.New("policy fixture unexpectedly opened a session")
-		}, fixturePrepareAccess)
+		fixtureBackendErr = dataplane.RegisterSessionDataplane(name, fixturePrepareAccess)
 	})
 	if fixtureBackendErr != nil {
 		t.Fatal(fixtureBackendErr)

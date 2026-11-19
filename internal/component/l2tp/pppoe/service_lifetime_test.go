@@ -767,6 +767,10 @@ type serviceLifetimeAccessOwner struct{ closes atomic.Int32 }
 
 func (owner *serviceLifetimeAccessOwner) Close() error { owner.closes.Add(1); return nil }
 
+func (*serviceLifetimeAccessOwner) Open(context.Context, dataplane.Request) (dataplane.OpenedSession, error) {
+	return nil, errors.New("service lifetime access unexpectedly opened a session")
+}
+
 // A contained cleanup panic still releases transport and Cancel and completes
 // the exact generation join. The table cannot retain an unfinished close latch.
 func TestServiceRelayCleanupPanicCompletesAdmission(t *testing.T) {

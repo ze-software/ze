@@ -49,12 +49,15 @@ func TestConnectedCleanupJoinsConsumer(t *testing.T) {
 		cleanupDone := make(chan struct{})
 		cleanupEntered, unitReleased := false, false
 		go func() {
-			link.cleanupConnected(phaseDone, func() {
+			if err := link.cleanupConnected(phaseDone, func() error {
 				cleanupEntered = true
-				_ = link.Close() //nolint:errcheck // test transport always succeeds
+				closeErr := link.Close()
 				<-reader.done
 				unitReleased = true
-			})
+				return closeErr
+			}); err != nil {
+				t.Error(err)
+			}
 			close(cleanupDone)
 		}()
 		synctest.Wait()

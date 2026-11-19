@@ -146,9 +146,17 @@ The session ends only when no NCP is left: IPCP Stopped and IPv6CP neither
 Opened nor negotiating, as accel-ppp ends a link once every layer has finished
 (`accel-pppd/ppp/ppp.c`, `ppp_layer_finished`). An IPv4-only session therefore
 still ends on an IPCP Terminate-Request. An LCP Configure-Request starts
-in-session renegotiation of every phase. Cleanup stops transport,
-joins the phase worker, joins the discovery and receive workers, closes the
-original unit, then closes its independent backend. Cancellation releases
+in-session renegotiation of every phase. Cleanup disconnects the exact attached
+pair while both original files remain live, then physically closes the channel
+to stop transport/read waits. After the phase, discovery and receive workers
+join, it captures a final counter snapshot from that same original unit, closes
+the actual unit holds and waits for genuine passive unit and channel retirement.
+Both original closes advance before either wait; a failed channel close must
+not prevent unit close. A first actual file-close failure retains the original,
+writer and backend even when the Go wrapper has stopped admitting operations.
+Namespace or earlier operation errors remain separate from that physical result.
+Only then does it settle and close the native writer and release its independent
+backend. Cancellation releases
 request and delivery waits. Each bounded pair read holds the lifecycle lock
 for one attempt and releases it before retry. Original-file leases prevent
 descriptor reuse during native operations.
@@ -270,14 +278,14 @@ letting the kernel select `pppN`; they do not use a separate unobserved unit
 allocation path.
 <!-- source: internal/component/l2tp/ppp/kernel/devppp_linux.go -- DevPPPSetup, devPPPSetup -->
 <!-- source: internal/component/l2tp/ppp/kernel/created_unit_linux.go -- NewUnitCreator -->
-<!-- source: internal/component/l2tp/pppoeclient/client_owner.go -- prepareClientDial, createClientPair -->
+<!-- source: internal/component/l2tp/pppoeclient/client_native_owner.go -- prepareClientDial, clientNativeOwner.setup -->
 <!-- source: internal/component/l2tp/pppoeclient/dialer.go -- Dial -->
 
 Before allocating its native backend or transport, the client checks the
 [compiled original-resource PPP support](../../research/l2tpv2-ze-integration.md).
 An unavailable dependency names the runtime kernel build commands; an unknown
 result directs the operator to `ze show doctor` with its original cause.
-<!-- source: internal/component/l2tp/pppoeclient/client_owner.go -- prepareClientDial -->
+<!-- source: internal/component/l2tp/pppoeclient/client_native_owner.go -- prepareClientDial -->
 
 **Session loss stops transport, not unit ownership.** A PADT or keepalive failure
 stops PPP and closes `Done` immediately. The unit descriptor remains open until
@@ -286,11 +294,20 @@ device. If the asynchronous watcher released that descriptor, the device would
 disappear while the old caller was still applying its MTU, address or route
 changes. The pair's `CloseChannel` leaves the original unit reserved. Cleanup
 joins the phase worker, discovery worker and sole frameReader before
-`CloseUnit`, then closes the independent backend. The next session can then
-create the same name. Setup/config refusal closes every partial original;
-the consuming `NewClientSession` owns both originals on every later outcome.
+`CloseUnit`. The same owner waits for genuine original-unit retirement, then
+settles and closes its retained native facet before closing the independent
+backend. A failed Dial returns nonnil `Cleanup` whenever partial custody
+remains. The caller MUST invoke it even with an error and retain it while
+`ErrNativePPPPending` is reported; a later call retries cleanup without
+resubmitting a native mutation. Only terminal cleanup allows the next admission.
 <!-- source: internal/component/l2tp/pppoeclient/dialer.go -- Dial, sessionLink.Close -->
-<!-- source: internal/component/l2tp/pppoeclient/client_owner.go -- createClientPair, releaseOwners -->
+<!-- source: internal/component/l2tp/pppoeclient/client_native_owner.go -- clientNativeOwner.close -->
+<!-- source: internal/component/l2tp/pppoeclient/client_native_counters.go -- captureFinalCounters -->
+<!-- source: internal/component/l2tp/pppoeclient/client_native_retirement.go -- waitNativeOriginals -->
+<!-- source: internal/component/l2tp/ppp/kernel/created_channel_retirement.go -- WaitNativePPPChannelRetired -->
+<!-- source: internal/component/l2tp/ppp/kernel/client.go -- CloseChannel -->
+<!-- source: internal/component/l2tp/ppp/kernel/session_pair_linux.go -- disconnectOriginalPairLocked -->
+<!-- source: internal/component/l2tp/ppp/kernel/created_unit_operations.go -- CloseNativeOperations, NativeOperationsPending -->
 <!-- source: internal/component/iface/pppoe_client.go -- PPPoEClient.runSession -->
 
 Before any phase ends, `requestLCPReentry` validates the option boundaries.
@@ -589,6 +606,99 @@ same selector and flags. This proves startup config delivery and the retained
 cardinality checks, not an independent mutation of each packet assertion.
 <!-- source: internal/component/iface/pppoe_kernel_integration_linux_test.go -- TestPPPoEConfigRenegotiatesKernelState -->
 <!-- source: internal/component/iface/rfc1661_pppoe_packets_integration_linux_test.go -- TestDialRenegotiatesLCPInNetworkPhase -->
+
+## Original native writer and retained cleanup
+
+The independent backend captured before discovery creates the original PPP unit
+and binds its native writer in that unit's original network namespace. The same
+`iface.NativePPPWriter` is returned in `PPPoESession`; the iface worker uses it
+for MTU, admin-up, full IPv4 /32 pairs, default routes with the configured metric
+and `rtproto.Iface`, and IPv6CP's exact LOCAL=ADDRESS /64 pair. The configured
+name remains a diagnostic label and the selector for the separate IPv6 sysctls.
+No later native mutation looks up an active backend, device name or unit number.
+<!-- source: internal/component/l2tp/pppoeclient/client_native_owner.go -- clientNativeOwner.setup -->
+<!-- source: internal/component/iface/pppoe_native_write.go -- nativeWrite, addNativePair, addNativeRoute -->
+<!-- source: internal/component/iface/pppoe_client_ipv6.go -- applyPPPoELinkLocal -->
+
+A settled route failure still warns, keeps retryable ownership and continues.
+An explicitly Pending or Unavailable native result stops before another write
+or Applied. Terminal channel shutdown disconnects the exact pair before
+physically closing that original channel. After all consumers join, cleanup
+samples the same original unit's counters before closing it, advances both
+original closes and waits for genuine retirement of both original files, then
+settles and closes the same writer. `WaitNativePPPChannelRetired` and
+`WaitNativePPPUnitRetired` observe their original producers; neither initiates
+close or derives release from a descriptor label, namespace observation or
+completed Go wrapper. A first actual channel close failure keeps cleanup
+Pending even when the unit has already retired. A failed final reading is
+retained with its cause as unavailable, never a valid zero measurement. This
+is a retained CPE counter snapshot; it introduces no separate billing backend.
+`ClosePending` and `NativeOperationsPending` report current custody independently
+of retained historical errors. An error from a completed operation is never
+read as permission to release a still-owned unit or to submit another request.
+<!-- source: internal/component/l2tp/pppoeclient/client_native_owner.go -- clientNativeOwner.close -->
+<!-- source: internal/component/iface/pppoe_cleanup.go -- finishCleanup -->
+
+Each existing iface worker has one retained cleanup slot. A partial Dial fills
+it before its error is examined; the next Dial first resolves that slot. Stop
+fences future starts, joins the worker, returns cleanup causes and can retry a
+pending original with a fresh bounded context. Reconciliation snapshots the
+existing map, stops outside its mutex and removes only the same terminal client
+pointer. The process keeps that same registry across engine restart, so a new
+engine cannot overwrite the only reference to unresolved original custody.
+A retained pending owner blocks all new native admissions, bounding the owner
+backlog. Desired clients can be published without native resources; their
+existing bounded retry workers wait rather than dropping config entries during
+transient native work. The existing registry mutex orders actual Dial admission
+against publication of native calls, cleanup in flight and current outcomes. An
+in-flight call already blocks native admission before it can become Pending;
+the fresh check at actual Dial also closes the publication-to-Start window.
+This state belongs to the existing clients/map and creates no retired-owner
+ledger. An unresolved same-name original can never be overwritten.
+No registry or status lock spans native I/O or callbacks.
+<!-- source: internal/component/iface/pppoe_client.go -- Start, Stop, reconcilePPPoEClients -->
+<!-- source: internal/component/iface/pppoe_admission.go -- beginNativeDial, pppoeRegistryBlockedLocked, publishNativeCleanup -->
+<!-- source: internal/component/iface/register.go -- runEngine -->
+
+The `pppoe-client-cleanup` runtime doctor check runs in the interface plugin,
+including when it runs in another process. It reads retained cleanup outcomes
+without retrying native work. It distinguishes an original removal that is
+still unconfirmed from completed cleanup with an earlier error. The ready SDK
+also sends bounded cleanup error events to the daemon under
+`doctor-pppoe-client-cleanup`; healthy cleanup never clears another original's
+event. Reading doctor or the client status does not confirm retirement.
+<!-- source: internal/component/iface/pppoe_cleanup_diagnostic.go -- configurePPPoECleanupDiagnostics, cleanupDoctor, reportCleanupFailure -->
+
+If the original owner cannot confirm its first close, reconnecting cannot
+release that uncertainty. Inspect the reported cause before restarting Ze's
+process with `ze request restart`; this ends its sessions. Systemd and gokrazy
+start the replacement process. A foreground daemon must be started again after
+it exits. This is process recovery, not a retry against a descriptor number or
+a replacement device.
+<!-- source: internal/component/iface/pppoe_cleanup_diagnostic.go -- pppoeCleanupFix, pppoeCleanupRecovery, pppoeCleanupMessage -->
+<!-- source: internal/component/plugin/server/daemon_restart.go -- handleDaemonRestart -->
+<!-- source: cmd/ze/hub/infra_setup.go -- infraSetup -->
+
+The explicit `NewDialer` factory captures a distinct successful backend owner per
+attempt before discovery; it preserves the same original creation, counter and
+native binding contracts. A factory refusal cleans its own partial allocation.
+The established zero Dialer uses the registered netlink factory. No mutable
+current-backend lookup selects a session's native target.
+
+Native fault tests drive actual CPE Dial and iface workers with their same
+CreatedUnit and backend, real peer exchanges and real kernel syscall refusals.
+They distinguish terminal partial-bind history from retained failed-close
+custody, test actual namespace restoration failure, settle a genuine late ACK
+without resend, and drive registered config reload and engine restart. The
+integration-only registry observer reports diagnostic identity and current
+state; its busy result is unknown, never absence or release authority.
+Irreversible close refusals live only in isolated native test children whose
+process exit finally releases intentionally retained files.
+<!-- source: internal/component/l2tp/pppoeclient/dialer_backend.go -- NewDialer -->
+<!-- source: internal/component/iface/pppoe_native_observation_integration_linux.go -- ObserveNativePPPoERegistryForTest -->
+<!-- source: internal/plugins/iface/netlink/native_cpe_fault_integration_linux_test.go -- actual native faults -->
+<!-- source: internal/plugins/iface/netlink/native_cpe_registry_integration_linux_test.go -- actual reload and restart -->
+<!-- source: internal/component/l2tp/pppoeclient/native_cpe_setup_fault_integration_linux_test.go -- actual restore and channel close -->
 
 ## Traps this code exists to avoid
 

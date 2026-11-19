@@ -4,6 +4,7 @@
 package dataplane
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -26,13 +27,26 @@ type AccessInfo struct {
 	MTU              int
 }
 
+// AccessOwner opens sessions on one prepared access and owns its dependencies.
+// Open MUST preserve that prepared identity. Its caller MUST stop admission and
+// join every dependent session before Close. Open may run concurrently with
+// other Open calls, subject to the provider's contract, but not with Close.
+// Nil and typed-nil owners are invalid.
+type AccessOwner interface {
+	Open(context.Context, Request) (OpenedSession, error)
+	Close() error
+}
+
 // Access is an immutable resolution with an owned preparation lease. Nil is
 // invalid; NewAccess and NewRecoverableAccess construct one. The caller MUST
 // Close it after every session using the access has stopped and discovery no
 // longer dispatches to it. A failed start/reload MUST close every unpublished
 // access. Accessors and Close are safe for concurrent use; Close invokes the
-// owner once and returns the same result to every caller. Closing does not
-// mutate the snapshot.
+// owner once and returns the same result to every caller. Open requires a
+// nonnil context and opens only through this original owner. The caller MUST
+// stop and join admission and sessions before Close. Open may run concurrently
+// with other Open calls, subject to the owner, but not with Close. A completed
+// Close refuses subsequent Open calls without changing the snapshot.
 type Access interface {
 	Device() string
 	ControlDevice() string
@@ -40,16 +54,17 @@ type Access interface {
 	DiscoveryIfIndex() int
 	HWAddr() [6]byte
 	MTU() int
+	Open(context.Context, Request) (OpenedSession, error)
 	Close() error
 	preparedAccess()
 }
 
-// NewAccess consumes owner on every outcome. A provider with no resource to
-// release MUST supply an explicit no-resource owner; a missing or typed-nil
+// NewAccess consumes owner on every outcome. The owner MUST open sessions on
+// this preparation and close its dependencies. A missing or typed-nil
 // owner is refused. A failed validation closes the owner before returning and
 // retains cleanup errors. On success the caller owns the returned lease.
 // On failure it MUST return a nil Access, not an interface holding a nil pointer.
-func NewAccess(info AccessInfo, owner io.Closer) (Access, error) {
+func NewAccess(info AccessInfo, owner AccessOwner) (Access, error) {
 	access, err := newAccess(info, owner)
 	if err != nil {
 		return nil, err
@@ -60,7 +75,7 @@ func NewAccess(info AccessInfo, owner io.Closer) (Access, error) {
 // newAccess MUST own validation and owner consumption for both public constructors.
 // Its concrete success result lets recovery bind before interface publication.
 // A nil result always accompanies an error; no owner is published on failure.
-func newAccess(info AccessInfo, owner io.Closer) (*preparedAccess, error) {
+func newAccess(info AccessInfo, owner AccessOwner) (*preparedAccess, error) {
 	if err := validateAccess(info); err != nil {
 		return nil, errors.Join(err, closeAccessOwner(owner))
 	}
@@ -118,7 +133,7 @@ func validateAccess(info AccessInfo) error {
 
 type preparedAccess struct {
 	info      AccessInfo
-	owner     io.Closer
+	owner     AccessOwner
 	closeOnce sync.Once
 	closeErr  error
 	closed    chan struct{}  // completed first Close; publishes its immutable outcome
@@ -132,6 +147,34 @@ func (a *preparedAccess) DiscoveryIfIndex() int { return a.info.DiscoveryIfIndex
 func (a *preparedAccess) HWAddr() [6]byte       { return a.info.HWAddr }
 func (a *preparedAccess) MTU() int              { return a.info.MTU }
 func (*preparedAccess) preparedAccess()         {}
+
+func (a *preparedAccess) Open(ctx context.Context, request Request) (OpenedSession, error) {
+	if nilResource(ctx) {
+		return nil, errors.New("PPPoE access requires a context")
+	}
+	select {
+	case <-a.closed:
+		return nil, errors.New("PPPoE access is closed")
+	default:
+	}
+	opened, err := a.owner.Open(ctx, request)
+	if !nilResource(opened) {
+		// An embedded marker cannot confer the constructor's ownership proof.
+		if _, constructed := opened.(*openedSession); !constructed {
+			err = errors.Join(err, errors.New("session result was not created by NewOpenedSession"))
+		}
+	}
+	if err != nil {
+		if !nilResource(opened) {
+			err = errors.Join(err, closeSessionResult(opened))
+		}
+		return nil, fmt.Errorf("PPPoE access: %w", err)
+	}
+	if nilResource(opened) {
+		return nil, errors.New("PPPoE access returned no session")
+	}
+	return opened, nil
+}
 
 func (a *preparedAccess) Close() error {
 	a.closeOnce.Do(func() { a.closeErr = closeAccessOwner(a.owner); close(a.closed) })

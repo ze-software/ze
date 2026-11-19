@@ -44,6 +44,7 @@ type sessionUnitDescription struct {
 	fd        int
 	number    int
 	backend   InterfaceOperations
+	mutations NativeUnitOperations
 	namespace sessionNamespaceProof
 }
 
@@ -204,7 +205,15 @@ func (lease *claimedCreatedUnit) describe() (sessionUnitDescription, error) {
 	if err := unit.poll(lease.file); err != nil {
 		return sessionUnitDescription{}, err
 	}
-	return sessionUnitDescription{identity: unit.identity, fd: fd, number: unit.number, backend: unit.backend, namespace: unit.namespace}, nil
+	var mutations NativeUnitOperations
+	if unit.nativeOperations != nil {
+		mutations, err = unit.nativeOperationsLocked()
+		if err != nil {
+			return sessionUnitDescription{}, err
+		}
+	}
+	// Original descriptor admission alone never grants native mutation.
+	return sessionUnitDescription{identity: unit.identity, fd: fd, number: unit.number, backend: unit.backend, mutations: mutations, namespace: unit.namespace}, nil
 }
 
 func (lease *claimedCreatedUnit) descriptor() int            { return lease.fd }

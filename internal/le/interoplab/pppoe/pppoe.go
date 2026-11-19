@@ -263,10 +263,17 @@ func validatePreflightOutput(output string) error {
 	return nil
 }
 
+// scenarioPlans lets a leaf register a topology with its own peer ownership.
+// Unregistered scenarios retain the role-selected plan below.
+var scenarioPlans = map[string]func(interoplab.ScenarioSource, string) (interoplab.ScenarioPlan, error){}
+
 func scenarioPlan(
 	source interoplab.ScenarioSource,
 	suffix string,
 ) (interoplab.ScenarioPlan, error) {
+	if plan, exists := scenarioPlans[source.Name]; exists {
+		return plan(source, suffix)
+	}
 	containers := containerNames(suffix)
 	role, err := readRole(source.Directory)
 	if err != nil {

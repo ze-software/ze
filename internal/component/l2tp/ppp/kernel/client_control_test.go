@@ -20,8 +20,9 @@ func clientConfigurationInputs(t *testing.T) (SessionConfig, clientPairOps,
 	reached := new([]string)
 	sessionTestUnit(cfg).closeFile = func(fd int) error { *released = append(*released, fd); return nil }
 	ops := clientPairOps{
-		prepare: func(*claimedSessionPair) error { *reached = append(*reached, "prepare"); return nil },
-		connect: func(*claimedSessionPair) error { *reached = append(*reached, "connect"); return nil },
+		prepare:    func(*claimedSessionPair) error { *reached = append(*reached, "prepare"); return nil },
+		connect:    func(*claimedSessionPair) error { *reached = append(*reached, "connect"); return nil },
+		disconnect: func(*claimedSessionPair) error { return nil },
 		read: func(_ *claimedSessionPair, _ bool, buffer []byte) (int, error) {
 			*reached = append(*reached, "read")
 			buffer[0] = 0x80

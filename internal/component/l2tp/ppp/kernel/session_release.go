@@ -23,29 +23,29 @@ func (s *session) BindNativeReleaseSeal(seal ppp.NativeReleaseSeal) error {
 	if err != nil {
 		return err
 	}
-	s.closeMu.Lock()
-	defer s.closeMu.Unlock()
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed {
-		return io.ErrClosedPipe
+	operations, err := s.beginNativeMutation()
+	if err != nil {
+		return err
 	}
-	if s.releaseSeal != nil {
+	defer s.endNativeMutation()
+	s.mu.Lock()
+	bound := s.releaseSeal != nil
+	s.mu.Unlock()
+	if bound {
 		return errors.New("ppp: a native release seal is already bound to this session")
 	}
 	if s.ops.duplicateFD == nil {
 		return errors.New("ppp: the kernel owner cannot retain its native unit")
 	}
-	if s.ops.stampBirth == nil {
-		return errors.New("ppp: the kernel owner cannot confirm its native birth tag")
-	}
-	if err := s.ops.stampBirth(s.identity, tag); err != nil {
+	ctx, cancel := sessionNativeContext()
+	defer cancel()
+	if err := operations.SetAlias(ctx, tag); err != nil {
 		return fmt.Errorf("ppp: confirm the native unit birth: %w", err)
 	}
 	var fd int
 	var retained *nativePPPUnitHold
-	if lease, original := s.unitLease.(*claimedCreatedUnit); original {
-		retained, err = lease.unit.retainNativeUnit(s.channelFD, s.ops.duplicateFD, s.ops.closeFD)
+	if unit := s.originalNativeUnit(); unit != nil {
+		retained, err = unit.retainNativeUnit(s.channelFD, s.ops.duplicateFD, s.ops.closeFD)
 		if err == nil {
 			fd = retained.descriptor
 		}
@@ -61,11 +61,26 @@ func (s *session) BindNativeReleaseSeal(seal ppp.NativeReleaseSeal) error {
 		// An alias is not a new owned descriptor and MUST NOT be closed here.
 		return errors.New("ppp: native unit retention returned an invalid duplicate")
 	}
+	s.closeMu.Lock()
+	s.mu.Lock()
+	if s.closed {
+		s.mu.Unlock()
+		s.closeMu.Unlock()
+		var cleanup error
+		if retained != nil {
+			cleanup = retained.close(s.ops.closeFD)
+		} else {
+			cleanup = closeSessionStream(nil, fd, s.ops.closeFD)
+		}
+		return errors.Join(io.ErrClosedPipe, cleanup)
+	}
 	s.releaseSeal = seal
 	s.birthTag = tag
 	s.retainedUnit = fd
 	s.retainedCreatedUnit = retained
 	s.unitRetained = true
+	s.mu.Unlock()
+	s.closeMu.Unlock()
 	return nil
 }
 
@@ -94,12 +109,21 @@ func (s *session) NativeReleaseBound() bool {
 	return !s.closed && s.releaseSeal != nil && s.unitRetained
 }
 
-// NativeReleasePending distinguishes stopped borrowed I/O from completed native
-// release. The driver MUST retain this exact owner while the result is true.
+// NativeReleasePending distinguishes stopped borrowed I/O from confirmed
+// original unit and writer retirement. The driver MUST retain this exact owner
+// while the result is true, including a failed original or duplicate close.
 func (s *session) NativeReleasePending() bool {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.closed && s.unitRetained
+	closed, retained := s.closed, s.unitRetained
+	s.mu.Unlock()
+	if !closed {
+		return false
+	}
+	if retained {
+		return true
+	}
+	unit := s.originalNativeUnit()
+	return unit != nil && (unit.nativeRetirementPending() || unit.NativeOperationsPending())
 }
 
 // NativeReleaseBirthTag keeps the successful binding receipt independently of

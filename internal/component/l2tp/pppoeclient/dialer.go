@@ -80,13 +80,17 @@ var (
 
 // Dialer implements iface.PPPoEDialer using the pppoe discovery wire
 // format and ppp /dev/ppp setup.
-type Dialer struct{}
+type Dialer struct{ backendFactory func() (iface.Backend, error) }
 
 // Dial performs PPPoE discovery (RFC 2516 Section 5) and kernel session
 // setup. Returns a PPPoESession with open file descriptors. The caller
 // must invoke Cleanup when the session is no longer needed.
 func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logger *slog.Logger) (iface.PPPoESession, error) { //nolint:gocritic // hugeParam: iface.PPPoEDialer fixes the value signature; one copy per dial, off the data plane
-	return d.dialPrepared(cfg, stopCh, logger, prepareClientDial)
+	prepare := prepareClientDial
+	if d.backendFactory != nil {
+		prepare = func() (*clientDialPreparation, error) { return prepareClientDialFrom(d.backendFactory) }
+	}
+	return d.dialPrepared(cfg, stopCh, logger, prepare)
 }
 
 // dialPrepared keeps the private logical preflight port separate from public
@@ -115,12 +119,29 @@ func (d *Dialer) dialPrepared(cfg iface.PPPoEClientConfig, stopCh <-chan struct{
 	// PPPoX allocation. The active backend is never looked up during this dial.
 	prepared, err := prepare()
 	if err != nil {
-		return iface.PPPoESession{}, err
+		if prepared != nil {
+			closeErr := prepared.close()
+			err = errors.Join(err, closeErr)
+			if errors.Is(closeErr, iface.ErrNativePPPPending) {
+				session.Cleanup = prepared.close
+				if prepared.nativeWriter != nil {
+					session.NativeWriter = prepared.nativeWriter()
+				}
+			}
+		}
+		return session, err
 	}
 	preparationTransferred := false
 	defer func() {
 		if !preparationTransferred {
-			err = errors.Join(err, prepared.close())
+			closeErr := prepared.close()
+			err = errors.Join(err, closeErr)
+			if errors.Is(closeErr, iface.ErrNativePPPPending) {
+				session.Cleanup = prepared.close
+				if prepared.nativeWriter != nil {
+					session.NativeWriter = prepared.nativeWriter()
+				}
+			}
 		}
 	}()
 
@@ -210,7 +231,7 @@ func (d *Dialer) dialPrepared(cfg iface.PPPoEClientConfig, stopCh <-chan struct{
 	unitNum := client.UnitNumber()
 	reader, err := newFrameReader(link.readPacket, link.stopped)
 	if err != nil {
-		err = errors.Join(err, link.Close(), closeClientOwner(client.CloseUnit))
+		err = errors.Join(err, link.Close())
 		sendPADT(discFD, source.Ifindex, source.HWAddr, acMAC, sessID, link)
 		pppoe.CloseDiscoveryFD(discFD)
 		return iface.PPPoESession{}, err
@@ -221,7 +242,7 @@ func (d *Dialer) dialPrepared(cfg iface.PPPoEClientConfig, stopCh <-chan struct{
 	// when negotiation fails before a connected worker takes over.
 	var ipv6 *clientIPv6CP
 	var cleanupOnce sync.Once
-	cleanup := func() {
+	cleanup := func() error {
 		cleanupOnce.Do(func() {
 			if ipv6 != nil {
 				ipv6.restart.Stop()
@@ -234,13 +255,26 @@ func (d *Dialer) dialPrepared(cfg iface.PPPoEClientConfig, stopCh <-chan struct{
 			// Close cancels both read requests and result delivery. The raw
 			// read observes closure under the descriptor lifecycle lock.
 			<-reader.done
-			// The caller may still be configuring ppp<unitNum> after Done
-			// closes. Reserve its identity until that owner invokes Cleanup.
-			link.releaseOwners(client.CloseUnit, prepared.close)
 		})
+		// Every protocol/read owner has joined. Pending native settlement remains
+		// retryable outside Once, after physical original-unit retirement.
+		return errors.Join(link.Close(), prepared.close())
 	}
 
-	// The cleanup closure now owns the backend, including negotiation failure.
+	// From here one closure owns every partial outcome, including failures.
+	defer func() {
+		if err == nil {
+			return
+		}
+		closeErr := cleanup()
+		err = errors.Join(err, closeErr)
+		if errors.Is(closeErr, iface.ErrNativePPPPending) {
+			session = iface.PPPoESession{Cleanup: cleanup}
+			if prepared.nativeWriter != nil {
+				session.NativeWriter = prepared.nativeWriter()
+			}
+		}
+	}()
 	preparationTransferred = true
 	sessCfg := sessionConfig{
 		name:              cfg.Name,
@@ -261,21 +295,18 @@ func (d *Dialer) dialPrepared(cfg iface.PPPoEClientConfig, stopCh <-chan struct{
 		// be silently discarded." IPv6CP negotiates during IPCP's
 		// negotiation, so IPv6 is held from before the first NCP request.
 		if err := link.setIPv6Mode(pppkernel.NPModeDrop); err != nil {
-			cleanup()
-			return iface.PPPoESession{}, errors.Join(fmt.Errorf("pppoe-client: cannot hold IPv6 until IPv6CP opens: %w", err), link.Close())
+			return iface.PPPoESession{}, fmt.Errorf("pppoe-client: cannot hold IPv6 until IPv6CP opens: %w", err)
 		}
 		// RFC 5072 Section 4.1: the tentative identifier comes from the
 		// source interface's EUI-48 (ppp.TentativeIPv6CPInterfaceID).
 		ipv6, err = newClientIPv6CP(source.HWAddr[:], 0, cfg.Timing.IPv6CPRestartTimer)
 		if err != nil {
-			cleanup()
-			return iface.PPPoESession{}, errors.Join(err, link.Close())
+			return iface.PPPoESession{}, err
 		}
 	}
 	result, negErr := negotiateSession(link, reader, sessCfg, link.stopped, logger, ipv6)
 	if negErr != nil {
-		cleanup()
-		return iface.PPPoESession{}, errors.Join(negErr, link.Close())
+		return iface.PPPoESession{}, negErr
 	}
 
 	connected, err := newConnectedSession(link, result, sessCfg, func(mode pppkernel.NPMode) error {
@@ -283,33 +314,38 @@ func (d *Dialer) dialPrepared(cfg iface.PPPoEClientConfig, stopCh <-chan struct{
 		return link.setIPv4Mode(mode)
 	})
 	if err != nil {
-		cleanup()
-		return iface.PPPoESession{}, errors.Join(err, link.Close())
+		return iface.PPPoESession{}, err
 	}
 	if ipv6 != nil {
 		if err := connected.enableIPv6CP(ipv6, func(mode pppkernel.NPMode) error {
 			return link.setIPv6Mode(mode)
 		}, logger); err != nil {
-			cleanup()
-			return iface.PPPoESession{}, errors.Join(err, link.Close())
+			return iface.PPPoESession{}, err
 		}
 	}
 	keepaliveDone := make(chan struct{})
+	// Private protocol fixtures can omit a native producer. Actual consumers
+	// refuse that absence; no fixture acquires a forged kernel capability.
+	var nativeWriter iface.NativePPPWriter
+	if prepared.nativeWriter != nil {
+		nativeWriter = prepared.nativeWriter()
+	}
 	// Snapshot every initial value before the connected worker can run.
 	session = iface.PPPoESession{
-		SessionID: sessID,
-		UnitNum:   unitNum,
-		LocalIP:   result.localIP,
-		PeerIP:    result.peerIP,
-		NegMTU:    result.negMTU,
+		NativeWriter: nativeWriter,
+		SessionID:    sessID,
+		UnitNum:      unitNum,
+		LocalIP:      result.localIP,
+		PeerIP:       result.peerIP,
+		NegMTU:       result.negMTU,
 		// RFC 1877 Section 1: the servers IPCP learned, primary first.
 		PrimaryDNS:   result.primaryDNS,
 		SecondaryDNS: result.secondaryDNS,
 		Changes:      connected.changes,
 		Applied:      connected.acknowledge,
 		Done:         link.stopped,
-		Cleanup: func() {
-			link.cleanupConnected(keepaliveDone, cleanup)
+		Cleanup: func() error {
+			return link.cleanupConnected(keepaliveDone, cleanup)
 		},
 	}
 	go superviseNetworkPhase(link, connected, keepaliveDone, logger)
@@ -335,11 +371,12 @@ func (s *sessionLink) Read(buf []byte) (int, error) {
 
 // cleanupConnected joins the phase worker before receive and unit cleanup.
 // The caller MUST supply the phase worker's done signal and the reader/unit cleanup.
-// Cleanup MUST NOT release the unit before this join.
-func (s *sessionLink) cleanupConnected(done <-chan struct{}, cleanup func()) {
-	_ = s.Close() //nolint:errcheck // shutdown; cleanup retains descriptor release ownership
+// Cleanup MUST NOT release the unit before this join. Every Close and owner
+// cleanup cause is returned; pending owner cleanup remains retryable.
+func (s *sessionLink) cleanupConnected(done <-chan struct{}, cleanup func() error) error {
+	closeErr := s.Close()
 	<-done
-	cleanup()
+	return errors.Join(closeErr, cleanup())
 }
 
 func (s *sessionLink) Write(buf []byte) (int, error) {

@@ -20,14 +20,14 @@ func TestLifecycleRegistrySelectsOnlyRegisteredProvider(t *testing.T) {
 	var registry sessionRegistry
 	selected := 0
 	other := 0
-	if err := registry.register("selected", testUnusedOpen, testUnusedPrepare,
+	if err := registry.register("selected", testUnusedPrepare,
 		func(ze.EventBus, LifecycleSignals) (func(), error) {
 			selected++
 			return func() {}, nil
 		}); err != nil {
 		t.Fatal(err)
 	}
-	if err := registry.register("other", testUnusedOpen, testUnusedPrepare,
+	if err := registry.register("other", testUnusedPrepare,
 		func(ze.EventBus, LifecycleSignals) (func(), error) {
 			other++
 			return func() {}, nil
@@ -54,11 +54,11 @@ func TestLifecycleRegistrySelectsOnlyRegisteredProvider(t *testing.T) {
 	}
 }
 
-// TestLifecycleStableBackendHasExplicitAbsence keeps three-argument providers
+// TestLifecycleStableBackendHasExplicitAbsence keeps providers without a lifecycle declaration
 // independent of lifecycle events and does not require an otherwise unused bus.
 func TestLifecycleStableBackendHasExplicitAbsence(t *testing.T) {
 	var registry sessionRegistry
-	if err := registry.register("stable", testUnusedOpen, testUnusedPrepare); err != nil {
+	if err := registry.register("stable", testUnusedPrepare); err != nil {
 		t.Fatal(err)
 	}
 	backend, err := registry.lookup("stable")
@@ -81,7 +81,7 @@ func TestLifecycleStableBackendHasExplicitAbsence(t *testing.T) {
 // a requested capability whose factory was never supplied.
 func TestLifecycleRegistryRefusesExplicitNil(t *testing.T) {
 	var registry sessionRegistry
-	if err := registry.register("broken", testUnusedOpen, testUnusedPrepare, nil); err == nil {
+	if err := registry.register("broken", testUnusedPrepare, nil); err == nil {
 		t.Fatal("accepted explicitly nil lifecycle factory")
 	}
 }
@@ -91,7 +91,7 @@ func TestLifecycleRegistryRefusesExplicitNil(t *testing.T) {
 func TestLifecycleRegistryRefusesMultipleFactories(t *testing.T) {
 	var registry sessionRegistry
 	subscribe := func(ze.EventBus, LifecycleSignals) (func(), error) { return func() {}, nil }
-	if err := registry.register("broken", testUnusedOpen, testUnusedPrepare, subscribe, subscribe); err == nil { //nolint:gocritic // dupOption: the same factory is deliberately supplied twice to prove the two-factory count is refused.
+	if err := registry.register("broken", testUnusedPrepare, subscribe, subscribe); err == nil { //nolint:gocritic // dupOption: the same factory is deliberately supplied twice to prove the two-factory count is refused.
 		t.Fatal("accepted two lifecycle factories")
 	}
 }
@@ -278,7 +278,7 @@ func TestLifecycleRefusedSubscriptionClosesOriginalOwner(t *testing.T) {
 	var signals LifecycleSignals
 	unsubscribed := 0
 	var registry sessionRegistry
-	if err := registry.register("partial", testUnusedOpen, testUnusedPrepare,
+	if err := registry.register("partial", testUnusedPrepare,
 		func(_ ze.EventBus, got LifecycleSignals) (func(), error) {
 			signals = got
 			return func() { unsubscribed++ }, want
@@ -311,7 +311,7 @@ func TestLifecycleRefusedSubscriptionClosesOriginalOwner(t *testing.T) {
 func TestLifecycleChangingProviderRequiresBus(t *testing.T) {
 	var registry sessionRegistry
 	called := false
-	if err := registry.register("selected", testUnusedOpen, testUnusedPrepare,
+	if err := registry.register("selected", testUnusedPrepare,
 		func(ze.EventBus, LifecycleSignals) (func(), error) {
 			called = true
 			return func() {}, nil
@@ -343,7 +343,7 @@ func TestLifecycleChangingProviderRequiresBus(t *testing.T) {
 // return ownership of its attachment, rather than making Stop a silent no-op.
 func TestLifecycleSubscriptionRequiresUnsubscribe(t *testing.T) {
 	var registry sessionRegistry
-	if err := registry.register("selected", testUnusedOpen, testUnusedPrepare,
+	if err := registry.register("selected", testUnusedPrepare,
 		func(ze.EventBus, LifecycleSignals) (func(), error) { return nil, nil }); err != nil { //nolint:nilnil // Deliberately malformed provider fixture: missing unsubscribe ownership must be refused.
 		t.Fatal(err)
 	}
@@ -558,7 +558,7 @@ func lifecycleTestWatch(t *testing.T) (*LifecycleWatch, LifecycleSignals) {
 func lifecycleTestSubscribe(t *testing.T, subscribe SubscribeLifecycleFunc) *LifecycleWatch {
 	t.Helper()
 	var registry sessionRegistry
-	if err := registry.register("selected", testUnusedOpen, testUnusedPrepare, subscribe); err != nil {
+	if err := registry.register("selected", testUnusedPrepare, subscribe); err != nil {
 		t.Fatal(err)
 	}
 	backend, err := registry.lookup("selected")

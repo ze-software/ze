@@ -37,6 +37,16 @@ func GenerateStartupConf(w io.Writer, s *VPPSettings, inv CPUInventory) error {
 		return fmt.Errorf("vpp cpu %w", err)
 	}
 
+	dpdk, afPacket, err := s.managedStartupPlugins()
+	if err != nil {
+		return err
+	}
+	if err := validateStartupPageMode(s.Memory.HugepageSize); err != nil {
+		return err
+	}
+	if err := validateStartupCLIPath(s.StartupCLIFile); err != nil {
+		return err
+	}
 	b := &confBuilder{w: w}
 
 	b.section("unix", func() {
@@ -90,29 +100,27 @@ func GenerateStartupConf(w io.Writer, s *VPPSettings, inv CPUInventory) error {
 		b.nested("plugin default", func() {
 			b.flag("disable")
 		})
-		b.nested("plugin dpdk_plugin.so", func() {
-			b.flag("enable")
-		})
+		if dpdk {
+			b.plugin("dpdk_plugin.so")
+		}
+		if afPacket {
+			b.plugin("af_packet_plugin.so")
+		}
 		// The interface backend programs an IPv4 rpf-check as VPP uRPF, and
 		// whether a unit sets one is interface config this component does not
 		// read. The plugin does nothing until a check is enabled on an
 		// interface, so it always loads rather than gating rpf-check on a
 		// second toggle the operator would have to know about.
-		b.nested("plugin urpf_plugin.so", func() {
-			b.flag("enable")
-		})
+		b.plugin("urpf_plugin.so")
 		if s.LCP.Enabled {
-			b.nested("plugin linux_cp_plugin.so", func() {
-				b.flag("enable")
-			})
-			b.nested("plugin linux_nl_plugin.so", func() {
-				b.flag("enable")
-			})
+			b.plugin("linux_cp_plugin.so")
+			b.plugin("linux_nl_plugin.so")
 		}
 		if s.Plugins.Wireguard {
-			b.nested("plugin wireguard_plugin.so", func() {
-				b.flag("enable")
-			})
+			b.plugin("wireguard_plugin.so")
+		}
+		for _, feature := range s.startup {
+			b.plugin(feature.plugin)
 		}
 	})
 
@@ -164,11 +172,21 @@ func GenerateStartupConf(w io.Writer, s *VPPSettings, inv CPUInventory) error {
 		}
 	})
 
+	for _, feature := range s.startup {
+		b.section(feature.section, func() {
+			for _, flag := range feature.flags {
+				b.flag(flag)
+			}
+		})
+	}
 	return b.err
 }
 
 // pageSize converts YANG hugepage-size enum to VPP page-size value.
 func pageSize(hugepage string) string {
+	if hugepage == memoryPageModeBase {
+		return memoryPageModeBase
+	}
 	if hugepage == "1G" {
 		return "1G"
 	}
@@ -177,9 +195,11 @@ func pageSize(hugepage string) string {
 
 // confBuilder writes VPP startup.conf format.
 type confBuilder struct {
-	w      io.Writer
-	err    error
-	indent int
+	w        io.Writer
+	err      error
+	indent   int
+	sections map[string]struct{}
+	plugins  map[string]struct{}
 }
 
 func (b *confBuilder) write(s string) {
@@ -196,12 +216,37 @@ func (b *confBuilder) line(s string) {
 }
 
 func (b *confBuilder) section(name string, body func()) {
+	if b.err != nil {
+		return
+	}
+	if b.sections == nil {
+		b.sections = make(map[string]struct{})
+	}
+	if _, exists := b.sections[name]; exists {
+		b.err = fmt.Errorf("VPP startup section %q is declared more than once", name)
+		return
+	}
+	b.sections[name] = struct{}{}
 	var tb textbuf.Buffer
 	b.write(tb.Str(name).Str(" {\n").String())
 	b.indent++
 	body()
 	b.indent--
 	b.write("}\n\n")
+}
+
+func (b *confBuilder) plugin(name string) {
+	if b.err != nil {
+		return
+	}
+	if b.plugins == nil {
+		b.plugins = make(map[string]struct{})
+	}
+	if _, exists := b.plugins[name]; exists {
+		return
+	}
+	b.plugins[name] = struct{}{}
+	b.nested("plugin "+name, func() { b.flag("enable") })
 }
 
 func (b *confBuilder) nested(name string, body func()) {

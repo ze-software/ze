@@ -79,6 +79,7 @@ type Client struct {
 	clientName string
 
 	conn   *net.UnixConn
+	connectionHook func(*net.UnixConn) error
 	reader *bufio.Reader
 	writer *bufio.Writer
 
@@ -141,6 +142,15 @@ func (c *Client) SetDisconnectTimeout(t time.Duration) {
 func (c *Client) SetMsgCallback(cb adapter.MsgCallback) {
 	log.Debug("SetMsgCallback")
 	c.msgCallback = cb
+}
+
+// SetConnectionHook sets a validator for the actual connected Unix socket.
+// Set it before Connect. The callback borrows the socket only during its call;
+// it MUST NOT close, retain or use the socket concurrently. It may retain an
+// independently owned descriptor obtained through SyscallConn. An error closes
+// the socket before any API handshake or reader starts. Not concurrency-safe.
+func (c *Client) SetConnectionHook(hook func(*net.UnixConn) error) {
+    c.connectionHook = hook
 }
 
 // WaitReady checks if the socket file exists and if it does not exist waits for
@@ -348,6 +358,11 @@ func (c *Client) connect(sockAddr string) error {
 		}
 	}
 
+    if c.connectionHook != nil {
+        if err := c.connectionHook(conn); err != nil {
+            return errors.Join(err, conn.Close())
+        }
+    }
 	c.conn = conn
 	if debug {
 		log.Debugf("Connected to socket (local addr: %v)", c.conn.LocalAddr().(*net.UnixAddr))

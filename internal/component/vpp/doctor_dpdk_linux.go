@@ -9,32 +9,36 @@
 // The check lived in internal/component/doctor and the runner reached it by
 // writing its name out. BindAll loads vfioModules and binds each configured
 // PCI address under sysfsDevDir, so the readiness question is this package's
-// (ai/patterns/registration.md, "Doctor Check Registry"): it reads the same two
-// declarations the binder does, where the doctor copy restated both.
+// (ai/patterns/registration.md, "Doctor Check Registry"): it uses the binder's
+// module declarations and original-state capture for those devices.
 
 package vpp
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/kernelcap"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// doctorVPPDPDKCode names a VFIO module that is not loaded or a configured PCI
-// device sysfs does not hold. internal/core/diagnostic/codes.go declares it, so
+// doctorVPPDPDKCode names a missing VFIO module or PCI device, or original NIC
+// state that cannot be captured. internal/core/diagnostic/codes.go declares it, so
 // `ze show diagnostic doctor-vpp-dpdk` answers.
 const doctorVPPDPDKCode = "doctor-vpp-dpdk"
 
-// dpdkLoadedModules is the module-list reader checkVPPDPDK runs, and
-// dpdkStatPath its sysfs probe. Both are variables so a test stands in a host
-// without the modules or the device; nothing else assigns them.
+// These read-only boundaries let tests supply the module list, PCI presence
+// and original state of one host. No binding or restoration runs here.
 var (
 	dpdkLoadedModules = kernelcap.LoadedModules
 	dpdkStatPath      = os.Stat
+	dpdkOriginalState = func(pci string) (dpdkDriverRestore, error) {
+		return readDPDKOriginalState(pci, nativeDPDKBindOps())
+	}
 )
 
 // vppDPDKDoctorCheck is the registration register_linux.go installs.
@@ -57,8 +61,8 @@ func vppDPDKDoctorCheck() diagnostic.DoctorCheck {
 }
 
 // checkVPPDPDK reports, for a config that binds DPDK interfaces under the vpp
-// backend, each VFIO module the kernel has not loaded and each configured PCI
-// address sysfs does not hold. Both are errors: BindAll fails on either.
+// backend, missing VFIO modules, absent configured PCI devices and original
+// state that the binder cannot capture. These are all binding prerequisites.
 //
 // A nil tree is the missing-config phase, which this check does not run in, and
 // a context carrying anything else is a runner defect the runner's own type
@@ -111,7 +115,34 @@ func checkVPPDPDK(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 				Message:  tb.Reset().Str("VPP DPDK: PCI device not found: ").Str(pci).String(),
 				Path:     sysfsPath,
 			})
+			continue
+		}
+		if _, err := dpdkOriginalState(pci); err != nil {
+			diags = append(diags, dpdkOriginalStateDiagnostic(pci, err))
 		}
 	}
 	return diags
+}
+
+func dpdkOriginalStateDiagnostic(pci string, cause error) diagnostic.Diagnostic {
+	path := filepath.Join(sysfsDevDir, pci)
+	var native *os.PathError
+	if errors.As(cause, &native) {
+		path = native.Path
+	}
+	message := cause.Error()
+	fix := "Restore read access to " + path + " before binding this NIC"
+	var problem *opererr.Error
+	if errors.As(cause, &problem) {
+		message = problem.Problem() + ": " + problem.Why()
+		if evidence := problem.Unwrap(); evidence != nil {
+			message += ": " + evidence.Error()
+		}
+		fix = problem.Fix()
+	}
+	return diagnostic.Diagnostic{
+		Code: doctorVPPDPDKCode, Severity: diagnostic.SeverityError,
+		Message: "VPP DPDK: cannot capture original state for PCI device " + pci + ": " + message,
+		Path:    path, Actual: cause.Error(), Fix: fix,
+	}
 }

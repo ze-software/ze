@@ -165,6 +165,12 @@ func connectOriginalPairLocked(pair *claimedSessionPair) error {
 func disconnectOriginalSessionPair(pair *claimedSessionPair) error {
 	pair.mu.Lock()
 	defer pair.mu.Unlock()
+	return disconnectOriginalPairLocked(pair)
+}
+
+// disconnectOriginalPairLocked is the same exact-pair operation for server
+// disconnect and CPE terminal channel close. The caller MUST hold pair.mu.
+func disconnectOriginalPairLocked(pair *claimedSessionPair) error {
 	if pair.channelClosed {
 		return os.ErrClosed
 	}

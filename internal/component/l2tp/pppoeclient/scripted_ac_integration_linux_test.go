@@ -60,7 +60,11 @@ func TestScriptedACRenegotiatesDial(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(sess.Cleanup)
+	t.Cleanup(func() {
+		if err := sess.Cleanup(); err != nil {
+			t.Error(err)
+		}
+	})
 	if sess.SessionID != 44 {
 		t.Fatalf("session ID = %d, want 44", sess.SessionID)
 	}

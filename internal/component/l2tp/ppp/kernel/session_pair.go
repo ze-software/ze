@@ -94,6 +94,7 @@ func (pair *claimedSessionPair) finishConstruction(transferred *bool, err *error
 	}
 	failure := recover()
 	cleanupErr := pair.closeAll()
+	cleanupErr = errors.Join(cleanupErr, closeClaimedPairNativeOperations(pair.unit))
 	if failure != nil {
 		if cleanupErr != nil {
 			panic(RecordSetupCleanup(sessionPanicFailure(failure), cleanupErr))

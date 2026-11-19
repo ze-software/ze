@@ -161,24 +161,38 @@ func TestKernelSessionRouteUnknownAddRetainsCleanupReceipt(t *testing.T) {
 	}
 }
 
-// Native route calls must retain the lease mutex, so Close cannot recycle the
-// unit while an add or withdrawal is using its created interface identity.
-func TestKernelSessionRouteOperationsHoldOwnerLock(t *testing.T) {
+// Both actual route methods reserve exact intent before calling the writer,
+// with the session mutex released. The retirement sequence has its own test.
+func TestKernelSessionRouteOperationsReleaseOwnerLock(t *testing.T) {
 	handle, backend := newRouteOwnershipSession(t)
 	owner, ok := handle.(*session)
 	if !ok {
 		t.Fatalf("kernel constructor returned %T, want *session", handle)
 	}
+	destination := netip.MustParsePrefix("2001:db8:1::/64")
+	gateway := netip.MustParseAddr("fe80::2")
+	route, err := newSessionRoute(destination, gateway, 7, rtproto.Static)
+	if err != nil {
+		t.Fatal(err)
+	}
 	checks := 0
 	backend.checkLock = func() {
 		checks++
-		if owner.mu.TryLock() {
-			owner.mu.Unlock()
-			t.Error("native route operation ran without the owner lease lock")
+		if !owner.mu.TryLock() {
+			t.Error("native route operation kept the session mutex over the writer call")
+			return
+		}
+		defer owner.mu.Unlock()
+		if !owner.nativeMutation {
+			t.Error("native route operation lost its admission token")
+		}
+		if _, retained := owner.routes[route]; !retained {
+			t.Error("native route operation lost its exact cleanup intent before submission")
+		}
+		if owner.backend != backend {
+			t.Error("native route operation changed the original backend")
 		}
 	}
-	destination := netip.MustParsePrefix("2001:db8:1::/64")
-	gateway := netip.MustParseAddr("fe80::2")
 	if err := handle.AddRoute(destination, gateway, 7, rtproto.Static); err != nil {
 		t.Fatal(err)
 	}
@@ -187,6 +201,22 @@ func TestKernelSessionRouteOperationsHoldOwnerLock(t *testing.T) {
 	}
 	if checks != 2 {
 		t.Fatalf("native lock checks = %d, want add and withdrawal", checks)
+	}
+	want := routeOwnershipTuple{"created-ppp", destination.String(), gateway.String(), 7, rtproto.Static}
+	if len(backend.adds) != 1 {
+		t.Fatalf("native adds = %v, want the original exact tuple once", backend.adds)
+	}
+	if backend.adds[0] != want {
+		t.Fatalf("native add = %+v, want %+v", backend.adds[0], want)
+	}
+	if len(backend.removes) != 1 {
+		t.Fatalf("native withdrawals = %v, want the original exact tuple once", backend.removes)
+	}
+	if backend.removes[0] != want {
+		t.Fatalf("native withdrawal = %+v, want %+v", backend.removes[0], want)
+	}
+	if len(backend.routes) != 0 {
+		t.Fatal("owned tuple survived successful withdrawal")
 	}
 }
 

@@ -42,9 +42,11 @@ func preparedFactoryOps(backend sessionBackend, creator *pppkernel.UnitCreator) 
 	return factoryOps{
 		backend:       func() (sessionBackend, error) { return backend, nil },
 		creator:       func(sessionBackend) (*pppkernel.UnitCreator, error) { return creator, nil },
-		openTransport: openTransport, setup: pppkernel.DevPPPSetup,
+		openTransport: openTransport, setup: func(creator *pppkernel.UnitCreator, transport *os.File, name string) (*pppkernel.CreatedChannel, *pppkernel.CreatedUnit, error) {
+			return setupOriginalNativePPP(backend, creator, transport, name)
+		},
 		config:    (*pppkernel.CreatedUnit).SessionConfig,
-		closeUnit: (*pppkernel.CreatedUnit).Close, closeChannel: (*pppkernel.CreatedChannel).Close,
+		closeUnit: closeOriginalNativePPP, closeChannel: (*pppkernel.CreatedChannel).Close,
 		newSession: pppkernel.NewSession,
 	}
 }

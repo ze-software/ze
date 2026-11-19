@@ -132,6 +132,7 @@ const (
 	CodeDoctorPPPoEUnknown                         = "doctor-pppoe-unknown"
 	CodeDoctorPPPCleanup                           = "doctor-ppp-cleanup"
 	CodeDoctorPPPoEVPPReconcile                    = "doctor-pppoe-vpp-reconcile"
+	CodeDoctorPPPoEVPPSocketCleanup                = "doctor-pppoe-vpp-socket-cleanup"
 	CodeDoctorWireGuardUnavailable                 = "doctor-wireguard-unavailable"
 	CodeDoctorWireGuardUnknown                     = "doctor-wireguard-unknown"
 	CodeDoctorXFRMInterfaceUnavailable             = "doctor-xfrm-interface-unavailable"
@@ -161,6 +162,7 @@ const (
 	CodeDoctorVPPLCPNetns                          = "doctor-vpp-lcp-netns"
 	CodeDoctorVPPLCPPlugin                         = "doctor-vpp-lcp-plugin"
 	CodeDoctorVPPStats                             = "doctor-vpp-stats"
+	CodeDoctorVPPProcess                           = "doctor-vpp-process"
 	CodeDoctorVPPWireguard                         = "doctor-vpp-wireguard" //nolint:gosec // G101 reads the "pw" in VPPWireguard as a credential name
 	CodeDoctorWriteDestination                     = "doctor-write-destination"
 	CodeConfigGNMIInvalid                          = "config-gnmi-invalid"
@@ -752,6 +754,12 @@ var builtinCodes = append([]CodeMeta{
 		Examples:    []string{exampleDoctorJSON},
 	},
 	{
+		Code:        CodeDoctorVPPProcess,
+		Title:       "VPP process ownership is unavailable",
+		Description: "VPP API and statistics ownership requires a supported 64-bit Linux runtime kernel with SO_PEERPIDFD and pidfs. Install and boot Ze's runtime kernel when the capability probe fails. A retained process observation failure remains unknown and cannot release subscriber resources. Inspect ze show warnings for the exact process and descriptor failure; resolve the host or descriptor condition before reconnecting.",
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-vpp-process", exampleShowWarnings},
+	},
+	{
 		Code:        CodeDoctorVPPStats,
 		Title:       "VPP runtime statistics unavailable",
 		Description: "The running VPP statistics connection or a statistics read failed. Interface counters used by subscriber accounting and idle detection cannot be treated as zero. Inspect show warnings for the retained socket or read failure, then check the configured VPP statistics socket and its permissions. A successful read clears only its own statistics category from the same live API owner; an unrelated read cannot hide the failure.",
@@ -1091,6 +1099,12 @@ var builtinCodes = append([]CodeMeta{
 		Code:        CodeDoctorPPPoEVPPReconcile,
 		Title:       "PPPoE VPP resource cleanup is incomplete",
 		Description: "A PPPoE session or control mapping retains an uncertain VPP mutation. Ze keeps the exact owner reserved instead of reusing a native index or deleting another owner's resource. Inspect the retained warning and restore the reported VPP connection; only confirmed cleanup or a proven process exit can clear it.",
+		Examples:    []string{exampleShowDoctor, exampleShowWarnings},
+	},
+	{
+		Code:        CodeDoctorPPPoEVPPSocketCleanup,
+		Title:       "PPPoE control socket cleanup is unconfirmed",
+		Description: "A canceled PPPoE VPP control-socket attempt could not confirm descriptor cleanup or restoration of its original network namespace. The daemon retains the original attempt and cause. Inspect the warning and repair the reported native condition; another successful attempt cannot confirm this original release.",
 		Examples:    []string{exampleShowDoctor, exampleShowWarnings},
 	},
 	{
@@ -1860,7 +1874,7 @@ var builtinCodes = append([]CodeMeta{
 	{
 		Code:        "doctor-vpp-dpdk",
 		Title:       "VPP DPDK readiness failure",
-		Description: "VPP DPDK is configured but a required VFIO kernel module is not loaded or a PCI device is not present in sysfs.",
+		Description: "VPP DPDK is configured but a required VFIO module or PCI device is missing, or the device's original driver and override cannot be captured for restoration. An ambiguous legacy override requires a kernel providing driver_override_raw before binding.",
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-vpp-dpdk"},
 	},
 	{

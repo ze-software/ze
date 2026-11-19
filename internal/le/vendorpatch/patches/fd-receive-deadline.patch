@@ -1,0 +1,80 @@
+Ze-Reviewed-Against: github.com/ftrvxmtrx/fd v0.0.0-20150925145434-c6d800382fff
+
+Upstream pull request: none opened yet.
+
+plan/post-release/features/spec-pppoe-vpp-dataplane.md, AC-27, requires:
+"Readiness and counter publication are refused. Process retirement requires the
+exact retained physical process proof; a claimed PID, logical generation or
+another child's completed wait cannot retire a live foreign peer."
+
+LL-FD-RECEIVE-DEADLINE in docs/architecture/linux-limitations.md records the
+shared-library constraint. Deadline-aware descriptor receipt is a prerequisite
+to completing that ownership check. The unpatched fd.go in the pinned upstream
+module has SHA256 07e3fc99b7f6934c78e30e2ced97b7e55ebe7d906aefa5730cbf169e768d9e86.
+
+Receive through the original UnixConn's poller,
+so its read deadline applies and the original receive completes on timeout.
+Keep Get's public API, nil payload, control-buffer size, filenames and returned
+file ownership. Parse only the ancillary bytes received. The caller still
+closes every returned file, including a partial result with a parsing error.
+If ReadMsgUnix reports EOF with ancillary data from a zero-payload packet,
+parse that data normally. Closed-peer EOF remains the receive error. A
+completed message without ancillary data returns io.ErrUnexpectedEOF.
+These refusals replace the former incidental padding-parse EINVAL, without
+returning files or changing their ownership. Other receive errors stay errors.
+Put and the existing control-truncation policy are unchanged.
+
+Design: docs/contributing/patching-the-standard-library.md, "Patching a
+vendored module". Deliver through ./le setup install and commit its vendor
+result. Delete when the upstream module honors the same receive contract.
+
+diff --git a/vendor/github.com/ftrvxmtrx/fd/fd.go b/vendor/github.com/ftrvxmtrx/fd/fd.go
+--- a/vendor/github.com/ftrvxmtrx/fd/fd.go
++++ b/vendor/github.com/ftrvxmtrx/fd/fd.go
+@@ -18,6 +18,7 @@
+ package fd
+ 
+ import (
++	"io"
+ 	"net"
+ 	"os"
+ 	"syscall"
+@@ -39,24 +40,27 @@ func Get(via *net.UnixConn, num int, filenames []string) ([]*os.File, error) {
+ 		return nil, nil
+ 	}
+ 
+-	// get the underlying socket
+-	viaf, err := via.File()
+-	if err != nil {
+-		return nil, err
+-	}
+-	socket := int(viaf.Fd())
+-	defer viaf.Close()
+-
+-	// recvmsg
++	// Receive through the original connection so its read deadline applies.
++	// Get leaves the caller's connection open.
+ 	buf := make([]byte, syscall.CmsgSpace(num*4))
+-	_, _, _, _, err = syscall.Recvmsg(socket, nil, buf, 0)
++	_, oobn, _, _, err := via.ReadMsgUnix(nil, buf)
++	// ReadMsgUnix can report EOF for a zero-byte Unixpacket carrying rights.
++	// Keep its ancillary data for the ordinary parser and ownership rules.
++	if err == io.EOF {
++		if oobn > 0 {
++			err = nil
++		}
++	}
+ 	if err != nil {
+ 		return nil, err
+ 	}
++	if oobn == 0 {
++		return nil, io.ErrUnexpectedEOF
++	}
+ 
+ 	// parse control msgs
+ 	var msgs []syscall.SocketControlMessage
+-	msgs, err = syscall.ParseSocketControlMessage(buf)
++	msgs, err = syscall.ParseSocketControlMessage(buf[:oobn])
+ 
+ 	// convert fds to files
+ 	res := make([]*os.File, 0, len(msgs))

@@ -9,6 +9,10 @@ module ze-vpp-conf {
          Manages VPP process startup, DPDK NIC binding, GoVPP connection,
          and LCP (Linux Control Plane) plugin settings.";
 
+    revision 2026-11-18 {
+        description "Explicit managed startup plugins, base pages and original CLI file.";
+    }
+
     revision 2026-04-14 {
         description "Initial revision.";
     }
@@ -36,6 +40,24 @@ module ze-vpp-conf {
                 api-socket. Use this leaf for systemd-managed VPP, for a container sidecar deployment, or for the
                 `le test vpp` stub harness. The default is false, where Ze owns the VPP lifecycle.";
             ze:help "Let an external supervisor own the VPP process, false by default.";
+        }
+
+        leaf startup-cli-file {
+            type string {
+                pattern "(/[^ \\t\\r\\n{}\"'\\\\#;]*)?" {
+                    error-message "Use an absolute path with no whitespace or native command separators, or an empty value to omit startup commands.";
+                }
+            }
+            description "Optional original VPP CLI command file. After the retained API Unix peer matches the supervised
+                child's atomic process descriptor, Ze waits for synchronous native command completion on that same API
+                generation before statistics and service readiness. The path must be absolute and contain no whitespace,
+                control characters, braces, quotes, backslashes, comment or command separators. Managed startup refuses a
+                missing, unreadable or nonregular file before starting the child; ze doctor names the original path and
+                its repair. An empty or absent setting makes no request. The generated unix section omits asynchronous
+                exec for this setting. Native command failure stops activation and kills and reaps the original child
+                before runOnce returns. The independent retained process observer alone proves physical death.
+                External supervision neither inspects nor executes this file. Native VPP owns its grammar.";
+            ze:help "Original CLI command file to execute during managed VPP startup.";
         }
 
         leaf api-socket {
@@ -116,10 +138,10 @@ module ze-vpp-conf {
         }
 
         container memory {
-            description "These three leaves decide how much hugepage memory VPP asks the host for. The ze doctor check adds the
-                main heap, the buffer memory and the stats segment together. It warns when the host reserved less
-                hugepage memory than that sum. The hugepage-size leaf decides which page size VPP asks for, and it
-                also governs the stats segment.";
+            description "These leaves select VPP memory sizing and the buffers and statistics page mode. In a hugepage
+                mode the ze doctor check adds the main heap, buffer memory and stats segment together and warns
+                when the reservation is insufficient. Explicit default selects native base pages and does not
+                require a hugepage reservation. An omitted hugepage-size still selects 2M.";
             ze:help "VPP memory and buffer configuration.";
 
             leaf main-heap {
@@ -128,7 +150,7 @@ module ze-vpp-conf {
                 description
                     "Ze writes this size into the memory section of startup.conf as main-heap-size. The value MUST be
                     digits followed by M or G, so 1536M is accepted and 1.5G is refused at commit. The ze doctor check
-                    counts this size toward the hugepage memory it expects the host to have reserved.";
+                    counts this size toward the reservation only when a hugepage mode is selected.";
                 ze:help "VPP main heap size (e.g. 512M, 1G, 1536M).
                          Production with full DFZ: 1536M.";
             }
@@ -137,12 +159,14 @@ module ze-vpp-conf {
                 type enumeration {
                     enum 2M { ze:help "Write page-size default-hugepage, which takes the kernel's default hugepage size."; }
                     enum 1G { ze:help "Write page-size 1G into the buffers and statseg sections of startup.conf."; }
+                    enum default { ze:help "Use the native base-page size without a hugepage reservation."; }
                 }
                 default "2M";
-                description "The two accepted values are 2M and 1G. For 1G Ze writes page-size 1G into both the buffers section and
-                    the statseg section of startup.conf. For 2M Ze writes page-size default-hugepage instead,
-                    which takes whatever the kernel holds as its default hugepage size. The ze doctor check warns when
-                    you select 1G on an amd64 CPU with no pdpe1gb flag, because the kernel then reserves no 1G page.";
+                description "For 1G Ze writes page-size 1G into both buffers and statseg. For 2M it writes default-hugepage,
+                    which uses the kernel default hugepage size. Explicit default writes page-size default and uses
+                    native base pages, whose size is a kernel fact, without a hugepage reservation. The default
+                    remains 2M and no failed hugepage request falls back to base pages. The doctor check warns about
+                    an unsupported 1G CPU and reports missing or insufficient reservations for hugepage modes.";
                 ze:help "Hugepage size for VPP buffers.";
             }
 
@@ -232,7 +256,7 @@ module ze-vpp-conf {
                 description "Ze writes this size into the statseg section of startup.conf as size. The value MUST be digits followed
                     by M or G, so 512M and 1G are accepted and 512MB is refused at commit. The page size of the
                     segment comes from memory hugepage-size and not from this leaf. The ze doctor check counts this
-                    size toward the hugepage memory it expects the host to have reserved.";
+                    size toward the reservation only when a hugepage mode is selected.";
                 ze:help "Stats segment shared memory size.";
             }
 
@@ -314,10 +338,32 @@ module ze-vpp-conf {
         }
 
         container plugins {
-            description "Optional VPP plugin enablement. startup.conf uses 'plugin default { disable }', so Ze loads only the
-                always-on plugins and the plugins toggled on here. The always-on plugins are dpdk, plus linux-cp
-                when lcp is enabled.";
+            description "Explicit VPP plugin enablement. startup.conf disables plugins by default. DPDK remains enabled
+                by default and can be disabled only when no DPDK interfaces are configured. AF_PACKET is opt-in.
+                uRPF always loads because configured IPv4 reverse-path checks depend on it. Linux Control Plane
+                plugins load when lcp is enabled, and selected features register their own requirements.";
             ze:help "Optional VPP plugins to load.";
+
+            leaf dpdk {
+                type boolean;
+                default true;
+                must ". = 'true' or not(../../dpdk/interface)" {
+                    error-message "Configured DPDK interfaces require vpp plugins dpdk true.";
+                }
+                description "Load dpdk_plugin.so. The default preserves existing startup output. Explicit false is for
+                    a configured non-DPDK access path and is refused while any DPDK interface is configured. A
+                    missing installed plugin never changes this selection automatically.";
+                ze:help "Load the DPDK native plugin, enabled by default.";
+            }
+
+            leaf af-packet {
+                type boolean;
+                default false;
+                description "Load af_packet_plugin.so so an explicitly configured AF_PACKET native access path can
+                    use host interfaces. Omission leaves it disabled. This selection does not create an interface,
+                    change the interface backend or provide the required Linux Control Plane pair.";
+                ze:help "Load the AF_PACKET native plugin for a configured host-interface path.";
+            }
 
             leaf wireguard {
                 type boolean;

@@ -74,6 +74,46 @@ func (m *nameMap) lookupVPPName(swIfIndex uint32) (string, bool) {
 	return name, ok
 }
 
+// learnNativeName records the name VPP actually returned for an index. A
+// configured logical reverse identity belongs to the monitor and is preserved;
+// a newly discovered external device initially names itself in both views.
+func (m *nameMap) learnNativeName(swIfIndex uint32, native string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.vppNames[swIfIndex] = native
+	if _, registered := m.toName[swIfIndex]; registered {
+		return
+	}
+	m.toIndex[native] = swIfIndex
+	m.toName[swIfIndex] = native
+}
+
+// lookupNativeIndex reads the existing native-name view without acquiring a
+// VPP channel. Only current bidirectional entries participate: a logical key
+// remapped to another index cannot keep its previous native identity alive.
+func (m *nameMap) lookupNativeIndex(native string) (uint32, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for index, candidate := range m.vppNames {
+		if candidate != native {
+			continue
+		}
+		logical, registered := m.toName[index]
+		if !registered {
+			continue
+		}
+		current, mapped := m.toIndex[logical]
+		if !mapped {
+			continue
+		}
+		if current != index {
+			continue
+		}
+		return index, true
+	}
+	return 0, false
+}
+
 // All returns all ze name to SwIfIndex mappings.
 func (m *nameMap) All() map[string]uint32 {
 	m.mu.RLock()

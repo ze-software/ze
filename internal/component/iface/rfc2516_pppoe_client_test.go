@@ -40,11 +40,13 @@ func (d *redialRecorder) Dial(_ PPPoEClientConfig, _ <-chan struct{}, _ *slog.Lo
 			LocalIP:   netip.MustParseAddr("10.0.0.42"),
 			PeerIP:    netip.MustParseAddr("10.0.0.1"),
 			Done:      d.firstDone,
-			Cleanup: func() {
+			Cleanup: func() error {
 				d.mu.Lock()
 				d.firstCleaned = true
 				d.mu.Unlock()
+				return nil
 			},
+			NativeWriter: logicalNativeWriter{nil, "pppoe0"},
 		}, nil
 	case 2:
 		d.cleanedBefore = d.firstCleaned
@@ -63,10 +65,14 @@ func TestRFC2516HostReturnsToDiscoveryForTheNextSession(t *testing.T) {
 		firstDone:  make(chan struct{}),
 		secondDial: make(chan struct{}),
 	}
-	client := NewPPPoEClient(PPPoEClientConfig{Name: "pppoe0", SourceInterface: "eth0", Timing: testPPPoETiming}, d, nil, slog.Default())
+	client := NewPPPoEClient(PPPoEClientConfig{Name: "pppoe0", SourceInterface: "eth0", Timing: testPPPoETiming}, d, slog.Default())
 	d.client = client
 	client.Start()
-	defer client.Stop()
+	defer func() {
+		if err := client.Stop(); err != nil {
+			t.Error(err)
+		}
+	}()
 
 	// End the first PPP session: this is "LCP terminates" as the client sees it.
 	close(d.firstDone)

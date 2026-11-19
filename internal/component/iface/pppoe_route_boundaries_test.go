@@ -32,7 +32,7 @@ func TestPPPoEClientSimultaneousRouteFailures(t *testing.T) {
 		h.backend.fail = "route-remove"
 		h.changes <- changedResult("192.0.2.2", "192.0.2.9", 1492)
 		synctest.Wait()
-		h.client.backend = &routeAddFailure{h.backend}
+		h.client.native = logicalNativeWriter{&routeAddFailure{h.backend}, "wan"}
 		var logs bytes.Buffer
 		h.client.logger = slog.New(slog.NewTextHandler(&logs, nil))
 		h.backend.calls = nil
@@ -71,7 +71,7 @@ func TestPPPoEClientSimultaneousRouteFailures(t *testing.T) {
 		if len(h.ended) != 0 {
 			t.Fatal("simultaneous route failures ended PPP")
 		}
-		h.client.backend = h.backend
+		h.client.native = logicalNativeWriter{h.backend, "wan"}
 		h.backend.fail = ""
 		h.backend.calls = nil
 		h.changes <- latest

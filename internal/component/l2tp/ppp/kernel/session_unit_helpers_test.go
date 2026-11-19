@@ -24,6 +24,11 @@ func sessionTestNewSession(cfg SessionConfig, ops sessionOps) (ppp.FrameChannel,
 			panic("logical fixture cannot adapt a production channel owner")
 		}
 	}
+	if logical, ok := cfg.Unit.(*sessionTestUnitSource); ok {
+		if logical.info.mutations == nil {
+			logical.info.mutations = sessionTestMutationOperations{backend: cfg.Backend, identity: logical.info.identity, ops: &ops}
+		}
+	}
 	ops.wrapChannel = func(lease sessionChannelLease) (io.ReadWriteCloser, error) {
 		return ops.wrap(lease.descriptor(), "ppp.chan")
 	}
@@ -37,7 +42,15 @@ func sessionTestNewSession(cfg SessionConfig, ops sessionOps) (ppp.FrameChannel,
 	ops.preparePair = func(*claimedSessionPair) error { return nil }
 	ops.connectPair = func(pair *claimedSessionPair) error { return ops.connect(pair.channel.descriptor(), pair.info.number) }
 	ops.disconnectPair = func(pair *claimedSessionPair) error { return ops.disconnect(pair.channel.descriptor()) }
-	return newSession(cfg, ops)
+	frames, handle, err := newSession(cfg, ops)
+	if owner, admitted := handle.(*session); admitted {
+		if operations, logical := owner.mutations.(sessionTestMutationOperations); logical {
+			// Preserve fault hooks changed on the actual logical owner after admission.
+			operations.ops = &owner.ops
+			owner.mutations = operations
+		}
+	}
+	return frames, handle, err
 }
 
 // This type exists only in kernel's internal tests. Its logical descriptors

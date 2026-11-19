@@ -28,16 +28,20 @@ func dpdkTree(pci string) *config.Tree {
 	return tree
 }
 
-// withDPDKHost stands in a host for one test: the module list the kernel
-// reports and whether sysfs holds the PCI device.
+// withDPDKHost supplies one host's module list, PCI presence and unambiguous
+// original state. Individual capture tests replace only the last reader.
 func withDPDKHost(t *testing.T, loaded map[string]bool, deviceErr error) {
 	t.Helper()
-	previousModules, previousStat := dpdkLoadedModules, dpdkStatPath
+	previousModules, previousStat, previousOriginalState := dpdkLoadedModules, dpdkStatPath, dpdkOriginalState
 	dpdkLoadedModules = func() map[string]bool { return loaded }
 	dpdkStatPath = func(string) (os.FileInfo, error) { return nil, deviceErr }
+	dpdkOriginalState = func(string) (dpdkDriverRestore, error) {
+		return dpdkDriverRestore{driver: "ixgbe", override: "original-policy"}, nil
+	}
 	t.Cleanup(func() {
 		dpdkLoadedModules = previousModules
 		dpdkStatPath = previousStat
+		dpdkOriginalState = previousOriginalState
 	})
 }
 

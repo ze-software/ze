@@ -445,11 +445,17 @@ func runEngine(conn net.Conn) int {
 	activeRA := make(map[raUnitKey]raEntry)
 	var raMu sync.Mutex
 
-	// activePPPoE tracks running PPPoE client sessions keyed by config name.
-	activePPPoE := make(map[string]*PPPoEClient)
-	var pppoeMu sync.Mutex
-	// PPPoEClientCommand answers from this process, which owns the clients.
-	globalPPPoEClients.Store(&pppoeClientSet{mu: &pppoeMu, active: activePPPoE})
+	// Reuse the actual registry across engine restarts. An unresolved original
+	// keeps its cleanup owner here until terminal retirement is confirmed.
+	pppoeSet := globalPPPoEClients.Load()
+	if pppoeSet == nil {
+		pppoeSet = &pppoeClientSet{mu: new(sync.Mutex), active: make(map[string]*PPPoEClient)}
+		if !globalPPPoEClients.CompareAndSwap(nil, pppoeSet) {
+			pppoeSet = globalPPPoEClients.Load()
+		}
+	}
+	activePPPoE, pppoeMu := pppoeSet.active, pppoeSet.mu
+	configurePPPoECleanupDiagnostics(p, pppoeSet)
 
 	// activeRouters tracks IPv6 routers discovered via NTF_ROUTER neighbor events.
 	// Protected by dhcpMu (shared lock, short critical sections).
@@ -660,11 +666,12 @@ func runEngine(conn net.Conn) int {
 		}
 
 		// Reconcile PPPoE clients.
-		pppoeMu.Lock()
 		parsedPPPoE := len(cfg.PPPoEClient)
-		reconcilePPPoEClients(cfg, activePPPoE, b, log, raRDNSSProducer.withdrawPPPoESession)
-		observePPPoEStartup(parsedPPPoE, len(activePPPoE))
+		reconcilePPPoEClients(cfg, activePPPoE, pppoeMu, log, raRDNSSProducer.withdrawPPPoESession)
+		pppoeMu.Lock()
+		runningPPPoE := len(activePPPoE)
 		pppoeMu.Unlock()
+		observePPPoEStartup(parsedPPPoE, runningPPPoE)
 
 		// Start DHCP clients for units that have DHCP enabled, and suppress
 		// accept_ra_defrtr on interfaces whose config writes a route-priority,
@@ -862,9 +869,7 @@ func runEngine(conn net.Conn) int {
 				}
 				activeCfg.Store(rollbackCfg)
 				nonBlockingNotify(unnumberedCh)
-				pppoeMu.Lock()
-				reconcilePPPoEClients(rollbackCfg, activePPPoE, b, log, raRDNSSProducer.withdrawPPPoESession)
-				pppoeMu.Unlock()
+				reconcilePPPoEClients(rollbackCfg, activePPPoE, pppoeMu, log, raRDNSSProducer.withdrawPPPoESession)
 				if eb := GetEventBus(); eb != nil {
 					// A rollback re-applies the previous config through the
 					// same reconcile and holds dhcpMu just as long, so it is
@@ -903,9 +908,7 @@ func runEngine(conn net.Conn) int {
 		}
 
 		// Reconcile PPPoE clients on reload.
-		pppoeMu.Lock()
-		reconcilePPPoEClients(cfg, activePPPoE, b, log, raRDNSSProducer.withdrawPPPoESession)
-		pppoeMu.Unlock()
+		reconcilePPPoEClients(cfg, activePPPoE, pppoeMu, log, raRDNSSProducer.withdrawPPPoESession)
 
 		// Reconcile DHCP clients and IPv6 RA suppression after successful reload.
 		eb := GetEventBus()
@@ -1057,6 +1060,7 @@ func runEngine(conn net.Conn) int {
 		VerifyBudget:     2,
 		ApplyBudget:      10,
 		Commands:         commandDecls(),
+		DoctorChecks:     []sdk.DoctorCheckDecl{pppoeCleanupDoctorDeclaration()},
 	}); err != nil {
 		log.Error("interface plugin failed", "error", err)
 		return 1
@@ -1108,13 +1112,28 @@ func runEngine(conn net.Conn) int {
 	close(rdnssStop)
 	<-rdnssDone
 
-	// Stop all PPPoE clients on shutdown.
+	// Join outside the map lock; pending originals stay in this same registry.
 	pppoeMu.Lock()
+	stoppingPPPoE := make(map[string]*PPPoEClient, len(activePPPoE))
 	for name, client := range activePPPoE {
-		log.Debug("interface: stopping PPPoE client on shutdown", "name", name)
-		client.Stop()
+		stoppingPPPoE[name] = client
 	}
 	pppoeMu.Unlock()
+	for name, client := range stoppingPPPoE {
+		err := client.Stop()
+		if err != nil {
+			log.Warn("interface: original PPPoE client cleanup failed on shutdown", "name", name, "error", err,
+				"code", pppoeCleanupDoctorCode, "fix", pppoeCleanupRecovery(err))
+		}
+		if errors.Is(err, ErrNativePPPPending) {
+			continue
+		}
+		pppoeMu.Lock()
+		if activePPPoE[name] == client {
+			delete(activePPPoE, name)
+		}
+		pppoeMu.Unlock()
+	}
 
 	// Stop all Router Advertisement senders on shutdown. Each one sends a
 	// final advertisement with Router Lifetime 0 as it stops, so hosts drop

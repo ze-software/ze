@@ -26,7 +26,7 @@ func TestSessionRegistrySelectsFactory(t *testing.T) {
 		t.Fatal(err)
 	}
 	calls := 0
-	if err := registry.register("chosen", func(got context.Context, request Request) (OpenedSession, error) {
+	chosen := testSessionAccess(t, func(got context.Context, request Request) (OpenedSession, error) {
 		calls++
 		if got != ctx {
 			t.Error("factory received another context")
@@ -35,13 +35,16 @@ func TestSessionRegistrySelectsFactory(t *testing.T) {
 			t.Errorf("request = %+v, want %+v", request, want)
 		}
 		return opened, nil
-	}, testUnusedPrepare); err != nil {
+	})
+	if err := registry.register("chosen", func(context.Context, string) (Access, error) {
+		return chosen, nil
+	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := registry.register("other", func(context.Context, Request) (OpenedSession, error) {
+	if err := registry.register("other", func(context.Context, string) (Access, error) {
 		t.Error("unselected factory called")
 		return nil, errors.New("unselected")
-	}, testUnusedPrepare); err != nil {
+	}); err != nil {
 		t.Fatal(err)
 	}
 	backend, err := registry.lookup("chosen")
@@ -51,7 +54,11 @@ func TestSessionRegistrySelectsFactory(t *testing.T) {
 	if backend.Name() != "chosen" {
 		t.Errorf("name = %q", backend.Name())
 	}
-	got, err := backend.Open(ctx, want)
+	access, err := backend.Prepare(ctx, "access")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := access.Open(ctx, want)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,25 +71,25 @@ func TestSessionRegistrySelectsFactory(t *testing.T) {
 	closeTestSession(t, got)
 }
 
-// TestSessionRegistryRefusesRegistration checks malformed names, nil factories
+// TestSessionRegistryRefusesRegistration checks malformed names, nil preparation factories
 // and duplicate registrations without touching the process registry.
 func TestSessionRegistryRefusesRegistration(t *testing.T) {
 	for _, name := range []string{"", "bad name", "bad/name", "-bad", strings.Repeat("a", 64)} {
 		t.Run(name, func(t *testing.T) {
 			var registry sessionRegistry
-			if err := registry.register(name, testUnusedOpen, testUnusedPrepare); err == nil {
+			if err := registry.register(name, testUnusedPrepare); err == nil {
 				t.Fatalf("accepted name %q", name)
 			}
 		})
 	}
 	var registry sessionRegistry
-	if err := registry.register("missing", nil, testUnusedPrepare); err == nil {
-		t.Fatal("accepted nil factory")
+	if err := registry.register("missing", nil); err == nil {
+		t.Fatal("accepted nil preparation factory")
 	}
-	if err := registry.register("chosen", testUnusedOpen, testUnusedPrepare); err != nil {
+	if err := registry.register("chosen", testUnusedPrepare); err != nil {
 		t.Fatal(err)
 	}
-	if err := registry.register("chosen", testUnusedOpen, testUnusedPrepare); err == nil {
+	if err := registry.register("chosen", testUnusedPrepare); err == nil {
 		t.Fatal("accepted duplicate factory")
 	}
 }
@@ -92,10 +99,10 @@ func TestSessionRegistryRefusesRegistration(t *testing.T) {
 func TestSessionRegistryUnknownNeverFallsBack(t *testing.T) {
 	var registry sessionRegistry
 	for _, name := range []string{"zebra", "alpha"} {
-		if err := registry.register(name, func(context.Context, Request) (OpenedSession, error) {
+		if err := registry.register(name, func(context.Context, string) (Access, error) {
 			t.Error("lookup called a provider")
 			return nil, errors.New("unselected")
-		}, testUnusedPrepare); err != nil {
+		}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -145,16 +152,9 @@ func TestSessionRegistryEmptyRefusesSelection(t *testing.T) {
 func TestSessionBackendRefusesNilResult(t *testing.T) {
 	var typedNil *openedSession
 	for _, result := range []OpenedSession{nil, typedNil} {
-		var registry sessionRegistry
-		if err := registry.register("empty", func(context.Context, Request) (OpenedSession, error) {
+		backend := testSessionAccess(t, func(context.Context, Request) (OpenedSession, error) {
 			return result, nil
-		}, testUnusedPrepare); err != nil {
-			t.Fatal(err)
-		}
-		backend, err := registry.lookup("empty")
-		if err != nil {
-			t.Fatal(err)
-		}
+		})
 		if opened, err := backend.Open(context.Background(), Request{}); err == nil {
 			t.Fatalf("accepted empty factory result: %v", opened)
 		}
@@ -172,16 +172,9 @@ func TestSessionBackendCleansFailedResult(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var registry sessionRegistry
-	if err := registry.register("partial", func(context.Context, Request) (OpenedSession, error) {
+	backend := testSessionAccess(t, func(context.Context, Request) (OpenedSession, error) {
 		return opened, factoryErr
-	}, testUnusedPrepare); err != nil {
-		t.Fatal(err)
-	}
-	backend, err := registry.lookup("partial")
-	if err != nil {
-		t.Fatal(err)
-	}
+	})
 	got, err := backend.Open(context.Background(), Request{})
 	if got != nil {
 		t.Fatal("failed open retained a session")
@@ -205,16 +198,9 @@ func TestSessionBackendKeepsFailureWithoutResult(t *testing.T) {
 	var typedNil *openedSession
 	factoryErr := errors.New("open failed before resources")
 	for _, result := range []OpenedSession{nil, typedNil} {
-		var registry sessionRegistry
-		if err := registry.register("failed", func(context.Context, Request) (OpenedSession, error) {
+		backend := testSessionAccess(t, func(context.Context, Request) (OpenedSession, error) {
 			return result, factoryErr
-		}, testUnusedPrepare); err != nil {
-			t.Fatal(err)
-		}
-		backend, err := registry.lookup("failed")
-		if err != nil {
-			t.Fatal(err)
-		}
+		})
 		opened, err := backend.Open(context.Background(), Request{})
 		if opened != nil {
 			t.Fatal("failure returned a session")
@@ -228,18 +214,11 @@ func TestSessionBackendKeepsFailureWithoutResult(t *testing.T) {
 // TestSessionBackendRefusesNilContext proves an invalid caller context cannot
 // reach the provider and create resources it cannot cancel.
 func TestSessionBackendRefusesNilContext(t *testing.T) {
-	var registry sessionRegistry
-	if err := registry.register("chosen", func(context.Context, Request) (OpenedSession, error) {
+	backend := testSessionAccess(t, func(context.Context, Request) (OpenedSession, error) {
 		t.Fatal("factory called with nil context")
 		return nil, errors.New("unreachable")
-	}, testUnusedPrepare); err != nil {
-		t.Fatal(err)
-	}
-	backend, err := registry.lookup("chosen")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := backend.Open(nil, Request{}); err == nil { //nolint:staticcheck // SA1012: intentionally nil to prove refusal before the registered original factory is invoked.
+	})
+	if _, err := backend.Open(nil, Request{}); err == nil { //nolint:staticcheck // SA1012: intentionally nil to prove refusal before the original preparation owner is invoked.
 		t.Fatal("accepted nil context")
 	}
 }
@@ -248,16 +227,9 @@ func TestSessionBackendRefusesNilContext(t *testing.T) {
 // loophole: inheriting the sealed marker cannot bypass the resource constructor.
 func TestSessionBackendRefusesUnconstructedResult(t *testing.T) {
 	_, handle, transport := testSessionResources()
-	var registry sessionRegistry
-	if err := registry.register("unconstructed", func(context.Context, Request) (OpenedSession, error) {
+	backend := testSessionAccess(t, func(context.Context, Request) (OpenedSession, error) {
 		return &testUnconstructed{handle: handle, transport: transport}, nil
-	}, testUnusedPrepare); err != nil {
-		t.Fatal(err)
-	}
-	backend, err := registry.lookup("unconstructed")
-	if err != nil {
-		t.Fatal(err)
-	}
+	})
 	opened, err := backend.Open(context.Background(), Request{})
 	if opened != nil {
 		t.Fatal("accepted a session outside its constructor")
@@ -381,20 +353,36 @@ func TestSessionBackendTransportPanicKeepsHandleCleanup(t *testing.T) {
 	}
 }
 
-func testFailedResultBackend(t *testing.T, result OpenedSession, failure error) Backend {
+func testFailedResultBackend(t *testing.T, result OpenedSession, failure error) Access {
 	t.Helper()
-	var registry sessionRegistry
-	if err := registry.register("invalid", func(context.Context, Request) (OpenedSession, error) {
+	return testSessionAccess(t, func(context.Context, Request) (OpenedSession, error) {
 		return result, failure
-	}, testUnusedPrepare); err != nil {
-		t.Fatal(err)
-	}
-	backend, err := registry.lookup("invalid")
+	})
+}
+
+// The admission fixture constructs the same required live owner as a provider.
+// Tests retain their original opened-result and both-owner cleanup assertions.
+func testSessionAccess(t *testing.T, open OpenFunc) Access {
+	t.Helper()
+	access, err := NewAccess(testAccessInfo(), &testSessionAccessOwner{open: open})
 	if err != nil {
 		t.Fatal(err)
 	}
-	return backend
+	t.Cleanup(func() {
+		if err := access.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+	return access
 }
+
+type testSessionAccessOwner struct{ open OpenFunc }
+
+func (owner *testSessionAccessOwner) Open(ctx context.Context, request Request) (OpenedSession, error) {
+	return owner.open(ctx, request)
+}
+
+func (*testSessionAccessOwner) Close() error { return nil }
 
 type testAccessorPanic struct {
 	OpenedSession

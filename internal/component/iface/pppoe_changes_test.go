@@ -88,9 +88,10 @@ func newChangeSession(t *testing.T, cfg *PPPoEClientConfig) *changeSession {
 		LocalIP: netip.MustParseAddr("192.0.2.2"),
 		PeerIP:  netip.MustParseAddr("192.0.2.1"),
 		Changes: h.changes, Done: make(chan struct{}),
-		Cleanup: func() { h.cleanups++ },
+		Cleanup:      func() error { h.cleanups++; return nil },
+		NativeWriter: logicalNativeWriter{h.backend, "wan"},
 	}}
-	h.client = NewPPPoEClient(*cfg, dialer, h.backend, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	h.client = NewPPPoEClient(*cfg, dialer, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	go h.run()
 	synctest.Wait()
 	if len(h.backend.calls) < 3 {
@@ -98,7 +99,7 @@ func newChangeSession(t *testing.T, cfg *PPPoEClientConfig) *changeSession {
 	}
 	h.backend.calls = nil
 	t.Cleanup(func() {
-		close(h.client.stopCh)
+		h.client.stopOnce.Do(func() { close(h.client.stopCh) })
 		synctest.Wait()
 		if h.cleanups != 1 {
 			t.Errorf("Cleanup calls = %d, want 1", h.cleanups)

@@ -70,13 +70,14 @@ func TestConnectedChangesReachConsumerNewest(t *testing.T) {
 		var reported []uint64
 		d := &changeConsumerDialer{session: iface.PPPoESession{
 			UnitNum: 7, SessionID: 42, LocalIP: initial.localIP, PeerIP: initial.peerIP,
-			NegMTU: initial.negMTU, Changes: s.changes, Done: done, Cleanup: func() {},
+			NegMTU: initial.negMTU, Changes: s.changes, Done: done, Cleanup: func() error { return nil },
+			NativeWriter: consumerNativeWriter{b},
 			Applied: func(seq uint64) {
 				reported = append(reported, seq)
 				s.acknowledge(seq)
 			},
 		}}
-		c := iface.NewPPPoEClient(iface.PPPoEClientConfig{Name: "wan", Timing: testDialTiming}, d, b, logger)
+		c := iface.NewPPPoEClient(iface.PPPoEClientConfig{Name: "wan", Timing: testDialTiming}, d, logger)
 		c.Start()
 		// Always release the setup gate before joining the interface worker.
 		defer func() {
@@ -85,7 +86,9 @@ func TestConnectedChangesReachConsumerNewest(t *testing.T) {
 			default:
 				close(b.release)
 			}
-			c.Stop()
+			if err := c.Stop(); err != nil {
+				t.Error(err)
+			}
 		}()
 		synctest.Wait()
 		local := []byte{3, 6, 203, 0, 113, 2}

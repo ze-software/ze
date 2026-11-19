@@ -19,7 +19,9 @@ import (
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 
+	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 	"github.com/ze-software/ze/internal/test/userns"
 )
 
@@ -122,7 +124,13 @@ func TestCreatedUnitNativeRetirementJoinsRetainedOriginalDuplicate(t *testing.T)
 	if !userns.Enter(t) {
 		return
 	}
-	unit, _, link := createdUnitNative(t, "zret-original")
+	unit, backend, link := createdUnitNative(t, "zret-original")
+	provider, ok := backend.(iface.NativePPPBackend)
+	require.True(t, ok, "actual original backend must supply its native PPP writer")
+	_, err := unit.BindNativeOperations(t.Context(), backend, func(original *pppkernel.CreatedUnit, index int, number int32) (pppkernel.NativeUnitOperations, error) {
+		return provider.BindNativePPPUnit(original, index, number)
+	})
+	require.NoError(t, err, "bind the same genuine creation backend before session transfer")
 	channel := createdSessionChannel(t, "zret-access", 87)
 	cfg, err := unit.SessionConfig(channel)
 	require.NoError(t, err)

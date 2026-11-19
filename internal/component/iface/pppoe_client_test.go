@@ -278,17 +278,18 @@ func TestPPPoEClientLifecycle(t *testing.T) {
 	done := make(chan struct{})
 	dialer := &fakeDialer{
 		sess: PPPoESession{
-			SessionID: 42,
-			UnitNum:   0,
-			NegMTU:    1492,
-			LocalIP:   netip.MustParseAddr("10.0.0.42"),
-			PeerIP:    netip.MustParseAddr("10.0.0.1"),
-			Done:      done,
-			Cleanup:   func() {},
+			SessionID:    42,
+			UnitNum:      0,
+			NegMTU:       1492,
+			LocalIP:      netip.MustParseAddr("10.0.0.42"),
+			PeerIP:       netip.MustParseAddr("10.0.0.1"),
+			Done:         done,
+			Cleanup:      func() error { return nil },
+			NativeWriter: logicalNativeWriter{nil, "pppoe0"},
 		},
 	}
 
-	client := NewPPPoEClient(cfg, dialer, nil, slog.Default())
+	client := NewPPPoEClient(cfg, dialer, slog.Default())
 	client.Start()
 
 	// Give the goroutine time to reach sessStateUp.
@@ -299,7 +300,9 @@ func TestPPPoEClientLifecycle(t *testing.T) {
 	assert.Equal(t, uint16(42), status.SessionID)
 	assert.Equal(t, "pppoe0", status.PPPInterface)
 
-	client.Stop()
+	if err := client.Stop(); err != nil {
+		t.Error(err)
+	}
 
 	status = client.status()
 	assert.Equal(t, "up", status.State) // state frozen at stop
@@ -317,15 +320,14 @@ func (d *fakeDialer) Dial(_ PPPoEClientConfig, stopCh <-chan struct{}, _ *slog.L
 	return d.sess, nil
 }
 
-// TestPPPoEClientUsesConfiguredDeviceName verifies that runSession names the
-// device by the configured key (here pppoe0), not by the kernel-chosen pppN.
-// The fake dialer returns a session with unit num 7 so a regression that
-// keeps textbuf.StrInt("ppp", 7) would reach the backend with "ppp7" and the
-// assertions below fail. The configured name must appear on every backend
-// call runSession makes after Dial returns.
-// VALIDATES: AC-1, AC-8 of spec-home-cpe-1-logical-interface-name, with a
-// fake dialer.
-func TestPPPoEClientUsesConfiguredDeviceName(t *testing.T) {
+// TestPPPoEClientUsesReturnedNativeWriter verifies the actual iface consumer
+// applies MTU, admin-up and route through the writer returned by its Dial.
+// This logical writer records its supplied diagnostic label pppoe0; UnitNum 7
+// cannot select another writer or cause the consumer to reconstruct ppp7.
+// It does not prove kernel name creation. The actual configured-name creation
+// and original/replacement identity proof is retained in
+// TestNativeCPEConsumerKeepsOriginalAcrossNameReplacement.
+func TestPPPoEClientUsesReturnedNativeWriter(t *testing.T) {
 	cfg := PPPoEClientConfig{
 		Name:            "pppoe0",
 		SourceInterface: "eth2",
@@ -341,27 +343,30 @@ func TestPPPoEClientUsesConfiguredDeviceName(t *testing.T) {
 			LocalIP:   netip.MustParseAddr("192.0.2.2"),
 			PeerIP:    netip.MustParseAddr("192.0.2.1"),
 			Done:      done,
-			Cleanup:   func() {},
+			Cleanup:   func() error { return nil },
 		},
 	}
 	backend := &fakeBackend{ifaces: map[string]fakeIface{
 		"pppoe0": {name: "pppoe0", linkType: "ppp", state: "down"},
 	}}
 
-	client := NewPPPoEClient(cfg, dialer, backend, slog.Default())
+	dialer.sess.NativeWriter = logicalNativeWriter{backend, "pppoe0"}
+	client := NewPPPoEClient(cfg, dialer, slog.Default())
 	client.Start()
 	assert.Eventually(t, func() bool { return client.status().State == "up" },
 		time.Second, 5*time.Millisecond, "client did not reach up")
-	client.Stop()
+	if err := client.Stop(); err != nil {
+		t.Error(err)
+	}
 
 	require.Len(t, backend.routeAdds, 1, "AddRoute was not called")
 	assert.Equal(t, "pppoe0", backend.routeAdds[0].ifaceName,
-		"AddRoute carried kernel name, not the configured key")
+		"AddRoute did not use the returned writer's recorded label")
 	assert.Equal(t, "up", backend.adminSet["pppoe0"],
-		"SetAdminUp did not name pppoe0")
+		"SetAdminUp did not reach the supplied pppoe0 writer")
 	_, hasPppN := backend.ifaces["ppp7"]
-	assert.False(t, hasPppN, "a backend call named ppp7 instead of pppoe0")
-	assert.Equal(t, 1492, backend.mtuSet["pppoe0"], "SetMTU did not name pppoe0")
+	assert.False(t, hasPppN, "UnitNum reconstructed a different writer target ppp7")
+	assert.Equal(t, 1492, backend.mtuSet["pppoe0"], "SetMTU did not reach the supplied pppoe0 writer")
 }
 
 // TestPPPoEClientNameValidated proves AC-6 (IFNAMSIZ limit) and AC-7

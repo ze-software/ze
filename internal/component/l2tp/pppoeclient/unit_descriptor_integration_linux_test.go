@@ -120,7 +120,11 @@ func TestClientAnswersIPCPOnTheUnitDescriptor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("real Dial: %v", err)
 	}
-	t.Cleanup(sess.Cleanup)
+	t.Cleanup(func() {
+		if err := sess.Cleanup(); err != nil {
+			t.Error(err)
+		}
+	})
 	clientLink, err := netlink.LinkByName("zec0")
 	if err != nil {
 		t.Fatal(err)

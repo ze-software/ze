@@ -23,6 +23,38 @@ requires the same discovery and NCP path from an independent pppd trace. It
 also dials a wrong credential and requires CHAP refusal before proving that all
 session state disappeared.
 
+### Two clients on one native VLAN
+
+`pppoe-shared-access-two-clients` runs the real Ze daemon and two independent
+pppd clients on VLAN 100. Both clients use the maintained pppd 2.5.5 image,
+with separate credentials, container namespaces, PPP interface names, PID
+files and logs. The checker requires each client's discovery exchange to
+carry its own MAC and admitted session ID, both directions of LCP
+acknowledgment, CHAP success, distinct IPCP addresses, matching kernel PPP
+devices and routes, and traffic bound to each PPP interface in both directions.
+
+The checker terminates the first client's exact PID from its own pppd PID
+file. It requires that client's daemon row and native PPP interfaces to
+disappear while the second client's original row, assignment and traffic
+remain. It then terminates the second client and requires both sessions to
+be gone while the configured access VLAN remains unchanged. Suite teardown
+owns all three containers and their capture/log files, including failed runs.
+This is a classless fixture foundation; it does not test CoS maps, original
+Snapshot counts, native fences or retirement receipts.
+
+On macOS, select this scenario through the registered lab route:
+
+```sh
+CGO_ENABLED=0 ./le --name session test qemu docker-lab lab 'test deployment docker-pppoe-accel' env 'ZE_PPPOE_INTEROP_SCENARIO=pppoe-shared-access-two-clients' timeout 3600s
+```
+
+This route resolves Ze's own runtime kernel and image and checks their
+identity. Its kernel must provide `/dev/ppp`, PPPoE and VLAN support; the
+native preflight is mandatory. Explicit `kernel` and `image` keywords belong
+to the separate `command` mode and are refused with `lab`.
+<!-- source: internal/le/interoplab/pppoe/shared_access_plan.go -- sharedAccessPlan -->
+<!-- source: internal/le/interoplab/pppoe/shared_access_check.go -- checkSharedAccess -->
+
 ## Layout
 
 ```

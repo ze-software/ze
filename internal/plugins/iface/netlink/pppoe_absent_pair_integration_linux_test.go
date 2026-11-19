@@ -82,12 +82,17 @@ func TestPPPoEClientAlreadyAbsentPair(t *testing.T) {
 	d := &absentPairDialer{session: iface.PPPoESession{
 		UnitNum: 7, SessionID: 42, NegMTU: 1492,
 		LocalIP: netip.MustParseAddr("192.0.2.2"), PeerIP: netip.MustParseAddr("192.0.2.1"),
-		Changes: changes, Done: make(chan struct{}), Cleanup: func() { cleanups.Add(1) },
+		Changes: changes, Done: make(chan struct{}), Cleanup: func() error { cleanups.Add(1); return nil },
 	}}
 	recorder := &absentPairBackend{Backend: b, ready: make(chan struct{}), removed: make(chan error, 1)}
-	c := iface.NewPPPoEClient(iface.PPPoEClientConfig{Name: "wan", NoDefaultRoute: true}, d, recorder, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	d.session.NativeWriter = absentPairNativeWriter{recorder}
+	c := iface.NewPPPoEClient(iface.PPPoEClientConfig{Name: "wan", NoDefaultRoute: true}, d, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	c.Start()
-	t.Cleanup(c.Stop)
+	t.Cleanup(func() {
+		if err := c.Stop(); err != nil {
+			t.Error(err)
+		}
+	})
 	select {
 	case <-recorder.ready:
 	case <-time.After(5 * time.Second):

@@ -58,15 +58,16 @@ func TestPPPoEClientWithdrawsIPv4WhileIPv6CPHolds(t *testing.T) {
 			SessionID: 42, UnitNum: 7, NegMTU: 1492,
 			LocalIP: local, PeerIP: peer, PrimaryDNS: dns,
 			Changes: changes, Done: make(chan struct{}),
-			Cleanup: func() {},
+			Cleanup:      func() error { return nil },
+			NativeWriter: logicalNativeWriter{linkLocalChangeBackend{recorder}, "wan"},
 		}
 		cfg := PPPoEClientConfig{Name: "wan", RoutePriority: 73, Timing: testPPPoETiming}
-		client := NewPPPoEClient(cfg, &fakeDialer{sess: sess}, linkLocalChangeBackend{recorder}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+		client := NewPPPoEClient(cfg, &fakeDialer{sess: sess}, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		client.resolvers = resolvers
 		go func() { ended <- client.runSession() }()
 		synctest.Wait()
 		defer func() {
-			close(client.stopCh)
+			client.stopOnce.Do(func() { close(client.stopCh) })
 			synctest.Wait()
 		}()
 

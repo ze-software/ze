@@ -54,7 +54,7 @@ func TestDelegationsStatusOf(t *testing.T) {
 // under the client's own name with its prefix and remaining lifetimes.
 func TestPPPoEClientStatusDelegatedPrefixes(t *testing.T) {
 	withCleanDelegations(t)
-	client := NewPPPoEClient(PPPoEClientConfig{Name: "pppoe0"}, nil, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	client := NewPPPoEClient(PPPoEClientConfig{Name: "pppoe0"}, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	var before map[string]json.RawMessage
 	b, err := json.Marshal(client.status())

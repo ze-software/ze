@@ -73,12 +73,12 @@ func TestPPPoEClientLCPMaxFailureReloadKeepsSnapshot(t *testing.T) {
 		d := &timingDialer{session: &session}
 		entry, _, err := lcpTimingEntry(t, nil)
 		require.NoError(t, err)
-		active := startTimingClients(t, &ifaceConfig{PPPoEClient: []pppoeClientEntry{entry}}, d)
+		active, activeMu := startTimingClients(t, &ifaceConfig{PPPoEClient: []pppoeClientEntry{entry}}, d)
 		synctest.Wait()
 		running := active["pppoe0"]
 		changed, _, err := lcpTimingEntry(t, map[string]any{"max-failure": "2"})
 		require.NoError(t, err)
-		reconcilePPPoEClients(&ifaceConfig{PPPoEClient: []pppoeClientEntry{changed}}, active, nil, slog.Default(), nil)
+		reconcilePPPoEClients(&ifaceConfig{PPPoEClient: []pppoeClientEntry{changed}}, active, activeMu, slog.Default(), nil)
 		synctest.Wait()
 		require.Same(t, running, active["pppoe0"])
 		configs, _ := d.snapshot()

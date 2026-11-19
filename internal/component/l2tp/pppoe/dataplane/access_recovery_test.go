@@ -16,6 +16,10 @@ type recoveryAccessOwner struct {
 }
 
 func (o *recoveryAccessOwner) Close() error { o.closes++; return o.closeFailure }
+
+func (*recoveryAccessOwner) Open(ctx context.Context, request Request) (OpenedSession, error) {
+	return testUnusedOpen(ctx, request)
+}
 func (o *recoveryAccessOwner) Settle(ctx context.Context) error {
 	o.settlements++
 	var ok bool
@@ -215,7 +219,11 @@ func TestAccessSettlementHasLiteralTwentySecondBudget(t *testing.T) {
 
 type cancelingAccessRecovery struct{ cancel context.CancelFunc }
 
-func (*cancelingAccessRecovery) Close() error                   { return errors.New("original close") }
+func (*cancelingAccessRecovery) Close() error { return errors.New("original close") }
+
+func (*cancelingAccessRecovery) Open(ctx context.Context, request Request) (OpenedSession, error) {
+	return testUnusedOpen(ctx, request)
+}
 func (o *cancelingAccessRecovery) Settle(context.Context) error { o.cancel(); return nil }
 
 // Goal: Cancellation during settlement cannot become success.

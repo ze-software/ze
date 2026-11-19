@@ -80,6 +80,9 @@ func capturedModelOwners(t *testing.T) (*CreatedUnit, *CreatedChannel, SessionCo
 
 func capturedModelSession(t *testing.T, cfg SessionConfig, ops sessionOps) *session {
 	t.Helper()
+	if unit, ok := cfg.Unit.(*CreatedUnit); ok {
+		bindCapturedModelNativeOperations(unit, ops)
+	}
 	ops.preparePair = func(*claimedSessionPair) error { return nil }
 	_, handle, err := newSession(cfg, ops)
 	if handle != nil {

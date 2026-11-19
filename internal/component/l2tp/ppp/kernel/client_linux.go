@@ -16,7 +16,8 @@ import (
 
 func productionClientPairOps() clientPairOps {
 	return clientPairOps{prepare: prepareOriginalClientPair, connect: connectOriginalPairLocked,
-		read: readOriginalClientPair, write: writeOriginalClientPair, unit: originalClientUnitOperation}
+		disconnect: disconnectOriginalPairLocked,
+		read:       readOriginalClientPair, write: writeOriginalClientPair, unit: originalClientUnitOperation}
 }
 
 func prepareOriginalClientPair(pair *claimedSessionPair) error {

@@ -55,7 +55,11 @@ func TestDialAcknowledgesFirstEagerIPCP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(session.Cleanup)
+	t.Cleanup(func() {
+		if err := session.Cleanup(); err != nil {
+			t.Error(err)
+		}
+	})
 	close(restart)
 	err = <-done
 	joined = true

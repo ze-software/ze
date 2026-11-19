@@ -95,14 +95,20 @@ func TestPPPoEClientChangeReconnect(t *testing.T) {
 				d := &changeDialer{session: PPPoESession{
 					SessionID: 42, UnitNum: 7, NegMTU: initial.NegMTU,
 					LocalIP: initial.LocalIP, PeerIP: initial.PeerIP,
-					Changes: changes, Done: make(chan struct{}), Cleanup: func() {
+					Changes: changes, Done: make(chan struct{}), Cleanup: func() error {
 						b.fail = ""
 						cleanups.Add(1)
+						return nil
 					},
+					NativeWriter: logicalNativeWriter{b, "wan"},
 				}, times: make(chan time.Time, 4)}
-				c := NewPPPoEClient(PPPoEClientConfig{Name: "wan", Timing: testPPPoETiming}, d, b, slog.New(slog.NewTextHandler(io.Discard, nil)))
+				c := NewPPPoEClient(PPPoEClientConfig{Name: "wan", Timing: testPPPoETiming}, d, slog.New(slog.NewTextHandler(io.Discard, nil)))
 				c.Start()
-				t.Cleanup(c.Stop)
+				t.Cleanup(func() {
+					if err := c.Stop(); err != nil {
+						t.Error(err)
+					}
+				})
 				synctest.Wait()
 				<-d.times
 				b.fail = operation
@@ -141,11 +147,16 @@ func TestPPPoEClientInitialRouteRetry(t *testing.T) {
 		d := &fakeDialer{sess: PPPoESession{
 			SessionID: 42, UnitNum: 7, LocalIP: initial.LocalIP,
 			PeerIP: initial.PeerIP, NegMTU: initial.NegMTU,
-			Changes: changes, Done: make(chan struct{}), Cleanup: func() { cleanups++ },
+			Changes: changes, Done: make(chan struct{}), Cleanup: func() error { cleanups++; return nil },
+			NativeWriter: logicalNativeWriter{b, "wan"},
 		}}
-		c := NewPPPoEClient(PPPoEClientConfig{Name: "wan", Timing: testPPPoETiming}, d, b, slog.New(slog.NewTextHandler(&logs, nil)))
+		c := NewPPPoEClient(PPPoEClientConfig{Name: "wan", Timing: testPPPoETiming}, d, slog.New(slog.NewTextHandler(&logs, nil)))
 		c.Start()
-		t.Cleanup(c.Stop)
+		t.Cleanup(func() {
+			if err := c.Stop(); err != nil {
+				t.Error(err)
+			}
+		})
 		synctest.Wait()
 		if c.status().State != "up" {
 			t.Fatal("initial route failure ended PPP")
@@ -193,9 +204,10 @@ func TestPPPoEClientNewestPendingChange(t *testing.T) {
 		d := &fakeDialer{sess: PPPoESession{
 			SessionID: 42, UnitNum: 7, LocalIP: initial.LocalIP,
 			PeerIP: initial.PeerIP, NegMTU: initial.NegMTU,
-			Changes: changes, Done: make(chan struct{}), Cleanup: func() {},
+			Changes: changes, Done: make(chan struct{}), Cleanup: func() error { return nil },
+			NativeWriter: logicalNativeWriter{b, "wan"},
 		}}
-		c := NewPPPoEClient(PPPoEClientConfig{Name: "wan", Timing: testPPPoETiming}, d, b, slog.New(slog.NewTextHandler(io.Discard, nil)))
+		c := NewPPPoEClient(PPPoEClientConfig{Name: "wan", Timing: testPPPoETiming}, d, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		c.Start()
 		synctest.Wait()
 		changes <- changedResult("192.0.2.3", "192.0.2.8", 1400)
@@ -204,7 +216,11 @@ func TestPPPoEClientNewestPendingChange(t *testing.T) {
 		latest := changedResult("192.0.2.4", "192.0.2.9", 1300)
 		changes <- latest
 		close(b.release)
-		t.Cleanup(c.Stop)
+		t.Cleanup(func() {
+			if err := c.Stop(); err != nil {
+				t.Error(err)
+			}
+		})
 		synctest.Wait()
 		if len(changes) != 0 {
 			t.Fatal("newest pending result was not consumed")

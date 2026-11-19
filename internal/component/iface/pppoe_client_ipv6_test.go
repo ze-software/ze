@@ -115,14 +115,14 @@ func TestRFC5072LinkLocalInstalledOnSessionDevice(t *testing.T) {
 	first := netip.MustParseAddr("fe80::5054:ff:fe12:3456")
 	second := netip.MustParseAddr("fe80::77")
 
-	applied, err := applyPPPoELinkLocal(b, "pppoe0", netip.Addr{}, first)
+	applied, err := applyPPPoELinkLocal(logicalNativeWriter{b, "pppoe0"}, netip.Addr{}, first)
 	if err != nil || applied != first {
 		t.Fatalf("install: applied %v err %v", applied, err)
 	}
-	if applied, err = applyPPPoELinkLocal(b, "pppoe0", applied, second); err != nil || applied != second {
+	if applied, err = applyPPPoELinkLocal(logicalNativeWriter{b, "pppoe0"}, applied, second); err != nil || applied != second {
 		t.Fatalf("replace: applied %v err %v", applied, err)
 	}
-	if applied, err = applyPPPoELinkLocal(b, "pppoe0", applied, netip.Addr{}); err != nil || applied.IsValid() {
+	if applied, err = applyPPPoELinkLocal(logicalNativeWriter{b, "pppoe0"}, applied, netip.Addr{}); err != nil || applied.IsValid() {
 		t.Fatalf("withdraw: applied %v err %v", applied, err)
 	}
 	wantAdded := []string{"fe80::5054:ff:fe12:3456/64", "fe80::77/64"}

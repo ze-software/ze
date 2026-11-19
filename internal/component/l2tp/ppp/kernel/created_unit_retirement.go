@@ -23,6 +23,22 @@ type nativePPPUnitRetirement struct {
 
 type nativePPPUnitCloseResult struct{ cause error }
 
+// nativeRetirementPending projects only the SAME original file, short borrows
+// and retained duplicate. A failed first close supplies no physical retirement
+// proof, even after the local writer socket has closed. This observer MUST NOT
+// initiate cleanup or infer native absence from a namespace/write error.
+func (unit *CreatedUnit) nativeRetirementPending() bool {
+	if unit == nil {
+		return true
+	}
+	unit.mu.Lock()
+	defer unit.mu.Unlock()
+	if unit.self != unit {
+		return true
+	}
+	return unit.retirement.retired == nil || unit.retirement.retired.cause != nil
+}
+
 // WaitNativePPPUnitRetired joins the SAME original file's completed Close,
 // every short public borrow and the library's retained original duplicate.
 // Nil confirms successful completion of all of those native closes. A failed

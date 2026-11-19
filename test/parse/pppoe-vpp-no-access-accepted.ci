@@ -1,0 +1,12 @@
+# Test: does offline validation accept global PPPoE settings without access interfaces on VPP?
+# Why not a unit test: the shipped command must apply the declaration only to
+# named access interfaces, preserving an inactive access concentrator's settings.
+
+stdin=config:terminator=EOF_CONF
+interface { backend vpp }
+pppoe { ac-name proof }
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

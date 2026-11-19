@@ -67,7 +67,7 @@ func vppHugepagesDoctorCheck() diagnostic.DoctorCheck {
 // hugepageParams are the VPP config values evaluated against the host, plus the
 // roots to read and the target arch.
 type hugepageParams struct {
-	pageSize string // "2M" or "1G"
+	pageSize string // "2M", "1G", or explicit base-page "default"
 	mainHeap string // e.g. "1G"
 	buffers  int64
 	statseg  string // e.g. "512M"
@@ -114,7 +114,7 @@ func hugepageParamsFromTree(tree *config.Tree) (hugepageParams, bool) {
 	if vpp == nil {
 		return hugepageParams{}, false
 	}
-	if enabled, _ := vpp.Get("enabled"); enabled != "true" {
+	if enabled, _ := vpp.Get("enabled"); enabled != yangTrue {
 		return hugepageParams{}, false
 	}
 	p := hugepageParams{pageSize: "2M", mainHeap: "1G", buffers: 128000, statseg: "512M"}
@@ -142,9 +142,12 @@ func hugepageParamsFromTree(tree *config.Tree) (hugepageParams, bool) {
 // evaluateVPPHugepages performs the host reads and returns diagnostics for
 // AC-9..AC-12. It short-circuits to a single error when no pages are reserved.
 func evaluateVPPHugepages(p hugepageParams) []diagnostic.Diagnostic {
+	if p.pageSize == memoryPageModeBase {
+		return nil
+	} // explicit base pages request no hugepage reservation
 	sizeKB, sizeBytes, ok := hugepageSizeKB(p.pageSize)
 	if !ok {
-		return nil // page-size is validated at config time; nothing to check here
+		return []diagnostic.Diagnostic{{Code: doctorVPPHugepagesCode, Severity: diagnostic.SeverityError, Message: "VPP memory page mode " + strconv.Quote(p.pageSize) + " is unsupported", Fix: "set vpp memory hugepage-size 2M"}}
 	}
 	var diags []diagnostic.Diagnostic
 	var tb textbuf.Buffer

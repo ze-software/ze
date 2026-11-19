@@ -22,6 +22,10 @@ type accessTestOwner struct {
 
 func (o *accessTestOwner) Close() error { o.calls++; return o.err }
 
+func (*accessTestOwner) Open(ctx context.Context, request Request) (OpenedSession, error) {
+	return testUnusedOpen(ctx, request)
+}
+
 // TestAccessOwnsImmutableBinding proves admitted metadata is copied and the
 // provider's resource lease has exactly one close outcome under concurrency.
 func TestAccessOwnsImmutableBinding(t *testing.T) {
@@ -128,7 +132,7 @@ func TestBackendPrepareSelectsProvider(t *testing.T) {
 	}
 	ctx := context.WithValue(context.Background(), testContextKey{}, "prepare")
 	var registry sessionRegistry
-	if err := registry.register("chosen", testUnusedOpen, func(got context.Context, name string) (Access, error) {
+	if err := registry.register("chosen", func(got context.Context, name string) (Access, error) {
 		if got != ctx {
 			t.Error("context replaced")
 		}
@@ -139,7 +143,7 @@ func TestBackendPrepareSelectsProvider(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := registry.register("other", testUnusedOpen, func(context.Context, string) (Access, error) {
+	if err := registry.register("other", func(context.Context, string) (Access, error) {
 		t.Error("unselected preparer called")
 		return nil, errors.New("unselected")
 	}); err != nil {
@@ -174,7 +178,7 @@ func TestBackendPrepareRefusalCleansLease(t *testing.T) {
 	}
 	want := errors.New("prepare failed")
 	var registry sessionRegistry
-	if err := registry.register("chosen", testUnusedOpen, func(context.Context, string) (Access, error) {
+	if err := registry.register("chosen", func(context.Context, string) (Access, error) {
 		return access, want
 	}); err != nil {
 		t.Fatal(err)
@@ -202,11 +206,11 @@ func TestBackendPrepareRefusalCleansLease(t *testing.T) {
 // nil contexts and nil factory results from admitting an access.
 func TestBackendPrepareRefusesInvalidBoundary(t *testing.T) {
 	var registry sessionRegistry
-	if err := registry.register("missing", testUnusedOpen, nil); err == nil {
+	if err := registry.register("missing", nil); err == nil {
 		t.Fatal("accepted missing preparer")
 	}
 	calls := 0
-	if err := registry.register("chosen", testUnusedOpen, func(context.Context, string) (Access, error) {
+	if err := registry.register("chosen", func(context.Context, string) (Access, error) {
 		calls++
 		return nil, nil //nolint:nilnil // Deliberately invalid provider result; this test must prove nil success is refused after exactly one call.
 	}); err != nil {
@@ -242,7 +246,7 @@ func (a *accessEmbedding) Close() error { return a.owner.Close() }
 func TestBackendPrepareRejectsUnconstructedAccess(t *testing.T) {
 	owner := &accessTestOwner{}
 	var registry sessionRegistry
-	if err := registry.register("chosen", testUnusedOpen, func(context.Context, string) (Access, error) {
+	if err := registry.register("chosen", func(context.Context, string) (Access, error) {
 		return &accessEmbedding{owner: owner}, nil
 	}); err != nil {
 		t.Fatal(err)
@@ -270,7 +274,7 @@ func TestBackendPrepareCancellationReleasesAccess(t *testing.T) {
 	defer cancel()
 	owner := &accessTestOwner{}
 	var registry sessionRegistry
-	if err := registry.register("chosen", testUnusedOpen, func(context.Context, string) (Access, error) {
+	if err := registry.register("chosen", func(context.Context, string) (Access, error) {
 		access, err := NewAccess(testAccessInfo(), owner)
 		cancel()
 		return access, err
@@ -298,7 +302,7 @@ func TestBackendPrepareCancellationReleasesAccess(t *testing.T) {
 func TestBackendPrepareRejectsTypedNilResult(t *testing.T) {
 	for _, failure := range []error{nil, errors.New("provider refused")} {
 		var registry sessionRegistry
-		if err := registry.register("chosen", testUnusedOpen, func(context.Context, string) (Access, error) {
+		if err := registry.register("chosen", func(context.Context, string) (Access, error) {
 			var access *preparedAccess
 			return access, failure
 		}); err != nil {
@@ -329,6 +333,10 @@ type accessPanicOwner struct {
 }
 
 func (o *accessPanicOwner) Close() error { o.calls++; panic(o.failure) }
+
+func (*accessPanicOwner) Open(ctx context.Context, request Request) (OpenedSession, error) {
+	return testUnusedOpen(ctx, request)
+}
 
 // TestAccessCleanupPanicHasOneOutcome proves a failing map release neither
 // escapes construction/close nor repeats when another caller ends the lease.

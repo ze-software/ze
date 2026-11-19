@@ -21,6 +21,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/cpulist"
 	"github.com/ze-software/ze/internal/core/naming"
+	"github.com/ze-software/ze/internal/core/suggest"
 )
 
 var (
@@ -30,15 +31,17 @@ var (
 
 // VPPSettings holds parsed VPP configuration from the YANG config tree.
 type VPPSettings struct {
-	Enabled   bool
-	External  bool // true: ze connects via GoVPP but does not exec/supervise the VPP binary
-	APISocket string
-	CPU       CPUSettings
-	Memory    MemorySettings
-	DPDK      DPDKSettings
-	Stats     StatsSettings
-	LCP       LCPSettings
-	Plugins   PluginSettings
+	Enabled        bool
+	External       bool // true: ze connects via GoVPP but does not exec/supervise the VPP binary
+	APISocket      string
+	StartupCLIFile string // optional original file executed before managed readiness
+	CPU            CPUSettings
+	Memory         MemorySettings
+	DPDK           DPDKSettings
+	Stats          StatsSettings
+	LCP            LCPSettings
+	Plugins        PluginSettings
+	startup        []startupFeature // validated declarations selected from the delivered candidate
 }
 
 // PluginSettings holds optional VPP plugin enablement toggles. startup.conf
@@ -46,6 +49,8 @@ type VPPSettings struct {
 // emits an explicit `plugin <name>.so { enable }`.
 type PluginSettings struct {
 	Wireguard bool
+	DPDK      *bool // nil consumes the YANG enabled default
+	AFPacket  *bool // nil consumes the YANG disabled default
 }
 
 // CPUSettings holds VPP CPU pinning settings.
@@ -68,7 +73,7 @@ type CPUSettings struct {
 // MemorySettings holds VPP memory and buffer settings.
 type MemorySettings struct {
 	MainHeap     string // e.g. "1G", "1536M"
-	HugepageSize string // "2M" or "1G"
+	HugepageSize string // "2M", "1G", or explicit base-page "default"
 	Buffers      uint32
 }
 
@@ -102,6 +107,9 @@ type LCPSettings struct {
 
 // yangTrue is the string representation of boolean true in YANG config JSON.
 const yangTrue = "true"
+
+// memoryPageModeBase is the explicit YANG/native token selecting base pages.
+const memoryPageModeBase = "default"
 
 // pciAddressRE validates PCI bus addresses in DDDD:DD:DD.D format.
 var pciAddressRE = regexp.MustCompile(`^[0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\.[0-7]$`)
@@ -185,7 +193,10 @@ func unknownKeys(context string, raw map[string]json.RawMessage, known []string)
 	}
 	for k := range raw {
 		if !set[k] {
-			return fmt.Errorf("vpp %s: unknown key %q", context, k)
+			if correction := suggest.Correction(k, known); correction != "" {
+				return fmt.Errorf("vpp %s: unknown key %q; did you mean %q?", context, k, correction)
+			}
+			return fmt.Errorf("vpp %s: unknown key %q (valid keys: %s)", context, k, strings.Join(known, ", "))
 		}
 	}
 	return nil
@@ -233,7 +244,7 @@ func ParseSettings(section json.RawMessage) (*VPPSettings, error) {
 	}
 
 	if err := unknownKeys("config", raw, []string{
-		"enabled", "external", "api-socket", "cpu", "memory", "dpdk", "stats", "lcp", "plugins",
+		"enabled", "external", "api-socket", "startup-cli-file", "cpu", "memory", "dpdk", "stats", "lcp", "plugins",
 	}); err != nil {
 		return nil, err
 	}
@@ -266,6 +277,13 @@ func ParseSettings(section json.RawMessage) (*VPPSettings, error) {
 	}
 	if v, ok := raw["api-socket"]; ok {
 		cfg.APISocket = strings.Trim(string(v), `"`)
+	}
+	if v, ok := raw["startup-cli-file"]; ok {
+		path, err := parseStartupCLIFile(v)
+		if err != nil {
+			return nil, err
+		}
+		cfg.StartupCLIFile = path
 	}
 	if v, ok := raw["cpu"]; ok {
 		if err := parseCPU(v, &cfg.CPU); err != nil {
@@ -306,11 +324,25 @@ func parsePlugins(data json.RawMessage, plugins *PluginSettings) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return fmt.Errorf("vpp plugins: %w", err)
 	}
-	if err := unknownKeys("plugins", raw, []string{"wireguard"}); err != nil {
+	if err := unknownKeys("plugins", raw, []string{"wireguard", "dpdk", "af-packet"}); err != nil {
 		return err
 	}
 	if v, ok := raw["wireguard"]; ok {
 		plugins.Wireguard = strings.Trim(string(v), `"`) == yangTrue
+	}
+	if v, ok := raw["dpdk"]; ok {
+		selected, err := parseStartupPluginChoice("dpdk", v)
+		if err != nil {
+			return err
+		}
+		plugins.DPDK = selected
+	}
+	if v, ok := raw["af-packet"]; ok {
+		selected, err := parseStartupPluginChoice("af-packet", v)
+		if err != nil {
+			return err
+		}
+		plugins.AFPacket = selected
 	}
 	return nil
 }
@@ -321,6 +353,15 @@ func (s *VPPSettings) Validate() error {
 		return nil
 	}
 
+	if _, _, err := s.managedStartupPlugins(); err != nil {
+		return err
+	}
+	if err := validateStartupPageMode(s.Memory.HugepageSize); err != nil {
+		return err
+	}
+	if err := validateStartupCLIPath(s.StartupCLIFile); err != nil {
+		return err
+	}
 	if err := validateSocketPath("api-socket", s.APISocket); err != nil {
 		return err
 	}
@@ -431,8 +472,11 @@ func parseMemory(data json.RawMessage, mem *MemorySettings) error {
 	}
 	if v, ok := raw["hugepage-size"]; ok {
 		s := strings.Trim(string(v), `"`)
-		if s != "2M" && s != "1G" {
-			return fmt.Errorf("vpp memory hugepage-size: must be 2M or 1G, got %q", s)
+		// Delivered configuration is open input; unknown spellings are refused.
+		switch s {
+		case "2M", "1G", memoryPageModeBase:
+		default:
+			return fmt.Errorf("vpp memory hugepage-size: must be 2M, 1G or default, got %q", s)
 		}
 		mem.HugepageSize = s
 	}

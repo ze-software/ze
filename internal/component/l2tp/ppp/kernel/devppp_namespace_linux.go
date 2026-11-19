@@ -57,6 +57,13 @@ func createPPPSetupUnit(creator *UnitCreator, channel *CreatedChannel, name stri
 // pins that exact native namespace until restore or locked worker termination.
 // No mutex or file lease may span the call; the caller MUST join this result.
 func runOriginalPPPNamespace(target *capturedSessionNamespace, operation func() error) originalPPPNamespaceResult {
+	return runOriginalPPPNamespaceWithStart(target, nil, operation)
+}
+
+// A test-only instance observer can arrange a genuine worker starting namespace
+// before its real capture. Such a worker MUST always retire its locked thread,
+// including early refusal or panic. It never returns that namespace to the pool.
+func runOriginalPPPNamespaceWithStart(target *capturedSessionNamespace, start func() error, operation func() error) originalPPPNamespaceResult {
 	if target == nil {
 		return originalPPPNamespaceResult{namespaceErr: errors.New("ppp: original namespace is unknown")}
 	}
@@ -68,8 +75,20 @@ func runOriginalPPPNamespace(target *capturedSessionNamespace, operation func() 
 	go func() {
 		defer close(done)
 		result <- runOriginalPPPNamespaceThread(target, operation, pppSetupNamespaceOps{
-			lock: runtime.LockOSThread, unlock: runtime.UnlockOSThread,
-			current: captureSessionNamespace, enter: enterPPPSetupNamespace,
+			lock: runtime.LockOSThread,
+			unlock: func() {
+				if start == nil {
+					runtime.UnlockOSThread()
+				}
+			},
+			current: func() (*capturedSessionNamespace, error) {
+				if start != nil {
+					if err := start(); err != nil {
+						return nil, err
+					}
+				}
+				return captureSessionNamespace()
+			}, enter: enterPPPSetupNamespace,
 		})
 	}()
 	created := <-result

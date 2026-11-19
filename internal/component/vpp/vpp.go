@@ -8,6 +8,7 @@ package vpp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -142,9 +143,11 @@ type VPPManager struct {
 	settings   *VPPSettings
 	dpdk       *DPDKBinder
 	connector  *Connector
-	confDir    string // directory to write startup.conf
-	vppBinary  string // path to VPP binary
-	hasRunOnce bool   // tracks first vs subsequent starts for connected/reconnected events
+	confDir    string       // directory to write startup.conf
+	vppBinary  string       // path to VPP binary
+	hasRunOnce bool         // tracks first vs subsequent starts for connected/reconnected events
+	ready      bool         // this manager currently owns one published readiness lifetime
+	startup    chan<- error // configured before Run; one buffered startup receipt
 }
 
 // NewVPPManager creates a VPP lifecycle manager from parsed settings.
@@ -166,10 +169,26 @@ const maxRestartBackoff = 30 * time.Second
 // Run is the self-contained lifecycle loop. It blocks until ctx is canceled.
 //
 // Sequence: generate startup.conf, bind DPDK NICs, exec VPP, connect GoVPP,
-// emit ("vpp","connected"), monitor. On crash: emit ("vpp","disconnected"),
-// backoff, restart, emit ("vpp","reconnected"). On ctx cancel: SIGTERM VPP,
-// wait, unbind NICs.
-func (m *VPPManager) Run(ctx context.Context) error {
+// bind the original child, complete its configured startup CLI, activate
+// statistics, emit ("vpp","connected"), monitor. On crash: emit ("vpp","disconnected"),
+// backoff, restart, emit ("vpp","reconnected"). On ctx cancel: kill the
+// original supervised child, join its wait, then restore the NIC drivers.
+func (m *VPPManager) Run(ctx context.Context) (failure error) {
+	return m.runWithOps(ctx, managerRunOps{bindAll: m.dpdk.BindAll, runOnce: m.runOnce, unbindAll: m.dpdk.UnbindAll})
+}
+
+// managerRunOps fixes the native run and restoration boundaries for one run.
+// All callbacks MUST belong to the same manager and MUST be nonnil.
+type managerRunOps struct {
+	bindAll   func([]DPDKInterface) error
+	runOnce   func(context.Context, string) error
+	unbindAll func() error
+}
+
+// runWithOps runs the same lifecycle through its captured operation boundaries.
+// The caller MUST supply complete operations before starting this serial run.
+func (m *VPPManager) runWithOps(ctx context.Context, ops managerRunOps) (failure error) {
+	defer func() { m.notifyStartup(failure) }()
 	lg := logger()
 
 	if !m.settings.Enabled {
@@ -187,13 +206,20 @@ func (m *VPPManager) Run(ctx context.Context) error {
 		lg.Info("vpp: external mode, skipping startup.conf + DPDK bind",
 			"reason", "external supervisor owns VPP lifecycle")
 	} else {
+		if err := checkManagedStartupCLI(m.settings, openStartupCLIFile); err != nil {
+			return err
+		}
 		if err := m.writeStartupConf(confPath); err != nil {
 			return fmt.Errorf("vpp: write startup.conf: %w", err)
 		}
 		lg.Info("vpp: startup.conf written", "path", confPath)
 
-		if err := m.dpdk.BindAll(m.settings.DPDK.Interfaces); err != nil {
-			return fmt.Errorf("vpp: dpdk bind: %w", err)
+		if err := ops.bindAll(m.settings.DPDK.Interfaces); err != nil {
+			failure := fmt.Errorf("vpp: dpdk bind: %w", err)
+			if len(m.dpdk.savedDrivers) != 0 {
+				return m.retainNativeCleanup(failure, nil, ops.unbindAll)
+			}
+			return failure
 		}
 		lg.Info("vpp: DPDK NICs bound", "count", len(m.settings.DPDK.Interfaces))
 	}
@@ -208,22 +234,38 @@ func (m *VPPManager) Run(ctx context.Context) error {
 	defer setActiveLCPSettings(LCPSettings{}, false)
 
 	defer func() {
-		if err := m.dpdk.UnbindAll(); err != nil {
+		var child nativeCleanupError
+		var childFailure error
+		if errors.As(failure, &child) {
+			childFailure = failure
+		}
+		if err := ops.unbindAll(); err != nil {
 			lg.Error("vpp: dpdk unbind failed", "error", err)
+			failure = m.retainNativeCleanup(errors.Join(failure, fmt.Errorf("vpp: dpdk unbind: %w", err)), childFailure, ops.unbindAll)
+		} else if childFailure != nil {
+			failure = m.retainNativeCleanup(failure, childFailure, ops.unbindAll)
 		}
 	}()
 
 	backoff := time.Second
 	for {
-		err := m.runOnce(ctx, confPath)
+		err := ops.runOnce(ctx, confPath)
+		m.notifyStartup(err)
 		if ctx.Err() != nil {
 			lg.Info("vpp: shutdown requested")
 			m.connector.Close()
-			return nil
+			if err == ctx.Err() {
+				return nil
+			}
+			return err
+		}
+		var cleanup nativeCleanupError
+		if errors.As(err, &cleanup) {
+			m.connector.Close()
+			return err
 		}
 
 		lg.Error("vpp: process exited unexpectedly", "error", err, "backoff", backoff)
-		m.emitEvent(vppevents.EventDisconnected)
 
 		select {
 		case <-time.After(backoff):
@@ -247,22 +289,35 @@ func (m *VPPManager) IsConnected() bool {
 
 // runOnce starts VPP (or skips exec when external=true), connects GoVPP, and
 // blocks until the VPP process exits or ctx is canceled.
-// Returns a non-nil error when VPP exited unexpectedly; returns ctx.Err when
-// ctx was canceled (the outer loop converts ctx.Err to a clean shutdown).
-func (m *VPPManager) runOnce(ctx context.Context, confPath string) error {
+// Expected original-child shutdown returns the exact ctx.Err value. Native
+// cleanup failures retain their separate cause and prevent another child run.
+func (m *VPPManager) runOnce(ctx context.Context, confPath string) (failure error) {
 	lg := logger()
 
 	var cmd *exec.Cmd
+	var stop *managedChildStop
+	var child *processWitness
 	if m.settings.External {
 		lg.Info("vpp: external mode, not execing VPP binary", "socket", m.settings.APISocket)
 	} else {
+		if err := checkManagedStartupCLI(m.settings, openStartupCLIFile); err != nil {
+			return err
+		}
 		cmd = exec.CommandContext(ctx, m.vppBinary, "-c", confPath) //nolint:gosec // vppBinary is set at registration, not user input
+		stop = trackManagedChildStop(cmd)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 
-		if err := cmd.Start(); err != nil {
+		var err error
+		child, err = startManagedProcess(cmd)
+		if err != nil {
 			return fmt.Errorf("start vpp: %w", err)
 		}
+		defer func() {
+			if err := child.release(); err != nil {
+				failure = errors.Join(failure, nativeCleanupError{cause: fmt.Errorf("vpp: release child witness: %w", err)})
+			}
+		}()
 		lg.Info("vpp: process started", "pid", cmd.Process.Pid)
 	}
 
@@ -271,62 +326,119 @@ func (m *VPPManager) runOnce(ctx context.Context, confPath string) error {
 	defer connectCancel()
 
 	if err := m.connector.Connect(connectCtx, 10, time.Second); err != nil {
+		var cleanup error
 		if cmd != nil {
-			_ = cmd.Process.Kill()
-			_ = cmd.Wait()
+			cleanup = stopVPPChildWithStop(ctx, cmd, stop)
+			m.connector.Close()
 		}
-		return fmt.Errorf("vpp: connect: %w", err)
+		if err == ctx.Err() && cleanup == nil {
+			return err
+		}
+		return errors.Join(fmt.Errorf("vpp: connect: %w", err), cleanup)
 	}
 	lg.Info("vpp: GoVPP connected", "socket", m.settings.APISocket)
-
-	if m.hasRunOnce {
-		m.emitEvent(vppevents.EventReconnected)
-	} else {
-		m.emitEvent(vppevents.EventConnected)
-		m.hasRunOnce = true
-	}
-
-	// Start stats telemetry poller if metrics registry and stats connection are available.
-	var pollerCancel context.CancelFunc
-	var statsConn statsDisconnector
-	if reg := getMetricsRegistry(); reg != nil {
-		sc, statsErr := connectStats(m.settings.Stats.SocketPath)
-		if statsErr != nil {
-			lg.Warn("vpp: stats connection failed, telemetry disabled", "error", statsErr)
-		} else {
-			pollerCtx, cancel := context.WithCancel(ctx)
-			pollerCancel = cancel
-			statsConn = sc
-			setActiveStatsProvider(sc)
-			interval := time.Duration(m.settings.Stats.PollInterval) * time.Second
-			vppM := newVPPMetrics(reg)
-			poller := newStatsPoller(sc, vppM, interval)
-			go poller.run(pollerCtx)
-			lg.Info("vpp: stats telemetry started", "interval", interval)
+	var owned managedConnection
+	if cmd != nil {
+		var err error
+		owned, err = m.connector.bindManagedProcess(ctx, child)
+		if err != nil {
+			cleanup := stopVPPChildWithStop(ctx, cmd, stop)
+			m.connector.Close()
+			if cleanup == nil {
+				return err
+			}
+			return errors.Join(err, cleanup)
 		}
 	}
 
-	var err error
+	// Counters serve runtime consumers as well as optional telemetry. Publish
+	// their owned connection (or its failure) before any readiness observer.
+	statsGeneration, statsGenerationErr := m.connector.ConnectionGeneration()
+	stats, err := m.activateManagedRuntime(ctx, owned, func(path string) (runtimeStatsClient, error) {
+		if statsGenerationErr != nil {
+			return nil, statsGenerationErr
+		}
+		return connectStats(path, m.connector, statsGeneration)
+	})
+	if err != nil {
+		if cmd != nil {
+			cleanup := stopVPPChildWithStop(ctx, cmd, stop)
+			// Join the exact child before closing its matched transport. Its
+			// retained physical observer alone publishes process death.
+			m.connector.retireManagedConnection(owned)
+			if cleanup == nil {
+				return err
+			}
+			return errors.Join(err, cleanup)
+		}
+		m.connector.Close()
+		return err
+	}
+	defer m.retireReadiness()
+
+	loss, err := m.connector.ConnectionLoss()
+	if err == nil {
+		err = waitVPPConnectionWithStop(ctx, cmd, loss, stop)
+	} else if cmd != nil {
+		err = errors.Join(err, stopVPPChildWithStop(ctx, cmd, stop))
+	}
+	if stats != nil {
+		stats.Close()
+	}
 	if cmd != nil {
-		// Wait for VPP process to exit.
-		err = cmd.Wait()
-	} else {
-		// External mode: block on ctx.Done; the external supervisor owns VPP lifecycle.
-		<-ctx.Done()
-		err = ctx.Err()
-	}
-	if pollerCancel != nil {
-		pollerCancel()
-	}
-	setActiveStatsProvider(nil)
-	if statsConn != nil {
-		statsConn.Disconnect()
-	}
-	m.connector.Close()
-	if cmd != nil {
+		// waitVPPConnection joins cmd.Wait on process exit, API loss and
+		// shutdown. The physical observer independently proves process death.
+		m.connector.retireManagedConnection(owned)
+		if err == ctx.Err() && err != nil {
+			return err
+		}
+		if err == nil {
+			return errors.New("vpp process exited")
+		}
 		return fmt.Errorf("vpp process exited: %w", err)
 	}
+	m.connector.Close()
 	return err
+}
+
+// waitVPPConnection owns one process-wait bridge for the supervised process
+// lifetime. It MUST join that bridge before returning. External mode has no
+// process to reap and MUST NOT manufacture process-exit evidence on API loss.
+func waitVPPConnection(ctx context.Context, cmd *exec.Cmd, loss <-chan error) error {
+	return waitVPPConnectionWithStop(ctx, cmd, loss, nil)
+}
+
+func waitVPPConnectionWithStop(ctx context.Context, cmd *exec.Cmd, loss <-chan error, stop *managedChildStop) error {
+	if cmd == nil {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case err := <-loss:
+			return err
+		}
+	}
+	exited := make(chan error, 1)
+	go func() { exited <- cmd.Wait() }()
+	var failure error
+	select {
+	case err := <-exited:
+		if stop.confirmed() && expectedVPPKill(cmd, err) {
+			return ctx.Err()
+		}
+		return managedVPPWaitResult(ctx, cmd, err)
+	case <-ctx.Done():
+		failure = ctx.Err()
+	case failure = <-loss:
+	}
+	// The API may be lost while its VPP process is still alive. Reap that
+	// exact owned child before restarting; a changed PID or socket is no proof.
+	killErr := cmd.Process.Kill()
+	waitErr := <-exited
+	cleanup := managedChildCleanup(ctx, cmd, killErr, waitErr, stop.confirmed())
+	if cleanup == nil {
+		return failure
+	}
+	return errors.Join(failure, cleanup)
 }
 
 // writeStartupConf generates and writes the VPP startup.conf file. The host CPU

@@ -19,8 +19,9 @@ func clientPairFixture(t *testing.T) (*ClientSession, *claimedSessionPair, *[]in
 	unit := sessionTestUnit(cfg)
 	unit.closeFile = func(fd int) error { *released = append(*released, fd); return nil }
 	ops := clientPairOps{
-		prepare: func(*claimedSessionPair) error { return nil },
-		connect: func(*claimedSessionPair) error { return nil },
+		prepare:    func(*claimedSessionPair) error { return nil },
+		connect:    func(*claimedSessionPair) error { return nil },
+		disconnect: func(*claimedSessionPair) error { return nil },
 		read: func(_ *claimedSessionPair, unit bool, b []byte) (int, error) {
 			if unit {
 				b[0] = 2

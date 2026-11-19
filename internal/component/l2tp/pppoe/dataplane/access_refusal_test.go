@@ -21,7 +21,7 @@ func TestAccessPrepareRefusalRetainsExactRecoverableOwner(t *testing.T) {
 		t.Fatal(err)
 	}
 	var registry sessionRegistry
-	if err := registry.register("refused", testUnusedOpen, func(context.Context, string) (Access, error) { return access, original }); err != nil {
+	if err := registry.register("refused", func(context.Context, string) (Access, error) { return access, original }); err != nil {
 		t.Fatal(err)
 	}
 	backend, err := registry.lookup("refused")
@@ -78,7 +78,7 @@ func TestAccessPrepareForeignRefusalCannotAcquireRecovery(t *testing.T) {
 				t.Fatal(err)
 			}
 			var registry sessionRegistry
-			if err := registry.register("partial", testUnusedOpen, func(context.Context, string) (Access, error) { return access, errors.New("refused") }); err != nil {
+			if err := registry.register("partial", func(context.Context, string) (Access, error) { return access, errors.New("refused") }); err != nil {
 				t.Fatal(err)
 			}
 			backend, err := registry.lookup("partial")

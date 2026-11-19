@@ -42,6 +42,8 @@ type session struct {
 	unitFD              int
 	unitNum             int
 	backend             InterfaceOperations
+	mutations           NativeUnitOperations
+	nativeMutation      bool
 	unitLease           sessionUnitLease
 	pair                *claimedSessionPair
 	ops                 sessionOps
@@ -146,7 +148,7 @@ func newSession(cfg SessionConfig, ops sessionOps) (frames ppp.FrameChannel, han
 		channel:   &ownedSessionChannelStream{ReadWriteCloser: pair.channelStream, lease: pair.channel, closer: ops.closeChannel},
 		unit:      &ownedSessionUnitStream{ReadWriteCloser: pair.unitStream, lease: pair.unit, closeUnit: ops.closeUnit},
 		channelFD: pair.channel.descriptor(), unitFD: pair.info.fd, unitNum: pair.info.number,
-		backend: cfg.Backend, unitLease: pair.unit, pair: pair, ops: ops}
+		backend: cfg.Backend, mutations: pair.info.mutations, unitLease: pair.unit, pair: pair, ops: ops}
 	transferred = true
 	return owner, owner, nil
 }
@@ -225,19 +227,28 @@ func (s *session) InterruptRead() error {
 // the unit while its remote operations remain unconfirmed; a later Close
 // retries that seal. Once native release completes, Close retains its result.
 func (s *session) Close() error {
-	return s.closeWithNativeReleaseSeal()
+	// Final accounting and PPP disconnect belong to the caller. Physical Close
+	// and the genuine remote seal question precede local writer settlement.
+	physical := s.closeWithNativeReleaseSeal()
+	native := s.closeNativeOperations()
+	if native == nil {
+		return physical
+	}
+	return errors.Join(physical, native)
 }
 
 func (s *session) SetMTU(mtu int) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed {
-		return io.ErrClosedPipe
+	operations, err := s.beginNativeMutation()
+	if err != nil {
+		return err
 	}
+	defer s.endNativeMutation()
+	ctx, cancel := sessionNativeContext()
+	defer cancel()
 	if mtu <= 0 {
 		return errors.New("ppp: session MTU must be positive")
 	}
-	return s.backend.SetMTU(s.identity.InterfaceName, mtu)
+	return operations.SetMTU(ctx, mtu)
 }
 func (s *session) Connect() error {
 	s.mu.Lock()
@@ -287,19 +298,30 @@ func (s *session) SetReceiveMRU(mru uint16) error {
 	return s.ops.setMRU(s.unitFD, mru)
 }
 func (s *session) SetAdminUp() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed {
-		return io.ErrClosedPipe
+	operations, err := s.beginNativeMutation()
+	if err != nil {
+		return err
 	}
-	return s.backend.SetAdminUp(s.identity.InterfaceName)
+	defer s.endNativeMutation()
+	ctx, cancel := sessionNativeContext()
+	defer cancel()
+	return operations.SetAdminUp(ctx)
 }
 func (s *session) AddAddressP2P(local, peer netip.Prefix) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed {
-		return io.ErrClosedPipe
+	operations, err := s.beginNativeMutation()
+	if err != nil {
+		return err
 	}
+	defer s.endNativeMutation()
+	ctx, cancel := sessionNativeContext()
+	defer cancel()
+	s.mu.Lock()
+	locked := true
+	defer func() {
+		if locked {
+			s.mu.Unlock()
+		}
+	}()
 	if !local.IsValid() {
 		return errors.New("ppp: invalid local session address")
 	}
@@ -324,8 +346,15 @@ func (s *session) AddAddressP2P(local, peer netip.Prefix) error {
 	// Retain cleanup ownership even when a backend reports a partial add. Only
 	// a successful add may become eligible for the later NCP acknowledgement.
 	s.addresses[local] = sessionAddress{peer: peer, state: sessionAddressRetiring}
-	if err := s.backend.AddAddressP2P(s.identity.InterfaceName, local.String(), peer.String()); err != nil {
+	s.mu.Unlock()
+	locked = false
+	if err := operations.AddAddressP2P(ctx, local, peer); err != nil {
 		return err
+	}
+	s.mu.Lock()
+	locked = true
+	if s.closed {
+		return io.ErrClosedPipe
 	}
 	s.addresses[local] = sessionAddress{peer: peer, state: sessionAddressEligible}
 	return nil
@@ -335,11 +364,20 @@ func (s *session) AddAddressP2P(local, peer netip.Prefix) error {
 // succeeds. The caller MUST retain its cleanup owner after an error and retry;
 // absence of this owner's receipt is idempotent and never deletes native state.
 func (s *session) RemoveAddress(local netip.Prefix) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed {
-		return io.ErrClosedPipe
+	operations, err := s.beginNativeMutation()
+	if err != nil {
+		return err
 	}
+	defer s.endNativeMutation()
+	ctx, cancel := sessionNativeContext()
+	defer cancel()
+	s.mu.Lock()
+	locked := true
+	defer func() {
+		if locked {
+			s.mu.Unlock()
+		}
+	}()
 	if !local.IsValid() {
 		return errors.New("ppp: invalid local session address")
 	}
@@ -353,16 +391,16 @@ func (s *session) RemoveAddress(local netip.Prefix) error {
 	}
 	owned.state = sessionAddressRetiring
 	s.addresses[local] = owned
-	setMode := s.ops.setIPv6Mode
-	if local.Addr().Is4() {
-		setMode = s.ops.setIPv4Mode
-	}
-	if err := setMode(s.unitFD, NPModeDrop); err != nil {
+	s.mu.Unlock()
+	locked = false
+	if err := s.dropOriginalNativeFamily(local.Addr().Is4()); err != nil {
 		return err
 	}
-	if err := s.backend.RemoveAddress(s.identity.InterfaceName, local.String()); err != nil {
+	if err := operations.RemoveAddressP2P(ctx, local, owned.peer); err != nil {
 		return err
 	}
+	s.mu.Lock()
+	locked = true
 	delete(s.addresses, local)
 	return nil
 }
@@ -386,13 +424,22 @@ func (s *session) familyMode(ipv4 bool) NPMode {
 // AddRoute MUST retain an exact cleanup receipt before invoking the backend,
 // including when that call returns an uncertain result. Callers MUST withdraw
 // an attempted route through RemoveRoute and retain this owner for retries.
-// Safe for concurrent use; native mutation keeps the unit lease locked.
+// A short admission token protects intent; no owner lock spans native ACK.
 func (s *session) AddRoute(destination netip.Prefix, gateway netip.Addr, metric int, protocol rtproto.Proto) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed {
-		return io.ErrClosedPipe
+	operations, err := s.beginNativeMutation()
+	if err != nil {
+		return err
 	}
+	defer s.endNativeMutation()
+	ctx, cancel := sessionNativeContext()
+	defer cancel()
+	s.mu.Lock()
+	locked := true
+	defer func() {
+		if locked {
+			s.mu.Unlock()
+		}
+	}()
 	route, err := newSessionRoute(destination, gateway, metric, protocol)
 	if err != nil {
 		return err
@@ -430,19 +477,30 @@ func (s *session) AddRoute(destination netip.Prefix, gateway netip.Addr, metric 
 		// installed its path before failing. Keep that exact cleanup intent.
 		s.routes[route] = struct{}{}
 	}
-	return s.backend.AddRoute(s.identity.InterfaceName, route.destination.String(), route.gateway.String(), route.metric, route.protocol)
+	s.mu.Unlock()
+	locked = false
+	return operations.AddRoute(ctx, route.destination, route.gateway, route.metric, route.protocol)
 }
 
 // RemoveRoute MUST withdraw only this owner's exact cleanup receipt. A missing
 // receipt is already complete and performs no native operation. An error keeps
 // the receipt; callers MUST retain this owner and retry that same withdrawal.
-// Safe for concurrent use; Close cannot recycle the unit during native I/O.
+// Close may retire the original while ACK waits; the exact writer settles it.
 func (s *session) RemoveRoute(destination netip.Prefix, gateway netip.Addr, metric int, protocol rtproto.Proto) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed {
-		return io.ErrClosedPipe
+	operations, err := s.beginNativeMutation()
+	if err != nil {
+		return err
 	}
+	defer s.endNativeMutation()
+	ctx, cancel := sessionNativeContext()
+	defer cancel()
+	s.mu.Lock()
+	locked := true
+	defer func() {
+		if locked {
+			s.mu.Unlock()
+		}
+	}()
 	route, err := newSessionRoute(destination, gateway, metric, protocol)
 	if err != nil {
 		return err
@@ -453,9 +511,13 @@ func (s *session) RemoveRoute(destination netip.Prefix, gateway netip.Addr, metr
 		// producer's matching route into this session's cleanup obligation.
 		return nil
 	}
-	if err := s.backend.RemoveRoute(s.identity.InterfaceName, route.destination.String(), route.gateway.String(), route.metric, route.protocol); err != nil {
+	s.mu.Unlock()
+	locked = false
+	if err := operations.RemoveRoute(ctx, route.destination, route.gateway, route.metric, route.protocol); err != nil {
 		return err
 	}
+	s.mu.Lock()
+	locked = true
 	delete(s.routes, route)
 	return nil
 }

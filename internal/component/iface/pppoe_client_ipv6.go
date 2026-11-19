@@ -5,6 +5,7 @@
 package iface
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/netip"
@@ -169,17 +170,21 @@ func pppoeLinkLocalPrefix(addr netip.Addr) string {
 // used by the local end of the PPP link to autoconfigure an IPv6 link-local
 // unicast address for the PPP interface." Linux does not derive one on a PPP
 // device itself, as pppd's sif6addr shows by installing it.
-func applyPPPoELinkLocal(b Backend, ifname string, applied, next netip.Addr) (netip.Addr, error) {
+func applyPPPoELinkLocal(writer NativePPPWriter, applied, next netip.Addr) (netip.Addr, error) {
 	if next == applied {
 		return applied, nil
 	}
+	ctx, cancel := context.WithTimeout(context.Background(), pppoeNativeWait)
+	defer cancel()
 	if applied.IsValid() {
-		if err := b.RemoveAddress(ifname, pppoeLinkLocalPrefix(applied)); err != nil {
+		prefix := netip.PrefixFrom(applied, 64)
+		if err := writer.RemoveAddressP2P(ctx, prefix, prefix); err != nil {
 			return applied, err
 		}
 	}
 	if next.IsValid() {
-		if err := b.AddAddress(ifname, pppoeLinkLocalPrefix(next)); err != nil {
+		prefix := netip.PrefixFrom(next, 64)
+		if err := writer.AddAddressP2P(ctx, prefix, prefix); err != nil {
 			return netip.Addr{}, err
 		}
 	}

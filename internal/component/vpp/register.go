@@ -12,8 +12,10 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	vppyang "github.com/ze-software/ze/internal/component/vpp/yang"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	vppevents "github.com/ze-software/ze/internal/core/vpp/events"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -66,24 +68,16 @@ func init() {
 }
 
 func verifyVPPConfig(sections []sdk.ConfigSection) error {
-	for _, s := range sections {
-		if s.Root != componentVPP {
-			continue
-		}
-		parsed, err := ParseConfigSection(s.Data)
-		if err != nil {
-			return err
-		}
-		if err := parsed.Validate(); err != nil {
-			return fmt.Errorf("vpp: config validation: %w", err)
-		}
+	parsed, err := ParseConfigSections(sections)
+	if err != nil {
+		return err
 	}
-	return nil
+	return parsed.Validate()
 }
 
 // runVPPEngine is the plugin RunEngine entry point.
-// It creates the VPPManager and runs it inside the SDK's OnStarted callback
-// so the plugin remains live for config reload events.
+// It binds one configuration transaction and starts its owned manager only
+// from OnStarted. That callback waits until the actual API is ready.
 func runVPPEngine(conn net.Conn) int {
 	lg := logger()
 	lg.Debug("vpp plugin starting")
@@ -91,76 +85,37 @@ func runVPPEngine(conn net.Conn) int {
 	p := sdk.NewWithConn(componentVPP, conn)
 	defer func() { _ = p.Close() }()
 
-	// Initialize settings to the disabled default so OnStarted can run
-	// safely even if OnConfigure never fires or fails to parse. Without this,
-	// a failed OnConfigure returns an error, leaves `settings` as nil, and
-	// NewVPPManager(nil) in OnStarted deref-panics on settings.APISocket.
-	settings := &VPPSettings{Enabled: false}
-
-	// The Manager's context is created here, not inside OnStarted, so every
-	// return path cancels it. A p.Run error below returned without canceling
-	// it and without waiting for the Manager goroutine.
-	mgrCtx, mgrCancel := context.WithCancel(context.Background())
-	defer mgrCancel()
-
-	var mgrDone chan struct{}
-
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		for _, s := range sections {
-			if s.Root != componentVPP {
-				continue
-			}
-			parsed, err := ParseConfigSection(s.Data)
-			if err != nil {
-				return err
-			}
-			if err := parsed.Validate(); err != nil {
-				return fmt.Errorf("vpp: config validation: %w", err)
-			}
-			settings = parsed
-		}
-		return nil
-	})
-
-	p.OnConfigVerify(verifyVPPConfig)
-
-	p.OnConfigApply(func(sections []sdk.ConfigDiffSection) error {
-		lg.Warn("vpp: config reload requires daemon restart to take effect")
-		return nil
-	})
-
-	p.OnStarted(func(_ context.Context) error {
-		// Start the VPP Manager in a background goroutine.
-		// The Manager owns VPP's full lifecycle; the SDK event loop
-		// continues to handle config reload callbacks.
-		mgrDone = make(chan struct{})
-
-		mgr := NewVPPManager(settings, defaultConfDir, defaultVPPBinary)
-		go func() {
-			defer close(mgrDone)
-			if err := mgr.Run(mgrCtx); err != nil {
-				lg.Error("vpp manager failed", "error", err)
-			}
-		}()
-		return nil
-	})
-
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
+	runtime := newVPPLifecycle(ctx, runConfiguredVPP)
+	newVPPConfigTx(runtime).Register(p)
+	p.OnStarted(func(context.Context) error { return runtime.Start() })
 	rc := 0
 	if err := p.Run(ctx, &sdk.Registration{
-		WantsConfig: []string{componentVPP},
+		WantsConfig: startupConfigRoots(),
+		// Candidate startup and restoration each have a 45-second bound.
+		// The remaining allowance covers their cancellation and joined stops.
+		ApplyBudget: 120,
 	}); err != nil {
 		lg.Error("vpp plugin failed", "error", err)
 		rc = 1
 	}
 
-	// The SDK event loop exited (engine shutdown, or p.Run failed). Stop the
-	// Manager and wait for its goroutine before returning.
-	mgrCancel()
-	if mgrDone != nil {
-		<-mgrDone
+	if err := runtime.Stop(); err != nil {
+		report.RaiseWarningFix(processReportSource, diagnostic.CodeDoctorVPPProcess, "manager-stop",
+			"VPP manager cleanup failed", processReportFix, map[string]any{"error": err.Error()})
+		lg.Error("vpp manager stopped with an error", "code", diagnostic.CodeDoctorVPPProcess,
+			"fix", processReportFix, "error", err)
+		rc = 1
 	}
 
 	return rc
+}
+
+func runConfiguredVPP(ctx context.Context, settings *VPPSettings,
+	reconnected bool, receipt chan<- error) error {
+	manager := NewVPPManager(settings, defaultConfDir, defaultVPPBinary)
+	manager.hasRunOnce = reconnected
+	manager.startup = receipt
+	return manager.Run(ctx)
 }

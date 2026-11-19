@@ -176,19 +176,22 @@ func (d *timingDialer) snapshot() ([]PPPoEClientConfig, []time.Time) {
 }
 
 // startTimingClients installs d as the dialer and reconciles cfg once.
-func startTimingClients(t *testing.T, cfg *ifaceConfig, d PPPoEDialer) map[string]*PPPoEClient {
+func startTimingClients(t *testing.T, cfg *ifaceConfig, d PPPoEDialer) (map[string]*PPPoEClient, *sync.Mutex) {
 	t.Helper()
 	previous := pppoeDialerVar
 	SetPPPoEDialer(d)
 	t.Cleanup(func() { pppoeDialerVar = previous })
 	active := map[string]*PPPoEClient{}
-	reconcilePPPoEClients(cfg, active, nil, slog.Default(), nil)
+	var activeMu sync.Mutex
+	reconcilePPPoEClients(cfg, active, &activeMu, slog.Default(), nil)
 	t.Cleanup(func() {
 		for _, c := range active {
-			c.Stop()
+			if err := c.Stop(); err != nil {
+				t.Error(err)
+			}
 		}
 	})
-	return active
+	return active, &activeMu
 }
 
 // TestPPPoEClientKeepaliveFromConfig proves the hand-over of the keepalive
@@ -244,14 +247,14 @@ func TestPPPoEClientReloadKeepsSessionOnTimerChange(t *testing.T) {
 		d := &timingDialer{session: &session}
 		first, err := pppoeTimingJSON(t, `"failures": "2"`, "")
 		require.NoError(t, err)
-		active := startTimingClients(t, first, d)
+		active, activeMu := startTimingClients(t, first, d)
 		synctest.Wait()
 		running := active["pppoe0"]
 		require.NotNil(t, running)
 
 		timers, err := pppoeTimingJSON(t, `"failures": "3", "interval": "7"`, `"delay-max": "9"`)
 		require.NoError(t, err)
-		reconcilePPPoEClients(timers, active, nil, slog.Default(), nil)
+		reconcilePPPoEClients(timers, active, activeMu, slog.Default(), nil)
 		synctest.Wait()
 		assert.Same(t, running, active["pppoe0"], "a timer-only reload must keep the client")
 		configs, _ := d.snapshot()
@@ -264,7 +267,7 @@ func TestPPPoEClientReloadKeepsSessionOnTimerChange(t *testing.T) {
 		other := *timers
 		other.PPPoEClient = append([]pppoeClientEntry(nil), timers.PPPoEClient...)
 		other.PPPoEClient[0].MTU = 1400
-		reconcilePPPoEClients(&other, active, nil, slog.Default(), nil)
+		reconcilePPPoEClients(&other, active, activeMu, slog.Default(), nil)
 		synctest.Wait()
 		assert.NotSame(t, running, active["pppoe0"], "any other change must restart the client")
 		configs, _ = d.snapshot()

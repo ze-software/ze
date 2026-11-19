@@ -1,0 +1,146 @@
+Ze-Reviewed-Against: go.fd.io/govpp v0.13.0
+
+Upstream pull request: none opened yet.
+
+plan/post-release/features/spec-pppoe-vpp-dataplane.md, AC-27, requires:
+"Readiness and counter publication are refused. Process retirement requires the
+exact retained physical process proof; a claimed PID, logical generation or
+another child's completed wait cannot retire a live foreign peer."
+
+Counters must therefore come from the immutable API owner's physical process,
+and reconnect cleanup must retain that original process's exact exit proof.
+Expose a borrowed callback on the real API dial and real statistics segment
+transfer socket, before either becomes usable. Pinned statistics own a single
+mapping, with no hidden reconnect to a replacement process. Bound their native
+descriptor transfer by the existing configured retry timeout.
+
+Apply after govpp-socket-bounded-close.patch in the canonical sorted patch set.
+The API callback uses upstream's existing errors import. Neither callback
+transfers socket ownership; callers may retain only a separate kernel process
+descriptor.
+
+Design: docs/contributing/patching-the-standard-library.md, "Patching a
+vendored module". Deliver through ./le setup install and commit its vendor
+result; no compiler overlay or copied client is a delivery route. Delete when
+an upstream release provides these contracts.
+
+diff --git a/vendor/go.fd.io/govpp/adapter/socketclient/socketclient.go b/vendor/go.fd.io/govpp/adapter/socketclient/socketclient.go
+--- a/vendor/go.fd.io/govpp/adapter/socketclient/socketclient.go
++++ b/vendor/go.fd.io/govpp/adapter/socketclient/socketclient.go
+@@ -79,6 +79,7 @@
+ 	clientName string
+ 
+ 	conn   *net.UnixConn
++	connectionHook func(*net.UnixConn) error
+ 	reader *bufio.Reader
+ 	writer *bufio.Writer
+ 
+@@ -140,6 +141,15 @@
+ 	c.msgCallback = cb
+ }
+ 
++// SetConnectionHook sets a validator for the actual connected Unix socket.
++// Set it before Connect. The callback borrows the socket only during its call;
++// it MUST NOT close, retain or use the socket concurrently. It may retain an
++// independently owned descriptor obtained through SyscallConn. An error closes
++// the socket before any API handshake or reader starts. Not concurrency-safe.
++func (c *Client) SetConnectionHook(hook func(*net.UnixConn) error) {
++    c.connectionHook = hook
++}
++
+ // WaitReady checks if the socket file exists and if it does not exist waits for
+ // it for the duration defined by MaxWaitReady.
+ func (c *Client) WaitReady() error {
+@@ -329,6 +339,11 @@
+ 		}
+ 	}
+ 
++    if c.connectionHook != nil {
++        if err := c.connectionHook(conn); err != nil {
++            return errors.Join(err, conn.Close())
++        }
++    }
+ 	c.conn = conn
+ 	if debug {
+ 		log.Debugf("Connected to socket (local addr: %v)", c.conn.LocalAddr().(*net.UnixAddr))
+diff --git a/vendor/go.fd.io/govpp/adapter/statsclient/statsclient.go b/vendor/go.fd.io/govpp/adapter/statsclient/statsclient.go
+--- a/vendor/go.fd.io/govpp/adapter/statsclient/statsclient.go
++++ b/vendor/go.fd.io/govpp/adapter/statsclient/statsclient.go
+@@ -76,6 +76,8 @@
+ 	socket       string
+ 	retryPeriod  time.Duration
+ 	retryTimeout time.Duration
++	pinned bool
++	connectionHook func(*net.UnixConn) error
+ 
+ 	headerData []byte
+ 
+@@ -112,6 +114,16 @@
+ 	}
+ }
+ 
++// WithPinnedConnection validates the actual segment-transfer socket and
++// suppresses the automatic monitor/reconnect. One successful Connect then owns
++// one immutable mapping until Disconnect. The callback borrows the socket only
++// during its call; it MUST NOT close, retain or use that socket concurrently.
++// It may retain an independently owned descriptor through SyscallConn. The
++// caller MUST close that descriptor after Disconnect, including Connect errors.
++func WithPinnedConnection(validate func(*net.UnixConn) error) Option {
++    return func(c *StatsClient) { c.pinned, c.connectionHook = true, validate }
++}
++
+ // NewStatsClient returns a new StatsClient using socket.
+ // If socket is empty string DefaultSocketName is used.
+ func NewStatsClient(socket string, options ...Option) *StatsClient {
+@@ -136,6 +148,7 @@
+ // Connect to validated VPP stats socket and start monitoring
+ // socket file changes
+ func (sc *StatsClient) Connect() (err error) {
++    if sc.pinned && sc.connectionHook == nil { return fmt.Errorf("pinned stats connection requires a socket validator") }
+ 	if err := sc.waitForSocket(); err != nil {
+ 		return err
+ 	}
+@@ -145,7 +158,7 @@
+ 	if sc.statSegment, err = sc.connect(); err != nil {
+ 		return err
+ 	}
+-	sc.monitorSocket()
++	if !sc.pinned { sc.monitorSocket() }
+ 	return nil
+ }
+ 
+@@ -351,6 +364,10 @@
+ 			Log.Warnf("closing socket failed: %v", err)
+ 		}
+ 	}()
++    if sc.pinned {
++        if err := conn.SetDeadline(time.Now().Add(sc.retryTimeout)); err != nil { return nil, err }
++        if err := sc.connectionHook(conn); err != nil { return nil, err }
++    }
+ 	Log.Debugf("connected to socket")
+ 
+ 	files, err := fd.Get(conn, 1, nil)
+@@ -357,15 +374,18 @@
++	// Get transfers every returned file, including partial results on error.
++	defer func() {
++		for _, file := range files {
++			if err := file.Close(); err != nil {
++				Log.Warnf("closing file failed: %v", err)
++			}
++		}
++	}()
+ 	if err != nil {
+ 		return nil, fmt.Errorf("getting file descriptor over socket failed: %v", err)
+ 	}
+ 	if len(files) == 0 {
+ 		return nil, fmt.Errorf("no files received over socket")
+ 	}
+ 
+ 	file := files[0]
+-	defer func() {
+-		if err := file.Close(); err != nil {
+-			Log.Warnf("closing file failed: %v", err)
+-		}
+-	}()
+ 
+ 	info, err := file.Stat()

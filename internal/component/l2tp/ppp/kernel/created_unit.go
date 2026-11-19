@@ -35,23 +35,25 @@ func (creator *UnitCreator) Create(name string) (*CreatedUnit, error) {
 // neither can establish a new reader. The file MUST NOT be closed by raw FD.
 // Safe for concurrent Counters and Close. This owner borrows its backend.
 type CreatedUnit struct {
-	mu                sync.Mutex
-	closeMu           sync.Mutex
-	closed            bool
-	closeErr          error
-	retirement        nativePPPUnitRetirement
-	ready             bool
-	attempted         bool
-	file              *os.File
-	self              *CreatedUnit
-	backend           InterfaceOperations
-	namespace         *capturedSessionNamespace
-	sessionClaim      *claimedCreatedUnit
-	creationRejection nativeLinkCreationRejection
-	identity          ppp.SessionIdentity
-	number            int
-	readCounters      func() (ppp.SessionCounters, error)
-	poll              func(*os.File) error
+	mu                   sync.Mutex
+	closeMu              sync.Mutex
+	closed               bool
+	closeErr             error
+	nativeOperations     *nativeUnitOperationsBinding
+	nativeNamespaceStart func() error // integration-only setter; nil on production owners
+	retirement           nativePPPUnitRetirement
+	ready                bool
+	attempted            bool
+	file                 *os.File
+	self                 *CreatedUnit
+	backend              InterfaceOperations
+	namespace            *capturedSessionNamespace
+	sessionClaim         *claimedCreatedUnit
+	creationRejection    nativeLinkCreationRejection
+	identity             ppp.SessionIdentity
+	number               int
+	readCounters         func() (ppp.SessionCounters, error)
+	poll                 func(*os.File) error
 }
 
 func (unit *CreatedUnit) Identity() ppp.SessionIdentity { return unit.identity }
@@ -119,6 +121,7 @@ func (unit *CreatedUnit) Counters() (ppp.SessionCounters, error) {
 // query. It never deletes a device by its current name or native index.
 // A caller settling native writes MUST join WaitNativePPPUnitRetired after
 // arranging Close and release of the same native-release seal's duplicate.
+// A caller with a bound native facet MUST then call CloseNativeOperations.
 func (unit *CreatedUnit) Close() error {
 	if unit == nil {
 		return nil
