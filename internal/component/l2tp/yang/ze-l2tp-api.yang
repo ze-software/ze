@@ -3,6 +3,7 @@ module ze-l2tp-api {
     prefix l2tpapi;
 
     import ze-extensions { prefix ze; }
+    import ze-types { prefix zt; }
 
     description
         "L2TP API operations for Ze. RPCs for observing tunnel and
@@ -435,24 +436,7 @@ through the original reactor inventory, including retained cleanup roots.
 Unknown and ambiguous names are refused.";
                 ze:help "Original listener name or bound IP:port endpoint.";
             }
-            leaf actor {
-                type string { length "1..256"; }
-                description "The optional actor label recorded with the disconnect request on the
-captured original. Authorization continues to use the authenticated caller.";
-                ze:help "Audit actor label for this disconnect request.";
-            }
-            leaf reason {
-                type string { length "1..256"; }
-                description "The free-text disconnect reason. Quote text that contains another
-keyword. The command records it only against the captured original row.";
-                ze:help "Audit reason for clearing this session.";
-            }
-            leaf cause {
-                type uint32;
-                description "The optional RADIUS Disconnect-Cause audit value. It does not replace
-the administrative L2TP CDN result or authorize selection by numeric label.";
-                ze:help "RADIUS Disconnect-Cause audit value.";
-            }
+            uses disconnect-audit;
         }
         output {
             leaf result {
@@ -461,6 +445,84 @@ the administrative L2TP CDN result or authorize selection by numeric label.";
 and status retains the value 'sent' after local physical cleanup is confirmed.
 This is not proof of the peer's receipt. reason and cause are present when the
 request carried them.";
+                ze:help "JSON object describing the teardown outcome.";
+            }
+        }
+    }
+
+    grouping disconnect-audit {
+        description "The optional audit every session clear records against the captured
+original before its teardown.";
+        leaf actor {
+            type string { length "1..256"; }
+            description "The optional actor label recorded with the disconnect request on the
+captured original. Authorization continues to use the authenticated caller.";
+            ze:help "Audit actor label for this disconnect request.";
+        }
+        leaf reason {
+            type string { length "1..256"; }
+            description "The free-text disconnect reason. Quote text that contains another
+keyword. The command records it only against the captured original row.";
+            ze:help "Audit reason for clearing this session.";
+        }
+        leaf cause {
+            type uint32;
+            description "The optional RADIUS Disconnect-Cause audit value. It does not replace
+the administrative L2TP CDN result or authorize selection by numeric label.";
+            ze:help "RADIUS Disconnect-Cause audit value.";
+        }
+    }
+
+    rpc session-teardown-user {
+        description "Clears the one live session whose user name equals the input exactly, through
+the session walk the RADIUS Disconnect-Request listener uses, and confirms its
+local physical cleanup. No match is refused. Several matches are refused with
+nothing cleared, as that listener answers a request matching several sessions
+with Error-Cause 508; the refusal lists one session-teardown command for each.";
+        ze:help "Send CDN Result Code 3 (administrative) for the session of one user name.";
+        input {
+            leaf username {
+                type string { length "1..253"; }
+                mandatory true;
+                description "The user name the subscriber authenticated with, as the username value
+of a 'sessions' row shows it. The comparison is exact. RADIUS bounds User-Name
+at 253 octets (RFC 2865 Section 5), and the command checks octets, so a name of
+multi-octet UTF-8 characters reaches the bound in fewer than 253 characters.";
+                ze:help "Subscriber user name.";
+            }
+            uses disconnect-audit;
+        }
+        output {
+            leaf result {
+                type string;
+                description "The keys are action, session-id, tunnel-id, username and status, as for
+'session-teardown'. reason and cause are present when the request carried them.";
+                ze:help "JSON object describing the teardown outcome.";
+            }
+        }
+    }
+
+    rpc session-teardown-address {
+        description "Clears the one live session IPCP assigned the input IPv4 address, through the
+session walk the RADIUS Disconnect-Request listener uses, and confirms its local
+physical cleanup. No match is refused. Several matches are refused with nothing
+cleared; the refusal lists one session-teardown command for each.";
+        ze:help "Send CDN Result Code 3 (administrative) for the session holding one IPv4 address.";
+        input {
+            leaf address {
+                type zt:ipv4-address;
+                mandatory true;
+                description "The subscriber's IPv4 address, as the assigned-addr value of a
+'sessions' row shows it.";
+                ze:help "Subscriber IPv4 address.";
+            }
+            uses disconnect-audit;
+        }
+        output {
+            leaf result {
+                type string;
+                description "The keys are action, session-id, tunnel-id, address and status, as for
+'session-teardown'. reason and cause are present when the request carried them.";
                 ze:help "JSON object describing the teardown outcome.";
             }
         }

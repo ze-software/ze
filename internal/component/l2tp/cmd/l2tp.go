@@ -23,7 +23,6 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/l2tp"
-	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 
@@ -91,6 +90,8 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:tunnel-teardown", Handler: handleTunnelTeardown},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:tunnel-teardown-all", Handler: handleTunnelTeardownAll},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:session-teardown", Handler: handleSessionTeardown, Complete: completeSessionTeardown},
+		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:session-teardown-user", Handler: handleSessionTeardownUser, Complete: completeSessionTeardownUser},
+		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:session-teardown-address", Handler: handleSessionTeardownAddress, Complete: completeSessionTeardownAddress},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:session-teardown-all", Handler: handleSessionTeardownAll},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:session-traffic", Handler: handleSessionTraffic, Complete: completeSessionRead},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:outgoing-call", Handler: handleOutgoingCall},
@@ -588,29 +589,10 @@ func handleSessionTeardown(ctx *pluginserver.CommandContext, validated command.V
 	if captured == nil {
 		return sessionTeardownNotFound(selector.SID, l2tp.ErrSessionNotFound), nil
 	}
-	if err := ctx.Context().Err(); err != nil {
-		return sessionTeardownFailure(selector.SID, err), nil
+	if refusal := finishSessionTeardown(ctx, captured, selector.SID, request.disconnectAudit); refusal != nil {
+		return refusal, nil
 	}
-	if request.hasAudit() {
-		if err := captured.RecordDisconnect(request.actor, request.reason, request.cause); err != nil {
-			return sessionTeardownFailure(selector.SID, err), nil
-		}
-	}
-	if err := captured.Teardown(ctx.Context(), l2tpevents.TerminateCauseAdminReset, request.reason); err != nil {
-		return sessionTeardownCleanupFailure(selector.SID, captured.Birth(), err), nil
-	}
-	result := map[string]any{
-		keyAction:    "session-teardown",
-		keySessionID: int(selector.SID),
-		"status":     "sent",
-	}
-	if request.reason != "" {
-		result["reason"] = request.reason
-	}
-	if request.cause != 0 {
-		result["cause"] = request.cause
-	}
-	return jsonResponse("l2tp session teardown", result)
+	return jsonResponse("l2tp session teardown", sessionTeardownResult(selector.SID, request.disconnectAudit))
 }
 
 func handleSessionTeardownAll(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {

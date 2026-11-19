@@ -18,7 +18,7 @@
     "claim-sha": "81d51f16826d2115",
     "route": "mutant",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::findSessions",
-    "producer-sha": "4f9ac94418a46e92",
+    "producer-sha": "86e72c485ba26764",
     "break": "line 757: \"acctSessID == nil \u0026\u0026 userName == nil \u0026\u0026 len(nasPortAttr) != 4\" -\u003e \"acctSessID == nil \u0026\u0026 userName == nil \u0026\u0026 len(nasPortAttr) != 4 \u0026\u0026 pkt.FindAttr(radius.AttrVendorSpecific) == nil\""
   }
 ]

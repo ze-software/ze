@@ -758,46 +758,29 @@ func (cl *coaListener) findSessions(pkt *radius.Packet) []l2tp.SessionSnapshot {
 		return nil
 	}
 
-	var out []l2tp.SessionSnapshot
 	var accountIDs map[subscriberid.L2TPBirth]string
 	if acctSessID != nil {
 		// RFC 5176 Section 3: use the complete id this NAS actually issued.
 		accountIDs = acctInstance.currentSessionIDs()
 	}
 	snap := svc.Snapshot()
-	for i := range snap.Tunnels {
-		for j := range snap.Tunnels[i].Sessions {
-			sess := &snap.Tunnels[i].Sessions[j]
-			// RFC 5176 Section 3: fallback obeys the same full selector guard.
-			if !sessionSelectorsMatch(pkt, sess.Username, uint32(sess.LocalSID), func(value []byte) bool {
-				id, found := accountIDs[sess.Birth]
-				if !found {
-					return false
-				}
-				return string(value) == id
-			}) {
-				continue
+	// The walk is the one the operator's clear by user name or address uses.
+	return l2tp.MatchSessions(&snap, func(sess *l2tp.SessionSnapshot) bool {
+		// RFC 5176 Section 3: fallback obeys the same full selector guard.
+		return sessionSelectorsMatch(pkt, sess.Username, uint32(sess.LocalSID), func(value []byte) bool {
+			id, found := accountIDs[sess.Birth]
+			if !found {
+				return false
 			}
-			out = append(out, *sess)
-		}
-	}
-	return out
+			return string(value) == id
+		})
+	})
 }
 
 // captureCoASession binds the matched original before any authorization or
 // teardown operation. An absent Birth cannot become an unguarded SID lookup.
 func captureCoASession(matched l2tp.SessionSnapshot) (l2tp.CapturedSession, error) {
-	if !matched.Birth.IsValid() {
-		return nil, l2tp.ErrSessionNotFound
-	}
-	svc := l2tp.LookupService()
-	if svc == nil {
-		return nil, l2tp.ErrSubsystemNotStarted
-	}
-	return svc.CaptureSession(l2tp.SessionSelector{
-		SID: matched.LocalSID, TID: matched.TunnelLocalTID,
-		Listener: matched.Listener, Birth: matched.Birth,
-	})
+	return l2tp.CaptureMatchedSession(l2tp.LookupService(), &matched)
 }
 
 // coaChange is the authorization change a CoA-Request asks for. hasRate and a

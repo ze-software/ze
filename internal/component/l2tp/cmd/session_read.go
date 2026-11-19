@@ -12,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // captureSessionRead parses cold input through the existing guarded selector
@@ -83,17 +84,27 @@ func sessionSelectorCandidates(service l2tp.Service, selector l2tp.SessionSelect
 			if !session.Listener.IsValid() {
 				continue
 			}
-			candidate := fmt.Sprintf("%s l2tp session id %d tunnel-id %d listener %s", verb, session.LocalSID, session.TunnelLocalTID, session.Listener)
-			if session.Birth.IsValid() {
-				candidate += " expected-id " + session.Birth.String()
-			}
-			candidates = append(candidates, candidate)
+			candidates = append(candidates, sessionCandidateCommand(verb, session))
 		}
 	}
 	if len(candidates) == 0 {
 		return "The readable coordinates match multiple originals; inspect current sessions and listeners before retrying"
 	}
 	return "Qualify the current original with one of: " + strings.Join(candidates, "; ")
+}
+
+// sessionCandidateCommand is the qualified command that selects one listed
+// session by ID: its tunnel, its listener when known, and its Birth when valid.
+func sessionCandidateCommand(verb string, session *l2tp.SessionSnapshot) string {
+	candidate := verb + " l2tp session id " + textbuf.StringUint16(session.LocalSID) +
+		" tunnel-id " + textbuf.StringUint16(session.TunnelLocalTID)
+	if session.Listener.IsValid() {
+		candidate += " listener " + session.Listener.String()
+	}
+	if session.Birth.IsValid() {
+		candidate += " expected-id " + session.Birth.String()
+	}
+	return candidate
 }
 
 // completeSessionRead offers only cold read qualifiers, using the same original

@@ -10,7 +10,9 @@ import (
 	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/component/l2tp"
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/subscriberid"
 )
@@ -26,9 +28,15 @@ const (
 type sessionTeardownRequest struct {
 	selector l2tp.SessionSelector
 	listener string
-	actor    string
-	reason   string
-	cause    uint32
+	disconnectAudit
+}
+
+// disconnectAudit is the optional audit a clear records against the captured
+// original before its teardown. Its zero value records nothing.
+type disconnectAudit struct {
+	actor  string
+	reason string
+	cause  uint32
 }
 
 func parseSessionTeardownRequest(args []string) (sessionTeardownRequest, *opererr.Error) {
@@ -179,14 +187,50 @@ func (request sessionTeardownRequest) resolveSelector(service l2tp.Service) (l2t
 	return selector, nil
 }
 
-func (request sessionTeardownRequest) hasAudit() bool {
-	if request.actor != "" {
+func (audit disconnectAudit) hasAudit() bool {
+	if audit.actor != "" {
 		return true
 	}
-	if request.reason != "" {
+	if audit.reason != "" {
 		return true
 	}
-	return request.cause != 0
+	return audit.cause != 0
+}
+
+// finishSessionTeardown records the audit against one captured original and
+// tears it down. It answers the refusal to send, or nil once the original's
+// local physical cleanup is confirmed. Every clear form ends here, so the id,
+// user and address forms share one audit and one teardown path.
+func finishSessionTeardown(ctx *pluginserver.CommandContext, captured l2tp.CapturedSession, sid uint16, audit disconnectAudit) *plugin.Response {
+	if err := ctx.Context().Err(); err != nil {
+		return sessionTeardownFailure(sid, err)
+	}
+	if audit.hasAudit() {
+		if err := captured.RecordDisconnect(audit.actor, audit.reason, audit.cause); err != nil {
+			return sessionTeardownFailure(sid, err)
+		}
+	}
+	if err := captured.Teardown(ctx.Context(), l2tpevents.TerminateCauseAdminReset, audit.reason); err != nil {
+		return sessionTeardownCleanupFailure(sid, captured.Birth(), err)
+	}
+	return nil
+}
+
+// sessionTeardownResult is the answer of a confirmed clear, whichever form
+// selected the session. reason and cause appear only when the request had them.
+func sessionTeardownResult(sid uint16, audit disconnectAudit) map[string]any {
+	result := map[string]any{
+		keyAction:    "session-teardown",
+		keySessionID: int(sid),
+		"status":     "sent",
+	}
+	if audit.reason != "" {
+		result["reason"] = audit.reason
+	}
+	if audit.cause != 0 {
+		result["cause"] = audit.cause
+	}
+	return result
 }
 
 func sessionTeardownInputError(cause error, problem string) *opererr.Error {

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/cli/sshclient"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -83,7 +84,7 @@ func cmdShow(args []string) int {
 // to the daemon as the operational `clear l2tp tunnel …` command (clear already
 // means tear down). `args` carries the subcommand (`id <id>` / `all`).
 func cmdTunnelTeardown(args []string) int {
-	rest, user, code := clientFlags("tunnel", "usage: ze l2tp tunnel [--user <name>] {id <id> | all}", args)
+	rest, user, code := clientFlags("tunnel", "usage: ze l2tp tunnel [--user <ssh-login>] {id <id> | all}", args)
 	if code != 0 {
 		return code
 	}
@@ -98,12 +99,14 @@ func cmdTunnelTeardown(args []string) int {
 // cmdSessionTeardown is the session-scoped counterpart of
 // cmdTunnelTeardown.
 func cmdSessionTeardown(args []string) int {
-	rest, user, code := clientFlags("session", "usage: ze l2tp session [--user <name>] {id <id> | all}", args)
+	rest, user, code := clientFlags("session", "usage: ze l2tp session [--user <ssh-login>] {id <id> | user <subscriber-name> | address <ipv4> | all}", args)
 	if code != 0 {
 		return code
 	}
 	if len(rest) == 0 {
-		fmt.Fprintln(os.Stderr, "error: ze l2tp session {id <id> | all}")
+		fmt.Fprintln(os.Stderr, opererr.New("ze l2tp session needs a session selector",
+			"name the sessions to tear down: id <id>, user <subscriber-name>, address <ipv4>, or all",
+			"ze l2tp session id <id>").Error())
 		return 1
 	}
 	parts := append([]string{"clear", commandL2TP, "session"}, rest...)

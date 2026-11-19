@@ -1,0 +1,100 @@
+# Test: an operator clear by user name ends the one live PPP session of that user.
+# QUESTION:  when the operator clears an L2TP session by the CHAP name the
+#            subscriber authenticated with (`clear l2tp session user
+#            subscriber@ze`), does the daemon find that session and end it in
+#            every place that held it, exactly as the clear by session ID does?
+# VALIDATES: the clear by user name, typed over SSH as an operator types it,
+#            selects the session through the walk the RADIUS
+#            Disconnect-Request listener uses (l2tp.MatchSessions), answers the
+#            teardown of that session ID, and leaves no session, no subscriber
+#            and no open accounting record, with one Stop for the one Start.
+# PREVENTS:  a user selector that matches nothing a live session carries, one
+#            that ends a different session, or a clear that leaves state behind.
+#
+# Why not a unit test: the unit tests in internal/component/l2tp/cmd and the
+# dispatcher test in internal/component/l2tp prove the selection over a fake
+# inventory and a fixture session. Only the daemon learns the user name from
+# CHAP, so only a .ci proves the operator reaches a real session by it.
+#
+# The peer, its waits and every assertion but the clear's are those of
+# test/l2tp/session-clear-leaves-no-subscriber.ci, which states why each one
+# is on state and not on time, and why the test needs Linux and CAP_NET_ADMIN.
+# The peer's second argument names the clear form.
+#
+# Ports: $PORT is the L2TP listener, $PORT2 the RADIUS mock (auth and
+# accounting), $PORT3 the daemon's SSH server.
+
+stdin=config:terminator=EOF_CONF
+system {
+    authentication {
+        # bcrypt cost-4 hash of "testpass".
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+l2tp {
+    enabled true
+    shared-secret s3cr3t
+    auth-method chap-md5
+    auth {
+        radius {
+            nas-identifier lns1
+            timeout 5
+            retries 2
+            server mock {
+                address 127.0.0.1
+                port $PORT2
+                accounting-port $PORT2
+                shared-key testing123
+            }
+        }
+    }
+    pool {
+        ipv4 {
+            gateway 10.99.8.1
+            start 10.99.8.10
+            end 10.99.8.10
+        }
+    }
+}
+environment {
+    l2tp {
+        server main {
+            ip 127.0.0.1
+            port $PORT
+        }
+    }
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1
+            port $PORT3
+        }
+    }
+}
+EOF_CONF
+
+option=needs-linux:caps=net-admin
+option=env:var=ze.log.l2tp:value=debug
+option=env:var=ze.log.l2tp.auth.radius:value=debug
+option=env:var=TEST_SECRET:value=s3cr3t
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT3
+
+cmd=background:seq=1:exec=le test fixture l2tp/session-clear-leaves-no-subscriber/radius $PORT2 testing123
+cmd=background:seq=2:exec=ze -:stdin=config
+# 120s bounds the peer's own five waits, as in the clear by session ID.
+cmd=foreground:seq=3:exec=le test fixture l2tp/session-clear-leaves-no-subscriber $PORT user:timeout=120s:exit=0
+expect=exit:code=0
+expect=stdout:contains=OK: CHAP Success received
+expect=stdout:contains=OK: IPCP opened, ze assigned 10.99.8.10
+expect=stdout:pattern=OK: Accounting-Start with Acct-Session-Id \S+ reached the RADIUS server before the clear
+expect=stdout:pattern=OK: show l2tp sessions lists session [0-9]+ with address 10\.99\.8\.10
+expect=stdout:contains=OK: show subscriber lists an active l2tp subscriber with address 10.99.8.10
+expect=stdout:pattern=OK: clear l2tp session user subscriber@ze answered status sent for session [0-9]+
+expect=stdout:pattern=OK: the RADIUS server holds one Accounting-Start and one Accounting-Stop for Acct-Session-Id \S+, the Stop with Acct-Terminate-Cause 6
+expect=stdout:contains=OK: show l2tp sessions lists no session after the clear
+expect=stdout:contains=OK: show subscriber lists no subscriber after the clear, total 0
+expect=stdout:pattern=OK: ze sent a CDN for session [0-9]+

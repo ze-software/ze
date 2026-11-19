@@ -9,7 +9,9 @@
 // tunnelRadiusRXLog, what the RADIUS server decoded.
 // Related: daemon_await_answer_fixture.go -- the `ze cli` barrier this
 // peer's waits follow, and awaitAnswerTail.
-// Related: test/l2tp/session-clear-leaves-no-subscriber.ci -- the only caller.
+// Related: test/l2tp/session-clear-leaves-no-subscriber.ci -- the clear by session ID.
+// Related: test/l2tp/session-clear-by-user.ci, test/l2tp/session-clear-by-address.ci --
+// the same peer clearing by user name and by address.
 
 package fixture
 
@@ -22,6 +24,7 @@ import (
 	"net/netip"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -59,11 +62,21 @@ const tunnelL2TPAVPAssignedSessionID = 14
 // session-down before it answers (the captured Teardown delivers before it sends
 // the CDN and returns), so the state the answer leaves is the end state.
 //
-// Arguments: <l2tp-port>. The CLI takes the daemon's SSH address and
-// credentials from the environment the runner gave this process.
+// Arguments: <l2tp-port> [id | user | address]. The optional form names how
+// the operator selects the session, by session ID when absent. The CLI takes
+// the daemon's SSH address and credentials from the environment the runner
+// gave this process.
 func tunnelL2TPSessionClear(ctx context.Context, args []string) error {
 	port, err := tunnelArgPort(args, 0)
 	if err != nil {
+		return err
+	}
+	form := sessionClearByID
+	if len(args) > 1 {
+		form = args[1]
+	}
+	// Refuse an unknown form before any session exists.
+	if _, err := sessionClearSelector(form, 0, netip.Addr{}); err != nil {
 		return err
 	}
 	peer, err := tunnelL2TPOpenProxySession(ctx, port, 1500, 1500)
@@ -94,7 +107,7 @@ func tunnelL2TPSessionClear(ctx context.Context, args []string) error {
 		return err
 	}
 	link.clearing.Store(true)
-	if err := clearL2TPSession(ctx, peer.zeSID); err != nil {
+	if err := clearL2TPSession(ctx, form, peer.zeSID, address); err != nil {
 		return err
 	}
 	if err := checkClearedAccounting(acctSessionID); err != nil {
@@ -378,16 +391,45 @@ func (link *sessionClearLink) awaitRow(ctx context.Context, what, command, key s
 	})
 }
 
-// clearL2TPSession is the operator's clear of one session, over the CLI.
-func clearL2TPSession(ctx context.Context, sid uint16) error {
-	command := "clear l2tp session id " + sessionIDText(sid) + " | json"
+// The forms of the operator's clear this peer can type: by session ID, by the
+// subscriber's user name, or by the IPv4 address IPCP assigned it.
+const (
+	sessionClearByID      = "id"
+	sessionClearByUser    = "user"
+	sessionClearByAddress = "address"
+)
+
+// sessionClearSelector is the selector the clear form types for this session.
+func sessionClearSelector(form string, sid uint16, address netip.Addr) (string, error) {
+	if form == sessionClearByID {
+		return "id " + sessionIDText(sid), nil
+	}
+	if form == sessionClearByUser {
+		return "user " + tunnelCHAPPeerName, nil
+	}
+	if form == sessionClearByAddress {
+		return "address " + address.String(), nil
+	}
+	return "", errors.New("clear form " + strconv.Quote(form) + " is unknown; use id, user or address")
+}
+
+// clearL2TPSession is the operator's clear of one session, over the CLI, by
+// the form the test names. Every form must answer the teardown of this
+// session: the user and address forms select it by what the daemon learned
+// from CHAP and IPCP, never by its ID.
+func clearL2TPSession(ctx context.Context, form string, sid uint16, address netip.Addr) error {
+	selector, err := sessionClearSelector(form, sid, address)
+	if err != nil {
+		return err
+	}
+	command := "clear l2tp session " + selector + " | json"
 	answer, err := sessionClearCLI(ctx, command)
 	if err != nil {
 		return err
 	}
 	for _, row := range jsonObjectsWith(answer, "status") {
 		if row["action"] == "session-teardown" && row["session-id"] == float64(sid) && row["status"] == "sent" {
-			fmt.Println("OK: clear l2tp session id " + sessionIDText(sid) + " answered status sent")
+			fmt.Println("OK: clear l2tp session " + selector + " answered status sent for session " + sessionIDText(sid))
 			return nil
 		}
 	}

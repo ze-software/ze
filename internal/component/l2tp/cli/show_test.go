@@ -127,6 +127,8 @@ func TestTeardownVerbsUserFlag(t *testing.T) {
 		{name: "tunnel all", run: cmdTunnelTeardown, args: []string{"-u", "alice", "all"}, wantCmd: "clear l2tp tunnel all"},
 		{name: "session by id", run: cmdSessionTeardown, args: []string{"--user", "alice", "id", "7"}, wantCmd: "clear l2tp session id 7"},
 		{name: "session all", run: cmdSessionTeardown, args: []string{"-u", "alice", "all"}, wantCmd: "clear l2tp session all"},
+		{name: "session by user name", run: cmdSessionTeardown, args: []string{"--user", "alice", "user", "bob@example.net"}, wantCmd: "clear l2tp session user bob@example.net"},
+		{name: "session by address", run: cmdSessionTeardown, args: []string{"--user", "alice", "address", "192.0.2.10"}, wantCmd: "clear l2tp session address 192.0.2.10"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -287,7 +287,9 @@ ze-l2tp:reliable
 ze-l2tp:session
 ze-l2tp:session-history
 ze-l2tp:session-teardown
+ze-l2tp:session-teardown-address
 ze-l2tp:session-teardown-all
+ze-l2tp:session-teardown-user
 ze-l2tp:session-traffic
 ze-l2tp:sessions
 ze-l2tp:show-health

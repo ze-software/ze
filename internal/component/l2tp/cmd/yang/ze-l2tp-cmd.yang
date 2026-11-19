@@ -269,7 +269,7 @@ moving.";
 
     // -----------------------------------------------------------------
     // Destructive tree: `clear l2tp tunnel {id <id> | all}`, `clear l2tp
-    // session {id <id> | all}`. Under `clear` verb because they reset
+    // session {id <id> | user <name> | address <ipv4> | all}`. Under `clear` verb because they reset
     // runtime/operational state without touching config.
     // -----------------------------------------------------------------
     augment "/cliclearcmd:clear" {
@@ -325,6 +325,29 @@ session; a stale reference refuses before audit or mutation. A listener name
 resolves to its original bound endpoint. Unknown names and ambiguous selections
 are refused. Quote reasons that contain another keyword.";
                     ze:help "Disconnect one subscriber session.";
+                }
+
+                container user {
+                    config false;
+                    ze:command "ze-l2tp:session-teardown-user";
+                    ze:rpc "ze-l2tp-api:session-teardown-user";
+                    description "Clears the one live session whose user name equals the given name exactly:
+clear l2tp session user <name> [actor <label>] [reason <text>] [cause <code>].
+When several sessions carry the name, nothing is cleared and the refusal lists
+one clear l2tp session id command for each, as a RADIUS Disconnect-Request
+matching several sessions is refused.";
+                    ze:help "Disconnect the subscriber session of one user name.";
+                }
+
+                container address {
+                    config false;
+                    ze:command "ze-l2tp:session-teardown-address";
+                    ze:rpc "ze-l2tp-api:session-teardown-address";
+                    description "Clears the one live session that IPCP assigned the given IPv4 address:
+clear l2tp session address <ipv4> [actor <label>] [reason <text>] [cause <code>].
+When several sessions hold the address, nothing is cleared and the refusal lists
+one clear l2tp session id command for each.";
+                    ze:help "Disconnect the subscriber session holding one IPv4 address.";
                 }
 
                 container all {

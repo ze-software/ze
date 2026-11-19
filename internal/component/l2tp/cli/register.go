@@ -21,13 +21,21 @@ import "github.com/ze-software/ze/internal/component/command/registry"
 const commandL2TP = "l2tp"
 
 func init() {
+	// The tunnel and session alternatives in Subs are a copy of the
+	// `clear l2tp tunnel` and `clear l2tp session` children declared in
+	// internal/component/l2tp/cmd/yang/ze-l2tp-cmd.yang, the source to change
+	// first. They are copied because neither registry.Meta nor the command
+	// package exposes the YANG command tree to an offline root: the only
+	// loader, cli/client.YANGCommandTree, blank-imports plugin/all, which this
+	// component package must not import. The usage lines in show.go carry
+	// the same copy.
 	registry.MustRegisterRootHandler(commandL2TP, func(_ *registry.RuntimeContext, args []string) int {
 		return Run(args)
 	}, registry.Meta{
 		ShortHelp: "L2TP tools",
 		Mode:      "offline",
 		Section:   registry.SectionConfiguration,
-		Subs:      "decode, show [--user] <query>, tunnel [--user] {id <id> | all}, session [--user] {id <id> | all}",
+		Subs:      "decode, show [--user] <query>, tunnel [--user] {id <id> | all}, session [--user] {id <id> | user <subscriber-name> | address <ipv4> | all}",
 	})
 
 	// Flag inventory for shell completion (registration over hardcoding).
