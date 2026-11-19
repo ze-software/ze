@@ -204,13 +204,13 @@ func AddCredentials(dbPath, host, port, user, password string) int {
 	defer store.Close() //nolint:errcheck // best-effort
 
 	usernameKey := zefs.KeySSHUsername.Key(host, port)
-	passwordKey := zefs.KeySSHPassword.Key(host, port)
+	passwordHashKey := zefs.KeySSHPassword.Key(host, port)
 
 	if err := store.WriteKey(usernameKey, []byte(user)); err != nil {
 		fmt.Fprintf(os.Stderr, "error: write username: %v\n", err)
 		return 1
 	}
-	if err := store.WriteKey(passwordKey, hashedPassword); err != nil {
+	if err := store.WriteKey(passwordHashKey, hashedPassword); err != nil {
 		fmt.Fprintf(os.Stderr, "error: write password: %v\n", err)
 		return 1
 	}
@@ -310,7 +310,7 @@ func RemoveCredentials(dbPath, host, port string) int {
 	defer store.Close() //nolint:errcheck // best-effort
 
 	usernameKey := zefs.KeySSHUsername.Key(host, port)
-	passwordKey := zefs.KeySSHPassword.Key(host, port)
+	passwordHashKey := zefs.KeySSHPassword.Key(host, port)
 
 	if !store.Exists(usernameKey) {
 		fmt.Fprintf(os.Stderr, "error: no credentials for %s:%s\n", host, port)
@@ -321,7 +321,7 @@ func RemoveCredentials(dbPath, host, port string) int {
 		fmt.Fprintf(os.Stderr, "error: remove username: %v\n", err)
 		return 1
 	}
-	if err := store.Remove(passwordKey); err != nil {
+	if err := store.Remove(passwordHashKey); err != nil {
 		fmt.Fprintf(os.Stderr, "error: remove password: %v\n", err)
 		return 1
 	}
