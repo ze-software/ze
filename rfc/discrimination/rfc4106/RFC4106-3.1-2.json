@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC4106-3.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go::TestRFC4106GCMKeyCannotOutliveTheSequenceSpace",
+    "unit-sha": "3b84f8e2a00c7f2e",
+    "claim-sha": "1f10ed0fcffa18aa",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
+    "producer-sha": "ff2b495eb4b26154",
+    "break": "line 228: \"state.OSeqMayWrap = false\" -\u003e \"state.OSeqMayWrap = true\""
+  }
+]

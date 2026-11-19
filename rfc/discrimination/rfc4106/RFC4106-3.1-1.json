@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC4106-3.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go::TestRFC4106GCMStateCarriesTheFullICV",
+    "unit-sha": "cded0a9057a3e4e0",
+    "claim-sha": "d52409dab3299dfb",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
+    "producer-sha": "ff2b495eb4b26154",
+    "break": "line 310: \"Name:   name,\" -\u003e \"Name:   \\\"gcm(aes)\\\" + name[len(name):],\""
+  }
+]

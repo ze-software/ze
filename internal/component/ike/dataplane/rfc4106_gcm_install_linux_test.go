@@ -32,13 +32,21 @@ func rfc4106GCMParams() SAParams {
 	}
 }
 
-// TestRFC4106GCMStateCarriesTheFullICV checks the ICV length of the AES-GCM state.
+// TestRFC4106GCMStateCarriesTheFullICV checks the transform name and the ICV length of the
+// AES-GCM state.
 //
 // RFC 4106 Section 6: "Implementations MUST support a full-length 16-octet ICV, and MAY
 // support 8 or 12 octet ICVs, and MUST NOT support other ICV lengths."
+//
+// RFC 4106 Section 3.1: "The AES-GCM-ESP IV field MUST be eight octets." The kernel writes
+// the IV field of every packet, so what Ze owns is the transform it names: the
+// rfc4106(gcm(aes)) template carries an 8-octet IV beside the 4-octet salt at the tail of
+// the key, where the generic gcm(aes) template takes a 12-octet IV from its caller.
 func TestRFC4106GCMStateCarriesTheFullICV(t *testing.T) {
 	// RFC requirement: RFC4106-6-1 positive -- an AES-GCM SA (aes128gcm and aes256gcm) is
 	// installed as the AEAD transform rfc4106(gcm(aes)) with a 128-bit ICV.
+	// RFC requirement: RFC4106-3.1-1 positive -- an AES-GCM SA (aes128gcm and aes256gcm) is
+	// installed as the AEAD transform rfc4106(gcm(aes)).
 	for word, octets := range map[string]int{"aes128gcm": 20, "aes256gcm": 36} {
 		p := rfc4106GCMParams()
 		p.EncAlgo = word
@@ -77,6 +85,12 @@ func TestRFC4106GCMStateCarriesTheFullICV(t *testing.T) {
 // the counter reaches 2^32 packets. An ESP packet carries at most 65535 octets, which is
 // 4096 AES blocks, so one key encrypts at most 2^44 blocks before a fresh SA, and with it
 // a fresh key, is required.
+//
+// RFC 4106 Section 2: "The same nonce and key combination MUST NOT be used more than once."
+// RFC 4106 Section 3.1: "For a given key, the IV MUST NOT repeat." The kernel's IV
+// generator for rfc4106(gcm(aes)) derives each IV from the SA's sequence number, so the
+// value Ze installs that keeps an IV, and with the fixed salt the nonce, from repeating
+// under one key is the same rollover flag.
 func TestRFC4106GCMKeyCannotOutliveTheSequenceSpace(t *testing.T) {
 	state, err := xfrmStateFromParams(rfc4106GCMParams())
 	if err != nil {
@@ -84,6 +98,10 @@ func TestRFC4106GCMKeyCannotOutliveTheSequenceSpace(t *testing.T) {
 	}
 	// RFC requirement: RFC4106-10-2 positive -- the AES-GCM state is installed with
 	// sequence number rollover forbidden and without Extended Sequence Numbers.
+	// RFC requirement: RFC4106-2-1 positive -- the AES-GCM state is installed with
+	// sequence number rollover forbidden (OSeqMayWrap false).
+	// RFC requirement: RFC4106-3.1-2 positive -- the AES-GCM state is installed with
+	// sequence number rollover forbidden (OSeqMayWrap false).
 	if state.OSeqMayWrap {
 		t.Error("the AES-GCM state permits sequence number rollover, so one key could encrypt without bound")
 	}
