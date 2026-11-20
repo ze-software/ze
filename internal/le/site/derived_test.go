@@ -288,3 +288,42 @@ func TestLLMSAndMirrorsCarryPlainSnapshotValues(t *testing.T) {
 		}
 	}
 }
+
+// VALIDATES: AC-19. Each module line of "Dependency rationale" states the
+// module's licence identifier after its why sentence, so the line still opens
+// with the module and its why, and neither a linked module nor a work that is
+// not a module appears there.
+//
+// The method publishes the credited declaration of the dependency page's
+// tests in place of the checkout's, renders llms.txt, and reads the section
+// alone, from its heading to the next one.
+func TestLLMSDependenciesStateEachLicence(t *testing.T) {
+	paths := llmsPaths(t)
+	writeArtifactFile(t, paths.Output, dependencyFile, creditedDeclaration)
+
+	if _, err := renderLLMS(paths); err != nil {
+		t.Fatal(err)
+	}
+	content := readArtifact(t, paths.Output, llmsFile)
+	start := strings.Index(content, "## Dependency rationale\n")
+	if start < 0 {
+		t.Fatal("llms.txt carries no Dependency rationale section")
+	}
+	section := content[start:]
+	if end := strings.Index(section[len("## "):], "\n## "); end >= 0 {
+		section = section[:len("## ")+end]
+	}
+	for _, line := range []string{
+		"- `example.com/alpha`: Alpha. Licence: `MIT`.\n",
+		"- `example.com/gpl`: Lints. Licence: `GPL-3.0`.\n",
+	} {
+		if !strings.Contains(section, line) {
+			t.Errorf("the section does not carry the line\n  %s\nit reads\n%s", line, section)
+		}
+	}
+	for _, absent := range []string{"example.com/indirect", "Go standard library and runtime", "Copied writer"} {
+		if strings.Contains(section, absent) {
+			t.Errorf("the section lists %q, which is not a direct module", absent)
+		}
+	}
+}

@@ -84,7 +84,7 @@ func planTree(root string, in inputs) (generated, []Refusal, error) {
 // the linked sets: one record per shipped work (a module a flavor links,
 // every works entry), each licence file stored once under its digest.
 func plan(root string, raw []byte, links []flavorLinks) (generated, []Refusal, error) {
-	decl, err := readDeclaration(raw)
+	decl, err := ReadDeclaration(raw)
 	if err != nil {
 		return generated{}, nil, err
 	}

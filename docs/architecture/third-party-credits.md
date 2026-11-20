@@ -63,7 +63,33 @@ and served.
 
 The tool reads unknown keys as an error, so a misspelled key is refused rather
 than read as absent.
-<!-- source: internal/le/deps/credits/credits.go -- declaration, readDeclaration, entries, moduleFiles, licencePrefixes -->
+
+The file has one schema, `credits.Declaration`, and one reader,
+`credits.ReadDeclaration`. The site build reads the declaration through them
+too, for the Dependencies page and for `llms.txt`, so the page and the record
+cannot read one key under two spellings, and a key neither knows stops the
+site build as it stops the check.
+<!-- source: internal/le/deps/credits/credits.go -- Declaration, ReadDeclaration, entries, moduleFiles, licencePrefixes -->
+<!-- source: internal/le/site/dependencies.go -- readDependencyDeclaration -->
+
+## What the Dependencies page shows
+
+The page at `/reference/dependencies/` renders the declaration. Each curated
+module is a row of its group with its version from `go.mod`, its licence, its
+copyright holders and its why sentence. A section "Also in the shipped binary"
+follows: the `linked` modules under one group, at the version `go.mod`
+requires them, then the `works` under their own groups, each name linked to
+its `source`. The Go toolchain work shows the release `go.mod`'s `go`
+directive pins, and a copied work the declaration gives no version says so.
+A `licence-note` follows its identifier in the licence cell. A
+`copyright-unstated` entry says that no copyright holder is stated, and an
+empty licence or holder says that it is not recorded, so no cell is ever
+empty. The lead sentence and the published dependency figure count the direct
+modules only. The Markdown mirror carries the same tables, and each module
+line of the "Dependency rationale" section of `llms.txt` ends with its licence
+identifier.
+<!-- source: internal/le/site/dependencies.go -- renderDependencies, shippedGroups, shippedWorkVersion, licenceCellHTML, holderCell -->
+<!-- source: internal/le/site/derived.go -- writeLLMSDependencies, llmsLicence -->
 
 ## The generated copy
 

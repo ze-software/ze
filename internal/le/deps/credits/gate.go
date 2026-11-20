@@ -65,7 +65,7 @@ type commitView struct {
 	data            record
 	dataPresent     bool
 	dataProblem     string
-	declaration     declaration
+	declaration     Declaration
 	declarationRaw  string
 	declarationHeld bool
 }
@@ -115,7 +115,7 @@ func (v *commitView) load() error {
 	}
 	// A declaration that does not parse is kept as a problem, the way a
 	// record that does not parse is, never as no declaration.
-	decl, parseErr := readDeclaration([]byte(declarationRaw))
+	decl, parseErr := ReadDeclaration([]byte(declarationRaw))
 	if parseErr != nil {
 		v.dataProblem = parseErr.Error()
 	} else {

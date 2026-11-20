@@ -519,7 +519,11 @@ func writeLLMSEquivalents(out *textbuf.Buffer, inputs *llmsInputs) {
 	out.Byte('\n')
 }
 
-// writeLLMSDependencies states why Ze takes each direct Go module.
+// writeLLMSDependencies states why Ze takes each direct Go module, and under
+// which licence. A line opens with the module and its why, so a reader that
+// cuts it short still has the reason; the licence identifier follows, as the
+// Dependencies page states it. The declaration's linked modules and its other
+// works are not listed: this section answers why Ze takes each direct module.
 func writeLLMSDependencies(out *textbuf.Buffer, inputs *llmsInputs) {
 	out.Str("## Dependency rationale\n\n")
 	out.Str("Direct Go modules are grouped by why Ze needs them. This is generated from ").
@@ -527,11 +531,23 @@ func writeLLMSDependencies(out *textbuf.Buffer, inputs *llmsInputs) {
 	for index := range inputs.Dependencies.Categories {
 		category := &inputs.Dependencies.Categories[index]
 		out.Str("### ").Str(cleanInline(category.Name)).Str(" (").Int(int64(len(category.Modules))).Str(")\n")
-		for _, module := range category.Modules {
-			out.Str("- `").Str(cleanInline(module.Module)).Str("`: ").Str(trimInline(module.Why, 240)).Byte('\n')
+		for moduleIndex := range category.Modules {
+			module := &category.Modules[moduleIndex]
+			out.Str("- `").Str(cleanInline(module.Module)).Str("`: ").Str(trimInline(module.Why, 240)).
+				Str(" Licence: ").Str(llmsLicence(module.Licence)).Str(".\n")
 		}
 		out.Byte('\n')
 	}
+}
+
+// llmsLicence answers the licence a "Dependency rationale" line states: the
+// declared SPDX expression as code, or the page's own statement that the
+// declaration records none, never an empty value that reads as no licence.
+func llmsLicence(licence string) string {
+	if licence == "" {
+		return creditNotRecorded
+	}
+	return "`" + cleanInline(licence) + "`"
 }
 
 // writeLLMSPageMap lists the curated navigation, dropdown by dropdown.

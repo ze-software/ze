@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/deps/credits"
 )
 
 // The site's own addresses, named once because llms.txt states each of them.
@@ -87,7 +88,7 @@ type llmsInputs struct {
 	Plugins      []registryPlugin
 	Features     featureData
 	ConfigTree   map[string]configNode
-	Dependencies dependencyData
+	Dependencies credits.Declaration
 	Nav          siteNav
 	Commands     []catalogCommand
 	Equivalents  *equivalentMapping
@@ -103,13 +104,20 @@ func loadLLMSInputs(paths Paths) (*llmsInputs, error) {
 		{factsFile, &inputs.Facts},
 		{pluginFile, &inputs.Plugins},
 		{configTreeFile, &inputs.ConfigTree},
-		{dependencyFile, &inputs.Dependencies},
 		{navFile, &inputs.Nav},
 	} {
 		if err := readArtifactJSON(paths.Output, load.file, load.value); err != nil {
 			return nil, err
 		}
 	}
+	// The declaration is read through the one reader of its schema, the one
+	// the Dependencies page uses, so llms.txt and the page read one file alike.
+	dependencies, err := readDependencyDeclaration(filepath.Join(paths.Output, filepath.FromSlash(dependencyFile)),
+		"the published "+dependencyFile)
+	if err != nil {
+		return nil, err
+	}
+	inputs.Dependencies = dependencies
 	// The feature cards come from the source and the declarations, not the
 	// output copy of data/features.json: that copy states no card's state.
 	features, err := loadFeatureData(paths)

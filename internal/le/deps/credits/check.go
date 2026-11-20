@@ -68,7 +68,7 @@ func Check(root string, in inputs) (Report, error) {
 	if err != nil {
 		return Report{}, err
 	}
-	decl, err := readDeclaration(raw)
+	decl, err := ReadDeclaration(raw)
 	if err != nil {
 		return Report{}, err
 	}
@@ -119,7 +119,7 @@ func Check(root string, in inputs) (Report, error) {
 
 // undeclaredModules refuses each module a flavor links that no entry names
 // (AC-10), naming the flavors that link it.
-func undeclaredModules(decl declaration, byModule map[string][]string) []Refusal {
+func undeclaredModules(decl Declaration, byModule map[string][]string) []Refusal {
 	declared := make(map[string]bool)
 	all := decl.entries()
 	for index := range all {
@@ -151,7 +151,7 @@ func undeclaredModules(decl declaration, byModule map[string][]string) []Refusal
 }
 
 // unlinkedEntries refuses each `linked` entry no flavor links.
-func unlinkedEntries(decl declaration, byModule map[string][]string) []Refusal {
+func unlinkedEntries(decl Declaration, byModule map[string][]string) []Refusal {
 	var refusals []Refusal
 	for index := range decl.Linked {
 		module := &decl.Linked[index]
@@ -176,7 +176,7 @@ func unlinkedEntries(decl declaration, byModule map[string][]string) []Refusal {
 // second declaration nothing reads; a second toolchain work, because one
 // toolchain builds a binary; and a declaration with none, because every
 // binary lists Go and refuses a record that lacks it.
-func toolchainRefusals(decl declaration) []Refusal {
+func toolchainRefusals(decl Declaration) []Refusal {
 	var refusals []Refusal
 	first := ""
 	for index := range decl.Works {
@@ -228,7 +228,7 @@ func toolchainRefusals(decl declaration) []Refusal {
 }
 
 // declaredTwice refuses each name the declaration holds more than once.
-func declaredTwice(decl declaration) []Refusal {
+func declaredTwice(decl Declaration) []Refusal {
 	seen := make(map[string]string)
 	var refusals []Refusal
 	all := decl.entries()
@@ -422,7 +422,7 @@ func licenceRefusals(item entry, read []string, texts map[string]string) []Refus
 // work present, a declaration naming no works entry, a declaration in a
 // package the entry does not list (R-3), and any declaration of the toolchain
 // work, which every binary lists without one.
-func presenceRefusals(root string, decl declaration, in inputs) ([]Refusal, error) {
+func presenceRefusals(root string, decl Declaration, in inputs) ([]Refusal, error) {
 	goMod, err := readRel(root, "go.mod")
 	if err != nil {
 		return nil, err
@@ -439,7 +439,7 @@ func presenceRefusals(root string, decl declaration, in inputs) ([]Refusal, erro
 	if err != nil {
 		return nil, err
 	}
-	works := make(map[string]*declaredWork, len(decl.Works))
+	works := make(map[string]*DeclaredWork, len(decl.Works))
 	for index := range decl.Works {
 		work := &decl.Works[index]
 		works[work.Name] = work
@@ -504,7 +504,7 @@ func declares(found []presence, work, pkg string) bool {
 // bannerRefusals refuses each banner of a bundle's companion licence file
 // that no works entry listing the file claims (R-7), and each declared banner
 // phrase no banner of the entry's companion files writes.
-func bannerRefusals(root string, decl declaration) ([]Refusal, error) {
+func bannerRefusals(root string, decl Declaration) ([]Refusal, error) {
 	var companions []string
 	claimants := make(map[string][]entry)
 	all := decl.entries()

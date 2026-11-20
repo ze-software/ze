@@ -81,7 +81,12 @@ website/
     topics.json                           -- controlled tag vocabulary for Changes chips
     audience.json                         -- homepage audience cards
     whats-new.json                        -- retired news-band input; the homepage no longer reads it
-    dependencies.json                     -- direct Go dependency explanations
+    dependencies.json                     -- the third-party credits declaration: direct Go
+                                              dependency explanations with licence and copyright,
+                                              the other modules and works the shipped binary
+                                              carries; the Dependencies page and the binary's
+                                              `ze thanks` record both derive from it
+                                              (docs/architecture/third-party-credits.md)
     command-equivalents.json              -- curated vendor equivalents keyed by Ze CLI paths
     page-links.json                       -- page navigation and external project links
     repo-facts.json                       -- committed repository counts, including Go source and test lines

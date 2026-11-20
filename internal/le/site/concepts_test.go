@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/le/deps/credits"
 )
 
 // VALIDATES: both data-driven chip producers classify complete compact labels,
@@ -131,7 +133,7 @@ func TestSidebarCompactLabelsCarryTheirMeaning(t *testing.T) {
 // VALIDATES: dependency identifiers and vendor table labels have explicit
 // software meaning; versions, commands and descriptions keep their own markup.
 func TestReferenceSoftwareNamesCarryTheirMeaning(t *testing.T) {
-	body := dependencyGroupHTML(dependencyCategory{Name: "Libraries", Modules: []dependencyModule{
+	body := dependencyGroupHTML(credits.Category{Name: "Libraries", Modules: []credits.DeclaredModule{
 		{Module: "example.org/a&b", Why: "A **parser**."},
 	}}, map[string]string{"example.org/a&b": "v1.2.3"})
 	for _, want := range []string{`<code class="concept-software">example.org/a&amp;b</code>`,

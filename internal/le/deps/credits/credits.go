@@ -56,23 +56,25 @@ const (
 	kindWork   = "work"
 )
 
-// declaration is website/data/dependencies.json as this tool reads it. The
-// site build reads the same file into its own type (internal/le/site,
-// dependencyData) for the page; this one reads the licence fields too.
-type declaration struct {
-	Categories []category       `json:"categories"`
-	Linked     []declaredModule `json:"linked"`
-	Works      []declaredWork   `json:"works"`
+// Declaration is website/data/dependencies.json, the one schema of that file.
+// This tool reads it to generate and check the record, and the site build
+// (internal/le/site) reads it through ReadDeclaration to render the
+// Dependencies page and llms.txt, so the page and the record cannot read one
+// key under two spellings.
+type Declaration struct {
+	Categories []Category       `json:"categories"`
+	Linked     []DeclaredModule `json:"linked"`
+	Works      []DeclaredWork   `json:"works"`
 }
 
-// category is one curated group of direct modules.
-type category struct {
+// Category is one curated group of direct modules.
+type Category struct {
 	Name    string           `json:"name"`
-	Modules []declaredModule `json:"modules"`
+	Modules []DeclaredModule `json:"modules"`
 }
 
-// declaredModule is a Go module the declaration credits.
-type declaredModule struct {
+// DeclaredModule is a Go module the declaration credits.
+type DeclaredModule struct {
 	Module            string `json:"module"`
 	Why               string `json:"why"`
 	Licence           string `json:"licence"`
@@ -89,9 +91,9 @@ type declaredModule struct {
 	LicenceNote string `json:"licence-note"`
 }
 
-// declaredWork is a credited work that is not a vendored Go module: Go
+// DeclaredWork is a credited work that is not a vendored Go module: Go
 // itself, a web asset, code copied or ported into Ze's tree.
-type declaredWork struct {
+type DeclaredWork struct {
 	Name    string `json:"name"`
 	Version string `json:"version"`
 	// Toolchain marks the work that is the Go toolchain itself: a binary
@@ -113,15 +115,15 @@ type declaredWork struct {
 	Banner string `json:"banner"`
 }
 
-// readDeclaration parses the declaration. An unknown key is refused rather
+// ReadDeclaration parses the declaration. An unknown key is refused rather
 // than skipped: a misspelled "copyright-unstated" read as absent would be a
 // silent default.
-func readDeclaration(raw []byte) (declaration, error) {
-	var decl declaration
+func ReadDeclaration(raw []byte) (Declaration, error) {
+	var decl Declaration
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&decl); err != nil {
-		return declaration{}, errors.New(DeclarationRel + " does not parse: " + err.Error())
+		return Declaration{}, errors.New(DeclarationRel + " does not parse: " + err.Error())
 	}
 	return decl, nil
 }
@@ -160,7 +162,7 @@ const (
 
 // entries answers every declared work in declaration order: the curated
 // modules, then the linked ones, then the works.
-func (d declaration) entries() []entry {
+func (d Declaration) entries() []entry {
 	var all []entry
 	for _, group := range d.Categories {
 		for index := range group.Modules {
@@ -185,7 +187,7 @@ func (d declaration) entries() []entry {
 }
 
 // moduleEntry is one declared module as an entry of list, under group.
-func moduleEntry(module *declaredModule, list, group string) entry {
+func moduleEntry(module *DeclaredModule, list, group string) entry {
 	return entry{
 		name: module.Module, kind: kindModule, list: list, group: group, why: module.Why,
 		licence: module.Licence, copyright: module.Copyright, unstated: module.CopyrightUnstated,
