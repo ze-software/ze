@@ -1,0 +1,172 @@
+# Test: `ze config validate` refuses two operator SPD entries whose order the
+# configuration leaves undecided, and accepts the entries a total order separates.
+# Spec: plan/release/fixes/spec-rfc4301-architecture-gaps.md (AC-15, RFC 4301
+#       Section 4.4.1: the management interface "MUST support (total) ordering of
+#       these entries, as seen via this interface.").
+#
+# QUESTION: does an operator who writes two overlapping `vpn ipsec policy` entries
+# and leaves both at the default order (1000) learn it at commit, from the command
+# they type, with both names and the command that separates them? A unit test
+# proves verifySPDOrder (engine/rfc4301_spd_order_total_test.go); only this test
+# proves the refusal reaches the operator through the YANG parse, the ike plugin's
+# offline verifier (validateIPsecSections -> verifySPDOrder) and the CLI's print of
+# the operator error.
+#
+# VALIDATES:
+#   seq=1 `wide` (10.0.0.0/8 -> 192.0.2.0/24) and `narrow` (10.1.0.0/16 ->
+#         192.0.2.0/25), both directions, every protocol, both left at the default
+#         order: a packet from 10.1.0.1 to 192.0.2.1 matches both, so validate exits
+#         1 naming both entries and the shared order 1000, with the fix
+#         `set vpn ipsec policy wide order 1001`;
+#   seq=2 the same two entries with `narrow` at order 900: accepted, the order
+#         decides;
+#   seq=3 two entries at the default order whose local prefixes are disjoint
+#         (10.1.0.0/16, 10.2.0.0/16): accepted, no packet matches both, so no order
+#         between them is observable;
+#   seq=4 two entries with one selector in one direction (`out` outbound, `both`
+#         both directions, same prefixes) at distinct orders: refused whatever the
+#         orders, because the dataplane holds one entry per selector, with the fix
+#         `delete vpn ipsec policy out`.
+# PREVENTS: the D-2 defect, where each entry was judged alone, so two overlapping
+#   entries at the default order committed and the kernel decided between them by
+#   the sequence it received them in.
+#
+# Every cmd asserts its own exit with exit=. Needles carry no ':'.
+#
+# RED PROOF: in internal/component/ike/engine/config.go validateIPsecSections,
+#   delete the `verifySPDOrder(cfg)` step: seq=1 and seq=4 exit 0, red. In
+#   engine/spd_order.go spdOrderRefusals, delete the `if a.Order != b.Order {
+#   continue }` guard: seq=2 is refused, red. Make spdPoliciesOverlap answer true:
+#   seq=3 is refused, red.
+#
+# `unmatched bypass` is written in every block so the implicit-discard refusal
+# (refuseImplicitDiscard) stays out of the subject.
+
+stdin=tie:terminator=EOF_TIE
+vpn {
+	ipsec {
+		unmatched bypass
+		policy wide {
+			action bypass
+			direction both
+			local {
+				prefix 10.0.0.0/8
+			}
+			remote {
+				prefix 192.0.2.0/24
+			}
+		}
+		policy narrow {
+			action discard
+			direction both
+			local {
+				prefix 10.1.0.0/16
+			}
+			remote {
+				prefix 192.0.2.0/25
+			}
+		}
+	}
+}
+EOF_TIE
+
+stdin=ordered:terminator=EOF_ORDERED
+vpn {
+	ipsec {
+		unmatched bypass
+		policy wide {
+			action bypass
+			direction both
+			local {
+				prefix 10.0.0.0/8
+			}
+			remote {
+				prefix 192.0.2.0/24
+			}
+		}
+		policy narrow {
+			action discard
+			order 900
+			direction both
+			local {
+				prefix 10.1.0.0/16
+			}
+			remote {
+				prefix 192.0.2.0/25
+			}
+		}
+	}
+}
+EOF_ORDERED
+
+stdin=disjoint:terminator=EOF_DISJOINT
+vpn {
+	ipsec {
+		unmatched bypass
+		policy first {
+			action bypass
+			direction both
+			local {
+				prefix 10.1.0.0/16
+			}
+			remote {
+				prefix 192.0.2.0/24
+			}
+		}
+		policy second {
+			action discard
+			direction both
+			local {
+				prefix 10.2.0.0/16
+			}
+			remote {
+				prefix 192.0.2.0/24
+			}
+		}
+	}
+}
+EOF_DISJOINT
+
+stdin=same:terminator=EOF_SAME
+vpn {
+	ipsec {
+		unmatched bypass
+		policy out {
+			action discard
+			order 1000
+			direction out
+			local {
+				prefix 10.1.0.0/16
+			}
+			remote {
+				prefix 192.0.2.0/24
+			}
+		}
+		policy both {
+			action bypass
+			order 1500
+			direction both
+			local {
+				prefix 10.1.0.0/16
+			}
+			remote {
+				prefix 192.0.2.0/24
+			}
+		}
+	}
+}
+EOF_SAME
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=tie:exit=1
+expect=stdout:contains=vpn ipsec policy narrow and vpn ipsec policy wide overlap in selector and direction and share order 1000
+expect=stdout:contains=set vpn ipsec policy wide order 1001
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=ordered:exit=0
+expect=stdout:contains=configuration valid
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=disjoint:exit=0
+expect=stdout:contains=configuration valid
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=same:exit=1
+expect=stdout:contains=vpn ipsec policy both and vpn ipsec policy out name the same selector in the same direction
+expect=stdout:contains=delete vpn ipsec policy out

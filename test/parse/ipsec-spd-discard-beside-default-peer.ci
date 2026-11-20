@@ -1,0 +1,162 @@
+# Test: a discard entry with the default direction and protocol commits beside a
+# policy-based peer with the default icmp-error-check, while a bypass entry that
+# carries ICMP errors in clear to the same peer's remote selectors is still refused.
+# Spec: plan/release/fixes/spec-rfc4301-architecture-gaps.md (AC-19, D-6).
+#
+# Question: does the ike plugin's offline verifier, reached through `ze config
+# validate`, accept the default discard entry beside a default peer? A unit test
+# (rfc4301_icmp_overlap_test.go) decides verifyICMPOverlap alone; only the CLI run
+# proves the whole verify (validateIPsecSections: the SPD order, the implicit
+# discard and the ICMP overlap steps together) accepts what an operator types.
+#
+# VALIDATES:
+#   seq=1 `vpn ipsec policy drop-host` (action discard, no direction, so both; no
+#         protocol, so any) under `unmatched discard`, beside peer `site` with no
+#         icmp-error-check leaf (default true) and no `vti bind`, validates with
+#         exit 0. Ze's kernel honours the discard for ICMP arriving on the peer's
+#         SA (K1, XFRM_ZE_CAP_ICMP_REVERSE), so no refusal applies.
+#   seq=2 the control: the same configuration with `vpn ipsec policy icmp-out`
+#         (bypass, direction out, protocol 1, remote 10.2.0.0/16) is refused with
+#         refusal A's text, so seq=1's exit 0 is the verifier answering, not a
+#         verifier that never ran.
+# PREVENTS: the commit refusal of a default discard beside a default peer
+#   (refuseICMPCheckDiscard, removed) coming back, and a verify that tells the
+#   operator to turn the Section 6.2 check off to get a working discard.
+#
+# WHAT THIS DOES NOT PROVE: that the entry drops traffic. The packet half is
+# TestRFC4301NonErrorICMPOutsideSelectorsIsDiscarded
+# (internal/component/ike/dataplane/rfc4301_icmp_nonerror_integration_linux_test.go).
+#
+# The entry's prefixes are disjoint from the peer's selectors, so the SPD order
+# refusal (equal order on overlapping selectors, engine/spd_order.go) cannot
+# answer; refusal B refused an inbound ICMP-matching discard whatever its prefixes.
+#
+# RED PROOF: restore refuseICMPCheckDiscard and its call in verifyICMPOverlap
+# (engine/icmp_overlap.go, as at HEAD before the D-6 change): seq=1 exits 1 naming
+# `vpn ipsec policy drop-host`, red. Delete the refuseICMPErrorBypass call: seq=2
+# exits 0, red.
+#
+# Every cmd asserts its own exit with exit=. Needles carry no ':'.
+
+stdin=discard:terminator=EOF_DISCARD
+vpn {
+	ipsec {
+		unmatched discard
+		policy drop-host {
+			action discard
+			local {
+				prefix 0.0.0.0/0
+			}
+			remote {
+				prefix 198.51.100.0/24
+			}
+		}
+		esp-group esp-default {
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer site {
+				ike-group ike-default
+				esp-group esp-default
+				local-address 10.0.0.1
+				remote-address 10.0.0.2
+				mode tunnel
+				traffic-selector 1 {
+					local {
+						prefix 10.1.0.0/16
+					}
+					remote {
+						prefix 10.2.0.0/16
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_DISCARD
+
+stdin=bypass:terminator=EOF_BYPASS
+vpn {
+	ipsec {
+		unmatched discard
+		policy drop-host {
+			action discard
+			local {
+				prefix 0.0.0.0/0
+			}
+			remote {
+				prefix 198.51.100.0/24
+			}
+		}
+		policy icmp-out {
+			action bypass
+			direction out
+			protocol 1
+			local {
+				prefix 0.0.0.0/0
+			}
+			remote {
+				prefix 10.2.0.0/16
+			}
+		}
+		esp-group esp-default {
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer site {
+				ike-group ike-default
+				esp-group esp-default
+				local-address 10.0.0.1
+				remote-address 10.0.0.2
+				mode tunnel
+				traffic-selector 1 {
+					local {
+						prefix 10.1.0.0/16
+					}
+					remote {
+						prefix 10.2.0.0/16
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_BYPASS
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=discard:exit=0
+expect=stdout:contains=configuration valid
+reject=stdout:contains=drop-host
+reject=stdout:contains=icmp-error-check false
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=bypass:exit=1
+expect=stdout:contains=vpn ipsec policy icmp-out
+expect=stdout:contains=carries ICMP errors in clear to the peer's remote selectors
+reject=stdout:contains=`vpn ipsec policy drop-host`
