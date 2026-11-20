@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"io"
 
+	memclnt "github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/memclnt"
 	api "go.fd.io/govpp/api"
-	memclnt "go.fd.io/govpp/binapi/memclnt"
 )
 
 // RPCService defines RPC service pppoe.

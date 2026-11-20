@@ -16,6 +16,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
 	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/feature"
+	zememclnt "github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/memclnt"
 	pppoeapi "github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/pppoe"
 )
 
@@ -72,7 +73,7 @@ func (s *factoryStream) RecvMsg() (api.Message, error) {
 		return &pppoeapi.PppoeAddDelSessionReply{SwIfIndex: 73}, nil
 	case *pppoeapi.PppoeSessionDump:
 		if s.received > 1 {
-			return &memclnt.ControlPingReply{}, nil
+			return &zememclnt.ControlPingReply{}, nil
 		}
 		access := uint32(17)
 		if s.owner.fail == "wrong-access" {

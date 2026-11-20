@@ -62,24 +62,44 @@ repeatable binding generation; runtime compatibility still needs the provider's
 integration tests.
 GoVPP's `binapi-generator@v0.13.0` then generates the API and RPC files.
 Feature comes from `src/vnet/feature/feature.api` in that same source tree.
-The input includes the pinned `memclnt` API because RPC generation resolves
-the control-ping request and reply even when only PPPoE and Feature are published.
+`memclnt` is generated and published too, because a dump needs a control ping
+from the same binapi tree as its request. GoVPP's `Stream.SendMsg` records
+the tree of each message it sends (`Connection.GetMessagePath`), and
+`Stream.RecvMsg` resolves every reply ID in that tree only
+(`Connection.LookupByID`). A PPPoE dump that ended with GoVPP's own
+`memclnt.ControlPing` left its details replies unknown
+(`unknown message ID ... for path 'go.fd.io/govpp/binapi'`).
+The generated dump helpers (`NewServiceClient(conn).PppoeCpBindingDump` and
+the session dump) send the control ping of the memclnt package their RPC file
+imports, so that import must be Ze's too. GoVPP's generator resolves every
+binapi import of a run under one `--import-prefix`, and no prefix is right for
+both files of a package: the message files must import GoVPP's shared types
+packages (`interface_types`, `ethernet_types`, `ip_types`), which Ze's
+messages share with GoVPP's own interface and IP messages. The action therefore
+runs the unmodified generator twice over the same input: once with
+`--import-prefix=go.fd.io/govpp/binapi`, which supplies every `<name>.ba.go`,
+and once with Ze's binapi import path, which supplies every `<name>_rpc.ba.go`.
+Before publication it refuses any file that imports one of Ze's three packages
+from GoVPP's tree, or a package Ze does not publish from Ze's.
 The generator runs under Ze's Go toolchain with `CGO_ENABLED=0`.
 <!-- source: internal/le/build/vpp/api_recipe.go -- apiSourcePins and apiBuildRecipe -->
 
 The action validates the patched session field, CP pair fields and binding dump,
-plus Feature enable/disable and readback field types. It parses and checks all
-four files before publishing `pppoe.ba.go` and `pppoe_rpc.ba.go` in
-`internal/component/l2tp/pppoe/dataplane/vpp/binapi/pppoe/`, and `feature.ba.go`
-and `feature_rpc.ba.go` in the sibling `binapi/feature/` directory.
-Imports of unchanged VPP types use GoVPP's existing `binapi` packages.
+Feature enable/disable and readback field types, and the memclnt control ping
+and its reply's return value. It parses and checks all
+six files, their imports included, before publishing `pppoe.ba.go` and `pppoe_rpc.ba.go` in
+`internal/component/l2tp/pppoe/dataplane/vpp/binapi/pppoe/`, `feature.ba.go`
+and `feature_rpc.ba.go` in the sibling `binapi/feature/` directory, and
+`memclnt.ba.go` and `memclnt_rpc.ba.go` in `binapi/memclnt/`.
+Imports of unchanged VPP types use GoVPP's existing `binapi` packages;
+imports of `pppoe`, `feature` and `memclnt` use Ze's.
 The action refuses output files without GoVPP's generated header and refuses
 symbolic links in the output path. Other package files stay unchanged.
 Private build inputs, JSON, extra generated type packages and temporary image
 retention tags are removed after success or failure. Docker retains the
 reusable `ze-vpp-pppoe-api` cache image. Its contents are API JSON only.
-<!-- source: internal/le/build/vpp/api.go -- generateAPI -->
-<!-- source: internal/le/build/vpp/api_publish.go -- apiCheckOutput and apiPublish -->
+<!-- source: internal/le/build/vpp/api.go -- generateAPI and apiPasses -->
+<!-- source: internal/le/build/vpp/api_publish.go -- apiCheckOutput, apiPublish and apiCheckImports -->
 
 `./le --name session build vpp run variant missing-frame-metadata` builds the
 counterfactual as `ze-vpp-pppoe-lab-missing-frame-metadata`; `variant baseline`
@@ -105,9 +125,14 @@ This Phase 0 image builds only `af_packet`, `linux-cp` and `pppoe`, using
 upstream's `VPP_PLUGINS` CMake option. `VPP_BUILD_NATIVE_ONLY=ON` compiles only
 for the build host's CPU, avoiding unused multiarch variants. It runs one
 compile job per core of the Docker host, capped at one per 1.5 GiB of available
-memory, so a two-GiB host builds serially and a larger lab guest uses its cores. Rebuild this
-CPU-specific image inside the target Ze-kernel guest before that guest's lab
-run; an image built on another CPU is not a portable artifact.
+memory, so a two-GiB host builds serially and a larger lab guest uses its cores. The image
+is CPU-specific and is not a portable artifact: it is built by the Docker host
+the lab runs on, and `le` keeps it in its persistent image cache under a key
+that carries the CPU identity of the machine `le` runs on, whose CPU the lab
+guest uses (`-cpu max`). A later run on the same CPU, with the same Dockerfile,
+context and build arguments, loads it instead of compiling; a run on another
+CPU builds its own (`docs/architecture/testing/interop.md`, "The persistent
+image cache").
 It is **not** an appliance or DPDK
 package. Building it does not prove a PPPoE session works; packet captures,
 session readback and the remaining Phase 0 assumptions require the lab run.

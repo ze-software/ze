@@ -13,6 +13,7 @@ import (
 	"go.fd.io/govpp/binapi/interface_types"
 	"go.fd.io/govpp/binapi/memclnt"
 
+	zememclnt "github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/memclnt"
 	pppoeapi "github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/pppoe"
 )
 
@@ -215,6 +216,8 @@ func (s *accessMapStream) SendMsg(message api.Message) error {
 		s.replies = append(s.replies, details)
 	case *memclnt.ControlPing:
 		s.replies = append(s.replies, &memclnt.ControlPingReply{})
+	case *zememclnt.ControlPing:
+		s.replies = append(s.replies, &zememclnt.ControlPingReply{})
 	case *pppoeapi.PppoeAddDelCp:
 		dataplane, control := uint32(request.DpSwIfIndex), uint32(request.CpSwIfIndex)
 		if request.IsAdd == 1 {

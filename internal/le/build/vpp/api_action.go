@@ -33,8 +33,8 @@ func answerGenerate() (any, int) {
 			return report, 0
 		}
 	}
-	leaction.ReportError(opererr.Wrap(err, "the VPP PPPoE and Feature bindings could not be generated",
-		"The PPPoE backend needs both APIs from the same pinned VPP source. Repair the reported source, Docker, generator or output ownership failure, then retry.",
+	leaction.ReportError(opererr.Wrap(err, "the VPP PPPoE, Feature and memclnt bindings could not be generated",
+		"The PPPoE backend needs all three APIs from the same pinned VPP source. Repair the reported source, Docker, generator or output ownership failure, then retry.",
 		"./le build vpp update"))
 	return nil, 1
 }

@@ -10,9 +10,9 @@ import (
 
 	"go.fd.io/govpp/api"
 	"go.fd.io/govpp/binapi/ethernet_types"
-	"go.fd.io/govpp/binapi/memclnt"
 
 	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
+	zememclnt "github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/memclnt"
 	pppoeapi "github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/pppoe"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
@@ -65,8 +65,8 @@ func (s *reconciliationQuery) SendMsg(message api.Message) error {
 		}
 		return nil
 	}
-	if _, ok := message.(*memclnt.ControlPing); ok && s.query {
-		s.replies = append(s.replies, &memclnt.ControlPingReply{})
+	if _, ok := message.(*zememclnt.ControlPing); ok && s.query {
+		s.replies = append(s.replies, &zememclnt.ControlPingReply{})
 		return nil
 	}
 	return s.Stream.SendMsg(message)
@@ -89,7 +89,7 @@ func TestVPPReconcileUnknownPresentDoesNotAdopt(t *testing.T) {
 	isolateReconciliation(t)
 	var streams []*testStream
 	client := &binaryAPI{open: func(ctx context.Context) (api.Stream, error) {
-		stream := &testStream{ctx: ctx, replies: []api.Message{&pppoeapi.PppoeSessionDetails{SessionID: 19, ClientMac: ethernet_types.MacAddress{2, 0, 0, 0, 0, 19}}, &memclnt.ControlPingReply{}}}
+		stream := &testStream{ctx: ctx, replies: []api.Message{&pppoeapi.PppoeSessionDetails{SessionID: 19, ClientMac: ethernet_types.MacAddress{2, 0, 0, 0, 0, 19}}, &zememclnt.ControlPingReply{}}}
 		streams = append(streams, stream)
 		return stream, nil
 	}}
@@ -107,7 +107,7 @@ func TestVPPReconcileUnknownPresentDoesNotAdopt(t *testing.T) {
 	for _, stream := range streams {
 		for _, message := range stream.sent {
 			switch message.(type) {
-			case *pppoeapi.PppoeSessionDump, *memclnt.ControlPing:
+			case *pppoeapi.PppoeSessionDump, *zememclnt.ControlPing:
 			default:
 				t.Fatalf("unknown creation gained mutation authority: %T", message)
 			}
@@ -126,7 +126,7 @@ func TestVPPReconcileUnknownRequiresCompletedAbsence(t *testing.T) {
 			isolateReconciliation(t)
 			want := errors.New("dump completion lost")
 			client := &binaryAPI{open: func(ctx context.Context) (api.Stream, error) {
-				stream := &testStream{ctx: ctx, replies: []api.Message{&memclnt.ControlPingReply{}}}
+				stream := &testStream{ctx: ctx, replies: []api.Message{&zememclnt.ControlPingReply{}}}
 				if incomplete {
 					stream.err = want
 				}
@@ -163,7 +163,7 @@ func TestVPPReconcileSharesAbsenceRead(t *testing.T) {
 	dumps := 0
 	client := &binaryAPI{open: func(ctx context.Context) (api.Stream, error) {
 		dumps++
-		return &testStream{ctx: ctx, replies: []api.Message{&memclnt.ControlPingReply{}}}, nil
+		return &testStream{ctx: ctx, replies: []api.Message{&zememclnt.ControlPingReply{}}}, nil
 	}}
 	retainReconciliation(t, client, 19, nil)
 	retainReconciliation(t, client, 20, nil)

@@ -5,6 +5,8 @@ package buildvpp
 import (
 	"context"
 	"errors"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"slices"
@@ -17,7 +19,7 @@ import (
 const apiFeatureOutput = "internal/component/l2tp/pppoe/dataplane/vpp/binapi/feature"
 
 // TestVPPAPIGenerationPublishesFeatureBindings checks the native generation
-// lifecycle publishes both Feature files and identifies all four outputs.
+// lifecycle publishes both Feature files and identifies all six outputs.
 func TestVPPAPIGenerationPublishesFeatureBindings(t *testing.T) {
 	root, scratch := apiFixture(t)
 	process := &apiFeatureProcessFixture{}
@@ -26,8 +28,13 @@ func TestVPPAPIGenerationPublishesFeatureBindings(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Contains(process.command.Arguments, "feature") {
-		t.Fatal("Feature API was not selected for generation")
+	if len(process.commands) == 0 {
+		t.Fatal("the generator never ran")
+	}
+	for _, command := range process.commands {
+		if !slices.Contains(command.Arguments, "feature") {
+			t.Fatal("Feature API was not selected for generation")
+		}
 	}
 	for _, name := range []string{"feature.ba.go", "feature_rpc.ba.go"} {
 		path := filepath.Join(apiFeatureOutput, name)
@@ -42,10 +49,10 @@ func TestVPPAPIGenerationPublishesFeatureBindings(t *testing.T) {
 			t.Fatalf("unowned Feature output: %s", path)
 		}
 	}
-	if len(report.Files) != 4 {
+	if len(report.Files) != 6 {
 		t.Fatalf("published files = %v", report.Files)
 	}
-	if !slices.Equal(docker.inputs, []string{"/api/pppoe.api.json", "/api/feature.api.json", "/api/interface_types.api.json", "/api/ethernet_types.api.json", "/api/ip_types.api.json", "/api/memclnt.api.json"}) {
+	if !slices.Equal(docker.inputs, []string{"/api/pppoe.api.json", "/api/feature.api.json", "/api/memclnt.api.json", "/api/interface_types.api.json", "/api/ethernet_types.api.json", "/api/ip_types.api.json"}) {
 		t.Fatalf("JSON inputs = %v", docker.inputs)
 	}
 	if process.sourceVersion != "fixture-commit-pppoe-patched\n" {
@@ -221,6 +228,57 @@ func (p *apiFeatureProcessFixture) Run(ctx context.Context, command interoplab.P
 		}
 	}
 	return result, nil
+}
+
+// TestVPPAPIGenerationPublishesMemclntBindings checks the dump completion pair
+// of Ze's binapi tree is generated and published with the other packages, and
+// that a memclnt output without the pair is refused before publication.
+func TestVPPAPIGenerationPublishesMemclntBindings(t *testing.T) {
+	root, scratch := apiFixture(t)
+	process := &apiFeatureProcessFixture{}
+	report, err := generateAPI(t.Context(), root, scratch, &apiDockerFixture{}, process, []string{"CGO_ENABLED=0"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(process.commands) == 0 {
+		t.Fatal("the generator never ran")
+	}
+	for _, command := range process.commands {
+		if !slices.Contains(command.Arguments, "memclnt") {
+			t.Fatal("memclnt API was not selected for generation")
+		}
+	}
+	for _, name := range []string{"memclnt.ba.go", "memclnt_rpc.ba.go"} {
+		path := filepath.ToSlash(filepath.Join(apiOutputRoot, "memclnt", name))
+		if !slices.Contains(report.Files, path) {
+			t.Fatalf("memclnt output absent from report: %s", path)
+		}
+	}
+	for name, data := range map[string]string{
+		"no-ping":   strings.ReplaceAll(apiMemclntFixture(), "type ControlPing struct{}", ""),
+		"no-retval": strings.ReplaceAll(apiMemclntFixture(), "Retval int32", "Missing int32"),
+	} {
+		parsed, err := parser.ParseFile(token.NewFileSet(), "memclnt.ba.go", data, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := apiCheckPackageSchema("memclnt", parsed); err == nil {
+			t.Fatalf("%s: incomplete memclnt schema accepted", name)
+		}
+	}
+	parsed, err := parser.ParseFile(token.NewFileSet(), "other.ba.go", "package other\n", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := apiCheckPackageSchema("other", parsed); err == nil {
+		t.Fatal("a package with no schema check was accepted")
+	}
+}
+
+func apiMemclntFixture() string {
+	return apiGeneratedHeader + "\npackage memclnt\n" +
+		"type ControlPing struct{}\n" +
+		"type ControlPingReply struct { Retval int32; ClientIndex uint32; VpePID uint32 }\n"
 }
 
 func apiFeatureFixture() string {

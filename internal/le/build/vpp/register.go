@@ -41,7 +41,7 @@ var actions = leaction.New(area, leaction.Action{
 }, leaction.Action{
 	Verb: "update", Heavy: true, Writes: true,
 	Summary: "generate the patched VPP PPPoE Go bindings",
-	Why:     "Generate the PPPoE binary API from the pinned patched VPP source without compiling VPP. Only the four canonical generated PPPoE and Feature files are published.",
+	Why:     "Generate the PPPoE binary API from the pinned patched VPP source without compiling VPP. Only the six canonical generated PPPoE, Feature and memclnt files are published.",
 	Answer:  answerGenerate,
 })
 

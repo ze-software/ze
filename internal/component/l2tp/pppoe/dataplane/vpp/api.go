@@ -8,6 +8,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path"
+	"reflect"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -18,6 +20,7 @@ import (
 	"go.fd.io/govpp/binapi/memclnt"
 
 	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/feature"
+	zememclnt "github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/memclnt"
 
 	"go.fd.io/govpp/binapi/ethernet_types"
 
@@ -93,7 +96,13 @@ func (a *binaryAPI) exchange(ctx context.Context, request api.Message) (reply ap
 
 // dump bounds externally supplied replies and requires the ping completion.
 // The caller chooses a bound derived from the queried table's native limits.
+// The ping comes from the request's binapi tree (dumpPing), and only that
+// tree's reply ends the dump.
 func (a *binaryAPI) dump(ctx context.Context, request api.Message, limit int, visit func(api.Message) error) (err error) {
+	ping, err := dumpPing(request)
+	if err != nil {
+		return err
+	}
 	bounded, cancel := context.WithTimeout(ctx, apiTimeout)
 	defer cancel()
 	if err := bounded.Err(); err != nil {
@@ -113,7 +122,7 @@ func (a *binaryAPI) dump(ctx context.Context, request api.Message, limit int, vi
 	if err := stream.SendMsg(request); err != nil {
 		return err
 	}
-	if err := stream.SendMsg(&memclnt.ControlPing{}); err != nil {
+	if err := stream.SendMsg(ping); err != nil {
 		return err
 	}
 	for range limit + 1 {
@@ -121,12 +130,10 @@ func (a *binaryAPI) dump(ctx context.Context, request api.Message, limit int, vi
 		if readErr != nil {
 			return readErr
 		}
-		if ping, ok := message.(*memclnt.ControlPingReply); ok {
-			if ping == nil {
-				return errors.New("pppoe-vpp: nil dump completion")
-			}
-			if ping.Retval != 0 {
-				return api.RetvalToVPPApiError(ping.Retval)
+		end, endErr := dumpEnd(ping, message)
+		if end {
+			if endErr != nil {
+				return endErr
 			}
 			return bounded.Err()
 		}
@@ -135,6 +142,75 @@ func (a *binaryAPI) dump(ctx context.Context, request api.Message, limit int, vi
 		}
 	}
 	return fmt.Errorf("pppoe-vpp: %s exceeded %d replies", request.GetMessageName(), limit)
+}
+
+// The two binapi trees a dump request can come from: GoVPP's own bindings and
+// the PPPoE and Feature bindings Ze generates from its patched VPP source.
+var (
+	govppTree = binapiTree(&memclnt.ControlPing{})
+	zeTree    = binapiTree(&zememclnt.ControlPing{})
+)
+
+// dumpPing returns the control ping of the request's binapi tree. GoVPP's
+// Stream.SendMsg records Connection.GetMessagePath of every message it sends,
+// and Stream.RecvMsg resolves each reply ID through Connection.LookupByID in
+// the tree of the message sent last. The ping is sent last, so it decides
+// where the details replies decode: GoVPP's ping after a PPPoE request left
+// every PPPoE details reply unknown, and VPP startup stopped there. A request
+// from a tree with no ping is refused before anything is sent.
+func dumpPing(request api.Message) (api.Message, error) {
+	tree := binapiTree(request)
+	switch tree {
+	case govppTree:
+		return &memclnt.ControlPing{}, nil
+	case zeTree:
+		return &zememclnt.ControlPing{}, nil
+	}
+	return nil, fmt.Errorf("pppoe-vpp: dump request %T belongs to binapi tree %q, which has no control ping", request, tree)
+}
+
+// dumpEnd reports whether message is the reply to ping, with VPP's refusal of
+// it. Only the reply of the ping's own tree can arrive on a GoVPP stream, so
+// any other message is a details reply for the caller to judge.
+func dumpEnd(ping, message api.Message) (bool, error) {
+	var retval int32
+	switch ping.(type) {
+	case *memclnt.ControlPing:
+		reply, ok := message.(*memclnt.ControlPingReply)
+		if !ok {
+			return false, nil
+		}
+		if reply == nil {
+			return true, errors.New("pppoe-vpp: nil dump completion")
+		}
+		retval = reply.Retval
+	case *zememclnt.ControlPing:
+		reply, ok := message.(*zememclnt.ControlPingReply)
+		if !ok {
+			return false, nil
+		}
+		if reply == nil {
+			return true, errors.New("pppoe-vpp: nil dump completion")
+		}
+		retval = reply.Retval
+	default:
+		panic(fmt.Sprintf("BUG: dump sent %T, which dumpPing never returns", ping))
+	}
+	return true, api.RetvalToVPPApiError(retval)
+}
+
+// binapiTree applies GoVPP's own rule (api.RegisterMessage and
+// Connection.GetMessagePath): the parent of the message's Go package path.
+// A message that is not a pointer has no tree and answers "".
+func binapiTree(message api.Message) string {
+	messageType := reflect.TypeOf(message)
+	if messageType == nil {
+		return ""
+	}
+	if messageType.Kind() != reflect.Pointer {
+		return ""
+	}
+	return path.Dir(messageType.Elem().PkgPath())
 }
 
 // creation is a raw API receipt before a validated owner is constructed. A
