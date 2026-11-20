@@ -661,10 +661,15 @@ withdrawal is confirmed. Each session retains at most 1024 paths for
 bounded teardown. Counters come from the
 created native index in the VPP stats segment. A failed read, a missing row
 or a duplicate row is an error and cannot become a zero that idle detection
-would read as inactivity.
+would read as inactivity. Every session reads the statistics owner's shared
+snapshot. `Counters` asks for a dump that starts after the call, which the
+accounting baseline and the final read after `Disconnect` need. An interval
+reader calls `CountersWithin(interval)`, so all sessions read within one
+interval share one VPP dump. Neither accepts a dump taken before the
+session's interface was created.
 <!-- source: internal/component/l2tp/pppoe/dataplane/vpp/api_routes.go -- binaryAPI.routeSource, binaryAPI.route -->
 <!-- source: internal/component/l2tp/pppoe/dataplane/vpp/session_routes.go -- session.AddAddressP2P, session.programRoute -->
-<!-- source: internal/component/l2tp/pppoe/dataplane/vpp/session.go -- session.Counters -->
+<!-- source: internal/component/l2tp/pppoe/dataplane/vpp/session.go -- session.Counters, session.CountersWithin -->
 
 The session policer owner holds at most two native objects: RX for upload and
 TX for download. Plans carry explicit burst sizes and reject rates that VPP's

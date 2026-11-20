@@ -11,11 +11,13 @@ import (
 	"net/netip"
 	"strings"
 	"sync"
+	"time"
+
+	"go.fd.io/govpp/api"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
 	vppcomp "github.com/ze-software/ze/internal/component/vpp"
-	"go.fd.io/govpp/api"
 )
 
 // Name is the exact interface/session backend name selected by registration.
@@ -24,7 +26,7 @@ const Name = "vpp"
 type factoryOps struct {
 	access   func(context.Context, dataplane.Request) (preparedSessionAccess, error)
 	socket   func(context.Context, dataplane.Request) (*controlSocket, error)
-	counters func(*binaryAPI) func(*api.InterfaceStats) error
+	counters func(*binaryAPI) counterReader
 }
 
 func openWithOps(ctx context.Context, request dataplane.Request, ops factoryOps) (opened dataplane.OpenedSession, err error) {
@@ -154,7 +156,10 @@ func openWithOps(ctx context.Context, request dataplane.Request, ops factoryOps)
 		return nil, err
 	}
 	owner.identity.InterfaceName = name
-	owner.readStats = ops.counters(access.api)
+	owner.readCounters = ops.counters(access.api)
+	// VPP has confirmed the created index above, so every dump from now on
+	// carries its row; an earlier one cannot answer for this session.
+	owner.created = time.Now()
 	// NewOpenedSession consumes both roles even if validation or an accessor
 	// panics. The allocation rollback above relinquishes authority before it.
 	transferred = true
@@ -267,8 +272,10 @@ func (r *macReservation) retain(failure pendingMutation) {
 	reportSessionReconciliation(&failure, failure.failure)
 }
 
-func captureCounters(client *binaryAPI) func(*api.InterfaceStats) error {
-	return func(stats *api.InterfaceStats) error {
-		return vppcomp.GetInterfaceStatsForGeneration(client.connector, client.generation, stats)
+// captureCounters binds the session to the API owner and generation it was
+// created under; the stats owner refuses any other generation's snapshot.
+func captureCounters(client *binaryAPI) counterReader {
+	return func(index uint32, notBefore time.Time) (api.InterfaceCounters, error) {
+		return vppcomp.InterfaceCountersForGeneration(client.connector, client.generation, index, notBefore)
 	}
 }

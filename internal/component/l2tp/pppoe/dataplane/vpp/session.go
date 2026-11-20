@@ -9,9 +9,11 @@ import (
 	"io"
 	"net/netip"
 	"sync"
+	"time"
+
+	"go.fd.io/govpp/api"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
-	"go.fd.io/govpp/api"
 )
 
 // session owns both the VPP interface and its one polled control socket. PPP
@@ -21,29 +23,33 @@ import (
 // control/data-plane operations are safe for concurrent use; mu serializes API
 // state changes, while socket Close interrupts blocking I/O independently.
 type session struct {
-	mu        sync.Mutex
-	identity  ppp.SessionIdentity
-	api       *binaryAPI
-	socket    *controlSocket
-	tables    [2]uint32
-	source    uint8
-	sid       uint16
-	mac       [6]byte
-	readStats func(*api.InterfaceStats) error
-	routes    map[sessionRoute]struct{} // confirmed or uncertain native paths
+	mu       sync.Mutex
+	identity ppp.SessionIdentity
+	api      *binaryAPI
+	socket   *controlSocket
+	tables   [2]uint32
+	source   uint8
+	sid      uint16
+	mac      [6]byte
+	// readCounters reads the created index from the shared statistics
+	// snapshot; created is when that index existed, so no snapshot taken
+	// before it can answer for this session.
+	readCounters counterReader
+	created      time.Time
+	routes       map[sessionRoute]struct{} // confirmed or uncertain native paths
 	// stagedRoutes holds unpublished route intents. Failed adds or family
 	// withdrawals can owe both native cleanup and later publication; a retained
 	// withdrawal owner blocks publication until the old native paths are gone.
 	stagedRoutes map[sessionRoute]struct{}
-	addresses map[netip.Prefix]sessionRoute
+	addresses    map[netip.Prefix]sessionRoute
 	// A withdrawing pair leaves addresses before its first native mutation.
 	// It remains here until its exact peer and any closing-family paths are gone.
 	withdrawals map[netip.Prefix]sessionRoute
-	ready     bool // transport readiness; each negotiated family gates separately
-	closed    bool
-	closeErr  error
-	release   func()
-	retain    func(error)
+	ready       bool // transport readiness; each negotiated family gates separately
+	closed      bool
+	closeErr    error
+	release     func()
+	retain      func(error)
 }
 
 func (s *session) Identity() ppp.SessionIdentity { return s.identity }
@@ -195,35 +201,50 @@ func (s *session) SetAdminUp() error {
 	return s.api.setAdmin(context.Background(), s.identity.NativeIndex, true)
 }
 
+// counterReader answers one created interface's counters from a statistics
+// dump that started no earlier than notBefore. A failed read, a missing row and
+// a duplicate row are errors (vppcomp.InterfaceCountersForGeneration).
+type counterReader func(index uint32, notBefore time.Time) (api.InterfaceCounters, error)
+
+// Counters is a fresh read: the dump starts after this call. The accounting
+// baseline and the terminal read after Disconnect use it, because an older
+// dump would understate the baseline or drop the last traffic before Stop.
+// Concurrent fresh reads of many sessions still share one dump.
 func (s *session) Counters() (ppp.SessionCounters, error) {
+	return s.countersSince(time.Now())
+}
+
+// CountersWithin serves an interval reader, which reads every session once
+// per interval: all sessions read within maxAge share one VPP dump instead of
+// taking one dump each. The answer was measured no earlier than maxAge before
+// the call and never before the session's interface existed. maxAge <= 0 is
+// a fresh read. Safe for concurrent use.
+func (s *session) CountersWithin(maxAge time.Duration) (ppp.SessionCounters, error) {
+	now := time.Now()
+	if maxAge <= 0 {
+		return s.countersSince(now)
+	}
+	return s.countersSince(now.Add(-maxAge))
+}
+
+func (s *session) countersSince(notBefore time.Time) (ppp.SessionCounters, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.closed {
 		return ppp.SessionCounters{}, io.ErrClosedPipe
 	}
-	if s.readStats == nil {
+	if s.readCounters == nil {
 		return ppp.SessionCounters{}, errors.New("pppoe-vpp: VPP stats connection is unavailable")
 	}
-	var stats api.InterfaceStats
-	if err := s.readStats(&stats); err != nil {
+	// A dump that started before the interface was created has no row for it.
+	if notBefore.Before(s.created) {
+		notBefore = s.created
+	}
+	counter, err := s.readCounters(s.identity.NativeIndex, notBefore)
+	if err != nil {
 		return ppp.SessionCounters{}, err
 	}
-	var result ppp.SessionCounters
-	found := false
-	for _, counter := range stats.Interfaces {
-		if counter.InterfaceIndex != s.identity.NativeIndex {
-			continue
-		}
-		if found {
-			return ppp.SessionCounters{}, errors.New("pppoe-vpp: duplicate created-interface counter row")
-		}
-		found = true
-		result = ppp.SessionCounters{RxBytes: counter.Rx.Bytes, TxBytes: counter.Tx.Bytes, RxPackets: counter.Rx.Packets, TxPackets: counter.Tx.Packets}
-	}
-	if !found {
-		return ppp.SessionCounters{}, fmt.Errorf("pppoe-vpp: stats have no created interface index %d", s.identity.NativeIndex)
-	}
-	return result, nil
+	return ppp.SessionCounters{RxBytes: counter.Rx.Bytes, TxBytes: counter.Tx.Bytes, RxPackets: counter.Rx.Packets, TxPackets: counter.Tx.Packets}, nil
 }
 
 var _ ppp.SessionHandle = (*session)(nil)

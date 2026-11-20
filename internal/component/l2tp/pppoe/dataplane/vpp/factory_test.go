@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"go.fd.io/govpp/api"
 	"go.fd.io/govpp/binapi/ethernet_types"
@@ -118,8 +119,10 @@ func (h *factoryHarness) ops() factoryOps {
 			h.stream = &ownerStream{done: make(chan struct{})}
 			return newControlSocket(h.stream), nil
 		},
-		counters: func(*binaryAPI) func(*api.InterfaceStats) error {
-			return func(*api.InterfaceStats) error { return errors.New("test stats unavailable") }
+		counters: func(*binaryAPI) counterReader {
+			return func(uint32, time.Time) (api.InterfaceCounters, error) {
+				return api.InterfaceCounters{}, errors.New("test stats unavailable")
+			}
 		},
 	}
 }

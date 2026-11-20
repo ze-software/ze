@@ -11,13 +11,14 @@ import (
 	"testing"
 	"time"
 
+	"go.fd.io/govpp/api"
+	interfaces "go.fd.io/govpp/binapi/interface"
+	"go.fd.io/govpp/binapi/ip"
+
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/feature"
 	pppoeapi "github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/pppoe"
 	"github.com/ze-software/ze/internal/core/rtproto"
-	"go.fd.io/govpp/api"
-	interfaces "go.fd.io/govpp/binapi/interface"
-	"go.fd.io/govpp/binapi/ip"
 )
 
 type ownerStream struct {
@@ -191,26 +192,87 @@ func TestVPPSessionCloseOwnsSocketAndTeardown(t *testing.T) {
 
 // Stats use the session index returned by VPP, never its access device or a
 // renamed operator string. A missing/failed read is an error, not idle zero.
+// The reader models the shared snapshot: it holds rows 17 and 73 and refuses
+// any other index, as vppcomp.InterfaceCountersForGeneration does; its
+// missing- and duplicate-row refusals are proven in the vpp package.
 func TestVPPSessionCountersRequireExactCreatedIndex(t *testing.T) {
 	s, _, _ := testSession(t)
-	s.readStats = func(stats *api.InterfaceStats) error {
-		stats.Interfaces = []api.InterfaceCounters{{InterfaceIndex: 17, Rx: api.InterfaceCounterCombined{Bytes: 1}}, {InterfaceIndex: 73, Rx: api.InterfaceCounterCombined{Bytes: 123}, Tx: api.InterfaceCounterCombined{Bytes: 456}}}
-		return nil
+	rows := map[uint32]api.InterfaceCounters{
+		17: {InterfaceIndex: 17, Rx: api.InterfaceCounterCombined{Bytes: 1}},
+		73: {InterfaceIndex: 73, Rx: api.InterfaceCounterCombined{Bytes: 123, Packets: 3}, Tx: api.InterfaceCounterCombined{Bytes: 456, Packets: 4}},
+	}
+	s.readCounters = func(index uint32, _ time.Time) (api.InterfaceCounters, error) {
+		row, found := rows[index]
+		if !found {
+			return api.InterfaceCounters{}, errors.New("stats have no row for this index")
+		}
+		return row, nil
 	}
 	counters, err := s.Counters()
-	if err != nil || counters.RxBytes != 123 || counters.TxBytes != 456 {
-		t.Fatalf("counters %+v, %v", counters, err)
+	if err != nil {
+		t.Fatal(err)
 	}
-	s.readStats = func(*api.InterfaceStats) error { return errors.New("stats unavailable") }
+	if counters != (ppp.SessionCounters{RxBytes: 123, TxBytes: 456, RxPackets: 3, TxPackets: 4}) {
+		t.Fatalf("counters %+v", counters)
+	}
+	s.readCounters = func(uint32, time.Time) (api.InterfaceCounters, error) {
+		return api.InterfaceCounters{}, errors.New("stats unavailable")
+	}
 	if _, err := s.Counters(); err == nil {
 		t.Fatal("stats error became an idle zero")
 	}
-	s.readStats = func(stats *api.InterfaceStats) error {
-		stats.Interfaces = []api.InterfaceCounters{{InterfaceIndex: 17}}
-		return nil
+	delete(rows, 73)
+	s.readCounters = func(index uint32, _ time.Time) (api.InterfaceCounters, error) {
+		row, found := rows[index]
+		if !found {
+			return api.InterfaceCounters{}, errors.New("stats have no row for this index")
+		}
+		return row, nil
 	}
 	if _, err := s.Counters(); err == nil {
 		t.Fatal("missing created index became an idle zero")
+	}
+}
+
+// Goal: Counters asks for a fresh dump, CountersWithin for one no older than
+// its bound, and neither accepts a dump from before the interface existed.
+// Method: record the bound each read passes to the shared snapshot reader.
+// MUTATION: dropping the creation clamp, or serving Counters from the
+// interval bound, turns this red.
+func TestVPPSessionCounterFreshnessBounds(t *testing.T) {
+	s, _, _ := testSession(t)
+	s.created = time.Now().Add(-time.Hour)
+	var asked time.Time
+	s.readCounters = func(_ uint32, notBefore time.Time) (api.InterfaceCounters, error) {
+		asked = notBefore
+		return api.InterfaceCounters{InterfaceIndex: 73}, nil
+	}
+	within := func(name string, read func() (ppp.SessionCounters, error), offset time.Duration) {
+		t.Helper()
+		before := time.Now()
+		if _, err := read(); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		after := time.Now()
+		if asked.Before(before.Add(-offset)) {
+			t.Fatalf("%s asked for a dump from %v, older than %v", name, asked, before.Add(-offset))
+		}
+		if asked.After(after.Add(-offset)) {
+			t.Fatalf("%s asked for a dump from %v, newer than %v", name, asked, after.Add(-offset))
+		}
+	}
+	within("Counters", s.Counters, 0)
+	within("CountersWithin(0)", func() (ppp.SessionCounters, error) { return s.CountersWithin(0) }, 0)
+	within("CountersWithin(1m)", func() (ppp.SessionCounters, error) { return s.CountersWithin(time.Minute) }, time.Minute)
+	if _, err := s.CountersWithin(2 * time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	if !asked.Equal(s.created) {
+		t.Fatalf("a bound older than the interface asked for %v, want its creation %v", asked, s.created)
+	}
+	s.readCounters = nil
+	if _, err := s.CountersWithin(time.Minute); err == nil {
+		t.Fatal("a session with no stats connection answered")
 	}
 }
 
