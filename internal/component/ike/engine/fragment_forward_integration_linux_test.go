@@ -3,7 +3,7 @@
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- protected-host forwarding and SPD dispositions.
 // Related: fragment_boundary_integration_linux_test.go -- production Child SA creator and ordinary fragment sender.
 // Related: child_forward_policy_linux_test.go -- forwarding setup and exact kernel-counter waits.
-// Packet-level conformance probe awaiting observation on Ze's kernel.
+// Packet-level conformance probe; its forward-bypass phase needs Ze's kernel (K3 fragment guard).
 
 package engine
 
@@ -247,6 +247,12 @@ func fragmentPacketID(packet []byte, id uint16) {
 // fragments over the SA."
 // RFC 4301 Section 7.4: "All implementations MUST support DISCARDing of fragments
 // using the normal SPD packet classification mechanisms."
+//
+// RFC requirement: RFC4301-7.4-2 positive -- on Ze's kernel, the kernel holds the
+// forward BYPASS entry Ze projects for an operator bypass on one UDP port, and under
+// unmatched discard a whole and a fragmented forwarded datagram to that port reach the
+// outside peer, while a lone non-initial fragment to that port and a fragmented datagram
+// to a port no entry names do not.
 //
 //ze:guest-root
 func TestRFC4301ForwardedFragmentsRespectOperatorDisposition(t *testing.T) {
