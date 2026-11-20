@@ -141,7 +141,9 @@ func parseProductLinks(output string) ([]productLink, error) {
 		Name      string `json:"ifname"`
 		Addresses []struct {
 			Local string `json:"local"`
-			Peer  string `json:"peer"`
+			// iproute2's JSON names a point-to-point peer "address" (the
+			// IFA_ADDRESS beside IFA_LOCAL); only its text form says "peer".
+			Peer string `json:"address"`
 		} `json:"addr_info"`
 	}
 	if err := json.Unmarshal([]byte(output), &devices); err != nil {

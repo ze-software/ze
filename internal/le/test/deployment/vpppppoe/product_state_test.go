@@ -277,3 +277,23 @@ func TestProductPlanDeclaresTheDialLog(t *testing.T) {
 	}
 	t.Fatal("product plan has no client peer")
 }
+
+// TestProductLinksReadIPRoute2PeerAddress proves the IPCP link parser reads
+// the peer where iproute2 prints it. The input is `ip -j -4 address show`
+// from iproute2 6.1 for 10.20.0.2 peer 10.20.0.1/32: the peer is the
+// "address" key, and a parser that read a "peer" key found no link on a
+// client whose ppp0 was up.
+func TestProductLinksReadIPRoute2PeerAddress(t *testing.T) {
+	const output = `[{"ifindex":10,"ifname":"ppp0","flags":["POINTOPOINT","MULTICAST","NOARP","UP","LOWER_UP"],"mtu":1492,"qdisc":"noqueue","operstate":"UNKNOWN","group":"default","txqlen":3,"addr_info":[{"family":"inet","local":"10.20.0.2","address":"10.20.0.1","prefixlen":32,"scope":"global","label":"ppp0","valid_life_time":4294967295,"preferred_life_time":4294967295}]}]`
+	rows, err := parseProductLinks(output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []productLink{{Name: "ppp0", Address: "10.20.0.2"}}; !slices.Equal(rows, want) {
+		t.Fatalf("links = %+v, want %+v", rows, want)
+	}
+	other := strings.Replace(output, `"address":"10.20.0.1"`, `"address":"10.20.0.9"`, 1)
+	if rows, err := parseProductLinks(other); err != nil || len(rows) != 0 {
+		t.Fatalf("a link to another peer was counted: %+v, %v", rows, err)
+	}
+}
