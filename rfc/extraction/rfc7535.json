@@ -4,8 +4,8 @@
   "register": "prose",
   "source-path": "rfc/full/rfc7535.txt",
   "source-sha": "c4c8927061eec869",
-  "signed-off": "2026-08-31",
-  "reviewer": "ze-work agent, spec-rfcgate-6, rfc7535",
+  "signed-off": "2026-11-20",
+  "reviewer": "walk agent of session 57690576 (ze-work, rfc7535 re-walk of section 6)",
   "sections": [
     {
       "id": "front",
@@ -71,7 +71,7 @@
       "id": "6",
       "sites": 2,
       "disposition": "walked",
-      "reason": "DNAME Deployment Considerations. Reviews whether DNAME is deployed widely enough for the mechanism to work, with Appendix A as the measurement. States that DNAME support on the AUTHORITATIVE server is a prerequisite for DNAME redirection, that a resolver without DNAME accepts and caches the synthesised CNAME RFC 6672 supplies, and that negative caching of the CNAME target follows EMPTY.AS112.ARPA's own parameters (RFC 2308), so every redirected name is negatively cached alike. Two sites: 6:1 binds a DNSSEC-validating resolver and is excluded below; 6:2 is the section's last sentence and is mapped to RFC7535-6-1, the only MUST-level id this summary declares."
+      "reason": "DNAME Deployment Considerations. Reviews whether DNAME is deployed widely enough for the mechanism to work, with Appendix A as the measurement. States that DNAME support on the AUTHORITATIVE server is a prerequisite for DNAME redirection, that a resolver without DNAME accepts and caches the synthesised CNAME RFC 6672 supplies, and that negative caching of the CNAME target follows EMPTY.AS112.ARPA's own parameters (RFC 2308), so every redirected name is negatively cached alike. Two sites: 6:1 restates what the DNAME and DNSSEC specifications ask of a validating resolver and is excluded cross-document below; 6:2 is the section's last sentence, says that nothing is required of an AS112 node, and is excluded as not-a-requirement. Neither carries an RFC 2119 keyword, so the section states no obligation of its own."
     },
     {
       "id": "7",
@@ -176,7 +176,7 @@
       "quote": "No changes to deployed AS112 nodes incorporating the extensions described in this document are required to support additional redirections.",
       "disposition": "excluded",
       "excluded-kind": "not-a-requirement",
-      "reason": "The keyword is in a NEGATION: the sentence says nothing is required. 'No changes to deployed AS112 nodes incorporating the extensions described in this document are required to support additional redirections' states a property of the mechanism -- the DNAME lives in the redirecting zone, so adding or dropping a redirection touches that zone and never the sink -- and it directs no node to do anything. It is not a duplicate of RFC7535-6-1 either: that id says DNAME PROCESSING is never required on the node, while this says no RECONFIGURATION is required per redirection. Two different absences, neither of them an obligation."
+      "reason": "The keyword is in a NEGATION: the sentence says nothing is required. 'No changes to deployed AS112 nodes incorporating the extensions described in this document are required to support additional redirections' states a property of the mechanism -- the DNAME lives in the redirecting zone, so adding or dropping a redirection touches that zone and never the sink -- and it directs no node to do anything. It is not the same absence as site 6:2 either: 6:2 says DNAME PROCESSING is never required on the node, while this says no RECONFIGURATION is required per redirection. Two different absences, neither of them an obligation."
     },
     {
       "id": "5:1",
@@ -189,16 +189,17 @@
       "id": "6:1",
       "quote": "Validating resolvers (i.e., those requesting and processing DNSSEC [RFC4033] metadata) are required to implement DNAME and hence should not make use of synthesised CNAME RRs.",
       "disposition": "excluded",
-      "excluded-kind": "binds-another-role",
-      "reason": "Binds the DNSSEC-validating recursive resolver, a role ze does not implement. The sentence says such a resolver is required to implement DNAME and should therefore not use a synthesised CNAME RR, which is an obligation RFC 6672 and RFC 4035 place on the validator, quoted here to show that signing the redirection point stays useful. Ze's AS112 node is authoritative-only with recursion disabled (RFC7534-3.5-4) and answers for EMPTY.AS112.ARPA rather than for a redirecting zone, so it neither validates nor emits a DNAME. Ze's own resolver is a STUB: dnssecDecision (internal/component/resolve/dns/resolver.go) sets the EDNS0 DO bit and reads an upstream SERVFAIL as the failure signal, relying on a validating upstream rather than validating a chain itself."
+      "excluded-kind": "cross-document",
+      "reason": "The sentence restates, in lowercase, what other documents ask of a validating resolver: RFC 7535 carries no RFC 2119 key-words section, and its 'are required to' and 'should not' report the DNAME specification [RFC6672] and the DNSSEC documents [RFC4033] that the section cites, which is why it opens 'Validating resolvers (i.e., those requesting and processing DNSSEC [RFC4033] metadata)'. It is quoted here to show that signing the redirection point stays useful, and it obliges no AS112 node or zone administrator under this document. The obligation, where Ze owes it, is owed under those documents: DNSSEC validation is post-release work for Ze's resolvers (plan/post-release/features/spec-dns-resolver-dnssec-validation.md), and neither the dnsresolver forwarder (internal/plugins/dnsresolver) nor the resolve/dns stub (internal/component/resolve/dns/resolver.go::dnssecDecision reads the upstream rcode alone) validates a chain today."
     },
     {
       "id": "6:2",
       "quote": "DNAME support on AS112 nodes themselves is never required under this proposal.",
-      "disposition": "mapped",
-      "mapped-to": "RFC7535-6-1",
-      "reason": "The document's one MUST-level id, captured as RFC7535-6-1: 'DNAME support on AS112 nodes themselves is never required under this proposal.' The section's own reasoning is why -- DNAME support is a prerequisite on the AUTHORITATIVE server for the REDIRECTING zone, and the AS112 node is the DNAME's target rather than its emitter, so it only answers authoritatively for EMPTY.AS112.ARPA. Ze does exactly that and implements no DNAME record processing, which is what the id's {not-applicable} annotation records. The quote carries no capitalised keyword, so the site's level asserts nothing against the row's."
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The word is in a NEGATION: 'DNAME support on AS112 nodes themselves is never required under this proposal.' states that nothing is required of an AS112 node, and directs no node, operator or zone administrator to do anything. The section's own reasoning is why -- DNAME support is a prerequisite on the AUTHORITATIVE server for the REDIRECTING zone, and the AS112 node is the DNAME's target rather than its emitter. The row RFC 7535 Section 6 once carried at MUST for this sentence was retired 2026-11-19 (rfc/corrections/rfc7535.md), since no sentence of the document states that obligation."
     }
   ],
-  "register-reason": "Informational, May 2015, the companion to RFC 7534. It carries no RFC 2119 key-words section and states no RFC 2119 keyword: the guidance it gives AS112 node operators is written in the lowercase 'should' and the rest is indicative. DeriveRegister grades the source 'prose' and this sign-off claims exactly that grade. The case-insensitive modal scan finds six sentences and one of them, 6:2, states the only MUST-level id the summary declares and is mapped below. Of the other five, one is the IETF Trust Legal Provisions boilerplate, one restates RFC 7534's own obligation and is excluded cross-document, one binds a DNSSEC-validating resolver, and two use 'required' inside a NEGATION -- they state that nothing is required of an AS112 node. The six SHOULD- and MAY-level ids are read from indicative or lowercase-'should' sentences the scan does not attribute to a site, and each is declared in unsourced-ids on the section it was read from."
+  "register-reason": "Informational, May 2015, the companion to RFC 7534. It carries no RFC 2119 key-words section and states no RFC 2119 keyword: the guidance it gives AS112 node operators is written in the lowercase 'should' and the rest is indicative. DeriveRegister grades the source 'prose' and this sign-off claims exactly that grade. The case-insensitive modal scan finds six sentences and none states an obligation of this document, so the summary declares no MUST-level id. One is the IETF Trust Legal Provisions boilerplate, two restate other documents' obligations and are excluded cross-document (RFC 7534's direct delegation rule, and what the DNAME and DNSSEC specifications ask of a validating resolver), and three use 'required' inside a NEGATION -- they state that nothing is required of an AS112 node. The six SHOULD- and MAY-level ids are read from indicative or lowercase-'should' sentences the scan does not attribute to a site, and each is declared in unsourced-ids on the section it was read from.",
+  "resign-reason": "Re-walked section 6 on 2026-11-19 (walk agent of session 57690576), signed off 2026-11-20. Site 6:2, 'DNAME support on AS112 nodes themselves is never required under this proposal.', states that nothing is required of an AS112 node: the word is in a negation and directs no node, operator or zone administrator, so it moves from mapped (RFC7535-6-1) to excluded not-a-requirement, and row RFC7535-6-1 is retired (rfc/corrections/rfc7535.md, Retired 2026-11-19). Site 6:1 stays excluded and changes kind from binds-another-role to cross-document: its lowercase 'are required to' and 'should not' report what RFC 6672 and RFC 4033 ask of a validating resolver, and RFC 7535 carries no RFC 2119 key-words section. Exclusions 5 -> 6; the summary now declares no MUST-level id."
 }

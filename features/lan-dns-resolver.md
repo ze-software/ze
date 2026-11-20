@@ -8,7 +8,7 @@
 | Page | docs/guide/dns-resolver.md |
 | Kind | protocol |
 | Scope | partial |
-| Scope gaps | forwarding only: no recursion from the root (spec-dns-resolver-recursion), no DNSSEC validation (spec-dns-resolver-dnssec-validation), no DoT or DoH listener |
+| Scope gaps | forwarding only: no recursion from the root (spec-dns-resolver-recursion), no DNSSEC validation (spec-dns-resolver-dnssec-validation), no DoT or DoH listener, no EDNS0 Client Subnet option (RFC 7871) sent or relayed upstream |
 | Level | experimental |
 | Components | internal/plugins/dnsresolver |
 | Real-path tests | test/plugin/dns-resolver-config-refused.ci, test/plugin/dns-resolver-listener-conflict.ci, test/plugin/dns-resolver-forward.ci, test/plugin/dns-resolver-acl-refused.ci, test/plugin/dns-resolver-timeout.ci, test/plugin/dns-resolver-timeout-recovers.ci, test/plugin/dns-resolver-failover.ci, test/plugin/dns-resolver-show.ci, test/reload/dns-resolver-reload.ci, test/plugin/dns-resolver-forward-default.ci, test/plugin/dns-resolver-forward-dhcpv4-default.ci, test/plugin/dns-resolver-forward-received.ci, test/pppoe/dns-resolver-forward-ppp-lease.ci |

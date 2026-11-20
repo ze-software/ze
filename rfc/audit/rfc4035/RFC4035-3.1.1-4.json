@@ -1,9 +1,9 @@
 {
   "code": {
     "internal/plugins/as112/zones.go::answerQuestions": "ac5438f1c347c4ee",
-    "internal/plugins/geodns/server.go::answerQuestions": "a418b32cdccb6418"
+    "internal/plugins/geodns/server.go::answerQuestions": "b973c31564cd870f"
   },
-  "note": "Re-judged 2026-10-30 (independent judge) after the row's annotation moved from {not-applicable} to {gap}. RFC 4035 Section 3.1.1 reads 'If space does not permit inclusion of these RRSIG RRs, the name server MUST set the TC bit.' The summary holds Ze's authoritative servers to the security-aware name server role (RFC4035-3-1 and the CD/AD rows), and DNSSEC is post-release work, not declined (commit 5ff4834b67), so the obligation is a gap rather than an exclusion. Ze's authoritative servers hold no RRSIG to include: internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers and internal/plugins/as112/zones.go::answerQuestions builds only SOA, NS and the hostname TXT record or a negative answer, so no code places an RRSIG in a response or sets TC for one that does not fit.",
+  "note": "Re-judged 2026-11-20 after commit cd9c79b63c changed internal/plugins/geodns/server.go::answerQuestions. RFC 4035 Section 3.1.1 reads 'If space does not permit inclusion of these RRSIG RRs, the name server MUST set the TC bit.' The change adds the tailored result that drives the RFC 7871 ECS echo and leaves the answers as before: geodns builds only A, AAAA, SRV, ANY, SOA and NS answers (default arm SOA in Authority) and internal/plugins/as112/zones.go::answerQuestions builds only SOA, NS, the hostname TXT record or a negative answer. Neither places an RRSIG in a response, and no code under internal/plugins/geodns, internal/plugins/as112 or internal/core/dnsserver sets TC because an RRSIG did not fit, so the obligation has no producer. The row stays a counted {gap}.",
   "requirement_sha": "930635817c738fa3",
   "verdict": "unimplemented"
 }

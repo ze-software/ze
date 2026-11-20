@@ -1,9 +1,9 @@
 {
   "code": {
     "internal/plugins/as112/zones.go::answerQuestions": "ac5438f1c347c4ee",
-    "internal/plugins/geodns/server.go::answerQuestions": "a418b32cdccb6418"
+    "internal/plugins/geodns/server.go::answerQuestions": "b973c31564cd870f"
   },
-  "note": "Re-judged 2026-10-30 (independent judge) after the row's annotation moved from {not-applicable} to {gap}. RFC 4035 Section 2.2 reads 'For each authoritative RRset in a signed zone, there MUST be at least one RRSIG record that meets the following requirements:'. Ze is the authoritative source of the zones it serves (geodns builds its zone from configuration, as112 its AS112 zones), so the zone-signer role is Ze's to fill once it signs. DNSSEC is post-release work, not declined (commit 5ff4834b67, plan/post-release/features/spec-dns-resolver-dnssec-validation.md), and no owner decision excludes signing, so the absent feature is a conformance gap and the earlier not-applicable verdict no longer stands. Ze signs no zone: internal/plugins/geodns/server.go::answerQuestions builds only A, AAAA, SRV, SOA and NS answers, and internal/plugins/as112/zones.go::answerQuestions builds only SOA, NS and the hostname TXT record or a negative answer; neither creates an RRSIG, and no layer signs on Ze's behalf.",
+  "note": "Re-judged 2026-11-20 after commit cd9c79b63c changed internal/plugins/geodns/server.go::answerQuestions. RFC 4035 Section 2.2 reads 'For each authoritative RRset in a signed zone, there MUST be at least one RRSIG record that meets the following requirements:'. The change makes answerQuestions report whether an answer read the client-selected host set (the tailored result feeding the RFC 7871 ECS echo in answerQuery); its qtype switch still builds only A, AAAA, SRV and ANY from the host set, SOA and NS, with the default arm answering SOA in Authority, and internal/plugins/as112/zones.go::answerQuestions still builds only SOA, NS, the hostname TXT or a negative answer. No producer in internal/plugins/geodns, internal/plugins/as112 or internal/core/dnsserver creates an RRSIG, DNSKEY or NSEC record, so no zone Ze serves is signed and no RRSIG exists for any authoritative RRset. The row stays a counted {gap}; the code does not meet it.",
   "requirement_sha": "12bd90ea60de8337",
   "verdict": "unimplemented"
 }

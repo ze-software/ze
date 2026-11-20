@@ -375,16 +375,16 @@
     {
       "id": "7.2.2:1",
       "quote": "Because a client that did not use an ECS option might not be able to understand it, the server MUST NOT provide one in its response.",
-      "disposition": "excluded",
-      "excluded-kind": "binds-another-role",
-      "reason": "section 7.2.2 binds an Intermediate Nameserver (\"When an Intermediate Nameserver uses ECS\"), which Ze does not implement: geodns is an Authoritative Nameserver and forwards no query. The authoritative obligation is row RFC7871-7.2.1-7. Row RFC7871-7.2.2-1 is retired (rfc/corrections/rfc7871.md)"
+      "disposition": "mapped",
+      "mapped-to": "RFC7871-7.2.2-5",
+      "reason": "Re-walked 2026-11-20 under the owner ruling of that date (resolver-side ECS is wanted after the first release): the paragraph binds an Intermediate Nameserver that uses ECS, and ze's dnsresolver forwarder is an Intermediate Nameserver (section 4: \"Any nameserver in between the Stub Resolver and the Authoritative Nameserver\"). No exclusion kind fits without declining the feature, so the site maps to the {gap} row RFC7871-7.2.2-5; the retired id of this sentence is never reused (rfc/corrections/rfc7871.md)"
     },
     {
       "id": "7.2.2:2",
       "quote": "If the client query did include the option, the server MUST include one in its response, especially as it could be talking to a Forwarding Resolver, which would need the information for its own caching.",
-      "disposition": "excluded",
-      "excluded-kind": "binds-another-role",
-      "reason": "section 7.2.2 binds an Intermediate Nameserver (\"When an Intermediate Nameserver uses ECS\"; section 4: \"Any nameserver in between the Stub Resolver and the Authoritative Nameserver\"), which Ze does not implement: geodns is an Authoritative Nameserver and forwards no query. The authoritative echo obligation is the {gap} row RFC7871-7.2.1-5. Row RFC7871-7.2.2-2 is retired (rfc/corrections/rfc7871.md)"
+      "disposition": "mapped",
+      "mapped-to": "RFC7871-7.2.2-6",
+      "reason": "Re-walked 2026-11-20 under the owner ruling of that date (resolver-side ECS is wanted after the first release): the paragraph binds an Intermediate Nameserver that uses ECS, and ze's dnsresolver forwarder is an Intermediate Nameserver (section 4: \"Any nameserver in between the Stub Resolver and the Authoritative Nameserver\"). No exclusion kind fits without declining the feature, so the site maps to the {gap} row RFC7871-7.2.2-6; the retired id of this sentence is never reused (rfc/corrections/rfc7871.md)"
     },
     {
       "id": "7.3:1",
@@ -512,5 +512,5 @@
       "mapped-to": "RFC7871-12.1-5"
     }
   ],
-  "resign-reason": "Re-walked section 7.2.2 on 2026-09-30 under ruling R2: both sites (7.2.2:1 MUST NOT, 7.2.2:2 MUST) sit in the paragraph opening 'When an Intermediate Nameserver uses ECS', and section 4 defines an Intermediate Nameserver as 'Any nameserver in between the Stub Resolver and the Authoritative Nameserver'. Ze fills no such role: geodns and as112 answer authoritatively with recursion refused (internal/core/dnsserver/handler.go), and the resolver is a stub that serves no client. Both sites move from mapped to excluded binds-another-role and rows RFC7871-7.2.2-1 and 7.2.2-2 are retired; the authoritative obligations stay counted as RFC7871-7.2.1-7 and the {gap} RFC7871-7.2.1-5. Exclusions 3 -> 5."
+  "resign-reason": "Re-walked section 7.2.2 on 2026-09-30 under ruling R2: both sites (7.2.2:1 MUST NOT, 7.2.2:2 MUST) sit in the paragraph opening 'When an Intermediate Nameserver uses ECS', and section 4 defines an Intermediate Nameserver as 'Any nameserver in between the Stub Resolver and the Authoritative Nameserver'. Ze fills no such role: geodns and as112 answer authoritatively with recursion refused (internal/core/dnsserver/handler.go), and the resolver is a stub that serves no client. Both sites move from mapped to excluded binds-another-role and rows RFC7871-7.2.2-1 and 7.2.2-2 are retired; the authoritative obligations stay counted as RFC7871-7.2.1-7 and the {gap} RFC7871-7.2.1-5. Exclusions 3 -> 5. Re-walked on 2026-11-20 under the owner ruling of that date that resolver-side ECS is wanted after the first release: the dnsresolver forwarder is an Intermediate Nameserver ze fills, so binds-another-role no longer holds for either site, and feature-out-of-scope would decline a feature the owner wants built. Both sites move to mapped, to the new {gap} rows RFC7871-7.2.2-5 (MUST NOT) and RFC7871-7.2.2-6 (MUST), since the retired ids are never reused. Exclusions 5 -> 3."
 }
