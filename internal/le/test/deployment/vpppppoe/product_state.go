@@ -72,7 +72,10 @@ func validateProductSessions(rows []productSession, access string, count int) er
 // The pinned upstream format_pppoe_session prints one header and one MAC row
 // per native session. Strict cardinality avoids accidentally matching the
 // MAC of one subscriber to the SID or address of another.
+// vppctl ends each line with CR LF, so a line is cut at either before its
+// fields are read: a trailing CR would make the session count unparseable.
 func parseProductNative(output string) ([]productNative, error) {
+	output = strings.ReplaceAll(output, "\r\n", "\n")
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 	if len(lines) == 1 && productNativeEmpty(output) {
 		return []productNative{}, nil

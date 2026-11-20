@@ -55,6 +55,24 @@ func TestProductRequiresRealDaemonNativeIdentity(t *testing.T) {
 	}
 }
 
+// TestProductNativeAcceptsVPPCLILineEndings proves the native session dump
+// parses as vppctl prints it, every line ending in CR LF, with the same rows
+// as the LF form. A lab run read "Number of PPPoE sessions: 1\r" and refused
+// a correct dump because the count did not parse.
+func TestProductNativeAcceptsVPPCLILineEndings(t *testing.T) {
+	want, err := parseProductNative(productNativeFixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := parseProductNative(strings.ReplaceAll(productNativeFixture, "\n", "\r\n"))
+	if err != nil {
+		t.Fatalf("refused the CR LF dump: %v", err)
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("CR LF rows = %+v, want %+v", got, want)
+	}
+}
+
 func TestProductNativeRequiresMatchingNegotiatedOwner(t *testing.T) {
 	rows, err := parseProductNative(productNativeFixture)
 	if err != nil {
