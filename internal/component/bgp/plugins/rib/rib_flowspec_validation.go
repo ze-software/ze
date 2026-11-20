@@ -411,8 +411,26 @@ func flowSpecIPv6Communities(entry storage.RouteEntry) ([]byte, bool) {
 // Work is bounded by stored routes and no unicast scan occurs without FlowSpec.
 func (r *RIBManager) reconcileFlowSpecs() {
 	defer r.reportAdvertiseAfterElection()
+	// Each lock is backed by a deferred release, so a panic while either is
+	// held still drops it: the receive path's deferred cleanups take peerMu.Lock
+	// (failSourceProcessed) and flowSpecMu (a deferred reconcileFlowSpecs) on
+	// this goroutine, and every later reconciliation takes flowSpecMu. Each
+	// explicit release clears its flag; drainFlowSpecEvents takes ownership of
+	// flowSpecMu and releases it itself.
 	r.flowSpecMu.Lock()
+	flowSpecLocked := true
+	defer func() {
+		if flowSpecLocked {
+			r.flowSpecMu.Unlock()
+		}
+	}()
 	r.peerMu.RLock()
+	peerLocked := true
+	defer func() {
+		if peerLocked {
+			r.peerMu.RUnlock()
+		}
+	}()
 	previous := r.flowSpec.Load()
 	haveFlows := false
 	for _, routes := range r.bgpPeers {
@@ -428,7 +446,9 @@ func (r *RIBManager) reconcileFlowSpecs() {
 	}
 	if !haveFlows && (previous == nil || len(previous.paths) == 0) {
 		r.peerMu.RUnlock()
+		peerLocked = false
 		r.flowSpecMu.Unlock()
+		flowSpecLocked = false
 		return
 	}
 	var flows []flowSpecRoute
@@ -531,6 +551,7 @@ func (r *RIBManager) reconcileFlowSpecs() {
 		}
 	}
 	r.peerMu.RUnlock()
+	peerLocked = false
 	unicast = dropIneligible(unicast, asked, queries)
 	next := &flowSpecState{paths: make(map[ribevents.ValidationRoute]flowSpecVerdict, len(flows)), best: make(map[flowSpecRule]*flowSpecWinner)}
 	winners := make(map[flowSpecRule]*flowSpecRoute)
@@ -593,8 +614,10 @@ func (r *RIBManager) reconcileFlowSpecs() {
 	r.flowSpecPending = next
 	if r.flowSpecEmitting {
 		r.flowSpecMu.Unlock()
+		flowSpecLocked = false
 		return
 	}
+	flowSpecLocked = false
 	r.drainFlowSpecEvents()
 }
 

@@ -931,6 +931,17 @@ func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, a
 	// Reserve changed-winner publication before releasing peerMu; release all
 	// candidate handles and peerMu before synchronous Loc-RIB callbacks.
 	r.peerMu.RLock()
+	// peerLocked backs the explicit releases below with a deferred one, so a
+	// panic between the RLock and its release still drops the read lock: the
+	// receive path's deferred failSourceProcessed takes peerMu.Lock on this
+	// goroutine and would otherwise wait for this reader forever. Every
+	// explicit release clears it, and the code after a release stays unlocked.
+	peerLocked := true
+	defer func() {
+		if peerLocked {
+			r.peerMu.RUnlock()
+		}
+	}()
 	if cidr {
 		candidates = r.gatherPrefixCandidatesLocked(fam, pfx)
 	} else {
@@ -1006,6 +1017,7 @@ func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, a
 	if newBest == nil {
 		releaseCandidates(candidates)
 		r.peerMu.RUnlock()
+		peerLocked = false
 		// No candidates remain -- withdraw if we had a previous best.
 		if !havePrev {
 			return bestChangeEntry{}, false
@@ -1059,6 +1071,7 @@ func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, a
 		if !admitted {
 			releaseCandidates(candidates)
 			r.peerMu.RUnlock()
+			peerLocked = false
 			return bestChangeEntry{}, false
 		}
 	}
@@ -1101,6 +1114,7 @@ func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, a
 	}
 	releaseCandidates(candidates)
 	r.peerMu.RUnlock()
+	peerLocked = false
 
 	// mirrorToLocRIB writes the winning best path (plus its equal-cost multipath
 	// set) into the shared Loc-RIB. Called on BOTH the same-best short-circuit and

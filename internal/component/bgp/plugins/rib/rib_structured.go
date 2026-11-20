@@ -179,65 +179,14 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	// withdraws for every prefix whose best came from the now-absent
 	// peer (newBest == nil, havePrev == true). The orphan writes are
 	// wasted work, not lost state.
-	r.peerMu.Lock()
-	if r.stopping {
-		r.peerMu.Unlock()
+	peerRIB, admitted, err := r.admitReceivedPeer(se, peerAddr, peerAS, wu.SourceCtxID(), msg.MessageID)
+	if err != nil {
+		r.failAdvertise(err)
 		return
 	}
-	if !r.sourceUpdateCurrentLocked(se.PeerOwner, peerAddr, se.ConnectionID) {
-		r.peerMu.Unlock()
+	if !admitted {
 		return
 	}
-	// Compare against the cached peerMetadata on a stack-local candidate so
-	// rapid-flap sessions with unchanging (PeerASN, LocalASN, ContextID)
-	// skip both the heap alloc AND the map write. Only when the struct
-	// changes do we take the address (triggering the escape).
-	candidate := peerMetadata{
-		ConnectionID:   se.ConnectionID,
-		Address:        peerAddr,
-		PeerASN:        peerAS,
-		LocalASN:       se.LocalAS,
-		RemoteRouterID: se.RemoteRouterID,
-		ContextID:      wu.SourceCtxID(),
-		GroupName:      se.PeerGroup,
-		// This speaker's end of the session. Parsed here, on the same
-		// changed-only path as the fields above, because it is what "itself"
-		// means to RFC 4271 Section 5.1.3 (isSelfNextHop, rib_self_nexthop.go).
-		// An address that does not parse leaves the zero Addr, which names no
-		// address rather than a wrong one.
-		LocalAddress: parseLocalAddr(se.LocalAddress),
-	}
-	r.copyRefreshSessionLocked(se.PeerOwner, &candidate)
-	if cur := r.peerMeta[se.PeerOwner]; cur != nil {
-		candidate.Session = cur.Session
-		candidate.processedMsgID = r.peerProcessedLocked(se.PeerOwner, peerAddr, se.ConnectionID)
-		candidate.processingFailed = r.peerProcessingFailedLocked(se.PeerOwner, peerAddr, se.ConnectionID)
-		if cur.ConnectionID != 0 {
-			candidate.ConnectionID = cur.ConnectionID
-		}
-	}
-	if cur := r.peerMeta[se.PeerOwner]; cur == nil || *cur != candidate {
-		m := candidate
-		r.peerMeta[se.PeerOwner] = &m
-		r.refreshSelfNextHopsLocked()
-	}
-	peerRIB := r.bgpPeers[se.PeerOwner]
-	if peerRIB == nil {
-		// Canonical string: PeerRIB.PeerAddr() feeds the best-path interner
-		// and metric labels, which must match netip.Addr.String() everywhere.
-		peerRIB, err = storage.NewAddressPeerRIB(peerAddr)
-		if err != nil {
-			r.peerMu.Unlock()
-			r.failAdvertise(err)
-			return
-		}
-		r.bgpPeers[se.PeerOwner] = peerRIB
-	}
-	// Noted before the inserts below: events reach this handler one at a
-	// time, so no sent projection runs between here and the inserts, and a
-	// lifecycle removal that fences in between leaves this fresh path alone.
-	r.noteReceivedLocked(se.PeerOwner, msg.MessageID)
-	r.peerMu.Unlock()
 	defer func() {
 		r.peerMu.RLock()
 		current := r.bgpPeers[se.PeerOwner] == peerRIB
@@ -493,6 +442,76 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 		committed = true
 		r.noteSourceProcessed(peerAddr, se.PeerOwner, se.ConnectionID, msg.MessageID)
 	}
+}
+
+// admitReceivedPeer is Phase 1 of handleReceivedStructured: under one brief
+// write lock it refreshes the peer's metadata and lazily creates its received
+// store. admitted is false, with no error, when the RIB is stopping or the
+// event's physical source is no longer current. A store that cannot be created
+// is returned as err for the caller to report once the lock is released.
+//
+// The unlock is deferred because the caller's deferred failSourceProcessed
+// takes peerMu.Lock on the same goroutine: a panic in this section that left
+// the lock held would wedge that goroutine on its own lock rather than
+// propagate. Caller MUST NOT hold peerMu.
+func (r *RIBManager) admitReceivedPeer(se *rpc.StructuredEvent, peerAddr netip.Addr, peerAS uint32, contextID bgpctx.ContextID, messageID uint64) (peerRIB *storage.PeerRIB, admitted bool, err error) {
+	r.peerMu.Lock()
+	defer r.peerMu.Unlock()
+	if r.stopping {
+		return nil, false, nil
+	}
+	if !r.sourceUpdateCurrentLocked(se.PeerOwner, peerAddr, se.ConnectionID) {
+		return nil, false, nil
+	}
+	// Compare against the cached peerMetadata on a stack-local candidate so
+	// rapid-flap sessions with unchanging (PeerASN, LocalASN, ContextID)
+	// skip both the heap alloc AND the map write. Only when the struct
+	// changes do we take the address (triggering the escape).
+	candidate := peerMetadata{
+		ConnectionID:   se.ConnectionID,
+		Address:        peerAddr,
+		PeerASN:        peerAS,
+		LocalASN:       se.LocalAS,
+		RemoteRouterID: se.RemoteRouterID,
+		ContextID:      contextID,
+		GroupName:      se.PeerGroup,
+		// This speaker's end of the session. Parsed here, on the same
+		// changed-only path as the fields above, because it is what "itself"
+		// means to RFC 4271 Section 5.1.3 (isSelfNextHop, rib_self_nexthop.go).
+		// An address that does not parse leaves the zero Addr, which names no
+		// address rather than a wrong one.
+		LocalAddress: parseLocalAddr(se.LocalAddress),
+	}
+	r.copyRefreshSessionLocked(se.PeerOwner, &candidate)
+	if cur := r.peerMeta[se.PeerOwner]; cur != nil {
+		candidate.Session = cur.Session
+		candidate.processedMsgID = r.peerProcessedLocked(se.PeerOwner, peerAddr, se.ConnectionID)
+		candidate.processingFailed = r.peerProcessingFailedLocked(se.PeerOwner, peerAddr, se.ConnectionID)
+		if cur.ConnectionID != 0 {
+			candidate.ConnectionID = cur.ConnectionID
+		}
+	}
+	if cur := r.peerMeta[se.PeerOwner]; cur == nil || *cur != candidate {
+		m := candidate
+		r.peerMeta[se.PeerOwner] = &m
+		r.refreshSelfNextHopsLocked()
+	}
+	peerRIB = r.bgpPeers[se.PeerOwner]
+	if peerRIB == nil {
+		// Canonical string: PeerRIB.PeerAddr() feeds the best-path interner
+		// and metric labels, which must match netip.Addr.String() everywhere.
+		created, createErr := storage.NewAddressPeerRIB(peerAddr)
+		if createErr != nil {
+			return nil, false, createErr
+		}
+		peerRIB = created
+		r.bgpPeers[se.PeerOwner] = peerRIB
+	}
+	// Noted before the inserts below: events reach this handler one at a
+	// time, so no sent projection runs between here and the inserts, and a
+	// lifecycle removal that fences in between leaves this fresh path alone.
+	r.noteReceivedLocked(se.PeerOwner, messageID)
+	return peerRIB, true, nil
 }
 
 // handleSentStructured processes sent UPDATE events from wire types.
