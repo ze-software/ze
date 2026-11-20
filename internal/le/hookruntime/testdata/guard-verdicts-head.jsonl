@@ -491,6 +491,8 @@
 {"line":"cat notes.md \\","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"cat plan/post-release/engineering/spec-x.md","caller":"main","refused-by":[],"reader-line":false}
 {"line":"cat plan/post-release/engineering/spec-x.md","caller":"subagent","refused-by":[],"reader-line":false}
+{"line":"cat tmp/spec-design/away.md","caller":"main","refused-by":[],"reader-line":false}
+{"line":"cat tmp/spec-design/away.md","caller":"subagent","refused-by":[],"reader-line":false}
 {"line":"cat tmp/x","caller":"main","refused-by":[],"reader-line":false}
 {"line":"cat tmp/x","caller":"subagent","refused-by":[],"reader-line":false}
 {"line":"cat x\u0000y","caller":"main","refused-by":[],"reader-line":false}
@@ -727,6 +729,8 @@
 {"line":"echo probe > sub/tmp/notes.txt","caller":"subagent","refused-by":["bashAgentIdentity"],"reader-line":false}
 {"line":"echo x > plan/post-release/engineering/spec-x.md","caller":"main","refused-by":["bashGovernedWrite"],"reader-line":false}
 {"line":"echo x > plan/post-release/engineering/spec-x.md","caller":"subagent","refused-by":["bashGovernedWrite","bashAgentIdentity"],"reader-line":false}
+{"line":"echo x > tmp/spec-design/away.md","caller":"main","refused-by":["bashOwnerRecord"],"reader-line":false}
+{"line":"echo x > tmp/spec-design/away.md","caller":"subagent","refused-by":["bashAgentIdentity","bashOwnerRecord"],"reader-line":false}
 {"line":"echo x >\"/tmp/y\"","caller":"main","refused-by":["bashSystemTmp"],"reader-line":false}
 {"line":"echo x >\"/tmp/y\"","caller":"subagent","refused-by":["bashSystemTmp","bashAgentIdentity"],"reader-line":false}
 {"line":"echo x >> f","caller":"main","refused-by":[],"reader-line":false}

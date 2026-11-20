@@ -14,6 +14,7 @@ import (
 	archtier "github.com/ze-software/ze/internal/le/arch/tier"
 	docconsistency "github.com/ze-software/ze/internal/le/doc/consistency"
 	docindex "github.com/ze-software/ze/internal/le/doc/index"
+	"github.com/ze-software/ze/internal/le/doc/readrecord"
 	docste "github.com/ze-software/ze/internal/le/doc/ste"
 	"github.com/ze-software/ze/internal/le/heavytool"
 	"github.com/ze-software/ze/internal/le/hookruntime"
@@ -22,6 +23,7 @@ import (
 	"github.com/ze-software/ze/internal/le/session"
 	"github.com/ze-software/ze/internal/le/spec"
 	speccitation "github.com/ze-software/ze/internal/le/spec/citation"
+	specdesign "github.com/ze-software/ze/internal/le/spec/design"
 	specjournal "github.com/ze-software/ze/internal/le/spec/journal"
 	specmechanisms "github.com/ze-software/ze/internal/le/spec/mechanisms"
 	specpath "github.com/ze-software/ze/internal/le/spec/path"
@@ -65,6 +67,12 @@ func hookAuthorityPackages(t *testing.T, checkout string) []string {
 		// transcript tail through this package, and prints it past the
 		// handoff threshold.
 		contextsize.Last,
+		// mark-source-read writes, and writeDesignDoorsRead reads, the section
+		// read record and the whole-read marker this package declares.
+		readrecord.RecordRead,
+		// writeSpecReady asks this package's admission whether Thomas
+		// approved the proposed design.
+		specdesign.Admit,
 	}
 	packages := make(map[string]bool)
 	for _, producer := range producers {

@@ -6,7 +6,6 @@
 package specdesign
 
 import (
-	"github.com/ze-software/ze/internal/core/textbuf"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
 
@@ -40,7 +39,7 @@ var actions = leaction.New(area,
 			"pages the doc index anchors to them, the covering doors, the design pages the spec modifies, " +
 			"and every row of their Design decisions sections, each with what derived it",
 		Parameters: []leaction.Parameter{specParameter},
-		AnswerArgs: answerNotBuilt("documents"),
+		AnswerArgs: answerDocuments,
 	},
 	leaction.Action{
 		Verb:    "check",
@@ -48,7 +47,7 @@ var actions = leaction.New(area,
 		Why: "every derived row present with a verdict, every quote a verbatim span of its section, " +
 			"every presentation subsection written, and a current judge approval",
 		Parameters: []leaction.Parameter{specParameter},
-		AnswerArgs: answerNotBuilt("check"),
+		AnswerArgs: answerCheck,
 	},
 	leaction.Action{
 		Verb:    "judge",
@@ -59,11 +58,11 @@ var actions = leaction.New(area,
 		Parameters: []leaction.Parameter{
 			specParameter,
 			{
-				Keyword: "verdict", Kind: leaction.KindEnum, Value: "verdict", Values: []string{"approve", "refuse"},
+				Keyword: "verdict", Kind: leaction.KindEnum, Value: "verdict", Values: []string{judgeApprove, judgeRefuse},
 				Requirement: leaction.Required, Help: "approve when every verdict holds, refuse otherwise",
 				ValueHelp: map[string]string{
-					"approve": "every verdict holds against the section it names",
-					"refuse":  "a verdict does not hold; the reason names the row",
+					judgeApprove: "every verdict holds against the section it names",
+					judgeRefuse:  "a verdict does not hold; the reason names the row",
 				},
 			},
 			{
@@ -71,7 +70,7 @@ var actions = leaction.New(area,
 				Help: "one sentence: why the verdict holds",
 			},
 		},
-		AnswerArgs: answerNotBuilt("judge"),
+		AnswerArgs: answerJudge,
 	},
 	leaction.Action{
 		Verb:       "approve",
@@ -79,7 +78,7 @@ var actions = leaction.New(area,
 		Why:        "only Thomas approves a design; the record is bound to the design digest and the judge's verdict",
 		Writes:     true,
 		Parameters: []leaction.Parameter{specParameter, wordsParameter},
-		AnswerArgs: answerNotBuilt("approve"),
+		AnswerArgs: answerApprove,
 	},
 	leaction.Action{
 		Verb:    "pending",
@@ -87,7 +86,7 @@ var actions = leaction.New(area,
 		Summary: "list the ready specs whose design waits for Thomas",
 		Why: "every ready spec with no matching approval, by priority, with what each lacks, then every " +
 			"spec started under an away admission he has not approved since",
-		Answer: func() (any, int) { return notBuilt("pending") },
+		Answer: answerPending,
 	},
 	leaction.Action{
 		Verb:    "away",
@@ -98,12 +97,12 @@ var actions = leaction.New(area,
 		Writes: true,
 		Parameters: []leaction.Parameter{
 			{
-				Keyword: "until", Kind: leaction.KindString, Value: "YYYY-MM-DD", Requirement: leaction.Required,
+				Keyword: untilKeyword, Kind: leaction.KindString, Value: "YYYY-MM-DD", Requirement: leaction.Required,
 				Help: "the last day of the absence, today or later",
 			},
 			wordsParameter,
 		},
-		AnswerArgs: answerNotBuilt("away"),
+		AnswerArgs: answerAway,
 	},
 	leaction.Action{
 		Verb:    "return",
@@ -111,7 +110,7 @@ var actions = leaction.New(area,
 		Summary: "record that Thomas is back, from his terminal",
 		Why:     "removes the away record, so every ready spec again needs his approval",
 		Writes:  true,
-		Answer:  func() (any, int) { return notBuilt("return") },
+		Answer:  answerReturn,
 	},
 )
 
@@ -123,39 +122,3 @@ func Subs() string { return actions.Subs() }
 
 // Answer is the `le spec design` command.
 func Answer(args []string) (any, int) { return actions.Answer(args) }
-
-// notBuiltAnswer is what an action answers before its phase of
-// plan/release/validation/spec-design-needs-owner-approval.md lands. It is
-// never read as a result: the exit code says the action could not answer.
-type notBuiltAnswer struct {
-	Action string `json:"action"`
-	Status string `json:"status"`
-	Spec   string `json:"spec"`
-}
-
-// notBuiltExit is the code an action answers while it is not built: it ran
-// and could not answer, which a caller tells apart from a refusal (2) and from
-// an answer (0).
-const notBuiltExit = 1
-
-// Text renders the answer for a person.
-func (a notBuiltAnswer) Text() string {
-	var tb textbuf.Buffer
-	return tb.Str("le spec design ").Str(a.Action).Str(": not built\n").
-		Str("  why: the action is registered and its behavior is not implemented yet\n").
-		Str("  fix: implement it under ").Str(a.Spec).Str("\n").String()
-}
-
-// notBuilt answers the not-built document for one verb.
-func notBuilt(verb string) (any, int) {
-	return notBuiltAnswer{
-		Action: verb,
-		Status: "not built",
-		Spec:   "plan/release/validation/spec-design-needs-owner-approval.md",
-	}, notBuiltExit
-}
-
-// answerNotBuilt adapts notBuilt to an action that takes arguments.
-func answerNotBuilt(verb string) func(leaction.Arguments) (any, int) {
-	return func(leaction.Arguments) (any, int) { return notBuilt(verb) }
-}

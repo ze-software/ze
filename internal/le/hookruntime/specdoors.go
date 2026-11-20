@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md -- native edit hook policy
 // Related: writeedit.go -- writeDesignDoorsRead, the code-edit side of the door gate, and unreadDoors
-// Related: readgate.go -- the door headers, coveringDoors and the read records
+// Related: readgate.go -- the read records; the door headers are internal/le/doc/doorindex
 package hookruntime
 
 import (
@@ -21,16 +21,20 @@ const specDoorReason = "a spec's design is written against\n" +
 	"  before them drops the contracts they hold.\n"
 
 // ze point: architecture/directives/read-the-design-doors-before-writing-a-spec
+// ze point: architecture/directives/read-the-design-decisions-a-files-design-page-records-before-editing-it
 // writeSpecDoorsRead refuses a Write, Edit or MultiEdit of a spec under plan/
 // (specpath.IsSpec) from a context with no record of reading ai/doors/system.md
-// and every door covering a repository path the spec names, each in full, in
+// and every door covering a repository path the spec names, each in full, or
+// with no current record of the `## Design decisions` section of each page the
+// spec names and of each page the `// Design:` header of a code file it names
+// links (specDesignPages), in
 // the copies of the checkout the spec lies in (gatedCheckout), so a spec in a
 // worktree owes the worktree's doors. The
 // paths are read from the spec on disk and from the text the edit proposes, so
 // an edit owes the doors of the subsystems the spec targeted as well as those it
 // now adds. A brand-new spec that names no path owes system.md alone. The doors
 // come from their own headers, through the coverage the code gate uses
-// (coveringDoors), so no list of subsystems exists here. A spec written through
+// (doorindex.Index.Covering), so no list of subsystems exists here. A spec written through
 // a Bash heredoc never reaches this check; bashGovernedWrite refuses that.
 func writeSpecDoorsRead(ctx context) *verdict {
 	if !oneOf(ctx.tool, toolWrite, "Edit", "MultiEdit") {
@@ -48,20 +52,25 @@ func writeSpecDoorsRead(ctx context) *verdict {
 		return &verdict{2, "❌ BLOCKED: " + checkout.name(file) + " cannot be read: " + err.Error() +
 			"\n  Why: the design-door gate reads the spec to name the doors of the subsystems it targets, and is fail-closed.\n  Fix: make the file readable, then retry.\n  ai/rules/architecture.md"}
 	}
-	unread, refusal := unreadDoors(ctx, checkout, specRepoPaths(checkout.root, string(current)+"\n"+ctx.content))
+	paths := specRepoPaths(checkout.root, string(current)+"\n"+ctx.content)
+	pages, refusal := specDesignPages(checkout, paths)
 	if refusal != nil {
 		return refusal
 	}
-	if len(unread) == 0 {
+	owed, refusal := unreadDoors(ctx, checkout, paths, pages)
+	if refusal != nil {
+		return refusal
+	}
+	if owed.empty() {
 		return nil
 	}
-	return &verdict{2, doorRefusal(checkout, file, unread, specDoorReason)}
+	return &verdict{2, doorRefusal(checkout, file, owed, specDoorReason)}
 }
 
 // specRepoPaths answers every checkout-relative path the text names: each run
 // of path characters that holds a slash, with a leading `./` or the checkout
 // root dropped and trailing sentence punctuation trimmed. A run that only looks
-// like a path (`and/or`) reaches no door base, so coveringDoors ignores it; a
+// like a path (`and/or`) reaches no door base, so doorindex.Index.Covering ignores it; a
 // bare word such as `test` is never a path, because it holds no slash.
 func specRepoPaths(root, text string) []string {
 	rootPrefix := filepath.ToSlash(root) + "/"

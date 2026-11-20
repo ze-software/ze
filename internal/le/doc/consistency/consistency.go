@@ -223,7 +223,7 @@ func (c *checker) designHeader(path string) (links []designLink, hasDesign bool)
 		if !strings.HasPrefix(text, "// Design: ") {
 			return
 		}
-		for _, page := range designTargets(text) {
+		for _, page := range DesignTargets(text) {
 			links = append(links, designLink{line: line, page: page})
 		}
 	})

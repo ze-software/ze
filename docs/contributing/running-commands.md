@@ -2002,11 +2002,15 @@ runs a full verification covers that case.
 
 ### Issuing owner authorization also requires a terminal
 
-The same stdin/stdout detector gates five existing issuance routes:
+The same stdin/stdout detector gates nine issuance routes:
 `./le rfc approve` when its reason cites an owner ruling,
 `./le commit create ... attest`, `./le commit create ... decision-change`,
-`./le spec review record` whenever `owner-authorised` is supplied, and
-`./le commit push` preparation.
+`./le spec review record` whenever `owner-authorised` is supplied,
+`./le commit push` preparation, `./le deps approve`, and the three records
+of Thomas's design approval: `./le spec design approve`, `./le spec design
+away until <YYYY-MM-DD>` and `./le spec design return`. Those three records
+live under `tmp/spec-design/`, which the pre-write and pre-Bash hooks refuse
+any other writer (`writeOwnerRecord`, `bashOwnerRecord`).
 Both streams must be terminals; a detector error refuses rather than guessing.
 The refusal explains owner authorization, not full verification, and names the
 command Thomas must run himself. It happens before session-directory or artifact
@@ -2028,6 +2032,10 @@ file or admission keyword and turn a refused request into an owner attestation.
 <!-- source: internal/le/le/path/known_session.go -- KnownSessionID, knownSessionID -->
 <!-- source: internal/le/commit/authorization.go -- requireOwnerTerminal, ownerRetryArguments -->
 <!-- source: internal/le/spec/review_authorization.go -- requireOwnerReviewTerminal -->
+<!-- source: internal/le/deps/approve.go -- admit -->
+<!-- source: internal/le/spec/design/approve.go -- answerApprove -->
+<!-- source: internal/le/spec/design/away.go -- answerAway, answerReturn -->
+<!-- source: internal/le/hookruntime/ownerrecord.go -- writeOwnerRecord, bashOwnerRecord -->
 
 Ordinary RFC judge verdicts, the shared weakening-approval writer, review
 recording without owner authorization, and consumers of recorded authorization

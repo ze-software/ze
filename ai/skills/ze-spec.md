@@ -244,6 +244,14 @@ recommendation.
 9. Identify files to modify/create
    - For each code file: check its `// Design:` annotation -- if the change affects
      behavior described in that architecture doc, add the doc to the file list
+   - Read the `## Design decisions` section of every page those headers name: the
+     write hook owes it before your next spec edit anyway. A design that does what
+     a decision row forbids departs from it. A departure is never designed around
+     in silence: it becomes a `departs` row and is presented to Thomas with before
+     and after examples (Step 4)
+   - A decision Thomas states at any gate is written, in that turn, as a row of the
+     `## Design decisions` section of the page that documents its subject
+     (`docs/architecture/README.md`, "Page format")
 
 #### Design admission judgment
 
@@ -330,6 +338,8 @@ Answer all three before presenting the gate. If any answer is "no", redesign.
    - TDD Test Plan (from design)
    - Files to Modify/Create (from design)
    - Integration Checklist + Documentation Update Checklist (from the Feature Surface Gate -- every applicable row named with a file; N/A rows justified)
+   - `## Design documents` (after Existing Mechanisms): run `./le spec design documents spec <path>` and give every row it prints a verdict, `agrees`, `departs` or `silent`. An `agrees` or `departs` row quotes the section's own words; a `silent` row says why; a page the spec modifies and a decision row are never `silent`
+   - `## Design presentation` (before Implementation Steps): `### What changes`, `### Before and after` (what a user sees, as examples), `### Alternatives set aside`, `### Documents departed from` (each `departs` page with its before and after, or `none`), `### Choices for Thomas`
    - Implementation Steps
    - Review Gate section: keep the template's empty Run tables. `/ze-close`'s Review Gate step fills them by running `/ze-review` (the BLOCKING Review Gate) before closure. Never delete this section from the produced spec.
 4. Run Pre-Spec Verification:
@@ -354,14 +364,40 @@ Answer all three before presenting the gate. If any answer is "no", redesign.
    - Are all concerns raised at the SCOPE/RESEARCH/DESIGN gates captured as A-N or R-N rows?
    If any answer is "no", fix the spec before presenting it.
 
+#### Check and judge (BLOCKING)
+
+6. Run `./le spec design check spec <path>`. Repair every line it prints until
+   the only one left is that no judge has judged the design. It exits 0 with
+   `ready to present` once the judge has approved.
+7. **The judge:** spawn ONE agent that did not write any part of the spec, on
+   the `ze-design-judge` skill (`ai/skills/ze-design-judge.md`), with the spec
+   path. It reads the section behind every row and records its verdict itself
+   with `./le spec design judge`. A REFUSE stands: fix the design it names and
+   judge again. Any later edit of the Task, the Acceptance Criteria, the Design
+   documents or the Design presentation (outside `### Choices for Thomas`)
+   owes a new judgment, because the record is bound to their digest.
+
 #### Gate
 
-6. **Mandatory challenge:** Name the weakest part of this spec -- the section most likely to cause confusion or rework during implementation.
-7. Present spec to user for final review.
-8. **GATE:** ASK user: "Ready to save? The weakest part is [X] -- should we strengthen it?"
-   Iterate on feedback until approved.
-9. **Status transition:** Edit the spec: set `Status` to `ready`, `Updated` to today. Design is done, spec is ready for implementation.
-10. Save the spec at its bucket path. Do not stage it: `git add` is banned as a direct call (`ai/rules/git-safety.md`), and `./le commit create` names the file instead.
+8. **Mandatory challenge:** Name the weakest part of this spec -- the section most likely to cause confusion or rework during implementation.
+9. **Present the design to Thomas yourself, whole:** the `## Design presentation`
+   as written (what changes, the before and after examples, the alternatives set
+   aside, every document departed from with its before and after), every owner
+   ruling and decision row it was checked against, and the choices left to him.
+   A subagent never presents a design.
+10. **GATE:** ASK user: "Ready to approve? The weakest part is [X] -- should we strengthen it?"
+    Iterate on feedback until approved. Record his answers in `### Choices for Thomas`;
+    that subsection is outside the digest, so recording them owes no new judgment.
+11. **Thomas approves from his own terminal.** Hand him the exact line:
+    `./le spec design approve spec <path> words "<what he said>"`. Never run it
+    yourself: the owner-terminal gate refuses an agent and prints the same
+    line. It re-runs the check, requires the judge's current approval, and
+    prints `approved ...` with the next step. While Thomas is recorded away
+    (`./le spec design away`), a judged fix spec under `plan/release/fixes/`
+    with no `departs` row needs no approval; any other spec waits for him
+    (`docs/contributing/spec-workflow.md`, "Design approval").
+12. **Status transition:** only after the approval printed `approved`, edit the spec: set `Status` to `ready`, `Updated` to today. The write hook `writeSpecReady` refuses the edit without a matching approval, and always from a subagent. `./le spec design pending` lists every ready spec still waiting for him.
+13. Save the spec at its bucket path. Do not stage it: `git add` is banned as a direct call (`ai/rules/git-safety.md`), and `./le commit create` names the file instead; the commit that carries the spec writes its `Design-approved:` trailer.
 
 ---
 
@@ -377,4 +413,4 @@ Answer all three before presenting the gate. If any answer is "no", redesign.
 
 ## Done when
 
-Done when the user approved the spec at the Step 4 gate and it is saved at its bucket path with `Status` `ready` and `Updated` set to today.
+Done when `./le spec design check` reports `ready to present`, Thomas approved the design from his terminal (`./le spec design approve`) or, while he is recorded away, the spec is a judged fix spec with no `departs` row, and the spec is saved at its bucket path with `Status` `ready` and `Updated` set to today.

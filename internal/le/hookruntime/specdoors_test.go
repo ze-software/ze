@@ -111,6 +111,18 @@ func TestSpecDoorGateOwesTheDecisionsSection(t *testing.T) {
 			t.Fatalf("the spec door refusal does not name %q: %q", want, message)
 		}
 	}
+
+	// A spec naming the page itself owes its section too (AC-3), and once
+	// the context read the section the same write owes nothing more of it.
+	named := specEditPayload("Write", specFixturePath, "## Files to Modify\n- `"+decisionsPage+"` - its first decision row\n")
+	code, _, message = runHook(t, root, "pretool-writeedit", named)
+	if code != 2 || !strings.Contains(message, decisionsPage) || !strings.Contains(message, decisionsHeading) {
+		t.Fatalf("a spec naming a page with a Design decisions section did not owe it (code %d): %q", code, message)
+	}
+	readWholePage(t, root, "", decisionsPage, decisionsPageText)
+	if _, _, message := runHook(t, root, "pretool-writeedit", payload); strings.Contains(message, decisionsHeading) {
+		t.Fatalf("the section was read and the spec write still owes it: %q", message)
+	}
 }
 
 // TestSpecRepoPathsTrimsAndDeduplicates pins the path extraction: punctuation

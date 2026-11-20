@@ -233,12 +233,15 @@ func bulletRenderedPath(t *testing.T, root string, model map[string][]string) (s
 		}
 		// The document must come from the INDEX and not from the file's own
 		// `// Design:` header. AuditAnchors builds report.Owners from
-		// declaredDesignDocument, which never reads the index, so a path whose
-		// only anchor IS its declared owner is reported either way and proves
+		// DeclaredDesignDocuments, which never reads the index, so a path whose
+		// only anchors ARE its declared owners is reported either way and proves
 		// nothing about the index. Picking one would leave this test green under
 		// the table-only blind spot it exists to catch, with no edit to it.
-		owner := declaredDesignDocument(root, path)
-		if !slices.ContainsFunc(model[path], func(document string) bool { return document != owner }) {
+		declared, err := DeclaredDesignDocuments(root, path)
+		if err != nil {
+			t.Fatalf("read the header of %s: %v", path, err)
+		}
+		if !slices.ContainsFunc(model[path], func(document string) bool { return !slices.Contains(declared, document) }) {
 			continue
 		}
 		return path, model[path]

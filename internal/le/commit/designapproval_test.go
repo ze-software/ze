@@ -1,10 +1,13 @@
 // VALIDATES: `./le commit create` refuses to close a spec whose Design
-// documents table departs from a design page that the spec's change set never
-// corrects, and admits a changed decision row only with Thomas's words from
-// his terminal (plan/release/validation/spec-design-needs-owner-approval.md,
-// AC-11, AC-32).
-// PREVENTS: a departure Thomas approved closing with the page still stating
-// the decision it departed from, and an agent rewriting a decision on its own.
+// documents table departs from a design page without Thomas's approval, or
+// that the spec's change set never corrects; writes the Design-approved:
+// trailer from his approval record once; and admits a changed decision row
+// only with his words from his terminal
+// (plan/release/validation/spec-design-needs-owner-approval.md, AC-11, AC-31,
+// AC-32, AC-33).
+// PREVENTS: a departure closing unapproved, or with the page still stating
+// the decision it departed from; an approval that never reaches the other
+// machine; and an agent rewriting a decision on its own.
 package commit
 
 import (
@@ -18,6 +21,8 @@ import (
 	docconsistency "github.com/ze-software/ze/internal/le/doc/consistency"
 	"github.com/ze-software/ze/internal/le/le/human"
 	"github.com/ze-software/ze/internal/le/le/human/humantest"
+	specdesign "github.com/ze-software/ze/internal/le/spec/design"
+	"github.com/ze-software/ze/internal/le/spec/design/designtest"
 )
 
 // The departure fixture: a spec that departs from one design page, and the
@@ -41,11 +46,29 @@ const departureSpecText = "# Spec: departure\n\n| Field | Value |\n|-------|----
 // spec and its work, which never touches the page, record a clean review, and
 // prepare the closure; it is refused naming the spec and the page.
 //
-// AC-32's precondition is an APPROVED departure. The approval record's writer
-// is built in phase 5 of the spec; phase 6, which builds this closure check,
-// seeds that record here before the closure, so the refusal judged is AC-32's
-// and not AC-33's unapproved one.
+// AC-32's precondition is an APPROVED departure, so Thomas's approval of the
+// spec's text, listing its departs row, is recorded before the closure: the
+// refusal judged is AC-32's and not AC-33's unapproved one.
 func TestClosureRefusesUncorrectedDeparture(t *testing.T) {
+	root := departureFixture(t)
+	seedDepartureApproval(t, root)
+
+	_, err := Create(root, &Options{Subject: "close the departure spec", Remove: []string{departureSpec},
+		NoNews: "fixture: no operator-visible change"})
+	if err == nil {
+		t.Fatal("a closure whose change set never corrects the page it departs from was prepared")
+	}
+	want := "closure of spec-departure: it departs from " + departurePage + ", and the change set does not correct it"
+	if !strings.Contains(err.Error(), want) {
+		t.Fatalf("the closure was refused for another reason: %v\nwant %q", err, want)
+	}
+}
+
+// departureFixture lands the departing spec and its page, then the spec's
+// work, which never touches the page, and records a clean review of that
+// work: a closure of it reaches the departure checks.
+func departureFixture(t *testing.T) string {
+	t.Helper()
 	root := newCommitRepository(t)
 	configureCommitAuthor(t, root)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "departure-fixture")
@@ -57,15 +80,107 @@ func TestClosureRefusesUncorrectedDeparture(t *testing.T) {
 	commitFixture(t, root, "departure work\n\nSpec-work: departure",
 		map[string]string{departureCode: "package internal\n\nconst Departure = 1\n"}, nil)
 	recordFixtureReview(t, root, "spec", "departure", "verdict", "clean", "rounds", "1", "file", departureCode)
+	return root
+}
 
-	_, err := Create(root, &Options{Subject: "close the departure spec", Remove: []string{departureSpec},
-		NoNews: "fixture: no operator-visible change"})
-	if err == nil {
-		t.Fatal("a closure whose change set never corrects the page it departs from was prepared")
+// seedDepartureApproval records Thomas's approval of the departing spec's
+// text, which lists its one departs row.
+func seedDepartureApproval(t *testing.T, root string) {
+	t.Helper()
+	if err := designtest.SeedApproval(root, departureSpec, departureSpecText, "2026-11-19", "the widget renders its own text"); err != nil {
+		t.Fatal(err)
 	}
-	want := "closure of spec-departure: it departs from " + departurePage + ", and the change set does not correct it"
-	if !strings.Contains(err.Error(), want) {
-		t.Fatalf("the closure was refused for another reason: %v\nwant %q", err, want)
+}
+
+// closeDeparture prepares the closure of the departing spec.
+func closeDeparture(root string) (Prepared, error) {
+	return Create(root, &Options{Subject: "close the departure spec", Remove: []string{departureSpec},
+		NoNews: "fixture: no operator-visible change"})
+}
+
+// TestClosureRefusesUnapprovedDeparture is AC-33 and the survivors of AC-32
+// and AC-33. Method: close the departing spec with no approval: refused
+// naming the spec, the page and the approve command. Then record Thomas's
+// approval, made during implementation, and land a correction of the page
+// under the spec: the closure is prepared.
+func TestClosureRefusesUnapprovedDeparture(t *testing.T) {
+	root := departureFixture(t)
+	_, err := closeDeparture(root)
+	if err == nil {
+		t.Fatal("a closure whose departure Thomas never approved was prepared")
+	}
+	for _, want := range []string{
+		"spec-departure departs from " + departurePage + " without Thomas's approval",
+		"./le spec design approve spec " + departureSpec,
+	} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the closure was refused without saying %q: %v", want, err)
+		}
+	}
+
+	seedDepartureApproval(t, root)
+	commitFixture(t, root, "the page states the new decision\n\nSpec-work: departure", map[string]string{
+		departurePage: "# Widget\n\n## Design decisions\n\n| Decision | It forbids | Source | Date |\n|---|---|---|---|\n" +
+			"| The widget renders its own text | Rendering in the surface | " + departureSpec + " | 2026-11-19 |\n",
+	}, nil)
+	if _, err := closeDeparture(root); err != nil {
+		t.Fatalf("the closure of an approved departure whose page the work corrected was refused: %v", err)
+	}
+}
+
+// TestDesignApprovedTrailerWrittenFromRecord is AC-31. Method: record
+// Thomas's approval of a spec's text and prepare a commit carrying it: the
+// message carries the Design-approved: line FormatApprovalTrailer spells.
+// Land that line, change the spec outside the four sections, and prepare
+// again: no second line. A hand-written body line starting with the key is
+// refused, and prose naming the key inside a line is accepted.
+func TestDesignApprovedTrailerWrittenFromRecord(t *testing.T) {
+	// The carried spec is in-progress, so the commit also owes its Existing
+	// Mechanisms analysis (specMechanismsRefusal); the section lies outside
+	// the four the design digest covers.
+	carried := departureSpecText + "\n## Existing Mechanisms\n\n| Mechanism | Where | What it does today | This spec |\n" +
+		"|---|---|---|---|\n| The widget | `" + departureCode + "` | Answers data | Extends: renders text |\n"
+	root := newCommitRepository(t)
+	configureCommitAuthor(t, root)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "design-approved-fixture")
+	writeCommitFixture(t, root, departureSpec, carried)
+	if err := designtest.SeedApproval(root, departureSpec, carried, "2026-11-19", "the widget renders its own text"); err != nil {
+		t.Fatal(err)
+	}
+	want := specdesign.FormatApprovalTrailer(specdesign.Approval{Stem: "spec-departure",
+		Digest: specdesign.DesignDigest(carried), Date: "2026-11-19", Words: "the widget renders its own text"})
+
+	prepared, err := Create(root, &Options{Subject: "carry the approved spec", Files: []string{departureSpec}})
+	if err != nil {
+		t.Fatalf("the commit carrying an approved spec was refused: %v", err)
+	}
+	message, err := os.ReadFile(filepath.Join(root, prepared.Message))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(message), want+"\n") {
+		t.Fatalf("the message does not carry %q:\n%s", want, message)
+	}
+
+	commitFixture(t, root, "carry the approved spec\n\n"+want, map[string]string{departureSpec: carried}, nil)
+	writeCommitFixture(t, root, departureSpec, carried+"\n## Implementation Steps\n\n1. Render.\n")
+	prepared, err = Create(root, &Options{Subject: "bookkeeping", Files: []string{departureSpec}})
+	if err != nil {
+		t.Fatalf("the second commit carrying the spec was refused: %v", err)
+	}
+	message, err = os.ReadFile(filepath.Join(root, prepared.Message))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(message), specdesign.DesignApprovedTrailer) {
+		t.Fatalf("a second Design-approved: line was written after one landed:\n%s", message)
+	}
+
+	if _, err := Message("a subject", []string{want}, nil); err == nil {
+		t.Error("a hand-written Design-approved: body line was accepted")
+	}
+	if _, err := Message("a subject", []string{"this commit records the " + specdesign.DesignApprovedTrailer + "line"}, nil); err != nil {
+		t.Errorf("prose naming the key inside a line was refused: %v", err)
 	}
 }
 

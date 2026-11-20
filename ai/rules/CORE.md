@@ -30,6 +30,8 @@ Core reasons: no past task would surface it, precedence rung 1/2, the ladder its
 **You MUST read the page that covers a surface before you spawn an agent, open a broad search, or read wide code to learn how it works.** `ai/CODE-TO-DOCS.md` names the pages for a file, `ai/DOCS-TO-CODE.md` the files for a page, and `ai/INDEX.md` the page for a keyword. The investigation is then authorized by a gap you name: the page is silent on the question, or the page disagrees with the code.
 **A change that makes a page wrong MUST carry its page edit in the same piece of work, before the next code edit starts.** A page that disagrees with the code is a defect repaired here rather than reported, and you MUST read the producing function to learn which side is wrong. You MUST NOT defer a page to a final pass, a closing commit, a review gate, or a follow-up spec.
 
+**Read `ai/rules/documentation.md` before acting when:** recording a design decision Thomas states, or changing a page's Design decisions section
+
 <!-- always-on: precedence rung 1/2 -->
 
 ---

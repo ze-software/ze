@@ -49,8 +49,27 @@ func TestOwnerRecordWriteRefused(t *testing.T) {
 	shell := ownerRecordContext(t, root, "Bash", map[string]any{"command": "echo forged > tmp/spec-design/away.md"})
 	requireOwnerRecordRefusal(t, "Bash", bashOwnerRecord(shell))
 
-	reader := ownerRecordContext(t, root, "Bash", map[string]any{"command": "cat tmp/spec-design/away.md"})
-	if result := bashOwnerRecord(reader); result != nil {
-		t.Fatalf("a reader line naming tmp/spec-design/ was refused: %q", result.message)
+	edit := ownerRecordContext(t, root, "Edit", map[string]any{
+		"file_path": root + "/tmp/spec-design/away.md", "old_string": "Until: 2026-11-20", "new_string": "Until: 2027-11-20",
+	})
+	requireOwnerRecordRefusal(t, "Edit", writeOwnerRecord(edit))
+
+	removal := ownerRecordContext(t, root, "Bash", map[string]any{"command": "ls tmp/spec-design && rm -f tmp/spec-design/away.md"})
+	requireOwnerRecordRefusal(t, "rm", bashOwnerRecord(removal))
+
+	for _, line := range []string{
+		"cat tmp/spec-design/away.md",
+		"ls tmp/spec-design/approved",
+		"./le spec design pending",
+		`./le commit create subject "spec design: records" body "the records live under tmp/spec-design/"`,
+	} {
+		passing := ownerRecordContext(t, root, "Bash", map[string]any{"command": line})
+		if result := bashOwnerRecord(passing); result != nil {
+			t.Fatalf("%q was refused: %q", line, result.message)
+		}
+	}
+	other := ownerRecordContext(t, root, "Write", map[string]any{"file_path": "tmp/spec-designs/note.md", "content": "x"})
+	if result := writeOwnerRecord(other); result != nil {
+		t.Fatalf("a Write outside tmp/spec-design/ was refused: %q", result.message)
 	}
 }

@@ -142,7 +142,7 @@ func compareRows(before, after DecisionsSection) (lost, added []DecisionRow) {
 
 // lostDecisions answers the rows one page loses, each marked changed when an
 // added row carries its Date.
-func lostDecisions(side pageSides) (lost []LostDecision, added []DecisionRow) {
+func lostDecisions(side *pageSides) (lost []LostDecision, added []DecisionRow) {
 	lostRows, added := compareRows(side.before, side.after)
 	for _, row := range lostRows {
 		changed := slices.ContainsFunc(added, func(candidate DecisionRow) bool { return candidate.Date == row.Date })
@@ -160,13 +160,14 @@ func LostDecisions(change changecheck.Change) ([]LostDecision, error) {
 		return nil, err
 	}
 	var lost []LostDecision
-	for _, side := range sides {
-		pageLost, _ := lostDecisions(side)
+	for i := range sides {
+		pageLost, _ := lostDecisions(&sides[i])
 		lost = append(lost, pageLost...)
 	}
 	return lost, nil
 }
 
+// ze point: documentation/directives/write-an-owner-decision-into-the-design-decisions-section-of-its-page
 // judgeDecisionRows answers the refusal of a commit that adds a malformed
 // decision row or a section shape problem its parent did not hold, or that
 // changes or removes a row its parent holds without Thomas's admission:
@@ -177,7 +178,8 @@ func judgeDecisionRows(change changecheck.Change) (string, error) {
 		return "", err
 	}
 	var malformed, unadmitted []string
-	for _, side := range sides {
+	for i := range sides {
+		side := &sides[i]
 		for _, problem := range addedShapeProblems(side) {
 			malformed = append(malformed, side.page+": the section "+problem.Text)
 		}
@@ -203,7 +205,7 @@ func judgeDecisionRows(change changecheck.Change) (string, error) {
 
 // addedShapeProblems answers the shape problems the commit's side of a page
 // holds that its parent's side did not, each counted by its text.
-func addedShapeProblems(side pageSides) []DecisionProblem {
+func addedShapeProblems(side *pageSides) []DecisionProblem {
 	had := map[string]int{}
 	for _, problem := range side.before.Problems {
 		had[problem.Text]++

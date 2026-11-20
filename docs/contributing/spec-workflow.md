@@ -28,7 +28,7 @@ validates it on every write.
 |--------|---------|
 | `skeleton` | Task defined, design not started |
 | `design` | Research and design in progress |
-| `ready` | Design complete, ready for implementation |
+| `ready` | Design approved: Thomas approved the design as the spec now states it, or the spec is a judged fix spec admitted while he is away ("Design approval" below) |
 | `in-progress` | Actively being implemented |
 | `verification` | Implementation complete and committed, awaiting an independent review and closure. Reached only under `Handoff: verify` |
 | `blocked` | Waiting on the prerequisite named in Depends, or on the blocker its `## Blocker` section names. A closure that cannot finish hands the spec back in this status (`/ze-close`, "How a closure ends") |
@@ -60,8 +60,8 @@ unjudged cell is not a valid one. The empty and repeated items stay warnings.
 | Event | Status change | Phase | Updated |
 |-------|--------------|-------|---------|
 | Start research | `skeleton` to `design` | - | Yes |
-| Spec approved | `design` to `ready` | - | Yes |
-| Start coding | `ready` to `in-progress` | Set `1/N` | Yes |
+| Spec approved: Thomas ran `./le spec design approve`, then the main session sets the Status | `design` to `ready` | - | Yes |
+| Start coding: `./le spec claim`, which re-checks the approval | `ready` to `in-progress` | Set `1/N` | Yes |
 | Finish a phase | - | Increment | Yes |
 | Hand off for review (`Handoff: verify` only) | `in-progress` to `verification` | - | Yes |
 | Blocked | to `blocked` | - | Yes |
@@ -69,6 +69,160 @@ unjudged cell is not a valid one. The empty and repeated items stay warnings.
 
 `./le spec status` prints the whole inventory, and `./le spec status | json`
 gives the machine-readable form.
+
+## Design approval
+
+A spec reaches `ready` only once Thomas approved its design, as the spec
+states it, from his own terminal. The main session presents the design, never
+a subagent, and an independent judge confirms the design against the pages it
+cites before the main session presents it. While Thomas is recorded away, a
+judged fix spec with no departure starts without his approval, and he reviews
+it on return.
+
+### The two sections a design owes
+
+| Section | Where | What it holds |
+|---------|-------|---------------|
+| `## Design documents` | after `## Existing Mechanisms` | One row per design page the spec's files link, and one row per decision row on those pages. Columns: `Document`, `Section`, `Derived from`, `Binding statement`, `Verdict`, `How this design stands against it`. The verdict is `agrees`, `departs` or `silent` |
+| `## Design presentation` | before `## Implementation Steps` | Five subsections, each with content: `### What changes`, `### Before and after`, `### Alternatives set aside`, `### Documents departed from` (it may state `none` when no row departs), `### Choices for Thomas` |
+
+`plan/templates/TEMPLATE.md` carries both sections.
+
+<!-- source: internal/le/spec/design/documents.go -- derive, designPage, addDecisions -->
+`./le spec design documents spec <path>` derives the rows the table owes:
+`ai/doors/system.md`; for each source file of Files to Modify and Files to
+Create, every page its `// Design:` header names, every page under
+`docs/architecture/` that a `<!-- source: -->` anchor ties to it, and each door
+that covers it; every door or page under `docs/` that the spec itself
+modifies, except the guides (`docs/guide/`) and the feature pages
+(`docs/features/`); then every row of the `## Design decisions` section of each
+of those pages. Each row prints what derived it. A page a header names that
+the checkout does not hold is listed as missing, so the header gets corrected
+rather than the row dropped.
+
+<!-- source: internal/le/spec/design/check.go -- checkSpec, missingRows, judgeRow, quoteProblems, silentProblems, presentationProblems -->
+<!-- source: internal/le/spec/design/answers.go -- answerCheck -->
+`./le spec design check spec <path>` judges the table against that derivation
+and the presentation, and prints one line per problem with its fix:
+
+- a derived page or decision with no row; a row about a decision gives
+  `Design decisions` as its Section and carries the decision's text in its
+  Binding statement;
+- a verdict other than the three, a page the checkout does not hold, or a
+  section the page does not hold;
+- an `agrees` or `departs` row whose Binding statement is empty or is not a
+  verbatim span of the section it names (runs of blanks compare as one);
+- a `silent` row with no reason, on a page the spec modifies, or on a decision
+  row;
+- a missing or empty presentation subsection, or a `departs` page that
+  `### Documents departed from` does not name;
+- no current judge approval.
+
+It exits 0 with `ready to present` when nothing is owed. Otherwise it exits 1,
+and its last line names the `documents` command that lists the owed rows. It
+exits 2 when it cannot answer: a page or a record it cannot read.
+
+### The judge
+
+<!-- source: internal/le/spec/design/judge.go -- judge, judgeSpec, uncoveredRows, judgeApprovalProblem -->
+An agent that did not write the spec runs the `ze-design-judge` skill
+(`ai/skills/ze-design-judge.md`) and records its verdict itself:
+`./le spec design judge spec <path> verdict approve|refuse reason "<one
+sentence>"`. The action refuses a process with no agent identity
+(`ZE_AGENT_ID`), because the main thread is the author's context. It also
+refuses while this agent has no current read record of the section behind
+some row, and prints the Read offset and limit that clear each one. A door row
+is covered by the whole-read record the door gate keeps, and any other row by
+a record of its section's current text. An `approve` verdict is also refused
+while the table fails the check. The reason is one line that does not start
+like a trailer. The record is replaced on each verdict, so a later `approve`
+replaces a `refuse`.
+
+### Thomas approves
+
+<!-- source: internal/le/spec/design/approve.go -- answerApprove, approve -->
+The main session presents the `## Design presentation` to Thomas. He runs,
+from his own terminal, `./le spec design approve spec <path> words "<what he
+said>"`. The terminal gate (`human.RequireAuthorization`) runs before anything
+is read, so an agent's call is refused with the command to hand him. The
+action then runs the check with the judge's approval owed and refuses while
+any problem stands. A spec in any Status is accepted, so a departure found
+during implementation can be approved. On a pass it writes the approval record
+and prints the next step: the main session sets Status to `ready`.
+
+<!-- source: internal/le/spec/design/approval.go -- DesignDigest, withoutChoices -->
+The record binds the design digest: the SHA-256 of four sections, in order,
+`## Task`, `## Acceptance Criteria`, `## Design documents`, and
+`## Design presentation` without `### Choices for Thomas`. Recording his
+answers in the Choices subsection, moving the Status and implementation
+bookkeeping leave the approval current. A change of scope, criteria, verdicts
+or presentation makes it stale, and the design goes back to the judge and to
+him.
+
+### The records
+
+<!-- source: internal/le/spec/design/records.go -- replaceRecord, readRecord -->
+<!-- source: internal/le/spec/design/away.go -- recordAway, ActiveAway, answerReturn -->
+All three are untracked files under `tmp/spec-design/`, each `Key: value`
+lines, written only by `./le spec design` and replaced atomically. A record
+that cannot be read or parsed is refused, never read as absent.
+
+| Record | Written by | Fields |
+|--------|------------|--------|
+| `judged/<stem>.md` | `judge`, from an agent | `Spec`, `Digest`, `Verdict`, `Sentence`, `Judge` (the agent fingerprint), `Date` |
+| `approved/<stem>.md` | `approve`, from Thomas's terminal | `Spec`, `Digest`, `Date`, `Machine`, `Owner words`, `Judge` (the judge record's digest, date and sentence), one `Departure` line per `departs` row: page, section and quoted statement |
+| `away.md` | `away until <YYYY-MM-DD> words "<text>"`, from Thomas's terminal; `return` removes it | `From`, `Until`, `Owner words` |
+
+`away` refuses a missing `until`, a value that is not a date, and a day
+already over. The record lapses on its own after its `until` day.
+
+<!-- source: internal/le/hookruntime/ownerrecord.go -- writeOwnerRecord, bashOwnerRecord -->
+No agent writes these files by hand. The pre-write hook `writeOwnerRecord`
+refuses a Write or Edit whose path lies under `tmp/spec-design/`, and
+`bashOwnerRecord` refuses a Bash line that names the directory unless the line
+is made only of readers (`ls`, `cat`) or is `./le commit create`.
+
+### What reads the approval
+
+<!-- source: internal/le/spec/design/approval.go -- Approved, FormatApprovalTrailer, DepartureApproved -->
+<!-- source: internal/le/spec/design/admission.go -- Admit, OwedApprovalTrailer -->
+One lookup answers whether a spec's design is approved: the local record whose
+digest matches the spec's text, else a `Design-approved: <stem> <digest>: ...`
+line in a commit reachable from HEAD. The local record never reaches a
+worktree or the other machine, so `./le commit create` writes the trailer from
+it into the next commit that carries the spec. A trailer-only approval lists
+the `departs` rows of the spec text in the commit that carries it.
+
+| Gate | What it refuses |
+|------|-----------------|
+| `./le spec claim` (`Claim`) | A `ready` spec whose design text has no approval and no away admission. Checked before the WIP cap. The spec stays `ready` and the session keeps its previous claim. The refusal says when the design changed after an earlier approval. An admitted claim reports `approved: <date> "<owner words>"` |
+| `writeSpecReady` (pre-write hook) | An edit that makes a spec `ready`, from another Status or as a new file: from a subagent always, from the main session without an approval or away admission of the proposed text. An edit of a spec already `ready` is not judged |
+| `./le commit create` | A hand-written `Design-approved:` body line. When closing a spec: a `departs` row its approval does not list, and an approved `departs` row whose page the spec's change set does not modify |
+| `./le doc consistency`, on commit | A changed or removed row of a page's `## Design decisions` section, unless an approval lists a departure naming that page and decision, or Thomas ran the commit with `decision-change "<his words>"` |
+
+<!-- source: internal/le/spec/session.go -- Claim -->
+<!-- source: internal/le/hookruntime/specready.go -- writeSpecReady, movesToReady -->
+<!-- source: internal/le/commit/designapproval.go -- designApprovedTrailers, departureRefusal -->
+
+### While Thomas is away
+
+<!-- source: internal/le/spec/design/admission.go -- awayAdmission, isFixSpec, Report -->
+While an away record is active, a `ready` spec starts without his approval
+when it is a spec of the fixes category (`plan/release/fixes/`), has no
+`departs` row, passes the check, and carries the judge's current approval. Its
+claim reports `admitted while Thomas is away (<from> to <until>): no design
+approval; he reviews it on return`, and the next commit carrying the spec
+records `Design-approved: <stem> <digest>: away <from>..<until>`. An away
+admission holds only while he is still away. A spec that fails a condition is
+refused with each failing condition listed.
+
+<!-- source: internal/le/spec/design/pending.go -- pending, readySpecWaits, comparePending -->
+`./le spec design pending` lists what waits for him: every `ready` spec whose
+design has no matching approval of his (an away admission is not one, since
+he reviews that spec on return), by Priority, then by category in
+`specpath.Categories` order, then by Updated, each with what it lacks (the two
+sections, the judge, the approval); then every started spec whose only
+approval is an away admission; then whether he is away.
 
 ## Work queues and placement
 

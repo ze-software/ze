@@ -15,6 +15,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/doc/doorindex"
 	docste "github.com/ze-software/ze/internal/le/doc/ste"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	specpath "github.com/ze-software/ze/internal/le/spec/path"
@@ -145,7 +146,7 @@ func writeRenderedRule(ctx context) *verdict {
 // writePointOverwrite refuses a Write that replaces an existing rule point.
 func writePointOverwrite(ctx context) *verdict {
 	replaces := ctx.tool == toolWrite
-	if ctx.tool == "MultiEdit" {
+	if ctx.tool == toolMultiEdit {
 		edits, _ := ctx.input["edits"].([]any)
 		for _, raw := range edits {
 			edit, _ := raw.(map[string]any)
@@ -320,15 +321,19 @@ func otherCheckoutNote(checkout documentCheckout) string {
 }
 
 // ze point: architecture/directives/read-the-design-doors-before-the-first-code-edit
+// ze point: architecture/directives/read-the-design-decisions-a-files-design-page-records-before-editing-it
 // writeDesignDoorsRead refuses a code write (Go, YANG, templ) from a context
 // with no record of reading ai/doors/system.md and every door covering the
-// file, each in full: the doors of the checkout the file lies in
-// (gatedCheckout), read in that checkout's copies, so a worktree's edits owe
-// the worktree's doors. The Read hook (hookSourceRead) and the Bash hook
-// (bashDocumentRead) write the records. The doors are found by their own
-// headers at call time, so a new door joins the gate with no edit here. A file
-// in no checkout, after symlinks are resolved, is not gated by any doors.
-// Code written through a Bash heredoc never reaches this check.
+// file, each in full, or with no current record of the `## Design decisions`
+// section of each page the file's `// Design:` header names, on disk or in the
+// text the edit proposes (editedFilePages). The doors are those of the checkout
+// the file lies in (gatedCheckout), read in that checkout's copies, so a
+// worktree's edits owe the worktree's doors. The Read hook (hookSourceRead) and
+// the Bash hook (bashDocumentRead) write the records. The doors are found by
+// their own headers at call time, so a new door joins the gate with no edit
+// here, and a page joins it the day it carries the section. A file in no
+// checkout, after symlinks are resolved, is not gated by any doors. Code
+// written through a Bash heredoc never reaches this check.
 func writeDesignDoorsRead(ctx context) *verdict {
 	if !codeFile(ctx.path) {
 		return nil
@@ -342,84 +347,115 @@ func writeDesignDoorsRead(ctx context) *verdict {
 		// doors, so a scratch probe stays possible.
 		return nil
 	}
-	unread, refusal := unreadDoors(ctx, checkout, []string{file})
+	pages, refusal := editedFilePages(ctx, checkout, file)
 	if refusal != nil {
 		return refusal
 	}
-	if len(unread) == 0 {
+	owed, refusal := unreadDoors(ctx, checkout, []string{file}, pages)
+	if refusal != nil {
+		return refusal
+	}
+	if owed.empty() {
 		return nil
 	}
-	return &verdict{2, doorRefusal(checkout, file, unread, codeDoorReason)}
+	return &verdict{2, doorRefusal(checkout, file, owed, codeDoorReason)}
 }
 
 // codeDoorReason is why a code edit waits for the door covering its file.
 const codeDoorReason = "the covering door names\n" +
 	"  this subsystem's outside contracts, boundaries and traps. Code written before them is written from habit.\n"
 
-// unreadDoors answers, as checkout.name spells them, the doors of checkout
-// this context has not read whole, among those owed before it edits a
-// document of checkout that names files (checkout-relative):
-// ai/doors/system.md always, then every door covering any one of files. A
-// context with no usable id, a doors directory or a door header that cannot be
-// read, or a missing system.md answers a refusal instead, never an empty list:
-// the gate is fail-closed. writeDesignDoorsRead and writeSpecDoorsRead both
-// ask it.
-func unreadDoors(ctx context, checkout documentCheckout, files []string) ([]string, *verdict) {
+// unreadDoors answers what this context owes before it edits a document of
+// checkout that names files (checkout-relative) and links pages: the doors of
+// checkout it has not read whole, as checkout.name spells them
+// (ai/doors/system.md always, then every door covering any one of files), and
+// the `## Design decisions` section of each of pages it holds no current
+// record of (unreadSections). A context with no usable id, a doors directory or
+// a door header that cannot be read, a missing system.md, or a page or record
+// that cannot be read answers a refusal instead, never an empty answer: the
+// gate is fail-closed. writeDesignDoorsRead and writeSpecDoorsRead both ask
+// it, so the code and the spec gate owe one set.
+func unreadDoors(ctx context, checkout documentCheckout, files []string, pages []designPage) (owedReading, *verdict) {
 	system := checkout.name(systemDoorPath)
 	doorsName := checkout.name(doorsDir)
 	if documentReadMarker(ctx, checkout, systemDoorPath) == "" {
-		return nil, &verdict{2, "❌ BLOCKED: this session or agent has no usable id, so no read of " + system + " can be found.\n  The design-door gate is fail-closed.\n  ai/rules/architecture.md"}
+		return owedReading{}, &verdict{2, "❌ BLOCKED: this session or agent has no usable id, so no read of " + system + " can be found.\n  The design-door gate is fail-closed.\n  ai/rules/architecture.md"}
 	}
-	doors, err := loadDoors(checkout.root)
-	if header, ok := errors.AsType[*doorHeaderError](err); ok {
-		page := checkout.name(header.page)
-		return nil, &verdict{2, "❌ BLOCKED: " + page + " is not a usable design door: " + header.reason +
+	doors, err := doorindex.Load(checkout.root)
+	if header, ok := errors.AsType[*doorindex.HeaderError](err); ok {
+		page := checkout.name(header.Page)
+		return owedReading{}, &verdict{2, "❌ BLOCKED: " + page + " is not a usable design door: " + header.Reason +
 			".\n  Why: the gate reads each door's header to know which files it covers, and a door it cannot read would release them in silence.\n  Fix: give " + page + " one line `<!-- door-base: <path> <path> -->` naming the checkout paths it covers, then retry.\n  ai/doors/README.md, ai/rules/architecture.md"}
 	}
 	if err != nil {
-		return nil, &verdict{2, "❌ BLOCKED: " + doorsName + " cannot be read: " + err.Error() +
+		return owedReading{}, &verdict{2, "❌ BLOCKED: " + doorsName + " cannot be read: " + err.Error() +
 			"\n  Why: every code or spec edit needs " + system + " read first, and the gate cannot name the doors covering the file.\n  Fix: restore " + doorsName + " from git, then read the doors and retry.\n  ai/rules/architecture.md"}
 	}
 	if _, err := os.Stat(filepath.Join(checkout.root, filepath.FromSlash(systemDoorPath))); err != nil {
-		return nil, &verdict{2, "❌ BLOCKED: " + system + " cannot be read: " + err.Error() +
+		return owedReading{}, &verdict{2, "❌ BLOCKED: " + system + " cannot be read: " + err.Error() +
 			"\n  Why: every code or spec edit needs it read first, and this checkout does not hold it.\n  Fix: restore " + system + " from git, then read it and retry.\n  ai/rules/architecture.md"}
 	}
 	required := []string{systemDoorPath}
 	for _, file := range files {
-		for _, page := range coveringDoors(doors, file) {
+		for _, page := range doors.Covering(file) {
 			if !slices.Contains(required, page) {
 				required = append(required, page)
 			}
 		}
 	}
-	var unread []string
+	var owed owedReading
 	for _, page := range required {
 		if !recorded(documentReadMarker(ctx, checkout, page)) {
-			unread = append(unread, checkout.name(page))
+			owed.doors = append(owed.doors, checkout.name(page))
 		}
 	}
-	return unread, nil
+	sections, refusal := unreadSections(ctx, checkout, pages)
+	if refusal != nil {
+		return owedReading{}, refusal
+	}
+	owed.sections = sections
+	return owed, nil
 }
 
-// doorRefusal names file (checkout-relative), every unread door of checkout,
-// both as checkout.name spells them, why the doors come first (system.md's
-// reason, then reason, which says why the other doors are owed), and the read
-// that clears the refusal.
-func doorRefusal(checkout documentCheckout, file string, unread []string, reason string) string {
+// doorRefusal names file (checkout-relative), and in one list every door of
+// checkout owed unread, as checkout.name spells them, and every Design
+// decisions section owed with the Read that clears it; then why each is owed
+// (for the doors system.md's reason, then reason, which says why the other
+// doors are owed) and the reads that clear the refusal.
+func doorRefusal(checkout documentCheckout, file string, owed owedReading, reason string) string {
 	var tb textbuf.Buffer
-	tb.Str("❌ BLOCKED: this session or agent has not read the design doors that cover ").Str(checkout.name(file)).Str(":\n")
-	for _, page := range unread {
+	tb.Str("❌ BLOCKED: this session or agent has not read ")
+	if len(owed.doors) == 0 {
+		tb.Str("the design decisions that bind ").Str(checkout.name(file))
+	} else {
+		tb.Str("the design doors that cover ").Str(checkout.name(file))
+		if len(owed.sections) != 0 {
+			tb.Str(", nor the design decisions that bind it")
+		}
+	}
+	tb.Str(":\n")
+	for _, page := range owed.doors {
 		tb.Str("  - ").Str(page).Byte('\n')
 	}
+	writeSectionLines(&tb, checkout, file, owed.sections)
 	tb.Str(otherCheckoutNote(checkout))
-	tb.Str("  Why: ").Str(systemDoorPath).Str(" holds the design every change respects (third-party plugins, the process\n").
-		Str("  boundary, the public pkg/ API, registration over enumeration), and ").Str(reason).
-		Str("  Fix:read each listed door whole with the Read tool (no offset, no limit short of its last line),\n").
-		Str("  or print it from Bash with a plain line such as `cat <door>` (optionally after `cd <dir> &&`),\n").
-		Str("  with no quotes, variables, pipes or redirections, then retry. A glob (`cat ai/doors/*.md`)\n").
-		Str("  records nothing: name each door. A line that prints more than ").Str(strconv.Itoa(plainReadPrintMax)).
-		Str(" bytes records nothing,\n  because the harness cuts a long output: print fewer doors per line.\n").
-		Str("  ai/rules/architecture.md")
+	if len(owed.doors) != 0 {
+		tb.Str("  Why: ").Str(systemDoorPath).Str(" holds the design every change respects (third-party plugins, the process\n").
+			Str("  boundary, the public pkg/ API, registration over enumeration), and ").Str(reason).
+			Str("  Fix: read each listed door whole with the Read tool (no offset, no limit short of its last line),\n").
+			Str("  or print it from Bash with a plain line such as `cat <door>` (optionally after `cd <dir> &&`),\n").
+			Str("  with no quotes, variables, pipes or redirections, then retry. A glob (`cat ai/doors/*.md`)\n").
+			Str("  records nothing: name each door. A line that prints more than ").Str(strconv.Itoa(plainReadPrintMax)).
+			Str(" bytes records nothing,\n  because the harness cuts a long output: print fewer doors per line.\n")
+	}
+	if len(owed.sections) != 0 {
+		tb.Str("  Why: the page a file's // Design: header names holds the decisions Thomas made about it,\n").
+			Str("  and an edit made before reading them can undo one.\n").
+			Str("  Fix: read each listed range with the Read tool, then retry. A Read records a section only\n").
+			Str("  once it reaches the heading that ends it, or the page's last line; a shorter Read records\n").
+			Str("  nothing, and a row added to the section makes it owed again.\n")
+	}
+	tb.Str("  ai/rules/architecture.md")
 	return tb.String()
 }
 

@@ -190,6 +190,7 @@ start").
 
 1. **Read the spec:** Run `./le spec current` to find this session's spec. If empty, use the spec named in the conversation and claim it with `./le spec claim <spec-name>`. Resolve its actual path through `./le spec status`, then read that path.
    - If `claim` exits 3, the WIP cap refused it: too many specs are already in-progress. That is a decision for the user, not something to route around. Show them the list it printed and ask whether to close one first or raise `ZE_SPEC_WIP_CAP`. Do NOT edit the spec's Status by hand to skip the check.
+   - If `claim` exits 2 with `refusing to start`, the design has no approval of Thomas matching the spec as it stands. Nothing is implemented: the main session presents the design through `/ze-spec` Step 4 and Thomas approves it from his terminal (`docs/contributing/spec-workflow.md`, "Design approval").
 2. **Update spec status (BLOCKING -- do this FIRST, before any other work):**
    Edit the spec file NOW: set `Status` to `in-progress`, `Phase` to `1/N`, `Updated` to today.
    This is the FIRST action after reading. Not after audit, not after implementation, not at the end.
@@ -243,6 +244,14 @@ start").
      Write the page edit next to the code edit, in the same phase and the same diff.
      `/ze-close` step 4 CHECKS these pages. It is not where they get written, and a phase that
      changed behavior and touched no page has to say why in its report.
+   - **A `departs` row of the spec's `## Design documents` owes its page correction in the
+     phase that implements the departure (BLOCKING).** Thomas approved the departure, so the
+     page it departs from now states the new design: edit that section, and for a decision
+     row, the row itself, which the approval admits. `./le commit create` refuses the closure
+     while the spec's change set leaves a departed page untouched, and refuses a `departs` row
+     his approval does not list. A departure the implementation finds that the table does not
+     carry is not implemented: STOP and report it, because the design goes back to the judge
+     and to Thomas (`./le spec design approve` accepts an `in-progress` spec).
    - **Prepare the RFC proof records this phase owes, IN this phase (BLOCKING,
      `ai/rules/planning.md`, "Work Phases and the Review Loop").** For every
      `RFC requirement:` tagged unit the phase added, or whose behavior or claim it
@@ -282,6 +291,7 @@ start").
    - **Operator errors and doctor codes (BLOCKING):** Every refusal, error answer, `Warn`/`Error` log line and report-bus raise you added meets `ai/rules/user-facing-errors.md` (an `opererr` error with the fix on its last line, `plugin.OperatorErrorResponse` for an error answer, a declared doctor code under `code`, `Info`/`Debug` for a line reporting nothing wrong), and every doctor check you added carries `Fix` and sits at the phase whose process holds what it reads (`docs/architecture/doctor-and-health-checks.md`).
    - **Prometheus counters:** If the feature has observable state (connections, errors, rates, gauges), verify counters are defined, registered in telemetry, and listed in the spec's Integration Checklist.
    - **YANG validation:** If YANG leaves were added, verify each has maximum native constraints (`range`, `length`, `pattern`, `enumeration`). If native is insufficient, verify a custom validator with `CompleteFn` exists per `ai/patterns/config-option.md`. A leaf with `type string` and no constraint is a red flag.
+   - **Design documents (BLOCKING):** for each `## Design documents` row, read the page at the quoted sentence, then the diff. A diff that does what a decision row forbids, under an `agrees` verdict, is a BLOCKER. A `departs` row whose page and decision row the diff does not correct is a BLOCKER. A design page that `./le spec design documents` now derives for files the implementation added, and the table lacks, is an ISSUE that sends the spec back to the judge and to Thomas
    - Do NOT agree with the spec blindly -- challenge architectural assumptions
 8. **Fix every issue found** in the review. For each fix apply `ai/rules/completion.md`: write the root cause traced to the producing function and choose the `[source]` fix over the `[workaround]` before editing. Never make a finding disappear by weakening a test, renaming a symbol, or special-casing the failing input — that fixes where the problem shows up, not where it is.
 9. **Re-run verification:** rerun only the tests that failed, each alone, until

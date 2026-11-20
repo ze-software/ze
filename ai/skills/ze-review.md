@@ -144,6 +144,8 @@ phase itself.
 
     Also grep `docs/` for `source: <changed-file>` for every changed source file. If any anchored claim is stale or missing after the code change, report an ISSUE. If a user-visible behavior changed and no documentation was updated or explicitly proven unnecessary, report an ISSUE.
 
+    **The design-documents lens (when a spec is claimed and carries `## Design documents`).** For each row, read the page at the quoted sentence, then the diff. A diff that breaks what a decision row forbids, under an `agrees` verdict, is a BLOCKER. A `departs` row whose page and decision row the diff does not correct is a BLOCKER. A design page that `./le spec design documents spec <path>` now derives for files the implementation added, and the table lacks, is an ISSUE that sends the spec back to Thomas. With no claimed spec, read the `## Design decisions` section of each changed file's `// Design:` pages instead: a diff that does what a row forbids is a BLOCKER, since no approval admits it.
+
 5. **Identify changed files:** Run `git diff --name-only HEAD` to find all modified files.
 6. **Read the actual code:** For every changed file, read the diff. Understand what changed.
 7. **Understand intent via history:** For each changed region, run `git log --oneline -5` and `git blame` on the modified lines. Understand WHY the old code existed. Flag if the change removes a guard, workaround, or constraint that was added deliberately.

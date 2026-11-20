@@ -5,6 +5,7 @@ package speccitation
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,15 +13,18 @@ import (
 	"slices"
 	"strings"
 
+	docconsistency "github.com/ze-software/ze/internal/le/doc/consistency"
 	docindex "github.com/ze-software/ze/internal/le/doc/index"
 )
 
+// designHeaderLines bounds the header a `// Design:` line is read from: a file
+// that names its design further down names none.
 const designHeaderLines = 25
 
-var (
-	specBulletPattern = regexp.MustCompile(`^\s*-\s+\x60([^\x60]+)\x60`)
-	designPattern     = regexp.MustCompile(`^//\s*Design:\s*(\S+\.md)\b`)
-)
+// designHeaderPrefix starts every `// Design:` line of a header.
+const designHeaderPrefix = "// Design:"
+
+var specBulletPattern = regexp.MustCompile(`^\s*-\s+\x60([^\x60]+)\x60`)
 
 var sourcePrefixes = [...]string{
 	"internal/", "cmd/", "pkg/", "test/", "rfc/", "tools/", "demos/",
@@ -61,14 +65,17 @@ func AuditAnchors(root, spec string) (AnchorReport, error) {
 	owners := make(map[string][]string)
 	mentions := make(map[string][]string)
 	for _, source := range files {
-		owner := declaredDesignDocument(root, source)
-		if owner != "" {
+		declared, err := DeclaredDesignDocuments(root, source)
+		if err != nil {
+			return AnchorReport{}, err
+		}
+		for _, owner := range declared {
 			if !strings.Contains(text, owner) {
 				owners[owner] = append(owners[owner], source)
 			}
 		}
 		for _, document := range index[source] {
-			if document == owner {
+			if slices.Contains(declared, document) {
 				continue
 			}
 			if strings.Contains(text, document) {
@@ -80,25 +87,55 @@ func AuditAnchors(root, spec string) (AnchorReport, error) {
 	return anchorReport(spec, files, owners, mentions), nil
 }
 
-func declaredDesignDocument(root, relative string) string {
+// DeclaredDesignDocuments answers every design page the header of relative, a
+// checkout-relative file, names: each `// Design:` line of its first
+// designHeaderLines lines before the package clause, and every page each line
+// names (docconsistency.DesignTargets, the rule `./le doc consistency` judges
+// headers by), in header order without repetition.
+//
+// A file that does not exist answers nothing with no error, and this is a
+// named guard: a file the spec creates has no header yet, so it links no page
+// until it is written. Any other read failure is an error, never "no page",
+// because a caller owes a verdict on every page the answer leaves out.
+func DeclaredDesignDocuments(root, relative string) ([]string, error) {
 	file, err := os.Open(filepath.Join(root, filepath.FromSlash(relative))) //nolint:gosec // relative came from the spec under root
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
 	if err != nil {
-		return ""
+		return nil, fmt.Errorf("read the // Design: header of %s: %w", relative, err)
 	}
 	defer file.Close() //nolint:errcheck // read-only
 
+	var pages []string
 	scanner := bufio.NewScanner(file)
 	for range designHeaderLines {
 		if !scanner.Scan() {
 			break
 		}
-		match := designPattern.FindStringSubmatch(scanner.Text())
-		if match != nil {
-			return match[1]
+		line := scanner.Text()
+		if strings.HasPrefix(line, "package ") {
+			break
+		}
+		if !strings.HasPrefix(line, designHeaderPrefix) {
+			continue
+		}
+		for _, page := range docconsistency.DesignTargets(line) {
+			if !slices.Contains(pages, page) {
+				pages = append(pages, page)
+			}
 		}
 	}
-	return ""
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("read the // Design: header of %s: %w", relative, err)
+	}
+	return pages, nil
 }
+
+// SpecSourceFiles answers the source files a spec's Files to Modify and Files
+// to Create bullets name, in the spec's order: the files whose headers link
+// the design pages the spec owes.
+func SpecSourceFiles(text string) []string { return specSourceFiles(text) }
 
 // loadDocumentIndex answers which documents anchor each code path.
 //

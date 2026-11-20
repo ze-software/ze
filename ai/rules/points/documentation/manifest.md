@@ -6,3 +6,4 @@ related: completion, evidence, context-economy, repo-maintenance, writing
 ---
 directives ## Directives
   read-the-doc-before-you-search-or-delegate
+  write-an-owner-decision-into-the-design-decisions-section-of-its-page

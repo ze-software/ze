@@ -249,7 +249,7 @@ var readerLineProofs = []func(*testing.T){
 // table holding fewer rows lost recorded refusals: deleting the file and
 // re-running -update records again from the tree in hand, which keeps no
 // refusal HEAD gave. Raise it when an update appends rows; never lower it.
-const verdictsTableRowsMin = 1761
+const verdictsTableRowsMin = 1765
 
 // readerSetJudgment is the one function that judges whether a command is a
 // reader (readers.go). A check whose code reaches it can pass a line because
@@ -616,10 +616,12 @@ func TestReaderLineRowWaivesOnlyTheChecksAReaderLineLifts(t *testing.T) {
 // TestReaderLiftableChecksAreTheReaderGuards reads the set readerLiftableChecks
 // derives from the source.
 //
-// VALIDATES: the eight guards that ask the reader set are in it (the
+// VALIDATES: the nine guards that ask the reader set are in it (the
 // identity exemption, the lifts of the raw-job, lossy-pipe, /tmp and scratch
-// guards, the build guard's reader+build line, the plain-rm narrowing, and
-// the subagent heavy-work check, which opens with the same exemption), and
+// guards, the build guard's reader+build line, the plain-rm narrowing, the
+// subagent heavy-work check, which opens with the same exemption, and the
+// owner-record guard, whose ownerRecordAdmit is readerAdmit plus a literal
+// `./le commit create`, so `cat` of a record passes and a write does not), and
 // every other pretool-bash check is not: the git guards, bashGovernedWrite
 // and bashPollLoop, which the spec says never lift, and the checks that never
 // read the reader judgment (bashDocumentRead judges its text alone). The
@@ -630,7 +632,7 @@ func TestReaderLineRowWaivesOnlyTheChecksAReaderLineLifts(t *testing.T) {
 // refusal.
 func TestReaderLiftableChecksAreTheReaderGuards(t *testing.T) {
 	liftable := readerLiftableChecks(t)
-	readers := []string{"bashAgentIdentity", "bashRawHeavy", "bashLossyPipe", "bashSystemTmp", "bashScratch", "bashRootBuild", "bashTestDeletion", "bashSubagentHeavy"}
+	readers := []string{"bashAgentIdentity", "bashRawHeavy", "bashLossyPipe", "bashSystemTmp", "bashScratch", "bashRootBuild", "bashTestDeletion", "bashSubagentHeavy", "bashOwnerRecord"}
 	for _, name := range readers {
 		if !liftable[name] {
 			t.Errorf("%s asks the reader set and is not in the liftable set %v", name, liftable)

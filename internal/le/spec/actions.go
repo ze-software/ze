@@ -297,6 +297,12 @@ func answerClaim(args leaction.Arguments) (any, int) {
 	if err != nil {
 		return lifecycleError(err)
 	}
+	// A design nothing admits is a refusal of what the claim asks for, exit 2
+	// (AC-22); a full cap keeps its own exit 3, which tells the caller to close
+	// a spec or widen the cap.
+	if len(report.ApprovalRefusal) != 0 {
+		return report, 2
+	}
 	if report.Refused {
 		return report, 3
 	}

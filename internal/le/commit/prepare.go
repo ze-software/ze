@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/ze-software/ze/internal/le/commit/hunks"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
@@ -269,6 +270,9 @@ func Create(root string, options *Options) (Prepared, error) {
 	// decisionChanged is the Decision-changed: trailers of a decision-change
 	// commit, one per page whose decision rows it changes or removes.
 	var decisionChanged []string
+	// designApproved is the Design-approved: trailers of the specs the commit
+	// carries whose approval no reachable commit records yet.
+	var designApproved []string
 	switch {
 	case attesting:
 		// An empty commit changes no byte, so no source or verification gate
@@ -289,6 +293,13 @@ func Create(root string, options *Options) (Prepared, error) {
 		}
 		reviewCheck, err = checkVerificationGates(root, options, &result, paths, removed, selection, content)
 		if err != nil {
+			return result, err
+		}
+		// A closure whose spec departs from a design page owes Thomas's
+		// approval of each departure and the page's correction in the spec's
+		// change set (designapproval.go). It runs after the review gate, so a
+		// closure still learns first that it owes its review.
+		if err := departureRefusal(root, options, paths, removed, selection, content); err != nil {
 			return result, err
 		}
 		// A spec the commit edits owes its Existing Mechanisms analysis
@@ -317,6 +328,13 @@ func Create(root string, options *Options) (Prepared, error) {
 			return result, err
 		}
 		decisionChanged, err = decisionChangedTrailers(change)
+		if err != nil {
+			return result, err
+		}
+		// A carried spec whose design Thomas approved, or the away rule
+		// admitted, records it once in a reachable commit, so a worktree and
+		// the other machine see the approval too.
+		designApproved, err = designApprovedTrailers(root, paths, content, time.Now())
 		if err != nil {
 			return result, err
 		}
@@ -377,10 +395,10 @@ func Create(root string, options *Options) (Prepared, error) {
 		}
 		result.Trailers = append(result.Trailers, owed...)
 		trailers := slices.Concat(result.RFCApprovals.Trailers, result.WeakeningApprovals.Trailers, result.Trailers,
-			decisionChanged)
-		// Decision-changed:, No-news: and the attribution owe nothing, so
-		// they stay out of result.Trailers, which lists person acts, and close
-		// the message in that order.
+			decisionChanged, designApproved)
+		// Decision-changed:, Design-approved:, No-news: and the attribution
+		// owe nothing, so they stay out of result.Trailers, which lists person
+		// acts, and close the message in that order.
 		if noNews != "" {
 			trailers = append(trailers, noNews)
 		}

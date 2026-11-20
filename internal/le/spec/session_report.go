@@ -14,11 +14,23 @@ type ClaimReport struct {
 	InProgress   int       `json:"in-progress"`
 	Cap          int       `json:"cap"`
 	Stalest      []WIPSpec `json:"stalest,omitempty"`
+	// ApprovalRefusal is the refusal of a ready spec whose design nothing
+	// admits (specdesign.Admit), its headline first; empty when admitted.
+	ApprovalRefusal []string `json:"approval-refusal,omitempty"`
+	// Approved is what admitted a ready spec's design: Thomas's approval, or
+	// the away admission he reviews on return.
+	Approved string `json:"approved,omitempty"`
 }
 
 // Text renders the claim result.
 func (r ClaimReport) Text() string {
 	var tb textbuf.Buffer
+	if len(r.ApprovalRefusal) != 0 {
+		for _, line := range r.ApprovalRefusal {
+			tb.Str(line).Byte('\n')
+		}
+		return tb.String()
+	}
 	if r.Refused {
 		tb.Str("spec-session: refusing to start ").Str(r.Spec).Str("\n  ").
 			Int(int64(r.InProgress)).Str(" specs are already in-progress (cap ").Int(int64(r.Cap)).Str(").\n").
@@ -33,7 +45,7 @@ func (r ClaimReport) Text() string {
 	tb.Str("claimed ").Str(r.Spec)
 	if r.Transitioned {
 		return tb.Str(" (ready -> in-progress; ").Int(int64(r.InProgress)).Byte('/').
-			Int(int64(r.Cap)).Str(" in flight)\n").String()
+			Int(int64(r.Cap)).Str(" in flight)\n  ").Str(r.Approved).Byte('\n').String()
 	}
 	return tb.Str(" (status: ").Str(firstNonemptyString(r.Status, "unknown")).Str(")\n").String()
 }

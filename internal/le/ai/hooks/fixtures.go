@@ -25,14 +25,15 @@ import (
 	"github.com/ze-software/ze/internal/le/hookruntime"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	"github.com/ze-software/ze/internal/le/rfc"
+	"github.com/ze-software/ze/internal/le/spec/design/designtest"
 	testweakened "github.com/ze-software/ze/internal/le/test/weakened"
 )
 
 const (
-	fixtureSitesExpected       = 408
-	fixtureChecksExpected      = 553
-	fixtureUniqueNamesExpected = 553
-	fixtureCategoriesExpected  = 24
+	fixtureSitesExpected       = 411
+	fixtureChecksExpected      = 572
+	fixtureUniqueNamesExpected = 572
+	fixtureCategoriesExpected  = 27
 )
 
 var (
@@ -651,7 +652,7 @@ type fixtureCategory struct {
 
 var fixtureCategories = [...]fixtureCategory{
 	{categoryFormatAlloc, "run_format_alloc", hookWriteEditFile, "func writeGoPatterns(", "return fmt.Errorf(\"x\")", "return fmt.\u0053printf(\"%d\", n)"},
-	{categoryDesignRef, "run_design_ref", "internal/le/doc/consistency/consistency.go", "func (c *checker) checkDesignRefs(", "// Design: docs/x.md\npackage x", "package x"},
+	{categoryDesignRef, "run_design_ref", "internal/le/doc/consistency/consistency.go", "func (c *checker) checkDesignRefs(", "// Design: " + probeDesignPage + "\npackage x", "package x"},
 	{categoryTestFirst, "run_test_first", commitPrepareFile, "func testCoverageProblemsSelected(", probeGoPath + " " + probeGoTestPath, probeGoPath},
 	{categoryRenderedRule, "run_rendered_rule", hookWriteEditFile, "func writeRenderedRule(", "ai/rules/points/commands/x.md", "ai/rules/commands.md"},
 	{categoryRFCLanguage, "run_rfc_language", hookWriteEditFile, "func writePointLanguage(", "The caller MUST stop.", "The caller stops."},
@@ -674,6 +675,9 @@ var fixtureCategories = [...]fixtureCategory{
 	{categoryScriptWeakeningArms, "run_script_weakening_arms", hookWriteEditFile, writeWeakeningAnchor, "self.assertEqual(1, f())", "@pytest.mark.xfail\nself.assertEqual(1, f())"},
 	{categoryCISleepMarker, "run_ci_sleep_marker", hookWriteEditFile, "func writeCISleep(", "# sleep(timer): tracker ticks\ntime.sleep(2)", "time.sleep(2)"},
 	{categoryYangDescription, "run_yang_description", hookWriteEditFile, "func writeYangDescription(", yangProbeAllow, yangProbeRefuse},
+	{categoryDesignDecisionsRead, "run_design_decisions_read", hookWriteEditFile, "func writeDesignDoorsRead(", probeSectionRead, "no-" + probeSectionRead},
+	{categoryOwnerRecord, "run_owner_record", hookOwnerRecordFile, "func bashOwnerRecord(", "cat tmp/spec-design/away.md", "echo x > tmp/spec-design/away.md"},
+	{categorySpecReady, "run_spec_ready", hookSpecReadyFile, "func writeSpecReady(", probeReadyApproved, probeReadyUnapproved},
 }
 
 type fixtureProducerBoundary struct {
@@ -728,6 +732,9 @@ var hookSourcePackages = [...]string{
 	"internal/le/commit",
 	"internal/le/doc/consistency",
 	"internal/le/doc/index",
+	// The section read record and the whole-read marker name: the Read hook
+	// writes them and the door and Design decisions gate reads them.
+	"internal/le/doc/readrecord",
 	"internal/le/doc/ste",
 	// The heavy-tool definition bashSubagentHeavy and the raw-job guard read.
 	"internal/le/heavytool",
@@ -737,6 +744,9 @@ var hookSourcePackages = [...]string{
 	"internal/le/session",
 	"internal/le/spec",
 	"internal/le/spec/citation",
+	// The design admission writeSpecReady asks (specdesign.Admit): the
+	// approval lookup, the away record and the check it re-runs.
+	"internal/le/spec/design",
 	"internal/le/spec/journal",
 	"internal/le/spec/mechanisms",
 	"internal/le/spec/path",
@@ -1264,6 +1274,7 @@ const (
 	probeTestPath    = "probe/probe_test.go"
 	probeJournalPath = "plan/journal/probe.md"
 	probeGoPath      = "internal/probe/probe.go"
+	probeDesignPage  = "docs/x.md"
 )
 
 // probeGitTimeout bounds each local Git operation that builds a probe tree.
@@ -1317,13 +1328,99 @@ func designGateTree(value string) (string, error) {
 		return root, err
 	}
 	code, output, found := hookruntime.ProbeLifecycle("mark-source-read", hookruntime.Payload{
-		SessionID: probeSession, ToolName: "Read",
-		ToolInput:    map[string]any{"file_path": filepath.Join(root, "internal", "probe", "probe.go")},
+		SessionID: probeSession, ToolName: toolReadName,
+		ToolInput:    map[string]any{toolInputFilePath: filepath.Join(root, "internal", "probe", "probe.go")},
 		ToolUseID:    "fixture-design-read",
 		ToolResponse: json.RawMessage(fmt.Sprintf(`{"type":"text","file":{"filePath":%q,"content":"package probe\n","startLine":1,"numLines":2,"totalLines":2}}`, filepath.Join(root, "internal", "probe", "probe.go"))),
 	}, root)
 	if !found || code != 0 {
 		return root, fmt.Errorf("record design probe source: code %d, found %v: %s", code, found, output)
+	}
+	return root, nil
+}
+
+// The checkout designDecisionsTree lays out: one code file under the system
+// door, whose header names a page carrying a Design decisions section, and the
+// value that makes the tree record a read of that section.
+const (
+	probeDecisionsCode = "internal/probe/decisions.go"
+	probeDecisionsPage = "docs/architecture/probe.md"
+	probeDecisionsText = "# Probe\n\n## Design decisions\n\n| Decision | It forbids | Source | Date |\n|---|---|---|---|\n" +
+		"| The probe answers data | Rendering text in the probe | ai/doors/system.md | 2026-11-20 |\n"
+	probeSectionRead = "section-read"
+)
+
+// designDecisionsTree records every read through the actual Read hook, never
+// a marker the fixture forges: the whole read of ai/doors/system.md always,
+// and for probeSectionRead a Read that returned the whole page, so the verdict
+// comes from the section record the gate reads.
+func designDecisionsTree(value string) (string, error) {
+	root, err := probeTree("design-decisions", map[string]string{
+		"ai/doors/system.md": "# System\n\n<!-- door-base: internal -->\n",
+		probeDecisionsCode:   "// Design: " + probeDecisionsPage + " -- the probe\n\npackage probe\n",
+		probeDecisionsPage:   probeDecisionsText,
+	})
+	if err != nil {
+		return root, err
+	}
+	reads := []hookruntime.Payload{{
+		SessionID: probeSession, ToolName: toolReadName,
+		ToolInput: map[string]any{toolInputFilePath: filepath.Join(root, "ai", "doors", "system.md")},
+	}}
+	if value == probeSectionRead {
+		page := filepath.Join(root, filepath.FromSlash(probeDecisionsPage))
+		lines := strings.Count(probeDecisionsText, "\n")
+		response, err := json.Marshal(map[string]any{"type": "text", "file": map[string]any{
+			"filePath": page, "content": probeDecisionsText, "startLine": 1, "numLines": lines, "totalLines": lines,
+		}})
+		if err != nil {
+			return root, err
+		}
+		reads = append(reads, hookruntime.Payload{
+			SessionID: probeSession, ToolName: toolReadName,
+			ToolInput: map[string]any{toolInputFilePath: page}, ToolUseID: "fixture-decisions-read", ToolResponse: response,
+		})
+	}
+	for i := range reads {
+		code, output, found := hookruntime.ProbeLifecycle("mark-source-read", reads[i], root)
+		if !found || code != 0 {
+			return root, fmt.Errorf("record the design decisions probe read: code %d, found %v: %s", code, found, output)
+		}
+	}
+	return root, nil
+}
+
+// The spec the ready-edit probe moves to ready, and the two texts it proposes:
+// probeReadyApproved is the design Thomas approved, probeReadyUnapproved the
+// same spec with a ## Task he never saw, so the design digests differ.
+const (
+	probeReadySpec   = "plan/post-release/engineering/spec-ready-probe.md"
+	probeReadyStatus = "| Status | ready |"
+	probeReadyHead   = "# Spec: ready probe\n\n| Field | Value |\n|-------|-------|\n" + probeReadyStatus + "\n" +
+		"| Priority | P2 |\n| Updated | 2026-11-20 |\n\n## Task\n\n"
+	probeReadyTail = "\n\n## Acceptance Criteria\n\n| AC ID | Input | Expected |\n|---|---|---|\n" +
+		"| AC-1 | a probe | the probe answers |\n"
+	probeReadyApproved   = probeReadyHead + "Answer the probe as Thomas approved it." + probeReadyTail
+	probeReadyUnapproved = probeReadyHead + "Answer the probe in a way Thomas never saw." + probeReadyTail
+)
+
+// specReadyTree lays out the checkout writeSpecReady judges: the probe spec on
+// disk in Status design, so either proposed text moves it to ready, a git
+// history with no commit, since the approval lookup refuses a history it
+// cannot read (AC-26), and Thomas's approval of probeReadyApproved written in
+// the spelling designtest holds to its reader. The value does not change the
+// tree: the proposed text alone decides the verdict.
+func specReadyTree(string) (string, error) {
+	design := strings.Replace(probeReadyApproved, probeReadyStatus, "| Status | design |", 1)
+	root, err := probeTree("spec-ready", map[string]string{probeReadySpec: design})
+	if err != nil {
+		return root, err
+	}
+	if err := initProbeRepository(root); err != nil {
+		return root, err
+	}
+	if err := designtest.SeedApproval(root, probeReadySpec, probeReadyApproved, "2026-11-20", "approved for the probe"); err != nil {
+		return root, err
 	}
 	return root, nil
 }
@@ -1750,9 +1847,12 @@ func stateFilesUnder(root string) ([]string, error) {
 }
 
 // designRefTree writes the Go file under test where the consistency walk finds
-// it. checkDesignRefs judges a file only under internal/, pkg/ or cmd/.
+// it. checkDesignRefs judges a file only under internal/, pkg/ or cmd/. The
+// tree also holds the page the allowed header names, because checkDesignRefs
+// refuses a header naming a `.md` page that does not exist: without it the
+// valid header would be refused as dangling.
 func designRefTree(value string) (string, error) {
-	return probeTree("design-ref", map[string]string{probeGoPath: value})
+	return probeTree("design-ref", map[string]string{probeGoPath: value, probeDesignPage: "# Probe\n"})
 }
 
 // saidTheValue reports whether the hook's own text carries the value. It is the
@@ -1820,10 +1920,24 @@ var categoryProbes = map[string]categoryProbe{
 	categoryRenderedRule:    {check: "writeRenderedRule", tool: toolWriteName, slot: slotPath},
 	categoryRFCLanguage:     {check: "writePointLanguage", tool: toolWriteName, file: "ai/rules/points/probe/probe/probe.md", slot: slotContent, wrap: "---\nkind: directive\nstage:\n---\n%s\n"},
 	categoryCISleepMarker:   {check: "writeCISleep", tool: toolWriteName, file: "./test/probe/probe.ci", slot: slotContent},
-	categoryGovernedDocEdit: {check: "bashGovernedWrite", tool: "Bash", slot: slotCommand},
-	categoryRawJobAdmission: {check: "bashRawHeavy", tool: "Bash", slot: slotCommand},
+	categoryGovernedDocEdit: {check: "bashGovernedWrite", tool: toolBashName, slot: slotCommand},
+	categoryRawJobAdmission: {check: "bashRawHeavy", tool: toolBashName, slot: slotCommand},
+	// The Bash half of the owner-record guard: a reader line naming the
+	// records passes, a redirection into them is refused. writeOwnerRecord,
+	// its Write and Edit half, is judged by TestOwnerRecordWriteRefused in
+	// hookruntime.
+	categoryOwnerRecord:     {check: "bashOwnerRecord", tool: toolBashName, slot: slotCommand},
 	categoryYangDescription: {check: "writeYangDescription", tool: toolWriteName, file: "internal/plugins/probe/yang/probe.yang", slot: slotContent},
 	categoryDesignGate:      {check: "writeDesignEvidence", tool: toolWriteName, file: "plan/post-release/engineering/" + probeSpecName, slot: slotContent, session: probeSession, tree: designGateTree},
+	// The value says whether the context read the page's Design decisions
+	// section; the Write proposes no text, so the header on disk is the link.
+	categoryDesignDecisionsRead: {check: "writeDesignDoorsRead", tool: toolWriteName, file: probeDecisionsCode, slot: slotOffPayload, session: probeSession, tree: designDecisionsTree},
+	// The main session's Write that makes a design spec ready: admitted for
+	// the text Thomas approved, refused for one he did not. The subagent
+	// refusal and the already-ready survivor are judged by
+	// TestSpecReadyRefusedFromSubagent and TestSpecReadyNeedsTheApproval in
+	// hookruntime, since a probe payload carries no agent id.
+	categorySpecReady: {check: "writeSpecReady", tool: toolWriteName, file: probeReadySpec, slot: slotContent, tree: specReadyTree},
 	// commit-gate's deferral refusal in ./le commit create is RETIRED, never
 	// rebuilt: a hook checks what a command, path or file is, never how a
 	// message is worded (ai/META-DECISIONS.md). The live consumer of deferral
@@ -1841,7 +1955,7 @@ var categoryProbes = map[string]categoryProbe{
 	categoryDraftIncubator:       {check: weakeningCheckName, tool: toolWriteName, slot: slotPath, tree: draftIncubatorTree},
 	categoryValidateSpec:         {lifecycle: "validate-spec", tool: toolWriteName, file: "plan/post-release/engineering/" + probeSpecName, slot: slotOffPayload, tree: validateSpecTree},
 	categorySessionID:            {lifecycle: "session-id", slot: slotSessionID},
-	categoryMarkSourceRead:       {lifecycle: "mark-source-read", tool: "Read", slot: slotPath, session: probeSession, tree: sourceReadTree, answer: wroteASourceMarker},
+	categoryMarkSourceRead:       {lifecycle: "mark-source-read", tool: toolReadName, slot: slotPath, session: probeSession, tree: sourceReadTree, answer: wroteASourceMarker},
 	categoryDelegation:           {lifecycle: "block-premature-stop", slot: slotOffPayload, session: probeSession, tree: claimedSpecTree},
 	categorySubagentContext:      {lifecycle: "subagent-context", slot: slotOffPayload, session: probeSession, tree: claimedSpecTree, answer: namedTheClaimedSpec},
 	categorySessionStateLocation: {lifecycle: "pre-compact-save", slot: slotOffPayload, tree: blankProbeTree, answer: saidTheValue},
@@ -1928,7 +2042,7 @@ func consistencyVerdict(finding, root string) (int, string, error) {
 func probePayload(probe categoryProbe, value string) hookruntime.Payload {
 	input := map[string]any{}
 	if probe.file != "" {
-		input["file_path"] = probe.file
+		input[toolInputFilePath] = probe.file
 	}
 	payload := hookruntime.Payload{ToolName: probe.tool, ToolInput: input}
 	if probe.session != "" {
@@ -1941,7 +2055,7 @@ func probePayload(probe categoryProbe, value string) hookruntime.Payload {
 	case slotContent:
 		input["content"] = value
 	case slotPath:
-		input["file_path"] = value
+		input[toolInputFilePath] = value
 		input["content"] = "probe"
 	case slotCommand:
 		input["command"] = value
@@ -1999,6 +2113,11 @@ const (
 	categoryScriptWeakeningArms  = "script-weakening-arms"
 	categoryCISleepMarker        = "ci-sleep-marker"
 	categoryYangDescription      = "yang-description"
+	categoryDesignDecisionsRead  = "design-decisions-read"
+	categoryOwnerRecord          = "owner-record"
+	categorySpecReady            = "spec-ready"
+	hookSpecReadyFile            = "internal/le/hookruntime/specready.go"
+	hookOwnerRecordFile          = "internal/le/hookruntime/ownerrecord.go"
 	categorySessionStateLocation = "session-state-location"
 	categorySessionState         = "session-state"
 	categoryMarkSourceRead       = "mark-source-read"
@@ -2028,6 +2147,9 @@ const (
 	hookBashFile            = "internal/le/hookruntime/bash.go"
 	hookPostWriteFile       = "internal/le/hookruntime/postwrite.go"
 	toolWriteName           = "Write"
+	toolReadName            = "Read"
+	toolBashName            = "Bash"
+	toolInputFilePath       = "file_path"
 	weakeningCheckName      = "writeWeakening"
 	weakenedProposedFixture = "test-weakened proposed"
 )

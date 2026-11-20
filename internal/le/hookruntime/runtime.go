@@ -31,6 +31,10 @@ const toolWrite = "Write"
 // toolBash is the harness tool name of a shell call.
 const toolBash = "Bash"
 
+// toolRead is the harness tool name of a file read, the call the read-recording
+// hooks follow.
+const toolRead = "Read"
+
 // specUnassigned is what a session marker holds when the session claims no spec.
 const specUnassigned = "unassigned"
 
@@ -137,7 +141,7 @@ var nativeHookActions = map[string]hookAction{
 		},
 	},
 	"pretool-writeedit": {
-		tools: []string{toolWrite, "Edit", "MultiEdit", "NotebookEdit"},
+		tools: []string{toolWrite, toolEdit, toolMultiEdit, "NotebookEdit"},
 		checks: []hookCheck{
 			writeLineCitation, writeGenerated, writeRenderedRule, writePointOverwrite,
 			writePointLanguage, writeDesignEvidence, writeSpecStatus, writeStyleGuideRead, writeDesignDoorsRead, writeSpecDoorsRead, writeSpecMechanisms, writeSpecWIP,

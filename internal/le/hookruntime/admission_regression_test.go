@@ -13,6 +13,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/le/spec"
+	"github.com/ze-software/ze/internal/le/spec/design/designtest"
 )
 
 // TestPanicJudgmentReconstructsActualEditTools sends tool payloads to the
@@ -179,6 +180,11 @@ func TestDirectSpecAdmissionCannotRaceNativeClaim(t *testing.T) {
 	const dir = "plan/post-release/engineering/"
 	for _, name := range []string{"spec-direct-a.md", "spec-direct-b.md", "spec-native.md"} {
 		writeHookFixture(t, root, dir+name, ready)
+	}
+	// The native spec's design carries Thomas's approval, so the claim gate
+	// (specdesign.Admit) admits it and the WIP cap alone decides the race.
+	if err := designtest.SeedApproval(root, dir+"spec-native.md", ready, "2026-11-04", "go ahead"); err != nil {
+		t.Fatal(err)
 	}
 	var permitted []string
 	for index, tool := range []string{toolWrite, toolEdit, toolMultiEdit} {

@@ -87,6 +87,34 @@ leave the placeholder row.
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
 | [mechanism] | [file + symbol, or page + section] | [what it does today] | [extends / replaces / does not apply: why] |
 
+## Design documents
+
+One row per design page the spec's files link and per decision those pages
+carry, each with a verdict. DERIVED, do not fill from memory:
+`./le spec design documents spec plan/<work-folder>/spec-<name>.md` lists the
+system door, every `// Design:` page of the source files in Files to Modify
+and Files to Create, the architecture pages the doc index anchors to them,
+the doors covering them, the design pages this spec modifies, and every row
+of their `## Design decisions` sections. A row may be added beyond the
+derivation (an owner rule, a rule file); none of the derived rows may be left
+out.
+
+- Section: the heading of the page's section the verdict stands against, as
+  the page writes it; `Design decisions` for a decision row.
+- Binding statement: for `agrees` and `departs`, a verbatim span of that
+  section, in double quotes; a decision row quotes its Decision cell.
+- Verdict: `agrees`, `departs` or `silent`. A page this spec modifies and a
+  decision row are never `silent`.
+- How this design stands against it: why the verdict holds; required for
+  `silent`.
+
+`./le spec design check spec <path>` judges the table against the
+derivation. A `departs` row reaches implementation only with Thomas's approval.
+
+| Document | Section | Derived from | Binding statement | Verdict | How this design stands against it |
+|----------|---------|--------------|-------------------|---------|-----------------------------------|
+| [page] | [section heading] | [what derived it] | "[verbatim span]" | [agrees / departs / silent] | [why] |
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
@@ -279,6 +307,45 @@ repository, such as a peer or a third-party plugin, is still a row.
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | | `docs/plugin-overview.md`, `docs/features/plugins.md`, `docs/guide/status.md` |
 | 16 | Any changed source file referenced by existing doc source anchors? | | DERIVED, do not answer from memory: `./le spec citation anchors spec plan/<work-folder>/spec-<name>.md` lists them. A doc DECLARED by a changed file's `// Design:` header BLOCKS until named here; a doc that only `<!-- source: -->` mentions it is advisory. Naming it as unaffected, with the reason, satisfies the check |
 | 17 | Existing docs show config/CLI/API examples for this area? | | Verify examples against YANG/parser/handler and update stale syntax |
+
+## Design presentation
+
+What the main session presents to Thomas, whole, before the spec moves to
+`ready`. `./le spec design check spec <path>` owes every subsection below with
+content, and `### Documents departed from` naming the page of every `departs`
+row (or `none` when no row departs). Thomas approves the design from his own
+terminal, after the `ze-design-judge` agent recorded its verdict, with
+`./le spec design approve spec <path> words "<what he said>"`. Only then does
+the main session set Status `ready`: `ready` means he approved this design,
+or, while he is recorded away, that it is a judged fix spec with no `departs`
+row (`docs/contributing/spec-workflow.md`, "Design approval"). The design
+digest he approves covers `## Task`, `## Acceptance Criteria`,
+`## Design documents` and this section without `### Choices for Thomas`, so
+recording his answers there does not send the spec back to him.
+
+### What changes
+
+[The design in a paragraph: what the user sees afterwards]
+
+### Before and after
+
+[One numbered example per change a user sees: the message, the command, the output, before and after]
+
+### Alternatives set aside
+
+| Alternative | Why set aside |
+|-------------|---------------|
+| [alternative] | [why] |
+
+### Documents departed from
+
+[For each `departs` row: the page, the section, the statement, and what the page says after this work. `none` when no row departs]
+
+### Choices for Thomas
+
+| # | Choice | Options | Decision |
+|---|--------|---------|----------|
+| C-1 | [choice] | (a) [recommended]; (b) [other] | [his answer, once given] |
 
 ## Implementation Steps
 

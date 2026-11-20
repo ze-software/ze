@@ -17,6 +17,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/env"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
+	specdesign "github.com/ze-software/ze/internal/le/spec/design"
 	specpath "github.com/ze-software/ze/internal/le/spec/path"
 	specstatus "github.com/ze-software/ze/internal/le/spec/status"
 )
@@ -100,7 +101,10 @@ func ClaimedSpec(root string) (string, error) {
 }
 
 // Claim atomically publishes this session's marker. A ready spec transitions to
-// in-progress under the repository claim lock, after the WIP cap is checked.
+// in-progress under the repository claim lock, after its design admission
+// (specdesign.Admit) and then the WIP cap are checked; a skeleton, design,
+// in-progress, verification or blocked spec starts no implementation, so its
+// claim writes the marker alone.
 func (o specOwner) Claim(spec string) (ClaimReport, error) {
 	if err := o.validate(); err != nil {
 		return ClaimReport{}, err
@@ -128,6 +132,21 @@ func (o specOwner) Claim(spec string) (ClaimReport, error) {
 		status := strings.ToLower(specMetadataField(rows, "Status"))
 		report = ClaimReport{Spec: spec, Status: status, Cap: o.cap()}
 		if status == statusReady {
+			// A ready spec starts implementation only with Thomas's approval
+			// of its design as it stands, or, while he is away, the admission
+			// of a judged fix spec. It is judged before the cap, so an
+			// unapproved design is refused whatever room the cap has, and a
+			// refusal writes no marker (AC-22 to AC-29).
+			admission, err := specdesign.Admit(o.Root, relative, string(body), o.now())
+			if err != nil {
+				return fmt.Errorf("claim %s: %w", spec, err)
+			}
+			if !admission.Admitted {
+				report.ApprovalRefusal = append([]string{"refusing to start " + spec + ": " + admission.Reason()},
+					admission.Refusal(relative)...)
+				return nil
+			}
+			report.Approved = admission.Report()
 			wip, err := wip(o.Root, o.cap())
 			if err != nil {
 				return err

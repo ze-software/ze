@@ -8,13 +8,13 @@ package hookruntime
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 
+	"github.com/ze-software/ze/internal/le/doc/doorindex"
+	"github.com/ze-software/ze/internal/le/doc/readrecord"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
@@ -22,19 +22,14 @@ import (
 // edit, relative to the checkout root.
 const styleGuidePath = "docs/contributing/ze-go-style.md"
 
-// doorsDir holds the subsystem doors, relative to the checkout root.
-const doorsDir = "ai/doors"
+// doorsDir holds the subsystem doors, relative to the checkout root. The
+// door-base rule that names which doors cover a file is doorindex's, which
+// `le spec design` reads too.
+const doorsDir = doorindex.Dir
 
 // systemDoorPath is the door every code edit needs, whatever the file:
 // ai/doors/README.md says to read it first, always.
-const systemDoorPath = doorsDir + "/system.md"
-
-// doorBaseOpener and doorBaseCloser frame the header line naming the paths a
-// door covers: `<!-- door-base: internal/component/bgp internal/core/bgp -->`.
-const (
-	doorBaseOpener = "<!-- door-base:"
-	doorBaseCloser = "-->"
-)
+const systemDoorPath = doorindex.SystemDoor
 
 // gatedDocument answers the checkout-relative path of the document that path
 // names, when an edit gate asks for that document's read: the Go style guide,
@@ -190,11 +185,6 @@ func readDocument(ctx context, path string) (documentCheckout, string, bool) {
 	return checkout, document, true
 }
 
-// documentMarkerName escapes a document path into one file-name component.
-// The escape is reversible, so two documents never share a marker, and it
-// escapes `+`, the separator lepath.MarkerOwnedBy splits an agent id on.
-var documentMarkerName = strings.NewReplacer("%", "%25", "/", "%2F", "+", "%2B")
-
 // markerKey is how a marker name carries relative, a checkout-relative path:
 // unchanged in the session's root, and under the SHA-256 of the checkout's
 // label in another, so a checkout's path of any depth keeps the marker name
@@ -208,9 +198,10 @@ func (checkout documentCheckout) markerKey(relative string) string {
 }
 
 // documentReadMarker names the file recording this context's whole read of
-// checkout's copy of one gated document. The name carries the copy as
-// checkout.markerKey spells it, so a read of one checkout's copy is no record
-// for another's. A subagent's hook payload carries its PARENT's session_id and its
+// checkout's copy of one gated document, in the format readrecord declares
+// (WholeReadMarker), which `le spec design judge` reads too. The name carries
+// the copy as checkout.markerKey spells it, so a read of one checkout's copy
+// is no record for another's. A subagent's hook payload carries its PARENT's session_id and its
 // own agent_id, so a subagent gets markers of its own: a read in the parent's
 // context put nothing into the subagent's. The name ends in the fingerprint
 // the way every per-agent file does (lepath.AgentFingerprint,
@@ -227,7 +218,7 @@ func documentReadMarker(ctx context, checkout documentCheckout, document string)
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(ctx.root, "tmp", "session", ".doc-read-"+documentMarkerName.Replace(checkout.markerKey(document))+"-"+fingerprint)
+	return readrecord.WholeReadMarker(readrecord.SessionDir(ctx.root), checkout.markerKey(document), fingerprint)
 }
 
 // recorded reports whether a marker exists. MUST be called with a marker
@@ -246,82 +237,6 @@ func codeFile(path string) bool {
 		}
 	}
 	return false
-}
-
-// door is one page under ai/doors and the checkout paths its header covers.
-type door struct {
-	page  string
-	bases []string
-}
-
-// doorIndexPage is the one page under ai/doors that is an index rather than a
-// door, so it carries no door-base header.
-const doorIndexPage = doorsDir + "/README.md"
-
-// errDoorsMissing is an ai/doors directory the checkout does not hold.
-var errDoorsMissing = errors.New("the doors directory cannot be read")
-
-// doorHeaderError is a page under ai/doors whose door-base header is absent or
-// cannot be read as a path list.
-type doorHeaderError struct {
-	page   string
-	reason string
-}
-
-func (e *doorHeaderError) Error() string { return e.page + ": " + e.reason }
-
-// loadDoors parses the door-base header of every page under ai/doors except
-// the README index. A page with no header, or a malformed one, is an error
-// naming the page, never a door that covers nothing: a door that lost its
-// header would otherwise release every file it covers in silence.
-func loadDoors(root string) ([]door, error) {
-	entries, err := os.ReadDir(filepath.Join(root, filepath.FromSlash(doorsDir)))
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", errDoorsMissing, err)
-	}
-	var doors []door
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
-			continue
-		}
-		page := doorsDir + "/" + entry.Name()
-		if page == doorIndexPage {
-			continue
-		}
-		body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(page))) //nolint:gosec // a page directly under the checkout's ai/doors
-		if err != nil {
-			return nil, &doorHeaderError{page: page, reason: err.Error()}
-		}
-		bases, reason := doorBases(string(body))
-		if reason != "" {
-			return nil, &doorHeaderError{page: page, reason: reason}
-		}
-		doors = append(doors, door{page: page, bases: bases})
-	}
-	return doors, nil
-}
-
-// doorBases reads the first door-base header line of a page. It answers why
-// the page has no usable header, or "" with the paths the header names.
-func doorBases(body string) (bases []string, reason string) {
-	for line := range strings.Lines(body) {
-		rest, opened := strings.CutPrefix(strings.TrimSpace(line), doorBaseOpener)
-		if !opened {
-			continue
-		}
-		rest, closed := strings.CutSuffix(rest, doorBaseCloser)
-		if !closed {
-			return nil, "its door-base header does not close with -->"
-		}
-		for base := range strings.FieldsSeq(rest) {
-			bases = append(bases, strings.TrimSuffix(base, "/"))
-		}
-		if len(bases) == 0 {
-			return nil, "its door-base header names no path"
-		}
-		return bases, ""
-	}
-	return nil, "it carries no line starting " + doorBaseOpener
 }
 
 // checkoutPath answers file's path relative to the checkout root, and whether
@@ -426,40 +341,4 @@ func resolveEvidencePath(path string) (string, error) {
 		rest = filepath.Join(filepath.Base(path), rest)
 		path = parent
 	}
-}
-
-// coveringDoors answers the doors covering file: those whose base is the
-// longest prefix of file on whole path components. Every door tied at that
-// length covers it, because each describes a contract the file sits under.
-// A file no base reaches answers nothing.
-func coveringDoors(doors []door, file string) []string {
-	longest := -1
-	var covering []string
-	for _, candidate := range doors {
-		for _, base := range candidate.bases {
-			if !underBase(file, base) {
-				continue
-			}
-			if len(base) < longest {
-				continue
-			}
-			if len(base) > longest {
-				longest = len(base)
-				covering = covering[:0]
-			}
-			if !slices.Contains(covering, candidate.page) {
-				covering = append(covering, candidate.page)
-			}
-		}
-	}
-	return covering
-}
-
-// underBase reports whether file is base itself or sits below it, so
-// internal/component/bgpx is not under internal/component/bgp.
-func underBase(file, base string) bool {
-	if file == base {
-		return true
-	}
-	return strings.HasPrefix(file, base+"/")
 }

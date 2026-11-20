@@ -79,7 +79,7 @@ func inCheckout(ctx context, checkout documentCheckout) context {
 // The record names the checkout the source lies in (gatedCheckout), so it
 // counts for that checkout's designs alone.
 func recordSourceRead(ctx context) int {
-	if ctx.tool != "Read" || ctx.payload.ToolUseID == "" {
+	if ctx.tool != toolRead || ctx.payload.ToolUseID == "" {
 		return 0
 	}
 	checkout, _, inside := gatedCheckout(ctx, absolutePath(ctx))
@@ -373,7 +373,7 @@ func currentSourceReads(ctx context, checkout documentCheckout, repository *os.R
 			continue
 		}
 		var record sourceRead
-		if err := json.Unmarshal(body, &record); err != nil || record.Tool != "Read" || record.ToolUseID == "" || !record.validRange() {
+		if err := json.Unmarshal(body, &record); err != nil || record.Tool != toolRead || record.ToolUseID == "" || !record.validRange() {
 			continue
 		}
 		if marker != sourceReadMarker(ctx, checkout, record.Path) {

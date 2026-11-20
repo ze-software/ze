@@ -14,6 +14,7 @@ package specdesign
 import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
+	docconsistency "github.com/ze-software/ze/internal/le/doc/consistency"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
@@ -31,4 +32,8 @@ func init() {
 
 	// Every answer is one document: a derivation, a verdict or a record.
 	leroot.RegisterShape(area, command.ShapeDoc)
+
+	// The decision-row check of ./le commit create asks this package whether
+	// Thomas approved a departure: the approval records are this package's.
+	docconsistency.RegisterDepartureLookup(DepartureApproved)
 }

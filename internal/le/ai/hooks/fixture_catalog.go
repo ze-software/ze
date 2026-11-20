@@ -433,6 +433,19 @@ var fixtureSites = [...]fixtureSite{
 	// producer. One site per bound writeYangDescription refuses, named for the
 	// bound each one crosses (writeedit.go judgeYangSummary).
 	{category: categoryYangDescription, generator: fixtureNameGenerator{prefix: "yang-description-", suffix: "", labels: []string{"over-char-cap", "over-word-cap", "description-restates-short-help", "no-full-stop", "carries-a-semicolon", "within-bounds-pass", "module-description-ignored", "revision-description-ignored", "unparseable-not-judged"}}, expectedExit: -1},
+	// The Design decisions read that writeDesignDoorsRead and writeSpecDoorsRead
+	// owe through unreadDoors (sectionread.go), one site per case
+	// sectionread_test.go and specdoors_test.go judge in hookruntime
+	// (plan/release/validation/spec-design-needs-owner-approval.md, AC-1 to AC-7).
+	{category: categoryDesignDecisionsRead, generator: fixtureNameGenerator{prefix: "design-decisions-read-", suffix: "", labels: []string{"unread-section-refused", "whole-page-read-passes", "page-without-section-silent", "every-header-line-owed", "row-added-owes-again", "cut-range-records-nothing", "stray-copy-records-nothing", "each-subagent-reads-its-own", "dangling-header-refused", "spec-owes-named-page"}}, expectedExit: -1},
+	// The owner-record guard, writeOwnerRecord and bashOwnerRecord
+	// (ownerrecord.go), one site per case TestOwnerRecordWriteRefused judges
+	// in hookruntime (AC-34 of the design approval spec).
+	{category: categoryOwnerRecord, generator: fixtureNameGenerator{prefix: "owner-record-", suffix: "", labels: []string{"write-refused", "edit-refused", "shell-write-refused", "reader-passes", "commit-create-passes"}}, expectedExit: -1},
+	// The ready-edit gate, writeSpecReady (specready.go), one site per case
+	// TestSpecReadyRefusedFromSubagent and TestSpecReadyNeedsTheApproval judge
+	// in hookruntime (AC-20, AC-21 of the design approval spec).
+	{category: categorySpecReady, generator: fixtureNameGenerator{prefix: "spec-ready-", suffix: "", labels: []string{"subagent-move-refused", "unapproved-move-refused", "approved-move-passes", "already-ready-edit-passes"}}, expectedExit: -1},
 }
 
 var fixtureCatalog = expandFixtureSites(fixtureSites[:])

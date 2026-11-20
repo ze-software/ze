@@ -199,6 +199,25 @@ checks, one per page, before `No-news:` and `Spec-work:`. The push derivation
 owes nothing for it (`OwesNothing`), and a hand-written one is refused like any
 declared key.
 
+`Design-approved: <spec stem> <design digest>: <date> <his words>` carries
+Thomas's approval of a spec's design into history, so a worktree and the other
+machine see it where the local record under `tmp/spec-design/approved/` does
+not reach. `Create` writes one, with no keyword, for each spec the commit
+carries whose text, as the commit carries it, the local approval record's
+digest matches, and no commit reachable from HEAD already carries that stem
+and digest (`designApprovedTrailers`, `specdesign.OwedApprovalTrailer`). While
+Thomas is away and the away rule admits the text (a judged fix spec with no
+departs row), the line reads `Design-approved: <spec stem> <digest>: away
+<from>..<until>` instead. A removed spec carries no text, so a closure writes
+none. The line closes the message after `Decision-changed:` and before
+`No-news:`; the push derivation owes nothing for it (`OwesNothing`), and a
+hand-written one is refused like any declared key. `./le spec claim` and the
+ready-edit hook read it back through the same lookup
+(`docs/contributing/spec-workflow.md`).
+<!-- source: internal/le/commit/designapproval.go -- designApprovedTrailers -->
+<!-- source: internal/le/spec/design/admission.go -- OwedApprovalTrailer -->
+<!-- source: internal/le/spec/design/approval.go -- FormatApprovalTrailer, DesignApprovedTrailer -->
+
 Two trailers record a fact rather than an admission. A spec closure given
 `no-news "<reason>"` carries `No-news: <reason>`, which `Create` writes from
 `newsFragmentRefusal`'s answer directly before `Spec-work:`. The push
@@ -227,7 +246,8 @@ An admission no gate used records nothing. A reason spanning lines is refused,
 because a trailer is one line. `Message` refuses a subject or a body line that
 starts with any declared trailer key (`declaredTrailers` in
 `internal/le/commit/actions.go`, which also lists `Owner-attested:`,
-`Ledger-carried:`, `No-news:`, `Spec-work:` and `Decision-changed:`), naming the line and the one route that writes it: a
+`Ledger-carried:`, `No-news:`, `Spec-work:`, `Decision-changed:` and
+`Design-approved:`), naming the line and the one route that writes it: a
 trailer is a record the derivation reads back, never the author's prose.
 
 Linux-limit approval needs no admission keyword. `create` compares the selected
@@ -471,6 +491,31 @@ pass. Five checks register today:
 <!-- source: internal/le/doc/consistency/decisionschange.go -- judgeDecisionRows, approvedDeparture -->
 <!-- source: internal/le/commit/changechecks.go -- changeCheckRefusal -->
 <!-- source: internal/le/commit/changecheck/changecheck.go -- Register, Run -->
+
+`departureRefusal` (`internal/le/commit/designapproval.go`) runs right after
+the review gate, so a closure still learns first that it owes its review. It
+judges a spec closure (the commit that removes the spec, as `closedSpecStem`
+decides) whose `## Design documents` table, as the spec stood at the parent,
+carries `departs` rows, and refuses each row in one of two ways:
+
+- A row no approval of this design text lists: the refusal names the page
+  departed from and the `./le spec design approve` line Thomas runs from his
+  own terminal once the departure was presented to him. The approval is the
+  one `specdesign.Approved` finds, his local record or a reachable
+  `Design-approved:` line, so an approval of an earlier text of the design
+  lists nothing.
+- A row whose page the spec's change set does not modify: once Thomas agrees
+  to a departure, the page it departs from is corrected in the same work. The
+  change set is the one the closure review covers (`closureChangeSet`): every
+  commit carrying `Spec-work: <stem>`, the earlier blocks of the script the
+  closure appends to, and the closure itself. The refusal names the page and
+  its section, and says to commit the correction under the spec before
+  preparing the closure again.
+
+A closure of a spec with no `departs` row, and a commit that closes no spec,
+owe nothing here. A spec, a record or a history the check cannot read answers
+exit 3, never a pass.
+<!-- source: internal/le/commit/designapproval.go -- departureRefusal, closedSpecPath, closureChangeSet -->
 
 `newsFragmentRefusal` (`internal/le/commit/newsfragment.go`) runs right after
 the Existing Mechanisms gate, in the Ze checkout only. A spec closure (the

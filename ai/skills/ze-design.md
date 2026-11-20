@@ -42,6 +42,11 @@ before putting it in front of the user (`ai/rules/evidence.md`).
 1. Read `.claude/rules/` systematically for constraints relevant to the topic
 2. Read the plan/design being discussed
 3. Read the pages that already cover the topic, BEFORE any exploration or agent (`ai/rules/documentation.md`). `ai/INDEX.md` names the page. `ai/DOCS-TO-CODE.md` names the files behind it. `ai/CODE-TO-DOCS.md` names a file's pages. A design that contradicts a page it never read is a design nobody can review.
+   Read the `## Design decisions` section of every page the touched files'
+   `// Design:` headers name: each row is a decision Thomas made, and a
+   recommendation that does what a row forbids departs from it. Name the row
+   and present the departure as its own decision, with before and after
+   examples, never as a detail of another one.
 4. Explore relevant codebase context through the lens of those rules
 5. Before a design verdict, apply `ai/skills/ze-spec.md`, "Design admission
    judgment": compare positive outcomes, explicit permitted-survivor reasons and
@@ -64,6 +69,12 @@ For each open decision:
 3. Recommend an answer grounded in existing code and rules, with citation
 4. Surface trade-offs and codebase constraints
 5. Wait for input before moving on
+
+A design decision Thomas makes here is written, in the same turn, as a row of
+the `## Design decisions` section of the page that documents its subject
+(`docs/architecture/README.md`, "Page format"), with the record of his words
+as its Source. The decision log below is the session's working copy, never
+the decision's home.
 
 After each decision resolves, update the running decision log:
 

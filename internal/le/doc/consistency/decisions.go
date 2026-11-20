@@ -309,7 +309,7 @@ func metaSectionProblem(root, quoted string) string {
 	if err != nil {
 		return `names no section; fix: write ` + metaDecisions + ` "<the heading of the section that holds the rule>"`
 	}
-	text, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(metaDecisions)))
+	text, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(metaDecisions))) //nolint:gosec // a constant tracked file under the checkout root
 	if err != nil {
 		return "cannot be checked, because " + metaDecisions + " cannot be read (" + err.Error() + ")"
 	}
@@ -361,14 +361,14 @@ type designLink struct {
 // line and start its description.
 var headerSeparators = []string{"--", "—", "-"}
 
-// designTargets answers the `.md` pages one `// Design:` line names: every
+// DesignTargets answers the `.md` pages one `// Design:` line names: every
 // word before the separator (` -- ` or a dash) that ends in `.md` once the
 // punctuation around it is trimmed. A line naming `(none ...)` or a `.go`
 // file names no page.
-func designTargets(text string) []string {
+func DesignTargets(text string) []string {
 	rest, _ := strings.CutPrefix(text, "// Design:")
 	var pages []string
-	for _, word := range strings.Fields(rest) {
+	for word := range strings.FieldsSeq(rest) {
 		if slices.Contains(headerSeparators, word) {
 			break
 		}
