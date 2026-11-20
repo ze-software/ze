@@ -5,17 +5,17 @@
     "internal/le/interoplab/l2tp/ppp_framing.go::armedPPPFrames": "60132ad705f47c61",
     "internal/le/interoplab/l2tp/ppp_framing.go::readPPPFramingLog": "4e9fcdd82a3df485"
   },
-  "note": "The paired probes deliberately share one rejected Identifier, isolating the forbidden copy. TestRFC1661LCPCodeRejectIdentifierChanges drives two LCP Code 99 packets in Opened and requires exactly two Code-Rejects with different Identifiers. TestRFC1661NCPCodeRejectIdentifierChanges does the same for IPCP and IPv6CP Code 12 in Req-Sent. checkPPPCodeReject assertion 3 requires exactly two distinct Identifiers per LCP/IPCP protocol on the live wire, and its normal native guest baseline passed. The single-polarity annotation remains justified: sendCodeReject advances the LCP counter and nextNCPCodeRejectID advances the family counter before each sent Code-Reject; no input asks the sender to retain its previous Identifier. These common producer paths and isolating probes enforce the sent-Identifier requirement. AC-3 keeps the armed trigger and later control population, original four probes and response counts. Main native paired renewal passed the clean current checker and observed sendNCPCodeReject using the rejected req.Identifier fail assertion 3 with both Code-Reject Identifiers equal to 66; native rfc record wrote its renewal.",
+  "note": "Rejudged after checkPPPCodeReject gained assertions 9 and 10, which run after assertion 3 and leave it unchanged. Re-read Section 5.6. Assertion 3 still requires exactly two distinct Code-Reject Identifiers per protocol, LCP and IPCP, on the live wire. The probes deliberately share one rejected Identifier, 0x42, which isolates a forbidden copy. TestRFC1661LCPCodeRejectIdentifierChanges and TestRFC1661NCPCodeRejectIdentifierChanges are unchanged. The single-polarity annotation is still true of the producers as they stand. sendCodeReject increments lcpCodeRejectID before writeCodeReject. sendNCPCodeReject in ncp.go passes nextNCPCodeRejectID(family), which increments ipcpCodeRejectID or ipv6cpCodeRejectID, before every packet is written. No input asks ze to hold the Identifier still. The verdict holds.",
   "requirement_sha": "0939592602cb495b",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_code_reject_test.go::TestRFC1661LCPCodeRejectIdentifierChanges": "abd3fecb016ef0e7",
     "internal/component/l2tp/ppp/rfc1661_code_reject_test.go::TestRFC1661NCPCodeRejectIdentifierChanges": "abd3fecb016ef0e7",
-    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "48b0fe7c509d1900"
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "a0037eb000d133bc"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_code_reject_test.go::TestRFC1661LCPCodeRejectIdentifierChanges": "c53b5be2338a9d29",
     "internal/component/l2tp/ppp/rfc1661_code_reject_test.go::TestRFC1661NCPCodeRejectIdentifierChanges": "1e7943f69d5a6fe6",
-    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "eb1419b18e446fda"
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "7c61f9b6f42d0268"
   },
   "verdict": "enforced"
 }

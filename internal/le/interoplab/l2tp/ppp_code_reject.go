@@ -70,8 +70,10 @@ type pppFrame struct {
 // checkPPPCodeReject has the relay send Ze, as the LAC and on the live L2TP
 // session, two LCP packets with the unknown Code 99 and two IPCP packets with
 // Code 12, all four with Identifier 0x42 and 204 octets long, then reads Ze's
-// Code-Rejects off the wire. Last, the relay sends one IPCP Terminate-Request
-// and the checker reads Ze's Terminate-Ack.
+// Code-Rejects off the wire. Last, the relay sends one IPCP Terminate-Request:
+// the checker sees Ze's IPv4 address leave its pppN, reads Ze's Terminate-Ack,
+// then sees pppd renegotiate IPCP, Ze reinstall the address on the same pppN,
+// and traffic cross the session again.
 //
 // The IPCP packets reach Ze on its PPP unit descriptor, not the channel: once
 // IPCP is Opened ze connects the channel to the unit, and Linux then queues
@@ -279,13 +281,21 @@ func checkPPPCodeReject(ctx context.Context, lab labOperations, _ time.Duration)
 	// Assertion 6. RFC 1661 Section 5.5: "Upon reception of a
 	// Terminate-Request, a Terminate-Ack MUST be transmitted." The relay sends
 	// one IPCP Terminate-Request on the first LAC datagram after the marker,
-	// and the ping supplies that datagram. It ends IPCP, so this comes last,
-	// and the ping is only the trigger: whether its replies return once IPCP
-	// has gone is no part of the assertion.
-	if _, err := lab.Exec(ctx, peerAVPRelay, []string{commandTouch, "/run/ipcp-terminate"}, nil); err != nil {
+	// and one detached echo supplies that datagram: it is only the trigger, so
+	// whether its reply returns while IPCP is down is no part of any
+	// assertion. It takes IPCP out of Opened, so it comes after every
+	// assertion that needs IPCP Opened.
+	if err := triggerIPCPTerminate(ctx, lab); err != nil {
 		return fail(6, err)
 	}
-	_ = pingThroughSession(ctx, lab) //nolint:errcheck // the trigger only, see above
+	// Assertion 9. Ze withdraws the IPv4 family on the Terminate-Request
+	// (RFC 1661 Section 4.1, Opened RTR: tld, zrc, sta): its IPv4 address
+	// leaves pppN while the interface stays. Ze then holds IPCP in Stopping
+	// for one Restart time, so the address is gone for only that window, and
+	// this polls it at once, before the wire wait below spends any of it.
+	if err := waitIPv4Withdrawn(ctx, lab, zeLink); err != nil {
+		return fail(9, err)
+	}
 	terminated, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout: 30 * time.Second, Interval: time.Second, Description: "an IPCP Terminate-Request and Ze's Terminate-Ack",
 	}, func(probeCtx context.Context) ([]pppFrame, error) {
@@ -309,17 +319,65 @@ func checkPPPCodeReject(ctx context.Context, lab labOperations, _ time.Duration)
 	if err := injectedTerminate(terminated); err != nil {
 		return fail(6, err)
 	}
+	// Assertion 10. pppd never asked to terminate, so Ze's Terminate-Ack
+	// reaches its Opened IPCP, and pppd 2.5.5 fsm_rtermack (pppd/fsm.c),
+	// case OPENED, runs the down callback, calls fsm_sconfreq and enters
+	// REQSENT: pppd renegotiates IPCP. Ze answers once its Stopping ends, IPCP
+	// opens again on both ends, Ze reinstalls the family on the same pppN
+	// (RFC 1661 Section 3.6: "Each NCP MAY be Opened and Closed at any
+	// time."), and traffic crosses the session again.
+	reopened, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+		Timeout: 30 * time.Second, Interval: time.Second, Description: "an IPCP Configure-Ack from each side after Ze's Terminate-Ack",
+	}, func(probeCtx context.Context) ([]pppFrame, error) {
+		logs, readErr := lab.Logs(probeCtx, peerAVPRelay, pppCaptureLines)
+		if readErr != nil {
+			return nil, readErr
+		}
+		frames, parseErr := armedPPPFrames(logs.Text)
+		if parseErr != nil {
+			if _, framing := errors.AsType[*pppFramingError](parseErr); framing {
+				return nil, fail(7, parseErr)
+			}
+		}
+		return frames, parseErr
+	}, func(frames []pppFrame) bool {
+		return ipcpReopened(frames) == nil
+	})
+	if err != nil {
+		return fail(10, err)
+	}
+	if err := ipcpReopened(reopened); err != nil {
+		return fail(10, err)
+	}
+	if err := waitIPv4Reinstalled(ctx, lab, zeLink); err != nil {
+		return fail(10, err)
+	}
+	for _, link := range []struct{ peer, before string }{{peerZe, zeLink}, {peerLAC, lacLink}} {
+		links, linkErr := pppLinks(ctx, lab, link.peer)
+		if linkErr != nil {
+			return fail(10, linkErr)
+		}
+		if len(links) != 1 {
+			return fail(10, errors.New(link.peer+" holds "+strconv.Itoa(len(links))+" PPP interfaces after the IPCP reopen, not one"))
+		}
+		if links[0] != link.before {
+			return fail(10, errors.New(link.peer+" replaced its PPP interface "+link.before+" with "+links[0]+" across the IPCP reopen"))
+		}
+	}
+	if err := pingThroughSession(ctx, lab); err != nil {
+		return fail(10, err)
+	}
 	// Retain the wire evidence in the native job log before Suite removes the
 	// relay container, including on a successful run.
 	final, err := lab.Logs(ctx, peerAVPRelay, pppCaptureLines)
 	if err != nil {
-		return fail(6, err)
+		return fail(10, err)
 	}
 	if err := requirePPPFullSessionFraming(final.Text); err != nil {
 		return fail(7, err)
 	}
 	_, err = os.Stdout.WriteString("L2TP-PPP-CODE-REJECT-WIRE four probes, two LCP and two IPCP Code-Rejects, " +
-		"session kept, IPCP Terminate-Ack\n" + final.Text + "\n")
+		"session kept, IPCP Terminate-Ack, IPv4 withdrawn, IPCP reopened and IPv4 reinstalled\n" + final.Text + "\n")
 	return err
 }
 

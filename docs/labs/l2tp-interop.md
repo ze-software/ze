@@ -46,6 +46,7 @@ internal/le/interoplab/l2tp/
   dns_resolver.go      The dns-resolver-l2tp-subscriber assertions
   mandatory_avp.go     The l2tp-unknown-mandatory-avp-xl2tpd assertions
   ppp_code_reject.go   The ppp-code-reject-xl2tpd assertions
+  ppp_ipcp_reopen.go   Its IPCP withdrawal and reopen after the Terminate-Request
   lns_policy.go        MRU and CHAP-only typed assertions and daemon queries
   scale_overlay.go    guarded allocator candidate substitution for scale only
   scale.go            ordered launch, full-population proof and exact teardown
@@ -423,7 +424,11 @@ the 128-octet MRU with a copy of the start of the probe it rejects, and the
 session stays up. The IPCP answers come from the PPP unit descriptor, where
 Linux queues IPCP once the channel is connected. Last, the relay sends one
 IPCP Terminate-Request and Ze must answer with a Terminate-Ack carrying its
-Identifier. The full
+Identifier. Ze's IPv4 address must leave its `pppN`, polled inside the one
+Restart time Ze holds IPCP in Stopping. pppd never asked to terminate, so
+it renegotiates IPCP on that Terminate-Ack (pppd 2.5.5 `fsm_rtermack`,
+`case OPENED:`): IPCP must open again on both ends, the address return to
+the same `pppN`, and a ping cross the session. The full
 account is in `docs/architecture/testing/interop.md`, "L2TP and PPPoE
 lifecycle fault scenarios".
 

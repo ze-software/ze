@@ -6,17 +6,17 @@
     "internal/le/interoplab/l2tp/ppp_framing.go::armedPPPFrames": "60132ad705f47c61",
     "internal/le/interoplab/l2tp/ppp_framing.go::readPPPFramingLog": "4e9fcdd82a3df485"
   },
-  "note": "The tagged positive TestRFC1661TerminateAckSentAndLinkHeld drives LCP Opened and requires a Terminate-Ack with the request Identifier 0x77; its tagged negative receives a Terminate-Ack in Opened and refuses a Terminate-Ack response. checkPPPCodeReject assertion 6 drives IPCP Opened and requires the exact fifth injected frame IPCP 05 5a 00 04 and a matching Ze Terminate-Ack, after assertion 5 excluded prior Code 1-6 traffic. RFC 1332 Section 2 inherits this LCP exchange. These are useful and isolating proofs, and the main native guest baseline passed the current checker. They do not prove the whole Section 5.5 obligation: LCPDoTransition has separate sta edges for Stopped, Closing, Stopping, Ack-Rcvd and Ack-Sent outside these tagged tests. Closed has the untagged TestLCPPeerTerminateRestartTimer proof and IPCP Req-Sent has TestIPCPUsedCodesAreNotCodeRejected, but they do not cover the listed edges. This pre-existing gap remains owned by spec-ppp-l2tp-aaa-one-off-defects in plan/journal/requirement-proven-in-one-state-of-many.md. Weak corrects the earlier whole-row enforced verdict without reducing any test. AC-3 preserves the armed trigger and all later controls through explicit phase metadata; the added Echo precedes the original IPCP termination probe. Main native paired renewal now passed the clean current checker and observed the STA action break in performNCPAction fail the cited assertion 6 for the missing IPCP Terminate-Ack; native rfc record wrote its renewal.",
+  "note": "Rejudged after checkPPPCodeReject gained assertions 9 and 10. Re-read Section 5.5. Assertion 6 is unchanged in substance. triggerIPCPTerminate touches the same /run/ipcp-terminate marker and sends one detached LAC echo as the trigger datagram, and injectedTerminate still requires the fifth injected frame to be exactly IPCP 05 5a 00 04. The wire wait still requires Ze's IPCP Terminate-Ack carrying that Identifier, after assertion 5 has excluded earlier Code 1-6 traffic. Assertion 9, between the trigger and that wait, observes the IPv4 address leaving pppN (the tld half of Opened RTR) and is no substitute for the Terminate-Ack. Assertion 10 observes pppd renegotiating IPCP after the Ack and Ze reinstalling the address on the same pppN. That is Section 3.6 and Section 4.1 behaviour, not Section 5.5, and it adds no state to this row. The unit pair TestRFC1661TerminateAckSentAndLinkHeld and TestRFC1661NoTerminateAckForTerminateAck is unchanged. The whole-row gap stands: LCPDoTransition's sta edges in Stopped, Closing, Stopping, Ack-Rcvd and Ack-Sent are untagged, an open row in plan/journal/requirement-proven-in-one-state-of-many.md owned by spec-ppp-l2tp-aaa-one-off-defects. Weak stands, and no test was reduced.",
   "requirement_sha": "71d5c82cfcaeb473",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoTerminateAckForTerminateAck": "3ac1fd8ae501d890",
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TerminateAckSentAndLinkHeld": "3ac1fd8ae501d890",
-    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "48b0fe7c509d1900"
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "a0037eb000d133bc"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoTerminateAckForTerminateAck": "603e6a540427ca0e",
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TerminateAckSentAndLinkHeld": "3825213225d359e1",
-    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "eb1419b18e446fda"
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "7c61f9b6f42d0268"
   },
   "verdict": "weak"
 }

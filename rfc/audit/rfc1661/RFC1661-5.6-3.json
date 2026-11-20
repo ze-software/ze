@@ -5,17 +5,17 @@
     "internal/le/interoplab/l2tp/ppp_framing.go::armedPPPFrames": "60132ad705f47c61",
     "internal/le/interoplab/l2tp/ppp_framing.go::readPPPFramingLog": "4e9fcdd82a3df485"
   },
-  "note": "TestRFC1661CodeRejectTruncatedToMRU drives 404-octet LCP and IPCP packets with negotiated MRU 100 and requires an Information field of exactly 100 octets, the original Code/Identifier/Length 404 and the first 92 Data octets. The negative TestRFC1661CodeRejectKeptWhenItFits requires all 44 octets of a fitting LCP packet, so an unconditional cut fails. checkPPPCodeReject assertion 4 with peer MRU 128 and 204-octet probes requires every observed LCP/IPCP rejection to fit MRU, retain a consistent outer Length and preserve the rejected Code/Identifier/original Length and leading Data. Assertion 3 separately keeps exactly two responses per protocol. The shared writeCodeReject producer applies the same conditional minimum to the available buffer and peer MRU; the tests isolate the truncate-versus-retain boundary. The main native guest baseline passed the current checker. AC-3 preserves the original armed control population and predicates. Main native paired renewal passed the clean current checker and observed the copied Rejected-Packet Identifier changed in writeCodeReject fail assertion 4; native rfc record wrote its renewal. That break discriminates the copy clause, alongside the existing conditional MRU unit proofs described above.",
+  "note": "Rejudged after checkPPPCodeReject gained assertions 9 and 10, which run after assertion 4 and leave it unchanged. Re-read Section 5.6. With peer MRU 128 and 204-octet probes, assertion 4 still requires every observed LCP and IPCP rejection to fit the MRU, keep a consistent outer Length, and preserve the rejected Code, Identifier, original Length and leading Data. Assertion 3 still keeps exactly two responses per protocol. TestRFC1661CodeRejectTruncatedToMRU (404-octet packets cut to a 100-octet Information field) and its negative TestRFC1661CodeRejectKeptWhenItFits (all 44 octets kept) are unchanged, so an unconditional cut still fails. The verdict holds.",
   "requirement_sha": "0b15bfcac2103c64",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_code_reject_test.go::TestRFC1661CodeRejectKeptWhenItFits": "abd3fecb016ef0e7",
     "internal/component/l2tp/ppp/rfc1661_code_reject_test.go::TestRFC1661CodeRejectTruncatedToMRU": "abd3fecb016ef0e7",
-    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "48b0fe7c509d1900"
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "a0037eb000d133bc"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_code_reject_test.go::TestRFC1661CodeRejectKeptWhenItFits": "74101e343f08a8ce",
     "internal/component/l2tp/ppp/rfc1661_code_reject_test.go::TestRFC1661CodeRejectTruncatedToMRU": "ac437d40d8483b7e",
-    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "eb1419b18e446fda"
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "7c61f9b6f42d0268"
   },
   "verdict": "enforced"
 }

@@ -25,12 +25,12 @@
     "rid": "RFC1661-5.6-3",
     "polarity": "positive",
     "unit": "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject",
-    "unit-sha": "5e0ff9ff7189894b",
+    "unit-sha": "9b96ad2f950f0e90",
     "claim-sha": "f46155f8aae854aa",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::writeCodeReject",
     "producer-sha": "69b0235df9fbd443",
-    "break": "line 2414: \"data[1] = req.Identifier\" -\u003e \"data[1] = req.Identifier + 1\"",
+    "break": "line 2716: \"data[1] = req.Identifier\" -\u003e \"data[1] = req.Identifier + 1\"",
     "citation": "4"
   }
 ]

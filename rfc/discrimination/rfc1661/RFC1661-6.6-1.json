@@ -3,7 +3,7 @@
     "rid": "RFC1661-6.6-1",
     "polarity": "positive",
     "unit": "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject",
-    "unit-sha": "5e0ff9ff7189894b",
+    "unit-sha": "9b96ad2f950f0e90",
     "claim-sha": "f5c0d16604191166",
     "route": "mutant",
     "producer": "internal/le/interoplab/l2tp/avprelay/pppframing.go::observe",

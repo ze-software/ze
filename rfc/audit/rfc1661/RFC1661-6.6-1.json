@@ -9,13 +9,13 @@
     "internal/le/interoplab/l2tp/ppp_framing.go::requireCompressedPPPEcho": "654bab97992a1757",
     "internal/le/interoplab/l2tp/ppp_framing.go::requirePPPFullSessionFraming": "bab14bdf527bb7b8"
   },
-  "note": "Implemented and observed within the L2TP scenario: checkPPPCodeReject assertion 7 reads normal datagrams from ordinal one, requires consecutive ordinals and explicit arming metadata, and applies strict ff03 parsing to every Ze data datagram before protocol filtering. Startup Configure exchanges, LCP/IPCP Code-Rejects, the correlated Echo-Reply and IP traffic are required witnesses. The main native ARM64 Ze-kernel guest paired run passed the clean checker and failed the relay log-only strip at the cited assertion 7 with missing Address and Control octets. Native rfc record wrote the current positive discrimination record for checkPPPCodeReject, breaking framingCapture.observe. This does not exercise PPPoE or every link framing covered by the whole requirement. WriteFrame builds the Protocol field and payload and pppSession.writeFrame writes them to its channel; the lower-layer attribution remains. The observed relay log-only strip discriminates the L2TP observation rather than breaking that annotated producer. It therefore cannot provide OS-verified credit, and whole-row coverage remains an OS testing gap. The recorded positive proves this bounded observation; whole-row OS and PPPoE proof remain absent, and no code defect is inferred from that missing breadth. The retained lower-layer explanation is judged here only for the exercised kernel L2TP path; concurrent PPPoE/VPP transport work receives no coverage from this capture.",
+  "note": "Rejudged after checkPPPCodeReject gained assertions 9 and 10. Re-read Section 6.6. Assertion 7 is unchanged and applies strict ff03 parsing to every Ze data datagram from ordinal one. The new reopen wait routes any framing error to fail(7), and the final requirePPPFullSessionFraming now also reads the reopened IPCP Configure exchange and the ping after it: more witnesses under the same strictness, not fewer. The proof is still bounded to the kernel L2TP path. It does not exercise PPPoE or every link framing the requirement covers. The {lower-layer} attribution still names writeFrame, which is unchanged, and the relay-side break gives no OS-verified credit, so the whole row stays an OS testing gap. Weak stands.",
   "requirement_sha": "6305e61e8a9783b5",
   "tests": {
-    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "48b0fe7c509d1900"
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "a0037eb000d133bc"
   },
   "units": {
-    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "eb1419b18e446fda"
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "7c61f9b6f42d0268"
   },
   "verdict": "weak"
 }

@@ -20,7 +20,9 @@ const codeRejectMarker = "/run/code-reject"
 
 // terminateMarker is the file the checker creates once it has read Ze's
 // Code-Rejects. The next LAC datagram after it is the trigger for one IPCP
-// Terminate-Request, once per relay, which ends the scenario's IPCP.
+// Terminate-Request, once per relay. It takes IPCP out of Opened on Ze, and
+// pppd, which never asked to terminate, renegotiates it on Ze's
+// Terminate-Ack (pppd 2.5.5 fsm_rtermack, case OPENED).
 const terminateMarker = "/run/ipcp-terminate"
 
 // terminateIdentifier is the Identifier of the injected Terminate-Request,
