@@ -10,8 +10,7 @@
 // hand-written assembly with no compiler, so BPF_PROG_TEST_RUN per-path tests
 // are load-bearing. See docs/architecture/traffic/traffic-usage.md.
 //
-// The plugin never drops or modifies traffic; it only counts bytes. IPv4 only,
-// matching the upstream lan-bandwidth-exporter it is ported from.
+// The plugin never drops or modifies traffic; it only counts bytes. IPv4 only.
 package trafficusage
 
 import (

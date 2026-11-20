@@ -41,8 +41,8 @@ func BindMetrics(reg metrics.Registry) {
 	metricsPtr.Store(m)
 }
 
-// protoName maps an IP protocol number to a metric label, matching the upstream
-// lan-bandwidth-exporter. Unknown protocols render as their decimal number.
+// protoName maps an IP protocol number to a metric label. Unknown protocols
+// render as their decimal number.
 func protoName(p uint8) string {
 	switch p {
 	case 1:

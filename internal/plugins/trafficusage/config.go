@@ -11,8 +11,7 @@ import (
 	"time"
 )
 
-// Defaults mirror the upstream lan-bandwidth-exporter (interval 1s, stale 5m,
-// 10240 LRU entries per map). Interval and stale-timeout are configured in
+// Defaults: interval 1s, stale 5m, 10240 LRU entries per map. Interval and stale-timeout are configured in
 // milliseconds (integer) so sub-second polling is expressible.
 const (
 	defaultInterval     = time.Second
