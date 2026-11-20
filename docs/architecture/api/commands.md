@@ -1330,6 +1330,26 @@ accounts and authorizes the typed line, chain tokens included.
 `TestEveryPipeSplitGoesThroughThePartition` refuses a reader of the streaming
 registry that goes around the lookup.
 
+The same handler holds a monitor's override to its generic's answer shape,
+event by event. When the last operation the monitor declares on the line is
+an override, each event the producer writes is judged before the residual
+chain runs. A stream's rows are its events, so one event is one row:
+
+| Override | Each event is |
+|----------|---------------|
+| `count` | one object holding an integer `count` |
+| every other data operator | one JSON document, which is the row |
+
+The events of `first N` and `last N` are not counted, because the engine
+holds no stream whole. An event of another shape is not written: its refusal
+stops the stream, names the monitor and the operation, and ends in `show
+command help "<the monitor>"`. A blank line is no event and is not judged.
+An override followed by another declared operation, and a line that ends in
+the monitor's own operation, are not judged. The check runs inside
+`StreamLine.Run`, so no stream site carries a copy of it.
+<!-- source: internal/component/command/stream_line.go -- StreamLine.Run -->
+<!-- source: internal/component/command/pipe_partition.go -- overrideEventJudge, checkCountEvent, checkRowEvent -->
+
 | Rendering (`command.StreamRendering`) | Stated by | The daemon applies |
 |----------------------------------------|-----------|--------------------|
 | `StreamRenderingEngine` | the browser, REST, gRPC, the daemon-hosted model | the whole residual chain, in the default format when the chain names none; a line with no chain passes the events unchanged |
@@ -2795,7 +2815,7 @@ refused with its column before anything resolves.
 | Accounting | starts on the line as typed, chain included, masked by `config.DisplayCommand`; a typed accountant receives its tokens: the command's words, then a `\|` token, the name and the argument words of each operation |
 | Arguments | a word the command declares as a pipe operation is refused as an argument, with the pipe form of the line as the fix (`command.RefusePipeOperationWords`), before `ValidateArgs` binds anything |
 | Authorization | a string authorizer receives the typed line; a typed one the command, its arguments, then the chain tokens, for authorization only. Read-only is the command path's flag, and a chain never changes it |
-| Handler | receives the operations the command declares, in the order typed, in `CommandContext.PipeOperations` and `ValidatedArgs.PipeOperations`, and never as arguments. An override's answer is held to its generic's shape (`command.CheckOverrideAnswer`) |
+| Handler | receives the operations the command declares, in the order typed, in `CommandContext.PipeOperations` and `ValidatedArgs.PipeOperations`, and never as arguments. An override's answer is held to its generic's shape (`command.CheckOverrideAnswer`). An answer the handler delivers as a generator of rows is judged without being read: it is rows, which a `count` override never answers, and its rows are not counted |
 | Answer | the residual chain runs over the answer through `ApplyPipes`, for every caller that does not render the chain itself. A format that prints text (`table`, `text`, `yaml`, `ndjson`) answers that text, carried as a JSON string: what `ze cli -c` prints for the line. `json` and `raw` answer the JSON document they print |
 
 A caller inside the daemon that renders the chain itself states it with
@@ -3735,7 +3755,7 @@ answers, and that is the trap all five registries exist in.
 | `RegisterShape` | whether the answer holds rows (`tab`, `map`) or one document (`doc`) | `validateDeclaredShape`, before the command runs, and `ze help command --json` |
 | `RegisterColumns` | the order the table and text renderers put this command's columns in | `tableStyle.orderKeys`, through the four `ProcessPipes*` wrappers, and the four catalog readers as `column-orders` |
 | `RegisterAddressFields` | that a field of the answer holds an IP address | `validateDeclaredShape`, which admits `\| resolve` and `\| origin` only where a field is declared |
-| `RegisterPipeFilters` | the pipe operations this command runs in its own handler, each with its argument kind (`PipeFilter.Argument`: none, optional, text, count, fields or path). A generic's name is an override, allowed only where the catalog entry says so (every data operator: `match`, `count`, `first`, `last`, `display`, `fill`, `resolve`, `origin`; never a format, `no-more`, `save` or `log`) and held to the generic's argument kind when recorded and to its answer shape when it answers: one object holding an integer `count` for `count`, the command's rows and at most N of them for `first N` and `last N`, the command's rows for every other data operator | `partitionPipeChain`, which hands them to the handler in `ValidatedArgs.PipeOperations`; `RefusePipeOperationWords`, which refuses one typed as an argument with the pipe form as its fix; `CheckOverrideAnswer`; the completer |
+| `RegisterPipeFilters` | the pipe operations this command runs in its own handler, each with its argument kind (`PipeFilter.Argument`: none, optional, text, count, fields or path). A generic's name is an override, allowed only where the catalog entry says so (every data operator: `match`, `count`, `first`, `last`, `display`, `fill`, `resolve`, `origin`; never a format, `no-more`, `save` or `log`) and held to the generic's argument kind when recorded and to its answer shape when it answers: one object holding an integer `count` for `count`, the command's rows and at most N of them for `first N` and `last N`, the command's rows for every other data operator. On a monitor each event is held to it instead ("The stream route partitions in one lookup") | `partitionPipeChain`, which hands them to the handler in `ValidatedArgs.PipeOperations`; `RefusePipeOperationWords`, which refuses one typed as an argument with the pipe form as its fix; `CheckOverrideAnswer` and, on the stream route, `StreamLine.Run`; the completer |
 | `RegisterAliases` | a name an operator types in the operator slot, standing for a chain (see "Pipe aliases" below) | `lookupAlias` |
 
 One implementation resolves all five: `commandRegistry[T]` in `column_order.go`.
@@ -3757,6 +3777,27 @@ an operation typed as an argument names the registered path and writes its
 fix from the command as typed, the selector kept: `fix: show bgp peer edge1
 rib | received`.
 
+An override keeps its generic's meaning as well as its answer shape, and the
+shape check cannot see meaning. For `match` the meaning has one definition,
+`rowHoldsText`: a row is kept when its values, lowercased and written one
+after the other in the sorted order of their field names, hold the pattern.
+The generic reads it over the rows of an answer (`matchRows`) and over one
+event of a stream (`applyEventMatch`). A command that overrides `match` to
+select its rows before its answer exists calls `command.RowHoldsText` over the
+row it would answer, so it keeps exactly the rows the generic keeps over the
+bare answer. The RIB does this for `show bgp rib`, `show bgp rib protocol`
+and `show bgp rib best`, each over its own row: a `show bgp rib` row shows the
+route's direction, a best-path row does not, and `| match received` keeps
+rows on the first and none on the second, as the generic does. An override
+that searched a field list of its own is a second definition, and it differs
+from the row the day a field is added to one of the two.
+`TestRIBOverridesKeepGenericMeaning` and
+`TestRIBBestOverridesKeepGenericMeaning` compare each RIB override with the
+generic over the same rows.
+
+<!-- source: internal/component/command/pipe.go -- RowHoldsText, rowHoldsText, matchRows, applyEventMatch -->
+<!-- source: internal/component/bgp/plugins/rib/rib_pipeline.go -- matchFilter, showRowJSON -->
+<!-- source: internal/component/bgp/plugins/rib/rib_pipeline_best.go -- bestRowJSON -->
 <!-- source: internal/component/command/answer_shape.go -- RegisterShape, ShapeForCommand, RegisterAddressFields, AddressFieldsForCommand -->
 <!-- source: internal/component/command/column_order.go -- commandRegistry, lookup -->
 <!-- source: internal/component/command/invocation_path.go -- invocationReachesCommandPath -->

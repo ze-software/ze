@@ -521,6 +521,9 @@ func parseBestPipelineOperations(operations []sdk.PipeOperation) (string, []pipe
 		if problem != "" {
 			return "", nil, problem
 		}
+		// `show bgp rib best` answers the rows bestResultFor writes, which
+		// carry no direction and hold the attributes under one key.
+		stage.row = bestRowJSON
 		stages = append(stages, stage)
 	}
 	return selector, stages, ""
@@ -724,4 +727,12 @@ func bestResultFor(item RouteItem) bestResult {
 		br.Attrs = attrs
 	}
 	return br
+}
+
+// bestRowJSON is the rowEncoder of `show bgp rib best`: the bytes
+// bestRowWriter.record writes for the item, without its line end. The match
+// stage searches them, so `| match` keeps a best path by what its row shows.
+func bestRowJSON(item RouteItem) ([]byte, error) {
+	result := bestResultFor(item)
+	return json.Marshal(&result)
 }

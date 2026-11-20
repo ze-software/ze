@@ -11,8 +11,6 @@
 package rib
 
 import (
-	"encoding/binary"
-	"encoding/hex"
 	"encoding/json"
 	"iter"
 	"net/netip"
@@ -24,6 +22,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/family"
@@ -817,15 +816,48 @@ func (f *communityFilter) Meta() PipelineMeta {
 	return PipelineMeta{Count: f.count}
 }
 
-// matchFilter filters routes by case-insensitive substring match on field values.
+// rowEncoder writes the row a reader answers for one item, in the JSON the
+// answer carries it in: showRowJSON for `show bgp rib` and `show bgp rib
+// protocol`, bestRowJSON for `show bgp rib best`. It reads the item's pool
+// entry, so it MUST run while that entry is retained, which holds inside the
+// pull that produced the item (inboundSource, bestSource.Next).
+type rowEncoder func(item RouteItem) ([]byte, error)
+
+// matchFilter keeps the routes whose row holds a text.
+//
+// It overrides the generic `| match`, and an override keeps the generic's
+// meaning (docs/architecture/api/commands.md, "Design decisions"). The
+// generic keeps a row when the values that row shows hold the text, so this
+// filter asks the generic's own predicate (command.RowHoldsText) about the
+// row its reader answers for the route. It reads no route attribute of its
+// own: a second list of the fields to search is a second definition of
+// match, and it drifted from the row three times (the direction, the flags
+// and facts beside an attribute, a text spanning two values).
+// TestRIBOverridesKeepGenericMeaning and TestRIBBestOverridesKeepGenericMeaning
+// compare it with the generic over the same rows.
+//
+// COST. Every route the walk reaches is written as its row and that row is
+// decoded once, where the fields used to be compared in place. That is the
+// per-row cost the same command pays to answer the route with no match at
+// all (showRows, bestPathRows) plus one decode, so a match never costs more
+// than a small multiple of the unfiltered answer it narrows. A kept route is
+// written a second time by the reader. The walk stays lazy: `| match x |
+// first 10` still stops at the tenth kept route.
 type matchFilter struct {
 	upstream pipelineIterator
 	pattern  string
+	row      rowEncoder
 	count    int
 }
 
-func newMatchFilter(upstream pipelineIterator, pattern string) *matchFilter {
-	return &matchFilter{upstream: upstream, pattern: strings.ToLower(pattern)}
+// newMatchFilter builds the match stage over the rows row writes. row MUST be
+// the encoder of the reader the stage runs for: a stage that searched another
+// reader's row would keep routes by values its answer never shows.
+func newMatchFilter(upstream pipelineIterator, pattern string, row rowEncoder) *matchFilter {
+	if row == nil {
+		panic("BUG: match stage built with no row to search")
+	}
+	return &matchFilter{upstream: upstream, pattern: strings.ToLower(pattern), row: row}
 }
 
 func (f *matchFilter) Next() (RouteItem, bool) {
@@ -841,177 +873,28 @@ func (f *matchFilter) Next() (RouteItem, bool) {
 	}
 }
 
+// matches reports whether the row the reader answers for item holds the text.
+//
+// A row that cannot be written has no answer to that question, and the route
+// is KEPT, never dropped as if its row did not hold the text: the reader
+// downstream writes the same row, fails the same way, and reports the route
+// as a rejected row the operator sees (showRows, bestRowWriter.record).
+// Reporting it here as well would report one fault twice.
+// A terminal that writes no row counts it.
+//
+// A row that was written and does not read back is a Ze defect alone: the
+// encoder writes valid JSON whatever bytes a peer sent, so no input reaches
+// that branch.
 func (f *matchFilter) matches(item RouteItem) bool {
-	// Check core fields
-	if strings.Contains(strings.ToLower(item.Prefix), f.pattern) {
+	row, err := f.row(item)
+	if err != nil {
 		return true
 	}
-	if strings.Contains(strings.ToLower(item.Peer), f.pattern) {
-		return true
+	holds, err := command.RowHoldsText(row, f.pattern)
+	if err != nil {
+		panic("BUG: a route row the RIB encoded is not one JSON document: " + err.Error())
 	}
-	if strings.Contains(strings.ToLower(item.Family.String()), f.pattern) {
-		return true
-	}
-
-	if item.OutRoute != nil {
-		return f.matchOutRoute(item.OutRoute)
-	}
-	if item.HasInEntry {
-		return f.matchInEntry(item.InEntry)
-	}
-	return false
-}
-
-// matchOutRoute checks OutRoute fields: next-hop, origin, AS-path, standard,
-// large and extended communities, MED, local-pref.
-func (f *matchFilter) matchOutRoute(rt *Route) bool {
-	if strings.Contains(strings.ToLower(rt.NextHop), f.pattern) {
-		return true
-	}
-	if rt.Origin != nil {
-		if s := rt.Origin.LowerString(); s != "" && strings.Contains(s, f.pattern) {
-			return true
-		}
-	}
-	// AS-path as space-separated ASNs
-	for _, asn := range rt.ASPath {
-		if strings.Contains(strconv.FormatUint(uint64(asn), 10), f.pattern) {
-			return true
-		}
-	}
-	// Communities
-	for _, c := range rt.Communities {
-		if strings.Contains(strings.ToLower(c.String()), f.pattern) {
-			return true
-		}
-	}
-	// Large communities in their RFC 8092 canonical text, as the route row shows them.
-	for _, lc := range rt.LargeCommunities {
-		if strings.Contains(lc.String(), f.pattern) {
-			return true
-		}
-	}
-	// Extended communities in the lower-case hex the route row shows them in.
-	for _, ec := range rt.ExtendedCommunities {
-		if strings.Contains(hex.EncodeToString(ec[:]), f.pattern) {
-			return true
-		}
-	}
-	// MED
-	if rt.MED != nil {
-		if strings.Contains(strconv.FormatUint(uint64(*rt.MED), 10), f.pattern) {
-			return true
-		}
-	}
-	// LOCAL_PREF
-	if rt.LocalPreference != nil {
-		if strings.Contains(strconv.FormatUint(uint64(*rt.LocalPreference), 10), f.pattern) {
-			return true
-		}
-	}
-	return false
-}
-
-// matchInEntry checks InEntry pool attributes: next-hop, origin, AS-path,
-// standard, large and extended communities, MED, local-pref.
-func (f *matchFilter) matchInEntry(entry storage.RouteEntry) bool {
-	b := entry.GetBundle()
-	if b.HasNextHop() {
-		if data, err := pool.NextHop.Get(b.NextHop); err == nil {
-			if strings.Contains(strings.ToLower(formatNextHop(data)), f.pattern) {
-				return true
-			}
-		}
-	}
-	if b.HasOrigin() {
-		if data, err := pool.Origin.Get(b.Origin); err == nil {
-			if strings.Contains(strings.ToLower(formatOrigin(data)), f.pattern) {
-				return true
-			}
-		}
-	}
-	// AS-path as space-separated ASNs
-	if entry.HasASPath() {
-		if data, err := pool.ASPath.Get(entry.ASPath); err == nil {
-			for _, asn := range formatASPath(data) {
-				if strings.Contains(strconv.FormatUint(uint64(asn), 10), f.pattern) {
-					return true
-				}
-			}
-		}
-	}
-	if b.HasCommunities() {
-		if data, err := pool.Communities.Get(b.Communities); err == nil {
-			for _, c := range formatCommunities(data) {
-				if strings.Contains(strings.ToLower(c), f.pattern) {
-					return true
-				}
-			}
-		}
-	}
-	if b.LargeCommunities.IsValid() {
-		if data, err := pool.LargeCommunities.Get(b.LargeCommunities); err == nil {
-			if poolMatchesLargeCommunity(data, f.pattern) {
-				return true
-			}
-		}
-	}
-	if b.ExtCommunities.IsValid() {
-		if data, err := pool.ExtCommunities.Get(b.ExtCommunities); err == nil {
-			if poolMatchesExtCommunity(data, f.pattern) {
-				return true
-			}
-		}
-	}
-	if b.HasMED() {
-		if data, err := pool.MED.Get(b.MED); err == nil {
-			if v, ok := formatUint32Attr(data); ok {
-				if strings.Contains(strconv.FormatUint(uint64(v), 10), f.pattern) {
-					return true
-				}
-			}
-		}
-	}
-	if b.HasLocalPref() {
-		if data, err := pool.LocalPref.Get(b.LocalPref); err == nil {
-			if v, ok := formatUint32Attr(data); ok {
-				if strings.Contains(strconv.FormatUint(uint64(v), 10), f.pattern) {
-					return true
-				}
-			}
-		}
-	}
-	return false
-}
-
-// poolMatchesLargeCommunity reports whether one LARGE_COMMUNITIES value in the
-// pool bytes, in its canonical text, holds pattern. RFC 8092 Section 3: "Each
-// BGP Large Community value is encoded as a 12-octet quantity". A trailing
-// partial value is not a community and is not read.
-func poolMatchesLargeCommunity(data []byte, pattern string) bool {
-	for i := 0; i+12 <= len(data); i += 12 {
-		lc := attribute.LargeCommunity{
-			GlobalAdmin: binary.BigEndian.Uint32(data[i:]),
-			LocalData1:  binary.BigEndian.Uint32(data[i+4:]),
-			LocalData2:  binary.BigEndian.Uint32(data[i+8:]),
-		}
-		if strings.Contains(lc.String(), pattern) {
-			return true
-		}
-	}
-	return false
-}
-
-// poolMatchesExtCommunity reports whether one EXTENDED_COMMUNITIES value in the
-// pool bytes, in the lower-case hex the route row shows, holds pattern. RFC 4360
-// Section 2: "Each Extended Community is encoded as an 8-octet quantity".
-func poolMatchesExtCommunity(data []byte, pattern string) bool {
-	for i := 0; i+8 <= len(data); i += 8 {
-		if strings.Contains(hex.EncodeToString(data[i:i+8]), pattern) {
-			return true
-		}
-	}
-	return false
+	return holds
 }
 
 func (f *matchFilter) Meta() PipelineMeta {
@@ -1306,10 +1189,7 @@ func (jt *routesDocument) drain() {
 		}
 		count++
 
-		row := serializeRouteItem(item)
-		row[rowKeyPeer] = item.Peer
-		row[rowKeyDirection] = item.Direction.String()
-		rows = append(rows, row)
+		rows = append(rows, showRow(item))
 	}
 
 	jt.meta.Count = count
@@ -1341,6 +1221,23 @@ func (jt *routesDocument) Meta() PipelineMeta {
 		jt.drain()
 	}
 	return jt.meta
+}
+
+// showRow is the row `show bgp rib` and `show bgp rib protocol` answer for
+// item: the route's own fields (serializeRouteItem) with its peer and its
+// direction. The streamed walk (showRows), the whole document (routesDocument)
+// and the match stage (showRowJSON) all read it, so what `| match` searches
+// is what the answer shows.
+func showRow(item RouteItem) map[string]any {
+	row := serializeRouteItem(item)
+	row[rowKeyPeer] = item.Peer
+	row[rowKeyDirection] = item.Direction.String()
+	return row
+}
+
+// showRowJSON is the rowEncoder of `show bgp rib` and `show bgp rib protocol`.
+func showRowJSON(item RouteItem) ([]byte, error) {
+	return json.Marshal(showRow(item))
 }
 
 // serializeRouteItem converts a RouteItem to a JSON-serializable map.
@@ -1535,11 +1432,7 @@ func (r *RIBManager) showRows(selector, scope string, walk receivedWalk, stages 
 			if !ok {
 				return
 			}
-			row := serializeRouteItem(item)
-			row[rowKeyPeer] = item.Peer
-			row[rowKeyDirection] = item.Direction.String()
-
-			encoded, err := json.Marshal(row)
+			encoded, err := showRowJSON(item)
 			if err != nil {
 				// The walk continues: one row that cannot be encoded is a fault
 				// about that row, not a reason to stop answering the rest.
@@ -1566,6 +1459,11 @@ type pipelineStage struct {
 	kind     string
 	arg      string
 	terminal bool
+	// row writes the row the stage's reader answers for a route, which is
+	// what a match stage searches (matchFilter). Each parser sets it on the
+	// filter stages it builds: parsePipelineOperations to showRowJSON,
+	// parseBestPipelineOperations to bestRowJSON. No other stage reads it.
+	row rowEncoder
 }
 
 func (s pipelineStage) apply(upstream pipelineIterator) pipelineIterator {
@@ -1579,7 +1477,7 @@ func (s pipelineStage) apply(upstream pipelineIterator) pipelineIterator {
 	case rowKeyFamily:
 		return newFamilyFilter(upstream, s.arg)
 	case filterMatch:
-		return newMatchFilter(upstream, s.arg)
+		return newMatchFilter(upstream, s.arg, s.row)
 	case filterFirst:
 		return newFirstFilter(upstream, s.arg)
 	case filterLast:
@@ -1752,6 +1650,9 @@ func parsePipelineOperations(operations []sdk.PipeOperation) (string, string, re
 			if problem != "" {
 				return "", "", nil, nil, problem
 			}
+			// `show bgp rib` and `show bgp rib protocol` answer the rows
+			// showRow writes (showRows, routesDocument).
+			stage.row = showRowJSON
 			stages = append(stages, stage)
 		}
 	}

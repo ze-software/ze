@@ -393,7 +393,7 @@ rib`, for example, adds:
 | `covering <address>` / `exact <prefix>` | Received routes whose prefix contains the address, or of exactly that prefix |
 | `path <pattern>` (`aspath` is another spelling) | Filter by AS path |
 | `community <value>` | Filter by standard community |
-| `match <pattern>` | Cross-field structured match, an override of the generic `match`: a case-insensitive substring of the prefix, peer, family, next hop, origin, AS path, standard, large or extended community (in the hex the route row shows), MED or local preference |
+| `match <pattern>` | An override of the generic `match`, with the generic's meaning: it keeps the routes whose row holds the pattern as a case-insensitive substring of the row's values. The row is the one the command answers for the route, so every value it shows is searched (the direction on `show bgp rib`, the large and extended communities in the text the row shows) and nothing the row does not show |
 | `count` | Count matching routes without serializing rows, an override of the generic `count` |
 | `first <n>` / `last <n>` | Take first or last N routes, overrides of the generic `first` and `last` |
 | `histogram` | Count routes by family and prefix length |

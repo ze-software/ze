@@ -208,7 +208,7 @@ func TestFilterMatch(t *testing.T) {
 	}
 
 	src := &sliceSource{items: items}
-	f := newMatchFilter(src, "10.0")
+	f := newMatchFilter(src, "10.0", showRowJSON)
 
 	var results []RouteItem
 	for {
@@ -719,7 +719,7 @@ func TestFilterMatchCrossField(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			src := &sliceSource{items: tt.items}
-			f := newMatchFilter(src, tt.pattern)
+			f := newMatchFilter(src, tt.pattern, showRowJSON)
 
 			var results []RouteItem
 			for {
@@ -738,24 +738,57 @@ func TestFilterMatchCrossField(t *testing.T) {
 // TestMatchPoolCommunities verifies the received-side match reads the large and
 // extended communities a stored route holds.
 //
-// VALIDATES: poolMatchesLargeCommunity and poolMatchesExtCommunity find a value
-// in the pool bytes by the text the route row shows, and miss a neighbour value
-// and a trailing partial value.
+// The match stage searches the row a received route answers
+// (command.RowHoldsText over showRowJSON), so the route's large and extended
+// communities are found because the row shows them: largeCommunityByteList
+// and extCommunityByteList write the pool bytes into it.
+//
+// VALIDATES: a stored received route is kept by `match` on its large and its
+// extended community, in the text the route row shows, and not on a
+// neighboring value; the two byte lists write each whole value of the pool
+// bytes and leave a trailing partial value out.
 // PREVENTS: `show bgp rib | received | match <a:b:c>` counting zero for a route
-// that carries the large community, as before these stages read it.
+// that carries the large community, as before the row showed it.
 func TestMatchPoolCommunities(t *testing.T) {
+	r := newTestRIBManager(t)
+	peerRIB := storage.NewPeerRIB("192.0.2.1")
+	peerRIB.Insert(family.IPv4Unicast,
+		concatBytes(testWireOriginIGP, testWireNextHop, testWireLargeCommunity, testWireExtCommunity),
+		[]byte{24, 10, 0, 0})
+	t.Cleanup(peerRIB.Release)
+	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
+	r.bgpPeers[1] = peerRIB
+
+	matched := func(pattern string) float64 {
+		t.Helper()
+		var parsed map[string]any
+		answer := r.showPipeline("*", ribPipe("received", "match", pattern, "count"))
+		require.NoError(t, json.Unmarshal(mustMarshal(t, answer), &parsed))
+		count, isNumber := parsed["count"].(float64)
+		require.True(t, isNumber, "the count answer carries a number: %v", parsed)
+		return count
+	}
+	assert.Equal(t, float64(1), matched("65010:7:8"), "the stored large community")
+	assert.Equal(t, float64(0), matched("65010:7:9"), "a neighboring large community")
+	assert.Equal(t, float64(1), matched("0002fdf300000009"), "the stored extended community")
+	assert.Equal(t, float64(0), matched("0003fdf3"), "a neighboring extended community")
+
 	large := []byte{
 		0x00, 0x00, 0xfd, 0xe8, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x04, // 65000:3:4
 		0x00, 0x00, 0xfd, 0xe9, 0x00, 0x00, 0x00, 0x01, // trailing partial value
 	}
-	assert.True(t, poolMatchesLargeCommunity(large, "65000:3:4"))
-	assert.False(t, poolMatchesLargeCommunity(large, "65000:3:5"))
-	assert.False(t, poolMatchesLargeCommunity(large, "65001:"), "a partial trailing value is not a community")
+	largeText := string(mustMarshal(t, largeCommunityByteList(large)))
+	assert.JSONEq(t, `["65000:3:4"]`, largeText)
+	assert.Contains(t, largeText, "65000:3:4")
+	assert.NotContains(t, largeText, "65000:3:5")
+	assert.NotContains(t, largeText, "65001:", "a partial trailing value is not a community")
 
 	extended := []byte{0x00, 0x02, 0xfd, 0xe8, 0x00, 0x00, 0x00, 0x01, 0x00, 0x02}
-	assert.True(t, poolMatchesExtCommunity(extended, "0002fde800000001"))
-	assert.False(t, poolMatchesExtCommunity(extended, "0003fde8"))
-	assert.False(t, poolMatchesExtCommunity(extended, "00010002"), "a value spanning into the partial tail is not read")
+	extendedText := string(mustMarshal(t, extCommunityByteList(extended)))
+	assert.JSONEq(t, `["0002fde800000001"]`, extendedText)
+	assert.Contains(t, extendedText, "0002fde800000001")
+	assert.NotContains(t, extendedText, "0003fde8")
+	assert.NotContains(t, extendedText, "00010002", "a value spanning into the partial tail is not read")
 }
 
 // TestParsePipelineInvalidASN verifies invalid ASN in path filter is rejected at parse time.

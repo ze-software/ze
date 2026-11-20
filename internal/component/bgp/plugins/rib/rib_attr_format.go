@@ -141,6 +141,78 @@ func (cl communityByteList) MarshalJSON() ([]byte, error) {
 	return buf, nil
 }
 
+// Octets one value takes in the pool bytes of each community attribute.
+// RFC 8092 Section 3: "Each BGP Large Community value is encoded as a
+// 12-octet quantity". RFC 4360 Section 2: "Each Extended Community is
+// encoded as an 8-octet quantity".
+const (
+	largeCommunityOctets = 12
+	extCommunityOctets   = 8
+)
+
+// largeCommunityByteList wraps raw LARGE_COMMUNITIES pool bytes for lazy JSON
+// marshaling, in the RFC 8092 canonical text largeCommunityList writes for a
+// sent route. The byte slice must be a copy of the pool data, for the reason
+// communityByteList states. A trailing partial value is not a community and
+// is not written.
+type largeCommunityByteList []byte
+
+func (cl largeCommunityByteList) MarshalJSON() ([]byte, error) {
+	n := len(cl) / largeCommunityOctets
+	if n == 0 {
+		return []byte("[]"), nil
+	}
+	buf := make([]byte, 0, n*20)
+	buf = append(buf, '[')
+	for i := 0; i+largeCommunityOctets <= len(cl); i += largeCommunityOctets {
+		if i > 0 {
+			buf = append(buf, ',')
+		}
+		lc := attribute.LargeCommunity{
+			GlobalAdmin: poolUint32(cl[i:]),
+			LocalData1:  poolUint32(cl[i+4:]),
+			LocalData2:  poolUint32(cl[i+8:]),
+		}
+		buf = append(buf, '"')
+		buf = lc.AppendText(buf)
+		buf = append(buf, '"')
+	}
+	buf = append(buf, ']')
+	return buf, nil
+}
+
+// poolUint32 reads the big-endian 32-bit number data starts with. The caller
+// MUST hand it at least four octets.
+func poolUint32(data []byte) uint32 {
+	return uint32(data[0])<<24 | uint32(data[1])<<16 | uint32(data[2])<<8 | uint32(data[3])
+}
+
+// extCommunityByteList wraps raw EXTENDED_COMMUNITIES pool bytes for lazy JSON
+// marshaling, in the lower-case hex extCommunityList writes for a sent route.
+// The byte slice must be a copy of the pool data, for the reason
+// communityByteList states. A trailing partial value is not a community and
+// is not written.
+type extCommunityByteList []byte
+
+func (cl extCommunityByteList) MarshalJSON() ([]byte, error) {
+	n := len(cl) / extCommunityOctets
+	if n == 0 {
+		return []byte("[]"), nil
+	}
+	buf := make([]byte, 0, n*20)
+	buf = append(buf, '[')
+	for i := 0; i+extCommunityOctets <= len(cl); i += extCommunityOctets {
+		if i > 0 {
+			buf = append(buf, ',')
+		}
+		buf = append(buf, '"')
+		buf = hex.AppendEncode(buf, cl[i:i+extCommunityOctets])
+		buf = append(buf, '"')
+	}
+	buf = append(buf, ']')
+	return buf, nil
+}
+
 // enrichRouteMapFromEntry adds path attributes from a pool-based RouteEntry to a route map.
 // Only adds attributes that are present (valid handle) — missing attributes are omitted.
 // Each attribute value is wrapped with RFC 4271 flag booleans.
@@ -200,6 +272,28 @@ func enrichRouteMapFromEntry(routeMap map[string]any, entry storage.RouteEntry) 
 				cp := make([]byte, len(data))
 				copy(cp, data)
 				routeMap["community"] = attrWithFlags(communityByteList(cp), attribute.FlagOptional|attribute.FlagTransitive)
+			}
+		}
+	}
+	// A received route shows its large and extended communities under the
+	// keys and in the text a sent route shows them (enrichRouteMapFromRoute).
+	// The row left them out, so a stored route's communities reached no
+	// reader, and `| match` had to read the pool behind the row to find one.
+	if b.LargeCommunities.IsValid() {
+		if data, err := pool.LargeCommunities.Get(b.LargeCommunities); err == nil {
+			if len(data) >= largeCommunityOctets {
+				cp := make([]byte, len(data))
+				copy(cp, data)
+				routeMap["large-community"] = attrWithFlags(largeCommunityByteList(cp), attribute.FlagOptional|attribute.FlagTransitive)
+			}
+		}
+	}
+	if b.ExtCommunities.IsValid() {
+		if data, err := pool.ExtCommunities.Get(b.ExtCommunities); err == nil {
+			if len(data) >= extCommunityOctets {
+				cp := make([]byte, len(data))
+				copy(cp, data)
+				routeMap["extended-community"] = attrWithFlags(extCommunityByteList(cp), attribute.FlagOptional|attribute.FlagTransitive)
 			}
 		}
 	}

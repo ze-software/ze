@@ -16,6 +16,7 @@
 package command
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -1033,9 +1034,7 @@ func applyEventMatch(event, pattern string) (kept string, remains bool) {
 		lines := applyMatchLines(event, pattern)
 		return lines, lines != ""
 	}
-	var hay textbuf.Buffer
-	appendValueText(&hay, data)
-	if strings.Contains(hay.String(), strings.ToLower(pattern)) {
+	if rowHoldsText("", false, data, strings.ToLower(pattern)) {
 		return event, true
 	}
 	return "", false
@@ -1045,16 +1044,14 @@ func applyEventMatch(event, pattern string) (kept string, remains bool) {
 // pattern, and answers data with only those rows.
 func matchRows(input string, data any, rows []any, keys []string, key, pattern string) string {
 	lower := strings.ToLower(pattern)
+	keyed := keys != nil
 	keep := make([]int, 0, len(rows))
 	for i, row := range rows {
-		var hay textbuf.Buffer
-		if keys != nil {
-			// The identity key IS a value to a reader: it is the peer
-			// address `show bgp peer list` is keyed by.
-			hay.Str(strings.ToLower(keys[i])).Byte(' ')
+		identity := ""
+		if keyed {
+			identity = keys[i]
 		}
-		appendValueText(&hay, row)
-		if strings.Contains(hay.String(), lower) {
+		if rowHoldsText(identity, keyed, row, lower) {
 			keep = append(keep, i)
 		}
 	}
@@ -1063,6 +1060,51 @@ func matchRows(input string, data any, rows []any, keys []string, key, pattern s
 		return input
 	}
 	return string(out)
+}
+
+// RowHoldsText reports whether row, one row of a command's answer as the JSON
+// document the answer carries it in, holds pattern the way `| match` means
+// it: a case-insensitive substring of the row's values, never of its field
+// names (rowHoldsText).
+//
+// It is the predicate of the generic `| match`, exported for a command that
+// overrides `match` and selects its rows before its answer exists. An
+// override keeps the generic's meaning (docs/architecture/api/commands.md,
+// "Design decisions"), and calling this function over the row it would
+// answer is how it holds exactly that meaning: there is one definition of
+// what match keeps, and matchRows reads the same one.
+//
+// The row is decoded as the generic decodes an answer, so a number keeps the
+// text it was written with. An error means row is not one JSON document: the
+// question has no answer then, and the caller MUST NOT read false as "the
+// row does not hold the text".
+func RowHoldsText(row []byte, pattern string) (bool, error) {
+	var data any
+	if err := decodePipeJSON(bytes.NewReader(row), &data); err != nil {
+		return false, err
+	}
+	return rowHoldsText("", false, data, strings.ToLower(pattern)), nil
+}
+
+// rowHoldsText is the one definition of what `| match` keeps: the row whose
+// values, lowercased and written one after the other with a space between
+// them, hold lowerPattern. A text that spans two values is therefore found
+// when the values follow each other in the row, in the sorted order of their
+// field names (appendValueText).
+//
+// identity is the key a row is listed under when its answer is keyed by
+// identity (keyed true). It IS a value to a reader: it is the peer address
+// `show bgp peer list` is keyed by, so it is searched first.
+//
+// lowerPattern MUST already be lower case: each caller lowers it once for
+// all the rows it judges.
+func rowHoldsText(identity string, keyed bool, row any, lowerPattern string) bool {
+	var hay textbuf.Buffer
+	if keyed {
+		hay.Str(strings.ToLower(identity)).Byte(' ')
+	}
+	appendValueText(&hay, row)
+	return strings.Contains(hay.String(), lowerPattern)
 }
 
 func applyMatchLines(input, pattern string) string {
