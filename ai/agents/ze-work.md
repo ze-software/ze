@@ -99,10 +99,10 @@ you have broken one, stop and tell the user.
   commit, and the evidence for a change is the scoped test runs of what it
   reaches, which the main thread runs from the agent's owed commands
   (`ai/rules/commands.md`). A spec's closure never waits on a whole-tree check.
-- The one exception: on Thomas's two development machines, work that is also
-  tested on the other machine is developed and tested in a worktree on the
-  agent's machine, then carried to the other machine by git and tested there
-  in a detached worktree, never in either shared checkout
+- The one exception: on Thomas's two development machines, work that is tested
+  on the other machine is developed in a worktree on the agent's machine and
+  tested either there or, carried by git, in a detached worktree on the other
+  machine, never in either shared checkout
   (`ai/owner/machines.md`).
 - A worktree agent works and commits on its own branch. It never merges,
   cherry-picks, rebases or copies into main.
