@@ -1222,7 +1222,9 @@ func TestRemoteStreamPipesRefusesSaveWithoutTouchingTheFilesystem(t *testing.T) 
 	if format != nil {
 		t.Error("remote save refusal returned a formatter")
 	}
-	if flags != (PipeFlags{}) {
+	// PipeFlags holds the declared list, a slice, so it is compared field by
+	// field: every field zero, the list nil.
+	if flags.Log || flags.Resolve || flags.Origin || flags.HasFormat || flags.Declared != nil {
 		t.Errorf("remote save refusal returned flags %+v, want zero", flags)
 	}
 	if !strings.Contains(errMsg, "save") || !strings.Contains(errMsg, "daemon") {

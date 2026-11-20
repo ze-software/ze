@@ -202,21 +202,23 @@ const (
 	maxPingMonitorSize         = 65507
 )
 
+// isPingMonitorCommand and isPipedPingMonitorCommand read the line under the
+// one grammar (command.ReadCommandPart): a pipe inside quotes is part of a
+// word and starts no chain.
 func isPingMonitorCommand(input string) bool {
-	trimmed := strings.TrimSpace(input)
-	if strings.ContainsRune(trimmed, '|') {
+	commandPart, piped := command.ReadCommandPart(input)
+	if piped {
 		return false
 	}
-	return strings.HasPrefix(trimmed, "monitor ping ")
+	return strings.HasPrefix(commandPart, "monitor ping ")
 }
 
 func isPipedPingMonitorCommand(input string) bool {
-	trimmed := strings.TrimSpace(input)
-	if !strings.ContainsRune(trimmed, '|') {
+	commandPart, piped := command.ReadCommandPart(input)
+	if !piped {
 		return false
 	}
-	cmd, _ := command.ParsePipe(trimmed)
-	return strings.HasPrefix(strings.TrimSpace(cmd), "monitor ping ")
+	return strings.HasPrefix(commandPart, "monitor ping ")
 }
 
 // parsePingMonitorArgs parses
@@ -367,6 +369,19 @@ func (m *Model) startPingMonitor(input string) tea.Cmd {
 	return m.tick(pingDrainInterval, pingPollMsg{})
 }
 
+// pingFactoryWithOperations answers factory handing the operations the
+// command declares to every probe it starts, in its context
+// (command.ContextWithPipeOperations), as every route hands its handler the
+// declared list. With none declared it answers factory itself.
+func pingFactoryWithOperations(factory PingFactory, operations []command.PipeOperation) PingFactory {
+	if len(operations) == 0 {
+		return factory
+	}
+	return func(ctx context.Context, target string, interval, timeout time.Duration, count, size int) (<-chan map[string]any, context.CancelFunc, error) {
+		return factory(command.ContextWithPipeOperations(ctx, operations), target, interval, timeout, count, size)
+	}
+}
+
 func (m *Model) startPingMonitorPiped(input string) tea.Cmd {
 	cmdStr, formatFn, pipeFlags, saves, pipeErr := m.processStreamPipes(input)
 	if pipeErr != "" {
@@ -383,6 +398,7 @@ func (m *Model) startPingMonitorPiped(input string) tea.Cmd {
 		m.statusMessage = "ping monitor not available (no daemon connection)"
 		return nil
 	}
+	factory = pingFactoryWithOperations(factory, pipeFlags.Declared)
 	mp, argErr := parsePingMonitorArgs(cmdStr)
 	if argErr != "" {
 		if saves != nil {

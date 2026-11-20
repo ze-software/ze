@@ -165,21 +165,23 @@ type traceroutePipedState struct {
 	saves         *command.StreamSaves
 }
 
+// isTracerouteMonitorCommand and isPipedTracerouteMonitorCommand read the line
+// under the one grammar (command.ReadCommandPart): a pipe inside quotes is
+// part of a word and starts no chain.
 func isTracerouteMonitorCommand(input string) bool {
-	trimmed := strings.TrimSpace(input)
-	if strings.ContainsRune(trimmed, '|') {
+	commandPart, piped := command.ReadCommandPart(input)
+	if piped {
 		return false
 	}
-	return strings.HasPrefix(trimmed, "monitor traceroute ")
+	return strings.HasPrefix(commandPart, "monitor traceroute ")
 }
 
 func isPipedTracerouteMonitorCommand(input string) bool {
-	trimmed := strings.TrimSpace(input)
-	if !strings.ContainsRune(trimmed, '|') {
+	commandPart, piped := command.ReadCommandPart(input)
+	if !piped {
 		return false
 	}
-	cmd, _ := command.ParsePipe(trimmed)
-	return strings.HasPrefix(strings.TrimSpace(cmd), "monitor traceroute ")
+	return strings.HasPrefix(commandPart, "monitor traceroute ")
 }
 
 func parseTracerouteMonitorArgs(input string) (target string, maxHops int, errMsg string) {
@@ -268,6 +270,19 @@ func (m *Model) startTraceroute(input string) tea.Cmd {
 	return m.startTracerouteRound()
 }
 
+// tracerouteFactoryWithOperations answers factory handing the operations the
+// command declares to every round it starts, in its context
+// (command.ContextWithPipeOperations), as every route hands its handler the
+// declared list. With none declared it answers factory itself.
+func tracerouteFactoryWithOperations(factory TracerouteFactory, operations []command.PipeOperation) TracerouteFactory {
+	if len(operations) == 0 {
+		return factory
+	}
+	return func(ctx context.Context, target string, maxHops int) (<-chan map[string]any, context.CancelFunc, error) {
+		return factory(command.ContextWithPipeOperations(ctx, operations), target, maxHops)
+	}
+}
+
 func (m *Model) startTraceroutePiped(input string) tea.Cmd {
 	cmdStr, formatFn, pipeFlags, saves, pipeErr := m.processStreamPipes(input)
 	if pipeErr != "" {
@@ -284,6 +299,7 @@ func (m *Model) startTraceroutePiped(input string) tea.Cmd {
 		m.statusMessage = "traceroute not available (no daemon connection)"
 		return nil
 	}
+	factory = tracerouteFactoryWithOperations(factory, pipeFlags.Declared)
 	target, maxHops, argErr := parseTracerouteMonitorArgs(cmdStr)
 	if argErr != "" {
 		if saves != nil {

@@ -16,6 +16,7 @@
 package command
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -121,6 +122,22 @@ func ParsePipe(input string) (command string, ops []pipeOp) {
 		return command, []pipeOp{{kind: pipeInvalid, arg: err.Error()}}
 	}
 	return command, chainPipeOps(chain.operations)
+}
+
+// ReadCommandPart answers the command part of input under the one grammar
+// (ScanInvocation), and whether a pipe chain follows it. A pipe inside quotes
+// is part of a word and never starts a chain, so a caller asking which command
+// a line names reads it here rather than cutting at the first bar. Malformed
+// input is answered whole and unpiped, as ParsePipe answers it: the route that
+// runs the line refuses its lexical fault.
+func ReadCommandPart(input string) (command string, piped bool) {
+	// The lexical fault is the running route's to refuse (ScanExecution);
+	// here it only means no chain was found.
+	_, pipeAt, _, _ := ScanInvocation(input)
+	if pipeAt == -1 {
+		return strings.TrimSpace(input), false
+	}
+	return strings.TrimSpace(input[:pipeAt]), true
 }
 
 // parsePipeOps reads a whole operator chain written without its leading pipe,
@@ -1486,12 +1503,34 @@ func ProcessStandalonePipesChecked(operators string) (format func(string) string
 	}, ""
 }
 
-// PipeFlags captures display-mode and data-transform flags from a pipe chain.
+// PipeFlags captures display-mode and data-transform flags from a pipe chain,
+// and the operations its command declares (Declared, in chain order, nil when
+// it declares none), which the caller MUST hand to the handler it starts.
 type PipeFlags struct {
 	Log       bool
 	Resolve   bool
 	Origin    bool
 	HasFormat bool
+	Declared  []PipeOperation
+}
+
+// pipeOperationsKey is the context key ContextWithPipeOperations sets.
+type pipeOperationsKey struct{}
+
+// ContextWithPipeOperations answers ctx carrying the operations a command
+// declares, for a handler started with a context rather than a ValidatedArgs
+// (the model's live views: PingFactory, TracerouteFactory). The handler reads
+// them with PipeOperationsFromContext.
+func ContextWithPipeOperations(ctx context.Context, operations []PipeOperation) context.Context {
+	return context.WithValue(ctx, pipeOperationsKey{}, slices.Clone(operations))
+}
+
+// PipeOperationsFromContext answers a copy of the operations
+// ContextWithPipeOperations attached, nil when none were.
+func PipeOperationsFromContext(ctx context.Context) []PipeOperation {
+	// A context that carries no list is a command that declares none.
+	operations, _ := ctx.Value(pipeOperationsKey{}).([]PipeOperation)
+	return slices.Clone(operations)
 }
 
 // ProcessStreamPipes prepares a local streaming chain and reports its display
@@ -1520,6 +1559,10 @@ func processStreamPipes(input, sessionFormat string, saveAllowed bool) (cmd stri
 	columns := ColumnsForCommand(cmd)
 	part := partitionPipeChain(cmd, ops)
 	cmd, ops, meta := part.command, part.residual, part.meta
+	// The caller MUST hand these to the handler it starts, as every route
+	// hands the declared list (ContextWithPipeOperations for a handler that
+	// takes a context, not a ValidatedArgs).
+	flags.Declared = slices.Clone(part.declared)
 
 	if msg := validatePipesForSurface(cmd, ops, pipeSurfaceStream, saveAllowed); msg != "" {
 		return cmd, nil, PipeFlags{}, nil, msg

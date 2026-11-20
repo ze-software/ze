@@ -382,20 +382,17 @@ func runWithStartup(name string, handler command.LocalDataHandler, args []string
 	if actionVerb != "" || pipeStr != "" {
 		var tb textbuf.Buffer
 		tb.Str(path)
-		pathLength := len(path)
 		if actionVerb != "" {
 			tb.Byte(' ').Str(actionVerb)
-			pathLength += 1 + len(actionVerb)
 		}
 		if pipeStr != "" {
 			tb.Str(" | ").Str(pipeStr)
 		}
 		input = tb.String()
-		path = input[:pathLength]
 	}
 
-	// The words as typed, before a default verb or a folded pipe filter joins
-	// them: what the slot reading judges, as the hook judges the typed line.
+	// The words as typed, before a default verb joins them: what the slot
+	// reading judges, as the hook judges the typed line.
 	typed := toolArgs
 	var prepare func([]string) (leaction.Prepared, int)
 	if declared {
@@ -406,10 +403,10 @@ func runWithStartup(name string, handler command.LocalDataHandler, args []string
 		start(startup)
 	}
 
-	// Command-owned filters append words to the metadata path. Append only
-	// that suffix to the original argv; resolving the whole path again would
-	// deliver the action twice, and reparsing argv would split opaque values.
-	resolved, format, errMsg := command.ProcessPipesDefaultFormatLocal(input, "")
+	// The line is read once by the partition every route runs: the operations
+	// the tool's path declares reach its handler in the declared list, never
+	// as argv, and the residual chain renders its answer here.
+	line, errMsg := command.ReadLocalLine(input, "")
 	if errMsg != "" {
 		// textbuf rather than Fprintf: `errOut` is injectable so tests can
 		// capture it, which puts it outside c_sprintf_new's os.Stderr
@@ -419,10 +416,6 @@ func runWithStartup(name string, handler command.LocalDataHandler, args []string
 		fmt.Fprintln(errOut, tb.Str("error: ").Str(errMsg).String()) //nolint:errcheck // CLI output
 		return 2
 	}
-	if folded, ok := strings.CutPrefix(resolved, path); ok && folded != "" {
-		toolArgs = append(toolArgs, strings.Fields(folded)...)
-	}
-
 	// An le tool declares no argument definitions: its words are its own
 	// grammar, parsed by the tool. They are judged against that empty set, as
 	// every route judges a command's arguments against what it declares, so
@@ -433,6 +426,7 @@ func runWithStartup(name string, handler command.LocalDataHandler, args []string
 		fmt.Fprintln(errOut, tb.Str("error: ").Str(err.Error()).String()) //nolint:errcheck // CLI output
 		return 2
 	}
+	validated = validated.WithPipeOperations(line.DeclaredOperations())
 	// The body runs inside the job slot its line takes: immediately before the
 	// handler on the ordinary path, and between the preparation and the
 	// startup on the prepared one, so a refused preparation holds nothing.
@@ -485,7 +479,7 @@ func runWithStartup(name string, handler command.LocalDataHandler, args []string
 		return 1
 	}
 
-	result := format(string(raw))
+	result := line.Render(string(raw))
 	// A chain can be refused AFTER the tool has run, when the answer's shape
 	// cannot support an operator. The caller then holds a refusal rather than
 	// data, so it goes to stderr and the status says so. This is not the

@@ -140,9 +140,14 @@ Pipe declarations resolve at the area plus its declared action verb, so an
 action returning rows can override a document-shaped area's declaration.
 Argument values stay as the original argv, outside that metadata path; a
 value containing spaces or a pipe character is not reinterpreted as a command
-or pipe. Command-owned pipe filters append only their new argument words.
+or pipe. The line is read once by the partition every route runs
+(`command.ReadLocalLine`): an operation the tool's path declares reaches its
+handler in the declared list (`ValidatedArgs.PipeOperations`), never as argv
+words, and the residual chain renders its answer.
 <!-- source: internal/le/le/root/leroot.go -- Run -->
+<!-- source: internal/component/command/local_data.go -- ReadLocalLine -->
 <!-- test: internal/le/le/root/dispatch_test.go TestDispatchUsesTheDeclaredActionShapeWithoutReparsingArguments -->
+<!-- test: internal/le/le/root/run_declared_test.go TestRunHandsDeclaredOperationsNotArgv -->
 
 An area that needs a turn before every le command, native hooks included,
 registers it through `leroot.RegisterBeforeDispatch` from the same `init()`,

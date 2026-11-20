@@ -395,11 +395,12 @@ func (m *Model) revealCandidateExplanation(comp Completion) {
 }
 
 // subjectOf names the command or the config path an explanation is about. A
-// pipe operator explains nothing about it, so the subject is the part before
-// the first one. TreeCompleter.Explain cuts the same way.
+// pipe operator explains nothing about it, so the subject is the command part,
+// read under the one grammar (command.ReadCommandPart), where a quoted pipe is
+// part of a word. TreeCompleter.Explain reads the same grammar.
 func subjectOf(input string) string {
-	base, _, _ := strings.Cut(input, "|")
-	return textbuf.Join(strings.Fields(base), " ")
+	commandPart, _ := command.ReadCommandPart(input)
+	return textbuf.Join(strings.Fields(commandPart), " ")
 }
 
 // revealDeclared puts one declared text on the screen for one subject. An empty

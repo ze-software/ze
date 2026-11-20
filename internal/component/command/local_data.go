@@ -348,6 +348,44 @@ func ServeLocal(input, sessionFormat string) (answer string, code int, served bo
 	return rendered, code, true
 }
 
+// LocalLine is a line typed into THIS process, read once by the partition
+// every route runs (prepareDocumentPipes, as ServeLocal reads its line): the
+// operations its command declares, which the route hands to its handler, and
+// the residual chain, which renders the handler's answer here, `| save`
+// included. Read-only after ReadLocalLine returns it.
+type LocalLine struct {
+	plan documentPipePlan
+}
+
+// ReadLocalLine reads input for a route that answers it in this process with
+// a handler of its own (`le <tool>`), or answers the refusal of its chain.
+// sessionFormat is the caller's format override; pass "" for none.
+func ReadLocalLine(input, sessionFormat string) (LocalLine, string) {
+	plan, problem := prepareDocumentPipes(input, sessionFormat, true)
+	if problem != "" {
+		return LocalLine{}, problem
+	}
+	return LocalLine{plan: plan}, ""
+}
+
+// DeclaredOperations answers a copy of the operations the command declares,
+// in chain order. The route MUST attach them to the value its handler receives
+// (ValidatedArgs.WithPipeOperations), and MUST NOT add them to its arguments.
+func (l LocalLine) DeclaredOperations() []PipeOperation {
+	return append([]PipeOperation(nil), l.plan.declared...)
+}
+
+// Render runs the residual chain over a handler's encoded answer, or answers
+// the chain's refusal as a pipe error (IsPipeError, IsSaveWriteFailure), as the
+// formatter ProcessPipesDefaultFormatLocal answers does.
+func (l LocalLine) Render(rawJSON string) string {
+	rendered, failure := ApplyPipes(rawJSON, l.plan.ops, l.plan.meta, l.plan.columns)
+	if failure != "" {
+		return pipeError(failure)
+	}
+	return rendered
+}
+
 // ArgDefSource answers the argument definitions the YANG model declares for a
 // command path, nil when the path declares none, or an error naming why the
 // model could not answer.

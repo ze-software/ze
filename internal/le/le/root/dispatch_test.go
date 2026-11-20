@@ -57,7 +57,8 @@ func TestRegisterShapeDistinguishesFullToolPaths(t *testing.T) {
 }
 
 // VALIDATES: action declarations reach the real dispatch/pipe path, while
-// values remain argv and command-owned filters append only their own words.
+// values remain argv and a command-owned filter leaves argv untouched: it
+// reaches the handler in the declared list (TestRunHandsDeclaredOperationsNotArgv).
 // PREVENTS: a document-shaped area refusing its row-shaped selftest's count,
 // or fixing that refusal by dropping the area's document guard.
 func TestDispatchUsesTheDeclaredActionShapeWithoutReparsingArguments(t *testing.T) {
@@ -97,7 +98,7 @@ func TestDispatchUsesTheDeclaredActionShapeWithoutReparsingArguments(t *testing.
 	}{
 		{"cases", []string{"selftest", "|", "count"}, []string{"selftest"}},
 		{"opaque value", []string{"selftest", "path", "a | json value", "|", "count"}, []string{"selftest", "path", "a | json value"}},
-		{"folded filter", []string{"selftest", "path", "a | json value", "|", "select", "owned", "|", "count"}, []string{"selftest", "path", "a | json value", "select", "owned"}},
+		{"declared filter", []string{"selftest", "path", "a | json value", "|", "select", "owned", "|", "count"}, []string{"selftest", "path", "a | json value"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got = nil

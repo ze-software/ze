@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/command"
@@ -155,7 +154,8 @@ func CmdEngineSteps(args []string) int {
 // send MUST return the daemon's status and its raw answer data.
 func pipedEngineDispatch(send func(ctx context.Context, line string) (string, []byte, error)) runner.EngineDispatch {
 	return func(ctx context.Context, line string) (string, string, error) {
-		if !strings.Contains(line, "|") {
+		// A quoted pipe is part of a value, never a chain (command.ReadCommandPart).
+		if _, piped := command.ReadCommandPart(line); !piped {
 			status, data, err := send(ctx, line)
 			return status, string(data), err
 		}

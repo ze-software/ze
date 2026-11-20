@@ -307,6 +307,20 @@ it got, which passes it to the data handler, so `ze show env get <key>` and
 <!-- source: internal/component/command/local_data.go -- RegisterLocalData, plainLocalData, ValidateModelArgs -->
 <!-- source: internal/component/command/local.go -- InvokeLocal -->
 
+A pipe chain reaches a local-data command on the routes that read a line:
+`ServeLocal` (`ze cli -c`) and, for every daemon surface, `Dispatch` through
+the handler `loadLocalData` registers. Both partition the line the same way, so
+an operation the command declares reaches its handler in the same declared
+list (`ValidatedArgs.PipeOperations`) and the two answers are equal. `ze
+<verb>` reads no chain: its argv holds the command and an output-format keyword
+at most, and `RenderLocalAnswer` is handed the command path, never a line, so
+it renders the default format alone. A declared operation therefore reaches a
+local-data handler through `ServeLocal` or `Dispatch`, never through `ze
+<verb>`. `le <tool>` reads its chain through `command.ReadLocalLine`, the same
+partition (`docs/architecture/core-design.md`).
+<!-- source: internal/component/command/local_data.go -- ServeLocal, RenderLocalAnswer, ReadLocalLine -->
+<!-- test: internal/component/plugin/server/local_data_pipe_parity_test.go TestLocalDataDeclaredOperationsSameOnBothRoutes -->
+
 An `le` tool registers through the same call (`leroot.Register`), and `le`'s
 own dispatcher (`leroot.Run`) is a route too: an `le` tool declares no
 argument definitions, since its words are its own grammar, so `Run` judges them
@@ -2811,6 +2825,22 @@ it.
 <!-- source: internal/component/command/dispatch_line.go -- DeclaredLine -->
 <!-- source: internal/component/config/cli/cmd_edit.go -- sshCommandExecutor -->
 <!-- source: internal/test/cli/cmd_engine_steps.go -- pipedEngineDispatch -->
+
+No reader splits a piped line on its own. A caller that only asks which
+command a line names, or whether a chain follows it (the model's `monitor
+ping` and `monitor traceroute` detectors, the subject an explanation is about,
+the engine steps' choice of route), reads it with `command.ReadCommandPart`,
+under the one grammar, so a quoted `|` stays part of a word. Every reader that
+applies a chain goes through the partition. `TestEveryPipeSplitGoesThroughThePartition`
+judges both: in the command package, a function that reads a chain must also
+partition it, unless it holds no command (`ze pipe`, an alias expansion, the
+accounting tokens, a client's presentation suffix); in every file that imports
+the package, a `strings` call that cuts at a pipe literal, or a call of
+`ParsePipe`, fails it. Its twin in `plugin/server` judges the streaming-handler
+lookups.
+<!-- source: internal/component/command/pipe.go -- ReadCommandPart -->
+<!-- test: internal/component/command/pipe_split_partition_test.go TestEveryPipeSplitGoesThroughThePartition -->
+<!-- test: internal/component/plugin/server/streaming_lookup_test.go TestEveryPipeSplitGoesThroughThePartition -->
 
 A REST or gRPC request's structured parameters are written into the command
 part, before the first pipe outside quotes, so they reach the handler as
