@@ -8,7 +8,7 @@
 | Release reason | A released `ze` binary redistributes third-party code whose licences require their copyright notice and conditions to travel with the binary. Today the binary carries none of them, and `NOTICE` and the website legal page claim a record that does not exist for the web assets |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 1/7 |
+| Phase | 7/7 (Phases 6 and 7 written, awaiting the owner's review) |
 | Handoff | - |
 | Updated | 2026-11-20 |
 
@@ -42,6 +42,11 @@ His decisions on 2026-11-20:
 | The website Dependencies page | Gains licence and copyright for each curated module, and a generated section for every other work the shipped binary carries |
 | Where the curated list lives | It stays `website/data/dependencies.json`. The binary carries a generated copy |
 | Spelling | `ze thanks` and `ze thanks licence` |
+| The traffic-usage plugin | Ze's own code, a rewrite: it is not a third-party work, so nothing is credited for it and no text describes it as derived from another program |
+| The root certificate data inside `golang.org/x/crypto/x509roots/fallback` | Credited under that Go module only |
+| A licence upstream does not state fully (`golangci-lint`) | Do not guess; state only what is known: the entry is declared `GPL-3.0`, with no `licence-note` (`1b17c0d2f8`) |
+| Licence or copyright holder | What the licence is matters more than who holds the copyright; the holder is still shown, on the website page and in `ze thanks` |
+| What `NOTICE` carries | The hand-written Moby seccomp paragraph leaves `NOTICE`, whose credit is in `ze thanks`, and the eight upstream NOTICE texts (swagger-ui, coreos/go-systemd, opencontainers/runc, four prometheus modules, grpc) are not copied into it: `ze thanks licence` prints them |
 
 The list is complete by construction: a work that ships without a credit, or a
 credit without its licence text, is refused by a check, never found by a
@@ -106,7 +111,7 @@ reader.
 - [ ] `internal/plugins/container/seccomp/profile.go` - `DefaultProfile` carries the rules of Moby's default seccomp profile, "source, commit and digest in third_party/moby-seccomp-profile/README.md"
 - [ ] `internal/appliance/cmd_iso.go` - imports `internal/thirdparty/fat`, a copy of gokrazy's FAT writer with its own `LICENSE`
 - [ ] `internal/exabgp/bridge/bridge_event.go` - the ExaBGP event translation; its tables are transcribed from ExaBGP's source
-- [ ] `internal/plugins/trafficusage/trafficusage.go` - "matching the upstream lan-bandwidth-exporter it is ported from"
+- [ ] `internal/plugins/trafficusage/trafficusage.go` - Ze's own code (owner, 2026-11-20); it carries no third-party work and declares nothing present
 - [ ] `internal/core/ipregistry/registry.go` - embeds "the canonical IANA XML shipped with Ze"
 - [ ] `internal/core/portname/services_table.go` - "Derived from /etc/services"
 - [ ] `NOTICE` - states "Third-party code under vendor/ and third_party/ keeps its own copyright and license, recorded beside it."
@@ -143,7 +148,7 @@ reader.
 | Owned pipe operation | `internal/component/bgp/plugins/cmd/rib/rib.go` `registerPipeFilters`, `command.RegisterPipeFilters` | A command declares a pipe operation of its own | Extends: `thanks licence` declares `name` |
 | Vendored web asset sync and check | `internal/le/web/vendor/sync.go` `assets`, `targetedAssets`; `internal/le/web/vendor/vendorweb.go` `vendorPackages` | Copies vendored files to the consumers that embed them and refuses drift | Extends: the licence files of each asset directory are vendored and synced like its other files, and a directory without one is refused |
 | Vendored module licence files | `go mod vendor` (`copyMetadata` in the Go toolchain) | Keeps each module's licence and notice files under `vendor/` | Extends: the generator copies them into the package the binary embeds; `vendor/` stays the source |
-| Commit gate on third-party imports | `internal/le/commit/dependencies.go` `dependencyRefusal` | Refuses an added import the ledger does not approve | Extends: the same gate refuses a commit that links a module with no credit |
+| Commit gate on third-party imports | `internal/le/commit/dependencies.go` `dependencyRefusal` | Refuses an added import the ledger does not approve | Does not change: the credits gate is a change-set check of its own, `judgeCommit` in `internal/le/deps/credits/gate.go`, registered with `changecheck`, which `./le commit create` runs beside this gate |
 | Kernel GPL notice | `internal/appliance/instance/provenance.go` `Provenance.LinuxNotice` | Places a notice for the kernel in the image | Does not apply: the image's own contents are the sibling spec |
 | Dependency ledger | `dependency-ledger.txt`, `internal/le/deps` | Records which Ze directory may import which package | Does not apply: it is keyed by package and importer and records approval, not licence. The new tool sits beside it under `le deps` |
 | Website asset provenance table | `website/assets/vendor/README.md` | Lists the site's own assets with their licence files | Does not apply: those assets are served by the website, not shipped in `ze` |
@@ -202,8 +207,8 @@ reader.
 | Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
 |------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
 | `website/data/dependencies.json` | writer | hand-edited data file | `internal/le/site/dependencies.go` `dependencyData`: "the curated grouping" | Change: each module entry gains `licence`, `copyright` and `source`; two top-level lists are added, `linked` and `works` |
-| `website/data/dependencies.json` | reader | `internal/le/site/dependencies.go` `renderDependencies` | Reads it through `readSourceJSON` into `dependencyData` | Change: reads the new fields and renders them; `total()` keeps counting the curated modules only |
-| `website/data/dependencies.json` | reader | `internal/le/site/llmsdata.go` `loadLLMSInputs`, rendered by `internal/le/site/derived.go` `writeLLMSDependencies` | Reads the published copy with `readArtifactJSON` into the same `dependencyData`; the renderer walks `Categories` only and writes "## Dependency rationale" | Change: each module line of that section gains its licence identifier, so the machine-readable answer states what the page states; the `linked` and `works` lists are not rendered there, because the section's subject is why Ze takes each direct module |
+| `website/data/dependencies.json` | reader | `internal/le/site/dependencies.go` `renderDependencies` | Read it through `readSourceJSON` into `dependencyData` | Change: reads it through `readDependencyDeclaration`, which calls `credits.ReadDeclaration` into the exported `credits.Declaration` of `internal/le/deps/credits`, one shared type that refuses an unknown key; renders the new fields; `curatedTotal` keeps counting the curated modules only |
+| `website/data/dependencies.json` | reader | `internal/le/site/llmsdata.go` `loadLLMSInputs`, rendered by `internal/le/site/derived.go` `writeLLMSDependencies` | Read the published copy with `readArtifactJSON` into the same `dependencyData`; the renderer walks `Categories` only and writes "## Dependency rationale" | Change: reads the published copy through `readDependencyDeclaration` into the same `credits.Declaration` the page reads; each module line of that section gains its licence identifier, so the machine-readable answer states what the page states; the `linked` and `works` lists are not rendered there, because the section's subject is why Ze takes each direct module |
 | `website/data/dependencies.json` | reader | Anyone outside the repository: `./le site build` stages the file unchanged into the Pages artifact, where it is published as `data/dependencies.json` | `internal/le/site/paths.go` `isSourceOnly` does not list it in `sourceOnlyFiles`, and `../gh-pages/data/dependencies.json` exists | Change, additive: `categories`, `name`, `modules`, `module` and `why` keep their names and meaning; each module gains `licence`, `copyright` and `source`, and the top level gains `linked` and `works`. A reader of the existing keys reads what it read before |
 | `website/data/dependencies.json` | reader | `internal/le/deps/credits` (new) | New | New reader |
 | `internal/core/credits/data/credits.json` and the text files beside it | writer | `internal/le/deps/credits` `update` (new) | New | New wire |
@@ -239,7 +244,7 @@ reader.
 | A-3 | Every linked module keeps a licence file at its vendored root | Found true for the 97 modules on 2026-11-20 | A module needs its text fetched from upstream and committed under `third_party/` | The check refuses a shipped module with no licence file | unvalidated |
 | A-4 | A declared pipe operation reaches a local-data handler on the daemon route as it does on the local route | `ValidatedArgs.PipeOperations()` is read at `local_data.go` and at `plugin/server/command.go`; not traced end to end | `show thanks licence \| name <work>` answers every text through the daemon | A `.ci` test through the daemon: the draft `thanks-daemon-licence-name` passed, run by the main thread on 2026-11-20 | confirmed |
 | A-5 | The Go licence text Ze must carry is the `LICENSE` file of the Go release `go.mod` pins | The Go distribution ships it one level above GOROOT on this machine | A wrong or missing text for the largest single dependency | Read the file from the Go source release of the pinned version and compare: `third_party/go/README.md` records `LICENSE` and `PATENTS` of tag `go1.27.4`, the version `go.mod` pins, compared with `cmp` against the files fetched from that tag on 2026-11-20 and found identical | confirmed |
-| A-6 | The licence of each work that states none in the repository can be read upstream | Not checked | The work has no licence to record, and whether Ze may ship it is Thomas's decision | Read each upstream; the rows are in "Choices for Thomas". IANA: its licensing statement is quoted in `third_party/iana/README.md`. The lan-bandwidth-exporter port and the root certificate data inside `golang.org/x/crypto/x509roots/fallback`: no licence was read for either (no `third_party/lan-bandwidth-exporter/` exists, and the module is declared under its Go licence only), so both wait on Thomas (C-2) | confirmed for IANA; broken for the exporter port and the root bundle data |
+| A-6 | The licence of each work that states none in the repository can be read upstream | Not checked | The work has no licence to record, and whether Ze may ship it is Thomas's decision | Read each upstream; the rows are in "Choices for Thomas". IANA: its licensing statement is quoted in `third_party/iana/README.md`. The root certificate data inside `golang.org/x/crypto/x509roots/fallback` states no licence of its own; Thomas decided on 2026-11-20 that it is credited under that Go module only (C-2) | confirmed for IANA; broken for the root certificate data, decided by Thomas (C-2) |
 | A-7 | `ze cli -c "show thanks list"` answering from the client binary is acceptable | `show plugin list` does the same; client and daemon are one build in every shipped arrangement | A mismatched client reports its own credits; the daemon's are reached by an interactive session or any other surface | Thomas's answer to C-1 | unvalidated |
 
 ### Risks
@@ -281,7 +286,7 @@ reader.
 | AC-1 | `ze thanks` on a shipped build | Prints one row per third-party work this binary carries, under the group headings of the curated list, with columns name, version, licence, copyright and why. `github.com/miekg/dns` appears with the version the build information states | A work the binary does not carry is absent, because the list describes this binary |
 | AC-2 | `ze thanks` | Go's own library is a row, with the Go version the binary was built with and the Go licence | None: every binary links it |
 | AC-3 | `ze thanks` on a build that carries the web interface | htmx, uPlot and each library the swagger-ui bundle contains are rows | A build without `ze_web`, `ze_lg` and `ze_rest` lists none of them, because it serves none of them |
-| AC-4 | `ze thanks` | Each work copied or ported into Ze's own tree and compiled in is a row: the gokrazy FAT writer, the Moby seccomp profile, the ExaBGP encoders, the bandwidth exporter port, the IANA tables | A work whose feature is compiled out is absent |
+| AC-4 | `ze thanks` | Each work copied or ported into Ze's own tree and compiled in is a row: the gokrazy FAT writer, the Moby seccomp profile, the ExaBGP encoders, the IANA tables | A work whose feature is compiled out is absent |
 | AC-5 | `ze thanks` when a linked module has no record | The module is still listed, with its version, and its licence cell reads `not recorded`; the command exits non-zero and names the module | None: a missing record is never an omitted row |
 | AC-6 | `ze thanks` in a binary with no build information | Refuses, saying the binary carries no build information and so cannot list what it links, and how it must be built | None |
 | AC-7 | `ze thanks licence` | Prints one document: for each distinct licence text, the works it covers with their copyright lines and source location, then the text, byte for byte as the work ships it, notice files included | Works sharing an identical text share one copy, because repeating it adds nothing |
@@ -314,7 +319,9 @@ reader.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestEveryLinkedModuleHasACredit` | `internal/core/credits/credits_test.go` | Every module in this binary's build information has a record and a text | |
+| `TestEveryLinkedModuleHasACredit` | `internal/plugins/thanks/linked_test.go` | In a test binary that links the product's composition root, every module its build information lists is a recorded row of the real embedded data with every licence text present, and the presence declarations its packages made at init each name a declared work (AC-13) | |
+| `TestTheEmbeddedRecordLoads` | `internal/core/credits/credits_test.go` | The real embedded record decodes with the strict decoder, holds works and groups, and every text it names is there and not empty | |
+| `TestRowsFollowTheBuildAndThePresence` | `internal/core/credits/credits_test.go` | Modules at the build information's version (a replacement's when replaced), Go at the build's Go version, a work only when declared present, ordered by the declaration's groups then by name | |
 | `TestPresenceOfAnUndeclaredWorkPanics` | `internal/core/credits/credits_test.go` | Declaring a work the generated data does not hold is refused at start-up | |
 | `TestPresenceOfTheToolchainWorkPanics` | `internal/core/credits/credits_test.go` | Declaring the toolchain work present panics with a BUG naming the toolchain, since every binary lists Go without a declaration | |
 | `TestRowsListGoWithNothingDeclared` | `internal/core/credits/credits_test.go` | In a binary where nothing is declared present and no module is linked, `Works()` answers no error and a row for Go at `runtime.Version()`, never an empty list (AC-2) | |
@@ -327,7 +334,10 @@ reader.
 | `TestRowsMarkAModuleWithNoRecord` | `internal/core/credits/credits_test.go` | A linked module without a record is listed as `not recorded` | |
 | `TestRowsRefuseWithoutBuildInformation` | `internal/core/credits/credits_test.go` | No build information is an error, never an empty list | |
 | `TestLicenceDocumentGroupsIdenticalTexts` | `internal/core/credits/credits_test.go` | One copy of a text shared by several works, each work named above it | |
-| `TestLicenceDocumentStaysUnderTheRemoteCap` | `internal/core/credits/credits_test.go` | The document is smaller than `command.BlobRemoteOctetsMax` | |
+| `TestLicenceOfAnswersOneWorkOrRefuses` | `internal/core/credits/credits_test.go` | One work's document holds that work's text only; a name no carried work has is refused with `ErrUnknownWork` naming it, and a linked module with no record with `ErrNotRecorded` (AC-8) | |
+| `TestRecordWithAnUnknownKeyIsRefused` | `internal/core/credits/credits_test.go` | A record key the decoder does not know is refused with `ErrNoData` naming the key | |
+| `TestRecordNamingAMissingTextIsRefused` | `internal/core/credits/credits_test.go` | A record naming a text the data lacks is refused on load with `ErrNoData` naming the text | |
+| `TestLicenceDocumentStaysUnderTheRemoteCap` | `internal/plugins/thanks/thanks_test.go` | The document is smaller than `command.BlobRemoteOctetsMax` | |
 | `TestLicenceNameSelectsOneWork` | `internal/plugins/thanks/thanks_test.go` | The `name` pipe operation answers one work and refuses an unknown name | |
 | `TestThanksListColumns` | `internal/plugins/thanks/thanks_test.go` | The declared column order and kebab-case keys | |
 | `TestCheckRefusesALinkedModuleWithNoCredit` | `internal/le/deps/credits/check_test.go` | A linked module absent from the declaration is refused by name | |
@@ -340,10 +350,33 @@ reader.
 | `TestCheckRefusesAToolchainWorkWithACarrier` | `internal/le/deps/credits/update_test.go` | A toolchain work that lists `carried-by` packages is refused, naming the package | |
 | `TestCheckRefusesADeclarationOfTheToolchainWork` | `internal/le/deps/credits/update_test.go` | A package that declares the toolchain work present is refused at the call, with `./le deps credits update` as the fix | |
 | `TestCheckRefusesADeclarationWithNoToolchainWork` | `internal/le/deps/credits/update_test.go` | A declaration that marks no work as the Go toolchain is refused, naming `website/data/dependencies.json` | |
+| `TestCheckRefusesAToolchainWorkWithAVersion` | `internal/le/deps/credits/update_test.go` | A toolchain work that declares a version is refused, since the binary reads that version from its build information | |
+| `TestUpdateRemovesAFileNoWorkReferences` | `internal/le/deps/credits/update_test.go` | A file under the data directory that no work references is removed by update | |
+| `TestUpdateRecordsTheGroupsInDeclarationOrder` | `internal/le/deps/credits/update_test.go` | The record keeps the groups in the order the declaration names them, not sorted | |
+| `TestUpdateStoresASharedTextOnce` | `internal/le/deps/credits/update_test.go` | Two works shipping a byte-identical licence share one stored copy, and each still lists its own file | |
+| `TestGateRefusesANewlyLinkedModuleWithNoCredit` | `internal/le/deps/credits/gate_test.go` | A commit whose shippable Go file adds an import of a vendored module the data does not credit is refused, naming the module (AC-18) | |
+| `TestGateRefusesAChangedLicenceFileWithStaleData` | `internal/le/deps/credits/gate_test.go` | A commit carrying a changed licence file of a credited work, with the data holding the old bytes, is refused naming the file (AC-18) | |
+| `TestGateRefusesARemovedLicenceFileTheDataStillCopies` | `internal/le/deps/credits/gate_test.go` | A commit that removes a licence file of a credited work, while the data still copies it, is refused naming the file and the work | |
+| `TestGatePassesACommitThatOnlyVendorsAModule` | `internal/le/deps/credits/gate_test.go` | A commit that only adds a module to `go.mod`, `go.sum` and `vendor/` passes, since nothing imports it yet (AC-18 survivor) | |
+| `TestGateIgnoresAnUncreditedModuleAnUnrelatedCommitLeavesAlone` | `internal/le/deps/credits/gate_test.go` | A module already imported at HEAD without a credit does not refuse a commit that adds no import of it (AC-18 survivor) | |
+| `TestGateAcceptsANewModuleOnceDeclaredAndRegenerated` | `internal/le/deps/credits/gate_test.go` | The refused commit passes once it carries the declaration naming the module and the data regenerated from it | |
+| `TestLicenceIdentifiersReadsAnOrExpression` | `internal/le/deps/credits/licences_test.go` | An expression joined by OR alone is read as its alternatives, in the order written | |
+| `TestLicenceIdentifiersRefusesAnExpressionItCannotRead` | `internal/le/deps/credits/licences_test.go` | OR beside AND, parentheses, a trailing `+`, WITH, and an operator missing an identifier are each refused rather than half read | |
+| `TestHolderLineRefusesTheWordBeforeAName` | `internal/le/deps/credits/licences_test.go` | "Copyright" followed by a capitalized word with no year and no mark is read as prose, not a holder line | |
+| `TestHolderLineAcceptsANoticeWithAYearOrAMark` | `internal/le/deps/credits/licences_test.go` | The word followed by a year, and the word followed by a (c) mark and a name, are both read as holder lines | |
+| `TestCheckRefusesAnOrAlternativeTheTextDoesNotState` | `internal/le/deps/credits/licences_test.go` | An OR expression one of whose alternatives the work's files do not state is refused, naming that alternative | |
+| `TestBannerIsClaimedByADeclaredPhrase` | `internal/le/deps/credits/licences_test.go` | A banner that does not name its library is claimed by the work declaring a phrase it writes, and left unclaimed once no phrase is declared | |
+| `TestCheckRefusesABannerPhraseNoBannerWrites` | `internal/le/deps/credits/licences_test.go` | A declared banner phrase that no banner of the work's companion file writes is refused, naming the work, the phrase and the file | |
+| `TestCheckReadsAModulesLicenceFiles` | `internal/le/deps/credits/licences_test.go` | A module's `licence-files` join the files its licence is checked against and copied from, after its root licence files | |
+| `TestLinkedModulesAcceptsTheDataNotYetWritten` | `internal/le/deps/credits/golist_test.go` | The one load error update survives, the credits package's embed of a data directory not yet written, is accepted with every module still read | |
+| `TestLinkedModulesRefusesAnyOtherLoadError` | `internal/le/deps/credits/golist_test.go` | Every other load error (a package not found, a syntax error in the generator package, the same embed error in another package) is refused, naming the package and its error | |
 | `TestCheckRefusesAVendorDirectoryWithoutALicence` | `internal/le/web/vendor/check_test.go` | A vendored web directory with no licence file is refused | |
-| `TestDependenciesPageShowsLicenceAndShippedSection` | `internal/le/site/dependencies_test.go` | Licence and copyright columns, the shipped section, the mirror | |
-| `TestDependenciesLeadCountsDirectModulesOnly` | `internal/le/site/dependencies_test.go` | The lead sentence's count is unchanged by the new lists | |
-| `TestLLMSDependenciesStateEachLicence` | `internal/le/site/derived_test.go` | Each module line of "Dependency rationale" carries its licence identifier, and no indirect module appears | |
+| `TestDependenciesPageShowsLicenceAndShippedSection` | `internal/le/site/dependencies_test.go` | Each curated module shows its licence and copyright, the section "Also in the shipped binary" lists every other shipped work with version, licence and copyright, and the mirror carries the same; every cell shape is asserted (a licence note, an unstated holder, a linked module's version from go.mod's indirect requirement, Go's version from the go directive, a copied work with no version), and no cell is empty (AC-16) | |
+| `TestDependenciesLeadCountsDirectModulesOnly` | `internal/le/site/dependencies_test.go` | Over a declaration of two curated modules, one linked module and two works, the lead sentence counts the two curated modules only (AC-16 survivor) | |
+| `TestALinkedModuleGoModDoesNotRequireIsRefused` | `internal/le/site/dependencies_test.go` | A linked module `go.mod` does not require is refused by name, never published with an empty version | |
+| `TestAToolchainWorkWithNoGoDirectiveIsRefused` | `internal/le/site/dependencies_test.go` | The toolchain work is refused when `go.mod` states no go directive, never published with an empty version | |
+| `TestAnUnknownKeyInTheDependencyDeclarationIsRefused` | `internal/le/site/dependencies_test.go` | The page reads the declaration through the credits tool's reader, so a key its schema does not hold is refused rather than read as absent | |
+| `TestLLMSDependenciesStateEachLicence` | `internal/le/site/derived_test.go` | Each module line of "Dependency rationale" states its licence identifier after its why sentence, so the line still opens with the module and its why, and neither a linked module nor a work that is not a module appears there (AC-19) | |
 | `TestDocsServeTheSwaggerLicenceFiles` | `internal/component/api/rest/server_test.go` | The licence, notice and companion files answer under the documentation path, and are refused without authentication | |
 
 ### Boundary Tests (numeric inputs)
@@ -378,10 +411,13 @@ reader.
 - `internal/plugins/container/seccomp/profile.go` - declares the Moby profile present
 - `internal/appliance/cmd_iso.go` - declares the FAT writer present
 - `internal/exabgp/bridge/bridge_event.go` - declares the ExaBGP ports present
-- `internal/plugins/trafficusage/trafficusage.go` - declares the exporter port present
 - `internal/core/ipregistry/registry.go` - declares the IANA special-purpose registries present
 - `internal/core/portname/services_table.go` - declares the IANA service names present
-- `internal/le/commit/dependencies.go` - the commit gate refuses a commit that links a module with no credit
+- `internal/le/deps/credits/gate.go` - the commit gate, a registered change-set check (`changecheck`), refuses a commit that links a module with no credit
+- `internal/le/deps/credits/credits.go`, `check.go`, `gate.go`, `update.go` - the declaration's types and reader are exported (`credits.Declaration`, `credits.ReadDeclaration`) so the site build reads the same schema
+- `internal/le/site/llmsdata.go` - `loadLLMSInputs` reads the published declaration through `readDependencyDeclaration`
+- `internal/le/site/concepts_test.go` - follows the shared declaration type
+- `docs/architecture/third-party-credits.md` - the design page, kept true as each phase lands
 - `internal/test/localdatacoverage/localdatacoverage.go` - evidence rows for the two commands
 - `test/ui/pipe-local-command.ci` - the coverage marker
 - `NOTICE`, `website/legal/legal.md` - the corrected statement
@@ -396,7 +432,7 @@ reader.
 - `internal/le/web/vendor/check_test.go` - the refusal of a vendored directory without a licence file
 - `third_party/go/LICENSE`, `third_party/go/README.md` - Go's licence at the pinned version, and where it was read
 - `third_party/web/htmx/htmx.LICENSE`, `third_party/web/uplot/uPlot.LICENSE`, `third_party/web/swagger-ui/swagger-ui.LICENSE`, `third_party/web/swagger-ui/swagger-ui.NOTICE`, `third_party/web/swagger-ui/swagger-ui-bundle.js.LICENSE.txt` - fetched from each upstream at the vendored version
-- `third_party/exabgp/LICENSE`, `third_party/lan-bandwidth-exporter/LICENSE`, each with a `README.md` naming what Ze derived - the texts of the ported code
+- `third_party/exabgp/LICENSE`, with a `README.md` naming what Ze derived - the text of the ported code
 - `test/ui/thanks-list.ci`, `test/ui/thanks-licence.ci`, `test/plugin/thanks-daemon-list.ci`, `test/plugin/thanks-daemon-licence-name.ci`
 - `docs/architecture/third-party-credits.md` - the design page: the declaration, the generated copy, presence, the checks
 - `features/third-party-credits.md` - the feature record
@@ -469,7 +505,7 @@ library it does not serve.
 
 The licence texts missing from the repository are added: Go's, htmx's, uPlot's,
 swagger-ui's with the notice and the companion file listing the libraries in
-its bundle, ExaBGP's and the bandwidth exporter's. The web asset licences are
+its bundle, and ExaBGP's. The web asset licences are
 served beside the assets, so the looking glass and the REST documentation
 page, which have listeners of their own, carry them without a page.
 
@@ -512,8 +548,9 @@ none
 | # | Choice | Options | Decision |
 |---|--------|---------|----------|
 | C-1 | Whose binary `ze cli -c "show thanks list"` describes | (a) the caller's, as `show plugin list` does; (b) the daemon's, as `show version` does | (a), assumed: Thomas approved the design with "implement" on 2026-11-20 after being told (a) would be taken unless he said otherwise |
-| C-2 | A shipped work whose upstream states no licence (to be read for the bandwidth exporter port, the IANA tables and the root certificate bundle in `golang.org/x/crypto/x509roots/fallback`) | (a) come back to you per work with what upstream says; (b) list it with the licence cell `none stated` | (a), assumed on the same basis |
+| C-2 | A shipped work whose upstream states no licence (to be read for the IANA tables and the root certificate bundle in `golang.org/x/crypto/x509roots/fallback`) | (a) come back to you per work with what upstream says; (b) list it with the licence cell `none stated` | (a), taken. Decided by Thomas on 2026-11-20: the root certificate data is credited under the Go module only; the IANA statement is recorded in `third_party/iana/README.md`. A work that had been listed here as ported is Ze's own code, not a third-party work: nothing to credit |
 | C-3 | Whether the ExaBGP row names every copyright holder of ExaBGP's licence file or the project | (a) every holder as the file lists them; (b) "the ExaBGP authors" | (a), assumed on the same basis |
+| C-4 | What a credit states when upstream does not say all of it (`golangci-lint`, whose GPL text does not say "only" or "or later") | (a) state only what is known; (b) a note that guesses | (a), Thomas on 2026-11-20: "where upstream does not say, do not guess". The entry is `GPL-3.0` with no `licence-note` (`1b17c0d2f8`) |
 
 ## Implementation Steps
 
@@ -523,7 +560,7 @@ none
    - Verify: the commands are reachable on both routes; the tests fail because the registry is empty
 2. **Phase: Licence texts into the repository** -- fetch each missing text from its upstream at the vendored version, record where it was read
    - Tests: `TestCheckRefusesAVendorDirectoryWithoutALicence`
-   - Files: `third_party/go/LICENSE`, the licence files under `third_party/web/`, `third_party/exabgp/LICENSE`, `third_party/lan-bandwidth-exporter/LICENSE`, `third_party/web/MANIFEST.md`, `internal/le/web/vendor/sync.go`
+   - Files: `third_party/go/LICENSE`, the licence files under `third_party/web/`, `third_party/exabgp/LICENSE`, `third_party/web/MANIFEST.md`, `internal/le/web/vendor/sync.go`
    - Verify: every text is the upstream file byte for byte; a work with no upstream licence goes to C-2
 3. **Phase: The declaration** -- licence, copyright and source for every curated entry; the `linked` and `works` lists
    - Tests: none yet; the check in phase 4 judges it
@@ -531,7 +568,7 @@ none
    - Verify: each identifier and holder is read from the work's own file, quoted in the phase report, never from memory
 4. **Phase: Generator and check** -- `le deps credits update` and `check`, the commit gate
    - Tests: the six tests of `internal/le/deps/credits/check_test.go` and `update_test.go`
-   - Files: `internal/le/deps/credits/credits.go`, `internal/le/commit/dependencies.go`, `internal/core/credits/data/credits.json`
+   - Files: `internal/le/deps/credits/credits.go`, `internal/le/deps/credits/gate.go`, `internal/core/credits/data/credits.json`
    - Verify: the check is green on the tree and red on each seeded defect
 5. **Phase: The answer** -- records joined with build information and presence; the licence document; the `name` operation
    - Tests: the tests of `internal/core/credits/credits_test.go` and `internal/plugins/thanks/thanks_test.go`; the four `.ci` tests turn green
@@ -539,7 +576,7 @@ none
    - Verify: the list on the development binary matches `go version -m` module for module
 6. **Phase: Website page** -- licence columns and the shipped section, under the website rules
    - Tests: at closure, `TestDependenciesPageShowsLicenceAndShippedSection`, `TestDependenciesLeadCountsDirectModulesOnly`, refreshed fixtures
-   - Files: `internal/le/site/dependencies.go`, `website/AI.md`
+   - Files: `internal/le/site/dependencies.go`, `internal/le/site/llmsdata.go`, `internal/le/site/derived.go`, `internal/le/site/concepts_test.go`, the `internal/le/deps/credits/` files whose types were exported (`credits.go`, `check.go`, `gate.go`, `update.go`), `docs/architecture/third-party-credits.md`, `website/AI.md`
    - Verify: the page is rendered into `../gh-pages` for Thomas's review; tests and commit follow his approval
 7. **Phase: Corrections and pages** -- `NOTICE`, the legal page, the command reference, the design page, the dependency approval page
    - Tests: `./le doc check all`
@@ -567,7 +604,7 @@ none
 | Every licence text is in the binary | `ze thanks licence` contains the first line of each vendored licence file of a linked module |
 | The check refuses each defect class | The six check tests |
 | The page shows licences | `./le site build`, then read the generated Dependencies page in `../gh-pages` |
-| The false statement is gone | `grep -n "recorded beside" NOTICE website/legal/legal.md` shows the corrected text |
+| The false statement is gone | `grep -n "recorded beside" NOTICE website/legal/legal.md` matches `NOTICE` only, whose sentence is followed by the one naming `ze thanks`; the legal page no longer carries the phrase |
 
 ### Security Review Checklist
 
@@ -598,7 +635,10 @@ none
 |------|-------|
 | Ran green (main thread) | Unit tests of `internal/core/credits`, `internal/le/deps/credits`, `internal/le/deps`, `internal/plugins/thanks`, `internal/component/api/rest`, `internal/component/lg`, `internal/thirdparty/fat`, `internal/exabgp/bridge`, `internal/core/ipregistry`, `internal/core/portname`, `internal/test/localdatacoverage`; scoped lint of `internal/core/credits`, `internal/le/deps`, `internal/plugins/thanks`; credits `update` and `check` through the temporary driver, both exit 0 (119 works); the four drafts `thanks-list`, `thanks-licence`, `thanks-daemon-list`, `thanks-daemon-licence-name` |
 | Known reds, none from this work | `internal/component/web` `TestWebHandlerGoldenOutput/get-l2tp-session-json` (another session's uncommitted L2TP edits); `internal/le/web/vendor` `TestEveryAssetDirectoryIsDecided` (fleet interface assets); `internal/le/site` `TestADetailPageStatesWhatAnUndeclaredCommandTakes` and `TestTheHomepageRFCCardSaysWhatTheOldFigureCounted`; `./le arch tier check` (the `internal/core/ipc/yang` test import, the PPPoE VPP dataplane build tags) |
-| Remaining | The `pipe-local-command` draft run (blocked while `internal/le/interoplab/l2tp` does not compile, another session's edit); load proof and promotion of the five drafts; the commits; `./le deps credits update` and `./le web vendor update` once the launcher rebuilds; removal of the temporary driver; Phase 6 (website page); Phase 7 (`NOTICE`, legal page) |
+| Commits | `bf60540663` (generator, check, gate, rule point); `e90ab69e36` (declaration, data, the answer); `b97279eb26` (five functional tests, each seen red against a broken handler and run 80 times under load); `099edc4972` (the traffic-usage comments describe the plugin only); `1b17c0d2f8` (`golangci-lint` shown as `GPL-3.0` with no note) |
+| Phase 5 | Complete. The temporary driver is removed; `./le deps credits update`, `./le deps credits check` and `./le web vendor update` run for real and change nothing |
+| Phases 6 and 7 | Written and rendered for the owner's review, not committed |
+| Remaining | The owner's approval of the two rendered pages; then the test judge for `TestTheDependencyPageReadsAsThePublishedPage` (fixtures) and `TestAPipeInADependencyReasonStaysInItsCell` (expected row); tests and lint of `internal/le/site` and `internal/le/deps/credits`; the commit; `./le site build` and `./le site check`; closure |
 
 ## Design Insights
 
