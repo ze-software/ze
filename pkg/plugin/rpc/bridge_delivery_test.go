@@ -118,7 +118,7 @@ func TestDirectBridgeShutdownReleasesPendingCallbacks(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			bridge := NewDirectBridge()
-			bridge.SetExecuteCommand(func(string, string, []string, string) (*ExecuteCommandOutput, error) {
+			bridge.SetExecuteCommand(func(string, string, []string, string, []PipeOperation) (*ExecuteCommandOutput, error) {
 				t.Fatal("callback must not run after its loop stopped")
 				return nil, ErrBridgeClosed
 			})
@@ -128,7 +128,7 @@ func TestDirectBridgeShutdownReleasesPendingCallbacks(t *testing.T) {
 			done := make(chan error, 1)
 			go func() {
 				if typed {
-					_, err := bridge.ExecuteCommand(ctx, "", "test", nil, "")
+					_, err := bridge.ExecuteCommand(ctx, "", "test", nil, "", nil)
 					done <- err
 					return
 				}
@@ -164,7 +164,7 @@ func TestDirectBridgeShutdownUnblocksFullCallbackQueue(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			bridge := NewDirectBridge()
-			bridge.SetExecuteCommand(func(string, string, []string, string) (*ExecuteCommandOutput, error) {
+			bridge.SetExecuteCommand(func(string, string, []string, string, []PipeOperation) (*ExecuteCommandOutput, error) {
 				return &ExecuteCommandOutput{}, nil
 			})
 			bridge.SetReady()
@@ -182,7 +182,7 @@ func TestDirectBridgeShutdownUnblocksFullCallbackQueue(t *testing.T) {
 			sent := make(chan error, 1)
 			go func() {
 				if typed {
-					_, err := bridge.ExecuteCommand(ctx, "", "test", nil, "")
+					_, err := bridge.ExecuteCommand(ctx, "", "test", nil, "", nil)
 					sent <- err
 					return
 				}
@@ -230,7 +230,7 @@ func TestDirectBridgeShutdownPreservesCallbackResult(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			bridge := NewDirectBridge()
-			bridge.SetExecuteCommand(func(string, string, []string, string) (*ExecuteCommandOutput, error) {
+			bridge.SetExecuteCommand(func(string, string, []string, string, []PipeOperation) (*ExecuteCommandOutput, error) {
 				t.Fatal("completed callback handler must not rerun")
 				return nil, ErrBridgeClosed
 			})
@@ -240,7 +240,7 @@ func TestDirectBridgeShutdownPreservesCallbackResult(t *testing.T) {
 			go func() {
 				var err error
 				if typed {
-					_, err = bridge.ExecuteCommand(t.Context(), "serial", "test", nil, "")
+					_, err = bridge.ExecuteCommand(t.Context(), "serial", "test", nil, "", nil)
 				} else {
 					_, err = bridge.SendCallback(t.Context(), "test", nil)
 				}

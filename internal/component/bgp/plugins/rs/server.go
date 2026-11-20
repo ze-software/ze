@@ -484,7 +484,7 @@ func RunRouteServer(conn net.Conn) int {
 	})
 
 	// Register command handler: responds to "show bgp rs status" and "show bgp rs peers".
-	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+	p.OnExecuteCommand(func(serial, command string, args []string, peer string, _ []sdk.PipeOperation) (string, any, error) {
 		return rs.handleCommand(command)
 	})
 

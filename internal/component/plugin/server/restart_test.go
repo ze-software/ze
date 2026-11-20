@@ -59,7 +59,7 @@ func registerRestartPlugins(t *testing.T, claimant, standDown, commandName strin
 				}
 				return nil
 			})
-			p.OnExecuteCommand(func(_, _ string, _ []string, _ string) (string, any, error) {
+			p.OnExecuteCommand(func(_, _ string, _ []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 				probe.commands.Add(1)
 				return "done", map[string]any{"served": true}, nil
 			})

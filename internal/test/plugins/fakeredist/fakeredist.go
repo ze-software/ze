@@ -261,7 +261,7 @@ func runEmitBurst(args []string) (json.RawMessage, error) {
 // dispatchCommand is the OnExecuteCommand entry point. The engine routes
 // commands by prefix; we receive the matched prefix as `command` and the
 // remaining tokens as `args`.
-func dispatchCommand(_, command string, args []string, _ string) (string, any, error) {
+func dispatchCommand(_, command string, args []string, _ string, _ []rpc.PipeOperation) (string, any, error) {
 	if command == "request fakeredist emit" {
 		data, err := runEmit(args)
 		if err != nil {

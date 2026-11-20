@@ -35,7 +35,7 @@ func TestRPKIReloadReceiverRestoresUngatedSelection(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		t.Cleanup(cancel)
 		adj := startRPKIReloadReceiver(t, ctx)
-		out, err := adj.ExecuteCommand(ctx, "enable", "request bgp adj-rib-in enable-validation", nil, "")
+		out, err := adj.ExecuteCommand(ctx, "enable", "request bgp adj-rib-in enable-validation", nil, "", nil)
 		if err != nil {
 			t.Fatal(err)
 		}

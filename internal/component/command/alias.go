@@ -310,17 +310,29 @@ func UnregisterPluginAliases(owner string) {
 // A path that already carries a declaration needs no barrier and gets none. It
 // stops the inheritance already, and the declaration is somebody's to keep.
 func aliasBarriers(commands, aliasPaths []string) []string {
+	return inheritanceBarriers(commands, aliasPaths, func(path string) bool {
+		_, declared := aliasRegistry.get(path)
+		return declared
+	})
+}
+
+// inheritanceBarriers is the rule aliasBarriers states, for any registry that
+// resolves by longest prefix: each of the owner's commands that sits below one
+// of the declared paths and holds no declaration of its own (holds answers
+// false) needs an empty one, so the declaration stops at the command it was
+// declared for. RegisterPluginPipeFilters reads it for an owner's operations.
+func inheritanceBarriers(commands, declaredPaths []string, holds func(path string) bool) []string {
 	barriers := make([]string, 0, len(commands))
 	for _, command := range commands {
 		path := normalizeCommand(command)
 		if path == "" {
 			continue
 		}
-		if _, declared := aliasRegistry.get(path); declared {
+		if holds(path) {
 			continue
 		}
-		for _, aliasPath := range aliasPaths {
-			if path == aliasPath || !commandMatchesPrefix(path, aliasPath) {
+		for _, declaredPath := range declaredPaths {
+			if path == declaredPath || !commandMatchesPrefix(path, declaredPath) {
 				continue
 			}
 			barriers = append(barriers, path)

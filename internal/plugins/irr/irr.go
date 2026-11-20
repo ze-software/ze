@@ -100,7 +100,7 @@ func runIRR(conn net.Conn) int {
 	})
 	defer plug.stopped()
 
-	p.OnExecuteCommand(func(_, command string, args []string, _ string) (string, any, error) {
+	p.OnExecuteCommand(func(_, command string, args []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 		return plug.handleCommand(command, args)
 	})
 	p.OnDoctorCheck(plug.answerDoctorCheck)

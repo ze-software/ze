@@ -167,7 +167,7 @@ func CmdRecordPlugin(_ []string) int {
 
 	reader := &engineAnswerReader{done: make(chan struct{})}
 
-	p.OnExecuteCommand(func(_, command string, args []string, _ string) (string, any, error) {
+	p.OnExecuteCommand(func(_, command string, args []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 		switch command {
 		case recordWalkCommand:
 			return rpc.StatusDone, sdk.Records{

@@ -699,7 +699,7 @@ func runOSPFEngine(conn net.Conn) int {
 		return nil
 	})
 
-	p.OnExecuteCommand(func(_, command string, cmdArgs []string, _ string) (string, any, error) {
+	p.OnExecuteCommand(func(_, command string, cmdArgs []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 		const statusDone = "done"
 		const statusError = "error"
 		switch command {

@@ -133,7 +133,7 @@ type typedSelectorReply struct {
 // 32-request process budget bounds counters; the scenario uses seven. Validation
 // uses the original YANG, never a second parser or reconstructed argument types.
 // Safe for concurrent SDK callbacks; this lock contains only bounded local work.
-func (state *typedSelectorState) execute(_ string, path string, args []string, _ string) (string, any, error) {
+func (state *typedSelectorState) execute(_, path string, args []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if path == externalyang.TypedSelectorState {
@@ -161,7 +161,7 @@ func (state *typedSelectorState) execute(_ string, path string, args []string, _
 	if err != nil {
 		return typedSelectorRefused(err)
 	}
-	if uint16(id) != typedSelectorID {
+	if id != uint64(typedSelectorID) {
 		return typedSelectorRefused(fmt.Errorf("fixture original %d does not exist", id))
 	}
 	listener, err := typedSelectorValue(arguments, typedSelectorLeafListener)

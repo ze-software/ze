@@ -199,7 +199,7 @@ func commandDecls() []sdk.CommandDecl {
 
 // executeCommand admits only commands this plugin declares. The session owner
 // route uses the same handler for DirectBridge and socket command callbacks.
-func executeCommand(_, command string, args []string, peer string) (string, any, error) {
+func executeCommand(_, command string, args []string, peer string, _ []sdk.PipeOperation) (string, any, error) {
 	handlers := map[string]func([]string, string) (string, any, error){
 		"show class-of-service": func([]string, string) (string, any, error) {
 			return rpc.StatusDone, showProfiles(), nil

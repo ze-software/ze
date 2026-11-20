@@ -17,7 +17,7 @@ p.OnShareRegistry(func(commands []sdk.RegistryCommand) { ... })
 
 // Runtime handlers
 p.OnEvent(func(event string) error { ... })
-p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) { ... })
+p.OnExecuteCommand(func(serial, command string, args []string, peer string, pipe []sdk.PipeOperation) (string, any, error) { ... })
 p.OnConfigVerify(func(sections []sdk.ConfigSection) error { ... })
 p.OnConfigApply(func(diffs []sdk.ConfigDiffSection) error { ... })
 p.DeclareAppliesNothing("why a reload has nothing for this plugin to apply")
@@ -156,7 +156,7 @@ Called at runtime when the engine routes a command to the plugin.
 <!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandInput, ExecuteCommandOutput -->
 
 ```go
-p.OnExecuteCommand(func(serial, command string, args []string, peer string) (status string, data any, err error) {
+p.OnExecuteCommand(func(serial, command string, args []string, peer string, pipe []sdk.PipeOperation) (status string, data any, err error) {
     // serial: request correlation ID
     // command: the command name (e.g., "rib adjacent status")
     // args: additional arguments

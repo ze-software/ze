@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"iter"
 	"net/netip"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -1463,10 +1464,6 @@ func (d *Dispatcher) dispatchLine(ctx *CommandContext, line command.DispatchLine
 	}
 
 	if subsystemHandler != nil {
-		if len(declared) > 0 {
-			refusal := pipeOperationsNotCarried(commandPart, "the subsystem that owns it")
-			return plugin.OperatorErrorResponse(refusal), refusal
-		}
 		return d.dispatchSubsystem(ctx, subsystemHandler, commandPart)
 	}
 	return d.dispatchPlugin(ctx, pluginInput, pluginLower, peerSelector)
@@ -1591,19 +1588,21 @@ func checkOverrideAnswer(path string, declared []command.PipeOperation, resp *pl
 	return refusal
 }
 
-// pipeOperationsNotCarried refuses a line whose declared pipe operations the
-// route to the command's owner cannot carry: the request routeToProcess sends
-// and a subsystem's handler hold the command and its arguments only. Running
-// the command without them would answer what the operator did not ask for
-// (the whole table where a count was asked), so it is refused by name.
-// commandPart is the command as typed, owner who serves it.
-func pipeOperationsNotCarried(commandPart, owner string) *opererr.Error {
-	shown := config.DisplayCommand(commandPart)
-	var problem textbuf.Buffer
-	problem.Str("the pipe operations of ").Quoted(shown).Str(" cannot be sent to ").Str(owner)
-	return opererr.New(problem.String(),
-		"the request to "+owner+" carries the command and its arguments, and no pipe operation",
-		shown)
+// pluginPipe is the wire form of a declared list, ExecuteCommandInput.Pipe:
+// each operation's name and its decoded argument words, in chain order. It
+// answers nil for an empty list, because nil is what the wire states as "the
+// line declared none", and an operation typed with no argument keeps nil Args
+// (the argumentWords rule of the partition). It copies, so the request holds no
+// slice the dispatcher's context still owns.
+func pluginPipe(declared []command.PipeOperation) []rpc.PipeOperation {
+	if len(declared) == 0 {
+		return nil
+	}
+	pipe := make([]rpc.PipeOperation, 0, len(declared))
+	for _, operation := range declared {
+		pipe = append(pipe, rpc.PipeOperation{Name: operation.Name, Args: slices.Clone(operation.Args)})
+	}
+	return pipe
 }
 
 // firstFlagToken returns the first flag-shaped token in args, or "" if there is
@@ -1661,7 +1660,8 @@ func (d *Dispatcher) recordCommandAudit(ctx *CommandContext, action, input strin
 // The subsystem receives the command as typed, one string, so the judgment is
 // over the tokens after the command the subsystem declared, against the leaves
 // the model declares for it, and a refused call never reaches the process. The
-// string sent is the one whose tokens were judged.
+// string sent is the one whose tokens were judged. The command's declared pipe
+// operations travel beside it, as they do to a plugin process (routeToProcess).
 func (d *Dispatcher) dispatchSubsystem(ctx *CommandContext, handler *SubsystemHandler, input string) (*plugin.Response, error) {
 	path, rest := handler.matchCommand(input)
 	args, err := tokenize(rest)
@@ -1671,7 +1671,7 @@ func (d *Dispatcher) dispatchSubsystem(ctx *CommandContext, handler *SubsystemHa
 	if _, argErr := command.ValidateModelArgs(path, args, nil); argErr != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: argErr.Error()}, argErr
 	}
-	return handler.Handle(ctx.Context(), input)
+	return handler.Handle(ctx.Context(), input, pluginPipe(ctx.PipeOperations()))
 }
 
 // ForwardToPlugin routes a command to a plugin process by exact name lookup.
@@ -1820,22 +1820,6 @@ func (d *Dispatcher) routeToProcessWithEvents(cmdCtx *CommandContext, cmd *Regis
 		return &plugin.Response{Status: plugin.StatusError, Error: argErr.Error()}, argErr
 	}
 
-	// The declared list (cmdCtx.PipeOperations) is the one fact this request
-	// does not carry yet: rpc.ExecuteCommandInput holds the command, its
-	// arguments and the peer. A command run without the operations its line
-	// declared answers what was not asked, so the line is refused by name
-	// until the request carries the list beside the arguments.
-	if declared := cmdCtx.PipeOperations(); len(declared) > 0 {
-		name := cmd.Name
-		if cmd.Process != nil {
-			name = cmd.Process.Name()
-		}
-		var owner textbuf.Buffer
-		owner.Str("plugin ").Quoted(name)
-		refusal := pipeOperationsNotCarried(cmd.Name, owner.String())
-		return plugin.OperatorErrorResponse(refusal), refusal
-	}
-
 	proc := cmd.Process
 	if proc == nil || !proc.Running() {
 		return nil, ErrPluginProcessNotRunning
@@ -1866,7 +1850,15 @@ func (d *Dispatcher) routeToProcessWithEvents(cmdCtx *CommandContext, cmd *Regis
 		}
 	}
 
-	input := &rpc.ExecuteCommandInput{Command: cmd.Name, Args: validated.Tokens(), Peer: peerSelector}
+	// The declared list travels beside the arguments, never inside them: the
+	// plugin's handler computes with it, and the engine runs the rest of the
+	// chain over the answer.
+	input := &rpc.ExecuteCommandInput{
+		Command: cmd.Name,
+		Args:    validated.Tokens(),
+		Peer:    peerSelector,
+		Pipe:    pluginPipe(cmdCtx.PipeOperations()),
+	}
 	answer, err := conn.SendExecuteCommandAnswer(rpcCtx, input)
 	if err != nil {
 		cancel()

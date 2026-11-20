@@ -502,6 +502,27 @@ func (r *declarationRegistry[T]) withdraw(owner string) {
 	}
 }
 
+// ownerOf answers which caller outside this repository wrote what the command
+// path holds now, or "" when no owner did: an in-tree declaration, or a path
+// that holds nothing. An owner whose record names the path wrote its value,
+// because declareFor records a path only when it stores the owner's value
+// there.
+//
+// Safe for concurrent use.
+func (r *declarationRegistry[T]) ownerOf(command string) string {
+	command = normalizeCommand(command)
+
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	for owner, byPath := range r.byOwner {
+		if _, wrote := byPath[command]; wrote {
+			return owner
+		}
+	}
+	return ""
+}
+
 // reset clears every declaration AND every record of what an owner outside this
 // repository put there. It shadows commandRegistry.reset, which knows nothing
 // about the owner records: a test that reset one and not the other would leave

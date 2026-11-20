@@ -104,7 +104,7 @@ func restartGenerationDriver(ctx context.Context, args []string) error {
 	generation := sync.OnceValues(restartGenerationCount)
 	// ignoring is set by the handler goroutine and read after Run returns.
 	var ignoring atomic.Bool
-	plugin.OnExecuteCommand(func(_ string, command string, _ []string, _ string) (string, any, error) {
+	plugin.OnExecuteCommand(func(_ string, command string, _ []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 		if command != restartGenerationCommand {
 			return statusError, nil, fmt.Errorf("restart-generation serves %q, not %q", restartGenerationCommand, command)
 		}

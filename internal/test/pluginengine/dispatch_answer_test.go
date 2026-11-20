@@ -35,7 +35,7 @@ func TestDispatchAnswersUseActualSDKReaders(t *testing.T) {
 				engine := Start(t, transport, func(conn net.Conn) int {
 					p := sdk.NewWithConn("dispatch-answer-probe", conn)
 					defer p.Close() //nolint:errcheck // the fixture closes and joins the connection
-					p.OnExecuteCommand(func(_, _ string, _ []string, _ string) (string, any, error) {
+					p.OnExecuteCommand(func(_, _ string, _ []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 						var result sdk.DispatchResult
 						var err error
 						switch mode {

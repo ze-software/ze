@@ -43,7 +43,7 @@ func TestOnExecuteCommandAnyMap(t *testing.T) {
 	t.Parallel()
 	p, engine := newTestPair(t)
 
-	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+	p.OnExecuteCommand(func(serial, command string, args []string, peer string, _ []PipeOperation) (string, any, error) {
 		return "done", map[string]any{"running": true, "peers": 5}, nil
 	})
 
@@ -76,7 +76,7 @@ func TestOnExecuteCommandAnyStruct(t *testing.T) {
 		NextHop string `json:"next-hop"`
 	}
 
-	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+	p.OnExecuteCommand(func(serial, command string, args []string, peer string, _ []PipeOperation) (string, any, error) {
 		return "done", []entry{{Prefix: "10.0.0.0/24", NextHop: "10.0.0.1"}}, nil
 	})
 
@@ -104,7 +104,7 @@ func TestOnExecuteCommandAnyNil(t *testing.T) {
 	t.Parallel()
 	p, engine := newTestPair(t)
 
-	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+	p.OnExecuteCommand(func(serial, command string, args []string, peer string, _ []PipeOperation) (string, any, error) {
 		return "done", nil, nil
 	})
 
@@ -128,7 +128,7 @@ func TestOnExecuteCommandAnySlice(t *testing.T) {
 	t.Parallel()
 	p, engine := newTestPair(t)
 
-	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+	p.OnExecuteCommand(func(serial, command string, args []string, peer string, _ []PipeOperation) (string, any, error) {
 		return "done", []string{"cache", "route", "peer"}, nil
 	})
 
@@ -158,7 +158,7 @@ func TestOnExecuteCommandRawMessagePassthrough(t *testing.T) {
 	t.Parallel()
 	p, engine := newTestPair(t)
 
-	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+	p.OnExecuteCommand(func(serial, command string, args []string, peer string, _ []PipeOperation) (string, any, error) {
 		return "done", json.RawMessage(`{"running":true,"peers":5}`), nil
 	})
 
@@ -316,7 +316,7 @@ func TestOnExecuteCommandStringIsDoubleEncoded(t *testing.T) {
 	t.Parallel()
 	p, engine := newTestPair(t)
 
-	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+	p.OnExecuteCommand(func(serial, command string, args []string, peer string, _ []PipeOperation) (string, any, error) {
 		return "done", `{"running":true}`, nil // BUG shape: pre-marshaled string
 	})
 
@@ -450,7 +450,7 @@ func TestExecuteCommandValueAnswerIsUnchanged(t *testing.T) {
 		}{status: tc.status, data: tc.data}
 	}
 
-	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+	p.OnExecuteCommand(func(serial, command string, args []string, peer string, _ []PipeOperation) (string, any, error) {
 		answer, known := answers[command]
 		if !known {
 			return "", nil, fmt.Errorf("unknown command %q", command)
@@ -562,7 +562,7 @@ func TestExecuteCommandRecordResult(t *testing.T) {
 			p, engine := newTestPair(t)
 
 			produced := 0
-			p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+			p.OnExecuteCommand(func(serial, command string, args []string, peer string, _ []PipeOperation) (string, any, error) {
 				return "done", Records{Key: "peers", Rows: peerRows(tc.rows, &produced)}, nil
 			})
 

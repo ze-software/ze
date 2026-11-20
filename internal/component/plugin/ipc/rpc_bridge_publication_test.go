@@ -67,7 +67,7 @@ func TestPluginConnBridgePublication(t *testing.T) {
 	conn, pluginConn := newMuxEnginePluginConn(t)
 	bridge := rpc.NewDirectBridge()
 	defer bridge.CloseCallbacks()
-	bridge.SetExecuteCommand(func(string, string, []string, string) (*rpc.ExecuteCommandOutput, error) {
+	bridge.SetExecuteCommand(func(string, string, []string, string, []rpc.PipeOperation) (*rpc.ExecuteCommandOutput, error) {
 		return &rpc.ExecuteCommandOutput{Status: rpc.StatusDone, Data: json.RawMessage(`"bridge"`)}, nil
 	})
 	bridge.SetReady()

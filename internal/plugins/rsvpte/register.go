@@ -703,7 +703,7 @@ func runRSVPTEEngine(conn net.Conn) int {
 		return nil
 	})
 
-	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
+	p.OnExecuteCommand(func(_, command string, _ []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 		switch command {
 		case "show rsvp-te session":
 			return cmdDone, showSessions(lspTable), nil

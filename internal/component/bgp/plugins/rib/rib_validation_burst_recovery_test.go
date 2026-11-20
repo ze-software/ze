@@ -57,7 +57,7 @@ func TestDisableValidationBurstRecoversActualSelection(t *testing.T) {
 	}
 	setupCtx, setupCancel := context.WithTimeout(t.Context(), 5*time.Second)
 	_, err := bridge.ExecuteCommand(setupCtx, "fixture-timeout", "request bgp adj-rib-in enable-validation",
-		[]string{"timeout", "65535"}, "")
+		[]string{"timeout", "65535"}, "", nil)
 	setupCancel()
 	if err != nil {
 		t.Fatal(err)
@@ -176,7 +176,7 @@ func TestDisableValidationBurstRecoversActualSelection(t *testing.T) {
 	if err := ctx.Err(); err != nil {
 		t.Fatalf("disable deadline expired before its command started: %v", err)
 	}
-	answer, err := bridge.ExecuteCommand(ctx, "disable-burst", "request bgp adj-rib-in disable-validation", nil, "")
+	answer, err := bridge.ExecuteCommand(ctx, "disable-burst", "request bgp adj-rib-in disable-validation", nil, "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -224,7 +224,7 @@ func TestValidationSourcePolicyDuplicateFlushesOwedChanges(t *testing.T) {
 		t.Fatal(err)
 	}
 	validationReceive(t, bridge, r, 100, 9)
-	if _, err := bridge.ExecuteCommand(ctx, "disable", "request bgp adj-rib-in disable-validation", nil, ""); err != nil {
+	if _, err := bridge.ExecuteCommand(ctx, "disable", "request bgp adj-rib-in disable-validation", nil, "", nil); err != nil {
 		t.Fatal(err)
 	}
 	attempts := 0
@@ -368,7 +368,7 @@ func startBurstValidationReceiver(t *testing.T, bus *testEventBus) *rpc.DirectBr
 	if _, err := bridge.SendCallback(ctx, "ze-plugin-callback:post-startup", json.RawMessage(`{}`)); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := bridge.ExecuteCommand(ctx, "enable", "request bgp adj-rib-in enable-validation", nil, ""); err != nil {
+	if _, err := bridge.ExecuteCommand(ctx, "enable", "request bgp adj-rib-in enable-validation", nil, "", nil); err != nil {
 		t.Fatal(err)
 	}
 	return bridge

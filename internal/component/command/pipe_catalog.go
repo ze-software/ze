@@ -436,6 +436,23 @@ func (a PipeArgKind) declarable() bool {
 	}
 }
 
+// declarableArgKinds is the closed argument vocabulary in published order:
+// the kinds declarable accepts, each spelled by String.
+var declarableArgKinds = [...]PipeArgKind{ArgNone, ArgOptional, ArgText, ArgCount, ArgFields, ArgPath}
+
+// PipeArgKindNamed answers the argument kind a published spelling names
+// ("none", "optional", "text", "count", "fields", "path"), the spelling a
+// plugin's Stage 1 pipe operation states. false means the spelling is outside
+// the vocabulary, and the declaration is refused: no kind is guessed for it.
+func PipeArgKindNamed(spelling string) (PipeArgKind, bool) {
+	for _, kind := range declarableArgKinds {
+		if kind.String() == spelling {
+			return kind, true
+		}
+	}
+	return ArgNone, false
+}
+
 // RenderOperatorReference answers the published operator table, in Markdown.
 //
 // It lives beside the catalog so the page and the parser cannot disagree: the

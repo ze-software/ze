@@ -15,7 +15,7 @@ const (
 	Command = "show test enrich"
 )
 
-func dispatchCommand(_, command string, _ []string, _ string) (string, any, error) {
+func dispatchCommand(_, command string, _ []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 	if command != Command {
 		return "error", nil, nil
 	}

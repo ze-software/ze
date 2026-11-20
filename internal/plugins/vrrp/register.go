@@ -244,7 +244,7 @@ func runVRRPEngine(conn net.Conn) int {
 		return nil
 	})
 
-	p.OnExecuteCommand(func(_ string, command string, args []string, _ string) (string, any, error) {
+	p.OnExecuteCommand(func(_ string, command string, args []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 		return handleCommand(eng, command, args)
 	})
 

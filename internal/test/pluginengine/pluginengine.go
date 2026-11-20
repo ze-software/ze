@@ -584,7 +584,7 @@ func (e *Engine) Execute(ctx context.Context, command string, args []string) (js
 func (e *Engine) ExecutePeer(ctx context.Context, command string, args []string, peer string) (json.RawMessage, error) {
 	input := &rpc.ExecuteCommandInput{Serial: "1", Command: command, Args: args, Peer: peer}
 	if e.bridge != nil {
-		out, err := e.bridge.ExecuteCommand(ctx, input.Serial, input.Command, input.Args, input.Peer)
+		out, err := e.bridge.ExecuteCommand(ctx, input.Serial, input.Command, input.Args, input.Peer, input.Pipe)
 		if err != nil {
 			return nil, err
 		}

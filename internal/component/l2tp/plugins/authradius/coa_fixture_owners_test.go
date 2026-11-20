@@ -156,7 +156,7 @@ func coaFixtureDispatch(t *testing.T) coaCommandDispatch {
 		if command == "request class-of-service session" {
 			bridge = owners.cos
 		}
-		out, err := bridge.ExecuteCommand(ctx, "coa-fixture", command, args, peer)
+		out, err := bridge.ExecuteCommand(ctx, "coa-fixture", command, args, peer, nil)
 		if err != nil {
 			return "error", nil, err
 		}

@@ -397,7 +397,7 @@ func runStaticPlugin(conn net.Conn) int {
 
 	registerStaticCallbacks(p, rm)
 
-	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
+	p.OnExecuteCommand(func(_, command string, _ []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 		if command == "show static" {
 			data := rm.showRoutes()
 			return "done", data, nil

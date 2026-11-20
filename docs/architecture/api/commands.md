@@ -2794,12 +2794,14 @@ refused, because the daemon never writes a caller's file.
 <!-- source: internal/component/plugin/server/command.go -- Dispatcher.Dispatch, applyAnswerStep, checkOverrideAnswer -->
 <!-- source: internal/component/plugin/dispatch.go -- CallerIdentity -->
 
-The request a plugin process receives (`rpc.ExecuteCommandInput`) does not yet
-carry the declared list. A line declaring operations for a command a plugin
-process or a subsystem serves is therefore refused by name
-(`pipeOperationsNotCarried`), rather than run without them, which would answer
-what the operator did not ask for.
-<!-- source: internal/component/plugin/server/command.go -- routeToProcessWithEvents, pipeOperationsNotCarried -->
+A plugin process receives the declared list in the request itself:
+`routeToProcess` writes it into the `pipe` list of `rpc.ExecuteCommandInput`,
+beside the arguments and never inside them, over the forked TLS connection
+and over `DirectBridge` alike, and the SDK hands it to the `OnExecuteCommand`
+handler as its `pipe` parameter. A subsystem's command receives the same list
+in its request (`SubsystemHandler.Handle`).
+<!-- source: internal/component/plugin/server/command.go -- routeToProcessWithEvents, pluginPipe, dispatchSubsystem -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- ExecuteCommandHandler, executeCommandAnswer -->
 
 The rendering surfaces send the line as typed. The SSH exec channel, the
 interactive model (`cli.Model`, on SSH, in the web CLI's views and in `ze start
@@ -4029,6 +4031,44 @@ Stage 1 already validates doctor checks and enrichers, before it converts
 anything. `registerPluginPipes` then writes the accepted set under
 `startupRegistrationMu`, between the registry row and the runtime families. Each
 later failure unwinds what the steps above it wrote.
+
+### A plugin declares a pipe operation the same way
+
+An entry that states `argument` in place of `expansion` is a pipe OPERATION
+the plugin's handler runs, the plugin's counterpart of `RegisterPipeFilters`.
+The value is the catalog's closed argument vocabulary (`none`, `optional`,
+`text`, `count`, `fields`, `path`), the one a compiled-in `PipeFilter` states
+in its `Argument` field, so the partition validates a builtin's and a plugin's
+operation by one rule. An entry states exactly one of the two fields:
+`validatePipeDecls` refuses both, or neither ("expands to nothing"), by name.
+
+`registerPluginPipes` hands the operations to `RegisterPluginPipeFilters`,
+which records them into `pipeFilterRegistry` under the plugin's name, before
+the aliases. It returns an error where `RegisterPipeFilters` panics, and it
+refuses the whole list, recording nothing, on any of these:
+
+| Collision | Refusal names |
+|-----------|---------------|
+| a generic operator's name the catalog does not let a command override (every generic but `count`, `first`, `last`, `match`), or an override stating another argument kind than the generic's | the operation and the generic |
+| a name an alias carries on an overlapping command path, in-tree or another plugin's | the operation and the alias's path |
+| a global alias's name | the operation and the global alias |
+| a command path that already holds a non-empty operation set, in-tree or another plugin's | the path, its operations and their owner |
+| one name twice on one path in one message | the path and the name |
+
+The empty barrier that stops a declared set reaching the plugin's own command
+below it is derived from the plugin's command list, as for aliases
+(`inheritanceBarriers`). An alias of the same message refused after the
+operations were recorded withdraws them. `UnregisterPluginPipeFilters` takes
+the operations back on the three paths the aliases leave by (the two rollback
+arms of the Stage 1 write and `releasePluginRegistrations`), and each path
+returns to what it held before, an in-tree barrier included. At run time the
+partition hands the operations the line typed to `routeToProcess`, which sends
+them in the `pipe` list of `execute-command` (`process-protocol.md`,
+"Command Execution"); a subsystem's command receives the same list.
+
+<!-- source: internal/component/command/pipe_filter_plugin.go -- RegisterPluginPipeFilters, UnregisterPluginPipeFilters, pluginPipeFilterCollision -->
+<!-- source: internal/component/command/pipe_catalog.go -- PipeArgKindNamed -->
+<!-- source: internal/component/plugin/server/command.go -- routeToProcessWithEvents, pluginPipe -->
 
 A plugin names only a path it declared itself, and it reaches no global table.
 A path another PLUGIN declared is refused a step earlier: `PluginRegistry.Register`

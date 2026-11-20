@@ -283,15 +283,24 @@ func TestDispatchRefusesOverrideAnswerOfWrongShape(t *testing.T) {
 	assert.True(t, isOperatorError, "rows answered for a count override are refused by name, got %v", err)
 }
 
-// TestDispatchRefusesPipeOperationsThePluginRequestCannotCarry proves a plugin
-// command whose line declares operations is refused before any request leaves
-// for the plugin process, while the request carries no pipe list.
-func TestDispatchRefusesPipeOperationsThePluginRequestCannotCarry(t *testing.T) {
+// TestDispatchCarriesPipeOperationsToThePluginRequest proves a plugin command
+// whose line declares an operation reaches the plugin process with that
+// operation in the request's pipe list, and the plain line with none.
+//
+// Method: an engine-declared operation that takes no argument on a command a
+// plugin serves over the process connection; the plugin side reads both
+// requests off the wire, so the list is the one JSON carried.
+//
+// VALIDATES: AC-14 carrier half: the execute-command request carries the
+// declared operations; a line without one carries no list.
+// PREVENTS: a declared operation dropped on the way to the plugin, or a list
+// sent for a line that holds none.
+func TestDispatchCarriesPipeOperationsToThePluginRequest(t *testing.T) {
 	resetPipeOperationRegistries(t)
 	d := NewDispatcher()
-	var received atomic.Int32
-	done := registerExecuteCommandTarget(t, d, "request target echo", 1, func(_ int, _ *rpc.ExecuteCommandInput) (*rpc.ExecuteCommandOutput, error) {
-		received.Add(1)
+	var requested [2]rpc.ExecuteCommandInput
+	done := registerExecuteCommandTarget(t, d, "request target echo", 2, func(call int, input *rpc.ExecuteCommandInput) (*rpc.ExecuteCommandOutput, error) {
+		requested[call] = *input
 		return &rpc.ExecuteCommandOutput{Status: plugin.StatusDone}, nil
 	})
 	command.RegisterPipeFilters([]string{"request target echo"},
@@ -299,14 +308,16 @@ func TestDispatchRefusesPipeOperationsThePluginRequestCannotCarry(t *testing.T) 
 	)
 
 	_, err := d.Dispatch(&CommandContext{Username: "alice"}, "request target echo | received")
-	_, isOperatorError := errors.AsType[*opererr.Error](err)
-	assert.True(t, isOperatorError, "the line is refused by name, got %v", err)
-	assert.Equal(t, int32(0), received.Load(), "no request reaches the plugin")
-
+	require.NoError(t, err)
 	_, err = d.Dispatch(&CommandContext{Username: "alice"}, "request target echo")
 	require.NoError(t, err)
 	require.NoError(t, <-done)
-	assert.Equal(t, int32(1), received.Load(), "the plain line reaches the plugin")
+
+	assert.Equal(t, "request target echo", requested[0].Command)
+	assert.Empty(t, requested[0].Args, "no operation word reaches the arguments")
+	assert.Equal(t, []rpc.PipeOperation{{Name: "received"}}, requested[0].Pipe)
+	assert.Equal(t, "request target echo", requested[1].Command)
+	assert.Nil(t, requested[1].Pipe, "the plain line carries no pipe list")
 }
 
 // TestDispatchCommandAppliesPipeChain proves a plugin's dispatch-command of a

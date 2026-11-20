@@ -70,7 +70,7 @@ func (h *Hub) RouteCommand(ctx context.Context, block *ConfigBlock) error {
 	cmd := tb.Byte(' ').Str(block.Action).Byte(' ').Str(block.Data).String()
 
 	// Send command to plugin.
-	resp, err := handler.Handle(ctx, cmd)
+	resp, err := handler.Handle(ctx, cmd, nil)
 	if err != nil {
 		return fmt.Errorf("command failed: %w", err)
 	}
@@ -144,7 +144,7 @@ func (h *Hub) routeTransaction(ctx context.Context, namespace, action string) er
 	var tb2 textbuf.Buffer
 	cmd := tb2.Str(namespace).Byte(' ').Str(action).String()
 
-	resp, err := handler.Handle(ctx, cmd)
+	resp, err := handler.Handle(ctx, cmd, nil)
 	if err != nil {
 		return fmt.Errorf("%s failed: %w", action, err)
 	}

@@ -163,7 +163,7 @@ func TestCleanupAnswerSDKTransportsKeepRefusedRecords(t *testing.T) {
 			} else {
 				p, engine = newTestPair(t)
 			}
-			p.OnExecuteCommand(func(_ string, _ string, args []string, _ string) (string, any, error) {
+			p.OnExecuteCommand(func(_ string, _ string, args []string, _ string, _ []PipeOperation) (string, any, error) {
 				var input struct {
 					Count   int  `json:"count"`
 					Faults  int  `json:"faults"`
@@ -227,7 +227,7 @@ func TestCleanupAnswerSDKTransportsKeepRefusedRecords(t *testing.T) {
 				var status string
 				var document json.RawMessage
 				if bridge != nil {
-					out, err := bridge.ExecuteCommand(ctx, "cleanup-answer", "show cleanup-answer", []string{string(encoded)}, "*")
+					out, err := bridge.ExecuteCommand(ctx, "cleanup-answer", "show cleanup-answer", []string{string(encoded)}, "*", nil)
 					if err != nil {
 						t.Fatal(err)
 					}

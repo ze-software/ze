@@ -1048,7 +1048,7 @@ func runEngine(conn net.Conn) int {
 	// The rates are served from this process, the one that owns the tracker,
 	// so a daemon handler reaches them whether the plugin runs internal or
 	// external (rate_command.go).
-	p.OnExecuteCommand(func(_, command string, args []string, _ string) (string, any, error) {
+	p.OnExecuteCommand(func(_, command string, args []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 		return executeCommand(command, args)
 	})
 

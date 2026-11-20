@@ -230,6 +230,9 @@ func (s *Server) releasePluginRegistrations(proc *process.Process) {
 	// outlived its plugin answers a command nobody serves, and it refuses that
 	// plugin its own name when it starts again.
 	command.UnregisterPluginAliases(proc.Name())
+	// The declared pipe operations leave on the same three paths, so a command
+	// path returns to the operation set it held before the plugin declared.
+	command.UnregisterPluginPipeFilters(proc.Name())
 	// The answer shapes leave on the same three paths, and each command path
 	// returns to what it held before the plugin declared. A shape that outlived
 	// its plugin publishes operators for an answer nobody produces, and it

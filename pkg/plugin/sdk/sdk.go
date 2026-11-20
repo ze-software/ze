@@ -718,8 +718,8 @@ func (p *Plugin) activateBridge() {
 		// a record on, so a handler that answers with a walk reaches this
 		// path as the document that walk collapses to
 		// (Records.MarshalJSON, pkg/plugin/records.go).
-		p.bridge.SetExecuteCommand(func(serial, command string, args []string, peer string) (*rpc.ExecuteCommandOutput, error) {
-			status, data, err := onExecuteFn(serial, command, args, peer)
+		p.bridge.SetExecuteCommand(func(serial, command string, args []string, peer string, pipe []rpc.PipeOperation) (*rpc.ExecuteCommandOutput, error) {
+			status, data, err := onExecuteFn(serial, command, args, peer, pipe)
 			if err != nil {
 				return nil, err
 			}

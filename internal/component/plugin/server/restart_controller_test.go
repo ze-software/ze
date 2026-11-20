@@ -68,7 +68,7 @@ func TestRestartControllerRetainsAutomaticReplacement(t *testing.T) {
 			}
 			return nil
 		})
-		p.OnExecuteCommand(func(_, _ string, _ []string, _ string) (string, any, error) {
+		p.OnExecuteCommand(func(_, _ string, _ []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 			return "done", map[string]any{"generation": generation}, nil
 		})
 		if err := p.Run(ctx, &sdk.Registration{FailurePolicy: rpc.FailureRestart, Commands: []sdk.CommandDecl{{Name: commandName}}}); err != nil {

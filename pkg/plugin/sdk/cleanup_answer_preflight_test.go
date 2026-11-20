@@ -19,7 +19,7 @@ import (
 func TestCleanupAnswerTypedBridgePreflightsEnvelope(t *testing.T) {
 	p, engine, bridge := newBridgedTestPair(t)
 	visits := 0
-	p.OnExecuteCommand(func(_ string, key string, _ []string, _ string) (string, any, error) {
+	p.OnExecuteCommand(func(_ string, key string, _ []string, _ string, _ []PipeOperation) (string, any, error) {
 		return rpc.StatusDone, Records{Key: key, Rows: func(yield func(Record) bool) {
 			visits++
 			row := rpc.RawRow(`{"owner":"original"}`)
@@ -42,14 +42,14 @@ func TestCleanupAnswerTypedBridgePreflightsEnvelope(t *testing.T) {
 	}()
 	completeStartup(t, ctx, engine)
 	require.Eventually(t, bridge.HasExecuteCommand, 2*time.Second, time.Millisecond)
-	_, err := bridge.ExecuteCommand(ctx, "preflight", rpc.AnswerErrorsKey, nil, "*")
+	_, err := bridge.ExecuteCommand(ctx, "preflight", rpc.AnswerErrorsKey, nil, "*", nil)
 	if !errors.Is(err, rpc.ErrReservedEnvelopeKey) {
 		t.Fatalf("reserved envelope error=%v", err)
 	}
 	if visits != 0 {
 		t.Fatalf("refused header entered producer %d times", visits)
 	}
-	out, err := bridge.ExecuteCommand(ctx, "preflight", "owners", nil, "*")
+	out, err := bridge.ExecuteCommand(ctx, "preflight", "owners", nil, "*", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

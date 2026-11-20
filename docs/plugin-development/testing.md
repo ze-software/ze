@@ -363,7 +363,7 @@ a serial, command name, args, and peer address, and returns status, data, and er
 func TestCommandHandler(t *testing.T) {
     p, engineMux := newTestPair(t)
 
-    p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+    p.OnExecuteCommand(func(serial, command string, args []string, peer string, pipe []sdk.PipeOperation) (string, any, error) {
         if command == "show-status" {
             return "done", `{"status":"healthy"}`, nil
         }
@@ -498,7 +498,7 @@ func TestCommandDispatch(t *testing.T) {
         t.Run(tt.name, func(t *testing.T) {
             p, engineMux := newTestPair(t)
 
-            p.OnExecuteCommand(func(serial, cmd string, args []string, peer string) (string, any, error) {
+            p.OnExecuteCommand(func(serial, cmd string, args []string, peer string, pipe []sdk.PipeOperation) (string, any, error) {
                 if cmd == "show-routes" {
                     return "done", `{"count":42}`, nil
                 }

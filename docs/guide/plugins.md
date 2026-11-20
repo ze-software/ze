@@ -1460,7 +1460,7 @@ whole answer. A walk that ends inside those 256 rows collapses to the one
 document the command answered with before it produced rows at all.
 
 ```go
-p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+p.OnExecuteCommand(func(serial, command string, args []string, peer string, pipe []sdk.PipeOperation) (string, any, error) {
 	return "done", sdk.Records{
 		Key:  "sessions",
 		Rows: sessionRows(),

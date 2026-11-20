@@ -42,7 +42,7 @@ func TestExecutePeerRequiresDoneAcrossActualSDKTransports(t *testing.T) {
 					engine := Start(t, transport, func(conn net.Conn) int {
 						p := sdk.NewWithConn("strict-command-verdict-probe", conn)
 						defer p.Close() //nolint:errcheck // Start owns and joins both connection ends.
-						p.OnExecuteCommand(func(serial, actual string, args []string, callbackPeer string) (string, any, error) {
+						p.OnExecuteCommand(func(serial, actual string, args []string, callbackPeer string, _ []sdk.PipeOperation) (string, any, error) {
 							called <- observation{serial: serial, command: actual, args: args, peer: callbackPeer}
 							return status, payload{Peer: callbackPeer, Value: "useful-result"}, nil
 						})

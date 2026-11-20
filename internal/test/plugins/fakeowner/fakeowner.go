@@ -167,7 +167,7 @@ func recordHolder(pid int) {
 
 // dispatchCommand serves the outcome. The answer is an object, because the
 // engine refuses a bare JSON string.
-func dispatchCommand(_, command string, _ []string, _ string) (string, any, error) {
+func dispatchCommand(_, command string, _ []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 	if command != outcomeCommand {
 		return rpc.StatusError, "", fmt.Errorf("unknown command: %s", command)
 	}

@@ -383,7 +383,7 @@ func runSysctlPlugin(conn net.Conn) int {
 		statusError = "error"
 	)
 
-	p.OnExecuteCommand(func(_, command string, args []string, _ string) (string, any, error) {
+	p.OnExecuteCommand(func(_, command string, args []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 		switch command {
 		case "show sysctl":
 			return statusDone, s.showEntries(), nil

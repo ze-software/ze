@@ -100,7 +100,7 @@ func (f *cosCommandReportFixture) commandFromPeer(operation string, session uint
 	}
 	ctx, cancel := context.WithTimeout(f.t.Context(), 5*time.Second)
 	defer cancel()
-	output, err := f.bridge.ExecuteCommand(ctx, "cos-report-test", sessionCommand, []string{"transaction", string(encoded)}, peer)
+	output, err := f.bridge.ExecuteCommand(ctx, "cos-report-test", sessionCommand, []string{"transaction", string(encoded)}, peer, nil)
 	if err != nil {
 		return "", err
 	}
@@ -118,7 +118,7 @@ func (f *cosCommandReportFixture) cleanup() error {
 	f.t.Helper()
 	ctx, cancel := context.WithTimeout(f.t.Context(), 5*time.Second)
 	defer cancel()
-	out, err := f.bridge.ExecuteCommand(ctx, "cos-cleanup-test", cleanupCommandForReview, nil, "")
+	out, err := f.bridge.ExecuteCommand(ctx, "cos-cleanup-test", cleanupCommandForReview, nil, "", nil)
 	if err != nil {
 		return err
 	}

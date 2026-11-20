@@ -171,7 +171,7 @@ func runFirewallDomain(conn net.Conn) int {
 		return plug.configure(cfg)
 	})
 
-	p.OnExecuteCommand(func(_, command string, args []string, _ string) (string, any, error) {
+	p.OnExecuteCommand(func(_, command string, args []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 		return plug.handleCommand(command, args)
 	})
 

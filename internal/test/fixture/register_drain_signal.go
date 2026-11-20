@@ -125,7 +125,7 @@ func drainShow(ctx context.Context, args []string) error {
 	}
 	defer plugin.Close() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 
-	plugin.OnExecuteCommand(func(_ string, command string, _ []string, _ string) (string, any, error) {
+	plugin.OnExecuteCommand(func(_ string, command string, _ []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 		if command != drainShowCommand {
 			return statusError, nil, fmt.Errorf("unknown command %q", command)
 		}

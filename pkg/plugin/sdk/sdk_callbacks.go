@@ -48,6 +48,14 @@ type DecodeCapabilityHandler func(code uint8, hex string) (any, error)
 // ExecuteCommandHandler handles command execution requests.
 // Returns status, data (JSON-marshaled by the SDK), and error.
 //
+// pipe is the command's own share of the pipe chain the operator typed: the
+// operations this plugin declared for the command (a Registration Pipes entry
+// with an Argument), in the order typed, each with its decoded argument words.
+// It is nil when the line declared none. The engine runs every other operation
+// of the chain over the answer, so a handler that declared operations computes
+// with this list and answers data; one that declared none ignores it. The words
+// never reach args.
+//
 // A command that walks a large collection returns a Records as its data: the
 // walk itself rather than the collection it would build. The SDK then writes
 // the answer one row at a time and holds no more than one row, and the handler
@@ -57,7 +65,7 @@ type DecodeCapabilityHandler func(code uint8, hex string) (any, error)
 //
 // Every other data value keeps the answer it has always had: one marshaled
 // value in ExecuteCommandOutput.Data, byte for byte.
-type ExecuteCommandHandler func(serial, command string, args []string, peer string) (string, any, error)
+type ExecuteCommandHandler func(serial, command string, args []string, peer string, pipe []PipeOperation) (string, any, error)
 
 // ConfigVerifyHandler handles config verification in the reload pipeline.
 // Return nil to accept the candidate config, error to reject.
@@ -394,7 +402,7 @@ func executeCommandAnswer(
 	if err := json.Unmarshal(params, &input); err != nil {
 		return nil, fmt.Errorf("unmarshal execute-command: %w", err)
 	}
-	status, data, err := fn(input.Serial, input.Command, input.Args, input.Peer)
+	status, data, err := fn(input.Serial, input.Command, input.Args, input.Peer, input.Pipe)
 	if err != nil {
 		return nil, err
 	}

@@ -38,7 +38,7 @@ func TestRPKIReloadRetainsAndRevalidatesReceivedRoutes(t *testing.T) {
 	bridge.SetBatchValidate(rpc.GetBatchValidator())
 	bridge.SetEmitEvent(func(_, _, _, _, _ string) (int, error) { return 1, nil })
 	bridge.SetDispatchCommandArgs(func(ctx context.Context, command string, args []string, peer string) (*rpc.DispatchCommandOutput, error) {
-		out, err := adj.ExecuteCommand(ctx, "reload", command, args, peer)
+		out, err := adj.ExecuteCommand(ctx, "reload", command, args, peer, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -141,7 +141,7 @@ func TestRPKIReloadRetainsAndRevalidatesReceivedRoutes(t *testing.T) {
 
 func assertRPKIReloadRoute(t *testing.T, ctx context.Context, adj *rpc.DirectBridge, key ribevents.ValidationRoute, eligible bool, state uint8, attributes string) {
 	t.Helper()
-	out, err := adj.ExecuteCommand(ctx, "observe", "show bgp adj-rib-in", nil, "")
+	out, err := adj.ExecuteCommand(ctx, "observe", "show bgp adj-rib-in", nil, "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -441,7 +441,7 @@ func startRPKIReloadPlugin(t *testing.T, ctx context.Context, adj *rpc.DirectBri
 	bridge.SetBatchValidate(rpc.GetBatchValidator())
 	bridge.SetEmitEvent(func(_, _, _, _, _ string) (int, error) { return 1, nil })
 	bridge.SetDispatchCommandArgs(func(ctx context.Context, command string, args []string, peer string) (*rpc.DispatchCommandOutput, error) {
-		out, err := adj.ExecuteCommand(ctx, "reload", command, args, peer)
+		out, err := adj.ExecuteCommand(ctx, "reload", command, args, peer, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -557,7 +557,7 @@ func TestRPKIReloadRotatesAndRestoresTLSIdentity(t *testing.T) {
 		ticker := time.NewTicker(time.Millisecond)
 		defer ticker.Stop()
 		for {
-			out, err := bridge.ExecuteCommand(ctx, "observe", "show bgp rpki status", nil, "")
+			out, err := bridge.ExecuteCommand(ctx, "observe", "show bgp rpki status", nil, "", nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -652,7 +652,7 @@ func TestRPKIUpdatePublicationReachesDecorator(t *testing.T) {
 				}
 				bridge.SetBatchValidate(rpc.GetBatchValidator())
 				bridge.SetDispatchCommandArgs(func(ctx context.Context, command string, args []string, peer string) (*rpc.DispatchCommandOutput, error) {
-					out, err := adj.ExecuteCommand(ctx, "startup", command, args, peer)
+					out, err := adj.ExecuteCommand(ctx, "startup", command, args, peer, nil)
 					if err != nil {
 						return nil, err
 					}

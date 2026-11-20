@@ -74,6 +74,10 @@ type UpdateRouteOutput = rpc.UpdateRouteOutput
 // ExecuteCommandOutput is the output for execute-command (runtime).
 type ExecuteCommandOutput = rpc.ExecuteCommandOutput
 
+// PipeOperation is one pipe operation the command declares, handed to its
+// ExecuteCommandHandler (runtime).
+type PipeOperation = rpc.PipeOperation
+
 // DispatchCommandOutput is the output for dispatch-command (runtime).
 type DispatchCommandOutput = rpc.DispatchCommandOutput
 

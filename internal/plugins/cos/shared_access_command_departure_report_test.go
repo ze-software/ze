@@ -45,7 +45,7 @@ func TestCoSLegacySharedCleanupFinishesFailedCommandDeparture(t *testing.T) {
 	writes := f.writes
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
-	output, err := f.bridge.ExecuteCommand(ctx, "cos-departure-cleanup-test", cleanupCommandForReview, nil, "")
+	output, err := f.bridge.ExecuteCommand(ctx, "cos-departure-cleanup-test", cleanupCommandForReview, nil, "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

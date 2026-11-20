@@ -215,7 +215,7 @@ func runFibVPPPlugin(conn net.Conn) int {
 		return nil
 	})
 
-	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
+	p.OnExecuteCommand(func(_, command string, _ []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 		if command == "show fib vpp" {
 			fibMu.Lock()
 			f, cause := fib, unreachable

@@ -41,7 +41,7 @@ func TestCurrentSelectionBypassesBlockedOrdinaryLoop(t *testing.T) {
 			require.NoError(t, err)
 			defer func() { require.NoError(t, stop()) }()
 			entered, release := make(chan struct{}), make(chan struct{})
-			p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+			p.OnExecuteCommand(func(serial, command string, args []string, peer string, _ []PipeOperation) (string, any, error) {
 				close(entered)
 				select {
 				case <-release:

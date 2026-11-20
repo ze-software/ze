@@ -19,7 +19,7 @@ var actions = leaction.New(area,
 	leaction.Action{
 		Verb:    "check",
 		Summary: "check a plugin's runner and registry declare alike",
-		Why:     "a plugin's runner and its registry.Registration declare the same commands and pipe aliases, field for field and in both directions, so the published catalog names what the daemon serves and nothing more",
+		Why:     "a plugin's runner and its registry.Registration declare the same commands and Pipes entries (each a pipe alias or a pipe operation), comparing every field of both kinds in both directions, so the published catalog names what the daemon serves and nothing more",
 		Answer:  runCheck,
 	},
 )

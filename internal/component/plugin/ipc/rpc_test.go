@@ -710,7 +710,7 @@ func TestEngineExecuteCommandDirectBridge(t *testing.T) {
 	var gotCommand string
 	var gotArgs []string
 	var gotPeer string
-	bridge.SetExecuteCommand(func(serial, command string, args []string, peer string) (*rpc.ExecuteCommandOutput, error) {
+	bridge.SetExecuteCommand(func(serial, command string, args []string, peer string, _ []rpc.PipeOperation) (*rpc.ExecuteCommandOutput, error) {
 		gotSerial = serial
 		gotCommand = command
 		gotArgs = append(gotArgs, args...)

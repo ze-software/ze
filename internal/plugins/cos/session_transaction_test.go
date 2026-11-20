@@ -89,7 +89,7 @@ func cosTransaction(t *testing.T, operation, token string) (string, error) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	status, data, err := executeCommand("test", sessionCommand, []string{"transaction", string(payload)}, "192.0.2.1")
+	status, data, err := executeCommand("test", sessionCommand, []string{"transaction", string(payload)}, "192.0.2.1", nil)
 	if err != nil {
 		return "", err
 	}
@@ -266,7 +266,7 @@ func TestCoSTransactionRefusesForeignPeer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, _, err = executeCommand("test", sessionCommand, []string{"transaction", string(payload)}, "192.0.2.2")
+	_, _, err = executeCommand("test", sessionCommand, []string{"transaction", string(payload)}, "192.0.2.2", nil)
 	if err == nil {
 		t.Fatal("another RADIUS client used the token")
 	}
@@ -294,7 +294,7 @@ func TestCoSTransactionRejectsInvalidArguments(t *testing.T) {
 	}
 	for name, args := range cases {
 		t.Run(name, func(t *testing.T) {
-			if _, _, err := executeCommand("test", sessionCommand, args, "192.0.2.1"); err == nil {
+			if _, _, err := executeCommand("test", sessionCommand, args, "192.0.2.1", nil); err == nil {
 				t.Fatal("invalid transaction was accepted")
 			}
 			if h.pending != nil {

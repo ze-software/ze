@@ -130,7 +130,7 @@ func runSRv6IdentityPolicy(name string) error {
 		defer plugin.Close() //nolint:errcheck // Run reports SDK transport failure.
 		var ledger srv6IdentityPolicyLedger
 		plugin.OnFilter(ledger.evaluate)
-		plugin.OnExecuteCommand(func(_ string, command string, args []string, _ string) (string, any, error) {
+		plugin.OnExecuteCommand(func(_ string, command string, args []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 			if command == srv6IdentityRelease {
 				// This IPv4 readiness route goes ONLY to the injector. The three
 				// subject/control IPv6 routes can originate only on its real socket.

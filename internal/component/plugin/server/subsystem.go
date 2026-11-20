@@ -300,7 +300,9 @@ func (h *SubsystemHandler) Running() bool {
 }
 
 // Handle sends a command to the subsystem via RPC and returns the response.
-func (h *SubsystemHandler) Handle(ctx context.Context, command string) (*plugin.Response, error) {
+// pipe is the command's declared pipe operations (ExecuteCommandInput.Pipe),
+// nil when the line declared none.
+func (h *SubsystemHandler) Handle(ctx context.Context, command string, pipe []rpc.PipeOperation) (*plugin.Response, error) {
 	h.mu.RLock()
 	proc := h.proc
 	h.mu.RUnlock()
@@ -314,7 +316,7 @@ func (h *SubsystemHandler) Handle(ctx context.Context, command string) (*plugin.
 	if conn == nil {
 		return nil, ErrSubsystemConnectionClosed
 	}
-	input := &rpc.ExecuteCommandInput{Command: command}
+	input := &rpc.ExecuteCommandInput{Command: command, Pipe: pipe}
 	out, err := conn.SendExecuteCommand(ctx, input)
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err

@@ -202,7 +202,7 @@ func runEmit(args []string) (json.RawMessage, error) {
 	return json.RawMessage(b.Reset().Str(`{"delivered":`).Int(int64(delivered)).Byte('}').String()), nil
 }
 
-func dispatchCommand(_, command string, args []string, _ string) (string, any, error) {
+func dispatchCommand(_, command string, args []string, _ string, _ []rpc.PipeOperation) (string, any, error) {
 	if command == "request fakefib emit" {
 		data, err := runEmit(args)
 		if err != nil {

@@ -236,7 +236,7 @@ func (m *monitor) install(cfg monitorConfig) error {
 
 // command answers the two commands. Ze checked the target name against the
 // leaf of acme-monitor-cmd before it asked, so args holds that one value.
-func (m *monitor) command(_, command string, args []string, _ string) (string, any, error) {
+func (m *monitor) command(_, command string, args []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	switch command {

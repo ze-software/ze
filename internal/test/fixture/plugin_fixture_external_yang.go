@@ -413,7 +413,7 @@ func externalYANGApply(sections []sdk.ConfigDiffSection) error {
 // refused never reaches here, so it is never printed. The answer carries the
 // arguments too, so the command's own output shows what the plugin received,
 // with no wait on the relay of the plugin's stderr through the daemon.
-func externalYANGCommand(_, command string, args []string, _ string) (string, any, error) {
+func externalYANGCommand(_, command string, args []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 	var line textbuf.Buffer
 	line.Str("FIXTURE: external-yang command ").Str(command).Str(" args=[").Join(args, " ").Str("]\n")
 	line.StdErr() //nolint:errcheck // fixture progress output

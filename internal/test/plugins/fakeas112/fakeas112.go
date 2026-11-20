@@ -296,7 +296,7 @@ func runEmit(args []string) (map[string]any, error) {
 }
 
 // dispatchCommand is the OnExecuteCommand entry point.
-func dispatchCommand(_, command string, args []string, _ string) (string, any, error) {
+func dispatchCommand(_, command string, args []string, _ string, _ []rpc.PipeOperation) (string, any, error) {
 	if command == "request fakeas112 emit" {
 		data, err := runEmit(args)
 		if err != nil {

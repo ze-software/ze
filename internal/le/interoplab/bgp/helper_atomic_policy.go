@@ -47,7 +47,7 @@ func runAtomicPolicy(name string) error {
 			}
 			return atomicPolicyAnswer(&input)
 		})
-		plugin.OnExecuteCommand(func(_ string, command string, args []string, _ string) (string, any, error) {
+		plugin.OnExecuteCommand(func(_ string, command string, args []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 			if command != atomicPolicyRelease {
 				return rpc.StatusError, nil, atomicPolicyFixtureError("The atomic-policy fixture received an unknown command.")
 			}

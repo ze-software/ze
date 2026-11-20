@@ -31,7 +31,7 @@ func commandDecls() []sdk.CommandDecl {
 
 // executeNTPCommand reads only this process's worker state. The daemon reaches
 // it through the same command callback for internal and forked runners.
-func executeNTPCommand(_, name string, args []string, _ string) (string, any, error) {
+func executeNTPCommand(_, name string, args []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 	if len(args) != 0 {
 		return plugin.StatusError, nil, opererr.New(name+" takes no arguments",
 			"The NTP runtime commands read one state document and accept no arguments.",

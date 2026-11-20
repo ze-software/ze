@@ -260,7 +260,7 @@ func serveRouteReflector(p *sdk.Plugin) int {
 	p.OnSourcePolicy(rr.handleSourcePolicy)
 
 	// Register command handler.
-	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
+	p.OnExecuteCommand(func(_, command string, _ []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 		return rr.handleCommand(command)
 	})
 

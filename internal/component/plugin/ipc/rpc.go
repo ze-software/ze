@@ -431,7 +431,7 @@ func (pc *PluginConn) SendExecuteCommandAnswer(ctx context.Context, input *rpc.E
 // generic callback path.
 func bridgeAnswer(ctx context.Context, bridge *rpc.DirectBridge, input *rpc.ExecuteCommandInput) (*rpc.Answer, error) {
 	if bridge.HasExecuteCommand() {
-		out, err := bridge.ExecuteCommand(ctx, input.Serial, input.Command, input.Args, input.Peer)
+		out, err := bridge.ExecuteCommand(ctx, input.Serial, input.Command, input.Args, input.Peer, input.Pipe)
 		if err != nil {
 			return nil, err
 		}

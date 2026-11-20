@@ -194,11 +194,16 @@ const fieldsDiffer = "the runner and the registration state different fields for
 
 // channels answers the two declaration channels, in the order a finding sorts.
 //
-// A command is identified by its Name alone. A pipe alias is identified by the
-// PAIR its registry keys it on, the command path it sits on and the name an
-// operator types, because one plugin puts the same alias name on more than one
+// A command is identified by its Name alone. A Pipes entry declares either a
+// pipe alias (it states an Expansion) or a pipe operation the plugin's own
+// handler runs (it states an Argument). Either kind is identified by the PAIR
+// its registry keys it on, the command path it sits on and the name an
+// operator types, because one plugin puts the same name on more than one
 // command and those are two declarations rather than one
-// (internal/component/command/alias.go, RegisterPluginAliases).
+// (RegisterPluginAliases in internal/component/command/alias.go, and
+// RegisterPluginPipeFilters in pipe_filter_plugin.go there). The check compares every field the entry sets,
+// so an Expansion or an Argument the two literals state differently is a
+// disagreement for either kind.
 func channels() []channel {
 	return []channel{
 		{

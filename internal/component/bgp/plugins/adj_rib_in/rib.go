@@ -489,7 +489,7 @@ func runAdjRIBInPlugin(conn net.Conn) int {
 		return nil
 	})
 
-	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+	p.OnExecuteCommand(func(serial, command string, args []string, peer string, _ []sdk.PipeOperation) (string, any, error) {
 		return r.handleCommand(command, args, peer)
 	})
 

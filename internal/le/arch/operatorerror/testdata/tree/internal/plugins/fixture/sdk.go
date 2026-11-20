@@ -11,7 +11,7 @@ func run(p *sdk.Plugin) {
 	p.OnConfigVerify(func(_ []sdk.ConfigSection) error {
 		return errors.New("verify refused")
 	})
-	p.OnExecuteCommand(func(_, _ string, _ []string, _ string) (string, any, error) {
+	p.OnExecuteCommand(func(_, _ string, _ []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 		return "", nil, work()
 	})
 }

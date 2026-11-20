@@ -597,7 +597,7 @@ func TestSDKExecuteCommand(t *testing.T) {
 
 	p, engine := newTestPair(t)
 
-	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+	p.OnExecuteCommand(func(serial, command string, args []string, peer string, _ []PipeOperation) (string, any, error) {
 		return "done", map[string]any{"routes": []any{}}, nil
 	})
 
@@ -2182,7 +2182,7 @@ func TestSDKExecuteCommandDirectBridge(t *testing.T) {
 	var gotCommand string
 	var gotArgs []string
 	var gotPeer string
-	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+	p.OnExecuteCommand(func(serial, command string, args []string, peer string, _ []PipeOperation) (string, any, error) {
 		gotSerial = serial
 		gotCommand = command
 		gotArgs = append(gotArgs, args...)
@@ -2202,7 +2202,7 @@ func TestSDKExecuteCommandDirectBridge(t *testing.T) {
 	require.Eventually(t, func() bool { return bridge.HasExecuteCommand() }, 2*time.Second, 10*time.Millisecond,
 		"execute-command bridge handler should be ready after startup")
 
-	out, err := bridge.ExecuteCommand(ctx, "serial-1", "show-routes", args, "peer selector")
+	out, err := bridge.ExecuteCommand(ctx, "serial-1", "show-routes", args, "peer selector", nil)
 	require.NoError(t, err)
 	require.NotNil(t, out)
 	assert.Equal(t, rpc.StatusDone, out.Status)
@@ -2714,7 +2714,7 @@ func TestPluginAnswersRecordsWithoutDeclaringAShape(t *testing.T) {
 	t.Parallel()
 
 	p, engine := newTestPair(t)
-	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+	p.OnExecuteCommand(func(serial, command string, args []string, peer string, _ []PipeOperation) (string, any, error) {
 		return rpc.StatusDone, map[string]any{"peers": 5}, nil
 	})
 
@@ -2793,7 +2793,7 @@ func TestPluginAnswersRecordsWithoutDeclaringAShape(t *testing.T) {
 func TestPluginRecordEnvelopeErrorsRefused(t *testing.T) {
 	t.Parallel()
 
-	answerWithReservedEnvelope := func(serial, command string, args []string, peer string) (string, any, error) {
+	answerWithReservedEnvelope := func(serial, command string, args []string, peer string, _ []PipeOperation) (string, any, error) {
 		rows := func(yield func(Record) bool) {
 			yield(Record{Item: reservedEnvelopeRow(`{"peer":"10.0.0.1"}`)})
 		}
@@ -2835,7 +2835,7 @@ func TestPluginRecordEnvelopeErrorsRefused(t *testing.T) {
 		require.Eventually(t, func() bool { return bridge.HasExecuteCommand() }, 2*time.Second, 10*time.Millisecond,
 			"the bridge's execute-command handler is set after startup")
 
-		_, err := bridge.ExecuteCommand(ctx, "serial-1", "show peers", nil, "")
+		_, err := bridge.ExecuteCommand(ctx, "serial-1", "show peers", nil, "", nil)
 		require.Error(t, err, "a handler naming the reserved envelope must be refused")
 		assert.ErrorIs(t, err, rpc.ErrReservedEnvelopeKey,
 			"the in-process refusal is the same error the wire producer returns")

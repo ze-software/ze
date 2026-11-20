@@ -637,8 +637,10 @@ func (b *DirectBridge) HasUpdateRouteSelResult() bool {
 
 // ExecuteCommandHandler is the plugin-side typed handler for execute-command.
 // It preserves the existing command callback API while allowing DirectBridge to
-// carry typed command data through the plugin callback loop.
-type ExecuteCommandHandler func(serial, command string, args []string, peer string) (*ExecuteCommandOutput, error)
+// carry typed command data through the plugin callback loop. pipe is
+// ExecuteCommandInput.Pipe, the command's declared pipe operations, so a
+// plugin running in the daemon receives what a forked one reads off the wire.
+type ExecuteCommandHandler func(serial, command string, args []string, peer string, pipe []PipeOperation) (*ExecuteCommandOutput, error)
 
 // ExecuteCommandRequest is an engine->plugin command callback carried through
 // DirectBridge without JSON marshaling.
@@ -647,6 +649,7 @@ type ExecuteCommandRequest struct {
 	Command string
 	Args    []string
 	Peer    string
+	Pipe    []PipeOperation
 	Result  chan<- ExecuteCommandResult
 }
 
@@ -665,8 +668,10 @@ func (b *DirectBridge) SetExecuteCommand(fn ExecuteCommandHandler) {
 
 // ExecuteCommand sends a typed execute-command callback to the plugin event
 // loop and waits for the result, shutdown, or caller cancellation. It preserves
-// callback-loop serialization without JSON marshaling for the request.
-func (b *DirectBridge) ExecuteCommand(ctx context.Context, serial, command string, args []string, peer string) (out *ExecuteCommandOutput, err error) {
+// callback-loop serialization without JSON marshaling for the request. pipe is
+// the command's declared pipe operations (ExecuteCommandInput.Pipe), nil for
+// none.
+func (b *DirectBridge) ExecuteCommand(ctx context.Context, serial, command string, args []string, peer string, pipe []PipeOperation) (out *ExecuteCommandOutput, err error) {
 	if failErr := b.callbackFailure(); failErr != nil {
 		return nil, failErr
 	}
@@ -698,6 +703,7 @@ func (b *DirectBridge) ExecuteCommand(ctx context.Context, serial, command strin
 		Command: command,
 		Args:    args,
 		Peer:    peer,
+		Pipe:    pipe,
 		Result:  resultCh,
 	}:
 		b.endSend()
@@ -734,7 +740,7 @@ func (b *DirectBridge) RunExecuteCommand(req ExecuteCommandRequest) (*ExecuteCom
 	if !b.hasExecuteCommand.Load() {
 		return nil, errors.New("execute-command handler not set")
 	}
-	return b.executeCommand(req.Serial, req.Command, req.Args, req.Peer)
+	return b.executeCommand(req.Serial, req.Command, req.Args, req.Peer, req.Pipe)
 }
 
 // HasExecuteCommand reports whether the typed execute-command handler is set.

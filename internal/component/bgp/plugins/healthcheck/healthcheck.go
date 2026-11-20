@@ -103,7 +103,7 @@ func runHealthcheckPlugin(conn net.Conn) int {
 	// probe set, installed by applyConfig (config_tx.go).
 	newHealthcheckConfigTx(mgr).Register(p)
 
-	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+	p.OnExecuteCommand(func(serial, command string, args []string, peer string, _ []sdk.PipeOperation) (string, any, error) {
 		return mgr.handleCommand(command, args)
 	})
 

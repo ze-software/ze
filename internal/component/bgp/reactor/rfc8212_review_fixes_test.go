@@ -113,7 +113,7 @@ func TestRFC8212ImportSwapPurgesRetainedPaths(t *testing.T) {
 		Name: name, Description: "RFC 8212 retained-path RIB fixture",
 		RunEngine: func(conn net.Conn) int {
 			p := sdk.NewWithConn(name, conn)
-			p.OnExecuteCommand(func(_, _ string, args []string, _ string) (string, any, error) {
+			p.OnExecuteCommand(func(_, _ string, args []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 				rib.purge(args)
 				return rpc.StatusDone, map[string]any{"purged": 1}, nil
 			})

@@ -14,11 +14,11 @@ import (
 
 func TestRouteViewUnknownCommandNamesRecovery(t *testing.T) {
 	handler := routeViewCommandHandler(context.Background(), newSysRIB(), nil)
-	status, _, err := handler("", "show rib", nil, "")
+	status, _, err := handler("", "show rib", nil, "", nil)
 	if err != nil || status != "done" {
 		t.Fatalf("registered read control: status=%q err=%v", status, err)
 	}
-	status, _, err = handler("", "show unknown-routing-view", nil, "")
+	status, _, err = handler("", "show unknown-routing-view", nil, "", nil)
 	if status != "error" || err == nil {
 		t.Fatalf("unknown command was not refused: status=%q err=%v", status, err)
 	}

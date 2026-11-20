@@ -137,7 +137,7 @@ func startValidationReceiver(t *testing.T, bus *testEventBus) (*rpc.DirectBridge
 	if _, err := bridge.SendCallback(ctx, "ze-plugin-callback:post-startup", json.RawMessage(`{}`)); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := bridge.ExecuteCommand(ctx, "enable", "request bgp adj-rib-in enable-validation", nil, ""); err != nil {
+	if _, err := bridge.ExecuteCommand(ctx, "enable", "request bgp adj-rib-in enable-validation", nil, "", nil); err != nil {
 		t.Fatal(err)
 	}
 	if err := bridge.DeliverStructured([]any{validationSourceState(rpc.SessionStateUp)}); err != nil {
@@ -183,7 +183,7 @@ func validationDecision(t *testing.T, bridge *rpc.DirectBridge, ctx context.Cont
 	t.Helper()
 	if text {
 		_, err := bridge.ExecuteCommand(ctx, "decision", "request bgp adj-rib-in batch-validate",
-			[]string{action, "192.0.2.1", "ipv4/unicast", "203.0.113.0/24", "0", "1", strconv.FormatUint(msgID, 10), strconv.FormatUint(validationSourceOwner, 10), strconv.FormatUint(validationSourceConnection, 10)}, "")
+			[]string{action, "192.0.2.1", "ipv4/unicast", "203.0.113.0/24", "0", "1", strconv.FormatUint(msgID, 10), strconv.FormatUint(validationSourceOwner, 10), strconv.FormatUint(validationSourceConnection, 10)}, "", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -211,7 +211,7 @@ type validationStoredRoute struct {
 
 func validationStored(t *testing.T, bridge *rpc.DirectBridge, ctx context.Context) []validationStoredRoute {
 	t.Helper()
-	out, err := bridge.ExecuteCommand(ctx, "show", "show bgp adj-rib-in", nil, "")
+	out, err := bridge.ExecuteCommand(ctx, "show", "show bgp adj-rib-in", nil, "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -352,7 +352,7 @@ func TestDisabledRPKISelectionFirstReceiveBecomesSelectable(t *testing.T) {
 	loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("192.0.2.9"))
 	t.Cleanup(ribevents.ValidationChange.Subscribe(bus, r.validationChanged))
 	bridge, ctx := startValidationReceiver(t, bus)
-	if _, err := bridge.ExecuteCommand(ctx, "disable", "request bgp adj-rib-in disable-validation", nil, ""); err != nil {
+	if _, err := bridge.ExecuteCommand(ctx, "disable", "request bgp adj-rib-in disable-validation", nil, "", nil); err != nil {
 		t.Fatal(err)
 	}
 

@@ -141,7 +141,7 @@ func coaAppliedFixture(t *testing.T) (string, []byte, *coaApplyBackend) {
 	cl, err := newCoAListener(coaListenerConfig{
 		AllowedSources: coaLoopbackSources(), DefaultSecret: secret, Bus: bus,
 		Dispatch: func(ctx context.Context, command string, args []string, peer string) (string, json.RawMessage, error) {
-			out, err := bridge.ExecuteCommand(ctx, "coa-regression", command, args, peer)
+			out, err := bridge.ExecuteCommand(ctx, "coa-regression", command, args, peer, nil)
 			if err != nil {
 				return "error", nil, err
 			}

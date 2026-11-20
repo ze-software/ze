@@ -1033,7 +1033,7 @@ func fixture10PluginAttributes(ctx context.Context, plugin *sdk.Plugin, initialR
 }
 
 func fixture10CompletionSetup(plugin *sdk.Plugin) {
-	plugin.OnExecuteCommand(func(_ string, command string, _ []string, _ string) (string, any, error) {
+	plugin.OnExecuteCommand(func(_ string, command string, _ []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 		switch command {
 		case cmdShowTestCompletionVisible:
 			return statusDone, map[string]any{fieldResult: "visible-ok"}, nil
@@ -1093,7 +1093,7 @@ const (
 )
 
 func fixture10TwoTextsSetup(plugin *sdk.Plugin) {
-	plugin.OnExecuteCommand(func(_ string, command string, _ []string, _ string) (string, any, error) {
+	plugin.OnExecuteCommand(func(_ string, command string, _ []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 		switch command {
 		case cmdShowTestTwoTextsBoth:
 			return statusDone, map[string]any{fieldResult: "both-ok"}, nil

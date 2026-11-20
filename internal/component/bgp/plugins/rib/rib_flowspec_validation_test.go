@@ -585,11 +585,11 @@ func TestFlowSpecAuthorizationSurvivesRealRPKIDisableAndRefresh(t *testing.T) {
 	check(true, 1)
 	validationDecision(t, bridge, ctx, false, "i", 10)
 	check(false, 2)
-	if _, err := bridge.ExecuteCommand(ctx, "disable", "request bgp adj-rib-in disable-validation", nil, ""); err != nil {
+	if _, err := bridge.ExecuteCommand(ctx, "disable", "request bgp adj-rib-in disable-validation", nil, "", nil); err != nil {
 		t.Fatal(err)
 	}
 	check(true, 3)
-	if _, err := bridge.ExecuteCommand(ctx, "refresh", "request bgp adj-rib-in enable-validation", []string{"refresh"}, ""); err != nil {
+	if _, err := bridge.ExecuteCommand(ctx, "refresh", "request bgp adj-rib-in enable-validation", []string{"refresh"}, "", nil); err != nil {
 		t.Fatal(err)
 	}
 	check(false, 4)

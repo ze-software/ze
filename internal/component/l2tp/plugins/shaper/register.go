@@ -117,7 +117,7 @@ func runPlugin(conn net.Conn) int {
 		return nil
 	})
 
-	p.OnExecuteCommand(func(_, command string, args []string, peer string) (string, any, error) {
+	p.OnExecuteCommand(func(_, command string, args []string, peer string, _ []sdk.PipeOperation) (string, any, error) {
 		if command == rateCommand {
 			data, err := shaperInstance.executeRate(args, peer)
 			if err != nil {

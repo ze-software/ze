@@ -30,7 +30,7 @@ func TestNTPRuntimeRefusalsCarryOperatorRecovery(t *testing.T) {
 		{name: "unpublished peers", command: commandNTPPeers, cause: "has not published"},
 	} {
 		t.Run(current.name, func(t *testing.T) {
-			status, data, err := executeNTPCommand("1", current.command, current.args, "")
+			status, data, err := executeNTPCommand("1", current.command, current.args, "", nil)
 			if status != plugin.StatusError || data != nil || err == nil {
 				t.Fatalf("runtime refusal status=%q data=%v error=%v", status, data, err)
 			}

@@ -169,7 +169,7 @@ func runFilterIRR(conn net.Conn) int {
 	// plugin runs internal, the filter-update batch when it runs forked.
 	p.OnFilter(plug.evaluate)
 
-	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+	p.OnExecuteCommand(func(serial, command string, args []string, peer string, _ []sdk.PipeOperation) (string, any, error) {
 		return plug.handleCommand(command, args)
 	})
 	p.OnDoctorCheck(plug.answerDoctorCheck)

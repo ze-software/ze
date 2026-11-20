@@ -116,7 +116,7 @@ func TestDirectBridgeExecuteCommand(t *testing.T) {
 	var gotCommand string
 	var gotArgs []string
 	var gotPeer string
-	bridge.SetExecuteCommand(func(serial, command string, args []string, peer string) (*ExecuteCommandOutput, error) {
+	bridge.SetExecuteCommand(func(serial, command string, args []string, peer string, _ []PipeOperation) (*ExecuteCommandOutput, error) {
 		gotSerial = serial
 		gotCommand = command
 		gotArgs = append(gotArgs, args...)
@@ -136,7 +136,7 @@ func TestDirectBridgeExecuteCommand(t *testing.T) {
 		req.Result <- ExecuteCommandResult{Output: out, Err: err}
 	}()
 
-	out, err := bridge.ExecuteCommand(context.Background(), "serial-1", "bgp rib accept-routes", args, "peer selector")
+	out, err := bridge.ExecuteCommand(context.Background(), "serial-1", "bgp rib accept-routes", args, "peer selector", nil)
 	require.NoError(t, err)
 	require.NotNil(t, out)
 	assert.Equal(t, StatusDone, out.Status)
@@ -156,20 +156,20 @@ func TestDirectBridgeExecuteCommandCancellation(t *testing.T) {
 	t.Parallel()
 
 	bridge := NewDirectBridge()
-	bridge.SetExecuteCommand(func(serial, command string, args []string, peer string) (*ExecuteCommandOutput, error) {
+	bridge.SetExecuteCommand(func(serial, command string, args []string, peer string, _ []PipeOperation) (*ExecuteCommandOutput, error) {
 		return &ExecuteCommandOutput{Status: StatusDone}, nil
 	})
 	bridge.SetReady()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	out, err := bridge.ExecuteCommand(ctx, "", "show-routes", nil, "*")
+	out, err := bridge.ExecuteCommand(ctx, "", "show-routes", nil, "*", nil)
 	require.ErrorIs(t, err, context.Canceled)
 	assert.Nil(t, out)
 
 	waitCtx, waitCancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
 	defer waitCancel()
-	out, err = bridge.ExecuteCommand(waitCtx, "", "show-routes", nil, "*")
+	out, err = bridge.ExecuteCommand(waitCtx, "", "show-routes", nil, "*", nil)
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 	assert.Nil(t, out)
 }
@@ -183,13 +183,13 @@ func TestDirectBridgeExecuteCommandClosed(t *testing.T) {
 	t.Parallel()
 
 	bridge := NewDirectBridge()
-	bridge.SetExecuteCommand(func(serial, command string, args []string, peer string) (*ExecuteCommandOutput, error) {
+	bridge.SetExecuteCommand(func(serial, command string, args []string, peer string, _ []PipeOperation) (*ExecuteCommandOutput, error) {
 		return &ExecuteCommandOutput{Status: StatusDone}, nil
 	})
 	bridge.SetReady()
 	bridge.CloseCallbacks()
 
-	out, err := bridge.ExecuteCommand(context.Background(), "", "show-routes", nil, "*")
+	out, err := bridge.ExecuteCommand(context.Background(), "", "show-routes", nil, "*", nil)
 	require.ErrorIs(t, err, ErrBridgeClosed)
 	assert.Nil(t, out)
 }

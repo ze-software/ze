@@ -173,7 +173,7 @@ func init() {
 }
 
 // dispatchCommand is the OnExecuteCommand entry point.
-func dispatchCommand(_, command string, args []string, _ string) (string, any, error) {
+func dispatchCommand(_, command string, args []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 	handler, ok := commandHandlers[command]
 	if !ok {
 		return rpc.StatusError, "", opererr.New("unknown test command "+command,

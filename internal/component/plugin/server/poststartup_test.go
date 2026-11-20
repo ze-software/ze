@@ -47,7 +47,7 @@ func TestMidLifeAutoLoadDeliversPostStartup(t *testing.T) {
 		Description: "post-startup test role holder",
 		RunEngine: func(conn net.Conn) int {
 			p := sdk.NewWithConn(holder, conn)
-			p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
+			p.OnExecuteCommand(func(_, command string, _ []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 				if command == claimCommand {
 					claimed.Add(1)
 				}

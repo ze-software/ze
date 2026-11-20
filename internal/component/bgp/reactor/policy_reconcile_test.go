@@ -54,7 +54,7 @@ func policyReplayServer(t *testing.T, r *Reactor, execute func() (any, error)) {
 		Name: name, Description: "Policy retained-page barrier",
 		RunEngine: func(conn net.Conn) int {
 			p := sdk.NewWithConn(name, conn)
-			p.OnExecuteCommand(func(_, _ string, _ []string, _ string) (string, any, error) {
+			p.OnExecuteCommand(func(_, _ string, _ []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 				data, err := execute()
 				return rpc.StatusDone, data, err
 			})

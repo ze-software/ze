@@ -192,7 +192,7 @@ func TestSubsystemRPCCommand(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	resp, err := handler.Handle(ctx, "plugin session ping")
+	resp, err := handler.Handle(ctx, "plugin session ping", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 
@@ -221,7 +221,7 @@ func TestSubsystemShutdown(t *testing.T) {
 	// After Stop, Handle should fail (connections closed)
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
-	_, err := handler.Handle(ctx, "anything")
+	_, err := handler.Handle(ctx, "anything", nil)
 	assert.Error(t, err)
 }
 
@@ -260,7 +260,7 @@ func TestSubsystemHandler(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	resp, err := handler.Handle(ctx, "plugin session ping")
+	resp, err := handler.Handle(ctx, "plugin session ping", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 }

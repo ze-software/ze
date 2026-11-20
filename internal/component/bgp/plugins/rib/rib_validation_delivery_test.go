@@ -50,7 +50,7 @@ func TestValidationChangeArrivesAsEnvelopedText(t *testing.T) {
 		r.dispatchText(string(envelope))
 	}))
 	bridge, ctx := startValidationReceiver(t, bus)
-	if _, err := bridge.ExecuteCommand(ctx, "disable", "request bgp adj-rib-in disable-validation", nil, ""); err != nil {
+	if _, err := bridge.ExecuteCommand(ctx, "disable", "request bgp adj-rib-in disable-validation", nil, "", nil); err != nil {
 		t.Fatal(err)
 	}
 

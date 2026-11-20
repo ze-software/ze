@@ -135,7 +135,7 @@ func TestConfigRemovalReleasesStateBeforeDependenciesStop(t *testing.T) {
 		CLIHandler: func([]string) int { return 0 },
 		RunEngine: func(conn net.Conn) int {
 			p := sdk.NewWithConn(backend, conn)
-			p.OnExecuteCommand(func(_, _ string, args []string, _ string) (string, any, error) {
+			p.OnExecuteCommand(func(_, _ string, args []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 				stateMu.Lock()
 				defer stateMu.Unlock()
 				if backendClosed || len(args) != 1 || !installed[args[0]] {
@@ -162,7 +162,7 @@ func TestConfigRemovalReleasesStateBeforeDependenciesStop(t *testing.T) {
 		CLIHandler:           func([]string) int { return 0 },
 		RunEngine: func(conn net.Conn) int {
 			p := sdk.NewWithConn(middle, conn)
-			p.OnExecuteCommand(func(_, _ string, _ []string, _ string) (string, any, error) {
+			p.OnExecuteCommand(func(_, _ string, _ []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 				defer cancel()
 				status, data, err := p.DispatchCommand(ctx, backendCommand+" "+producer)
@@ -308,7 +308,7 @@ func TestReloadRemovalFailureRecoversCommittedService(t *testing.T) {
 							stateMu.Unlock()
 							return nil
 						})
-						p.OnExecuteCommand(func(_, _ string, _ []string, _ string) (string, any, error) {
+						p.OnExecuteCommand(func(_, _ string, _ []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 							stateMu.Lock()
 							defer stateMu.Unlock()
 							if backendClosed || resourceOwner == 0 {

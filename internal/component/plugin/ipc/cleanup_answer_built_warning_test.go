@@ -26,7 +26,7 @@ func TestCleanupAnswerSDKBuiltWarningReachesIPC(t *testing.T) {
 	engine := ipc.NewMuxPluginConn(mux)
 	bridge := rpc.NewDirectBridge()
 	producer := sdk.NewWithConn("built-warning", rpc.NewBridgedConn(pluginEnd, bridge))
-	producer.OnExecuteCommand(func(_ string, command string, _ []string, _ string) (string, any, error) {
+	producer.OnExecuteCommand(func(_ string, command string, _ []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 		if command == "empty" {
 			return rpc.StatusWarning, nil, nil
 		}

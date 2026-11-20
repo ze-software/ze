@@ -35,7 +35,7 @@ func runAIGPSourceCostProcess(name string) error {
 			runErr = err
 			return 1
 		}
-		plugin.OnExecuteCommand(func(_ string, command string, args []string, _ string) (string, any, error) {
+		plugin.OnExecuteCommand(func(_ string, command string, args []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 			if command == aigpReleaseCommand {
 				return releaseAIGPSource(plugin, args)
 			}

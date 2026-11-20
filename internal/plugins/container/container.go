@@ -137,7 +137,7 @@ func runContainerEngine(conn net.Conn) int {
 	// is the one call that waits for the containers to stop.
 	p.OnDrain(sup.drain)
 
-	p.OnExecuteCommand(func(_ string, command string, args []string, _ string) (string, any, error) {
+	p.OnExecuteCommand(func(_ string, command string, args []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 		return handleCommand(ctx, sup, command, args)
 	})
 

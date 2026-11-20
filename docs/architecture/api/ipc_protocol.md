@@ -42,11 +42,16 @@ The engine command dispatcher invokes the registered callback.
 
 Engine provides reactor methods, and plugins register commands that use them.
 
-The same message carries a `pipes` list. Each `PipeDecl` names a CLI pipe alias
-for one of that plugin's own commands, with the command path, the alias name,
-its description and the operator chain the name stands for. The engine parses
-the expansion once, at registration, and refuses the whole list when one entry
-is wrong.
+The same message carries a `pipes` list. Each `PipeDecl` names a pipe word for
+one of that plugin's own commands, with the command path, the name and its
+description, and exactly one of two fields. An `expansion` makes it a pipe
+alias, the operator chain the name stands for, which the engine parses once, at
+registration. An `argument` (`none`, `optional`, `text`, `count`, `fields` or
+`path`) makes it a pipe operation the plugin's handler runs: the engine records
+it among the command's own operations and hands it to the handler in the `pipe`
+list of `execute-command`, `"pipe":[{"name":"top-talkers","args":["5"]}]`,
+absent when the line declared none. An entry with both fields, or neither, is
+refused by name, and the engine refuses the whole list when one entry is wrong.
 
 Each command entry also carries an optional `shape`, `columns` and
 `address-fields`. They say what the command's answer holds, so the CLI refuses

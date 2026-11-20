@@ -161,7 +161,7 @@ for a plugin compiled into `ze`.
 In Go:
 
 ```go
-p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+p.OnExecuteCommand(func(serial, command string, args []string, peer string, pipe []sdk.PipeOperation) (string, any, error) {
     switch command {
     case "show acme-monitor status":
         return "done", map[string]string{"target": cfg.Target, "interval": cfg.intervalText()}, nil
@@ -621,7 +621,7 @@ reaches.
 Return structured JSON data for API consumers:
 
 ```go
-p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+p.OnExecuteCommand(func(serial, command string, args []string, peer string, pipe []sdk.PipeOperation) (string, any, error) {
     if command == "monitor metrics" {
         data := struct {
             Checks    int     `json:"checks"`

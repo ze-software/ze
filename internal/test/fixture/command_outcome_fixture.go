@@ -63,7 +63,7 @@ func commandOutcomeProvider(ctx context.Context, args []string) error {
 			})
 		}
 	}
-	plugin.OnExecuteCommand(func(_ string, command string, args []string, _ string) (string, any, error) {
+	plugin.OnExecuteCommand(func(_ string, command string, args []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 		if len(args) != 0 {
 			return rpc.StatusError, nil, errors.New("command outcome fixture takes no arguments")
 		}

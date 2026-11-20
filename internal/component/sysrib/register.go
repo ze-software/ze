@@ -179,7 +179,7 @@ func runRouteViewPlugin(ctx context.Context, p *sdk.Plugin) (err error) {
 func routeViewCommandHandler(ctx context.Context, s *sysRIB, client *routeViewClient) sdk.ExecuteCommandHandler {
 	const cmdDone = "done"
 	const cmdError = "error"
-	return func(_, command string, args []string, _ string) (string, any, error) {
+	return func(_, command string, args []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 		switch command {
 		case "show rib":
 			data, err := s.showRIB()

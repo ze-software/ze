@@ -173,7 +173,7 @@ func TestNTPRuntimeCommandsReadTheirWorker(t *testing.T) {
 	t.Cleanup(func() { storeState(previous) })
 	storeState(&syncState{Enabled: true, Synced: false, Offset: 0,
 		Servers: []serverState{{Address: "worker.example", Offset: 0, Stratum: 2}}})
-	status, value, err := executeNTPCommand("1", commandNTPStatus, nil, "")
+	status, value, err := executeNTPCommand("1", commandNTPStatus, nil, "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,7 +190,7 @@ func TestNTPRuntimeCommandsReadTheirWorker(t *testing.T) {
 	if data["offset"] != "0s" {
 		t.Errorf("runtime offset=%v, want 0s", data["offset"])
 	}
-	status, value, err = executeNTPCommand("2", commandNTPPeers, nil, "")
+	status, value, err = executeNTPCommand("2", commandNTPPeers, nil, "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,7 +228,7 @@ func TestNTPRuntimeCommandRefusals(t *testing.T) {
 		{name: commandNTPStatus},
 		{name: commandNTPPeers},
 	} {
-		status, data, err := executeNTPCommand("1", current.name, current.args, "")
+		status, data, err := executeNTPCommand("1", current.name, current.args, "", nil)
 		if err == nil {
 			t.Errorf("runtime call %q %v returned no error", current.name, current.args)
 		}
@@ -240,7 +240,7 @@ func TestNTPRuntimeCommandRefusals(t *testing.T) {
 		}
 	}
 	storeState(&syncState{Enabled: false})
-	status, data, err := executeNTPCommand("2", commandNTPPeers, nil, "")
+	status, data, err := executeNTPCommand("2", commandNTPPeers, nil, "", nil)
 	if err == nil {
 		t.Fatal("disabled worker answered an active client's peers request without error")
 	}

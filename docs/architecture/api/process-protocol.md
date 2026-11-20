@@ -1247,15 +1247,24 @@ resolves it, because the daemon runs the chain.
 | `pipes[].command` | string | Command path the alias sits on. MUST be one of this plugin's own declared commands |
 | `pipes[].name` | string | The word an operator types after the pipe character (kebab-case, 1-64 chars) |
 | `pipes[].description` | string | The line completion and `command help` show beside the name |
-| `pipes[].expansion` | string | The operator chain the name stands for, as an operator would type it |
+| `pipes[].expansion` | string | An alias: the operator chain the name stands for, as an operator would type it |
+| `pipes[].argument` | string | An operation: `none`, `optional`, `text`, `count`, `fields` or `path`, the words the name takes |
 
-`validatePipeDecls` reads the shape and the ownership before any conversion.
-`registerPluginPipes` then writes the accepted set into the alias registry under
-`startupRegistrationMu`, between the registry row and the runtime families. One
-bad entry refuses the whole list and fails the plugin's startup, with a message
-naming the plugin, the command path and the alias name.
-`UnregisterPluginAliases` takes the declaration back when the plugin stops or
-its startup is rolled back, which is what lets a stopped plugin start again.
+An entry states exactly one of `expansion` and `argument`, and
+`validatePipeDecls` refuses one with both or neither by name, before any
+conversion, beside the shape and the ownership. An entry with `argument` is a
+pipe OPERATION: `registerPluginPipes` records it into the command's own
+operation set (`command.RegisterPluginPipeFilters`, the same registry an
+in-tree command's `RegisterPipeFilters` fills) and the engine sends it to the
+handler in the `pipe` list of `execute-command` (below). The aliases then go
+into the alias registry, under `startupRegistrationMu`, between the registry
+row and the runtime families. One bad entry refuses the whole list and fails
+the plugin's startup, with a message naming the plugin, the command path and
+the name, and an alias refused after the operations were recorded withdraws
+them. `UnregisterPluginPipeFilters` and `UnregisterPluginAliases` take the
+declaration back when the plugin stops or its startup is rolled back, which is
+what lets a stopped plugin start again.
+<!-- source: internal/component/command/pipe_filter_plugin.go -- RegisterPluginPipeFilters, UnregisterPluginPipeFilters -->
 
 A pipe alias SELECTS and re-sequences an answer. It renames nothing, sums
 nothing and counts nothing, so a command that wants one MUST emit the aggregate
@@ -4596,6 +4605,19 @@ At runtime, the engine dispatches commands to plugins via `execute-command`:
 ```
 #5 ze-plugin-callback:execute-command {"serial":"abc","command":"rib adjacent status","args":[],"peer":"*"}
 ```
+
+When the operator's line typed pipe operations the command declares (a
+`pipes` entry with an `argument`), the request carries them in `pipe`, in the
+order typed, each with its decoded argument words; `pipe` is absent when the
+line declared none, and an operation typed with no argument has no `args`:
+
+```
+#6 ze-plugin-callback:execute-command {"serial":"abd","command":"show x","pipe":[{"name":"top-talkers","args":["5"]},{"name":"histogram"}]}
+```
+
+The handler computes with the list and answers data; the engine runs every
+other operation of the chain over that answer. A plugin running in the daemon
+receives the same list through `DirectBridge.ExecuteCommand`.
 
 **Plugin to Engine:** the answer is a head, its records and a terminator. Every
 plugin writes it. The frame is the same whatever the payload is, so a handler

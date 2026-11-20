@@ -954,10 +954,11 @@ func (e *engineStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) 
 		s.registry.Unregister(reg.Name)
 		startupRegistrationMu.Unlock()
 		logger().Error("plugin pipe alias refused", "plugin", reg.Name, "error", err)
-		return fmt.Errorf("pipe alias refused: %s: %w", reg.Name, err)
+		return err
 	}
 	if err := registerPluginShapes(reg.Name, input.Commands); err != nil {
 		command.UnregisterPluginAliases(reg.Name)
+		command.UnregisterPluginPipeFilters(reg.Name)
 		s.registry.Unregister(reg.Name)
 		startupRegistrationMu.Unlock()
 		logger().Error("plugin answer shape refused", "plugin", reg.Name, "error", err)
@@ -967,6 +968,7 @@ func (e *engineStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) 
 	if err != nil {
 		command.UnregisterPluginShapes(reg.Name)
 		command.UnregisterPluginAliases(reg.Name)
+		command.UnregisterPluginPipeFilters(reg.Name)
 		s.registry.Unregister(reg.Name)
 		startupRegistrationMu.Unlock()
 		logger().Error("plugin family registration conflict", "plugin", reg.Name, "error", err)
@@ -1595,11 +1597,16 @@ func validateDoctorCheckDecls(checks []rpc.DoctorCheckDecl) error {
 	return nil
 }
 
-// validatePipeDecls validates pipe alias declarations from Stage 1 registration.
-// It reads the shape of each declaration, and it confirms the plugin declared
-// the command path the alias sits on in the same message. Whether a NAME is
-// already taken is decided by the alias registry, which is the only holder of
-// that answer.
+// validatePipeDecls validates the pipe declarations of Stage 1 registration,
+// aliases and operations alike. It reads the shape of each declaration, and it
+// confirms the plugin declared the command path the word sits on in the same
+// message. Whether a NAME is already taken is decided by the alias registry
+// and the pipe filter registry, which are the only holders of that answer.
+//
+// An entry is an alias when it states an expansion and an operation when it
+// states an argument kind, and it MUST state exactly one: both, or neither, is
+// refused by name, because an entry that states nothing would otherwise be
+// read as one kind by default.
 //
 // An alias sits on a command PATH, and a path the plugin did not declare belongs
 // to whoever did. The check reads the declared command names and refuses every
@@ -1629,8 +1636,19 @@ func validatePipeDecls(pipes []rpc.PipeDecl, commands []rpc.CommandDecl) error {
 		if !isLowerKebab(p.Name) {
 			return fmt.Errorf("invalid pipe alias name %q (must be kebab-case)", p.Name)
 		}
-		if strings.TrimSpace(p.Expansion) == "" {
-			return fmt.Errorf("pipe alias %q on %q expands to nothing", p.Name, p.Command)
+		expands := strings.TrimSpace(p.Expansion) != ""
+		if p.Argument != "" {
+			if expands {
+				return fmt.Errorf("pipe word %q on %q states both an expansion and an argument; "+
+					"an alias states its expansion, an operation its argument", p.Name, p.Command)
+			}
+			if _, known := command.PipeArgKindNamed(p.Argument); !known {
+				return fmt.Errorf("pipe operation %q on %q states argument %q "+
+					"(must be one of none, optional, text, count, fields, path)", p.Name, p.Command, p.Argument)
+			}
+		} else if !expands {
+			return fmt.Errorf("pipe alias %q on %q expands to nothing, and states no argument "+
+				"that would make it an operation", p.Name, p.Command)
 		}
 		// The alias description is a one-line summary, and completion writes it
 		// into the same tab-separated format a command summary goes into.
@@ -1655,32 +1673,56 @@ func commandPathKey(command string) string {
 	return strings.ToLower(textbuf.Join(strings.Fields(command), " "))
 }
 
-// registerPluginPipes writes the declared pipe aliases into the alias registry
-// the pipe resolver reads, under the plugin's name. The whole declaration is
-// handed over in one call, because the registry refuses the batch rather than
-// half of it.
+// registerPluginPipes writes the declared pipe words under the plugin's name:
+// each operation (an entry with an argument) into the pipe filter registry the
+// partition reads, each alias (an entry with an expansion) into the alias
+// registry the pipe resolver reads. Each kind is handed over in one call,
+// because each registry refuses the batch rather than half of it, and the
+// operations go first, so an alias that would shadow one of this message's
+// operations is refused by the alias registry's own check. An alias refused
+// after the operations were recorded withdraws them: the whole declaration is
+// recorded or none of it.
 //
-// The plugin's own command names travel with it. The registry derives from them
-// the empty declaration that stops an alias reaching a command below the one it
-// sits on, so a declaring author never has to know how a command resolves an
-// alias. The names are the same list validatePipeDecls read to decide the
-// plugin owns the paths it named.
+// The refusal names the kind of word refused and the plugin that declared it:
+// "pipe operation refused: <plugin>: ..." for an operation, "pipe alias
+// refused: <plugin>: ..." for an alias. Only this function knows which kind
+// the registry refused, so it writes that prefix and its caller adds none.
 //
-// The plugin name is what UnregisterPluginAliases takes the declaration back
-// under, on the rollback path and when the plugin stops.
+// The plugin's own command names travel with it. Each registry derives from
+// them the empty declaration that stops a word reaching a command below the
+// one it sits on, so a declaring author never has to know how a command
+// resolves a pipe word. The names are the same list validatePipeDecls read to
+// decide the plugin owns the paths it named, and validatePipeDecls has already
+// refused an entry stating both kinds, neither, or an unknown argument kind.
+//
+// The plugin name is what UnregisterPluginPipeFilters and
+// UnregisterPluginAliases take the declaration back under, on the rollback path
+// and when the plugin stops.
 func registerPluginPipes(owner string, pipes []rpc.PipeDecl, commands []rpc.CommandDecl) error {
 	if len(pipes) == 0 {
 		return nil
 	}
-	declared := make([]command.PluginAlias, 0, len(pipes))
+	var aliases []command.PluginAlias
+	var operations []command.PluginPipeFilter
 	for _, p := range pipes {
-		declared = append(declared, command.PluginAlias{
+		if p.Argument == "" {
+			aliases = append(aliases, command.PluginAlias{
+				Command: p.Command,
+				Alias: command.Alias{
+					Name:        p.Name,
+					Description: p.Description,
+					Expansion:   p.Expansion,
+				},
+			})
+			continue
+		}
+		argument, known := command.PipeArgKindNamed(p.Argument)
+		if !known {
+			return fmt.Errorf("pipe operation refused: %s: pipe operation %q on %q states argument %q, outside the vocabulary", owner, p.Name, p.Command, p.Argument)
+		}
+		operations = append(operations, command.PluginPipeFilter{
 			Command: p.Command,
-			Alias: command.Alias{
-				Name:        p.Name,
-				Description: p.Description,
-				Expansion:   p.Expansion,
-			},
+			Filter:  command.PipeFilter{Name: p.Name, Description: p.Description, Argument: argument},
 		})
 	}
 	declaredCommands := make([]string, 0, len(commands))
@@ -1688,7 +1730,17 @@ func registerPluginPipes(owner string, pipes []rpc.PipeDecl, commands []rpc.Comm
 		c := &commands[i]
 		declaredCommands = append(declaredCommands, c.Name)
 	}
-	return command.RegisterPluginAliases(owner, declaredCommands, declared)
+	if err := command.RegisterPluginPipeFilters(owner, declaredCommands, operations); err != nil {
+		return fmt.Errorf("pipe operation refused: %s: %w", owner, err)
+	}
+	if len(aliases) == 0 {
+		return nil
+	}
+	if err := command.RegisterPluginAliases(owner, declaredCommands, aliases); err != nil {
+		command.UnregisterPluginPipeFilters(owner)
+		return fmt.Errorf("pipe alias refused: %s: %w", owner, err)
+	}
+	return nil
 }
 
 // validateShapeDecls validates the answer-shape declarations the Stage 1

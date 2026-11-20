@@ -447,7 +447,7 @@ func runISISPlugin(p *sdk.Plugin, eng *engine) int {
 	// snapshot the siblings produce; the clear actions mutate runtime state and
 	// return a status payload. The CLI proxy (cmd_show.go) forwards a fixed
 	// command string here, so the switch is exhaustive over the registered set.
-	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
+	p.OnExecuteCommand(func(_, command string, _ []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 		const statusDone = "done"
 		switch command {
 		case cmdShowNeighbor:

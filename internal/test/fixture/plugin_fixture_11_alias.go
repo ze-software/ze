@@ -100,7 +100,7 @@ func aliasProvider(which aliasCase) Driver {
 		default:
 			panic("BUG: unknown alias provider fixture")
 		}
-		plugin.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
+		plugin.OnExecuteCommand(func(_, command string, _ []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 			switch command {
 			case cmdShowPipealiasCounters:
 				return statusDone, pipeAnswer("pipe-alias-probe", "servers"), nil

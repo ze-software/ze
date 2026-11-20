@@ -201,7 +201,7 @@ func (f *ospfRuntimeRollbackFixture) document(t *testing.T, command string, out 
 	t.Helper()
 	var document json.RawMessage
 	if f.bridge != nil {
-		answer, err := f.bridge.ExecuteCommand(f.ctx, "rollback", command, nil, "")
+		answer, err := f.bridge.ExecuteCommand(f.ctx, "rollback", command, nil, "", nil)
 		if err != nil {
 			t.Fatalf("%s: %v", command, err)
 		}

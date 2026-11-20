@@ -24,7 +24,7 @@ func TestExecutePeerReachesActualSDKAndPreservesEmptyControl(t *testing.T) {
 			engine := Start(t, transport, func(conn net.Conn) int {
 				p := sdk.NewWithConn("explicit-command-peer-probe", conn)
 				defer p.Close() //nolint:errcheck // Start owns and joins both connection ends.
-				p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+				p.OnExecuteCommand(func(serial, command string, args []string, peer string, _ []sdk.PipeOperation) (string, any, error) {
 					if serial != "1" {
 						return rpc.StatusError, nil, errors.New("command serial changed")
 					}

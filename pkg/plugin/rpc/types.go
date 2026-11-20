@@ -454,22 +454,41 @@ type DeclareRegistrationInput struct {
 	FencesLiveForwards bool `json:"fences-live-forwards,omitempty"`
 }
 
-// PipeDecl declares a pipe alias for one of the plugin's own commands. An alias
-// is the word an operator types after the pipe character, and the operator
-// chain it stands for. It is declared during Stage 1 registration. The daemon
-// resolves it, because the daemon runs the chain.
+// PipeDecl declares a pipe word for one of the plugin's own commands, the word
+// an operator types after the pipe character. It is declared during Stage 1
+// registration, and it is one of two kinds, told apart by which of Expansion
+// and Argument it states. An entry MUST state exactly one of the two: the
+// daemon refuses an entry with both, or with neither, by name.
 //
-// A pipe alias reshapes an answer. It selects and re-sequences what the command
-// already returned, so the command owes a payload the selection can cut. It
-// takes no argument and it names no other alias.
+//   - A pipe ALIAS states Expansion: the operator chain the name stands for.
+//     The daemon resolves it, because the daemon runs the chain. An alias
+//     reshapes an answer: it selects and re-sequences what the command already
+//     returned, so the command owes a payload the selection can cut. It takes
+//     no argument and it names no other alias.
+//   - A pipe OPERATION states Argument: the plugin's handler runs it. The
+//     daemon records it as an operation of the command, validates the words
+//     typed after it against Argument, and hands it to the handler in the Pipe
+//     list of ExecuteCommandInput, in the order typed. A name that is a generic
+//     operator's (count, first, last, match) is an override, held to the
+//     generic's argument kind and answer shape; another generic name is
+//     refused.
+//
+// JSON, an alias: {"command":"show x","name":"brief","expansion":"table"}.
+// An operation: {"command":"show x","name":"top-talkers","argument":"count"}.
 type PipeDecl struct {
-	Command string `json:"command"` // Command path the alias sits on (one of this plugin's own declared commands)
+	Command string `json:"command"` // Command path the word sits on (one of this plugin's own declared commands)
 	Name    string `json:"name"`    // The word an operator types after the pipe character (kebab-case)
 	// Description is the one-line summary completion and help show beside the
 	// name. An alias has no second, longer text: the expansion below is the
 	// whole of what the name does, and it is reported beside the summary.
 	Description string `json:"description,omitempty"`
-	Expansion   string `json:"expansion"` // The operator chain the name stands for, as an operator would type it
+	Expansion   string `json:"expansion,omitempty"` // An alias: the operator chain the name stands for, as an operator would type it
+	// Argument makes the entry an operation, and states what the words typed
+	// after the name may be: "none", "optional", "text", "count" (a positive
+	// whole number), "fields" (one or more field names) or "path". It is the
+	// catalog's closed argument vocabulary, the one a compiled-in command's
+	// operation states, and any other spelling is refused.
+	Argument string `json:"argument,omitempty"`
 }
 
 // EnricherDecl declares a show enricher the plugin provides.
@@ -1005,11 +1024,28 @@ type DecodeCapabilityInput struct {
 }
 
 // ExecuteCommandInput is the input for ze-plugin-callback:execute-command.
+//
+// Pipe is the command's own share of the pipe chain the operator typed: the
+// operations the command declares (a PipeDecl with an Argument), in the order
+// typed, each with its decoded argument words. The engine runs every other
+// operation of the chain over the answer, so the handler computes with this
+// list and answers data. It is never folded into Args. Absent (nil) means the
+// line declared none: `"pipe":[{"name":"top-talkers","args":["5"]}]`.
 type ExecuteCommandInput struct {
-	Serial  string   `json:"serial"`
-	Command string   `json:"command"`
-	Args    []string `json:"args,omitempty"`
-	Peer    string   `json:"peer,omitempty"`
+	Serial  string          `json:"serial"`
+	Command string          `json:"command"`
+	Args    []string        `json:"args,omitempty"`
+	Peer    string          `json:"peer,omitempty"`
+	Pipe    []PipeOperation `json:"pipe,omitempty"`
+}
+
+// PipeOperation is one declared pipe operation handed to a command's handler:
+// the name typed after the pipe and its argument words, decoded (quotes
+// removed), in the order typed. Args is nil when the operation was typed with
+// no argument, never an empty list.
+type PipeOperation struct {
+	Name string   `json:"name"`
+	Args []string `json:"args,omitempty"`
 }
 
 // ExecuteCommandOutput is the output for ze-plugin-callback:execute-command.

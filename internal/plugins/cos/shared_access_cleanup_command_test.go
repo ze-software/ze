@@ -46,7 +46,7 @@ func TestCoSLegacySharedReportedCleanupCommandRepairsOriginalOwner(t *testing.T)
 		t.Fatalf("visible cleanup declarations=%d, want one", declarations)
 	}
 	writes := f.writes
-	status, _, err := executeCommand("diagnostic-recovery", command, nil, "127.0.0.1")
+	status, _, err := executeCommand("diagnostic-recovery", command, nil, "127.0.0.1", nil)
 	if err != nil {
 		t.Fatalf("the reported cleanup command did not recover its original owner: %v", err)
 	}
