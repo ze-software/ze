@@ -4,15 +4,16 @@
 |-------|-------|
 | Status | blocked |
 | Scope | protocol validation |
-| Priority | P2 |
-| Release reason | Thomas brought VPP IPsec into the first release on 2026-11-20 (his decision 2, following ruling 3a, recorded in `plan/release/fixes/spec-ipsec-vpp-policy-interface.md`, "Thomas's rulings"). A first-release VPP IPsec backend owes real-VPP evidence that it receives bare and UDP-encapsulated ESP on one inbound SA, which this spec supplies and the operator selector (`plan/release/fixes/spec-ipsec-dataplane-selector.md`) consumes. |
-| Depends | plan/release/fixes/spec-ipsec-vpp-policy-interface.md |
+| Priority | P3 |
+| Release reason | Real-VPP dual-form evidence gates optional operator-selectable VPP, not shipped XFRM. Thomas brought this spec into the first release on 2026-11-20 (his decision 2) and reversed that the same day by ruling "plan/release/fixes/spec-ipsec-vpp-policy-interface.md will be done after the release": this spec depends on that one, so it returns to post-release with it. VPP IPsec is not a first-release feature; no operator can select VPP before `plan/post-release/features/spec-ipsec-dataplane-selector.md` lands, so the XFRM-only release stands. |
+| Depends | plan/post-release/features/spec-ipsec-vpp-policy-interface.md |
 | Phase | 5/5 (inherited sequence, not completion) |
-| Updated | 2026-10-22 |
+| Updated | 2026-11-20 |
 
 Moved on 2026-11-20 from `plan/post-release/features/spec-ipsec-vpp-dual-form-proof.md`
-into `plan/release/validation/`, by Thomas's decision 2 of that day: the bucket
-holds evidence that shipped behavior works, which is what this spec produces.
+into `plan/release/validation/`, by Thomas's decision 2 of that day, and returned
+here the same day by his ruling "plan/release/fixes/spec-ipsec-vpp-policy-interface.md
+will be done after the release", because this spec depends on that one.
 Status stays `blocked`: its dependency, the VPP policy-interface spec, is still open.
 
 ## Task and ownership
@@ -39,7 +40,7 @@ design.
 
 - [ ] `plan/release/validation/spec-ipsec-esp-dual-form-receive.md` - the parent: AC-5's origin, the 2026-09-05 "MEASURE IT" ruling
   → Constraint: a refusal does not replace the measurement
-- [ ] `plan/release/fixes/spec-ipsec-vpp-policy-interface.md` - the dependency: AC-1..AC-5, the WAN-interface ruling, ruling 3a and its open C-4
+- [ ] `plan/post-release/features/spec-ipsec-vpp-policy-interface.md` - the dependency: AC-1..AC-5, the WAN-interface ruling, ruling 3a found unworkable and C-4 decided "B" (the VPP patch 0106)
   → Constraint: no IKE policy reaches VPP until that spec lands
 - [ ] `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` - "Both ESP forms on one inbound state", "Decisions"
 - [ ] `docs/architecture/testing/interop.md` - the real VPP proof scenarios the evidence run carries
@@ -136,8 +137,10 @@ design.
 
 The 2026-08-29 withdrawal leaves AC-5 unresolved. The 2026-09-05 ruling is
 MEASURE IT, not a choice between measurement and refusal. The 2026-11-20 ruling
-(decision 2) places this spec in the first release; it does not start the work
-before its dependency clears. The 2026-10-09 owner set-aside ("Set aside the 7
+(decision 2) placed this spec in the first release; Thomas reversed that the same
+day ("plan/release/fixes/spec-ipsec-vpp-policy-interface.md will be done after
+the release"), so it is post-release again. Neither ruling starts the work before
+its dependency clears. The 2026-10-09 owner set-aside ("Set aside the 7
 specs waiting on something else") and owner defer-heavy-testing instruction
 therefore still apply while the policy-interface spec is open: this child is
 blocked, not newly commissioned or ready.
@@ -145,7 +148,7 @@ blocked, not newly commissioned or ready.
 The parent's original Phase 4 refusal-only test proposals and all checklist
 references to VPP are governed by that September ruling. No RFC artifact,
 verdict, evidence status or tagged-test authorization is changed by this split
-or by the move.
+or by either move.
 
 ## Checklist
 

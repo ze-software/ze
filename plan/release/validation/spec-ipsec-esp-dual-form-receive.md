@@ -10,7 +10,7 @@
 | Phase | 5/5 |
 | Updated | 2026-11-13 |
 
-Set aside 2026-10-09 (owner: "Set aside the 7 specs waiting on something else"): AC-5 needs a real VPP receiving both ESP forms on one inbound SA, and the VPP backend refuses every policy IKE produces until `plan/release/fixes/spec-ipsec-vpp-policy-interface.md` lands (Required Reading, R-4). The owner's defer-heavy-testing instruction also still governs that measurement.
+Set aside 2026-10-09 (owner: "Set aside the 7 specs waiting on something else"): AC-5 needs a real VPP receiving both ESP forms on one inbound SA, and the VPP backend refuses every policy IKE produces until `plan/post-release/features/spec-ipsec-vpp-policy-interface.md` lands (Required Reading, R-4). The owner's defer-heavy-testing instruction also still governs that measurement.
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -31,8 +31,8 @@ implementation sequence, not completion or release evidence.
 | Obligation | Sole owner |
 |------------|------------|
 | AC-1..AC-4, AC-6/7 for XFRM and the route decision; Stories 1..3; R-1 throughput and inherited row; A-7 bookkeeping; durable Design links and ledger regeneration | This release-validation spec |
-| AC-5; VPP part of A-6/AC-6, R-4 and Phase 4; real-VPP harness extension, decryption measurement and capability refusal if unsupported | `plan/release/validation/spec-ipsec-vpp-dual-form-proof.md` |
-| VPP policy-interface prerequisite | `plan/release/fixes/spec-ipsec-vpp-policy-interface.md`, consumed by the VPP child, not a release XFRM dependency |
+| AC-5; VPP part of A-6/AC-6, R-4 and Phase 4; real-VPP harness extension, decryption measurement and capability refusal if unsupported | `plan/post-release/features/spec-ipsec-vpp-dual-form-proof.md` |
+| VPP policy-interface prerequisite | `plan/post-release/features/spec-ipsec-vpp-policy-interface.md`, consumed by the VPP child, not a release XFRM dependency |
 
 The complete design and dated history below remain here losslessly. VPP
 criteria, test proposals, checklists and closure language in that retained
@@ -159,7 +159,7 @@ a current one. Answer route C by reading the 6.19.11 receive path, and record th
 - [ ] `spec-fixit-vpp-ipsec-inoperable` - the VPP backend's real state (closed 2026-08-10)
   → Constraint: its AC-7 is MET: a real VPP v26.06 holds SAs that backend installed. Route B
     stays gated on the policy path, because the backend refuses every policy IKE produces
-    until `plan/release/fixes/spec-ipsec-vpp-policy-interface.md` supplies the VPP interface.
+    until `plan/post-release/features/spec-ipsec-vpp-policy-interface.md` supplies the VPP interface.
 
 ### RFC Summaries (Scope: protocol)
 - [ ] `rfc/short/rfc7296.md` - IKEv2. Rows `-2.23-10` and `-2.23-11`
@@ -306,7 +306,7 @@ a current one. Answer route C by reading the 6.19.11 receive path, and record th
 | R-1 | Route A puts every encapsulated ESP datagram through userspace, and throughput falls | A benchmark against the current kernel decapsulation path | Measure this before you commit to route A. A form change is rare, so a hybrid that stays in the kernel until a mismatch is observed is the fallback |
 | R-2 | Route A loses the anti-replay and address checks the kernel performs on the encapsulated form | A conformance read of RFC 3948 against the re-injection path | Keep XFRM as the decryptor. Route A changes the presentation of the datagram and never the cryptography |
 | R-3 | The two tagged RFC pairs must change when the limit lifts, and `c_rfc_tagged_test` blocks that edit | The hook refuses the edit | The owner authorizes the change in writing, per `ai/rules/testing.md`. Ask before you edit, never after |
-| R-4 | Route B is chosen and inherits a backend IKE cannot drive | `spec-fixit-vpp-ipsec-inoperable` closed 2026-08-10 with AC-7 met, and the backend still refuses every policy IKE produces | Treat route B as blocked until `plan/release/fixes/spec-ipsec-vpp-policy-interface.md` lands. Record the dependency in Depends |
+| R-4 | Route B is chosen and inherits a backend IKE cannot drive | `spec-fixit-vpp-ipsec-inoperable` closed 2026-08-10 with AC-7 met, and the backend still refuses every policy IKE produces | Treat route B as blocked until `plan/post-release/features/spec-ipsec-vpp-policy-interface.md` lands. Record the dependency in Depends |
 | R-5 | A-4 comes back negative and the work looks unnecessary | The interop experiment finds no peer that alternates | The MUST binds regardless of peer behavior. A negative A-4 changes PRIORITY, never the obligation. Record it and keep the spec open |
 
 ## Blast Radius
@@ -918,7 +918,7 @@ ruling.
 The urgency is real and is about an accidental guard rather than about VPP.
 `vppPolicyInterface` refuses every IKE policy today because IKE leaves
 `SPParams.IfIndex` zero, so the unmeasured pass-through in `InstallSA` is
-harmless only by coincidence. When `plan/release/fixes/spec-ipsec-vpp-policy-interface.md`
+harmless only by coincidence. When `plan/post-release/features/spec-ipsec-vpp-policy-interface.md`
 lands and sets the index, the gap opens with no line deleted and no test red.
 That is exactly the shape `ai/rules/principles.md` names first: a zero another
 branch relies on, doing a job nothing names.
@@ -963,7 +963,7 @@ Stated plainly rather than left to be discovered (`ai/rules/completion.md`).
 ## Known Limitations
 - Route B cannot be attempted yet. `spec-fixit-vpp-ipsec-inoperable` closed 2026-08-10 with
   AC-7 met, so a real VPP now holds SAs that backend installed. The backend still refuses
-  every policy IKE produces, until `plan/release/fixes/spec-ipsec-vpp-policy-interface.md` supplies
+  every policy IKE produces, until `plan/post-release/features/spec-ipsec-vpp-policy-interface.md` supplies
   the interface a VPP SPD binds to.
 - The interop scenarios cannot carry an RFC tag, because `test/interop-ipsec/` is
   `TIER_UNRUN`. Compliance evidence stays at unit tier or functional tier.

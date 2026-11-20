@@ -5,9 +5,9 @@
 | Status | skeleton |
 | Scope | protocol |
 | Priority | P3 |
-| Release reason | RFC 4301 Section 4.4.1 asks every SPD for a final DISCARD entry. Ze installs one in each XFRM SPD the IKE engine owns, and in no other SPD: the VPP SPDs and the kernel SPD that holds the OSPFv3 RFC 4552 manual-key entries carry none. The requirement is a SHOULD of an RFC Ze implements, and no operator can select the VPP IPsec backend before `plan/release/fixes/spec-ipsec-dataplane-selector.md` lands (the VPP interface model, `plan/release/fixes/spec-ipsec-vpp-policy-interface.md`, moved into release scope on 2026-11-20), so the work is owed after the first release. |
+| Release reason | RFC 4301 Section 4.4.1 asks every SPD for a final DISCARD entry. Ze installs one in each XFRM SPD the IKE engine owns, and in no other SPD: the VPP SPDs and the kernel SPD that holds the OSPFv3 RFC 4552 manual-key entries carry none. The requirement is a SHOULD of an RFC Ze implements, and the VPP IPsec backend is itself post-release (`plan/post-release/features/spec-ipsec-vpp-policy-interface.md`, by Thomas's ruling of 2026-11-20; no operator can select it before `plan/post-release/features/spec-ipsec-dataplane-selector.md` lands), so the work is owed after the first release. |
 | RFC gaps | RFC4301-4.4.1-3, RFC4301-5.2-1, RFC4301-5.2-9 |
-| Depends | spec-ipsec-spd-selection, closed (it built the XFRM node-wide and per-interface final entries this spec extends; their design is `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`); `plan/release/fixes/spec-ipsec-vpp-policy-interface.md` (owns the VPP interface an SPD binds to: the `vpn ipsec interface` leaf, by Thomas's ruling of 2026-11-20) |
+| Depends | spec-ipsec-spd-selection, closed (it built the XFRM node-wide and per-interface final entries this spec extends; their design is `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`); `plan/post-release/features/spec-ipsec-vpp-policy-interface.md` (owns the VPP interface an SPD binds to: the `vpn ipsec interface` leaf, by Thomas's ruling of 2026-11-20) |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-11-08 |

@@ -3,18 +3,20 @@
 | Field | Value |
 |-------|-------|
 | Status | skeleton |
-| Priority | P1 |
-| Release reason | Thomas brought VPP IPsec into the first release on 2026-11-20 (his decision 2, following ruling 3a, recorded in `plan/release/fixes/spec-ipsec-vpp-policy-interface.md`, "Thomas's rulings"). An operator can reach the VPP IPsec backend only through this selector: today nothing an operator writes reaches `dataplane.Load`, and VPP is reachable only through a private test override. It is configuration correctness of a first-release feature, validated at `ze config verify`. |
+| Priority | P3 |
+| Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. Thomas brought this spec into the first release on 2026-11-20 (his decision 2) and reversed that the same day by ruling "plan/release/fixes/spec-ipsec-vpp-policy-interface.md will be done after the release": this selector depends on that spec and on the real-VPP ESP proof, so it returns to post-release with them. VPP IPsec is not a first-release feature: until this selector lands no operator can select VPP (it is reachable only through the private test override), so the XFRM-only release stands. |
 | Scope | config |
 | Depends | spec-ipsec-vpp-policy-interface; spec-ipsec-vpp-dual-form-proof (real-VPP ESP proof) |
 | Phase | - |
-| Updated | 2026-08-10 |
+| Updated | 2026-11-20 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 Moved on 2026-11-20 from `plan/post-release/features/spec-ipsec-dataplane-selector.md`
-into `plan/release/fixes/`, by Thomas's decision 2 of that day. Status stays
-`skeleton`: the ruling places the work, it designs nothing.
+into `plan/release/fixes/`, by Thomas's decision 2 of that day, and returned here
+the same day by his ruling "plan/release/fixes/spec-ipsec-vpp-policy-interface.md
+will be done after the release". Status stays `skeleton`: neither ruling designs
+anything.
 
 ## Task
 
@@ -30,22 +32,24 @@ env var `ze.test.ike.dataplane` is set, and that entry is registered
 (`internal/component/ike/ipsec/yang/`) has no leaf for it, so `ze config verify`
 has nothing to check.
 
-## Why it is in the first release
+## Why it waits for after the first release
 
-Thomas made VPP IPsec a first-release feature on 2026-11-20, and a feature an
-operator cannot select is not shipped. The default stays `xfrm`, the production
+Thomas made VPP IPsec a first-release feature on 2026-11-20 and reversed that the
+same day: the VPP policy-interface spec "will be done after the release", and this
+selector cannot land before it (AC-4). VPP IPsec is therefore not a first-release
+feature, and the release ships XFRM only. The default stays `xfrm`, the production
 path. The `vpp` backend sits behind the `ze_vpp` build tag
 (`register_vpp.go`), which the default daemon build carries
 (`feature-gates.txt`, the `ze_vpp` comment: dropping the tag unlinks GoVPP for
-netlink-only deployments). The post-release text said a default build does not
-carry it; that was wrong and is corrected here.
+netlink-only deployments). The earlier post-release text said a default build does
+not carry it; that was wrong and was corrected on the move into release scope.
 
 ## Required Reading
 
 - [ ] `ai/rules/config.md` - the YANG-versus-env-var decision, and the naming rules
 - [ ] `ai/patterns/config-option.md` - the structural template for a new leaf and its validator
 - [ ] `ai/rules/protocol.md` - a backend that cannot apply the config exactly must reject at verify
-- [ ] `plan/release/fixes/spec-ipsec-vpp-policy-interface.md` and `plan/release/validation/spec-ipsec-vpp-dual-form-proof.md` - live prerequisites: IKE-produced policies, rekey cleanup, inbound cleartext on VPP (its AC-8, mechanism open, C-4), and real-VPP ESP receive evidence
+- [ ] `plan/post-release/features/spec-ipsec-vpp-policy-interface.md` and `plan/post-release/features/spec-ipsec-vpp-dual-form-proof.md` - live prerequisites: IKE-produced policies, rekey cleanup, inbound cleartext on VPP (its AC-8, C-4 decided "B", the VPP patch 0106, proven on real VPP 2026-11-20), and real-VPP ESP receive evidence
 
 ## Current Behavior
 
@@ -82,7 +86,7 @@ carry it; that was wrong and is corrected here.
 | AC-1 | A YANG leaf under `vpn ipsec` names the dataplane backend, with an `enumeration` covering the backends the build carries |
 | AC-2 | `ikeDataplaneName` reads that leaf, and `ze.test.ike.dataplane` stays a private test override that outranks it |
 | AC-3 | `ze config verify` rejects a backend name the running build does not carry, naming the build tag that would carry it |
-| AC-4 | The selector does not land until `plan/release/fixes/spec-ipsec-vpp-policy-interface.md` AC-1..AC-5 are demonstrated against real VPP and `plan/release/validation/spec-ipsec-vpp-dual-form-proof.md` supplies its real-VPP ESP-on-wire harness and inherited AC-5 measurement: both ESP forms decrypt on one inbound SA. SA install/read-back alone clears neither prerequisite. Until then VPP remains accessible only through the private test override |
+| AC-4 | The selector does not land until `plan/post-release/features/spec-ipsec-vpp-policy-interface.md` AC-1..AC-5 are demonstrated against real VPP and `plan/post-release/features/spec-ipsec-vpp-dual-form-proof.md` supplies its real-VPP ESP-on-wire harness and inherited AC-5 measurement: both ESP forms decrypt on one inbound SA. SA install/read-back alone clears neither prerequisite. Until then VPP remains accessible only through the private test override |
 | AC-5 | A `.ci` in `test/ipsec/` asserts each rejection |
 
 ## 🧪 TDD Test Plan
@@ -108,13 +112,13 @@ real VPP and ruled that the backend is closable as a defect fix and NOT shippabl
 feature. The main thread endorsed it. Its "Release judgment" section carries the
 evidence; the gate it sets is:
 
-Land this selector only after BOTH `plan/release/fixes/spec-ipsec-vpp-policy-interface.md`
-and the real-VPP ESP proof owned by `plan/release/validation/spec-ipsec-vpp-dual-form-proof.md`
+Land this selector only after BOTH `plan/post-release/features/spec-ipsec-vpp-policy-interface.md`
+and the real-VPP ESP proof owned by `plan/post-release/features/spec-ipsec-vpp-dual-form-proof.md`
 meet AC-4 above. That child inherits the 2026-09-05 ruling preserved in
 `plan/release/validation/spec-ipsec-esp-dual-form-receive.md`: the harness extension
 and dual-form decryption measurement remain required; this selector consumes
-that evidence. The split does not relax either prerequisite, and bringing both
-into the first release does not either.
+that evidence. The split does not relax either prerequisite, and neither did the
+brief placement of all three specs in the first release.
 
 The closure review recorded why exposing the backend would make these findings
 an operator's problem: the find rate had not fallen (six

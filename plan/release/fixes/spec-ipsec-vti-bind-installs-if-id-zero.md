@@ -60,7 +60,7 @@ are separate subtrees delivered to separate consumers, and it has to decide what
 happens when the named interface does not exist or is not an `xfrm` interface. A
 zero returned in either case is the failure `ai/rules/principles.md` names first,
 because it is indistinguishable from a peer with no `vti` block at all.
-`plan/release/fixes/spec-ipsec-vpp-policy-interface.md` is a different field on a different
+`plan/post-release/features/spec-ipsec-vpp-policy-interface.md` is a different field on a different
 backend: it supplies `SPParams.IfIndex`, the VPP interface index, and this spec
 supplies the XFRM `if_id`.
 

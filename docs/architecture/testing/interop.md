@@ -862,7 +862,7 @@ VPP does with an unprotected packet on an interface whose SPD holds inbound
 entries. RFC 4301 Section 5.2 step 3b: "If there is a match and the packet is
 to be discarded or bypassed, do so." A cleartext packet whose selectors match
 a PROTECT entry arrived without the protection it was owed, so it is
-discarded too. This is AC-8 of `plan/release/fixes/spec-ipsec-vpp-policy-interface.md`.
+discarded too. This is AC-8 of `plan/post-release/features/spec-ipsec-vpp-policy-interface.md`.
 
 Upstream VPP does not do it. In `ipsec4-input-feature`
 (`src/vnet/ipsec/ipsec_input.c`, identical in FDio/vpp v26.06 and master) the

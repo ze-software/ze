@@ -4,8 +4,8 @@
 |-------|-------|
 | Status | design |
 | Scope | protocol |
-| Priority | P1 |
-| Release reason | An operator SPD entry (`vpn ipsec policy`) committed on the VPP dataplane is accepted and never installed: `vppPolicyInterface` refuses it for its interface index 0 and `reconcileSPDPolicies` reads that refusal as a platform with no dataplane, so the commit succeeds and the entry does nothing. That is accepted but ineffective config (`plan/README.md`, "Split fixes from features"), so the work is a release fix. Thomas chose on 2026-11-20 to fix it by building the interface model (decision 7 of `plan/release/fixes/spec-rfc4301-architecture-gaps.md`, "Pull the post-release spec forward") rather than refusing operator entries on VPP |
+| Priority | P3 |
+| Release reason | Thomas ruled on 2026-11-20, reversing that day's placement of this spec in the release: "plan/release/fixes/spec-ipsec-vpp-policy-interface.md will be done after the release". VPP IPsec is not a first-release feature. An operator SPD entry (`vpn ipsec policy`) on the VPP dataplane is still accepted and never installed (`vppPolicyInterface` refuses its interface index 0 and `reconcileSPDPolicies` reads that refusal as a platform with no dataplane), but no operator can select the VPP backend before `plan/post-release/features/spec-ipsec-dataplane-selector.md` lands: VPP is reachable only through the private test override `ze.test.ike.dataplane`. So the XFRM-only release stands, and this work is owed after it. The work done while the spec was in release scope stays done and is recorded below: the rulings (the WAN interface leaf, 3a found unworkable, B the VPP patch 0106), the first-task measurement, the inbound-reversal fix (AC-9, `50c7c86321`), and the patch with its real-VPP proof (`584dd88aa0`, evidence in the C-4 table, `755dfadb62`) |
 | RFC gaps | - |
 | Depends | - |
 | Phase | - |
@@ -17,8 +17,11 @@
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 Moved on 2026-11-20 from `plan/post-release/features/spec-ipsec-vpp-policy-interface.md`
-into release scope. Status stays `design`: Thomas approved the interface source
-only (Thomas's rulings, below); the rest of the design still goes to him whole.
+into release scope (`plan/release/fixes/`), and returned here the same day by
+Thomas's ruling "plan/release/fixes/spec-ipsec-vpp-policy-interface.md will be
+done after the release". Status stays `design`: Thomas approved the interface
+source only (Thomas's rulings, below); the rest of the design still goes to him
+whole.
 
 `spec-fixit-vpp-ipsec-inoperable` closed on 2026-08-10 with real-VPP SA
 install/read-back evidence. That prerequisite is fulfilled. This spec owns the
@@ -26,13 +29,15 @@ interface an SPD binds to, the installation of IKE Child SA policies and operato
 SPD entries on VPP, and the policy and rekey correctness that installation makes
 reachable.
 
-**Decided by Thomas on 2026-11-20 (C-2, his decision 2):** the real-VPP ESP proof
-(`plan/release/validation/spec-ipsec-vpp-dual-form-proof.md`) and the operator
-dataplane selector (`plan/release/fixes/spec-ipsec-dataplane-selector.md`) come
-into the first release, so VPP IPsec is a first-release feature. It follows from
-his ruling 3a on the first task's finding (1): Ze meets RFC 4301 Section 5.2 for
-inbound cleartext on VPP itself, through an inbound ACL it derives on the IPsec
-WAN interface (Thomas's rulings, below). Both specs still depend on this one.
+**Decided by Thomas on 2026-11-20 (C-2, his decision 2), then reversed the same
+day:** decision 2 brought the real-VPP ESP proof
+(`plan/post-release/features/spec-ipsec-vpp-dual-form-proof.md`) and the operator
+dataplane selector (`plan/post-release/features/spec-ipsec-dataplane-selector.md`)
+into the first release, following his ruling 3a on the first task's finding (1).
+His later ruling, "plan/release/fixes/spec-ipsec-vpp-policy-interface.md will be
+done after the release", returned this spec to post-release, and both of those
+specs with it, because both depend on this one. VPP IPsec is not a first-release
+feature, and the XFRM-only release stands. The design rulings below are unchanged.
 
 ## Task
 
@@ -59,11 +64,12 @@ The refusal is right. The gap is that nothing supplies the interface.
 | Date | Ruling, his words in quotes | What it fixes here |
 |------|-----------------------------|--------------------|
 | 2026-11-20 | (5a) "An operator SPD entry on VPP binds to every interface Ze's SPD is attached to" | An operator entry shares the SPD Child SA policies use, with the node-wide meaning it has on XFRM |
-| 2026-11-20 | Decision 7: "Pull the post-release spec forward" | This spec is release scope; operator entries on VPP are installed, not refused |
+| 2026-11-20 | Decision 7: "Pull the post-release spec forward" | Operator entries on VPP are installed, not refused. Its placement of this spec in release scope was reversed the same day (the last row) |
 | 2026-11-20 | "reuse the existing IPsec WAN interface leaf" | On VPP the one Ze SPD is bound to the interface `vpn ipsec interface` names, resolved with `iface.ResolveVPPIndex`; Child SA policies and operator entries both land in it. XFRM is unchanged: `SPParams.IfIndex` stays 0 there |
 | 2026-11-20 | Decision 3, answer "3a" | On VPP, RFC 4301 Section 5.2 inbound processing (cleartext matching an inbound PROTECT or DISCARD entry is discarded) is met by Ze itself: Ze derives an inbound ACL on the IPsec WAN interface (the `vpn ipsec interface` leaf, the interface Ze's one VPP SPD binds to) from the inbound PROTECT and DISCARD entries, because real VPP v26.06 forwards such cleartext (first task outcome). The ACL needs one owner shared with the VPP firewall backend, a composition still to be presented. **Found unworkable as stated on 2026-11-20; alternatives with Thomas (C-4)**: in SPD mode the decrypted inner packet re-enters `ip4-unicast` on the WAN interface with its RX interface unchanged and no decrypted flag (`esp_decrypt.c`, v26.06), so an input ACL denying the PROTECT selectors also drops decrypted tunnel traffic |
 | 2026-11-20 | C-4, answer "B" to the option: "Patch VPP, one more next to the 14 Ze already carries. Decryption marks the packet; IPsec input then judges unmarked cleartext against the SPD: drop on protect or discard, pass on bypass. This is RFC 4301's own model, done where VPP actually knows what was decrypted." | Supersedes 3a's ACL (kept above as history). AC-8's mechanism is a VPP patch Ze carries: `third_party/vpp-patches-v26.06/0106-ipsec-judge-unprotected-inbound-traffic.patch` (Apache-2.0, VPP v26.06). The policy-mode decrypt nodes set `VNET_BUFFER_F_IPSEC_DECRYPTED`; `ipsec4/6-input-feature` read and clear it, pass a marked packet, and judge an unmarked non-ESP/AH/IKE packet over BYPASS, DISCARD and the PROTECT selectors by priority: PROTECT or DISCARD drop (counted), BYPASS passes, no match passes (Ze's catch-all is its own entry). Earlier rulings kept: one Ze SPD per VPP backend on the `vpn ipsec interface` WAN; the VPP firewall stays the only owner of interface ACLs, so no IPsec ACL is written |
-| 2026-11-20 | Decision 2, following from 3a | `spec-ipsec-vpp-dual-form-proof` (now `plan/release/validation/`) and `spec-ipsec-dataplane-selector` (now `plan/release/fixes/`) come into the first release; VPP IPsec is a first-release feature (C-2) |
+| 2026-11-20 | Decision 2, following from 3a | `spec-ipsec-vpp-dual-form-proof` and `spec-ipsec-dataplane-selector` came into the first release (C-2). Reversed the same day (the next row) |
+| 2026-11-20 | "plan/release/fixes/spec-ipsec-vpp-policy-interface.md will be done after the release" | Reverses the release placement of decisions 7 and 2: this spec returns to `plan/post-release/features/`, and the ESP dual-form proof and the dataplane selector, which depend on it, return with it. VPP IPsec is not a first-release feature; operators cannot select VPP before the selector lands, so the XFRM-only release stands. The design rulings above and the work done under them stay |
 
 Alternatives Thomas rejected for the interface source:
 
@@ -76,7 +82,7 @@ Alternatives Thomas rejected for inbound cleartext on VPP (decision 3):
 
 | Alternative | Why he set it aside |
 |-------------|---------------------|
-| (b) Keep VPP IPsec unselectable until such enforcement exists | He chose to build the enforcement (3a) and bring VPP IPsec into the first release |
+| (b) Keep VPP IPsec unselectable until such enforcement exists | He chose to build the enforcement (3a, then B). Its release placement was reversed later that day; VPP stays unselectable until the selector lands, after the release |
 | (c) VPP route-based mode (an ipip tunnel with `tunnel protect`) | It brings no RFC 4301 inbound policy either |
 
 ## Required Reading
@@ -142,7 +148,7 @@ The post-release text of this spec carried two facts the tree contradicts.
 The `SPParams.IfIndex` comment (`dataplane.go`) and the `RemoveSA` comment
 (`vpp.go`) also name this spec at `plan/spec-ipsec-vpp-policy-interface.md`, a
 path that no longer exists; the first edit of each points it at
-`plan/release/fixes/spec-ipsec-vpp-policy-interface.md`.
+`plan/post-release/features/spec-ipsec-vpp-policy-interface.md`.
 
 ## First task: measure cleartext inbound on a bound interface
 
@@ -217,7 +223,7 @@ does not touch `pg1` or IPsec.
 | Item | Detail |
 |------|--------|
 | Defect | `vppSPDSelector` mapped `SPParams.Src`/`SrcPort` to VPP's local side for an inbound policy too, so an inbound BYPASS or DISCARD matched the traffic flowing the other way and missed the traffic it was written for (outcome, frames 4 and 5) |
-| Fix | An inbound (`SADirIn`) policy maps `Dst`/`DstPort` to the local range and port and `Src`/`SrcPort` to the remote ones; outbound is unchanged. `recordedEntry` builds its probe through `vppSPDSelector`, and `PolicyDeleteCommand` and `Close` send back the recorded entry, so install, removal, the vppctl delete command and teardown agree |
+| Fix | An inbound (`SADirIn`) policy maps `Dst`/`DstPort` to the local range and port and `Src`/`SrcPort` to the remote ones; outbound is unchanged. `recordedEntry` builds its probe through `vppSPDSelector`, and `PolicyDeleteCommand` and `Close` send back the recorded entry, so install, removal, the vppctl delete command and teardown agree. Landed in `50c7c86321` |
 | Unit test | `TestVPPInstallPolicyInboundSides` (`internal/component/ike/dataplane/rfc7296_vpp_message_test.go`): the inbound entry's local side is Dst and port 53, its remote side Src and port 5000, the delete command and the removal name the same entry, and the outbound control keeps Src local |
 | Real-VPP evidence | the next `./le test deployment vpp` run: `probe-esp-discard` counts 'discard' 1, `probe-esp-discard-reversed` counts 'discard' 0 |
 
@@ -330,7 +336,7 @@ the first task.
 ## Design documents
 
 Rows written on 2026-11-20 for the pages this spec touches. The full derivation,
-`./le spec design documents spec plan/release/fixes/spec-ipsec-vpp-policy-interface.md`,
+`./le spec design documents spec plan/post-release/features/spec-ipsec-vpp-policy-interface.md`,
 is owed before the design is presented, with every row it lists.
 
 | Document | Section | Derived from | Binding statement | Verdict | How this design stands against it |
@@ -454,7 +460,7 @@ is owed before the design is presented, with every row it lists.
 | `TestVPPChildSAPolicyLandsInTheWANSPD` | `internal/component/ike/engine/` | AC-1 from the engine | not written |
 | `TestVPPWithoutIPsecInterfaceRefusedAtCommit` | `internal/component/ike/engine/` | AC-3 | not written |
 | `TestXFRMPoliciesKeepInterfaceIndexZero` | `internal/component/ike/dataplane/` | AC-2 | not written |
-| `TestVPPInstallPolicyInboundSides` | `internal/component/ike/dataplane/rfc7296_vpp_message_test.go` | AC-9 | written 2026-11-20, not yet run |
+| `TestVPPInstallPolicyInboundSides` | `internal/component/ike/dataplane/rfc7296_vpp_message_test.go` | AC-9 | written 2026-11-20, landed in `50c7c86321` |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -473,7 +479,7 @@ is owed before the design is presented, with every row it lists.
 
 ## Files to Modify
 - `internal/component/ike/dataplane/dataplane.go` - the backend-level interface call on `Dataplane`; the `SPParams.IfIndex` comment (count of refusals, the spec path)
-- `internal/component/ike/dataplane/vpp_policy.go` - `vppPolicyInterface` reads 0 as the bound SPD; `ensureSPD` binds from the resolved leaf; rebind; the stale "one producer" comment; `vppSPDSelector` maps an inbound policy's Dst to the local side (AC-9, done 2026-11-20)
+- `internal/component/ike/dataplane/vpp_policy.go` - `vppPolicyInterface` reads 0 as the bound SPD; `ensureSPD` binds from the resolved leaf; rebind; the stale "one producer" comment; `vppSPDSelector` maps an inbound policy's Dst to the local side (AC-9, done 2026-11-20, `50c7c86321`)
 - `internal/component/ike/dataplane/vpp.go` - record the interface name; rekey replacement (AC-5); the `RemoveSA` comment's spec path
 - `internal/component/ike/dataplane/xfrm_linux.go` and the noop backend - the documented no-op answer
 - `internal/component/ike/engine/apply.go`, `internal/component/ike/engine/dynamic_wan.go` - hand the leaf to the backend; refuse a VPP dataplane with no leaf; retry a refused bind
@@ -522,7 +528,7 @@ is owed before the design is presented, with every row it lists.
 | 13 | Route metadata keys added/changed? | No | none |
 | 14 | Prometheus counters added/changed? | No | none |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | none |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | derived by `./le spec citation anchors spec plan/release/fixes/spec-ipsec-vpp-policy-interface.md` before implementation |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | derived by `./le spec citation anchors spec plan/post-release/features/spec-ipsec-vpp-policy-interface.md` before implementation |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/ipsec.md` |
 
 ## Owed on the first touch of `dataplane.go`: the `SPParams.IfIndex` comment under-counts
@@ -603,7 +609,7 @@ behaves exactly as today.
 | Carry the VPP index in `SPParams.IfIndex` | XFRM reads it as `sel.ifindex` and `childStateScope` copies it into the SA state scope, so XFRM would change |
 | A VPP-only field in `SPParams`, filled by the engine | One fact copied onto every policy; the engine would have to name the VPP backend, and `ResolveVPPIndex` refuses on a non-VPP iface backend |
 | An optional backend interface found by type assertion | A failed assertion disables the binding with no log line |
-| Refuse operator entries on VPP (decision 7 option b) | Thomas chose to pull this spec forward instead |
+| Refuse operator entries on VPP (decision 7 option b) | Thomas chose to build the interface model instead; his later ruling moved that work after the release without changing the choice |
 
 ### Documents departed from
 
@@ -614,7 +620,7 @@ none
 | # | Choice | Options | Decision |
 |---|--------|---------|----------|
 | C-1 | How the interface reaches the VPP backend | (a) recommended: a backend-level call carrying the leaf's name, resolved by the VPP backend; (b) a VPP-only field in `SPParams` filled by the engine | open |
-| C-2 | Whether `spec-ipsec-vpp-dual-form-proof` and `spec-ipsec-dataplane-selector` also come into release scope | (a) both stay post-release; (b) one or both come forward | DECIDED 2026-11-20 (his decision 2): both come into the first release; moved to `plan/release/validation/` and `plan/release/fixes/` |
+| C-2 | Whether `spec-ipsec-vpp-dual-form-proof` and `spec-ipsec-dataplane-selector` also come into release scope | (a) both stay post-release; (b) one or both come forward | DECIDED 2026-11-20 (his decision 2): both came into the first release. REVERSED the same day by "plan/release/fixes/spec-ipsec-vpp-policy-interface.md will be done after the release": this spec and both of them are in `plan/post-release/features/` |
 | C-4 | The mechanism that drops inbound cleartext matching an inbound PROTECT or DISCARD entry on VPP (AC-8) | Ruled 3a (an inbound ACL derived on the WAN interface, one owner shared with the VPP firewall backend); found unworkable as stated on 2026-11-20 (it also drops decrypted tunnel traffic, `esp_decrypt.c` v26.06); B, a VPP patch: decryption marks the packet, IPsec input judges unmarked cleartext | DECIDED 2026-11-20: B (Thomas's rulings) |
 | C-3 | The two AC-5 shapes | (a) a VPP replace step keyed on the selector; (b) an engine "same policy, new SA" call both backends honor | open |
 
@@ -675,7 +681,7 @@ none
 
 ## Design Insights
 
-- The silent drop of operator entries on VPP is the release reason, and it comes from `isXFRMUnsupported` reading any `ErrNotSupported` as "no dataplane": a refusal that exists for a real platform limit also swallows a refusal that means "this backend lacks an input".
+- The silent drop of operator entries on VPP was the release reason while this spec was in release scope, and it comes from `isXFRMUnsupported` reading any `ErrNotSupported` as "no dataplane": a refusal that exists for a real platform limit also swallows a refusal that means "this backend lacks an input".
 
 ## Owned journal rows
 
@@ -697,7 +703,7 @@ none
 ## Known Limitations
 
 - One WAN interface. Several WANs would bind the one SPD to several interfaces, which VPP allows; nothing in this design prevents it, and no request for it exists.
-- VPP stays reachable only through `ze.test.ike.dataplane` until `plan/release/fixes/spec-ipsec-dataplane-selector.md` lands, which also needs the ESP proof of `plan/release/validation/spec-ipsec-vpp-dual-form-proof.md` (C-2, both first-release since 2026-11-20).
+- VPP stays reachable only through `ze.test.ike.dataplane` until `plan/post-release/features/spec-ipsec-dataplane-selector.md` lands, which also needs the ESP proof of `plan/post-release/features/spec-ipsec-vpp-dual-form-proof.md` (C-2: both post-release with this spec, by Thomas's ruling of 2026-11-20).
 
 ## RFC Documentation (Scope: protocol)
 
@@ -745,4 +751,4 @@ none
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
-- [ ] **Commit B:** `remove plan/release/fixes/spec-ipsec-vpp-policy-interface.md` only, in the same `./le commit create` script
+- [ ] **Commit B:** `remove plan/post-release/features/spec-ipsec-vpp-policy-interface.md` only, in the same `./le commit create` script

@@ -916,8 +916,8 @@ loopback. XFRM is unchanged: its SPD is node-wide and IKE leaves `SPParams.IfInd
 0 there, so the VPP interface does not travel in that field, which the XFRM backend
 reads as `sel.ifindex` and `childStateScope` copies into the SA state scope. The
 same day Thomas chose to build this interface model rather than refuse operator
-entries on VPP until it exists. None of this is built yet: `plan/release/fixes/spec-ipsec-vpp-policy-interface.md`
-owns it, and until it lands `vppPolicyInterface` refuses every policy IKE produces
+entries on VPP until it exists. None of this is built yet: `plan/post-release/features/spec-ipsec-vpp-policy-interface.md`
+owns it, after the release (Thomas's ruling of the same day), and until it lands `vppPolicyInterface` refuses every policy IKE produces
 ("SPD dispositions").
 
 **On VPP, Ze itself discards inbound cleartext that matches an inbound PROTECT or
@@ -928,7 +928,7 @@ requires the discard ("If there is a match and the packet is to be discarded or
 bypassed, do so."), and VPP's SPD does not perform it: on a real VPP v26.06,
 cleartext matching an inbound PROTECT, DISCARD or BYPASS entry on a bound
 interface was forwarded unjudged, because `ipsec4-input-feature` examines only
-ESP, AH and IKE's UDP ports (measured, `plan/release/fixes/spec-ipsec-vpp-policy-interface.md`,
+ESP, AH and IKE's UDP ports (measured, `plan/post-release/features/spec-ipsec-vpp-policy-interface.md`,
 "Outcome of the first task"). The ruling derives the ACL from those inbound entries
 on the interface `vpn ipsec interface` names, the one its VPP SPD is bound to (the
 decision above), to share one owner with the VPP firewall backend
@@ -944,10 +944,15 @@ input ACL that denies a PROTECT selector also drops the tunnel traffic that entr
 protects. The outcome owed is unchanged: cleartext matching an inbound PROTECT or
 DISCARD entry is dropped, BYPASS passes, and ESP, IKE and decrypted tunnel traffic
 are unaffected. Following the ruling, Thomas brought the real-VPP ESP dual-form
-proof (`plan/release/validation/spec-ipsec-vpp-dual-form-proof.md`) and the
-operator dataplane selector (`plan/release/fixes/spec-ipsec-dataplane-selector.md`)
-into the first release, so VPP IPsec is a first-release feature. None of this is
-built yet: `plan/release/fixes/spec-ipsec-vpp-policy-interface.md` owns the outcome.
+proof and the operator dataplane selector into the first release, and he reversed
+that the same day: "plan/release/fixes/spec-ipsec-vpp-policy-interface.md will be
+done after the release". The policy-interface spec, the ESP dual-form proof
+(`plan/post-release/features/spec-ipsec-vpp-dual-form-proof.md`) and the selector
+(`plan/post-release/features/spec-ipsec-dataplane-selector.md`), which both depend
+on it, are post-release work. VPP IPsec is not a first-release feature: no operator
+can select the VPP backend before the selector lands, so the release ships XFRM
+only. The design rulings on this page stand.
+`plan/post-release/features/spec-ipsec-vpp-policy-interface.md` owns the outcome.
 
 **On VPP, the inbound cleartext verdict comes from a patch to VPP that Ze
 carries: decryption marks the packet, and IPsec input judges unmarked cleartext
@@ -973,8 +978,10 @@ before, because Ze's catch-all discard is an entry of its own. The real-VPP
 deployment run boots VPP built with the patch (`./le build vpp deployment`,
 loaded from the image cache, never built by the run) and its cleartext proof
 (`docs/architecture/testing/interop.md`, "Real VPP cleartext proof") holds the
-three cleartext frames and a frame the SA decrypts to that verdict. Not built
-into a running image or run yet.
+three cleartext frames and a frame the SA decrypts to that verdict. Built and
+run on 2026-11-20 (`584dd88aa0`): green on the patched image, and red at the
+PROTECT cleartext frame on upstream VPP v26.06; the evidence is in the C-4 table
+of `plan/post-release/features/spec-ipsec-vpp-policy-interface.md`.
 
 **A catch-all that fails to install at boot follows the start-up rule.** Thomas
 decided this on 2026-11-20: owner decision 3 of 2026-11-19 (install what it can,
@@ -1463,7 +1470,7 @@ reaches it. An operator `vpn ipsec policy` entry names no interface
 `isXFRMUnsupported` as a platform with no dataplane, so the commit succeeds and
 the entry is never installed. That is an open defect, not a design. It is fixed by
 binding the SPD to the interface `vpn ipsec interface` names (Decisions), the work
-of `plan/release/fixes/spec-ipsec-vpp-policy-interface.md`.
+of `plan/post-release/features/spec-ipsec-vpp-policy-interface.md`.
 <!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppPolicyInterface -->
 <!-- source: internal/component/ike/engine/spd_policy.go -- reconcileSPDPolicies -->
 <!-- source: internal/component/ike/engine/child.go -- isXFRMUnsupported -->
@@ -1499,9 +1506,9 @@ Only a start with no dataplane loaded is refused. The one bypass neither install
 `CatchAllSupported` answers `dataplane.ErrNoNodeWideSPD` (VPP), one of the two open gaps on
 RFC4301-5.2-1 and RFC4301-5.2-9. On upstream VPP no inbound entry judges cleartext
 at all, catch-all or not, because VPP's SPD never examines it. Ze owes that verdict
-itself, through the VPP patch it carries (Decisions, option B; written, not yet
-built or run), and
-`plan/release/fixes/spec-ipsec-vpp-policy-interface.md` owns it.
+itself, through the VPP patch it carries (Decisions, option B; built and proven
+on real VPP on 2026-11-20, not yet reachable by an operator), and
+`plan/post-release/features/spec-ipsec-vpp-policy-interface.md` owns it.
 
 The catch-all sits at if_id 0, and a `vti bind` peer's Child SA policies sit at
 its XFRM interface's if_id (`resolveIfID`). Linux keeps one database per if_id
