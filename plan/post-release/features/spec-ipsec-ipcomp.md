@@ -580,7 +580,7 @@ needed, which would carry `units bytes`. Second, whether the algorithm enumerati
   section high-water mark and the rest must take higher ordinals, out of document order.
 - The VPP backend installs SAs and cannot be driven by IKE: it refuses every policy the
   engine produces (`spec-fixit-vpp-ipsec-inoperable`, closed 2026-08-10, and
-  `plan/post-release/features/spec-ipsec-vpp-policy-interface.md`). This spec refuses compression on that
+  `plan/release/fixes/spec-ipsec-vpp-policy-interface.md`). This spec refuses compression on that
   backend rather than implementing it, and the refusal is correct only while that limit
   holds. Any work that makes VPP IPsec drivable by IKE must revisit the refusal.
 

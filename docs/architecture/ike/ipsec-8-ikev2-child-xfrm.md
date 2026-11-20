@@ -898,7 +898,25 @@ a bypass when the kernel advertises capability bit 3.
 **An operator SPD entry on VPP binds to every interface Ze's SPD is attached
 to.** Thomas decided this on 2026-11-20. It is the same node-wide meaning the
 entry has on XFRM. The VPP backend installs no operator entries today, so this is
-owed work, not a description of the current backend.
+owed work, not a description of the current backend. The next decision names the
+interface that SPD is attached to.
+
+**On VPP, Ze's one SPD is bound to the interface `vpn ipsec interface` names.**
+Thomas decided this on 2026-11-20, in his words "reuse the existing IPsec WAN
+interface leaf", the leaf that already gives peers their local address. Its name
+is resolved to a VPP sw_if_index with `iface.ResolveVPPIndex`, the resolver the
+VPP FIB and static-route backends use, and Child SA policies and operator entries
+both land in that SPD. Two alternatives were set aside: a route lookup toward each
+Child SA's peer (`iface.RouteLookup`), which handles several WANs but moves the
+SPD whenever routing changes, and strongSwan's VPP plugin approach, binding to the
+interface that holds the local address, which breaks when that address is on a
+loopback. XFRM is unchanged: its SPD is node-wide and IKE leaves `SPParams.IfIndex`
+0 there, so the VPP interface does not travel in that field, which the XFRM backend
+reads as `sel.ifindex` and `childStateScope` copies into the SA state scope. The
+same day Thomas chose to build this interface model rather than refuse operator
+entries on VPP until it exists. None of this is built yet: `plan/release/fixes/spec-ipsec-vpp-policy-interface.md`
+owns it, and until it lands `vppPolicyInterface` refuses every policy IKE produces
+("SPD dispositions").
 
 **A catch-all that fails to install at boot follows the start-up rule.** Thomas
 decided this on 2026-11-20: owner decision 3 of 2026-11-19 (install what it can,
@@ -1385,7 +1403,9 @@ reaches it. An operator `vpn ipsec policy` entry names no interface
 (`SPParams.IfIndex` 0), `vppPolicyInterface` refuses it with
 `dataplane.ErrNotSupported`, and `reconcileSPDPolicies` reads that answer through
 `isXFRMUnsupported` as a platform with no dataplane, so the commit succeeds and
-the entry is never installed. That is an open defect, not a design.
+the entry is never installed. That is an open defect, not a design. It is fixed by
+binding the SPD to the interface `vpn ipsec interface` names (Decisions), the work
+of `plan/release/fixes/spec-ipsec-vpp-policy-interface.md`.
 <!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppPolicyInterface -->
 <!-- source: internal/component/ike/engine/spd_policy.go -- reconcileSPDPolicies -->
 <!-- source: internal/component/ike/engine/child.go -- isXFRMUnsupported -->

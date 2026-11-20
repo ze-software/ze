@@ -6,7 +6,7 @@
 | Scope | protocol validation |
 | Priority | P3 |
 | Release reason | Real-VPP dual-form evidence gates optional operator-selectable VPP, not shipped XFRM. |
-| Depends | plan/post-release/features/spec-ipsec-vpp-policy-interface.md |
+| Depends | plan/release/fixes/spec-ipsec-vpp-policy-interface.md |
 | Phase | 5/5 (inherited sequence, not completion) |
 | Updated | 2026-10-22 |
 

@@ -43,7 +43,7 @@ feature rather than a wrong answer.
 | `ai/rules/config.md` | The YANG-versus-env-var decision, and the naming rules |
 | `ai/patterns/config-option.md` | The structural template for a new leaf and its validator |
 | `ai/rules/protocol.md` | A backend that cannot apply the config exactly must reject at verify |
-| `plan/post-release/features/spec-ipsec-vpp-policy-interface.md` and `plan/post-release/features/spec-ipsec-vpp-dual-form-proof.md` | Live prerequisites: IKE-produced policies, rekey cleanup, and real-VPP ESP receive evidence |
+| `plan/release/fixes/spec-ipsec-vpp-policy-interface.md` and `plan/post-release/features/spec-ipsec-vpp-dual-form-proof.md` | Live prerequisites: IKE-produced policies, rekey cleanup, and real-VPP ESP receive evidence |
 
 ## Acceptance Criteria
 
@@ -52,7 +52,7 @@ feature rather than a wrong answer.
 | AC-1 | A YANG leaf under `vpn ipsec` names the dataplane backend, with an `enumeration` covering the backends the build carries |
 | AC-2 | `ikeDataplaneName` reads that leaf, and `ze.test.ike.dataplane` stays a private test override that outranks it |
 | AC-3 | `ze config verify` rejects a backend name the running build does not carry, naming the build tag that would carry it |
-| AC-4 | The selector does not land until `plan/post-release/features/spec-ipsec-vpp-policy-interface.md` AC-1..AC-5 are demonstrated against real VPP and `plan/post-release/features/spec-ipsec-vpp-dual-form-proof.md` supplies its real-VPP ESP-on-wire harness and inherited AC-5 measurement: both ESP forms decrypt on one inbound SA. SA install/read-back alone clears neither prerequisite. Until then VPP remains accessible only through the private test override |
+| AC-4 | The selector does not land until `plan/release/fixes/spec-ipsec-vpp-policy-interface.md` AC-1..AC-5 are demonstrated against real VPP and `plan/post-release/features/spec-ipsec-vpp-dual-form-proof.md` supplies its real-VPP ESP-on-wire harness and inherited AC-5 measurement: both ESP forms decrypt on one inbound SA. SA install/read-back alone clears neither prerequisite. Until then VPP remains accessible only through the private test override |
 | AC-5 | A `.ci` in `test/ipsec/` asserts each rejection |
 
 ## DO NOT LAND THIS UNTIL TWO THINGS EXIST
@@ -62,7 +62,7 @@ real VPP and ruled that the backend is closable as a defect fix and NOT shippabl
 feature. The main thread endorsed it. Its "Release judgment" section carries the
 evidence; the gate it sets is:
 
-Land this selector only after BOTH `plan/post-release/features/spec-ipsec-vpp-policy-interface.md`
+Land this selector only after BOTH `plan/release/fixes/spec-ipsec-vpp-policy-interface.md`
 and the real-VPP ESP proof owned by `plan/post-release/features/spec-ipsec-vpp-dual-form-proof.md`
 meet AC-4 above. That child inherits the 2026-09-05 ruling preserved in
 `plan/release/validation/spec-ipsec-esp-dual-form-receive.md`: the harness extension

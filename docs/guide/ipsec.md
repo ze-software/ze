@@ -400,7 +400,7 @@ removes it in the dataplane's own tool: `ip xfrm policy delete ...` on the Linux
 kernel, `vppctl ipsec policy del ...` on VPP. IKE cannot drive the VPP dataplane
 yet: the VPP backend refuses a policy that names no interface, and IKE names
 none, so the VPP command and the retry below apply once that support lands
-(`plan/post-release/features/spec-ipsec-vpp-policy-interface.md`). Ze tries the removal again each time a peer proposes a tunnel
+(`plan/release/fixes/spec-ipsec-vpp-policy-interface.md`). Ze tries the removal again each time a peer proposes a tunnel
 and each time a configuration is committed, and releases the selectors as soon
 as the policies are gone. Running the listed commands lets the next proposal
 succeed, and restarting Ze is the last resort. The refusal names no

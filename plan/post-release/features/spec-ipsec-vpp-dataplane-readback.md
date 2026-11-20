@@ -38,7 +38,7 @@ XFRM inspection closure and required a separately owned backlog item.
 | VPP SAD/SPD enumeration, record conversion, and readback consumers | This spec |
 | XFRM inspection and its proof | The existing inspection work, documented in `docs/architecture/ike/ipsec-dataplane-inspection.md` |
 | Operator selection of the IPsec backend | `plan/post-release/features/spec-ipsec-dataplane-selector.md` |
-| Supplying the VPP policy interface and correcting the resulting rekey lifecycle | `plan/post-release/features/spec-ipsec-vpp-policy-interface.md` |
+| Supplying the VPP policy interface and correcting the resulting rekey lifecycle | `plan/release/fixes/spec-ipsec-vpp-policy-interface.md` |
 
 The related specs retain their scope. Research must establish their dependency
 order before this feature can claim operator reachability. A private backend
@@ -50,7 +50,7 @@ selection in a proof does not complete the public selector feature.
   → Constraint: Failed reads remain errors or unknown observations. Counter and drift consumers must retain destination-qualified identity and generation consistency.
 - [ ] `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`
   → Constraint: Readback uses the existing dataplane abstraction. VPP interface binding and XFRM interface identity have different meanings.
-- [ ] `plan/post-release/features/spec-ipsec-dataplane-selector.md` and `plan/post-release/features/spec-ipsec-vpp-policy-interface.md`
+- [ ] `plan/post-release/features/spec-ipsec-dataplane-selector.md` and `plan/release/fixes/spec-ipsec-vpp-policy-interface.md`
   → Constraint: This scope does not approve backend selection or policy-install changes owned by those specs.
 - [ ] `ai/rules/planning.md`, `ai/rules/spec-no-code.md`, `ai/rules/writing.md`, and `plan/templates/TEMPLATE.md`
   → Constraint: Research and design require separate approval before this skeleton becomes an implementation plan.
