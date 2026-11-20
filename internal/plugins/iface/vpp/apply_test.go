@@ -2861,8 +2861,12 @@ func (r *qosRequestCtx) ReceiveReply(reply api.Message) error {
 			<-r.ch.holdEgress
 		}
 	}
+	// GoVPP's channel ReceiveReply fills the reply and returns its nonzero
+	// Retval as an api.VPPApiError (core/channel.go); the fake answers the
+	// same way, so a caller that only reads Retval is caught.
 	if markReply, ok := reply.(*qos.QosMarkEnableDisableReply); ok {
 		markReply.Retval = r.ch.markRetval
+		return api.RetvalToVPPApiError(r.ch.markRetval)
 	}
 	return nil
 }

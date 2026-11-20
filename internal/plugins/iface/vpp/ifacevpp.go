@@ -464,30 +464,42 @@ func (b *vppBackendImpl) UpdateVLANQoSMap(ifaceName string, ingress, egress map[
 // already in that state. VPP's qos_mark_disable (src/vnet/qos/qos_mark.c)
 // answers it with one of two codes: NO_MATCHING_INTERFACE when the index is
 // past the per-source config vector, VALUE_EXIST when the index has no map.
-// Both are accepted; any other nonzero retval fails the call. The caller
-// MUST hold qosMu.
+// Both are accepted; any other nonzero retval fails the call. GoVPP's
+// channel ReceiveReply returns a nonzero Retval as an api.VPPApiError
+// (core/channel.go), so the code is read from that error. The caller MUST
+// hold qosMu.
 func (b *vppBackendImpl) disableVLANQoSMark(ifaceName string, subIdx interface_types.InterfaceIndex) error {
 	markReply := &qos.QosMarkEnableDisableReply{}
-	if err := b.ch.SendRequest(&qos.QosMarkEnableDisable{
+	err := b.ch.SendRequest(&qos.QosMarkEnableDisable{
 		Mark: qos.QosMark{
 			SwIfIndex:    uint32(subIdx),
 			OutputSource: qos.QOS_API_SOURCE_VLAN,
 		},
 		Enable: false,
-	}).ReceiveReply(markReply); err != nil {
-		return fmt.Errorf("ifacevpp: UpdateVLANQoSMap %q mark disable: %w", ifaceName, err)
-	}
-	retval := api.VPPApiError(markReply.Retval)
-	if retval == 0 {
+	}).ReceiveReply(markReply)
+	var refused api.VPPApiError
+	if errors.As(err, &refused) && qosMarkAlreadyDisabled(refused) {
 		return nil
 	}
-	if retval == api.NO_MATCHING_INTERFACE {
-		return nil // index past the config vector: no mark was ever enabled
+	if err != nil {
+		return fmt.Errorf("ifacevpp: UpdateVLANQoSMap %q mark disable: %w", ifaceName, err)
 	}
-	if retval == api.VALUE_EXIST {
-		return nil // no map on this index: the mark is already disabled
+	if retval := api.VPPApiError(markReply.Retval); retval != 0 && !qosMarkAlreadyDisabled(retval) {
+		return fmt.Errorf("ifacevpp: UpdateVLANQoSMap %q mark disable retval=%d", ifaceName, markReply.Retval)
 	}
-	return fmt.Errorf("ifacevpp: UpdateVLANQoSMap %q mark disable retval=%d", ifaceName, markReply.Retval)
+	return nil
+}
+
+// qosMarkAlreadyDisabled reports whether VPP refused a mark disable because
+// no mark was enabled on the index.
+func qosMarkAlreadyDisabled(code api.VPPApiError) bool {
+	switch code {
+	case api.NO_MATCHING_INTERFACE: // index past the config vector: no mark was ever enabled
+		return true
+	case api.VALUE_EXIST: // no map on this index: the mark is already disabled
+		return true
+	}
+	return false
 }
 
 // enableVLANQoS wires VPP's QoS record + egress-map + mark pipeline on a
