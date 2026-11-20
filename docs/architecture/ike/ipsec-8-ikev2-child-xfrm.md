@@ -1194,15 +1194,21 @@ commit door and `OnConfigVerify` run). `icmp_route_lookup` maps an error whose
 normal lookup answered the plain route, and a template-free allow policy (a
 BYPASS entry) answers that route as no policy does, so `refuseICMPErrorBypass`
 refuses a peer with the check on beside `unmatched bypass`, or beside a bypass
-entry that is out or both, protocol 0 or the family's ICMP protocol, ICMP type
-any or an error type the kernel sends (`icmpErrorTypesV4`, `icmpErrorTypesV6`,
-which name their kernel callers), and whose remote prefix overlaps the peer's
-remote selectors. It is conservative: it does not narrow on the entry's local
-prefix or order, because the Ze address of the ICMP message is unknown at
-commit. An entry below the peer's protect policy is overridden for every
-triggering packet whose Ze address is outside the local selectors; a
-protocol-0 bypass above it may not be overridden for every triggering packet,
-but it is for some.
+entry that is protocol 0 or the family's ICMP protocol, ICMP type any or an
+error type the kernel sends (`icmpErrorTypesV4`, `icmpErrorTypesV6`, which name
+their kernel callers), and one of whose OUT allows sends to the peer's remote
+selectors (`icmpErrorSides`): the out half of an out or both entry, whose
+destination is the entry's remote prefix, and the OUT transit gate of an in or
+both entry ("Transit traffic" below), whose destination is the entry's local
+prefix. The gate is a template-free allow like the out half, so an error this
+node sends to the entry's local prefix meets it in the first lookup and is
+mapped the same way. K1 bit 7 does not change that: the OUT gate carries no
+`XFRM_POLICY_ICMP`, and the first lookup reads no flag. It is conservative: it
+does not narrow on the side of the entry that names the error's source, or on
+its order, because the Ze address of the ICMP message is unknown at commit. An
+entry below the peer's protect policy is overridden for every triggering packet
+whose Ze address is outside the local selectors; a protocol-0 bypass above it
+may not be overridden for every triggering packet, but it is for some.
 
 **Owner decision, 2026-11-19: the kernel honours an operator discard.** The
 inbound flag no longer overrides one. K1 runs the reverse check for ICMP error

@@ -37,6 +37,14 @@ var spdForwardBypassCheckDecl = rpc.DoctorCheckDecl{
 	Codes: []string{diagnostic.CodeDoctorIPsecSPDForwardBypass},
 }
 
+// spdSideLocal and spdSideRemote name the two sides of a `vpn ipsec policy` entry as the
+// operator writes them (`set vpn ipsec policy <name> local ...`), for the fixes a
+// refusal prints.
+const (
+	spdSideLocal  = "local"
+	spdSideRemote = "remote"
+)
+
 // heldAddressesFn reads the addresses this host holds on its interfaces. Swapped in
 // unit tests.
 var heldAddressesFn = readHeldAddresses
@@ -125,8 +133,9 @@ func spdLocalIsHeldAddress(p ipsec.SPDPolicy, held map[netip.Addr]bool) bool {
 // A gathering answer the dataplane could not read refuses, with the read failure as the
 // refusal's cause: spdEntryPolicies projects no port-scoped bypass on it either.
 func spdForwardBypassRefusals(dp dataplane.Dataplane, policies map[string]ipsec.SPDPolicy) []*opererr.Error {
-	// refuse-by-default: guards installChildTolerant -- with no dataplane loaded no entry
-	// is installed, so none can miss forwarded traffic.
+	// refuse-by-default: guards verifyForwardBypass -- with no dataplane loaded no entry
+	// is installed, so none can miss forwarded traffic, and the commit is accepted; the
+	// start log and the doctor check report nothing either.
 	if dp == nil {
 		return nil
 	}
@@ -164,9 +173,9 @@ func spdForwardBypassRefusals(dp dataplane.Dataplane, policies map[string]ipsec.
 // check sees whole datagrams, and heldErr why this host's addresses could not be read;
 // either is nil when its read answered.
 func spdForwardBypassRefusal(p ipsec.SPDPolicy, gatherErr, heldErr error) *opererr.Error {
-	side, other := "local", "remote"
+	side, other := spdSideLocal, spdSideRemote
 	if p.LocalPort.IsAny() {
-		side, other = "remote", "local"
+		side, other = spdSideRemote, spdSideLocal
 	}
 	problem := "vpn ipsec policy " + p.Name + " is a bypass with a port, and Ze cannot apply it to the traffic it forwards"
 	why := "This kernel checks forwarded traffic before it reassembles it and reads port 0 from every fragment " +

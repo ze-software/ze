@@ -285,6 +285,63 @@ func icmpReturnPeerCapture(t *testing.T, lab *espPolLab) int {
 //
 //ze:guest-root
 func TestRFC4301ForwardedICMPErrorsMapUnderDiscard(t *testing.T) {
+	forwardedICMPErrorUnderDiscard(t, 0x7a10, func(quotedDestination string, tag uint16) []byte {
+		return icmpReturnForwarded(3, 1, quotedDestination, tag)
+	})
+}
+
+// TestRFC4301ForwardedICMPParameterProblemMapsUnderDiscard checks the same mapping for
+// an IPv4 Parameter Problem (type 12), the error type Linux's own list leaves out.
+// RFC 4301 Section 6 names the class the mapping serves: "There are two categories of
+// ICMP traffic: error messages (e.g., type = destination unreachable) and non-error
+// messages (e.g., type = echo)." Section 6.2 then requires, for an error message: "If
+// no SA exists that would carry the outbound ICMP message in question, and if no SPD
+// entry would allow carriage of this outbound ICMP error message, then an IPsec
+// implementation MUST map the message to the SA that would carry the return traffic
+// associated with the packet that triggered the ICMP error message."
+// Stock icmp_err_packet (net/xfrm/xfrm_policy.c) answers only Destination Unreachable
+// and Time Exceeded for IPv4, so neither xfrm_in_fwd_icmp nor xfrm_out_fwd_icmp reads
+// a Parameter Problem's quote; K1 answers every type icmp_is_err names (3, 4, 5, 11 and
+// 12), which is the set icmpErrorTypesV4 names. Method: the lab and observation of
+// TestRFC4301ForwardedICMPErrorsMapUnderDiscard, with a Parameter Problem whose pointer
+// (octet 4 of the message) is not zero, so the byte comparison at the peer also proves
+// that octet crossed unchanged. The one quoting the Child SA's return traffic must leave
+// protected; the one quoting traffic no SA carries is not mappable and must leave
+// neither protected nor in clear. The harness speaks IPv4 alone, so the ICMPv6
+// Parameter Problem (type 4) is not exercised here.
+//
+//ze:guest-root
+func TestRFC4301ForwardedICMPParameterProblemMapsUnderDiscard(t *testing.T) {
+	forwardedICMPErrorUnderDiscard(t, 0x7a70, func(quotedDestination string, tag uint16) []byte {
+		return icmpReturnParameterProblem(1, quotedDestination, tag)
+	})
+}
+
+// icmpReturnParameterProblem is icmpReturnForwarded's message as an IPv4 Parameter
+// Problem (type 12, code 0) whose pointer names the given octet of the quoted datagram.
+//
+//	 0       1       2       3       4       5       6       7
+//	+-------+-------+---------------+-------+-----------------------+
+//	| 12    | 0     | checksum      |pointer| unused (zero)         |
+//	+-------+-------+---------------+-------+-----------------------+
+//	| octets 8 to 35: the quoted IPv4 header and 8 octets of UDP    |
+//	+---------------------------------------------------------------+
+func icmpReturnParameterProblem(pointer byte, quotedDestination string, tag uint16) []byte {
+	packet := icmpReturnForwarded(12, 0, quotedDestination, tag)
+	message := packet[20:]
+	message[4] = pointer
+	binary.BigEndian.PutUint16(message[2:4], 0)
+	binary.BigEndian.PutUint16(message[2:4], sadSelChecksum(message))
+	return packet
+}
+
+// forwardedICMPErrorUnderDiscard runs the lab of TestRFC4301ForwardedICMPErrorsMapUnderDiscard
+// for one error message shape: build answers the protected host's message quoting a
+// datagram to quotedDestination, its IPv4 identification set to tag. The first message
+// quotes the Child SA's return traffic and must leave protected, after meeting the OUT
+// catch-all's BLOCK; the second quotes traffic no SA carries and must not leave at all.
+func forwardedICMPErrorUnderDiscard(t *testing.T, tagBase uint16, build func(quotedDestination string, tag uint16) []byte) {
+	t.Helper()
 	lab := newEspPolLab(t)
 	hostSender, capture := fragmentForwardPeers(t, lab)
 	espPolSPD(t)
@@ -292,8 +349,8 @@ func TestRFC4301ForwardedICMPErrorsMapUnderDiscard(t *testing.T) {
 	decoder := newICMPReturnDecoder(t, child, true)
 	controlSender := icmpReturnControlSocket(t)
 	for index, quotedDestination := range []string{fragmentHostAddress, icmpForwardUnmatched} {
-		tag := uint16(0x7a10 + index*2)
-		packet := icmpReturnForwarded(3, 1, quotedDestination, tag)
+		tag := tagBase + uint16(index*2)
+		packet := build(quotedDestination, tag)
 		blocked := sadSelStat(t, outStepStatPolBlock)
 		fragmentSend(t, hostSender, packet)
 		icmpReturnSendControl(t, controlSender, tag+1)

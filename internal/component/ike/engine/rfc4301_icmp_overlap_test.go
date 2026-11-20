@@ -206,10 +206,10 @@ func TestICMPOverlapBypassEntryRefused(t *testing.T) {
 
 // VALIDATES: a bypass entry that cannot carry an ICMP error to the peer's remote
 // selectors passes verify: a disjoint remote prefix, an echo-request type, an in-only
-// entry, a TCP entry, a peer with icmp-error-check false, an entry of the other family,
-// and a `vti bind` peer.
+// entry whose local prefix is disjoint from the peer's remote selectors, a TCP entry, a
+// peer with icmp-error-check false, an entry of the other family, and a `vti bind` peer.
 // PREVENTS: the refusal reaching an entry the kernel's mapping never overrides.
-// RFC requirement: RFC4301-6.2-3 positive -- under `vpn ipsec unmatched discard`, a `vpn ipsec policy` bypass entry whose remote prefix is disjoint from the peer's remote selectors, whose icmp-type is 8, whose direction is in, whose protocol is 6, whose family the peer's selectors do not carry, or beside a peer with icmp-error-check false or with `vti bind`, is accepted by verifyICMPOverlap.
+// RFC requirement: RFC4301-6.2-3 positive -- under `vpn ipsec unmatched discard`, a `vpn ipsec policy` bypass entry whose remote prefix is disjoint from the peer's remote selectors, whose icmp-type is 8, whose direction is in and whose local prefix is disjoint from the peer's remote selectors, whose protocol is 6, whose family the peer's selectors do not carry, or beside a peer with icmp-error-check false or with `vti bind`, is accepted by verifyICMPOverlap.
 func TestICMPOverlapBypassEntryAccepted(t *testing.T) {
 	bypass, out, in := dataplane.SPActionBypass, ipsec.SPDDirOut, ipsec.SPDDirIn
 	cases := []struct {
@@ -221,8 +221,8 @@ func TestICMPOverlapBypassEntryAccepted(t *testing.T) {
 			icmpOverlapPolicy(t, "icmp4", bypass, out, 1, -1, "0.0.0.0/0", "10.3.0.0/16")},
 		{"echo request", icmpOverlapPeer(t, false, false),
 			icmpOverlapPolicy(t, "icmp4", bypass, out, 1, 8, "0.0.0.0/0", "0.0.0.0/0")},
-		{"direction in", icmpOverlapPeer(t, false, false),
-			icmpOverlapPolicy(t, "icmp4", bypass, in, 1, -1, "0.0.0.0/0", "0.0.0.0/0")},
+		{"direction in, local prefix disjoint", icmpOverlapPeer(t, false, false),
+			icmpOverlapPolicy(t, "icmp4", bypass, in, 1, -1, "10.3.0.0/16", "0.0.0.0/0")},
 		{"tcp", icmpOverlapPeer(t, false, false),
 			icmpOverlapPolicy(t, "icmp4", bypass, out, 6, -1, "0.0.0.0/0", "0.0.0.0/0")},
 		{"icmp-error-check false", icmpOverlapPeer(t, false, true),

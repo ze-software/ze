@@ -1,6 +1,7 @@
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- the ICMP processing icmp-error-check turns on
 // Related: sa_options.go -- peerSAOptions, which sets the two kernel flags these refusals judge
 // Related: unmatched.go -- the catch-all whose bypass disposition refusal A judges
+// Related: spd_policy.go -- spdTransitPolicies, the OUT transit gate of an in or both bypass refusal A judges
 // RFC: rfc/short/rfc4301.md -- Section 6.2, ICMP error processing
 
 package engine
@@ -42,9 +43,10 @@ import (
 // discard"), and the dataplane installs no scoped Child SA on a kernel that does not
 // advertise that check (checkXFRMStateScopeCapabilities, capability bit 5).
 //
-// The refusal is conservative. It does not narrow on the operator entry's LOCAL prefix
-// or on its order, because the ICMP message's Ze-side address is chosen by the kernel
-// when the message is sent, so no commit can know it. An entry ranked below the peer's
+// The refusal is conservative. It does not narrow on the side of the operator entry that
+// names the ICMP message's source (the LOCAL prefix of an out half, the REMOTE prefix of
+// an OUT transit gate, icmpErrorSides) or on its order, because the message's Ze-side
+// address is chosen by the kernel when the message is sent, so no commit can know it. An entry ranked below the peer's
 // PROTECT policy is overridden for every triggering packet whose Ze address falls
 // outside the peer's local selectors. A protocol-0 bypass entry ranked above it may not
 // be overridden for every triggering packet, since the entry already matches some of
@@ -98,10 +100,24 @@ var (
 // only when that source is inside the peer's REMOTE selectors.
 //
 // The catch-all under `unmatched bypass` carries every such error, so it is refused
-// beside any such peer. An operator entry is refused when it is bypass, out or both,
-// protocol 0 or the ICMP protocol of its family, its ICMP type any or an error type the
-// kernel sends, and its remote prefix overlaps one of the peer's remote selectors. A
-// peer with `vti bind` is skipped (the exemption above).
+// beside any such peer. An operator entry is refused when it is bypass, protocol 0 or
+// the ICMP protocol of its family, its ICMP type any or an error type the kernel sends,
+// and one of its OUT allows can carry an error to one of the peer's remote selectors
+// (icmpErrorSides): the out half of an out or both entry, whose destination is the
+// entry's remote prefix, and the OUT transit gate of an in or both entry, whose
+// destination is the entry's local prefix. A peer with `vti bind` is skipped (the
+// exemption above).
+//
+// The gate is spdTransitPolicies' template-free OUT allow at dataplane.PriorityTransitGate
+// holding the in half's selectors, which lets traffic forwarded from the entry's remote
+// side to its local side leave past the OUT catch-all. An error this node sends to the
+// local side meets it in icmp_route_lookup's first lookup as it meets an out bypass, and
+// is mapped the same way. K1 capability bit 7 does not change that: it acts in the FWD
+// check on a FWD allow carrying XFRM_POLICY_ICMP, and the OUT gate carries no flag
+// (owner ruling 2026-11-20), while the first lookup of icmp_route_lookup reads no flag at
+// all. The refusal takes no dataplane: VPP installs no gate, and it refuses the mapping
+// flag a peer with the check on needs (vppICMPErrorReturnError), so on VPP such a peer
+// installs no Child SA either way.
 //
 // The first conflict is answered, peers and entries in sorted name order, so the same
 // configuration always draws the same refusal. The answer is nil when there is none.
@@ -125,33 +141,76 @@ func refuseICMPErrorBypass(cfg *ipsec.IPsecConfig) *opererr.Error {
 		remote := peerRemoteSpans(peer.TrafficSelectors)
 		for _, policyName := range policyNames {
 			policy := cfg.Policies[policyName]
-			if !bypassCarriesICMPError(&policy) {
-				continue
+			for _, side := range icmpErrorSides(&policy) {
+				if !spansMeet(side.spans, remote) {
+					continue
+				}
+				return opererr.New(
+					"ipsec peer "+strconv.Quote(peerName)+" has icmp-error-check true and `vpn ipsec policy "+policyName+"` carries ICMP errors in clear to the peer's remote selectors",
+					"Linux sends an ICMP error this router generates for a packet from the peer's remote selectors ("+spanList(remote)+") into the peer's Child SA, "+
+						"although "+side.carrier+" would carry it in clear; RFC 4301 Section 6.2 maps an error into the return SA only when no SPD entry would carry it",
+					bypassEntryFix(peerName, policyName, &policy, side.name, remote))
 			}
-			if !spansMeet(icmpSpans(&policy), remote) {
-				continue
-			}
-			return opererr.New(
-				"ipsec peer "+strconv.Quote(peerName)+" has icmp-error-check true and `vpn ipsec policy "+policyName+"` carries ICMP errors in clear to the peer's remote selectors",
-				"Linux sends an ICMP error this router generates for a packet from the peer's remote selectors ("+spanList(remote)+") into the peer's Child SA, "+
-					"although the bypass entry would carry it in clear; RFC 4301 Section 6.2 maps an error into the return SA only when no SPD entry would carry it",
-				bypassEntryFix(peerName, policyName, &policy, remote))
 		}
 	}
 	return nil
 }
 
+// icmpErrorSide is one OUT allow of an operator bypass that an ICMP error this node sends
+// can match: the entry side its destination is, the address sets of that side kept to
+// the families the entry's protocol matches ICMP in, and the allow named for the
+// operator.
+type icmpErrorSide struct {
+	name    string
+	spans   []netip.Prefix
+	carrier string
+}
+
+// icmpErrorSides answers the OUT allows of an operator entry that would carry an ICMP
+// error this node sends, for refusal A: none unless bypassMatchesICMPError, then the out
+// half of an out or both entry (destination: its remote prefix) and the OUT transit gate
+// of an in or both entry (destination: its local prefix, spdTransitPolicies).
+//
+// The gate is judged wherever some dataplane projects the entry: spdEntryHasTransit with
+// gathering, the widest answer. An entry that can match ICMP carries no port (a port
+// needs a protocol that carries ports, SPDPolicy.validate), so gathering changes nothing
+// for it, and an ICMP type 0 code 0 entry, which gets no projection, is not an error type.
+func icmpErrorSides(policy *ipsec.SPDPolicy) []icmpErrorSide {
+	if !bypassMatchesICMPError(policy) {
+		return nil
+	}
+	var sides []icmpErrorSide
+	if spdPolicyHasDirection(policy.Direction, dataplane.SADirOut) {
+		sides = append(sides, icmpErrorSide{
+			name:    spdSideRemote,
+			spans:   icmpSpans(policy, policy.RemotePrefix, policy.LocalPrefix),
+			carrier: "the bypass entry",
+		})
+	}
+	// RFC 4301 Section 6
+	if spdPolicyHasDirection(policy.Direction, dataplane.SADirIn) && spdEntryHasTransit(*policy, true) {
+		sides = append(sides, icmpErrorSide{
+			name:  spdSideLocal,
+			spans: icmpSpans(policy, policy.LocalPrefix, policy.RemotePrefix),
+			carrier: "the entry's transit gate (the out allow its in direction installs, " +
+				"so traffic forwarded to its local prefix can leave)",
+		})
+	}
+	return sides
+}
+
 // bypassEntryFix is the fix of refusal A for one operator entry: turn the peer's check
-// off, or keep the entry off the peer's remote selectors, or keep it off ICMP errors.
-// The remote-prefix form is offered only when the selectors leave an address outside
+// off, or keep the entry side that names the error's destination (side, spdSideRemote
+// or spdSideLocal, icmpErrorSides) off the peer's remote selectors, or keep it off ICMP errors.
+// The prefix form is offered only when the selectors leave an address outside
 // them, which they do not when a remote selector covers a whole family: a peer with no
 // selector, or a selector that names no remote prefix. The last form follows
 // the entry's protocol: an ICMP type selector exists only under protocol 1 or 58
 // (SPDPolicy.validateICMP), so protocol 0 is narrowed by its protocol instead.
-func bypassEntryFix(peerName, policyName string, policy *ipsec.SPDPolicy, remote []netip.Prefix) string {
+func bypassEntryFix(peerName, policyName string, policy *ipsec.SPDPolicy, side string, remote []netip.Prefix) string {
 	fix := "set vpn ipsec site-to-site peer " + peerName + " icmp-error-check false"
 	if !slices.ContainsFunc(remote, func(span netip.Prefix) bool { return span.Bits() == 0 }) {
-		fix += ", or set vpn ipsec policy " + policyName + " remote prefix <prefix> with a prefix that does not overlap " + spanList(remote)
+		fix += ", or set vpn ipsec policy " + policyName + " " + side + " prefix <prefix> with a prefix that does not overlap " + spanList(remote)
 	}
 	if policy.Protocol == 0 {
 		return fix + ", or set vpn ipsec policy " + policyName + " protocol <protocol> with the protocol the entry is for, other than 1 (ICMP) and 58 (ICMPv6)"
@@ -186,14 +245,11 @@ func typeList(types []uint8) string {
 	return string(text)
 }
 
-// bypassCarriesICMPError reports whether an operator entry would carry an outbound ICMP
-// error Ze sends: bypass, on the out side, with a protocol and an ICMP type an error
-// can match. The address families its protocol admits are icmpSpans' answer.
-func bypassCarriesICMPError(policy *ipsec.SPDPolicy) bool {
+// bypassMatchesICMPError reports whether an operator entry is a bypass whose protocol and
+// ICMP type an ICMP error Ze sends can match. Which of its OUT allows can carry one is
+// icmpErrorSides' answer, and the address families its protocol admits icmpSpans'.
+func bypassMatchesICMPError(policy *ipsec.SPDPolicy) bool {
 	if policy.Action != dataplane.SPActionBypass {
-		return false
-	}
-	if policy.Direction != ipsec.SPDDirOut && policy.Direction != ipsec.SPDDirBoth {
 		return false
 	}
 	if !policy.ICMP.HasType {
@@ -208,12 +264,12 @@ func bypassCarriesICMPError(policy *ipsec.SPDPolicy) bool {
 	return slices.Contains(icmpErrorTypesV4, policy.ICMP.Type)
 }
 
-// icmpSpans answers the address sets an operator entry covers on its REMOTE side, kept
-// to the families in which its protocol matches ICMP: protocol 0 matches every
-// protocol, 1 is ICMP in IPv4 and 58 is ICMPv6. Any other protocol matches no ICMP and
-// answers no span.
-func icmpSpans(policy *ipsec.SPDPolicy) []netip.Prefix {
-	spans := sideSpans(policy.RemotePrefix, policy.LocalPrefix)
+// icmpSpans answers the address sets an operator entry covers on one side, prefix, whose
+// other side is other, kept to the families in which its protocol matches ICMP:
+// protocol 0 matches every protocol, 1 is ICMP in IPv4 and 58 is ICMPv6. Any other
+// protocol matches no ICMP and answers no span.
+func icmpSpans(policy *ipsec.SPDPolicy, prefix, other *net.IPNet) []netip.Prefix {
+	spans := sideSpans(prefix, other)
 	if policy.Protocol == 0 {
 		return spans
 	}

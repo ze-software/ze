@@ -14,12 +14,12 @@
     "rid": "RFC4301-6.2-3",
     "polarity": "positive",
     "unit": "internal/component/ike/engine/rfc4301_icmp_overlap_test.go::TestICMPOverlapBypassEntryAccepted",
-    "unit-sha": "83b02a1c6df98564",
-    "claim-sha": "c222c8ee888fc86d",
-    "route": "mutant",
+    "unit-sha": "d74ec4b11eb735b4",
+    "claim-sha": "6fbf1e9aab4ac4f5",
+    "route": "revert",
     "producer": "internal/component/ike/engine/icmp_overlap.go::refuseICMPErrorBypass",
-    "producer-sha": "938b898194539f42",
-    "break": "line 120: \"!bypassCarriesICMPError(\u0026policy)\" -\u003e \"false\""
+    "producer-sha": "1685991d49a71626",
+    "break": "body of refuseICMPErrorBypass replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4301-6.2-3",
