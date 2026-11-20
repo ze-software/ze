@@ -787,6 +787,16 @@ Service-Name. The physical access source MAC and SID must agree with Ze and
 native VPP.
 <!-- source: internal/le/test/deployment/vpppppoe/product_discovery.go -- productDiscovery, productDiscoveryTags -->
 
+Ze serves PPPoE only on an interface its config declares, so every product
+configuration declares the access interface it serves: `ethernet host-eth0`,
+and in the VLAN topology its `unit 100 { vlan-id 100; }`, which names
+`host-eth0.100`. The lab creates both in VPP before Ze starts. The entry
+carries no address and no `mtu`, so Ze only sets the port up, and it keeps the
+existing VLAN sub-interface rather than recreating it.
+`TestProductConfigsValidate` runs every product configuration through
+`ze config validate`'s checks.
+<!-- source: internal/le/test/deployment/vpppppoe/product_plan.go -- productConfigWith, productInterfaces -->
+
 The lab prepares only AF_PACKET and LCP infrastructure. Ze must create its
 own PPPoE map, native session, peer host route and session forwarding state.
 The server has no `/dev/ppp` device, and the checker reads both relevant

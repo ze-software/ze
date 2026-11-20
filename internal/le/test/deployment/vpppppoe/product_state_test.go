@@ -171,7 +171,9 @@ func TestProductHundredPlanHasDistinctPhysicalPeers(t *testing.T) {
 		t.Fatal("server does not run the freshly staged real daemon")
 	}
 	config := productConfig("host-eth0", "")
-	for _, required := range []string{"backend vpp", "external true", "max-sessions 100", "end 10.20.0.102", "auth-method chap-md5"} {
+	// The access interface is declared: Ze refuses PPPoE on any other name.
+	// product_config_test.go runs every product config through validation.
+	for _, required := range []string{"backend vpp", "ethernet host-eth0 { }", "interface host-eth0 { }", "external true", "max-sessions 100", "end 10.20.0.102", "auth-method chap-md5"} {
 		if !strings.Contains(config, required) {
 			t.Fatalf("configuration missing %s", required)
 		}

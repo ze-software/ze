@@ -894,7 +894,11 @@ parallel packages.
 
 ## Owned journal rows
 
-None. The row this spec found (`validate-accepts-what-start-refuses.md`, 2026-10-28) is owned by `plan/release/fixes/spec-pppoe-refuse-vpp-backend.md`.
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `test-against-broken-path.md` | 2026-11-20 | The product-ipv6 lab config uses a pool field (`ipv6-na`) Ze has never had; owed under G-4 and AC-8 |
+
+The earlier row this spec found (`validate-accepts-what-start-refuses.md`, 2026-10-28) is owned by `plan/release/fixes/spec-pppoe-refuse-vpp-backend.md`.
 
 ## Work Not Done
 

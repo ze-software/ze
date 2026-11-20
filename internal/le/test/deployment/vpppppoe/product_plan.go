@@ -10,7 +10,9 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	buildvpp "github.com/ze-software/ze/internal/le/build/vpp"
 	"github.com/ze-software/ze/internal/le/interoplab"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
@@ -185,7 +187,7 @@ func productConfig(access, namespace string) string {
 // productConfigWith is the product daemon configuration with auth as the
 // l2tp authentication block, which PPPoE subscribers share.
 func productConfigWith(access, namespace, auth string) string {
-	return fmt.Sprintf(`interface { backend vpp; }
+	return fmt.Sprintf(`%s
 vpp {
  enabled true;
  external true;
@@ -210,5 +212,23 @@ l2tp {
 environment {
  api-server { token %q; rest { enabled true; server main { ip 127.0.0.1; port 9099; } } }
 }
-`, namespace, access, auth, productToken)
+`, productInterfaces(access), namespace, access, auth, productToken)
+}
+
+// productInterfaces is the interface section that declares access, because
+// Ze refuses a PPPoE access interface the config does not declare. access is
+// the VPP name prepareProduct answers: the af_packet interface host-eth0, or
+// its VLAN 100 sub-interface host-eth0.100, which a unit with that vlan-id
+// declares. The lab creates both in VPP before Ze starts, and Ze adopts them:
+// with no mtu and no unit of its own, the entry only sets host-eth0 up and
+// leaves the address the lab gave it, and a VLAN unit whose device already
+// exists is kept, never recreated (desiredState, applyConfigPass).
+func productInterfaces(access string) string {
+	parent, vlanID, vlan := strings.Cut(access, ".")
+	var text textbuf.Buffer
+	text.Str("interface {\n backend vpp;\n ethernet ").Str(parent).Str(" {")
+	if vlan {
+		text.Str(" unit ").Str(vlanID).Str(" { vlan-id ").Str(vlanID).Str("; }")
+	}
+	return text.Str(" }\n}").String()
 }
