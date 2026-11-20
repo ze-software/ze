@@ -1,16 +1,10 @@
 {
   "code": {
-    "internal/component/ike/dataplane/vpp_policy.go::vppPolicyInterface": "00554018ad645f31",
-    "internal/component/ike/engine/apply.go::applyConfig": "6128c267ff0d67d6",
-    "internal/component/ike/engine/apply.go::releaseSPD": "2f7bd5bea26ee88c",
-    "internal/component/ike/engine/apply.go::shutdown": "159a230bf190c6cc",
-    "internal/component/ike/engine/spd_left.go::warnSPDLeft": "6ab3bbc52a6f0410",
-    "internal/component/ike/engine/unmatched.go::installUnmatched": "6dda4022517a1d7f",
-    "internal/component/ike/engine/unmatched.go::verifyUnmatchedEnforceable": "6aec367cbfc81f98",
-    "internal/component/ike/engine/unmatched_xfrm_interface.go::installXFRMInterfaceEntries": "e277cda09fcd1d1e",
-    "internal/plugins/ospf/ipsec_install.go::defaultDataplaneSource": "f1afcc7c5c0fb959"
+    "internal/component/ike/engine/apply.go::applyConfig": "880d30122c874186",
+    "internal/component/ike/engine/unmatched.go::installUnmatched": "3916bfeceb8d7393",
+    "internal/component/ike/engine/unmatched_xfrm_interface.go::installXFRMInterfaceEntries": "3c38785e3e65004f"
   },
-  "note": "Re-judged 2026-11-20 by an independent agent after df3221e7b8, 40cf3cfaec, a29420771d, 4663a5e15e and 1dc1323b86. RFC 4301 Section 5.2: \"(No SAs are created in response to receipt of a packet that requires IPsec protection; only BYPASS or DISCARD cache entries can be created this way.) If there is no match, discard the traffic.\" Same producers and paths as RFC4301-5.2-1: applyConfig dropped the ICMP error return entries (now kernel-mapped) and added a start-time log of port-scoped forward bypasses that installs nothing; the catch-all is still first on the first apply and last in releaseSPD, kept when warnSPDLeft reports an entry left. VPP still holds no catch-all and the OSPF manual-key entries still lack a final DISCARD outside the engine's window. The gap stands.",
+  "note": "Re-judged 2026-11-20 by an independent agent after 51799ad534 (owner ruling 5c) and the annotation correction that follows it. RFC 4301 Section 5.2: \"(No SAs are created in response to receipt of a packet that requires IPsec protection; only BYPASS or DISCARD cache entries can be created this way.) If there is no match, discard the traffic.\" Same producers and paths as RFC4301-5.2-1: a reload still refuses a catch-all it cannot install, but the daemon's start installs what the dataplane accepts and reports the rest (assertUnmatched, installUnmatchedAtStart, recordInterfaceCatchAllAtStart), so after such a start an inbound packet no entry matches is delivered in the refused direction until a restart or a vpn ipsec commit installs the entry. VPP still holds no catch-all, and the OSPF manual-key entries still have no final DISCARD outside the engine's window. The corrected annotation states the three paths accurately and cites tests that exist at HEAD. The gap stands.",
   "requirement_sha": "85de5f441399996b",
   "verdict": "unimplemented"
 }

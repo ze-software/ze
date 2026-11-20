@@ -1,0 +1,19 @@
+{
+  "note": "First verdict 2026-11-20 by an independent agent. RFC 4301 Section 7.4: \"All implementations MUST support stateful fragment checking to accommodate BYPASS traffic for which a non-trivial port range is specified.\" What the tags prove: TestPortScopedBypassNeverReachesTheForwardPath and TestPortScopedBypassForwardPathFollowsFragmentGathering (spdEntryHasTransit revert records) that a port-scoped BYPASS reaches FWD only when the dataplane reports fragment gathering; TestXFRMPortScopedBypassIsNeverStoredOnTheForwardPath that the kernel stores the in and out halves in IN and OUT; TestRFC4301ForwardedFragmentsRespectOperatorDisposition, on Ze's kernel with a revert record on spdForwardGathers, that under unmatched discard a whole and a fragmented IPv4 datagram on the one-port bypass cross while a lone non-initial fragment on that port and a fragmented datagram to an unnamed port do not. The negative TestAnyPortBypassReachesTheForwardPath is the case just outside the clause (both ports any reach FWD on a non-gathering dataplane, a local port does not). Why weak and not enforced: the row claims the whole requirement with no annotation, and two cases it covers cannot turn any tagged test red. spdEntryHasTransit projects a port-scoped bypass onto FWD for IPv6 as well under capability bit 3, and the IPv6 gather (xfrm6_fragment_prerouting, gokrazy/kernel/patches/0005-xfrm-fragment-guard.patch) is observed by no tagged packet test, since the forward lab disables IPv6. The IN direction rests on Linux running ip_defrag before the LOCAL_IN policy check, read from the kernel source in the summary and asserted by no packet test on a port-scoped IN bypass. A {partial} split by case (IPv4 forward tested; IPv6 forward and local delivery the gap) would make the scope honest.",
+  "requirement_sha": "64572a56cf85efc8",
+  "tests": {
+    "internal/component/ike/dataplane/rfc4301_fragment_integration_linux_test.go::TestXFRMPortScopedBypassIsNeverStoredOnTheForwardPath": "14137feece5d50ee",
+    "internal/component/ike/engine/rfc4301_fragment_forward_integration_linux_test.go::TestRFC4301ForwardedFragmentsRespectOperatorDisposition": "0285e02874b89845",
+    "internal/component/ike/engine/rfc4301_fragment_test.go::TestPortScopedBypassNeverReachesTheForwardPath": "2d198f890dc8c8e2",
+    "internal/component/ike/engine/rfc4301_spd_forward_bypass_test.go::TestPortScopedBypassForwardPathFollowsFragmentGathering": "e0e51e7fd30a8327",
+    "internal/component/ike/engine/rfc4301_spd_transit_test.go::TestAnyPortBypassReachesTheForwardPath": "8e63f66e5bcb9a81"
+  },
+  "units": {
+    "internal/component/ike/dataplane/rfc4301_fragment_integration_linux_test.go::TestXFRMPortScopedBypassIsNeverStoredOnTheForwardPath": "38f2c7a331c1d969",
+    "internal/component/ike/engine/rfc4301_fragment_forward_integration_linux_test.go::TestRFC4301ForwardedFragmentsRespectOperatorDisposition": "d165af5a125dc95b",
+    "internal/component/ike/engine/rfc4301_fragment_test.go::TestPortScopedBypassNeverReachesTheForwardPath": "235473862ec77800",
+    "internal/component/ike/engine/rfc4301_spd_forward_bypass_test.go::TestPortScopedBypassForwardPathFollowsFragmentGathering": "01d0cb148d2f9cde",
+    "internal/component/ike/engine/rfc4301_spd_transit_test.go::TestAnyPortBypassReachesTheForwardPath": "d9b6f4607b10d9c4"
+  },
+  "verdict": "weak"
+}

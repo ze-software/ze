@@ -1,11 +1,11 @@
 {
-  "note": "Forbidden behaviour: Ze unable to run a receive window of at least 32 on a 32-bit-sequence SA (e.g. installing a smaller window). TestChildSAReplayWindowDefault (engine/child_test.go) asserts ReplayWin == 64 on both installed SAs; a window below 32 fails it. Ze never negotiates ESN, so every SA uses 32-bit sequence numbers. Single-polarity marker present. The assertion is at SAParams; xfrmStateFromParams projects it to the kernel (xfrm_linux.go:132).",
+  "note": "Re-judged 2026-11-20 by an independent agent after 3977cef525 changed TestChildSAReplayWindowDefault. RFC 4303 Section 3.4.3: \"A minimum window size of 32 packets MUST be supported when 32-bit sequence numbers are employed; a window size of 64 is preferred and SHOULD be employed as the default.\" The test now drives createFirstChildSA over a mock dataplane, requires two SAs in the order inbound then outbound by their Dir, asserts ReplayWin == 64 on the inbound state and 0 on the outbound one, which Linux refuses a window on. A window below 32 on the receiving state goes red, and the earlier note's both-SAs claim is replaced by the receiver-only reading RFC 4301 Section 4.4.2.1 gives the window. installChildDataplane sets ReplayWin from replayWindow on the inbound SAParams only, and xfrmStateFromParams projects it, as the single-polarity annotation states. Ze negotiates no ESN, so every SA uses 32-bit sequence numbers. The VPP backend cannot carry a window size (ipsec_sad_entry_v3; vppSAFlags turns anti-replay on and VPP applies its own window), so this verdict covers the XFRM default path.",
   "requirement_sha": "9cdd473899bd3f27",
   "tests": {
-    "internal/component/ike/engine/child_test.go::TestChildSAReplayWindowDefault": "e37080524641dd96"
+    "internal/component/ike/engine/child_test.go::TestChildSAReplayWindowDefault": "3ecdcbdea3c4458f"
   },
   "units": {
-    "internal/component/ike/engine/child_test.go::TestChildSAReplayWindowDefault": "171cce460fcbce06"
+    "internal/component/ike/engine/child_test.go::TestChildSAReplayWindowDefault": "399d3627f3960301"
   },
   "verdict": "enforced"
 }

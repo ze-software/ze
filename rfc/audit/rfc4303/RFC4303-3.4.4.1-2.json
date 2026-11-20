@@ -1,10 +1,10 @@
 {
   "code": {
     "internal/component/ike/dataplane/vpp.go::InstallSA": "b0c652e23d7fd98d",
-    "internal/component/ike/dataplane/vpp.go::vppSAFlags": "75c15129e87bb04b",
-    "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams": "ecf2bc50bc605ab4"
+    "internal/component/ike/dataplane/vpp.go::vppSAFlags": "0bd04d589b269a4d",
+    "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams": "9c91c6c1b05be55d"
   },
-  "note": "Rejudged the current builders against RFC 4303 Section 3.4.4.1 step 3: If the default padding scheme (see Section 2.4) has been employed, the receiver SHOULD inspect the Padding field before removing the padding prior to passing the decrypted data to the next layer. xfrmStateFromParams now projects the explicit state scope through xfrmStateScopeFromParams, but its mode, selector, replay, transform, encapsulation and PMTU/DSCP projection still requests no padding inspection. vppBackend.InstallSA builds the SAD message and vppSAFlags declares direction, tunnel, replay and UDP flags, without a padding-inspection option. Neither boundary decrypts ESP. There is still no lower-layer observation proving padding inspection on the installed state, so the explicit gap and unimplemented verdict remain; no conformance claim is upgraded.",
+  "note": "Re-judged 2026-11-20 by an independent agent after 3977cef525 changed vppSAFlags and xfrmStateFromParams to install each Child SA with its kernel direction. RFC 4303 Section 3.4.4.1: \"If the default padding scheme (see Section 2.4) has been employed, the receiver SHOULD inspect the Padding field before removing the padding prior to passing the decrypted data to the next layer.\" vppSAFlags now sets IS_INBOUND from the SA direction beside the tunnel, replay and UDP flags, and xfrmStateFromParams carries the direction and the state scope; neither requests any padding inspection, and neither boundary decrypts ESP. Nothing in the tree shows Linux XFRM or VPP inspecting the Padding bytes on the installed state, so the {gap} annotation is accurate and the requirement stays unmet.",
   "requirement_sha": "dea07385ec5c5f6a",
   "verdict": "unimplemented"
 }

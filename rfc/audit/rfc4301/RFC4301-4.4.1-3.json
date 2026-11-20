@@ -1,16 +1,16 @@
 {
   "code": {
     "internal/component/ike/dataplane/vpp_policy.go::vppPolicyInterface": "00554018ad645f31",
-    "internal/component/ike/engine/apply.go::applyConfig": "6128c267ff0d67d6",
+    "internal/component/ike/engine/apply.go::applyConfig": "880d30122c874186",
     "internal/component/ike/engine/apply.go::releaseSPD": "2f7bd5bea26ee88c",
-    "internal/component/ike/engine/unmatched.go::installUnmatched": "6dda4022517a1d7f",
+    "internal/component/ike/engine/unmatched.go::installUnmatched": "3916bfeceb8d7393",
     "internal/component/ike/engine/unmatched.go::unmatchedPolicies": "28bf090b63bd47f3",
-    "internal/component/ike/engine/unmatched_xfrm_interface.go::installXFRMInterfaceEntries": "e277cda09fcd1d1e",
+    "internal/component/ike/engine/unmatched_xfrm_interface.go::installXFRMInterfaceEntries": "3c38785e3e65004f",
     "internal/component/ike/engine/unmatched_xfrm_interface.go::interfaceSPDCatchAll": "c9271816240f2b43",
     "internal/plugins/ospf/ipsec_install.go::buildIPsecPolicies": "60a7b4ef74bf7c48",
     "internal/plugins/ospf/ipsec_install.go::defaultDataplaneSource": "f1afcc7c5c0fb959"
   },
-  "note": "Re-judged 2026-11-20 by an independent agent after df3221e7b8, 40cf3cfaec and a29420771d changed applyConfig and releaseSPD; no tagged unit changed. Parent quote, RFC 4301 Section 4.4.1: \"Every SPD SHOULD have a nominal, final entry that matches anything that is otherwise unmatched, and discards it.\" Tested: \"a nominal, final entry that matches anything that is otherwise unmatched, and discards it\". Gap: \"Every SPD\". Boundary producer: internal/component/ike/dataplane/vpp_policy.go::vppPolicyInterface. Producer changes read: the ICMP error return entries that ranked above the catch-all are gone from applyConfig and releaseSPD (the kernel maps forwarded ICMP errors), and the start-time warnForwardBypassAtStart only logs; installUnmatched still goes first on the first apply and removeUnmatched last on release. The tagged units still replay every Ze write and require the catch-all beneath it, discard an unmatched clear packet in the kernel at if_id 0 and on a bound XFRM interface, and fail the apply on a refused interface catch-all. Gap unchanged: no final entry on VPP SPDs or beneath the OSPF protocol 89 entries. Scoped evidence only; zero whole-requirement credit.",
+  "note": "Re-judged 2026-11-20 by an independent agent after 51799ad534 changed applyConfig, installUnmatched and installXFRMInterfaceEntries; no tagged unit changed. RFC 4301 Section 4.4.1: \"Every SPD SHOULD have a nominal, final entry that matches anything that is otherwise unmatched, and discards it.\" Tested: \"a nominal, final entry that matches anything that is otherwise unmatched, and discards it\". Gap: \"Every SPD\". Producer: internal/component/ike/dataplane/vpp_policy.go::vppPolicyInterface. Producer change read: under owner ruling 5c a catch-all the dataplane refuses at the daemon's start no longer refuses the IPsec block (assertUnmatched, installUnmatchedAtStart; recordInterfaceCatchAllAtStart for an interface SPD): the start keeps every entry the dataplane accepted, logs at Error under doctor-ipsec-spd-catch-all-missing and reports it through ipsec-spd-install, while a reload still refuses. The successful install the tagged units observe is unchanged: the catch-all still goes first on the first apply and is replayed beneath every Ze write, an unmatched clear packet is discarded in the kernel at if_id 0 and on a bound XFRM interface, and a refused interface catch-all fails the reload. The annotation still holds: the final entry exists only in the XFRM SPDs the engine owns, none on VPP SPDs or beneath the OSPF protocol 89 entries. A start-time install refusal is a further window without the final entry, reported rather than prevented, which RFC4301-5.2-1 and 5.2-9 must name. Scoped evidence only; zero whole-requirement credit.",
   "requirement_sha": "3a35f5ad6de38f99",
   "tests": {
     "internal/component/ike/dataplane/rfc4301_xfrm_xfrmi_catchall_integration_linux_test.go::TestRFC4301InterfaceSPDDiscardsUnmatchedInKernel": "277494850a9c7665",

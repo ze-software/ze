@@ -1,0 +1,17 @@
+{
+  "code": {
+    "internal/component/ike/dataplane/xfrm_linux.go::xfrmPolicyFromParams": "3ae3babcfe0215d7",
+    "internal/component/ike/engine/child_scope.go::childStateScope": "84c776aa19fe0a2b"
+  },
+  "note": "First verdict 2026-11-20 by an independent agent. RFC 4301 Section 4.4.1.1: \"If the SA requires a port value other than ANY or OPAQUE, an arriving fragment without ports MUST be discarded.\" Tested: \"If the SA requires a port value other than ANY or OPAQUE\". Gap: \"an arriving fragment without ports MUST be discarded\". Producer: internal/component/ike/dataplane/xfrm_linux.go::xfrmPolicyFromParams, with internal/component/ike/engine/child_scope.go::childStateScope for the gap. The positive TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate asserts the inbound entry keeps the exact source port 443, and the negative TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened asserts a port with a bit outside its mask is refused with no entry built; both carry mutant records on xfrmSelectorPort. That proves the required port reaches the kernel unwidened, the precondition of the clause. childStateScope at HEAD still passes non-initial-fragment permission false to dataplane.NewSAStateScope, and the kernel patch 0003-xfrm-state-scope.patch exists, as the reason says; no tagged test sends a fragment without ports on an exact-port SA under that production permission, so the discard itself is unobserved. Scoped evidence only; zero whole-requirement credit.",
+  "requirement_sha": "8a3cedf5b3e0df17",
+  "tests": {
+    "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "668eee61429b2524",
+    "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "668eee61429b2524"
+  },
+  "units": {
+    "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "4f6a7698e201b01f",
+    "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "4157a2fb3eb221c4"
+  },
+  "verdict": "partial"
+}

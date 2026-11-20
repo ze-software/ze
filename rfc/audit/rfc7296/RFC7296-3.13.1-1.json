@@ -2,8 +2,8 @@
   "note": "Rejudged against RFC 7296 Section 3.13.1: For protocols for which port is undefined (including protocol 0), or if all ports are allowed, this field MUST be zero. TestTSWireAnyPortsForEveryProtocol calls selectorsToWire for every protocol number with an ANY port and asserts one selector with StartPort 0 and EndPort 65535. TestTSWireRefusesUndefinedPortValues calls the encoder with specific and OPAQUE ports under protocol 0, GRE, ESP, AH, OSPF, VRRP and an unknown protocol and requires a nil payload. These replace the earlier single-protocol tagged fixture that justified the weak verdict. The encoder now checks Port.ValidForProtocol before writing the wire selector; it cannot emit a specific port for the invalid inputs tested. The conforming ANY controls prevent a blanket refusal from satisfying the pair. The judgment concerns these field encodings, not support for every exact ICMP or Mobility Header selector.",
   "requirement_sha": "f9a6633b996ca03e",
   "tests": {
-    "internal/component/ike/engine/rfc7296_protocol_selector_test.go::TestTSWireAnyPortsForEveryProtocol": "87247232d998a505",
-    "internal/component/ike/engine/rfc7296_protocol_selector_test.go::TestTSWireRefusesUndefinedPortValues": "87247232d998a505",
+    "internal/component/ike/engine/rfc7296_protocol_selector_test.go::TestTSWireAnyPortsForEveryProtocol": "62ffffd6c35057dc",
+    "internal/component/ike/engine/rfc7296_protocol_selector_test.go::TestTSWireRefusesUndefinedPortValues": "62ffffd6c35057dc",
     "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "7a2ef4cde370eb4b",
     "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "7a2ef4cde370eb4b"
   },

@@ -1,21 +1,17 @@
 {
-  "note": "installed Child SAs are tunnel mode with no ECN-disabling field (engine and XFRM scans); VPP InstallSA sets ENCAP/DECAP_COPY_ECN. Negatives are non-vacuity checks rather than violating inputs",
+  "note": "Re-judged 2026-11-20 by an independent agent after the tag set moved (d5f71bb580, 2dd2252506): engine/rfc7296_ecn_test.go is gone, rfc7296_ecn_linux_test.go is untagged, and the row is now carried by TestEcnKernelStoresTunnelSAWithoutNoECN, TestRFC7296BareESPOnTemplatedSAKeepsTheOuterCE and the VPP message units. RFC 7296 Section 2.24: \"tunnel encapsulators and decapsulators for all tunnel mode SAs created by IKEv2 MUST support the ECN full-functionality option for tunnels specified in [ECN]\". The positive installs a tunnel ESP state through xfrmBackend.InstallSA in a private namespace, dumps the SAD over raw netlink and decodes the stored xfrm_usersa_info: mode tunnel, XFRM_STATE_AF_UNSPEC set (proving the octet is Ze's) and XFRM_STATE_NOECN clear, the flag under which Linux skips the ECN step on encapsulation and decapsulation; its documented mutant sets NOECN in the serializer and goes red. The VPP positive asserts ENCAP_COPY_ECN and DECAP_COPY_ECN in the SAD message sent. The negative is on the decapsulated packet: a fragmented bare ESP datagram with outer ECT(0) around an ECN-capable inner packet arrives with inner TOS 0x02, so the CE the positive row of the same test delivers comes from the outer header and is not set unconditionally; the VPP negative shows a refused SA sends no message. Verdict stands.",
   "requirement_sha": "4fbe1dd526068730",
   "tests": {
-    "internal/component/ike/dataplane/rfc7296_ecn_linux_test.go::TestEcnInstalledStateDisablesNothing": "38ec105d43e07435",
-    "internal/component/ike/dataplane/rfc7296_ecn_linux_test.go::TestEcnTheScannedStateIsTheOneZeInstalls": "38ec105d43e07435",
-    "internal/component/ike/dataplane/rfc7296_vpp_message_test.go::TestVPPInstallSACopiesECN": "f47293d23052fa5c",
-    "internal/component/ike/dataplane/rfc7296_vpp_message_test.go::TestVPPInstallSAECNIsOnTheSAZeInstalls": "f47293d23052fa5c",
-    "internal/component/ike/engine/rfc7296_ecn_test.go::TestEcnInstalledChildSAAsksForNoECNChange": "84a6a3e42bf96d67",
-    "internal/component/ike/engine/rfc7296_ecn_test.go::TestEcnTheInstalledSAsAreRealAndDirectional": "84a6a3e42bf96d67"
+    "internal/component/ike/dataplane/rfc7296_ecn_kernel_state_linux_test.go::TestEcnKernelStoresTunnelSAWithoutNoECN": "c05d6045ccd9c578",
+    "internal/component/ike/dataplane/rfc7296_vpp_message_test.go::TestVPPInstallSACopiesECN": "f06970959430a120",
+    "internal/component/ike/dataplane/rfc7296_vpp_message_test.go::TestVPPInstallSAECNIsOnTheSAZeInstalls": "f06970959430a120",
+    "internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go::TestRFC7296BareESPOnTemplatedSAKeepsTheOuterCE": "11e955c07821e222"
   },
   "units": {
-    "internal/component/ike/dataplane/rfc7296_ecn_linux_test.go::TestEcnInstalledStateDisablesNothing": "509eab17a198ace1",
-    "internal/component/ike/dataplane/rfc7296_ecn_linux_test.go::TestEcnTheScannedStateIsTheOneZeInstalls": "d108e4bf9d530bf8",
+    "internal/component/ike/dataplane/rfc7296_ecn_kernel_state_linux_test.go::TestEcnKernelStoresTunnelSAWithoutNoECN": "94c51caeb6c79e05",
     "internal/component/ike/dataplane/rfc7296_vpp_message_test.go::TestVPPInstallSACopiesECN": "d8446e54f00d264d",
     "internal/component/ike/dataplane/rfc7296_vpp_message_test.go::TestVPPInstallSAECNIsOnTheSAZeInstalls": "096e67120fc6408f",
-    "internal/component/ike/engine/rfc7296_ecn_test.go::TestEcnInstalledChildSAAsksForNoECNChange": "14022f6655ade6d8",
-    "internal/component/ike/engine/rfc7296_ecn_test.go::TestEcnTheInstalledSAsAreRealAndDirectional": "c2ae70dc848cc41d"
+    "internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go::TestRFC7296BareESPOnTemplatedSAKeepsTheOuterCE": "1f1395cc4adf2042"
   },
   "verdict": "enforced"
 }

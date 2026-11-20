@@ -1,13 +1,13 @@
 {
-  "note": "Forbidden: a MOBIKE plus NAT-T implementation staying on port 500 for IKE_AUTH when no NAT is detected. internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation (through mbAuthHandshake) binds only NAT-T sockets, targets the port-500 stand-in at respTr-1, fails if ini.NATDetected, and requires the IKE_AUTH to arrive on respTr (mbReceive) with the non-ESP marker. Without the float the packet reaches no listener and the test goes red. Negative: internal/component/ike/engine/mobike_test.go::TestMobikeAuthWithoutNATTSocketKeepsBaseIKE shows that with no NAT-T support the condition does not hold and no MOBIKE offer is made.",
+  "note": "Re-judged 2026-11-20 by an independent agent after 1b0198fb0d changed the negative TestMobikeAuthWithoutNATTSocketKeepsBaseIKE. RFC 4555 Section 3.3: \"implementations that support both this specification and NAT Traversal MUST change to port 4500 if the correspondent also supports both, even if no NAT was detected between them\". The negative gained an assertion that neither the initiator nor the responder SA sits on port 4500 without NAT-T support, beside the unchanged check that no IKE_AUTH carries MOBIKE_SUPPORTED: that is the case just outside the clause, where the correct answer is no float. The positive TestMobikeAuthNegotiation is byte-identical: through mbAuthHandshake it binds NAT-T sockets only, sends to the port-500 stand-in, fails on NATDetected and requires the IKE_AUTH on the NAT-T socket with the non-ESP marker, so a missing float delivers nothing and goes red. Verdict stands.",
   "requirement_sha": "025d761c12606c0c",
   "tests": {
-    "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation": "eb435a18ce8288f3",
-    "internal/component/ike/engine/mobike_test.go::TestMobikeAuthWithoutNATTSocketKeepsBaseIKE": "eb435a18ce8288f3"
+    "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation": "c03cfd3d4a94ad4c",
+    "internal/component/ike/engine/mobike_test.go::TestMobikeAuthWithoutNATTSocketKeepsBaseIKE": "c03cfd3d4a94ad4c"
   },
   "units": {
     "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation": "e2739b5ba06d541a",
-    "internal/component/ike/engine/mobike_test.go::TestMobikeAuthWithoutNATTSocketKeepsBaseIKE": "7bf64a548380e0bc"
+    "internal/component/ike/engine/mobike_test.go::TestMobikeAuthWithoutNATTSocketKeepsBaseIKE": "fc01079ba52e5c25"
   },
   "verdict": "enforced"
 }
