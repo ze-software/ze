@@ -1016,6 +1016,18 @@ parsed with `timeout="15s:env=ZE_FWD_WRITE_DEADLINE=10s"`, so the line got
 neither the timeout it declared nor the variable, and every assertion still
 passed. Set an environment variable with `option=env:var=<name>:value=<value>`.
 
+A ze key that a command inside a `tmpfs=` script must read is declared under
+its shell spelling (`ZE_SSH_PASSWORD`, not `ze.ssh.password`). The script runs
+under `sh`, and dash, which is `sh` on the Linux test machines, drops every
+inherited variable whose name is not a shell identifier, so the dotted name
+never reaches the script's children. `env.Get` reads both spellings as one
+key, so a command the runner starts directly reads either. A `ze cli` that
+loses `ze.ssh.password` this way sends the stored hash as its token: local
+authentication accepts it and a TACACS+ server refuses it
+(`test/plugin/rib-pipe-received-count-accounted.ci`).
+<!-- source: internal/core/env/env.go -- Normalize, ShellSafe -->
+<!-- source: internal/component/cli/sshclient/client.go -- resolvePassword -->
+
 One consequence: a command carrying a `:<word>=` span of its own cannot be
 written on a `cmd=` line. Put it in a `tmpfs=` script and run the script.
 

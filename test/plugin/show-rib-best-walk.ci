@@ -22,6 +22,19 @@
 # written for and never the queue. The line-per-row form is proven in
 # TestBestPipelineStreams, which writes the same walk to a writer that counts
 # lines.
+#
+# WHY A ROUTE TO 10.0.0.1: every injected route carries the next hop 10.0.0.1,
+# and bgp-rib excludes a route whose next hop does not resolve in the Loc-RIB
+# before it ranks anything (RFC 4271 Section 9.1.2, candidateNextHopResolved in
+# internal/component/bgp/plugins/rib/rib_next_hop.go). Without a route to
+# 10.0.0.1 the twelve routes are stored and the best table is empty. The
+# observer installs one static 10.0.0.1/32 through a device and no gateway, over
+# the engine's route-install RPC (bestNextHopCover, terminalCovers in
+# internal/test/fixture/terminal_cover_fixture.go), and injects nothing until
+# the system RIB selects that route and the engine resolves 10.0.0.1 through it
+# at zero cost without recursion. The device is route metadata: no FIB writer is
+# configured, so nothing reaches the kernel and no privilege is needed. The
+# system RIB is loaded for that read-back (`show rib candidates`).
 
 # ze-peer runs as a sink: only a dial target, asserts nothing (routes injected via API)
 stdin=peer:terminator=EOF_PEER
@@ -40,6 +53,9 @@ plugin {
 	}
 	internal bgp-rib {
 		use bgp-rib
+	}
+	internal rib {
+		use rib
 	}
 }
 

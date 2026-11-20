@@ -30,7 +30,13 @@
 option=timeout:value=90s
 option=env:var=ZE_CONFIG_DIR:value=.
 option=env:var=XDG_DATA_HOME:value=.
-option=env:var=ze.ssh.password:value=testpass
+# The password is declared under its shell spelling, which env.Get reads as
+# ze.ssh.password. wait-routes.sh runs `ze cli` under sh, and dash drops every
+# inherited variable whose name is not a shell identifier, so the dotted name
+# never reaches that `ze cli`. It then sends the stored bcrypt hash as its
+# token (resolvePassword, internal/component/cli/sshclient/client.go), which
+# the TACACS+ server refuses, and the wait never reads the RIB.
+option=env:var=ZE_SSH_PASSWORD:value=testpass
 
 stdin=init-answers:terminator=EOF_INIT
 admin

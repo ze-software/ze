@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -161,6 +162,37 @@ func (a *assertions13) status(label string, result commandResult13) {
 		return
 	}
 	fmt.Fprintf(os.Stderr, "OK %s: status=%s\n", label, result.status)
+}
+
+// refused records a failure unless the command was refused (refusal13).
+func (a *assertions13) refused(label string, result commandResult13, parts ...string) {
+	var line textbuf.Buffer
+	if err := refusal13(label, result, parts); err != nil {
+		a.failures = append(a.failures, err)
+		line.Str("FAIL ").Err(err).Byte('\n').StdErr() //nolint:errcheck // fixture output; the .ci reads it
+		return
+	}
+	line.Str("OK ").Str(label).Str(": status=").Str(result.status).Byte('\n').StdErr() //nolint:errcheck // fixture output; the .ci reads it
+}
+
+// refusal13 answers nil when the command was refused: an error verdict whose
+// reason holds every part. A refusal answered as status done with an error
+// inside its data is a failure, because a caller that reads the status alone
+// would take it for an answer.
+func refusal13(label string, result commandResult13, parts []string) error {
+	if result.status != rpc.StatusError {
+		return fmt.Errorf("%s: status=%s, want error: %.200s", label, result.status, result.raw)
+	}
+	if result.err == nil {
+		return fmt.Errorf("%s: refused with no reason", label)
+	}
+	reason := result.err.Error()
+	for _, part := range parts {
+		if !strings.Contains(reason, part) {
+			return fmt.Errorf("%s: refusal does not contain %q: %w", label, part, result.err)
+		}
+	}
+	return nil
 }
 
 func (a *assertions13) contains(label string, result commandResult13, substring string) {
@@ -702,17 +734,20 @@ func ribPipeFilter13(ctx context.Context, args []string) error {
 				a.failures = append(a.failures, fmt.Errorf("%s missing best-path", check.label))
 			}
 		}
-		for _, check := range []struct{ label, command string }{{"unknown-keyword", "show bgp rib bogus"}, {"old-show-in", "show bgp rib in"}, {"old-show-out", "show bgp rib out"}} {
-			result := command13(ctx, plugin, check.command)
-			a.status(check.label, result)
-			if _, ok := result.object()["error"]; !ok {
-				keys := make([]string, 0, len(result.object()))
-				for key := range result.object() {
-					keys = append(keys, key)
-				}
-				slices.Sort(keys)
-				a.failures = append(a.failures, fmt.Errorf("%s missing error; keys=%v", check.label, keys))
-			}
+		// A word left on the path of a route read is refused, never read as a
+		// selection: `bogus` names nothing, and `in` and `out` are the scope words
+		// the pipe form replaced. refuseRouteReadArguments
+		// (internal/component/bgp/plugins/rib/rib_commands.go) answers an error
+		// verdict whose first line ends with the word and whose last line is the
+		// pipe form to start from.
+		for _, check := range []struct{ label, command, word string }{
+			{"unknown-keyword", "show bgp rib bogus", "bogus"},
+			{"old-show-in", "show bgp rib in", "in"},
+			{"old-show-out", "show bgp rib out", "out"},
+		} {
+			a.refused(check.label, command13(ctx, plugin, check.command),
+				"show bgp rib takes its selection after a pipe, and was given the argument "+check.word+"\n",
+				"\nfix: show bgp rib | count")
 		}
 		return a.finish("RIB pipeline")
 	})

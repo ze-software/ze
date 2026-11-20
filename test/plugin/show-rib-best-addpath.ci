@@ -13,6 +13,21 @@
 #
 # The driver waits until the Adj-RIB-In holds both paths before reading the best
 # answer, so a read that races the second UPDATE cannot pass or fail by timing.
+#
+# WHY A ROUTE TO 10.0.0.1: both paths carry the next hop 10.0.0.1, and bgp-rib
+# excludes a route whose next hop does not resolve in the Loc-RIB before it
+# ranks anything (RFC 4271 Section 9.1.2, candidateNextHopResolved in
+# internal/component/bgp/plugins/rib/rib_next_hop.go). Without a route to
+# 10.0.0.1 both paths are stored, `show bgp rib | received` lists them, and the
+# best table is empty. The driver installs one static 10.0.0.1/32 through a
+# device and no gateway, over the engine's route-install RPC (bestNextHopCover,
+# terminalCovers in internal/test/fixture/terminal_cover_fixture.go), and reads
+# the best table only after the system RIB selects that route and the engine
+# resolves 10.0.0.1 through it at zero cost without recursion. The /32 is longer
+# than the announced 10.0.0.0/24, so the next hop still resolves through it once
+# the /24 is offered. The device is route metadata: no FIB writer is configured,
+# so nothing reaches the kernel and no privilege is needed. The system RIB is
+# loaded for that read-back (`show rib candidates`).
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
@@ -45,6 +60,9 @@ plugin {
 	}
 	internal bgp-rib {
 		use bgp-rib
+	}
+	internal rib {
+		use rib
 	}
 }
 bgp {

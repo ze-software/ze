@@ -328,6 +328,13 @@ func plugin15RIBBestWalk(ctx context.Context, p *sdk.Plugin) error {
 	if !plugin15Done(ready) {
 		failures = append(failures, "rib plugin did not become ready")
 	}
+	// Every injected route names the next hop 10.0.0.1, and a route whose next
+	// hop does not resolve is left out of the best table (bestNextHopCover).
+	// A cover that cannot be read back ends the scenario here, so the walk is
+	// never read empty for a reason this test does not name.
+	if err := bestNextHopCover.install(ctx, p); err != nil {
+		return err
+	}
 	for i := range routes {
 		command := fmt.Sprintf("request bgp rib inject 10.0.0.1 ipv4/unicast 10.10.%d.0/24 aspath 64501,%d nhop 10.0.0.1 localpref 100", i, 64600+i)
 		r := plugin15Dispatch(ctx, p, command)

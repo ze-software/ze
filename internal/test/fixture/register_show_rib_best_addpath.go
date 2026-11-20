@@ -24,12 +24,25 @@ func init() {
 // addPathTestPrefix is the prefix both ADD-PATH paths of the test announce.
 const addPathTestPrefix = "10.0.0.0/24"
 
+// bestNextHopCover is the static 10.0.0.1/32 a scenario that reads the best
+// table installs before it reads. Its routes carry the next hop 10.0.0.1, which
+// no configured route reaches, and bgp-rib excludes a route whose next hop does
+// not resolve before it ranks anything (RFC 4271 Section 9.1.2,
+// candidateNextHopResolved in internal/component/bgp/plugins/rib/rib_next_hop.go):
+// without the cover the routes are stored and the best table is empty. The /32
+// is longer than any prefix the scenarios announce, so it still resolves
+// 10.0.0.1 once a route that covers that address is offered. The instance is
+// the RFC whose admission the route satisfies.
+var bestNextHopCover = terminalCovers{label: "best path", device: "best-fixture0",
+	instance: 4271, addresses: []string{addrPeerOne}}
+
 // showRIBBestAddPath02 proves that two paths one ADD-PATH session announces for
 // one prefix are elected together, so `show bgp rib best` answers ONE row for
 // the prefix, carrying the better path.
 //
 // Method: the peer announces 10.0.0.0/24 under path id 1 with MED 50 and under
-// path id 2 with MED 10. The driver waits until the Adj-RIB-In holds both paths,
+// path id 2 with MED 10, both through next hop 10.0.0.1. The driver gives that
+// next hop a route (bestNextHopCover), waits until the Adj-RIB-In holds both paths,
 // then reads the best-path answer. A RIB that elects per path id answers two
 // rows, one per path, and each is its own winner; a RIB that drops a path
 // answers the MED 50 row or nothing. Only the per-prefix election answers one
@@ -37,6 +50,12 @@ const addPathTestPrefix = "10.0.0.0/24"
 func showRIBBestAddPath02(ctx context.Context, plugin *sdk.Plugin) error {
 	if !eorSent02(ctx, plugin, "peer1", 1, 40) {
 		return errors.New("ze never sent its End-of-RIB to peer1")
+	}
+	// Both paths are candidates only once 10.0.0.1 resolves. install returns
+	// after the system RIB selects the cover and the engine resolves the next
+	// hop through it, and the best answer is elected when it is read.
+	if err := bestNextHopCover.install(ctx, plugin); err != nil {
+		return err
 	}
 	var received int
 	if !Poll(ctx, 40, 250*time.Millisecond, func() bool {
