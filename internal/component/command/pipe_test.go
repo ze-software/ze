@@ -746,27 +746,27 @@ func TestFoldFilters(t *testing.T) {
 		{
 			name:    "registered command with path filter",
 			command: "show routes first",
-			ops:     []pipeOp{{kind: pipeUnknown, arg: "path 65001"}},
+			ops:     []pipeOp{{kind: pipeUnknown, arg: "path 65001", words: []string{"path", "65001"}}},
 			wantCmd: "show routes first path 65001",
 		},
 		{
 			name:    "registered command rejects unknown filter",
 			command: "show routes",
-			ops:     []pipeOp{{kind: pipeUnknown, arg: "bogus"}},
+			ops:     []pipeOp{{kind: pipeUnknown, arg: "bogus", words: []string{"bogus"}}},
 			wantCmd: "show routes",
 			wantOps: []pipeKind{pipeInvalid},
 		},
 		{
 			name:    "registered command rejects missing filter argument",
 			command: "show routes",
-			ops:     []pipeOp{{kind: pipeUnknown, arg: "path"}},
+			ops:     []pipeOp{{kind: pipeUnknown, arg: "path", words: []string{"path"}}},
 			wantCmd: "show routes",
 			wantOps: []pipeKind{pipeInvalid},
 		},
 		{
 			name:    "registered command rejects extra flag argument",
 			command: "show routes",
-			ops:     []pipeOp{{kind: pipeUnknown, arg: "first unexpected"}},
+			ops:     []pipeOp{{kind: pipeUnknown, arg: "first unexpected", words: []string{"first", "unexpected"}}},
 			wantCmd: "show routes",
 			wantOps: []pipeKind{pipeInvalid},
 		},
@@ -779,7 +779,7 @@ func TestFoldFilters(t *testing.T) {
 		{
 			name:    "registered command reorders leading selector",
 			command: "show routes",
-			ops:     []pipeOp{{kind: pipeUnknown, arg: "path 65001"}, {kind: pipeUnknown, arg: "second"}},
+			ops:     []pipeOp{{kind: pipeUnknown, arg: "path 65001", words: []string{"path", "65001"}}, {kind: pipeUnknown, arg: "second", words: []string{"second"}}},
 			wantCmd: "show routes second path 65001",
 		},
 		{
@@ -798,7 +798,7 @@ func TestFoldFilters(t *testing.T) {
 		{
 			name:    "registered command keeps no-more client-side",
 			command: "show routes",
-			ops:     []pipeOp{{kind: pipeUnknown, arg: "path 65001"}, {kind: pipeNoMore}},
+			ops:     []pipeOp{{kind: pipeUnknown, arg: "path 65001", words: []string{"path", "65001"}}, {kind: pipeNoMore}},
 			wantCmd: "show routes path 65001",
 			wantOps: []pipeKind{pipeNoMore},
 		},
@@ -826,7 +826,7 @@ func TestFoldFilters(t *testing.T) {
 		{
 			name:    "more specific command with empty registration rejects route filters as generic unknowns",
 			command: "show routes status",
-			ops:     []pipeOp{{kind: pipeUnknown, arg: "first"}},
+			ops:     []pipeOp{{kind: pipeUnknown, arg: "first", words: []string{"first"}}},
 			wantCmd: "show routes status",
 			wantOps: []pipeKind{pipeUnknown},
 		},

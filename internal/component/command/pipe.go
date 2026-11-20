@@ -64,9 +64,17 @@ const (
 // allAddressFields is the explicit standalone-stdin contract. Command paths
 // always use declarations. selectionApplied marks display data already selected
 // on the record path. The renderer still reads its argument for column order.
+//
+// words holds every word of a parsed operation as the chain grammar decoded
+// it (scanChain), its name first, so a quoted value keeps its spaces and pipes
+// as one word. arg is the text a generic operator reads: the argument words
+// joined by one space, or for an unknown operator every word. An op built in
+// code rather than parsed carries no words, and no reader of words is handed
+// one: only the parser builds an op that names a command's filter or an alias.
 type pipeOp struct {
 	kind             pipeKind
 	arg              string
+	words            []string
 	addressFields    []string
 	allAddressFields bool
 	selectionApplied bool
@@ -93,58 +101,74 @@ const (
 
 // ParsePipe splits user input into the command and a chain of pipe operators.
 // Input "show bgp peer list | match established | count" returns ("show bgp peer list", [{match,"established"}, {count,""}]).
+//
+// The command part and the chain are read under one quote grammar
+// (ScanInvocation, scanChain): `| match "link down"` hands match one argument,
+// its quotes removed. ParsePipe also serves input that is not yet whole, so an
+// unfinished quote in the chain keeps its partial word here; an execution route
+// refuses it through ScanExecution. A quoted escape the grammar does not define
+// becomes an invalid op, which every caller's validation refuses by its text.
 func ParsePipe(input string) (command string, ops []pipeOp) {
 	_, pipeAt, _, _ := ScanInvocation(input)
-	return splitPipeAt(input, pipeAt)
-}
-
-// splitPipeAt uses the invocation scanner's boundary without rescanning it.
-// The scanner owns command quotes; the operator parser owns the rest.
-func splitPipeAt(input string, pipeAt int) (command string, ops []pipeOp) {
 	if pipeAt == -1 {
 		// Keep malformed input whole: the dispatcher refuses its lexical fault,
 		// rather than running a prefix cut out of an invalid command.
 		return strings.TrimSpace(input), nil
 	}
-	// The existing filter grammar owns the chain after the first operator,
-	// including backslashes in match patterns; invocation escapes do not.
-	return strings.TrimSpace(input[:pipeAt]), parsePipeOps(input[pipeAt+1:])
+	command = strings.TrimSpace(input[:pipeAt])
+	chain, err := scanChain(input[pipeAt+1:])
+	if err != nil {
+		return command, []pipeOp{{kind: pipeInvalid, arg: err.Error()}}
+	}
+	return command, chainPipeOps(chain.operations)
 }
 
-// parsePipeOps parses the operator chain that follows the first pipe character.
-// Each segment between two pipe characters is one operator and its argument.
+// parsePipeOps reads a whole operator chain written without its leading pipe,
+// under the same grammar as the chain of a command line (scanChain). It refuses
+// an unfinished quote with its column in chain, and an undefined quoted escape.
 //
 // An alias registers its expansion in this same spelling, so RegisterAliases
-// parses it here rather than carrying a second reading of the operator names.
-func parsePipeOps(rest string) []pipeOp {
-	var ops []pipeOp
+// parses it here rather than carrying a second reading of the operator names,
+// and so does `ze pipe`, whose operators arrive with no command.
+func parsePipeOps(chain string) ([]pipeOp, error) {
+	scanned, err := scanChain(chain)
+	if err != nil {
+		return nil, err
+	}
+	if scanned.quoteAt >= 0 {
+		return nil, unfinishedQuote(chain, scanned.quoteAt)
+	}
+	return chainPipeOps(scanned.operations), nil
+}
 
-	for part := range strings.SplitSeq(rest, "|") {
-		fields := strings.Fields(strings.TrimSpace(part))
-		if len(fields) == 0 {
-			continue
-		}
-
-		kind, known := knownPipeOps[fields[0]]
+// chainPipeOps names each operation scanChain read. Every operation holds at
+// least one word, its name, because scanChain answers no empty operation.
+func chainPipeOps(operations [][]string) []pipeOp {
+	ops := make([]pipeOp, 0, len(operations))
+	for _, words := range operations {
+		kind, known := knownPipeOps[words[0]]
 		if !known {
-			// Unknown operator — preserved for error reporting in ApplyPipes.
-			ops = append(ops, pipeOp{kind: pipeUnknown, arg: textbuf.Join(fields, " ")})
+			// Unknown operator: a command's filter or an alias, resolved by
+			// name from words, or reported by ApplyPipes from arg.
+			ops = append(ops, pipeOp{kind: pipeUnknown, arg: textbuf.Join(words, " "), words: words})
 			continue
 		}
 
-		op := pipeOp{kind: kind}
-		if len(fields) > 1 {
+		op := pipeOp{kind: kind, words: words}
+		if len(words) > 1 {
 			// Validation reads the catalog's argument contract. Keeping every
-			// token here is what lets it reject surplus words instead of
+			// word here is what lets it reject surplus words instead of
 			// silently executing a shorter chain than the operator typed.
-			op.arg = textbuf.Join(fields[1:], " ")
+			op.arg = textbuf.Join(words[1:], " ")
 		}
 		if kind == pipeJSON && op.arg == "" {
 			op.arg = jsonPretty
 		}
 		ops = append(ops, op)
 	}
-
+	if len(ops) == 0 {
+		return nil
+	}
 	return ops
 }
 
@@ -159,15 +183,19 @@ func parsePipeChain(input string) (command string, ops []pipeOp) {
 	return expandPipeChain(command, ops)
 }
 
-// parseExecutionPipeChain refuses incomplete command input before aliases,
-// filters, source work or stream-save files can turn it into an execution.
+// parseExecutionPipeChain refuses incomplete input before aliases, filters,
+// source work or stream-save files can turn it into an execution: an unfinished
+// quote in the command part or in the chain, with its column (scanExecution).
 func parseExecutionPipeChain(input string) (command string, ops []pipeOp, err error) {
-	_, pipeAt, err := ScanExecution(input)
+	scanned, chain, err := scanExecution(input)
 	if err != nil {
 		return "", nil, err
 	}
-	command, ops = splitPipeAt(input, pipeAt)
-	command, ops = expandPipeChain(command, ops)
+	if scanned.pipeAt == -1 {
+		command, ops = expandPipeChain(strings.TrimSpace(input), nil)
+		return command, ops, nil
+	}
+	command, ops = expandPipeChain(strings.TrimSpace(input[:scanned.pipeAt]), chainPipeOps(chain.operations))
 	return command, ops, nil
 }
 
@@ -207,23 +235,22 @@ func expandAliases(command string, ops []pipeOp) []pipeOp {
 
 	expanded := make([]pipeOp, 0, len(ops))
 	for _, op := range ops {
-		// Only an unrecognized operator can be an alias, so no other kind pays
-		// for the split.
+		// Only an unrecognized operator can be an alias, so no other kind is
+		// looked up.
 		if op.kind != pipeUnknown {
 			expanded = append(expanded, op)
 			continue
 		}
-		fields := strings.Fields(op.arg)
-		if len(fields) == 0 {
+		if len(op.words) == 0 {
 			expanded = append(expanded, op)
 			continue
 		}
-		entry, ok := lookupAlias(command, fields[0])
+		entry, ok := lookupAlias(command, op.words[0])
 		if !ok {
 			expanded = append(expanded, op)
 			continue
 		}
-		if len(fields) > 1 {
+		if len(op.words) > 1 {
 			var tb textbuf.Buffer
 			message := tb.Str("pipe alias ").Str(entry.alias.Name).Str(" does not accept an argument").String()
 			expanded = append(expanded, pipeOp{kind: pipeInvalid, arg: message})
@@ -283,21 +310,27 @@ func foldFilters(command string, ops []pipeOp) (string, []pipeOp, pipeChainMeta)
 				chainOps = append(chainOps, op)
 				continue
 			}
-			serverArgs = appendFilter(serverArgs, filter, op.arg)
+			// A generic operator's argument is text, its words joined by one
+			// space, so it folds as the one value the generic would read.
+			var values []string
+			if op.arg != "" {
+				values = []string{op.arg}
+			}
+			serverArgs = appendFilter(serverArgs, filter, values)
 		case pipeUnknown:
-			filter, arg, known := lookupFilter(set, op.arg)
+			filter, values, known := lookupFilter(set, op.words)
 			if !known {
-				chainOps = append(chainOps, pipeOp{kind: pipeInvalid, arg: unknownFilterError(trimmed, op.arg, set)})
+				chainOps = append(chainOps, pipeOp{kind: pipeInvalid, arg: unknownFilterError(trimmed, op.words, set)})
 				continue
 			}
-			if msg := validateFilter(filter, arg); msg != "" {
+			if msg := validateFilter(filter, values); msg != "" {
 				chainOps = append(chainOps, pipeOp{kind: pipeInvalid, arg: msg})
 				continue
 			}
 			if filter.Leading {
-				leadingArgs = appendFilter(leadingArgs, filter, arg)
+				leadingArgs = appendFilter(leadingArgs, filter, values)
 			} else {
-				serverArgs = appendFilter(serverArgs, filter, arg)
+				serverArgs = appendFilter(serverArgs, filter, values)
 			}
 		default:
 			// Every other kind is the operator's own request about the answer
@@ -339,7 +372,10 @@ func FoldPipeChain(command, chain string) (folded string, whole bool) {
 	if command == "" {
 		return "", false
 	}
-	ops := parsePipeOps(chain)
+	ops, err := parsePipeOps(chain)
+	if err != nil {
+		return "", false
+	}
 	ops = expandAliases(command, ops)
 	ops = bindAddressFields(command, ops)
 	folded, remaining, _ := foldFilters(command, ops)
@@ -387,36 +423,38 @@ func collectPipeMeta(ops []pipeOp) pipeChainMeta {
 		case pipeUnknown:
 			// A command-owned filter or an alias the fold left behind, which
 			// shaped the answer as much as a generic operator did.
-			fields := strings.Fields(op.arg)
-			if len(fields) == 1 {
-				meta = append(meta, pipeChainStep{Op: fields[0]})
-			} else if len(fields) >= 2 {
-				meta = append(meta, pipeChainStep{Op: fields[0], Arg: textbuf.Join(fields[1:], " ")})
+			if len(op.words) == 1 {
+				meta = append(meta, pipeChainStep{Op: op.words[0]})
+			} else if len(op.words) >= 2 {
+				meta = append(meta, pipeChainStep{Op: op.words[0], Arg: textbuf.Join(op.words[1:], " ")})
 			}
 		}
 	}
 	return meta
 }
 
-func validateFilter(filter PipeFilter, arg string) string {
-	arg = strings.TrimSpace(arg)
+// validateFilter judges the argument words the chain grammar decoded for a
+// command's filter: one at least when it takes an argument, none otherwise.
+func validateFilter(filter PipeFilter, values []string) string {
 	var tb textbuf.Buffer
 	if filter.TakesArg {
-		if arg == "" {
+		if len(values) == 0 {
 			return tb.Str("pipe filter ").Str(filter.Name).Str(" requires an argument").String()
 		}
 		return ""
 	}
-	if arg != "" {
+	if len(values) > 0 {
 		return tb.Str("pipe filter ").Str(filter.Name).Str(" does not accept an argument").String()
 	}
 	return ""
 }
 
-func unknownFilterError(command, raw string, set pipeFilterSet) string {
-	name := raw
-	if fields := strings.Fields(raw); len(fields) > 0 {
-		name = fields[0]
+// unknownFilterError names the operation words holds, its name first, as no
+// filter of the command.
+func unknownFilterError(command string, words []string, set pipeFilterSet) string {
+	name := ""
+	if len(words) > 0 {
+		name = words[0]
 	}
 	var tb textbuf.Buffer
 	valid := set.filterNames()
@@ -426,22 +464,30 @@ func unknownFilterError(command, raw string, set pipeFilterSet) string {
 	return tb.Str("unknown pipe filter for ").Str(command).Str(": ").Str(name).Str(" (valid: ").Str(valid).Byte(')').String()
 }
 
-func lookupFilter(set pipeFilterSet, raw string) (PipeFilter, string, bool) {
-	fields := strings.Fields(raw)
-	if len(fields) == 0 {
-		return PipeFilter{}, "", false
+// lookupFilter finds the command's filter that words names, its name first, and
+// answers the argument words after the name as the chain grammar decoded them.
+func lookupFilter(set pipeFilterSet, words []string) (PipeFilter, []string, bool) {
+	if len(words) == 0 {
+		return PipeFilter{}, nil, false
 	}
-	filter, ok := set.byName[strings.ToLower(fields[0])]
+	filter, ok := set.byName[strings.ToLower(words[0])]
 	if !ok {
-		return PipeFilter{}, "", false
+		return PipeFilter{}, nil, false
 	}
-	return filter, textbuf.Join(fields[1:], " "), true
+	return filter, words[1:], true
 }
 
-func appendFilter(args []string, filter PipeFilter, value string) []string {
+// appendFilter writes one folded operation as command words: the filter's name,
+// then each argument word as WriteInvocationValue spells it, quoted when a byte
+// would change its boundary. The dispatcher's scan therefore reads back the
+// words the chain grammar decoded, a quoted value holding a space, a pipe or a
+// backslash as one word, never re-split.
+func appendFilter(args []string, filter PipeFilter, values []string) []string {
 	args = append(args, filter.Name)
-	if value != "" {
-		args = append(args, strings.Fields(value)...)
+	for _, value := range values {
+		var tb textbuf.Buffer
+		WriteInvocationValue(&tb, value)
+		args = append(args, tb.String())
 	}
 	return args
 }
@@ -1582,7 +1628,10 @@ func processPipesChecked(input string) (command string, format func(string) stri
 // stdin. Unlike command paths, standalone input has no declaration registry:
 // resolve and origin therefore walk every JSON field whose value is an address.
 func ProcessStandalonePipesChecked(operators string) (format func(string) string, errMsg string) {
-	ops := parsePipeOps(operators)
+	ops, err := parsePipeOps(operators)
+	if err != nil {
+		return nil, err.Error()
+	}
 	for i := range ops {
 		if isAddressOp(ops[i].kind) {
 			ops[i].allAddressFields = true

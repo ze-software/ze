@@ -2733,20 +2733,21 @@ either way.
 A pipe inside double quotes is an argument value. `ScanInvocation` is shared by
 the dispatcher and the pipeline boundary, so neither mistakes that value for
 an operator. Inside double quotes, `\"`, `\\`, `\n`, `\r` and `\t` preserve a
-literal quote, backslash, newline, carriage return and tab. A backslash outside
-quotes, or an unknown quoted escape, is refused. `WriteInvocationValue` writes
+literal quote, backslash, newline, carriage return and tab. In the command
+part, a backslash outside quotes, or an unknown quoted escape, is refused; the
+chain after the first unquoted pipe keeps a backslash outside quotes (below).
+`WriteInvocationValue` writes
 this same grammar for client values and concrete enum corrections.
 An empty value is written as `""` and retained as one empty token. Spaces
 inside a quoted value remain part of that value, including its trailing spaces.
 The local-data route decodes these words before registry lookup and model
 validation, preserving the same quoted values as daemon dispatch.
 Execution requires the closing quote. `ScanExecution` refuses an unfinished
-value before any handler runs and names the opening quote's one-based character
-column in the original line. The refusal does not echo the value, which may
-contain a credential. Local command execution and one-shot or streaming
-pipeline preparation use that same strict reader before source work or file
-creation. The operator grammar after the first unquoted pipe remains the
-pipeline parser's responsibility.
+value before any handler runs, in the command part or in the chain, and names
+the opening quote's one-based character column in the original line. The
+refusal does not echo the value, which may contain a credential. Local command
+execution and one-shot or streaming pipeline preparation use that same strict
+reader before source work or file creation.
 <!-- source: internal/component/command/local_data.go -- ServeLocal -->
 
 Completion keeps using the permissive `ScanInvocation` reader while the
@@ -2761,6 +2762,38 @@ is data.
 <!-- source: internal/component/command/pipe.go -- parseExecutionPipeChain -->
 <!-- source: internal/component/command/arguments.go -- WriteInvocationValue -->
 <!-- source: internal/component/plugin/server/dispatch.go -- dispatchCommandArgs -->
+
+#### The pipe chain takes the invocation's quote grammar
+
+The chain after the first unquoted pipe is read under the quote grammar of the
+command part, so a quoted value is one argument everywhere on the line
+(owner decision, 2026-11-20). The chain has no grammar of its own: `ScanExecution`,
+`ParsePipe`, the alias registry and `ze pipe` all read it through `scanChain`.
+
+| Rule | The chain reads it |
+|------|--------------------|
+| Where an operation ends | at a pipe outside double quotes, joined to a word or not |
+| Words of one operation | split at whitespace outside double quotes; a quoted run is one word, its quotes removed |
+| Escapes inside quotes | the invocation's own: `\"`, `\\`, `\n`, `\r`, `\t`; any other is refused |
+| A backslash outside quotes | a literal character, because `match` patterns and paths rely on it. The one difference from the command part, which refuses it |
+| A backslash before a quote, outside quotes (`match a\"b c"`) | no escape exists outside quotes: the backslash is literal and the quote opens a run, so the word is `a\b c` |
+| A quote inside a word (`match ab"c d"e`) | the run belongs to that word: `abc de` |
+| A single quote | a literal character; only the double quote groups |
+| An unfinished quote | refused with the column of its opening quote, as in the command part |
+| An operation's argument | the decoded words; a generic operator that takes text reads them joined by one space |
+| An alias expansion, and the operators of `ze pipe` | read by the same grammar; an unfinished quote in an expansion refuses the alias when it is registered |
+
+`show log recent | match "error|warn"` therefore hands `match` the ten
+characters `error|warn` as one argument. `match` is a case-insensitive
+substring, so this is no alternation. A pattern that holds a literal double
+quote writes it escaped inside quotes: `| match "\"value\":\"x\""`.
+
+A command's own filter folded into its command words keeps the words the
+chain decoded: `appendFilter` writes each one with `WriteInvocationValue`, so
+`| path "a|b"` reaches the handler as the one argument `a|b`, never re-split.
+<!-- source: internal/component/command/invocation_scan.go -- scanChain, quotedEscape, scanExecution -->
+<!-- source: internal/component/command/pipe.go -- ParsePipe, parsePipeOps, chainPipeOps, appendFilter -->
+<!-- source: internal/component/command/alias.go -- checkAlias -->
 
 MCP, REST and gRPC are operator surfaces that do not yet split the chain at
 their edge, so they refuse a piped line rather than apply it. Applying the chain

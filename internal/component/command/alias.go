@@ -396,7 +396,13 @@ func checkAlias(commands []string, alias Alias) (aliasEntry, error) {
 		return aliasEntry{}, fmt.Errorf("pipe alias %s is the name of a pipe filter of %s", name, path)
 	}
 
-	ops := parsePipeOps(alias.Expansion)
+	// The expansion is read by the chain grammar of a command line, so a quoted
+	// value in it keeps its spaces and pipes exactly as the operator's own
+	// chain would, and an unfinished quote is refused here, not at use.
+	ops, err := parsePipeOps(alias.Expansion)
+	if err != nil {
+		return aliasEntry{}, fmt.Errorf("pipe alias %s expansion: %w", name, err)
+	}
 	if len(ops) == 0 {
 		return aliasEntry{}, fmt.Errorf("pipe alias %s expands to nothing", name)
 	}
@@ -404,9 +410,9 @@ func checkAlias(commands []string, alias Alias) (aliasEntry, error) {
 		if op.kind != pipeUnknown {
 			continue
 		}
-		// parsePipeOps builds an unknown op from at least one field, so the
-		// first field is the word the expansion named.
-		named := strings.Fields(op.arg)[0]
+		// parsePipeOps builds an unknown op from at least one word, so the
+		// first word is the name the expansion named.
+		named := op.words[0]
 		if aliasRegistered(named) {
 			return aliasEntry{}, fmt.Errorf(
 				"pipe alias %s expands to the alias %s, and an alias may not name another alias", name, named)

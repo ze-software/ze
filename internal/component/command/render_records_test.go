@@ -1216,7 +1216,9 @@ func TestNDJSONMatchReadsTheRenderedLine(t *testing.T) {
 	var out bytes.Buffer
 	answer, err := RenderRecords(
 		&out,
-		`system command list | ndjson | match "value":"show cmd"`,
+		// The chain grammar removes quotes it groups by, so a pattern that
+		// holds a literal quote writes it escaped inside a quoted value.
+		`system command list | ndjson | match "\"value\":\"show cmd\""`,
 		"",
 		recordEnvelope,
 		nil,
@@ -1239,7 +1241,7 @@ func TestNDJSONMatchReadsRenderedPositionalFields(t *testing.T) {
 	writer := &witnessWriter{produced: &produced}
 	answer, err := RenderRecords(
 		writer,
-		`system command list | ndjson | match "value":"show cmd`,
+		`system command list | ndjson | match "\"value\":\"show cmd"`,
 		"",
 		recordEnvelope,
 		commandColumns,

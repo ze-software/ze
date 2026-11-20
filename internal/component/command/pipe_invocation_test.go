@@ -8,7 +8,8 @@ import (
 )
 
 // TestParsePipePreservesInvocationAndFilterSyntax keeps literal quote/pipe
-// bytes in the command and leaves the existing match-pattern grammar intact.
+// bytes in the command, and a backslash outside quotes in the chain as a
+// literal character of the match pattern, which the chain grammar keeps.
 func TestParsePipePreservesInvocationAndFilterSyntax(t *testing.T) {
 	for _, tc := range []struct {
 		name string
@@ -17,8 +18,8 @@ func TestParsePipePreservesInvocationAndFilterSyntax(t *testing.T) {
 		ops  []pipeOp
 	}{
 		{name: "quoted pipe", line: `show demo mode "a|b"`, want: `show demo mode "a|b"`},
-		{name: "escaped quote then pipe", line: `show demo mode "a\"|b" | count`, want: `show demo mode "a\"|b"`, ops: []pipeOp{{kind: pipeCount}}},
-		{name: "backslash belongs to match", line: `show demo mode "a|b" | match x\y`, want: `show demo mode "a|b"`, ops: []pipeOp{{kind: pipeMatch, arg: `x\y`}}},
+		{name: "escaped quote then pipe", line: `show demo mode "a\"|b" | count`, want: `show demo mode "a\"|b"`, ops: []pipeOp{{kind: pipeCount, words: []string{"count"}}}},
+		{name: "backslash belongs to match", line: `show demo mode "a|b" | match x\y`, want: `show demo mode "a|b"`, ops: []pipeOp{{kind: pipeMatch, arg: `x\y`, words: []string{"match", `x\y`}}}},
 		{name: "invalid command stays whole", line: `show demo mode a\b | count`, want: `show demo mode a\b | count`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

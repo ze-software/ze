@@ -53,6 +53,14 @@ show bgp peer list | first 5
 A chain takes one format operator: `json`, `ndjson`, `table`, `text`, `yaml`
 or `raw`. Two together are rejected. Filter and display operators chain freely.
 
+A value in double quotes is one argument, after a pipe as before it:
+`show log recent | match "link down"` matches the two words together, and
+`| match "error|warn"` matches the text `error|warn` rather than starting a
+second operator. The quotes are removed. Inside them, `\"` and `\\` stand for
+a quote and a backslash. Outside quotes a backslash is an ordinary character,
+so `| match a\b` matches `a\b`. A quote left open is refused with its column.
+<!-- source: internal/component/command/invocation_scan.go -- scanChain -->
+
 The complete, current set is generated from the operator catalog:
 [`pipe-operators.generated.md`](pipe-operators.generated.md). It is the list to
 build a tool against, and `./le doc check all` fails when it and the product

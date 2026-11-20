@@ -843,8 +843,10 @@ func (d *Dispatcher) isCommandPath(lowerPath []byte) bool {
 func (d *Dispatcher) RecognizesCommand(input string) bool {
 	tokens, pipeAt, quoteOpen, err := command.ScanInvocation(input)
 	if pipeAt != noPipe {
-		// Rendering has its own grammar. A recorded pipe remains authoritative
-		// when scanning its suffix reports an invocation-only escape error.
+		// Recognition reads the command part alone. A recorded pipe remains
+		// authoritative when the chain after it holds an unfinished quote or
+		// a quoted escape the grammar refuses: that fault belongs to the
+		// chain, which every execution route refuses (command.ScanExecution).
 		input = strings.TrimSpace(input[:pipeAt])
 		tokens, _, quoteOpen, err = command.ScanInvocation(input)
 	}
@@ -1930,8 +1932,8 @@ func tokenize(input string) ([]string, error) {
 // The offset comes from this scan and never from the tokens: the quotes are
 // stripped from a token, so a quoted pipe (a value that is a literal pipe
 // character) and an operator's pipe are the same token after it. A pipe joined
-// to a word ("a|b") is found too, because every operator surface cuts at any
-// pipe character (command.ParsePipe).
+// to a word ("a|b") is found too, because every operator surface cuts at a pipe
+// outside double quotes, joined to a word or not (command.ParsePipe).
 func scanCommand(input string) (tokens []string, pipeAt int, err error) {
 	tokens, pipeAt, _, err = command.ScanInvocation(input)
 	if err != nil {
