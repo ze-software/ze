@@ -1,0 +1,30 @@
+# Test: ze thanks licence prints the licence texts this binary carries, with no daemon.
+# QUESTION: does the shipped ze, run as `ze thanks licence`, print the BSD
+# 3-Clause text of github.com/miekg/dns byte for byte as the module ships it,
+# with its copyright line, inside one document?
+# A unit test cannot decide it: the texts are the generated data compiled into
+# the binary, and only the built binary shows that the document it prints is
+# the one the redistribution clause asks to accompany it.
+#
+# VALIDATES: spec-thanks-third-party-credits AC-7 (Wiring row `ze thanks licence`)
+#   over the local route: root `thanks` -> command.LookupLocal ->
+#   internal/plugins/thanks licenceHandler -> internal/core/credits
+#   LicenceDocument, answered as a command.Blob.
+# PREVENTS: a document that omits a linked module's text, or rewrites it.
+#
+# The two text lines asserted are copied from vendor/github.com/miekg/dns/LICENSE.
+# Above each text the document names every work it covers: a line
+# "<name> <version>, <file name>", then "  Copyright: <holder>" and
+# "  Source: <location>" (internal/core/credits writeWorkHeader). A work whose
+# files state no holder reads "no copyright holder stated", as htmx's does.
+
+option=timeout:value=30s
+
+cmd=foreground:seq=1:exec=ze thanks licence:exit=0
+expect=stdout:pattern=github\.com/miekg/dns v[0-9]+\.[0-9]+\.[0-9]+, LICENSE
+expect=stdout:contains=  Source: https://github.com/miekg/dns
+expect=stdout:pattern=htmx 4\.0\.0, htmx\.LICENSE
+expect=stdout:contains=  Copyright: no copyright holder stated
+expect=stdout:pattern=Go standard library and runtime go1\.[0-9]+(\.[0-9]+)?, LICENSE
+expect=stdout:contains=Copyright (c) 2009, The Go Authors. Extensions copyright (c) 2011, Miek Gieben.
+expect=stdout:contains=2. Redistributions in binary form must reproduce the above copyright notice,

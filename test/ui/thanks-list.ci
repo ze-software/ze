@@ -1,0 +1,31 @@
+# Test: ze thanks lists the third-party works this binary carries, with no daemon.
+# QUESTION: does the shipped ze, run as `ze thanks` from a shell, answer one row
+# per work it links, github.com/miekg/dns with the version its build information
+# states and its licence, and Go itself with the Go version it was built with?
+# A unit test cannot decide it: the rows come from the binary's own build
+# information joined with the credits record compiled into it, so only the
+# built binary, reached through its root dispatch, holds the answer.
+#
+# VALIDATES: spec-thanks-third-party-credits AC-1, AC-2 (Wiring row `ze thanks`)
+#   over the local route: root `thanks` -> command.LookupLocal ->
+#   internal/plugins/thanks listHandler -> internal/core/credits Works.
+# PREVENTS: a command that answers an empty list, or a list that omits the
+#   modules the binary links.
+#
+# The table prints the declared columns in order (group, name, version,
+# licence, copyright, why, source), so a work's name, version and licence sit
+# on one line in that order. Go's row carries the build information's Go
+# version (internal/core/credits carried, the toolchain work). htmx and ExaBGP
+# are works declared present by the web interface, the looking glass and the
+# ExaBGP bridge (AC-3, AC-4): the ze under test is built with the feature
+# tags, so it carries them. Exit 0 and no "not recorded" cell prove every
+# linked module has a record (AC-5's other side).
+
+option=timeout:value=30s
+
+cmd=foreground:seq=1:exec=ze thanks:exit=0
+expect=stdout:pattern=github\.com/miekg/dns +v[0-9]+\.[0-9]+\.[0-9]+ +BSD-3-Clause
+expect=stdout:pattern=Go standard library and runtime +go1\.[0-9]+(\.[0-9]+)? +BSD-3-Clause
+expect=stdout:pattern=htmx +4\.0\.0 +0BSD
+expect=stdout:pattern=ExaBGP +[0-9a-f]+ +BSD-3-Clause
+reject=stdout:contains=not recorded

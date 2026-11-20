@@ -1,0 +1,77 @@
+# Test: the daemon narrows the licence document to one work with `| name`.
+# QUESTION: does a running daemon answer `show thanks licence | name
+# github.com/miekg/dns` over SSH with that one work's copyright and licence
+# text and no other work's, and refuse a name no carried work has, naming
+# `show thanks list` as the way to see the names?
+# A unit test cannot decide it: the operation is partitioned off the line by
+# the daemon dispatcher (Dispatcher.dispatchLine, DispatchLine.DeclaredOperations)
+# and must reach the local-data handler through the bridge
+# (local_bridge.go localDataHandler, command.AnswerRemote), a path only a real
+# daemon and a real SSH client exercise. This file is the proof of the spec's
+# assumption A-4.
+#
+# VALIDATES: spec-thanks-third-party-credits AC-8 (Wiring row
+#   `show thanks licence | name <work>` through the daemon).
+# PREVENTS: a declared operation dropped on the daemon route, which would
+#   answer every text, and an unknown name answered with an empty document.
+#
+# `show thanks licence` is only the daemon path of the local registration
+# `thanks licence`, so `ze cli -c` sends these lines to the daemon over SSH.
+# The copyright line is copied from vendor/github.com/miekg/dns/LICENSE.
+#
+# EXIT CODE and STREAM of the refusal: `ze cli -c` exits 1 and prints the
+# operator error on stderr, as the draft run of 2026-11-20 observed.
+#
+# The text rendering carries no pipe metadata, so this file proves the
+# narrowing by its content: the one work's heading, copyright line and source,
+# and the absence of another work's text. The pipe step itself is asserted by
+# the local-data coverage walk (test/ui/pipe-local-command.ci, runThanksCommands).
+
+option=timeout:value=60s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT
+EOF_INIT
+
+tmpfs=thanks-daemon.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=ze start thanks-daemon.conf:name=daemon:ready=Ze running.
+reject=stderr:contains=panic
+
+cmd=foreground:seq=3:exec=ze cli -c "show thanks licence | name github.com/miekg/dns":exit=0
+expect=stdout:pattern=github\.com/miekg/dns v[0-9]+\.[0-9]+\.[0-9]+, LICENSE
+expect=stdout:contains=Copyright (c) 2009, The Go Authors. Extensions copyright (c) 2011, Miek Gieben.
+expect=stdout:contains=https://github.com/miekg/dns
+reject=stdout:contains=golang.org/x/sys
+reject=stdout:contains=Apache License
+
+cmd=foreground:seq=4:exec=ze cli -c "show thanks licence | name example.invalid/not-carried":exit=1
+expect=stderr:contains=no work named example.invalid/not-carried is carried by this binary
+expect=stderr:contains=show thanks list
+
+cmd=stop:seq=5:name=daemon:signal=term

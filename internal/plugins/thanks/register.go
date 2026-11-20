@@ -34,7 +34,9 @@ func init() {
 		Mode:       modeOffline,
 		DaemonPath: commandList,
 	}, command.RenderLocalAnswer)
-	command.MustRegisterLocalData(pathLicence, licenceHandler(source), registry.Meta{
+	// The path is a literal, not pathLicence: the registry's coverage test
+	// reads each registration's path from the source.
+	command.MustRegisterLocalData("thanks licence", licenceHandler(source), registry.Meta{
 		ShortHelp: "Print the licence texts of the third-party works this binary carries.",
 		Description: "The document holds each licence text as its work ships it, after the works it covers " +
 			"and their copyright lines. The name pipe operation narrows it to one work.",

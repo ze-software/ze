@@ -1,0 +1,65 @@
+# Test: the daemon serves the third-party credits as show thanks list.
+# QUESTION: does a running daemon answer `show thanks list | json` over SSH with
+# the rows `ze thanks` prints, under the kebab-case keys the list declares?
+# A unit test cannot decide it: the path is the dispatcher's local-data bridge
+# (internal/component/plugin/server/local_bridge.go loadLocalData) serving the
+# handler under the daemon path the registration names, reached by a real
+# client over a real SSH session.
+#
+# VALIDATES: spec-thanks-third-party-credits AC-9 (Wiring row `show thanks list`
+#   through the daemon).
+# PREVENTS: a command that answers on `ze thanks` and nowhere a remote operator
+#   can ask, and a daemon answer whose keys differ from the declared columns.
+#
+# `ze cli -c` answers a local-data command in its own process only when the
+# typed path is a local registration (command.ServeLocal, LookupLocalData).
+# The local registration is `thanks`; `show thanks list` is only its daemon
+# path, so this line is sent to the daemon over SSH.
+
+option=timeout:value=60s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT
+EOF_INIT
+
+tmpfs=thanks-daemon.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=ze start thanks-daemon.conf:name=daemon:ready=Ze running.
+reject=stderr:contains=panic
+
+cmd=foreground:seq=3:exec=ze cli -c "show thanks list | json":exit=0
+expect=stdout:contains="name": "github.com/miekg/dns"
+expect=stdout:pattern="version": "v[0-9]+\.[0-9]+\.[0-9]+"
+expect=stdout:contains="licence": "BSD-3-Clause"
+expect=stdout:contains="group":
+expect=stdout:contains="copyright":
+expect=stdout:contains="why":
+expect=stdout:contains="source":
+reject=stdout:contains=not recorded
+
+cmd=stop:seq=4:name=daemon:signal=term
