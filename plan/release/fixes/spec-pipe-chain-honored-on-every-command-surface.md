@@ -309,7 +309,7 @@ completion.
 4. The one partition function in `internal/component/command` runs the argument and count-follower validation, expands aliases, binds address fields, then walks the chain in order. While no residual operation has been met, an operation `pipeFilterRegistry` holds for the command part joins the declared list. From the first residual operation on, everything stays residual: a generic-named operation runs as the generic, and an operation only the command declares is refused by name with the reordered line as its fix. An unknown operation on a command that declares a set is refused (`unknownFilterError`)
 5. The command part is resolved, validated and authorized as any line without a chain. The authorizer sees the chain as T-6 decides
 6. The declared list, each entry a name and its decoded argument words, reaches the handler: `CommandContext` for a builtin; the pipe list of `ExecuteCommandInput` for a plugin process; the `ValidatedArgs` value for a streaming handler and a local-data handler
-7. The handler computes with it and answers data; an override's answer is checked against the generic's shape by the command package's answer step, which `Dispatch`, `ServeLocal` and the stream sites all run
+7. The handler computes with it and answers data; an override's answer is checked against the generic's shape by the command package's answer step: `Dispatch` and `ServeLocal` run `CheckOverrideAnswer` on the one answer, and the stream route judges each event inside `StreamLine.Run` (`overrideEventJudge`), which wraps the handler `GetStreamingHandlerForCommand` answers to every stream site
 8. The residual chain runs on the answer: by a rendering surface inside the daemon when it said it renders; otherwise by the engine through `ApplyPipes` with the partition's `pipeChainMeta`, inside `Dispatch` on the one-shot route and through `RunStreamPipes` on the stream route. A `ze cli` client that set the rendering key takes over the presentation suffix only. A format operation is rendered and its text carried as the answer's data
 9. Introspection: one function in `internal/component/command` answers a command's pipe operations; `commandHelp`, `commandEntry` and `completePipe` read it
 
@@ -570,9 +570,9 @@ header.
 the mechanism; they are records of an investigation, not design documentation,
 and get a dated note pointing at `docs/architecture/api/commands.md`.
 
-`docs/architecture/api/commands.md` holds no design-decisions section today.
-The design is written into the page body, so this spec depends on no other
-spec for a section format; when such a format lands, the text moves under it.
+The design is written into the body of `docs/architecture/api/commands.md`;
+the page's `## Design decisions` section, added since, holds the 2026-08-21
+"the pipe wins" row and Thomas's 2026-11-20 override ruling (D-5).
 
 ### What `pipe-operations` holds, and where it comes from
 
@@ -612,15 +612,15 @@ only at run time.
 | The name is a generic one | when the declaration is recorded: `RegisterPipeFilters` and the plugin entry point look the name up in the catalog (`knownPipeOps`) and mark the entry as an override | the catalog is the one list of generic names |
 | The generic allows an override | when recorded: the catalog entry says whether it is overridable. Declaring a name whose entry says no is refused: a `BUG:` panic in-tree, a Stage 1 error for a plugin, naming the command and the operation | today the fact is a four-case switch in `foldFilters`; a fifth overridable generic would need an edit there, and nothing refuses a command that declares `json` |
 | The argument contract | when recorded: an override's argument must agree with the catalog entry's `Arg`; a mismatch is a `BUG:` panic in-tree and a Stage 1 error for a plugin | a static fact, refused before any caller meets it |
-| The answer shape | at answer time, by one function of the command package beside the partition's answer step, which `Dispatch`, `ServeLocal` and the stream sites all run; it is not a step of `Dispatch` alone. The check applies to the LAST declared operation of the list, only when that operation is an override, and only to an answer whose status is done. An error answer, an override followed by another declared operation, and a list ending in an own-named operation are not checked, because the answer then belongs to something else | a third-party plugin's tests are not ours to require; the check costs one look at an answer already received |
-| The meaning | by review and by each override's own test, which compares it with the generic over the same rows (`TestRIBOverridesKeepGenericMeaning`) | meaning cannot be checked mechanically |
+| The answer shape | at answer time, by the command package beside the partition's answer step; it is not a step of `Dispatch` alone. `Dispatch` and `ServeLocal` call `CheckOverrideAnswer` on the one answer; the stream route judges each event inside `StreamLine.Run` (`overrideEventJudge`), the one method every stream site runs its handler through, and a wrong event is not written and stops the stream with a refusal naming the path the operation is declared at. The check applies to the LAST declared operation of the list, only when that operation is an override, and only to an answer whose status is done. An error answer, an override followed by another declared operation, and a list ending in an own-named operation are not checked, because the answer then belongs to something else | a third-party plugin's tests are not ours to require; the check costs one look at an answer already received |
+| The meaning | by review and by each override's own test, which compares it with the generic over the same rows (`TestRIBOverridesKeepGenericMeaning`, `TestRIBBestOverridesKeepGenericMeaning`, `internal/component/bgp/plugins/rib/rib_override_meaning_test.go`) | meaning cannot be checked mechanically |
 
 What the catalog states per entry, and what the check holds an override to:
 
 | Generic | Overridable | Shape an override's answer is held to |
 |---------|-------------|----------------------------------------|
-| `count` | yes | one object holding an integer `count` |
-| `first N`, `last N` | yes | the command's rows envelope, and on an answer that is not streamed at most N rows. A streamed answer is not counted by the engine |
+| `count` | yes | one object holding an integer `count`; on a monitor, each event one such object; a one-shot answer delivered as a row generator is refused |
+| `first N`, `last N` | yes | the command's rows envelope, and on an answer that is not streamed at most N rows. A one-shot row generator and a monitor's events are not counted by the engine; each event of a monitor must be one JSON document |
 | `match` | yes | the command's rows envelope. Nothing mechanical can tell a correct match from a wrong one, so `match` is held by its override's test only |
 | `display`, `fill`, `resolve`, `origin` | yes | the command's rows envelope; which rows and fields is meaning, held by the override's own test |
 | the formats, `no-more`, `save`, `log` | no | none |
@@ -668,7 +668,7 @@ are not put to Thomas:
 |---------|---------------|--------------------------|---------|
 | `show bgp rib`, `show bgp rib best` | `count` | `applyCount`, `{"count":N}` over the rows | override: same meaning, same shape |
 | same | `first`, `last` | `applyFirst`, `applyLast`, N rows | override: same meaning; whether the RIB and the generic refuse N of 0 alike is checked in phase 3 |
-| same | `match` | `applyMatch`, case-insensitive substring over every value of a row | override: same meaning on a narrower field set. `(*matchFilter).matches` reads the prefix, the peer, the family and the route attributes, and not the row's `direction` field, so `\| match sent` could keep a row the generic keeps and the override drops. Unverified at the producer for every field: a finding for Thomas; phase 5 compares the two over the same rows |
+| same | `match` | `applyMatch`, case-insensitive substring over every value of a row | override: same meaning, one predicate. Until debda0c3dc `(*matchFilter).matches` read a narrower field set (no `direction`, no attribute flags, no best-path fields), so `\| match received` answered nothing. It now asks `command.RowHoldsText`, the generic's own predicate, over the row the reader answers (`showRowJSON`, `bestRowJSON`); `TestRIBOverridesKeepGenericMeaning` and `TestRIBBestOverridesKeepGenericMeaning` compare the two over the same rows |
 | `show bgp rib`, `show bgp rib best` | `histogram`, `graph`; `reason` on `best` only | none | own names, own descriptions |
 | `show bgp rib`, `show bgp rib best` | `peer`, `family`, `prefix`, `path`, `community` | none | own names |
 | `show bgp rib` | `received`, `advertised` | none | own names; a scope, accepted at any position |
@@ -786,7 +786,7 @@ above. Two things stay open, each with its reason:
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | `APIEngine.Execute` and `Stream` judge read-only on the command part of a piped line | `internal/component/api/invocation.go` `prepareCommand`: `ScanExecution` stops at the first unquoted pipe, `invocationCommandMeta` matches the words before it, and the read-only flag is the matched declaration's | a chain changes the verdict, or a piped write passes a read-only caller | `TestExecutePipedReadOnlyCaller`, `TestStreamPipedReadOnlyCaller` | confirmed by reading on 2026-11-20: `APIEngine.Execute` and `APIEngine.Stream` (`internal/component/api/engine.go`) both call `prepareCommand`, which takes `meta.ReadOnly` from `invocationCommandMeta` over the words `ScanExecution` answers before the first unquoted pipe. `TestExecutePipedReadOnlyCaller` (`internal/component/api/engine_test.go`) green in d30af7c2f1; `TestStreamPipedReadOnlyCaller` still owes its run |
-| A-2 | Every `OnExecuteCommand` handler can take the request with a pipe list without behaviour change | the non-test registrations read args and peer only. Recounted on 2026-11-20: 53 non-test files and 19 test files call `OnExecuteCommand(` (72 in all), not 46 and 8 | a handler that reads args positionally misreads | the scoped package tests of each plugin touched | unvalidated (needs the runs) |
+| A-2 | Every `OnExecuteCommand` handler can take the request with a pipe list without behaviour change | the non-test registrations read args and peer only. Recounted on 2026-11-20: 53 non-test files and 19 test files call `OnExecuteCommand(` (72 in all), not 46 and 8 | a handler that reads args positionally misreads | the scoped package tests of each plugin touched | confirmed by reading and by run for 33 of the 43 converted packages (3242d2dfb3: every registrant takes the pipe list as one more parameter and reads args and peer as before); the remaining packages that register `OnExecuteCommand` green on the Linux server at debda0c3dc (31 packages; `fakel2tp` and `fakeowner` hold no tests and compile; `internal/plugins/container` red only on `TestFetchCommandDeclaresItsBound`, another session's known red) |
 | A-3 | REFUTED as first written (three commands), by the second review. Four commands reach the RIB argument grammar: `show bgp rib`, `show bgp rib best`, `show bgp rib protocol` (inherits the set by prefix) and `show bgp peer <selector> rib <scope>`, which `forwardRibRoutes` forwards to `cmdRibShow` and which holds no pipe set. The assumption now is that there is no fifth | `RegisterPipeFilters` call sites in `cmd/rib/rib.go` (read 2026-11-19); `cmdRibProtocol` is in no declaration; `rib_inject.go` `showProtocolPipeline` | another handler below `show bgp rib` reads folded words and breaks | grep of `RegisterPipeFilters` and of every command path under `show bgp rib` at phase 1 | confirmed on 2026-11-20: the four `RegisterPipeFilters` calls are all in `cmd/rib/rib.go` `registerPipeFilters`; the paths under `show bgp rib` (`cmd/rib/rib.go` constants) are `status`, `best`, `best status`, `rpf`, `protocol`, `help`, `commands`, `events`, all barred but `best` and `protocol`; the three argument readers have one caller each (`rib_pipeline.go` line 1369, `rib_pipeline_best.go` line 322, `rib_inject.go` line 236), and `forwardRibRoutes` serves both `ze-bgp:rib-routes` and `ze-bgp:peer-rib`. No fifth command |
 | A-4 | The rendering surfaces and `Dispatch` produce the same partition from the same line | one function, deterministic, the same registry | SSH and the dispatcher disagree | `TestPartitionSameOnSurfaceAndDispatch` | confirmed on 2026-11-20: `TestPartitionSameOnSurfaceAndDispatch` (`internal/component/command/dispatch_line_test.go`) green. Every route ends in the one `partitionPipeChain` (`pipe_partition.go`): `Dispatch` and the cross-process renderers through `ReadDispatchLine`, the in-daemon rendering surfaces through the `ProcessPipes*` wrappers, the stream route through `ReadStreamLine` |
 | A-5 | Applying a residual chain inside `Dispatch` can reuse `ApplyPipes` over the flattened answer | `CommandDispatcher.JSON` flattens with `ResponseJSON` | a streamed `sdk.Records` answer needs its own path | `TestDispatchAppliesResidualChainToStreamedRows` | confirmed on 2026-11-20: the dispatcher tests of `internal/component/plugin/server/dispatch_pipe_chain_test.go` are green; `Dispatch` applies the residual chain through the answer step of `ReadDispatchLine` (`ApplyAnswerStep`) |
@@ -795,7 +795,7 @@ above. Two things stay open, each with its reason:
 | A-10 | The SSH exec channel can read a session environment key | `parseSessionRequest` reads `sess.Environ()` for the interactive session; `execMiddleware` holds the same session value | the rendering statement needs another carrier for the `ze cli` monitor | `TestExecSessionRendersStatement` | confirmed by reading on 2026-11-20: `execMiddleware` (`ssh.go`) holds the same `ssh.Session` whose environment `parseSessionRequest` (`session.go`) reads for the interactive session; the exec channel reads no key today, which is the work. The test still owes its run |
 | A-11 | The RIB's `json` terminal answers the routes the bare command answers | read on 2026-11-20: `apply` builds `newJSONTerminal`, whose rows are `serializeRouteItem` plus `peer` and `direction` under `routes`; `showRows` streams the same rows under the same key; `showProtocolPipeline` runs the terminal for the bare command; `bestPipeline` answers `best-path` rows built by `bestResultFor` | on `show bgp rib best` the terminal is a second shape of the same routes, dropped with the word (D-7) | `TestRIBJSONTerminalEqualsBareCommand` in phase 5, before the word goes: equal documents for `show bgp rib` and `show bgp rib protocol`, the same family, prefix and winning peer per row for `show bgp rib best` | confirmed by reading for `show bgp rib` and `show bgp rib protocol`; broken as first written for `show bgp rib best`, where the shapes differ and the routes do not. The test still owes its run |
 | A-12 | No in-tree line relies on a quote being a literal character in the chain, or on a declared operation jumping ahead of a residual one | searched on 2026-11-20 over `test/` (`.ci`) and the Go under `internal/test`, `internal/le/interoplab`, `internal/component/lg` and `cmd`: no line holds a quoted word directly after a pipe operation name; over `internal`, `test`, `cmd` and `pkg`: the one RIB line with a declared word after a residual one is `internal/component/command/pipe_test.go` (`show bgp rib \| count \| ndjson \| first 1`), a unit test of the fold that phase 3 replaces | a `.ci` or fixture changes its answer under the new grammar or the prefix rule | the same two searches over `docs/` at phase 1, which the hook refused in this pass | confirmed on 2026-11-20: over `docs/`, the only quoted word after a pipe operation is `docs/guide/config-editor.md` (the editor's own grammar, out of scope) and shell pipelines in `docs/guide/monitoring.md`; no RIB line holds a declared word after a residual one. The peer-scoped form is in no `docs/` page, so the 17 pages carry the scope-word form only |
-| A-7 | `operatorsFor`'s availability rule agrees with what the chain validator admits | `internal/plugins/help/help_command.go` `operatorsFor`, `internal/component/command/pipe.go` `validateDeclaredShape` | help lists an operation the chain refuses | `TestPipeOperationsAgreeWithValidator` | unvalidated |
+| A-7 | `operatorsFor`'s availability rule agrees with what the chain validator admits | `internal/plugins/help/help_command.go` `operatorsFor`, `internal/component/command/pipe.go` `validateDeclaredShape` | help lists an operation the chain refuses | `TestPipeOperationsAgreeWithValidator` | confirmed: `TestPipeOperationsAgreeWithValidator` (`internal/component/command/pipe_operations_test.go`) green in 3c642127ca, which made it the completeness proof of `TestCommandModePipeCompletion` under ze-test-judge; rerun by the closure's owed commands |
 | A-8 | `operatorsFor` can move into `internal/component/command` | it reads `command.PipeOperatorCatalog()` and `command.Declared`; its local-handler check reads `command.HasLocal` and `HasLocalData`, and `cli.WireToPaths` is passed in by the caller | an import cycle keeps part of it in `plugins/help` | compiling the move in phase 7 | confirmed by reading on 2026-11-20: `operatorsFor` and `pathHasOnlyPlainLocalHandler` (`help_command.go`) read only `command.PipeOperatorCatalog`, `command.Declared`, `command.HasLocal`, `command.HasLocalData` and the `wireToPaths` map their caller passes in; the compile still owes its run in phase 7 |
 
 ### Risks
@@ -864,7 +864,7 @@ above. Two things stay open, each with its reason:
 | AC-14 | A plugin's `Pipes` entry with an `argument` field and no expansion, on one of its own commands | Recorded into `pipeFilterRegistry` under the plugin; its command receives the operation through `execute-command`; withdrawn on a failed startup, a removal from the config and a restart; an entry with an expansion is an alias exactly as today; an entry with both fields, or with neither, is refused at Stage 1 by name | none |
 | AC-15 | (T-5 = C) the derived MCP tool and the REST and gRPC route of `show bgp rib`, with the optional ordered `pipe` list holding `received` then `count` | Each answers the count `show bgp rib \| received \| count` answers; a name the command's `pipe-operations` does not hold is refused naming the valid list; with the list absent the answer is the bare command's | the element order is the chain order |
 | AC-16 | A generic row operation (`count`, `first`, `last`, `match`, `display`) on a command that declares none and answers rows, from every caller | Each caller receives the generic's answer over that command's rows, identical across callers; a command answering one document gets the generic's refusal by name | none |
-| AC-17 | A declaration whose name is an overridable generic's (any data operator: the RIB's `count`, `first`, `last`, `match`; `display`, `fill`, `resolve`, `origin` for a command that declares them), in-tree or through `Pipes` | The handler runs it. An argument that disagrees with the catalog is refused when recorded. When the override is the last declared operation and the answer is done, the answer is held to the catalog's shape: `count` one object with an integer `count`; `first N` and `last N` the rows envelope with at most N rows on an answer that is not streamed; every other data operator the rows envelope; an answer of another shape is refused by name | `match` is held by its test only (`TestRIBOverridesKeepGenericMeaning`); an error answer and an override followed by another declared operation are not checked |
+| AC-17 | A declaration whose name is an overridable generic's (any data operator: the RIB's `count`, `first`, `last`, `match`; `display`, `fill`, `resolve`, `origin` for a command that declares them), in-tree or through `Pipes` | The handler runs it. An argument that disagrees with the catalog is refused when recorded. When the override is the last declared operation and the answer is done, the answer is held to the catalog's shape: `count` one object with an integer `count`; `first N` and `last N` the rows envelope with at most N rows on an answer that is not streamed; every other data operator the rows envelope; an answer of another shape is refused by name. The check runs on every route: `Dispatch` and `ServeLocal` on the one answer (`CheckOverrideAnswer`), the stream route on each event inside `StreamLine.Run` (a `count` override's event one object with an integer `count`, every other override's event one JSON document), and a one-shot answer delivered as a row generator is refused for `count` | the meaning of `match` is held by its tests (`TestRIBOverridesKeepGenericMeaning`, `TestRIBBestOverridesKeepGenericMeaning`), which compare the RIB's override with the generic predicate `command.RowHoldsText` over the same rows; an error answer and an override followed by another declared operation are not checked; a row generator and a monitor's events are not counted for `first N` and `last N` |
 | AC-18 | A declaration that means something else (`histogram`, `graph`, `reason`) | It carries a name the catalog does not hold, and help, the catalog and completion show its own description | none |
 | AC-19 | `show command help "<name>"` and the `ze help command --json` row for a builtin with declared operations (`show bgp rib`), a command declaring none (`show interface`), a command with aliases (`show bgp`), and a plugin command with a `Pipes` operation | Both answer one identical `pipe-operations` list, each entry with `name`, `source`, `argument`, `available`, `description`, `local-only` for a generic, and `expansion` for an alias; the generics listed are exactly those the chain validator admits for that command; `pipe-filters`, `pipe-aliases`, `operators` and `pipes` are absent. The plugin command's row is asserted against the daemon's answer for an external plugin. Read offline, with no daemon, the catalog holds what the process's own registries hold: a compiled-in plugin's operation reaches it from `registry.Registration` `Pipes`, as its aliases do today (`aliasesFor`, `internal/plugins/help/help_command.go`), and the two lists are equal; an external plugin's command is absent offline, and its operations with it, because Ze starts no external plugin's program without a daemon | none: pre-release, every reader is converted. An external plugin's operations are absent offline together with its commands, never one without the other |
 | AC-20 | `\|` then Tab after each command of AC-19, in the editor and in `ze cli` | The names and descriptions offered are exactly that command's `pipe-operations` list | none |
@@ -942,8 +942,9 @@ above. Two things stay open, each with its reason:
 | `TestDispatchAppliesResidualChainToStreamedRows` | same | A-5 | |
 | `TestGenericRowOperatorsOnUndeclaredCommand` | same | AC-16 | |
 | `TestOverrideAnswerShapeRefused` | `internal/component/command/pipe_test.go` | AC-17: a wrong shape from the last declared override on a done answer is refused; `first N` with more than N rows on an answer that is not streamed is refused | |
-| `TestOverrideShapeCheckScope` | same | AC-17: an error answer, an override followed by another declared operation, and a streamed answer are not checked | |
-| `TestOverrideShapeCheckedOnEveryRoute` | `cmd/ze/hub/pipe_parity_test.go` | AC-17: the same wrong-shaped override is refused through `Dispatch`, through `ServeLocal` and on the stream route | |
+| `TestOverrideShapeCheckScope` | `internal/component/command/pipe_partition_test.go` | AC-17: an error answer and an override followed by another declared operation are not checked; a one-shot answer delivered as a row generator is refused for `count` and accepted uncounted for a rows override (changed under ze-test-judge, rule b) | landed 348b6be6e4 |
+| `TestOverrideShapeCheckedOnEveryRoute` | `cmd/ze/hub/pipe_parity_test.go` | AC-17: the same wrong-shaped override is refused through `Dispatch`, through `ServeLocal` and on the stream route | landed 348b6be6e4 |
+| `TestStreamLineHoldsOverrideEventsToShape`, `TestStreamLineOverrideRefusalNamesDeclaredPath` | `internal/component/command/stream_line_test.go` | AC-17 on the stream route: a wrong-shaped event of a monitor's last declared override is not written and stops the stream; the refusal names the path the operation is declared at | landed 348b6be6e4 |
 | `TestDeclaredArgumentContractValidatedByPartition` | `internal/component/command/pipe_test.go` | each argument kind of the closed vocabulary (`none`, `optional`, `text`, `count`, `fields`, `path`) on a declared operation, in-tree and from a plugin: a missing, surplus or ill-typed argument is refused by the partition before the handler runs | |
 | `TestPipeFilterArgumentKindRecorded` | `internal/component/command/pipe_filter_test.go` | a `PipeFilter` and a plugin's `PipeDecl` `argument` record the same field; a spelling outside the vocabulary is refused when recorded | |
 | `TestCatalogStatesPresentationOperators` | `internal/component/command/pipe_test.go` | the presentation fact holds for the formats, `no-more` and `save` and for no operator that selects or reduces | |
@@ -989,7 +990,8 @@ above. Two things stay open, each with its reason:
 | `TestSDKDeliversPipeOperations` | `pkg/plugin/sdk/sdk_callbacks_test.go` | the decoder passes the list to the handler | |
 | `TestRIBStagesFromPipeOperations` | `internal/component/bgp/plugins/rib/rib_pipeline_test.go` | the same stages from the list | |
 | `TestRIBRefusesArgumentForm` | `internal/component/plugin/server/command_test.go` | AC-8: each argument form is refused by the dispatcher and the RIB handler is not called | |
-| `TestRIBOverridesKeepGenericMeaning` | same | AC-17, `direction` included | |
+| `TestRIBOverridesKeepGenericMeaning`, `TestRIBBestOverridesKeepGenericMeaning` | `internal/component/bgp/plugins/rib/rib_override_meaning_test.go` | AC-17: the RIB's `match` override keeps what the generic `match` keeps over the same `show bgp rib` and `show bgp rib best` rows, `direction` and the best-path fields included. Discrimination: best-path match encoding the show row instead of the best row turned the best test red on direction and best-peer-then-family | landed debda0c3dc |
+| `TestRowHoldsTextIsTheGenericMatch` | `internal/component/command/pipe_row_holds_text_test.go` | AC-17: `command.RowHoldsText` answers what the generic `\| match` keeps for the same row | landed debda0c3dc |
 | `TestExecutePipedReadOnlyCaller` | `internal/component/api/engine_test.go` | A-1, AC-28 | |
 | `TestZeExecuteAppliesPipeChain`, `TestRESTExecuteAppliesPipeChain`, `TestGRPCExecuteAppliesPipeChain` | the mcp, rest and grpc packages | AC-3 | landed d30af7c2f1 |
 
@@ -1117,9 +1119,12 @@ Functional test status on 2026-11-20:
 | `dispatch-pipe-chain-applied` (replaces `dispatch-pipe-chain-refused`, deleted with its fixture in 4faad7bbe7), `rest-pipe-chain-applied`, `rest-pipe-list`, `mcp-pipe-chain-applied`, `mcp-derived-tool-pipe-list` | `test/plugin/` | promoted in 5ebf3c1c8e after an 80-iteration stress run each |
 | `command-help-pipe-operations`, `pipe-chain-unauthorized-refused`, `pipe-chain-backslash-authorized`, `plugin-pipe-operation`, `rib-argument-form-refused`, `rib-declared-order-refused`, `rib-peer-pipe-scope`, `rib-pipe-received-count-accounted` (the accounting half of the `rib-pipe-filter` wiring row) | `test/plugin/` | promoted in adfaec2d77 after an 80-iteration stress run each |
 | `bgp-dynamic-filter-swap-live`, `bgp-filter-aspath-reload`, `bgp-filter-prefix-definition-reload` | `test/reload/` | converted to the pipe form, promoted in 5ebf3c1c8e |
-| `test-pipe-first-last`, `rib-pipe-filter` and the other converted RIB `.ci` (11 named in 4faad7bbe7) | `test/plugin/` | green with their converted fixtures in 4faad7bbe7 |
-| `monitor-pipe-chain-ssh`, `monitor-rendering-key-keeps-selection`, `pipe-chain-accounting-masks-secret` | `test/draft/plugin/` | pass as drafts (72502f3950); NOT yet promoted |
-| `cli-monitor-pipe-typed-line`, `pipe-quoted-value-is-an-argument` | `test/draft/ui/` | `cli-monitor-pipe-typed-line` passes as a draft (72502f3950); `pipe-quoted-value-is-an-argument` has no recorded pass since its fix; neither is promoted |
+| `test-pipe-first-last` and the other converted RIB `.ci` (11 named in 4faad7bbe7) | `test/plugin/` | converted with their fixtures in 4faad7bbe7. That commit's claim that `rib-pipe-filter` was green was wrong: its fixture still expected an `error` key the refusal no longer answers. `rib-pipe-filter`, `rib-pipe-received-count-accounted`, `show-rib-best-addpath` and `show-rib-best-walk` were brought to today's RIB contract at closure (dba62d6565, judge-approved) and are green at e9b782605e on the Linux server |
+| closure run 1, at debda0c3dc, Linux server, detached worktree of the committed tree | `test/plugin/` | green: `community-scrub-own-ga`, `community-scrub-own-ga-forked`, `evpn-config-self`, `flowspec-announce`, `flowspec-fw-withdraw`, `flowspec-fw-add`, `mup-ipv6-announce`, `mup-ipv4-announce`, `rfc8092-large-community-no-repeat-egress`, `show-rib-under-load`, `lg-best-table` |
+| closure run 2, at e9b782605e, same | `test/plugin/` | green: `rib-pipe-filter`, `rib-pipe-received-count-accounted`, `show-rib-best-addpath`, `show-rib-best-walk`, `rib-filter-show`, `lg-best-table` |
+| `rs-control-community-strip` | `test/plugin/` | red, not this spec: the bgp-rs retired-session refusal, journal row 2f2ca7a51a, owned by `plan/release/fixes/spec-bgp-one-off-defects.md` |
+| `monitor-pipe-chain-ssh`, `monitor-rendering-key-keeps-selection`, `pipe-chain-accounting-masks-secret` | `test/plugin/` | promoted in 2f50baa36d after an 80-iteration stress run each |
+| `cli-monitor-pipe-typed-line`, `pipe-quoted-value-is-an-argument` | `test/ui/` | promoted in 2f50baa36d after an 80-iteration stress run each |
 | `local-data-pipe-operation` | not written | decided: AC-24 is proven by unit tests (Key Design Decisions) |
 | `rib-advertised-user-path` | `test/plugin/` (live, red) and `test/draft/plugin/` | KNOWN OPEN, not this spec: the user update is refused "no peers match selector" in the route-origin path (reactor origin intake, `bgp-rib` `originBarrier`, a27a951239, another session); `TestSendWildcardSelectorReachesTheUpdateHandler` proves the dispatcher hands the selector; the live copy was red before this work |
 
@@ -1256,7 +1261,8 @@ Progress:
 - 5ebf3c1c8e: functional tests on every surface (`dispatch-pipe-chain-applied` replacing `dispatch-pipe-chain-refused`, the REST and MCP pipe-list and pipe-chain tests) and three reload tests in the pipe form.
 - adfaec2d77: eight functional wiring tests (help, AAA, plugin operation, the RIB refusals and scope, the accounted RIB count).
 - 72502f3950: the stream `| match` defect (Task item 9, AC-45) and the `ze cli -c` monitor save on signal (Task item 10, AC-46).
-- Open before `/ze-close`: promote the five drafts named in the functional status table; `test/plugin/rib-advertised-user-path.ci` is red for a cause outside this spec (the route-origin path of a27a951239). Owed by phase 8's report: `./le ai rules update condensed` after the D-4 point-file edit.
+- 2f50baa36d: the five remaining drafts promoted. `test/plugin/rib-advertised-user-path.ci` stays red for a cause outside this spec (the route-origin path of a27a951239). The D-4 regeneration of `ai/rules/cli.md` rides on the closure commit.
+- The `/ze-close` review found five ISSUEs, fixed in 348b6be6e4 (the stream route holds an override's events to its generic's shape), 5ee9f32c77 (site goldens, the doc-drift comparator reads the overridable sentence from one declaration, stale `operatorsFor` comments) and debda0c3dc (`TestRIBOverridesKeepGenericMeaning` written; the RIB `match` asks the generic's predicate). a9d2bf6dae commits one fixture constant another session's fb780a4c5f read, so HEAD's fixture package compiles for the interop runs.
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- failing tests at every entry point
    - Tests: the Wiring Test rows
@@ -1418,12 +1424,12 @@ Evidence recorded on 2026-11-20, per goal:
 | The path names the subject; scope, presentation and format are pipe operations | `test/plugin/rib-argument-form-refused.ci`, `rib-peer-pipe-scope.ci` (adfaec2d77); `TestValidateArgsRefusesPipeOperationWord`, `TestRouteReadRefusesArgumentForm`, `TestPeerRibRefusesScopeArgument` |
 | A generic operation applies to every command's answer from every caller | `TestPipedLineParityAcrossSurfaces` (SSH side, MCP, REST, gRPC, `dispatch-command`, formats included); `dispatch-pipe-chain-applied.ci`, `rest-pipe-chain-applied.ci`, `mcp-pipe-chain-applied.ci` (5ebf3c1c8e) |
 | Declared operations reach the handler from every caller; the line is never rewritten | `TestPartitionDeclaredOperations`, `TestDispatchHandsDeclaredOperationsToHandler`, `TestForkedRIBReceivesTheDeclaredList`, `TestStreamingLookupPartitions`, `TestLocalDataDeclaredOperationsSameOnBothRoutes`; `rib-pipe-received-count-accounted.ci` (the typed line accounted); `TestEveryPipeSplitGoesThroughThePartition` (both halves); `foldFilters` and `FoldPipeChain` are gone |
-| An override keeps its generic's meaning and shape; another meaning takes its own name | `TestOverrideAnswerShapeRefused`, `TestEveryDataOperatorIsOverridable`, `TestDataOperatorOverrideAnswerShapeChecked`, `TestOverridableComesFromTheCatalog` |
+| An override keeps its generic's meaning and shape; another meaning takes its own name | `TestOverrideAnswerShapeRefused`, `TestEveryDataOperatorIsOverridable`, `TestDataOperatorOverrideAnswerShapeChecked`, `TestOverridableComesFromTheCatalog`; on every route `TestOverrideShapeCheckedOnEveryRoute`, `TestStreamLineHoldsOverrideEventsToShape` (348b6be6e4); the meaning `TestRIBOverridesKeepGenericMeaning`, `TestRIBBestOverridesKeepGenericMeaning`, `TestRowHoldsTextIsTheGenericMatch` (debda0c3dc) |
 | A third-party plugin declares its own operation | `test/plugin/plugin-pipe-operation.ci` (adfaec2d77); `TestPluginOperationCollisionsRefused`, `TestPluginOperationWithdrawnOnStop`, `TestExecuteCommandHandlerReceivesPipeFromTheWire` |
 | Every surface answers the same as the local `ze` command | `TestPipedLineParityAcrossSurfaces`; the per-surface tests `TestZeExecuteAppliesPipeChain`, `TestRESTExecuteAppliesPipeChain`, `TestGRPCExecuteAppliesPipeChain`, `TestExecOneShotSendsTheTypedLine`, `TestWebSurfacesSendTheTypedLine`; the structured list `rest-pipe-list.ci`, `mcp-derived-tool-pipe-list.ci`, `TestGRPCExecutePipeList` |
 | Help lists every operation a command answers to | `test/plugin/command-help-pipe-operations.ci` (adfaec2d77); `TestPipeOperationsAgreeWithValidator`, `TestCommandHelpPipeOperations`, `TestCatalogPipeOperations`, `TestCompletionMatchesPipeOperations` |
-| Defect 3: a quoted value is one argument everywhere | `TestChainGrammar`, `TestDispatchQuotedPipeArgumentWithChain`, `TestCompletionStageKeepsQuotedBar`; `test/draft/ui/pipe-quoted-value-is-an-argument.ci` still a draft |
-| Security: a chain never widens what a caller may run | `pipe-chain-unauthorized-refused.ci`, `pipe-chain-backslash-authorized.ci` (TACACS+, adfaec2d77); `TestTypedWrappersPassChainTokens`, `TestTacacsFallbackArgsPassesChainTokens`, `TestExecutePipedReadOnlyCaller`, `TestPipeRefusalsMaskSecrets`, `TestPipeListElementCannotOpenAChain`, `TestRenderingKeyNeverSkipsSelection`; `pipe-chain-accounting-masks-secret.ci` and `monitor-rendering-key-keeps-selection.ci` pass as drafts, not promoted |
+| Defect 3: a quoted value is one argument everywhere | `TestChainGrammar`, `TestDispatchQuotedPipeArgumentWithChain`, `TestCompletionStageKeepsQuotedBar`; `test/ui/pipe-quoted-value-is-an-argument.ci` (2f50baa36d) |
+| Security: a chain never widens what a caller may run | `pipe-chain-unauthorized-refused.ci`, `pipe-chain-backslash-authorized.ci` (TACACS+, adfaec2d77); `TestTypedWrappersPassChainTokens`, `TestTacacsFallbackArgsPassesChainTokens`, `TestExecutePipedReadOnlyCaller`, `TestPipeRefusalsMaskSecrets`, `TestPipeListElementCannotOpenAChain`, `TestRenderingKeyNeverSkipsSelection`; `pipe-chain-accounting-masks-secret.ci` and `monitor-rendering-key-keeps-selection.ci` (2f50baa36d) |
 | The converted RIB users still answer | the converted fixtures and `.ci` green in 4faad7bbe7 and 5ebf3c1c8e with their expected answers unchanged; the interop checks of phase 6b against FRR and BIRD are not recorded here |
 
 ## Checklist
@@ -1464,3 +1470,186 @@ Evidence recorded on 2026-11-20, per goal:
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/fixes/spec-pipe-chain-honored-on-every-command-surface.md` only, in the same `./le commit create` script
+
+## Implementation Summary
+
+### What Was Implemented
+- One grammar for the whole line (3d7157b2be): a double-quoted run is one word in the command part and the chain, an unfinished quote anywhere is refused with its column, a backslash outside quotes in the chain stays literal.
+- One partition replaces `foldFilters` (d30af7c2f1): every route (`Dispatch`, the stream route through `GetStreamingHandlerRendered` and `ReadStreamLine`, `ServeLocal`, the renderers) calls `partitionPipeChain` (`pipe_partition.go`); declared operations reach the handler as a list (`CommandContext`, `ValidatedArgs`, the `pipe` list of `ExecuteCommandInput`, 3242d2dfb3); the line is accounted and authorized as typed; the residual chain runs on the answer for data callers.
+- The stream route (07f5b7e39c, a374677264), the rendering key `ZE_CLI_RENDER=client` (presentation suffix only), and the `ze cli -c` monitor sending the typed line.
+- `PipeDecl.argument` and `RegisterPluginPipeFilters` with withdrawal at the three sites (3242d2dfb3).
+- The RIB readers build stages from the list; every word the argument grammar accepted is declared; `show bgp rib protocol` and `show bgp peer rib` declare their own sets; the argument form is refused with the pipe form as fix; `leaf scope`, both `leaf-list args` and the `json` terminal gone (615753f1c6); every in-tree user converted (3c642127ca, 4faad7bbe7).
+- One `pipe-operations` list (`PipeOperationsForCommand`) read by `show command help`, `ze help command --json`, the `internal/le` catalogs and completion (3c642127ca); the ordered `pipe` list on derived MCP tools, REST and gRPC (6537dc0f86).
+- Every data operator overridable keeping its generic's shape (D-5, 6537dc0f86); the shape check on every route, the stream route included (348b6be6e4); the RIB's `match` override asks the generic's predicate (`command.RowHoldsText`) over the row it shows (debda0c3dc).
+
+### Bugs Found/Fixed
+- Task items 4 to 10 (AC-40 to AC-46), each in its own commit with its test.
+- Closure review ISSUE 3: the stream route ran no override shape check (`TestStreamLineHoldsOverrideEventsToShape`, `TestOverrideShapeCheckedOnEveryRoute`, 348b6be6e4).
+- Closure review ISSUE 4: the RIB `match` override disagreed with the generic: no `direction`, no attribute flags or best-path fields, no text spanning two values, and `show bgp rib best` searched with the show-route fields (`TestRIBOverridesKeepGenericMeaning`, `TestRIBBestOverridesKeepGenericMeaning`, debda0c3dc). Received rows and best-path attributes now show large and extended communities, as sent rows did.
+- Closure review ISSUE 2: `./le doc yang-contract doc-drift` compared the raw catalog description against the site's approved overridable sentence (`primaryOperatorMetadata`, `OperatorOverridableNote`, 5ee9f32c77).
+- Closure review ISSUE 1: the site goldens still showed the argument form (5ee9f32c77, judge-approved). ISSUE 5: stale `operatorsFor` comments (5ee9f32c77).
+
+### Documentation Updates
+- Phase 8 (4faad7bbe7): `docs/architecture/api/commands.md`, `docs/architecture/cli/command-verbs.md`, `docs/features/formatting.md`, `docs/features/introspection.md`, `docs/guide/command-reference.md`, `docs/architecture/api/process-protocol.md`, `docs/plugin-development/commands.md`, `handlers.md`, the 17 census pages, the record notes, 13 `// Design:` headers, the D-4 point file. `ai/rules/cli.md` regenerated (`./le ai rules update condensed`), carried by commit A.
+- 72502f3950: "Each event is one row of the stream" in `commands.md`; `docs/guide/monitoring.md` "Single Command". debda0c3dc: the stream shape-check paragraph and the RIB match paragraph in `commands.md`, `docs/features/formatting.md`.
+- `./le doc check all` on 2026-11-20 in this closure: one problem, `ze-cos:cleanup` YANG command with no handler (another session's `ze-cos-cmd`, named in 5ee9f32c77's body); nothing of this spec.
+
+### Deviations from Plan
+- `test/ui/local-data-pipe-operation.ci` is not written: AC-24 is proven by unit tests, because no in-tree local-data command declares an operation (Key Design Decisions).
+- `TestRIBOverridesKeepGenericMeaning` lives in `internal/component/bgp/plugins/rib/rib_override_meaning_test.go`, not `plugin/server/command_test.go`: it compares the override with the generic over the RIB's own rows.
+- On `show bgp rib best` the `json` terminal's second shape went with the word (D-7, A-11).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-11 assumed the RIB `json` terminal answers the bare command's rows on every reader | on `show bgp rib best` it answered a second shape | reading `bestPipeline`, 2026-11-20 | D-7: the shape goes with the word |
+| approach | The override shape check was first placed in `Dispatch` only, then in `Dispatch` and `ServeLocal` | the stream route answers without either, so a monitor's override went unchecked | closure review ISSUE 3 | one check per route, the stream's inside `StreamLine.Run` |
+| approach | The RIB `match` override kept its own field list | a field list beside the generic's predicate drifts, and did on five fields | writing `TestRIBOverridesKeepGenericMeaning` (closure review ISSUE 4) | one predicate, `command.RowHoldsText` |
+| assumption | 4faad7bbe7 recorded `rib-pipe-filter` green; four RIB functional tests still asserted the old RIB contract (an `error` key, no SSH password for `ze cli`, no next-hop cover) | each was red against the refusal and the best-path rules of today | the closure's functional run on the Linux server | found at closure, fixed in dba62d6565 (judge-approved) |
+| approach | phase 6 (3c642127ca) converted the interoplab RIB lines to the pipe form and left their decoders reading the bare array | a piped answer is a document with its `pipe` chain and its rows key, so six checks could not read it | the closure's interop run | found at closure, fixed in e9b782605e: `decodeZePipedRows` also refuses an answer no named pipe operation shaped (6 tests judge-approved) |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| A command path names the subject; operations after the pipe | Done | `internal/component/command/argbind.go` `RefusePipeOperationWords`; RIB declarations `internal/component/bgp/plugins/cmd/rib/rib.go` `registerPipeFilters` | |
+| A generic operation applies to every command's answer from every caller | Done | `internal/component/plugin/server/command.go` `Dispatch` answer step; `pipe_partition.go` | |
+| A command declares its own operations; the line is never rewritten | Done | `pipe_partition.go` `partitionPipeChain`; `foldFilters`, `FoldPipeChain`, `pipeChainRefusal` absent from `internal/`, `cmd/`, `pkg/` (grep 2026-11-20) | |
+| An override keeps the generic's meaning and shape | Done | `pipe_partition.go` `CheckOverrideAnswer`, `overrideEventJudge`; `stream_line.go` `StreamLine.Run`; `rib_pipeline.go` `matchFilter` over `command.RowHoldsText` | |
+| Every surface answers as the local `ze` command | Done | `cmd/ze/hub/pipe_parity_test.go` | |
+| Help lists every pipe operation | Done | `internal/component/command` `PipeOperationsForCommand` | |
+| Defects 1 to 3 and items 4 to 10 | Done | Task section | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1, AC-9 | Done | `rib-pipe-received-count-accounted.ci`, `TestForkedRIBReceivesTheDeclaredList` | |
+| AC-2 | Done | `dispatch-pipe-chain-applied.ci` | |
+| AC-3, AC-4, AC-5, AC-33 | Done | `TestPipedLineParityAcrossSurfaces`, `TestZeExecuteAppliesPipeChain`, `TestRESTExecuteAppliesPipeChain`, `TestGRPCExecuteAppliesPipeChain` | |
+| AC-6, AC-7 | Done | `TestChainGrammar`, `pipe-quoted-value-is-an-argument.ci` | |
+| AC-8, AC-34 | Done | `rib-argument-form-refused.ci`, `rib-peer-pipe-scope.ci`, `TestValidateArgsRefusesPipeOperationWord`, `TestPeerRibRefusesScopeArgument` | |
+| AC-10 | Done | every unchanged test of the touched packages | |
+| AC-11, AC-32, AC-39 | Done | `TestInvocationKeepsPipeAndQuoteInValue`, `TestBuildInvocationWritesParamsBeforePipe`, `TestPipeListElementCannotOpenAChain` | |
+| AC-12 | Done | the census conversion (3c642127ca, 4faad7bbe7); found at closure and fixed: four RIB `.ci` on the old contract (dba62d6565) and six interoplab decoders on the bare array (e9b782605e); the interop and functional runs of Goal Validation | |
+| AC-13, AC-16, AC-18 | Done | `TestGenericRowOperatorsOnUndeclaredCommand`, the partition tests | |
+| AC-14, AC-30 | Done | `plugin-pipe-operation.ci`, `TestPluginPipeDeclWithArgumentIsAnOperation`, `TestPluginOperationCollisionsRefused` | |
+| AC-15 | Done | `rest-pipe-list.ci`, `mcp-derived-tool-pipe-list.ci`, `TestGRPCExecutePipeList` | |
+| AC-17 | Done | `TestOverrideAnswerShapeRefused`, `TestOverrideShapeCheckScope`, `TestOverrideShapeCheckedOnEveryRoute`, `TestStreamLineHoldsOverrideEventsToShape`, `TestRIBOverridesKeepGenericMeaning`, `TestRIBBestOverridesKeepGenericMeaning` | |
+| AC-19, AC-20, AC-21 | Done | `command-help-pipe-operations.ci`, `TestCommandHelpPipeOperations`, `TestCompletionMatchesPipeOperations` | |
+| AC-22, AC-35 | Done | `monitor-pipe-chain-ssh.ci`, `TestStreamingLookupPartitions`, `TestStreamRoutePartitionsAndHandsDeclaredOperations` | |
+| AC-23, AC-46 | Done | `cli-monitor-pipe-typed-line.ci`, `TestStreamMonitorTerminateCommitsSaves` | |
+| AC-24 | Done | `TestServeLocalHandsDeclaredOperations`, `TestLocalDataDeclaredOperationsSameOnBothRoutes` | no `.ci`, Deviations |
+| AC-25, AC-26 | Done | `rib-declared-order-refused.ci`, `TestRIBScopeAtAnyPosition` | |
+| AC-27, AC-28, AC-29, AC-38 | Done | `pipe-chain-unauthorized-refused.ci`, `pipe-chain-backslash-authorized.ci`, `pipe-chain-accounting-masks-secret.ci`, `TestTypedWrappersPassChainTokens` | |
+| AC-31 | Done | `TestRIBDeclaresEveryWordItAccepted` | |
+| AC-36, AC-37 | Done | `monitor-rendering-key-keeps-selection.ci`, `TestRenderingKeyNeverSkipsSelection`, `TestRenderingKeyUnknownValueRefused` | |
+| AC-40 to AC-45 | Done | the tests named in each AC row | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| The unit tests of the TDD plan | Done | the files named in its rows | the rows the closure added name their landing commit |
+| The functional tests of the TDD plan | Done | `test/plugin/`, `test/ui/`, `test/reload/` | promoted in 5ebf3c1c8e, adfaec2d77, 2f50baa36d; `local-data-pipe-operation` not written (Deviations) |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Modify | Done | in the commits listed under Implementation Steps |
+| Files to Create | Done | every `.ci` and `cmd/ze/hub/pipe_parity_test.go` present (Files Exist), except `test/ui/local-data-pipe-operation.ci` (Deviations) |
+
+### Audit Summary
+- **Total items:** 46 acceptance criteria, 10 Task items
+- **Done:** all
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** AC-24's carrier (unit tests, not a `.ci`), recorded in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A command path names the subject; scope, presentation and format are pipe operations | functional | `test/plugin/rib-argument-form-refused.ci`, `test/plugin/rib-peer-pipe-scope.ci` (adfaec2d77) |
+| A generic operation applies to every command's answer from every caller | functional + unit | `dispatch-pipe-chain-applied.ci`, `rest-pipe-chain-applied.ci`, `mcp-pipe-chain-applied.ci` (5ebf3c1c8e); `TestPipedLineParityAcrossSurfaces` |
+| Declared operations reach the handler from every caller; the line is never rewritten | functional | `rib-pipe-received-count-accounted.ci` (the typed line in the TACACS+ accounting record), `monitor-pipe-chain-ssh.ci` (the stream route); `TestEveryPipeSplitGoesThroughThePartition` |
+| An override keeps its generic's meaning and shape | unit, discriminated | `TestOverrideShapeCheckedOnEveryRoute`, `TestStreamLineHoldsOverrideEventsToShape` (348b6be6e4); `TestRIBOverridesKeepGenericMeaning`, `TestRIBBestOverridesKeepGenericMeaning` (debda0c3dc: best-path match encoding the show row turned the best test red on direction and best-peer-then-family; restored green) |
+| A third-party plugin declares its own operation | functional | `test/plugin/plugin-pipe-operation.ci` |
+| Every surface answers the same as the local `ze` command | unit + functional | `TestPipedLineParityAcrossSurfaces`; `rest-pipe-list.ci`, `mcp-derived-tool-pipe-list.ci` with explicit JSON assertions |
+| Help lists every operation a command answers to | functional | `test/plugin/command-help-pipe-operations.ci` |
+| Defect 3: a quoted value is one argument everywhere | functional | `test/ui/pipe-quoted-value-is-an-argument.ci` (2f50baa36d) |
+| Security: a chain never widens what a caller may run | negative functional | `pipe-chain-unauthorized-refused.ci` (permission-denied, no handler), `monitor-rendering-key-keeps-selection.ci` (no unmatched event with the key set), `pipe-chain-accounting-masks-secret.ci` |
+| The converted RIB users still answer against real peers | interop | Linux server, detached worktrees of the committed tree. Green at debda0c3dc: `bgp-addpath-rail-agreement-speaker`, `bgp-ospf-redistribute-default-frr`, `bgp-role-export-roleless-destination-frr`. Green at e9b782605e: `bgp-paths-limit-receive-bird`, `bgp-best-route-transit-bird`, `bgp-best-route-transit-frr` (FRR and BIRD). `bgp-ospf-redistribute-default-frr` reaches its changed line (`check_ospf_redistribute_default_diagnostics_test.go`, the peer-scoped form) only on failure, so its pass proves nothing about that line, which `TestOSPFRedistributeDiagnosticsAfterCancellation` covers. Still red past every converted RIB line, each owned elsewhere: `bgp-graceful-restart-frr` (assertion 0, FRR LLGR route wait; `plan/release/fixes/spec-bgp-graceful-restart-rfc-defects.md`, `plan/release/fixes/spec-bgp-llgr-per-family-config.md`), `bgp-rfc2545-neighbor-condition-flip-frr` (assertion 9; `plan/release/fixes/spec-rfc2545-readvertise-on-condition-flip.md`), `rtr-stayrtr` and `show-rib-under-frr-load` (empty best table, no route to next hop since 46f486c4a0; `plan/release/fixes/spec-bgp-next-hop-reachability-admission.md`, `plan/release/validation/spec-interop-suite-red.md`), `bgp-cluster-list-length-bird` and `bgp-srv6-invalid-sid-ineligible-frr` (the same next-hop cause; `plan/release/fixes/spec-srv6-bestpath-resolvability.md`), `bgp-route-server-replacement-frr` (`plan/release/fixes/spec-bgp-rs-replay-reaches-the-cut.md`), `bgp-srv6-frr` (its `frr.conf` network line; `plan/release/validation/spec-interop-suite-red.md`) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none: every acceptance criterion and Task item is done | | |
+
+`test/plugin/rib-advertised-user-path.ci` is red, and it is not an item of this
+spec: its user update is refused "no peers match selector" in the route-origin
+path of a27a951239 (`Spec-work: bgp-best-route-advertised-to-peers`, another
+session), and `TestSendWildcardSelectorReachesTheUpdateHandler` proves this
+spec's dispatcher hands the selector. The red is reported to the main thread,
+not homed here.
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/pipe-chain-honored-on-every-command-surface-ebd446cd-8cc1-46e7-8a01-405bb23e2a77.md` (438 reviewable files of the 36 `Spec-work` commits, four of them removals), re-recorded after round 3 |
+| `./le spec review check` | clean: "review_gate: OK (434 code files, clean, hashes match ...)" on 2026-11-20 |
+| Rounds | 3 |
+| Reviewer lenses used | round 1 (closure agent a285d547ba7f6d004, the whole diff): logic and wiring, design documents, doc drift, tests; rounds 2 and 3 (closure agent af6b50d55d6624c39, the fix commits and their callers): logic and wiring at the producers, the style questions, security, what each changed test proves |
+
+Round 2 scope: 348b6be6e4, 5ee9f32c77, a9d2bf6dae, debda0c3dc, and the callers they touched (`GetStreamingHandlerRendered`, `RunStreamPipes`, `matchRows`, the site renderer).
+
+Round 3 scope: dba62d6565 (the four RIB fixtures and `.ci`, `docs/architecture/testing/ci-format.md`) and e9b782605e (`decodeZePipedRows` in `internal/le/interoplab/bgp/ze_piped_rows.go` and its six callers). Found: no BLOCKER, no ISSUE. The fixture refusal check now asserts the refusal text and its fix line where it asserted only an `error` key, and the decoder refuses a chainless array, a null answer, null rows and an answer whose `pipe` chain lacks the operation asked for, each with a negative case, so neither commit lowers what its tests prove.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | site goldens still showed `show bgp rib sent` and `received` | `internal/le/site/testdata/published-configuration.md`, `published-yang-config-tree.json` | 5ee9f32c77 |
+| 2 | ISSUE | doc-drift refused the site's approved overridable sentence | `internal/le/doc/yangcontract/command_surfaces.go` | 5ee9f32c77 |
+| 3 | ISSUE | the stream route ran no override shape check | `internal/component/command/stream_line.go` `StreamLine.Run` | 348b6be6e4 |
+| 4 | ISSUE | AC-17 cited a test that did not exist; written, it found the RIB `match` disagreeing with the generic | `internal/component/bgp/plugins/rib/rib_pipeline.go` `matchFilter` | debda0c3dc |
+| 5 | ISSUE | comments named the deleted `operatorsFor` | `internal/component/bgp/plugins/cmd/peer/peer_shape_test.go` | 5ee9f32c77 |
+
+Round 2 found no BLOCKER and no ISSUE. NOTEs: `matchFilter` keeps a route its encoder cannot encode, so `| match x | count` would count such a route (`json.Marshal` of the row map fails only on values the RIB never writes); `match` now encodes and decodes each walked route once, the price of a show command, not a hot path; the one-shot check names the typed path and the stream check the declared path.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| the 15 `.ci` of Files to Create present, `rib-pipe-received-count-accounted.ci` and `cmd/ze/hub/pipe_parity_test.go` | yes | `ls` on 2026-11-20 listed each, `test/plugin/` and `test/ui/` |
+| `test/ui/local-data-pipe-operation.ci` | no, by decision | Deviations |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-17 | the shape check runs on every route | `grep CheckOverrideAnswer(`: `plugin/server/command.go` (`Dispatch`), `command/local_data.go` (`ServeLocal`); `StreamLine.Run` calls `overrideEventJudge`, and `GetStreamingHandlerRendered` wraps every stream handler in `line.Run` (`plugin/server/handler.go`), read 2026-11-20 |
+| AC-17 | the RIB `match` override is the generic predicate | `rib_pipeline.go` `matchFilter` calls `command.RowHoldsText`, which calls `rowHoldsText`, the predicate `matchRows` calls (`command/pipe.go`), read 2026-11-20 |
+| Deliverable | no rewrite remains | `grep foldFilters\|FoldPipeChain\|pipeChainRefusal` over non-test Go of `internal`, `cmd`, `pkg`: no hit, 2026-11-20 |
+| AC-12, AC-17 | the scoped package, functional and interop runs | the main thread's two closure runs on the Linux server (debda0c3dc and e9b782605e), recorded in Goal Validation and the functional status table |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| every Wiring Test row with a `.ci` | the files of that table | present (Files Exist); each promoted after an 80-iteration stress run (5ebf3c1c8e, adfaec2d77, 2f50baa36d) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1, A-3 to A-6, A-8 to A-10, A-12 | confirmed | the Status cells of the Assumptions table |
+| A-11 | broken as first written for `show bgp rib best` | Mistake Log; D-7 |
+| A-2 | confirmed | 33 of 43 packages green in 3242d2dfb3; the rest on the Linux server at debda0c3dc: 31 green, `internal/test/plugins/fakel2tp` and `fakeowner` hold no tests and compile, `internal/plugins/container` red only on `TestFetchCommandDeclaresItsBound`, another session's known red |
+| A-7 | confirmed | `TestPipeOperationsAgreeWithValidator` green in 3c642127ca |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/architecture/api/commands.md`: the shape check on every route, the stream's per event | `CheckOverrideAnswer`, `overrideEventJudge`, `StreamLine.Run` | yes, read 2026-11-20 |
+| `docs/architecture/api/commands.md` Design decisions row of 2026-11-20 | its Source names this spec's path, which commit B deletes | NOT resolved: see the closure report, it needs Thomas |
+| `./le doc check all` | one problem, `ze-cos:cleanup`, another session's | not this spec |

@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "2c272fac7c7acf8a",
     "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRPreservesOriginator": "2c272fac7c7acf8a",
-    "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal": "9e548332cc441783",
-    "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2": "9e548332cc441783"
+    "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal": "5cceb0835a6f27db",
+    "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2": "5cceb0835a6f27db"
   },
   "units": {
     "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "12fecf3624468e58",

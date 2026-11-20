@@ -373,7 +373,7 @@ A3 becomes the design when the probe for A-8 fails, or when A-1, A-3 or A-5 brea
 |----------|--------|
 | What breaks if this is wrong? | The worst case is a container escape through the entering process (R-1, R-2). Next: a daemon thread left in a container's namespaces (R-3), a plugin connection stalled by a session (R-6), or a process left running in a container (R-5). No routing behavior is on this path |
 | How is it reverted? | The container plugin's registration is one commit: without it no interactive command exists and the session mechanism is idle. The protocol messages and the gRPC method are additions, and no existing caller depends on them |
-| Who else touches this path? | `spec-container-1-runtime` owns the diff and the plugin's supervisor. `spec-container-4-operator-surface` owns the command schema and the config root. `spec-streaming-answer-protocol.md` plans changes in the same REST, gRPC, web and MCP adapters. `plan/release/fixes/spec-pipe-chain-honored-on-every-command-surface.md` changes how those surfaces split a pipe chain |
+| Who else touches this path? | `spec-container-1-runtime` owns the diff and the plugin's supervisor. `spec-container-4-operator-surface` owns the command schema and the config root. `spec-streaming-answer-protocol.md` plans changes in the same REST, gRPC, web and MCP adapters. How those surfaces send the typed line and apply its pipe chain, which the closed spec-pipe-chain-honored-on-every-command-surface changed, is `docs/architecture/api/commands.md` |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

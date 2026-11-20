@@ -158,6 +158,7 @@ specs of "Child specs" above.
 - [ ] `docs/architecture/plugin/feature-gates.md` - how a feature compiles out
   → Decision: the feature is a self-registering edge plugin, so its gate is lines in `feature-gates.txt` plus a present and an absent build-tag test. No build-matrix row is added
   → Constraint: a shared helper that must compile out stays inside the gated package; a core leaf cannot be gated
+- [ ] `docs/architecture/container/runtime.md`, `ai/rules/plugins.md` - the pages the `// Design:` headers of `internal/plugins/container` and `cmd/ze/hub/service_registry.go` name
 - [ ] `ai/doors/system-plugins.md`, `docs/architecture/module-tiers.md` - placement
   → Decision: an engine with its own config root that nothing imports is an edge plugin under `internal/plugins/`, and it owns its commands, schema and doctor checks
 - [ ] `ai/doors/core.md`, `ai/rules/architecture.md` - persistence
@@ -334,7 +335,7 @@ specs of "Child specs" above.
 |----------|--------|
 | What breaks if this is wrong? | This spec holds no code. Each child states its own worst case: a container that escapes its confinement or starves the routing daemon (runtime), a registry that changes a host file as root or a container that fills the persistent partition (image store), a published port that captures traffic meant for the router (network), a wrong word that becomes a contract in the field (operator surface), a container escape through the entering process (shell), an install that does not boot (the appliance spec) |
 | How is it reverted? | Remove the gate's manifest lines and regenerate: the plugin leaves every build (the runtime child's Blast Radius). Each child names what its own revert leaves behind |
-| Who else touches this path? | The seven specs of "Child specs". Outside them: `plan/post-release/features/spec-vrf-0-umbrella.md` (a container network in a VRF), `plan/post-release/features/spec-streaming-answer-protocol.md` and `plan/release/fixes/spec-pipe-chain-honored-on-every-command-surface.md` (the surface adapters the shell child extends), `plan/release/fixes/spec-crash-capture.md` and `plan/post-release/features/spec-install-9-cloud-init.md` (the persistent partition) |
+| Who else touches this path? | The seven specs of "Child specs". Outside them: `plan/post-release/features/spec-vrf-0-umbrella.md` (a container network in a VRF), `plan/post-release/features/spec-streaming-answer-protocol.md` (the surface adapters the shell child extends; how every surface sends the typed line and applies its pipe chain, landed by the closed spec-pipe-chain-honored-on-every-command-surface, is `docs/architecture/api/commands.md`), `plan/release/fixes/spec-crash-capture.md` and `plan/post-release/features/spec-install-9-cloud-init.md` (the persistent partition) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
