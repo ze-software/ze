@@ -60,8 +60,9 @@ IPv6 `.ci` files became IPv4 forms (`ppp-ncp-terminate-after-up.ci` IPCP,
 
 Status: the eight rows are re-quoted (`agrees` with the page as it now
 stands, citing the implementing commit) and `ze-design-judge` APPROVED digest
-e3afee3bd56e. Thomas still runs `./le spec design approve` once (tooling gap
-below). Judge's notes for building phase 5 (not yet in the spec text, because
+e3afee3bd56e, and Thomas approved it the same day. The next commit that
+carries the spec records the `Design-approved:` trailer: make the first
+phase 5 spec edit (Phase field, the judge's notes below) and commit it. Judge's notes for building phase 5 (not yet in the spec text, because
 editing it would stale the approval; fold them in at closure bookkeeping):
 - noip scenario: its `ze.conf` `ncp timeout` must exceed at least one
   `lcp restart-timer`, or under the revert the session ends before Ze's first
