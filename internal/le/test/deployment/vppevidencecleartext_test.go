@@ -182,3 +182,25 @@ func TestCleartextSPDMissingNamesWhatVPPLacks(t *testing.T) {
 		t.Fatal("an SPD without its DISCARD entry was accepted")
 	}
 }
+
+// The run on VPP v26.06 printed the stream "probe-cleartext-protect" as
+// "probe-cleartext-" in `show packet-generator`, so pgGenerated never found it
+// and the probe read a sent frame as unsent. Every probe stream name must fit
+// what VPP prints, and must be unique, or the sent count belongs to no frame.
+func TestCleartextProbeStreamNamesFitShowPacketGenerator(t *testing.T) {
+	seen := map[string]string{}
+	for _, frame := range vppCleartextProbeFrames {
+		if frame.stream == "" || len(frame.stream) > vppPGStreamNameMax {
+			t.Errorf("%s: stream name %q must be 1 to %d characters", frame.check, frame.stream, vppPGStreamNameMax)
+		}
+		if other, dup := seen[frame.stream]; dup {
+			t.Errorf("%s and %s share the stream name %q", other, frame.check, frame.stream)
+		}
+		seen[frame.stream] = frame.check
+	}
+	listing := "Name               Enabled        Count     Parameters\n" +
+		"ct-protect           No             1       limit 1, rate 0.00e0 pps\n"
+	if got := pgGenerated(listing, "ct-protect"); got != 1 {
+		t.Errorf("pgGenerated on a sent stream = %d, want 1", got)
+	}
+}

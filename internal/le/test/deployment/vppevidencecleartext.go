@@ -47,6 +47,10 @@ const (
 	// vppCleartextESPSPI is an SPI no installed SA holds, so an ESP frame carrying
 	// it can only be judged by the DISCARD and BYPASS entries.
 	vppCleartextESPSPI = 0x0000beef
+	// vppPGStreamNameMax is how much of a stream name `show packet-generator`
+	// prints: the run on v26.06 showed "probe-cleartext-protect" as
+	// "probe-cleartext-".
+	vppPGStreamNameMax = 16
 )
 
 // The node and the error reasons of VPP's IPv4 IPsec input, as
@@ -65,7 +69,11 @@ const (
 
 // vppCleartextProbeFrame is one frame of the probe and what it measures.
 type vppCleartextProbeFrame struct {
-	check  string
+	check string
+	// stream is the packet-generator stream that sends the frame. VPP v26.06's
+	// `show packet-generator` prints a stream name cut to its first
+	// vppPGStreamNameMax characters, so a longer name is never found there.
+	stream string
 	source string
 	target string
 	esp    bool
@@ -76,22 +84,22 @@ type vppCleartextProbeFrame struct {
 }
 
 var vppCleartextProbeFrames = []vppCleartextProbeFrame{
-	{check: "probe-cleartext-protect", source: "100.64.46.10", target: vppCleartextHost,
+	{check: "probe-cleartext-protect", stream: "ct-protect", source: "100.64.46.10", target: vppCleartextHost,
 		entry: "the inbound PROTECT entry 100.64.46.0/24",
 		owed:  "RFC 4301 Section 5.2 step 3b requires it discarded: it has no SPD-I match"},
-	{check: "probe-cleartext-discard", source: "100.64.47.10", target: vppCleartextHost,
+	{check: "probe-cleartext-discard", stream: "ct-discard", source: "100.64.47.10", target: vppCleartextHost,
 		entry: "the inbound DISCARD entry 100.64.47.0/24",
 		owed:  "RFC 4301 Section 5.2 step 3b requires it discarded"},
-	{check: "probe-cleartext-bypass", source: "100.64.48.10", target: vppCleartextHost,
+	{check: "probe-cleartext-bypass", stream: "ct-bypass", source: "100.64.48.10", target: vppCleartextHost,
 		entry: "the inbound BYPASS entry 100.64.48.0/24",
 		owed:  "RFC 4301 Section 5.2 step 3b requires it passed"},
 	// The two ESP frames tell which address pair VPP compares the DISCARD entry
 	// against: the first in the orientation the IKE engine writes an inbound
 	// selector (source in the remote range), the second with the pair exchanged.
-	{check: "probe-esp-discard", source: "100.64.47.10", target: vppCleartextHost, esp: true,
+	{check: "probe-esp-discard", stream: "esp-discard", source: "100.64.47.10", target: vppCleartextHost, esp: true,
 		entry: "the inbound DISCARD entry 100.64.47.0/24, source in its remote range",
 		owed:  "the DISCARD entry is owed the match"},
-	{check: "probe-esp-discard-reversed", source: "100.64.45.10", target: "100.64.47.1", esp: true,
+	{check: "probe-esp-discard-reversed", stream: "esp-discard-rev", source: "100.64.45.10", target: "100.64.47.1", esp: true,
 		entry: "the inbound DISCARD entry 100.64.47.0/24 only with source and destination exchanged",
 		owed:  "the DISCARD entry is owed no match"},
 }
@@ -228,16 +236,16 @@ func (v *VPP) traceCleartextFrame(container, work string, frame vppCleartextProb
 		"clear errors",
 		"clear trace",
 		vppCommand("trace add pg-input", vppTraceCapacity),
-		vppCommand("packet-generator new { name", frame.check, "node ethernet-input interface", vppCleartextInterface,
+		vppCommand("packet-generator new { name", frame.stream, "node ethernet-input interface", vppCleartextInterface,
 			"pcap", vppMount+"/"+file, "limit 1 }"),
-		vppCommand("packet-generator enable-stream", frame.check),
+		vppCommand("packet-generator enable-stream", frame.stream),
 	} {
 		if _, err := v.query(container, command); err != nil {
 			return VPPCheck{}, err
 		}
 	}
 	generated, streams, err := v.awaitQuery(container, "show packet-generator", true, vppPGGenerateWait,
-		func(text string) bool { return pgGenerated(text, frame.check) == 1 })
+		func(text string) bool { return pgGenerated(text, frame.stream) == 1 })
 	if err != nil {
 		return VPPCheck{}, err
 	}
@@ -249,7 +257,7 @@ func (v *VPP) traceCleartextFrame(container, work string, frame vppCleartextProb
 	if err != nil {
 		return VPPCheck{}, err
 	}
-	if _, err := v.query(container, vppCommand("packet-generator delete", frame.check)); err != nil {
+	if _, err := v.query(container, vppCommand("packet-generator delete", frame.stream)); err != nil {
 		return VPPCheck{}, err
 	}
 	return judgeCleartextFrame(frame, generated, streams, trace, counts), nil
