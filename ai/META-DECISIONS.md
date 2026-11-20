@@ -525,10 +525,11 @@ in the spec or commit it applies to.
   presents a design: before and after examples of what a user sees, the
   alternatives, and the documentation it contradicts. Once he agrees, the
   documentation is corrected in the same work.
-- A design decision Thomas makes is written into the design page that
-  documents its subject, never into a separate register of decisions. Before
-  an agent edits a file, or writes a spec that touches it, it reads the design
-  page the file's `// Design:` header links.
+- A design decision Thomas makes is written into the `## Design decisions`
+  section of the design page that documents its subject, never into a
+  separate register of decisions. Before an agent edits a file, or writes a
+  spec that touches it, it reads that section of each design page the file's
+  `// Design:` header links, and again whenever a row is added to it.
 - A hook checks what a command, path or file is, never how a message is worded.
 - Shell tools (`sed`, a codemod, a script) may write tracked files outside
   `plan/` and `ai/rules/`: using tools on the codebase matters. The hook that
