@@ -2,7 +2,7 @@
 
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- SPD dispositions
 // Related: spd_policy.go -- installSPDPolicies, whose write sequence this probes
-// Related: fragment_boundary_integration_linux_test.go -- the plain sender and the inbound DISCARD counter
+// Related: rfc4301_fragment_boundary_integration_linux_test.go -- the plain sender and the inbound DISCARD counter
 
 package engine
 

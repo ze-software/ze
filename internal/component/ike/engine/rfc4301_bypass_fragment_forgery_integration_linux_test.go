@@ -2,7 +2,7 @@
 
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- protected-host forwarding, operator bypass projection and fragments.
 // Related: rfc4301_fragment_forward_integration_linux_test.go -- the three-namespace forwarding lab, sender, capture and the forward-gate check reused here.
-// Related: fragment_boundary_integration_linux_test.go -- the production Child SA creator and fragment sender.
+// Related: rfc4301_fragment_boundary_integration_linux_test.go -- the production Child SA creator and fragment sender.
 // RFC naming: untagged -- the forged-fragment proof of owner decision 4 rides beside the tagged RFC4301-7.4-2 units; it claims no row of its own.
 //
 // VALIDATES: on Ze's kernel (K1 and K3), that forged IPv4 fragments aimed at an operator

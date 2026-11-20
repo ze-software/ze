@@ -1,7 +1,7 @@
 //go:build integration && linux
 
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- negotiated per-SA scope.
-// Related: fragment_boundary_integration_linux_test.go -- the production Child creator and peer sender.
+// Related: rfc4301_fragment_boundary_integration_linux_test.go -- the production Child creator and peer sender.
 // RFC naming: untagged -- kernel boundary probes awaiting observed discrimination records.
 
 package engine

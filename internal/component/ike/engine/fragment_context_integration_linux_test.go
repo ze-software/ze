@@ -1,7 +1,7 @@
 //go:build linux
 
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- inbound SA scope and fragment classification.
-// Related: fragment_boundary_integration_linux_test.go -- real Child installation and ordinary UDP senders.
+// Related: rfc4301_fragment_boundary_integration_linux_test.go -- real Child installation and ordinary UDP senders.
 // Related: rfc4301_fragment_linux_test.go -- ordinary IPv4 fragment construction.
 
 package engine

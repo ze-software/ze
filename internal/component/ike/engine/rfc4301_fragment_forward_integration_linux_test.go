@@ -1,7 +1,7 @@
 //go:build linux
 
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- protected-host forwarding and SPD dispositions.
-// Related: fragment_boundary_integration_linux_test.go -- production Child SA creator and ordinary fragment sender.
+// Related: rfc4301_fragment_boundary_integration_linux_test.go -- production Child SA creator and ordinary fragment sender.
 // Related: child_forward_policy_linux_test.go -- forwarding setup and exact kernel-counter waits.
 // Related: mh_selector_boundary_integration_linux_test.go -- IPv6 addresses installed without DAD.
 // Packet-level conformance probe; its forward-bypass phase and its IPv6 counterpart

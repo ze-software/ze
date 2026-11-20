@@ -1,5 +1,5 @@
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- binding an inbound state to its negotiated scope.
-// Related: fragment_boundary_integration_linux_test.go -- real-kernel sibling-SA boundary.
+// Related: rfc4301_fragment_boundary_integration_linux_test.go -- real-kernel sibling-SA boundary.
 
 package engine
 

@@ -1,7 +1,7 @@
 //go:build integration && linux
 
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- fragment port classification.
-// Related: fragment_boundary_integration_linux_test.go -- production operator SPD reconciliation.
+// Related: rfc4301_fragment_boundary_integration_linux_test.go -- production operator SPD reconciliation.
 // Related: rfc4301_transport_fragment_boundary_integration_linux_test.go -- IPv6 packet builders.
 // RFC 4301 Section 7.4 and Appendix D.4 -- see rfc/short/rfc4301.md.
 // RFC naming: untagged -- IPv6 raw fragment port classification awaiting native kernel proof.
