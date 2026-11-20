@@ -57,6 +57,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/data/ietfreference"
 	_ "github.com/ze-software/ze/internal/le/data/ipspecialpurpose"
 	_ "github.com/ze-software/ze/internal/le/deps"
+	_ "github.com/ze-software/ze/internal/le/deps/credits"
 	_ "github.com/ze-software/ze/internal/le/dns"
 	_ "github.com/ze-software/ze/internal/le/dns/query"
 	_ "github.com/ze-software/ze/internal/le/doc"

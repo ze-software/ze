@@ -125,6 +125,16 @@ linters:
         linters:
           - misspell
         text: "`catalogue`"
+      # `ze thanks licence` is the command's spelling, the owner's choice of
+      # 2026-11-20 over `license`, and the same word is the JSON key and the
+      # declaration field of the credits. Code and comments that name the
+      # command, the key or the licence files it prints spell it as it does:
+      # the word, its Go field (`Licence`) and a licence file's name
+      # (`LICENCE`). Its plural (`licences`, `Licences`) is the same owner
+      # choice, so prose about several licence texts spells it the same way.
+      - linters:
+          - misspell
+        text: "`(licence|Licence|LICENCE|licences|Licences)` is a misspelling"
       # The site's plugin, concept and RFC-prose tables name plugins and
       # directories as data ("gokrazy", "l2tp", "ike", ...). The same word
       # means a different thing in each table (a plugin name, a feature

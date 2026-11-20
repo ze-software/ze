@@ -6,6 +6,8 @@
 
 package repocompiles
 
+import "slices"
+
 // Flavor is one build flavor of the module. Each is built over `./...`, not
 // over its own main package alone: measured on 2026-08-04, `./...` costs about
 // 2 seconds more than `./cmd/ze` and type-checks every package the tag set
@@ -105,6 +107,11 @@ var buildMatrix = Matrix{
 		Why:         "cmd/ze-installer, the installer initrd's PID 1 (linux-only)",
 	},
 }
+
+// Flavors answers a copy of the build flavors, the table the credits check
+// (internal/le/deps/credits) reads to learn which modules each shipped build
+// links, so the two tools cannot disagree about which flavors exist.
+func Flavors() Matrix { return slices.Clone(buildMatrix) }
 
 // buildPackages is the pattern every flavor is built over.
 const buildPackages = "./..."

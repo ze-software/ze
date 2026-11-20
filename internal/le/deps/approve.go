@@ -8,6 +8,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/ze-software/ze/internal/le/le/human"
 )
@@ -125,11 +126,5 @@ func Recorded(root string, row Row) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	want := RowLine(row)
-	for _, line := range splitLines(string(text)) {
-		if line == want {
-			return true, nil
-		}
-	}
-	return false, nil
+	return slices.Contains(splitLines(string(text)), RowLine(row)), nil
 }

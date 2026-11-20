@@ -4,6 +4,7 @@
 package deps
 
 import (
+	"slices"
 	"strings"
 
 	"golang.org/x/mod/modfile"
@@ -49,12 +50,7 @@ func (p Policy) Allows(pkg, importer string) bool {
 	if !packageInModule(pkg, provider) {
 		return false
 	}
-	for _, module := range p.modules {
-		if provider == module {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(p.modules, provider)
 }
 
 // packageProviders reads the exact package inventory emitted by go mod vendor.

@@ -61,7 +61,7 @@ func Check(root string) (Report, error) {
 	if err != nil {
 		return report, err
 	}
-	files, err := goFiles(root)
+	files, err := GoFiles(root)
 	if err != nil {
 		return report, err
 	}
@@ -75,7 +75,7 @@ func Check(root string) (Report, error) {
 			continue
 		}
 		src, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel))) //nolint:gosec // a path git listed in this checkout
-		// refuse-by-default: guards goFiles -- a tracked file deleted in the working tree imports nothing the build links
+		// refuse-by-default: guards GoFiles -- a tracked file deleted in the working tree imports nothing the build links
 		if errors.Is(err, os.ErrNotExist) {
 			continue
 		}
@@ -107,11 +107,14 @@ func Check(root string) (Report, error) {
 	return report, nil
 }
 
-// goFiles lists the checkout's Go files git tracks or would track: ignored
+// GoFiles lists the checkout's Go files git tracks or would track: ignored
 // trees (tmp/, bin/) are not Ze source.
-func goFiles(root string) ([]string, error) {
-	command := exec.CommandContext(context.Background(), "git", "-C", root, "ls-files", "-z",
+func GoFiles(root string) ([]string, error) {
+	command := exec.CommandContext(context.Background(), "git", "ls-files", "-z",
 		"--cached", "--others", "--exclude-standard", "--", "*.go")
+	// The checkout is the command's directory rather than an argument, so
+	// the argv is constant and the paths come out relative to root as before.
+	command.Dir = root
 	var stderr bytes.Buffer
 	command.Stderr = &stderr
 	output, err := command.Output()

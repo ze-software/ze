@@ -93,6 +93,52 @@ It answers exit 1. A file the gate cannot read answers exit 3.
 <!-- source: internal/le/commit/dependencies.go -- dependencyRefusal, carriedLedger, addedImports -->
 <!-- source: internal/le/commit/prepare.go -- Create -->
 
+The same command runs the `deps credits` change-set check, which keeps the
+record of what the shipped binary carries (`docs/architecture/third-party-credits.md`).
+It also judges only what the commit adds, and refuses a commit that:
+
+- adds, in a Go file that can ship, an import of a vendored module that the
+  generated credits data the commit leaves (`internal/core/credits/data/`)
+  does not credit, unless the declaration the commit leaves
+  (`website/data/dependencies.json`) names the module and the data was
+  generated from that very declaration;
+- carries a changed, added or removed licence or notice file of a credited
+  work while the data the commit leaves holds other bytes for it;
+- carries the declaration or the data while the data was generated from
+  another declaration.
+
+A Go file can ship when it is not a test file and sits under `internal/`,
+`pkg/` or a shipped flavor's anchor directory under `cmd/`, outside
+`internal/le/` and `internal/test/`. That is an approximation, so the gate
+needs no build. The refusal names the module, or the file, and ends with
+`./le deps credits update`. A commit that only adds a module to `go.mod`,
+`go.sum` and `vendor/` passes, and a module already linked at HEAD without a
+credit refuses no commit that leaves its imports alone.
+
+<!-- source: internal/le/deps/credits/gate.go -- judgeCommit, shippable -->
+
+## What a new dependency owes
+
+A module the shipped binary links owes a credit, in the commit that first
+imports it:
+
+1. its entry in `website/data/dependencies.json`: in its curated category,
+   with the sentence saying why Ze uses it, when Ze imports it directly, or
+   in the `linked` list otherwise, with its `licence` (an SPDX expression),
+   its `copyright` holders spelled as its own files spell them, and its
+   `source`;
+2. `./le deps credits update`, which copies its licence and notice files into
+   the data the binary embeds;
+3. both carried in the commit.
+
+`./le deps credits check` judges the whole tree on demand and in CI: it
+refuses a module a shipped flavor links that the declaration does not name,
+a holder or a licence the module's own files do not state, and generated data
+that is not what `update` writes.
+
+<!-- source: internal/le/deps/credits/check.go -- Check -->
+<!-- source: internal/le/deps/credits/update.go -- Update -->
+
 ## Approving a use
 
 Where use-specific approval is required, only Thomas approves, from his own
@@ -130,5 +176,5 @@ an absent inventory grants no module-wide reuse.
 Rows no file uses any more are listed as stale, without failing. It runs in the
 full verification (`fullStages`).
 
-<!-- source: internal/le/deps/check.go -- Check, goFiles -->
+<!-- source: internal/le/deps/check.go -- Check, GoFiles -->
 <!-- source: internal/le/verify/engine/stages.go -- fullStages -->
