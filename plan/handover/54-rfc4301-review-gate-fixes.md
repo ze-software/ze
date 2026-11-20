@@ -78,6 +78,45 @@ edits share these trees (l2tp, bgp rib, command pipe, several specs): carry none
 7. Recreate commit A (replace) with the fix files added, commit B (append remove),
    run the script, `./le spec citation`, `./le spec release`.
 
+## Item 9 result (dataplane test findings, reported after this handover was first written)
+
+Done except D1. D1's rewrite is in
+`tmp/session/2026-11-20-215415/scratch/d1-xfrm_bypass_integration_linux_test.go.proposed`;
+the weakening hook refused it until a judge rules. Renames: `ikeBypassOut`,
+`TestXFRMIKEBypassOutranksChildSAPolicyInKernel` becomes
+`TestXFRMOperatorBypassOutranksChildSAPolicyInKernel`, and
+`TestXFRMBypassInstallIsIdempotent` becomes
+`TestXFRMOperatorEntryReinstallReplacesInPlace`, which proves more. Send them to the
+judge with the batch in step 2.
+
+- **D2:** the per-socket IKE bypass moved to `dataplane.BypassIKESocket`
+  (dataplane/ike_socket_bypass_linux.go, _other.go, _linux_test.go). Owed deletion
+  in commit A: `remove internal/component/ike/transport/bypass_linux.go`,
+  `bypass_other.go` and `bypass_linux_test.go` (now dead). The test move needs a
+  judge ruling that it is a move.
+- **D3:** new leaf `internal/test/vppcleartext/vppcleartext.go`;
+  `testBypassPriority` was renamed `testOperatorOrder`.
+- **D4, D5, F1 (probe-esp-discard now targets 100.64.45.20), F2 (design page VPP
+  paragraph), F3:** done.
+- **Owed:** gofmt on `vpp_real_cleartext_integration_test.go`,
+  `kernel_scope_wire_linux_test.go`, `vppevidencecleartext.go` and
+  `vppevidencecleartext_proof_test.go` (script-edited). Comments changed inside the
+  tagged unit `TestXFRMPortScopedBypassIsNeverStoredOnTheForwardPath`
+  (RFC4301-7.4-2), and in `rfc4301_spd_lifecycle_test.go` and
+  `rfc4301_espform_policy_integration_linux_test.go`: `./le rfc check` says whether
+  a record needs re-taking.
+- **Possible defect, not fixed:** on VPP the IKE BYPASS entries pass any ESP
+  addressed to the tunnel end whose SPI matches no PROTECT, because VPP's inbound
+  ESP lookup matches on addresses only (`ipsec_input_policy_match`, VPP v26.06). The
+  design page states it. Fix it in this spec if small, else give it a journal row
+  owned by `plan/post-release/features/spec-ipsec-vpp-policy-interface.md`.
+- **Stale comment:** `TestVPPInstallPolicyBypass` in `rfc7296_vpp_message_test.go`
+  still names the deleted `engine/bypass.go`.
+- **Compile state when written:** duplicate declarations of `xfrmPolicyDirIn`
+  (espform_linux.go) and `catchAllYieldsToICMPErrorCheck` (policy_role.go), and
+  the catch-all agent's `policy_final.go`, which references fields not yet added.
+  Item 2 was still being edited. Fix the compile first.
+
 ## Known reds outside this spec
 
 `./le doc check all` (BGP rib filter order, ze-cos cleanup with no handler),
