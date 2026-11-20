@@ -4,7 +4,6 @@
 // Related: doctor_child_install.go -- the ipsec-child-install check
 // Related: doctor_spd_install.go -- the ipsec-spd-install check
 // Related: doctor_ike_socket_bypass.go -- the ipsec-ike-socket-bypass check
-// Related: icmp_error_return.go -- the ipsec-icmp-error-return check
 
 package engine
 
@@ -48,9 +47,6 @@ var engineDoctorChecks = []engineDoctorCheck{{
 }, {
 	decl:   ikeSocketBypassCheckDecl,
 	answer: answerIKESocketBypass,
-}, {
-	decl:   icmpErrorReturnCheckDecl,
-	answer: answerICMPErrorReturn,
 }}
 
 // engineDoctorCheckDecls answers the declarations the engine sends at Stage 1.

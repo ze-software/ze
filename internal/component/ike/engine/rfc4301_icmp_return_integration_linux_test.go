@@ -23,7 +23,6 @@ import (
 	"golang.org/x/net/ipv4"
 	"golang.org/x/sys/unix"
 
-	"github.com/ze-software/ze/internal/component/firewall"
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -272,30 +271,18 @@ func icmpReturnPeerCapture(t *testing.T, lab *espPolLab) int {
 	return fd
 }
 
-// icmpReturnMapping installs what applyConfig installs after the catch-all for this
-// lab's peer (icmp-error-check true, remote selector 10.1.0.0/24) under `unmatched
-// discard`: the ICMP error return entries and their nft drop table, through the
-// production producer and the nft firewall backend. Cleanup releases both.
-func icmpReturnMapping(t *testing.T, entries map[string]ipsec.SPDPolicy) {
-	t.Helper()
-	if err := firewall.LoadBackend("nft"); err != nil {
-		t.Fatalf("load the nft firewall backend: %v", err)
-	}
-	cfg := &ipsec.IPsecConfig{
-		Unmatched: dataplane.SPActionDiscard,
-		Peers: map[string]ipsec.SiteToSitePeer{"forward-icmp": {TrafficSelectors: []ipsec.TrafficSelectorPolicy{{
-			LocalPrefix: mustCIDRNet(t, "10.2.0.0/24"), RemotePrefix: mustCIDRNet(t, "10.1.0.0/24"),
-		}}}},
-		Policies: entries,
-	}
-	mapping := newICMPErrorReturns(kernelICMPErrorReturn{})
-	mapping.apply(dataplane.Get(), cfg, slogutil.DiscardLogger())
-	t.Cleanup(func() { mapping.release(dataplane.Get(), slogutil.DiscardLogger()) })
-	if len(mapping.problems) != 0 || len(mapping.installed) != 2 {
-		t.Fatalf("the ICMP error return mapping did not install whole: %d entries, problems %q", len(mapping.installed), mapping.problems)
-	}
-}
-
+// TestRFC4301ForwardedICMPErrorsMapUnderDiscard checks that a forwarded ICMP error
+// from a protected host, under the default `unmatched discard` with no operator entry,
+// leaves through the SA of the return traffic it quotes, and that one quoting traffic
+// no SA carries leaves neither protected nor in clear. Method: Ze's namespace forwards
+// between the host and the outside peer. No FWD policy matches the error itself (the
+// Child's outbound FWD allow, appendChildOutboundForwardPolicy, is UDP only), so the
+// kernel's payload lookup (xfrm_in_fwd_icmp) decides the forward check: the reversed
+// quote matches that outbound FWD allow, and a quote no Child carries meets the FWD
+// default discard. The OUT catch-all answers BLOCK, and K1's forwarded mapping (bit 6)
+// tries the return SA. The peer's capture decrypts the ESP it receives and counts
+// errors in clear, beside a UDP control through the same SA.
+//
 //ze:guest-root
 func TestRFC4301ForwardedICMPErrorsMapUnderDiscard(t *testing.T) {
 	lab := newEspPolLab(t)
@@ -304,37 +291,104 @@ func TestRFC4301ForwardedICMPErrorsMapUnderDiscard(t *testing.T) {
 	child := icmpForwardChild(t, 0, true)
 	decoder := newICMPReturnDecoder(t, child, true)
 	controlSender := icmpReturnControlSocket(t)
-	// This is the operator's receive permission for errors from the protected side.
-	// Since D-3 it also installs its transit projection (spdEntryPolicies), as the
-	// production reconciler does, so it is part of this gateway path, not a test-only bypass.
-	entries := map[string]ipsec.SPDPolicy{"icmp-from-protected-host": {
-		Name: "icmp-from-protected-host", Action: dataplane.SPActionBypass, Order: 1000,
-		Direction: ipsec.SPDDirIn, Protocol: sadSelProtoICMP,
-		LocalPrefix: mustCIDRNet(t, "10.1.0.0/24"), LocalPort: ipsec.AnyPort(),
-		RemotePrefix: mustCIDRNet(t, "10.2.0.0/24"), RemotePort: ipsec.AnyPort(),
-		ICMP: ipsec.ICMPSelector{HasType: true, Type: 3},
-	}}
+	for index, quotedDestination := range []string{fragmentHostAddress, icmpForwardUnmatched} {
+		tag := uint16(0x7a10 + index*2)
+		packet := icmpReturnForwarded(3, 1, quotedDestination, tag)
+		blocked := sadSelStat(t, outStepStatPolBlock)
+		fragmentSend(t, hostSender, packet)
+		icmpReturnSendControl(t, controlSender, tag+1)
+		icmpReturnObserve(t, capture, decoder, packet, tag, false, index == 0)
+		if index == 0 {
+			if got := sadSelStat(t, outStepStatPolBlock) - blocked; got != 1 {
+				t.Errorf("XfrmOutPolBlock moved by %d, want 1: the error did not meet the OUT catch-all", got)
+			}
+		}
+	}
+}
+
+// icmpReturnForwarded is an ICMP message of the given type and code that the
+// protected host 10.2.0.2 sends towards the outside peer 10.1.0.5, carrying in its
+// body the first 28 octets of a UDP datagram from 10.1.0.5 to quotedDestination
+// (source port 5000, destination port 40000). For an
+// error type, reversing that quote selects the Child SA's return traffic when
+// quotedDestination is the host, and no SA at all when it is icmpForwardUnmatched.
+// For a non-error type the same octets are only its data. The IPv4 identification
+// carries tag, which icmpReturnObserve matches.
+func icmpReturnForwarded(typ, code byte, quotedDestination string, tag uint16) []byte {
+	quote := icmpReturnUDP(sadSelInnerRemote, quotedDestination, tag)
+	binary.BigEndian.PutUint16(quote[20:22], sadSelSourcePort)
+	binary.BigEndian.PutUint16(quote[22:24], sadSelPort)
+	message := make([]byte, 8, 36)
+	message[0], message[1] = typ, code
+	message = append(message, quote[:28]...)
+	binary.BigEndian.PutUint16(message[2:4], sadSelChecksum(message))
+	packet := sadSelIPv4(fragmentHostAddress, sadSelProtoICMP, message)
+	copy(packet[16:20], net.ParseIP(sadSelInnerRemote).To4())
+	fragmentPacketID(packet, tag)
+	return packet
+}
+
+// TestRFC4301ForwardedICMPErrorUnderOperatorDiscardMapsToReturnSA checks the owner's
+// ruling of 2026-11-20 on RFC 4301 Section 6.2: an operator out DISCARD that covers a
+// forwarded ICMP error does not stop its mapping into the return SA, and the mapping
+// takes only what it can carry. Method: the entry discards every ICMP message from
+// 10.2.0.0/24 to 10.1.0.0/24 at order 100; an operator in BYPASS for ICMP in the same
+// orientation admits each message at the forward check, so every message reaches the
+// OUT lookup, and XfrmOutPolBlock moving by one proves that lookup answered BLOCK. A
+// Destination Unreachable quoting the Child SA's return traffic must leave protected;
+// an Echo Request (not an error type icmp_err_packet maps) and a Destination
+// Unreachable quoting traffic no SA carries must leave neither protected nor in clear.
+// The peer's capture decrypts the ESP it receives and counts errors in clear, beside a
+// UDP control through the same SA. It needs K1's feature bit 6 on Ze's kernel.
+//
+//ze:guest-root
+func TestRFC4301ForwardedICMPErrorUnderOperatorDiscardMapsToReturnSA(t *testing.T) {
+	lab := newEspPolLab(t)
+	hostSender, capture := fragmentForwardPeers(t, lab)
+	espPolSPD(t)
+	child := icmpForwardChild(t, 0, true)
+	decoder := newICMPReturnDecoder(t, child, true)
+	controlSender := icmpReturnControlSocket(t)
+	entries := map[string]ipsec.SPDPolicy{
+		"discard-icmp-to-outside": {
+			Name: "discard-icmp-to-outside", Action: dataplane.SPActionDiscard, Order: 100,
+			Direction: ipsec.SPDDirOut, Protocol: sadSelProtoICMP,
+			LocalPrefix: mustCIDRNet(t, "10.2.0.0/24"), LocalPort: ipsec.AnyPort(),
+			RemotePrefix: mustCIDRNet(t, "10.1.0.0/24"), RemotePort: ipsec.AnyPort(),
+		},
+		// The forward check's permission for ICMP from the protected side. Its OUT
+		// transit gate ranks beneath the discard, so the discard decides the OUT lookup.
+		"icmp-from-protected-host": {
+			Name: "icmp-from-protected-host", Action: dataplane.SPActionBypass, Order: 200,
+			Direction: ipsec.SPDDirIn, Protocol: sadSelProtoICMP,
+			LocalPrefix: mustCIDRNet(t, "10.1.0.0/24"), LocalPort: ipsec.AnyPort(),
+			RemotePrefix: mustCIDRNet(t, "10.2.0.0/24"), RemotePort: ipsec.AnyPort(),
+		},
+	}
 	if err := installSPDPolicies(dataplane.Get(), nil, entries, slogutil.DiscardLogger()); err != nil {
 		t.Fatalf("install the operator SPD entries: %v", err)
 	}
 	t.Cleanup(func() { removeSPDPolicies(dataplane.Get(), entries, slogutil.DiscardLogger()) })
-	icmpReturnMapping(t, entries)
-	for index, quotedDestination := range []string{fragmentHostAddress, icmpForwardUnmatched} {
-		tag := uint16(0x7a10 + index*2)
-		quote := icmpReturnUDP(sadSelInnerRemote, quotedDestination, tag)
-		// Reverse quote: local source port 5000, remote destination port 40000.
-		binary.BigEndian.PutUint16(quote[20:22], sadSelSourcePort)
-		binary.BigEndian.PutUint16(quote[22:24], sadSelPort)
-		message := make([]byte, 8, 36)
-		message[0], message[1] = 3, 1
-		message = append(message, quote[:28]...)
-		binary.BigEndian.PutUint16(message[2:4], sadSelChecksum(message))
-		packet := sadSelIPv4(fragmentHostAddress, sadSelProtoICMP, message)
-		copy(packet[16:20], net.ParseIP(sadSelInnerRemote).To4())
-		fragmentPacketID(packet, tag)
+	cases := []struct {
+		name              string
+		typ, code         byte
+		quotedDestination string
+		mapped            bool
+	}{
+		{"destination unreachable quoting the return traffic", 3, 1, fragmentHostAddress, true},
+		{"echo request, not an error type", 8, 0, fragmentHostAddress, false},
+		{"destination unreachable quoting traffic no SA carries", 3, 1, icmpForwardUnmatched, false},
+	}
+	for index, tc := range cases {
+		tag := uint16(0x7a50 + index*2)
+		packet := icmpReturnForwarded(tc.typ, tc.code, tc.quotedDestination, tag)
+		blocked := sadSelStat(t, outStepStatPolBlock)
 		fragmentSend(t, hostSender, packet)
 		icmpReturnSendControl(t, controlSender, tag+1)
-		icmpReturnObserve(t, capture, decoder, packet, tag, false, index == 0)
+		icmpReturnObserve(t, capture, decoder, packet, tag, false, tc.mapped)
+		if got := sadSelStat(t, outStepStatPolBlock) - blocked; got != 1 {
+			t.Errorf("%s: XfrmOutPolBlock moved by %d, want 1: the message did not meet the operator discard", tc.name, got)
+		}
 	}
 }
 
