@@ -1,0 +1,8 @@
+noauth
+name alice
+password s3cr3t
+refuse-eap
+nodefaultroute
+noip
+debug
+nodetach

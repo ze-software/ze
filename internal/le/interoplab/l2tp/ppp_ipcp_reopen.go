@@ -20,8 +20,9 @@ const (
 
 	// ipcpWithdrawalPoll is how often the checker reads Ze's PPP interface
 	// while it waits for the IPv4 address to leave. Ze holds IPCP in Stopping
-	// for one Restart time after it answers the Terminate-Request (3 s: the
-	// scenario's ze.conf sets no lcp restart-timer), and answers no
+	// for one Restart time after it answers the Terminate-Request (3 s in
+	// ppp-code-reject-xl2tpd, whose ze.conf sets no lcp restart-timer; 10 s in
+	// l2tp-lns-pppd-ipcp-terminate-redistribute), and answers no
 	// Configure-Request there, so the address stays absent for one to two
 	// Restart times. A read every 100 ms lands inside that window.
 	ipcpWithdrawalPoll = 100 * time.Millisecond

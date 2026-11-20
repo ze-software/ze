@@ -39,6 +39,15 @@ const (
 	scenarioProxyMRU            = "l2tp-proxy-mru-transmit-cap"
 	scenarioRadiusFixture       = "l2tp-radius-acct-wire-fixture"
 	scenarioLCPRestart          = "lcp-restart-timer-pppd"
+	scenarioIPv6CPRejectedByLNS = "l2tp-lns-pppd-ipv6cp-rejected-by-lns"
+	scenarioNoIPRejectsIPCP     = "l2tp-lns-pppd-noip-rejects-ipcp"
+	scenarioIPCPTerminateRedist = "l2tp-lns-pppd-ipcp-terminate-redistribute"
+
+	// relayFRRHost is FRR's host in the one topology that runs both the relay
+	// and FRR. Both constructors default to host 4: the relay keeps it,
+	// because its xl2tpd dials 172.29.0.4 as its LNS, and FRR moves here,
+	// where that scenario's frr.conf and ze.conf place it.
+	relayFRRHost = 6
 
 	commandShow  = "show"
 	commandLink  = "link"
@@ -220,7 +229,8 @@ func prepareScenario(_ context.Context, root string, source interoplab.ScenarioS
 		// The registered native LAC fixture runs inside Ze's container so it
 		// shares the kernel PPP namespace whose installed MTU it measures.
 		peers = []interoplab.PeerConfig{ze}
-	case scenarioUnknownMandatoryAVP, scenarioPPPCodeReject, scenarioLCPRestart:
+	case scenarioUnknownMandatoryAVP, scenarioPPPCodeReject, scenarioLCPRestart,
+		scenarioIPv6CPRejectedByLNS, scenarioNoIPRejectsIPCP:
 		// The relay observes control messages and PPP frames without
 		// replacing xl2tpd's tunnel or pppd's negotiation.
 		relay, err := avpRelayPeer(environment.Suffix, network)
@@ -228,6 +238,17 @@ func prepareScenario(_ context.Context, root string, source interoplab.ScenarioS
 			return interoplab.PreparedScenario{}, err
 		}
 		peers = []interoplab.PeerConfig{ze, relay, lac}
+	case scenarioIPCPTerminateRedist:
+		// The relay injects the IPCP Terminate-Request on the live session
+		// while FRR, which peers with Ze as in 02-ppp-bgp-redistribute-frr,
+		// reads the redistributed /32 leave and return.
+		relay, err := avpRelayPeer(environment.Suffix, network)
+		if err != nil {
+			return interoplab.PreparedScenario{}, err
+		}
+		frr := frrPeer(root, environment.Suffix, directory)
+		frr.Host = relayFRRHost
+		peers = []interoplab.PeerConfig{ze, relay, frr, lac}
 	case scenarioDNSResolver:
 		// The resolver listens on the pool gateway, an address the kernel
 		// holds only while a PPP session is up; the resolver sets
@@ -409,12 +430,14 @@ func standardImageBuilds(root string, plans []interoplab.ScenarioPlan, frrImage 
 	needFRR := false
 	for index := range plans {
 		name := plans[index].Source.Name
-		needFRR = needFRR || name == scenarioBGPRedistribute
+		needFRR = needFRR || name == scenarioBGPRedistribute || name == scenarioIPCPTerminateRedist
 		needed[imageRadius] = needed[imageRadius] || name == scenarioRadiusAttrs ||
 			name == scenarioLNSMRU || name == scenarioLNSOmittedMRU ||
 			name == scenarioLNSNegotiatedMRU || name == scenarioLNSCHAPOnly
 		needed[imageAVPRelay] = needed[imageAVPRelay] || name == scenarioUnknownMandatoryAVP ||
-			name == scenarioPPPCodeReject || name == scenarioLCPRestart
+			name == scenarioPPPCodeReject || name == scenarioLCPRestart ||
+			name == scenarioIPv6CPRejectedByLNS || name == scenarioNoIPRejectsIPCP ||
+			name == scenarioIPCPTerminateRedist
 		needed[imageKnot] = needed[imageKnot] || name == scenarioDNSResolver
 	}
 	builds := slices.DeleteFunc(interoplab.SuiteImages(imageOwner, interoplab.ImageContext{Root: root}),

@@ -97,7 +97,8 @@ func TestTunnelL2TPAccountingEchoAfterHandshakeDeadline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("active peer failed to deliver its post-handshake Echo-Reply: %v", err)
 	}
-	want := []byte{0, 2, 1, 0x23, 2, 0x34, 0xc0, 0x21, 10, 7, 0, 8, 0x11, 0x22, 0x33, 0x44}
+	// The peer transmits Address/Control too (RFC 1661 Section 6.6, sendPPP).
+	want := []byte{0, 2, 1, 0x23, 2, 0x34, 0xff, 3, 0xc0, 0x21, 10, 7, 0, 8, 0x11, 0x22, 0x33, 0x44}
 	if !bytes.Equal(buffer[:n], want) {
 		t.Fatalf("Echo-Reply = %x, want %x", buffer[:n], want)
 	}

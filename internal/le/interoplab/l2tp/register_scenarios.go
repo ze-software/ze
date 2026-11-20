@@ -20,6 +20,10 @@ func init() {
 	registerStandardScenario(scenarioProxyMRU, checkProxyMRU, true, peerZe)
 	registerStandardScenario(scenarioRadiusFixture, checkRadiusAccountingFixture, true, peerZe)
 	registerStandardScenario(scenarioLCPRestart, checkLCPRestart, true, peerZe, peerLAC, peerAVPRelay)
+	registerStandardScenario(scenarioIPv6CPRejectedByLNS, checkIPv6CPRejectedByLNS, true, peerZe, peerLAC, peerAVPRelay)
+	registerStandardScenario(scenarioNoIPRejectsIPCP, checkNoIPRejectsIPCP, true, peerZe, peerLAC, peerAVPRelay)
+	registerStandardScenario(scenarioIPCPTerminateRedist, checkIPCPTerminateRedistribute, true,
+		peerZe, peerLAC, peerAVPRelay, peerFRR)
 }
 
 func registerStandardScenario(name string, check scenarioCheck, needsKernel bool, peers ...string) {

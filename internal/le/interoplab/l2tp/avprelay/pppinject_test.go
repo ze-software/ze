@@ -109,3 +109,31 @@ func TestTerminateFrameRidesTheSession(t *testing.T) {
 		t.Fatalf("frame % x, want % x", frame, want)
 	}
 }
+
+// TestCCPConfigureRequestFrameKeepsTheSession builds the injected CCP
+// Configure-Request behind a trigger with a Length field and checks the
+// tunnel and session survive, the L2TP Length is the frame's own, and the PPP
+// packet is Protocol 0x80fd, Code 1, ccpIdentifier, Length 4 with no option,
+// which is what the l2tp-lns-pppd-ipv6cp-rejected-by-lns checker matches in
+// Ze's Protocol-Reject. A trigger the relay cannot inject behind is refused.
+func TestCCPConfigureRequestFrameKeepsTheSession(t *testing.T) {
+	trigger := []byte{0x40, 0x02, 0, 12, 0x12, 0x34, 0x56, 0x78, 0xff, 0x03, 0x00, 0x21}
+	frame, err := ccpConfigureRequestFrame(trigger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(frame[4:8], trigger[4:8]) {
+		t.Fatalf("changed the tunnel or session: %x", frame[:8])
+	}
+	if int(binary.BigEndian.Uint16(frame[2:])) != len(frame) {
+		t.Fatalf("Length %d, want %d", binary.BigEndian.Uint16(frame[2:]), len(frame))
+	}
+	want := []byte{0xff, 0x03, 0x80, 0xfd, 1, ccpIdentifier, 0, 4}
+	if !bytes.Equal(frame[8:], want) {
+		t.Fatalf("PPP frame %x, want %x", frame[8:], want)
+	}
+	sequenced := []byte{0x08, 0x02, 0, 7, 0, 9, 0, 1, 0, 1, 0xff, 0x03, 0x00, 0x21}
+	if _, err := ccpConfigureRequestFrame(sequenced); err == nil {
+		t.Fatal("built a CCP frame behind a sequenced data message")
+	}
+}

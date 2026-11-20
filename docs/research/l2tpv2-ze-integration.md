@@ -89,7 +89,13 @@ preface that cannot fit ends the attempt with an explicit failure.
 After `L2TP_CMD_TUNNEL_CREATE`, the kernel installs `encap_recv` on the
 UDP socket. Data messages (T=0) are intercepted by the kernel and delivered
 to the PPP subsystem. Control messages (T=1) pass through to userspace
-reads on the same UDP socket. This is transparent.
+reads on the same UDP socket. This is transparent, with one exception: a
+data message the kernel does not take still reaches userspace.
+`l2tp_udp_recv_core` (`net/l2tp/l2tp_core.c`) passes any UDP payload shorter
+than `L2TP_HDR_SIZE_MAX` (14 octets) to the socket, so a PPP frame sent
+without its Address and Control fields can fall below it. The reactor drops
+such a message and logs it at debug (`internal/component/l2tp/reactor.go`,
+`handle`).
 
 ### PPP frame routing inside the kernel
 

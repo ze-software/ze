@@ -387,8 +387,16 @@ func (r *l2tpReactor) handle(pkt rxPacket) {
 		return
 	}
 	if !hdr.IsControl {
-		// Phase 3 does not touch data-plane packets; Linux's l2tp_ppp
-		// kernel module handles those. Drop silently.
+		// Data messages belong to the kernel's PPPoL2TP session, so ze has
+		// nothing to do with one here. Linux still passes it to the tunnel
+		// socket when it does not take it: l2tp_udp_recv_core hands up any
+		// UDP payload shorter than L2TP_HDR_SIZE_MAX (14 octets), such as an
+		// IPCP Terminate-Request sent without Address/Control. Logged so a
+		// peer whose PPP frames never reach the session is visible, at debug
+		// because a peer can send these at line rate.
+		r.logger.Debug("l2tp: data message reached the tunnel socket and was dropped: "+
+			"the kernel passes up data messages it does not take, such as one shorter than 14 octets",
+			"tunnel-id", hdr.TunnelID, "session-id", hdr.SessionID, "len", len(pkt.bytes), "from", pkt.from.String())
 		return
 	}
 	payload := pkt.bytes[hdr.PayloadOff:int(hdr.Length)]
@@ -992,7 +1000,7 @@ func (r *l2tpReactor) locateTunnelLocked(from netip.AddrPort, hdr MessageHeader,
 		t, ok := r.tunnelsByLocalID[hdr.TunnelID]
 		if !ok {
 			r.logger.Debug("l2tp: packet for unknown tunnel dropped",
-				"from", from.String(), "tunnel-id", hdr.TunnelID)
+				"from", from.String(), reportFieldTunnelID, hdr.TunnelID)
 			return nil, nil, nil
 		}
 		return t, nil, nil

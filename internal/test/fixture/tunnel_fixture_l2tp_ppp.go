@@ -55,6 +55,29 @@ type tunnelAccountingPeer struct {
 	// startedAt is the wall clock this peer began at. Event-Timestamp is
 	// asserted against it, so a zero or a stale stamp cannot pass.
 	startedAt int64
+	// zeIPCPRequests counts the IPCP Configure-Requests of ze's this peer
+	// acked, so a renegotiation can tell ze answered it.
+	zeIPCPRequests int
+	// ipcpTermAcks counts ze's IPCP Terminate-Acks, and ipcpTermAckID holds
+	// the Identifier of the last one.
+	ipcpTermAcks  int
+	ipcpTermAckID byte
+	// rejectIPCP makes this peer one that runs no IPv4, as pppd `noip` is:
+	// ze's first IPCP packet is answered with an LCP Protocol-Reject naming
+	// 0x8021 (rejectZeIPCP), sent at ipcpRejectedAt, and any IPCP packet ze
+	// sends after it is the failure.
+	rejectIPCP     bool
+	ipcpRejectedAt time.Time
+	// lcpID is the Identifier of the last LCP request this peer sent.
+	lcpID byte
+	// echoReplies counts ze's LCP Echo-Replies, and echoReplyID holds the
+	// Identifier of the last one.
+	echoReplies int
+	echoReplyID byte
+	// cdnAwaited makes ze's CDN the expected end of the call: the handler
+	// acknowledges it and keeps its AVPs in cdn instead of failing.
+	cdnAwaited bool
+	cdn        map[uint16][]byte
 }
 
 // tunnelProxyCallLACSID is the Assigned Session ID the LAC gives the one call
@@ -211,13 +234,30 @@ func (peer *tunnelAccountingPeer) readPacket(timeout time.Duration) ([]byte, err
 	return append([]byte(nil), buffer[:n]...), err
 }
 
+// sendPPP sends one PPP frame to ze as an L2TP data message:
+//
+//	0               1               2               3
+//	+-------+-------+-------+-------+-------+-------+-------+-------+
+//	| flags/ver 0x0002 (0-1)| Tunnel ID (2-3)       | Session ID (4-5)
+//	+-------+-------+-------+-------+-------+-------+-------+-------+
+//	| 0xff (6)      | 0x03 (7)      | Protocol (8-9)| Information (10-)
+//	+-------+-------+-------+-------+-------+-------+-------+-------+
+//
+// RFC 1661 Section 6.6: "By default, all implementations MUST transmit frames
+// with Address and Control fields appropriate to the link framing." A real
+// LAC sends them, and so does the interop relay (avprelay pppFrameBehind).
+// They also keep a short frame on the kernel path: Linux l2tp_udp_recv_core
+// hands a UDP payload shorter than L2TP_HDR_SIZE_MAX (14 octets) to the
+// tunnel socket instead of PPPoL2TP, where ze's control reader drops it. A
+// bare IPCP Terminate-Request without these two octets is 12 octets long.
 func (peer *tunnelAccountingPeer) sendPPP(protocol uint16, payload []byte) {
-	packet := make([]byte, 8+len(payload))
+	packet := make([]byte, 10+len(payload))
 	binary.BigEndian.PutUint16(packet[0:2], 2)
 	binary.BigEndian.PutUint16(packet[2:4], peer.localTID)
 	binary.BigEndian.PutUint16(packet[4:6], peer.zeSID)
-	binary.BigEndian.PutUint16(packet[6:8], protocol)
-	copy(packet[8:], payload)
+	packet[6], packet[7] = 0xff, 0x03
+	binary.BigEndian.PutUint16(packet[8:10], protocol)
+	copy(packet[10:], payload)
 	_, _ = peer.conn.WriteToUDP(packet, peer.target)
 }
 
@@ -272,6 +312,13 @@ func (peer *tunnelAccountingPeer) handleAccountingPacket(packet []byte) error {
 					}
 					return errors.New("ze tore the tunnel down")
 				case 14:
+					if peer.cdnAwaited {
+						// The CDN is the end this peer waits for: keep it,
+						// and acknowledge it so ze stops retransmitting.
+						peer.cdn = avps
+						_, _ = peer.conn.WriteToUDP(tunnelL2TPControl(peer.localTID, 0, peer.ns, peer.nr, nil), peer.target)
+						return nil
+					}
 					// A CDN is what ze owes a session it has torn down, so it
 					// is the expected end of the silent phase, not a failure.
 					if peer.silent {
@@ -308,6 +355,9 @@ func (peer *tunnelAccountingPeer) handleAccountingPacket(packet []byte) error {
 		switch code {
 		case 9:
 			peer.sendPPP(0xc021, tunnelPPPControl(10, identifier, []byte{0x11, 0x22, 0x33, 0x44}))
+		case 10:
+			peer.echoReplies++
+			peer.echoReplyID = identifier
 		case 5:
 			peer.sendPPP(0xc021, tunnelPPPControl(6, identifier, nil))
 			return errors.New("ze terminated LCP")
@@ -317,8 +367,12 @@ func (peer *tunnelAccountingPeer) handleAccountingPacket(packet []byte) error {
 	if protocol != 0x8021 {
 		return nil
 	}
+	if peer.rejectIPCP {
+		return peer.rejectZeIPCP(code, identifier, payload[:length])
+	}
 	switch code {
 	case 1:
+		peer.zeIPCPRequests++
 		peer.sendPPP(0x8021, tunnelPPPControl(2, identifier, body))
 		if !peer.zeConfReqAcked {
 			peer.zeConfReqAcked = true
@@ -341,8 +395,170 @@ func (peer *tunnelAccountingPeer) handleAccountingPacket(packet []byte) error {
 		}
 	case 4:
 		return errors.New("ze rejected IPCP IP-Address option")
+	case 6:
+		peer.ipcpTermAcks++
+		peer.ipcpTermAckID = identifier
 	}
 	return nil
+}
+
+// rejectZeIPCP answers ze's IPCP as a peer that runs no IPv4 does. The first
+// IPCP packet gets an LCP Protocol-Reject naming 0x8021, carrying that packet
+// as its Rejected-Information. Any IPCP packet after it is an error naming
+// its Code and Identifier.
+//
+// RFC 1661 Section 5.7: "Upon reception of a Protocol-Reject, the
+// implementation MUST stop sending packets of the indicated protocol at the
+// earliest opportunity."
+func (peer *tunnelAccountingPeer) rejectZeIPCP(code, identifier byte, packet []byte) error {
+	var tb textbuf.Buffer
+	if !peer.ipcpRejectedAt.IsZero() {
+		since := time.Since(peer.ipcpRejectedAt).Truncate(time.Millisecond)
+		return errors.New(tb.Str("ze sent an IPCP packet (Code ").Uint8(code).Str(", Identifier ").Uint8(identifier).
+			Str(") ").Str(since.String()).Str(" after the LCP Protocol-Reject naming 0x8021").String())
+	}
+	peer.lcpID++
+	peer.sendPPP(0xc021, tunnelLCPProtocolReject(peer.lcpID, 0x8021, packet))
+	peer.ipcpRejectedAt = time.Now()
+	_ = tb.Str("OK: LCP Protocol-Reject naming 0x8021 sent for ze's IPCP Code ").Uint8(code).
+		Str(", Identifier ").Uint8(identifier).Byte('\n').StdOut() //nolint:errcheck // progress line; the assertions are the returned errors
+	return nil
+}
+
+// tunnelLCPProtocolReject builds the LCP Protocol-Reject of one received
+// packet. information is that packet's Information field: the NCP packet from
+// its Code on, without the PPP Protocol field.
+//
+// RFC 1661 Section 5.7, the Protocol-Reject packet:
+//
+//	 0                   1                   2                   3
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|   Code = 8    |  Identifier   |            Length             |  octets 0-3
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|       Rejected-Protocol       |      Rejected-Information ...    octets 4-5, 6-
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+// RFC 1661 Section 5.7: "The Rejected-Information field contains a copy of
+// the packet which is being rejected.  It begins with the Information field,
+// and does not include any Data Link Layer headers nor an FCS."
+//
+// The packets ze sends this peer are far below the 1500 MRU the call
+// negotiates, so no truncation is owed.
+func tunnelLCPProtocolReject(identifier byte, protocol uint16, information []byte) []byte {
+	body := make([]byte, 2+len(information))
+	binary.BigEndian.PutUint16(body[:2], protocol)
+	copy(body[2:], information)
+	return tunnelPPPControl(8, identifier, body)
+}
+
+// sendIPCPTerminateRequest closes this peer's IPCP after it opened, as a
+// subscriber dropping IPv4 does. It carries no Data.
+//
+// RFC 1661 Section 5.5: "On reception, the Identifier field of the
+// Terminate-Request is copied into the Identifier field of the Terminate-Ack
+// packet."
+func (peer *tunnelAccountingPeer) sendIPCPTerminateRequest(identifier byte) {
+	peer.sendPPP(0x8021, tunnelPPPControl(5, identifier, nil))
+}
+
+// sendLCPEchoRequest sends one LCP Echo-Request carrying this peer's Magic
+// Number and answers its Identifier.
+//
+// RFC 1661 Section 5.8: "Upon reception of an Echo-Request in the LCP Opened
+// state, an Echo-Reply MUST be transmitted."
+func (peer *tunnelAccountingPeer) sendLCPEchoRequest() byte {
+	peer.lcpID++
+	peer.sendPPP(0xc021, tunnelPPPControl(9, peer.lcpID, []byte{0x11, 0x22, 0x33, 0x44}))
+	return peer.lcpID
+}
+
+// tunnelIPCPRetransmit is how long this peer waits for ze to answer its IPCP
+// Configure-Request before it sends another, as its own Restart timer. Ze
+// drops a Configure-Request while its IPCP is Stopping, so the first one
+// after a Terminate-Ack is often lost by design.
+const tunnelIPCPRetransmit = time.Second
+
+// renegotiateIPCP opens this peer's IPCP again after it closed it, asking
+// for the address it held. It retransmits its Configure-Request every
+// tunnelIPCPRetransmit until ze answers with a Configure-Request of its own,
+// and never after: a request that reached an Opened IPCP would start another
+// renegotiation. It returns once both directions are acked, or fails at the
+// end of budget. The handler acks ze's request and sends none of its own,
+// because zeConfReqAcked stays set.
+func (peer *tunnelAccountingPeer) renegotiateIPCP(ctx context.Context, budget time.Duration) error {
+	peer.ourRequestAddr = append(net.IP(nil), peer.negotiatedAddr...)
+	peer.ourIPCPAcked = false
+	peer.zeConfReqAcked = true
+	answered := peer.zeIPCPRequests
+	peer.sendIPCPRequest()
+	sent := time.Now()
+	deadline := sent.Add(budget)
+	var tb textbuf.Buffer
+	for time.Now().Before(deadline) {
+		if peer.ourIPCPAcked && peer.zeIPCPRequests > answered {
+			_ = tb.Str("OK: IPCP opened again, ze assigned ").Str(peer.negotiatedAddr.String()).Byte('\n').StdOut() //nolint:errcheck // progress line; the assertions are the returned errors
+			return nil
+		}
+		if peer.zeIPCPRequests == answered && time.Since(sent) >= tunnelIPCPRetransmit {
+			peer.sendIPCPRequest()
+			sent = time.Now()
+		}
+		packet, err := peer.readPacket(250 * time.Millisecond)
+		if err == nil {
+			if err := peer.handleAccountingPacket(packet); err != nil {
+				return err
+			}
+		}
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+	}
+	return errors.New(tb.Str("IPCP did not open again within ").Str(budget.String()).
+		Str(": ze acked this peer's request ").Bool(peer.ourIPCPAcked).
+		Str(", ze sent ").Int(int64(peer.zeIPCPRequests - answered)).Str(" Configure-Request(s) since").String())
+}
+
+// serveFor answers the link for span: LCP echo, CHAP, IPCP, and the control
+// messages the handler acknowledges. The first error the handler returns
+// ends it, so a CDN, a StopCCN or an LCP Terminate-Request inside span is a
+// failure unless the peer's flags expect it.
+func (peer *tunnelAccountingPeer) serveFor(ctx context.Context, span time.Duration) error {
+	deadline := time.Now().Add(span)
+	for {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			return nil
+		}
+		packet, err := peer.readPacket(min(remaining, 250*time.Millisecond))
+		if err == nil {
+			if err := peer.handleAccountingPacket(packet); err != nil {
+				return err
+			}
+		}
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+	}
+}
+
+// serveUntil answers the link until held reports true, and fails naming what
+// once budget passes without it.
+func (peer *tunnelAccountingPeer) serveUntil(ctx context.Context, what string, budget time.Duration, held func() bool) error {
+	deadline := time.Now().Add(budget)
+	for time.Now().Before(deadline) {
+		if held() {
+			return nil
+		}
+		if err := peer.serveFor(ctx, 250*time.Millisecond); err != nil {
+			return err
+		}
+	}
+	if held() {
+		return nil
+	}
+	var tb textbuf.Buffer
+	return errors.New(tb.Str(what).Str(" did not happen within ").Str(budget.String()).String())
 }
 
 // tunnelL2TPPPPData decodes the fixture's received L2TP data carrier. The
