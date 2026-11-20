@@ -462,12 +462,25 @@ func packageDir(path string) string {
 // When git is unavailable or the tree is not a repository, the unfiltered list
 // remains usable. This deliberate fallback lets the generator run where git is
 // unrelated to the index request.
+//
+// Git is asked about root itself and never about a repository that encloses
+// it. A tree under an enclosing checkout's ignored directory (a functional
+// test's working directory under tmp/) is otherwise judged by that checkout's
+// rules, which ignore every page in it, so the index answered no anchor at all
+// and read as a tree with none. GIT_CEILING_DIRECTORIES stops the discovery at
+// root, and GIT_DIR and GIT_WORK_TREE, which a git hook exports and which
+// bypass the discovery, are dropped from the child's environment.
 func filterGitignored(root string, rels []string) []string {
 	if len(rels) == 0 {
 		return rels
 	}
+	absolute, err := filepath.Abs(root)
+	if err != nil {
+		return rels
+	}
 
-	cmd := exec.Command("git", "-C", root, "check-ignore", "--stdin") //nolint:gosec,noctx // a build tool queries the checkout it was pointed at
+	cmd := exec.Command("git", "-C", absolute, "check-ignore", "--stdin") //nolint:gosec,noctx // a build tool queries the checkout it was pointed at
+	cmd.Env = append(withoutGitDiscovery(os.Environ()), "GIT_CEILING_DIRECTORIES="+filepath.Dir(absolute))
 	cmd.Stdin = strings.NewReader(strings.Join(rels, "\n"))
 	out, err := cmd.Output()
 
@@ -493,6 +506,22 @@ func filterGitignored(root string, rels []string) []string {
 		if !ignored[rel] {
 			kept = append(kept, rel)
 		}
+	}
+	return kept
+}
+
+// withoutGitDiscovery answers environ without the variables that decide which
+// repository git discovers, so the ceiling filterGitignored sets is the only
+// one in force.
+func withoutGitDiscovery(environ []string) []string {
+	kept := make([]string, 0, len(environ))
+	for _, entry := range environ {
+		name, _, _ := strings.Cut(entry, "=")
+		switch name {
+		case "GIT_CEILING_DIRECTORIES", "GIT_DIR", "GIT_WORK_TREE":
+			continue
+		}
+		kept = append(kept, entry)
 	}
 	return kept
 }

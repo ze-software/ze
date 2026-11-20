@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"maps"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"slices"
@@ -337,5 +338,67 @@ func TestTheCodeIndexRendersFullPathsInBothShapes(t *testing.T) {
 				t.Errorf("%s: %s is not printed as a full path:\n%s", shape.name, path, body)
 			}
 		}
+	}
+}
+
+// VALIDATES: DocumentsByPath answers the anchors of a tree that sits inside an
+// enclosing checkout's ignored directory, and still drops a page the tree's own
+// repository ignores.
+// PREVENTS: every anchor of such a tree vanishing with no error. filterGitignored
+// asked git from root, git discovered the enclosing checkout, and its `tmp/*`
+// rule ignored every page, so `le spec design documents` run on a functional
+// test's working directory listed no anchored page. The second half keeps the
+// filter itself: a ceiling that disabled it would pass the first half alone.
+func TestDocumentsByPathAsksGitAboutTheRootAndNotAnEnclosingCheckout(t *testing.T) {
+	enclosing := t.TempDir()
+	gitInit(t, enclosing)
+	writeFixture(t, filepath.Join(enclosing, ".gitignore"), "nested/\n")
+
+	nested := filepath.Join(enclosing, "nested")
+	writeFixture(t, filepath.Join(nested, "docs", "architecture", "flow.md"),
+		"# Flow\n<!-- source: internal/a/a.go -- flow -->\n")
+	index, err := DocumentsByPath(nested)
+	if err != nil {
+		t.Fatalf("DocumentsByPath(nested): %v", err)
+	}
+	if got := index["internal/a/a.go"]; !slices.Equal(got, []string{"docs/architecture/flow.md"}) {
+		t.Errorf("a tree under an enclosing checkout's ignored directory anchored %v, want [docs/architecture/flow.md]", got)
+	}
+
+	checkout := t.TempDir()
+	gitInit(t, checkout)
+	writeFixture(t, filepath.Join(checkout, ".gitignore"), "docs/research/\n")
+	writeFixture(t, filepath.Join(checkout, "docs", "architecture", "flow.md"),
+		"# Flow\n<!-- source: internal/a/a.go -- flow -->\n")
+	writeFixture(t, filepath.Join(checkout, "docs", "research", "notes.md"),
+		"# Notes\n<!-- source: internal/a/a.go -- flow -->\n")
+	index, err = DocumentsByPath(checkout)
+	if err != nil {
+		t.Fatalf("DocumentsByPath(checkout): %v", err)
+	}
+	if got := index["internal/a/a.go"]; !slices.Equal(got, []string{"docs/architecture/flow.md"}) {
+		t.Errorf("a checkout with an ignored research page anchored %v, want only [docs/architecture/flow.md]", got)
+	}
+}
+
+// gitInit makes dir a git repository, with the discovery variables of the
+// test's own environment dropped so the repository is the one git answers for.
+func gitInit(t *testing.T, dir string) {
+	t.Helper()
+	cmd := exec.Command("git", "init", "-q", dir) //nolint:gosec,noctx // a test fixture repository in t.TempDir
+	cmd.Env = withoutGitDiscovery(os.Environ())
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git init %s: %v\n%s", dir, err, out)
+	}
+}
+
+// writeFixture writes body at path, creating its directories.
+func writeFixture(t *testing.T, path, body string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		t.Fatalf("fixture directory %s: %v", filepath.Dir(path), err)
+	}
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatalf("fixture file %s: %v", path, err)
 	}
 }
