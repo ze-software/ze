@@ -246,6 +246,11 @@ type PeerConfig struct {
 	// container log (diagnosePeer); the scenario that configures the file
 	// declares it, so no central list names a daemon's log.
 	LogFiles []string `json:"log-files,omitempty"`
+	// DiagnosticCommands run inside the container when a scenario fails, and
+	// their output is printed after LogFiles (diagnosePeer): the state a
+	// daemon keeps only in memory, such as its sessions or an API trace. The
+	// scenario that knows the daemon declares them.
+	DiagnosticCommands [][]string `json:"diagnostic-commands,omitempty"`
 }
 
 // OneShotContainer is a bounded foreground container: a host preflight, the

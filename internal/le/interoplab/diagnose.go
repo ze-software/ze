@@ -100,11 +100,12 @@ func diagnosePeer(ctx context.Context, source peerDiagnosticSource, peer *PeerCo
 		block.Str("  links, addresses and log files: not read, the container is not running\n")
 		return block.String()
 	}
-	probes := make([][]string, 0, 2+len(peer.LogFiles))
+	probes := make([][]string, 0, 2+len(peer.LogFiles)+len(peer.DiagnosticCommands))
 	probes = append(probes, peerLinkProbe, peerAddressProbe)
 	for _, file := range peer.LogFiles {
 		probes = append(probes, logFileProbe(file))
 	}
+	probes = append(probes, peer.DiagnosticCommands...)
 	for _, probe := range probes {
 		block.Str("  ").Join(probe, " ").Str(":\n")
 		answer, err := source.Exec(ctx, peer.Container, probe, nil)

@@ -172,6 +172,9 @@ func productPlan(root, work, suffix string, mode mechanismMode, count int) inter
 			interoplab.Mount{Source: filepath.Join(work, "ze"), Target: "/product/ze", ReadOnly: true},
 			interoplab.Mount{Source: filepath.Join(work, "le"), Target: productHelper, ReadOnly: true})
 		plan.Peers[index].LogFiles = []string{vppEvidenceLog, "/evidence/vpp-start.log", "/evidence/product-ze.log", "/evidence/product-cp.log", "/evidence/product-discovery.log"}
+		// VPP keeps its sessions, interfaces and the API calls Ze made only
+		// in memory, so a failed product run asks it for them.
+		plan.Peers[index].DiagnosticCommands = productVPPDiagnostics
 	}
 	return plan
 }
@@ -231,4 +234,13 @@ func productInterfaces(access string) string {
 		text.Str(" unit ").Str(vlanID).Str(" { vlan-id ").Str(vlanID).Str("; }")
 	}
 	return text.Str(" }\n}").String()
+}
+
+// productVPPDiagnostics are the VPP CLI answers a failed product run prints:
+// the PPPoE sessions and interfaces VPP holds, and the trace of the API
+// messages Ze sent (startupConfig turns api-trace on).
+var productVPPDiagnostics = [][]string{
+	{"vppctl", "-s", vppCLIPath, "show", "pppoe", "session"},
+	{"vppctl", "-s", vppCLIPath, "show", "interface"},
+	{"vppctl", "-s", vppCLIPath, "api", "trace", "dump"},
 }

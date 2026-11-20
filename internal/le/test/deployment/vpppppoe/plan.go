@@ -254,6 +254,7 @@ const startupConfig = `unix {
   log /evidence/vpp.log
 }
 socksvr { socket-name /run/vpp/api.sock }
+api-trace { on }
 plugins {
   plugin default { disable }
   plugin af_packet_plugin.so { enable }

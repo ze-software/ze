@@ -200,6 +200,36 @@ func TestDiagnosePeerReadsDeclaredLogFiles(t *testing.T) {
 	}
 }
 
+// TestDiagnosePeerRunsDeclaredCommands proves a peer's declared diagnostic
+// commands run after its log files, in declaration order, and their answer
+// lands in its block, so state a daemon keeps only in memory (its sessions,
+// an API trace) reaches the report. Method: a fake source records each Exec.
+func TestDiagnosePeerRunsDeclaredCommands(t *testing.T) {
+	source := &fakeDiagnosticSource{
+		states: map[string]string{"c-vpp": "running exit=0 oom=false"},
+		logs:   map[string]string{},
+	}
+	peers := []PeerConfig{{Name: "vpp", Container: "c-vpp", LogFiles: []string{"/evidence/vpp.log"},
+		DiagnosticCommands: [][]string{{"vppctl", "show", "pppoe", "session"}, {"vppctl", "api", "trace", "dump"}}}}
+	blocks := diagnosePeers(context.Background(), source, peers, []string{"c-vpp"})
+	if len(blocks) != 1 {
+		t.Fatalf("got %d blocks, want 1:\n%s", len(blocks), strings.Join(blocks, ""))
+	}
+	want := []string{
+		"c-vpp ip -d -o link show",
+		"c-vpp ip -br address show",
+		"c-vpp tail -n 40 /evidence/vpp.log",
+		"c-vpp vppctl show pppoe session",
+		"c-vpp vppctl api trace dump",
+	}
+	if !slices.Equal(source.execs, want) {
+		t.Errorf("execs = %q, want %q", source.execs, want)
+	}
+	if !strings.Contains(blocks[0], "  vppctl show pppoe session:\n    answer of vppctl show pppoe session") {
+		t.Errorf("the session listing is not in the VPP block:\n%s", blocks[0])
+	}
+}
+
 // TestSuiteReportTextPrintsDiagnostics proves the terminal report prints a
 // failed scenario's diagnostic blocks under its name, after its verdict.
 func TestSuiteReportTextPrintsDiagnostics(t *testing.T) {
