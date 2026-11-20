@@ -1,25 +1,67 @@
 [
   {
     "rid": "RFC5575-4-8",
-    "polarity": "negative",
+    "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec",
-    "unit-sha": "92d55bf6983b1ca4",
-    "claim-sha": "0807a441201bc7dd",
-    "route": "revert",
+    "unit-sha": "84e740098c4f8b9d",
+    "claim-sha": "e07f5591816109f3",
+    "route": "mutant",
     "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::entryNextHopAddr",
     "producer-sha": "a2c8bcfda8dc029a",
-    "break": "body of entryNextHopAddr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "line 1660: \"ribevents.IsFlowSpec(fam)\" -\u003e \"false \u0026\u0026 ribevents.IsFlowSpec(fam)\"",
+    "paired": [
+      {
+        "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::mpNextHopAddr",
+        "producer-sha": "e28b94ae768947b2",
+        "break": "line 1739: \"safi == family.SAFIFlowSpec || safi == family.SAFIFlowSpecVPN\" -\u003e \"false\""
+      }
+    ],
+    "solo": [
+      {
+        "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::entryNextHopAddr",
+        "break": "line 1660: \"ribevents.IsFlowSpec(fam)\" -\u003e \"false \u0026\u0026 ribevents.IsFlowSpec(fam)\"",
+        "seconds": 7,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/plugins/rib\t0.745s"
+      },
+      {
+        "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::mpNextHopAddr",
+        "break": "line 1739: \"safi == family.SAFIFlowSpec || safi == family.SAFIFlowSpecVPN\" -\u003e \"false\"",
+        "seconds": 5,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/plugins/rib\t0.481s"
+      }
+    ]
   },
   {
     "rid": "RFC5575-4-8",
-    "polarity": "positive",
+    "polarity": "negative",
     "unit": "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec",
-    "unit-sha": "92d55bf6983b1ca4",
-    "claim-sha": "e07f5591816109f3",
-    "route": "revert",
+    "unit-sha": "84e740098c4f8b9d",
+    "claim-sha": "0807a441201bc7dd",
+    "route": "mutant",
     "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::entryNextHopAddr",
     "producer-sha": "a2c8bcfda8dc029a",
-    "break": "body of entryNextHopAddr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "line 1660: \"ribevents.IsFlowSpec(fam)\" -\u003e \"false \u0026\u0026 ribevents.IsFlowSpec(fam)\"",
+    "paired": [
+      {
+        "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::mpNextHopAddr",
+        "producer-sha": "e28b94ae768947b2",
+        "break": "line 1739: \"safi == family.SAFIFlowSpec || safi == family.SAFIFlowSpecVPN\" -\u003e \"false\""
+      }
+    ],
+    "solo": [
+      {
+        "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::entryNextHopAddr",
+        "break": "line 1660: \"ribevents.IsFlowSpec(fam)\" -\u003e \"false \u0026\u0026 ribevents.IsFlowSpec(fam)\"",
+        "seconds": 1,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/plugins/rib\t0.304s"
+      },
+      {
+        "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::mpNextHopAddr",
+        "break": "line 1739: \"safi == family.SAFIFlowSpec || safi == family.SAFIFlowSpecVPN\" -\u003e \"false\"",
+        "seconds": 1,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/plugins/rib\t0.307s"
+      }
+    ]
   },
   {
     "rid": "RFC5575-4-8",

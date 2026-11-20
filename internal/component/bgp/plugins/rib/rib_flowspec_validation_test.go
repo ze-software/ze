@@ -632,7 +632,7 @@ func TestRFC8955NextHopIgnoredForFlowSpec(t *testing.T) {
 			t.Fatal(err)
 		}
 		msgID := uint64(i + 10)
-		r.handleReceivedStructured(&rpc.StructuredEvent{ConnectionID: 41,
+		flowValidationHandle(t, r, &rpc.StructuredEvent{ConnectionID: 41,
 			EventType: rpc.EventKindUpdate, PeerOwner: 1, PeerAddress: peer.String(), PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000,
 			SourceReceipt: 1,
 			LocalAddress:  "192.0.2.100", RemoteRouterID: 0x01010101,

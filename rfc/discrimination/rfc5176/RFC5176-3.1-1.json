@@ -3,12 +3,12 @@
     "rid": "RFC5176-3.1-1",
     "polarity": "negative",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go::TestRFC5176ProxyStateContentIsNeverRead",
-    "unit-sha": "2baceaaf73cd28f2",
+    "unit-sha": "40ec8056238ddec8",
     "claim-sha": "b39cafb448b338a3",
-    "route": "revert",
-    "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleDisconnect",
-    "producer-sha": "3dd44855461b6daa",
-    "break": "body of handleDisconnect replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::sessionSelectorsMatch",
+    "producer-sha": "28c6fbdefee07efb",
+    "break": "line 683: \"for i := range pkt.Attrs {\" -\u003e \"if ps := pkt.FindAttr(radius.AttrProxyState); len(ps) \u003e 2 \u0026\u0026 ps[0] == radius.AttrAcctSessionID \u0026\u0026 matchesAccount(ps[2:]) { return true }; for i := range pkt.Attrs {\""
   },
   {
     "rid": "RFC5176-3.1-1",

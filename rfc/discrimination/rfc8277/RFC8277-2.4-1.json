@@ -155,47 +155,47 @@
   },
   {
     "rid": "RFC8277-2.4-1",
-    "polarity": "negative",
-    "unit": "internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go::TestVPNWithdrawalLeavesExactReflectorInventory",
-    "unit-sha": "23636d932d7a0b7a",
-    "claim-sha": "e681975e391a13e7",
-    "route": "revert",
-    "producer": "internal/component/bgp/plugins/rr/withdrawal.go::walkVPNNLRIs",
-    "producer-sha": "c2536ae7768c77c9",
-    "break": "body of walkVPNNLRIs replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
-  },
-  {
-    "rid": "RFC8277-2.4-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go::TestVPNWithdrawalLeavesExactReflectorInventory",
-    "unit-sha": "23636d932d7a0b7a",
+    "unit-sha": "161c795789ffeae3",
     "claim-sha": "db121d87dff8ea14",
-    "route": "revert",
-    "producer": "internal/component/bgp/plugins/rr/withdrawal.go::walkVPNNLRIs",
-    "producer-sha": "c2536ae7768c77c9",
-    "break": "body of walkVPNNLRIs replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rr/stored_membership.go::nativeInventory",
+    "producer-sha": "e08e5fe3f876b601",
+    "break": "line 241: \"withdraw)\" -\u003e \"false)\""
   },
   {
     "rid": "RFC8277-2.4-1",
     "polarity": "negative",
-    "unit": "internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheWithdrawalMap",
-    "unit-sha": "6dced0570cd1217b",
-    "claim-sha": "0f4f2fe8c7cb289a",
-    "route": "revert",
-    "producer": "internal/component/bgp/wireu/mpwire.go::wrapNLRI",
-    "producer-sha": "2f44d929356e14e0",
-    "break": "body of wrapNLRI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "unit": "internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go::TestVPNWithdrawalLeavesExactReflectorInventory",
+    "unit-sha": "161c795789ffeae3",
+    "claim-sha": "e681975e391a13e7",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rr/stored_membership.go::nativeInventory",
+    "producer-sha": "e08e5fe3f876b601",
+    "break": "line 241: \"withdraw)\" -\u003e \"false)\""
   },
   {
     "rid": "RFC8277-2.4-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheWithdrawalMap",
-    "unit-sha": "6dced0570cd1217b",
+    "unit-sha": "bbbfbadf53612f65",
     "claim-sha": "4e73927d30171fa8",
-    "route": "revert",
-    "producer": "internal/component/bgp/wireu/mpwire.go::wrapNLRI",
-    "producer-sha": "2f44d929356e14e0",
-    "break": "body of wrapNLRI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rr/stored_membership.go::nativeInventory",
+    "producer-sha": "e08e5fe3f876b601",
+    "break": "line 241: \"withdraw)\" -\u003e \"false)\""
+  },
+  {
+    "rid": "RFC8277-2.4-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheWithdrawalMap",
+    "unit-sha": "bbbfbadf53612f65",
+    "claim-sha": "0f4f2fe8c7cb289a",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rr/stored_membership.go::nativeInventory",
+    "producer-sha": "e08e5fe3f876b601",
+    "break": "line 241: \"withdraw)\" -\u003e \"false)\""
   },
   {
     "rid": "RFC8277-2.4-1",
