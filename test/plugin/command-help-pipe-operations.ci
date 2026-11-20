@@ -1,0 +1,108 @@
+# Test: show command help and the published catalog answer one pipe-operations list
+#
+# The one question: for a command that declares and overrides operations
+# (`show bgp rib`), one that declares none (`show interface`) and one with
+# aliases (`show bgp`), do `show command help <name> | json` on a running
+# daemon and the offline `ze help command --json` both answer one
+# `pipe-operations` list from the one introspection function, with the old
+# keys gone? The introspection function's unit tests prove the join over the
+# registries; only the daemon and the offline binary prove commandHelp and
+# commandEntry both read it, through the real entry points.
+#
+# VALIDATES: spec-pipe-chain-honored-on-every-command-surface AC-19 (builtin
+#   halves), AC-18 (an own operation shows its own description), AC-21 (the
+#   old keys are absent). User story 6.
+# PREVENTS: help, the catalog and completion each holding a different list of
+#   what a command takes after a pipe (operatorsFor and its copy in
+#   internal/le/cli/catalog, pipe-filters beside pipe-aliases).
+#
+# Red today: commandHelp answers `pipe-filters` and `pipe-aliases` and no
+#   `pipe-operations`; `ze help command --json` publishes `operators`, `pipes`
+#   and `pipe-aliases`.
+#
+# Owed to this file before promotion, by the package that builds each part:
+#   - the plugin-command row of AC-19 (a test plugin's `Pipes` operation,
+#     asserted against the daemon's answer and absent offline for an external
+#     plugin) needs the plugin fixture of plugin-pipe-operation.ci, which needs
+#     the `argument` field of rpc.PipeDecl (package 5a);
+#   - AC-20 (`|` then Tab offers exactly this list) runs through the editor
+#     harness (`le test editor`, as test/ui/monitor-ping-pipe-resolve-log.ci
+#     drives the operational model), added in package 7a with completePipe.
+#
+# Method: test/ui/cli-argument-refused-plugin-route.ci (ze init, ze start,
+# `ze cli -c` over SSH on $PORT). JSON spacing is not pinned: the patterns
+# allow an optional space after each colon.
+
+option=timeout:value=60s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT
+EOF_INIT
+
+tmpfs=help.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+plugin {
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=ze start help.conf:name=daemon:ready=Ze running.
+
+# show bgp rib: an override (`count`), an own operation (`histogram`) and a
+# generic (`display`), each tagged with its source.
+cmd=foreground:seq=3:exec=ze cli -c 'show command help "show bgp rib" | json':exit=0
+expect=stdout:contains="pipe-operations"
+expect=stdout:pattern="name": ?"count",[^}]*"source": ?"override"
+expect=stdout:pattern="name": ?"histogram",[^}]*"source": ?"command"
+expect=stdout:pattern="name": ?"display",[^}]*"source": ?"generic"
+expect=stdout:contains=Count matching routes without serializing rows
+reject=stdout:contains="pipe-filters"
+reject=stdout:contains="pipe-aliases"
+
+# show interface declares nothing: the generics that apply to its answer.
+cmd=foreground:seq=4:exec=ze cli -c 'show command help "show interface" | json':exit=0
+expect=stdout:contains="pipe-operations"
+expect=stdout:pattern="source": ?"generic"
+reject=stdout:pattern="source": ?"(override|command)"
+
+# show bgp: its aliases appear in the same list, with their expansion.
+cmd=foreground:seq=5:exec=ze cli -c 'show command help "show bgp" | json':exit=0
+expect=stdout:pattern="name": ?"peers",[^}]*"source": ?"alias"
+expect=stdout:contains="expansion"
+reject=stdout:contains="pipe-aliases"
+
+cmd=stop:seq=6:name=daemon:signal=term
+
+# The offline catalog publishes the same list for the same commands, and the
+# three old keys are gone (AC-19, AC-21).
+cmd=foreground:seq=7:exec=ze help command --json:exit=0
+expect=stdout:contains="pipe-operations"
+expect=stdout:pattern="source": ?"override"
+reject=stdout:contains="pipe-aliases"
+reject=stdout:pattern="operators": ?\[
+reject=stdout:pattern="pipes": ?\[

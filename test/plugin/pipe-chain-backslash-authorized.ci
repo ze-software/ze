@@ -1,0 +1,89 @@
+# Test: a chain argument holding a backslash is authorized with the backslash intact
+#
+# The one question: do the authorizer and the accountant read their tokens from
+# the partition's chain-grammar scan, so a chain argument holding a backslash
+# outside quotes (`| match a\b`) reaches the TACACS+ server as typed and an
+# allowed line runs? The invocation scan of the command part refuses a
+# backslash (ErrBackslashInInvocation); tokenizing the chain through it would
+# deny the line or record it as one token. Only a daemon proves the SSH route,
+# isAuthorized and the TACACS+ client agree on the token.
+#
+# VALIDATES: spec-pipe-chain-honored-on-every-command-surface AC-38
+#   (authorization half), and the AC-6 survivor: a backslash outside quotes in
+#   the chain is a literal character.
+# PREVENTS: the chain read by a second, stricter scan for AAA than for the
+#   handler, so a line the handler accepts is refused or mis-recorded.
+#
+# Red today: SSH dispatches the command part alone, so the AUTHOR request is
+#   `system command list` and holds no `match a\b`.
+#
+# Accounting half of AC-38: the START record holds `match a\b` as one
+# cmd-arg, with the backslash intact. `le mock tacacs` prints the command an
+# ACCT record carries (internal/test/mock/tacacs parseAcctCommand), quoted
+# the same way as the AUTHOR line (see Method).
+#
+# Method: pipe-chain-unauthorized-refused.ci's daemon and mock, with no deny
+# rule. One typed backslash prints as FOUR in the mock's line, and each
+# doubling is a contract: the TACACS+ client sends a cmd-arg holding a
+# backslash in its reversible printable-ASCII form (asciiCommandValue,
+# internal/component/tacacs/command_text.go: `a\b` goes on the wire as
+# `a\\b`), and the mock quotes what it received (records.go Record.Line,
+# strconv.Quote), so the line holds `a\\\\b`; the patterns match those four
+# characters. Two would be the client sending the token unescaped, and eight
+# a second escape on the daemon's side. The quotes print plain: the
+# standalone mock writes its own stderr.
+
+option=timeout:value=60s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+tmpfs=aaa.conf:terminator=EOF_CONF
+system {
+	authentication {
+		tacacs {
+			server 127.0.0.1 { port $PORT; key "ze-mock-key"; }
+			timeout 2
+			authorization true
+			accounting true
+		}
+		tacacs-profile 15 { profile [ admin ]; }
+	}
+	authorization {
+		profile admin { run { default-action allow; } edit { default-action allow; } }
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le mock tacacs --port $PORT --key ze-mock-key --user admin:testpass:15:name=tacacs:ready=le mock tacacs: listening on
+expect=stderr:pattern=AUTHOR cmd="system command list \| match a\\\\\\\\b \| count \| json" reply=PASS_ADD
+expect=stderr:pattern=ACCT START seq=[0-9]+ total=[0-9]+ cmd="system command list \| match a\\\\\\\\b \| count \| json"
+reject=stderr:contains=reply=FAIL
+
+cmd=foreground:seq=2:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=3:exec=ze start aaa.conf:name=daemon:ready=Ze running.
+
+# Allowed and run: `match` receives a, a literal backslash and b; no command
+# name holds them, so the generic count answers 0.
+cmd=foreground:seq=4:exec=ze cli -c "system command list | match a\b | count | json":exit=0
+expect=stdout:pattern="count": ?0
+reject=stderr:contains=backslash
+
+cmd=stop:seq=5:name=daemon:signal=term
+cmd=stop:seq=6:name=tacacs:signal=term

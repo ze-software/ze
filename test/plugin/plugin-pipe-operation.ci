@@ -1,0 +1,98 @@
+# Test: a third-party plugin declares a pipe operation, and its handler receives it
+#
+# The one question: when an external plugin declares, at Stage 1, a `Pipes`
+# entry with an `argument` field and no expansion on one of its own
+# commands, is the operation recorded under the plugin, sent to its handler
+# in the execute-command pipe list when an operator types it after a pipe,
+# and listed by `show command help`? TestPluginPipeDeclWithArgumentIsAnOperation
+# and TestRouteToProcessCarriesPipe prove the recording and the carrier; only
+# a forked plugin proves the declaration and the list cross the process
+# boundary.
+#
+# VALIDATES: spec-pipe-chain-honored-on-every-command-surface AC-14 (the
+#   recording and the delivery), AC-19 (the plugin row), user story 5.
+# PREVENTS: a plugin's operation recorded only for an internal plugin, or
+#   folded into the handler's arguments, so a third-party command cannot
+#   declare what follows its pipe.
+#
+# Fixture: internal/test/fixture plugin/pipe-operation-declared
+# (plugin_fixture_pipe_operation.go, written in package 5a). Its contract,
+# which this file asserts:
+#   - Registration: one command `show fixture pipe-op` (YANG in the
+#     fixture's module), Pipes = [{Name: "histogram", Argument: "none",
+#     Description: "Count the rows of each length."}].
+#   - OnExecuteCommand: answers done with data {"pipe-operations": [<name of
+#     each operation received, in order>], "args": [<arguments received>]}.
+#   - It returns an error, never an answer, when the list arrives empty for
+#     a line that typed the operation, so the red names the missing list.
+#
+# Red before package 5a: Stage 1 refused a Pipes entry without an expansion
+#   (validatePipeDecls), so the plugin failed to start. Seq 5 (the help row)
+#   stays red until package 7a builds the pipe-operations list.
+#
+# Method: an external plugin forked from the config, `ze cli -c` over SSH as
+# pipe-quoted-value-is-an-argument.ci does.
+
+option=timeout:value=60s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+tmpfs=pipe-op.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+plugin {
+	external pipe-operation-declared {
+		run "le test fixture plugin/pipe-operation-declared"
+		encoder json
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=ze start pipe-op.conf:name=daemon:ready=Ze running.
+
+# AC-14: the declared operation reaches the handler as an operation, not an
+# argument, and the generic `json` after it stays the engine's.
+cmd=foreground:seq=3:exec=ze cli -c "show fixture pipe-op | histogram | json":exit=0
+# `| json` answers indented JSON, one array element per line, so the patterns
+# allow any whitespace (newlines included) between the brackets.
+expect=stdout:pattern="pipe-operations":\s*\[\s*"histogram"\s*\]
+expect=stdout:pattern="args":\s*\[\s*\]
+reject=stdout:contains="json"
+
+# AC-13 on a plugin's set: an operation it does not declare is refused,
+# naming the valid set, and the handler is not called.
+cmd=foreground:seq=4:exec=ze cli -c "show fixture pipe-op | bogus"
+expect=stderr:contains=histogram
+reject=stdout:contains=pipe-operations
+
+# AC-19, the plugin row, from the daemon: help lists the operation with its
+# source and its own description.
+cmd=foreground:seq=5:exec=ze cli -c 'show command help "show fixture pipe-op" | json':exit=0
+expect=stdout:pattern="name": ?"histogram"
+expect=stdout:contains=Count the rows of each length.
+
+cmd=stop:seq=6:name=daemon:signal=term

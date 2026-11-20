@@ -1,0 +1,147 @@
+# Test: `show bgp rib | received | count` over SSH counts, and accounting holds the typed line
+#
+# The one question: does an operator's piped RIB line over SSH reach the RIB
+# with its declared operations (`received`, `count`), print the count, and
+# leave a TACACS+ accounting START record holding the line as typed? The
+# partition's unit tests prove the split and TestDispatchHandsDeclaredOperations
+# ToHandler the carrier; only a daemon proves SSH, the dispatcher, the forked
+# RIB and the TACACS+ client agree on the same line.
+#
+# VALIDATES: spec-pipe-chain-honored-on-every-command-surface AC-1, user story 1.
+# PREVENTS: the chain folded into arguments (`show bgp rib received count`)
+#   before dispatch, so the RIB reads a grammar nobody typed and accounting
+#   records a line nobody typed.
+#
+# Why a new file, not an extension of test/plugin/rib-pipe-filter.ci (which
+# the spec's Functional Tests row names): that test proves dispatch-command
+# pipeline wiring through a `ze -` fixture that stops the daemon, so it has no
+# SSH listener and no accounting server; appending this question would bundle
+# two behaviours under one name (ai/rules/testing.md, "A new behaviour MUST
+# get a new test"). The spec row should name this file.
+#
+# Red today: execMiddleware folds the chain, so the record is
+#   `show bgp rib received count` and the line is answered by the RIB's
+#   argument grammar.
+#
+# Method: rib-peer-pipe-scope.ci's peer, routes and wait, with
+# pipe-chain-unauthorized-refused.ci's `le mock tacacs` as the accounting
+# server; the mock's ACCT line names the command the record carries.
+
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=80s
+option=linger:value=true
+option=update:value=send-route:prefix=10.1.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.2.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.3.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.4.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.5.0.0/24:next-hop=10.0.0.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Polls state, never time: each attempt is a full `ze cli -c` round trip; the
+# 0.2s pause is only the poll interval of a loop that exits on the condition.
+tmpfs=wait-routes.sh:terminator=EOF_WAIT
+i=0
+while [ $i -lt 100 ]; do
+	out=$(ze cli -c "show bgp rib" 2>/dev/null)
+	n=0
+	for p in 10.1.0.0/24 10.2.0.0/24 10.3.0.0/24 10.4.0.0/24 10.5.0.0/24; do
+		case "$out" in *"$p"*) n=$((n+1)) ;; esac
+	done
+	if [ $n -eq 5 ]; then
+		echo "wait-routes: five received routes listed"
+		exit 0
+	fi
+	i=$((i+1))
+	sleep 0.2
+done
+echo "wait-routes: the RIB never listed the five routes; last answer: $out" >&2
+exit 1
+EOF_WAIT
+
+tmpfs=rib.conf:terminator=EOF_CONF
+system {
+	authentication {
+		tacacs {
+			server 127.0.0.1 { port $PORT3; key "ze-mock-key"; }
+			timeout 2
+			authorization true
+			accounting true
+		}
+		tacacs-profile 15 { profile [ admin ]; }
+	}
+	authorization {
+		profile admin { run { default-action allow; } edit { default-action allow; } }
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+plugin {
+	internal bgp-rib {
+		use bgp-rib
+	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 1; remote 1; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le mock tacacs --port $PORT3 --key ze-mock-key --user admin:testpass:15:name=tacacs:ready=le mock tacacs: listening on
+expect=stderr:pattern=ACCT START seq=[0-9]+ total=[0-9]+ cmd="show bgp rib \| received \| count \| json"
+reject=stderr:pattern=ACCT START .*cmd="show bgp rib received count
+
+cmd=background:seq=2:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=3:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=4:exec=ze start rib.conf:name=daemon:ready=Ze running.
+cmd=foreground:seq=5:exec=sh wait-routes.sh:timeout=40s:exit=0
+expect=stdout:contains=wait-routes: five received routes listed
+
+cmd=foreground:seq=6:exec=ze cli -c "show bgp rib | received | count | json":exit=0
+expect=stdout:pattern="count": ?5
+
+cmd=stop:seq=7:name=daemon:signal=term
+cmd=stop:seq=8:name=tacacs:signal=term

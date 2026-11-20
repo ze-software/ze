@@ -1,0 +1,124 @@
+# Test: the RIB's old argument form is refused, naming the pipe form
+#
+# The one question: when an operator types a declared pipe operation of a RIB
+# command as an argument (`show bgp rib received count`), does the engine's
+# argument validator refuse it before any plugin runs, naming the word as a
+# pipe operation of that command and printing the same line in the pipe form?
+# A unit test of ValidateArgs proves the rule over a registered set; only a
+# daemon proves the RIB's real declarations (registerPipeFilters, the set of
+# `show bgp peer rib`) and the YANG of the four readers feed it, over SSH.
+#
+# VALIDATES: spec-pipe-chain-honored-on-every-command-surface AC-8 (the
+#   argument form of `show bgp rib`, `show bgp rib best` and `show bgp rib
+#   protocol`) and AC-34 (the scope as a leaf of `show bgp peer <selector>
+#   rib`). The pipe form of each line is the positive control and answers.
+# PREVENTS: the argument grammar of parsePipelineArgs, parseBestPipelineArgs
+#   and showProtocolPipeline staying a second carrier of the operations.
+#
+# Red today: every argument form answers (`{"count": 0}` or a route list), and
+#   `show bgp peer peer1 rib | received` is refused as an unknown filter
+#   because `show bgp peer rib` declares no pipe set.
+#
+# The exact refusal wording is phase 3a's; this test pins the two facts the
+# spec fixes: the phrase "pipe operation" and the fix line in the pipe form.
+#
+# Method: test/ui/cli-argument-refused-plugin-route.ci (ze init, ze start, `ze
+# cli -c` over SSH on $PORT). No BGP peer connects: refusals and counts of an
+# empty RIB need none, and the configured peer exists for the peer selector.
+
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT
+EOF_INIT
+
+tmpfs=rib.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+plugin {
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 1; remote 1; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=ze start rib.conf:name=daemon:ready=Ze running.
+
+# AC-8, show bgp rib.
+cmd=foreground:seq=3:exec=ze cli -c "show bgp rib received count"
+expect=stderr:contains=pipe operation
+expect=stderr:contains=show bgp rib | received | count
+# A reject reads both streams of the command's span, and the refusal's own fix
+# line and the daemon's SSH log line both hold the word `count`: the reject is
+# on a counted answer (`"count": 0` in JSON, `count: 0` as text), never on the
+# word.
+reject=stdout:pattern=count"?: ?[0-9]
+
+# The pipe form of the same line answers (an empty RIB counts 0).
+cmd=foreground:seq=4:exec=ze cli -c "show bgp rib | received | count | json":exit=0
+expect=stdout:pattern="count": ?0
+
+# AC-8, show bgp rib best.
+cmd=foreground:seq=5:exec=ze cli -c "show bgp rib best count"
+expect=stderr:contains=pipe operation
+expect=stderr:contains=show bgp rib best | count
+reject=stdout:pattern=count"?: ?[0-9]
+
+# AC-8, show bgp rib protocol: the protocol name stays an argument, it names
+# the subject; `peer` after it is a pipe operation.
+cmd=foreground:seq=6:exec=ze cli -c "show bgp rib protocol bmp peer 127.0.0.2"
+expect=stderr:contains=pipe operation
+expect=stderr:contains=show bgp rib protocol bmp | peer 127.0.0.2
+
+# AC-34: the scope typed as the old leaf of show bgp peer <selector> rib.
+cmd=foreground:seq=7:exec=ze cli -c "show bgp peer peer1 rib received"
+expect=stderr:contains=pipe operation
+expect=stderr:contains=show bgp peer peer1 rib | received
+
+# The pipe form of the peer-scoped line answers.
+cmd=foreground:seq=8:exec=ze cli -c "show bgp peer peer1 rib | received | count | json":exit=0
+expect=stdout:pattern="count": ?0
+reject=stderr:contains=unknown
+
+cmd=stop:seq=9:name=daemon:signal=term

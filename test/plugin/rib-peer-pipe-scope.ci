@@ -1,0 +1,143 @@
+# Test: the peer-scoped RIB command takes its scope as a pipe operation
+#
+# The one question: does `show bgp peer <selector> rib | received | count`
+# reach forwardRibRoutes with the peer selector on the path and the operations
+# `received`, `count` in its pipe list, and answer that peer's received-route
+# count, while `show command help` lists the command's own operation set? The
+# unit tests hold the partition over a registered set; only a daemon proves the
+# selector, the declaration on `show bgp peer rib` and the RIB's stages meet.
+#
+# VALIDATES: spec-pipe-chain-honored-on-every-command-surface AC-34 (the
+#   answering half; the refusal half is rib-argument-form-refused.ci) and
+#   AC-19 for this command's own set. User story 11.
+# PREVENTS: `show bgp peer rib` inheriting no pipe set, so its scope can only
+#   be typed as the YANG leaf this spec removes.
+#
+# Red today: `show bgp peer rib` declares no pipe set (registerRibAnswerShapes:
+#   it "inherits none of them"), so `| received` is refused as an unknown
+#   filter, and `show command help` answers no `pipe-operations` key.
+#
+# Method: rib-argument-form-refused.ci's daemon plus
+# dispatch-pipe-chain-refused.ci's five-route peer. wait-routes.sh polls the
+# bare `show bgp rib` (no chain, AC-10) until the five prefixes are listed.
+
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=80s
+option=linger:value=true
+option=update:value=send-route:prefix=10.1.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.2.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.3.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.4.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.5.0.0/24:next-hop=10.0.0.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Polls state, never time: each attempt is a full `ze cli -c` round trip; the
+# 0.2s pause is only the poll interval of a loop that exits on the condition.
+tmpfs=wait-routes.sh:terminator=EOF_WAIT
+i=0
+while [ $i -lt 100 ]; do
+	out=$(ze cli -c "show bgp rib" 2>/dev/null)
+	n=0
+	for p in 10.1.0.0/24 10.2.0.0/24 10.3.0.0/24 10.4.0.0/24 10.5.0.0/24; do
+		case "$out" in *"$p"*) n=$((n+1)) ;; esac
+	done
+	if [ $n -eq 5 ]; then
+		echo "wait-routes: five received routes listed"
+		exit 0
+	fi
+	i=$((i+1))
+	sleep 0.2
+done
+echo "wait-routes: the RIB never listed the five routes; last answer: $out" >&2
+exit 1
+EOF_WAIT
+
+tmpfs=rib.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+plugin {
+	internal bgp-rib {
+		use bgp-rib
+	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 1; remote 1; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=3:exec=ze start rib.conf:name=daemon:ready=Ze running.
+cmd=foreground:seq=4:exec=sh wait-routes.sh:timeout=40s:exit=0
+expect=stdout:contains=wait-routes: five received routes listed
+
+# AC-34: the peer's received routes, counted in the RIB.
+cmd=foreground:seq=5:exec=ze cli -c "show bgp peer peer1 rib | received | count | json":exit=0
+expect=stdout:pattern="count": ?5
+reject=stderr:contains=unknown
+
+# The scope selects: peer1 sent nothing to ze's RIB as advertised, so the
+# other scope counts 0 and proves `received` was not ignored.
+cmd=foreground:seq=6:exec=ze cli -c "show bgp peer peer1 rib | advertised | count | json":exit=0
+expect=stdout:pattern="count": ?0
+
+# AC-19 for this command: its own operation set, scope included.
+cmd=foreground:seq=7:exec=ze cli -c 'show command help "show bgp peer rib" | json':exit=0
+expect=stdout:contains="pipe-operations"
+expect=stdout:pattern="name": ?"received"
+reject=stdout:contains="pipe-filters"
+
+cmd=stop:seq=8:name=daemon:signal=term

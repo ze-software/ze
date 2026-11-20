@@ -1,0 +1,142 @@
+# Test: a declared operation runs only while no residual operation precedes it
+#
+# The one question: does the partition take a declared operation of `show bgp
+# rib` only while every operation before it was declared too, so the chain
+# runs in the order typed: an own-named operation after a generic one is
+# refused with the reordered line, and a generic-named one after a residual one
+# runs as the generic over the answer in hand? The partition's unit tests prove
+# the walk over a registered set; only a daemon proves the RIB's real
+# declarations and the rendering surface's formatter agree over SSH.
+#
+# VALIDATES: spec-pipe-chain-honored-on-every-command-surface AC-25.
+# PREVENTS: foldFilters' formatSeen gate, which lifts a declared operation out
+#   of the chain wherever it stands unless a format came first.
+#
+# Red today: `show bgp rib | table | peer 127.0.0.1` answers a table, because
+#   foldFilters moves `peer` into the command words; it is not refused.
+# Not discriminating today: `| resolve | count` counts 5 both ways (the RIB's
+#   count and the generic count over five rows answer the same object). It is
+#   the positive half of AC-25 and stays as the control that the generic runs.
+#
+# Method: rib-peer-pipe-scope.ci's daemon and five-route peer.
+
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=80s
+option=linger:value=true
+option=update:value=send-route:prefix=10.1.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.2.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.3.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.4.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.5.0.0/24:next-hop=10.0.0.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Polls state, never time: each attempt is a full `ze cli -c` round trip; the
+# 0.2s pause is only the poll interval of a loop that exits on the condition.
+tmpfs=wait-routes.sh:terminator=EOF_WAIT
+i=0
+while [ $i -lt 100 ]; do
+	out=$(ze cli -c "show bgp rib" 2>/dev/null)
+	n=0
+	for p in 10.1.0.0/24 10.2.0.0/24 10.3.0.0/24 10.4.0.0/24 10.5.0.0/24; do
+		case "$out" in *"$p"*) n=$((n+1)) ;; esac
+	done
+	if [ $n -eq 5 ]; then
+		echo "wait-routes: five received routes listed"
+		exit 0
+	fi
+	i=$((i+1))
+	sleep 0.2
+done
+echo "wait-routes: the RIB never listed the five routes; last answer: $out" >&2
+exit 1
+EOF_WAIT
+
+tmpfs=rib.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+plugin {
+	internal bgp-rib {
+		use bgp-rib
+	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 1; remote 1; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=3:exec=ze start rib.conf:name=daemon:ready=Ze running.
+cmd=foreground:seq=4:exec=sh wait-routes.sh:timeout=40s:exit=0
+expect=stdout:contains=wait-routes: five received routes listed
+
+# An own-named declared operation after a residual one: refused by name, with
+# the operator's line reordered as the fix.
+cmd=foreground:seq=5:exec=ze cli -c "show bgp rib | table | peer 127.0.0.1"
+expect=stderr:contains=peer
+expect=stderr:contains=show bgp rib | peer 127.0.0.1 | table
+reject=stdout:contains=10.1.0.0/24
+
+# The reordered line answers.
+cmd=foreground:seq=6:exec=ze cli -c "show bgp rib | peer 127.0.0.1 | table":exit=0
+expect=stdout:contains=10.1.0.0/24
+
+# A generic-named operation the command also declares, after a residual one:
+# it stays residual and the generic counts the resolved rows.
+cmd=foreground:seq=7:exec=ze cli -c "show bgp rib | resolve | count | json":exit=0
+expect=stdout:pattern="count": ?5
+
+cmd=stop:seq=8:name=daemon:signal=term

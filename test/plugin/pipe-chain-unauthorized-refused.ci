@@ -1,0 +1,99 @@
+# Test: a piped line a per-command policy denies is refused, and the policy sees the chain
+#
+# The one question: under T-6 A, does the TACACS+ authorizer receive the typed
+# line with its chain as tokens after the arguments, so a per-command policy
+# that denies a chain refuses it with the permission-denied answer and no
+# handler runs, while the same command without that chain is allowed? The
+# authorizer wrappers' unit tests prove the tokens pass through; only a daemon
+# proves the SSH route hands the authorizer the typed line instead of the
+# folded one, against a real TACACS+ server.
+#
+# VALIDATES: spec-pipe-chain-honored-on-every-command-surface AC-27 (SSH) and
+#   the security negative of the Goal Validation table. User story 10.
+# PREVENTS: the authorizer judging a line nobody typed: today SSH folds
+#   `show bgp rib | count` into `show bgp rib count` before isAuthorized, so a
+#   policy written against what operators type never sees the chain.
+#
+# Red today: the authorizer receives `show bgp rib count`, which holds no
+#   "| count", so the mock passes it and the count is printed.
+#
+# Owed before promotion: the REST and gRPC rows of AC-27 and the read-only
+# caller of AC-28 (`request ... | count` over REST execute and REST stream),
+# with the read-only credential configured as test/plugin/tacacs-readonly.ci
+# does; package 3b adds those lines with isAuthorized.
+#
+# Method: test/plugin/tacacs-author.ci's AAA config, with the standalone
+# `le mock tacacs` server on $PORT (internal/test/mock/tacacs: --author-deny
+# refuses an AUTHOR request whose command holds the substring) and `ze cli -c`
+# over SSH on $PORT2, as test/ui/cli-argument-refused-plugin-route.ci. The
+# standalone mock writes its own stderr, one record per line
+# (internal/test/mock/tacacs records.go Record.Line), with the command in
+# plain double quotes. test/plugin/tacacs-author.ci matches `\\"` because its
+# mock runs inside the daemon, whose log line escapes them; this one does not.
+#
+# The permission-denied answer is plugin.UnauthorizedMessage, "command
+# restricted by access control" (internal/component/plugin/types.go), which
+# the SSH route prints as `error: command restricted by access control`.
+
+option=timeout:value=60s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+tmpfs=aaa.conf:terminator=EOF_CONF
+system {
+	authentication {
+		tacacs {
+			server 127.0.0.1 { port $PORT; key "ze-mock-key"; }
+			timeout 2
+			authorization true
+			accounting true
+		}
+		tacacs-profile 15 { profile [ admin ]; }
+	}
+	authorization {
+		profile admin { run { default-action allow; } edit { default-action allow; } }
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+plugin {
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le mock tacacs --port $PORT --key ze-mock-key --user admin:testpass:15 --author-deny "| count":name=tacacs:ready=le mock tacacs: listening on
+expect=stderr:pattern=AUTHOR cmd="show bgp rib \| count \| json" reply=FAIL
+expect=stderr:pattern=AUTHOR cmd="show bgp rib" reply=PASS_ADD
+reject=stderr:pattern=AUTHOR cmd="show bgp rib count"
+
+cmd=foreground:seq=2:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=3:exec=ze start aaa.conf:name=daemon:ready=Ze running.
+
+# The command alone is allowed: the policy denies the chain, not the command.
+cmd=foreground:seq=4:exec=ze cli -c "show bgp rib":exit=0
+reject=stderr:contains=restricted by access control
+
+# The chain is denied: the permission-denied answer, and no count.
+cmd=foreground:seq=5:exec=ze cli -c "show bgp rib | count | json":exit=1
+expect=stderr:contains=command restricted by access control
+reject=stdout:contains=count
+
+cmd=stop:seq=6:name=daemon:signal=term
+cmd=stop:seq=7:name=tacacs:signal=term
