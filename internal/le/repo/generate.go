@@ -50,6 +50,9 @@ func (r generationReport) Text() string {
 	return tb.String()
 }
 
+// generationAction is one step: area is the name the area registers under
+// (leroot.ActionsOf), so the step's words can be checked against the action
+// table the area publishes, and verb is the line typed after it.
 type generationAction struct {
 	area   string
 	verb   string
@@ -60,14 +63,14 @@ var generationActions = []generationAction{
 	{area: "plugin imports", verb: verbUpdate, answer: pluginimports.Answer},
 	{area: "plugin gated-table", verb: verbUpdate, answer: gatedtable.Answer},
 	{area: "yang glue", verb: verbUpdate, answer: yangglue.Answer},
-	{area: "feature-tags", verb: verbUpdate, answer: repofeaturetags.Answer},
+	{area: "repo feature-tags", verb: verbUpdate, answer: repofeaturetags.Answer},
 	{area: "web assets", verb: verbUpdate, answer: webassets.Answer},
-	{area: "web vendor", verb: "sync", answer: webvendor.Answer},
+	{area: "web vendor", verb: verbUpdate, answer: webvendor.Answer},
 	{area: areaRules, verb: "update render", answer: airules.Answer},
 	{area: areaRules, verb: "update condensed", answer: airules.Answer},
 	{area: "rfc", verb: verbUpdate, answer: rfc.Answer},
-	{area: "arch-map", verb: verbUpdate, answer: repoarchmap.Answer},
-	{area: "discovery-index", verb: verbUpdate, answer: repopackagemap.Answer},
+	{area: "repo arch-map", verb: verbUpdate, answer: repoarchmap.Answer},
+	{area: "repo package-map", verb: verbUpdate, answer: repopackagemap.Answer},
 	{area: areaDocIndex, verb: verbUpdate, answer: docindex.Answer},
 	{area: "test health", verb: verbUpdate, answer: testhealth.Answer},
 	{area: "site facts", verb: verbUpdate, answer: sitefacts.Answer},
@@ -78,7 +81,7 @@ var generationChecks = []generationAction{
 	{area: "plugin imports", verb: verbCheck, answer: pluginimports.Answer},
 	{area: "plugin gated-table", verb: verbCheck, answer: gatedtable.Answer},
 	{area: "yang glue", verb: verbCheck, answer: yangglue.Answer},
-	{area: "feature-tags", verb: verbCheck, answer: repofeaturetags.Answer},
+	{area: "repo feature-tags", verb: verbCheck, answer: repofeaturetags.Answer},
 	{area: "web assets", verb: verbCheck, answer: webassets.Answer},
 	{area: "web vendor", verb: verbCheck, answer: webvendor.Answer},
 	{area: areaRules, verb: "check metadata", answer: airules.Answer},
@@ -86,7 +89,7 @@ var generationChecks = []generationAction{
 	{area: areaRules, verb: "check points-roundtrip", answer: airules.Answer},
 	{area: areaRules, verb: "check condensed", answer: airules.Answer},
 	{area: "rfc", verb: verbCheck, answer: rfc.Answer},
-	{area: "arch-map", verb: verbCheck, answer: repoarchmap.Answer},
+	{area: "repo arch-map", verb: verbCheck, answer: repoarchmap.Answer},
 	{area: areaDocIndex, verb: verbCheck, answer: docindex.Answer},
 	{area: "test health", verb: verbCheck, answer: testhealth.Answer},
 	{area: "site facts", verb: verbCheck, answer: sitefacts.Answer},
