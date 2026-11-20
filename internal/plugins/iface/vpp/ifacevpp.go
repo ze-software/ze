@@ -367,16 +367,22 @@ func (b *vppBackendImpl) CreateVLAN(spec iface.VLANSpec) error {
 		SwIfIndex: parentIdx,
 		VlanID:    uint32(spec.VLANID),
 	}
+	var bSub textbuf.Buffer
+	subName := bSub.Reset().Str(spec.Parent).Byte('.').Int(int64(spec.VLANID)).String()
 	reply := &interfaces.CreateVlanSubifReply{}
 	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		var refused api.VPPApiError
+		if errors.As(err, &refused) && refused == api.VLAN_ALREADY_EXISTS {
+			if adoptErr := b.adoptVLANMTU(parentIdx, subName); adoptErr != nil {
+				return errors.Join(fmt.Errorf("ifacevpp: CreateVlanSubif: %w", err), adoptErr)
+			}
+		}
 		return fmt.Errorf("ifacevpp: CreateVlanSubif: %w", err)
 	}
 	if reply.Retval != 0 {
 		return fmt.Errorf("ifacevpp: CreateVlanSubif retval=%d", reply.Retval)
 	}
 	subIdx := reply.SwIfIndex
-	var bSub textbuf.Buffer
-	subName := bSub.Reset().Str(spec.Parent).Byte('.').Int(int64(spec.VLANID)).String()
 	b.names.Add(subName, uint32(subIdx), subName)
 	if err := b.inheritParentMTU(parentIdx, subIdx); err != nil {
 		// The caller reads a failed create whose interface exists as one that

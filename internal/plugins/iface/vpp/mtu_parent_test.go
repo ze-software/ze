@@ -28,6 +28,7 @@ import (
 type parentChannel struct {
 	details     map[interface_types.InterfaceIndex]interfaces.SwInterfaceDetails
 	subIdx      interface_types.InterfaceIndex
+	createErr   error // CreateVlanSubif's answer, as GoVPP returns a refusal
 	swErr       error
 	busyWhileUp bool
 	adminUp     bool
@@ -73,6 +74,9 @@ type parentReqCtx struct {
 func (r *parentReqCtx) ReceiveReply(msg api.Message) error {
 	switch reply := msg.(type) {
 	case *interfaces.CreateVlanSubifReply:
+		if r.ch.createErr != nil {
+			return r.ch.createErr
+		}
 		reply.SwIfIndex = r.ch.subIdx
 	case *interfaces.SwInterfaceSetMtuReply:
 		return r.ch.swErr
@@ -158,6 +162,55 @@ func TestVPPCreateVLANTakesItsParentMTU(t *testing.T) {
 			want := fmt.Sprint([]uint32{tt.want, 0, 0, 0})
 			if sw[0].SwIfIndex != 7 || fmt.Sprint(sw[0].Mtu) != want {
 				t.Fatalf("SwInterfaceSetMtu = index %d mtu %v, want index 7 mtu %s", sw[0].SwIfIndex, sw[0].Mtu, want)
+			}
+		})
+	}
+}
+
+// TestVPPCreateVLANGivesAnExistingVLANItsParentMTU proves a configured VLAN
+// that VPP already holds at L3 MTU 0 (left by Linux-CP mirroring a Linux
+// VLAN, a startup script or an earlier run) is given its parent's MTU, and
+// one that carries an MTU keeps it. The create still answers VPP's
+// VLAN_ALREADY_EXISTS, which config-apply reads as a VLAN it did not make. A
+// lab run stopped Ze at startup with "VPP reports MTU 0 for data-plane
+// interface host-eth0.100" because only a VLAN Ze created took the parent's.
+// Method: CreateVlanSubif refuses with VLAN_ALREADY_EXISTS for xe0.100 at
+// index 7, and the SwInterfaceSetMtu sent for index 7 is read.
+func TestVPPCreateVLANGivesAnExistingVLANItsParentMTU(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		subL3 uint32
+		want  bool
+	}{
+		{"existing VLAN without an MTU", 0, true},
+		{"existing VLAN with an MTU", 1400, false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ch := &parentChannel{
+				details: map[interface_types.InterfaceIndex]interfaces.SwInterfaceDetails{
+					3: parentDetails(1500, 9000),
+					7: {SwIfIndex: 7, SupSwIfIndex: 3, Type: interface_types.IF_API_TYPE_SUB, InterfaceName: "xe0.100",
+						Mtu: []uint32{tt.subL3, 0, 0, 0}},
+				},
+				createErr: api.VLAN_ALREADY_EXISTS,
+			}
+			b := newParentBackend(ch)
+			b.names.Add("xe0.100", 7, "xe0.100")
+			err := b.CreateVLAN(iface.VLANSpec{Parent: "xe0", VLANID: 100})
+			var refused api.VPPApiError
+			if !errors.As(err, &refused) || refused != api.VLAN_ALREADY_EXISTS {
+				t.Fatalf("CreateVLAN = %v, want VPP's VLAN_ALREADY_EXISTS kept", err)
+			}
+			sw := sent[*interfaces.SwInterfaceSetMtu](&mtuChannel{requests: ch.requests})
+			if !tt.want {
+				if len(sw) != 0 {
+					t.Fatalf("a VLAN that carries an MTU was changed: %+v", sw)
+				}
+				return
+			}
+			want := fmt.Sprint([]uint32{1500, 0, 0, 0})
+			if len(sw) != 1 || sw[0].SwIfIndex != 7 || fmt.Sprint(sw[0].Mtu) != want {
+				t.Fatalf("SwInterfaceSetMtu = %+v, want one for index 7 mtu %s", sw, want)
 			}
 		})
 	}

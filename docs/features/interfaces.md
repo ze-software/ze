@@ -1750,7 +1750,10 @@ it up again fails the commit saying so.
 
 A VLAN sub-interface Ze creates in VPP takes its parent's MTU: VPP creates it with
 an MTU of 0, which it reads as 9000, so without this a parent with no `mtu` leaf
-at 1500 would carry a 9000 VLAN. A sub-interface whose MTU VPP refuses is deleted
+at 1500 would carry a 9000 VLAN. A configured VLAN that VPP already holds, left by
+an earlier run, a VPP startup script or linux-cp mirroring a Linux VLAN, gets its
+parent's MTU the same way when VPP has none on it; one that already carries an MTU
+keeps it. A sub-interface whose MTU VPP refuses is deleted
 and the create fails. So is one whose `ingress-qos-map` or `egress-qos-map` VPP
 refuses to program: left in place, the existing VLAN would let the commit succeed
 with its QoS maps not applied.

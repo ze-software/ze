@@ -148,6 +148,26 @@ func (b *vppBackendImpl) inheritParentMTU(parentIdx, subIdx interface_types.Inte
 	return b.setProtocolMTU(subIdx, mtu)
 }
 
+// adoptVLANMTU gives a configured VLAN that VPP already holds its parent's
+// MTU when VPP has none on it. The sub-interface may come from an earlier
+// run, a VPP startup script or Linux-CP mirroring a Linux VLAN: each starts
+// it at L3 MTU 0, which VPP forwards as 9000. A VLAN that already carries an
+// MTU keeps it. The caller still returns VPP's VLAN_ALREADY_EXISTS, so
+// config-apply keeps the VLAN as one it did not create.
+func (b *vppBackendImpl) adoptVLANMTU(parentIdx interface_types.InterfaceIndex, subName string) error {
+	sub, err := b.detailsByName(subName)
+	if err != nil {
+		return fmt.Errorf("ifacevpp: read existing VLAN %q for its MTU: %w", subName, err)
+	}
+	if len(sub.Mtu) > 0 && sub.Mtu[0] > 0 {
+		return nil
+	}
+	if err := b.inheritParentMTU(parentIdx, sub.SwIfIndex); err != nil {
+		return fmt.Errorf("ifacevpp: give existing VLAN %q its parent's MTU: %w", subName, err)
+	}
+	return nil
+}
+
 // exceedsLink reports whether mtu is larger than a link that states a limit.
 func exceedsLink(mtu, linkMTU int) bool {
 	if linkMTU <= 0 {
