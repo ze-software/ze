@@ -112,10 +112,11 @@ judge with the batch in step 2.
   owned by `plan/post-release/features/spec-ipsec-vpp-policy-interface.md`.
 - **Stale comment:** `TestVPPInstallPolicyBypass` in `rfc7296_vpp_message_test.go`
   still names the deleted `engine/bypass.go`.
-- **Compile state when written:** duplicate declarations of `xfrmPolicyDirIn`
-  (espform_linux.go) and `catchAllYieldsToICMPErrorCheck` (policy_role.go), and
-  the catch-all agent's `policy_final.go`, which references fields not yet added.
-  Item 2 was still being edited. Fix the compile first.
+- **Compile state:** once every agent had finished, each symbol the editor
+  flagged was declared once in source (`PolicySelectorsEqual`,
+  `PolicyInfo.Displaced`, `xfrmPolicyUpdate`, `catchAllYieldsToICMPErrorCheck`,
+  `xfrmPolicyDirIn`). The editor's errors were stale. Not compiled since the last
+  wave: start with the scoped unit runs.
 
 ## Item 2 result (catch-all vs wildcard peer, reported after this handover was first written)
 
