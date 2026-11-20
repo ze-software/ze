@@ -415,6 +415,7 @@ Each AC is met when its test is red against HEAD before the fix and green after.
 | `two-owners-share-one-name` | 2026-10-10 | AC-61: `recordCreatedPeerLocked` overwrites an operator's peer of the same name |
 | `silent-fall-through` | 2026-11-14 | `fwdPool.safeBatchHandle` keeps the session after a recovered batch panic, leaving a hole in what the peer was sent |
 | `wait-outlives-the-process-it-waits-on` | 2026-11-14 | replay fence stays up when its owner never reports (`Peer.lowerReplayFence`) |
+| `definite-non-delivery-kept-as-unknown-outcome` | 2026-11-20 | bgp-rs keeps an `errAdjOutSession` refusal in `rs.unknownOutputs` for good, so every later settlement and `request quiesce` fails |
 
 ## Rows found already fixed
 
