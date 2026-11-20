@@ -356,6 +356,70 @@ func TestSessionJSONMRUAndAuthMethod(t *testing.T) {
 	}
 }
 
+// TestSessionJSONInterfaceMTU checks that the session list and detail publish
+// the pppN IP MTU as `mtu` beside the LCP `mru`, so a RADIUS Framed-MTU that
+// lowered the interface (1400 under an MRU of 1500) is visible and distinct
+// from the negotiated MRU, and that `mtu` is null before the network is up.
+// Method: both handlers over a published snapshot per case.
+func TestSessionJSONInterfaceMTU(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		mtu  uint16
+	}{
+		{"Framed-MTU lowered the interface", 1400},
+		{"interface at the LCP transmit limit", 1500},
+		{"network lifetime not up", 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ss := l2tppkg.SessionSnapshot{LocalSID: 42, MRU: 1500, AuthMethod: "chap-md5", MTU: tc.mtu}
+			publishFake(t, &snapshotReadService{
+				fakeService: &fakeService{
+					config:   l2tppkg.ConfigSnapshot{MRU: 1500, AuthMethod: "chap-md5", AuthAllow: []string{"chap-md5"}},
+					snapshot: l2tppkg.Snapshot{Tunnels: []l2tppkg.TunnelSnapshot{{Sessions: []l2tppkg.SessionSnapshot{ss}}}},
+				},
+				captured: cqmCommandCapture{snapshot: ss},
+			})
+			detail, err := handleSession(nil, commandtest.Args("42"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			list, err := handleSessions(nil, commandtest.Args())
+			if err != nil {
+				t.Fatal(err)
+			}
+			var detailData map[string]any
+			var listData []map[string]any
+			if err := json.Unmarshal([]byte(responseString(t, detail)), &detailData); err != nil {
+				t.Fatal(err)
+			}
+			if err := json.Unmarshal([]byte(responseString(t, list)), &listData); err != nil {
+				t.Fatal(err)
+			}
+			if len(listData) != 1 {
+				t.Fatalf("session list = %v, want one session", listData)
+			}
+			for _, got := range []map[string]any{detailData, listData[0]} {
+				value, ok := got["mtu"]
+				if !ok {
+					t.Fatal("session output omits mtu")
+				}
+				if got["mru"] != float64(1500) {
+					t.Fatalf("session output mru = %v, want the LCP value 1500 unchanged", got["mru"])
+				}
+				if tc.mtu == 0 {
+					if value != nil {
+						t.Fatalf("mtu = %v before the network is up, want null", value)
+					}
+					continue
+				}
+				if value != float64(tc.mtu) {
+					t.Fatalf("mtu = %v, want %d", value, tc.mtu)
+				}
+			}
+		})
+	}
+}
+
 func TestParseKeywordArgs_ReasonAndCause(t *testing.T) {
 	args := []string{"42", "reason", "maintenance", "window", "cause", "6"}
 	actor, reason, cause, err := parseKeywordArgs(args)

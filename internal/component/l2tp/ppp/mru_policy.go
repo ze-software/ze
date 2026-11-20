@@ -29,7 +29,9 @@ func ValidateNetworkMRU(mru uint16, ipv6Enabled bool) error {
 
 // ipv6MRUSupported checks both directions before any IPv6 address request.
 // Negotiation can reduce a peer's receive MRU even when admission accepted a
-// sufficiently large local cap. The caller MUST keep IPv6 disabled then.
+// sufficiently large local cap, and an accepted RADIUS Framed-MTU can lower
+// the interface below it (framedMTUBelowIPv6). The caller MUST keep IPv6
+// disabled then.
 //
 // RFC 5072 Section 2: "PPP links supporting IPv6 MUST allow the
 // information field to be at least as large as the minimum link MTU
@@ -46,6 +48,9 @@ func (s *pppSession) ipv6MRUSupported() bool {
 	cap := s.maxMRU
 	if cap == 0 {
 		cap = MaxFrameLen
+	}
+	if s.framedMTUBelowIPv6() {
+		return false
 	}
 	return min(peerMRU, localMRU, cap) >= MinIPv6MRU
 }

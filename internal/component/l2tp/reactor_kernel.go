@@ -19,7 +19,16 @@ import (
 	"github.com/ze-software/ze/internal/core/subscriberid"
 )
 
-const reportFieldTunnelID = "tunnel-id"
+// Keys shared by the log lines and diagnostic report details that name a
+// session, so every surface spells a field the same way.
+const (
+	reportFieldTunnelID     = "tunnel-id"
+	reportFieldSessionID    = "session-id"
+	reportFieldSubscriberID = "subscriber-id"
+	reportFieldPPPUnit      = "ppp-unit"
+	reportFieldCause        = "cause"
+)
+
 const sessionAssignmentReportSubject = "subscriber network assignment"
 
 var errPPPLogicalIdentity = errors.New("l2tp: session has no admitted logical identity")
@@ -115,13 +124,13 @@ func (r *l2tpReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 	// the bridged fds and releases them (unbridge + close) on teardown.
 	if ksucc.fds.bridged {
 		r.logger.Info("l2tp: LAC-bridged session established; frames relayed in kernel, no local PPP",
-			"tunnel-id", ksucc.localTID, "session-id", ksucc.localSID)
+			reportFieldTunnelID, ksucc.localTID, reportFieldSessionID, ksucc.localSID)
 		return
 	}
 	if r.pppDriver == nil {
 		r.logger.Warn("l2tp: kernel session ready but no PPP driver wired; fds remain in worker",
-			"tunnel-id", ksucc.localTID, "session-id", ksucc.localSID,
-			"ppp-unit", ksucc.fds.unitNum)
+			reportFieldTunnelID, ksucc.localTID, reportFieldSessionID, ksucc.localSID,
+			reportFieldPPPUnit, ksucc.fds.unitNum)
 		return
 	}
 	if r.kernelWorker == nil {
@@ -163,7 +172,7 @@ func (r *l2tpReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 	if err != nil {
 		ppp.ReportAdmissionFailure(r.logger, fmt.Sprintf("tunnel %d session %d", ksucc.localTID, ksucc.localSID),
 			ppp.AdmissionSessionFactory, err, map[string]any{
-				reportFieldTunnelID: ksucc.localTID, "session-id": ksucc.localSID, "ppp-unit": ksucc.fds.unitNum,
+				reportFieldTunnelID: ksucc.localTID, reportFieldSessionID: ksucc.localSID, reportFieldPPPUnit: ksucc.fds.unitNum,
 			})
 		r.teardownCapturedSession(tunnel, ksucc.session, nil, cdnResultGeneralError, l2tpevents.TerminateCauseNASError)
 		return
@@ -206,7 +215,7 @@ func (r *l2tpReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 		cleanupErr = pppkernel.SetupCleanupFailure(err)
 		ppp.ReportAdmissionFailure(r.logger, fmt.Sprintf("tunnel %d session %d", ksucc.localTID, ksucc.localSID),
 			ppp.AdmissionSessionFactory, err, map[string]any{
-				reportFieldTunnelID: ksucc.localTID, "session-id": ksucc.localSID, "ppp-unit": ksucc.fds.unitNum,
+				reportFieldTunnelID: ksucc.localTID, reportFieldSessionID: ksucc.localSID, reportFieldPPPUnit: ksucc.fds.unitNum,
 			})
 		r.teardownCapturedSession(tunnel, ksucc.session, nil, cdnResultGeneralError, l2tpevents.TerminateCauseNASError)
 		return
@@ -217,7 +226,7 @@ func (r *l2tpReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 	subscriberID := ksucc.session.SubscriberID()
 	if !ksucc.session.matchesPPPIdentity(birth, subscriberID) {
 		ppp.ReportAdmissionFailure(r.logger, subscriberID, ppp.AdmissionOwnership, errPPPLogicalIdentity,
-			map[string]any{reportFieldTunnelID: ksucc.localTID, "session-id": ksucc.localSID, "ppp-unit": ksucc.fds.unitNum})
+			map[string]any{reportFieldTunnelID: ksucc.localTID, reportFieldSessionID: ksucc.localSID, reportFieldPPPUnit: ksucc.fds.unitNum})
 		cleanupErr = r.closeUntransferredPPPSession(dataplane)
 		r.teardownCapturedSession(tunnel, ksucc.session, nil, cdnResultGeneralError, l2tpevents.TerminateCauseNASError)
 		return
@@ -225,7 +234,7 @@ func (r *l2tpReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 	attempt, err := ppp.NewSessionAttempt(subscriberID, dataplane)
 	if err != nil {
 		ppp.ReportAdmissionFailure(r.logger, subscriberID, ppp.AdmissionOwnership, err,
-			map[string]any{reportFieldTunnelID: ksucc.localTID, "session-id": ksucc.localSID, "ppp-unit": ksucc.fds.unitNum})
+			map[string]any{reportFieldTunnelID: ksucc.localTID, reportFieldSessionID: ksucc.localSID, reportFieldPPPUnit: ksucc.fds.unitNum})
 		cleanupErr = r.closeUntransferredPPPSession(dataplane)
 		r.teardownCapturedSession(tunnel, ksucc.session, nil, cdnResultGeneralError, l2tpevents.TerminateCauseNASError)
 		return
@@ -458,7 +467,7 @@ func (r *l2tpReactor) handlePPPEvent(ev ppp.Event) {
 	r.deliverSessionDowns(downs)
 
 	r.logger.Info("l2tp: PPP requested session teardown; sending CDN",
-		"tunnel-id", tid, "session-id", sid, "reason", reason)
+		reportFieldTunnelID, tid, reportFieldSessionID, sid, "reason", reason)
 	for _, req := range outbound {
 		if err := r.listener.Send(req.to, req.bytes); err != nil {
 			r.logger.Warn("l2tp: outbound send failed (PPP teardown CDN)",
@@ -519,7 +528,7 @@ func (r *l2tpReactor) pppSessionLocked(event string, tid, sid uint16, control pp
 // It touches only the logger, so the caller MAY hold tunnelsMu.
 func (r *l2tpReactor) refusePPPEvent(event string, tid, sid uint16, why string) {
 	r.logger.Debug("l2tp: PPP event refused; it was not made for the session holding these IDs",
-		"event", event, reportFieldTunnelID, tid, "session-id", sid, "why", why)
+		"event", event, reportFieldTunnelID, tid, reportFieldSessionID, sid, "why", why)
 }
 
 // handleLCPUp retains the actual peer receive MRU and selected method from the
@@ -547,7 +556,7 @@ func (r *l2tpReactor) handleLCPUp(ev ppp.EventLCPUp) {
 	// refuse-by-default: guards countSessionLCPOpened -- an event with no outcome is no session-establishment fact to count
 	if ev.ProxyLCP == ppp.ProxyLCPOutcomeUnknown {
 		r.logger.Warn("l2tp: LCP opened with no proxy LCP outcome; not counted",
-			"tunnel-id", ev.TunnelID, "session-id", ev.SessionID)
+			reportFieldTunnelID, ev.TunnelID, reportFieldSessionID, ev.SessionID)
 		return
 	}
 	countSessionLCPOpened(ev.ProxyLCP)
@@ -572,6 +581,7 @@ func (r *l2tpReactor) handleLCPDown(ev ppp.EventLCPDown) {
 	}
 	sess.negotiatedMRU = 0
 	sess.negotiatedAuthMethod = ppp.AuthMethodNone
+	sess.interfaceMTU = 0
 	if !ev.NetworkPhase {
 		r.tunnelsMu.Unlock()
 		return
@@ -657,11 +667,11 @@ func (r *l2tpReactor) handleSessionIPAssigned(ev ppp.EventSessionIPAssigned) {
 			const fix = "ze show doctor"
 			refusal := opererr.Wrap(err, problem, why, fix)
 			r.logger.Warn(refusal.Error(), "code", diagnostic.CodeDoctorInternalDefect,
-				"fix", fix, "error", err, "tunnel-id", ev.TunnelID, "session-id", ev.SessionID)
+				"fix", fix, "error", err, reportFieldTunnelID, ev.TunnelID, reportFieldSessionID, ev.SessionID)
 			report.RaiseWarningFix(SubsystemName, diagnostic.CodeDoctorInternalDefect,
 				sessionAssignmentReportSubject, problem+": "+why, fix,
-				map[string]any{"tunnel-id": ev.TunnelID, "session-id": ev.SessionID,
-					"subscriber-id": ev.SubscriberID, "cause": err.Error()})
+				map[string]any{reportFieldTunnelID: ev.TunnelID, reportFieldSessionID: ev.SessionID,
+					reportFieldSubscriberID: ev.SubscriberID, reportFieldCause: err.Error()})
 			return
 		}
 		sess.timeoutLifetime = &sessionTimeoutLifetime{network: ev.NetworkLifetime, counters: receipt}
@@ -729,8 +739,8 @@ func (r *l2tpReactor) logIPAssigned(ev ppp.EventSessionIPAssigned, username stri
 		return
 	}
 	r.logger.Info("l2tp: session IP assigned",
-		"tunnel-id", ev.TunnelID,
-		"session-id", ev.SessionID,
+		reportFieldTunnelID, ev.TunnelID,
+		reportFieldSessionID, ev.SessionID,
 		"username", username,
 		"address", addr.String())
 }
@@ -752,6 +762,7 @@ func (r *l2tpReactor) handleSessionUp(ev ppp.EventSessionUp) {
 		r.tunnelsMu.Unlock()
 		return
 	}
+	sess.interfaceMTU = ev.MTU
 	ifaceName := sess.pppInterface
 	birth := sess.Birth()
 	subscriberID := sess.SubscriberID()
@@ -794,9 +805,10 @@ func (r *l2tpReactor) handleSessionUp(ev ppp.EventSessionUp) {
 // logSessionUp records that a session's PPP reached session-up.
 func (r *l2tpReactor) logSessionUp(ev ppp.EventSessionUp, ifaceName string) {
 	r.logger.Info("l2tp: PPP session up",
-		"tunnel-id", ev.TunnelID,
-		"session-id", ev.SessionID,
-		"interface", ifaceName)
+		reportFieldTunnelID, ev.TunnelID,
+		reportFieldSessionID, ev.SessionID,
+		"interface", ifaceName,
+		"mtu", ev.MTU)
 }
 
 // handleEchoRTT relays a PPP echo round-trip measurement to the

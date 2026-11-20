@@ -5,6 +5,7 @@
 package ppp
 
 import (
+	"errors"
 	"slices"
 	"sync"
 
@@ -18,14 +19,24 @@ type authRequest struct {
 	control      SessionControl
 	subscriberID string
 	// Immutable link to the actual initial L2TP auth round, not its answer wait.
-	admission           *authAdmissionBinding
-	framedRoutesAllowed bool
-	answers             chan authResponseMsg
-	mu                  sync.Mutex
-	waiting             bool
-	answered            bool
-	framedRoutes        []l2tpevents.FramedRoute
+	admission *authAdmissionBinding
+	// profileAllowed marks the original credentialed round, the only one
+	// whose answer may carry a subscriber profile (framed routes, Framed-MTU).
+	profileAllowed bool
+	answers        chan authResponseMsg
+	mu             sync.Mutex
+	waiting        bool
+	answered       bool
+	framedRoutes   []l2tpevents.FramedRoute
+	// framedMTU is the staged RFC 2865 Section 5.12 Framed-MTU, from 68 to
+	// 65535; zero means the provider staged none.
+	framedMTU uint16
 }
+
+// ErrFramedMTUBelowIPv4 refuses a staged Framed-MTU below the IPv4 minimum:
+// the provider MUST resolve the value to at least MinIPv4MRU first, so the
+// session never configures an interface IPv4 cannot use.
+var ErrFramedMTUBelowIPv4 = errors.New("ppp: staged Framed-MTU is below the IPv4 minimum 68")
 
 type ipRequest struct {
 	control      SessionControl
@@ -54,6 +65,7 @@ func (pending *authRequest) retire() {
 	pending.mu.Lock()
 	pending.waiting = false
 	pending.framedRoutes = nil
+	pending.framedMTU = 0
 	pending.mu.Unlock()
 }
 
@@ -112,11 +124,34 @@ func (request EventAuthRequest) Active() bool {
 // replying Accept. Other kinds of authentication do not stage a route profile.
 // Safe for concurrent use. A zero or expired eligible request cannot stage.
 func (request EventAuthRequest) StageFramedRoutes(framedRoutes []l2tpevents.FramedRoute) error {
+	return request.stageProfile(func(pending *authRequest) {
+		pending.framedRoutes = slices.Clone(framedRoutes)
+	})
+}
+
+// StageFramedMTU stages the RFC 2865 Section 5.12 Framed-MTU of the original
+// credentialed authentication round, which the session uses to lower the IP
+// MTU of its interface (pppSession.interfaceMTU). The provider MUST resolve
+// the value to at least MinIPv4MRU and MUST call this before replying Accept.
+// Other kinds of authentication do not stage it. Safe for concurrent use.
+func (request EventAuthRequest) StageFramedMTU(mtu uint16) error {
+	if mtu < MinIPv4MRU {
+		return ErrFramedMTUBelowIPv4
+	}
+	return request.stageProfile(func(pending *authRequest) {
+		pending.framedMTU = mtu
+	})
+}
+
+// stageProfile runs store under the wait's mutex when this exact request may
+// still carry a profile. A round that may not carry one stages nothing and is
+// no error, so a provider stages the same way for every round.
+func (request EventAuthRequest) stageProfile(store func(*authRequest)) error {
 	pending := request.pending
 	if pending == nil {
 		return ErrRequestExpired
 	}
-	if !pending.framedRoutesAllowed {
+	if !pending.profileAllowed {
 		return nil
 	}
 	pending.mu.Lock()
@@ -130,7 +165,7 @@ func (request EventAuthRequest) StageFramedRoutes(framedRoutes []l2tpevents.Fram
 	if !request.Control.Active() {
 		return ErrRequestExpired
 	}
-	pending.framedRoutes = slices.Clone(framedRoutes)
+	store(pending)
 	return nil
 }
 
@@ -166,11 +201,13 @@ func (request EventAuthRequest) answer(decision authResponseMsg) error {
 	}
 	if decision.accept {
 		decision.framedRoutes = request.pending.framedRoutes
+		decision.framedMTU = request.pending.framedMTU
 	}
 	select {
 	case request.pending.answers <- decision:
 		request.pending.answered = true
 		request.pending.framedRoutes = nil
+		request.pending.framedMTU = 0
 		return nil
 	default:
 		return ErrAuthResponsePending

@@ -29,7 +29,8 @@ type FramedRoute = l2tpevents.FramedRoute
 // subscriber profile without changing the auth respond signature.
 //
 // RFC 2865 Section 5.8 (Framed-IP-Address), 5.9 (Framed-IP-Netmask),
-// 5.11 (Filter-Id), 5.27 (Session-Timeout), 5.28 (Idle-Timeout).
+// 5.11 (Filter-Id), 5.12 (Framed-MTU), 5.27 (Session-Timeout),
+// 5.28 (Idle-Timeout).
 // RFC 2869 Section 5.16 (Acct-Interim-Interval).
 // Framed-Pool: RFC 2865 attribute type 88.
 type AuthMetadata struct {
@@ -41,6 +42,7 @@ type AuthMetadata struct {
 	FramedIPv6Pool      string       // RFC 6911 attr 100
 	SessionTimeout      uint32       // seconds, 0 = not set
 	IdleTimeout         uint32       // seconds, 0 = not set
+	FramedMTU           uint16       // RFC 2865 attr 12, 68..65535; lowers the pppN IP MTU; 0 = none usable
 	FilterID            string
 	CoSProfile          string        // "cos:<name>" extracted from Filter-Id; empty if none
 	AcctInterimInterval uint32        // seconds, 0 = not set

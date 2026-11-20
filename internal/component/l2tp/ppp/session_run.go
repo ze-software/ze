@@ -543,7 +543,10 @@ func (s *pppSession) sendEvent(ev Event) {
 	if _, ok := ev.(EventSessionDown); ok && s.sessionDownSent {
 		return
 	}
-	if _, ending := ev.(EventSessionDown); ending {
+	// Only the two Down events end native work before publication; every
+	// other event is published as it is.
+	switch event := ev.(type) {
+	case EventSessionDown:
 		s.closeAuthAdmission()
 		s.retireProviderRequests()
 		if s.released.Load() {
@@ -553,8 +556,8 @@ func (s *pppSession) sendEvent(ev Event) {
 		// Finish the last IPv6 advertisement before granting that permission.
 		// A peer-initiated transport close has already gated the wire, so
 		// its cleanup can only fail a write rather than send after PADT.
-		ev = s.prepareSessionDown(ev.(EventSessionDown))
-	} else if event, ending := ev.(EventLCPDown); ending {
+		ev = s.prepareSessionDown(event)
+	case EventLCPDown:
 		ev = s.prepareLCPDown(event)
 	}
 	select {
@@ -859,9 +862,10 @@ func (s *pppSession) transmitMRU() uint16 {
 // afterLCPOpen performs the post-Opened work, in this order: check the
 // transmit MRU against the IPv4 minimum, run authentication and the NCP
 // phase, wait for the unit to drain after a reconnect, set the MTU on pppN
-// through the iface backend, connect the channel to the unit, set the MRU
-// on the unit fd, bring pppN up, start the IPv6 service, and publish
-// EventSessionUp. Returns false on failure or an LCP interruption. The caller
+// through the iface backend (the transmit MRU, lowered to an accepted
+// RADIUS Framed-MTU by interfaceMTU), connect the channel to the unit, set
+// the MRU on the unit fd, bring pppN up, start the IPv6 service, and publish
+// EventSessionUp with that MTU. Returns false on failure or an LCP interruption. The caller
 // MUST resume the session loop when LCP has entered negotiation or termination.
 //
 // Order matters: set the interface MTU BEFORE connecting the channel, and
@@ -901,7 +905,9 @@ func (s *pppSession) afterLCPOpen() bool {
 		return false
 	}
 
-	if err := s.activateNetwork(mru); err != nil {
+	// RFC 2865 Section 5.12: the accepted Framed-MTU lowers the IP MTU.
+	mtu := s.interfaceMTU(mru)
+	if err := s.activateNetwork(mtu); err != nil {
 		if !errors.Is(err, ErrSessionNotFound) {
 			s.fail(err.Error())
 		}
@@ -909,13 +915,14 @@ func (s *pppSession) afterLCPOpen() bool {
 	}
 	// Publication can block. The original owner gate covers activation only,
 	// so its cleanup and terminal receipt never wait for this event consumer.
-	s.sendEvent(EventSessionUp{TunnelID: s.tunnelID, SessionID: s.sessionID})
+	s.sendEvent(EventSessionUp{TunnelID: s.tunnelID, SessionID: s.sessionID, MTU: mtu})
 	return true
 }
 
 // activateNetwork protects actual owner I/O with the release gate. Metadata
 // locks cover only validation/state commits, never provider calls/publication.
-func (s *pppSession) activateNetwork(mru uint16) error {
+// mtu is the IP MTU pppN gets (afterLCPOpen, interfaceMTU).
+func (s *pppSession) activateNetwork(mtu uint16) error {
 	s.nativeReleaseMu.Lock()
 	defer s.nativeReleaseMu.Unlock()
 	s.mu.Lock()
@@ -941,12 +948,13 @@ func (s *pppSession) activateNetwork(mru uint16) error {
 	// The peer's receive capacity does not override the session's admitted
 	// transmit limit. An omitted peer MRU still means 1500 for negotiation,
 	// while PPPoE and an LNS behind a PPPoE LAC must keep their smaller cap.
+	// An accepted RADIUS Framed-MTU may lower it further, never raise it.
 	//
 	// The MTU goes first because the interface of a reopened lifetime is still
 	// up with the previous MTU: resetNCP disconnects the channel and leaves the
 	// interface alone, and the connect below is what lets it transmit again.
 	// refuse-by-default: guards pppSession.afterLCPOpen -- an MTU error ends the exact original before any channel connect.
-	if err := s.dataplane.SetMTU(int(mru)); err != nil {
+	if err := s.dataplane.SetMTU(int(mtu)); err != nil {
 		return errors.New(tb.Str("iface SetMTU: ").Err(err).String())
 	}
 	// Post-NCP: connect channel to unit and bring interface up.

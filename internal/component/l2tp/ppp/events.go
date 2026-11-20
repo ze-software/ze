@@ -123,6 +123,10 @@ type EventSessionUp struct {
 	Control   SessionControl
 	TunnelID  uint16
 	SessionID uint16
+	// MTU is the IP MTU configured on pppN for this network lifetime: the
+	// LCP transmit limit, lowered to an accepted RADIUS Framed-MTU. Always
+	// at least MinIPv4MRU on a published event.
+	MTU uint16
 }
 
 func (EventSessionUp) isPPPEvent() {}

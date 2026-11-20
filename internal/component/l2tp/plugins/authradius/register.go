@@ -90,6 +90,12 @@ func init() {
 	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: diagnostic.CodeDoctorRADIUSFramedRouteSkipped}); err != nil {
 		panic("BUG: RADIUS framed-route event registration failed: " + err.Error())
 	}
+	// A Framed-MTU Ze did not apply as sent is raised on the report bus, by
+	// extractFramedMTU here and by the PPP session when the value keeps IPv6CP
+	// from starting; only this plugin stages the value, so it declares the code.
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: diagnostic.CodeDoctorRADIUSFramedMTU}); err != nil {
+		panic("BUG: RADIUS Framed-MTU event registration failed: " + err.Error())
+	}
 }
 
 func verifyRadiusAuthConfig(sections []sdk.ConfigSection) error {

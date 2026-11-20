@@ -675,6 +675,13 @@ func sessionJSON(s *l2tp.SessionSnapshot, detail bool) map[string]any {
 		m["mru"] = int(s.MRU)
 		m["auth-method"] = s.AuthMethod
 	}
+	// The IP MTU PPP configured on pppN: the LCP transmit limit, lowered to
+	// an accepted RADIUS Framed-MTU (RFC 2865 Section 5.12). Null until the
+	// network lifetime is up and after LCP goes down.
+	m["mtu"] = nil
+	if s.MTU != 0 {
+		m["mtu"] = int(s.MTU)
+	}
 	// What the LNS did with the LAC's proxy LCP (RFC 2661 Section 4.4.5):
 	// accepted, renegotiated or none; null until LCP first opens.
 	m["proxy-lcp"] = nil

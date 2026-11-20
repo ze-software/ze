@@ -214,7 +214,7 @@ func (a *radiusAuth) doRADIUS(req ppp.EventAuthRequest, client *radius.Client, n
 			l2tp.StoreSessionMetadata(req.SubscriberID, meta)
 			logger().Info("l2tp-auth-radius: stored session metadata",
 				"tunnel", req.TunnelID, "session", req.SessionID,
-				"framed-ip", meta.FramedIP, "framed-pool", meta.FramedPool)
+				"framed-ip", meta.FramedIP, "framed-pool", meta.FramedPool, "framed-mtu", meta.FramedMTU)
 		}
 		var authBlob []byte
 		if req.Method == ppp.AuthMethodMSCHAPv2 {
@@ -232,6 +232,14 @@ func (a *radiusAuth) doRADIUS(req ppp.EventAuthRequest, client *radius.Client, n
 			if err := req.StageFramedRoutes(meta.FramedRoutes); err != nil {
 				// The original wait retired or already has a decision.
 				logger().Debug("l2tp-auth-radius: original framed-route profile was not staged", "error", err)
+				return
+			}
+		}
+		// RFC 2865 Section 5.12: the session lowers its interface MTU to it.
+		if meta != nil && meta.FramedMTU != 0 {
+			if err := req.StageFramedMTU(meta.FramedMTU); err != nil {
+				// The original wait retired or already has a decision.
+				logger().Debug("l2tp-auth-radius: original Framed-MTU was not staged", "error", err)
 				return
 			}
 		}

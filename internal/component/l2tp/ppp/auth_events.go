@@ -159,6 +159,9 @@ type authResponseMsg struct {
 	message          string
 	authResponseBlob []byte
 	framedRoutes     []l2tpevents.FramedRoute
+	// framedMTU is the staged Framed-MTU of an accepted original round,
+	// from 68 to 65535, or zero (EventAuthRequest.StageFramedMTU).
+	framedMTU uint16
 	// terminate asks the session to close the link with an LCP
 	// Terminate-Request after a reject (Driver.RefuseAuth).
 	terminate bool

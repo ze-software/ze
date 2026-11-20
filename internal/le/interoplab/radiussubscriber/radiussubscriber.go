@@ -44,6 +44,7 @@ const (
 	scenarioCoADisconnect = "radius-coa-disconnect-freeradius"
 	scenarioFramedReject  = "l2tp-radius-framed-protocol-reject"
 	scenarioSubscriberDNS = "radius-subscriber-dns"
+	scenarioFramedMTU     = "radius-subscriber-framed-mtu"
 
 	labDirectory = "test/interop-radius-subscriber"
 
@@ -77,6 +78,7 @@ func scenarioCheckerMap(timeout time.Duration) map[string]interoplab.Checker {
 		scenarioCoADisconnect: checker(checkCoADisconnect, timeout),
 		scenarioFramedReject:  checker(checkFramedReject, timeout),
 		scenarioSubscriberDNS: checker(checkSubscriberDNS, timeout),
+		scenarioFramedMTU:     checker(checkFramedMTU, timeout),
 	}
 }
 
@@ -161,6 +163,9 @@ func scenarioPlan(root, suffix string, source interoplab.ScenarioSource) interop
 	server := serverPeerConfig(root, serverContainer)
 	if source.Name == scenarioFramedReject {
 		configureFramedServerPeer(source, &server)
+	}
+	if source.Name == scenarioFramedMTU {
+		configureFramedMTUServerPeer(source, &server)
 	}
 	lac := lacPeerConfig(root, lacContainer)
 	if source.Name == scenarioSubscriberDNS {

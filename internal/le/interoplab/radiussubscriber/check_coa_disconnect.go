@@ -166,7 +166,7 @@ func tbfRate(output string) (uint64, error) {
 }
 
 func (s *scenarioLab) kernelRate(ctx context.Context) (uint64, error) {
-	output, err := s.lab.Query(ctx, peerZe, []string{"tc", "-j", "qdisc", "show"}, nil)
+	output, err := s.lab.Query(ctx, peerZe, []string{"tc", "-j", "qdisc", verbShow}, nil)
 	if err != nil {
 		return 0, err
 	}

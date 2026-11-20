@@ -99,6 +99,13 @@ type L2TPSession struct {
 	negotiatedMRU        uint16
 	negotiatedAuthMethod ppp.AuthMethod
 
+	// interfaceMTU is the IP MTU PPP configured on pppN for the current
+	// network lifetime (the LCP transmit limit, lowered to an accepted RADIUS
+	// Framed-MTU). Zero guards sessionSnapshot: the network lifetime is not
+	// up. Written from EventSessionUp and cleared on EventLCPDown under
+	// tunnelsMu.
+	interfaceMTU uint16
+
 	// Connection parameters captured from ICCN/OCCN.
 	txConnectSpeed     uint32
 	rxConnectSpeed     uint32

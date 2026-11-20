@@ -51,6 +51,19 @@ func (s *pppSession) runNCPPhase() bool {
 	s.ncpStarted = true
 	ipcpEnabled := !s.disableIPCP
 	ipv6cpEnabled := !s.disableIPv6CP
+	// A RADIUS Framed-MTU below 1280 sets pppN below the IPv6 minimum
+	// (framedMTUBelowIPv6). Checked before the link MRU so the operator reads
+	// the cause that applies, which the profile fixes and the peer does not.
+	if ipv6cpEnabled {
+		if s.framedMTUBelowIPv6() {
+			s.reportFramedMTUBlocksIPv6()
+			ipv6cpEnabled = false
+			if !ipcpEnabled {
+				s.fail("IPv6CP cannot start with a RADIUS Framed-MTU below 1280 and IPCP is disabled; send a Framed-MTU of at least 1280 in the subscriber's RADIUS profile")
+				return false
+			}
+		}
+	}
 	// RFC 5072 Section 2: "PPP links supporting IPv6 MUST allow the
 	// information field to be at least as large as the minimum link MTU
 	// size required for IPv6 [2]."
@@ -1528,6 +1541,7 @@ func (s *pppSession) resetNCP() bool {
 	s.ncpStarted = false
 	s.authenticatedUsername = ""
 	s.authenticatedFramedRoutes = nil
+	s.authenticatedFramedMTU = 0
 	if err := s.resetNetwork(); err != nil {
 		var tb textbuf.Buffer
 		s.fail(tb.Str("NCP cleanup before LCP restart: ").Err(err).String())

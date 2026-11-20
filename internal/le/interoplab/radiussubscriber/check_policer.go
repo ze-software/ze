@@ -15,7 +15,7 @@ import (
 )
 
 func (s *scenarioLab) uploadRate(ctx context.Context) (uint64, error) {
-	output, err := s.lab.Query(ctx, peerZe, []string{"tc", "filter", "show", "dev", "ppp0", "ingress"}, nil)
+	output, err := s.lab.Query(ctx, peerZe, []string{"tc", "filter", verbShow, "dev", "ppp0", "ingress"}, nil)
 	if err != nil {
 		return 0, err
 	}

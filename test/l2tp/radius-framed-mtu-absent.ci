@@ -1,0 +1,90 @@
+# Test: with no RADIUS Framed-MTU, pppN keeps the PPP transmit limit.
+# QUESTION:  when the Access-Accept of a real CHAP session carries no
+#            Framed-MTU and the PPP transmit limit is 1500 (LAC proxy LCP MRU
+#            1500, `l2tp mru` at its default 1500), does the daemon install
+#            MTU 1500 on the session's pppN and report "mtu": 1500 and
+#            "mru": 1500 in `show l2tp sessions`?
+# PREVENTS:  an "mtu" that is a constant or a stale value rather than the
+#            installed MTU, and a Framed-MTU path that runs with no attribute
+#            (a zero or default value lowering the MTU).
+#
+# This is the control of test/l2tp/radius-framed-mtu.ci: the same peer, the
+# same config and the same RADIUS mock function, with an Access-Accept that
+# carries no Framed-MTU. That carrier reports and installs 1400; this one must
+# report and install 1500, so the 1400 there comes from RADIUS.
+#
+# Why not a unit test, the state-only waits, the needs-linux reason and the
+# ports are as in test/l2tp/radius-framed-mtu.ci. The pool gateway 10.99.13.1
+# is this carrier's own: the peer finds pppN by it, so no sibling may share it.
+
+stdin=config:terminator=EOF_CONF
+system {
+    authentication {
+        # bcrypt cost-4 hash of "testpass".
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+l2tp {
+    enabled true
+    shared-secret s3cr3t
+    auth-method chap-md5
+    auth {
+        radius {
+            nas-identifier lns1
+            timeout 5
+            retries 2
+            server mock {
+                address 127.0.0.1
+                port $PORT2
+                accounting-port $PORT2
+                shared-key testing123
+            }
+        }
+    }
+    pool {
+        ipv4 {
+            gateway 10.99.13.1
+            start 10.99.13.10
+            end 10.99.13.10
+        }
+    }
+}
+environment {
+    l2tp {
+        server main {
+            ip 127.0.0.1
+            port $PORT
+        }
+    }
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1
+            port $PORT3
+        }
+    }
+}
+EOF_CONF
+
+option=needs-linux:caps=net-admin
+option=env:var=ze.log.l2tp:value=debug
+option=env:var=TEST_SECRET:value=s3cr3t
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT3
+
+cmd=background:seq=1:exec=le test fixture l2tp/radius-framed-mtu-absent/radius $PORT2 testing123
+cmd=background:seq=2:exec=ze -:stdin=config
+# 120s bounds the peer's waits, each a share of this budget, so a stall ends
+# with the peer naming the state that never came. The happy path takes seconds.
+cmd=foreground:seq=3:exec=le test fixture l2tp/radius-framed-mtu $PORT 10.99.13.1 1500:timeout=120s:exit=0
+expect=exit:code=0
+expect=stdout:contains=OK: CHAP Success received
+expect=stdout:contains=OK: IPCP opened, ze assigned 10.99.13.10
+expect=stdout:pattern=OK: show l2tp sessions reports session [0-9]+ with mtu 1500 and mru 1500
+expect=stdout:pattern=OK: kernel interface ppp[0-9]+ holding 10\.99\.13\.1 is up with MTU 1500
+# No Framed-MTU arrived, so neither Framed-MTU decision may be logged.
+reject=stderr:pattern=interface MTU set from the RADIUS Framed-MTU
+reject=stderr:pattern=RADIUS Framed-MTU exceeds the PPP transmit limit

@@ -1,0 +1,9 @@
+# The subscriber's IP MTU comes from RADIUS (RFC 2865 Section 5.12).
+# FreeRADIUS 3.2.10's share/dictionary.rfc2865 defines Framed-MTU as
+# attribute 12, type integer; rlm_files' file_common moves this reply item
+# into the Access-Accept. The suite's pppd names no mru, so LCP agrees on the
+# default 1500 and only this value can make Ze's pppN 1400.
+alice	Cleartext-Password := "s3cr3t"
+	Service-Type = Framed-User,
+	Framed-Protocol = PPP,
+	Framed-MTU = 1400

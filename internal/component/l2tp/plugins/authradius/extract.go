@@ -28,6 +28,7 @@ import (
 // RFC 2865 Section 5.8: Framed-IP-Address is 4 octets, network order.
 // RFC 2865 Section 5.9: Framed-IP-Netmask is 4 octets, network order.
 // RFC 2865 Section 5.11: Filter-Id is a UTF-8 string.
+// RFC 2865 Section 5.12: Framed-MTU is 4 octets, network order (extractFramedMTU).
 // RFC 2865 Section 5.27: Session-Timeout is 4 octets, network order.
 // RFC 2865 Section 5.28: Idle-Timeout is 4 octets, network order.
 // RFC 2869 Section 5.16: Acct-Interim-Interval is 4 octets, network order.
@@ -59,6 +60,13 @@ func extractAuthMetadata(resp *radius.Packet, subscriber string) *l2tp.AuthMetad
 
 	if raw := resp.FindAttr(radius.AttrFramedIPNetmask); len(raw) == 4 {
 		meta.FramedNetmask = net.IPv4Mask(raw[0], raw[1], raw[2], raw[3])
+		found = true
+	}
+
+	// RFC 2865 Section 5.12: Framed-MTU, the IP MTU for the subscriber's
+	// interface (extractFramedMTU).
+	if mtu, ok := extractFramedMTU(resp, subscriber); ok {
+		meta.FramedMTU = mtu
 		found = true
 	}
 

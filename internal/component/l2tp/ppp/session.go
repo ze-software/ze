@@ -184,6 +184,9 @@ type pppSession struct {
 	// Immutable copied profile from this LCP lifetime's accepted request.
 	// Goroutine-owned. Each assignment borrows its own copy.
 	authenticatedFramedRoutes []l2tpevents.FramedRoute
+	// RFC 2865 Section 5.12 Framed-MTU from this LCP lifetime's accepted
+	// request, from 68 to 65535; zero means it carried none. Goroutine-owned.
+	authenticatedFramedMTU uint16
 
 	// Tracks final teardown publication. Owned by the session goroutine.
 	sessionDownSent bool

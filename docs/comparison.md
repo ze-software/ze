@@ -826,6 +826,7 @@ attributes are consumed:
 | Framed-IP-Address (8) | RFC 2865 S5.8 | Bypasses pool; assigns address directly to PPP session |
 | Framed-IP-Netmask (9) | RFC 2865 S5.9 | Extracted and stored (consumed by future PPP interface config) |
 | Framed-Pool (88) | RFC 2865 | Selects a named pool for IP allocation |
+| Framed-MTU (12) | RFC 2865 S5.12 | Lowers the IP MTU of the subscriber's pppN, never above the limit LCP agreed; 64 to 67 is raised to 68, a malformed value is ignored and logged |
 | Session-Timeout (27) | RFC 2865 S5.27 | Enforces maximum session duration; CDN on expiry |
 | Idle-Timeout (28) | RFC 2865 S5.28 | Disconnects after inactivity period (Linux RX byte counters) |
 | Filter-Id (11) | RFC 2865 S5.11 | Multi-valued: "cos:\<name\>" selects a dynamic 802.1p CoS profile for the access VLAN; other values set the initial shaping rate |
@@ -834,6 +835,7 @@ attributes are consumed:
 
 <!-- source: internal/component/l2tp/plugins/authradius/extract.go -- extractAuthMetadata -->
 <!-- source: internal/component/l2tp/plugins/authradius/extract_vsa.go -- vendor VSA CoS/rate extraction -->
+<!-- source: internal/component/l2tp/plugins/authradius/extract_mtu.go -- extractFramedMTU -->
 <!-- source: internal/component/l2tp/session_timeout.go -- timeout enforcement -->
 <!-- source: internal/component/traffic/filterid_rate.go -- ParseFilterIDRate -->
 

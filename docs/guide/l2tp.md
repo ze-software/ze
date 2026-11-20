@@ -372,9 +372,15 @@ The installed IP interface MTU is bounded by both this peer MRU and the
 session's configured MRU, so a reported peer MRU of 1500 can accompany an
 installed MTU of 1492. An omitted peer option is reported as the PPP default
 of 1500; it does not remove the local transmit cap.
+Sessions also report `mtu`, the IP MTU installed on the session's `pppN`.
+It is the transmit limit above, lowered to the RADIUS `Framed-MTU` when the
+Access-Accept carried one, so `mru` 1500 with `mtu` 1400 means the RADIUS
+profile set the interface. `mtu` is `null` until the session's network is up
+and after LCP goes down.
 
-<!-- source: internal/component/l2tp/reactor_kernel.go -- handleLCPUp, handleLCPDown -->
+<!-- source: internal/component/l2tp/reactor_kernel.go -- handleLCPUp, handleLCPDown, handleSessionUp -->
 <!-- source: internal/component/l2tp/snapshot.go -- sessionSnapshot -->
+<!-- source: internal/component/l2tp/cmd/l2tp.go -- sessionJSON -->
 <!-- source: internal/component/l2tp/ppp/session_run.go -- afterLCPOpen -->
 
 ### Destructive commands
@@ -521,7 +527,14 @@ is the smaller of the peer's negotiated MRU and the session's configured
 MRU, without subtracting PPP framing. An omitted peer option still means a
 peer receive capacity of 1500; it cannot raise the interface MTU past the
 configured cap.
-Code-Reject, Protocol-Reject and Echo-Reply use the same effective transmit
+A RADIUS `Framed-MTU` in the Access-Accept lowers the interface MTU of that
+session to its value. LCP has already agreed the link before authentication,
+so a `Framed-MTU` larger than the transmit limit leaves the limit in place
+(an Info line says so), and it never changes the MRU Ze requested in LCP.
+PPP control replies keep the LCP limit. A `Framed-MTU` below 1280 keeps
+IPv6CP from starting for that session, because Linux removes IPv6 from an
+interface below the IPv6 minimum.
+<!-- source: internal/component/l2tp/ppp/framed_mtu.go -- interfaceMTU, framedMTUBelowIPv6 -->Code-Reject, Protocol-Reject and Echo-Reply use the same effective transmit
 limit for their returned payloads; a larger receive buffer does not permit an
 oversized reply.
 Set `l2tp mru` to the requested receive MRU (68..1500, default 1500), for
@@ -1505,6 +1518,11 @@ Access-Accept and in a CoA-Request alike. A MikroTik `Mikrotik-Rate-Limit` of
 `10M/5M` is read the same way. The two-value forms set the download rate and the
 upload rate separately. `Session-Timeout`
 and `Idle-Timeout` start per-session teardown timers.
+`Framed-MTU` (RFC 2865 Section 5.12) lowers the IP MTU of the subscriber's
+`pppN`, as described under PPP negotiation above. A value from 64 to 67 is
+raised to 68, the IPv4 minimum. A value of the wrong length, or outside 64 to
+65535, is ignored. Both are logged and raised under
+`doctor-radius-framed-mtu` (`ze show errors`), naming the subscriber.
 `Acct-Interim-Interval` sets the accounting update cadence, clamped to 60..3600
 seconds. It applies to a session whose deployment left `acct-interval` unset.
 RFC 2869 Section 2.1 gives a configured `acct-interval` precedence over it.
@@ -1513,6 +1531,7 @@ RADIUS CoA rate updates do not tear down the session.
 <!-- source: internal/component/l2tp/plugins/shaper/shaper.go -- applyTC, both directions -->
 <!-- source: internal/plugins/traffic/netlink/policer_linux.go -- the tc ingress policer -->
 <!-- source: internal/component/traffic/filterid_rate.go -- ParseFilterIDRate -->
+<!-- source: internal/component/l2tp/plugins/authradius/extract_mtu.go -- extractFramedMTU -->
 
 ## CQM (Call Quality Metrics)
 

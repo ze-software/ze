@@ -40,6 +40,7 @@ const (
 	AttrFramedIPAddress     = 8
 	AttrFramedIPNetmask     = 9
 	AttrFilterID            = 11
+	AttrFramedMTU           = 12 // RFC 2865 Section 5.12
 	AttrFramedRoute         = 22 // RFC 2865 Section 5.22
 	AttrReplyMessage        = 18
 	AttrState               = 24 // RFC 2865 Section 5.24

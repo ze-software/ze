@@ -87,6 +87,7 @@ type SessionSnapshot struct {
 	Username           string
 	AssignedAddr       netip.Addr
 	MRU                uint16 // Zero means no current LCP negotiation.
+	MTU                uint16 // pppN IP MTU; zero means the network lifetime is not up.
 	AuthMethod         string // Empty until LCP opens; "none" is negotiated no-auth.
 	Family             string // "ipv4" / "ipv6" / "" when no NCP assignment yet
 	TxConnectSpeed     uint32
@@ -216,6 +217,7 @@ func (r *l2tpReactor) sessionSnapshot(tunnelTID uint16, s *L2TPSession) SessionS
 		Username:           s.username,
 		AssignedAddr:       s.assignedAddr,
 		MRU:                s.negotiatedMRU,
+		MTU:                s.interfaceMTU,
 		AuthMethod:         authMethod,
 		Family:             family,
 		TxConnectSpeed:     s.txConnectSpeed,

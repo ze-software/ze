@@ -3,10 +3,11 @@
 A broadband network gateway provisions subscribers from RADIUS. Ze's auth
 handler once rejected any Access-Accept that carried a profile attribute, which
 made it unusable in that role. Each attribute now reaches its consumer:
-Framed-IP-Address, Framed-Pool, Session-Timeout, Idle-Timeout, Filter-Id and
-Acct-Interim-Interval.
+Framed-IP-Address, Framed-Pool, Framed-MTU, Session-Timeout, Idle-Timeout,
+Filter-Id and Acct-Interim-Interval.
 
 <!-- source: internal/component/l2tp/plugins/authradius/extract.go -- extractAuthMetadata, extractFramedRoutes, isValidSubscriberIP -->
+<!-- source: internal/component/l2tp/plugins/authradius/extract_mtu.go -- extractFramedMTU -->
 <!-- source: internal/component/l2tp/session_metadata.go -- AuthMetadata, StoreSessionMetadata, LoadSessionMetadata, ClearSessionMetadata -->
 <!-- source: internal/component/l2tp/session_timeout.go -- startSessionTimeouts, runSessionTimeout, runIdleTimeout, cancelSessionTimeouts -->
 <!-- source: internal/component/traffic/filterid_rate.go -- ParseFilterIDRate -->
@@ -30,6 +31,23 @@ existing supplied identity.
 <!-- source: internal/component/l2tp/plugins/authradius/acct.go -- onSessionIPAssigned -->
 <!-- source: internal/component/l2tp/plugins/pool/register.go -- handle, handlePrefix -->
 <!-- source: internal/plugins/cos/handler.go -- onSessionUp -->
+
+**Framed-MTU lowers the interface MTU, never the LCP MRU.** RFC 2865 Section
+5.12 gives the MTU "to be configured for the user, when it is not negotiated by
+some other means (such as PPP)". In PPP, LCP opens before authentication, so
+the Access-Accept arrives after the link is agreed: renegotiating LCP would
+restart authentication. The value is staged on the authentication request with
+the framed routes, and the session configures `pppN` with the smaller of the
+LCP transmit limit and the Framed-MTU. A larger value cannot raise the
+interface past what the peer agreed to receive. RFC 2865 allows 64 to 67, but
+IPv4 needs 68 (RFC 791 Section 3.2), so those are raised to 68, the floor LCP
+already Naks a smaller peer MRU to. accel-ppp, the implementation operators
+usually migrate from, does not read Framed-MTU at all: its Access-Accept
+attribute handler (`rad_proc_attrs`, `radius/radius.c`) has no case for it, and
+its `pppN` MTU comes only from its `[ppp]` settings and LCP. FRR and BIRD
+terminate no PPP and hold no RADIUS client, so they have no behaviour to follow.
+<!-- source: internal/component/l2tp/ppp/request.go -- StageFramedMTU -->
+<!-- source: internal/component/l2tp/ppp/framed_mtu.go -- interfaceMTU -->
 
 **A goroutine per session timer, not a central timer wheel.** The expected
 session count is in the low thousands. A shared wheel costs complexity that the

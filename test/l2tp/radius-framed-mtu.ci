@@ -1,0 +1,113 @@
+# Test: a RADIUS Framed-MTU lowers the IP MTU Ze installs on the subscriber's pppN.
+# QUESTION:  when the Access-Accept of a real CHAP session carries Framed-MTU
+#            1400 (RFC 2865 Section 5.12) and the PPP transmit limit is 1500
+#            (LAC proxy LCP MRU 1500, `l2tp mru` at its default 1500), does
+#            the daemon install MTU 1400 on the session's pppN, report
+#            "mtu": 1400 in `show l2tp sessions`, and keep "mru": 1500, the
+#            LCP-negotiated value RADIUS cannot change?
+# PREVENTS:  a Framed-MTU parsed and dropped (pppN and "mtu" stay 1500), a
+#            Framed-MTU shown but not installed (the display says 1400, the
+#            kernel 1500), and a Framed-MTU written over the LCP MRU ("mru"
+#            becomes 1400).
+#
+# Why not a unit test: the unit tests over the PPP session prove the min()
+# of the transmit limit and Framed-MTU. Only the daemon joins the RADIUS
+# client's attribute extraction, the PPP session's kernel install and the CLI
+# answer, so only a .ci proves an operator's RADIUS server reaches the pppN.
+#
+# The control is test/l2tp/radius-framed-mtu-absent.ci, the same peer and
+# config with an Access-Accept that carries no Framed-MTU: there the same
+# session reports and installs 1500, so the 1400 here comes from RADIUS and
+# not from a constant. test/l2tp/radius-framed-mtu-exceeds.ci is the case
+# above the limit, which must not raise it.
+#
+# Every assertion is on state. The peer waits until `show l2tp sessions`
+# lists the session with its address and a non-null "mtu" (null until NCP is
+# up), then judges that row once, then polls the kernel's pppN at the pool
+# gateway for an up interface with MTU 1400, and fails naming what it saw.
+#
+# A session that reaches an assigned IPv4 needs kernel PPPoL2TP, which needs
+# CAP_NET_ADMIN, so this test is needs-linux and runs in QEMU as root. It
+# SKIPS on an unprivileged dev host, and a SKIP is not evidence for it.
+# ze.l2tp.skip-kernel-probe is deliberately NOT set, as in
+# test/l2tp/session-clear-leaves-no-subscriber.ci, whose LAC half and link
+# keeper this peer reuses (internal/test/fixture/tunnel_fixture_l2tp_ppp.go,
+# tunnel_fixture_l2tp_session_clear.go). The pool gateway 10.99.12.1 is this
+# carrier's own: the peer finds pppN by it, so no sibling may share it.
+#
+# Ports: $PORT is the L2TP listener, $PORT2 the RADIUS mock (auth and
+# accounting), $PORT3 the daemon's SSH server, which the peer's `ze cli`
+# reaches through the three ze.ssh.* variables below.
+
+stdin=config:terminator=EOF_CONF
+system {
+    authentication {
+        # bcrypt cost-4 hash of "testpass".
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+l2tp {
+    enabled true
+    shared-secret s3cr3t
+    auth-method chap-md5
+    auth {
+        radius {
+            nas-identifier lns1
+            timeout 5
+            retries 2
+            server mock {
+                address 127.0.0.1
+                port $PORT2
+                accounting-port $PORT2
+                shared-key testing123
+            }
+        }
+    }
+    pool {
+        ipv4 {
+            gateway 10.99.12.1
+            start 10.99.12.10
+            end 10.99.12.10
+        }
+    }
+}
+environment {
+    l2tp {
+        server main {
+            ip 127.0.0.1
+            port $PORT
+        }
+    }
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1
+            port $PORT3
+        }
+    }
+}
+EOF_CONF
+
+option=needs-linux:caps=net-admin
+option=env:var=ze.log.l2tp:value=debug
+option=env:var=TEST_SECRET:value=s3cr3t
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT3
+
+cmd=background:seq=1:exec=le test fixture l2tp/radius-framed-mtu/radius $PORT2 testing123
+cmd=background:seq=2:exec=ze -:stdin=config
+# The PPP session's own record of the decision, at Info on the daemon's stderr.
+expect=stderr:pattern=ppp: interface MTU set from the RADIUS Framed-MTU.*framed-mtu=1400.*transmit-mru=1500
+# 120s bounds the peer's waits, each a share of this budget, so a stall ends
+# with the peer naming the state that never came. The happy path takes seconds.
+cmd=foreground:seq=3:exec=le test fixture l2tp/radius-framed-mtu $PORT 10.99.12.1 1400:timeout=120s:exit=0
+expect=exit:code=0
+expect=stdout:contains=OK: CHAP Success received
+expect=stdout:contains=OK: IPCP opened, ze assigned 10.99.12.10
+expect=stdout:pattern=OK: show l2tp sessions reports session [0-9]+ with mtu 1400 and mru 1500
+expect=stdout:pattern=OK: kernel interface ppp[0-9]+ holding 10\.99\.12\.1 is up with MTU 1400
+# 1400 is below the 1500 limit, so the above-limit branch must not run.
+reject=stderr:pattern=RADIUS Framed-MTU exceeds the PPP transmit limit

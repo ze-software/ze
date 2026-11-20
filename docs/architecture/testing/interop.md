@@ -3941,6 +3941,7 @@ is the Dynamic Authorization Client.
 | `radius-coa-disconnect-freeradius` | Requires both kernel shaping rates to change after CoA-ACK; a mixed valid/unsupported request must NAK without changing either rate. A valid Disconnect must ACK and produce the matching Accounting-Stop |
 | `l2tp-radius-framed-protocol-reject` | Changes only FreeRADIUS's Framed-Protocol for one user: PPP must establish traffic, SLIP must produce authorization refusal and CHAP failure without Accounting-Start, then PPP must work again |
 | `radius-subscriber-dns` | RFC 2548 Sections 2.7.6 and 2.7.7 through the pool (spec-home-cpe-23b AC-9). The scenario's own users file has FreeRADIUS answer alice with MS-Primary-DNS-Server 198.51.100.53 and MS-Secondary-DNS-Server 198.51.100.54 (`dictionary.microsoft`, Microsoft attributes 28 and 29, moved into the reply by rlm_files' `file_common`), and its own pppd options add `usepeerdns`. The pool writes no `dns-source` and has its own `dns-primary` 203.0.113.53, so its built-in list (radius first) must offer the RADIUS pair: pppd's `create_resolv` writes exactly those two `nameserver` lines to `/etc/ppp/resolv.conf`, and the pool's address must not appear. Not yet run |
+| `radius-subscriber-framed-mtu` | RFC 2865 Section 5.12 on ze's side. The scenario's own users file has FreeRADIUS answer alice with Framed-MTU 1400 (`share/dictionary.rfc2865`, attribute 12, type integer). The suite's pppd names no `mru`, so LCP agrees on the default 1500, and that is what ze's pppN would hold with the Framed-MTU ignored. The checker requires ze's one PPP interface to report kernel MTU 1400 (`ip -j link show type ppp` in ze's container), `show l2tp sessions` to report `"mtu": 1400` beside `"mru": 1500`, so the 1400 cannot come from LCP, and the subscriber to ping through the session. Passes against FreeRADIUS 3.2.10. Forced red: with `pppSession.interfaceMTU` changed to ignore the Framed-MTU, the image rebuilt and the scenario rerun, it fails in the checker with "ze's ppp0 has kernel MTU 1500, want the RADIUS Framed-MTU 1400" while FreeRADIUS still sent Framed-MTU 1400 and Ze logged `framed-mtu=1400` at extraction |
 
 The server listens as a stock deployment does, `type = auth` on 1812 and
 `type = acct` on 1813 (`site-default`), and ze sends accounting to a server
@@ -3981,6 +3982,7 @@ logs. This keeps the checker's CHAP-refusal observation connected to the peer.
 <!-- source: internal/le/interoplab/radiussubscriber/check_coa_disconnect.go -- checkCoADisconnect -->
 <!-- source: internal/le/interoplab/radiussubscriber/check_framed_protocol.go -- configureFramedServerPeer, checkFramedReject, setFramedProtocol -->
 <!-- source: internal/le/interoplab/radiussubscriber/check_subscriber_dns.go -- configureSubscriberDNSPeers, checkSubscriberDNS -->
+<!-- source: internal/le/interoplab/radiussubscriber/check_framed_mtu.go -- configureFramedMTUServerPeer, checkFramedMTU -->
 
 ### Independent TFTP duplicate-ACK recovery
 
