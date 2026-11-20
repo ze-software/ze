@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"go.fd.io/govpp/api"
+	"go.fd.io/govpp/binapi/ethernet_types"
 	interfaces "go.fd.io/govpp/binapi/interface"
 	"go.fd.io/govpp/binapi/interface_types"
 	"go.fd.io/govpp/binapi/ip"
@@ -91,9 +92,20 @@ func (b *vppBackendImpl) ListInterfaces() ([]iface.InterfaceInfo, error) {
 	// A failed stats read leaves every Stats nil ("not read"); the interface
 	// list itself is still the answer.
 	statsMap, _ := readVPPIfaceStats() //nolint:errcheck // a nil map attaches no Stats, which is "not read"
+	parents := make(map[interface_types.InterfaceIndex]ethernet_types.MacAddress, len(details))
+	for i := range details {
+		if !inheritsParentMAC(&details[i]) {
+			parents[details[i].SwIfIndex] = details[i].L2Address
+		}
+	}
 	out := make([]iface.InterfaceInfo, 0, len(details))
 	for i := range details {
 		info := detailsToInfo(&details[i])
+		if parent, ok := parents[interface_types.InterfaceIndex(details[i].SupSwIfIndex)]; ok && inheritsParentMAC(&details[i]) {
+			info.MAC = net.HardwareAddr(parent[:]).String()
+		} else if err := b.fillParentMAC(&info, &details[i]); err != nil {
+			return nil, fmt.Errorf("ifacevpp: list interfaces: %w", err)
+		}
 		if err := b.fillAddresses(&info, details[i].SwIfIndex); err != nil {
 			return nil, fmt.Errorf("ifacevpp: list interfaces: %w", err)
 		}
@@ -158,6 +170,9 @@ func (b *vppBackendImpl) GetInterface(name string) (*iface.InterfaceInfo, error)
 		return nil, err
 	}
 	info := detailsToInfo(details)
+	if err := b.fillParentMAC(&info, details); err != nil {
+		return nil, fmt.Errorf("ifacevpp: get %q: %w", name, err)
+	}
 	if err := b.fillAddresses(&info, details.SwIfIndex); err != nil {
 		return nil, fmt.Errorf("ifacevpp: get %q: %w", name, err)
 	}
@@ -175,9 +190,36 @@ func (b *vppBackendImpl) GetLink(name string) (*iface.InterfaceInfo, error) {
 		return nil, err
 	}
 	info := detailsToInfo(details)
+	if err := b.fillParentMAC(&info, details); err != nil {
+		return nil, fmt.Errorf("ifacevpp: get link %q: %w", name, err)
+	}
 	statsMap, _ := readVPPIfaceStats() //nolint:errcheck // a nil map attaches no Stats, which is "not read"
 	attachVPPIfaceStats(&info, statsMap)
 	return &info, nil
+}
+
+// inheritsParentMAC reports whether d is a sub-interface whose MAC VPP left
+// out. VPP's send_sw_interface_details (src/vnet/interface_api.c) types a
+// sub-interface IF_API_TYPE_SUB and fills l2_address only for a physical
+// Ethernet interface, leaving it zero on a sub-interface, which sends with
+// its parent's MAC.
+func inheritsParentMAC(d *interfaces.SwInterfaceDetails) bool {
+	return d.Type == interface_types.IF_API_TYPE_SUB && d.L2Address == ethernet_types.MacAddress{}
+}
+
+// fillParentMAC sets a sub-interface's MAC to its parent's, read from VPP.
+// A parent that cannot be read fails the read: a zero MAC would read as an
+// interface that has none.
+func (b *vppBackendImpl) fillParentMAC(info *iface.InterfaceInfo, d *interfaces.SwInterfaceDetails) error {
+	if !inheritsParentMAC(d) {
+		return nil
+	}
+	parent, err := b.dumpByIndex(interface_types.InterfaceIndex(d.SupSwIfIndex))
+	if err != nil {
+		return fmt.Errorf("read the parent of sub-interface %q for its MAC: %w", info.Name, err)
+	}
+	info.MAC = net.HardwareAddr(parent.L2Address[:]).String()
+	return nil
 }
 
 // detailsByName returns the SwInterfaceDetails of the interface named name.
