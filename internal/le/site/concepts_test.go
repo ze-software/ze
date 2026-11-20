@@ -89,14 +89,14 @@ func TestHomeCompactLabelsCarryTheirMeaning(t *testing.T) {
 	}
 	strip := sliceBetween(t, page, `<div class="interop-strip"`, "</section>")
 	for _, name := range []string{"FRR", "BIRD", "GoBGP", "OpenBGPd", "FreeRtr", "RustyBGP", "rustbgpd",
-		"ExaBGP", "StayRTR", "pmacct", "strongSwan", "accel-ppp", "xl2tpd", "FreeRADIUS", "keepalived"} {
+		"ExaBGP", "StayRTR", "pmacct", "strongSwan", "accel-ppp", "xl2tpd", "kl2tpd", "FreeRADIUS", "keepalived"} {
 		link := regexp.MustCompile(`<a class="concept-software" href="[^"]+">` + regexp.QuoteMeta(name) + `</a>`)
 		if !link.MatchString(strip) {
 			t.Errorf("the interop strip lost the software link %q", name)
 		}
 	}
-	if got := strings.Count(strip, `class="concept-software"`); got != 15 {
-		t.Errorf("the interop strip marks %d software labels, want all 15", got)
+	if got := strings.Count(strip, `class="concept-software"`); got != 16 {
+		t.Errorf("the interop strip marks %d software labels, want all 16", got)
 	}
 	if !strings.Contains(strip, `<b>BGP</b>`) {
 		t.Error("the software role reached a protocol heading")
