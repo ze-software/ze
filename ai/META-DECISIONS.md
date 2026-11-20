@@ -237,6 +237,11 @@ in the spec or commit it applies to.
   upstream pull request and is never a dependency.
 - A new third-party Go module lands in a commit of its own (`go.mod`, `go.sum`
   and its `vendor/` tree, nothing else), before the commit that first uses it.
+- A change Ze makes to third-party code it carries (a patch to a vendored
+  module, a patch to source copied in from another project) is released under
+  that code's own licence, never under Ze's. A patch to Apache-2.0 code is
+  Apache-2.0, so upstream can take it. Code Ze writes that only uses the
+  third-party code (a client, a backend, a plugin) stays under Ze's licence.
 - A third-party module that is experimental and implements cryptography (the
   Cloudflare `circl` module) is approved for the use Thomas approved, and
   nothing more. Its presence in `go.mod` or `vendor/` is never permission to use another of
