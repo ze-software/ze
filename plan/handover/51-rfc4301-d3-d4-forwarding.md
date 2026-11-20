@@ -29,11 +29,14 @@ full status and evidence; this page is the short form. Nothing is pushed.
    (`stopSessionsOn`, engine/apply.go), so a fresh IKE_SA_INIT from the new
    address replaces the SA before `serviceMobike` can send UPDATE_SA_ADDRESSES.
    Only route-chosen mode exempts an SA with `mobikeUp`. The strongSwan log shows
-   no UPDATE_SA_ADDRESSES and an INITIAL_CONTACT replacement. Waiting on Thomas:
-   (A) a MOBIKE SA survives an interface-address move (re-point the session's
-   socket pair, skip the restart, change the design page's rebind paragraph in
-   ipsec-7-ikev2-engine.md), or (B) keep the restart and move the scenario to
-   route-chosen mode. Recommendation (A).
+   no UPDATE_SA_ADDRESSES and an INITIAL_CONTACT replacement. Decided by Thomas
+   2026-11-20: (A), a MOBIKE SA survives an interface-address move (re-point the
+   session's socket pair, skip the restart and the reconcile restart for an
+   interface fill-in change; recorded on the design page ipsec-7-ikev2-engine.md
+   beside the rebind paragraph). The work belongs to
+   spec-ipsec-strongswan-interop-reds: add it there, with an engine test that an
+   interface-mode address move with `mobikeUp` keeps the SPIs and queues the
+   update, and the mobike-initiator lab as the interop proof.
 2. **K1 extension for forwarded ICMP errors (owner decision 2026-11-20, (c)):**
    extend `gokrazy/kernel/patches/0003-xfrm-state-scope.patch` so the forwarded
    path, `__xfrm_route_forward` included, tries `xfrm_out_fwd_icmp` when the OUT

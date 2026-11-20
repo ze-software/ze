@@ -720,6 +720,18 @@ them, since their filled `local-address` changed. A route-chosen session whose
 source left the host is restarted unless its SA negotiated MOBIKE, which moves
 itself (RFC 4555 Section 3.5).
 
+**Owner decision, 2026-11-20: an interface-mode session whose SA negotiated MOBIKE
+survives an address move.** Today `rebindListeners` stops it like any other
+session on the moving pair, so a fresh IKE_SA_INIT from the new address replaces
+the SA before `serviceMobike` can send UPDATE_SA_ADDRESSES (seen in the
+`mobike-initiator` interop scenario). The owed design: such a session is not
+stopped; it is re-pointed to the reopened pair, the reconcile does not restart it
+for a `local-address` change that comes only from the interface fill-in, and
+MOBIKE moves the SA, as a route-chosen MOBIKE session already does. The paragraph
+above describes the current code until that change lands. Set aside: keeping the
+restart and running the scenario in route-chosen mode, which leaves MOBIKE
+unusable on a CPE that uses `vpn ipsec interface`.
+
 Each initiator cycle resolves its pair first (`resolveCyclePair`, `cycle_addr.go`):
 the remote name, and the route-chosen source through `routeSourceTo`. The pair is
 stored on the SA (`cycleRemote`, `cycleLocal`) and every reader takes it through
