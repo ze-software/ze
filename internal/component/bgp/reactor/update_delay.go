@@ -642,7 +642,8 @@ func (h *updateDelayHold) report(settings UpdateDelay) plugin.UpdateDelayStatus 
 // the startup convergence hold.
 //
 // It is the ONE door onto sendInitialRoutes for an establishing peer. The FSM
-// callback calls it in place of the bare spawn it used to make (peer_run.go), so
+// callback calls it, through Peer.startEstablishedSession and before it notifies
+// the plugins, in place of the bare spawn it used to make (peer_run.go), so
 // the hold cannot be bypassed by a second establishment path: a path that
 // spawned the goroutine itself would advertise from under a hold that believes
 // it owns the peer.

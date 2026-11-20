@@ -1220,7 +1220,9 @@ func (p *Peer) ResetPeerUpBarrier() {
 // SetPeerUpBarrier declares how many barrier plugins this session's peer-up
 // event is being delivered to. Called by the event dispatcher before the first
 // delivery, so it is always ordered before any SignalPeerUpBarrier and before
-// sendInitialRoutes is spawned.
+// sendInitialRoutes reads the barrier: the sync reads it only once the peer-up
+// notification has returned (Session.awaitInitialSyncStart,
+// Peer.awaitPeerUpDeliveryForMarker).
 //
 // Also the release valve: the dispatcher lowers the count to the number of
 // acknowledgements it actually obtained when a delivery is skipped or fails.
@@ -1278,8 +1280,9 @@ const (
 //
 // Returns immediately when nothing is expected, and in production it nearly
 // always does. The dispatcher delivers the peer-up event to each barrier plugin
-// and waits for its answer on the FSM callback goroutine, before that goroutine
-// starts the sync (deliverPeerState, bgp/server/events.go): an acknowledgement
+// and waits for its answer on the FSM callback goroutine, and the sync reads the
+// barrier only after that notification has returned (deliverPeerState,
+// bgp/server/events.go, and Peer.startEstablishedSession): an acknowledgement
 // opens the barrier, and a refusal lowers the expected count to what was
 // acknowledged, which opens it too. The wait is reached with the barrier still
 // shut only when the dispatcher could not find the peer to record a signal or

@@ -609,10 +609,11 @@ session.fsm.SetCallback(func(from, to fsm.State, event fsm.Event) {
         }
     } else if to == fsm.StateEstablished {
         // ... set negotiated capabilities ...
-        if reactor != nil {
-            p.announceEstablished(reactor, session) // marks the up phase around notifyPeerEstablished
-        }
-        p.startInitialRoutes(session) // spawnInitialSync: one sync goroutine per session, joined at session end
+        // startEstablishedSession, in this order:
+        //   startBFDClient: BFD depends on no plugin
+        //   startInitialRoutes: spawnInitialSync, one sync goroutine per session, joined at session end
+        //   announceEstablished: marks the up phase around notifyPeerEstablished
+        p.startEstablishedSession(session)
     } else if from == fsm.StateEstablished {
         // leaveSession: release BFD without waiting, record what the close
         // is derived from (event, NOTIFICATION, close cause), mark the
@@ -648,14 +649,25 @@ closes with no NOTIFICATION and the log says so.
 After `sessionDown`, the owner defer `runOnce` registered first joins the
 session's initial sync (`Session.endInitialSync`) before it resets the
 End-of-RIB claims and clears `Peer.session`, so no write of the ended session's
-sync can reach the session that replaces it. The sync's one wait, the peer-up
-barrier (`Peer.waitPeerUpBarrier`), also ends when the session's Run returns
-(`Session.Done`): the sync then returns with its session's facts cleared, and
-the join never waits for the 2 second barrier timeout.
+sync can reach the session that replaces it. The sync has two waits, and both
+also end when the session's Run returns (`Session.Done`): the wait for the
+peer-up notification (`Session.awaitInitialSyncStart`) and the peer-up barrier
+(`Peer.waitPeerUpBarrier`). The sync then returns with its session's facts
+cleared, and the join never waits for a plugin or for the 2 second barrier
+timeout.
+
+The initial sync is started before the plugin notification and waits for it to
+return, so a route a plugin writes from its peer-up handler still precedes Ze's
+own table. It goes ahead of the notification in one case: a writer the engine
+joins, a peer-up replay for one, is parked behind the session's initial-sync
+gate. Only the sync opens that gate, so the handler waiting on that writer
+cannot return first. Such a sync holds its End-of-RIB until the notification
+has returned, which keeps the joined replay ahead of the marker.
 
 <!-- source: internal/component/bgp/reactor/peer_run.go -- Peer.runOnce -->
 <!-- source: internal/component/bgp/reactor/session.go -- Session.endInitialSync -->
 <!-- source: internal/component/bgp/reactor/peer.go -- Peer.waitPeerUpBarrier -->
+<!-- source: internal/component/bgp/reactor/peer_up_delivery.go -- startEstablishedSession, awaitInitialSyncStart, awaitPeerUpDeliveryForMarker -->
 
 Before any handshake can publish negotiation, `runOnce` defers its publication
 end, including for a retained collision-winner OPEN. The session owns admission

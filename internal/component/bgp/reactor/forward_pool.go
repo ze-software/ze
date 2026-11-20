@@ -1089,6 +1089,12 @@ func (fp *fwdPool) TryDispatch(key fwdKey, item *fwdItem) bool {
 // tryDispatchBound keeps a standalone full channel bounded. When ordered
 // overflow or a hold already exists, admit live work up to the channel's
 // capacity and keep one separate initial replay slot.
+//
+// A parked carrier is one its caller joins, and the caller can be a plugin's
+// peer-up handler, which the FSM Established callback waits for. The session
+// is told that a writer waits on its gate, so its initial sync, the only thing
+// that opens the gate, starts without waiting for that handler to return
+// (Session.noteInitialGateWaiter).
 func (fp *fwdPool) tryDispatchBound(key fwdKey, item *fwdItem) bool {
 	if !item.peer.forwardOrderHold(item.initialUpdate) {
 		if fp.TryDispatch(key, item) {
@@ -1096,6 +1102,9 @@ func (fp *fwdPool) tryDispatchBound(key fwdKey, item *fwdItem) bool {
 		}
 	}
 	if fp.reserveBoundOverflow(key, item) {
+		if session := item.boundWrite.session; session != nil {
+			session.noteInitialGateWaiter()
+		}
 		fp.wakeOverflow(key)
 		return true
 	}

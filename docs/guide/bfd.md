@@ -731,6 +731,7 @@ takes effect then.
 <!-- source: internal/component/bfd/engine/engine.go -- EnsureSession, reviveReleasedLocked, createSessionLocked -->
 <!-- source: internal/component/bfd/engine/auth_join.go -- authMismatchCase -->
 <!-- source: internal/component/bgp/reactor/peer_run.go -- startBFDClient and stopBFDClient callers -->
+<!-- source: internal/component/bgp/reactor/peer_up_delivery.go -- startEstablishedSession, the startBFDClient caller on Established -->
 <!-- source: internal/plugins/static/inject.go -- setupBFDLocked, releaseBFDLocked -->
 <!-- source: internal/plugins/ospf/bfd_client.go -- bfdNeighborFull, startBFDSession, reconcileBFD -->
 <!-- source: internal/plugins/ospf/instance.go -- reconcileBFD caller on every ospf apply -->

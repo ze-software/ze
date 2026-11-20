@@ -1,5 +1,6 @@
 // Design: docs/architecture/core-design.md — peer run loop and session lifecycle
 // Overview: peer.go — Peer struct, accessors, lifecycle API
+// Related: peer_up_delivery.go — startEstablishedSession, what the Established callback owes a published session
 
 package reactor
 
@@ -403,43 +404,19 @@ func (p *Peer) runOnce() (runErr error) {
 			// raised by enterEstablished above, before Established was
 			// published (Peer.resetAPISync, Peer.raiseReplayFence).
 
-			// Reset the peer-up barrier for this session BEFORE plugins are
-			// notified below: the dispatcher raises its expected count and the
-			// plugins acknowledge inside notifyPeerEstablished, so the barrier
-			// state those calls land on must already belong to this session.
-			p.ResetPeerUpBarrier()
-
 			// The initial-sync gate is already closed: enterEstablished above
 			// closes the session's gate before it publishes PeerStateEstablished,
 			// so shouldQueue() is true here and stays true through the
-			// notifications below. It used to be closed at THIS line instead, which
+			// notification below. It used to be closed at THIS line instead, which
 			// left every line between the publication and here as a window in which
 			// an established peer's route ops bypassed opQueue and the
 			// bgp-peer-sync quiescer reported the peer settled.
 
-			// Notify the reactor that the session is established.
-			p.mu.RLock()
-			reactor := p.reactor
-			p.mu.RUnlock()
-			// announceEstablished marks the phases a reload racing this
-			// delivery reads (applyHotSwappableSettings).
-			if reactor != nil {
-				p.announceEstablished(reactor, session)
-			}
-
-			// Open a BFD session for this peer if the operator
-			// opted in via `bgp peer connection bfd { ... }` and
-			// the BFD plugin is loaded. No-op otherwise. Runs
-			// before sendInitialRoutes so the BFD subscriber is
-			// live before the first UPDATE leaves -- a BFD Down
-			// during initial flood should still tear the peer.
-			p.startBFDClient()
-
-			// Send static routes from config (one-time per-session lifecycle goroutine),
-			// unless the startup convergence hold owns this peer's initial routing
-			// update and will run it when it releases (update_delay.go).
-			peerLogger().Debug("spawning sendInitialRoutes", "peer", addr)
-			p.startInitialRoutes(session)
+			// The peer-up barrier reset, the BFD client, the initial routing
+			// update and the plugin notification, in that order: BFD depends on
+			// no plugin, and the initial update can run while a plugin's peer-up
+			// handler waits on its gate (peer_up_delivery.go).
+			p.startEstablishedSession(session)
 			transitionReason = "established"
 		} else if from == fsm.StateEstablished {
 			p.leaveSession(session, leave, from, to, event)

@@ -5459,6 +5459,12 @@ When a hold moves admitted work from the channel, overflow takes its debt
 before the channel releases it. Initial replay can pass live carriers parked
 behind the replay fence. Cancellation wakes the same worker, and canceled or
 retired work completes without writing to a successor's session.
+A carrier parked behind a destination's initial-sync gate can belong to a
+plugin's peer-up handler, which the engine's Established callback waits for.
+The destination's initial sync is then started without waiting for that
+handler, so the gate opens and the carrier joins: Ze's own table, the parked
+replay, then the End-of-RIB
+(`docs/architecture/plugin/plugin-system.md`, "Peer-up barrier").
 The existing cache
 consumer is acknowledged once for each unique ID, after all target writes
 have joined, also on partial refusal or cancellation. A target failure does not
@@ -5466,7 +5472,8 @@ turn another target's useful output into absence. No per-target call can
 acknowledge shared cached IDs early. A final completion receipt confirms the
 whole call settled; it does not grant send or retained-source authority.
 <!-- source: internal/component/bgp/reactor/relay_bound.go -- ForwardUpdatesBound, boundForwardStage.flush -->
-<!-- source: internal/component/bgp/reactor/forward_pool.go -- reserveBoundOverflow, requeueForwardHold, takeOverflowReleased -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- tryDispatchBound, reserveBoundOverflow, requeueForwardHold, takeOverflowReleased -->
+<!-- source: internal/component/bgp/reactor/peer_up_delivery.go -- noteInitialGateWaiter, awaitInitialSyncStart -->
 <!-- source: internal/component/bgp/reactor/reactor_api_forward_batch.go -- forwardUpdates -->
 
 

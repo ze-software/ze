@@ -486,6 +486,14 @@ type Session struct {
 	// latch reads started. Created with the session (NewSession).
 	initialSyncDone chan struct{}
 
+	// peerUpDelivery is this session's peer-up notification, nil until the FSM
+	// Established callback opens it (openPeerUpDelivery). The session's initial
+	// sync waits on it before it starts (awaitInitialSyncStart), and the forward
+	// pool reports a joined writer parked behind the session's gate through it
+	// (noteInitialGateWaiter). A session whose sync is driven without the
+	// callback leaves it nil, and that sync waits for nothing.
+	peerUpDelivery atomic.Pointer[peerUpDelivery]
+
 	// connectionID is issued once at birth, before either OPEN, and never changes.
 	connectionID        uint64
 	publishedGeneration atomic.Uint64 // Assigned at this Session's Established publication, independent of physical identity.

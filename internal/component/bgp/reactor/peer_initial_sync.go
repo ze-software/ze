@@ -96,6 +96,24 @@ func (p *Peer) sendInitialRoutes(session *Session) {
 	// state: either the gate is closed (routes will be queued and drained by
 	// us), or it is open and the queue is empty (routes can be sent directly).
 
+	// The FSM callback starts this goroutine before it notifies the plugins,
+	// and the sync waits here for that notification to return, so a route a
+	// plugin writes from its peer-up handler still precedes Ze's own table. It
+	// goes ahead of the notification only when a writer the engine joins is
+	// parked behind this session's gate: that handler cannot return before the
+	// gate below opens (Session.awaitInitialSyncStart).
+	//
+	// A session that ends during the wait ends this sync here, as it ends the
+	// one waiting on the peer-up barrier below.
+	start := session.awaitInitialSyncStart()
+	if start == initialSyncStartSessionEnded {
+		peerLogger().Debug("initial sync abandoned: the session ended before the peer-up notification returned", "peer", addr)
+		session.sendingInitialRoutes.Store(0)
+		session.initialSyncEOROwed.Store(false)
+		p.wakeForwardOverflow()
+		return
+	}
+
 	peerLogger().Debug("sendInitialRoutes started", "peer", addr)
 
 	// Get negotiated capabilities for family checks. p.negotiated is this
@@ -161,19 +179,28 @@ func (p *Peer) sendInitialRoutes(session *Session) {
 	// a live forward target" -- what a peer waiting on the marker before it
 	// sends reads it to mean. It is free in the common case (nothing expected,
 	// or plugins that already acknowledged on the FSM callback goroutine before
-	// this goroutine was spawned). Bounded; on timeout it releases and says so.
+	// this goroutine passed its start wait above). Bounded; on timeout it
+	// releases and says so.
 	//
 	// A session that ends during the wait ends this sync here. Its connection
 	// is gone, so nothing more of its initial update can reach the wire, and the
 	// session-end defer is waiting to join this goroutine (Session.endInitialSync).
 	// Its facts are cleared as the other abandon paths clear them; the queued
 	// operations stay queued for the next session, which drains them itself.
-	if p.waitPeerUpBarrier(session) == peerUpBarrierSessionEnded {
-		peerLogger().Debug("initial sync abandoned: the session ended in the peer-up barrier wait", "peer", addr)
-		session.sendingInitialRoutes.Store(0)
-		session.initialSyncEOROwed.Store(false)
-		p.wakeForwardOverflow()
-		return
+	//
+	// A sync that started while the peer-up notification was still running
+	// reads the barrier later, before its End-of-RIB phase
+	// (awaitPeerUpDeliveryForMarker). An acknowledgement is a delivery result,
+	// and the delivery is behind a handler that waits on the gate this sync has
+	// not opened yet, so the barrier could only time out here.
+	if start == initialSyncStartDelivered {
+		if p.waitPeerUpBarrier(session) == peerUpBarrierSessionEnded {
+			peerLogger().Debug("initial sync abandoned: the session ended in the peer-up barrier wait", "peer", addr)
+			session.sendingInitialRoutes.Store(0)
+			session.initialSyncEOROwed.Store(false)
+			p.wakeForwardOverflow()
+			return
+		}
 	}
 
 	// No wait for the processes that push routes is taken anywhere in this
@@ -415,6 +442,18 @@ func (p *Peer) sendInitialRoutes(session *Session) {
 	// whatever this flag says, after the operations this sync drained: when it
 	// claimed the family first, it is the family's marker and this phase skips
 	// the family (reactor_api_forward.go, announceEOR).
+
+	// A sync that went ahead of the peer-up notification holds its marker until
+	// that notification has returned: the replay its handler joined was parked
+	// behind the gate this sync opened above, and it is on the wire when the
+	// handler returns. RFC 4724 Section 2.
+	if start == initialSyncStartGateWaiter {
+		if !p.awaitPeerUpDeliveryForMarker(session) {
+			peerLogger().Debug("initial sync abandoned: the session ended before the peer-up notification returned", "peer", addr)
+			session.initialSyncEOROwed.Store(false)
+			return
+		}
+	}
 
 	func() {
 		session.holdWrites()

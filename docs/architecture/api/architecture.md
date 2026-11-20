@@ -2061,7 +2061,14 @@ not hold Ze's own marker (owner ruling, 2026-09-18).
 7. **sendInitialRoutes writes what it owns:** config static routes,
    default-originate, the peer-up barrier, then the family routes. It runs on
    the session's one sync goroutine, started through the session's latch
-   (`spawnInitialSync`), and writes only to that session. The runOnce
+   (`spawnInitialSync`), and writes only to that session. The FSM callback
+   starts that goroutine before the peer-up notification of step 4, and the
+   sync waits for the notification to return before it writes
+   (`Session.awaitInitialSyncStart`). It goes ahead of the notification only
+   when a writer the engine joins is parked behind the session's gate, as a
+   replay `bgp-adj-rib-in` joins from its peer-up handler is: that sync reads
+   the barrier, and sends its End-of-RIB, once the notification has returned
+   (`docs/architecture/plugin/plugin-system.md`, "Peer-up barrier"). The runOnce
    session-end defer joins the goroutine before it clears `Peer.session`.
 8. **drainAndCloseQueueGate:** the opQueue is drained and new work no longer
    joins the engine's initial-sync queue. An announce or withdrawal that read

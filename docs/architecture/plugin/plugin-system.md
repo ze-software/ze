@@ -780,7 +780,7 @@ sent" implies "every barrier plugin has registered this peer".
 | The plugin declares | `PeerUpBarrier: true` in its `registry.Registration` |
 | The engine counts | The barrier-declaring plugins among those the peer-up event is actually delivered to, before the first delivery |
 | The engine acknowledges | Each successful delivery result signals the peer's barrier. The result is the plugin's acknowledgement that its handler ran and returned |
-| The peer waits | `Peer.waitPeerUpBarrier` runs before the initial-sync End-of-RIB |
+| The peer waits | `Peer.waitPeerUpBarrier` runs before the initial-sync End-of-RIB, once the peer-up notification has returned |
 
 The count is taken over the delivery set rather than the registry. A plugin that
 declares the barrier but subscribes to no state events never takes delivery, so
@@ -792,17 +792,37 @@ plugin's peer-up replay is out, lowers the replay fence, and holds no
 End-of-RIB. The dispatcher
 delivers the peer-up event to one plugin at a time and waits for each
 delivery's result on the FSM callback goroutine (`deliverPeerState`), for an
-in-process plugin and an external one alike, before that goroutine starts the
-initial sync. Each acknowledgement signals the barrier, and when fewer plugins
+in-process plugin and an external one alike. The initial sync is started before
+that notification and waits for it to return, so it reads the barrier only
+afterwards. Each acknowledgement signals the barrier, and when fewer plugins
 acknowledged than were counted, the dispatcher lowers the count to what was
 acknowledged, which opens the barrier too. The sync therefore normally finds
 the barrier open and does not wait.
+
+A plugin may join a write from inside its peer-up handler: `bgp-adj-rib-in`
+replays its stored routes there and waits for each chunk to reach the wire. A
+joined writer for a session whose initial sync has not opened its gate is parked
+behind that gate, and the handler cannot return before the sync has run. The
+forward pool therefore tells the session that a writer waits on its gate
+(`Session.noteInitialGateWaiter`), and the sync starts at once instead of
+waiting for the notification. It writes Ze's own table, opens the gate, which
+releases the parked replay, and then holds its End-of-RIB until the
+notification has returned and the barrier is open. The order on the wire is
+Ze's own table, the joined replay, the End-of-RIB. The BFD client starts before
+the notification, so no plugin handler delays it.
+
+The startup convergence hold (`update-delay`) is the exception: while it owns a
+session's initial update no sync runs, the gate stays closed until the hold
+releases, and a handler that joins a replay waits for its own deadline.
 
 The wait is bounded. A barrier still shut when the sync reaches it (the
 dispatcher could not find the peer to record a signal or the lowered count)
 delays the marker to `peerUpBarrierTimeout` (2 s), which releases it with a
 WARN naming the peer and the shortfall. A session that ends first ends the
 wait at once, with no WARN.
+
+<!-- source: internal/component/bgp/reactor/peer_up_delivery.go -- startEstablishedSession, awaitInitialSyncStart, awaitPeerUpDeliveryForMarker -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- tryDispatchBound -->
 
 `bgp-rs` declares the barrier because `handleState` sets `Up` and captures
 `ForwardFrom` in one critical section. An UPDATE taken delivery of before that

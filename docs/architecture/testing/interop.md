@@ -2365,8 +2365,8 @@ function (`session_panic_inject.go`, `!ze_le`).
 configured `behavior { manual-eor true; }`, against FRR 10.7.1. Its external
 process (`le test interop-bgp process bgp-manual-eor-requested-frr
 manual-eor-requester`) acts from inside its handler for the peer-UP event,
-which the engine awaits before it starts the initial sync (`deliverPeerState`,
-`internal/component/bgp/server/events.go`), and answers within 4 s, under the
+which the initial sync waits for before it writes anything (`deliverPeerState`,
+`internal/component/bgp/server/events.go`, and `Session.awaitInitialSyncStart`), and answers within 4 s, under the
 engine's 5 s delivery timeout. On the first session it announces
 `10.84.1.0/24` and asks for nothing: FRR must decode the route and, through a
 10 s hold, no End-of-RIB. The checker then runs `clear bgp <ze>`. On the
