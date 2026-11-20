@@ -7,21 +7,21 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
-	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/feature"
-	pppoeapi "github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/pppoe"
 	"go.fd.io/govpp/api"
 	"go.fd.io/govpp/binapi/ethernet_types"
 	"go.fd.io/govpp/binapi/fib"
 	interfaces "go.fd.io/govpp/binapi/interface"
 	"go.fd.io/govpp/binapi/interface_types"
 	"go.fd.io/govpp/binapi/memclnt"
+
+	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
+	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/feature"
+	pppoeapi "github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/pppoe"
 )
 
 type factoryHarness struct {
 	requests []api.Message
 	fail     string
-	closes   int
 	release  int
 	stream   *ownerStream
 	gates    map[string]bool

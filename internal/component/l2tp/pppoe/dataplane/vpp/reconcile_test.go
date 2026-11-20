@@ -8,14 +8,15 @@ import (
 	"net/netip"
 	"testing"
 
+	"go.fd.io/govpp/api"
+	"go.fd.io/govpp/binapi/ethernet_types"
+	"go.fd.io/govpp/binapi/memclnt"
+
 	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
 	pppoeapi "github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/pppoe"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/rtproto"
-	"go.fd.io/govpp/api"
-	"go.fd.io/govpp/binapi/ethernet_types"
-	"go.fd.io/govpp/binapi/memclnt"
 )
 
 func isolateReconciliation(t *testing.T) {
@@ -285,7 +286,7 @@ func TestVPPReconcileControlMapRetirementPreservesAliases(t *testing.T) {
 	other := controlMapKey{generation: 3, pair: controlPair{12, 43}}
 	owners.entries[retired] = &controlMapLeaseState{owned: true, references: 1, api: &binaryAPI{open: func(context.Context) (api.Stream, error) {
 		t.Fatal("retirement sent a native request")
-		return nil, nil
+		return nil, errors.New("retirement sent a native request")
 	}}}
 	owners.entries[other] = &controlMapUnconfirmed{failure: errors.New("another live mutation")}
 	pending, err := owners.reconcileCovered(t.Context(), func(key controlMapKey) bool { return key == retired })
@@ -318,7 +319,7 @@ func TestVPPReconcileSessionRetirementClearsCachedNativeFailure(t *testing.T) {
 	retainReconciliation(t, owner.api, 19, owner)
 	owner.api.open = func(context.Context) (api.Stream, error) {
 		t.Fatal("process retirement performed native I/O")
-		return nil, nil
+		return nil, errors.New("process retirement performed native I/O")
 	}
 	retireCoveredSessions(func(client *binaryAPI) bool { return client == owner.api })
 	if !owner.api.processExited() {

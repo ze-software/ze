@@ -518,7 +518,11 @@ PPP negotiation proceeds through these phases:
    parallel with IPCP when both NCPs are enabled. NCPs are independent
    (RFC 1661 S2): if the pool handler declines IPv6 (for example an
    IPv4-only static pool), IPv6CP is dropped and the session stays up
-   with IPv4 alone rather than being torn down.
+   with IPv4 alone rather than being torn down. The same holds when the
+   subscriber's CPE does not run one of them: a CPE that answers IPv6CP
+   (or IPCP) with an LCP Protocol-Reject, as pppd run with `noipv6` does,
+   gets that NCP stopped until LCP renegotiates, and the session comes up
+   with the other family as soon as it opens.
 
 The PPP MRU counts the Information field, not the two-octet Protocol field.
 Ze's userspace buffers hold 1502 octets, and the kernel receive MRU stays at
@@ -649,8 +653,17 @@ alone, and the refusal is logged and counted (see Prometheus metrics).
 <!-- source: internal/component/l2tp/ppp/ncp.go -- requestIPv6CPInterfaceID declined path, evalIPv6CPRequest, buildNakOrReject -->
 <!-- source: internal/component/l2tp/ppp/session_run.go -- afterLCPOpenIPv6Service -->
 
-Authentication and NCP have configurable timeouts. LCP negotiation and restart
-timers are fixed.
+Authentication and NCP have configurable timeouts. The Restart timer and the
+`max-terminate`, `max-configure` and `max-failure` counters are set under
+`lcp`, as described above. IPCP and IPv6CP each run their own Restart timer and
+counter from the same Restart time, `max-configure` and `max-terminate`: an NCP Configure-Request the peer does not
+answer is sent again each Restart time, `max-configure` times in all, and that
+NCP then stops. A Terminate-Request from the peer leaves that NCP stopping for
+one Restart time.
+
+<!-- source: internal/component/l2tp/ppp/ncp_restart.go -- armNCPRestartTimer, spendNCPRestartCount, handleNCPRestartTimeout -->
+<!-- source: internal/component/l2tp/pppconfig/lcp.go -- ParseLCP -->
+
 
 Proxy LCP (RFC 2661 Section 4.4.5) is the LAC's record of the LCP it already
 negotiated with the subscriber, sent in ICCN as AVPs 26 to 28. The RFC lets an
@@ -1858,9 +1871,17 @@ when the IPv6 service stops.
 
 Ze registers `l2tp` as a redistribution source at subsystem Start.
 When IPCP assigns the peer an IPv4 address, the subscriber route observer
-emits a `(l2tp, route-change)` batch with its `/32`. The observer also
-emits the IPv4 and IPv6 framed routes from the subscriber's authorization.
-An LCP network reset or session-down emits the matching withdrawals.
+emits a `(l2tp, route-change)` batch with its `/32` and the IPv4 framed
+routes (Framed-Route) from the subscriber's authorization. When IPv6CP opens,
+the observer emits the IPv6 framed routes (Framed-IPv6-Route), with or without
+an IPv4 address; IPv6CP negotiates only an interface identifier, so there is no
+IPv6 host route. When one family's NCP closes while the session stays up (a
+Terminate-Request from the subscriber), the observer withdraws that family's
+routes only: the `/32` and the IPv4 framed routes for IPCP, the IPv6 framed
+routes for IPv6CP. The other family's routes stay, and the closed family's
+routes return when its NCP opens again. Both families together are still
+limited to 64 framed routes. An LCP network reset or session-down emits the
+withdrawals of whatever each family still holds.
 Use [`import pppoe`](pppoe.md#redistribute-subscriber-routes) to select
 PPPoE subscriber routes separately.
 

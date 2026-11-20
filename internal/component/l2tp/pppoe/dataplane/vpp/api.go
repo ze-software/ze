@@ -12,15 +12,17 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/feature"
 	"go.fd.io/govpp/api"
 	interfaces "go.fd.io/govpp/binapi/interface"
 	"go.fd.io/govpp/binapi/interface_types"
 	"go.fd.io/govpp/binapi/memclnt"
 
+	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/feature"
+
+	"go.fd.io/govpp/binapi/ethernet_types"
+
 	pppoeapi "github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/pppoe"
 	vppcomp "github.com/ze-software/ze/internal/component/vpp"
-	"go.fd.io/govpp/binapi/ethernet_types"
 )
 
 const apiTimeout = 5 * time.Second
@@ -76,14 +78,14 @@ func (a *binaryAPI) exchange(ctx context.Context, request api.Message) (reply ap
 		return nil, &apiRequestNotSentError{cause: errors.New("pppoe-vpp: API returned no stream")}
 	}
 	defer func() { err = errors.Join(err, stream.Close()) }()
-	if err = stream.SendMsg(request); err != nil {
+	if err := stream.SendMsg(request); err != nil {
 		return nil, err
 	}
 	reply, err = stream.RecvMsg()
 	if err != nil {
 		return nil, err
 	}
-	if err = bounded.Err(); err != nil {
+	if err := bounded.Err(); err != nil {
 		return reply, err
 	}
 	return reply, nil
@@ -108,10 +110,10 @@ func (a *binaryAPI) dump(ctx context.Context, request api.Message, limit int, vi
 		return errors.New("pppoe-vpp: API returned no dump stream")
 	}
 	defer func() { err = errors.Join(err, stream.Close()) }()
-	if err = stream.SendMsg(request); err != nil {
+	if err := stream.SendMsg(request); err != nil {
 		return err
 	}
-	if err = stream.SendMsg(&memclnt.ControlPing{}); err != nil {
+	if err := stream.SendMsg(&memclnt.ControlPing{}); err != nil {
 		return err
 	}
 	for range limit + 1 {
@@ -128,7 +130,7 @@ func (a *binaryAPI) dump(ctx context.Context, request api.Message, limit int, vi
 			}
 			return bounded.Err()
 		}
-		if err = visit(message); err != nil {
+		if err := visit(message); err != nil {
 			return err
 		}
 	}

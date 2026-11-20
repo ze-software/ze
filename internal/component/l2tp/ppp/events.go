@@ -192,6 +192,30 @@ func (e EventSessionIPAssigned) Acknowledge() {
 	}
 }
 
+// EventSessionIPReleased is emitted when one NCP (IPCP or IPv6CP) leaves
+// Opened while LCP stays Opened, after the session withdrew that family from
+// pppN: for IPv4 the framed routes and the address, with the IPv4 NP mode set
+// to drop; for IPv6 the IPv6 service. The other family is untouched. The
+// transport removes the family from what it announces (the redistribution
+// feed, the subscriber registry, accounting); a later EventSessionIPAssigned
+// for the same family is the reinstall. It needs no acknowledgment: the
+// kernel already stopped carrying the family before it was published.
+//
+// LCP leaving Opened is never a pair of releases: EventLCPDown withdraws the
+// whole network lifetime.
+type EventSessionIPReleased struct {
+	Birth           subscriberid.L2TPBirth     `json:",omitzero"`
+	SubscriberID    string                     `json:",omitempty"`
+	NetworkLifetime l2tpevents.NetworkLifetime `json:"network-lifetime,omitzero"`
+	// Control identifies this exact admitted worker; numeric fields are labels.
+	Control   SessionControl
+	TunnelID  uint16
+	SessionID uint16
+	Family    AddressFamily
+}
+
+func (EventSessionIPReleased) isPPPEvent() {}
+
 // EventSessionDown is emitted at most once per session goroutine that
 // WAS running: when it exits for any reason (local error,
 // Manager.StopSession call, auth/NCP failure), or earlier, when LCP
@@ -304,6 +328,11 @@ func (session *pppSession) bindEventControl(event Event) Event {
 		value.Control = session.control
 		return value
 	case EventSessionIPAssigned:
+		value.Birth = session.l2tpBirth
+		value.SubscriberID = session.subscriberID
+		value.Control = session.control
+		return value
+	case EventSessionIPReleased:
 		value.Birth = session.l2tpBirth
 		value.SubscriberID = session.subscriberID
 		value.Control = session.control

@@ -45,7 +45,7 @@ func (r framedRouteReceipt) nextHop() string {
 // RFC 3162 Section 2.5: "Whenever the gateway address is the IPv6 unspecified address the IP address of the user SHOULD be used as the gateway address."
 // A gateway equal to the subscriber stays a route via the subscriber. Any
 // other gateway becomes a device route through the session interface: the
-// session is a point-to-point link whose only neighbour is the subscriber,
+// session is a point-to-point link whose only neighbor is the subscriber,
 // so a packet sent to any next hop on it reaches the subscriber, exactly as
 // a route via the subscriber does. Linux refuses a gateway no connected
 // route covers, and Ze's owner-guarded session routes cannot carry
@@ -135,8 +135,7 @@ func (s *pppSession) installNCPFramedRoutesIPv4() error {
 // Caller MUST hold nativeReleaseMu, and MUST withdraw before the address the
 // routes resolve through.
 func (s *pppSession) withdrawNCPFramedRoutesIPv4() error {
-	for index := len(s.installedFramedIPv4) - 1; index >= 0; index-- {
-		receipt := s.installedFramedIPv4[index]
+	for index, receipt := range slices.Backward(s.installedFramedIPv4) {
 		if err := s.dataplane.RemoveRoute(receipt.destination, receipt.gateway, receipt.metric, rtproto.Iface); err != nil {
 			return err
 		}
@@ -214,8 +213,7 @@ func (s *IPv6Service) installFramedRoutes() error {
 func (s *IPv6Service) removeFramedRoutes() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for index := len(s.framedRoutes) - 1; index >= 0; index-- {
-		receipt := s.framedRoutes[index]
+	for index, receipt := range slices.Backward(s.framedRoutes) {
 		if err := s.cfg.Dataplane.RemoveRoute(receipt.destination, receipt.gateway, receipt.metric, rtproto.Iface); err != nil {
 			return err
 		}

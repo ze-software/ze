@@ -106,16 +106,16 @@ func prepareAccess(ctx context.Context, name string, ops accessPreparationOps,
 		return nil, err
 	}
 	if control.name != pair.ControlDevice {
-		return nil, errors.New("Linux LCP readback names another control device")
+		return nil, errors.New("the Linux LCP readback names another control device")
 	}
 	if control.index != pair.LinuxIndex {
-		return nil, errors.New("Linux LCP readback has another interface index")
+		return nil, errors.New("the Linux LCP readback has another interface index")
 	}
 	// VPP advertises its DP MAC and preserves that destination on CP ingress.
 	// Linux pppoe_rcv drops PACKET_OTHERHOST before looking up the session, so
 	// an unequal TAP MAC cannot deliver the advertised PPPoE control channel.
 	if control.mac != dataMAC {
-		return nil, errors.New("Linux LCP control MAC differs from the VPP access MAC")
+		return nil, errors.New("the Linux LCP control MAC differs from the VPP access MAC")
 	}
 	lease, err := maps.acquire(ctx, connection, indices)
 	if err != nil {

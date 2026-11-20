@@ -15,6 +15,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 
@@ -29,12 +30,17 @@ const defaultIPTimeout = 30 * time.Second
 // runNCPPhase settles every enabled NCP's initial negotiation, programs the pppN
 // interface for opened IPv4, and emits EventSessionIPAssigned per opened family.
 // A normally terminated NCP leaves independent network protocols available.
-// Returns false on failure, stop, or an LCP interruption. The caller MUST
-// resume the session loop for a nonterminal LCP transition.
+// Returns true once every enabled NCP is settled and at least one is Opened,
+// so the caller's EventSessionUp always carries a network protocol. Returns
+// false on failure, stop, or an LCP interruption, and when the no-NCP bound
+// (ncp_bound.go) expires with no enabled NCP Opened, which fails the session
+// with NAS Error and sends no LCP Terminate-Request. The caller MUST resume
+// the session loop for a nonterminal LCP transition.
 //
 // AC-15: when both NCPs are disabled the session reaches EventSessionUp
 // immediately after this helper returns true (logged as a config
-// observation, not a crash).
+// observation, not a crash). Such a session enables no NCP, so the no-NCP
+// bound and the Opened requirement do not apply to it.
 //
 // Deviation from AC-2 (spec text): AC-2 states the initial IPCP
 // CONFREQ carries IP-Address=0.0.0.0, which matches LAC-client
@@ -84,6 +90,10 @@ func (s *pppSession) runNCPPhase() bool {
 		return true
 	}
 
+	// The phase starts with no enabled NCP Opened, so the no-NCP bound starts
+	// with it. RFC 1661 Section 3.7
+	s.armNoNCPBound()
+
 	if ipcpEnabled {
 		if !s.requestIPCPAddresses() {
 			return false
@@ -110,10 +120,7 @@ func (s *pppSession) runNCPPhase() bool {
 		}
 	}
 
-	timeout := s.ipTimeout
-	if timeout <= 0 {
-		timeout = defaultIPTimeout
-	}
+	timeout := s.noNCPTimeout()
 	timer := time.NewTimer(timeout)
 	timer.Stop()
 	var convergence <-chan time.Time
@@ -123,7 +130,11 @@ func (s *pppSession) runNCPPhase() bool {
 		if s.currentState() != lcpState {
 			return false
 		}
-		if s.ncpsComplete(ipcpEnabled, ipv6cpEnabled) {
+		opened := s.anyNCPOpened()
+		// EventSessionUp needs a network protocol: a phase whose families
+		// all finished with none Opened waits for a reopen, within the
+		// no-NCP bound, rather than coming up with nothing to carry.
+		if opened && s.ncpsComplete(ipcpEnabled, ipv6cpEnabled) {
 			return true
 		}
 		if s.ncpInitialNegotiationPending(ipcpEnabled, ipv6cpEnabled) {
@@ -138,6 +149,13 @@ func (s *pppSession) runNCPPhase() bool {
 			// Nil disables this select arm until Configure resumes.
 			timer.Stop()
 			convergence = nil
+		}
+		// The convergence bound runs beside an Opened NCP only. While no
+		// enabled NCP is Opened the no-NCP bound alone limits the phase;
+		// the convergence timer keeps its arm time for when one opens.
+		convergenceExpiry := convergence
+		if !opened {
+			convergenceExpiry = nil
 		}
 		select {
 		case <-s.stopCh:
@@ -156,9 +174,16 @@ func (s *pppSession) runNCPPhase() bool {
 				Cause:     l2tpevents.TerminateCauseNASRequest,
 			})
 			return false
-		case <-convergence:
+		case <-convergenceExpiry:
 			var tb textbuf.Buffer
 			s.fail(tb.Str("ncp: timeout after ").Str(timeout.String()).String())
+			return false
+		case <-s.noNCPBoundChannel():
+			// No enabled NCP Opened for one no-NCP bound in the NCP phase:
+			// the session never came up, so it fails as a negotiation
+			// timeout, with no LCP Terminate-Request.
+			var tb textbuf.Buffer
+			s.fail(tb.Str("ncp: timeout after ").Str(timeout.String()).Str(" with no NCP opened").String())
 			return false
 		case <-s.ncpRestartChannel(AddressFamilyIPv4):
 			if s.handleNCPRestartTimeout(AddressFamilyIPv4) {
@@ -192,17 +217,81 @@ func (s *pppSession) runNCPPhase() bool {
 // negotiation. An independent NCP's normal closure must not strand an opened
 // family in the initial convergence wait and later terminate the whole link.
 func (s *pppSession) ncpsComplete(ipcpEnabled, ipv6cpEnabled bool) bool {
-	if ipcpEnabled && !ncpNegotiationSettled(s.ipcpState) {
+	if ipcpEnabled && !s.ncpSettled(AddressFamilyIPv4) {
 		return false
 	}
-	if ipv6cpEnabled && !ncpNegotiationSettled(s.ipv6cpState) {
+	if ipv6cpEnabled && !s.ncpSettled(AddressFamilyIPv6) {
 		return false
 	}
 	return true
 }
 
+// ncpSettled reports whether one enabled NCP has opened or finished. An NCP
+// the peer Protocol-Rejected sits in Starting, which ncpNegotiationSettled
+// cannot tell from an NCP not yet started, so the rejection record decides
+// for it: the NCP will send nothing more until LCP renegotiates.
+func (s *pppSession) ncpSettled(family AddressFamily) bool {
+	if *s.ncpProtocolRejected(family) {
+		return true
+	}
+	return ncpNegotiationSettled(s.ncpState(family))
+}
+
 func ncpNegotiationSettled(state LCPState) bool {
 	return state == LCPStateOpened || state == LCPStateClosed || state == LCPStateStopped
+}
+
+// ncpProtocolRejected answers the record that the peer Protocol-Rejected the
+// family's NCP in this LCP lifetime (stopRejectedNCP sets it, resetNCP
+// clears it).
+func (s *pppSession) ncpProtocolRejected(family AddressFamily) *bool {
+	switch family {
+	case AddressFamilyIPv4:
+		return &s.ipcpProtocolRejected
+	case AddressFamilyIPv6:
+		return &s.ipv6cpProtocolRejected
+	default:
+		panic("BUG: unknown NCP address family")
+	}
+}
+
+// stopRejectedNCP raises the RFC 1661 Down event on the NCP of family, which
+// the peer named in a Protocol-Reject received in LCP Opened, and records the
+// rejection for the NCP-phase settle. It reports whether the session must end,
+// which only a failed withdrawal from Opened causes.
+//
+// RFC 1661 Section 4.3: "The RXJ+ event arises when the rejected value is
+// acceptable, such as a Code-Reject of an extended code, or a Protocol-Reject
+// of a NCP.  These are within the scope of normal operation.  The
+// implementation MUST stop sending the offending packet type."
+//
+// LCP itself keeps RXJ+, which leaves Opened unchanged; the stop is the named
+// NCP's. RFC 1661 is silent on which event that NCP takes, so Ze follows pppd
+// v2.5.5, whose ipcp_protrej and ipv6cp_protrej call fsm_lowerdown, the Down
+// event: from Opened the tld withdrawal (withdrawNCPFamily, the family
+// release) then Starting; from Stopping, Req-Sent, Ack-Rcvd and Ack-Sent
+// Starting with the Restart timer cancelled (applyNCPTransition stops it in
+// every state whose timer does not run); from Stopped tls then Starting; from
+// Closed and Closing Initial. Starting and Initial take no receive event, so
+// no packet of the protocol leaves until LCP renegotiates.
+//
+// An NCP already in Initial or Starting has nothing to stop: the Down event
+// leaves it unchanged, as pppd's fsm_lowerdown does in those states, and the
+// rejection is not recorded, so an NCP Ze has not started yet still starts.
+func (s *pppSession) stopRejectedNCP(family AddressFamily) bool {
+	current := s.ncpState(family)
+	transition := LCPDoTransition(current, LCPEventDown)
+	if transition.NewState == current && len(transition.Actions) == 0 {
+		s.logger.Debug("ppp: Protocol-Reject names an NCP that is not running, nothing to stop",
+			"family", family.String(), "state", current.String())
+		return false
+	}
+	// The record precedes the transition: a tld whose withdrawal fails ends
+	// the session, and the record then reads true for whatever observes it.
+	*s.ncpProtocolRejected(family) = true
+	s.logger.Info("ppp: peer Protocol-Rejected the NCP, stopped until LCP renegotiates",
+		"family", family.String(), "state", current.String())
+	return s.applyNCPTransition(family, current, transition, LCPPacket{})
 }
 
 // requestIPCPAddresses emits EventIPRequest for IPv4 and waits for the
@@ -334,8 +423,10 @@ func (s *pppSession) startNCP(family AddressFamily) bool {
 	return !s.applyNCPTransition(family, LCPStateClosed, tr, LCPPacket{})
 }
 
-// setNCPState writes the per-family FSM state back into the session.
+// setNCPState writes the per-family FSM state back into the session. It is
+// the one NCP state edge, so the no-NCP bound follows it (trackNoNCPBound).
 func (s *pppSession) setNCPState(family AddressFamily, st LCPState) {
+	wasOpened := s.anyNCPOpened()
 	switch family {
 	case AddressFamilyIPv4:
 		s.ipcpState = st
@@ -344,6 +435,7 @@ func (s *pppSession) setNCPState(family AddressFamily, st LCPState) {
 	default:
 		panic("BUG: unknown NCP address family")
 	}
+	s.trackNoNCPBound(wasOpened)
 }
 
 // ncpState reads the per-family FSM state.
@@ -849,6 +941,9 @@ func (s *pppSession) performNCPAction(family AddressFamily, act LCPAction, curre
 			s.fail(tb.Str(family.String()).Str(" cleanup before NCP restart: ").Err(err).String())
 			return false
 		}
+		// RFC 1661 Section 4.4, This-Layer-Down: the transport learns the
+		// family left Opened only after the kernel stopped carrying it.
+		s.publishNCPRelease(family)
 		return true
 	case LCPActZRC:
 		s.ncpRestart(family).count = 0
@@ -1328,6 +1423,7 @@ func (s *pppSession) onNCPOpened(family AddressFamily) bool {
 		}) {
 			return false
 		}
+		s.ipv4AssignmentPublished = true
 		return s.reconcileOpenedNCP(family)
 	case AddressFamilyIPv6:
 		// RFC 5072 Section 2: "PPP links supporting IPv6 MUST allow the
@@ -1354,6 +1450,7 @@ func (s *pppSession) onNCPOpened(family AddressFamily) bool {
 		}) {
 			return false
 		}
+		s.ipv6AssignmentPublished = true
 		return s.reconcileOpenedNCP(family)
 	default:
 		panic("BUG: unknown NCP address family")
@@ -1538,6 +1635,9 @@ func (s *pppSession) resetNCP() bool {
 	// This metadata-only completion precedes any native gate or publication.
 	s.abortAuthAdmission()
 	s.stopNCPRestartTimers()
+	// LCP leaving Opened ends the no-NCP bound; the next NCP phase arms a new
+	// one at its start.
+	s.cancelNoNCPBound()
 	s.ncpStarted = false
 	s.authenticatedUsername = ""
 	s.authenticatedFramedRoutes = nil
@@ -1559,6 +1659,14 @@ func (s *pppSession) resetNCP() bool {
 	s.peerInterfaceID = [8]byte{}
 	s.peerInterfaceIDNegotiated = false
 	s.ipv6cpMissingIdentifierNaked = false
+	// LCP down ends the network lifetime through EventLCPDown, which
+	// withdraws every family at once, so no per-family release follows.
+	s.ipv4AssignmentPublished = false
+	s.ipv6AssignmentPublished = false
+	// A Protocol-Reject binds the LCP lifetime it arrived in: the next one
+	// starts both NCPs from Initial and offers them again.
+	s.ipcpProtocolRejected = false
+	s.ipv6cpProtocolRejected = false
 	return true
 }
 
@@ -1628,6 +1736,64 @@ func (s *pppSession) withdrawNCPFamilyLocked(family AddressFamily) error {
 	default:
 		panic("BUG: unknown NCP address family")
 	}
+}
+
+// publishNCPRelease tells the transport that one family's NCP left Opened,
+// after withdrawNCPFamily removed it from pppN. It runs only on the session
+// goroutine, from the TLD of that family's automaton, never from LCP down,
+// which ends the whole network lifetime through EventLCPDown instead.
+//
+// RFC 1661 Section 4.4, This-Layer-Down (tld): "This action indicates to the
+// upper layers that the automaton is leaving the Opened state."
+func (s *pppSession) publishNCPRelease(family AddressFamily) {
+	published := s.assignmentPublished(family)
+	// Guard: a family whose assignment this LCP lifetime never published,
+	// or already released, holds nothing in the transport to release.
+	if !*published {
+		return
+	}
+	lifetime, assigned := s.assignedNetworkLifetime()
+	if !assigned {
+		// A published assignment always began a network lifetime
+		// (sendIPAssigned), and only the session's terminal capture ends
+		// one; a TLD after that capture has no transport to tell.
+		*published = false
+		s.logger.Warn("ppp: NCP release found no network lifetime for a published assignment, not publishing",
+			"code", diagnostic.CodeDoctorInternalDefect, "fix", "ze show doctor",
+			"tunnel_id", s.tunnelID, "session_id", s.sessionID, "family", family.String())
+		return
+	}
+	*published = false
+	s.sendEvent(EventSessionIPReleased{
+		TunnelID:        s.tunnelID,
+		SessionID:       s.sessionID,
+		NetworkLifetime: lifetime,
+		Family:          family,
+	})
+}
+
+// assignmentPublished answers the guard that records whether this LCP
+// lifetime holds a published, unreleased assignment of the family.
+func (s *pppSession) assignmentPublished(family AddressFamily) *bool {
+	switch family {
+	case AddressFamilyIPv4:
+		return &s.ipv4AssignmentPublished
+	case AddressFamilyIPv6:
+		return &s.ipv6AssignmentPublished
+	default:
+		panic("BUG: unknown NCP address family")
+	}
+}
+
+// assignedNetworkLifetime answers the network lifetime the published
+// assignments of this LCP lifetime carried, and false when none was published.
+func (s *pppSession) assignedNetworkLifetime() (l2tpevents.NetworkLifetime, bool) {
+	s.networkCounterMu.Lock()
+	defer s.networkCounterMu.Unlock()
+	if s.networkCurrent == nil {
+		return l2tpevents.NetworkLifetime{}, false
+	}
+	return s.networkCurrent.lifetime, true
 }
 
 // teardownNCPResources releases both families on LCP down or session exit.

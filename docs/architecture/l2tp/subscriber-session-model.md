@@ -323,6 +323,24 @@ receive buffer and kernel receive MRU retain the full 1500-octet capacity.
   access types.
 - `show subscriber summary` is the single view over every session type. The
   access-type commands remain for transport-level detail.
+- `show subscriber id <id> detail` prints the registry's per-family fields:
+  `ipv4`, `dns-primary` and `dns-secondary` for IPCP, `ipv6-interface-id`
+  (16 uppercase hex digits) for IPv6CP. Each family's fields leave the entry
+  when its NCP closes while the session stays up (`subevents.ClearReleasedFamily`,
+  called by both transports before they publish `subscriber/session-ip-released`)
+  and return when the NCP opens again. `show l2tp sessions` does not read the
+  registry: its `assigned-addr` is the L2TP session's own IPv4 address, which
+  the reactor clears on an IPv4 release (`handleSessionIPReleased`).
+- A family release is not a session-down. `ppp.EventSessionIPReleased`
+  follows a successful per-family withdrawal (TLD, `publishNCPRelease`), and
+  only for a family whose assignment this LCP lifetime published and has not
+  released: an IPv6CP that opened with no negotiated peer interface identifier
+  published nothing, so its close publishes no release either; the
+  L2TP reactor carries it as `(l2tp, session-ip-released)`, the PPPoE
+  subsystem as `(subscriber, session-ip-released)`. The route observer removes
+  that family's routes and keeps the record, its instance and its network
+  lifetime, so the reinstall re-adds them; RADIUS accounting stops reporting a
+  released IPv4 address as Framed-IP-Address.
 
 <!-- source: internal/component/l2tp/subscriber/cmd/subscriber.go -- subscriber CLI handlers -->
 <!-- source: internal/component/l2tp/subscriber/metrics.go -- session telemetry -->
@@ -373,11 +391,12 @@ Acct-Session-Id.
 | Session-down of a removed session | `drainPendingTeardowns`, once for the batch it returns, stamped on each down | `deliverSessionDowns`, one batch per turn | Outbound CDN or StopCCN, kernel teardown |
 | Session-down that ends a network lifetime (LCP down in the network phase) | `handleLCPDown` | `notifyNetworkLifetimeDown` | `ClearSessionMetadata`, then PPP's acknowledgement |
 | IP assigned | `handleSessionIPAssigned` | the same, through the subscriber bridge to the route observer | PPP's acknowledgement, which enables forwarding |
+| IP released (one family's NCP left Opened) | `handleSessionIPReleased` | the same, through the subscriber bridge to the route observer and to RADIUS accounting | Nothing: PPP withdrew the family from pppN before it published the release |
 | Session up | `handleSessionUp` | the same | The RADIUS session and idle timeouts |
 
 <!-- source: internal/component/l2tp/session.go -- removeSession, drainPendingTeardowns -->
 <!-- source: internal/component/l2tp/teardown.go -- deliverSessionDowns, notifySessionDowns -->
-<!-- source: internal/component/l2tp/reactor_kernel.go -- handleLCPDown, notifyNetworkLifetimeDown, handleSessionIPAssigned, handleSessionUp -->
+<!-- source: internal/component/l2tp/reactor_kernel.go -- handleLCPDown, notifyNetworkLifetimeDown, handleSessionIPAssigned, handleSessionIPReleased, handleSessionUp -->
 
 Inside a batch's turn, `notifySessionDowns` publishes one event per removed
 session. The route observer withdraws the record for that original Birth and

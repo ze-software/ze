@@ -134,6 +134,7 @@ func (s *pppSession) run(start *StartSession) {
 	}()
 
 	defer s.stopNCPRestartTimers()
+	defer s.cancelNoNCPBound()
 	mag, err := generateMagic()
 	if err != nil {
 		var tb textbuf.Buffer
@@ -390,6 +391,13 @@ func (s *pppSession) run(start *StartSession) {
 			}
 		case <-s.ncpRestartChannel(AddressFamilyIPv6):
 			if s.handleNCPRestartTimeout(AddressFamilyIPv6) {
+				return
+			}
+		case <-s.noNCPBoundChannel():
+			// Outside the NCP phase the bound runs only after session-up:
+			// the phase cancels it by returning with an NCP Opened, and LCP
+			// leaving Opened cancels it (resetNCP). RFC 1661 Section 3.7
+			if s.closeIdleLink() {
 				return
 			}
 		case <-s.restartTimer.C:
@@ -1448,6 +1456,61 @@ func (s *pppSession) sendProtocolReject(proto uint16, info []byte) bool {
 	return s.writeFrame(buf[:off])
 }
 
+// rejectedProtocolLen is the length of the Rejected-Protocol field that opens
+// the Data of a Protocol-Reject.
+const rejectedProtocolLen = 2
+
+// receiveProtocolReject reads the Rejected-Protocol of a Protocol-Reject the
+// caller received in LCP Opened, and stops the NCP it names. It reports
+// whether the session must end.
+//
+// RFC 1661 Section 5.7, the Protocol-Reject packet. ParseLCPPacket consumed
+// octets 0 to 3, so pkt.Data starts at octet 4:
+//
+//	 0                   1                   2                   3
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|     Code      |  Identifier   |            Length             |  octets 0-3
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|       Rejected-Protocol       |      Rejected-Information ...    octets 4-5, 6-
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+// pkt.Data[0:2] is the Rejected-Protocol and pkt.Data[2:] the
+// Rejected-Information, which nothing here reads.
+//
+// RFC 1661 Section 5.7: "Upon reception of a Protocol-Reject, the
+// implementation MUST stop sending packets of the indicated protocol at the
+// earliest opportunity."
+//
+// Only an NCP is stopped here. A Protocol-Reject naming LCP, or a protocol Ze
+// runs no automaton for, stops nothing, as before this function existed, and
+// LCP keeps its RXJ+ either way (the caller's transition).
+func (s *pppSession) receiveProtocolReject(pkt LCPPacket) bool {
+	if len(pkt.Data) < rejectedProtocolLen {
+		// RFC 1661 Section 5.7: "The Rejected-Protocol field is two
+		// octets, and contains the PPP Protocol field of the packet which is
+		// being rejected." A shorter packet names no protocol, so it stops
+		// nothing (pppd lcp_rprotrej returns on it the same way).
+		s.logger.Debug("ppp: Protocol-Reject too short to name a protocol, nothing stopped",
+			"id", pkt.Identifier, "len", len(pkt.Data))
+		return false
+	}
+	rejected := binary.BigEndian.Uint16(pkt.Data[:rejectedProtocolLen])
+	// The Rejected-Protocol comes from the wire, an open set: every value
+	// but the two NCPs falls through to the log line below.
+	switch rejected {
+	case ProtoIPCP:
+		// RFC 1661 Section 4.3
+		return s.stopRejectedNCP(AddressFamilyIPv4)
+	case ProtoIPv6CP:
+		// RFC 1661 Section 4.3
+		return s.stopRejectedNCP(AddressFamilyIPv6)
+	}
+	s.logger.Debug("ppp: Protocol-Reject names no NCP ze runs, nothing stopped",
+		"id", pkt.Identifier, "protocol", rejected)
+	return false
+}
+
 // codeToEvent maps an LCP code to the FSM event for a "received"
 // packet. Maps unknown codes to RUC.
 func codeToEvent(code uint8, optsBad bool) lCPEvent {
@@ -1689,6 +1752,23 @@ func (s *pppSession) handleLCPPacket(pkt LCPPacket) bool {
 		}
 	}
 
+	if pkt.Code == LCPProtocolReject {
+		if cur != LCPStateOpened {
+			// RFC 1661 Section 5.7: "Protocol-Reject packets received in
+			// any state other than the LCP Opened state SHOULD be silently
+			// discarded." Discarded means before the automaton too: the
+			// RXJ+ codeToEvent maps it to would otherwise take Ack-Rcvd to
+			// Req-Sent (pppd lcp_rprotrej returns before any dispatch).
+			s.logger.Debug("ppp: Protocol-Reject silently discarded outside LCP Opened",
+				"state", cur.String(), "id", pkt.Identifier, "len", len(pkt.Data))
+			return false
+		}
+		// RFC 1661 Section 5.7
+		if s.receiveProtocolReject(pkt) {
+			return true
+		}
+	}
+
 	ev := codeToEvent(pkt.Code, optsBad)
 
 	tr := LCPDoTransition(cur, ev)
@@ -1922,6 +2002,11 @@ func (s *pppSession) applyTransition(cur LCPState, tr lCPTransition, pkt LCPPack
 		if s.authRefusalReason != "" {
 			reason = s.authRefusalReason
 			cause = l2tpevents.TerminateCauseNASRequest
+		} else if s.noNCPBoundExpired {
+			// The Close closeIdleLink drove: RFC 2866 Section 5.10 value 4,
+			// "Idle timer expired."
+			reason = s.idleCloseReason()
+			cause = l2tpevents.TerminateCauseIdleTimeout
 		}
 		s.sendEvent(EventSessionDown{
 			TunnelID:  s.tunnelID,
