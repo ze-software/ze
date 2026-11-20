@@ -1,0 +1,28 @@
+From: Ze contributors
+Subject: [PATCH] pppoe: take a session's source MAC from its port's hardware
+
+vnet_pppoe_add_del_session read the encapsulating interface's hardware
+through si->hw_if_index. A VLAN sub-interface is created from a zeroed
+template (vnet_create_sub_interface), so that index is 0, local0, which
+has no hardware address: a session on a VLAN access got source MAC
+00:00:00:00:00:00, and every frame VPP encapsulated for it carried it.
+vnet_get_sup_hw_interface resolves a sub-interface to its port's hardware.
+
+Upstream: https://github.com/FDio/vpp at cbba0451bb0af02a3ab8e163f6f99062782258e6
+(the same lookup is on master). Applies after ze/0103.
+
+diff --git a/src/plugins/pppoe/pppoe.c b/src/plugins/pppoe/pppoe.c
+--- a/src/plugins/pppoe/pppoe.c
++++ b/src/plugins/pppoe/pppoe.c
+@@ -331,7 +331,10 @@
+       if (a->encap_if_index == ~0)
+         return VNET_API_ERROR_INVALID_SW_IF_INDEX;
+       si = vnet_get_sw_interface (vnm, a->encap_if_index);
+-      hi = vnet_get_hw_interface (vnm, si->hw_if_index);
++      /* A sub-interface's hw_if_index is not its port's: VLAN sub-interfaces
++       * come from a zeroed template. Its source MAC is the port's.
++       */
++      hi = vnet_get_sup_hw_interface (vnm, si->sw_if_index);
+     }
+ 
+   /* lookup session_table */
