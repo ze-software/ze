@@ -261,17 +261,22 @@ func TestProductObserverRefusesUnavailableOrIncompleteState(t *testing.T) {
 }
 
 // TestProductPlanDeclaresTheDialLog proves a failed product run prints the
-// log the product dial writes, not the mechanism lab's file: a run that
+// logs the product dials write, not the mechanism lab's file: a run that
 // stopped before IPCP showed no PPP negotiation because the client declared
-// a file nothing wrote.
+// a file nothing wrote. The 101st dial's log and the capacity capture log
+// answer a refused-capacity failure in the hundred lab.
 func TestProductPlanDeclaresTheDialLog(t *testing.T) {
-	plan := productPlan("checkout", "/owned", "unit", modePlain, 1)
+	plan := productPlan("checkout", "/owned", "unit", modePlain, 100)
+	want := []string{productLog(0), productLog(100), "/tmp/product-capacity.log"}
 	for _, peer := range plan.Peers {
 		if peer.Name != clientPeer {
 			continue
 		}
-		if !slices.Equal(peer.LogFiles, []string{productLog(0)}) {
-			t.Fatalf("client log files = %q, want %q", peer.LogFiles, productLog(0))
+		if !slices.Equal(peer.LogFiles, want) {
+			t.Fatalf("client log files = %q, want %q", peer.LogFiles, want)
+		}
+		if slices.Contains(peer.LogFiles, "/var/log/ppp/mechanism.log") {
+			t.Fatal("the product client still declares the mechanism lab's log")
 		}
 		return
 	}

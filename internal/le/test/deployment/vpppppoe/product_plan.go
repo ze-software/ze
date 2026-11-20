@@ -168,7 +168,9 @@ func productPlan(root, work, suffix string, mode mechanismMode, count int) inter
 		if plan.Peers[index].Name == clientPeer {
 			// The product dials log to productLog, not the mechanism lab's
 			// file; the first dial's log shows how PPP negotiation ended.
-			plan.Peers[index].LogFiles = []string{productLog(0)}
+			// The hundred lab's 101st dial and the capacity capture log
+			// answer a refused-capacity failure; elsewhere they are absent.
+			plan.Peers[index].LogFiles = []string{productLog(0), productLog(100), "/tmp/product-capacity.log"}
 			continue
 		}
 		if plan.Peers[index].Name != vppPeer {
