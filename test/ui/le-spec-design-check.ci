@@ -1,0 +1,210 @@
+# Test: a spec author runs le spec design documents and le spec design check on a spec and reads the owed rows
+# QUESTION: does the registered `le spec design` area, typed as an author
+#   types it, derive the design pages and the decision row a spec's file
+#   links, and refuse a Design documents table that omits them, naming each
+#   owed row, the judge step and the command that lists the rows?
+# WHY NOT A UNIT TEST: TestDesignDocumentsDerivation and TestDesignCheckJudgement
+#   call derive and checkSpec in process; this proves the actions are
+#   registered in le, that their grammar reaches answerDocuments and
+#   answerCheck, and that the exit codes and the text reach the author through
+#   the real binary.
+# VALIDATES: spec-design-needs-owner-approval AC-13 and AC-14 (a missing page
+#   row, a missing decision row, no judge approval, the clean table owing only
+#   the judge), through the real entry point.
+# Exercises: answerDocuments -> derive -> DeclaredDesignDocuments,
+#   DocumentsByPath, doorindex.Load -> addDecisions; answerCheck -> checkSpec
+#   -> missingRows, judgeRow, presentationProblems, judgeApprovalProblem.
+# The checkout is the test's own directory: a non-harness le step runs at the
+#   repository root, so design.sh points le at this directory through
+#   ZE_REPO_ROOT, and the tmpfs files below form the whole checkout (the two
+#   root markers, the system door, one source file whose // Design: header
+#   names a page with one decision row, a second page anchored to the file,
+#   the record the row cites, and two fix specs). No judge record exists, so
+#   both checks owe the judge.
+
+option=timeout:value=120s
+
+tmpfs=design.sh:terminator=EOF_SCRIPT
+ZE_REPO_ROOT="$PWD" exec le spec design "$@"
+EOF_SCRIPT
+
+tmpfs=go.mod:terminator=EOF_GOMOD
+module example.com/design-fixture
+EOF_GOMOD
+
+tmpfs=feature-gates.txt:terminator=EOF_GATES
+# the second root marker le looks for
+EOF_GATES
+
+tmpfs=ai/doors/system.md:terminator=EOF_DOOR
+# System door
+
+<!-- door-base: pkg cmd/ze internal -->
+EOF_DOOR
+
+tmpfs=internal/component/widget/widget.yang:terminator=EOF_YANG
+// Design: docs/architecture/widget.md -- the widget
+
+module widget {
+}
+EOF_YANG
+
+tmpfs=docs/architecture/widget.md:terminator=EOF_PAGE
+# Widget
+
+How the widget answers.
+
+## Design decisions
+
+| Decision | It forbids | Source | Date |
+|---|---|---|---|
+| The widget answers data and the surface renders it | Rendering text in the widget | plan/records/widget.md | 2026-08-21 |
+EOF_PAGE
+
+tmpfs=docs/architecture/widget-flow.md:terminator=EOF_FLOW
+# Widget flow
+
+The answer travels from the widget to the surface.
+<!-- source: internal/component/widget/widget.yang -- widget -->
+EOF_FLOW
+
+tmpfs=plan/records/widget.md:terminator=EOF_RECORD
+# Widget record
+EOF_RECORD
+
+tmpfs=plan/release/fixes/spec-widget.md:terminator=EOF_SPEC
+# Spec: widget
+
+| Field | Value |
+|-------|-------|
+| Status | design |
+| Priority | P2 |
+| Updated | 2026-11-20 |
+
+## Task
+
+Render the widget in the surface.
+
+## Acceptance Criteria
+
+| AC ID | Input | Expected |
+|---|---|---|
+| AC-1 | a widget | the surface renders it |
+
+## Files to Modify
+- `internal/component/widget/widget.yang` - render in the surface
+
+## Design documents
+
+| Document | Section | Derived from | Binding statement | Verdict | How this design stands against it |
+|---|---|---|---|---|---|
+| `ai/doors/system.md` | System door | every change | - | silent | The door names no rule on rendering |
+| `docs/architecture/widget-flow.md` | Widget flow | anchored to the file | - | silent | The page describes the path, not who renders |
+
+## Design presentation
+
+### What changes
+
+The surface renders the widget.
+
+### Before and after
+
+Before: the widget renders text. After: the surface renders it.
+
+### Alternatives set aside
+
+Rendering in the widget, which the decision forbids.
+
+### Documents departed from
+
+none
+
+### Choices for Thomas
+
+None.
+
+## Implementation Steps
+
+1. Render.
+EOF_SPEC
+
+tmpfs=plan/release/fixes/spec-widget-whole.md:terminator=EOF_WHOLE
+# Spec: widget whole
+
+| Field | Value |
+|-------|-------|
+| Status | design |
+| Priority | P2 |
+| Updated | 2026-11-20 |
+
+## Task
+
+Render the widget in the surface.
+
+## Acceptance Criteria
+
+| AC ID | Input | Expected |
+|---|---|---|
+| AC-1 | a widget | the surface renders it |
+
+## Files to Modify
+- `internal/component/widget/widget.yang` - render in the surface
+
+## Design documents
+
+| Document | Section | Derived from | Binding statement | Verdict | How this design stands against it |
+|---|---|---|---|---|---|
+| `docs/architecture/widget.md` | Design decisions | Design header of the file | "The widget answers data and the surface renders it" | agrees | The surface renders |
+| `docs/architecture/widget-flow.md` | Widget flow | anchored to the file | - | silent | The page describes the path, not who renders |
+| `ai/doors/system.md` | System door | every change | - | silent | The door names no rule on rendering |
+
+## Design presentation
+
+### What changes
+
+The surface renders the widget.
+
+### Before and after
+
+Before: the widget renders text. After: the surface renders it.
+
+### Alternatives set aside
+
+Rendering in the widget, which the decision forbids.
+
+### Documents departed from
+
+none
+
+### Choices for Thomas
+
+None.
+
+## Implementation Steps
+
+1. Render.
+EOF_WHOLE
+
+# The derivation: the system door, the header page, the anchored page, and the decision row.
+cmd=foreground:seq=1:exec=sh design.sh documents spec plan/release/fixes/spec-widget.md:exit=0
+expect=stdout:contains=plan/release/fixes/spec-widget.md: 3 design pages, 1 decision rows owe a verdict in ## Design documents
+expect=stdout:contains=  ai/doors/system.md  (the door every change reads
+expect=stdout:contains=  docs/architecture/widget.md  (the // Design: page of internal/component/widget/widget.yang)
+expect=stdout:contains=  docs/architecture/widget-flow.md  (anchored to internal/component/widget/widget.yang)
+expect=stdout:contains=  docs/architecture/widget.md, Design decisions, decision of 2026-08-21: "The widget answers data and the surface renders it"
+
+# A table that omits the header page and its decision row owes both, then the judge.
+cmd=foreground:seq=2:exec=sh design.sh check spec plan/release/fixes/spec-widget.md:exit=1
+expect=stdout:contains=spec-widget.md: ## Design documents is missing 2 rows owed by its files
+expect=stdout:contains=  - docs/architecture/widget.md  (the // Design: page of internal/component/widget/widget.yang)
+expect=stdout:contains=  - docs/architecture/widget.md, Design decisions, decision of 2026-08-21: "The widget answers data and the surface renders it"
+expect=stdout:contains=spec-widget.md: no judge has judged this design; fix: have ze-design-judge judge it
+expect=stdout:contains=run ./le spec design documents spec plan/release/fixes/spec-widget.md to list the owed rows
+
+# The whole table owes only the judge.
+cmd=foreground:seq=3:exec=sh design.sh check spec plan/release/fixes/spec-widget-whole.md:exit=1
+expect=stdout:contains=spec-widget-whole.md: no judge has judged this design; fix: have ze-design-judge judge it
+expect=stdout:contains=run ./le spec design documents spec plan/release/fixes/spec-widget-whole.md to list the owed rows
+reject=stdout:contains=is missing
+reject=stdout:contains=verbatim span
+reject=stdout:contains=; fix: write it
