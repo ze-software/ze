@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | cli |
 | Priority | P1 |
 | Release reason | Shipped daemon behaviour. A plugin's `dispatch-command`, MCP, REST and gRPC refuse a piped command that SSH and `ze cli` answer. Every rendering surface splits a quoted pipe value as a chain. `foldFilters` rewrites the operator's line into a different command. All three are wrong answers on shipped operator surfaces (`plan/README.md`, `release/fixes/`), not tooling |
 | RFC gaps | - |
 | Depends | - (spec-plugin-dispatch-pipe-chain-reaches-the-handler, closed in `2616478e64` and `9321d263aa`, landed the refusal this spec replaces; the quote-aware scan this spec extends to the chain is `ScanInvocation` and `ScanExecution` in `internal/component/command/invocation_scan.go`). `plan/release/fixes/spec-fixit-selector-narrows-through-a-pipe.md` depends on this spec |
-| Phase | - |
+| Phase | 1/8 |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -675,6 +675,9 @@ You can implement it."). Each choice below is decided at its recommendation:
 | T-5 | C: every derived MCP tool and every REST and gRPC command route takes one optional, ordered `pipe` list, validated against the command's `pipe-operations`, written after the parameters |
 | T-6, authorization half | A: the typed line, chain included, reaches the authorizer; a typed authorizer receives the command, its arguments, then the chain as tokens, for authorization only; read-only is judged on the command path |
 
+WIP cap: Thomas authorised on 2026-11-20 claiming this spec above the cap
+(ZE_SPEC_WIP_CAP=22), for this spec only.
+
 The evidence each was decided on is kept below. The last column names what
 would have changed under the alternative.
 
@@ -1086,6 +1089,9 @@ surface with no protocol peer).
 ## Implementation Steps
 
 Each phase is sized for one agent of about 60 tool calls.
+
+Progress:
+- Phase 1 wiring tests committed in b6f2383371, red by design: `TestServeLocalHandsDeclaredOperations`, `TestModelMonitorHandsDeclaredOperations`, `TestZeExecuteAppliesPipeChain`, `TestRESTExecuteAppliesPipeChain`, `TestGRPCExecuteAppliesPipeChain`, `TestBuildInvocationWritesParamsBeforePipe`. The `cmd/ze/hub` wiring tests and the plugin16 fixture are held back, because another session's uncommitted IKE edit breaks the hub and fixture build.
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- failing tests at every entry point
    - Tests: the Wiring Test rows
