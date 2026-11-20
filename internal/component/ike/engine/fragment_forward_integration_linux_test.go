@@ -356,22 +356,7 @@ func TestRFC4301ForwardedFragmentsRespectOperatorDisposition(t *testing.T) {
 // port no entry names. The caller MUST be in Ze's namespace.
 func fragmentForwardedPortScopedBypass(t *testing.T, sender *ipv4.RawConn, capture int, spi uint32, bypassed *net.UDPConn) {
 	t.Helper()
-	policies, err := dataplane.Get().ListPolicies()
-	if err != nil {
-		t.Fatalf("read back the forward projection: %v", err)
-	}
-	gate := false
-	for i := range policies {
-		p := &policies[i]
-		if p.Role == dataplane.PolicyRoleOperator && p.Dir == dataplane.SADirFwd &&
-			p.Action == dataplane.SPActionBypass && p.DstPort == dataplane.ExactPortMatch(fragmentBypassPort) {
-			gate = true
-		}
-	}
-	if !gate {
-		t.Fatalf("the kernel holds no forward entry for the bypass on port %d; the engine projects one only on a "+
-			"kernel whose capability receipt carries bit 3 (fragment gathering)", fragmentBypassPort)
-	}
+	fragmentWantForwardBypassGate(t)
 	// RFC 4301 Sections 4.4.1 and 7.4: use the configured fallback, not a test-only drop.
 	if err := installUnmatched(dataplane.Get(), dataplane.SPActionDiscard, slogutil.DiscardLogger()); err != nil {
 		t.Fatalf("select the production unmatched-DISCARD disposition: %v", err)
@@ -424,4 +409,26 @@ func fragmentForwardedPortScopedBypass(t *testing.T, sender *ipv4.RawConn, captu
 			t.Errorf("%s: a fragment of no permitted datagram reached the outside peer: %+v", tc.name, seen)
 		}
 	}
+}
+
+// fragmentWantForwardBypassGate requires the kernel to hold the forward entry the
+// engine projects for the operator bypass on fragmentBypassPort. The engine projects
+// it only on a kernel whose capability receipt carries bit 3 (K3's fragment
+// gathering), so without it a forward-path fragment test would measure the stock
+// kernel's FWD check, which reads the ports of each fragment alone.
+func fragmentWantForwardBypassGate(t *testing.T) {
+	t.Helper()
+	policies, err := dataplane.Get().ListPolicies()
+	if err != nil {
+		t.Fatalf("read back the forward projection: %v", err)
+	}
+	for i := range policies {
+		p := &policies[i]
+		if p.Role == dataplane.PolicyRoleOperator && p.Dir == dataplane.SADirFwd &&
+			p.Action == dataplane.SPActionBypass && p.DstPort == dataplane.ExactPortMatch(fragmentBypassPort) {
+			return
+		}
+	}
+	t.Fatalf("the kernel holds no forward entry for the bypass on port %d; the engine projects one only on a "+
+		"kernel whose capability receipt carries bit 3 (fragment gathering)", fragmentBypassPort)
 }

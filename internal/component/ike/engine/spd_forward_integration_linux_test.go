@@ -4,7 +4,6 @@
 // Related: spd_policy.go -- spdEntryPolicies and spdTransitPolicies, the producer
 // Related: fragment_forward_integration_linux_test.go -- fragmentForwardPeers, the protected host and outside peer
 // Related: spd_transit_test.go -- the unit test of the same projection
-// RFC naming: untagged -- packet-level conformance probe awaiting guest observation.
 
 package engine
 
