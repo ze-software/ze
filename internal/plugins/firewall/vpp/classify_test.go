@@ -1,4 +1,4 @@
-// Design: docs/architecture/core-design.md -- classify pipeline tests
+// Design: docs/architecture/firewall/fw-6-firewall-vpp.md -- classify pipeline tests
 
 //go:build linux
 

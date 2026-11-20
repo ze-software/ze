@@ -8,7 +8,7 @@
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-08-30 |
+| Updated | 2026-11-20 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -17,10 +17,12 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 **Ze accepts no IPv6 address request from an L2TP or PPPoE subscriber, so
 IPv6CP never opens and no IPv6 service starts on a subscriber session.**
 
-### Why this spec is in `plan/future/`
+### Why this spec is in `plan/post-release/features/`
 
-`plan/future/README.md` refuses defects. This is not one: it is a feature slice
-that was never wired, and Ze does not claim to carry it.
+`plan/README.md`, "Start here", puts incorrect shipped behavior in
+`release/fixes/` and additional capabilities in `post-release/features/`. This
+is not a defect: it is a feature slice that was never wired, and Ze does not
+claim to carry it.
 
 **Owner ruling, 2026-08-30: the first release ships L2TP and PPPoE subscribers
 IPv4-only.** The question put to him was whether the first release carries L2TP
@@ -35,22 +37,33 @@ Each link read at its producer:
   opens by refusing every address family that is not IPv4, answering
   `Accept: false` with the reason `IPv6 not supported by static pool`.
 - That handler is the only one ever registered: `l2tp.RegisterPoolHandler` has
-  exactly one caller, the `init()` in the same file. No config reaches it, and
-  PPPoE shares the registry.
+  exactly one non-test caller, the `init()` in the same file. No config reaches
+  it, and PPPoE shares the registry.
 - `runNCPPhase` (`internal/component/l2tp/ppp/ncp.go`) reads the refusal as
   `declined`, sets `disableIPv6CP` and does not start the IPv6 NCP, so
   `ipv6cpState` stays at Initial. The comment is right that an independent NCP
   must not tear down a good session.
 - `startIPv6Service` (`internal/component/l2tp/ppp/session_run.go`) runs only
   when `ipv6cpState` is `LCPStateOpened`.
+- The gap is on the server side only, where Ze is the LNS or the PPPoE access
+  concentrator. Ze's PPPoE client runs its own IPv6CP automaton (`clientIPv6CP`,
+  `internal/component/l2tp/pppoeclient/ipv6cp_client.go`, design page
+  `docs/architecture/l2tp/cpe-1-pppoe-client.md`, "IPv6CP") and negotiates it
+  against accel-ppp today, in the interop scenarios `pppoe-ipv6cp-ze-client`
+  and `pppoe-ipv6cp-rejected-ze-client` (`test/interop-pppoe/scenarios/`).
 
 Corroboration from outside the code: `plan/journal/silent-fall-through.md`
 records pppd 2.5.1 giving up after nine IPv6CP Configure-Requests against Ze.
 
 The sibling half is already recorded as limitation L-1 of
-spec-radius-subscriber-attributes (closed 2026-09-03): `session_run.go` passes a nil
-prefix allocator and `l2tp.GetPrefixHandler` has no caller, so the DHCPv6-PD
-server that the RA's M and O flags point subscribers at can delegate nothing.
+spec-radius-subscriber-attributes (closed 2026-09-03). The pool plugin's
+`init()` now registers a prefix handler and a prefix releaser
+(`l2tp.RegisterPrefixHandler`, `l2tp.RegisterPrefixReleaser`), but no
+session path consumes them: `session_run.go` still passes a nil prefix
+allocator to `startIPv6Service`, `l2tp.GetPrefixHandler` is called only by the
+`fakel2tp` test plugin, and `l2tp.GetPrefixReleaser` has no caller. The
+DHCPv6-PD server that the RA's M and O flags point subscribers at therefore
+delegates nothing.
 
 ## What this spec owes when it runs
 

@@ -1,4 +1,4 @@
-// Design: docs/architecture/core-design.md -- VPP classify pipeline for SetMark and Limit
+// Design: docs/architecture/firewall/fw-6-firewall-vpp.md -- VPP classify pipeline for SetMark and Limit
 
 //go:build linux
 

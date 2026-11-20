@@ -1,15 +1,16 @@
-// Design: docs/architecture/core-design.md -- VPP firewall backend
+// Design: docs/architecture/firewall/fw-6-firewall-vpp.md -- VPP firewall backend
 
 // Package firewallvpp implements the ze firewall Backend interface on
-// top of VPP's ACL plugin binary API via GoVPP. It is registered under
-// the name "vpp" alongside the nft backend.
+// top of VPP's binary API via GoVPP. It is registered under the name
+// "vpp" alongside the nft backend.
 //
-// Current scope: ACL rules translating ze Match/Action types to VPP
-// ACLRule fields (src/dst prefix, port range, protocol, ICMP type/code,
-// TCP flags, permit/deny/reflect). Expression types without a faithful
-// VPP ACL representation are rejected at commit by the verifier per
-// rules/exact-or-reject.md. NAT, classifier, policer, and
-// packet-modification actions are deferred to follow-up specs.
+// It programs three VPP features. A filter chain becomes ACL rules
+// (src/dst prefix, port range, protocol, ICMP type/code, TCP flags,
+// permit/deny/reflect). A chain of type nat becomes NAT44-ED state
+// (snat, dnat, masquerade). A set-mark or limit action in a filter
+// chain becomes a classify table session that sets the session
+// metadata or binds a policer. The verifier rejects every other
+// expression at commit (ai/rationale/exact-or-reject.md).
 package firewallvpp
 
 import (

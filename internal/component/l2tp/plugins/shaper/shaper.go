@@ -85,8 +85,10 @@ func (s *shaperPlugin) onSubscriberSessionDown(payload *subevents.SessionDownPay
 // as an L2TP one does, so it gets the same pair of mechanisms: the qdisc for the
 // download direction and the ingress policer for the upload direction.
 //
-// A zero argument means the session carries no per-subscriber rate, which is
-// what subscriber.Session holds today, so the configured leaf applies.
+// The arguments are the rates the RADIUS Filter-Id authorized for this
+// subscriber (subscriber.Session DownloadRate and UploadRate). A zero means
+// RADIUS named no rate for that direction, so the configured default applies
+// to that direction only.
 func (s *shaperPlugin) handleSubscriberSessionUp(iface string, downloadRate, uploadRate uint64) {
 	s.mutationMu.Lock()
 	defer s.mutationMu.Unlock()

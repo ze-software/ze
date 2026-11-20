@@ -28,9 +28,10 @@ const aclTagMaxLen = 64
 // range only), MatchProtocol, MatchConnState, MatchICMPType,
 // MatchICMPv6Type, MatchTCPFlags.
 //
-// Accepted actions: Accept, Drop.
-//
-// FlowOffload is silently accepted (VPP IS the fast path).
+// Accepted actions: Accept, Drop and FlowOffload (VPP is the fast
+// path) in a filter chain; SetMark and Limit in a filter chain under
+// verifyClassifyConstraints; SNAT, DNAT and Masquerade in a NAT chain
+// only (verifyNATChain).
 //
 // Everything else is rejected with a specific error naming the
 // unsupported type and the reason. Errors from every table are

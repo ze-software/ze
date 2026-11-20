@@ -4,18 +4,43 @@ A second firewall backend beside nft, registered as
 `firewall.RegisterBackend("vpp", ...)`, translating ze `Match` and `Action` types
 to VPP ACL rules.
 
-## ACL-only scope, everything else rejected at commit
+## What VPP programs, everything else rejected at commit
 
-<!-- source: internal/plugins/firewall/vpp/verify.go -- backend verifier -->
+<!-- source: internal/plugins/firewall/vpp/verify.go -- Verify, verifyNATChain, verifyAction, verifyClassifyConstraints -->
 <!-- source: internal/component/firewall/backend.go -- Verifier, RegisterVerifier, RunVerifier -->
 
-VPP's ACL plugin covers source and destination prefix, port range, protocol,
-ICMP type and code, TCP flags, and the permit, deny and reflect verdicts.
+A filter chain lowers to VPP's ACL plugin, which covers source and destination
+prefix, port range, protocol, ICMP type and code, TCP flags, and the permit,
+deny and reflect verdicts.
+
+Two things beyond the ACL plugin are accepted and programmed:
+
+- **NAT, in a chain of type `nat`, through VPP's NAT44-ED plugin.** `snat`,
+  `dnat` and `masquerade` are accepted there, IPv4 only. `snat` adds its
+  address range to the NAT44 pool and marks every VPP interface as inside;
+  `masquerade` marks every VPP interface as a NAT44 output interface. Both
+  apply to all traffic, so a term carrying either may match on source address
+  only, which is accepted and does not narrow anything. `dnat` becomes one
+  static mapping and needs a protocol match and a destination port match to
+  name it; destination and source address matches are accepted with it. A
+  `masquerade` with a port mapping or flags, an IPv6 NAT address, a NAT chain
+  term with no NAT action, and `destination-local` with `dnat` are refused. A
+  NAT action in a filter chain is refused with a message naming the NAT chain
+  it belongs in.
+- **`set-mark` and `limit`, in a filter chain, through a VPP classify table.**
+  `set-mark` sets the session's metadata and `limit` binds the session to a
+  policer. The classify key is an exact IPv4 header match, so a term carrying
+  either is refused when it has a port range rather than one port, or an IPv6
+  address match, and a term carrying both is refused.
+
+<!-- source: internal/plugins/firewall/vpp/nat_linux.go -- applyNATChain, applyMasquerade, applySNAT, buildDNATMapping -->
+<!-- source: internal/plugins/firewall/vpp/classify_linux.go -- applyClassifyActions, applyTermClassify -->
 
 Everything else rejects at commit with a message naming the unsupported
-expression: NAT (a separate NAT44 plugin), the classifier (mark matching), the
-policer (per-rule rate limiting), packet modification (set-mark, set-dscp),
-counters, log, and chain traversal. This is exact-or-reject
+expression: mark, connection-mark and DSCP matching, the other packet
+modifications (`set-dscp`, connection-mark set, TCP MSS), reject, redirect,
+notrack, counters, log, named sets, flowtables, and chain traversal (non-base
+chains, jump, goto, return). This is exact-or-reject
 (`ai/rules/protocol.md`). A conntrack helper (`system conntrack module`, which
 lowers to `ct helper` objects and `ct helper set` assignments in the
 `ze_conntrack_helpers` tables) is refused too: VPP has no conntrack helper or
