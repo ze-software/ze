@@ -135,6 +135,23 @@ peer it matches is wiped.";
 peer owner. This narrows replay and grants no send permission. The ordinary out command
 and its literal peer selectors keep their existing grammar.";
                     ze:help "Replay while excluding one original destination owner.";
+
+                    leaf owner {
+                        type uint64 { range "1..max"; }
+                        mandatory true;
+                        ze:keyword-only;
+                        description "The configured Peer owner whose original destination is left out of
+the replay, typed after its keyword as owner 12. It narrows the replay and grants no send
+permission.";
+                        ze:help "Original destination owner to exclude";
+                    }
+                    leaf family {
+                        type zt:address-family;
+                        ze:keyword-only;
+                        description "An address family such as ipv4/unicast, typed after its keyword.
+Absent, every family the session negotiated is replayed.";
+                        ze:help "Address family to replay, such as ipv4/unicast";
+                    }
                 }
                 container out {
                     config false;
