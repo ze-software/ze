@@ -1022,7 +1022,14 @@ Reboot (7) for the sessions still up when ze shuts down or the RADIUS
 configuration is removed, NAS Request (10) when the PPP
 driver stops a running session, and NAS Error (9) for a failure ze detected or a
 teardown it cannot attribute. Ze reports NAS Error rather than guessing a more
-specific cause.
+specific cause. A subscriber whose CPE Code-Rejects a packet LCP needs (a
+Configure or Terminate packet, a Code-Reject or a Protocol-Reject), or
+Protocol-Rejects LCP itself, gets an LCP Terminate-Request and a Stop with NAS
+Error: RFC 1661 Section 4.3 calls that rejection "an unrecoverable error that
+terminates the connection." A CPE that Code-Rejects Echo-Request instead gets
+no further echo probe, so it is never ended for the echo replies it cannot
+send; its session lives on the tunnel's own liveness check.
+<!-- source: internal/component/l2tp/ppp/session_run.go -- lcpCodeRejectEvent, protocolRejectEvent, stopRejectedCode, applyTransition -->
 
 A subscriber hanging up reaches the record through the peer's Call-Disconnect-
 Notify. Ze reads that message's Result Code (RFC 2661 Section 4.4.2) and

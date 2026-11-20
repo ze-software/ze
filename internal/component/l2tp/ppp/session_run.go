@@ -412,6 +412,20 @@ func (s *pppSession) run(start *StartSession) {
 			}
 
 		case <-echoTickerC:
+			if s.echoRequestRejected {
+				// RFC 1661 Section 4.3: "The implementation MUST stop
+				// sending the offending packet type." The peer Code-Rejected
+				// an Echo-Request (stopRejectedCode), so the probe stops,
+				// and with it the echo-failure count: a peer that implements
+				// no Echo-Request never answers one, so counting the missing
+				// replies would end a working link. Liveness then rests on
+				// the lower layer (the L2TP Hello, RFC 2661 Section 6.5, or
+				// the PPPoE transport). The ticker is re-armed only at a
+				// later Opened edge, where this arm stops it again.
+				echoTicker.Stop()
+				echoTickerC = nil
+				continue
+			}
 			s.mu.Lock()
 			s.echoOutstanding++
 			out := s.echoOutstanding
@@ -1483,8 +1497,9 @@ const rejectedProtocolLen = 2
 // earliest opportunity."
 //
 // Only an NCP is stopped here. A Protocol-Reject naming LCP, or a protocol Ze
-// runs no automaton for, stops nothing, as before this function existed, and
-// LCP keeps its RXJ+ either way (the caller's transition).
+// runs no automaton for, stops nothing here. The caller's transition then
+// takes the event protocolRejectEvent names: RXJ- for LCP, which ends the
+// session, and RXJ+ for everything else, which leaves LCP Opened.
 func (s *pppSession) receiveProtocolReject(pkt LCPPacket) bool {
 	if len(pkt.Data) < rejectedProtocolLen {
 		// RFC 1661 Section 5.7: "The Rejected-Protocol field is two
@@ -1511,10 +1526,12 @@ func (s *pppSession) receiveProtocolReject(pkt LCPPacket) bool {
 	return false
 }
 
-// codeToEvent maps an LCP code to the FSM event for a "received"
-// packet. Maps unknown codes to RUC.
-func codeToEvent(code uint8, optsBad bool) lCPEvent {
-	switch code {
+// codeToEvent maps a received LCP packet to the FSM event it raises. Maps
+// unknown codes to RUC. A Code-Reject and a Protocol-Reject raise RXJ+ or
+// RXJ- by what they reject (lcpCodeRejectEvent, protocolRejectEvent), so this
+// reads the packet and not its Code alone.
+func codeToEvent(pkt LCPPacket, optsBad bool) lCPEvent {
+	switch pkt.Code {
 	case LCPConfigureRequest:
 		if optsBad {
 			return LCPEventRCRMinus
@@ -1528,12 +1545,152 @@ func codeToEvent(code uint8, optsBad bool) lCPEvent {
 		return LCPEventRTR
 	case LCPTerminateAck:
 		return LCPEventRTA
-	case LCPCodeReject, LCPProtocolReject:
-		return LCPEventRXJPlus
+	case LCPCodeReject:
+		// RFC 1661 Section 4.3
+		return lcpCodeRejectEvent(pkt)
+	case LCPProtocolReject:
+		// RFC 1661 Section 4.3
+		return protocolRejectEvent(pkt)
 	case LCPEchoRequest, LCPEchoReply, LCPDiscardRequest:
 		return LCPEventRXR
 	}
 	return LCPEventRUC
+}
+
+// rejectedCodeOffset is where the rejected packet's own Code sits in the Data
+// of a received Code-Reject: the Rejected-Packet opens the Data, and the
+// rejected packet's header opens the Rejected-Packet.
+const rejectedCodeOffset = 0
+
+// lcpCodeRejectEvent decides whether a received LCP Code-Reject is RXJ+ or
+// RXJ-, from the Code of the packet it rejects.
+//
+// RFC 1661 Section 5.6, the Code-Reject packet. ParseLCPPacket consumed
+// octets 0 to 3, so pkt.Data starts at octet 4, the Rejected-Packet:
+//
+//	 0                   1                   2                   3
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|   Code = 7    |  Identifier   |            Length             |  octets 0-3
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	| Rejected-Packet ...                                              octet 4 on
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+// "The Rejected-Packet field contains a copy of the LCP packet which is being
+// rejected." So pkt.Data[0] is the rejected packet's Code, pkt.Data[1] its
+// Identifier, pkt.Data[2:4] its Length and pkt.Data[4:] its Data, cut to the
+// rejecter's MRU. Only the Code is read here.
+//
+// RFC 1661 Section 4.3: "The RXJ+ event arises when the rejected value is
+// acceptable, such as a Code-Reject of an extended code, or a
+// Protocol-Reject of a NCP." and "The RXJ- event arises when the rejected
+// value is catastrophic, such as a Code-Reject of Configure-Request, or a
+// Protocol-Reject of LCP!  This event communicates an unrecoverable error
+// that terminates the connection."
+//
+// The catastrophic Codes are the ones the automaton itself needs: Codes 1 to
+// 7, which every RFC 1661 control protocol exchanges, and Protocol-Reject,
+// which RFC 1661 Section 3.6 makes LCP send for every unsupported protocol:
+// "While LCP is in the Opened state, any protocol packet which is unsupported
+// by the implementation MUST be returned in a Protocol-Reject (described
+// later)." A peer that cannot take one of them cannot run LCP with Ze.
+// Echo-Request, Echo-Reply and Discard-Request are the extended Codes: LCP
+// works without them, so their reject is RXJ+ and stopRejectedCode stops what
+// Ze sends of them. pppd v2.5.5 fsm.c fsm_rcoderej treats every Code-Reject
+// as RXJ+ ("if( f->state == ACKRCVD ) f->state = REQSENT;"), which the RFC
+// sentence above does not allow for a Code-Reject of Configure-Request.
+//
+// A Code-Reject too short to carry the rejected Code names nothing, so it
+// stays RXJ+ and stops nothing, as every Code-Reject did before this function
+// existed.
+func lcpCodeRejectEvent(pkt LCPPacket) lCPEvent {
+	if len(pkt.Data) <= rejectedCodeOffset {
+		return LCPEventRXJPlus
+	}
+	// The rejected Code comes from the wire, an open set: every value not
+	// named here was never sent by Ze, an extended Code, and is RXJ+.
+	switch pkt.Data[rejectedCodeOffset] {
+	case LCPConfigureRequest, LCPConfigureAck, LCPConfigureNak, LCPConfigureReject,
+		LCPTerminateRequest, LCPTerminateAck, LCPCodeReject, LCPProtocolReject:
+		return LCPEventRXJMinus
+	case LCPEchoRequest, LCPEchoReply, LCPDiscardRequest:
+		return LCPEventRXJPlus
+	}
+	return LCPEventRXJPlus
+}
+
+// protocolRejectEvent decides whether a Protocol-Reject received in LCP
+// Opened is RXJ+ or RXJ-, from its Rejected-Protocol (layout above
+// receiveProtocolReject).
+//
+// RFC 1661 Section 4.3: "The RXJ- event arises when the rejected value is
+// catastrophic, such as a Code-Reject of Configure-Request, or a
+// Protocol-Reject of LCP!  This event communicates an unrecoverable error
+// that terminates the connection." pppd v2.5.5 lcp.c lcp_protrej answers a
+// Protocol-Reject naming LCP the same way: "error("Received Protocol-Reject
+// for LCP!"); fsm_protreject(&lcp_fsm[unit]);", whose comment reads "Treat
+// this as a catastrophic error (RXJ-)."
+//
+// A Protocol-Reject naming an NCP, any other protocol, or none (shorter than
+// the Rejected-Protocol field) is RXJ+.
+func protocolRejectEvent(pkt LCPPacket) lCPEvent {
+	if len(pkt.Data) < rejectedProtocolLen {
+		return LCPEventRXJPlus
+	}
+	if binary.BigEndian.Uint16(pkt.Data[:rejectedProtocolLen]) == ProtoLCP {
+		return LCPEventRXJMinus
+	}
+	return LCPEventRXJPlus
+}
+
+// stopRejectedCode records the Code a received LCP Code-Reject rejects, when
+// it is one Ze sends and can stop sending: Echo-Request (the echo ticker in
+// run) and Echo-Reply (the ser action in performAction). Ze sends no
+// Discard-Request, Identification or Time-Remaining, and the Codes LCP needs
+// raise RXJ- instead (lcpCodeRejectEvent), so nothing else is recorded.
+//
+// RFC 1661 Section 4.3: "The RXJ+ event arises when the rejected value is
+// acceptable, such as a Code-Reject of an extended code, or a
+// Protocol-Reject of a NCP.  These are within the scope of normal
+// operation.  The implementation MUST stop sending the offending packet
+// type."
+//
+// pppd v2.5.5 fsm.c fsm_rcoderej only logs the rejected Code ("warn("%s: Rcvd
+// Code-Reject for code %d, id %d", ...)") and LcpSendEchoRequest keeps
+// sending, so pppd meets this sentence only for Codes it never sends.
+func (s *pppSession) stopRejectedCode(pkt LCPPacket) {
+	if len(pkt.Data) <= rejectedCodeOffset {
+		return
+	}
+	// Only the Codes Ze can stop sending are recorded; every other rejected
+	// Code is RXJ- or one Ze never sends.
+	switch pkt.Data[rejectedCodeOffset] {
+	case LCPEchoRequest:
+		s.echoRequestRejected = true
+		s.logger.Debug("ppp: peer Code-Rejected Echo-Request, echo probes stopped",
+			"id", pkt.Identifier)
+	case LCPEchoReply:
+		s.echoReplyRejected = true
+		s.logger.Debug("ppp: peer Code-Rejected Echo-Reply, Echo-Requests go unanswered",
+			"id", pkt.Identifier)
+	}
+}
+
+// fatalRejectReason names what a received reject that raised RXJ- rejected,
+// for the session-down reason: the Code a Code-Reject carries, or LCP for a
+// Protocol-Reject.
+func fatalRejectReason(pkt LCPPacket) string {
+	var tb textbuf.Buffer
+	if pkt.Code == LCPProtocolReject {
+		return tb.Str("LCP terminated: peer Protocol-Rejected LCP").String()
+	}
+	if len(pkt.Data) <= rejectedCodeOffset {
+		// lcpCodeRejectEvent raises RXJ- only for a Code it read, so this
+		// arm is not reached; it keeps a short packet from indexing past Data.
+		return tb.Str("LCP terminated: peer Code-Reject").String()
+	}
+	return tb.Str("LCP terminated: peer Code-Rejected ").
+		Str(LCPCodeName(pkt.Data[rejectedCodeOffset])).String()
 }
 
 // lcpRequestVerdict is what a received LCP Configure-Request earns. A bool
@@ -1758,7 +1915,8 @@ func (s *pppSession) handleLCPPacket(pkt LCPPacket) bool {
 			// any state other than the LCP Opened state SHOULD be silently
 			// discarded." Discarded means before the automaton too: the
 			// RXJ+ codeToEvent maps it to would otherwise take Ack-Rcvd to
-			// Req-Sent (pppd lcp_rprotrej returns before any dispatch).
+			// Req-Sent, and the RXJ- of one naming LCP would end the
+			// negotiation (pppd lcp_rprotrej returns before any dispatch).
 			s.logger.Debug("ppp: Protocol-Reject silently discarded outside LCP Opened",
 				"state", cur.String(), "id", pkt.Identifier, "len", len(pkt.Data))
 			return false
@@ -1769,12 +1927,25 @@ func (s *pppSession) handleLCPPacket(pkt LCPPacket) bool {
 		}
 	}
 
-	ev := codeToEvent(pkt.Code, optsBad)
+	ev := codeToEvent(pkt, optsBad)
+	if pkt.Code == LCPCodeReject {
+		// RFC 1661 Section 4.3. Recorded before the transition, because
+		// RXJ+ in Opened is a no-op the automaton returns from below. Only
+		// the RXJ+ Codes Ze sends are recorded, so an RXJ- records nothing.
+		s.stopRejectedCode(pkt)
+	}
 
 	tr := LCPDoTransition(cur, ev)
 	if tr.NewState == cur && len(tr.Actions) == 0 {
 		s.logFSMNoOp(cur, ev, pkt)
 		return false
+	}
+	if ev == LCPEventRXJMinus {
+		// RFC 1661 Section 4.3: RXJ- "communicates an unrecoverable error
+		// that terminates the connection." The Closed or Stopped it leads to
+		// ends the session (sessionEndedAt), and applyTransition reports it
+		// with this reason.
+		s.lcpRejectFatalReason = fatalRejectReason(pkt)
 	}
 
 	// ISSUE 3 fix: capture the peer's MRU from its accepted CR.
@@ -2007,6 +2178,13 @@ func (s *pppSession) applyTransition(cur LCPState, tr lCPTransition, pkt LCPPack
 			// "Idle timer expired."
 			reason = s.idleCloseReason()
 			cause = l2tpevents.TerminateCauseIdleTimeout
+		} else if s.lcpRejectFatalReason != "" {
+			// The RXJ- handleLCPPacket recorded: the peer rejected what LCP
+			// needs, an error and no request of the user's. RFC 2866 Section
+			// 5.10 value 9: "NAS detected some error (other than on the
+			// port) which required ending the session."
+			reason = s.lcpRejectFatalReason
+			cause = l2tpevents.TerminateCauseNASError
 		}
 		s.sendEvent(EventSessionDown{
 			TunnelID:  s.tunnelID,
@@ -2160,6 +2338,13 @@ func (s *pppSession) performAction(act LCPAction, current LCPPacket) bool {
 		return s.sendCodeReject(current)
 	case LCPActSER:
 		if current.Code != LCPEchoRequest {
+			return true
+		}
+		if s.echoReplyRejected {
+			// RFC 1661 Section 4.3: "The implementation MUST stop sending
+			// the offending packet type." The peer Code-Rejected an
+			// Echo-Reply (stopRejectedCode), so its Echo-Request goes
+			// unanswered.
 			return true
 		}
 		return s.sendEchoReply(current)

@@ -684,7 +684,7 @@ func (s *pppSession) handleNCPPacket(
 	}
 
 	// RFC 1332 Section 2.
-	ev := ncpCodeToEvent(pkt.Code, optsBad)
+	ev := ncpCodeToEvent(pkt, optsBad)
 	tr := LCPDoTransition(cur, ev)
 	if tr.NewState == cur && len(tr.Actions) == 0 {
 		s.logger.Debug("ppp: NCP no-op transition",
@@ -710,11 +710,44 @@ func (s *pppSession) handleNCPPacket(
 // Discard-Request), so an NCP packet carrying one of those Codes is RUC here
 // before codeToEvent can read it as an LCP maintenance packet. The RUC edge
 // is scj, which sendNCPCodeReject answers on the NCP's own protocol.
-func ncpCodeToEvent(code uint8, optsBad bool) lCPEvent {
-	if code > LCPCodeReject {
+func ncpCodeToEvent(pkt LCPPacket, optsBad bool) lCPEvent {
+	if pkt.Code > LCPCodeReject {
 		return LCPEventRUC
 	}
-	return codeToEvent(code, optsBad)
+	if pkt.Code == LCPCodeReject {
+		// RFC 1661 Section 4.3
+		return ncpCodeRejectEvent(pkt)
+	}
+	return codeToEvent(pkt, optsBad)
+}
+
+// ncpCodeRejectEvent decides whether a Code-Reject received on IPCP or IPv6CP
+// is RXJ+ or RXJ-, from the Code of the packet it rejects (the Code-Reject
+// layout is above lcpCodeRejectEvent; pkt.Data[0] is the rejected Code).
+//
+// RFC 1661 Section 4.3: "The RXJ- event arises when the rejected value is
+// catastrophic, such as a Code-Reject of Configure-Request, or a
+// Protocol-Reject of LCP!  This event communicates an unrecoverable error
+// that terminates the connection."
+//
+// An NCP uses Codes 1 to 7 alone (RFC 1332 Section 2, quoted above
+// ncpCodeToEvent) and sends no other, so a Code-Reject of any of them takes
+// away a Code the NCP cannot run without: RXJ-, which stops this NCP and
+// leaves LCP and the other NCP running. A Code-Reject of any other Code
+// rejects one this NCP never sent, an extended Code with nothing to stop:
+// RXJ+. One too short to carry the rejected Code stays RXJ+, as before.
+func ncpCodeRejectEvent(pkt LCPPacket) lCPEvent {
+	if len(pkt.Data) <= rejectedCodeOffset {
+		return LCPEventRXJPlus
+	}
+	// The rejected Code comes from the wire, an open set: every value not
+	// named here is one the NCP never sent, and is RXJ+.
+	switch pkt.Data[rejectedCodeOffset] {
+	case LCPConfigureRequest, LCPConfigureAck, LCPConfigureNak, LCPConfigureReject,
+		LCPTerminateRequest, LCPTerminateAck, LCPCodeReject:
+		return LCPEventRXJMinus
+	}
+	return LCPEventRXJPlus
 }
 
 // evalIPCPRequest judges the peer's IPCP Configure-Request.

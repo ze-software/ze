@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC1661-4.3-3",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_lcp_code_reject_test.go::TestCodeRejectOfUnsentCodeKeepsEchoProbes",
+    "unit-sha": "50c394f26a407f4d",
+    "claim-sha": "963fca176031bee5",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
+    "producer-sha": "72a9499089a2edcb",
+    "break": "line 1935: \"s.stopRejectedCode(pkt)\" -\u003e \"s.echoRequestRejected = true\""
+  },
+  {
+    "rid": "RFC1661-4.3-3",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_lcp_code_reject_test.go::TestCodeRejectedEchoReplyLeavesEchoRequestUnanswered",
+    "unit-sha": "c28082b36a3f2a54",
+    "claim-sha": "bebcfb00ef69324f",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::stopRejectedCode",
+    "producer-sha": "de8bfa3faf38162f",
+    "break": "line 1673: \"s.echoReplyRejected = true\" -\u003e \"s.echoReplyRejected = false\""
+  },
+  {
+    "rid": "RFC1661-4.3-3",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_lcp_code_reject_test.go::TestCodeRejectedEchoRequestStopsEchoProbes",
+    "unit-sha": "4dd5137219acef51",
+    "claim-sha": "fc51ec0fb2525c77",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::stopRejectedCode",
+    "producer-sha": "de8bfa3faf38162f",
+    "break": "line 1669: \"s.echoRequestRejected = true\" -\u003e \"s.echoRequestRejected = false\""
+  }
+]

@@ -263,6 +263,20 @@ type pppSession struct {
 	// goroutine only; set once, the session ends at that Closed.
 	noNCPBoundExpired bool
 
+	// echoRequestRejected and echoReplyRejected record that the peer
+	// Code-Rejected an LCP Echo-Request or Echo-Reply (receiveCodeReject),
+	// after which Ze sends no packet of that Code for the life of the link:
+	// the peer named it a Code it does not implement, which no LCP
+	// renegotiation with the same peer changes. Session goroutine only.
+	echoRequestRejected bool
+	echoReplyRejected   bool
+	// lcpRejectFatalReason records that the peer rejected a Code or Protocol
+	// LCP cannot work without (RXJ-), and names what it rejected, so the
+	// Closed or Stopped that event leads to reports NAS Error with that reason
+	// rather than User Request. Empty until then. Session goroutine only; set
+	// once, the session ends at that state.
+	lcpRejectFatalReason string
+
 	// NCP dispatch starts only after authentication completes. runNCPPhase
 	// MUST set ncpStarted; LCP This-Layer-Down MUST clear it through resetNCP.
 	ncpStarted bool

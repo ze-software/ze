@@ -1897,17 +1897,31 @@ packet. A permitted rejection in Opened leaves the state unchanged and
 performs no action; Echo traffic (`RXR`) retains its separate Echo-Reply
 action. Catastrophic rejection (`RXJ-`) finishes the lower layer in Closed,
 Closing and Stopping, ending in Closed, Closed and Stopped respectively.
-These last three cells describe the abstract automaton: `codeToEvent`
-currently maps both Code-Reject and Protocol-Reject to `RXJ+`, so they do
-not establish wire reachability of `RXJ-`. A Protocol-Reject reaches that
-mapping only in Opened, where `RXJ+` changes nothing: received in any other
-LCP state it is discarded first (RFC 1661 Section 5.7), and in Opened
-`receiveProtocolReject` reads its Rejected-Protocol and stops the IPCP or
-IPv6CP it names with the Down event (`stopRejectedNCP`), so the RFC 1661
-Section 4.3 stop applies to the named NCP while LCP stays Opened.
+
+`codeToEvent` decides between `RXJ+` and `RXJ-` from what a reject rejects,
+as RFC 1661 Section 4.3 does: "The RXJ+ event arises when the rejected value
+is acceptable, such as a Code-Reject of an extended code, or a
+Protocol-Reject of a NCP." and "The RXJ- event arises when the rejected value
+is catastrophic, such as a Code-Reject of Configure-Request, or a
+Protocol-Reject of LCP!"
+
+| Received | Event | What follows |
+|----------|-------|--------------|
+| LCP Code-Reject of Codes 1 to 8 (the Configure, Terminate, Code-Reject and Protocol-Reject Codes LCP needs) | `RXJ-` | In Opened, a Terminate-Request (tld, irc, str); the session ends at Stopped with Acct-Terminate-Cause NAS Error |
+| LCP Code-Reject of Echo-Request | `RXJ+` | Ze sends no further Echo-Request on the link, and the echo-failure count stops with it, so liveness rests on the lower layer |
+| LCP Code-Reject of Echo-Reply | `RXJ+` | Ze answers no further Echo-Request |
+| LCP Code-Reject of any other Code, or too short to carry one | `RXJ+` | Nothing: Ze never sends those Codes |
+| Protocol-Reject naming LCP (0xc021), in Opened | `RXJ-` | As for the fatal Code-Reject above |
+| Protocol-Reject naming IPCP or IPv6CP, in Opened | `RXJ+` | `receiveProtocolReject` stops that NCP with the Down event (`stopRejectedNCP`) while LCP stays Opened |
+| Protocol-Reject of anything else, or outside Opened | `RXJ+`, or discarded | Outside Opened it is discarded before the automaton (RFC 1661 Section 5.7) |
+| IPCP or IPv6CP Code-Reject of Codes 1 to 7 | `RXJ-` for that NCP | The NCP stops (in Opened: tld, irc, str); LCP and the other NCP go on |
+| IPCP or IPv6CP Code-Reject of any other Code | `RXJ+` | Nothing |
+
+pppd v2.5.5 takes every Code-Reject as `RXJ+` (`fsm_rcoderej`) and keeps
+sending Echo-Requests a peer rejected; Ze follows the RFC sentence instead.
 <!-- source: internal/component/l2tp/ppp/ppp_fsm.go -- LCPDoTransition -->
-<!-- source: internal/component/l2tp/ppp/session_run.go -- codeToEvent, applyTransition, handleLCPPacket, receiveProtocolReject -->
-<!-- source: internal/component/l2tp/ppp/ncp.go -- handleNCPPacket, stopRejectedNCP -->
+<!-- source: internal/component/l2tp/ppp/session_run.go -- codeToEvent, lcpCodeRejectEvent, protocolRejectEvent, stopRejectedCode, applyTransition, handleLCPPacket, receiveProtocolReject -->
+<!-- source: internal/component/l2tp/ppp/ncp.go -- handleNCPPacket, ncpCodeRejectEvent, stopRejectedNCP -->
 
 ### 22.2 LAC PPP Proxying
 
