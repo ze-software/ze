@@ -332,9 +332,14 @@ func icmpReturnForwarded(typ, code byte, quotedDestination string, tag uint16) [
 // ruling of 2026-11-20 on RFC 4301 Section 6.2: an operator out DISCARD that covers a
 // forwarded ICMP error does not stop its mapping into the return SA, and the mapping
 // takes only what it can carry. Method: the entry discards every ICMP message from
-// 10.2.0.0/24 to 10.1.0.0/24 at order 100; an operator in BYPASS for ICMP in the same
-// orientation admits each message at the forward check, so every message reaches the
-// OUT lookup, and XfrmOutPolBlock moving by one proves that lookup answered BLOCK. A
+// 10.2.0.0/24 to 10.1.0.0/24 at order 100; an operator in BYPASS for ICMP from the
+// host 10.2.0.2 alone admits each message at the forward check, so every message
+// reaches the OUT lookup, and XfrmOutPolBlock moving by one proves that lookup answered
+// BLOCK. The bypass names the host, not the discard's 10.2.0.0/24: its OUT transit gate
+// would otherwise carry the discard's selector, which the configuration verifier
+// refuses (spdSameSelectorRefusal) because the kernel keeps one policy per selector and
+// the gate, installed second, replaces the discard. The pair is checked against that
+// verifier before it is installed, so the SPD under test is one Ze accepts. A
 // Destination Unreachable quoting the Child SA's return traffic must leave protected;
 // an Echo Request (not an error type icmp_err_packet maps) and a Destination
 // Unreachable quoting traffic no SA carries must leave neither protected nor in clear.
@@ -356,14 +361,18 @@ func TestRFC4301ForwardedICMPErrorUnderOperatorDiscardMapsToReturnSA(t *testing.
 			LocalPrefix: mustCIDRNet(t, "10.2.0.0/24"), LocalPort: ipsec.AnyPort(),
 			RemotePrefix: mustCIDRNet(t, "10.1.0.0/24"), RemotePort: ipsec.AnyPort(),
 		},
-		// The forward check's permission for ICMP from the protected side. Its OUT
-		// transit gate ranks beneath the discard, so the discard decides the OUT lookup.
+		// The forward check's permission for ICMP from the protected host. Its OUT
+		// transit gate (10.2.0.2/32 to 10.1.0.0/24) ranks beneath the discard and holds
+		// a selector of its own, so the discard decides the OUT lookup.
 		"icmp-from-protected-host": {
 			Name: "icmp-from-protected-host", Action: dataplane.SPActionBypass, Order: 200,
 			Direction: ipsec.SPDDirIn, Protocol: sadSelProtoICMP,
 			LocalPrefix: mustCIDRNet(t, "10.1.0.0/24"), LocalPort: ipsec.AnyPort(),
-			RemotePrefix: mustCIDRNet(t, "10.2.0.0/24"), RemotePort: ipsec.AnyPort(),
+			RemotePrefix: mustCIDRNet(t, fragmentHostAddress+"/32"), RemotePort: ipsec.AnyPort(),
 		},
+	}
+	if err := verifySPDOrder(&ipsec.IPsecConfig{Policies: entries}); err != nil {
+		t.Fatalf("the operator SPD under test is one Ze refuses at commit: %v", err)
 	}
 	if err := installSPDPolicies(dataplane.Get(), nil, entries, slogutil.DiscardLogger()); err != nil {
 		t.Fatalf("install the operator SPD entries: %v", err)

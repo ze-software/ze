@@ -41,7 +41,12 @@ const (
 func fragmentForwardPeers(t *testing.T, lab *espPolLab) (*ipv4.RawConn, int) {
 	t.Helper()
 	defer lab.enter(t, lab.ze)
+	// The router runs IPv4 alone. Its callers count XfrmOutPolBlock for one packet,
+	// and IPv6 on its links would send neighbor discovery and MLD through the IPv6
+	// catch-all under `unmatched discard`, each send moving that counter as well.
 	for _, setting := range []struct{ path, value string }{
+		{"/proc/sys/net/ipv6/conf/all/disable_ipv6", "1"},
+		{"/proc/sys/net/ipv6/conf/default/disable_ipv6", "1"},
 		{"/proc/sys/net/ipv4/ip_forward", "1"},
 		{"/proc/sys/net/ipv4/conf/all/rp_filter", "0"},
 		{"/proc/sys/net/ipv4/conf/default/rp_filter", "0"},
