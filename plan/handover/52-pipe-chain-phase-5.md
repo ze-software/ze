@@ -31,6 +31,12 @@ In progress when this session handed off (two agents, uncommitted, each appends 
 - 5d, the RIB declarations and YANG: `registerPipeFilters` on the `Argument` kind; own sets for `show bgp rib protocol` (no scope, D-3) and `show bgp peer <sel> rib` (scope words, D-9); `sent`, `sent-received`, `aspath` declared; both `leaf-list args` and `leaf scope` removed; help_ai.go text.
 If either agent's handoff in the state file says "continuation needed", spawn a continuation for exactly what it lists.
 
+5d reported after this handover was written (its full handoff is in the state file): written, nothing run, and blocked on two defects in committed code, both fixes owed in this spec, not owner questions:
+- B1: the partition looks up a command's declared operations by the typed command part (`command.ReadDispatchLine`, its `ColumnsForCommand` call, and every surface partition). A selector value inside the path (`show bgp peer edge1 rib | received`) never matches the declaration on `show bgp peer rib`, so the operation is refused as unknown. Fix direction: look up on the matched command's registered path with the selector value removed, which the design implies (operations are declared per command path); every route must use the same lookup.
+- B2: `Dispatch` (plugin/server `command.go`) passes `matchedCmd.Name` to `command.RefusePipeOperationWords`, so the fix line drops the selector (`fix: show bgp peer rib | received`, and `show bgp rib protocol | peer X` without `bmp`). Build it from the typed line. `TestPeerRibRefusesScopeArgument` pins the correct form.
+- 5d test changes owed to ze-test-judge: TestRibBestFiltersSurviveDeclaration, TestProtocolAndFastpathDispatchTheDeclaredValues, usage_model_test.go (TestUsageRendersTheDeclaredValues, TestModifierGroupsLeaveDispatchUntouched), and removal of `rib/yang_enum_agreement_test.go` (TestRIBScopeKeywordsMatchTheYANGModel and its helpers).
+- When this session handed off, 5c was still mid-edit: the rib package's tests did not compile (`parsePipelineArgs`, `newJSONTerminal` and `showPipeline`'s argument type in transition). Read 5c's handoff in the state file for where it stopped.
+
 Remaining after 5c/5d:
 - run 5c/5d owed commands, judge their test changes (ze-test-judge), commit (the rib package reds that pin the removed fold clear here)
 - phase 6a-6g: convert every in-tree user of the RIB argument form (census in the spec; about 100 files by tree)
