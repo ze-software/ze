@@ -6,7 +6,7 @@
 // approve.go is `le spec design approve`: from Thomas's terminal only, it
 // re-runs the check, requires the judge's current approval, and writes
 // tmp/spec-design/approved/<stem>.md
-// (plan/release/validation/spec-design-needs-owner-approval.md, AC-17 to
+// (spec-design-needs-owner-approval, AC-17 to
 // AC-19, "The records").
 package specdesign
 

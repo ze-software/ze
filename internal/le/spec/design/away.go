@@ -5,7 +5,7 @@
 // away.go is `le spec design away until <YYYY-MM-DD> words "<text>"` and `le
 // spec design return`: from Thomas's terminal only, the first writes
 // tmp/spec-design/away.md, the second removes it. The record lapses on its own
-// after its until date (plan/release/validation/spec-design-needs-owner-approval.md,
+// after its until date (spec-design-needs-owner-approval,
 // AC-27, C-4).
 package specdesign
 

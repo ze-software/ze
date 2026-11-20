@@ -1,7 +1,7 @@
 // VALIDATES: `./le doc consistency` judges the `## Design decisions` section of
 // each page a // Design: header names, and `./le commit create` refuses a
 // commit that changes or removes a decision row present at its parent
-// (plan/release/validation/spec-design-needs-owner-approval.md, AC-8, AC-10).
+// (spec-design-needs-owner-approval, AC-8, AC-10).
 // PREVENTS: an owner decision rewritten to fit a design, as the 2026-11-12
 // pipe-chain spec rewrote docs/architecture/api/commands.md.
 package docconsistency

@@ -204,7 +204,7 @@ func TestSpecSessionCommandMapsEveryOwnershipAction(t *testing.T) {
 }
 
 // TestClaimRefusesReadySpecWithoutApproval is the wiring row "`./le spec
-// claim` on a ready spec" (plan/release/validation/spec-design-needs-owner-approval.md,
+// claim` on a ready spec" (spec-design-needs-owner-approval,
 // AC-22). Method: claim a ready spec that no approval record or trailer
 // covers, with Thomas not away, through the registered command; it exits 2,
 // Status stays ready, and the session claims nothing.

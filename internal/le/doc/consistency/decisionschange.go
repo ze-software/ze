@@ -7,7 +7,7 @@
 // judges a row, and a row present at the parent that it changes or removes is
 // refused unless Thomas admitted it, through an approved `departs` row of a
 // spec or through `./le commit create ... decision-change "<his words>"`
-// (plan/release/validation/spec-design-needs-owner-approval.md, AC-9, AC-10).
+// (spec-design-needs-owner-approval, AC-9, AC-10).
 // A row the commit leaves alone is never judged, whatever it holds.
 package docconsistency
 

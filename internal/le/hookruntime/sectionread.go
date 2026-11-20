@@ -5,7 +5,7 @@
 //
 // sectionread.go owns the Design decisions read: which pages an edit owes it
 // for, the record a Read of a page leaves, and whether that record is current
-// (plan/release/validation/spec-design-needs-owner-approval.md, AC-1 to AC-7).
+// (spec-design-needs-owner-approval, AC-1 to AC-7).
 // The record's format is readrecord's, which `le spec design judge` reads too.
 package hookruntime
 
@@ -29,12 +29,6 @@ import (
 // section: its text without the #s.
 var decisionsSectionName = strings.TrimPrefix(docconsistency.DecisionsHeading, "## ")
 
-// proposedHeaderLines bounds the header a proposed text's `// Design:` lines
-// are read from: the bound speccitation.DeclaredDesignDocuments reads a file's
-// header within, so the text an edit proposes and the file on disk are read
-// alike.
-const proposedHeaderLines = 25
-
 // designPage is one page whose Design decisions section an edit may owe, and
 // what made it owed: the file whose `// Design:` header names it, or "" for a
 // page a spec names itself.
@@ -44,18 +38,18 @@ type designPage struct {
 }
 
 // owedSection is one Design decisions section this context holds no current
-// record of: its page (checkout-relative), its first and last lines, the line
-// a Read must reach to record it, and the file that links the page ("" when a
-// spec names the page itself). through is the heading that ends the section,
-// or the page's last line: readrecord.RecordRead judges a section whole only
-// when the Read returned that line, since the returned text alone must show
-// where the section ends.
+// record of: its page (checkout-relative), its first and last lines, the Read
+// limit that records it from offset start, and the file that links the page
+// ("" when a spec names the page itself). limit is readrecord's
+// Section.ReadLimit: the Read must return the heading that ends the section,
+// or the page's last line (Section.Through), since readrecord.RecordRead
+// judges a section whole only from what the returned text shows.
 type owedSection struct {
-	page    string
-	start   int
-	end     int
-	through int
-	via     string
+	page  string
+	start int
+	end   int
+	limit int
+	via   string
 }
 
 // owedReading is what a context must read before an edit: the doors it has
@@ -161,15 +155,15 @@ func editedFilePages(ctx context, checkout documentCheckout, file string) ([]des
 		// edit itself and no proposed header exists to judge.
 		return pages, nil
 	}
-	for _, link := range proposedDesignLinks(proposed) {
-		exists, err := pageExists(checkout, link.page)
+	for _, link := range docconsistency.DesignHeader(proposed) {
+		exists, err := pageExists(checkout, link.Page)
 		if err != nil {
-			return nil, unreadablePage(checkout, link.page, err)
+			return nil, unreadablePage(checkout, link.Page, err)
 		}
 		if !exists {
 			return nil, danglingHeader(checkout, file, link)
 		}
-		pages = appendDesignPage(pages, designPage{page: link.page, via: file})
+		pages = appendDesignPage(pages, designPage{page: link.Page, via: file})
 	}
 	return pages, nil
 }
@@ -256,57 +250,10 @@ func unreadSections(ctx context, checkout documentCheckout, pages []designPage) 
 		}
 		owed = append(owed, owedSection{
 			page: linked.page, start: section.Start, end: section.End,
-			through: sectionThrough(sections, section, text), via: linked.via,
+			limit: section.ReadLimit(), via: linked.via,
 		})
 	}
 	return owed, nil
-}
-
-// sectionThrough answers the line a Read of section must reach to record it:
-// the heading of the first later section of its level or a higher one, which
-// ends it, else the page's last line. sections is the page's, in page order.
-func sectionThrough(sections []readrecord.Section, section readrecord.Section, text string) int {
-	for _, later := range sections {
-		if later.Start <= section.Start {
-			continue
-		}
-		if later.Level <= section.Level {
-			return later.Start
-		}
-	}
-	return strings.Count(strings.TrimSuffix(text, "\n"), "\n") + 1
-}
-
-// designLink is one page a `// Design:` line of a proposed text names, with
-// the line, which a refusal quotes.
-type designLink struct {
-	line string
-	page string
-}
-
-// proposedDesignLinks answers every page the `// Design:` lines of text's
-// header name: its first proposedHeaderLines lines before the package clause,
-// each line's pages as docconsistency.DesignTargets reads them.
-func proposedDesignLinks(text string) []designLink {
-	var links []designLink
-	number := 0
-	for line := range strings.Lines(text) {
-		number++
-		if number > proposedHeaderLines {
-			break
-		}
-		line = strings.TrimRight(line, "\r\n")
-		if strings.HasPrefix(line, "package ") {
-			break
-		}
-		if !strings.HasPrefix(line, "// Design:") {
-			continue
-		}
-		for _, page := range docconsistency.DesignTargets(line) {
-			links = append(links, designLink{line: line, page: page})
-		}
-	}
-	return links
 }
 
 // pageExists reports whether page, checkout-relative, is a file of checkout. A
@@ -328,9 +275,9 @@ func pageExists(checkout documentCheckout, page string) (bool, error) {
 
 // danglingHeader is the refusal of an edit whose proposed header names a page
 // that does not exist (AC-7).
-func danglingHeader(checkout documentCheckout, file string, link designLink) *verdict {
-	return &verdict{2, "❌ BLOCKED: " + checkout.name(file) + ": its // Design: header names " + link.page + ", which does not exist:\n" +
-		"    " + link.line + "\n" +
+func danglingHeader(checkout documentCheckout, file string, link docconsistency.DesignLink) *verdict {
+	return &verdict{2, "❌ BLOCKED: " + checkout.name(file) + ": its // Design: header names " + link.Page + ", which does not exist:\n" +
+		"    " + link.Line + "\n" +
 		"  Why: the header links a file to the page that documents it and holds Thomas's decisions about it; a link to no page binds the file to nothing.\n" +
 		"  Fix: correct the header to name the page that documents this file, then retry.\n  ai/rules/architecture.md"}
 }
@@ -350,15 +297,15 @@ func unreadablePage(checkout documentCheckout, page string, err error) *verdict 
 }
 
 // writeSectionLines appends to tb one list line per owed section: the page,
-// the section and its lines, the Read that clears it (through the line that
-// ends the section, owedSection.through), and, for a page a file other than
-// subject links, that file.
+// the section and its lines, the Read that clears it (owedSection.limit lines
+// from its heading), and, for a page a file other than subject links, that
+// file.
 func writeSectionLines(tb *textbuf.Buffer, checkout documentCheckout, subject string, sections []owedSection) {
 	for _, section := range sections {
 		first := strconv.Itoa(section.start)
 		tb.Str("  - ").Str(checkout.name(section.page)).Str(", ").Str(docconsistency.DecisionsHeading).
 			Str(" (lines ").Str(first).Str(" to ").Str(strconv.Itoa(section.end)).
-			Str("): Read it with offset ").Str(first).Str(" and limit ").Str(strconv.Itoa(section.through - section.start + 1))
+			Str("): Read it with offset ").Str(first).Str(" and limit ").Str(strconv.Itoa(section.limit))
 		if section.via != "" && section.via != subject {
 			tb.Str(" (the // Design: page of ").Str(checkout.name(section.via)).Byte(')')
 		}

@@ -4,7 +4,7 @@
 //
 // check.go judges a spec's ## Design documents against the derivation and its
 // ## Design presentation against the subsections it owes
-// (plan/release/validation/spec-design-needs-owner-approval.md, AC-14). It
+// (spec-design-needs-owner-approval, AC-14). It
 // judges completeness and form only: whether a verdict is true is the judge's
 // and Thomas's to say.
 package specdesign

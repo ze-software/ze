@@ -1,7 +1,7 @@
 // VALIDATES: `le spec design pending` lists every ready spec whose design as
 // it stands has no approval, ordered by Priority, then category, then
 // Updated, each with what it lacks, and ends with the away state
-// (plan/release/validation/spec-design-needs-owner-approval.md, AC-30, C-2).
+// (spec-design-needs-owner-approval, AC-30, C-2).
 // PREVENTS: a ready spec waiting for Thomas that nobody shows him, and an
 // approved one shown as waiting.
 package specdesign_test

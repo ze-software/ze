@@ -5,7 +5,7 @@
 // decisions.go owns the `## Design decisions` section of a design page: its
 // parser, the judgment of one row, and the `design-decisions` tree check over
 // every page a `// Design:` header names
-// (plan/release/validation/spec-design-needs-owner-approval.md, AC-8).
+// (spec-design-needs-owner-approval, AC-8).
 package docconsistency
 
 import (
@@ -351,22 +351,64 @@ func pathProblem(root, entry string) string {
 	return ""
 }
 
-// designLink is one page a `// Design:` header line names.
-type designLink struct {
-	line int
-	page string
+// designHeaderPrefix starts every `// Design:` line of a header.
+const designHeaderPrefix = "// Design:"
+
+// DesignLink is one page a `// Design:` line of a file's header names: the
+// page, the line's number counting from 1, and the line as written, which a
+// refusal quotes.
+type DesignLink struct {
+	Page   string
+	Number int
+	Line   string
+}
+
+// DesignHeader answers every page the `// Design:` lines of text's header
+// name, in header order, each line's pages as designTargets reads them. The
+// header is the leading run of comment and blank lines: it ends at the first
+// other line, `package` in Go and templ, `module` in YANG, the first statement
+// elsewhere, so a `// Design:` line further down the file names no page. It is
+// the one header rule `./le doc consistency`, the spec citation audit and the
+// edit gate read a file by.
+func DesignHeader(text string) []DesignLink {
+	var links []DesignLink
+	number := 0
+	for line := range strings.Lines(text) {
+		number++
+		line = strings.TrimRight(line, "\r\n")
+		if !headerLine(line) {
+			break
+		}
+		if !strings.HasPrefix(line, designHeaderPrefix) {
+			continue
+		}
+		for _, page := range designTargets(line) {
+			links = append(links, DesignLink{Page: page, Number: number, Line: line})
+		}
+	}
+	return links
+}
+
+// headerLine reports whether line belongs to a file's leading header: a blank
+// line or a `//` comment, `//go:build` included.
+func headerLine(line string) bool {
+	trimmed := strings.TrimSpace(line)
+	if trimmed == "" {
+		return true
+	}
+	return strings.HasPrefix(trimmed, "//")
 }
 
 // headerSeparators are the words that end the page list of a `// Design:`
 // line and start its description.
 var headerSeparators = []string{"--", "—", "-"}
 
-// DesignTargets answers the `.md` pages one `// Design:` line names: every
+// designTargets answers the `.md` pages one `// Design:` line names: every
 // word before the separator (` -- ` or a dash) that ends in `.md` once the
 // punctuation around it is trimmed. A line naming `(none ...)` or a `.go`
 // file names no page.
-func DesignTargets(text string) []string {
-	rest, _ := strings.CutPrefix(text, "// Design:")
+func designTargets(text string) []string {
+	rest, _ := strings.CutPrefix(text, designHeaderPrefix)
 	var pages []string
 	for word := range strings.FieldsSeq(rest) {
 		if slices.Contains(headerSeparators, word) {

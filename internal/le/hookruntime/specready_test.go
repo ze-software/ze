@@ -1,6 +1,6 @@
 // VALIDATES: writeSpecReady refuses a subagent's edit that moves a spec to
 // ready, and leaves a subagent's edit that keeps Status as it is alone
-// (plan/release/validation/spec-design-needs-owner-approval.md, AC-20).
+// (spec-design-needs-owner-approval, AC-20).
 // PREVENTS: a design no one put to Thomas reaching ready through a subagent,
 // as the 2026-11-12 pipe-chain spec did in the working tree.
 package hookruntime

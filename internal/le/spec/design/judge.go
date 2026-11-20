@@ -4,7 +4,7 @@
 //
 // judge.go records the independent judge's verdict on a spec's design, bound
 // to the design digest, in tmp/spec-design/judged/<stem>.md
-// (plan/release/validation/spec-design-needs-owner-approval.md, AC-15, AC-16,
+// (spec-design-needs-owner-approval, AC-15, AC-16,
 // C-3). The judge is an agent that did not write the spec; the action refuses
 // one with no agent identity, and one that has not read the section behind
 // every row of the table.
@@ -160,7 +160,7 @@ func (u uncoveredRow) line() string {
 		return "  - " + u.document + ": Read the whole door"
 	}
 	return "  - " + u.document + ", " + u.section.Heading + ": Read it with offset " + strconv.Itoa(u.section.Start) +
-		" and limit " + strconv.Itoa(u.section.Lines())
+		" and limit " + strconv.Itoa(u.section.ReadLimit())
 }
 
 // uncoveredRows answers every row of rows whose section the agent of

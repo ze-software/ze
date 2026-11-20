@@ -183,11 +183,11 @@ func (c *checker) checkDesignRefs() []string {
 		links, hasDesign := c.designHeader(path)
 		if !strings.Contains("/"+path, "/testdata/") {
 			for _, link := range links {
-				if fileExists(c.path(link.page)) {
-					pages[link.page] = true
+				if fileExists(c.path(link.Page)) {
+					pages[link.Page] = true
 					continue
 				}
-				c.report(SeverityError, "design-refs", path, link.line, "// Design: names "+link.page+
+				c.report(SeverityError, "design-refs", path, link.Number, "// Design: names "+link.Page+
 					", which does not exist; fix: correct the header to name the page that documents this file")
 			}
 		}
@@ -206,28 +206,17 @@ func (c *checker) checkDesignRefs() []string {
 }
 
 // designHeader reads path once: the pages its header's `// Design:` lines
-// name (the lines before the package clause), and whether any line of the file
-// carries `// Design:` at all, which is what the missing-header warning asks.
-func (c *checker) designHeader(path string) (links []designLink, hasDesign bool) {
-	inHeader := true
-	c.scanLines(path, func(line int, text string) {
-		if strings.Contains(text, "// Design:") {
-			hasDesign = true
-		}
-		if strings.HasPrefix(text, "package ") {
-			inHeader = false
-		}
-		if !inHeader {
-			return
-		}
-		if !strings.HasPrefix(text, "// Design: ") {
-			return
-		}
-		for _, page := range DesignTargets(text) {
-			links = append(links, designLink{line: line, page: page})
-		}
-	})
-	return links, hasDesign
+// name (DesignHeader), and whether any line of the file carries `// Design:`
+// at all, which is what the missing-header warning asks. A file it cannot read
+// is reported unreadable and answers no link.
+func (c *checker) designHeader(path string) (links []DesignLink, hasDesign bool) {
+	content, err := os.ReadFile(c.path(path))
+	if err != nil {
+		c.unreadable(path, 0, "cannot open, so no check ran over this file", err)
+		return nil, false
+	}
+	text := string(content)
+	return DesignHeader(text), strings.Contains(text, designHeaderPrefix)
 }
 
 // --- Cross-Reference Bidirectionality ---

@@ -23,7 +23,7 @@ const statusReadyWord = "ready"
 // main session presents a design to Thomas, and from the main session unless
 // specdesign.Admit admits the proposed text: Thomas's approval of it, or the
 // away admission of a judged fix spec
-// (plan/release/validation/spec-design-needs-owner-approval.md, AC-20, AC-21,
+// (spec-design-needs-owner-approval, AC-20, AC-21,
 // C-5). An edit that leaves Status as it is, and any edit of a spec already
 // ready, is never judged, so the 94 specs ready before this check stay
 // editable. It MUST check before the tool publishes. A spec is found in the

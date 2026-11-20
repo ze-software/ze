@@ -7,7 +7,7 @@
 // Thomas approves, and holds the one lookup that answers whether a spec's
 // design is approved: the local record whose digest matches, else a
 // Design-approved: line reachable from HEAD with the stem and the digest
-// (plan/release/validation/spec-design-needs-owner-approval.md, "The records",
+// (spec-design-needs-owner-approval, "The records",
 // C-8). Claim, the ready hook, the closure checks and the decision-row check
 // all ask it, so no reader judges an approval its own way.
 package specdesign

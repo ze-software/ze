@@ -6,7 +6,7 @@
 // its design as it stands, by Priority, then category, then Updated, each with
 // what it lacks; then every spec started under an away admission Thomas has
 // not approved since; then the away state
-// (plan/release/validation/spec-design-needs-owner-approval.md, AC-30, C-2).
+// (spec-design-needs-owner-approval, AC-30, C-2).
 package specdesign
 
 import (

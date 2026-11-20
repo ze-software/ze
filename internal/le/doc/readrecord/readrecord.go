@@ -4,7 +4,7 @@
 // markdown page: the whole-read marker the door gate keeps for a door, and the
 // section read record, one append-only file per page and agent that holds the
 // digest of every section a Read returned whole
-// (plan/release/validation/spec-design-needs-owner-approval.md, "The records"
+// (spec-design-needs-owner-approval, "The records"
 // and the Changed-Wire Census rows "Section read record").
 //
 // The writer is the Read hook (internal/le/hookruntime, hookSourceRead); the
@@ -39,6 +39,11 @@ type Section struct {
 	// last non-blank line, inclusive.
 	Start int
 	End   int
+	// Through is the 1-based line a Read must reach for RecordRead to judge
+	// the section whole: the heading that closes it, else the last line of
+	// the text it was read from, so a Read that returns it shows where the
+	// section ends.
+	Through int
 	// Text is the section's lines, Start to End, joined by "\n".
 	Text string
 	// closed reports whether a heading of its level or a higher one ended it,
@@ -46,8 +51,9 @@ type Section struct {
 	closed bool
 }
 
-// Lines answers the section's line count: the Read limit that returns it.
-func (s Section) Lines() int { return s.End - s.Start + 1 }
+// ReadLimit answers the Read limit that, from offset Start, records the
+// section: the lines from its heading through Through.
+func (s Section) ReadLimit() int { return s.Through - s.Start + 1 }
 
 // Digest is the SHA-256 of the section's text, in hex.
 func (s Section) Digest() string {
@@ -113,10 +119,12 @@ func sectionsOf(lines []string) []Section {
 	sections := make([]Section, 0, len(headings))
 	for position, opened := range headings {
 		last := len(lines) - 1
+		through := len(lines)
 		closed := false
 		for _, next := range headings[position+1:] {
 			if next.level <= opened.level {
 				last = next.index - 1
+				through = next.index + 1
 				closed = true
 				break
 			}
@@ -126,7 +134,7 @@ func sectionsOf(lines []string) []Section {
 		}
 		sections = append(sections, Section{
 			Heading: opened.text, Level: opened.level,
-			Start: opened.index + 1, End: last + 1,
+			Start: opened.index + 1, End: last + 1, Through: through,
 			Text:   strings.Join(lines[opened.index:last+1], "\n"),
 			closed: closed,
 		})
@@ -191,11 +199,20 @@ func SectionMarker(sessionDir, key, fingerprint string) string {
 // RecordRead appends to marker one line for every section a Read returned
 // whole. content is what the Read returned, from line start (1-based) of a
 // page of total lines. A section is whole when the content holds its heading
-// and the heading that ends it, or reaches the page's last line. A section
-// cut by the Read's end records nothing, so the next edit still owes it.
+// and the heading that ends it (Section.Through), or reaches the page's last
+// line. A section cut by the Read's end records nothing, so the next edit
+// still owes it.
+//
+// The Read tool counts the empty line after a page's final newline in total,
+// while pageLines drops it, so a Read of the whole page ends one line short of
+// total: the end is reached at start+len(lines) >= total, not only past it.
+// That bound also admits a Read that stopped one line short of a page whose
+// last line holds text, and that is safe: SectionRead compares the recorded
+// digest with the section as it stands, and a Read cut short digests a
+// different text for the last section, so it never counts as its read.
 func RecordRead(marker, content string, start, total int) error {
 	lines := pageLines(content)
-	reachesEnd := start+len(lines) > total
+	reachesEnd := start+len(lines) >= total
 	var record strings.Builder
 	for _, section := range sectionsOf(lines) {
 		if !section.closed && !reachesEnd {

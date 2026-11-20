@@ -1,7 +1,7 @@
 // VALIDATES: the design digest covers exactly the four sections Thomas
 // approves: Task, Acceptance Criteria, Design documents, and Design
 // presentation without its Choices for Thomas subsection
-// (plan/release/validation/spec-design-needs-owner-approval.md, AC-24, C-8).
+// (spec-design-needs-owner-approval, AC-24, C-8).
 // PREVENTS: an approval that survives a change of scope, criteria, verdicts or
 // presentation, and one that a Status move or his recorded answer stales.
 package specdesign_test

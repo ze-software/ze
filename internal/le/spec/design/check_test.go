@@ -1,7 +1,7 @@
 // VALIDATES: `le spec design check spec <path>` refuses each way a spec's
 // Design documents table and Design presentation fall short, and passes a
 // spec that owes nothing
-// (plan/release/validation/spec-design-needs-owner-approval.md, AC-14).
+// (spec-design-needs-owner-approval, AC-14).
 // PREVENTS: a design presented to Thomas with a linked page or decision left
 // out, a verdict quoting words its page does not hold, or no judge.
 package specdesign_test

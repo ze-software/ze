@@ -2,7 +2,7 @@
 // commit 2616478e64, set to ready, is stopped at every gate it passed that day:
 // the derivation, the check, the claim, a subagent's move to ready, the edit
 // of pipe.go before the decision row was read, and the commit that rewrote
-// the page's decision (plan/release/validation/spec-design-needs-owner-approval.md,
+// the page's decision (spec-design-needs-owner-approval,
 // AC-36). The hook and the commit flow import this package; this external
 // test package imports them back, which Go allows and the package itself
 // must not do.

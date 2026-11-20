@@ -2,7 +2,7 @@
 // through the owner-terminal gate, and leaves tmp/spec-design/ as it was; from
 // a terminal it refuses a spec that fails the check or lacks a current judge
 // approval, and otherwise writes the digest-bound record the one lookup reads
-// (plan/release/validation/spec-design-needs-owner-approval.md, AC-17 to
+// (spec-design-needs-owner-approval, AC-17 to
 // AC-19).
 // PREVENTS: an agent recording Thomas's approval of a design, and an
 // approval of a design nobody judged.

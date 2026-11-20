@@ -1,7 +1,7 @@
 // VALIDATES: the code-edit gate owes the `## Design decisions` section of every
 // page a file's // Design: header names, beside the doors, and a Read that
 // returned the whole section clears it
-// (plan/release/validation/spec-design-needs-owner-approval.md, AC-1, AC-2,
+// (spec-design-needs-owner-approval, AC-1, AC-2,
 // AC-4 to AC-7).
 // PREVENTS: an edit by a context that never met the owner decision the file's
 // own design page records, which is how the 2026-11-12 pipe-chain incident
@@ -161,6 +161,22 @@ func TestDesignPageGateOwesTheDecisionsSection(t *testing.T) {
 	if strings.Contains(message, decisionsHeading) || strings.Contains(message, "quiet.md") {
 		t.Fatalf("a page with no Design decisions section was owed (code %d): %q", code, message)
 	}
+}
+
+// TestDesignPageGateReadsADeepHeaderLine pins that the gate reads the whole
+// header, as `./le doc consistency` does, and not a fixed count of lines.
+// Method: the code file's `// Design:` line is line 27, after a 26-line
+// package comment, the shape of internal/component/command/registry/registry.go;
+// an edit of it owes the page's section, and the Read clears it.
+func TestDesignPageGateReadsADeepHeaderLine(t *testing.T) {
+	root := t.TempDir()
+	writeDecisionsFixture(t, root)
+	deep := strings.Repeat("// Package widget is described at length.\n", 25) + "//\n" +
+		"// Design: " + decisionsPage + " -- the widget\npackage widget\n"
+	writeFixtureFile(t, root, decisionsCodeFile, deep)
+	requireDecisionsOwed(t, root)
+	readWholePage(t, root, "", decisionsPage, decisionsPageText)
+	requireDecisionsCleared(t, root, "")
 }
 
 // TestDesignPageGateReadsEveryHeaderLine pins AC-2. Method: a Write creating a

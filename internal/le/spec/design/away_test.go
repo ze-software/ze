@@ -1,7 +1,7 @@
 // VALIDATES: `le spec design away` and `return` are Thomas's terminal's
 // alone, away needs an until date of today or later, and the record lapses on
 // its own after that date
-// (plan/release/validation/spec-design-needs-owner-approval.md, AC-27, C-4).
+// (spec-design-needs-owner-approval, AC-27, C-4).
 // PREVENTS: an agent declaring Thomas away to start a spec without him, and
 // an absence with no end.
 package specdesign_test

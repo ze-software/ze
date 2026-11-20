@@ -1,7 +1,7 @@
 // VALIDATES: writeOwnerRecord and bashOwnerRecord refuse a write under
 // tmp/spec-design/, where only `./le spec design` records Thomas's approvals,
 // and pass a reader line that names the directory
-// (plan/release/validation/spec-design-needs-owner-approval.md, AC-34).
+// (spec-design-needs-owner-approval, AC-34).
 // PREVENTS: an agent forging the approval record that admits a claim.
 package hookruntime
 

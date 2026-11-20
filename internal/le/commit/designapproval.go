@@ -3,7 +3,7 @@
 //
 // designapproval.go writes the trailers that record Thomas's approval of a
 // design, and refuses a closure that leaves a departure unapproved or
-// uncorrected (plan/release/validation/spec-design-needs-owner-approval.md):
+// uncorrected (spec-design-needs-owner-approval):
 // the Decision-changed: trailer of `./le commit create ... decision-change
 // "<his words>"`, which changes or removes a row of a page's Design decisions
 // section outside a spec (AC-11); the Design-approved: trailer that carries an

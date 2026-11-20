@@ -1,6 +1,6 @@
 // VALIDATES: `le spec design judge` refuses a judge that has not read the
 // section behind every row of the spec's Design documents table, and writes
-// no record (plan/release/validation/spec-design-needs-owner-approval.md,
+// no record (spec-design-needs-owner-approval,
 // AC-16).
 // PREVENTS: a verdict recorded by a judge that never opened the page it
 // vouches for.

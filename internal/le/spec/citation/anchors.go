@@ -4,7 +4,6 @@
 package speccitation
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"os"
@@ -16,13 +15,6 @@ import (
 	docconsistency "github.com/ze-software/ze/internal/le/doc/consistency"
 	docindex "github.com/ze-software/ze/internal/le/doc/index"
 )
-
-// designHeaderLines bounds the header a `// Design:` line is read from: a file
-// that names its design further down names none.
-const designHeaderLines = 25
-
-// designHeaderPrefix starts every `// Design:` line of a header.
-const designHeaderPrefix = "// Design:"
 
 var specBulletPattern = regexp.MustCompile(`^\s*-\s+\x60([^\x60]+)\x60`)
 
@@ -88,46 +80,27 @@ func AuditAnchors(root, spec string) (AnchorReport, error) {
 }
 
 // DeclaredDesignDocuments answers every design page the header of relative, a
-// checkout-relative file, names: each `// Design:` line of its first
-// designHeaderLines lines before the package clause, and every page each line
-// names (docconsistency.DesignTargets, the rule `./le doc consistency` judges
-// headers by), in header order without repetition.
+// checkout-relative file, names: every page docconsistency.DesignHeader, the
+// header rule `./le doc consistency` judges headers by, reads from it, in
+// header order without repetition.
 //
 // A file that does not exist answers nothing with no error, and this is a
 // named guard: a file the spec creates has no header yet, so it links no page
 // until it is written. Any other read failure is an error, never "no page",
 // because a caller owes a verdict on every page the answer leaves out.
 func DeclaredDesignDocuments(root, relative string) ([]string, error) {
-	file, err := os.Open(filepath.Join(root, filepath.FromSlash(relative))) //nolint:gosec // relative came from the spec under root
+	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative))) //nolint:gosec // relative came from the spec under root
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("read the // Design: header of %s: %w", relative, err)
 	}
-	defer file.Close() //nolint:errcheck // read-only
-
 	var pages []string
-	scanner := bufio.NewScanner(file)
-	for range designHeaderLines {
-		if !scanner.Scan() {
-			break
+	for _, link := range docconsistency.DesignHeader(string(content)) {
+		if !slices.Contains(pages, link.Page) {
+			pages = append(pages, link.Page)
 		}
-		line := scanner.Text()
-		if strings.HasPrefix(line, "package ") {
-			break
-		}
-		if !strings.HasPrefix(line, designHeaderPrefix) {
-			continue
-		}
-		for _, page := range docconsistency.DesignTargets(line) {
-			if !slices.Contains(pages, page) {
-				pages = append(pages, page)
-			}
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("read the // Design: header of %s: %w", relative, err)
 	}
 	return pages, nil
 }

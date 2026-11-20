@@ -1,7 +1,7 @@
 // VALIDATES: `le spec design judge` writes a digest-bound record for a judge
 // that read every row's section, refuses a process with no agent identity and
 // a malformed reason, and writes nothing when it refuses
-// (plan/release/validation/spec-design-needs-owner-approval.md, AC-15, AC-16).
+// (spec-design-needs-owner-approval, AC-15, AC-16).
 // PREVENTS: a verdict recorded by the main thread, which is the author's, or a
 // verdict that outlives the text it judged.
 package specdesign_test

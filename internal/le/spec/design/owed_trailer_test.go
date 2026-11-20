@@ -1,7 +1,7 @@
 // VALIDATES: the Design-approved: line a commit owes after an away admission
 // landed: Thomas's later approval of the same text is still owed, once, and an
 // away line already carried owes nothing more
-// (plan/release/validation/spec-design-needs-owner-approval.md, AC-30, AC-31).
+// (spec-design-needs-owner-approval, AC-30, AC-31).
 // PREVENTS: his approval staying on one machine because an away line of the
 // same digest was reachable, so every other checkout lists the spec as
 // waiting for him forever.

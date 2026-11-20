@@ -93,7 +93,7 @@ func TestSpecDoorGateMatchesAbsolutePaths(t *testing.T) {
 }
 
 // TestSpecDoorGateOwesTheDecisionsSection is the wiring row "pre-write hook,
-// spec naming such a file" (plan/release/validation/spec-design-needs-owner-approval.md,
+// spec naming such a file" (spec-design-needs-owner-approval,
 // AC-3). Method: a context that read every door the spec owes writes a spec
 // naming a code file whose // Design: page carries a Design decisions section,
 // and the write is refused naming the page and the section, in the one list

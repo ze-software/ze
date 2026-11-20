@@ -5,7 +5,7 @@
 //
 // records.go holds what the three records under tmp/spec-design/ share: the
 // atomic replace, the `Key: value` line reader, and the one-line rule for the
-// words Thomas gives (plan/release/validation/spec-design-needs-owner-approval.md,
+// words Thomas gives (spec-design-needs-owner-approval,
 // "The records").
 package specdesign
 

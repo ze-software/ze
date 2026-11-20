@@ -30,7 +30,7 @@ var ownerRecordTools = []string{toolWrite, toolEdit, toolMultiEdit, "NotebookEdi
 // ze point: none -- the rule that only Thomas's terminal records an owner authorization lives in ai/META-DECISIONS.md, "Test changes", outside the rule corpus
 // writeOwnerRecord refuses a Write, Edit, MultiEdit or NotebookEdit whose path
 // lies under tmp/spec-design/, where only `./le spec design` writes Thomas's
-// approvals (plan/release/validation/spec-design-needs-owner-approval.md,
+// approvals (spec-design-needs-owner-approval,
 // AC-34). The path is judged in every checkout, a worktree's included,
 // because each one's records admit its own claims.
 func writeOwnerRecord(ctx context) *verdict {

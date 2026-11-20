@@ -6,7 +6,7 @@
 // this design text start implementation? Claim asks it before the WIP cap,
 // the ready-edit hook before a spec becomes ready, and `./le commit create`
 // to write the Design-approved: trailer that carries the answer to every
-// checkout (plan/release/validation/spec-design-needs-owner-approval.md,
+// checkout (spec-design-needs-owner-approval,
 // AC-21 to AC-29, AC-31). One function judges it, so no gate admits a design
 // another refuses.
 package specdesign

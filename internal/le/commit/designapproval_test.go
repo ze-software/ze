@@ -3,7 +3,7 @@
 // that the spec's change set never corrects; writes the Design-approved:
 // trailer from his approval record once; and admits a changed decision row
 // only with his words from his terminal
-// (plan/release/validation/spec-design-needs-owner-approval.md, AC-11, AC-31,
+// (spec-design-needs-owner-approval, AC-11, AC-31,
 // AC-32, AC-33).
 // PREVENTS: a departure closing unapproved, or with the page still stating
 // the decision it departed from; an approval that never reaches the other

@@ -1,6 +1,6 @@
 // VALIDATES: DeclaredDesignDocuments answers every page of every `// Design:`
 // line of a header, and only the header's
-// (plan/release/validation/spec-design-needs-owner-approval.md, Implementation
+// (spec-design-needs-owner-approval, Implementation
 // Steps item 4).
 // PREVENTS: a file that links two design pages owing a verdict on the first
 // alone, which is what reading the first match only did.

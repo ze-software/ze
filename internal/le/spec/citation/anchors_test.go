@@ -57,18 +57,20 @@ func TestAnchorAuditAcceptsOwnerNamedAnywhereInSpec(t *testing.T) {
 }
 
 func TestAnchorAuditReadsOnlyTheSourceHeader(t *testing.T) {
-	// VALIDATES: Design declarations below the 25-line header block do not own a
-	// document for this audit.
+	// VALIDATES: a Design declaration after the header, in the file body, does
+	// not own a document for this audit. The header is the leading run of
+	// comment and blank lines (docconsistency.DesignHeader), so the body starts
+	// at `package`.
 	// PREVENTS: a body comment being mistaken for the file header contract.
 	root := citationTree(t, map[string]string{
 		"docs/indexed.md":                         "<!-- source: internal/x/x.go -- X -->\n",
 		"plan/post-release/engineering/spec-a.md": "## Files to Modify\n- `internal/x/x.go` - x\n", // <!-- doc-links: ignore (a synthetic path in a test fixture; these tests are about dead-path detection, so the paths must not resolve) -->
 	})
-	body := ""
+	body := "package x\n"
 	for range 26 {
 		body += "\n"
 	}
-	body += "// Design: docs/late.md -- late\npackage x\n"
+	body += "// Design: docs/late.md -- late\n"
 	path := filepath.Join(root, "internal", "x", "x.go")
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		t.Fatal(err)

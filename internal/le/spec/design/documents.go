@@ -4,7 +4,7 @@
 //
 // documents.go derives the rows a spec's ## Design documents owes: every
 // design page its files link and every decision row those pages carry
-// (plan/release/validation/spec-design-needs-owner-approval.md, AC-13).
+// (spec-design-needs-owner-approval, AC-13).
 package specdesign
 
 import (
