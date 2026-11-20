@@ -182,6 +182,23 @@ load the RPKI section, this line points at the cache, commit, and you can
 see...". They show what matters to the buyer, skip nothing important, stay on
 nothing trivial, and it works the first time.
 
+### 6. The pace
+
+The owner set the pace on 2026-11-20, for every recording from then on:
+
+> "pause less between press double the speed) and reduce the waiting by half"
+
+> "pause one second at the end of all typed command line (before the <enter>
+> / \n)"
+
+> "I mean from now on !"
+
+Keys are typed twice as fast as before, and every visible wait is half what it
+was: the result hold, the card reading time, and each `Sleep` a tape authors.
+A typed command line stays on screen for one second before Enter runs it. The
+values and their sources are stated under decision 1. These are the recorder's
+defaults, so a new tape inherits them and sets nothing.
+
 ## Recordings
 
 The owner set these on 2026-10-09 with the decisions above.
