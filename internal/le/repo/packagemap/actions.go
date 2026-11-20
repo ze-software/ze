@@ -17,6 +17,7 @@ package repopackagemap
 import (
 	"errors"
 
+	"github.com/ze-software/ze/internal/le/derived"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
@@ -58,7 +59,15 @@ func runUpdate() (any, int) {
 		return nil, 2
 	}
 
-	report, err := Update(tree)
+	// Under the derived-artifact lock, so a hook's removal never cuts through
+	// this write. Here at the action, never inside Update: the registered
+	// Rebuild calls Update under Ensure's lock already.
+	var report Report
+	err = derived.WithLock(tree, func() error {
+		var updateErr error
+		report, updateErr = Update(tree)
+		return updateErr
+	})
 	if err != nil {
 		leaction.ReportError(err)
 		if errors.Is(err, ErrNoAIDir) {

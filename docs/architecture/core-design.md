@@ -533,9 +533,51 @@ RFC outputs, and `docs/contributing/feature-maturity.md` for the feature page.
 
 An artifact's path can be a DIRECTORY, and `rfc/requirements` is one: the set of
 files inside it is derived too, because a summary that stops declaring
-requirements leaves a shard the generator no longer owns. `removeArtifact`
-(`internal/le/hookruntime/postwrite.go`) takes such a member whole, so an
+requirements leaves a shard the generator no longer owns. `Artifact.Remove`
+(`internal/le/derived/lock.go`) takes such a member whole, so an
 invalidation cannot leave one orphaned file behind and read as current.
+
+**One lock per checkout serializes every rebuild and every removal.** Sessions
+share the checkout, so one session's edit can remove `rfc/requirements` while
+another session's rebuild is between its first temporary and its last rename,
+and that whole batch then fails. `Artifact.Ensure` holds the lock at
+`derived.LockPath` (`tmp/derived-artifacts.lock`) around a second `Whole` check
+and the `Rebuild`, so a session that waited for a peer reuses the peer's build.
+`Artifact.Remove` holds the same lock around the removal, so an invalidation
+waits for a rebuild in flight. Four callers take it. The materialize hook
+(`preMaterializeDerived`) and `EnsureAll` take it through `Artifact.Ensure`.
+The invalidation hook (`postInvalidateDerived`) takes it through
+`Artifact.Remove`. The commands that write a registered artifact directly
+(`./le rfc update`, `./le doc index update`, `./le repo package-map update` and
+`./le spec roadmap update`) wrap their generator in `derived.WithLock`. The
+command takes it, never the generator, because `Ensure` already holds the lock
+around a `Rebuild` and the lock is not reentrant.
+
+`EnsureAll` and the generator commands wait as long as the peer takes. A hook
+does not: the harness kills a hook at the timeout `.claude/settings.json` gives
+it, and a killed hook says nothing. So each hook waits for half its own timeout
+(`materializeLockWait`, `invalidateLockWait`), and at that bound it reports
+rather than waits. The reader's command is refused with "another session is
+rebuilding it now ... Run the command again". The invalidation reports the
+artifact stale and not removed, and names the file to save again once that
+session is done. It reports with code 2, as it does every artifact it left in
+place (a tracked one, a failed removal): only a blocking post-tool verdict
+reaches the agent that made the edit, and the stale file reads as whole to the
+next reader. A lock that cannot be taken for another reason (`tmp/` is a file,
+a dangling link, a directory that refuses the create, a lock file whose owner
+or mode refuses the open) refuses the reader and is reported by the
+invalidation. `LockError.Operator` builds the refusal as an operator error with
+the fix for that cause on its last line, and `LockError.Error` is its text, so
+a command that prints the error, through `derived.WithLock` or `EnsureAll`,
+shows the fix too. The
+waiting itself is `internal/le/filelock`, which re-opens the path when the file
+it locked was removed while it waited, so two holders never lock two different
+files.
+
+<!-- source: internal/le/derived/lock.go -- LockPath, lock, WithLock, Artifact.Ensure, Artifact.Remove, LockError, LockError.Operator -->
+<!-- source: internal/le/filelock/filelock.go -- Open, Hold -->
+<!-- source: internal/le/hookruntime/bash.go -- preMaterializeDerived, materializeNamed, materializeRefusal -->
+<!-- source: internal/le/hookruntime/postwrite.go -- postInvalidateDerived, invalidateFed -->
 
 A directory is also the case where PRESENT and WHOLE are different questions. A
 file is published with one rename, so its name on disk means the render behind

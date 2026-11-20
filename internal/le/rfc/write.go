@@ -12,6 +12,7 @@
 package rfc
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -53,7 +54,7 @@ var stemRE = regexp.MustCompile(`\A[a-z0-9][a-z0-9._-]*\z`)
 //
 // The four limits bound THIS function, which is the prune inside a render. They
 // do not bound the INVALIDATION: the directory is a registered derived artifact
-// and removeArtifact (internal/le/hookruntime/postwrite.go) takes it whole, as
+// and derived.Artifact.Remove (internal/le/derived/lock.go) takes it whole, as
 // /rfc/requirements/ being gitignored whole declares it should. A foreign file
 // under this directory therefore survives every render and none of those
 // removals.
@@ -92,15 +93,32 @@ func prunableShards(tree string, keep map[string]bool) ([]string, error) {
 // write owns this directory, so the write removes it. Exported until 2026-09-12
 // for the same deleted freshness gate prunableShards names.
 func pruneShards(tree string, keep map[string]bool) ([]string, error) {
-	removed, err := prunableShards(tree, keep)
+	stems, err := prunableShards(tree, keep)
 	if err != nil {
 		return nil, err
 	}
-	for _, stem := range removed {
-		if err := os.Remove(treePath(tree, shardRel(stem))); err != nil {
+	return removeShards(tree, stems)
+}
+
+// removeShards deletes the shard of each stem and answers the stems it
+// deleted. A shard already gone is the outcome the removal wanted, not a
+// failure: something else removed it between the listing and the removal (a
+// hand edit, or a writer that does not hold the derived-artifact lock), and
+// failing the whole render over it refused the reader that asked for the
+// build. Such a stem is left out of the answer, because this run deleted
+// nothing.
+func removeShards(tree string, stems []string) ([]string, error) {
+	removed := make([]string, 0, len(stems))
+	for _, stem := range stems {
+		err := os.Remove(treePath(tree, shardRel(stem)))
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
 			var tb textbuf.Buffer
 			return nil, parseErr(tb.Str(shardRel(stem)).Str(": cannot delete: ").Err(err))
 		}
+		removed = append(removed, stem)
 	}
 	return removed, nil
 }

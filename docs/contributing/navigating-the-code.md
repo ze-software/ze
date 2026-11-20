@@ -103,6 +103,17 @@ answers "no match" for a tree the author cannot see.
 <!-- source: internal/le/hookruntime/postwrite.go -- postInvalidateDerived -->
 <!-- source: internal/le/hookruntime/bash.go -- preMaterializeDerived -->
 
+The rebuild and the removal hold one lock per checkout,
+`tmp/derived-artifacts.lock`. So another session's edit waits for a rebuild in
+flight rather than removing files the rebuild is writing. A reader that waited
+for a peer's rebuild of the same index finds it whole and does not build it
+again. A lock that cannot be taken blocks the command too, and the refusal
+names the fix. Each hook waits for the lock for half its own hook timeout, so
+a lock another session still holds at that bound refuses the command with
+"Run the command again", and the edit reports the index stale and not removed.
+<!-- source: internal/le/derived/lock.go -- LockPath, Artifact.Ensure, Artifact.Remove -->
+<!-- source: internal/le/hookruntime/bash.go -- materializeRefusal -->
+
 **Which searches rebuild, and which do not.** The read hook rebuilds when the
 command text holds the index's own path, or a directory that contains it with
 its trailing slash. `grep -n X ai/PACKAGE-MAP.md` and `grep -rn X ai/` both

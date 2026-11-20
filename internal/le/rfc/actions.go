@@ -8,6 +8,7 @@ package rfc
 import (
 	"errors"
 
+	"github.com/ze-software/ze/internal/le/derived"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
@@ -516,7 +517,15 @@ func indexUpdateAnswer() (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	report, err := IndexUpdate(tree)
+	// Under the derived-artifact lock, so a hook's removal of rfc/requirements
+	// never cuts through this batch. Here at the action, never inside
+	// IndexUpdate: rebuildLedger calls IndexUpdate under Ensure's lock already.
+	var report IndexReport
+	err = derived.WithLock(tree, func() error {
+		var updateErr error
+		report, updateErr = IndexUpdate(tree)
+		return updateErr
+	})
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2

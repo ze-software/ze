@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/filelock"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
@@ -456,64 +457,20 @@ func forgetParts(root, commit string, of int) error {
 	return os.Remove(path)
 }
 
-// partsLockAttempts bounds how often lockParts reopens the parts record after
-// a forgetParts removed it between the open and the lock. Each removal needs a
-// green write, so meeting this many in a row means something removes the file
-// in a loop, and an error says so rather than spinning.
-const partsLockAttempts = 8
-
 // lockParts opens the parts record, creating it, and answers it with its
-// advisory lock held. The caller MUST unlock and close it.
+// advisory lock held, waiting without a bound. The caller MUST unlock and
+// close it.
 //
 // The lock is on the open file, not on the path. A recordPart that opened the
 // file and then waited on the lock while forgetParts removed it would hold a
 // lock on a file nobody can read, and the piece it wrote there would be lost.
-// So the lock counts only while the path still names the locked file;
-// otherwise the file is closed and opened again.
+// filelock.Open counts the lock only while the path still names the locked
+// file, the same care the derived-artifact lock takes (internal/le/derived).
 func lockParts(path string) (*os.File, error) {
-	for range partsLockAttempts {
-		file, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600) //nolint:gosec // the path is this checkout's verification artifact
-		if err != nil {
-			return nil, err
-		}
-		named, err := holdParts(file, path)
-		if err != nil {
-			file.Close() //nolint:errcheck // the lock error owns the verdict
-			return nil, err
-		}
-		if named {
-			return file, nil
-		}
-		file.Close() //nolint:errcheck // a removed file holds nothing to keep; closing it drops its lock
+	file, err := filelock.Open(path, time.Time{}, nil)
+	if errors.Is(err, filelock.ErrRemoved) {
+		return nil, errors.New("the parts record " + path +
+			" was removed repeatedly while waiting for its lock; find the process removing it, then run the piece again")
 	}
-	return nil, errors.New("the parts record " + path + " was removed " + strconv.Itoa(partsLockAttempts) +
-		" times while waiting for its lock; find the process removing it, then run the piece again")
-}
-
-// holdParts takes file's advisory lock and reports whether path still names
-// file. When it does not, the lock is released and file holds nothing a
-// reader of path can see.
-func holdParts(file *os.File, path string) (bool, error) {
-	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX); err != nil {
-		return false, err
-	}
-	opened, err := file.Stat()
-	if err != nil {
-		syscall.Flock(int(file.Fd()), syscall.LOCK_UN) //nolint:errcheck // the stat error owns the verdict
-		return false, err
-	}
-	named, err := os.Stat(path)
-	if errors.Is(err, os.ErrNotExist) {
-		syscall.Flock(int(file.Fd()), syscall.LOCK_UN) //nolint:errcheck // the caller closes the file
-		return false, nil
-	}
-	if err != nil {
-		syscall.Flock(int(file.Fd()), syscall.LOCK_UN) //nolint:errcheck // the stat error owns the verdict
-		return false, err
-	}
-	if !os.SameFile(opened, named) {
-		syscall.Flock(int(file.Fd()), syscall.LOCK_UN) //nolint:errcheck // the caller closes the file
-		return false, nil
-	}
-	return true, nil
+	return file, err
 }

@@ -7,7 +7,9 @@
 // moment an input moves. Ze answers that with a registry rather than with a
 // byte comparison: a write to an input DELETES the artifact, and a read of it
 // REBUILDS it. Nothing compares a re-render against a stored copy, because
-// there is no stored copy.
+// there is no stored copy. One lock per checkout (LockPath) serializes every
+// rebuild and every removal, because sessions share the checkout and a removal
+// that lands inside a rebuild fails it.
 //
 // A generator registers itself from its own init(), beside its leroot
 // registration. Nothing here learns an artifact's name, and no hook, stage or
@@ -65,7 +67,9 @@ type Artifact struct {
 	// path is relative to root, in slash form.
 	Feeds func(root, path string) bool
 
-	// Rebuild writes the artifact from the tree at root.
+	// Rebuild writes the artifact from the tree at root. Ensure runs it under
+	// the checkout's derived-artifact lock, so it MUST NOT call Ensure, Remove,
+	// EnsureAll or WithLock itself: the lock is not reentrant.
 	Rebuild func(root string) error
 
 	// Complete reports whether root holds this artifact WHOLE. Nil means a stat
@@ -199,6 +203,11 @@ func (a Artifact) Whole(root string) (bool, error) {
 // registry (ai/rules/principles.md). An artifact the tree already holds costs
 // one stat.
 //
+// An artifact the tree does not hold whole is built through Ensure, so the
+// build runs under the checkout's derived-artifact lock: a concurrent session's
+// invalidation waits for it rather than cutting through it, and a build a peer
+// finished while this one waited is reused rather than run again.
+//
 // A Rebuild decides for itself what an unfamiliar tree means: rebuildLedger
 // answers nothing for a checkout that holds no rfc/short/, rather than refusing
 // it. So nothing here judges whether the artifact belongs to this root.
@@ -211,7 +220,9 @@ func EnsureAll(root string) error {
 		if whole {
 			continue
 		}
-		if err := artifact.Rebuild(root); err != nil {
+		// No deadline: an in-process caller has no harness timeout, so it
+		// waits for a peer's render rather than failing a build over it.
+		if err := artifact.Ensure(root, time.Time{}); err != nil {
 			return fmt.Errorf("build the derived artifact %s: %w", artifact.Path, err)
 		}
 	}
@@ -369,9 +380,6 @@ func writeTemporary(path string, content []byte) (temporaryPath string, err erro
 		_ = temporary.Close()
 		return "", fmt.Errorf("write %s: %w", temporaryPath, err)
 	}
-	if err = temporary.Close(); err != nil {
-		return "", fmt.Errorf("close %s: %w", temporaryPath, err)
-	}
 	// 0644, because a derived artifact stands where a TRACKED file stood and a
 	// checkout gives that file 0644. os.CreateTemp creates at 0600, and every
 	// artifact registered here is a page a person or a tool reads: the RFC
@@ -379,8 +387,18 @@ func writeTemporary(path string, content []byte) (temporaryPath string, err erro
 	// design") until it moved onto this function on 2026-09-11, at which point
 	// docs/features/rfc-status.md and 194 shards became unreadable to any
 	// reader that is not this user, with nothing saying so.
-	if err = os.Chmod(temporaryPath, 0o644); err != nil { //nolint:gosec // a generated page, world-readable by design
+	//
+	// The mode is set through the open descriptor, before the close, rather
+	// than by path after it. A chmod by path fails when anything removed the
+	// directory in between, and a concurrent invalidation did exactly that to
+	// rfc/requirements on 2026-09-21. The derived-artifact lock now keeps that
+	// removal out of a rebuild, and the descriptor needs no name at all.
+	if err = temporary.Chmod(0o644); err != nil { //nolint:gosec // a generated page, world-readable by design
+		_ = temporary.Close()
 		return "", fmt.Errorf("set the mode of %s: %w", temporaryPath, err)
+	}
+	if err = temporary.Close(); err != nil {
+		return "", fmt.Errorf("close %s: %w", temporaryPath, err)
 	}
 	return temporaryPath, nil
 }

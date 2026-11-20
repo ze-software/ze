@@ -414,28 +414,6 @@ func tracked(root, path string) bool {
 	return len(bytes.TrimSpace(listed)) != 0
 }
 
-// removeArtifact deletes one artifact, which is a file or a whole directory.
-//
-// A generator that writes a DIRECTORY of files registers the directory, because
-// the set of files inside it is derived as well: rfc/requirements holds one
-// shard per summary, and a summary that stops declaring requirements leaves a
-// file the generator no longer owns. os.Remove refuses a directory that holds
-// anything, so such an artifact would be reported unremovable on every edit and
-// would sit there stale.
-//
-// Lstat rather than Stat, so a symlink is unlinked rather than followed into
-// whatever it points at.
-func removeArtifact(path string) error {
-	info, err := os.Lstat(path)
-	if err != nil {
-		return err
-	}
-	if info.IsDir() {
-		return os.RemoveAll(path)
-	}
-	return os.Remove(path)
-}
-
 // ze point: principles/directives/a-wrong-value-must-not-look-like-a-right-one
 // postInvalidateDerived removes every derived artifact the written file feeds.
 //
@@ -448,6 +426,14 @@ func removeArtifact(path string) error {
 // Which artifacts a path feeds is the registry's answer, not this function's.
 // Nothing here names an artifact, so a fourth one is a derived.Register call in
 // its own package and no edit to this file.
+//
+// The removal is derived.Artifact.Remove, which holds the checkout's
+// derived-artifact lock, so it waits for another session's rebuild in flight
+// rather than removing a directory that rebuild is writing into. The wait is
+// bounded by invalidateLockWait (bash.go), inside this hook's harness timeout,
+// and a removal that gave up is reported as a stale artifact not removed,
+// never left silent: with code 2, the one post-tool code that reaches the
+// agent that made the edit.
 func postInvalidateDerived(ctx context) *verdict {
 	if !oneOf(ctx.tool, toolWrite, "Edit") || ctx.path == "" {
 		return nil
@@ -456,17 +442,23 @@ func postInvalidateDerived(ctx context) *verdict {
 	if written == "" || strings.HasPrefix(written, "../") {
 		return nil
 	}
+	return invalidateFed(ctx.root, written, derived.All(), invalidateLockWait)
+}
 
+// invalidateFed is postInvalidateDerived over a given set of artifacts and
+// lock wait (invalidateLockWait, bash.go), so a test can drive the removal
+// against a rebuild it controls and a lock it holds. written is relative to
+// root, in slash form.
+func invalidateFed(root, written string, artifacts []derived.Artifact, wait time.Duration) *verdict {
 	// Every artifact is judged, and a refusal over one never ends the pass: the
 	// artifacts are independent, so one left in place says nothing about the
 	// ones behind it. Returning from inside this loop left every artifact after
 	// the first refusal present and stale, which is the wrong answer this check
 	// exists to prevent.
-	artifacts := derived.All()
 	removed := make([]string, 0, len(artifacts))
 	refused := make([]string, 0, len(artifacts))
 	for _, artifact := range artifacts {
-		if !artifact.Feeds(ctx.root, written) {
+		if !artifact.Feeds(root, written) {
 			continue
 		}
 		// A TRACKED path is never removed here, whatever the registry says. Git
@@ -474,12 +466,33 @@ func postInvalidateDerived(ctx context) *verdict {
 		// script would carry it, and this checkout is shared. A registration
 		// whose artifact is still tracked is a migration half done rather than a
 		// license to delete somebody's file (ai/rules/never-destroy-work.md).
-		if tracked(ctx.root, artifact.Path) {
+		if tracked(root, artifact.Path) {
 			refused = append(refused, artifact.Path+
 				" is registered as derived and still TRACKED: untrack it, or drop its derived.Register call")
 			continue
 		}
-		err := removeArtifact(filepath.Join(ctx.root, filepath.FromSlash(artifact.Path)))
+		err := artifact.Remove(root, time.Now().Add(wait))
+		// Checked before the absence below: a lock path that does not exist
+		// unwraps to ErrNotExist too, and it says nothing about the artifact,
+		// which may still be there and stale. The fix is never to remove the
+		// artifact by hand, which would bypass the lock: saving the edited file
+		// again runs this invalidation again.
+		if lockErr, ok := errors.AsType[*derived.LockError](err); ok {
+			if lockErr.Cause == derived.LockCauseBusy {
+				refused = append(refused, artifact.Path+" is stale and was not removed: another session"+
+					" is rebuilding or removing a derived artifact and still held the lock after "+wait.String()+"."+
+					"\n  A grep of it reads the tree from before this edit. Save "+written+
+					" again once that session is done, which removes it.")
+				continue
+			}
+			// lockErr.Error() carries the fix on its last line, so it comes
+			// last and nothing is printed after it.
+			refused = append(refused, artifact.Path+" is stale and was not removed."+
+				"\n  Without the lock the removal could cut through another session's rebuild."+
+				"\n  After the fix below, save "+written+" again, which removes it."+
+				"\n  Cause: "+strings.ReplaceAll(lockErr.Error(), "\n", "\n  "))
+			continue
+		}
 		if errors.Is(err, os.ErrNotExist) {
 			continue
 		}
@@ -502,9 +515,18 @@ func postInvalidateDerived(ctx context) *verdict {
 	}
 	// One verdict carries both halves. An author told only about the refusal
 	// cannot tell whether the rest of the pass ran.
-	message := yellow + bold + "⚠ derived: " + strings.Join(refused, "\n  ") + reset
+	//
+	// Code 2, whatever the refusal: every one leaves a file on disk that
+	// describes the tree from before this edit, and the next reader's Whole
+	// says yes to it, so a later grep answers about the old tree with nothing
+	// said. Only a blocking post-tool verdict reaches the agent that made the
+	// edit (lintNotRun); code 1 reaches the user alone. The edit itself has
+	// already landed, so code 2 here refuses nothing. The removed line comes
+	// first, so a refusal's fix stays the last line of the message.
+	message := ""
 	if len(removed) != 0 {
-		message += "\n  " + dim + "removed " + strings.Join(removed, ", ") + reset
+		message = dim + "derived: removed " + strings.Join(removed, ", ") + reset + "\n"
 	}
-	return &verdict{1, message}
+	message += yellow + bold + "⚠ derived: " + strings.Join(refused, "\n  ") + reset
+	return &verdict{2, message}
 }

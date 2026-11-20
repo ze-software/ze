@@ -3,12 +3,14 @@ package hookruntime
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -995,16 +997,51 @@ func scratchMessage(path string) string {
 // question as present for a directory artifact, which answers it itself
 // (derived.Artifact.Whole, derived.Artifact.Complete).
 //
+// The build runs through derived.Artifact.Ensure, under the checkout's
+// derived-artifact lock: another session's invalidation waits for it rather
+// than removing a directory the build is writing into, and a reader that waited
+// for a peer's build of the same artifact reuses it. The wait for the lock is
+// bounded by materializeLockWait, inside this hook's harness timeout: a lock
+// still held at that bound refuses the command and tells the reader to run it
+// again, rather than letting the harness kill the hook in silence.
+//
 // A rebuild that fails BLOCKS the command. The alternative is a grep reading a
 // file nobody built, which answers "no match" for a tree the author cannot see,
-// and that answer is indistinguishable from a real absence.
+// and that answer is indistinguishable from a real absence. A lock that cannot
+// be taken blocks it for the same reason, with its own fix.
 func preMaterializeDerived(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
 	if command == "" {
 		return nil
 	}
+	return materializeNamed(ctx.root, command, derived.All(), materializeLockWait)
+}
 
-	for _, artifact := range derived.All() {
+// The harness kills a hook at the timeout `.claude/settings.json` gives its
+// command: 30 s for `le ai hooks pretool-bash` and 90 s for `le ai hooks
+// posttool-writeedit`. These two constants are the only copy here, and
+// TestDerivedLockWaitsStayInsideTheHookTimeouts reads the settings file and
+// refuses a drift between them.
+const (
+	pretoolBashTimeout       = 30 * time.Second
+	posttoolWriteEditTimeout = 90 * time.Second
+)
+
+// Each hook waits for the derived-artifact lock for half its own timeout, so
+// its other checks and the build or the removal keep the other half. A hook
+// the harness kills while it waits reports nothing, so the wait MUST end
+// first and say so: a reader is told to run the command again, and an
+// invalidation reports the artifact stale and not removed.
+const (
+	materializeLockWait = pretoolBashTimeout / 2
+	invalidateLockWait  = posttoolWriteEditTimeout / 2
+)
+
+// materializeNamed is preMaterializeDerived over a given set of artifacts and
+// lock wait, so a test can drive the decision over an artifact whose rebuild
+// it controls and over a lock it holds.
+func materializeNamed(root, command string, artifacts []derived.Artifact, wait time.Duration) *verdict {
+	for _, artifact := range artifacts {
 		if !commandNamesArtifact(command, artifact.Path) {
 			continue
 		}
@@ -1014,10 +1051,10 @@ func preMaterializeDerived(ctx context) *verdict {
 		// or a fixture created was refused for a tree the artifact never lived
 		// in. The grep itself reports a missing path loudly, so the silent
 		// wrong answer this check exists to prevent cannot arise.
-		if _, err := os.Stat(filepath.Join(ctx.root, filepath.FromSlash(pathDirectory(artifact.Path)))); err != nil {
+		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(pathDirectory(artifact.Path)))); err != nil {
 			continue
 		}
-		whole, err := artifact.Whole(ctx.root)
+		whole, err := artifact.Whole(root)
 		if err != nil {
 			return &verdict{2, "❌ Blocked: " + artifact.Path + " cannot be read: " + err.Error() +
 				"\nIt is derived, so the command would judge a tree nobody rendered."}
@@ -1025,12 +1062,29 @@ func preMaterializeDerived(ctx context) *verdict {
 		if whole {
 			continue
 		}
-		if err := artifact.Rebuild(ctx.root); err != nil {
-			return &verdict{2, "❌ Blocked: " + artifact.Path + " is derived and could not be built: " + err.Error() +
-				"\nRunning the command now would read an absent file as an empty answer."}
+		if err := artifact.Ensure(root, time.Now().Add(wait)); err != nil {
+			return materializeRefusal(artifact.Path, err)
 		}
 	}
 	return nil
+}
+
+// materializeRefusal is the verdict for an artifact Ensure could not build:
+// the lock's own refusal when the lock was the cause, the build's otherwise.
+func materializeRefusal(path string, err error) *verdict {
+	if lockErr, ok := errors.AsType[*derived.LockError](err); ok {
+		if lockErr.Cause == derived.LockCauseBusy {
+			return &verdict{2, "❌ Blocked: " + path + " is derived, and another session is rebuilding it now." +
+				"\nThe command would read it before that rebuild finished. Run the command again."}
+		}
+		// lockErr.Error() carries the fix on its last line, so it comes last
+		// and nothing is printed after it.
+		return &verdict{2, "❌ Blocked: " + path + " is derived and was not built." +
+			"\nWithout the lock, another session's edit can remove the artifact while it is built." +
+			"\nCause: " + lockErr.Error()}
+	}
+	return &verdict{2, "❌ Blocked: " + path + " is derived and could not be built: " + err.Error() +
+		"\nRunning the command now would read an absent file as an empty answer."}
 }
 
 // ze point: go-standards/directives/read-the-ze-style-guide-before-the-first-go-edit

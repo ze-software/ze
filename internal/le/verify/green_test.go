@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/le/filelock"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
@@ -409,13 +410,14 @@ func TestForgetPartsWaitsForThePartsLock(t *testing.T) {
 // TestHoldPartsRefusesARemovedFile: the interleaving the lock exists for, made
 // deterministic by running its steps in order on one goroutine. A recordPart
 // opens the parts record, a forgetParts removes it before that recordPart holds
-// the lock, and the lock then lands on a file no reader can see. holdParts
-// answers false for that file, both while the path is absent and once another
-// recordPart has created a new file there, so lockParts opens the path again
-// and the piece is written where provenParts reads.
+// the lock, and the lock then lands on a file no reader can see. filelock.Hold,
+// which lockParts reaches through filelock.Open, answers false for that file,
+// both while the path is absent and once another recordPart has created a new
+// file there, so lockParts opens the path again and the piece is written where
+// provenParts reads.
 //
-// MUTATION: make holdParts answer true when the path is absent and the first
-// assertion fails; skip its SameFile check and the second one does.
+// MUTATION: make filelock.Hold answer true when the path is absent and the
+// first assertion fails; skip its SameFile check and the second one does.
 func TestHoldPartsRefusesARemovedFile(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, filepath.FromSlash(partsPath))
@@ -431,22 +433,22 @@ func TestHoldPartsRefusesARemovedFile(t *testing.T) {
 	if err := forgetParts(root, "green", 2); err != nil {
 		t.Fatalf("forget: %v", err)
 	}
-	named, err := holdParts(early, path)
+	named, err := filelock.Hold(early, path, time.Time{}, nil)
 	if err != nil {
 		t.Fatalf("hold the early file: %v", err)
 	}
 	if named {
-		t.Fatal("holdParts took the lock on a removed file while the path is absent")
+		t.Fatal("filelock.Hold took the lock on a removed file while the path is absent")
 	}
 	if _, err := recordPart(root, "other", verifyengine.Part{Index: 2, Of: 2}, at); err != nil {
 		t.Fatal(err)
 	}
-	named, err = holdParts(early, path)
+	named, err = filelock.Hold(early, path, time.Time{}, nil)
 	if err != nil {
 		t.Fatalf("hold the early file again: %v", err)
 	}
 	if named {
-		t.Fatal("holdParts took the lock on a removed file while the path names a new one")
+		t.Fatal("filelock.Hold took the lock on a removed file while the path names a new one")
 	}
 	if got := provenParts(root, "other", 2); !slices.Equal(got, []int{2}) {
 		t.Errorf("the piece recorded after the forget = %v, want [2]", got)

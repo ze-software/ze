@@ -14,6 +14,7 @@ package docindex
 import (
 	"errors"
 
+	"github.com/ze-software/ze/internal/le/derived"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
@@ -91,15 +92,26 @@ func write() (any, int) {
 		return nil, 2
 	}
 
-	design, err := Update(tree)
+	// Under the derived-artifact lock, so a hook's removal never cuts through
+	// these writes. Here at the action, never inside Update or UpdateCodeIndex:
+	// their registered Rebuild runs under Ensure's lock already.
+	var report IndexReport
+	err = derived.WithLock(tree, func() error {
+		design, updateErr := Update(tree)
+		if updateErr != nil {
+			return updateErr
+		}
+		code, updateErr := UpdateCodeIndex(tree)
+		if updateErr != nil {
+			return updateErr
+		}
+		report = IndexReport{Design: design, Code: code}
+		return nil
+	})
 	if err != nil {
 		return nil, generatorFailure(err)
 	}
-	code, err := UpdateCodeIndex(tree)
-	if err != nil {
-		return nil, generatorFailure(err)
-	}
-	return IndexReport{Design: design, Code: code}, 0
+	return report, 0
 }
 
 // generatorFailure reports err and answers its exit code: 1 when the tree

@@ -3,6 +3,7 @@ package roadmap
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/le/derived"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
@@ -80,12 +82,30 @@ func runList(args leaction.Arguments) (any, int) {
 func runUpdate(args leaction.Arguments) (any, int) {
 	root, err := lepath.Root()
 	if err != nil {
-		leaction.ReportError(err)
+		leaction.ReportError(opererr.Wrap(err, "spec roadmap update cannot find the Ze checkout",
+			"the roadmap index is written from the checkout's specs",
+			"cd into the Ze checkout, then run ./le spec roadmap update"))
 		return nil, 2
 	}
-	report, err := Update(context.Background(), root, args.One("revision"))
+	// Under the derived-artifact lock, so a hook's removal never cuts through
+	// this write. Here at the action, never inside Update: the registered
+	// Rebuild calls Update under Ensure's lock already.
+	var report UpdateReport
+	err = derived.WithLock(root, func() error {
+		var updateErr error
+		report, updateErr = Update(context.Background(), root, args.One("revision"))
+		return updateErr
+	})
+	// A lock failure carries its own fix; a second one after it would
+	// conflict, so it is reported as the operator error it already is.
+	if lockErr, ok := errors.AsType[*derived.LockError](err); ok {
+		leaction.ReportError(lockErr.Operator())
+		return nil, 2
+	}
 	if err != nil {
-		leaction.ReportError(err)
+		leaction.ReportError(opererr.Wrap(err, "spec roadmap update did not write the roadmap index",
+			"the index on disk is unchanged and still describes the specs before this run",
+			"fix what the error names, then run ./le spec roadmap update"))
 		return nil, 2
 	}
 	return report, 0
@@ -100,12 +120,16 @@ func runCompare(args leaction.Arguments) (any, int) {
 	}
 	root, err := lepath.Root()
 	if err != nil {
-		leaction.ReportError(err)
+		leaction.ReportError(opererr.Wrap(err, "spec roadmap compare cannot find the Ze checkout",
+			"the two roadmaps are read from the checkout's history",
+			"cd into the Ze checkout, then run ./le spec roadmap compare from <ref> to <ref>"))
 		return nil, 2
 	}
 	report, err := Compare(context.Background(), root, args.One("from"), args.One("to"))
 	if err != nil {
-		leaction.ReportError(err)
+		leaction.ReportError(opererr.Wrap(err, "spec roadmap compare cannot compare "+args.One("from")+" with "+args.One("to"),
+			"no comparison is printed",
+			"check both refs with git rev-parse --verify "+args.One("from")+" "+args.One("to")))
 		return nil, 2
 	}
 	return report, 0
