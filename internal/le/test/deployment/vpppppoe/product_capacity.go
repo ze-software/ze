@@ -243,7 +243,7 @@ func productCapacityRefusal(wire []byte, local, client, transaction string) erro
 		}
 	}
 	if stage != 4 {
-		return errors.New("101st peer has no complete correlated PADI/PADO/PADR/resource-refusal exchange")
+		return fmt.Errorf("101st peer has no complete correlated PADI/PADO/PADR/resource-refusal exchange: it stopped at stage %d of 4", stage)
 	}
 	return nil
 }

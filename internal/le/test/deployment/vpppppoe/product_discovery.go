@@ -183,7 +183,7 @@ func productDiscovery(wire []byte, local string, sessions []productSession) erro
 	}
 	for client := range owners {
 		if stages[client] != 4 {
-			return fmt.Errorf("subscriber %s has no complete physical PADI/PADO/PADR/PADS exchange", client)
+			return fmt.Errorf("subscriber %s has no complete physical PADI/PADO/PADR/PADS exchange: its exchange stopped at stage %d (0 none, 1 PADI, 2 PADO, 3 PADR) in a capture of %d frames", client, stages[client], frameIndex)
 		}
 	}
 	if len(owners) == 0 {
