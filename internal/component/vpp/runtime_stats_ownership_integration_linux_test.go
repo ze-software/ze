@@ -44,6 +44,20 @@ func (*runtimeStatsTestClient) GetNodeStats(*api.NodeStats) error     { return n
 func (*runtimeStatsTestClient) GetSystemStats(*api.SystemStats) error { return nil }
 func (c *runtimeStatsTestClient) Disconnect()                         { c.mu.Lock(); defer c.mu.Unlock(); c.disconnects++ }
 
+// publishedCounterDumpRows answers how many rows the published lease's last
+// interface dump carried. A row read answers one interface, so a test that
+// proves the whole dump's population reads it here.
+func publishedCounterDumpRows(t *testing.T) int {
+	t.Helper()
+	lease, ok := GetActiveStatsProvider().(*runtimeStats)
+	if !ok {
+		t.Fatal("no generation-bound statistics lease is published")
+	}
+	lease.mu.Lock()
+	defer lease.mu.Unlock()
+	return len(lease.counters.dump.Interfaces)
+}
+
 func runtimeStatsTestManager(t *testing.T) *VPPManager {
 	t.Helper()
 	runtimeStatsTestState(t)
@@ -64,14 +78,14 @@ func TestVPPRuntimeStatsReadyWithoutMetrics(t *testing.T) {
 		if event != vppevents.EventConnected {
 			t.Fatalf("event=%q", event)
 		}
-		var counters api.InterfaceStats
-		if err := GetInterfaceStatsForGeneration(m.connector, 7, &counters); err != nil {
+		row, err := InterfaceCountersForGeneration(m.connector, 7, 17, time.Now())
+		if err != nil {
 			t.Fatal(err)
 		}
-		if len(counters.Interfaces) != 1 {
+		if publishedCounterDumpRows(t) != 1 {
 			t.Fatal("readiness preceded counter publication")
 		}
-		if counters.Interfaces[0].Rx.Bytes != 2048 {
+		if row.Rx.Bytes != 2048 {
 			t.Fatal("counter payload was lost")
 		}
 		events++
@@ -135,8 +149,7 @@ func TestVPPRuntimeStatsFailureIsVisibleBeforeReadiness(t *testing.T) {
 	if client.disconnects != 1 {
 		t.Fatalf("failed startup disconnects=%d", client.disconnects)
 	}
-	var out api.InterfaceStats
-	if err := GetInterfaceStatsForGeneration(m.connector, 7, &out); err == nil {
+	if _, err := InterfaceCountersForGeneration(m.connector, 7, 17, time.Now()); err == nil {
 		t.Fatal("unavailable stats answered success")
 	}
 }
@@ -155,16 +168,14 @@ func TestVPPRuntimeStatsRejectsOtherGeneration(t *testing.T) {
 	}
 	defer lease.Close()
 	for _, owner := range []*Connector{m.connector, {}} {
-		var out api.InterfaceStats
-		if err := GetInterfaceStatsForGeneration(owner, 8, &out); err == nil {
+		if _, err := InterfaceCountersForGeneration(owner, 8, 17, time.Now()); err == nil {
 			t.Fatal("wrong generation or owner borrowed stats")
 		}
 	}
 	m.connector.mu.Lock()
 	m.connector.generation++
 	m.connector.mu.Unlock()
-	var out api.InterfaceStats
-	if err := GetInterfaceStatsForGeneration(m.connector, 7, &out); err == nil {
+	if _, err := InterfaceCountersForGeneration(m.connector, 7, 17, time.Now()); err == nil {
 		t.Fatal("retired API still borrowed its stats")
 	}
 }
@@ -182,15 +193,18 @@ func TestVPPRuntimeStatsRejectsGenerationChangeDuringRead(t *testing.T) {
 	}
 	defer lease.Close()
 	client.mu.Lock()
-	client.read = func(*api.InterfaceStats) error {
+	// The dump carries the asked-for row, so only the post-read generation
+	// check can refuse it, never a missing row.
+	client.read = func(out *api.InterfaceStats) error {
+		out.Interfaces = []api.InterfaceCounters{{InterfaceIndex: 17, Rx: api.InterfaceCounterCombined{Bytes: 2048}}}
 		m.connector.mu.Lock()
 		m.connector.generation++
 		m.connector.mu.Unlock()
 		return nil
 	}
 	client.mu.Unlock()
-	var out api.InterfaceStats
-	if err := GetInterfaceStatsForGeneration(m.connector, 7, &out); err == nil {
+	// A fresh bound forces the dump that changes the generation mid-read.
+	if _, err := InterfaceCountersForGeneration(m.connector, 7, 17, time.Now()); !errors.Is(err, errVppGenerationChanged) {
 		t.Fatal("published counters across generation replacement")
 	}
 }
@@ -270,15 +284,14 @@ func TestVPPRuntimeStatsReplacementKeepsNewPublication(t *testing.T) {
 		t.Fatal("replacement stats startup failed")
 	}
 	t.Cleanup(replacement.Close)
-	var out api.InterfaceStats
-	if err := GetInterfaceStatsForGeneration(m.connector, 7, &out); err == nil {
+	if _, err := InterfaceCountersForGeneration(m.connector, 7, 17, time.Now()); err == nil {
 		t.Fatal("old session read the replacement")
 	}
 	if second.reads != 1 {
 		t.Fatal("old session reached the replacement client")
 	}
 	old.Close()
-	if err := GetInterfaceStatsForGeneration(m.connector, 8, &out); err != nil {
+	if _, err := InterfaceCountersForGeneration(m.connector, 8, 17, time.Now()); err != nil {
 		t.Fatal(err)
 	}
 	if second.disconnects != 0 {
@@ -323,8 +336,7 @@ func TestVPPRuntimeStatsRecoveryIsCategorySpecific(t *testing.T) {
 	client.mu.Lock()
 	client.read = func(*api.InterfaceStats) error { return cause }
 	client.mu.Unlock()
-	var interfaces api.InterfaceStats
-	if err := GetInterfaceStatsForGeneration(m.connector, 7, &interfaces); !errors.Is(err, cause) {
+	if _, err := InterfaceCountersForGeneration(m.connector, 7, 17, time.Now()); !errors.Is(err, cause) {
 		t.Fatalf("read error=%v", err)
 	}
 	var nodes api.NodeStats
@@ -337,7 +349,8 @@ func TestVPPRuntimeStatsRecoveryIsCategorySpecific(t *testing.T) {
 	client.mu.Lock()
 	client.read = nil
 	client.mu.Unlock()
-	if err := GetInterfaceStatsForGeneration(m.connector, 7, &interfaces); err != nil {
+	// The failed dump left no snapshot, so this fresh bound dumps again.
+	if _, err := InterfaceCountersForGeneration(m.connector, 7, 17, time.Now()); err != nil {
 		t.Fatal(err)
 	}
 	if findings := checkRuntimeStats(diagnostic.DoctorCheckContext{}); len(findings) != 0 {
@@ -375,11 +388,10 @@ func TestVPPRuntimeStatsConnectionRecovery(t *testing.T) {
 	if findings := checkRuntimeStats(diagnostic.DoctorCheckContext{}); len(findings) != 0 {
 		t.Fatalf("confirmed connection recovery remains failed: %+v", findings)
 	}
-	var counters api.InterfaceStats
-	if err := GetInterfaceStatsForGeneration(m.connector, 8, &counters); err != nil {
+	if _, err := InterfaceCountersForGeneration(m.connector, 8, 17, time.Now()); err != nil {
 		t.Fatal(err)
 	}
-	if len(counters.Interfaces) != 1 {
+	if publishedCounterDumpRows(t) != 1 {
 		t.Fatal("recovered connection returned no counter snapshot")
 	}
 }

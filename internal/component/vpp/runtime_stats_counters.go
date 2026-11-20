@@ -40,7 +40,9 @@ type interfaceCounterRow struct {
 // because it would accept a snapshot of unbounded age.
 //
 // It serves only the lease published for this exact owner and generation and
-// re-checks the live generation on every answer, cached or not. A failed read,
+// re-checks the live generation on every answer, cached or not. A session MUST
+// retain that pair from its creation; a fresh active connector or stats
+// provider is not a substitute. A failed read,
 // a missing row and a duplicate row are errors, never zero and never an older
 // snapshot. Safe for concurrent use.
 func InterfaceCountersForGeneration(owner *Connector, generation uint64, index uint32,

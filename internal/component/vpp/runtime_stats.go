@@ -44,21 +44,6 @@ type runtimeStats struct {
 	done       chan struct{}
 }
 
-// GetInterfaceStatsForGeneration reads only the statistics published for this
-// exact binary API owner and generation. A session MUST retain that pair from
-// creation; a fresh active connector or stats provider is not a substitute.
-// out is usable only on success. Safe for concurrent use.
-func GetInterfaceStatsForGeneration(owner *Connector, generation uint64, out *api.InterfaceStats) error {
-	if out == nil {
-		return errors.New("vpp: session statistics require an output snapshot")
-	}
-	reader, err := statsForGeneration(owner, generation)
-	if err != nil {
-		return err
-	}
-	return reader.GetInterfaceStats(out)
-}
-
 // statsForGeneration selects the published lease only when it belongs to this
 // exact owner and generation. The lease re-checks the live generation itself.
 func statsForGeneration(owner *Connector, generation uint64) (*runtimeStats, error) {

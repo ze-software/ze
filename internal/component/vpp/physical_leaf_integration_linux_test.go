@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"go.fd.io/govpp/api"
 	"go.fd.io/govpp/binapi/memclnt"
@@ -66,17 +67,17 @@ func TestVPPPhysicalLeafStatsRequiresOriginalKernelPeer(t *testing.T) {
 				t.Fatal("same physical peer lost original counter lease")
 			}
 			defer lease.Close()
-			var snapshot api.InterfaceStats
-			if err := GetInterfaceStatsForGeneration(manager.connector, 7, &snapshot); err != nil {
+			row, err := InterfaceCountersForGeneration(manager.connector, 7, 17, time.Now())
+			if err != nil {
 				t.Fatal(err)
 			}
-			if len(snapshot.Interfaces) != 1 {
+			if publishedCounterDumpRows(t) != 1 {
 				t.Fatal("original counter row population changed")
 			}
-			if snapshot.Interfaces[0].InterfaceIndex != 17 {
+			if row.InterfaceIndex != 17 {
 				t.Fatal("original counter identity changed")
 			}
-			if snapshot.Interfaces[0].Rx.Bytes != 2048 {
+			if row.Rx.Bytes != 2048 {
 				t.Fatal("original counter payload changed")
 			}
 			if events != 1 {

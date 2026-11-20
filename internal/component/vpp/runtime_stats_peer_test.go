@@ -6,6 +6,7 @@ package vpp
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"go.fd.io/govpp/api"
 
@@ -84,17 +85,17 @@ func TestVPPSamePhysicalStatsProcessPublishesCounters(t *testing.T) {
 		t.Fatal("matching stats mapping was not published")
 	}
 	defer lease.Close()
-	var snapshot api.InterfaceStats
-	if err := GetInterfaceStatsForGeneration(manager.connector, 7, &snapshot); err != nil {
+	row, err := InterfaceCountersForGeneration(manager.connector, 7, 17, time.Now())
+	if err != nil {
 		t.Fatal(err)
 	}
 	if events != 1 {
 		t.Fatalf("readiness events=%d", events)
 	}
-	if snapshot.Interfaces[0].InterfaceIndex != 17 {
+	if row.InterfaceIndex != 17 {
 		t.Fatal("counter index changed")
 	}
-	if snapshot.Interfaces[0].Rx.Bytes != 2048 {
+	if row.Rx.Bytes != 2048 {
 		t.Fatal("counter payload changed")
 	}
 }

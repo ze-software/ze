@@ -189,7 +189,7 @@ An unavailable statistics segment does not restart an otherwise usable VPP API.
 <!-- source: internal/component/vpp/runtime_stats_doctor.go -- checkRuntimeStats, reportRuntimeStatsFailure -->
 
 A session retains its binary API connector and connection generation.
-`GetInterfaceStatsForGeneration` accepts only the statistics connection published
+`InterfaceCountersForGeneration` accepts only the statistics connection published
 for that pair and checks the generation again after reading. A replaced VPP
 process cannot answer an older session's counter request. Statistics reads are
 serialized because GoVPP updates cached statistics directories. When telemetry
@@ -198,7 +198,7 @@ the poller, withdraws the statistics publication and disconnects it before
 closing the binary API connection. A success clears only the same live owner's
 statistics category, and a confirmed new statistics connection clears its own
 connection failure.
-<!-- source: internal/component/vpp/runtime_stats.go -- GetInterfaceStatsForGeneration, runtimeStats.read, runtimeStats.Close -->
+<!-- source: internal/component/vpp/runtime_stats.go -- statsForGeneration, runtimeStats.readLocked, runtimeStats.read, runtimeStats.Close -->
 
 Per-session counters come from one shared snapshot, not one dump per session.
 `InterfaceCountersForGeneration` answers one interface index from the
