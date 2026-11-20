@@ -58,6 +58,17 @@ IPv6 `.ci` files became IPv4 forms (`ppp-ncp-terminate-after-up.ci` IPCP,
 4. Build phase 5: the three scenarios, the CCP relay marker, the two `.ci`,
    their revert walks; then `/ze-close`.
 
+New owner rule (ai/META-DECISIONS.md, "How agents work"): a change to an
+approved design that only writes in a choice Thomas made himself is judged by
+`ze-design-judge` and not put back to him. The tooling does not know this yet:
+`./le spec design approve` still demands his run on any digest change, and
+`./le spec claim`/the commit gate read that approval. That is a tooling gap to
+file (journal row in the design-gate class, owned by an existing design-tooling
+spec; `spec-design-needs-owner-approval` is closed) and fix so the judge's
+approval of an owner-choice-only change carries the earlier approval forward.
+Until then Thomas runs approve once more for C-3 (he already tried; it was
+refused only because the re-quote and judge had not run).
+
 `spec-l2tp-ipv6-subscriber` now fails the spec validator on 13 sections its
 short form never had; the entry added there may need to move to its journal
 or the spec be filled in.

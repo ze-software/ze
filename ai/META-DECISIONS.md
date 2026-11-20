@@ -546,6 +546,12 @@ in the spec or commit it applies to.
   set aside, and every owner ruling it was checked against. A spec is never
   designed and implemented without having read the code and the records of
   his earlier rulings on the same surface.
+- A change to an approved design that only writes in a choice Thomas himself
+  made (an answer he gave to a question the spec put to him) is not put back
+  to him for approval. The independent design judge still judges the changed
+  text, and the work continues once it approves; Thomas may review it later or
+  not. A change that carries anything he did not decide goes back to him as
+  before.
 - A spec never departs from the design documentation (the architecture pages,
   the doors, Thomas's rulings and the records that hold them) without a
   discussion with him. The main session presents the departure the way it
