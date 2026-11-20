@@ -58,15 +58,20 @@ Write a bullet as `body "* item"`, or put a word before the dash, as in
 | `ledger-carried` | yes | Only on the ledger-deletion commit (`remove` paths, no `file`): `"<sha> <gate key>: <reason>"`, the gate key `review-override` or `rfc-change-ok`. Writes one `Ledger-carried:` trailer. A row on a commit already on the upstream carries no patch-id and is audit only; a row on an unpushed commit carries that commit's stable patch-id, computed here and never given, and holds the push until it is answered |
 | `no-test` | no | The reason a commit carries no test evidence |
 | `no-news` | no | The reason a spec closure carries no news fragment, because operators see no change: `no-news "tooling: no operator-visible change"`. Given on commit B, the commit that removes the spec, it writes the `No-news: <reason>` trailer just before `Spec-work:`. Outside the Ze checkout it records nothing. "What the command refuses" names the fragment a closure owes otherwise |
+| `decision-change` | no | Thomas's words, `decision-change "<what he said>"`, for a commit that changes or removes a row of a page's `## Design decisions` section outside a spec. Admitted only from his terminal, as `attest` is. The decision-row check then accepts the change, and the message carries one `Decision-changed: <page>: <his words>` trailer per page whose rows changed. Refused when the commit changes no decision row, when the words span lines, with `attest`, and outside the Ze checkout |
 | `rfc-change-ok` | no | The reason a commit changes an RFC-tagged test unit the owner has not approved yet. Instead of refusing, the message carries one `RFC-approval-owed: <package>.<TestName>: <reason>` trailer per unapproved unit, and the push derivation holds the push until the owner answers |
 <!-- source: internal/le/commit/actions.go -- createParameters, createPolicy -->
 <!-- source: internal/le/commit/prepare.go -- refuseAttestAdmission -->
 
-Issuing an `attest` requires the owner's interactive terminal on both stdin and
-stdout, including for `dry-run`. A pipe or an unanswered terminal check refuses
-before a session directory, message or script is written. Reading an existing
-`Owner-attested:` trailer remains noninteractive.
+Issuing an `attest` or a `decision-change` requires the owner's interactive
+terminal on both stdin and stdout, including for `dry-run`. A pipe or an
+unanswered terminal check refuses before a session directory, message or
+script is written, and the refusal prints the whole line for Thomas to run.
+Reading an existing `Owner-attested:` or `Decision-changed:` trailer remains
+noninteractive.
 <!-- source: internal/le/commit/prepare.go -- Create -->
+<!-- source: internal/le/commit/authorization.go -- requireOwnerTerminal, ownerRetryArguments -->
+<!-- source: internal/le/commit/designapproval.go -- decisionChangedTrailers -->
 
 `Message` in `internal/le/commit/input.go` enforces the subject limit and the
 body wrap (`wrapBody`), and appends one `RFC-approved: <package>.<TestName>: <reason>`
@@ -188,6 +193,12 @@ after the approvals (`Prepared.Trailers`):
 | `rfc-change-ok "<reason>"` | `RFC-approval-owed: <package>.<TestName>: <reason>`, one per unit | yes, until a unique same-carrier `RFC-approved:` plus `RFC-approved-for: <fullSHA> <unit>` binds the verdict to that exact change, or the owner's attestation answers it. An unbound `RFC-approved:` answers only its own carrier |
 | Automatic when a selected summary adds or rewords `{linux-limit: LL-ID; reason}` | `Linux-limit-owed: <RID>: <LL-id>`, one per changed annotation | yes, until the owner's attestation of that commit; an RFC approval or review does not answer it |
 
+`Decision-changed: <page>: <his words>` records Thomas's change of a design
+decision. `Create` writes it from `decision-change` after the change-set
+checks, one per page, before `No-news:` and `Spec-work:`. The push derivation
+owes nothing for it (`OwesNothing`), and a hand-written one is refused like any
+declared key.
+
 Two trailers record a fact rather than an admission. A spec closure given
 `no-news "<reason>"` carries `No-news: <reason>`, which `Create` writes from
 `newsFragmentRefusal`'s answer directly before `Spec-work:`. The push
@@ -216,7 +227,7 @@ An admission no gate used records nothing. A reason spanning lines is refused,
 because a trailer is one line. `Message` refuses a subject or a body line that
 starts with any declared trailer key (`declaredTrailers` in
 `internal/le/commit/actions.go`, which also lists `Owner-attested:`,
-`Ledger-carried:`, `No-news:` and `Spec-work:`), naming the line and the one route that writes it: a
+`Ledger-carried:`, `No-news:`, `Spec-work:` and `Decision-changed:`), naming the line and the one route that writes it: a
 trailer is a record the derivation reads back, never the author's prose.
 
 Linux-limit approval needs no admission keyword. `create` compares the selected
@@ -443,19 +454,21 @@ call per file. A check judges only what the commit adds and
 never an instance its parent already held: a refusal names the check
 (`./le arch operator-error check refused what this commit adds`) and carries
 the check's own text, and a check that cannot judge answers exit 3, never a
-pass. Four checks register today:
+pass. Five checks register today:
 
 | Check | What it refuses in what the commit adds | Page |
 |-------|------------------------------------------|------|
 | `arch operator-error` | a plain `errors.New` or `fmt.Errorf` returned from a registered command handler, RPC handler or config verifier, and a `plugin.StatusError` answer whose `Error` text the handler wrote rather than built with `plugin.OperatorErrorResponse` | `docs/architecture/cli/error-surface.md`, "The operator error" |
 | `arch doctor-coverage` | a `Warn` or `Error` log line or report-bus raise under `internal/component`, `internal/plugins` or `cmd/ze` that names no doctor code a registered doctor check declares, and a `diagnostic.Diagnostic` finding in shipped Go with no `Fix` | `docs/architecture/doctor-and-health-checks.md`, "Every problem site names a doctor code" |
 | `arch error-inventory` | a `plain` or `plain-names-command` message handed to a surface writer neither check above judges (a local `ze` stderr write or refusal, an MCP error result, a REST error body, a web `http.Error`, a gNMI or gRPC status error, an `./le` refusal or finding); a writer call on a line one of them names is theirs | `docs/contributing/error-inventory.md`, "The check and the commit gate" |
+| `doc consistency` | in a carried or removed `.md` page's `## Design decisions` section: a row whose cells break the page format, or a shape problem (wrong columns, a repeated heading, no row) the parent's side did not hold; and a row present at the parent that the commit changes or removes, unless `decision-change` carries Thomas's words or an approved `departs` row of a spec names the page and the row. A row the commit leaves alone is never judged, and adding or reordering rows needs nobody | `docs/architecture/README.md`, "Page format" |
 | `rfc` | an RFC proof record under `rfc/discrimination/` that verifies against the parent and no longer verifies against what the commit leaves, because the commit changed its tagged unit or its claim, or deleted it while its tag stays (a commit that changes only a producer the record broke stales nothing: the proof belongs to its test); the refusal names each record, why, and the `./le rfc record` line that re-takes it | `docs/contributing/rfc-conformance-gates.md`, "The commit carries the record it stales" |
 
 <!-- source: internal/le/arch/operatorerror/report.go -- judgeChange -->
 <!-- source: internal/le/rfc/discriminate_commit.go -- judgeStaleRecords -->
 <!-- source: internal/le/arch/doctorcoverage/report.go -- judgeChange -->
 <!-- source: internal/le/arch/errorinventory/report.go -- judgeChange -->
+<!-- source: internal/le/doc/consistency/decisionschange.go -- judgeDecisionRows, approvedDeparture -->
 <!-- source: internal/le/commit/changechecks.go -- changeCheckRefusal -->
 <!-- source: internal/le/commit/changecheck/changecheck.go -- Register, Run -->
 

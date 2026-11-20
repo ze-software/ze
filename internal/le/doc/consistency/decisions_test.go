@@ -8,6 +8,7 @@ package docconsistency
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -76,6 +77,98 @@ func TestDesignDecisionsSectionJudged(t *testing.T) {
 	}
 	if !findingFor(report, "design-refs", danglingSource) {
 		t.Errorf("no design-refs error for the header naming %s: %#v", danglingPage, report.Findings)
+	}
+
+	// Each AC-8 case in a tree of its own: the page the header names holds the
+	// section as written, and a META-DECISIONS fixture and a commit exist for
+	// the two Source forms that name them.
+	for _, tc := range []struct {
+		name  string
+		page  string
+		error bool
+	}{
+		{"a well-formed row", decisionsPageWith(decisionRow), false},
+		{"no section at all", "# Widget\n\n## Wire format\n\nJSON.\n", false},
+		{"the format shown in a fence", "# Widget\n\n```\n## Design decisions\n```\n", false},
+		{"an empty Decision", decisionsPageWith("|  | Rendering text | " + decisionsSourceOK + " | 2026-08-21 |\n"), true},
+		{"an empty It forbids", decisionsPageWith("| The widget answers data |  | " + decisionsSourceOK + " | 2026-08-21 |\n"), true},
+		{"a Date not YYYY-MM-DD", decisionsPageWith("| The widget answers data | Rendering text | " + decisionsSourceOK + " | 2026/08/21 |\n"), true},
+		{"a Source naming no file", decisionsPageWith("| The widget answers data | Rendering text | plan/records/absent.md | 2026-08-21 |\n"), true},
+		{"a Source under tmp", decisionsPageWith("| The widget answers data | Rendering text | tmp/notes.md | 2026-08-21 |\n"), true},
+		{"a Source leaving the checkout", decisionsPageWith("| The widget answers data | Rendering text | ../outside.md | 2026-08-21 |\n"), true},
+		{"a META-DECISIONS section it holds", decisionsPageWith("| The widget answers data | Rendering text | `ai/META-DECISIONS.md` \"How agents work\" | 2026-08-21 |\n"), false},
+		{"a META-DECISIONS section it lacks", decisionsPageWith("| The widget answers data | Rendering text | `ai/META-DECISIONS.md` \"No such rule\" | 2026-08-21 |\n"), true},
+		{"META-DECISIONS with no section", decisionsPageWith("| The widget answers data | Rendering text | ai/META-DECISIONS.md | 2026-08-21 |\n"), true},
+		{"a commit the repository holds", decisionsPageWith("| The widget answers data | Rendering text | COMMIT | 2026-08-21 |\n"), false},
+		{"a commit the repository lacks", decisionsPageWith("| The widget answers data | Rendering text | 0123456789abcdef0123456789abcdef01234567 | 2026-08-21 |\n"), true},
+		{"a row of three cells", decisionsPageWith("| The widget answers data | Rendering text | " + decisionsSourceOK + " |\n"), true},
+		{"the heading twice", decisionsPageWith(decisionRow) + "\n## Design decisions\n\nMore.\n", true},
+		{"a heading with no row", decisionsPageWith(""), true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			caseRoot := t.TempDir()
+			commit := fixtureCommit(t, caseRoot)
+			writeDecisionsTree(t, caseRoot, map[string]string{
+				decisionsSource:        "// Design: " + decisionsPage + " -- the widget\n\npackage widget\n",
+				decisionsPage:          strings.ReplaceAll(tc.page, "COMMIT", commit),
+				decisionsSourceOK:      "# Widget record\n",
+				"ai/META-DECISIONS.md": "# Meta\n\n## How agents work\n\n- A rule.\n",
+			})
+			report := Check(caseRoot)
+			if got := findingFor(report, "design-decisions", decisionsPage); got != tc.error {
+				t.Errorf("design-decisions error = %v, want %v: %#v", got, tc.error, report.Findings)
+			}
+		})
+	}
+}
+
+// fixtureCommit makes root a repository holding one empty commit and answers
+// its id, so a Source may name a commit the repository holds.
+func fixtureCommit(t *testing.T, root string) string {
+	t.Helper()
+	git := func(args ...string) string {
+		command := exec.CommandContext(t.Context(), "git", args...)
+		command.Dir = root
+		output, err := command.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, output)
+		}
+		return strings.TrimSpace(string(output))
+	}
+	git("init", "-q")
+	git("-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false",
+		"commit", "-q", "--allow-empty", "-m", "fixture")
+	return git("rev-parse", "HEAD")
+}
+
+// TestCommitRefusesMalformedAddedDecisionRow is AC-9. Method: judge a commit
+// that adds a row with no Source to a well-formed section; it is refused
+// naming the page, the row and the cell. A commit that edits the page
+// elsewhere and leaves an already malformed section alone is accepted: the
+// check judges what the commit adds, never what the parent held.
+func TestCommitRefusesMalformedAddedDecisionRow(t *testing.T) {
+	root := t.TempDir()
+	writeDecisionsTree(t, root, map[string]string{decisionsSourceOK: "# Widget record\n"})
+	check := decisionRowsCheck(t)
+	malformed := "| A second decision | Something else |  | 2026-11-19 |\n"
+
+	refusal, err := check.Judge(pageChange(root, decisionsPageWith(decisionRow), decisionsPageWith(decisionRow+malformed)))
+	if err != nil {
+		t.Fatalf("the check could not judge: %v", err)
+	}
+	for _, want := range []string{decisionsPage, "row 2", "Source", "./le doc consistency"} {
+		if !strings.Contains(refusal, want) {
+			t.Errorf("the refusal of an added row with no Source does not name %q: %q", want, refusal)
+		}
+	}
+
+	held := decisionsPageWith(malformed)
+	refusal, err = check.Judge(pageChange(root, held, strings.Replace(held, "JSON.", "JSON, framed.", 1)))
+	if err != nil {
+		t.Fatalf("the check could not judge: %v", err)
+	}
+	if refusal != "" {
+		t.Errorf("a commit that leaves a malformed section's rows alone was refused: %q", refusal)
 	}
 }
 

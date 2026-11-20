@@ -3,13 +3,31 @@ package commit
 
 import "github.com/ze-software/ze/internal/le/le/human"
 
-// requireAttestationTerminal guards both registered and callable entry points.
-// It MUST run before any claim lookup or commit-session resolution can write.
-func requireAttestationTerminal(root string, options *Options) error {
-	if options.Attest == "" {
+// requireOwnerTerminal guards both registered and callable entry points of the
+// two owner keywords, `attest` and `decision-change`: each records Thomas's
+// words, so each is admitted only from his terminal. It MUST run before any
+// claim lookup or commit-session resolution can write.
+func requireOwnerTerminal(root string, options *Options) error {
+	if !ownerKeywordGiven(options) {
 		return nil
 	}
-	arguments := []string{keywordSubject, options.Subject, keywordAttest, options.Attest, options.AttestWords}
+	return human.RequireAuthorization(root, "", "commit create", ownerRetryArguments(options))
+}
+
+// ownerKeywordGiven answers whether the line carries an owner keyword.
+func ownerKeywordGiven(options *Options) bool {
+	if options.Attest != "" {
+		return true
+	}
+	return options.DecisionChange != ""
+}
+
+// ownerRetryArguments is the whole line the refusal hands Thomas to run.
+func ownerRetryArguments(options *Options) []string {
+	arguments := []string{keywordSubject, options.Subject}
+	if options.Attest != "" {
+		arguments = append(arguments, keywordAttest, options.Attest, options.AttestWords)
+	}
 	for _, body := range options.Body {
 		arguments = append(arguments, keywordBody, body)
 	}
@@ -31,6 +49,7 @@ func requireAttestationTerminal(root string, options *Options) error {
 		{keywordSession, options.Session}, {keywordTag, options.Tag}, {keywordScript, options.Script},
 		{keywordNoTest, options.NoTest}, {keywordReviewOverride, options.ReviewOverride},
 		{keywordRFCChangeOK, options.RFCChangeOK}, {keywordNoNews, options.NoNews},
+		{keywordDecisionChange, options.DecisionChange},
 	} {
 		if pair.value != "" {
 			arguments = append(arguments, pair.keyword, pair.value)
@@ -45,5 +64,5 @@ func requireAttestationTerminal(root string, options *Options) error {
 	if options.DryRun {
 		arguments = append(arguments, keywordDryRun)
 	}
-	return human.RequireAuthorization(root, "", "commit create", arguments)
+	return arguments
 }

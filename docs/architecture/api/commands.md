@@ -5,6 +5,14 @@
 
 ---
 
+## Design decisions
+
+| Decision | It forbids | Source | Date |
+|----------|------------|--------|------|
+| The pipe wins: a command path names the subject and stops; scope, presentation and format are pipe operations after it, selector words included | Rewriting the command line to carry a pipe as an argument; refusing a pipe a command declares; a subcommand for scope or presentation | plan/records/audit-command-pipe-vs-subcommand.md, plan/records/audit-presentation-pipes.md | 2026-08-21 |
+
+---
+
 ## Overview
 
 Ze uses verb-first command paths with JSON or text encoding.

@@ -24,18 +24,21 @@ import (
 // After reads the carried selection (selection.Read), so a `hunks` commit is
 // judged on the blob it carries, never on the working-tree file, and Before
 // reads the tree the commit starts from (head), as dependencyRefusal does.
-func changeCheckRefusal(root string, paths, removed []string, selection hunks.Selection, head string) error {
-	return runChangeChecks(root, paths, removed, selection, head, changecheck.Registered())
+func changeCheckRefusal(change changecheck.Change) error {
+	return judgeChange(change, changecheck.Registered())
 }
 
 // runChangeChecks is changeCheckRefusal over a given check list, so a test
 // judges a fixture check without the composition root.
 func runChangeChecks(root string, paths, removed []string, selection hunks.Selection, head string, checks []changecheck.Check) error {
-	if len(checks) == 0 {
-		return nil
-	}
+	return judgeChange(changeOf(root, paths, removed, selection, head), checks)
+}
+
+// changeOf is the commit being prepared as a check reads it. Create fills
+// OwnerWords on it after the owner terminal admitted them.
+func changeOf(root string, paths, removed []string, selection hunks.Selection, head string) changecheck.Change {
 	sides := workingTreeSides(root, head, selection)
-	change := changecheck.Change{
+	return changecheck.Change{
 		Root:    root,
 		Paths:   paths,
 		Removed: removed,
@@ -44,6 +47,13 @@ func runChangeChecks(root string, paths, removed []string, selection hunks.Selec
 			return committedUnder(root, head, dir)
 		},
 		After: sideReader(sides.After),
+	}
+}
+
+// judgeChange runs checks over change and refuses it with their texts.
+func judgeChange(change changecheck.Change, checks []changecheck.Check) error {
+	if len(checks) == 0 {
+		return nil
 	}
 	refusals, err := changecheck.Run(change, checks)
 	if err != nil {

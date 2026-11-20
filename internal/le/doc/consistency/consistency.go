@@ -3,11 +3,14 @@
 // Package docconsistency is the `ze-consistency-check` gate: it reads the tree and
 // reports where the code and the documentation disagree with each other.
 //
-// Seven checks run over one walk of the tree:
+// Eight checks run over one walk of the tree:
 //
 //   - JSON struct tags are kebab-case, not snake_case or camelCase;
 //   - plugin.Response carries a Status* constant, not a string literal;
-//   - a non-exempt file under internal/, pkg/ or cmd/ carries a // Design: line;
+//   - a non-exempt file under internal/, pkg/ or cmd/ carries a // Design: line,
+//     and every `.md` page a header line names exists;
+//   - the `## Design decisions` section of each such page keeps the page
+//     format (decisions.go);
 //   - a // Detail:, // Overview: or // Related: cross-reference resolves, and the
 //     file it names points back;
 //   - no source file passes 1000 lines;
@@ -52,7 +55,7 @@ type checker struct {
 	warnings int
 }
 
-// Check reads the tree at root and answers everything the seven checks found.
+// Check reads the tree at root and answers everything the eight checks found.
 // A finding's File is relative to root, so the answer does not change with the
 // working directory the caller happens to have.
 func Check(root string) Report {
@@ -62,7 +65,7 @@ func Check(root string) Report {
 	// of what a reader sees rather than an implementation detail.
 	c.checkJSONTags()
 	c.checkStatusConstants()
-	c.checkDesignRefs()
+	c.checkDesignDecisions(c.checkDesignRefs())
 	c.checkCrossRefs()
 	c.checkFileSizes()
 	c.checkPluginStructure()
@@ -169,8 +172,25 @@ func (c *checker) checkStatusConstants() {
 
 // --- Design Doc References ---
 
-func (c *checker) checkDesignRefs() {
+// checkDesignRefs reports a source file that owes a `// Design:` line and
+// carries none, and a header line naming a `.md` page that does not exist. It
+// answers every page a header names that exists, sorted, for
+// checkDesignDecisions. A Go file under a testdata directory is a fixture, so
+// its header links nothing of the repository's.
+func (c *checker) checkDesignRefs() []string {
+	pages := map[string]bool{}
 	c.walkGoFiles(func(path string) {
+		links, hasDesign := c.designHeader(path)
+		if !strings.Contains("/"+path, "/testdata/") {
+			for _, link := range links {
+				if fileExists(c.path(link.page)) {
+					pages[link.page] = true
+					continue
+				}
+				c.report(SeverityError, "design-refs", path, link.line, "// Design: names "+link.page+
+					", which does not exist; fix: correct the header to name the page that documents this file")
+			}
+		}
 		if isExemptFile(path) || isTestFile(path) {
 			return
 		}
@@ -178,16 +198,36 @@ func (c *checker) checkDesignRefs() {
 		if !strings.Contains(path, "internal/") && !strings.Contains(path, "pkg/") && !strings.Contains(path, "cmd/") {
 			return
 		}
-		hasDesign := false
-		c.scanLines(path, func(_ int, text string) {
-			if strings.Contains(text, "// Design:") {
-				hasDesign = true
-			}
-		})
 		if !hasDesign {
 			c.report(SeverityWarn, "design-refs", path, 0, "missing // Design: comment")
 		}
 	})
+	return sortedKeys(pages)
+}
+
+// designHeader reads path once: the pages its header's `// Design:` lines
+// name (the lines before the package clause), and whether any line of the file
+// carries `// Design:` at all, which is what the missing-header warning asks.
+func (c *checker) designHeader(path string) (links []designLink, hasDesign bool) {
+	inHeader := true
+	c.scanLines(path, func(line int, text string) {
+		if strings.Contains(text, "// Design:") {
+			hasDesign = true
+		}
+		if strings.HasPrefix(text, "package ") {
+			inHeader = false
+		}
+		if !inHeader {
+			return
+		}
+		if !strings.HasPrefix(text, "// Design: ") {
+			return
+		}
+		for _, page := range designTargets(text) {
+			links = append(links, designLink{line: line, page: page})
+		}
+	})
+	return links, hasDesign
 }
 
 // --- Cross-Reference Bidirectionality ---

@@ -18,7 +18,7 @@ const name = "doc consistency"
 
 // areaDescription is what the gate judges. The area's long help and the action's Why both
 // read it, so the two cannot drift.
-const areaDescription = "where the code and the documentation disagree: design refs, cross-refs, JSON tags, file sizes"
+const areaDescription = "where the code and the documentation disagree: design refs, design decisions, cross-refs, JSON tags, file sizes"
 
 // checkVerb names the gate, which is also what the bare command line runs.
 const checkVerb = "check"
@@ -54,6 +54,6 @@ func init() {
 	// the count cannot fall for a tool nothing can reach.
 
 	// `./le commit create` judges the decision rows the commit adds, changes
-	// or removes (decisions.go).
+	// or removes (decisionschange.go).
 	changecheck.Register(changecheck.Check{Name: name + " " + checkVerb, Judge: judgeDecisionRows})
 }

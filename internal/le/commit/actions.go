@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	docconsistency "github.com/ze-software/ze/internal/le/doc/consistency"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	"github.com/ze-software/ze/internal/le/rfc"
@@ -75,6 +76,10 @@ const (
 	// keywordNoNews states that a spec closure carries no news fragment
 	// because operators see no change: a No-news: trailer (newsfragment.go).
 	keywordNoNews = "no-news"
+	// keywordDecisionChange carries Thomas's words, from his terminal, for a
+	// commit that changes or removes a row of a page's Design decisions
+	// section: one Decision-changed: trailer per page (designapproval.go).
+	keywordDecisionChange = "decision-change"
 )
 
 // The commit message trailers that record a person act or an admission. Each
@@ -125,6 +130,7 @@ var declaredTrailers = []struct {
 	{testweakened.ApprovalTrailer, "create from ./le test weakened approve", false},
 	{trailerNoNews, `the spec closure: create ... remove <spec> ` + keywordNoNews + ` "<reason>"`, true},
 	{trailerSpecWork, "./le commit create under a claim (./le spec claim), from the claimed spec", true},
+	{docconsistency.DecisionChangedTrailer, `create ... ` + keywordDecisionChange + ` "<owner words>" from Thomas's terminal`, true},
 }
 
 // retiredVerbs maps each verb the derived debt removed to what replaced it. It
@@ -289,8 +295,8 @@ func prepareCreate(root string, args leaction.Arguments) (leaction.Prepared, int
 		return leaction.Prepared{}, 2
 	}
 	// ClaimedSpec resolves a session directory even when it writes no claim.
-	// Attestation issuance MUST be admitted before that lookup.
-	if err := requireAttestationTerminal(root, &options); err != nil {
+	// Owner keywords (attest, decision-change) MUST be admitted before that lookup.
+	if err := requireOwnerTerminal(root, &options); err != nil {
 		leaction.ReportError(err)
 		return leaction.Prepared{}, exitCodeOf(refusedKeywords(err))
 	}
@@ -509,6 +515,8 @@ var createParameters = []leaction.Parameter{
 	reasonParameter(keywordReviewOverride, "why a closure commits with no clean review (Review-owed:)"),
 	reasonParameter(keywordRFCChangeOK, "why the commit changes an unapproved RFC-tagged test unit"),
 	reasonParameter(keywordNoNews, "why a spec closure carries no news fragment (No-news:)"),
+	{Keyword: keywordDecisionChange, Kind: leaction.KindString, Value: "owner words", Requirement: leaction.Optional,
+		Help: "Thomas's words for a changed decision row, from his terminal (Decision-changed:)"},
 	{Keyword: keywordDryRun, Kind: leaction.KindSwitch, Help: "print the message and the script and write neither"},
 	{Keyword: keywordPush, Retired: `./le commit push "<owner authorisation>"`},
 	{Keyword: "unverified", Retired: noVerifyOwed},
@@ -558,6 +566,7 @@ var createPolicy = map[string]keywordPolicy{
 	keywordReviewOverride: {Given: givenText(func(o *Options) string { return o.ReviewOverride })},
 	keywordRFCChangeOK:    {Given: givenText(func(o *Options) string { return o.RFCChangeOK })},
 	keywordNoNews:         {Given: givenText(func(o *Options) string { return o.NoNews })},
+	keywordDecisionChange: {Given: givenText(func(o *Options) string { return o.DecisionChange })},
 	keywordDryRun:         {Given: func(o *Options) bool { return o.DryRun }, WithAttest: true},
 	keywordAttest:         {Given: givenText(func(o *Options) string { return o.Attest }), WithAttest: true},
 	keywordLedgerCarried:  {Given: func(o *Options) bool { return len(o.LedgerCarried) != 0 }},
@@ -619,8 +628,9 @@ func optionsOf(args leaction.Arguments) (Options, error) {
 		NoTest:         args.One(keywordNoTest),
 		ReviewOverride: args.One(keywordReviewOverride),
 		RFCChangeOK:    args.One(keywordRFCChangeOK), DryRun: args.Has(keywordDryRun),
-		NoNews: args.One(keywordNoNews),
-		Attest: attest[0], AttestWords: attest[1], LedgerCarried: args.Values(keywordLedgerCarried),
+		NoNews:         args.One(keywordNoNews),
+		DecisionChange: args.One(keywordDecisionChange),
+		Attest:         attest[0], AttestWords: attest[1], LedgerCarried: args.Values(keywordLedgerCarried),
 		RFCApprovalSelections: approvals,
 	}, nil
 }

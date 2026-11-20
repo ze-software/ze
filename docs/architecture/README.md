@@ -51,6 +51,45 @@ Architecture documents describe how the current implementation is wired. Prefer 
 | Memory lifetime contracts | `memory/` | `internal/core/memguard/` |
 | Decisions | `decisions/` | Decision records tied to current implementation |
 
+## Page format
+
+A design page is any page a source file's `// Design:` header names. Thomas's
+decisions about the subject such a page documents are written on that page,
+in one section, and nowhere else: no separate register of decisions exists.
+The header is the link an agent already follows from the file it edits, so a
+decision written there is one an agent meets before the edit.
+
+| Element | Rule |
+|---------|------|
+| Heading | `## Design decisions`, a whole line, at most once per page. A heading shown inside a fenced code block is not the section |
+| Table | One table under the heading, its columns `Decision`, `It forbids`, `Source`, `Date`, in that order, with a separator row under them. The section ends at the next heading of level one or two |
+| Decision | The decision as Thomas stated it, about this page's subject. Never empty |
+| It forbids | What a design must not do because of it: the shape a reviewer checks a diff against. Never empty |
+| Source | One or more entries, separated by commas: a path from the repository root of the record holding his words (never under `tmp/`), a commit id of 7 to 40 hex digits, or `ai/META-DECISIONS.md "<section heading>"`. Every entry must resolve |
+| Date | The day he made the decision, `YYYY-MM-DD` |
+| No decision recorded | The page carries no such section. An empty table is never written: it would claim that no decision binds the page, which nobody can know |
+| Generated pages | A page a generator writes (a rendered rule) carries none; its decisions go to the page its generator reads |
+
+A row is added freely, by the main session, in the turn Thomas states the
+decision. A row is changed or removed only with him: through an approved
+`departs` row of a spec, or through `./le commit create ... decision-change
+"<his words>"` run from his terminal, which records
+`Decision-changed: <page>: <his words>` in the commit.
+
+`./le doc consistency` judges the section on every page a `// Design:` header
+names: a row breaking a rule above, a repeated heading, a section with no row
+or the wrong columns are `design-decisions` errors naming the page and the
+row, and a header naming a `.md` page that does not exist is a `design-refs`
+error naming the file and its header line. Tree-wide these are reds owed at
+release. The same judgment runs as a change-set check of `./le commit create`
+(`docs/contributing/committing.md`), which refuses a commit for a malformed
+row it adds and for a row present at its parent that it changes or removes,
+and for nothing the section already held. Adding a row and reordering rows
+need nobody.
+<!-- source: internal/le/doc/consistency/decisions.go -- ParseDecisions, JudgeDecisionRow, checkDesignDecisions -->
+<!-- source: internal/le/doc/consistency/consistency.go -- checkDesignRefs, designHeader -->
+<!-- source: internal/le/doc/consistency/decisionschange.go -- judgeDecisionRows, LostDecisions -->
+
 ## Reading Order
 
 1. Start with `../architecture.md` for the current component map.

@@ -43,7 +43,12 @@ type Options struct {
 	// see no change. newsFragmentRefusal judges it and Create writes it as the
 	// No-news: trailer.
 	NoNews string `json:"no-news,omitempty"`
-	DryRun bool   `json:"dry-run"`
+	// DecisionChange is Thomas's words for a commit that changes or removes a
+	// decision row, admitted only from his terminal (requireOwnerTerminal). The
+	// decision-row check accepts the change on them, and Create writes one
+	// Decision-changed: trailer per page (designapproval.go).
+	DecisionChange string `json:"decision-change,omitempty"`
+	DryRun         bool   `json:"dry-run"`
 	// Attest is the commit an attestation answers and AttestWords the owner's
 	// words. An attestation names no file and no remove path (D-7).
 	Attest      string `json:"attest,omitempty"`
@@ -127,11 +132,15 @@ func Create(root string, options *Options) (Prepared, error) {
 		if err := refuseAttestAdmission(options); err != nil {
 			return result, err
 		}
-		// Attestation issuance MUST precede CommitSession's directory writes,
-		// not just the later message/script recording or trailer validation.
-		if err := requireAttestationTerminal(root, options); err != nil {
-			return result, refusedKeywords(err)
-		}
+	}
+	if err := decisionChangeWordsProblem(options.DecisionChange); err != nil {
+		return result, refusedKeywords(err)
+	}
+	// Owner authorization (attest, decision-change) MUST precede
+	// CommitSession's directory writes, not just the later message/script
+	// recording or trailer validation.
+	if err := requireOwnerTerminal(root, options); err != nil {
+		return result, refusedKeywords(err)
 	}
 	if !attesting && len(options.RFCApprovalSelections) == 0 && len(paths) == 0 && len(removed) == 0 && len(options.Hunks) == 0 {
 		return result, refusedKeywords(errors.New("at least one file or remove path is required, unless the commit is an attestation: " +
@@ -257,6 +266,9 @@ func Create(root string, options *Options) (Prepared, error) {
 	// when the commit carries none. It records a fact rather than a person
 	// act, so it stays out of result.Trailers, as Spec-work: does.
 	noNews := ""
+	// decisionChanged is the Decision-changed: trailers of a decision-change
+	// commit, one per page whose decision rows it changes or removes.
+	var decisionChanged []string
 	switch {
 	case attesting:
 		// An empty commit changes no byte, so no source or verification gate
@@ -297,8 +309,15 @@ func Create(root string, options *Options) (Prepared, error) {
 			return result, err
 		}
 		// Every registered change-set check judges what the commit adds
-		// (changechecks.go, changecheck.Register).
-		if err := changeCheckRefusal(root, paths, removed, selection, content.before); err != nil {
+		// (changechecks.go, changecheck.Register). Thomas's words, admitted
+		// from his terminal above, reach the checks on the change.
+		change := changeOf(root, paths, removed, selection, content.before)
+		change.OwnerWords = strings.TrimSpace(options.DecisionChange)
+		if err := changeCheckRefusal(change); err != nil {
+			return result, err
+		}
+		decisionChanged, err = decisionChangedTrailers(change)
+		if err != nil {
 			return result, err
 		}
 		carried, err := ledgerCarriedTrailers(root, options.LedgerCarried, paths, removed)
@@ -309,6 +328,10 @@ func Create(root string, options *Options) (Prepared, error) {
 	default:
 		if len(options.LedgerCarried) != 0 {
 			return result, refusedKeywords(errors.New("ledger-carried refused: this tree is not the Ze checkout, and only the Ze checkout carries the ledger"))
+		}
+		if options.DecisionChange != "" {
+			return result, refusedKeywords(errors.New("decision-change refused: this tree is not the Ze checkout, " +
+				"and only the Ze checkout's design pages carry decision rows; drop decision-change"))
 		}
 		result.Verify = VerificationState{State: verifyNotApplicable, Detail: notCheckoutDetail}
 	}
@@ -353,10 +376,11 @@ func Create(root string, options *Options) (Prepared, error) {
 			return result, err
 		}
 		result.Trailers = append(result.Trailers, owed...)
-		trailers := slices.Concat(result.RFCApprovals.Trailers, result.WeakeningApprovals.Trailers, result.Trailers)
-		// No-news: and the attribution owe nothing, so they stay out of
-		// result.Trailers, which lists person acts, and close the message in
-		// that order.
+		trailers := slices.Concat(result.RFCApprovals.Trailers, result.WeakeningApprovals.Trailers, result.Trailers,
+			decisionChanged)
+		// Decision-changed:, No-news: and the attribution owe nothing, so
+		// they stay out of result.Trailers, which lists person acts, and close
+		// the message in that order.
 		if noNews != "" {
 			trailers = append(trailers, noNews)
 		}

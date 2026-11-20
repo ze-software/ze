@@ -2002,10 +2002,11 @@ runs a full verification covers that case.
 
 ### Issuing owner authorization also requires a terminal
 
-The same stdin/stdout detector gates four existing issuance routes:
+The same stdin/stdout detector gates five existing issuance routes:
 `./le rfc approve` when its reason cites an owner ruling,
-`./le commit create ... attest`, `./le spec review record` whenever
-`owner-authorised` is supplied, and `./le commit push` preparation.
+`./le commit create ... attest`, `./le commit create ... decision-change`,
+`./le spec review record` whenever `owner-authorised` is supplied, and
+`./le commit push` preparation.
 Both streams must be terminals; a detector error refuses rather than guessing.
 The refusal explains owner authorization, not full verification, and names the
 command Thomas must run himself. It happens before session-directory or artifact
@@ -2025,7 +2026,7 @@ Rejected operands are retained too: a retry cannot silently drop an incompatible
 file or admission keyword and turn a refused request into an owner attestation.
 <!-- source: internal/le/le/human/command.go -- AppendArguments, authorizationCommand -->
 <!-- source: internal/le/le/path/known_session.go -- KnownSessionID, knownSessionID -->
-<!-- source: internal/le/commit/authorization.go -- requireAttestationTerminal -->
+<!-- source: internal/le/commit/authorization.go -- requireOwnerTerminal, ownerRetryArguments -->
 <!-- source: internal/le/spec/review_authorization.go -- requireOwnerReviewTerminal -->
 
 Ordinary RFC judge verdicts, the shared weakening-approval writer, review

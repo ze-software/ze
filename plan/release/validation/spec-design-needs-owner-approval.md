@@ -8,11 +8,11 @@
 | Release reason | The release must ship behavior that matches its design documentation and Thomas's decisions. On 2026-11-12 a design he never saw, contradicting his own decision, was implemented into the daemon. This spec is the gate that stops that, and it must hold before the first release (`plan/README.md`, `release/validation/`: evidence that shipped behavior works, including accurate claims) |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 1/7 |
+| Phase | 2/7 |
 | Handoff | - |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-19 |
+| Updated | 2026-11-20 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -301,6 +301,8 @@ The goal:
 | A-5 | The Read hook receives the returned content, start line and line count for a markdown page as it does for source | `recordSourceRead` parses them for source files | No section record can be written | `TestSectionReadRecordedForMarkdown` over a real payload | unvalidated |
 | A-6 | `./le scratch clean` and the session reaper leave `tmp/spec-design/` alone | The reaper removes `tmp/session` entries; not read for this directory | An approval disappears and a claim is refused until the trailer exists | Read both producers in phase 5 and add the directory to what they keep | unvalidated |
 | A-7 | A judge agent runs `./le` under its own `ZE_AGENT_ID` | The identity line every subagent types (`ai/rules/planning.md`) | The judge action cannot find the judge's read records | `TestJudgeRefusesWithoutAgentIdentity` | unvalidated |
+| A-8 | A `// Design:` header line names its pages as the words before its separator (` -- `, ` — ` or ` - `), and a page is a word ending in `.md` | Phase 2 grep of every header line under `internal/`, `cmd/`, `pkg/` on 2026-11-20: 97 lines name `(none ...)`, some name a `.go` file or an RFC text, 7 lines name two `.md` pages, some end a page with `,` or `.`; none names a page with a `#` anchor or a `../` path | A page is missed, or a word is read as a page that is none | `designTargets` takes every such word, trimmed of punctuation; `./le doc consistency` on the real tree counts the `design-refs` errors it raises | unvalidated |
+| A-9 | A Source path resolves when the checkout holds the file; "tracked" in AC-8 is read as "in the checkout" | The phase 1 wiring tests judge fixture trees with no repository and expect a Source on disk to resolve (`TestCommitRefusesChangedDecisionRow`, the added row) | An untracked record outside `tmp/` passes as a Source | `pathProblem` refuses a path under `tmp/`, outside the checkout, a directory, or absent | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -314,6 +316,7 @@ The goal:
 | R-7 | Authors fill `silent` rows by rote | Tables of 15 or more silent rows | A `silent` row needs a reason; the judge reads the section behind every row; a decision row and a page the spec edits cannot be `silent` |
 | R-8 | A decision row is added that Thomas never made | A row whose Source does not hold the decision | The Source must resolve; the judge and the review lens read it; Known Limitations |
 | R-9 | The hook source seal in `fixtures.go` goes red in another session's run between phases | `./le ai hooks unit` red on `checkHookSources` | Each phase that edits a hook source re-seals in its own commit |
+| R-10 | The `design-refs` missing-page error raises tree-wide reds on headers written before it existed | `./le doc consistency` errors naming `design-refs` after phase 2 | Reds are owed at release and refuse no commit; each finding names the file and its header line |
 
 ## Blast Radius
 

@@ -45,6 +45,12 @@ type Change struct {
 	// After reads what the commit carries: the staged selection, honoring a
 	// `hunks` selection, never the whole working-tree file.
 	After Side
+	// OwnerWords is what Thomas said, admitted from his own terminal by an
+	// owner keyword of `./le commit create` (`decision-change`) before any
+	// check runs, or "" when the commit carries none. A check that refuses a
+	// change only the owner may make accepts it when this is set; the keyword's
+	// trailer records the words in the commit.
+	OwnerWords string
 }
 
 // Check is one registered change-set check.
