@@ -2,19 +2,22 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | The release must ship behavior that matches its design documentation and Thomas's decisions. On 2026-11-12 a design he never saw, contradicting his own decision, was implemented into the daemon. This spec is the gate that stops that, and it must hold before the first release (`plan/README.md`, `release/validation/`: evidence that shipped behavior works, including accurate claims) |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 1/7 |
 | Handoff | - |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
 | Updated | 2026-11-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+WIP cap exception: on 2026-11-19 Thomas allowed this one claim above the cap
+("raise the cap for this one"); it was claimed with `ZE_SPEC_WIP_CAP=21`.
 
 ## Task
 

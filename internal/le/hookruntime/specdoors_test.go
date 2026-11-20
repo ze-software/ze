@@ -8,6 +8,7 @@ package hookruntime
 import (
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -89,6 +90,27 @@ func TestSpecDoorGateMatchesAbsolutePaths(t *testing.T) {
 	spec := filepath.Join(root, filepath.FromSlash(specFixturePath))
 	named := filepath.ToSlash(filepath.Join(root, "internal", "component", "bgp", "plugins", "rib", "rib.go"))
 	requireDoorGate(t, root, specEditPayload("Edit", spec, "See "+named+"."), []string{doorBGPPlugins})
+}
+
+// TestSpecDoorGateOwesTheDecisionsSection is the wiring row "pre-write hook,
+// spec naming such a file" (plan/release/validation/spec-design-needs-owner-approval.md,
+// AC-3). Method: a context that read every door the spec owes writes a spec
+// naming a code file whose // Design: page carries a Design decisions section,
+// and the write is refused naming the page and the section, in the one list
+// writeSpecDoorsRead prints.
+func TestSpecDoorGateOwesTheDecisionsSection(t *testing.T) {
+	root := t.TempDir()
+	writeDecisionsFixture(t, root)
+	payload := specEditPayload("Write", specFixturePath, "## Files to Modify\n- `"+decisionsCodeFile+"` - change\n")
+	code, _, message := runHook(t, root, "pretool-writeedit", payload)
+	if code != 2 {
+		t.Fatalf("a spec naming %s whose page's decisions are unread exited %d, want 2: %q", decisionsCodeFile, code, message)
+	}
+	for _, want := range []string{decisionsPage, decisionsHeading} {
+		if !strings.Contains(message, want) {
+			t.Fatalf("the spec door refusal does not name %q: %q", want, message)
+		}
+	}
 }
 
 // TestSpecRepoPathsTrimsAndDeduplicates pins the path extraction: punctuation

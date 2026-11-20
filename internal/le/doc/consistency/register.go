@@ -8,6 +8,7 @@ package docconsistency
 import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/le/commit/changecheck"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
@@ -52,4 +53,7 @@ func init() {
 	// registers the command. A claim whose command never registered is red, so
 	// the count cannot fall for a tool nothing can reach.
 
+	// `./le commit create` judges the decision rows the commit adds, changes
+	// or removes (decisions.go).
+	changecheck.Register(changecheck.Check{Name: name + " " + checkVerb, Judge: judgeDecisionRows})
 }

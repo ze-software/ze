@@ -3,6 +3,7 @@ package spec
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -191,6 +192,39 @@ func TestSpecSessionCommandMapsEveryOwnershipAction(t *testing.T) {
 	}
 	if spec, err := (specOwner{Root: root, SessionID: "command-session"}).currentSpec(); err != nil || spec != "" {
 		t.Fatalf("released currentSpec = %q, %v", spec, err)
+	}
+}
+
+// TestClaimRefusesReadySpecWithoutApproval is the wiring row "`./le spec
+// claim` on a ready spec" (plan/release/validation/spec-design-needs-owner-approval.md,
+// AC-22). Method: claim a ready spec that no approval record or trailer
+// covers, with Thomas not away, through the registered command; it exits 2,
+// Status stays ready, and the session claims nothing.
+func TestClaimRefusesReadySpecWithoutApproval(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "plan", "post-release", "engineering", "spec-a.md")
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(readySpecFixture), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	setAnswerRoot(t, root)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "unapproved-claim")
+
+	payload, code := Claim([]string{"plan/post-release/engineering/spec-a.md"})
+	if code != 2 {
+		t.Fatalf("a claim of a ready spec with no owner approval answered (%#v, %d), want exit 2", payload, code)
+	}
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(body), "| Status | ready |") {
+		t.Fatalf("the refused claim changed Status:\n%s", body)
+	}
+	if spec, err := (specOwner{Root: root, SessionID: "unapproved-claim"}).currentSpec(); err != nil || spec != "" {
+		t.Fatalf("the refused claim left the session claiming %q (%v)", spec, err)
 	}
 }
 

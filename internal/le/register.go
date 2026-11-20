@@ -146,6 +146,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/spec/citation"
 	_ "github.com/ze-software/ze/internal/le/spec/claim"
 	_ "github.com/ze-software/ze/internal/le/spec/current"
+	_ "github.com/ze-software/ze/internal/le/spec/design"
 	_ "github.com/ze-software/ze/internal/le/spec/journal"
 	_ "github.com/ze-software/ze/internal/le/spec/model"
 	_ "github.com/ze-software/ze/internal/le/spec/release"

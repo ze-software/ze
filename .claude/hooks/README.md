@@ -211,6 +211,23 @@ judgment are unchanged.
 <!-- source: internal/le/hookruntime/specwip.go -- writeSpecWIP -->
 <!-- source: internal/le/spec/session.go -- CheckWIPTransition -->
 
+### Ready-edit gate (`internal/le/hookruntime/specready.go`)
+
+| Check | Enforces | What it refuses |
+|---|---|---|
+| `writeSpecReady` | `planning.md` | Registered and refusing nothing yet. When built (`plan/release/validation/spec-design-needs-owner-approval.md`, AC-20, AC-21) it refuses an edit that makes a spec `ready` from a subagent, and from the main session unless an owner approval of the design matches the proposed text or Thomas is away. |
+
+<!-- source: internal/le/hookruntime/specready.go -- writeSpecReady -->
+
+### Owner-record guard (`internal/le/hookruntime/ownerrecord.go`)
+
+| Check | Enforces | What it refuses |
+|---|---|---|
+| `writeOwnerRecord` | owner rule in `ai/META-DECISIONS.md`, "Test changes", no rule point | Registered and refusing nothing yet. When built (AC-34 of the same spec) it refuses a Write, Edit or MultiEdit under `tmp/spec-design/`, where only `./le spec design` records Thomas's approvals. |
+| `bashOwnerRecord` | owner rule in `ai/META-DECISIONS.md`, "Test changes", no rule point | Registered and refusing nothing yet. When built (AC-34) it refuses a Bash line that names `tmp/spec-design/` and is not made only of readers. |
+
+<!-- source: internal/le/hookruntime/ownerrecord.go -- writeOwnerRecord, bashOwnerRecord -->
+
 
 ## PreToolUse: Bash, a subagent's identity (`internal/le/hookruntime/session.go`)
 

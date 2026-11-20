@@ -133,7 +133,7 @@ var nativeHookActions = map[string]hookAction{
 			bashWorktreeCopy, bashDestructiveGit, bashBranchMove, bashSubagentHeavy, bashRootBuild, bashLossyPipe,
 			bashRawHeavy, bashPollLoop, bashSystemTmp, bashScratch,
 			bashTestDeletion, bashGovernedWrite, preMaterializeDerived,
-			bashDocumentRead, bashAgentIdentity, bashCallBudget,
+			bashDocumentRead, bashAgentIdentity, bashOwnerRecord, bashCallBudget,
 		},
 	},
 	"pretool-writeedit": {
@@ -143,6 +143,7 @@ var nativeHookActions = map[string]hookAction{
 			writePointLanguage, writeDesignEvidence, writeSpecStatus, writeStyleGuideRead, writeDesignDoorsRead, writeSpecDoorsRead, writeSpecMechanisms, writeSpecWIP,
 			writeGoPatterns,
 			writeFilePatterns, writeWeakening, writeCISleep, writeYangDescription,
+			writeSpecReady, writeOwnerRecord,
 			writeCallBudget,
 		},
 	},
