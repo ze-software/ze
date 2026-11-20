@@ -63,6 +63,27 @@ type ValidatedArgs struct {
 	// (WithContext). It is nil on every other route, where the work
 	// lives as long as the operator's own process (route.go, Context).
 	request context.Context
+	// pipeOperations is the declared list: the operations of the typed chain
+	// that the command declares as its own, in chain order. It is nil when the
+	// chain held none. WIRING SKELETON: no route fills it yet; the one
+	// partition of the pipe chain does (docs/architecture/api/commands.md),
+	// and until it lands a handler is handed none.
+	pipeOperations []PipeOperation
+}
+
+// PipeOperation is one operation of the typed pipe chain that the command
+// declares as its own, handed to its handler instead of being rewritten into
+// the command line: the operation's name and its decoded argument words, in
+// the order typed.
+type PipeOperation struct {
+	Name string
+	Args []string
+}
+
+// PipeOperations answers a copy of the declared list, in chain order. The
+// handler computes with it before the answer exists.
+func (v ValidatedArgs) PipeOperations() []PipeOperation {
+	return slices.Clone(v.pipeOperations)
 }
 
 // Tokens answers a copy of the judged tokens, in the order they were typed. A

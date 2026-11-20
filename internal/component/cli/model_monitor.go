@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/cli/contract"
+	"github.com/ze-software/ze/internal/component/command"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -42,16 +43,17 @@ func isMonitorCommand(input string) bool {
 	return pluginserver.IsStreamingCommand(input)
 }
 
-// extractMonitorCmdArgs answers the keyword arguments after the matched
-// streaming prefix, judged against the leaves the model declares for it, the
-// same judgment the SSH streaming route applies. A refused argument starts no
-// session.
-func extractMonitorCmdArgs(input string) ([]string, error) {
+// extractMonitorCmdArgs answers the arguments after the matched streaming
+// prefix, judged against the leaves the model declares for it, the same
+// judgment the SSH streaming route applies, as the value the stream lookup
+// answers: its tokens and the operations of the typed chain the monitor
+// declares. A refused argument starts no session.
+func extractMonitorCmdArgs(input string) (command.ValidatedArgs, error) {
 	_, validated, err := pluginserver.GetStreamingHandlerForCommand(input)
 	if err != nil {
-		return nil, err
+		return command.ValidatedArgs{}, err
 	}
-	return validated.Tokens(), nil
+	return validated, nil
 }
 
 // startMonitorSessionFromInput creates a monitor session. It first checks

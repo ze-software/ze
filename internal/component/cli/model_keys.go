@@ -515,7 +515,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 				m.statusMessage = argErr.Error()
 				return m, nil
 			}
-			cmd := m.startMonitorSessionFromInput(monitorArgs, args)
+			cmd := m.startMonitorSessionFromInput(monitorArgs.Tokens(), args)
 			return m, cmd
 		}
 		m.statusMessage = "running..."
@@ -657,7 +657,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 				m.statusMessage = argErr.Error()
 				return m, nil
 			}
-			cmd := m.startMonitorSessionFromInput(monitorArgs, input)
+			cmd := m.startMonitorSessionFromInput(monitorArgs.Tokens(), input)
 			return m, cmd
 		}
 		m.statusMessage = "running..."
