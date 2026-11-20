@@ -26,7 +26,7 @@ func productHostUniq(index int) string { return fmt.Sprintf("%08x", index+1) }
 func startProductCapacity(ctx context.Context, lab interoplab.CheckerLab) error {
 	// On the client's side of the link, as the discovery capture is
 	// (startProductDiscovery says why).
-	command := `cd /tmp; rm -f product-capacity.done product-capacity.log product-capacity.pcap; timeout -s INT 120 tcpdump -U -n -s 512 -i eth0 -c 128 -w product-capacity.pcap 'ether proto 0x8863 or (vlan 100 and ether proto 0x8863)' > product-capacity.log 2>&1 & child=$!; echo "$child" > product-capacity.pid; wait "$child"; status=$?; echo "$status" > product-capacity.done`
+	command := `cd /tmp; rm -f product-capacity.done product-capacity.log product-capacity.pcap; timeout -s INT 120 tcpdump --immediate-mode -U -n -s 512 -i eth0 -c 128 -w product-capacity.pcap 'ether proto 0x8863 or (vlan 100 and ether proto 0x8863)' > product-capacity.log 2>&1 & child=$!; echo "$child" > product-capacity.pid; wait "$child"; status=$?; echo "$status" > product-capacity.done`
 	if err := lab.ExecDetached(ctx, clientPeer, []string{"sh", "-c", command}, nil); err != nil {
 		return err
 	}

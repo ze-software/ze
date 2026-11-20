@@ -25,9 +25,11 @@ import (
 // directions. The capture and its pid, done and log files live in the
 // client's own /tmp: tcpdump chowns the savefile, which the 9p /evidence
 // share refuses. The client image is BusyBox, whose timeout takes
-// "-s INT 600".
+// "-s INT 600". --immediate-mode hands each frame to tcpdump as it arrives:
+// in buffered mode the frames of the last second sat in the kernel when the
+// join's SIGINT came, and tcpdump exited having written none of them.
 func startProductDiscovery(ctx context.Context, lab interoplab.CheckerLab) error {
-	command := `cd /tmp; rm -f product-discovery.done product-discovery.log product-discovery.pcap; timeout -s INT 600 tcpdump -U -n -s 512 -i eth0 -c 2048 -w product-discovery.pcap 'ether proto 0x8863 or (vlan 100 and ether proto 0x8863)' > product-discovery.log 2>&1 & child=$!; echo "$child" > product-discovery.pid; wait "$child"; status=$?; echo "$status" > product-discovery.done`
+	command := `cd /tmp; rm -f product-discovery.done product-discovery.log product-discovery.pcap; timeout -s INT 600 tcpdump --immediate-mode -U -n -s 512 -i eth0 -c 2048 -w product-discovery.pcap 'ether proto 0x8863 or (vlan 100 and ether proto 0x8863)' > product-discovery.log 2>&1 & child=$!; echo "$child" > product-discovery.pid; wait "$child"; status=$?; echo "$status" > product-discovery.done`
 	if err := lab.ExecDetached(ctx, clientPeer, []string{"sh", "-c", command}, nil); err != nil {
 		return err
 	}
