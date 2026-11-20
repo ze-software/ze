@@ -197,78 +197,64 @@ func TestWordsPipeOperatorsFiltered(t *testing.T) {
 	}
 }
 
-// TestRunCompletionTreeCoversEveryCanonicalVerb asserts that `ze completion
-// words run <verb>` walks the tree rooted at that verb, for every verb
-// command.Verbs holds, and consumes the verb from the path it returns.
+// TestCompletionTreeCoversEveryCanonicalVerb asserts that `ze completion words
+// <verb>` walks the tree rooted at that verb, for every verb command.Verbs
+// holds, and consumes the verb from the path it returns. This is what the
+// shell asks when an operator types `ze <verb> <TAB>`.
 //
-// The assertion is against the registry rather than a list of words. The eight
-// words this function held until 2026-09-14 left update, commit, create, send,
-// debug and cache walking the absolute tree with the verb still on the path,
-// so a verb added to the vocabulary completed differently from its siblings
-// until somebody noticed.
-func TestRunCompletionTreeCoversEveryCanonicalVerb(t *testing.T) {
+// The assertion is against the registry rather than a list of words. Until
+// 2026-11-20 only `show` was answered here and every other verb completed
+// solely behind the removed `ze run` wrapper, so `ze clear <TAB>` offered
+// nothing.
+func TestCompletionTreeCoversEveryCanonicalVerb(t *testing.T) {
 	for verb := range command.Verbs {
-		tree, rest, err := runCompletionTree([]string{verb, "alpha"})
+		// A registered root of the same spelling owns the word, as in dispatch.
+		if _, found, err := rootCommandTree(verb); err != nil {
+			t.Fatalf("rootCommandTree(%q): %v", verb, err)
+		} else if found {
+			continue
+		}
+		tree, rest, err := completionTree([]string{verb, "alpha"})
 		if err != nil {
-			t.Fatalf("runCompletionTree(%q): %v", verb, err)
+			t.Fatalf("completionTree(%q): %v", verb, err)
 		}
 		if tree == nil {
-			t.Errorf("runCompletionTree(%q) returned no tree", verb)
+			t.Errorf("completionTree(%q) returned no tree", verb)
 			continue
 		}
 		if len(rest) != 1 || rest[0] != "alpha" {
-			t.Errorf("runCompletionTree(%q) rest = %v, want [alpha]: the verb roots the tree, so it leaves the path", verb, rest)
+			t.Errorf("completionTree(%q) rest = %v, want [alpha]: the verb roots the tree, so it leaves the path", verb, rest)
 		}
 	}
 }
 
-// TestRunCompletionTreeKeepsANonVerbOnThePath asserts the other half: a first
-// word the registry does not hold walks the absolute tree with the whole path
-// intact, so `rib` keeps its shorthand and an unknown word is not silently
-// treated as a verb root.
-func TestRunCompletionTreeKeepsANonVerbOnThePath(t *testing.T) {
-	_, rest, err := runCompletionTree([]string{"not-a-verb", "alpha"})
-	if err != nil {
-		t.Fatal(err)
+// VALIDATES: `ze clear <TAB>` offers nouns under clear through the real
+// entry point, writeWords, with no `run` word in front.
+// PREVENTS: a verb other than show completing nothing in the shell.
+func TestWordsCompletesAVerbOtherThanShow(t *testing.T) {
+	var buf bytes.Buffer
+	if code := writeWords(&buf, []string{command.VerbClear, ""}); code != 0 {
+		t.Fatalf("writeWords(clear): exit %d", code)
 	}
-	if len(rest) != 2 || rest[0] != "not-a-verb" {
-		t.Errorf("rest = %v, want the whole path: not-a-verb is no canonical verb", rest)
-	}
-
-	_, ribRest, err := runCompletionTree([]string{nameRIB, "alpha"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := []string{"bgp", nameRIB, "alpha"}
-	if len(ribRest) != len(want) {
-		t.Fatalf("rib rest = %v, want %v", ribRest, want)
-	}
-	for i := range want {
-		if ribRest[i] != want[i] {
-			t.Errorf("rib rest = %v, want %v", ribRest, want)
-			break
-		}
+	// The nouns under clear depend on which plugins this binary registers, so
+	// the assertion is that the verb's tree answers, not which noun it holds.
+	if !strings.Contains(buf.String(), "\t") {
+		t.Errorf("`ze completion words clear` offers nothing:\n%s", buf.String())
 	}
 }
 
-// VALIDATES: `ze completion words run validate ...` still walks the absolute
-// tree with the whole path, after runCompletionTree stopped naming `validate`
-// in a case list of its own.
-// PREVENTS: a silent regression from that removal. `validate` is not a
-// canonical verb, so command.IsVerb refuses it and the non-verb branch answers.
-// Both the verb-relative tree and the absolute tree are built from the same
-// allCLIRPCs() population, and `validate config` registers through
-// MustRegisterLocalData rather than as an RPC, so neither tree ever held it:
-// the two routes answer the same nothing, and this test pins the path form.
-func TestRunCompletionTreeKeepsValidateOnThePath(t *testing.T) {
-	if command.IsVerb("validate") {
-		t.Fatal("validate is not a canonical verb; the registry must not hold it")
-	}
-	_, rest, err := runCompletionTree([]string{"validate", "config"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(rest) != 2 || rest[0] != "validate" || rest[1] != "config" {
-		t.Errorf("rest = %v, want [validate config]: a non-verb keeps its whole path", rest)
+// VALIDATES: `run` is no completion subject. `ze run` was replaced by direct
+// verb dispatch, so the shell has nothing to offer after it.
+// PREVENTS: completion leading an operator into a command that only prints a
+// deprecation error. A word that is neither a root nor a verb answers nothing.
+func TestCompletionTreeAnswersNothingForRun(t *testing.T) {
+	for _, word := range []string{"run", "not-a-verb"} {
+		tree, _, err := completionTree([]string{word, command.VerbShow})
+		if err != nil {
+			t.Fatalf("completionTree(%q): %v", word, err)
+		}
+		if tree != nil {
+			t.Errorf("completionTree(%q) returned a tree: the word names no command", word)
+		}
 	}
 }

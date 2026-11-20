@@ -19,61 +19,61 @@
 option=timeout:value=120s
 
 # The renamed commands sit under the show and request verbs.
-cmd=foreground:seq=1:exec=ze completion words run show
+cmd=foreground:seq=1:exec=ze completion words show
 expect=exit:code=0
 expect=stdout:pattern=(?m)^diagnostic\t
 expect=stdout:pattern=(?m)^skills\t
 expect=stdout:pattern=(?m)^skill\t
 
-cmd=foreground:seq=2:exec=ze completion words run request
+cmd=foreground:seq=2:exec=ze completion words request
 expect=exit:code=0
 expect=stdout:pattern=(?m)^support\t
 expect=stdout:pattern=(?m)^wireguard\t
 
 # The debug profile commands under set, delete, clear and show.
-cmd=foreground:seq=3:exec=ze completion words run set debug
+cmd=foreground:seq=3:exec=ze completion words set debug
 expect=exit:code=0
 expect=stdout:pattern=(?m)^module\t
 expect=stdout:pattern=(?m)^timeout\t
 expect=stdout:pattern=(?m)^profile\t
 expect=stdout:pattern=(?m)^active\t
 
-cmd=foreground:seq=4:exec=ze completion words run set debug profile
+cmd=foreground:seq=4:exec=ze completion words set debug profile
 expect=exit:code=0
 expect=stdout:pattern=(?m)^name\t
 
-cmd=foreground:seq=5:exec=ze completion words run set debug active
+cmd=foreground:seq=5:exec=ze completion words set debug active
 expect=exit:code=0
 expect=stdout:pattern=(?m)^name\t
 
-cmd=foreground:seq=6:exec=ze completion words run delete debug
+cmd=foreground:seq=6:exec=ze completion words delete debug
 expect=exit:code=0
 expect=stdout:pattern=(?m)^module\t
 expect=stdout:pattern=(?m)^profile\t
 
-cmd=foreground:seq=7:exec=ze completion words run delete debug profile
+cmd=foreground:seq=7:exec=ze completion words delete debug profile
 expect=exit:code=0
 expect=stdout:pattern=(?m)^name\t
 
-cmd=foreground:seq=8:exec=ze completion words run clear
+cmd=foreground:seq=8:exec=ze completion words clear
 expect=exit:code=0
 expect=stdout:pattern=(?m)^debug\tClear the default debug profile\.$
 
-cmd=foreground:seq=9:exec=ze completion words run show debug
+cmd=foreground:seq=9:exec=ze completion words show debug
 expect=exit:code=0
 expect=stdout:pattern=(?m)^profile\t
 
 # The commands under request wireguard, show config and request support.
-cmd=foreground:seq=10:exec=ze completion words run request wireguard
+cmd=foreground:seq=10:exec=ze completion words request wireguard
 expect=exit:code=0
 expect=stdout:pattern=(?m)^keypair\t
 
-cmd=foreground:seq=11:exec=ze completion words run show config
+cmd=foreground:seq=11:exec=ze completion words show config
 expect=exit:code=0
 expect=stdout:pattern=(?m)^graph\t
 expect=stdout:pattern=(?m)^validation\t
 
-cmd=foreground:seq=12:exec=ze completion words run request support
+cmd=foreground:seq=12:exec=ze completion words request support
 expect=exit:code=0
 expect=stdout:pattern=(?m)^archive\t
 

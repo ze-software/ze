@@ -27,8 +27,8 @@ import (
 //
 // Usage:
 //
-//	ze completion words show [path...]       — read-only command tree under `ze show`
-//	ze completion words run [command path...] — daemon command tree used by `ze run`
+//	ze completion words <verb> [path...] — the command tree under `ze <verb>`
+//	ze completion words <root> [path...] — the sub-verbs a root command registers
 func words(args []string) int {
 	return writeWords(os.Stdout, args)
 }
@@ -79,10 +79,6 @@ func writeCompletionRecord(w io.Writer, candidate, summary string) error {
 	return script.WriteRecord(w, candidate, summary)
 }
 
-// nameRIB is the BGP RIB that the "rib" shorthand expands to. The verb this
-// file names more than once is command.VerbShow, the canonical spelling.
-const nameRIB = "rib"
-
 // completionTree answers the tree args complete against and the path left to
 // walk in it. A nil tree with no error means args name nothing completable.
 // The error is the YANG loader's refusal of the schema.
@@ -94,19 +90,21 @@ func completionTree(args []string) (*command.Node, []string, error) {
 	if len(args) == 0 {
 		return nil, nil, nil
 	}
-	if args[0] == "run" {
-		return runCompletionTree(args[1:])
-	}
-	if args[0] == command.VerbShow {
-		tree, err := cli.BuildVerbCommandTree(command.VerbShow)
-		return tree, args[1:], err
-	}
+	// A registered root wins over a verb of the same spelling, as it does in
+	// dispatch (`ze resolve` is both).
 	tree, found, err := rootCommandTree(args[0])
 	if err != nil {
 		return nil, nil, err
 	}
 	if found {
 		return tree, args[1:], nil
+	}
+	// A canonical verb roots a tree of its own, so completion walks that tree
+	// relative to the verb. The set is command.Verbs rather than a list written
+	// here, so a verb added to the vocabulary completes without a second edit.
+	if command.IsVerb(args[0]) {
+		tree, err := cli.BuildVerbCommandTree(args[0])
+		return tree, args[1:], err
 	}
 	return nil, nil, nil
 }
@@ -220,59 +218,6 @@ func wireEnvKeyHints(root *command.Node) {
 	for _, leaf := range []string{"get", "registered"} {
 		if node, ok := root.Children[leaf]; ok {
 			node.ValueHints = command.EnvValueHints
-		}
-	}
-}
-
-// runCompletionTree answers the daemon command tree `ze run` completes
-// against and the path left to walk in it. The error is the YANG loader's
-// refusal of the schema.
-func runCompletionTree(path []string) (*command.Node, []string, error) {
-	if len(path) == 0 {
-		tree, err := cli.BuildCommandTree(false)
-		return tree, nil, err
-	}
-	if path[0] == nameRIB {
-		tree, err := cli.BuildVerbCommandTree(command.VerbShow)
-		if err != nil {
-			return nil, nil, err
-		}
-		addRIBRoutesAlias(tree)
-		return tree, append([]string{"bgp", nameRIB}, path[1:]...), nil
-	}
-	// A canonical verb roots a tree of its own, so completion walks that tree
-	// relative to the verb. The set is command.Verbs rather than a list written
-	// here, so a verb added to the vocabulary completes without a second edit.
-	if command.IsVerb(path[0]) {
-		tree, err := cli.BuildVerbCommandTree(path[0])
-		return tree, path[1:], err
-	}
-	tree, err := cli.BuildCommandTree(false)
-	return tree, path, err
-}
-
-func addRIBRoutesAlias(tree *command.Node) {
-	if tree == nil {
-		return
-	}
-	current := tree
-	for _, name := range []string{"bgp", nameRIB} {
-		if current.Children == nil {
-			return
-		}
-		child := current.Children[name]
-		if child == nil {
-			return
-		}
-		current = child
-	}
-	if current.Children == nil {
-		current.Children = make(map[string]*command.Node, 1)
-	}
-	if current.Children["routes"] == nil {
-		current.Children["routes"] = &command.Node{
-			Name:      "routes",
-			ShortHelp: "Query routes in the BGP RIB",
 		}
 	}
 }

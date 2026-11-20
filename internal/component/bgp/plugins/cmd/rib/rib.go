@@ -85,7 +85,7 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-rib", Handler: forwardRibRoutes, PluginCommand: cmdRibShow, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-best", Handler: forwardRibBest, PluginCommand: cmdRibBest},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-best-status", Handler: forwardRibBestStatus, PluginCommand: cmdRibBestStatus},
-		// Write commands (exposed via "ze run" only)
+		// Write commands (never under "ze show")
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-clear-in", Handler: forwardRibClearIn, PluginCommand: cmdRibClearIn, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-clear-out", Handler: forwardRibClearOut, PluginCommand: cmdRibClearOut, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:rib-clear-out-excluding-owner", Handler: forwardRibClearOutExcludingOwner, PluginCommand: cmdRibClearOutExcludingOwner},

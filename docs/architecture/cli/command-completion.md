@@ -364,6 +364,18 @@ hand-written arm for what the registry does not hold: file names after
 `config`, `exabgp` and `signal`, module names after `schema show`, plugin names
 after `plugin`, and the descriptions of their verbs.
 <!-- source: internal/plugins/completion/words.go -- rootSubVerbs, rootCommandTree -->
+
+A command verb (`show`, `set`, `clear`, `request` and the rest of
+`command.Verbs`) completes the same way: `ze completion words <verb> [path...]`
+walks the command tree rooted at that verb, so `ze clear <TAB>` offers what
+`ze clear` can run. A root registered under a verb's spelling (`resolve`) keeps
+the word, as it does in dispatch. `run` is not a completion subject: `ze run`
+was replaced by direct verb dispatch and only prints where to go instead.
+bash, zsh and nushell reach a typed verb through the same default arm as a
+root. fish has a rule for `show` only, and no script offers a verb other than
+`show` as a first word.
+<!-- source: internal/plugins/completion/words.go -- completionTree -->
+<!-- source: internal/plugins/completion/root_commands.go -- shellRootCommands -->
 <!-- source: internal/plugins/completion/root_commands.go -- shellRootsWithSubVerbs, fishRootSubVerbLines -->
 <!-- source: internal/plugins/completion/bash.go -- bashScript -->
 <!-- source: internal/plugins/completion/zsh.go -- zshScript -->

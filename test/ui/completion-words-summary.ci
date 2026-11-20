@@ -13,7 +13,7 @@
 #       (internal/component/bgp/plugins/cmd/rib/yang/ze-rib-cmd.yang), so the
 #       two texts are distinguishable in the record.
 
-cmd=foreground:seq=1:exec=ze completion words run show bgp rib
+cmd=foreground:seq=1:exec=ze completion words show bgp rib
 expect=exit:code=0
 
 # One record, whole: the candidate, a tab, the DECLARED SUMMARY, end of line.

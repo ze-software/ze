@@ -3,7 +3,7 @@
 # PREVENTS: ze-irr-cmd.yang (the irr owner's command tree) removed or broken
 #           without detection
 
-cmd=foreground:seq=1:exec=ze completion words run update irr
+cmd=foreground:seq=1:exec=ze completion words update irr
 expect=exit:code=0
 expect=stdout:contains=all
 expect=stdout:contains=asn

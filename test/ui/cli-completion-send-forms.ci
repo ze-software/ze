@@ -19,15 +19,15 @@
 # and a value a command runs without is reached through its own keyword
 # (ai/rules/cli.md). A bare `open` is refused.
 
-cmd=foreground:seq=1:exec=ze completion words run send
+cmd=foreground:seq=1:exec=ze completion words send
 expect=exit:code=0
 expect=stdout:contains=bgp
 
-cmd=foreground:seq=2:exec=ze completion words run send bgp
+cmd=foreground:seq=2:exec=ze completion words send bgp
 expect=exit:code=0
 expect=stdout:contains=raw
 
-cmd=foreground:seq=3:exec=ze completion words run send bgp raw
+cmd=foreground:seq=3:exec=ze completion words send bgp raw
 expect=exit:code=0
 expect=stdout:contains=selector
 expect=stdout:contains=hex
@@ -41,7 +41,7 @@ cmd=foreground:seq=4:exec=ze send bgp raw help
 expect=exit:code=0
 expect=stderr:contains=ze send bgp <selector> raw <hex|b64> <data> [type <open|update|notification|keepalive|route-refresh>]
 
-cmd=foreground:seq=5:exec=ze completion words run send bgp update
+cmd=foreground:seq=5:exec=ze completion words send bgp update
 expect=exit:code=0
 expect=stdout:contains=text
 expect=stdout:contains=hex
@@ -52,7 +52,7 @@ cmd=foreground:seq=6:exec=ze send bgp update help
 expect=exit:code=0
 expect=stderr:contains=ze send bgp <selector> update <text|hex|b64|cursor>
 
-cmd=foreground:seq=7:exec=ze completion words run send bgp cached
+cmd=foreground:seq=7:exec=ze completion words send bgp cached
 expect=exit:code=0
 expect=stdout:contains=id
 expect=stdout:contains=selector

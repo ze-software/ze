@@ -2,7 +2,7 @@
 # VALIDATES: YANG command schema provides tab-completion for show bgp irr
 # PREVENTS: ze-filter-irr-cmd.yang removed or broken without detection
 
-cmd=foreground:seq=1:exec=ze completion words run show bgp irr
+cmd=foreground:seq=1:exec=ze completion words show bgp irr
 expect=exit:code=0
 expect=stdout:contains=prefix
 expect=stdout:contains=check

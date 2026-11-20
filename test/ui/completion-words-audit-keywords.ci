@@ -1,7 +1,7 @@
 # Test: ze completion words -- ArgDefs keyword suggestions for show audit
 # VALIDATES: AC-6 -- YANG leaf names appear as keyword suggestions
 
-cmd=foreground:seq=1:exec=ze completion words run show audit
+cmd=foreground:seq=1:exec=ze completion words show audit
 expect=exit:code=0
 expect=stdout:contains=action
 expect=stdout:contains=count

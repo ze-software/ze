@@ -1,7 +1,7 @@
 # Test: ze completion words -- ValueHints include families for rib node
 # VALIDATES: AC-2 -- rib node shows address families via ValueHints
 
-cmd=foreground:seq=1:exec=ze completion words run rib
+cmd=foreground:seq=1:exec=ze completion words show bgp rib
 expect=exit:code=0
 expect=stdout:contains=ipv4/unicast
 expect=stdout:contains=ipv6/unicast

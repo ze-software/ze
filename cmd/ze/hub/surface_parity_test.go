@@ -275,7 +275,7 @@ func completionOffers(complete func(string) []cli.Completion, path string) bool 
 	return false
 }
 
-// shellWords asks `ze completion words run <prefix>` and keeps each answer.
+// shellWords asks `ze completion words <prefix>` and keeps each answer.
 type shellWords struct {
 	t     *testing.T
 	seen  map[string][]string
@@ -303,7 +303,7 @@ func (w *shellWords) offers(path string) bool {
 	if slices.Contains(candidates, words[len(words)-1]) {
 		return true
 	}
-	// A path at an offline root is a `ze <root>` command, never a `ze run`
+	// A path at an offline root is a `ze <root>` command, never a `ze <verb>`
 	// one, so the root's own completion is the shell's listing of it.
 	if command.IsVerb(words[0]) {
 		return false
@@ -311,15 +311,15 @@ func (w *shellWords) offers(path string) bool {
 	return w.rootOffers(words)
 }
 
-// ask answers the first field of each record `ze completion words run
-// <prefix>` writes: the daemon command tree `ze run` completes.
+// ask answers the first field of each record `ze completion words <prefix>`
+// writes: what the shell offers after `ze <prefix>`, the verb's command tree.
 func (w *shellWords) ask(prefix []string) []string {
 	w.t.Helper()
-	return completionRecords(w.capture(append([]string{"words", "run"}, prefix...)))
+	return completionRecords(w.capture(append([]string{"words"}, prefix...)))
 }
 
 // rootOffers answers whether shell completion offers path as a command at an
-// offline root (`ze doctor`): a root is not a verb, so `ze run` never
+// offline root (`ze doctor`): a root is not a verb, so no verb tree
 // completes it. Its first word is one of the root names the generated bash
 // script lists (`local commands="..."`, the registry's visible roots), and
 // each later word is offered by `ze completion words <root> ...`, the root's
