@@ -38,7 +38,31 @@ Section 4.3. `ppp` package green; three 4.3-3 records taken. Not yet
 re-checked: `./le rfc check` for audit verdicts this change staled (run it
 first and re-judge any RFC 1661 row it names).
 
-## Waiting on Thomas: the interop proof, (a) or (b)
+## Thomas chose (a) (2026-11-20, "ok" to the corrected option)
+
+The spec's interop plan is rewritten to (a) and recorded as C-3; the two
+IPv6 scenarios are listed in `spec-l2tp-ipv6-subscriber`. Scenario 3 is a NEW
+relay + FRR topology (`02-ppp-bgp-redistribute-frr` has no relay). The two
+IPv6 `.ci` files became IPv4 forms (`ppp-ncp-terminate-after-up.ci` IPCP,
+`ppp-ncp-protocol-reject-ipcp.ci`). Next, in order:
+
+1. Re-quote the eight Design documents rows whose quoted sentences the
+   implemented departures and page edits rewrote (11.3 x3, bng-1 teardown,
+   guide Redistribute x2, core-design Redistribute Origin ASN, implementation
+   guide 22.1): `./le spec design check` names them. Quote each page as it
+   now stands; a departs row whose departure is implemented becomes the
+   agrees row for the new sentence, per the template's vocabulary.
+2. Quote pppd 2.5.5's `noip` binding (`ipcp.c` option table) into A-4.
+3. `ze-design-judge`, then Thomas re-runs `./le spec design approve` (digest
+   changed from ed8980599aff).
+4. Build phase 5: the three scenarios, the CCP relay marker, the two `.ci`,
+   their revert walks; then `/ze-close`.
+
+`spec-l2tp-ipv6-subscriber` now fails the spec validator on 13 sections its
+short form never had; the entry added there may need to move to its journal
+or the spec be filled in.
+
+## Earlier: the interop question as put to Thomas
 
 Ze has no dual-stack pool: the only pool handler declines IPv6
 (`plugins/pool/register.go` `poolPlugin.handle`: "IPv6 not supported by

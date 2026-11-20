@@ -80,6 +80,22 @@ server that the RA's M and O flags point subscribers at can delegate nothing.
   `internal/le/interoplab/pppoe/check_ipv6cp.go`). They are written against the
   real target wire behavior and fail today with `errIPv6CPNeverEngaged`; this
   spec is what turns them from a documented block into a proof.
+- Run the two L2TP interop scenarios moved here from
+  `plan/release/fixes/spec-ppp-ncp-independent-lifetime.md` on 2026-11-20
+  (Thomas's decision, its C-3): they need a pool that accepts IPv6, so they
+  cannot run before this spec. Both go in `test/interop-l2tp/scenarios/`, with
+  xl2tpd and pppd 2.5.5 dialling Ze's dual-stack LNS through the relay, and both
+  need IPv6 enabled on pppN at creation (`net.ipv6.conf.default.disable_ipv6=0`
+  on the Ze and LAC containers, as `ipv6SessionArguments` does in the PPPoE lab).
+  - `l2tp-lns-ipv4-only-pppd-rejects-ipv6cp`: pppd with `noipv6` Protocol-Rejects
+    the IPv6CP Ze offers (0x8057); the wire log shows no IPv6CP from Ze after it,
+    and the session stays up on IPv4 past a short `ncp timeout`.
+  - `l2tp-lns-pppd-ipv6cp-terminate-after-up`: after up, the relay injects an
+    IPv6CP Terminate-Request; Ze Terminate-Acks it, the IPv6 address and the
+    Framed-IPv6-Route prefix leave pppN and `show subscriber id <id> detail`
+    loses `ipv6-interface-id` while IPv4 stays; pppd renegotiates IPv6CP and all
+    three return. It needs a relay marker for the IPv6CP Terminate-Request and a
+    lab RADIUS peer that returns a Framed-IPv6-Route.
 
 ## What already exists and must not be rebuilt
 
