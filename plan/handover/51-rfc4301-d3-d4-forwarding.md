@@ -82,10 +82,11 @@ full status and evidence; this page is the short form. Nothing is pushed.
 | # | Decision | Recommendation |
 |---|---|---|
 | 1 | Map a forwarded ICMP error an operator out/both DISCARD covers: (a) allow at order-1 plus order refusals, (b) refuse at commit, (c) extend K1 so `__xfrm_route_forward` tries `xfrm_out_fwd_icmp` on `-EPERM` | Decided 2026-11-20: (c) |
-| 2 | A commit-time notice on a port-scoped operator BYPASS until K3's capability bit exists | yes, a notice, not a refusal |
-| 3 | The 13 phase-4 Mobility Header walks: their list was lost; 15 untagged candidates exist | rebuild as one surviving-mutant check per producer guard |
-| 4 | `bypass-fragment-forgery`: its target (the node-wide IKE bypass) is gone | retarget to an operator port-scoped BYPASS, in a K1/K3 lab |
-| 5 | Carried: VPP SPD entry interface binding; RFC 4301 sign-off scope in rfcgate-6; decision 3 at a boot catch-all failure | as in handover 50 |
+| 2 | A commit-time notice on a port-scoped operator BYPASS until K3's capability bit exists | Decided 2026-11-20: "refusal until done" (`a29420771d`); the bypass is projected where K3 gathers fragments (`1dc1323b86`) |
+| 3 | The 13 phase-4 Mobility Header walks: their list was lost; 15 untagged candidates exist | Decided 2026-11-20: rebuild as one surviving-mutant check per producer guard, from the 15 candidates |
+| 4 | `bypass-fragment-forgery`: its target (the node-wide IKE bypass) is gone | Decided 2026-11-20: retarget to an operator port-scoped BYPASS on Ze's kernel in a K1/K3 lab, proving K3's reassembly defeats forged fragments on the forward path |
+| 5 | Carried: VPP SPD entry interface binding; RFC 4301 sign-off scope in rfcgate-6; decision 3 at a boot catch-all failure | Decided 2026-11-20: (5a) a VPP operator entry binds to every interface Ze's SPD is attached to (VPP installs none today: owed); (5b) the sign-off stays in rfcgate-6, this spec supplies evidence; (5c) decision 3 covers a boot catch-all failure (today it fails the apply: owed), and the doctor finding states the default discard is not in force |
+| - | The `break-df-copy-out` red walk | Owed: blocked only on another session's command-pipe change that does not compile (`plugin/server` `hub.go`, `plugins/mrt`) |
 | 6 | A BYPASS's FWD transit gate rejects a consistent forwarded ICMP error from a Child SA: (a) K1 bit 7, the FWD check takes `xfrm_in_fwd_icmp`'s payload policy past a template-free ALLOW carrying `XFRM_POLICY_ICMP`, Ze sets that flag on every gate; (b) no FWD gate where a BYPASS would cover Child SA traffic; (c) a template on the gate | Decided 2026-11-20: (a) |
 
 ## Environment notes

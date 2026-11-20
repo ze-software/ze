@@ -68,7 +68,7 @@ The judge's approvals are recorded.
 |---|---|
 | Baselines `tunnel-df-treatment`, `spd-discard-entry`, `pad-subtree-identity`, `mobike-initiator`, `mobike-responder` | PASS |
 | Red walks `break-df-clear`, `break-spd-out`, `break-spd-in`, `break-pad-true`, `break-pad-false` | red at the predicted assertions: df-clear 1 and 3; spd-out 4; spd-in 5; pad-true 7; pad-false 1 |
-| Red walk `break-df-copy` | owed. The first break was vacuous: it also set the flag on the inbound state, and the kernel refused the SA. The outbound-only break is `break-df-copy-out.patch` in `tmp/session/2026-11-20-035940/scratch`, not yet run: the docker host's containerd store went read-only when the disk filled. The fix is `colima delete --profile ze --force` then `./le setup docker host start`, which is Thomas's call |
+| Red walk `break-df-copy` | owed. The first break was vacuous: it also set the flag on the inbound state, and the kernel refused the SA. The outbound-only break is `break-df-copy-out.patch` in `tmp/session/2026-11-20-035940/scratch`, not yet run: the docker host's containerd store went read-only when the disk filled. The fix is `colima delete --profile ze --force` then `./le setup docker host start`, which is Thomas's call. Later on 2026-11-20 the walk was blocked only on another session's command-pipe change that does not compile (`plugin/server` `hub.go`, `plugins/mrt`) |
 
 ### Open question on `516671704b`
 
@@ -85,7 +85,7 @@ is owed, supersedes the question.
 | A | Bit 7's flag is set on the FWD gates only, not the OUT gates | an OUT gate carrying the flag would let stock `icmp_route_lookup` source Ze's own error from the far end | DECIDED 2026-11-20, confirmed: `XFRM_POLICY_ICMP` on FWD policies only, never on an OUT gate or OUT half |
 | B | An `in` BYPASS's FWD decision (a template-free allow at the operator's order) can match a forwarded ICMP error by its own headers too, which the bit-7 ruling does not cover | RFC 4301 Section 5.2 step 4 requires the payload match | DECIDED 2026-11-20, "flag it too": the FWD decision of an in or both BYPASS carries the flag as well; a DISCARD's FWD decision does not. Proven by `TestRFC4301ForwardedICMPPastBypassDecisionUsesPayloadPolicy` |
 | C | The old draft `ipsec-spd-forward-bypass-refused.ci` | the refusal path is proven by the `a29420771d` unit tests | DECIDED 2026-11-20: delete it (done); the guest test is `test/ipsec/ipsec-spd-forward-bypass-projected.ci` |
-| 3, 4, 5 | As in the Open decisions table below | unchanged | unchanged |
+| 3, 4, 5 | As in the Open decisions table below | Thomas's "ok" to the recommendations, 2026-11-20 | DECIDED 2026-11-20; work in "Owed next" items 11 to 14 |
 
 ### Owed next, in order
 
@@ -103,6 +103,22 @@ is owed, supersedes the question.
 8. The AC-13 freshness check.
 9. The five rows of "Summary rows that disagree with this spec".
 10. Independent review, then closure.
+11. Decision 3: rebuild the 13 Mobility Header mutation walks as one
+    surviving-mutant check per producer guard, from the 15 untagged candidates.
+12. Decision 4: retarget `bypass-fragment-forgery` to an operator port-scoped
+    BYPASS on Ze's kernel in a K1/K3 lab, proving K3's reassembly defeats forged
+    fragments on the forward path (`1dc1323b86` projects such a bypass).
+13. Decision 5a: the VPP backend installs no operator SPD entries today; make it
+    install each one on every interface Ze's SPD is attached to.
+14. Decision 5c: a catch-all install failure at boot fails the apply today
+    (`installUnmatched`); change it to install what it can, log at Error, and
+    report a doctor finding that states the default discard is not in force.
+15. The `break-df-copy-out` walk: blocked only on another session's command-pipe
+    change that does not compile (`plugin/server` `hub.go`, `plugins/mrt`).
+
+Decision 5b implies no work here: the RFC 4301 extraction sign-off stays in
+`plan/release/validation/spec-rfcgate-6-supported-extraction-signoff.md`, and
+this spec supplies the evidence.
 
 ## Historical continuation checkpoint, 2026-11-19 (evening)
 
@@ -156,9 +172,9 @@ None of these is answered by the RFC text, an agreed design or
 |---|---|---|---|
 | 1 | Mapping a forwarded ICMP error that an operator out or both DISCARD covers | DECIDED 2026-11-20, option (c), the kernel route; recorded in "Owner decisions recorded through 2026-11-19" | none left |
 | 2 | A commit-time notice for a port-scoped operator BYPASS, which is not projected onto the forward path until K3's capability bit 3 exists | DECIDED 2026-11-20, "refusal until done": the commit refuses it, not a notice, until the forward-path stateful fragment check is done (`a29420771d`); recorded in "Owner decisions recorded through 2026-11-19" | none left |
-| 3 | The 13 phase-4 Mobility Header mutation walks: the list was lost | rebuild it from the 15 untagged candidate tests that exist, or define a new list | none recorded |
-| 4 | The premise of `bypass-fragment-forgery` after D-4: no node-wide IKE bypass exists to forge fragments against | retarget it to an operator port-scoped BYPASS (AC-2) in a K1/K3 lab | retarget |
-| 5 | Carried from the handover: the interface binding of VPP SPD entries; the RFC 4301 sign-off scope in `plan/release/validation/spec-rfcgate-6-supported-extraction-signoff.md`; whether decision 3 covers a catch-all install failure at boot | as recorded in the handover | none recorded |
+| 3 | The 13 phase-4 Mobility Header mutation walks: the list was lost | DECIDED 2026-11-20: rebuild them as one surviving-mutant check per producer guard, from the 15 untagged candidate tests | none left |
+| 4 | The premise of `bypass-fragment-forgery` after D-4: no node-wide IKE bypass exists to forge fragments against | DECIDED 2026-11-20: retarget it to an operator port-scoped BYPASS on Ze's kernel (K1/K3 lab); it proves K3's reassembly defeats forged fragments on the forward path, now that `1dc1323b86` projects such a bypass | none left |
+| 5 | Carried from the handover: the interface binding of VPP SPD entries; the RFC 4301 sign-off scope in `plan/release/validation/spec-rfcgate-6-supported-extraction-signoff.md`; whether decision 3 covers a catch-all install failure at boot | DECIDED 2026-11-20: (5a) an operator SPD entry on VPP binds to every interface Ze's SPD is attached to, the node-wide meaning it has on XFRM; (5b) the sign-off stays in rfcgate-6's scope, this spec supplies the evidence; (5c) decision 3 covers a catch-all install failure at boot, and the doctor finding states that the default discard is not in force | none left |
 
 ### Tooling defects found
 
@@ -846,7 +862,24 @@ Child SA traffic (it narrows AC-16), and a template on the gate (not viable:
 `xfrm_state_ok` needs an exact tunnel destination). The design page records it in
 "Transit traffic".
 
-Two corrections were recorded with it. The `40cf3cfaec` patch is not defective:
+Later on 2026-11-20 Thomas answered "ok" to the recommendations for decisions
+3, 4 and 5. Decision 3: the 13 lost phase-4 Mobility Header mutation walks are
+rebuilt as one surviving-mutant check per producer guard, from the 15 untagged
+candidate tests. Decision 4: `bypass-fragment-forgery` is retargeted to an
+operator port-scoped BYPASS on Ze's kernel in a K1/K3 lab, and proves K3's
+reassembly defeats forged fragments on the forward path now that `1dc1323b86`
+projects such a bypass. Decision 5a: an operator SPD entry on VPP binds to every
+interface Ze's SPD is attached to, the same node-wide meaning it has on XFRM;
+VPP installs no operator entries today, so this is owed work. Decision 5b: the
+RFC 4301 extraction sign-off stays in the scope of
+`plan/release/validation/spec-rfcgate-6-supported-extraction-signoff.md`, and
+this spec supplies the evidence. Decision 5c: owner decision 3 (install what it
+can, log at Error, `ze doctor` reports, start-up never refuses the IPsec block)
+also covers a catch-all install failure at boot, which today fails the apply
+(owed code), and the doctor finding states that the default discard is not in
+force. The design page records 4, 5a and 5c in "Decisions".
+
+Two corrections were recorded with the bit 7 decision. The `40cf3cfaec` patch is not defective:
 the cleartext the operator-discard test saw came from a fixture whose two entries
 share a kernel selector, which Ze refuses at commit, and the test now runs
 `verifySPDOrder`. And an open question: this spec records

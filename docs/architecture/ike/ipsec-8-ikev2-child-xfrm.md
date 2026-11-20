@@ -887,6 +887,26 @@ the kernel acts on it for an ALLOW only. "Transit traffic" below has the
 mechanism.
 <!-- source: internal/component/ike/engine/spd_policy.go -- spdTransitPolicies -->
 
+**The fragment forgery scenario targets an operator port-scoped bypass.**
+Thomas decided this on 2026-11-20. The `bypass-fragment-forgery` scenario was
+written against the node-wide IKE bypass, which no longer exists: Ze's IKE
+exchange is exempt on its own IKE sockets. The scenario now runs an operator
+port-scoped BYPASS on Ze's kernel, in a lab with K1 and K3, and proves that K3's
+reassembly defeats forged fragments on the forward path, where Ze projects such
+a bypass when the kernel advertises capability bit 3.
+
+**An operator SPD entry on VPP binds to every interface Ze's SPD is attached
+to.** Thomas decided this on 2026-11-20. It is the same node-wide meaning the
+entry has on XFRM. The VPP backend installs no operator entries today, so this is
+owed work, not a description of the current backend.
+
+**A catch-all that fails to install at boot follows the start-up rule.** Thomas
+decided this on 2026-11-20: owner decision 3 of 2026-11-19 (install what it can,
+log at Error, `ze doctor` reports, start-up never refuses the IPsec block) also
+covers the catch-all. The doctor finding states that the default discard is not
+in force. Today such a failure fails the apply (`installUnmatched`), so the
+change is owed code.
+
 **The XFRM interface id comes from the interface the peer's `vti { bind }` names.**
 `resolveIfID` reads the if_id of that xfrm interface through the iface component
 (`GetXFRMInfo`) when the first Child SA is created, on both roles. A peer with no
