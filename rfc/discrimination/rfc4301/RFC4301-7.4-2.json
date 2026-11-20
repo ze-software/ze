@@ -24,6 +24,17 @@
   {
     "rid": "RFC4301-7.4-2",
     "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_fragment_forward_integration_linux_test.go::TestRFC4301ForwardedIPv6FragmentsFollowAPortScopedBypass",
+    "unit-sha": "8fcaa1f4e6fcbf6d",
+    "claim-sha": "eb5844140fb2ee53",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/spd_policy.go::spdForwardGathers",
+    "producer-sha": "ef8230bfbb3e6da9",
+    "break": "body of spdForwardGathers replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-7.4-2",
+    "polarity": "positive",
     "unit": "internal/component/ike/engine/rfc4301_fragment_test.go::TestPortScopedBypassNeverReachesTheForwardPath",
     "unit-sha": "73d0bb046da8a8a8",
     "claim-sha": "90e2029d97aba9c5",
