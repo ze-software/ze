@@ -58,6 +58,22 @@ IPv6 `.ci` files became IPv4 forms (`ppp-ncp-terminate-after-up.ci` IPCP,
 4. Build phase 5: the three scenarios, the CCP relay marker, the two `.ci`,
    their revert walks; then `/ze-close`.
 
+Status: the eight rows are re-quoted (`agrees` with the page as it now
+stands, citing the implementing commit) and `ze-design-judge` APPROVED digest
+e3afee3bd56e. Thomas still runs `./le spec design approve` once (tooling gap
+below). Judge's notes for building phase 5 (not yet in the spec text, because
+editing it would stale the approval; fold them in at closure bookkeeping):
+- noip scenario: its `ze.conf` `ncp timeout` must exceed at least one
+  `lcp restart-timer`, or under the revert the session ends before Ze's first
+  IPCP retransmit and the red cannot show.
+- relay+FRR scenario (R-5): `ncp timeout` must exceed Ze's restart-timer plus
+  pppd's 3 s IPCP retransmit: Ze sits in Stopping and ignores pppd's
+  Configure-Request until Stopped, so the reopen waits for pppd's next one.
+- wording: `### Documents departed from` lists five implemented departures
+  while no row departs (add one opening sentence saying so); the guide
+  PPP-negotiation row's "the paragraph is rewritten" has landed; user story 1's
+  CCP is injected by the relay, not sent by the CPE.
+
 New owner rule (ai/META-DECISIONS.md, "How agents work"): a change to an
 approved design that only writes in a choice Thomas made himself is judged by
 `ze-design-judge` and not put back to him. The tooling does not know this yet:
