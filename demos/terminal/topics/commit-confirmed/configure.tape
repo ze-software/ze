@@ -19,7 +19,7 @@ Enter
 Wait+Screen /merged from \S*1-trial-host\.conf/
 Type "show | compare"
 Enter
-Wait+Screen /\*\s+system host edge-trial/
+Wait+Screen /\+\s+system host edge-trial/
 Sleep 1500ms
 # Fifteen seconds, not fewer: the reading floor after Confirm within, the
 # typing of show system host and its settle must all land before the rollback,
