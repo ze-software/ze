@@ -117,6 +117,33 @@ judge with the batch in step 2.
   the catch-all agent's `policy_final.go`, which references fields not yet added.
   Item 2 was still being edited. Fix the compile first.
 
+## Item 2 result (catch-all vs wildcard peer, reported after this handover was first written)
+
+Written, nothing run.
+
+- **Design:** in the XFRM ledger, new `dataplane/policy_final.go`. A catch-all
+  asked for under a peer's PROTECT holder is recorded in `policyOwners.finals`
+  with no kernel call (`yieldFinal`). The peer's removal becomes one
+  `XFRM_MSG_UPDPOLICY` of the kept catch-all over the PROTECT, with no delete
+  (`reinstateFinal`), so there is no gap.
+- **Same collision for the interface catch-all:** a `vti bind` wildcard peer
+  has the same collision with `interfaceSPDCatchAll`, and the fix covers it.
+- **Visible:** `PolicyInfo.Displaced` is rendered by `show vpn ipsec dataplane
+  policy` as `displaced-final-entry` and `displaced-final-action`.
+- **Prior art:** strongSwan's `add_policy`/`del_policy` reach the same kernel state.
+- **Tests:** `dataplane/policy_final_test.go` (5),
+  `dataplane/xfrm_final_entry_linux_test.go` (2, over a fake kernel map, seam
+  `xfrmPolicyUpdate`), the guest-root
+  `engine/spd_wildcard_peer_integration_linux_test.go`
+  `TestWildcardPeerStandsInForTheCatchAllAndGivesItBack` (untried: a 0/0 Child
+  SA may trip the lab), and `cmd/show_dataplane_displaced_test.go`.
+- **Docs:** ipsec-8 "Policy ownership", ipsec-dataplane-inspection.md,
+  guide/ipsec.md.
+- **Owed:** gofmt on policy_owner.go, policy_final.go, xfrm_linux.go,
+  dataplane.go, show_dataplane.go, unmatched.go and the two new Linux test files
+  (script-edited). The spec needs an acceptance criterion for this fix. No RFC tags
+  were added.
+
 ## Known reds outside this spec
 
 `./le doc check all` (BGP rib filter order, ze-cos cleanup with no handler),
