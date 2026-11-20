@@ -1,0 +1,108 @@
+# Test: an operator SPD entry the dataplane refuses never commits quietly. At the
+# start it is logged at Error and the rest of the IPsec block installs; on a reload
+# the refusal refuses the reload.
+# Spec: plan/release/fixes/spec-rfc4301-architecture-gaps.md (AC-14, RFC 4301
+#       Section 4.4.1, the SPD management interface; owner decision 2026-11-19,
+#       "Install, log, doctor").
+#
+# QUESTION: when the dataplane refuses a `vpn ipsec policy` entry, does the operator
+# learn it from the operation they ran, the start or the reload, with the entry's
+# name and the dataplane's answer? The unit tests
+# (engine/rfc4301_spd_install_failure_test.go) prove the reconcilers and that the
+# dataplane keeps the previous form; only this test proves the refusal reaches the
+# operator through the daemon's own start and its SIGHUP reload pipeline (config
+# file, the ike plugin's verify, then its apply, applyConfig -> installSPDPolicies).
+#
+# VALIDATES:
+#   - the start config holds `drop` (discard, order 900) and `held` (bypass,
+#     order 4242, disjoint prefixes). The backend refuses `held`: the start logs
+#     "Ze could not install operator SPD policy held" at Error and does not stop;
+#   - the reload moves `drop` to order 4242 and removes `held`. It passes verify (one
+#     entry, nothing to tie with) and its apply is refused: the reload error names
+#     `drop` and carries the backend's answer, and the reload is never reported
+#     complete.
+# PREVENTS: the D-1 defect, where installSPDPolicies logged the refusal at Warn and
+#   the reload was reported complete while the operator's discard entry was not in
+#   force.
+#
+# WHY A TEST BACKEND. No refusal of the kernel's is reachable from an operator
+# configuration the commit verifier accepts: every EINVAL of verify_newpolicy_info
+# (net/xfrm/xfrm_user.c) judges a field the verifier already holds to the same rule
+# (selector family and prefix lengths, action, direction), an operator entry carries
+# no template for validate_tmpl to judge, and the XFRM backend's update form never
+# meets the EEXIST of an exclusive insert. The zetest-only recording-spd-refused
+# backend (internal/component/ike/dataplane/recording_spd_refused_zetest.go) refuses
+# an operator entry at order 4242 and records every other write, so the test runs
+# unprivileged. That a discard entry reaches the REAL kernel as action discard is
+# test/ipsec/ipsec-spd-order-readback.ci.
+#
+# NOT HERE: AC-19's half of this test waits on D-6.
+#
+# RED PROOF: in internal/component/ike/engine/spd_policy.go installSPDPolicies,
+#   replace `return spdInstallRefusal(...)` with `return nil` (the D-1 shape): the
+#   reload is reported complete and no reload error is printed, red. In
+#   installSPDPoliciesAtStart, drop the log.LogAttrs line: the start assertion is red.
+
+option=env:var=ze_test_ike_dataplane:value=recording-spd-refused
+option=env:var=ze_test_ike_port:value=$PORT2
+option=env:var=ze_log_ike:value=info
+option=timeout:value=30s
+
+stdin=ze-bgp:terminator=EOF_CONF
+vpn {
+	ipsec {
+		unmatched bypass
+		policy drop {
+			action discard
+			order 900
+			direction both
+			local {
+				prefix 198.18.252.0/24
+			}
+			remote {
+				prefix 198.18.253.0/24
+			}
+		}
+		policy held {
+			action bypass
+			order 4242
+			direction both
+			local {
+				prefix 198.18.254.0/24
+			}
+			remote {
+				prefix 198.18.255.0/24
+			}
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+vpn {
+	ipsec {
+		unmatched bypass
+		policy drop {
+			action discard
+			order 4242
+			direction both
+			local {
+				prefix 198.18.252.0/24
+			}
+			remote {
+				prefix 198.18.253.0/24
+			}
+		}
+	}
+}
+EOF_CONF2
+
+cmd=background:seq=1:exec=le test fixture reload/tx-protocol-sighup-trigger
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=25s
+
+await=stderr:contains=reload error:then=stop
+expect=stderr:contains=Ze could not install operator SPD policy held
+expect=stderr:contains=Ze could not install operator SPD policy drop
+expect=stderr:contains=the recording-spd-refused test backend refuses an operator SPD entry at order 4242
+reject=stderr:contains=sighup reload complete
+reject=stderr:pattern=panic
