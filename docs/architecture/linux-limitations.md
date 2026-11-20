@@ -510,11 +510,25 @@ For a `library` entry, read the module in the module cache:
   (`validateICMPFragments`, `ipsec/spd_policy.go`). Traffic for Ze itself is
   reassembled before its inbound check (`ip_local_deliver`), so an `in` entry
   is accepted. Any port, which RFC 4301 Section 7.1 lets carry every fragment,
-  is unaffected.
+  is unaffected. A port-scoped operator bypass depends on the kernel. On a
+  kernel whose K1 receipt carries capability bit 3, K3 gathers forwarded
+  fragments at PRE_ROUTING, before the FWD check in `ip_forward`, while a
+  port-scoped policy exists. Ze then projects the bypass onto the forward path
+  with its port (`spdForwardGathers` and `spdTransitPolicies`,
+  `engine/spd_policy.go`). On a kernel without bit 3, Ze stores no
+  port-scoped bypass in FWD. A commit refuses such an entry unless its local
+  prefix is one address the host holds (`verifyForwardBypass`,
+  `engine/spd_forward_bypass.go`). A start installs it for Ze's own traffic,
+  logs it at Error and reports it through the `ze doctor` check
+  `ipsec-spd-forward-bypass`. The
+  [IKE architecture page](ike/ipsec-8-ikev2-child-xfrm.md), "Transit
+  traffic", has the projection.
 
 <!-- source: internal/component/ike/engine/ts_narrow.go -- programmableSelector, portMatchesEveryFragment -->
 <!-- source: internal/component/ike/engine/child.go -- childPolicyPair -->
 <!-- source: internal/component/ike/ipsec/spd_policy.go -- validateICMPFragments -->
+<!-- source: internal/component/ike/engine/spd_policy.go -- spdForwardGathers, spdTransitPolicies -->
+<!-- source: internal/component/ike/engine/spd_forward_bypass.go -- verifyForwardBypass -->
 <!-- source: gokrazy/kernel/patches/0004-ip-fragment-xfrm-context.patch -- inet_frag_xfrm_context_init -->
 <!-- source: gokrazy/kernel/patches/0005-xfrm-fragment-guard.patch -- xfrm_fragment_guard_active, xfrm_fragment_local_out, xfrm_fragment_route -->
 
