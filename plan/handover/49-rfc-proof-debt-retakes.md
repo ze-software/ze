@@ -11,6 +11,29 @@ tagged test or its claim changes. A change to the code it tests, the broken
 function included, leaves it standing. Implemented in 6db7cb8964 (verifier and
 commit gate). Re-takes use the record's recorded route.
 
+## Update 2026-11-20
+
+Landed since: 8d6bd63526 re-takes 18 refused records with judge-approved
+hand-written breaks (RFC8955-4.2-3, RFC5176-2.3-6, RFC5176-3.1-1,
+RFC8277-2.4-1, RFC5575-4-8, RFC8955-4-4, RFC7606-5.1-1 two entries,
+RFC7606-5.1-3) and moves TestRFC8955NextHopIgnoredForFlowSpec's receive
+through flowValidationHandle. 903f715033 fixes the RIB receive-path lock
+self-deadlock found on the way; 16b61406ba fixes the rr replay flake (a
+fixture race) and the FlowSpec receive hang in the test helpers.
+
+Still owed, in order:
+1. The 9 RFC4861 records (unit TestRFC4861SubscriberSolicitationReaderIgnoresReservedAndOptions,
+   producer now `internal/component/l2tp/ppp/ra_carrier.go::rsReaderLoop`) and
+   RFC4659-3.2.1.1-1: Linux-only, a guest run with `kernel <vmlinuz>`.
+   Commands in `tmp/session/2026-11-19-115101/scratch/refused/commands.tsv`.
+2. RFC7606-5.1-1 negative, `TestForwardLeadingMPAttributeKeepsZeroCopy`: its
+   recorded break still names line 79, now `}`; the report at
+   `scratch/mutant/RFC7606-5.1-1-negative-1.json` needs the line the
+   MP_REACH arm's `if otherSeen` now sits on (81), then a judge read.
+3. AC-29: the SHIFTED verdicts left, mostly rfc4301/rfc7296 (IKE session's).
+4. AC-30: the STALE verdicts, one independent `/ze-rfc-audit` per stem.
+5. AC-32: RFC 4271 5-3/5-4 negatives; RFC 8955 4-3 and RFC 9252 3.3-2.
+
 ## State at handover (2026-11-19, `./le rfc check` at 6db7cb8964)
 
 443 violations: 197 stale records (all unit-changed), 62 SHIFTED audit
