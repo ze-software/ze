@@ -66,7 +66,7 @@ func TestTheDeclinedFeaturesRowTiesAHeadingToAnOwnerDecision(t *testing.T) {
 	for _, one := range cases {
 		t.Run(one.name, func(t *testing.T) {
 			_, err := ParseSummaryText(fixtureWithDeclined(t, one.declared, headingFixtureRow(one.words)),
-				selftestStem, selftestSummaryRel)
+				selftestStem, selftestSummaryRel, registerByNumber(selftestStem))
 			if one.refused == "" {
 				if err != nil {
 					t.Fatalf("heading %q with declined features %q was refused: %v", one.words, one.declared, err)
@@ -81,7 +81,7 @@ func TestTheDeclinedFeaturesRowTiesAHeadingToAnOwnerDecision(t *testing.T) {
 	}
 	// A summary with no heading form owes no row.
 	plain := `- [ ] [RFC9999-2-3] [MUST] A speaker MUST send the widget. (§2)`
-	if _, err := ParseSummaryText(fixtureWithDeclined(t, "", plain), selftestStem, selftestSummaryRel); err != nil {
+	if _, err := ParseSummaryText(fixtureWithDeclined(t, "", plain), selftestStem, selftestSummaryRel, registerByNumber(selftestStem)); err != nil {
 		t.Errorf("a summary with no heading form was refused: %v", err)
 	}
 }

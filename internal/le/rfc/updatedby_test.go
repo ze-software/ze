@@ -208,12 +208,12 @@ func TestCheckUpdatedByHoldsThePointerAgainstTheUpdater(t *testing.T) {
 func TestAnUpdatedByMarkerChangesNoCount(t *testing.T) {
 	const head = "- [ ] [RFC9999-6.3-7] [MUST] A speaker MUST reset the session (§6.3)"
 	const other = "\n- [ ] [RFC9999-6.3-8] [SHOULD] A speaker SHOULD log it (§6.3)\n"
-	plain, err := ParseSummaryText(head+other, "rfc9999", "rfc/short/rfc9999.md")
+	plain, err := ParseSummaryText(head+other, "rfc9999", "rfc/short/rfc9999.md", registerByNumber("rfc9999"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	marked, err := ParseSummaryText(head+" {updated-by: RFC10000-3-1; RFC 10000 Section 3 replaces it}"+other,
-		"rfc9999", "rfc/short/rfc9999.md")
+		"rfc9999", "rfc/short/rfc9999.md", registerByNumber("rfc9999"))
 	if err != nil {
 		t.Fatal(err)
 	}

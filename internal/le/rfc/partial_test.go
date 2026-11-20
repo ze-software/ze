@@ -17,7 +17,7 @@ const partialMarker = `{partial: tested "ignored on receipt."; gap "MUST be zero
 
 func partialRow(t *testing.T) Requirement {
 	t.Helper()
-	req, err := parseChecklistLine("- [ ] ["+selftestRIDSend+"] [MUST] "+partialSentence+" (§2) "+partialMarker, selftestStem, selftestSummaryRel, 1)
+	req, err := parseChecklistLine("- [ ] ["+selftestRIDSend+"] [MUST] "+partialSentence+" (§2) "+partialMarker, selftestStem, selftestSummaryRel, 1, registerByNumber(selftestStem))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +102,7 @@ func TestPartialSelectorsRejectInvalidScope(t *testing.T) {
 		"brace":          strings.Replace(partialMarker, "native", "{native}", 1),
 	} {
 		t.Run(name, func(t *testing.T) {
-			_, err := parseChecklistLine("- [ ] ["+selftestRIDSend+"] [MUST] "+partialSentence+" (§2) "+marker, selftestStem, selftestSummaryRel, 1)
+			_, err := parseChecklistLine("- [ ] ["+selftestRIDSend+"] [MUST] "+partialSentence+" (§2) "+marker, selftestStem, selftestSummaryRel, 1, registerByNumber(selftestStem))
 			if err == nil {
 				t.Fatal("invalid scope accepted")
 			}
@@ -131,7 +131,7 @@ func TestPartialSelectorsRejectInvalidScope(t *testing.T) {
 	}
 	quoted := `A widget MUST send "x;y" and ignore "a;b" on receipt.`
 	marker := `{partial: tested "ignore \"a;b\" on receipt."; gap "MUST send \"x;y\""; sending absent at internal/widget/send.go::SendWidget}`
-	if _, err := parseChecklistLine("- [ ] ["+selftestRIDSend+"] [MUST] "+quoted+" (§2) "+marker, selftestStem, "fixture", 1); err != nil {
+	if _, err := parseChecklistLine("- [ ] ["+selftestRIDSend+"] [MUST] "+quoted+" (§2) "+marker, selftestStem, "fixture", 1, registerByNumber(selftestStem)); err != nil {
 		t.Fatal(err)
 	}
 	for _, length := range []int{23, 24, 25} {

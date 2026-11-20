@@ -44,7 +44,7 @@ func quoteRow(t *testing.T, text, section string) *Requirement {
 	if section == "" {
 		line = "- [ ] [RFC9999-x-1] [MUST] " + text
 	}
-	req, err := parseChecklistLine(line, selftestStem, selftestSummaryRel, 7)
+	req, err := parseChecklistLine(line, selftestStem, selftestSummaryRel, 7, registerByNumber(selftestStem))
 	if err != nil {
 		t.Fatalf("parse %q: %v", line, err)
 	}
@@ -139,7 +139,7 @@ func TestCheckRefusesQuoteUnderMinimum(t *testing.T) {
 // the trailing marker, and the quote is everything before the section parenthetical.
 func TestQuoteWithParenthesesKeepsTrailingSection(t *testing.T) {
 	line := "- [ ] [RFC9999-2.1-1] [MUST] The Length field (in octets) MUST be {32} (§2.1) {gap: not built}"
-	req, err := parseChecklistLine(line, selftestStem, selftestSummaryRel, 1)
+	req, err := parseChecklistLine(line, selftestStem, selftestSummaryRel, 1, registerByNumber(selftestStem))
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
@@ -306,7 +306,7 @@ func TestCheckQuoteMatchIsCaseSensitive(t *testing.T) {
 		"A receiver MUST NOT drop the widget.": false,
 		"A receiver must not drop the widget.": true,
 	} {
-		req, err := parseChecklistLine("- [ ] [RFC9999-2-3] [MUST NOT] "+text+" (§2)", selftestStem, selftestSummaryRel, 1)
+		req, err := parseChecklistLine("- [ ] [RFC9999-2-3] [MUST NOT] "+text+" (§2)", selftestStem, selftestSummaryRel, 1, registerByNumber(selftestStem))
 		if err != nil || req == nil {
 			t.Fatalf("parse %q: %v", text, err)
 		}

@@ -77,16 +77,16 @@ const notApplicableShapes = "A {not-applicable} quote is one of two shapes: the 
 // boundRoleRefusal judges the role a quoted {not-applicable} row binds against
 // its quote, answering the refusal sentence, which the caller ends with the
 // format. Keywords are read in the register of the row's RFC
-// (keywordRegisterOf), so a pre-RFC 2119 row's lowercase "must" is one. A
+// (KeywordRegisterOf), so a lowercase-register row's lowercase "must" is one. A
 // quote holding a BCP 14 keyword is shape (a), the row's own obligation
 // sentence, and its subject must be the bound role (subjectRefusal), unless a
-// pre-RFC 2119 row names the role from a sentence of another section
+// lowercase-register row names the role from a sentence of another section
 // (roleSentenceRefusal); the check that it is the row's own sentence needs the
 // row and runs in (*evidenceReader).gap. A quote with no keyword is shape (b),
 // a scoping sentence (scopingRefusal). Either way a role of generic words
 // alone is refused by the caller, and a role ze fills by
 // checkNotApplicableRoles.
-func boundRoleRefusal(quote, bound string, role roleSentence, register keywordRegister) (string, bool) {
+func boundRoleRefusal(quote, bound string, role roleSentence, register KeywordRegister) (string, bool) {
 	var tb textbuf.Buffer
 	at, keyword := register.firstKeyword(quote)
 	if at < 0 {
@@ -111,7 +111,7 @@ func boundRoleRefusal(quote, bound string, role roleSentence, register keywordRe
 	return roleSentenceRefusal(role, bound, register)
 }
 
-// roleSentence is the sentence of another section a pre-RFC 2119
+// roleSentence is the sentence of another section a lowercase-register
 // {not-applicable} row names its bound role from, and the section it is in
 // (`binds <role>; §<section> "<sentence>"; <why>`). Both are empty when the
 // row names none.
@@ -122,19 +122,19 @@ type roleSentence struct {
 
 // roleSentenceRefusal judges the role sentence of a {not-applicable} row
 // whose quoted obligation, the row's own, has a subject that names no role.
-// A pre-RFC 2119 RFC states an obligation in indicative prose, often of an
+// A lowercase-register RFC states an obligation in indicative prose, often of an
 // activity ("Zone refresh activities must use virtual circuits"), and defines
 // the role that performs it in another section; only such an RFC may name the
-// role there, so a post-RFC 2119 row keeps the two shapes it always had. The
+// role there, so an upper-case-register row keeps the two shapes it always had. The
 // bound role must be in the sentence as whole words, which may hold no
 // scoping negation (scopingNegations), so it names the role rather than
 // carves it out. Where the sentence lies in the RFC is judged by
 // (*evidenceReader).roleSentenceGap, which reads the text.
-func roleSentenceRefusal(role roleSentence, bound string, register keywordRegister) (string, bool) {
+func roleSentenceRefusal(role roleSentence, bound string, register KeywordRegister) (string, bool) {
 	var tb textbuf.Buffer
-	if register != registerPre2119 {
+	if register != registerLowercase {
 		return tb.Str(": {not-applicable} names its bound role from section ").Str(role.section).
-			Str(", a form only an RFC published before RFC 2119 takes, because only such an RFC states an obligation with no role as its subject. ").
+			Str(", a form only a document written in lowercase obligation language takes (an RFC published before RFC 2119, or a later one whose extraction signs register prose and whose text never adopts BCP 14), because only such a document states an obligation with no role as its subject. ").
 			Str(notApplicableShapes).String(), true
 	}
 	lower := strings.ToLower(role.sentence)

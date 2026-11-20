@@ -23,7 +23,10 @@ import (
 // what each summary declares, never what a citation reaches. A summary or a
 // profile that does not parse, and a use-case row naming no use case, is an
 // error naming it, because a missing declaration silently shrinks a profile.
-func readRoadmapCorpus(files map[string]string) (roadmap.Corpus, error) {
+// Each summary is parsed in its document's keyword register, read from the
+// checkout at root (KeywordRegisterOf): the register is a fact of the RFC text
+// and its extraction sign-off, neither of which the revision's files hold.
+func readRoadmapCorpus(root string, files map[string]string) (roadmap.Corpus, error) {
 	summaries := map[string]string{}
 	profileFiles := map[string]string{}
 	corpus := roadmap.Corpus{SummaryStems: map[string]bool{}, ProfilesOf: map[string][]string{}}
@@ -40,7 +43,7 @@ func readRoadmapCorpus(files map[string]string) (roadmap.Corpus, error) {
 			return roadmap.Corpus{}, fmt.Errorf("%s is outside rfc/short/ and rfc/profiles/, which the roadmap reads", rel)
 		}
 	}
-	requirementStems, err := RequirementStems(summaries)
+	requirementStems, err := RequirementStems(root, summaries)
 	if err != nil {
 		return roadmap.Corpus{}, err
 	}

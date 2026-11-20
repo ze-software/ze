@@ -253,7 +253,7 @@ func TestAVerdictInAnUnpublishedStateSaysSoRatherThanRenderingAnEmptyCell(t *tes
 // The parser stores the register reference apart from the reason. Both public
 // row forms must retain it without requiring authors to repeat it in prose.
 func TestLinuxLimitRowsAndShardsKeepTheParsedRegisterReference(t *testing.T) {
-	requirements, err := ParseSummaryText(linuxLimitFixtureLine, "rfc9999", "fixture.md")
+	requirements, err := ParseSummaryText(linuxLimitFixtureLine, "rfc9999", "fixture.md", registerByNumber("rfc9999"))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -53,11 +53,16 @@ func PriorityOf(in *RenderInput) (PriorityAnswer, error) {
 //
 // summaries is each rfc/short/<stem>.md text keyed by stem. A summary whose
 // checklist does not parse is an error naming it: its ids would be missing,
-// and a missing id reads as an unknown one.
-func RequirementStems(summaries map[string]string) (map[string]string, error) {
+// and a missing id reads as an unknown one. Each summary is parsed in the
+// keyword register of the checkout under tree (KeywordRegisterOf).
+func RequirementStems(tree string, summaries map[string]string) (map[string]string, error) {
 	out := map[string]string{}
 	for _, stem := range sortedKeysOf(summaries) {
-		requirements, err := ParseSummaryText(summaries[stem], stem, summaryRel+"/"+stem+".md")
+		register, err := KeywordRegisterOf(tree, stem)
+		if err != nil {
+			return nil, err
+		}
+		requirements, err := ParseSummaryText(summaries[stem], stem, summaryRel+"/"+stem+".md", register)
 		if err != nil {
 			return nil, err
 		}
@@ -83,5 +88,5 @@ func LoadRequirementStems(tree string) (map[string]string, error) {
 		}
 		summaries[stem] = text
 	}
-	return RequirementStems(summaries)
+	return RequirementStems(tree, summaries)
 }

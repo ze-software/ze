@@ -43,7 +43,7 @@ func TestAnnotationsNeverInflateThePublishedSections(t *testing.T) {
 	}
 	fixture, err := ParseSummaryText(
 		"- [ ] [RFC999999-1-1] [MUST] Exercise the kernel primitive. (§1) {linux-limit: LL-FIXTURE; kernel has no primitive}\n",
-		fixtureStem, "in-memory-linux-limit-fixture",
+		fixtureStem, "in-memory-linux-limit-fixture", registerByNumber(fixtureStem),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -74,7 +74,7 @@ func TestAnnotationsNeverInflateThePublishedSections(t *testing.T) {
 	}
 	declined, err := ParseSummaryText(
 		"- [ ] [RFC8907-5.4-90] [MUST NOT] When the client queries the user for the information, the response MUST NOT be reflected in the user interface as it is entered. (§5.4, Description of Authentication Process) {feature-declined: \"When the client queries the user for the information, the response MUST NOT be reflected in the user interface as it is entered.\"; ze never queries the user for the information: internal/component/tacacs/client.go::Authenticate builds a PAP START with NewPAPAuthenStart from the username and password already supplied through aaa.AuthRequest and returns the REPLY, so it never prompts the user in response to a TACACS+ reply}\n",
-		declinedStem, "in-memory-feature-declined-fixture",
+		declinedStem, "in-memory-feature-declined-fixture", registerByNumber(declinedStem),
 	)
 	if err != nil {
 		t.Fatal(err)

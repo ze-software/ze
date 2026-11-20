@@ -152,7 +152,7 @@ func placeQuote(source *quoteSource, cited, quote string) (quotePlace, string) {
 // (featureShapeGap), reading a conditional's never-clause producer through
 // code. A heading form, which carries feature words instead of a quote, is
 // featureHeadingGap's.
-func featureQuoteGap(req *Requirement, source *quoteSource, code *sourceReader) (string, bool) {
+func featureQuoteGap(req *Requirement, source *quoteSource, code *sourceReader, register KeywordRegister) (string, bool) {
 	if req.Annotation.Heading != "" {
 		return featureHeadingGap(req, source, code)
 	}
@@ -160,7 +160,7 @@ func featureQuoteGap(req *Requirement, source *quoteSource, code *sourceReader) 
 	if lacks {
 		return missing, true
 	}
-	return featureShapeGap(req, source, code, held)
+	return featureShapeGap(req, source, code, held, register)
 }
 
 // featureQuoteSection answers the section a {feature-declined} quote is held
@@ -268,9 +268,8 @@ const neverClauseForm = "`ze never <condition>: <path>.go::<Symbol> <how>`"
 // too, so an advisory keyword beside a conditional MUST does not skip it. A
 // mandatory sentence with no such clause states an obligation, and is refused
 // by name.
-func featureShapeGap(req *Requirement, source *quoteSource, code *sourceReader, held string) (string, bool) {
+func featureShapeGap(req *Requirement, source *quoteSource, code *sourceReader, held string, register KeywordRegister) (string, bool) {
 	quote := req.Annotation.Quote
-	register := keywordRegisterOf(req.RFC)
 	var tb textbuf.Buffer
 	if !source.wholeSentence(held, quote) {
 		return tb.Str("its quote ").Str(pyRepr(quote)).
@@ -419,10 +418,33 @@ type evidenceReader struct {
 	limitEntries  []linuxlimit.Entry
 	limitKernel   string
 	limitsProblem string
+
+	// registers holds each stem's keyword register, read once
+	// (keywordRegisterOf).
+	registers map[string]KeywordRegister
 }
 
 func newEvidenceReader(tree string) *evidenceReader {
-	return &evidenceReader{tree: tree, sources: map[string]*quoteSource{}, code: newSourceReader(tree), listLinked: goListLinked}
+	return &evidenceReader{tree: tree, sources: map[string]*quoteSource{}, code: newSourceReader(tree),
+		listLinked: goListLinked, registers: map[string]KeywordRegister{}}
+}
+
+// keywordRegisterOf answers the keyword register stem's document is read in
+// (KeywordRegisterOf), the one the parse of its summary read it in, or the
+// refusal naming why the register cannot be read.
+func (reader *evidenceReader) keywordRegisterOf(stem string) (KeywordRegister, string, bool) {
+	if register, read := reader.registers[stem]; read {
+		return register, "", false
+	}
+	register, err := KeywordRegisterOf(reader.tree, stem)
+	if err != nil {
+		return registerUnspecified, err.Error(), true
+	}
+	if reader.registers == nil {
+		reader.registers = map[string]KeywordRegister{}
+	}
+	reader.registers[stem] = register
+	return register, "", false
 }
 
 // vendorDir is the directory a vendored module path opens under, in this
@@ -741,7 +763,11 @@ func (reader *evidenceReader) gap(req *Requirement) (string, bool) {
 		}
 		return reader.roleQuoteGap(req)
 	case AnnotationFeatureDeclined:
-		return featureQuoteGap(req, loadQuoteSource(reader.sources, reader.tree, req.RFC), reader.code)
+		register, refusal, refused := reader.keywordRegisterOf(req.RFC)
+		if refused {
+			return refusal, true
+		}
+		return featureQuoteGap(req, loadQuoteSource(reader.sources, reader.tree, req.RFC), reader.code, register)
 	case AnnotationLowerLayer:
 		return reader.layerPathGap(req.Annotation.LayerPath)
 	default:
@@ -776,11 +802,11 @@ func (reader *evidenceReader) notOwedGap(req *Requirement) (string, bool) {
 // row's own obligation (ownObligationRefusal), so a row cannot borrow another
 // obligation's subject to exclude Ze from its own. The row side is the row's
 // quote, its text without the trailing (§N) (Requirement.Quote). Keywords are
-// read in the register of the row's RFC (keywordRegisterOf), so a pre-RFC
-// 2119 row's lowercase "must" is its MUST, and the role sentence such a row
-// may name is held to its own section (roleSentenceGap). A quote with no
-// keyword is a scoping sentence, judged for its marker and role by the parser
-// (scopingRefusal).
+// read in the register of the row's document (KeywordRegisterOf), so a
+// lowercase-register row's lowercase "must" is its MUST, and the role
+// sentence such a row may name is held to its own section (roleSentenceGap).
+// A quote with no keyword is a scoping sentence, judged for its marker and
+// role by the parser (scopingRefusal).
 func (reader *evidenceReader) roleQuoteGap(req *Requirement) (string, bool) {
 	source := loadQuoteSource(reader.sources, reader.tree, req.RFC)
 	if missing, lacks := quoteGap(req, source, "role-condition quote"); lacks {
@@ -792,7 +818,10 @@ func (reader *evidenceReader) roleQuoteGap(req *Requirement) (string, bool) {
 		return tb.Str("its role-condition quote is not a whole sentence of section ").Str(section).
 			Str(": quote it from the word that opens the sentence to the full stop that ends it, so no condition of the sentence is cut away").String(), true
 	}
-	register := keywordRegisterOf(req.RFC)
+	register, refusal, refused := reader.keywordRegisterOf(req.RFC)
+	if refused {
+		return refusal, true
+	}
 	if at, _ := register.firstKeyword(req.Annotation.Quote); at < 0 {
 		return "", false
 	}
@@ -802,7 +831,7 @@ func (reader *evidenceReader) roleQuoteGap(req *Requirement) (string, bool) {
 	return roleSentenceGap(req, source)
 }
 
-// roleSentenceGap judges the role sentence a pre-RFC 2119 {not-applicable}
+// roleSentenceGap judges the role sentence a lowercase-register {not-applicable}
 // row names its bound role from (Annotation.RoleSentence), answering false
 // for a row that names none. The section named must be a heading of the RFC
 // exactly (quoteSource.has), never an ancestor reached by resolve's fallback,
@@ -846,7 +875,7 @@ func roleSentenceGap(req *Requirement, source *quoteSource) (string, bool) {
 // bind its own obligation through another sentence's subject. Otherwise the
 // subject binds another obligation than the row's, and the refusal names
 // which of the four failed.
-func ownObligationRefusal(rowQuote, level, quote string, register keywordRegister) (string, bool) {
+func ownObligationRefusal(rowQuote, level, quote string, register KeywordRegister) (string, bool) {
 	var tb textbuf.Buffer
 	row, held := quoteNeedle(strings.TrimSpace(rowQuote)), quoteNeedle(strings.TrimSpace(quote))
 	start, end := 0, len(held)
@@ -888,7 +917,7 @@ func ownObligationRefusal(rowQuote, level, quote string, register keywordRegiste
 // that is spelled level, -1 when none is. Keywords are read in order as
 // firstKeyword reads them, so a MUST NOT is not taken for a MUST. The loop is
 // bounded by len(text): each pass moves offset past one keyword.
-func levelKeywordAt(text, level string, register keywordRegister) int {
+func levelKeywordAt(text, level string, register KeywordRegister) int {
 	offset := 0
 	for {
 		at, keyword := register.firstKeyword(text[offset:])

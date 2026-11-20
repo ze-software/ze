@@ -28,7 +28,7 @@ func judgeErratumQuote(t *testing.T, source, text, cite string, store map[string
 	t.Helper()
 
 	line := "- [ ] [RFC9999-3-1] [MUST] " + text + " (§3" + cite + ")"
-	req, err := parseChecklistLine(line, selftestStem, selftestSummaryRel, 7)
+	req, err := parseChecklistLine(line, selftestStem, selftestSummaryRel, 7, registerByNumber(selftestStem))
 	if err != nil {
 		t.Fatalf("parse %q: %v", line, err)
 	}

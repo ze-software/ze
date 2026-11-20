@@ -41,8 +41,10 @@ type Corpus struct {
 
 // CorpusReader builds the Corpus from one revision's corpus files, keyed by
 // path (rfc/short/<stem>.md, rfc/profiles/<name>.md). It refuses a corpus it
-// cannot fully read.
-type CorpusReader func(files map[string]string) (Corpus, error)
+// cannot fully read. Root is the checkout, for what the reader takes from it
+// rather than from the revision (the RFC corpus reader: each document's
+// keyword register).
+type CorpusReader func(root string, files map[string]string) (Corpus, error)
 
 // corpusReader is the registered reader. The RFC corpus parser lives in
 // internal/le/rfc, whose dependencies reach most le namespaces; it registers
@@ -103,7 +105,7 @@ func loadRFCCorpus(ctx context.Context, root, revision string) *rfcCorpus {
 	if err != nil {
 		return &rfcCorpus{unjudged: err}
 	}
-	corpus, err := corpusReader(files)
+	corpus, err := corpusReader(root, files)
 	if err != nil {
 		return &rfcCorpus{files: files, unjudged: err}
 	}

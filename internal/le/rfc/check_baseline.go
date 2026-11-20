@@ -393,7 +393,12 @@ func baselineLevels(tree string) (map[string]string, map[string]string, map[stri
 			unreadable[stem] = true
 			continue
 		}
-		requirements, err := ParseSummaryText(text, stem, rel)
+		register, err := KeywordRegisterOf(tree, stem)
+		if err != nil {
+			unreadable[stem] = true
+			continue
+		}
+		requirements, err := ParseSummaryText(text, stem, rel, register)
 		if err != nil {
 			unreadable[stem] = true
 			continue

@@ -21,7 +21,7 @@ func intentRows(t *testing.T, markers ...string) []Requirement {
 		text.WriteString(marker)
 		text.WriteString("\n")
 	}
-	requirements, err := ParseSummaryText(text.String(), "rfc9999", "rfc/short/rfc9999.md")
+	requirements, err := ParseSummaryText(text.String(), "rfc9999", "rfc/short/rfc9999.md", registerByNumber("rfc9999"))
 	if err != nil {
 		t.Fatalf("the intent markers did not parse: %v", err)
 	}
@@ -96,7 +96,7 @@ func TestIntentMarkerRefusals(t *testing.T) {
 	for _, one := range cases {
 		t.Run(one.name, func(t *testing.T) {
 			line := "- [ ] [RFC9999-2-1] [SHOULD] A speaker SHOULD log every widget it discards (§2) " + one.marker
-			_, err := ParseSummaryText(line, "rfc9999", "rfc/short/rfc9999.md")
+			_, err := ParseSummaryText(line, "rfc9999", "rfc/short/rfc9999.md", registerByNumber("rfc9999"))
 			if err == nil {
 				t.Fatalf("%s was accepted", one.marker)
 			}

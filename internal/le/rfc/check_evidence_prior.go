@@ -364,7 +364,12 @@ func pushedFingerprints(tree string) (map[string]string, string) {
 		if !held {
 			continue
 		}
-		requirements, err := ParseSummaryText(text, strings.TrimSuffix(filepath.Base(rel), ".md"), rel)
+		stem := strings.TrimSuffix(filepath.Base(rel), ".md")
+		register, err := KeywordRegisterOf(tree, stem)
+		if err != nil {
+			continue
+		}
+		requirements, err := ParseSummaryText(text, stem, rel, register)
 		if err != nil {
 			continue
 		}

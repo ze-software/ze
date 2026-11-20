@@ -115,7 +115,7 @@ func (r *Requirement) Quote() string {
 }
 
 // parseAnnotation reads one `{kind: reason}` body.
-func parseAnnotation(body, where string, register keywordRegister) (*Annotation, error) {
+func parseAnnotation(body, where string, register KeywordRegister) (*Annotation, error) {
 	var tb textbuf.Buffer
 	kind, rest, separated := strings.Cut(body, ":")
 	kind = strings.TrimSpace(kind)
@@ -153,7 +153,7 @@ func parseAnnotation(body, where string, register keywordRegister) (*Annotation,
 
 // parseSinglePolarity reads the one required polarity and why the other has
 // no input to drive it.
-func parseSinglePolarity(rest, where string, _ keywordRegister) (*Annotation, error) {
+func parseSinglePolarity(rest, where string, _ KeywordRegister) (*Annotation, error) {
 	var tb textbuf.Buffer
 	polarity, why, _ := strings.Cut(rest, ";")
 	polarity = strings.TrimSpace(polarity)
@@ -174,7 +174,7 @@ func parseSinglePolarity(rest, where string, _ keywordRegister) (*Annotation, er
 var partialRE = regexp.MustCompile(`^tested\s+("(?:[^"\\]|\\.)*")\s*;\s*gap\s+("(?:[^"\\]|\\.)*")\s*;\s*(\S.*)$`)
 
 // parsePartial keeps the entire declaration for publication and audit binding.
-func parsePartial(rest, where string, _ keywordRegister) (*Annotation, error) {
+func parsePartial(rest, where string, _ KeywordRegister) (*Annotation, error) {
 	parts := partialRE.FindStringSubmatch(rest)
 	if parts == nil {
 		return nil, fmt.Errorf("%s: {partial} needs tested \"<span>\"; gap \"<span>\"; <reason with path.go::Symbol>", where)
@@ -290,7 +290,7 @@ const lowerLayerFormat = "Format: {lower-layer: <layer>; <path>.go::<Symbol> ins
 // than checkable, which is how {not-applicable} became a set of 915 judgements
 // no reader can check (owner ruling, 2026-08-31). checkLowerLayerProducer then
 // holds the producer against the tree, so the claim can go stale and be found.
-func parseLowerLayer(rest, where string, _ keywordRegister) (*Annotation, error) {
+func parseLowerLayer(rest, where string, _ KeywordRegister) (*Annotation, error) {
 	var tb textbuf.Buffer
 	layer, why, found := strings.Cut(rest, ";")
 	layer = strings.TrimSpace(layer)
@@ -362,11 +362,11 @@ const notApplicableBoundPrefix = "binds "
 // (checkExclusionEvidence) owes it instead. A reason that opens with a quote
 // has chosen the evidence form and is held to it.
 //
-// In an RFC published before RFC 2119 (registerPre2119) the quote's lowercase
+// In a lowercase-register document (registerLowercase) the quote's lowercase
 // "must" is its keyword, and the reason may open with the sentence of another
 // section that names the bound role, `§<section> "<sentence>"; <why>`, when
 // the obligation's own subject is no role (roleSentenceRefusal).
-func parseNotApplicable(body, where string, register keywordRegister) (*Annotation, error) {
+func parseNotApplicable(body, where string, register KeywordRegister) (*Annotation, error) {
 	if !strings.HasPrefix(body, `"`) {
 		return &Annotation{Kind: AnnotationNotApplicable, Reason: body}, nil
 	}
@@ -417,7 +417,7 @@ func parseNotApplicable(body, where string, register keywordRegister) (*Annotati
 		return nil, err
 	}
 	// The bound role is the subject the quoted obligation binds, the role a
-	// scoping sentence with no keyword names, or in a pre-RFC 2119 RFC the
+	// scoping sentence with no keyword names, or in a lowercase-register RFC the
 	// role a sentence of another section names (boundRoleRefusal). Whether
 	// the obligation is the row's own sentence, and whether each quote is a
 	// whole sentence of its section, needs the row and the RFC text, and is
@@ -537,7 +537,7 @@ const minFeatureQuote = minCorrectionQuote
 // decoration: a kind that says "Ze does not do that" with nothing named is
 // assertable rather than checkable, which is how {not-applicable} became a set
 // of 915 judgements no reader can check (owner ruling, 2026-08-31).
-func parseFeatureDeclined(rest, where string, _ keywordRegister) (*Annotation, error) {
+func parseFeatureDeclined(rest, where string, _ KeywordRegister) (*Annotation, error) {
 	var tb textbuf.Buffer
 	if keyword := featureHeadingRE.FindString(rest); keyword != "" {
 		return parseFeatureHeading(rest, rest[len(keyword):], where)
@@ -650,7 +650,7 @@ const rollupFormat = "Format: {rollup: <target>, <target>; why}, where a target 
 // {lower-layer} does: every renderer that prints `{kind} reason` publishes the
 // target list with no knowledge of this kind, so a reader of any page can check
 // the rows a rollup rests on.
-func parseRollup(rest, where string, _ keywordRegister) (*Annotation, error) {
+func parseRollup(rest, where string, _ KeywordRegister) (*Annotation, error) {
 	var tb textbuf.Buffer
 	head, why, found := strings.Cut(rest, ";")
 	head = strings.TrimSpace(head)
@@ -840,7 +840,7 @@ type rowMarkers struct {
 // possible: the pattern anchors at end of line and matches ONE group, so a
 // single search would leave the second group inside the requirement TEXT,
 // unparsed and dragged into extractSection as if it were prose.
-func stripMarkers(rest, where string, register keywordRegister) (rowMarkers, string, error) {
+func stripMarkers(rest, where string, register KeywordRegister) (rowMarkers, string, error) {
 	var markers rowMarkers
 	for {
 		loc := annotationRE.FindStringSubmatchIndex(rest)
@@ -860,7 +860,7 @@ func stripMarkers(rest, where string, register keywordRegister) (rowMarkers, str
 }
 
 // add parses one marker body into its slot, refusing a second of a kind.
-func (m *rowMarkers) add(kind, body, where string, register keywordRegister) error {
+func (m *rowMarkers) add(kind, body, where string, register KeywordRegister) error {
 	var tb textbuf.Buffer
 	if kind == SupersededKind {
 		if m.successor != nil {
@@ -952,7 +952,7 @@ func validateID(rid, stem, where string) error {
 // It raises for a line that is TRYING to be a requirement and is malformed,
 // including a legacy line with no id. It never answers nil for those: skipping
 // a MUST is how a gate goes green while an obligation is unenforced.
-func parseChecklistLine(line, stem, source string, lineno int32) (*Requirement, error) {
+func parseChecklistLine(line, stem, source string, lineno int32, register KeywordRegister) (*Requirement, error) {
 	where := "line"
 	if source != "" {
 		var tb textbuf.Buffer
@@ -993,7 +993,7 @@ func parseChecklistLine(line, stem, source string, lineno int32) (*Requirement, 
 	}
 
 	rest := strings.TrimSpace(found[4])
-	markers, rest, err := stripMarkers(rest, where, keywordRegisterOf(stem))
+	markers, rest, err := stripMarkers(rest, where, register)
 	if err != nil {
 		return nil, err
 	}
@@ -1018,7 +1018,9 @@ func parseChecklistLine(line, stem, source string, lineno int32) (*Requirement, 
 
 // ParseSummaryText parses every checklist line in a summary. It raises on a
 // duplicate id: ids are permanent and unique. Source names the input in errors.
-func ParseSummaryText(text, stem, source string) ([]Requirement, error) {
+// Register is the keyword register the stem's document is read in
+// (KeywordRegisterOf), which every row's annotation is parsed under.
+func ParseSummaryText(text, stem, source string, register KeywordRegister) ([]Requirement, error) {
 	lines := strings.Split(text, "\n")
 	// Requirement.Line is an int32, which keeps Requirement under gocritic's
 	// rangeValCopy threshold, so a summary past that many lines is refused
@@ -1033,7 +1035,7 @@ func ParseSummaryText(text, stem, source string) ([]Requirement, error) {
 	seen := map[string]int32{}
 	for i, line := range lines {
 		lineno := int32(i + 1)
-		req, err := parseChecklistLine(line, stem, source, lineno)
+		req, err := parseChecklistLine(line, stem, source, lineno, register)
 		if err != nil {
 			return nil, err
 		}
@@ -1070,7 +1072,11 @@ func parseSummaryFile(tree, path string) ([]Requirement, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ParseSummaryText(text, stem, rel)
+	register, err := KeywordRegisterOf(tree, stem)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSummaryText(text, stem, rel, register)
 }
 
 // summaryStems answers every stem under rfc/short/.

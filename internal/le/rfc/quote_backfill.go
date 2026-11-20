@@ -97,7 +97,11 @@ func quoteBackfill(tree, stem string, apply bool) (*quoteBackfillReport, error) 
 		return nil, err
 	}
 	summaryName := stemPath(summaryRel, stem, ".md")
-	requirements, err := ParseSummaryText(string(body), stem, summaryName)
+	register, err := KeywordRegisterOf(tree, stem)
+	if err != nil {
+		return nil, err
+	}
+	requirements, err := ParseSummaryText(string(body), stem, summaryName, register)
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +129,7 @@ func quoteBackfill(tree, stem string, apply bool) (*quoteBackfillReport, error) 
 			report.Verbatim++
 			continue
 		}
-		row := judgeBackfillRow(req, lines[req.Line-1], sites[req.RID], unsourced[req.RID], extracted, source)
+		row := judgeBackfillRow(req, lines[req.Line-1], sites[req.RID], unsourced[req.RID], extracted, source, register)
 		switch {
 		case row.Kind == backfillQuote:
 			report.Quoted = append(report.Quoted, row)
@@ -202,7 +206,7 @@ func backfillHuman(req *Requirement, kind, reason string) quoteBackfillRow {
 // itself is then parsed back and held against the row check, so a quote the
 // check would refuse is never written.
 func judgeBackfillRow(req *Requirement, line string, sites []ExtractionSite, unsourced, extracted bool,
-	source *quoteSource,
+	source *quoteSource, register KeywordRegister,
 ) quoteBackfillRow {
 	if !extracted {
 		return backfillHuman(req, backfillNoExtraction, "the RFC has no extraction artifact, so no site maps the row")
@@ -226,7 +230,7 @@ func judgeBackfillRow(req *Requirement, line string, sites []ExtractionSite, uns
 		row.Kind, row.Reason = kind, reason
 		return row
 	}
-	newLine, refusal := backfillRewrite(req, line, row.Quote, source)
+	newLine, refusal := backfillRewrite(req, line, row.Quote, source, register)
 	if refusal != "" {
 		row.Kind, row.Reason = backfillRewriteRefused, refusal
 		return row
@@ -294,7 +298,7 @@ const backfillRewriteChanged = "the rewritten line changes the id, the level or 
 // end of the line kept byte for byte. It parses the line back and refuses it
 // unless the id, level, section and markers are unchanged and the row check
 // accepts the quote. The third result is the refusal, empty on success.
-func backfillRewrite(req *Requirement, line, sentence string, source *quoteSource) (string, string) {
+func backfillRewrite(req *Requirement, line, sentence string, source *quoteSource, register KeywordRegister) (string, string) {
 	start := strings.Index(line, req.Text)
 	loc := trailingParenRE.FindStringIndex(req.Text)
 	if start < 0 {
@@ -304,7 +308,7 @@ func backfillRewrite(req *Requirement, line, sentence string, source *quoteSourc
 		return "", "the row's text carries no trailing section parenthetical to keep"
 	}
 	newLine := line[:start] + sentence + " " + req.Text[loc[0]:] + line[start+len(req.Text):]
-	parsed, err := parseChecklistLine(newLine, req.RFC, req.Source, req.Line)
+	parsed, err := parseChecklistLine(newLine, req.RFC, req.Source, req.Line, register)
 	if err != nil {
 		return "", "the rewritten line does not parse: " + err.Error()
 	}

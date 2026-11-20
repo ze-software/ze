@@ -95,7 +95,7 @@ type Intent struct {
 // (optionalityMarked), the shape a {feature-declined} quote's optionality
 // takes. A not-yet marker takes no reason, since it records only that the
 // work is owed.
-func parseIntent(body, where string, register keywordRegister) (*Intent, error) {
+func parseIntent(body, where string, register KeywordRegister) (*Intent, error) {
 	var tb textbuf.Buffer
 	_, value, _ := strings.Cut(body, ":")
 	word, reason, reasoned := strings.Cut(value, ";")
@@ -121,7 +121,7 @@ func parseIntent(body, where string, register keywordRegister) (*Intent, error) 
 
 // parseNotEver reads the reason of a not-ever marker: the quoted RFC sentence
 // making the row optional, then why.
-func parseNotEver(reason, where string, register keywordRegister) (*Intent, error) {
+func parseNotEver(reason, where string, register KeywordRegister) (*Intent, error) {
 	var tb textbuf.Buffer
 	if reason == "" {
 		return nil, parseErr(tb.Str(where).Str(": {").Str(IntentKind).Str(": ").Str(intentNotEverWord).

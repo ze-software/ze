@@ -346,7 +346,7 @@ type AnnotationTraits struct {
 // A nil parser means the common non-empty reason is the entire payload.
 var annotationKinds = map[string]struct {
 	traits AnnotationTraits
-	parse  func(rest, where string, register keywordRegister) (*Annotation, error)
+	parse  func(rest, where string, register KeywordRegister) (*Annotation, error)
 	format string
 }{
 	AnnotationNotApplicable: {
@@ -593,8 +593,8 @@ type Annotation struct {
 	// {not-applicable}'s alone.
 	BoundRole string `json:"bound-role,omitempty"`
 	// RoleSection and RoleSentence are the sentence of the RFC that names the
-	// BoundRole and the section it is in, when a {not-applicable} row of an
-	// RFC published before RFC 2119 quotes an obligation whose own subject is
+	// BoundRole and the section it is in, when a {not-applicable} row of a
+	// lowercase-register RFC (KeywordRegisterOf) quotes an obligation whose own subject is
 	// no role (`binds <role>; §<section> "<sentence>"; <why>`,
 	// roleSentenceRefusal). The sentence is held to that exact heading
 	// ((*evidenceReader).roleSentenceGap). Both are empty when the quote's

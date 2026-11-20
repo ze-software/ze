@@ -98,7 +98,7 @@ func signCheckFixture(t *testing.T, root string) {
 	if err != nil {
 		t.Fatalf("read the fixture summary: %v", err)
 	}
-	requirements, err := ParseSummaryText(string(body), selftestStem, selftestSummaryRel)
+	requirements, err := ParseSummaryText(string(body), selftestStem, selftestSummaryRel, registerByNumber(selftestStem))
 	if err != nil {
 		t.Fatalf("parse the fixture summary: %v", err)
 	}
@@ -738,7 +738,7 @@ func signedExtractionFixture(t *testing.T, skeleton bool) map[string]Extraction 
 	}); err != nil {
 		t.Fatalf("fixture files: %v", err)
 	}
-	requirements, err := ParseSummaryText(selftestSummary, selftestStem, selftestSummaryRel)
+	requirements, err := ParseSummaryText(selftestSummary, selftestStem, selftestSummaryRel, registerByNumber(selftestStem))
 	if err != nil {
 		t.Fatalf("parse the fixture summary: %v", err)
 	}

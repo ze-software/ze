@@ -28,7 +28,7 @@ func TestRFC7084TextIsCommitted(t *testing.T) {
 	if text == "" {
 		t.Fatal("RFC7084 source is not a committed Git blob")
 	}
-	rows, err := ParseSummaryText(blobs[summary], "rfc7084", summary)
+	rows, err := ParseSummaryText(blobs[summary], "rfc7084", summary, registerByNumber("rfc7084"))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -130,7 +130,11 @@ func FixtureProof(root, stem string, mapped map[string]string, records ...Discri
 	if err != nil {
 		return err
 	}
-	requirements, err := ParseSummaryText(string(body), stem, rel)
+	register, err := KeywordRegisterOf(root, stem)
+	if err != nil {
+		return err
+	}
+	requirements, err := ParseSummaryText(string(body), stem, rel, register)
 	if err != nil {
 		return err
 	}

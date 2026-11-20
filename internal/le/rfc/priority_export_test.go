@@ -39,14 +39,14 @@ func TestProfileMembersAndRequirementStems(t *testing.T) {
 	}
 
 	line := "- [ ] [RFC9999-2-1] [MUST] A speaker MUST send the widget (§2)\n"
-	stems, err := RequirementStems(map[string]string{"rfc9999": line})
+	stems, err := RequirementStems(t.TempDir(), map[string]string{"rfc9999": line})
 	if err != nil {
 		t.Fatalf("RequirementStems: %v", err)
 	}
 	if stems["RFC9999-2-1"] != "rfc9999" {
 		t.Errorf("index %v, want RFC9999-2-1 -> rfc9999", stems)
 	}
-	if _, err := RequirementStems(map[string]string{"rfc9999": line + line}); err == nil {
+	if _, err := RequirementStems(t.TempDir(), map[string]string{"rfc9999": line + line}); err == nil {
 		t.Error("a summary with a duplicate id was indexed")
 	}
 }

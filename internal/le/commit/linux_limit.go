@@ -50,7 +50,11 @@ func linuxLimitTrailers(root, head string, entries, removed []string) ([]string,
 			return nil, err
 		}
 		stem := strings.TrimSuffix(path.Base(name), ".md")
-		rows, err := rfc.ParseSummaryText(string(body), stem, name)
+		register, err := rfc.KeywordRegisterOf(root, stem)
+		if err != nil {
+			return nil, linuxLimitErrorf("%w", err)
+		}
+		rows, err := rfc.ParseSummaryText(string(body), stem, name, register)
 		if err != nil {
 			return nil, linuxLimitErrorf("%w", err)
 		}
@@ -189,7 +193,11 @@ func linuxLimitHead(root, head, name, stem string) (map[string]*rfc.Annotation, 
 	if err != nil {
 		return nil, linuxLimitErrorf("read %s at %s: %w", name, head, err)
 	}
-	rows, err := rfc.ParseSummaryText(body, stem, head+":"+name)
+	register, err := rfc.KeywordRegisterOf(root, stem)
+	if err != nil {
+		return nil, linuxLimitErrorf("%w", err)
+	}
+	rows, err := rfc.ParseSummaryText(body, stem, head+":"+name, register)
 	if err != nil {
 		return nil, linuxLimitErrorf("%w", err)
 	}

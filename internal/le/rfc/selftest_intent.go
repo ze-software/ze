@@ -40,7 +40,7 @@ const selftestIntentSource = selftestRFCSource + "\n    " + selftestIntentRelayS
 func runIntentSelftest() ([]leroot.SelftestResult, error) {
 	summary := "# RFC 9999\n\n" + selftestMeta + "\n## Compliance Checklist\n\n" +
 		selftestIntentNotEverRow + selftestIntentEvidencedRow + selftestIntentBareRow
-	rows, err := ParseSummaryText(summary, selftestStem, selftestSummaryRel)
+	rows, err := ParseSummaryText(summary, selftestStem, selftestSummaryRel, registerByNumber(selftestStem))
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +50,7 @@ func runIntentSelftest() ([]leroot.SelftestResult, error) {
 		parsed = parsed && rows[1].Intent != nil && rows[1].Intent.State == IntentNotYet
 		parsed = parsed && rows[2].Intent != nil && rows[2].Intent.State == IntentNotYet
 	}
-	_, gatedErr := ParseSummaryText(selftestIntentGatedRow, selftestStem, selftestSummaryRel)
+	_, gatedErr := ParseSummaryText(selftestIntentGatedRow, selftestStem, selftestSummaryRel, registerByNumber(selftestStem))
 	root, err := newSelftestTree("rfc-selftest-intent-", map[string]string{selftestSourceRel: selftestIntentSource})
 	if err != nil {
 		return nil, err

@@ -123,7 +123,11 @@ func committedAuditSource(tree string, stems map[string]bool, extraPaths []strin
 		if meta.Enrolled() {
 			collected.Enrolled[stem] = true
 		}
-		rows, err := ParseSummaryText(blobs[rel], stem, rel)
+		register, err := KeywordRegisterOf(tree, stem)
+		if err != nil {
+			return auditSource{}, err
+		}
+		rows, err := ParseSummaryText(blobs[rel], stem, rel, register)
 		if err != nil {
 			return auditSource{}, err
 		}

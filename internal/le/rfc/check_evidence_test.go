@@ -584,7 +584,7 @@ func TestNotApplicableRolesAreWholeWordsAndDistinct(t *testing.T) {
 	}
 	for _, one := range cases {
 		row := "- [ ] [RFC9999-2-3] [SHOULD] " + one.sentence + ` (§2) {not-applicable: "` + one.sentence + `"; binds ` + one.bound + `; it sends no widget}`
-		_, err := ParseSummaryText(fixtureWithZeRoles(t, one.roles, row), selftestStem, selftestSummaryRel)
+		_, err := ParseSummaryText(fixtureWithZeRoles(t, one.roles, row), selftestStem, selftestSummaryRel, registerByNumber(selftestStem))
 		if one.refused == "" {
 			if err != nil {
 				t.Errorf("binds %q with ze roles %q was refused: %v", one.bound, one.roles, err)
@@ -597,11 +597,11 @@ func TestNotApplicableRolesAreWholeWordsAndDistinct(t *testing.T) {
 	}
 	// "server" is inside "observer" as letters, not as a word.
 	observer := `- [ ] [RFC9999-2-3] [SHOULD] A server MUST send it. (§2) {not-applicable: "A server MUST send the widget before any frame."; binds a server; it sends no widget}`
-	if _, err := ParseSummaryText(fixtureWithZeRoles(t, "observer", observer), selftestStem, selftestSummaryRel); err != nil {
+	if _, err := ParseSummaryText(fixtureWithZeRoles(t, "observer", observer), selftestStem, selftestSummaryRel, registerByNumber(selftestStem)); err != nil {
 		t.Errorf("binds a server with ze an observer was refused: %v", err)
 	}
 	legacy := "- [ ] [RFC9999-2-3] [SHOULD] " + sentence + " (§2) {not-applicable: ze sends no widget}"
-	if _, err := ParseSummaryText(fixtureWithZeRoles(t, "", legacy), selftestStem, selftestSummaryRel); err != nil {
+	if _, err := ParseSummaryText(fixtureWithZeRoles(t, "", legacy), selftestStem, selftestSummaryRel, registerByNumber(selftestStem)); err != nil {
 		t.Errorf("a legacy row in a summary declaring no ze roles was refused: %v", err)
 	}
 }
@@ -741,7 +741,7 @@ func TestPushedFingerprintsJudgeASummaryHEADParentCannotParse(t *testing.T) {
 	commitFixture(t, tree, "unparseable")
 	writeFixtureFiles(t, tree, map[string]string{evidenceBacklogRel: backlogFile("1"), selftestSummaryRel: quoteFixtureSummary(kept, reworded)})
 	commitFixture(t, tree, "tip")
-	rows, err := ParseSummaryText(quoteFixtureSummary(kept, reworded), selftestStem, selftestSummaryRel)
+	rows, err := ParseSummaryText(quoteFixtureSummary(kept, reworded), selftestStem, selftestSummaryRel, registerByNumber(selftestStem))
 	if err != nil {
 		t.Fatalf("parse the tip summary: %v", err)
 	}
@@ -903,7 +903,7 @@ func TestGenericRoleRefusalAdvisesARoleThatPasses(t *testing.T) {
 	for _, role := range []string{"a route reflector", "a DHCP relay agent"} {
 		sentence := strings.ToUpper(role[:1]) + role[1:] + " MUST send the widget before any frame."
 		row := "- [ ] [RFC9999-2-3] [SHOULD] " + sentence + ` (§2) {not-applicable: "` + sentence + `"; binds ` + role + `; it sends none}`
-		if _, err := ParseSummaryText(fixtureWithZeRoles(t, "BGP speaker", row), selftestStem, selftestSummaryRel); err != nil {
+		if _, err := ParseSummaryText(fixtureWithZeRoles(t, "BGP speaker", row), selftestStem, selftestSummaryRel, registerByNumber(selftestStem)); err != nil {
 			t.Errorf("the advised role %q is refused for a BGP summary: %v", role, err)
 		}
 	}

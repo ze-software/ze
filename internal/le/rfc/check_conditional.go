@@ -49,7 +49,7 @@ var subjectPrepositions = []string{"for", "from", "in", "of", "on", "to", "with"
 // and, if it does, it MUST mark it" the MUST is read as guarded. The loop is
 // bounded by the commas of the text before the keyword: each pass moves start
 // past one.
-func conditionalGuard(quote string, register keywordRegister) (string, bool) {
+func conditionalGuard(quote string, register KeywordRegister) (string, bool) {
 	at := register.firstMandatoryKeyword(quote)
 	if at < 0 {
 		return "", false

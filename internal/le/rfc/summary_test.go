@@ -14,7 +14,7 @@ import (
 // oneLine parses a single checklist line and answers what it produced.
 func oneLine(t *testing.T, line string) (*Requirement, error) {
 	t.Helper()
-	return parseChecklistLine(line, "rfc9999", "rfc/short/rfc9999.md", 7)
+	return parseChecklistLine(line, "rfc9999", "rfc/short/rfc9999.md", 7, registerByNumber("rfc9999"))
 }
 
 func TestAChecklistLineParsesIntoItsFields(t *testing.T) {
@@ -191,7 +191,7 @@ func TestEverySupersededDispositionStatesWhatItNames(t *testing.T) {
 
 func TestADuplicateIdIsRefused(t *testing.T) {
 	text := "- [ ] [RFC9999-2-1] [MUST] first (§2)\n- [ ] [RFC9999-2-1] [MUST] second (§2)\n"
-	_, err := ParseSummaryText(text, "rfc9999", "rfc/short/rfc9999.md")
+	_, err := ParseSummaryText(text, "rfc9999", "rfc/short/rfc9999.md", registerByNumber("rfc9999"))
 	if err == nil || !strings.Contains(err.Error(), "duplicate requirement id") {
 		t.Errorf("two rows sharing one id were accepted: %v", err)
 	}

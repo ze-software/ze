@@ -116,7 +116,7 @@ func TestIntentMarkerRefusedOnMust(t *testing.T) {
 	for _, level := range []string{levelMust, "MUST NOT"} {
 		for _, marker := range markers {
 			line := "- [ ] [RFC9999-2-1] [" + level + "] A speaker " + level + " log every widget it discards (§2) " + marker
-			_, err := ParseSummaryText(line, "rfc9999", "rfc/short/rfc9999.md")
+			_, err := ParseSummaryText(line, "rfc9999", "rfc/short/rfc9999.md", registerByNumber("rfc9999"))
 			if err == nil {
 				t.Errorf("%s on a %s row was accepted", marker, level)
 				continue
@@ -127,7 +127,7 @@ func TestIntentMarkerRefusedOnMust(t *testing.T) {
 		}
 	}
 	if _, err := ParseSummaryText("- [ ] [RFC9999-2-1] [MUST] A speaker MUST log every widget it discards (§2)",
-		"rfc9999", "rfc/short/rfc9999.md"); err != nil {
+		"rfc9999", "rfc/short/rfc9999.md", registerByNumber("rfc9999")); err != nil {
 		t.Errorf("a MUST row with no intent marker was refused: %v", err)
 	}
 }

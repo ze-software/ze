@@ -23,7 +23,7 @@ type LinuxLimitCandidate struct {
 	Where   string `json:"where"`
 }
 
-func parseLinuxLimit(rest, where string, _ keywordRegister) (*Annotation, error) {
+func parseLinuxLimit(rest, where string, _ KeywordRegister) (*Annotation, error) {
 	id, reason, separated := strings.Cut(rest, ";")
 	id, reason = strings.TrimSpace(id), strings.TrimSpace(reason)
 	if !separated {

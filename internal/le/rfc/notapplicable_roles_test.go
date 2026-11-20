@@ -237,7 +237,7 @@ func TestNotApplicableParsedRowIsJudgedByItsQuote(t *testing.T) {
 	}
 	for _, one := range cases {
 		row := "- [ ] [RFC9999-2-9] [MUST NOT] " + one.text + annotation
-		rows, err := ParseSummaryText(fixtureWithZeRoles(t, "speaker", row), selftestStem, selftestSummaryRel)
+		rows, err := ParseSummaryText(fixtureWithZeRoles(t, "speaker", row), selftestStem, selftestSummaryRel, registerByNumber(selftestStem))
 		if err != nil {
 			t.Fatalf("%s: the summary did not parse: %v", one.name, err)
 		}

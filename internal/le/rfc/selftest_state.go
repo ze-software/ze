@@ -144,7 +144,7 @@ func runExtractionSelftest() ([]leroot.SelftestResult, error) {
 	}
 	defer os.RemoveAll(root) //nolint:errcheck // temporary fixture checkout
 
-	requirements, err := ParseSummaryText(selftestSummary, selftestStem, selftestSummaryRel)
+	requirements, err := ParseSummaryText(selftestSummary, selftestStem, selftestSummaryRel, registerByNumber(selftestStem))
 	if err != nil {
 		return nil, err
 	}
