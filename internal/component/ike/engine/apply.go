@@ -474,6 +474,8 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 		warnImplicitDiscardAtStart(cfg, s.log)
 		warnICMPOverlapAtStart(cfg, s.log)
 		warnSPDOrderAtStart(cfg, s.log)
+		// RFC 4301 Section 7.4
+		warnForwardBypassAtStart(dataplane.Get(), cfg, s.log)
 	}
 	// RFC 4301 Section 4.4.1. The start installs every entry the dataplane holds and
 	// reports the rest (owner decision 2026-11-19, "Install, log, doctor"); a first apply

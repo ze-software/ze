@@ -68,6 +68,7 @@ const (
 	CodeDoctorClockSkew                            = "doctor-clock-skew"
 	CodeDoctorRADIUSCoAApply                       = "doctor-radius-coa-apply"
 	CodeDoctorRADIUSFramedRouteSkipped             = "doctor-radius-framed-route-skipped"
+	CodeDoctorRADIUSFramedMTU                      = "doctor-radius-framed-mtu"
 	CodeDoctorMachineIDMissing                     = "doctor-machine-id-missing"
 	CodeDoctorLocalAdminCredentials                = "doctor-local-admin-credentials"
 	CodeDoctorConfigClaimsUnavailable              = "doctor-config-claims-unavailable"
@@ -100,6 +101,7 @@ const (
 	CodeDoctorIPsecChildInstallRefused             = "doctor-ipsec-child-install-refused"
 	CodeDoctorIPsecSPDInstallRefused               = "doctor-ipsec-spd-install-refused"
 	CodeDoctorIPsecSPDUndoIncomplete               = "doctor-ipsec-spd-undo-incomplete"
+	CodeDoctorIPsecSPDForwardBypass                = "doctor-ipsec-spd-forward-bypass" //nolint:gosec // G101: a doctor code name, not a credential
 	CodeDoctorIPsecIKESocketBypass                 = "doctor-ipsec-ike-socket-bypass"
 	CodeDoctorIPsecRedistributionSource            = "doctor-ipsec-redistribution-source"
 	CodeDoctorDaemonCapabilityMissing              = "doctor-daemon-capability-missing"
@@ -1402,7 +1404,7 @@ var builtinCodes = append([]CodeMeta{
 	{
 		Code:        CodeDoctorIPsecStateScope,
 		Title:       "IPsec complete state-scope support cannot be verified",
-		Description: "Configured IPsec peers need complete per-SA traffic selector, ICMP quote, ICMP reverse and fragment checks, and the mapping of a forwarded ICMP error an out discard covers into its return Child SA. The running kernel did not provide a complete, readable capability receipt. Child SA installation is refused until Ze's native runtime kernel is rebuilt and booted; the runtime doctor finding preserves the exact cause and native repair commands.",
+		Description: "Configured IPsec peers need complete per-SA traffic selector, ICMP quote, ICMP reverse and fragment checks, the mapping of a forwarded ICMP error an out discard covers into its return Child SA, and the payload check of a forwarded ICMP error that meets an operator bypass's transit gate. The running kernel did not provide a complete, readable capability receipt. Child SA installation is refused until Ze's native runtime kernel is rebuilt and booted; the runtime doctor finding preserves the exact cause and native repair commands.",
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-state-scope"},
 	},
 	{
@@ -1436,6 +1438,22 @@ var builtinCodes = append([]CodeMeta{
 			"dataplane refuses is refused itself and keeps the running entries. The doctor finding names " +
 			"the entry, the dataplane's answer and the command that retries.",
 		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-spd-install-refused"},
+	},
+	{
+		Code:  CodeDoctorIPsecSPDForwardBypass,
+		Title: "An operator SPD bypass with a port does not decide forwarded traffic",
+		Description: "The running configuration holds a `vpn ipsec policy` bypass with a local or remote " +
+			"port whose local prefix is not one address of this host, on a dataplane that checks " +
+			"forwarded traffic in its own lookup (Linux XFRM). Linux checks a forwarded packet before it " +
+			"reassembles it and reads port 0 from every fragment but the first, and RFC 4301 Section 7.4 " +
+			"requires stateful fragment checking for such a bypass, which Ze does not perform for " +
+			"forwarded traffic yet. Ze therefore installs the entry for traffic to and from Ze only: " +
+			"forwarded traffic on its ports meets the next entry, and under `unmatched discard` it is " +
+			"dropped. A commit refuses such an entry; a start installs it and logs it at Error, and this " +
+			"check also reports it when an address the entry named has left the host. The doctor finding " +
+			"names the entry and the command that sets its port to any; a discard with a port, or a bypass " +
+			"whose local prefix is one address of this host, is accepted too.",
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-spd-forward-bypass"},
 	},
 	{
 		Code:  CodeDoctorIPsecSPDUndoIncomplete,
@@ -1750,6 +1768,12 @@ var builtinCodes = append([]CodeMeta{
 		Title:       "RADIUS framed route skipped",
 		Description: "A subscriber's Access-Accept carried a Framed-Route or Framed-IPv6-Route value Ze cannot parse, so that route was not installed while the rest of the authorization still applied. The event names the subscriber, the attribute and why the text did not parse. Correct the subscriber's RADIUS profile.",
 		Examples:    []string{"ze show errors", "ze show diagnostic doctor-radius-framed-route-skipped"},
+	},
+	{
+		Code:        CodeDoctorRADIUSFramedMTU,
+		Title:       "RADIUS Framed-MTU not applied as sent",
+		Description: "A subscriber's Access-Accept carried a Framed-MTU that Ze could not apply as sent. A value that is not four octets, or is outside the 64 to 65535 range of RFC 2865 Section 5.12, is ignored and the interface MTU comes from PPP negotiation. A value from 64 to 67 is raised to 68, the IPv4 minimum. A value below 1280 keeps IPv6CP from starting, because IPv6 needs an MTU of at least 1280. The event names the subscriber and the value. Correct the subscriber's RADIUS profile.",
+		Examples:    []string{"ze show errors", "ze show diagnostic doctor-radius-framed-mtu"},
 	},
 	{
 		Code:        "doctor-radius-invalid",

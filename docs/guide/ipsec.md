@@ -1497,11 +1497,29 @@ A bypass with a port decides only traffic to and from Ze, not forwarded traffic.
 Linux classifies a forwarded fragment before reassembling it, reading port 0 from
 every fragment but the first, and RFC 4301 Section 7.4 requires "stateful
 fragment checking to accommodate BYPASS traffic for which a non-trivial port
-range is specified", which Ze cannot perform for forwarded traffic yet. Forwarded
-traffic on that port keeps the disposition of the next entry that matches it,
-and under `unmatched discard` it is dropped. Write the bypass with both ports
-`any` to pass forwarded traffic. A discard with a port does decide forwarded
-traffic, except a fragment after the first, which no port can match.
+range is specified", which Ze cannot perform for forwarded traffic yet. On Linux
+a commit therefore refuses a bypass with a port, unless its `local prefix` is one
+address of this host (a /32 or /128 that an interface holds), because forwarded
+traffic on that port would meet the next entry instead:
+
+```
+set vpn ipsec policy ssh-ze action bypass
+set vpn ipsec policy ssh-ze protocol 6
+set vpn ipsec policy ssh-ze local prefix 192.0.2.1/32
+set vpn ipsec policy ssh-ze local port 22
+set vpn ipsec policy ssh-ze remote prefix 198.51.100.0/24
+```
+
+is accepted when 192.0.2.1 is an address of this host, and refused for a
+protected subnet such as 10.1.0.0/16, with the fix
+`set vpn ipsec policy ssh-ze local port any`. Write the bypass with both ports
+`any` to pass forwarded traffic. A discard with a port is accepted and does
+decide forwarded traffic, except a fragment after the first, which no port can
+match. With VPP the refusal does not apply, because VPP checks forwarded traffic
+in its inbound SPD. A configuration Ze starts with is not refused: the entry is
+installed for Ze's own traffic, logged at Error, and `ze doctor` reports it
+(`ipsec-spd-forward-bypass`, code `doctor-ipsec-spd-forward-bypass`), also when
+an address the entry named has left the host.
 
 The default order of 1000 sits between the lowest order Ze accepts, 1, and a
 peer's default rank of 2000, so an entry written with no order outranks the
@@ -2971,7 +2989,10 @@ the RFC 4301 Section 6.2 mapping. On Linux it is the policy's `XFRM_POLICY_ICMP`
 sets on the outbound policy of a peer with `icmp-error-check true`. It also carries
 `icmp-error-yield`: `true` on the catch-all's inbound discard alone, whose `XFRM_POLICY_ICMP` flag
 lets Ze's kernel deliver an ICMP error whose reversed payload matches the SA it arrived on. An
-operator discard entry shows `false`, and drops the ICMP it covers.
+operator discard entry shows `false`, and drops the ICMP it covers. The row also carries
+`icmp-error-payload`: `true` on the forward transit gate of an operator bypass alone, whose
+`XFRM_POLICY_ICMP` flag lets Ze's kernel judge a forwarded ICMP error that arrived on an SA by
+the policy its quoted header selects rather than by the gate.
 
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- saOptionsFromState, saDirFromKernel -->
 <!-- source: internal/component/ike/cmd/show_dataplane.go -- saInfoToMap, policyInfoToMap -->

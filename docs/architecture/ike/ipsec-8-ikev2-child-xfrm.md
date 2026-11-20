@@ -201,7 +201,9 @@ inbound discard alone, node-wide and per XFRM interface
 (`catchAllYieldsToICMPErrorCheck`), so an operator `in` discard entry, any
 protocol, drops the ICMP it names, while a consistent error still passes the
 catch-all under `unmatched discard`. The readback reports the flag as
-`ICMPErrorYield` on a discard and as `ICMPErrorReturn` on a protect policy.
+`ICMPErrorYield` on a discard, as `ICMPErrorReturn` on a protect policy and as
+`ICMPErrorPayload` on a template-free forward allow (a transit gate, "Transit
+traffic" below).
 <!-- source: gokrazy/kernel/patches/0003-xfrm-state-scope.patch -- icmp_rcv, icmpv6_rcv, __xfrm_policy_check -->
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- catchAllYieldsToICMPErrorCheck, policyInfoFromKernel -->
 
@@ -210,9 +212,11 @@ values, `features`, `max_selectors`, `guard_refs` and `abi`. The ABI word must
 equal `0x5a450001`; an absent or different receipt proves no support. Feature
 bits are 0 for state scope, 1 for quote availability, 2 for fragment context,
 3 for fragment gathering, 4 for strict ICMP final-policy mapping, 5 for the
-error-only, discard-honouring ICMP reverse check and 6 for the mapping of a
+error-only, discard-honouring ICMP reverse check, 6 for the mapping of a
 forwarded ICMP error whose out lookup answers BLOCK ("ICMP error messages
-carried by a Child SA" below). K1 advertises bits 0, 1, 5 and 6; K2 adds bit 2
+carried by a Child SA" below) and 7 for the payload check of a forwarded ICMP
+error that meets a transit gate ("Transit traffic" below). K1 advertises bits
+0, 1, 5, 6 and 7; K2 adds bit 2
 when both IP families are compiled.
 K3 adds bit 3 only when `CONFIG_XFRM_FRAGMENT_GUARD` is built and its namespace
 hooks initialized successfully.
@@ -260,7 +264,8 @@ sending an API request because its SAD entry cannot carry the set.
 <!-- source: internal/component/ike/dataplane/vpp.go -- vppUnsupportedSA -->
 
 Every explicit XFRM scope requires a fresh capability receipt with the exact
-ABI and 64-record limit, and every feature bit from 0 through 3, bit 5 and bit 6.
+ABI and 64-record limit, and every feature bit from 0 through 3 and from 5
+through 7.
 Bit 4 is known and not required. This applies
 even when that SA does not permit noninitial fragments. Partial K1 and K2
 receipts remain readable evidence but cannot authorize an installation.
@@ -679,6 +684,27 @@ when it matches both, so the policy carries their intersection: TSi "any" with
 TSr TCP installs TCP.
 <!-- source: internal/component/ike/engine/child.go -- childInstalledPolicies, childReceivePolicies -->
 <!-- source: internal/component/ike/engine/child_forward_policy_linux_test.go -- TestChildTunnelForwardsProtectedHostTraffic -->
+
+**A port-scoped operator bypass that forwarded traffic can match is refused at
+commit, until the forward path performs the stateful fragment check.** Thomas
+decided this on 2026-11-20 ("refusal until done"), in place of a notice at commit.
+No port-scoped bypass reaches the forward lookup (`spdEntryHasTransit`, "Transit
+traffic" below), so such an entry bypasses nothing Ze forwards. The refusal binds a
+dataplane whose `RequiresForwardPolicy` answers true (XFRM). It spares three cases
+where the entry does what it says: no dataplane is loaded; the dataplane applies its
+inbound SPD before routing (VPP); the local prefix is one address the host holds,
+because traffic to and from Ze is reassembled before the inbound check and is
+classified before it is fragmented on output. A start never refuses the IPsec block
+(owner decision 3 (a) of 2026-11-19), so the start installs the entry for Ze's own
+traffic, logs it at Error, and the `ipsec-spd-forward-bypass` doctor check reports
+it, judged on the addresses the host holds when it runs. The refusal is lifted when
+the engine projects a port-scoped bypass onto FWD on a kernel whose receipt carries
+capability bit 3: K3 then reassembles every fragment at PRE_ROUTING while a
+port-scoped policy exists, so the FWD check sees the ports of the whole datagram.
+
+<!-- source: internal/component/ike/engine/spd_forward_bypass.go -- spdForwardBypassRefusals, verifyForwardBypass, warnForwardBypassAtStart, answerSPDForwardBypass -->
+<!-- source: internal/component/ike/engine/register.go -- OnConfigVerify -->
+<!-- source: gokrazy/kernel/patches/0005-xfrm-fragment-guard.patch -- xfrm4_fragment_gather, xfrm6_fragment_gather -->
 
 **TSi and TSr are read as every combination of their entries.** RFC 7296 Section
 3.13: "a packet matches a given TSi/TSr if it matches at least one of the individual
@@ -1519,8 +1545,11 @@ reassembly and would read them wider than written:
   stateful check is the kernel route of owner decision 1, whose capability Ze
   does not hold yet. Until it does, no port-scoped bypass is stored in FWD
   (`TestPortScopedBypassNeverReachesTheForwardPath`), so forwarded traffic on its
-  ports keeps the disposition of the next entry that matches it: under
-  `unmatched discard`, it is dropped. A port-scoped discard is projected, since
+  ports would keep the disposition of the next entry that matches it. A commit
+  therefore refuses such an entry unless its local prefix is one address the host
+  holds (Thomas, 2026-11-20, "refusal until done"; Decisions above), and a start
+  installs it for Ze's own traffic, logs it at Error and reports it through the
+  `ipsec-spd-forward-bypass` doctor check. A port-scoped discard is projected, since
   it can only drop what another entry would admit; a forwarded non-initial
   fragment of its traffic, read with port 0, still escapes it to the next entry
   (AC-2 of the RFC 4301 architecture spec).
@@ -1546,8 +1575,21 @@ requires bit 7 as it requires bits 5 and 6. Two routes were set aside: not
 projecting a bypass into a FWD gate where it would cover Child SA traffic (it
 narrows what an operator entry decides), and a template on the gate (the
 kernel's `xfrm_state_ok` needs an exact tunnel destination, which a gate does not
-have). Until the bit 7 hunk lands, a transit gate at if_id 0 still stops such an
-error.
+have). The bit 7 hunk sits in `__xfrm_policy_check` just before the stock
+`xfrm_in_fwd_icmp` call: a payload policy it finds replaces the gate, and an
+error whose payload selects no policy keeps the gate's verdict. The kernel reads
+the flag there on a FWD gate alone, so `spdTransitPolicies` sets it on every FWD
+gate (`SPParams.ICMPErrorPayload`, written as `XFRM_POLICY_ICMP` by
+`xfrmPolicyFromParams`, which refuses it on any other policy), and the OUT gate
+of an `in` or `both` bypass does not carry it: on an OUT allow the flag is what
+`icmp_route_lookup`'s reversed `XFRM_LOOKUP_ICMP` lookup accepts, and an error
+this node sends about traffic the gate covers would then leave sourced from the
+address it quotes. The readback reports the flag as `ICMPErrorPayload`, shown as
+`icmp-error-payload`.
+<!-- source: gokrazy/kernel/patches/0003-xfrm-state-scope.patch -- __xfrm_policy_check, XFRM_ZE_CAP_ICMP_FORWARD_GATE -->
+<!-- source: internal/component/ike/engine/spd_policy.go -- spdTransitPolicies -->
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmPolicyFromParams, policyInfoFromKernel -->
+<!-- source: internal/component/ike/dataplane/xfrm_state_scope_linux.go -- checkXFRMStateScopeCapabilities -->
 
 The readback reads DISCARD from the kernel action rather than from an empty
 template list. The kernel accepts a template beside a `block` policy and ignores
@@ -1560,6 +1602,7 @@ it is being dropped.
 <!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppSPDAction -->
 <!-- source: internal/component/ike/engine/spd_policy.go -- spdPolicyParams, spdEntryPolicies, spdTransitPolicies, spdEntryHasTransit, reconcileSPDPolicies, installSPDPoliciesAtStart, undoSPDInstall, spdInstallOrder -->
 <!-- source: internal/component/ike/engine/spd_order.go -- spdOrderRefusals, spdJudgedPolicies, peerConfiguredPolicies, verifySPDOrder, warnSPDOrderAtStart -->
+<!-- source: internal/component/ike/engine/spd_forward_bypass.go -- spdBypassHasPort, spdLocalIsHeldAddress, spdForwardBypassRefusals -->
 <!-- source: internal/component/ike/dataplane/dataplane.go -- PriorityTransitGate -->
 <!-- source: internal/component/ike/engine/doctor_spd_install.go -- answerSPDInstall, recordSPDReconcile -->
 <!-- source: internal/component/ike/engine/unmatched.go -- unmatchedPolicies, installUnmatched -->

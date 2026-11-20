@@ -604,6 +604,13 @@ func runEngine(conn net.Conn) int {
 		if err := verifyPeerSAOptions(dp, dpName, cfg); err != nil {
 			return err
 		}
+		// RFC 4301 Section 7.4: a bypass with a port that forwarded traffic can match is
+		// refused at commit on a dataplane with a forward lookup, because no such bypass
+		// reaches that lookup (verifyForwardBypass, spd_forward_bypass.go). Its refusal is
+		// an operator error naming the entry and the fix, so it passes through unwrapped.
+		if err := verifyForwardBypass(dp, cfg); err != nil {
+			return err
+		}
 		// RFC 4301 Section 4.4.1: a commit that turns the default discard catch-all on
 		// without the operator writing it is refused (refuseImplicitDiscard, unmatched.go).
 		if err := refuseImplicitDiscard(cfg, state.discardInForce.Load()); err != nil {

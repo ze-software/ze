@@ -3,6 +3,7 @@
 // Related: doctor_esp_form_fast_path.go -- the ipsec-esp-form-fast-path check
 // Related: doctor_child_install.go -- the ipsec-child-install check
 // Related: doctor_spd_install.go -- the ipsec-spd-install check
+// Related: spd_forward_bypass.go -- the ipsec-spd-forward-bypass check
 // Related: doctor_ike_socket_bypass.go -- the ipsec-ike-socket-bypass check
 
 package engine
@@ -44,6 +45,9 @@ var engineDoctorChecks = []engineDoctorCheck{{
 }, {
 	decl:   spdInstallCheckDecl,
 	answer: answerSPDInstall,
+}, {
+	decl:   spdForwardBypassCheckDecl,
+	answer: answerSPDForwardBypass,
 }, {
 	decl:   ikeSocketBypassCheckDecl,
 	answer: answerIKESocketBypass,
