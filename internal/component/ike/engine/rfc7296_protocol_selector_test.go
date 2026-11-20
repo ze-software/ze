@@ -239,6 +239,54 @@ func TestChildMHSelectorProjectsTypeOnce(t *testing.T) {
 	}
 }
 
+// TestTSWireMHTypeEncoding tests the encoder's own MH guard. Negotiation and
+// Child installation refuse every exact MH Type before anything is encoded, so
+// only this boundary shows whether selectorsToWire itself refuses a value whose
+// low octet is set. An RFC-valid high-octet Type is the emitted control.
+func TestTSWireMHTypeEncoding(t *testing.T) {
+	mh := func(port uint16) []tsSelector {
+		selector := ipsec.PortSelector{Form: ipsec.PortSingle, Port: port}
+		return []tsSelector{selPort(t, "2001:db8:1::/64", selector, ipsec.MobilityHeaderProtocol)}
+	}
+	payload := selectorsToWire(mh(0x0500), wire.PayloadTypeTSi)
+	if payload == nil || len(payload.TrafficSelectors) != 1 {
+		t.Fatalf("RFC-valid MH Type 5 was not emitted as one selector: %+v", payload)
+	}
+	if got := payload.TrafficSelectors[0]; got.StartPort != 0x0500 || got.EndPort != 0x0500 {
+		t.Errorf("MH Type 5 encoded %#04x-%#04x, want 0x0500-0x0500", got.StartPort, got.EndPort)
+	}
+	for _, port := range []uint16{0x0005, 0x0501, 0x0580, 0xffff} {
+		if payload := selectorsToWire(mh(port), wire.PayloadTypeTSi); payload != nil {
+			t.Errorf("MH selector %#04x: encoder emitted %+v, want refusal", port, payload.TrafficSelectors)
+		}
+	}
+}
+
+// TestChildMHAnySideProjectsAny checks the other branch of the MH projection
+// in childPairPolicy: a side whose MH Type is ANY installs an ANY source
+// selector, never an exact Type 0 (Binding Refresh Request), while the
+// constrained side of the same pair still projects its bare Type.
+func TestChildMHAnySideProjectsAny(t *testing.T) {
+	pair := tsPair{
+		I: selPort(t, "2001:db8:1::/64", ipsec.AnyPort(), ipsec.MobilityHeaderProtocol),
+		R: selPort(t, "2001:db8:2::/64", ipsec.PortSelector{Form: ipsec.PortSingle, Port: 0x0700},
+			ipsec.MobilityHeaderProtocol),
+	}
+	child := rfc4301ChildWith(&pair)
+	projected := policyPair{local: pair.I.Net, remote: pair.R.Net, upperProto: ipsec.MobilityHeaderProtocol,
+		localPort: dataplane.AnyPortMatch(), remotePort: dataplane.ExactPortMatch(0x0700)}
+	out := childPairPolicy(child, dataplane.SADirOut, projected)
+	if !out.SrcPort.IsAny() || !out.DstPort.IsAny() {
+		t.Errorf("OUT from the ANY side: source %+v destination %+v, want both ANY", out.SrcPort, out.DstPort)
+	}
+	for _, dir := range []dataplane.SADir{dataplane.SADirIn, dataplane.SADirFwd} {
+		got := childPairPolicy(child, dir, projected)
+		if got.SrcPort != dataplane.ExactPortMatch(7) {
+			t.Errorf("direction %d: source selector %+v, want exact MH type 7", dir, got.SrcPort)
+		}
+	}
+}
+
 // TestChildMHDirectInstallRefusedBeforeDataplaneWrite covers a raw Child
 // object that bypassed the first-Child constructor as a rekey can do.
 func TestChildMHDirectInstallRefusedBeforeDataplaneWrite(t *testing.T) {

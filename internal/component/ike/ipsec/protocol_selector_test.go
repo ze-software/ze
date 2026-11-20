@@ -136,6 +136,82 @@ func TestTrafficSelectorMHSpecificTypeRefused(t *testing.T) {
 	}
 }
 
+// TestMHTypeSelectorValidForProtocol checks the one producer of the MH Type
+// encoding rule directly. RFC 4301 Section 4.4.1.1 places the 8-bit MH Type in
+// the most significant eight bits of the 16-bit port selector, so a value whose
+// low octet is not zero names no Type. 0x0580 sets only the top bit of the low
+// octet, so a mask narrower than 0xff cannot pass it; ANY and OPAQUE stay valid.
+func TestMHTypeSelectorValidForProtocol(t *testing.T) {
+	for _, tc := range []struct {
+		port  PortSelector
+		valid bool
+	}{
+		{AnyPort(), true},
+		{PortSelector{Form: PortOpaque}, true},
+		{PortSelector{Form: PortSingle, Port: 0x0500}, true},
+		{PortSelector{Form: PortSingle, Port: 0xff00}, true},
+		{PortSelector{Form: PortSingle, Port: 0x0005}, false},
+		{PortSelector{Form: PortSingle, Port: 0x0501}, false},
+		{PortSelector{Form: PortSingle, Port: 0x0580}, false},
+		{PortSelector{Form: PortSingle, Port: 0xffff}, false},
+	} {
+		if got := tc.port.ValidForProtocol(MobilityHeaderProtocol); got != tc.valid {
+			t.Errorf("MH selector %+v: valid %v, want %v", tc.port, got, tc.valid)
+		}
+	}
+}
+
+// TestTrafficSelectorMHMalformedTypeNamesTheEncoding drives the config
+// validator with an MH selector whose low octet is set, on either side. Every
+// exact MH Type is refused anyway, so the error class cannot tell the two
+// refusals apart: this test asserts the encoding refusal, whose reason names
+// the high octet, and not the classifier refusal an RFC-valid Type gets.
+func TestTrafficSelectorMHMalformedTypeNamesTheEncoding(t *testing.T) {
+	for _, port := range []uint16{0x0005, 0x0501, 0x0580, 0xffff} {
+		for _, remote := range []bool{false, true} {
+			selector := PortSelector{Form: PortSingle, Port: port}
+			peer := protocolSelectorPeer(t, MobilityHeaderProtocol, selector, remote)
+			err := cfgWith(peer).ValidateTrafficSelectors()
+			if !errors.Is(err, ErrTrafficSelectorPolicy) {
+				t.Fatalf("MH selector %#04x remote=%v: error %v, want ErrTrafficSelectorPolicy", port, remote, err)
+			}
+			if !strings.Contains(err.Error(), "high octet") {
+				t.Errorf("MH selector %#04x remote=%v: refusal %q does not name the high-octet encoding", port, remote, err)
+			}
+			if strings.Contains(err.Error(), "names a specific IPv6 Mobility Header Type") {
+				t.Errorf("MH selector %#04x remote=%v: malformed value refused as a valid Type: %q", port, remote, err)
+			}
+		}
+	}
+}
+
+// TestSPDPolicyMHTypeRefused checks the operator SPD list's answer for an MH
+// Type. The list has no MH Type field and protocolCarriesPorts leaves 135 out,
+// so a port under protocol 135 is refused on either side, the RFC-valid Type
+// encoding 0x0500 included. The ANY entry is the accepted control.
+func TestSPDPolicyMHTypeRefused(t *testing.T) {
+	for _, remote := range []bool{false, true} {
+		p := SPDPolicy{
+			Name: "mh", Action: dataplane.SPActionDiscard, Direction: SPDDirOut,
+			Order: 1000, Protocol: MobilityHeaderProtocol,
+			LocalPrefix: cidr(t, "2001:db8:1::/64"), RemotePrefix: cidr(t, "2001:db8:2::/64"),
+			LocalPort: AnyPort(), RemotePort: AnyPort(),
+		}
+		if err := p.validate(); err != nil {
+			t.Fatalf("remote=%v: ANY MH entry refused: %v", remote, err)
+		}
+		typed := PortSelector{Form: PortSingle, Port: 0x0500}
+		if remote {
+			p.RemotePort = typed
+		} else {
+			p.LocalPort = typed
+		}
+		if err := p.validate(); !errors.Is(err, ErrSPDPolicy) {
+			t.Errorf("remote=%v: MH Type entry error %v, want ErrSPDPolicy", remote, err)
+		}
+	}
+}
+
 // TestSPDDefinedPortProtocols checks the other caller of the protocol-port
 // classification: Linux can select UDP-Lite ports, but cannot select DCCP ports.
 func TestSPDDefinedPortProtocols(t *testing.T) {
