@@ -418,6 +418,10 @@ func (e *Engine) acceleratedTerminalTape(demo Demo) (string, error) {
 			var buffer textbuf.Buffer
 			lines = append(lines, buffer.Str("Set TypingSpeed ").
 				Int(renderTypingSpeedMS).Str("ms").String())
+			// The capture runs renderSpeedup times faster than the viewer's
+			// clock, so the pause before Enter is divided the same way.
+			lines = append(lines, buffer.Reset().Str("Set EnterPause ").
+				Int(int64(enterPause/time.Millisecond)/renderSpeedup).Str("ms").String())
 			configured = true
 			continue
 		}

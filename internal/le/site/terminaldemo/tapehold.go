@@ -17,6 +17,12 @@ import (
 // a screen has more to read, and that Sleep counts toward the floor.
 const resultHold = 2 * time.Second
 
+// enterPause is how long a typed command line stays on screen, whole, before
+// Enter runs it: the viewer reads the command before its output replaces the
+// moment. Thomas set one second. A tape overrides it with `Set EnterPause`,
+// which the accelerated capture uses to divide it by the capture speedup.
+const enterPause = time.Second
+
 // outerCardPattern matches the shell command that prints a card from
 // cards.json in the outer shell, capturing its demo and phase.
 var outerCardPattern = regexp.MustCompile(`^ze-demo card (\S+) (\S+)$`)
@@ -51,6 +57,21 @@ func (session *tapeSession) holdResult() {
 		return
 	}
 	session.readyAt = time.Now().Add(hold)
+}
+
+// pauseBeforeEnter holds a typed command line on screen for enterPause before
+// Enter runs it. An Enter that follows no Type (a key press in a menu, a
+// confirmation) is not a command line and is sent at once, and nothing is held
+// while the recording is hidden.
+func (session *tapeSession) pauseBeforeEnter() error {
+	if !session.typed {
+		return nil
+	}
+	session.typed = false
+	if session.writer.hidden() {
+		return nil
+	}
+	return session.pump(session.enterPause)
 }
 
 // awaitReading keeps the screen as it is until the reading floor has passed.

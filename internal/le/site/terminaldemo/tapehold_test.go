@@ -85,6 +85,54 @@ func TestRecorderHoldsAWaitedResultBeforeTheNextCommand(t *testing.T) {
 	}
 }
 
+// TestRecorderPausesATypedCommandBeforeEnter proves a typed command line
+// stays on screen for enterPause before Enter runs it, and that an Enter which
+// follows no Type is sent with no pause.
+// Method: drive bash with one typed command and compare the time its last
+// letter was echoed with the time its output was painted; then call the pause
+// on a session that typed nothing.
+func TestRecorderPausesATypedCommandBeforeEnter(t *testing.T) {
+	const pause = 600 * time.Millisecond
+	output := filepath.Join(t.TempDir(), "pause.cast")
+	settings := defaultTapeSettings()
+	settings.shell = hermeticShell(t)
+	settings.typing = time.Millisecond
+	settings.wait = shellWaitTimeout
+	settings.resultHold = 0
+	settings.enterPause = pause
+	tape := terminalTape{settings: settings, actions: []tapeAction{
+		{name: tapeTypeCommand, text: "echo $((40+2))", where: "t:1"},
+		{name: "Enter", where: "t:2"},
+		{name: tapeWaitCommand, pattern: regexp.MustCompile(`(?m)^42`), where: "t:3"},
+	}}
+	if _, err := driveTape(tape, output, 80, 24); err != nil {
+		t.Fatalf("drive tape: %v", err)
+	}
+	typed, painted := -1.0, -1.0
+	for _, event := range castEvents(t, output) {
+		// Typing echoes one character an event; the command line ends with ")".
+		if painted < 0 && strings.HasSuffix(event.text, ")") {
+			typed = event.at
+		}
+		if painted < 0 && typed >= 0 && strings.Contains(event.text, "42") {
+			painted = event.at
+		}
+	}
+	if typed < 0 || painted < 0 {
+		t.Fatalf("the cast holds no typed command followed by its 42: typed=%v painted=%v", typed, painted)
+	}
+	if gap := time.Duration((painted - typed) * float64(time.Second)); gap < pause {
+		t.Fatalf("Enter ran the command %v after its last letter, want at least %v", gap, pause)
+	}
+
+	// An Enter that follows no Type returns before it touches the recording:
+	// with an hour of pause and no writer, anything else would hang or panic.
+	idle := &tapeSession{enterPause: time.Hour}
+	if err := idle.pauseBeforeEnter(); err != nil {
+		t.Fatalf("an Enter after no Type: %v", err)
+	}
+}
+
 // TestTypedCardEarnsItsReadingTime proves a `ze-demo card` typed in the outer
 // shell earns the same reading time as the in-editor Card of that card, that a
 // plain command earns none, and that a card cards.json does not hold is

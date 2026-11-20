@@ -51,6 +51,16 @@ viewer saw the command. After the last key of a `Type`, the recorder waits
 until the program's output goes quiet, then sends the next action.
 <!-- source: internal/le/site/terminaldemo/pty.go -- tapeSession.typeText, tapeSession.settle -->
 
+A typed command line then stays on screen for one second before Enter runs it,
+so the viewer reads the command before its output arrives. The pause applies
+to an Enter that directly follows a `Type`. An Enter on its own (a menu choice,
+a confirmation) is sent at once, and nothing is held while the recording is
+hidden. A tape changes the pause with `Set EnterPause <duration>`; the
+accelerated capture sets it itself, divided by its speedup, so the viewer still
+sees one second.
+<!-- source: internal/le/site/terminaldemo/tapehold.go -- enterPause, pauseBeforeEnter -->
+<!-- source: internal/le/site/terminaldemo/render.go -- acceleratedTerminalTape -->
+
 Two checks hold a tape to this. The recorder refuses a tape that loads a
 section with no `Card` since the previous section load, and a `Card` between
 `Hide` and `Show`, where nobody would see it. A unit test refuses a topic whose

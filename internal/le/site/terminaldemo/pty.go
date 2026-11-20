@@ -63,6 +63,8 @@ type tapeSettings struct {
 	width    int
 	// resultHold is the reading floor after each visible Wait+Screen.
 	resultHold time.Duration
+	// enterPause is how long a typed command line shows before Enter runs it.
+	enterPause time.Duration
 }
 
 type tapeAction struct {
@@ -90,6 +92,7 @@ func defaultTapeSettings() tapeSettings {
 		width:    1200,
 
 		resultHold: resultHold,
+		enterPause: enterPause,
 	}
 }
 
@@ -425,15 +428,18 @@ func applyTapeSetting(settings *tapeSettings, argument string) error {
 			return fmt.Errorf("tape Set Shell: %w", err)
 		}
 		settings.shell = quoted
-	case "TypingSpeed", "WaitTimeout":
+	case "TypingSpeed", "WaitTimeout", "EnterPause":
 		duration, err := tapeDuration(value)
 		if err != nil {
 			return fmt.Errorf("tape Set %s: %w", key, err)
 		}
-		if key == "TypingSpeed" {
+		switch key {
+		case "TypingSpeed":
 			settings.typing = duration
-		} else {
+		case "WaitTimeout":
 			settings.wait = duration
+		case "EnterPause":
+			settings.enterPause = duration
 		}
 	case "FontSize", "Height", "Padding", "Width":
 		pixels, err := strconv.Atoi(value)
@@ -765,6 +771,10 @@ type tapeSession struct {
 	// readyAt is the earliest moment the next action may change the screen.
 	// The zero value holds nothing.
 	readyAt time.Time
+	// enterPause is the time a typed command line shows before Enter runs it,
+	// and typed is true while the last action was a Type (tapehold.go).
+	enterPause time.Duration
+	typed      bool
 }
 
 func (session *tapeSession) read() error {
@@ -897,7 +907,8 @@ func driveTape(tape terminalTape, output string, columns, rows int) (*castWriter
 		return nil, err
 	}
 	session := &tapeSession{master: master, writer: writer, screen: newTerminalScreen(rows, columns),
-		typing: tape.settings.typing, timeout: tape.settings.wait, resultHold: tape.settings.resultHold}
+		typing: tape.settings.typing, timeout: tape.settings.wait, resultHold: tape.settings.resultHold,
+		enterPause: tape.settings.enterPause}
 	defer func() { terminatePTY(command, master); _ = writer.file.Close() }()
 	if err := session.waitForFirstOutput(); err != nil {
 		return nil, err
@@ -913,6 +924,10 @@ func driveTape(tape terminalTape, output string, columns, rows int) (*castWriter
 			if err := session.awaitReading(); err != nil {
 				return nil, fmt.Errorf("%s: %w", action.where, err)
 			}
+		}
+		// Only an Enter directly after a Type ends a typed command line.
+		if action.name != tapeTypeCommand && action.name != "Enter" {
+			session.typed = false
 		}
 		switch action.name {
 		case tapeHideCommand:
@@ -931,8 +946,12 @@ func driveTape(tape terminalTape, output string, columns, rows int) (*castWriter
 		case tapeTypeCommand:
 			session.cardHold = action.duration
 			err = session.typeText(action.text)
+			session.typed = true
 		case "Enter":
-			err = session.send(ptyKeys[keyEnter])
+			err = session.pauseBeforeEnter()
+			if err == nil {
+				err = session.send(ptyKeys[keyEnter])
+			}
 		case "Escape":
 			err = session.send([]byte{0x1b})
 		case "Left":
