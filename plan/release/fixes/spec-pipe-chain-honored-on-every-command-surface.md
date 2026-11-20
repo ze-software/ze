@@ -142,6 +142,10 @@ completion.
 - [ ] `internal/component/command/local_data.go` - `ServeLocal` and `RenderLocalAnswer` answer a local-data command in the caller's process and build the formatter with `ProcessPipesDefaultFormatLocal`; the handler receives validated arguments and no chain
 - [ ] `cmd/ze/hub/server_stream.go` - `serverStreamCommand` builds its own `CommandContext`, calls `BeginAccounting` and `IsAuthorized` on the whole input, then `ProcessRemoteStreamPipes`, and wraps the handler in `RunStreamPipes`; it never calls `Dispatch`
 - [ ] `internal/component/plugin/server/handler.go` - `StreamingHandler` takes a context, the server, a writer, the username and validated arguments, and no `CommandContext`
+- [ ] `cmd/ze/hub/service_ssh.go` - the `SetStreamingExecutorFactory` closure is where an SSH exec stream is accounted (`BeginAccounting`), authorized (`IsAuthorized`) and looked up (`GetStreamingHandlerForCommand`); it receives only what `execMiddleware` passes, the command part
+- [ ] `cmd/ze/hub/api.go` - the REST and gRPC stream source: `BeginAccounting`, then `GetStreamingHandlerForCommand`, on the command it is handed. `APIEngine.Stream` feeds this site, not `server_stream.go`, which serves the web
+- [ ] `internal/component/cli/model_monitor.go` - `extractMonitorCmdArgs` is the fourth caller of `GetStreamingHandlerForCommand`, for the daemon-hosted model
+- [ ] `internal/component/bgp/plugins/cmd/rib/rib.go` `registerRibAnswerShapes` - `show bgp peer rib` (`cmdBgpPeerRib`) "forwards to cmdRibShow with a peer selector (forwardRibRoutes)" and "inherits none of them": a fourth command reaches the RIB argument grammar, with no pipe set on its path
 - [ ] `internal/component/cli/model_keys.go`, `internal/component/cli/model_ping.go`, `internal/component/cli/model_traceroute.go` - the model's stream split picks `ProcessStreamPipes` or `ProcessRemoteStreamPipes` by filesystem authority; the ping and traceroute monitors call `ParsePipe` to recognize their command
 - [ ] `internal/component/cli/client/answer.go` - `daemonOutput.end` calls `HasFormatPipe` on the operator's line to decide whether an empty answer prints `OK`
 - [ ] `internal/component/ssh/session.go` - `parseSessionRequest` reads the session environment keys `sshclient.EnvConfigName` and `EnvCLIMode`: the existing carrier of a client statement across the SSH boundary
@@ -258,8 +262,8 @@ completion.
 | One-shot, builtin handler | `Dispatch` | `CommandContext` | the engine, or the surface that said it renders | `CallerIdentity`, in-process |
 | One-shot, plugin handler | `Dispatch` | the pipe list of `ExecuteCommandInput`, over the bridge or forked TLS RPC | same | same |
 | One-shot, local-data handler in the daemon | `Dispatch`, through `loadLocalData` | `ValidatedArgs` | same | same |
-| Stream (`monitor ...`) from the web, REST, gRPC | `serverStreamCommand` | `ValidatedArgs` | the engine, through `RunStreamPipes` | not stated: the engine renders |
-| Stream over SSH exec | the stream arm of `execMiddleware` | `ValidatedArgs` | the engine, or the `ze cli` client when its session says so | a session environment key beside `EnvCLIMode`, read by `parseSessionRequest` |
+| Stream (`monitor ...`), every surface | `pluginserver.GetStreamingHandlerForCommand`, the one function all four handler-lookup sites call: `cmd/ze/hub/server_stream.go` `serverStreamCommand` (web), `cmd/ze/hub/api.go` (REST and gRPC streams), the `SetStreamingExecutorFactory` closure in `cmd/ze/hub/service_ssh.go` (SSH exec), `internal/component/cli/model_monitor.go` `extractMonitorCmdArgs` (the daemon-hosted model). It partitions and attaches the declared list to the `ValidatedArgs` it answers | `ValidatedArgs` | the engine, through `RunStreamPipes` | not stated: the engine renders |
+| Stream over SSH exec | as above. `execMiddleware` passes the TYPED line to the `StreamingExecutor`, not the command part it passes today, so the closure in `service_ssh.go` accounts and authorizes what was typed | `ValidatedArgs` | the engine; a `ze cli` client may take over only the presentation suffix (below) | a session environment key beside `EnvCLIMode`, read by `parseSessionRequest` |
 | Local-data in the caller's process (`ze <verb>`, `ze cli -c`) | `ServeLocal` | `ValidatedArgs` | `ServeLocal`, in the same process | no boundary is crossed |
 | `ze cli -c` one-shot to the daemon | `Dispatch`, reached through `execMiddleware` | as the one-shot rows | the daemon | not stated: the daemon renders, as today |
 | `ze cli -c` monitor (`StreamMonitor`) | the client, for its formatter, and the stream arm of `execMiddleware` | `ValidatedArgs`, in the daemon | the client: it owns `\| save` and the event formatter | the session environment key |
@@ -269,9 +273,36 @@ the transport inside the daemon. The statement therefore crosses the SSH
 boundary the way the interactive client's mode already does, as a session
 environment key the server validates. Its absence means the daemon renders, so
 a plain `ssh` client and a client that forgets the key get the chain applied.
-With the key set the daemon still partitions, hands the declared list to the
-handler, accounts the typed line and validates the residual chain with the
-local-surface rule, and applies none of it.
+
+**The key hands over presentation only, never selection.** The SSH server
+accepts any environment key from any client, so the key is untrusted input: a
+client that could switch off the residual chain could skip a `| match` the
+authorizer judged, and read rows a policy that allows only the filtered line
+never granted. So the daemon ALWAYS applies every residual operation that
+selects or reduces (`match`, `count`, `first`, `last`, `display`, `resolve`,
+`origin`, and every declared operation, which runs in the handler anyway). The
+catalog gains one fact per entry, whether the operation is presentation only:
+the formats, paging and `save`. With the key set, the client takes over the
+PRESENTATION SUFFIX of the chain, the longest trailing run of presentation
+operations, and nothing else; the daemon applies everything before it and
+answers data for the client to format, page and save.
+
+| Line, with the key set | The daemon applies | The client applies |
+|------------------------|--------------------|--------------------|
+| `monitor x \| match up \| save f` | `match` | the default format, `save` |
+| `monitor x \| match up \| table \| save f` | `match` | `table`, `save` |
+| `monitor x \| json \| match up` | `json`, then `match` over the rendered lines | nothing: no trailing presentation run |
+| `monitor x \| top-talkers \| save f` (a plugin's operation the client has never heard of) | `top-talkers`, in the handler | the default format, `save` |
+
+Both sides find the suffix from the catalog alone, which is compiled into
+both. A name the client does not know is by definition not a presentation
+operation, so the client never refuses it and never needs the daemon's
+registries: the daemon classifies, the client renders. This removes the
+refusal R-10 described. The key is honoured on the exec stream route only: on
+one-shot exec and on the interactive session it changes nothing, because the
+daemon renders there. A value other than the one defined is refused wherever
+it is sent, as the two existing keys are. `| save` is never run by the daemon
+for any caller.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -611,9 +642,55 @@ last column names what changes under the alternative.
 
 | # | Question | Evidence | Options | Recommendation | What changes under the alternative |
 |---|----------|----------|---------|----------------|------------------------------------|
-| T-2 | Where the generic operations run for SSH, the web CLI and `ze cli` | Today each surface runs them from its own `ProcessPipes*` call (`execMiddleware`, `executeTerminalOperationalResult`, `executeOperationalCommand`, `StreamMonitor`); the record-stream path renders rows as they arrive (`RenderRecords`); `\| save` and paging need the caller's side | A: at the surface, as today. B: inside the engine for every caller | A, on two conditions this spec builds: the surface and the engine run the SAME partition function, so they cannot disagree (A-4), and a client in another process states that it renders through the SSH session environment | Under B the rendering statement and the session key are not built; the engine renders for every caller; `RenderRecords`, `\| display`, paging and `\| save` move behind the dispatcher, and `ze cli` needs a daemon form of `\| save`. AC-22 and AC-23 change to assert the engine renders |
+| T-2 | Where the generic operations run for SSH, the web CLI and `ze cli` | Today each surface runs them from its own `ProcessPipes*` call (`execMiddleware`, `executeTerminalOperationalResult`, `executeOperationalCommand`, `StreamMonitor`); the record-stream path renders rows as they arrive (`RenderRecords`); `\| save` and paging need the caller's side | A: at the surface, as today. B: inside the engine for every caller | A for a surface inside the daemon (SSH exec, the web terminal, the daemon-hosted model), which runs the SAME partition function as the engine (A-4). For a client in another process, A is narrowed for security: the daemon applies every selecting or reducing operation, and the client takes over only the presentation suffix (format, paging, `save`), stated through the SSH session environment. A client never decides which rows it receives | Under B the rendering statement and the session key are not built; the engine renders for every caller; `RenderRecords`, `\| display`, paging and `\| save` move behind the dispatcher, and `ze cli` needs a daemon form of `\| save`. AC-22 and AC-23 change to assert the engine renders |
 | T-5 | How a derived MCP tool and a REST or gRPC parameter route express pipe operations, once both `leaf-list args` are gone | Derived tools take named parameters today (`prepareCommand`); a chain is ordered and may repeat a name (`\| peer a \| first 5`), which named parameters cannot express; `ze_execute` and REST execute already take a whole line | A: each declared operation becomes an optional named parameter of the derived tool. B: derived tools stay at the subject; a caller uses `ze_execute` or execute with the chain in the line. C: every derived MCP tool and every REST and gRPC command route takes one optional `pipe` list, ordered, each element an operation name and its argument words; the adapter validates each name against the command's `pipe-operations` and writes the chain after the parameters | C: it keeps the order typed, covers generic operations as well as declared ones, and the adapter holds no list of its own. A loses the order and cannot repeat an operation | Under A, AC-15 asserts optional named parameters and a fixed order, declared operations only. Under B, phase 7 builds nothing for derived tools and AC-15 asserts that the derived tool of `show bgp rib` offers no operation and its description names `ze_execute` |
 | T-6, authorization half | What the authorizer sees for a piped line | A string authorizer receives the whole input today, a typed one the first token and the rest (`isAuthorized`); the TACACS+ authorizer sends the tokens as `cmd-arg` values (`tacacs/authorizer.go`), so a per-command policy on the server matches on them; today no piped line reaches either, because `Dispatch` refuses it, except on the stream route, where `IsAuthorized` already receives the whole line | A: the typed line, chain included: a string authorizer receives the line, a typed one the command, its arguments, then the chain as tokens (a pipe token, the operation name, its argument words), for authorization only; the handler's arguments are unchanged; read-only is judged on the command path. B: the command part only | A: a TACACS+ per-command policy keeps seeing what the operator typed, and the stream route already behaves so | Under B the carrier of the chain into `AuthorizeCommandArgs` is not built, the three implementers are untouched, the stream route is changed to pass the command part, and AC-27 asserts the authorizer receives no chain token |
+
+### Decisions of the second review (2026-11-20)
+
+| Subject | Decision | Why |
+|---------|----------|-----|
+| `show bgp peer <selector> rib <scope>` | It declares its own operation set, the scope words included, the same names as `show bgp rib`; the `leaf scope` of `container rib` in `cmd/peer/yang/ze-peer-cmd.yang` goes; the argument form is refused with the pipe form as its fix (AC-34). The census gains the search `bgp peer \S+ rib (received\|advertised\|sent\|sent-received)`; known users: `internal/test/fixture/plugin_fixture_13_peer_lifecycle.go`, `internal/le/interoplab/bgp/check_ospf_redistribute_default_diagnostics_test.go`, `internal/component/plugin/server/usage_model_test.go` | no-layering: one carrier for one fact; the path names the subject and stops |
+| The stream route | The partition and the declared-list attachment live inside `pluginserver.GetStreamingHandlerForCommand`, which all four lookup sites call; `execMiddleware` passes the typed line through `StreamingExecutor`. R-11's test also fails on a handler lookup that bypasses that function | four sites, one function: two were missed by the first amendment |
+| The rendering key | Presentation suffix only, as "The carrier on each route" states | the key is untrusted input |
+| Authorization and accounting tokens | Taken from the partition's scan, never from a second `ScanInvocation` of the whole line, which refuses a chain backslash (`ErrBackslashInInvocation`) and would deny `\| match a\b` (AC-38). Under T-6 A the implementers read are the three named earlier, `fallbackArgs` in `tacacs/authorizer.go`, and the six typed wrappers in `cmd/ze/hub/aaa_lifecycle.go` | the chain grammar keeps a literal backslash; the authorizer must read the same grammar |
+| The argument contract of a declared operation | One closed vocabulary, the catalog's argument-kind spellings (`none`, `optional`, `text`, `count`, `fields`, `path`), validated by the partition. The in-tree `PipeFilter` takes the same field in place of `TakesArg`, so a builtin and a plugin state the fact in one shape | one fact, one shape |
+| The override answer-shape check | Placed beside the partition's answer step, in the command package, so `Dispatch`, `ServeLocal` and the stream sites all run it; not in `Dispatch` alone | the check must hold on every route the partition serves |
+| `ze <verb>` and `RenderLocalAnswer` | `RenderLocalAnswer` is handed a path, not a line, so it carries no chain; a declared operation reaches a local-data handler only through `ServeLocal`. The census row naming `RenderLocalAnswer` as a chain reader is corrected by the continuation | read at `local_data.go` |
+| The config editor's own pipe grammar (`docs/guide/config-editor.md`) | Out of scope: it filters the editor's display of the configuration and dispatches no operator command | another grammar, another subject |
+| `ai/rules/cli.md`'s example `show sysctl \| key <k>` | An example of the rule only; this spec converts no sysctl command | no scope growth |
+
+### Departures from the design documentation, for Thomas
+
+Each is presented by the main session with its before and after before the
+spec moves to `ready` (`ai/META-DECISIONS.md`, "How agents work").
+
+| # | Departure | Before, as the operator sees it | After | Documentation it contradicts |
+|---|-----------|---------------------------------|-------|------------------------------|
+| D-1 | The chain takes the invocation's quote grammar | `\| match "link down"` matches nothing; `\| match "a\|b"` is torn in two | the quoted value is one argument, quotes removed | `docs/architecture/api/commands.md` and the comments of `invocation_scan.go` and `splitPipeAt`: the filter grammar owns the chain |
+| D-2 | The prefix rule | `show bgp rib \| table \| peer X` filters then renders; `show bgp rib \| resolve \| count` counts then resolves | the first is refused with the reordered line; the second resolves then counts | `docs/features/formatting.md`, "Command-specific filters" |
+| D-3 | A scope on `show bgp rib protocol <p>` | `\| advertised` is accepted and does nothing | refused, naming the valid set | the inherited completion and help of that command |
+| D-4 | The typed-selector sentence of `ai/rules/cli.md` | a selector is a keyword and value on the path | selection is a pipe operation the command declares | `ai/rules/cli.md`, "CLI Grammar: Keywords Before Values" |
+| D-5 | Only `count`, `first`, `last` and `match` can be overridden | nothing refuses a command declaring any generic name | declaring another generic's name is refused. Thomas's words do not limit the set. The reason per group: a format, paging and `save` act on the caller's side of the answer and a handler cannot run them; `display`, `fill`, `resolve` and `origin` have no handler-side implementation today, so allowing them is a catalog field each, added when a command needs one | `ai/META-DECISIONS.md`: "A command overrides its behaviour by declaring the same name" |
+| D-6 | T-1: a format on a data caller | refused | the rendered text, carried as a JSON string in the answer's data | `docs/architecture/api/json-format.md`: a data caller receives structured data |
+| D-7 | The RIB `json` terminal | `show bgp rib json` answers through `newJSONTerminal` | the word goes; the bare command and `\| json` answer the routes (A-11, still unproven) | `ze-rib-api.yang`, "json returns serialized output" |
+| D-8 | Help and catalog keys; RIB operations leave the YANG model | `pipe-filters`, `pipe-aliases`, `operators`, `pipes`; `leaf-list args` | one `pipe-operations` list; operations are declared in the registry, not as a leaf | `ai/doors/commands-cli.md`, "The argument is a leaf the model declares" |
+| D-9 | `show bgp peer <selector> rib <scope>` | the scope is an enumerated leaf, completed and validated by the model | the scope is a pipe operation | `ze-peer-cmd.yang`, the same door sentence |
+
+### Open after the second review, owed by the continuation of this amendment
+
+This agent reached its tool-call budget. The rows above are decided; these
+sections still carry the first amendment's text and are brought in line by the
+next agent before the design is presented:
+
+- Census, Files to Modify, the TDD plan, the functional tests and the phases for: `show bgp peer rib` and its three known users; `cmd/ze/hub/service_ssh.go`, `cmd/ze/hub/api.go`, `internal/component/cli/model_monitor.go`; `cmd/ze/hub/aaa_lifecycle.go`; the `PipeFilter` argument field; the presentation fact in the catalog
+- Rows that still state the earlier design: R-10 (the client refusal, removed by the presentation suffix), R-11 (to watch handler lookups), AC-22 and AC-23 (to the suffix wording), the census row naming `RenderLocalAnswer` and the one saying `APIEngine.Stream` feeds `server_stream.go`, the override check "in `Dispatch`", the T-6 evidence (the whole line reaches `IsAuthorized` only in `server_stream.go` and `api.go`; `service_ssh.go` receives the command part)
+- The chain grammar table: rows for a backslash before a quote outside quotes, and a quote in the middle of a word
+- The stale comment above `scopeKeywords` ("must appear first") joins the stale-comment list of phase 5
+- AC-19 for an external plugin's operation read offline, where no daemon holds its declaration
+- A-11: `apply` builds `newJSONTerminal` for the word; that terminal is not read yet, so whether it equals the bare command is unsettled
+- A-12: phase 1 owes the wider search (quotes after a pipe, a declared word after a generic one) over fixtures, `.ci` and docs
+- `plan/release/fixes/spec-fixit-selector-narrows-through-a-pipe.md`: its `Depends` row, refused by the spec hooks until it carries `## Existing Mechanisms`
 
 ## Risks & Assumptions
 
@@ -622,7 +699,7 @@ last column names what changes under the alternative.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | `APIEngine.Execute` and `Stream` judge read-only on the command part of a piped line | `internal/component/api/invocation.go` `prepareCommand`: `ScanExecution` stops at the first unquoted pipe, `invocationCommandMeta` matches the words before it, and the read-only flag is the matched declaration's | a chain changes the verdict, or a piped write passes a read-only caller | `TestExecutePipedReadOnlyCaller`, `TestStreamPipedReadOnlyCaller` | unvalidated |
 | A-2 | Every `OnExecuteCommand` handler can take the request with a pipe list without behaviour change | the 46 non-test registrations read args and peer only | a handler that reads args positionally misreads | the scoped package tests of each plugin touched | unvalidated |
-| A-3 | Only `show bgp rib` and `show bgp rib best` declare a non-empty operation set today, and exactly one more command receives folded words: `show bgp rib protocol`, which declares nothing and inherits the set of `show bgp rib` by prefix. The readers of folded words are therefore three: `parsePipelineArgs`, `parseBestPipelineArgs`, `showProtocolPipeline` | `RegisterPipeFilters` call sites in `cmd/rib/rib.go` (read 2026-11-19); `cmdRibProtocol` is in no declaration; `rib_inject.go` `showProtocolPipeline` | another handler below `show bgp rib` reads folded words and breaks | grep of `RegisterPipeFilters` and of every command path under `show bgp rib` at phase 1 | unvalidated |
+| A-3 | REFUTED as first written (three commands), by the second review. Four commands reach the RIB argument grammar: `show bgp rib`, `show bgp rib best`, `show bgp rib protocol` (inherits the set by prefix) and `show bgp peer <selector> rib <scope>`, which `forwardRibRoutes` forwards to `cmdRibShow` and which holds no pipe set. The assumption now is that there is no fifth | `RegisterPipeFilters` call sites in `cmd/rib/rib.go` (read 2026-11-19); `cmdRibProtocol` is in no declaration; `rib_inject.go` `showProtocolPipeline` | another handler below `show bgp rib` reads folded words and breaks | grep of `RegisterPipeFilters` and of every command path under `show bgp rib` at phase 1 | unvalidated |
 | A-4 | The rendering surfaces and `Dispatch` produce the same partition from the same line | one function, deterministic, the same registry | SSH and the dispatcher disagree | `TestPartitionSameOnSurfaceAndDispatch` | unvalidated |
 | A-5 | Applying a residual chain inside `Dispatch` can reuse `ApplyPipes` over the flattened answer | `CommandDispatcher.JSON` flattens with `ResponseJSON` | a streamed `sdk.Records` answer needs its own path | `TestDispatchAppliesResidualChainToStreamedRows` | unvalidated |
 | A-6 | `pipeFilterRegistry` can take an owner-scoped, error-returning declaration and its withdrawal as the plugin alias registry does | `declarationRegistry.declare` panics on a conflict today; `RegisterPluginAliases` checks before it writes and records what each owner created; `UnregisterPluginAliases` | a plugin's operations outlive the plugin, or a bad declaration panics the daemon | `TestPluginOperationWithdrawnOnStop`, `TestPluginOperationCollisionsRefused` | unvalidated |
@@ -711,6 +788,12 @@ last column names what changes under the alternative.
 | AC-30 | A plugin's declared operation that collides: a generic the catalog does not allow to be overridden; an alias on an overlapping path; a global alias; a path that holds another owner's set | The whole Stage 1 declaration is refused with an error naming the operation and what it collides with; nothing of the batch is recorded; the daemon keeps running. The same in-tree is a `BUG:` panic | none |
 | AC-31 | `show bgp rib \| sent`, `\| sent-received`, `\| aspath <pattern>`, and each name of the explicit set of `show bgp rib protocol <protocol>` | Each answers what its argument form answers today; `show command help` lists them; a scope operation on `show bgp rib protocol` is refused naming the valid set | the route output of the removed `json` terminal is the bare command's (A-11) |
 | AC-32 | A REST or gRPC command holding a chain, with structured parameters | The parameters are written before the first pipe and reach the handler as arguments; the chain is applied to the answer | none |
+| AC-34 | `show bgp peer <selector> rib received` (the scope as a YANG leaf), and `show bgp peer <selector> rib \| received \| count` | The first is refused naming `received` as a pipe operation of `show bgp peer rib`, with the pipe form as its fix; the second answers the count of that peer's received routes; `show command help` lists the command's own operation set, scope included | the peer selector stays on the path: it names the subject |
+| AC-35 | A monitor line with a chain on each of the four stream lookup sites (web, REST and gRPC stream, SSH exec, the daemon-hosted model) | Each receives the declared list from `GetStreamingHandlerForCommand`; on SSH exec the accounting record and the authorizer hold the typed line, chain included | a monitor declaring nothing answers as today |
+| AC-36 | A client sets the rendering key and sends `monitor x \| match up \| save f` | The daemon applies `match`: the client receives only matching events; the daemon writes no file; the client formats and saves | the client applies only the trailing run of presentation operations |
+| AC-37 | The rendering key with a value other than the defined one; the key on one-shot exec | The first is refused by name before any command runs; the second changes nothing: the daemon renders the whole chain | none |
+| AC-38 | A chain argument holding a backslash outside quotes (`\| match a\b`), authorized and accounted | The authorizer and the accountant receive tokens from the partition's scan, so the line is judged and recorded with the backslash intact, and an allowed line runs | a backslash outside quotes in the command part stays refused |
+| AC-39 | (T-5 = C) a `pipe` list element whose name or argument word holds a pipe character or a quote | A name holding one is refused naming the valid list; an argument word holding one is written quoted and reaches the operation as one word; the chain gains no operation | none |
 | AC-33 | The same piped lines sent on SSH, the web terminal, `ze cli -c`, MCP, REST, gRPC and `dispatch-command` | Each surface's answer holds the same data as the local `ze` command's for that line, for a declared chain, a generic chain, a format, a quoted value and a refused line | each surface keeps its own envelope |
 
 ## End-to-End User Stories
