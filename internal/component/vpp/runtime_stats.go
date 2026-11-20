@@ -1,5 +1,6 @@
 // Design: docs/research/vpp-deployment-reference.md -- runtime statistics ownership
 // Related: vpp.go -- the API-connected lifecycle enters and closes this owner
+// Related: runtime_stats_counters.go -- the shared per-interface counter snapshot
 
 package vpp
 
@@ -12,6 +13,7 @@ import (
 
 	"go.fd.io/govpp/api"
 
+	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 	vppevents "github.com/ze-software/ze/internal/core/vpp/events"
@@ -27,11 +29,15 @@ type runtimeStatsClient interface {
 // cancels and joins the poller, withdraws this publication, then disconnects.
 // Reads and Close are safe for concurrent use; reads serialize access to the
 // GoVPP client's cached directories and refuse a retired API generation.
+// The lease is bound to one owner and generation, so the counter snapshot it
+// holds can never answer for another generation: a replacement is a new lease.
 type runtimeStats struct {
 	mu         sync.Mutex
 	owner      *Connector
 	generation uint64
 	client     runtimeStatsClient
+	clock      clock.Clock
+	counters   interfaceCounterSnapshot // guarded by mu
 	closed     bool
 	stopOnce   sync.Once
 	cancel     context.CancelFunc
@@ -43,23 +49,33 @@ type runtimeStats struct {
 // creation; a fresh active connector or stats provider is not a substitute.
 // out is usable only on success. Safe for concurrent use.
 func GetInterfaceStatsForGeneration(owner *Connector, generation uint64, out *api.InterfaceStats) error {
-	if owner == nil {
-		return errors.New("vpp: session statistics require an API owner")
-	}
 	if out == nil {
 		return errors.New("vpp: session statistics require an output snapshot")
 	}
-	reader, ok := GetActiveStatsProvider().(*runtimeStats)
-	if !ok {
-		return errors.New("vpp: no generation-bound interface statistics are available")
-	}
-	if reader.owner != owner {
-		return errors.New("vpp: interface statistics belong to another API owner")
-	}
-	if reader.generation != generation {
-		return errVppGenerationChanged
+	reader, err := statsForGeneration(owner, generation)
+	if err != nil {
+		return err
 	}
 	return reader.GetInterfaceStats(out)
+}
+
+// statsForGeneration selects the published lease only when it belongs to this
+// exact owner and generation. The lease re-checks the live generation itself.
+func statsForGeneration(owner *Connector, generation uint64) (*runtimeStats, error) {
+	if owner == nil {
+		return nil, errors.New("vpp: session statistics require an API owner")
+	}
+	reader, ok := GetActiveStatsProvider().(*runtimeStats)
+	if !ok {
+		return nil, errors.New("vpp: no generation-bound interface statistics are available")
+	}
+	if reader.owner != owner {
+		return nil, errors.New("vpp: interface statistics belong to another API owner")
+	}
+	if reader.generation != generation {
+		return nil, errVppGenerationChanged
+	}
+	return reader, nil
 }
 
 // activateRuntimeStats is the manager's post-API activation step. Statistics
@@ -167,7 +183,7 @@ func (m *VPPManager) connectRuntimeStatsGeneration(ctx context.Context, generati
 		client.Disconnect()
 		return nil, err
 	}
-	lease := &runtimeStats{owner: m.connector, generation: generation, client: client}
+	lease := &runtimeStats{owner: m.connector, generation: generation, client: client, clock: clock.RealClock{}}
 	var initial api.InterfaceStats
 	if err := lease.GetInterfaceStats(&initial); err != nil {
 		lease.Close()
@@ -237,6 +253,12 @@ func (s *runtimeStats) GetSystemStats(out *api.SystemStats) error {
 func (s *runtimeStats) read(subject string, read func() error) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.readLocked(subject, read)
+}
+
+// readLocked MUST be called with mu held. The generation is checked before and
+// after the read, so a completed read from a retired generation is refused.
+func (s *runtimeStats) readLocked(subject string, read func() error) error {
 	if s.closed {
 		return io.ErrClosedPipe
 	}

@@ -199,6 +199,20 @@ closing the binary API connection. A success clears only the same live owner's
 statistics category, and a confirmed new statistics connection clears its own
 connection failure.
 <!-- source: internal/component/vpp/runtime_stats.go -- GetInterfaceStatsForGeneration, runtimeStats.read, runtimeStats.Close -->
+
+Per-session counters come from one shared snapshot, not one dump per session.
+`InterfaceCountersForGeneration` answers one interface index from the
+statistics owner's latest dump, indexed by interface, and takes a new dump
+only when that one started before the caller's freshness bound. Reading every
+subscriber within one interval therefore costs one dump and one lookup per
+session. A fresh read (the bound set to the call time) still shares the one
+dump that starts after it, with every other fresh read waiting behind it. The
+snapshot belongs to the statistics owner of one API generation, and every
+answer re-checks that generation, so a replaced VPP process never answers from
+it. A request with no bound is refused, a failed dump discards the snapshot so
+the failure reaches the next caller, and a missing or duplicated interface row
+is an error.
+<!-- source: internal/component/vpp/runtime_stats_counters.go -- InterfaceCountersForGeneration, runtimeStats.interfaceCounters, runtimeStats.refreshCountersLocked -->
 <!-- source: internal/component/vpp/vpp.go -- VPPManager.runOnce -->
 
 ## System Prerequisites
