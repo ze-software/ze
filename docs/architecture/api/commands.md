@@ -2914,8 +2914,13 @@ holds only missing arguments binds a positional selector as a lone missing
 argument does, because each of them carries the same binding; a list with any
 other fault binds none. A sole missing selector keeps that same typed refusal
 and the selector's declared purpose, with the corrected command placing it
-where the dispatcher reads it. Several unbound positional words still receive
-the selector guard's explanation that no value could be chosen as the selector.
+where the dispatcher reads it; its problem line names the command
+(`request peer teardown requires a selector`), because the dispatcher restates
+the fault (`selectorMissing`) and a refusal of one fault reads as that fault's
+own `Problem` and `Why` (`command.StatedFault`), never as the cause it wraps.
+Several unbound positional words still receive the selector guard's
+explanation that no value could be chosen as the selector, as an operator
+error with the same problem line and the keyword form as its fix.
 That guard reads the validator's captured unplaced positional values, or the
 successful validation's positional tokens; named keyword/value pairs do not
 become ambiguous values merely because they occupy two words. The missing

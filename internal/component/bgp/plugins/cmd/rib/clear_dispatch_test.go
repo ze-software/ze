@@ -4,6 +4,8 @@
 package rib
 
 import (
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 // ribClearDispatcher answers a dispatcher loaded the way the daemon loads its
@@ -36,7 +39,8 @@ func ribClearDispatcher(t *testing.T) (*pluginserver.Dispatcher, map[string][]co
 //
 // VALIDATES: both RIB clears declare their selector mandatory, in the YANG
 // leaf and in RequiresSelector (the explicit-all CLI rule, 2026-10-17), and
-// the refusal names `<selector>` with the leaf's own summary, which names `*`.
+// the refusal is an operator error whose why is the leaf's own model text,
+// which names `*`, and whose fix is the line with `<selector>`.
 // PREVENTS: a typo or an early Enter clearing or replaying a RIB, and a
 // refusal that leaves the operator guessing how every peer is said.
 func TestClearBgpRibBareIsRefused(t *testing.T) {
@@ -45,9 +49,14 @@ func TestClearBgpRibBareIsRefused(t *testing.T) {
 		t.Run(line, func(t *testing.T) {
 			resp, err := d.Dispatch(&pluginserver.CommandContext{}, line)
 			require.Error(t, err)
-			assert.Nil(t, resp)
-			assert.Equal(t, line+" requires a selector: "+line+
-				" <selector> (* for every peer, or an address, a peer name or an AS pattern)", err.Error())
+			// A lone missing selector is the validator's held refusal, answered
+			// as an error response carrying the same text, as
+			// TestLoneMissingArgumentSelectorReachesSharedRefusal
+			// (plugin/server) pins for the dispatcher.
+			require.NotNil(t, resp)
+			assert.Equal(t, plugin.StatusError, resp.Status)
+			assert.Equal(t, err.Error(), resp.Error)
+			assertSelectorRefusal(t, err, line, "This command needs selector: ", line+" <selector>")
 		})
 	}
 }
@@ -63,25 +72,40 @@ func TestClearBgpRibBareIsRefused(t *testing.T) {
 // PREVENTS: a refusal with no fix in it (ai/rules/user-facing-errors.md).
 func TestClearBgpRibUnkeyedValuesAreRefused(t *testing.T) {
 	d, _ := ribClearDispatcher(t)
-	const form = " <selector> (* for every peer, or an address, a peer name or an AS pattern)"
 	tests := []struct {
 		line string
-		want string
+		path string
+		why  string
 	}{
-		{cmdRibClearIn + " * extra", cmdRibClearIn + " requires a selector: * extra are 2 values typed without a keyword," +
-			" so none is taken as the selector. Type " + cmdRibClearIn + form},
-		{cmdRibClearOut + " * ipv4/unicast extra", cmdRibClearOut + " requires a selector: * ipv4/unicast extra are 3 values" +
-			" typed without a keyword, so none is taken as the selector. Type " + cmdRibClearOut + form +
-			", then each other value after its keyword: family"},
+		{cmdRibClearIn + " * extra", cmdRibClearIn, "* extra are 2 values typed without a keyword," +
+			" so none is taken as the selector. This command needs selector: "},
+		{cmdRibClearOut + " * ipv4/unicast extra", cmdRibClearOut, "* ipv4/unicast extra are 3 values" +
+			" typed without a keyword, so none is taken as the selector, and each other value is typed after" +
+			" its keyword: family. This command needs selector: "},
 	}
 	for _, tt := range tests {
 		t.Run(tt.line, func(t *testing.T) {
 			resp, err := d.Dispatch(&pluginserver.CommandContext{}, tt.line)
 			require.Error(t, err)
 			assert.Nil(t, resp)
-			assert.Equal(t, tt.want, err.Error())
+			assertSelectorRefusal(t, err, tt.path, tt.why, tt.path+" <selector>")
 		})
 	}
+}
+
+// assertSelectorRefusal requires err to be the operator error that refuses
+// path for its missing selector: the problem names path, the why starts with
+// whyStart and names `*` for every peer from the selector leaf's model text,
+// and the fix is exactly fix, alone on the last line.
+func assertSelectorRefusal(t *testing.T, err error, path, whyStart, fix string) {
+	t.Helper()
+	refusal, isOperatorError := errors.AsType[*opererr.Error](err)
+	require.True(t, isOperatorError, "the refusal must be an operator error: %v", err)
+	assert.Equal(t, path+" requires a selector", refusal.Problem())
+	assert.True(t, strings.HasPrefix(refusal.Why(), whyStart), "why %q must start with %q", refusal.Why(), whyStart)
+	assert.Contains(t, refusal.Why(), "* for every peer")
+	assert.Equal(t, fix, refusal.Fix())
+	assert.True(t, strings.HasSuffix(err.Error(), "\nfix: "+fix), "the fix must be the last line: %q", err.Error())
 }
 
 // TestClearBgpRibOutPositionalFamilyIsRefused proves the family typed with no

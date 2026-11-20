@@ -95,20 +95,42 @@ func oneValueFix(fault *ValueArgumentError) string {
 	return tb.String()
 }
 
+// StatedFault is a fault that states the first two parts of its own refusal:
+// *ValueArgumentError, *MissingArgumentError, and a route's restatement of
+// either (Restated). A refusal of one fault is that fault's Problem and Why,
+// then the fix.
+type StatedFault interface {
+	error
+	Problem() string
+	Why() string
+}
+
 // oneArgumentRefusal preserves a lone fault's own problem and explanation,
-// while a route that knows the invocation supplies the complete fix.
+// while a route that knows the invocation supplies the complete fix. The
+// fault's own parts are read, never those of a fault it wraps: errors.As would
+// look through a route's restatement to the fault it replaces and drop the
+// route's words, which Restated promises to keep.
 func oneArgumentRefusal(fault error, fix string) *opererr.Error {
+	if fix == "" {
+		fix = oneFaultFix(fault)
+	}
+	stated, ok := fault.(StatedFault) //nolint:errorlint // The outer fault states the refusal; a wrapped cause is what it restates.
+	if !ok {
+		panic("BUG: lone argument refusal does not state its problem and why")
+	}
+	return opererr.New(stated.Problem(), stated.Why(), fix)
+}
+
+// oneFaultFix is the fix line of a lone fault no route restated with the whole
+// command: for a value fault the value to type in its place, for a missing
+// argument the words that supply it. A restatement keeps the fix of the fault
+// it replaces.
+func oneFaultFix(fault error) string {
 	if value, ok := errors.AsType[*ValueArgumentError](fault); ok {
-		if fix == "" {
-			fix = oneValueFix(value)
-		}
-		return opererr.New(value.Problem(), value.Why(), fix)
+		return oneValueFix(value)
 	}
 	if missing, ok := errors.AsType[*MissingArgumentError](fault); ok {
-		if fix == "" {
-			fix = missing.fix()
-		}
-		return opererr.New(missing.problem(), missing.why(), fix)
+		return missing.fix()
 	}
 	panic("BUG: lone argument refusal is neither a value fault nor a missing argument")
 }
@@ -162,8 +184,9 @@ func newArgumentFaults(faults []error, lines []string, omitted int, rest restPos
 // Restated answers the refusal with each fault for which restate answers an
 // error replaced by that error, named in the list as faultLine names it, and with
 // fix as its fix line, or the general correction when fix is empty. A fault for
-// which restate answers nil keeps its place and its line. The receiver is not
-// changed. restate MUST NOT be nil.
+// which restate answers nil keeps its place and its line. A refusal of one
+// fault reads as its replacement's own Problem and Why, so a replacement MUST be
+// a StatedFault. The receiver is not changed. restate MUST NOT be nil.
 func (e *ArgumentFaults) Restated(restate func(fault error) error, fix string) *ArgumentFaults {
 	faults := make([]error, len(e.faults))
 	lines := make([]string, len(e.lines))
@@ -379,7 +402,7 @@ func faultLine(fault error) string {
 	// compact problem and usage; wrapped selector refusals retain their form.
 	if missing, ok := fault.(*MissingArgumentError); ok { //nolint:errorlint // Only a direct missing fault uses compact text; a wrapped selector keeps its form.
 		var line textbuf.Buffer
-		return line.Str(missing.problem()).Str(", as in '").Str(missing.Usage()).Byte('\'').String()
+		return line.Str(missing.Problem()).Str(", as in '").Str(missing.Usage()).Byte('\'').String()
 	}
 	return fault.Error()
 }
@@ -387,7 +410,7 @@ func faultLine(fault error) string {
 // addMissing keeps a missing argument, named with the words that supply it.
 func (l *faultList) addMissing(missing *MissingArgumentError) {
 	var line textbuf.Buffer
-	line.Str(missing.problem()).Str(", as in '").Str(missing.Usage()).Byte('\'')
+	line.Str(missing.Problem()).Str(", as in '").Str(missing.Usage()).Byte('\'')
 	l.keep(missing, line.String())
 }
 

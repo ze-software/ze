@@ -183,6 +183,33 @@ func TestValidateArgsNamesEveryFault(t *testing.T) {
 		assert.Contains(t, err.Error(), "- required argument missing: selector, as in", "the receiver is not changed")
 	})
 
+	// A lone fault replaced by a route is refused in the replacement's own
+	// words: oneArgumentRefusal once looked through the replacement to the
+	// missing argument it wraps and printed that, so the route's restatement was
+	// silently dropped from every refusal of one fault.
+	t.Run("a restated lone fault reads as its replacement", func(t *testing.T) {
+		lone := []ArgDef{mustArgDef(NewStringArg("selector", nil, nil,
+			ArgOptions{Mandatory: true, ShortHelp: "the peer to act on"}))}
+		_, err := ValidateArgs(nil, lone, nil)
+		faults, listed := errors.AsType[*ArgumentFaults](err)
+		require.True(t, listed, "%v", err)
+		restated := faults.Restated(func(fault error) error {
+			missing, ok := errors.AsType[*MissingArgumentError](fault)
+			if ok && missing.Leaf == "selector" {
+				return &restatedMissing{missing: missing}
+			}
+			return nil
+		}, "delete demo peer <selector>")
+		assert.Equal(t, "delete demo peer requires a selector\n"+
+			"This command needs selector: the peer to act on\n"+
+			"fix: delete demo peer <selector>", restated.Error())
+		missing, found := errors.AsType[*MissingArgumentError](restated)
+		require.True(t, found, "the replacement still unwraps to the missing argument")
+		assert.Equal(t, "selector", missing.Leaf)
+		assert.Contains(t, err.Error(), "required argument missing: selector\n"+
+			"This command needs selector: the peer to act on\n", "the receiver is not changed")
+	})
+
 	t.Run("one fault is refused as itself", func(t *testing.T) {
 		_, err := ValidateArgs([]string{"192.0.2.7", "asn", "65002", "router-id"}, defs, nil)
 		require.Error(t, err)
@@ -206,3 +233,17 @@ func TestValidateArgsNamesEveryFault(t *testing.T) {
 		assert.Contains(t, err.Error(), "\n- and 4 more faults not listed here\nfix: ")
 	})
 }
+
+// restatedMissing is a route's restatement of a missing selector, the shape the
+// daemon dispatcher's selectorMissing has: its own problem, the missing
+// argument's why, and an Unwrap to the fault it replaces.
+type restatedMissing struct {
+	missing *MissingArgumentError
+}
+
+func (e *restatedMissing) Error() string {
+	return "delete demo peer requires a selector: delete demo peer <selector>"
+}
+func (e *restatedMissing) Problem() string { return "delete demo peer requires a selector" }
+func (e *restatedMissing) Why() string     { return e.missing.Why() }
+func (e *restatedMissing) Unwrap() error   { return e.missing }

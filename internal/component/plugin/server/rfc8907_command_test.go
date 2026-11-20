@@ -697,7 +697,9 @@ func TestDispatchImplicitSelectorMissingValue(t *testing.T) {
 	ctx := &CommandContext{}
 	_, err := d.Dispatch(ctx, "show demo entry detail")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "requires a selector")
+	assert.Equal(t, "show demo entry detail requires a selector\n"+
+		"The command definition makes selector mandatory and supplies no further explanation\n"+
+		"fix: show demo entry detail <selector>", err.Error())
 }
 
 // TestDispatchNoSelectorNeeded verifies commands without selectors dispatch normally.
@@ -2067,8 +2069,10 @@ func TestDispatchTerminalNounSelectorBoundaries(t *testing.T) {
 
 		_, err := d.Dispatch(&CommandContext{}, "announce unicast 10.0.0.0/24 next-hop 192.0.2.1")
 		require.Error(t, err)
-		assert.Equal(t, "announce requires a selector: unicast 10.0.0.0/24 next-hop 192.0.2.1 are 4 values"+
-			" typed without a keyword, so none is taken as the selector. Type announce <selector>", err.Error())
+		assert.Equal(t, "announce requires a selector\n"+
+			"unicast 10.0.0.0/24 next-hop 192.0.2.1 are 4 values typed without a keyword, so none is taken as the selector."+
+			" The command definition makes selector mandatory and supplies no further explanation\n"+
+			"fix: announce <selector>", err.Error())
 	})
 
 	t.Run("no trailing token still reports the selector as missing", func(t *testing.T) {
@@ -2082,7 +2086,7 @@ func TestDispatchTerminalNounSelectorBoundaries(t *testing.T) {
 
 		_, err := d.Dispatch(&CommandContext{}, "delete bgp peer")
 		require.Error(t, err)
-		assert.Equal(t, "required argument missing: selector\n"+
+		assert.Equal(t, "delete bgp peer requires a selector\n"+
 			"The command definition makes selector mandatory and supplies no further explanation\n"+
 			"fix: delete bgp peer <selector>", err.Error())
 	})

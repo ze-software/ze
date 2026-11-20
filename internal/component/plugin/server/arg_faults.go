@@ -17,18 +17,32 @@ import (
 )
 
 // selectorMissing stands in a list of faults for the missing selector of a
-// command that requires one. It reads as the selector guard's own refusal
+// command that requires one. In a list it reads as the selector guard's line
 // (writeSelectorRefusal), so the list names the line that supplies the
-// selector, and it unwraps to the *command.MissingArgumentError it replaces,
-// so errors.As still finds that. Immutable, safe for concurrent use.
+// selector. Alone, the refusal is its Problem, the command that requires a
+// selector, then the missing argument's own Why, which says what a selector
+// can be. It unwraps to the *command.MissingArgumentError it replaces, so
+// errors.As still finds that. Immutable, safe for concurrent use.
 type selectorMissing struct {
 	missing *command.MissingArgumentError
+	problem string
 	refusal string
 }
 
-// Error answers the guard's refusal text.
+// Error answers the guard's refusal text, the line a list of faults names.
 func (e *selectorMissing) Error() string {
 	return e.refusal
+}
+
+// Problem answers the first line of a refusal that names this fault alone.
+func (e *selectorMissing) Problem() string {
+	return e.problem
+}
+
+// Why answers the missing selector's declared purpose, as the missing
+// argument states it.
+func (e *selectorMissing) Why() string {
+	return e.missing.Why()
 }
 
 // Unwrap answers the missing argument this line names.
@@ -88,7 +102,7 @@ func restateArgumentFaults(matchedCmd *Command, faults *command.ArgumentFaults, 
 	return faults.RestatedForLine(func(fault error) error {
 		missing, ok := errors.AsType[*command.MissingArgumentError](fault)
 		if ok && missing.Leaf == selectorLeaf && selectorLine != "" {
-			return &selectorMissing{missing: missing, refusal: selectorLine}
+			return &selectorMissing{missing: missing, problem: selectorProblem(matchedCmd), refusal: selectorLine}
 		}
 		// A fault restated as nil keeps its own line (ArgumentFaults.Restated).
 		return nil

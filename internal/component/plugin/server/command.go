@@ -1335,11 +1335,11 @@ func (d *Dispatcher) dispatchLine(ctx *CommandContext, line command.DispatchLine
 				// above, including its cause, declared purpose and whole fix.
 				missing, found := errors.AsType[*command.MissingArgumentError](argErr)
 				if !found {
-					return nil, missingSelectorError(matchedCmd, validated.PositionalTokens())
+					return nil, missingSelectorError(matchedCmd, validated.PositionalTokens(), nil)
 				}
 				unplaced := missing.UnplacedTokens()
 				if len(unplaced) > 1 {
-					return nil, missingSelectorError(matchedCmd, unplaced)
+					return nil, missingSelectorError(matchedCmd, unplaced, missing)
 				}
 			}
 		}

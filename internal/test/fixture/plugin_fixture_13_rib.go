@@ -344,9 +344,12 @@ func ribClearOutFamily13(ctx context.Context, args []string) error {
 		}
 		// The dispatcher refuses the bare prefix before the forwarder runs
 		// (RequiresSelector), so no peer's Adj-RIB-Out is replayed, and the
-		// refusal names * as the form that says every peer.
-		if err := routingRefused(ctx, plugin, "clear bgp rib out", "clear bgp rib out requires a selector: clear bgp rib out <selector> (* for every peer"); err != nil {
-			return err
+		// refusal is an operator error: its problem names the command, its why
+		// names * as the form that says every peer, and its last line is the fix.
+		for _, part := range []string{"clear bgp rib out requires a selector\n", "* for every peer", "\nfix: clear bgp rib out <selector>"} {
+			if err := routingRefused(ctx, plugin, "clear bgp rib out", part); err != nil {
+				return err
+			}
 		}
 		// The family is typed after its keyword. The positional form is refused,
 		// and the refusal names the keyword form, rather than the token being

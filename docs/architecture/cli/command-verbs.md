@@ -392,15 +392,29 @@ the value is bound to the typed leaf and never to `selector`.
 <!-- source: internal/component/plugin/server/command.go -- Dispatch, adoptablePositional, selectorLeaf -->
 <!-- source: internal/component/command/argbind.go -- ValidateArgs, MissingArgumentError -->
 
-When the guard refuses, the refusal names the line that supplies a selector
-and what the selector leaf's `ze:help` says the value is. `<selector>` sits
-where the dispatcher reads it: after the key token the selector leaf is
-anchored to, and after the whole path when that token is the last one or the
-leaf has no anchor. So `clear bgp rib out` alone answers with
-`clear bgp rib out <selector> (* for every peer, ...)`, and `request peer
-teardown` alone with `request peer <selector> teardown (* for every peer,
-...)`.
+When the guard refuses, the refusal is an operator error. Its problem names
+the command (`request peer teardown requires a selector`), its why says what
+the selector leaf's model text says the value is (its description, or its
+`ze:help` when it has none), and its fix is the line that supplies a
+selector. `<selector>` sits where the dispatcher reads it: after the key token
+the selector leaf is anchored to, and after the whole path when that token is
+the last one or the leaf has no anchor. So `request peer teardown` alone
+answers with:
+
+```
+request peer teardown requires a selector
+This command needs selector: The value is an IP address, a peer name, ...
+fix: request peer <selector> teardown
+```
+
+and `clear bgp rib out` alone ends with `fix: clear bgp rib out <selector>`.
+A line whose values carry no keyword says first why none was taken as the
+selector, and its fix types the keyword form when the two values have one
+reading (`fix: clear bgp rib out * family ipv4/unicast`). In a list of faults
+the missing selector keeps one line,
+`request peer teardown requires a selector: request peer <selector> teardown (* for every peer, ...)`.
 <!-- source: internal/component/plugin/server/incomplete.go -- missingSelectorError, writeSelectedPath, selectorAnchorIndex -->
+<!-- source: internal/component/plugin/server/arg_faults.go -- selectorMissing -->
 
 ### Everything is a selector the operator types
 

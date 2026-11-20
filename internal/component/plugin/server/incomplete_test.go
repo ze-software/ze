@@ -12,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 // TestDispatcherRefusesACommandPrefix proves a prefix of registered commands
@@ -145,9 +146,10 @@ func TestDispatcherRunsAWholeCommandThatIsAlsoAPrefix(t *testing.T) {
 // two unkeyed values; then dispatch the documented form the refusal names and
 // see the handler run with that selector.
 //
-// VALIDATES: the refusal reads `request peer <selector> teardown`, both on the
-// bare form and in the keyword example of the two-value form, and the line it
-// names is one Dispatch accepts.
+// VALIDATES: the refusal is an operator error that names the command, says
+// what a selector is, and ends with the fix `request peer <selector>
+// teardown` on the bare form and the keyword form on the two-value form, and
+// the line it names is one Dispatch accepts.
 // PREVENTS: a refusal whose fix, `request peer teardown <selector>`, is a
 // line the dispatcher does not read the selector from.
 func TestSelectorRefusalPlacesTheSelectorWhereDispatchReadsIt(t *testing.T) {
@@ -168,16 +170,60 @@ func TestSelectorRefusalPlacesTheSelectorWhereDispatchReadsIt(t *testing.T) {
 
 	_, err := d.Dispatch(&CommandContext{}, "request peer teardown")
 	require.Error(t, err)
-	assert.Equal(t, "request peer teardown requires a selector: request peer <selector> teardown ("+help+")", err.Error())
+	assert.Equal(t, "request peer teardown requires a selector\n"+
+		"This command needs selector: "+help+"\n"+
+		"fix: request peer <selector> teardown", err.Error())
+	refusal, isOperatorError := errors.AsType[*opererr.Error](err)
+	require.True(t, isOperatorError, "the refusal must be an operator error")
+	assert.Equal(t, "request peer <selector> teardown", refusal.Fix())
 
 	_, err = d.Dispatch(&CommandContext{}, "request peer teardown 192.0.2.1 maintenance")
 	require.Error(t, err)
-	assert.Equal(t, "request peer teardown requires a selector: 192.0.2.1 maintenance are 2 values typed without a keyword,"+
-		" so none is taken as the selector. Type the selector first and the other value after its keyword:"+
-		" request peer 192.0.2.1 teardown reason maintenance", err.Error())
+	assert.Equal(t, "request peer teardown requires a selector\n"+
+		"192.0.2.1 maintenance are 2 values typed without a keyword, so none is taken as the selector."+
+		" This command needs selector: "+help+"\n"+
+		"fix: request peer 192.0.2.1 teardown reason maintenance", err.Error())
+	refusal, isOperatorError = errors.AsType[*opererr.Error](err)
+	require.True(t, isOperatorError, "the refusal must be an operator error")
+	assert.Equal(t, "request peer 192.0.2.1 teardown reason maintenance", refusal.Fix())
 
 	resp, err := d.Dispatch(&CommandContext{}, "request peer 192.0.2.1 teardown reason maintenance")
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "192.0.2.1", gotPeer, "the line the refusal names must bind the selector")
+}
+
+// TestImplicitSelectorRefusalNamesALineDispatchAccepts proves the refusal of a
+// command whose selector has no anchor names a fix the dispatcher reads.
+// Method: register `show demo entry detail` with an unanchored mandatory
+// selector, the implicit shape, dispatch it bare, put a value in the fix line
+// where it says `<selector>`, and dispatch that line.
+//
+// VALIDATES: the fix writes `<selector>` after the whole path, as
+// docs/architecture/cli/command-verbs.md states for a leaf with no anchor, and
+// the line it names binds the selector and runs the handler.
+// PREVENTS: a fix line that the dispatcher refuses again.
+func TestImplicitSelectorRefusalNamesALineDispatchAccepts(t *testing.T) {
+	d := NewDispatcher()
+	var gotSelector string
+	handler := func(ctx *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
+		gotSelector = ctx.Selector(selectorLeaf)
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}
+	require.NoError(t, d.RegisterWithOptions("show demo entry detail", handler, "Show entry detail", RegisterOptions{
+		RequiresSelector: true,
+		ArgDefs:          []command.ArgDef{commandtest.Must(command.NewStringArg(selectorLeaf, nil, nil, command.ArgOptions{Mandatory: true}))},
+	}))
+
+	_, err := d.Dispatch(&CommandContext{}, "show demo entry detail")
+	require.Error(t, err)
+	refusal, isOperatorError := errors.AsType[*opererr.Error](err)
+	require.True(t, isOperatorError, "the refusal must be an operator error")
+	require.Equal(t, "show demo entry detail <selector>", refusal.Fix())
+
+	resp, err := d.Dispatch(&CommandContext{}, strings.Replace(refusal.Fix(), "<selector>", "node-1", 1))
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+	assert.Equal(t, "node-1", gotSelector, "the line the refusal names must bind the selector")
 }

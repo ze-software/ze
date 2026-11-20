@@ -18,6 +18,7 @@
 package server_test
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -30,6 +31,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command/grammar"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/opererr"
 
 	// Trigger every builtin RPC and YANG module init(), matching the composition
 	// root the running daemon assembles (mirrors all_import_test.go).
@@ -63,9 +65,17 @@ func TestSendRefusesAMissingSelector(t *testing.T) {
 	ctx := &pluginserver.CommandContext{Server: server}
 	_, err = server.Dispatcher().Dispatch(ctx, "send bgp raw hex FF")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "requires a selector: hex FF are 2 values typed without a keyword")
-	assert.Contains(t, err.Error(), "send bgp <selector> raw (* for every peer, or an address, a peer name or an AS pattern)",
-		"the refusal must name the selector after bgp, the keyword the model anchors it to")
+	refusal, isOperatorError := errors.AsType[*opererr.Error](err)
+	require.True(t, isOperatorError, "the refusal must be an operator error: %v", err)
+	assert.Equal(t, sendRawPath+" requires a selector", refusal.Problem())
+	// hex and FF bind raw's encoding and data, so the selector is the lone
+	// missing argument: the why is its declared purpose, and the fix is the
+	// whole command with the selector after bgp.
+	assert.True(t, strings.HasPrefix(refusal.Why(), "This command needs selector: "),
+		"the why must be the missing selector's declared purpose: %q", refusal.Why())
+	assert.Contains(t, refusal.Why(), "* for every peer", "the why must say what a selector is")
+	assert.Equal(t, "send bgp <selector> raw hex FF", refusal.Fix(),
+		"the refusal must name the selector after bgp, the keyword the model anchors it to, and keep what was typed")
 	assert.Empty(t, ctx.Peer, "a refused send must leave no destination bound")
 }
 

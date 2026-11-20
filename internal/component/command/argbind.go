@@ -223,24 +223,35 @@ type MissingArgumentError struct {
 // Error explains the missing leaf and how to supply it when the command path
 // is not known. Routes restate ArgumentFaults with that complete command.
 func (e *MissingArgumentError) Error() string {
-	return opererr.New(e.problem(), e.why(), e.fix()).Error()
+	return opererr.New(e.Problem(), e.Why(), e.fix()).Error()
 }
 
-// problem is also the compact label of this cause in a multi-fault list.
-func (e *MissingArgumentError) problem() string {
+// Problem answers the first line of the refusal, and is also the compact label
+// of this cause in a multi-fault list.
+func (e *MissingArgumentError) Problem() string {
 	var tb textbuf.Buffer
 	return tb.Str("required argument missing: ").Str(e.Leaf).String()
 }
 
-// why carries the model's declared argument meaning. A missing declaration is
-// an explicit gap, never a purpose inferred from the leaf's name.
-func (e *MissingArgumentError) why() string {
+// Why answers the model's declared argument meaning. A missing declaration is
+// an explicit gap, never a purpose inferred from the leaf's name. A route that
+// restates this cause in its own words keeps this explanation.
+func (e *MissingArgumentError) Why() string {
+	return MissingArgumentWhy(e.Leaf, e.purpose)
+}
+
+// MissingArgumentWhy answers the why of a refusal of mandatory leaf, typed
+// with purpose as the leaf's description or help summary ("" when the model
+// declares neither). A route that refuses the same leaf without the
+// validator's cause (the daemon's selector guard) calls it, so both say it in
+// the same words.
+func MissingArgumentWhy(leaf, purpose string) string {
 	var tb textbuf.Buffer
-	if e.purpose == "" {
-		return tb.Str("The command definition makes ").Str(e.Leaf).
+	if purpose == "" {
+		return tb.Str("The command definition makes ").Str(leaf).
 			Str(" mandatory and supplies no further explanation").String()
 	}
-	return tb.Str("This command needs ").Str(e.Leaf).Str(": ").Str(e.purpose).String()
+	return tb.Str("This command needs ").Str(leaf).Str(": ").Str(purpose).String()
 }
 
 // fix uses the model's actual value form when this is a validator-built cause.
