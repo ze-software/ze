@@ -54,7 +54,9 @@ full status and evidence; this page is the short form. Nothing is pushed.
    red at if_id 0 on `qemu-c860ed8b`). Write the K1 hunk: in the FWD check, an ICMP
    error with a secpath whose own-header policy is a template-free ALLOW carrying
    `XFRM_POLICY_ICMP` takes `xfrm_in_fwd_icmp`'s payload policy. Set
-   `XFRM_POLICY_ICMP` on every transit gate, require bit 7 like bits 5 and 6, move
+   `XFRM_POLICY_ICMP` on every FWD policy an operator bypass projects (its FWD
+   gate and its FWD decision); never on an OUT gate or half; a discard's FWD
+   decision does not carry it. Require bit 7 like bits 5 and 6, move
    the scope tests' complete receipt to 255 (or as the bit list says), run in the
    guest. The `40cf3cfaec` patch is not defective (fixture shared a kernel
    selector; the test now runs `verifySPDOrder`). Open: why the spec records the
