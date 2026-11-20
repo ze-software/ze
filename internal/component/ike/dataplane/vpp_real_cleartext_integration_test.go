@@ -1,10 +1,11 @@
 // MEASURES: what a REAL VPP does with a cleartext packet that arrives on an
-// interface whose SPD holds inbound PROTECT, DISCARD and BYPASS entries. This test
-// only installs that SPD through this backend; the deployment run
+// interface whose SPD holds inbound PROTECT, DISCARD and BYPASS entries, and with
+// ESP the inbound SA decrypts. This test only installs that SPD and SA through this
+// backend and asserts nothing about VPP's verdict; the deployment run
 // (internal/le/test/deployment/vppevidencecleartext.go, `./le test deployment vpp`)
-// then injects the packets with VPP's packet generator and reads VPP's own counters
-// and trace. It is a probe: it records VPP's behavior and asserts nothing about
-// whether that behavior is correct.
+// then injects the packets with VPP's packet generator, reads VPP's own counters
+// and trace, and holds them to RFC 4301 Section 5.2. The SA's SPI, tunnel ends and
+// key are twins of the vppDecrypt constants there: change both together.
 // PREVENTS: an RFC 4301 Section 5.2 claim about VPP inbound processing that rests on
 // a reading of VPP's source alone.
 

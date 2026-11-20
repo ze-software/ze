@@ -77,6 +77,10 @@ func TestCleartextProbePacketsAreValidIPv4Datagrams(t *testing.T) {
 	// whose header checksum or length is wrong, and that drop would read as VPP's
 	// IPsec verdict.
 	for _, frame := range vppCleartextProbeFrames {
+		if frame.decrypt {
+			// Built by decryptedProbePacket; TestDecryptedProbePacketIsESPTheProbeSADecrypts.
+			continue
+		}
 		var packet [vppCleartextFrameLen]byte
 		if err := cleartextProbePacket(packet[:], frame); err != nil {
 			t.Fatalf("%s: %v", frame.check, err)
@@ -113,38 +117,6 @@ func TestCleartextProbePacketsAreValidIPv4Datagrams(t *testing.T) {
 		if got := ipv4HeaderChecksum(packet[34 : 34+16]); got != 0 {
 			t.Fatalf("%s: ICMP checksum does not verify, residual %#x", frame.check, got)
 		}
-	}
-}
-
-func TestJudgeCleartextFrameFailsOnlyWhenTheMeasurementDidNotHappen(t *testing.T) {
-	frame := vppCleartextProbeFrames[0]
-	forwarded := cleartextTrace("pg-input", "ethernet-input", "ip4-input", "ip4-lookup", "ip4-local")
-	received := "         1            ipsec4-input-feature              IPSec pkts received            error\n" +
-		"         1            ipsec4-input-feature           IPSec policy not matched          error\n"
-
-	if got := judgeCleartextFrame(frame, false, "", forwarded, received); got.Verdict != VPPProofFail {
-		t.Fatalf("a frame the generator never sent was judged %v", got.Verdict)
-	}
-	if got := judgeCleartextFrame(frame, true, "", forwarded, ""); got.Verdict != VPPProofFail {
-		t.Fatalf("a frame ipsec4-input-feature never counted was judged %v", got.Verdict)
-	}
-	if got := judgeCleartextFrame(frame, true, "", cleartextTrace("pg-input"), received); got.Verdict != VPPProofFail {
-		t.Fatalf("a frame with no readable fate was judged %v", got.Verdict)
-	}
-
-	got := judgeCleartextFrame(frame, true, "", forwarded, received)
-	if got.Verdict != VPPProofPass {
-		t.Fatalf("a measured frame was judged %v: %s", got.Verdict, got.Detail)
-	}
-	for _, want := range []string{"real VPP forwarded cleartext ICMP echo", "'IPSec policy not matched' 1", frame.owed} {
-		if !strings.Contains(got.Detail, want) {
-			t.Fatalf("detail %q lacks %q", got.Detail, want)
-		}
-	}
-	dropped := judgeCleartextFrame(frame, true, "",
-		cleartextTrace("pg-input", "ethernet-input", "ip4-input", "error-drop"), received)
-	if !strings.Contains(dropped.Detail, "real VPP dropped") {
-		t.Fatalf("a dropped frame's detail %q does not say so", dropped.Detail)
 	}
 }
 

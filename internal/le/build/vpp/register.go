@@ -39,22 +39,33 @@ var actions = leaction.New(area, leaction.Action{
 		Help: "select a proof image (default: baseline)", Requirement: leaction.Optional}},
 	AnswerArgs: answerRun,
 }, leaction.Action{
+	Verb: "deployment", Heavy: true, Writes: true,
+	Summary: "build the patched VPP image the deployment run boots",
+	Why:     "Build VPP v26.06 from source with Ze's IPsec patch, which judges unprotected inbound traffic against the SPD. `./le test deployment vpp` boots this image from the image cache and never builds it.",
+	Answer:  answerDeployment,
+}, leaction.Action{
 	Verb: "update", Heavy: true, Writes: true,
 	Summary: "generate the patched VPP PPPoE Go bindings",
 	Why:     "Generate the PPPoE binary API from the pinned patched VPP source without compiling VPP. Only the six canonical generated PPPoE, Feature and memclnt files are published.",
 	Answer:  answerGenerate,
 })
 
+// imageOwner names this package as the owner of the images it registers.
+const imageOwner = "build-vpp"
+
 func init() {
 	interoplab.RegisterImage(interoplab.RegisteredImage{
-		Name: ImageName, Owner: "build-vpp", Build: imageRecipe,
+		Name: ImageName, Owner: imageOwner, Build: imageRecipe,
 	})
 	interoplab.RegisterImage(interoplab.RegisteredImage{
-		Name: MetadataImageName, Owner: "build-vpp", Build: metadataImageRecipe,
+		Name: MetadataImageName, Owner: imageOwner, Build: metadataImageRecipe,
+	})
+	interoplab.RegisterImage(interoplab.RegisteredImage{
+		Name: DeploymentImageName, Owner: imageOwner, Build: deploymentImageRecipe,
 	})
 	leroot.Register(area, leroot.GroupWorkflow, Answer, registry.Meta{
-		ShortHelp:   "build the patched VPP PPPoE lab image",
-		Description: "Build the source-pinned VPP image used by PPPoE mechanism proofs.",
+		ShortHelp:   "build the patched VPP lab images",
+		Description: "Build the source-pinned VPP images used by the PPPoE mechanism proofs and the real-VPP deployment run.",
 		Mode:        "offline", Section: registry.SectionTest, SubsFunc: actions.Subs,
 	})
 	leroot.RegisterActions(area, actions.Actions)

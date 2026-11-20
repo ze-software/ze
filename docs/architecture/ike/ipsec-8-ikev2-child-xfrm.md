@@ -559,8 +559,8 @@ local delivery checks `IN`, while delivery to a protected host checks `FWD`.
 The forward policy has the inbound selectors, ports, template, SA id, priority,
 owner and `if_id`. VPP declares no separate forward lookup because its inbound SPD
 applies before routing; it still refuses a caller's explicit `SADirFwd`. That SPD
-judges ESP, AH and IKE only: on VPP, Ze owes the inbound cleartext verdict itself,
-by a mechanism still open (Decisions).
+judges ESP, AH and IKE only in upstream VPP: on VPP, Ze owes the inbound cleartext
+verdict itself, through the VPP patch it carries (Decisions, option B).
 Transport mode does not add a forward policy.
 
 **A packet a protected host sends towards the tunnel gets a forward entry too.**
@@ -948,6 +948,33 @@ proof (`plan/release/validation/spec-ipsec-vpp-dual-form-proof.md`) and the
 operator dataplane selector (`plan/release/fixes/spec-ipsec-dataplane-selector.md`)
 into the first release, so VPP IPsec is a first-release feature. None of this is
 built yet: `plan/release/fixes/spec-ipsec-vpp-policy-interface.md` owns the outcome.
+
+**On VPP, the inbound cleartext verdict comes from a patch to VPP that Ze
+carries: decryption marks the packet, and IPsec input judges unmarked cleartext
+against the SPD.** Thomas decided this on 2026-11-20 (option B of the
+alternatives above), and it replaces the 3a ACL, which stays recorded above
+as history. The option he answered "B" to reads: "Patch VPP, one more next to the 14 Ze already
+carries. Decryption marks the packet; IPsec input then judges unmarked
+cleartext against the SPD: drop on protect or discard, pass on bypass. This is
+RFC 4301's own model, done where VPP actually knows what was decrypted." The
+earlier rulings stand: one Ze SPD per VPP backend, bound to the `vpn ipsec
+interface` WAN interface, and the VPP firewall backend stays the only owner of
+interface ACLs, so IPsec writes no ACL. The patch is
+`third_party/vpp-patches-v26.06/0106-ipsec-judge-unprotected-inbound-traffic.patch`
+(Apache-2.0, against VPP v26.06; `third_party/vpp-patches-v26.06/README.md`).
+The policy-mode `esp4/esp6/ah4/ah6-decrypt` nodes set a new buffer flag,
+`VNET_BUFFER_F_IPSEC_DECRYPTED`, on the packet they hand back to IP input on
+the receiving interface. `ipsec4-input-feature` and `ipsec6-input-feature` read
+and clear it on every packet, pass a marked one, and match an unmarked packet
+that is not ESP, AH or IKE over the BYPASS and DISCARD entries and the
+selectors of the PROTECT entries, highest priority first: BYPASS passes,
+DISCARD and PROTECT drop, each with its own counter, and no match passes as
+before, because Ze's catch-all discard is an entry of its own. The real-VPP
+deployment run boots VPP built with the patch (`./le build vpp deployment`,
+loaded from the image cache, never built by the run) and its cleartext proof
+(`docs/architecture/testing/interop.md`, "Real VPP cleartext proof") holds the
+three cleartext frames and a frame the SA decrypts to that verdict. Not built
+into a running image or run yet.
 
 **A catch-all that fails to install at boot follows the start-up rule.** Thomas
 decided this on 2026-11-20: owner decision 3 of 2026-11-19 (install what it can,
@@ -1470,9 +1497,10 @@ Error and `ze doctor` reports the catch-all not in force (the decision
 "A catch-all that fails to install at boot follows the start-up rule" above).
 Only a start with no dataplane loaded is refused. The one bypass neither installed nor refused is on a backend whose
 `CatchAllSupported` answers `dataplane.ErrNoNodeWideSPD` (VPP), one of the two open gaps on
-RFC4301-5.2-1 and RFC4301-5.2-9. On VPP no inbound entry judges cleartext at all,
-catch-all or not, because VPP's SPD never examines it. Ze owes that verdict itself
-(Decisions; the mechanism is still open), and
+RFC4301-5.2-1 and RFC4301-5.2-9. On upstream VPP no inbound entry judges cleartext
+at all, catch-all or not, because VPP's SPD never examines it. Ze owes that verdict
+itself, through the VPP patch it carries (Decisions, option B; written, not yet
+built or run), and
 `plan/release/fixes/spec-ipsec-vpp-policy-interface.md` owns it.
 
 The catch-all sits at if_id 0, and a `vti bind` peer's Child SA policies sit at

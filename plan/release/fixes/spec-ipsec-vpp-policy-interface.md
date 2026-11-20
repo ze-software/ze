@@ -62,6 +62,7 @@ The refusal is right. The gap is that nothing supplies the interface.
 | 2026-11-20 | Decision 7: "Pull the post-release spec forward" | This spec is release scope; operator entries on VPP are installed, not refused |
 | 2026-11-20 | "reuse the existing IPsec WAN interface leaf" | On VPP the one Ze SPD is bound to the interface `vpn ipsec interface` names, resolved with `iface.ResolveVPPIndex`; Child SA policies and operator entries both land in it. XFRM is unchanged: `SPParams.IfIndex` stays 0 there |
 | 2026-11-20 | Decision 3, answer "3a" | On VPP, RFC 4301 Section 5.2 inbound processing (cleartext matching an inbound PROTECT or DISCARD entry is discarded) is met by Ze itself: Ze derives an inbound ACL on the IPsec WAN interface (the `vpn ipsec interface` leaf, the interface Ze's one VPP SPD binds to) from the inbound PROTECT and DISCARD entries, because real VPP v26.06 forwards such cleartext (first task outcome). The ACL needs one owner shared with the VPP firewall backend, a composition still to be presented. **Found unworkable as stated on 2026-11-20; alternatives with Thomas (C-4)**: in SPD mode the decrypted inner packet re-enters `ip4-unicast` on the WAN interface with its RX interface unchanged and no decrypted flag (`esp_decrypt.c`, v26.06), so an input ACL denying the PROTECT selectors also drops decrypted tunnel traffic |
+| 2026-11-20 | C-4, answer "B" to the option: "Patch VPP, one more next to the 14 Ze already carries. Decryption marks the packet; IPsec input then judges unmarked cleartext against the SPD: drop on protect or discard, pass on bypass. This is RFC 4301's own model, done where VPP actually knows what was decrypted." | Supersedes 3a's ACL (kept above as history). AC-8's mechanism is a VPP patch Ze carries: `third_party/vpp-patches-v26.06/0106-ipsec-judge-unprotected-inbound-traffic.patch` (Apache-2.0, VPP v26.06). The policy-mode decrypt nodes set `VNET_BUFFER_F_IPSEC_DECRYPTED`; `ipsec4/6-input-feature` read and clear it, pass a marked packet, and judge an unmarked non-ESP/AH/IKE packet over BYPASS, DISCARD and the PROTECT selectors by priority: PROTECT or DISCARD drop (counted), BYPASS passes, no match passes (Ze's catch-all is its own entry). Earlier rulings kept: one Ze SPD per VPP backend on the `vpn ipsec interface` WAN; the VPP firewall stays the only owner of interface ACLs, so no IPsec ACL is written |
 | 2026-11-20 | Decision 2, following from 3a | `spec-ipsec-vpp-dual-form-proof` (now `plan/release/validation/`) and `spec-ipsec-dataplane-selector` (now `plan/release/fixes/`) come into the first release; VPP IPsec is a first-release feature (C-2) |
 
 Alternatives Thomas rejected for the interface source:
@@ -220,9 +221,21 @@ does not touch `pg1` or IPsec.
 | Unit test | `TestVPPInstallPolicyInboundSides` (`internal/component/ike/dataplane/rfc7296_vpp_message_test.go`): the inbound entry's local side is Dst and port 53, its remote side Src and port 5000, the delete command and the removal name the same entry, and the outbound control keeps Src local |
 | Real-VPP evidence | the next `./le test deployment vpp` run: `probe-esp-discard` counts 'discard' 1, `probe-esp-discard-reversed` counts 'discard' 0 |
 
-## Open design item: the inbound cleartext mechanism on VPP (C-4)
+## Decided design item: the inbound cleartext mechanism on VPP (C-4)
 
-**Not designed here; to be presented to Thomas by the main session.** Ruling 3a
+**Decided 2026-11-20: Thomas answered "B", a VPP patch (Thomas's rulings).** The
+paragraphs below record why 3a's ACL was set aside and stay as history; the ACL
+constraint in them no longer binds, because no IPsec ACL is written.
+
+| Item | State |
+|------|-------|
+| Patch | `third_party/vpp-patches-v26.06/0106-ipsec-judge-unprotected-inbound-traffic.patch`, against VPP v26.06 `c3200b88dc`; applies with zero fuzz to the pristine release (checked 2026-11-20) and reproduces the edited sources. Not yet compiled |
+| Image | `ze-vpp-deployment`, built only by `./le build vpp deployment` (`internal/le/build/vpp/deployment.go`), kept in le's image cache; `./le test deployment vpp` loads it (`readyImage`, `internal/le/test/deployment/vppiface.go`, through `interoplab.(*Docker).LoadCached`) and refuses on a cold cache naming the build command |
+| AC-8 proof | The cleartext probe is now a proof (`judgeCleartextFrame`, `internal/le/test/deployment/vppevidencecleartext.go`): PROTECT and DISCARD frames owed dropped, BYPASS forwarded, each under its own counter, and `probe-esp-decrypted`, ESP the probe's SA decrypts (`decryptedProbePacket`), owed delivery with `IPSec decrypted packet` 1 |
+| Owed evidence | the patched image build; the real-VPP run on it (green); the same run with `ZE_VPP_DOCKER_IMAGE=ligato/vpp-base:26.06-release` (red at `probe-cleartext-protect`) as the discrimination; an RFC 4301 Section 5.2 tag on the proof, recorded by `./le rfc record`, is a follow-up |
+| Not covered by the patch | fast-path SPDs, IPv6 extension headers, tunnel-protect SAs, a decrypted packet that leaves the unicast arc, RFC 4301 Section 5.2 step 4's inner-selector check (`third_party/vpp-patches-v26.06/README.md`) |
+
+Ruling 3a
 puts an inbound ACL, derived from the inbound PROTECT and DISCARD entries, on the
 interface `vpn ipsec interface` names. On 2026-11-20 that was found unworkable as
 stated: in VPP's SPD mode the packet ESP decryption yields re-enters `ip4-unicast`
@@ -420,7 +433,7 @@ is owed before the design is presented, with every row it lists.
 | AC-5 | A Child SA rekey over the VPP backend | ONE SPD entry per direction names the live SA, and the retired entry AND the retired SA are gone: from VPP, from `b.spdEntries` and from `b.sadIDs`. A delete VPP reports retval 0 for while keeping the object is not read as success. Proven against a real VPP | None: a retired entry or SA that survives is the leak this criterion exists for |
 | AC-6 | A `vpn ipsec policy` entry (bypass or discard) committed on the VPP dataplane with the leaf set | the entry is installed in the same SPD as the Child SA policies, at its order, and decides matching traffic on the WAN interface; an entry VPP cannot express exactly (an ICMP type or code, which VPP does not compare) is refused at commit with the entry named and its fix; an install VPP refuses fails the apply as AC-14 of `spec-rfc4301-architecture-gaps` requires | Inbound cleartext is not decided by the SPD entry on VPP (measured, first task outcome); Ze owes it as AC-8 states, mechanism pending (C-4) |
 | AC-7 | The leaf changes on reload from `<a>` to `<b>`, or `<b>` already holds an SPD Ze did not bind | on a change the SPD is unbound from `<a>` and bound to `<b>` in the same apply, read back from VPP; a bind VPP refuses because `<b>` holds another SPD fails the apply naming `<b>` and the cause, and at start is logged and reported by doctor | None |
-| AC-8 | On a real VPP with `vpn ipsec interface <wan>` set, cleartext arrives on `<wan>` matching an inbound PROTECT entry, an inbound DISCARD entry, and an inbound BYPASS entry; ESP and IKE (UDP 500 and 4500) for a live Child SA arrive on the same interface | cleartext matching the inbound PROTECT or DISCARD entry is dropped, read from VPP's counters; cleartext matching the inbound BYPASS is delivered; ESP and IKE keep reaching the SPD and the IKE sockets, unaffected; traffic the Child SA decrypts is delivered, unaffected | None. The mechanism is pending (C-4): ruling 3a's derived ACL was found unworkable as stated on 2026-11-20, alternatives with Thomas. The SPD's own verdict on cleartext (forwarded unjudged, measured 2026-11-20) does not meet it |
+| AC-8 | On a real VPP with `vpn ipsec interface <wan>` set, cleartext arrives on `<wan>` matching an inbound PROTECT entry, an inbound DISCARD entry, and an inbound BYPASS entry; ESP and IKE (UDP 500 and 4500) for a live Child SA arrive on the same interface | cleartext matching the inbound PROTECT or DISCARD entry is dropped, read from VPP's counters; cleartext matching the inbound BYPASS is delivered; ESP and IKE keep reaching the SPD and the IKE sockets, unaffected; traffic the Child SA decrypts is delivered, unaffected | None. Mechanism (C-4, decided "B"): Ze's VPP patch `0106-ipsec-judge-unprotected-inbound-traffic.patch` in the image the run boots. Proven by the cleartext proof of `./le test deployment vpp` on `ze-vpp-deployment` (owed); upstream VPP's own verdict (forwarded unjudged, measured 2026-11-20) does not meet it and is the proof's red |
 | AC-9 | An inbound (`SADirIn`) policy installed on the VPP backend (found in passing, 2026-11-20) | the SPD entry's local range and port are the policy's `Dst` and `DstPort`, its remote range and port `Src` and `SrcPort`; an outbound policy keeps `Src` local; removal, the vppctl delete command and `Close` send back that same entry; on a real VPP an inbound DISCARD counts 'discard' for ESP from its remote range (`probe-esp-discard`) and not for the exchanged pair (`probe-esp-discard-reversed`) | None |
 
 ## End-to-End User Stories
@@ -601,7 +614,7 @@ none
 |---|--------|---------|----------|
 | C-1 | How the interface reaches the VPP backend | (a) recommended: a backend-level call carrying the leaf's name, resolved by the VPP backend; (b) a VPP-only field in `SPParams` filled by the engine | open |
 | C-2 | Whether `spec-ipsec-vpp-dual-form-proof` and `spec-ipsec-dataplane-selector` also come into release scope | (a) both stay post-release; (b) one or both come forward | DECIDED 2026-11-20 (his decision 2): both come into the first release; moved to `plan/release/validation/` and `plan/release/fixes/` |
-| C-4 | The mechanism that drops inbound cleartext matching an inbound PROTECT or DISCARD entry on VPP (AC-8) | Ruled 3a (an inbound ACL derived on the WAN interface, one owner shared with the VPP firewall backend); found unworkable as stated on 2026-11-20 (it also drops decrypted tunnel traffic, `esp_decrypt.c` v26.06) | open: alternatives with Thomas, presented by the main session |
+| C-4 | The mechanism that drops inbound cleartext matching an inbound PROTECT or DISCARD entry on VPP (AC-8) | Ruled 3a (an inbound ACL derived on the WAN interface, one owner shared with the VPP firewall backend); found unworkable as stated on 2026-11-20 (it also drops decrypted tunnel traffic, `esp_decrypt.c` v26.06); B, a VPP patch: decryption marks the packet, IPsec input judges unmarked cleartext | DECIDED 2026-11-20: B (Thomas's rulings) |
 | C-3 | The two AC-5 shapes | (a) a VPP replace step keyed on the selector; (b) an engine "same policy, new SA" call both backends honor | open |
 
 ## Implementation Steps
@@ -623,6 +636,10 @@ none
 5. **Phase: Real-VPP evidence** -- AC-4, AC-5, AC-6 on VPP
    - Files: `vppevidencerun.go`
    - Verify: the run's SPD and interface dumps
+6. **Phase: AC-8 on the patched VPP** (C-4, decided "B") -- patch, image and proof written 2026-11-20
+   - Files: `third_party/vpp-patches-v26.06/`, `internal/le/build/vpp/deployment.go`, `internal/le/interoplab/docker_image_load.go`, `internal/le/test/deployment/vppiface.go`, `vppevidencecleartext.go`
+   - Verify: `./le build vpp deployment` compiles the patched VPP; `./le test deployment vpp` passes the cleartext proof on it and fails it on `ligato/vpp-base:26.06-release`
+   - Follow-up: an RFC 4301 Section 5.2 tag on the proof, through `./le rfc record`
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |

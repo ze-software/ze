@@ -35,7 +35,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	buildvpp "github.com/ze-software/ze/internal/le/build/vpp"
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
@@ -51,11 +53,14 @@ const (
 
 // What the run uses when the operator names nothing.
 //
-// The tag names ligato's 26.06 release build, the latest stable VPP, so
-// the VPP under the proof changes only when this line does. The plugin probes
-// stay because a ligato build ships only some of VPP's plugins.
+// The image is VPP v26.06 built from source with Ze's IPsec patch
+// (third_party/vpp-patches-v26.06/README.md), which judges unprotected inbound
+// traffic against the SPD: upstream VPP forwards it unjudged, and the
+// cleartext proof (vppevidencecleartext.go) holds VPP to RFC 4301 Section 5.2.
+// The run loads it from the image cache and never builds it (readyImage). The
+// plugin probes stay because a build ships only the plugins its libraries allow.
 const (
-	VPPImage    = "ligato/vpp-base:26.06-release"
+	VPPImage    = buildvpp.DeploymentImageName
 	VPPPlatform = "linux/amd64"
 	VPPGoarch   = "amd64"
 )
@@ -280,7 +285,40 @@ func (v *vppIface) prepareDaemon() error {
 	if err := buildCheckedDaemon(v.ctx, v.Tree, v.Goarch, func() error { return buildDaemon(v.ctx, v.Tree, v.Goarch, v.Progress) }); err != nil {
 		return err
 	}
-	return ensureImage(v.ctx, v.Docker, v.Image, v.Progress)
+	return v.readyImage()
+}
+
+// readyImage makes the VPP image the run boots present on the Docker host.
+//
+// The patched default (VPPImage) is a reusable image the run never builds: it
+// is loaded from le's persistent image cache, and a cold cache refuses with the
+// one command that builds it, which runs on its own outside any test deadline.
+// Any other image, one an operator named through ZE_VPP_DOCKER_IMAGE, is pulled
+// when absent, as before.
+func (v *vppIface) readyImage() error {
+	if v.Image != buildvpp.DeploymentImageName {
+		return ensureImage(v.ctx, v.Docker, v.Image, v.Progress)
+	}
+	builds, _, err := interoplab.ResolveImages(interoplab.ImageContext{Root: v.Tree}, []string{v.Image})
+	if err != nil {
+		return err
+	}
+	if len(builds) != 1 {
+		return errors.New("the VPP deployment image registration did not resolve exactly one build")
+	}
+	builds[0].Progress = v.Progress
+	image, err := v.Docker.LoadCached(v.ctx, builds[0])
+	if errors.Is(err, interoplab.ErrImageNotCached) {
+		return opererr.Wrap(err, "the patched VPP image "+v.Image+" is not built on this machine",
+			"The real-VPP run boots VPP v26.06 with Ze's IPsec patch, and a test never builds that image itself. Build it once; later runs load it from the image cache.",
+			buildvpp.DeploymentBuildCommand)
+	}
+	if err != nil {
+		return err
+	}
+	// The run boots the shared tag v.Image names; the run-owned tag the load
+	// added is not needed, and the orphan sweep would otherwise judge it.
+	return v.Docker.ReleaseImage(context.WithoutCancel(v.ctx), image)
 }
 
 // Run performs the proof and answers what happened.

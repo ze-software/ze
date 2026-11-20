@@ -1,0 +1,576 @@
+From: Ze contributors
+Subject: [PATCH] ipsec: judge unprotected inbound traffic against the SPD
+
+Type: fix
+
+ipsec4-input-feature and ipsec6-input-feature look a packet up in the
+interface's SPD only when it is ESP, AH or UDP to port 500 or 4500. Every
+other packet counts as "IPSec policy not matched" and keeps the feature arc's
+next node, whatever entry its selectors match: cleartext that matches an
+inbound DISCARD entry, or the selectors of an inbound PROTECT entry, is
+forwarded, and an inbound BYPASS entry is never consulted.
+
+RFC 4301 Section 5.2 step 2: "Traffic not addressed to this device, or
+addressed to this device and not AH or ESP, is directed to SPD-I lookup."
+RFC 4301 Section 5.2 step 3b: "If there is a match and the packet is to be
+discarded or bypassed, do so."
+
+The input nodes cannot simply look every packet up: in policy mode the
+packet esp4/esp6/ah4/ah6-decrypt produce goes back to ip4/ip6-input on the
+interface the protected packet arrived on, with its RX interface unchanged,
+and meets the same node again, where its selectors match the PROTECT entry
+that decrypted it. The decrypt nodes therefore mark that packet with a new
+buffer flag, VNET_BUFFER_F_IPSEC_DECRYPTED (the first free vnet bit, 19).
+The input nodes read and clear the flag on every packet, so it reaches no
+later lookup, and pass a marked packet.
+
+An unmarked packet that is not ESP, AH or IKE is matched against the BYPASS
+and DISCARD entries and the selectors of the PROTECT entries, protocol and
+ports included, and the highest priority match decides: BYPASS passes it,
+DISCARD and PROTECT drop it. On equal priority DISCARD wins over PROTECT and
+PROTECT over BYPASS. A packet that matches nothing passes, as before; an SPD
+that wants the RFC's final discard carries it as an entry. A packet whose
+ports cannot be read (a non-initial IPv4 fragment, a transport header outside
+the first buffer) matches only entries whose port ranges are whole.
+
+New error counters: "IPSec cleartext matched protect" (dropped) and "IPSec
+decrypted packet" (passed on its mark). A cleartext DISCARD or BYPASS match
+counts under the existing "IPSec policy discard" and "IPSec policy bypass"
+and in the entry's own packet counter.
+
+Not covered: an SPD in fast-path mode (ipv4/ipv6-inbound-spd-fast-path) keeps
+its entries out of spd->policies, so this lookup finds none and such an SPD
+passes unprotected traffic as before. IPv6 extension headers are not walked.
+Tunnel-protect (route-mode) SAs are not marked: their packets arrive on the
+tunnel interface.
+
+This change is released under the Apache License, Version 2.0, the licence
+of the VPP code it modifies (LICENSE in this directory).
+
+Upstream: https://github.com/FDio/vpp at c3200b88dc46bd380f00a49ca3392a102cc1980b
+(tag v26.06).
+
+diff --git a/src/vnet/buffer.h b/src/vnet/buffer.h
+--- a/src/vnet/buffer.h
++++ b/src/vnet/buffer.h
+@@ -33,26 +33,31 @@
+   _ (16, IS_DVR, "dvr", 1)                                                    \
+   _ (17, QOS_DATA_VALID, "qos-data-valid", 0)                                 \
+   _ (18, GSO, "gso", 0)                                                       \
+-  _ (19, AVAIL1, "avail1", 1)                                                 \
+-  _ (20, AVAIL2, "avail2", 1)                                                 \
+-  _ (21, AVAIL3, "avail3", 1)                                                 \
+-  _ (22, AVAIL4, "avail4", 1)                                                 \
+-  _ (23, AVAIL5, "avail5", 1)                                                 \
+-  _ (24, AVAIL6, "avail6", 1)                                                 \
+-  _ (25, AVAIL7, "avail7", 1)                                                 \
+-  _ (26, AVAIL8, "avail8", 1)                                                 \
+-  _ (27, AVAIL9, "avail9", 1)
++  _ (19, IPSEC_DECRYPTED, "ipsec-decrypted", 1)                               \
++  _ (20, AVAIL1, "avail1", 1)                                                 \
++  _ (21, AVAIL2, "avail2", 1)                                                 \
++  _ (22, AVAIL3, "avail3", 1)                                                 \
++  _ (23, AVAIL4, "avail4", 1)                                                 \
++  _ (24, AVAIL5, "avail5", 1)                                                 \
++  _ (25, AVAIL6, "avail6", 1)                                                 \
++  _ (26, AVAIL7, "avail7", 1)                                                 \
++  _ (27, AVAIL8, "avail8", 1)
+ 
+ /*
+  * Please allocate the FIRST available bit, redefine
+  * AVAIL 1 ... AVAILn-1, and remove AVAILn. Please maintain the
+  * VNET_BUFFER_FLAGS_ALL_AVAIL definition.
++ *
++ * IPSEC_DECRYPTED: set by esp4/esp6/ah4/ah6-decrypt on the packet a
++ * policy-mode SA decrypted, when they hand it back to ip4/ip6-input on the
++ * interface it arrived on. ipsec4/ipsec6-input-feature reads and clears it, so
++ * it does not judge that packet as unprotected traffic.
+  */
+ 
+ #define VNET_BUFFER_FLAGS_ALL_AVAIL                                           \
+   (VNET_BUFFER_F_AVAIL1 | VNET_BUFFER_F_AVAIL2 | VNET_BUFFER_F_AVAIL3 |       \
+    VNET_BUFFER_F_AVAIL4 | VNET_BUFFER_F_AVAIL5 | VNET_BUFFER_F_AVAIL6 |       \
+-   VNET_BUFFER_F_AVAIL7 | VNET_BUFFER_F_AVAIL8 | VNET_BUFFER_F_AVAIL9)
++   VNET_BUFFER_F_AVAIL7 | VNET_BUFFER_F_AVAIL8)
+ 
+ #define VNET_BUFFER_FLAGS_VLAN_BITS \
+   (VNET_BUFFER_F_VLAN_1_DEEP | VNET_BUFFER_F_VLAN_2_DEEP)
+diff --git a/src/vnet/ipsec/ah_decrypt.c b/src/vnet/ipsec/ah_decrypt.c
+--- a/src/vnet/ipsec/ah_decrypt.c
++++ b/src/vnet/ipsec/ah_decrypt.c
+@@ -361,6 +361,10 @@
+ 	      oh4->checksum = ip4_header_checksum (oh4);
+ 	    }
+ 	}
++
++      /* The packet goes back to ip4/ip6-input on the interface it arrived
++       * on: mark it for ipsec4/6-input-feature (see esp_decrypt.c). */
++      b[0]->flags |= VNET_BUFFER_F_IPSEC_DECRYPTED;
+ 
+       if (PREDICT_FALSE (n_lost))
+ 	vlib_increment_simple_counter (
+diff --git a/src/vnet/ipsec/esp_decrypt.c b/src/vnet/ipsec/esp_decrypt.c
+--- a/src/vnet/ipsec/esp_decrypt.c
++++ b/src/vnet/ipsec/esp_decrypt.c
+@@ -839,6 +839,17 @@
+ 	}
+     }
+ 
++  /*
++   * In policy mode the decrypted packet goes back to ip4/ip6-input on the
++   * interface the protected packet arrived on, where ipsec4/6-input-feature
++   * meets it again. Mark it, so that node passes it rather than judging it
++   * as unprotected traffic. A tunnel-protect packet arrives on its tunnel
++   * interface instead and is not marked.
++   */
++  if (!is_tun && (next[0] == ESP_DECRYPT_NEXT_IP4_INPUT ||
++		  next[0] == ESP_DECRYPT_NEXT_IP6_INPUT))
++    b->flags |= VNET_BUFFER_F_IPSEC_DECRYPTED;
++
+   if (PREDICT_FALSE (n_lost))
+     vlib_increment_simple_counter (&ipsec_sa_err_counters[IPSEC_SA_ERROR_LOST],
+ 				   vm->thread_index, pd->sa_index, n_lost);
+diff --git a/src/vnet/ipsec/ipsec_input.c b/src/vnet/ipsec/ipsec_input.c
+--- a/src/vnet/ipsec/ipsec_input.c
++++ b/src/vnet/ipsec/ipsec_input.c
+@@ -20,7 +20,9 @@
+ _(RX_POLICY_MATCH, "IPSec policy match")		\
+ _(RX_POLICY_NO_MATCH, "IPSec policy not matched")	\
+ _(RX_POLICY_BYPASS, "IPSec policy bypass")		\
+-_(RX_POLICY_DISCARD, "IPSec policy discard")
++_(RX_POLICY_DISCARD, "IPSec policy discard")		\
++_(RX_CLEARTEXT_PROTECT, "IPSec cleartext matched protect") \
++_(RX_DECRYPTED, "IPSec decrypted packet")
+ 
+ typedef enum
+ {
+@@ -40,6 +42,10 @@
+ {
+   u64 by_policy_type[IPSEC_SPD_POLICY_N_TYPES];
+   u64 unprocessed;
++  /* Unprotected packets dropped because they match a PROTECT selector. */
++  u64 cleartext_protect;
++  /* Packets a policy-mode SA decrypted, passed on their mark. */
++  u64 decrypted;
+ } ipsec_input_counters_t;
+ 
+ always_inline void
+@@ -224,6 +230,329 @@
+     return p;
+   }
+   return 0;
++}
++
++/*
++ * Unprotected inbound traffic.
++ *
++ * RFC 4301 Section 5.2 step 2: "Traffic not addressed to this device, or
++ * addressed to this device and not AH or ESP, is directed to SPD-I lookup."
++ * RFC 4301 Section 5.2 step 3b: "If there is a match and the packet is to be
++ * discarded or bypassed, do so."
++ * RFC 4301 Section 5.2 step 3b: "(No SAs are created in response to receipt of
++ * a packet that requires IPsec protection; only BYPASS or DISCARD cache entries
++ * can be created this way.)"
++ *
++ * A packet that is not ESP, AH or IKE is looked up in the SPD bound to the
++ * interface it arrived on, over the BYPASS and DISCARD entries and the
++ * selectors of the PROTECT entries, in priority order. A BYPASS match passes
++ * it. A DISCARD match drops it, and so does a PROTECT match: that traffic was
++ * owed protection and arrived without it. A packet that matches nothing passes,
++ * as before this lookup existed; an SPD that wants the RFC's final discard
++ * carries it as an entry (RFC 4301 Section 5.2: "Every SPD SHOULD have a
++ * nominal, final entry that catches anything that is otherwise unmatched, and
++ * discards it.").
++ *
++ * In policy mode, esp4/esp6/ah4/ah6-decrypt hand the packet they decrypted
++ * back to ip4/ip6-input on the interface the protected packet arrived on, so
++ * it meets this node a second time. They mark it VNET_BUFFER_F_IPSEC_DECRYPTED,
++ * and the mark, not the SPD, passes it. The caller clears the mark before any
++ * lookup, so it reaches no later one.
++ *
++ * Fast-path SPDs (ipv4-inbound-spd-fast-path, ipv6-inbound-spd-fast-path)
++ * keep their entries out of spd->policies, so this lookup finds none there and
++ * such an SPD passes unprotected traffic as before. The flow cache is not
++ * used: it keys on addresses alone, and this lookup also compares protocol
++ * and ports.
++ */
++
++always_inline int
++ipsec_input_proto_has_ports (u8 protocol)
++{
++  return (protocol == IP_PROTOCOL_TCP || protocol == IP_PROTOCOL_UDP ||
++	  protocol == IP_PROTOCOL_SCTP);
++}
++
++/*
++ * Whether the policy's protocol and port selectors admit the packet. The
++ * local port is the packet's destination port, the remote port its source
++ * port. A packet whose ports cannot be read (a non-initial fragment, or a
++ * transport header outside the first buffer) matches only a policy whose port
++ * ranges are the whole range.
++ */
++always_inline int
++ipsec_input_policy_l4_match (const ipsec_policy_t *p, u8 protocol, u16 lport,
++			     u16 rport, int ports_known)
++{
++  if (p->protocol != IPSEC_POLICY_PROTOCOL_ANY && p->protocol != protocol)
++    return 0;
++
++  if (!ipsec_input_proto_has_ports (protocol))
++    return 1;
++
++  if (!ports_known)
++    return (p->lport.start == 0 && p->lport.stop == 0xffff &&
++	    p->rport.start == 0 && p->rport.stop == 0xffff);
++
++  if (lport < p->lport.start || lport > p->lport.stop)
++    return 0;
++
++  if (rport < p->rport.start || rport > p->rport.stop)
++    return 0;
++
++  return 1;
++}
++
++/*
++ * The SPD's verdict on unprotected traffic: the highest priority match of the
++ * three. Each policy vector is kept in priority order, so each argument is
++ * already the best match of its type. On equal priority, DISCARD wins over
++ * PROTECT and PROTECT over BYPASS, so a tie never passes traffic.
++ */
++always_inline ipsec_policy_t *
++ipsec_input_cleartext_verdict (ipsec_policy_t *protect, ipsec_policy_t *bypass,
++			       ipsec_policy_t *discard)
++{
++  ipsec_policy_t *p = bypass;
++
++  if (protect && (!p || protect->priority >= p->priority))
++    p = protect;
++
++  if (discard && (!p || discard->priority >= p->priority))
++    p = discard;
++
++  return p;
++}
++
++always_inline ipsec_policy_t *
++ipsec4_input_cleartext_policy_match (ipsec_spd_t *spd, u32 sa, u32 da,
++				     u8 protocol, u16 lport, u16 rport,
++				     int ports_known,
++				     ipsec_spd_policy_type_t pt)
++{
++  ipsec_main_t *im = &ipsec_main;
++  ipsec_policy_t *p;
++  u32 *policy_indices = spd->policies[pt];
++  u32 policy_index;
++  u32 sah = clib_net_to_host_u32 (sa);
++  u32 dah = clib_net_to_host_u32 (da);
++
++  policy_index = ipsec_spd_ip4_find_range_match (spd, pt, da, sa);
++
++  if (policy_index == ~0)
++    return 0;
++
++  for (; policy_index < vec_len (policy_indices); policy_index++)
++    {
++      p = pool_elt_at_index (im->policies, policy_indices[policy_index]);
++
++      if (dah < clib_net_to_host_u32 (p->laddr.start.ip4.as_u32))
++	continue;
++
++      if (dah > clib_net_to_host_u32 (p->laddr.stop.ip4.as_u32))
++	continue;
++
++      if (sah < clib_net_to_host_u32 (p->raddr.start.ip4.as_u32))
++	continue;
++
++      if (sah > clib_net_to_host_u32 (p->raddr.stop.ip4.as_u32))
++	continue;
++
++      if (!ipsec_input_policy_l4_match (p, protocol, lport, rport,
++					ports_known))
++	continue;
++
++      return p;
++    }
++
++  return 0;
++}
++
++always_inline ipsec_policy_t *
++ipsec6_input_cleartext_policy_match (ipsec_spd_t *spd, ip6_address_t *sa,
++				     ip6_address_t *da, u8 protocol, u16 lport,
++				     u16 rport, int ports_known,
++				     ipsec_spd_policy_type_t pt)
++{
++  ipsec_main_t *im = &ipsec_main;
++  ipsec_policy_t *p;
++  u32 *i;
++
++  vec_foreach (i, spd->policies[pt])
++    {
++      p = pool_elt_at_index (im->policies, *i);
++
++      if (!ip6_addr_match_range (sa, &p->raddr.start.ip6, &p->raddr.stop.ip6))
++	continue;
++
++      if (!ip6_addr_match_range (da, &p->laddr.start.ip6, &p->laddr.stop.ip6))
++	continue;
++
++      if (!ipsec_input_policy_l4_match (p, protocol, lport, rport,
++					ports_known))
++	continue;
++
++      return p;
++    }
++
++  return 0;
++}
++
++/*
++ * Counts the verdict on one unprotected packet and answers whether it is
++ * dropped. A PROTECT match does not count against the entry's own packet
++ * counter, which counts the protected traffic the entry decrypted.
++ */
++always_inline int
++ipsec_input_cleartext_count (ipsec_main_t *im, ipsec_policy_t *p0,
++			     clib_thread_index_t thread_index, u32 bytes,
++			     ipsec_input_counters_t *counters)
++{
++  switch (p0->policy)
++    {
++    case IPSEC_POLICY_ACTION_BYPASS:
++      vlib_increment_combined_counter (&ipsec_spd_policy_counters,
++				       thread_index, p0 - im->policies, 1,
++				       bytes);
++      counters->by_policy_type[p0->type] += 1;
++      return 0;
++    case IPSEC_POLICY_ACTION_DISCARD:
++      vlib_increment_combined_counter (&ipsec_spd_policy_counters,
++				       thread_index, p0 - im->policies, 1,
++				       bytes);
++      counters->by_policy_type[p0->type] += 1;
++      return 1;
++    case IPSEC_POLICY_ACTION_PROTECT:
++    case IPSEC_POLICY_ACTION_RESOLVE:
++      counters->cleartext_protect += 1;
++      return 1;
++    }
++  return 1;
++}
++
++always_inline void
++ipsec_input_cleartext_trace (vlib_main_t *vm, vlib_node_runtime_t *node,
++			     vlib_buffer_t *b, u8 protocol, ipsec_spd_t *spd0,
++			     ipsec_policy_t *p0)
++{
++  if (PREDICT_FALSE (node->flags & VLIB_NODE_FLAG_TRACE) &&
++      PREDICT_FALSE (b->flags & VLIB_BUFFER_IS_TRACED))
++    {
++      ipsec_input_trace_t *tr = vlib_add_trace (vm, node, b, sizeof (*tr));
++
++      tr->proto = protocol;
++      tr->sa_id = ~0;
++      tr->spi = ~0;
++      tr->seq = ~0;
++      tr->spd = spd0->id;
++      tr->policy_index = p0 ? p0 - ipsec_main.policies : ~0;
++    }
++}
++
++always_inline void
++ipsec4_input_cleartext_process (vlib_main_t *vm, vlib_node_runtime_t *node,
++				vlib_buffer_t *b, ip4_header_t *ip0,
++				ipsec_spd_t *spd0,
++				clib_thread_index_t thread_index,
++				int decrypted, ipsec_input_counters_t *counters,
++				u16 *next)
++{
++  ipsec_main_t *im = &ipsec_main;
++  ipsec_policy_t *protect, *bypass, *discard, *p0;
++  u32 sa = ip0->src_address.as_u32;
++  u32 da = ip0->dst_address.as_u32;
++  u16 lport = 0, rport = 0;
++  int ports_known = 0;
++
++  if (decrypted)
++    {
++      counters->decrypted += 1;
++      return;
++    }
++
++  if (ipsec_input_proto_has_ports (ip0->protocol) &&
++      ip4_get_fragment_offset (ip0) == 0 &&
++      vlib_buffer_has_space (b, ip4_header_bytes (ip0) + 2 * sizeof (u16)))
++    {
++      udp_header_t *l4 = (udp_header_t *) ((u8 *) ip0 + ip4_header_bytes (ip0));
++
++      lport = clib_net_to_host_u16 (l4->dst_port);
++      rport = clib_net_to_host_u16 (l4->src_port);
++      ports_known = 1;
++    }
++
++  protect = ipsec4_input_cleartext_policy_match (
++    spd0, sa, da, ip0->protocol, lport, rport, ports_known,
++    IPSEC_SPD_POLICY_IP4_INBOUND_PROTECT);
++  bypass = ipsec4_input_cleartext_policy_match (
++    spd0, sa, da, ip0->protocol, lport, rport, ports_known,
++    IPSEC_SPD_POLICY_IP4_INBOUND_BYPASS);
++  discard = ipsec4_input_cleartext_policy_match (
++    spd0, sa, da, ip0->protocol, lport, rport, ports_known,
++    IPSEC_SPD_POLICY_IP4_INBOUND_DISCARD);
++  p0 = ipsec_input_cleartext_verdict (protect, bypass, discard);
++
++  if (p0 == 0)
++    counters->unprocessed += 1;
++  else if (ipsec_input_cleartext_count (im, p0, thread_index,
++					clib_net_to_host_u16 (ip0->length),
++					counters))
++    next[0] = IPSEC_INPUT_NEXT_DROP;
++
++  ipsec_input_cleartext_trace (vm, node, b, ip0->protocol, spd0, p0);
++}
++
++always_inline void
++ipsec6_input_cleartext_process (vlib_main_t *vm, vlib_node_runtime_t *node,
++				vlib_buffer_t *b, ip6_header_t *ip0,
++				ipsec_spd_t *spd0,
++				clib_thread_index_t thread_index,
++				int decrypted, ipsec_input_counters_t *counters,
++				u32 *next)
++{
++  ipsec_main_t *im = &ipsec_main;
++  ipsec_policy_t *protect, *bypass, *discard, *p0;
++  u16 lport = 0, rport = 0;
++  int ports_known = 0;
++
++  if (decrypted)
++    {
++      counters->decrypted += 1;
++      return;
++    }
++
++  /* Extension headers are not walked: a packet that carries one is matched
++   * with the extension header as its protocol and no ports. */
++  if (ipsec_input_proto_has_ports (ip0->protocol) &&
++      vlib_buffer_has_space (b, sizeof (ip0[0]) + 2 * sizeof (u16)))
++    {
++      udp_header_t *l4 = (udp_header_t *) (ip0 + 1);
++
++      lport = clib_net_to_host_u16 (l4->dst_port);
++      rport = clib_net_to_host_u16 (l4->src_port);
++      ports_known = 1;
++    }
++
++  protect = ipsec6_input_cleartext_policy_match (
++    spd0, &ip0->src_address, &ip0->dst_address, ip0->protocol, lport, rport,
++    ports_known, IPSEC_SPD_POLICY_IP6_INBOUND_PROTECT);
++  bypass = ipsec6_input_cleartext_policy_match (
++    spd0, &ip0->src_address, &ip0->dst_address, ip0->protocol, lport, rport,
++    ports_known, IPSEC_SPD_POLICY_IP6_INBOUND_BYPASS);
++  discard = ipsec6_input_cleartext_policy_match (
++    spd0, &ip0->src_address, &ip0->dst_address, ip0->protocol, lport, rport,
++    ports_known, IPSEC_SPD_POLICY_IP6_INBOUND_DISCARD);
++  p0 = ipsec_input_cleartext_verdict (protect, bypass, discard);
++
++  if (p0 == 0)
++    counters->unprocessed += 1;
++  else if (ipsec_input_cleartext_count (
++	     im, p0, thread_index,
++	     clib_net_to_host_u16 (ip0->payload_length) + sizeof (ip0[0]),
++	     counters))
++    next[0] = IPSEC_INPUT_NEXT_DROP;
++
++  ipsec_input_cleartext_trace (vm, node, b, ip0->protocol, spd0, p0);
+ }
+ 
+ always_inline void
+@@ -506,12 +835,16 @@
+       ah_header_t *ah0;
+       ip4_ipsec_config_t *c0;
+       ipsec_spd_t *spd0;
++      int decrypted;
+ 
+       if (n_left_from > 2)
+ 	{
+ 	  vlib_prefetch_buffer_data (b[1], LOAD);
+ 	}
+ 
++      /* Read and clear the decrypt nodes' mark, so no later lookup sees it. */
++      decrypted = (b[0]->flags & VNET_BUFFER_F_IPSEC_DECRYPTED) != 0;
++      b[0]->flags &= ~VNET_BUFFER_F_IPSEC_DECRYPTED;
+       b[0]->flags |= VNET_BUFFER_F_IS_IP4;
+       b[0]->flags &= ~VNET_BUFFER_F_IS_IP6;
+       c0 = vnet_feature_next_with_data (&next32, b[0], sizeof (c0[0]));
+@@ -538,6 +871,9 @@
+ 	    ipsec_esp_packet_process (vm, im, ip0, udp0, esp0, thread_index, spd0, flow_cache_tbl,
+ 				      flow_cache_mask, 1, b, node, &counters, next);
+ 	  }
++	  else
++	    ipsec4_input_cleartext_process (vm, node, b[0], ip0, spd0, thread_index, decrypted,
++					    &counters, next);
+ 	}
+       else if (PREDICT_TRUE (ip0->protocol == IP_PROTOCOL_IPSEC_ESP))
+ 	{
+@@ -554,7 +890,8 @@
+ 	}
+       else
+ 	{
+-	  counters.unprocessed += 1;
++	  ipsec4_input_cleartext_process (vm, node, b[0], ip0, spd0, thread_index, decrypted,
++					  &counters, next);
+ 	}
+       n_left_from -= 1;
+       b += 1;
+@@ -578,6 +915,12 @@
+   vlib_node_increment_counter (vm, ipsec4_input_node.index, IPSEC_INPUT_ERROR_RX_POLICY_BYPASS,
+ 			       counters.by_policy_type[IPSEC_SPD_POLICY_IP4_INBOUND_BYPASS]);
+ 
++  vlib_node_increment_counter (vm, ipsec4_input_node.index, IPSEC_INPUT_ERROR_RX_CLEARTEXT_PROTECT,
++			       counters.cleartext_protect);
++
++  vlib_node_increment_counter (vm, ipsec4_input_node.index, IPSEC_INPUT_ERROR_RX_DECRYPTED,
++			       counters.decrypted);
++
+   return frame->n_vectors;
+ }
+ 
+@@ -752,6 +1095,7 @@
+ 	  ipsec_spd_t *spd0;
+ 	  ipsec_policy_t *p0 = 0;
+ 	  u32 header_size = sizeof (ip0[0]);
++	  int decrypted;
+ 
+ 	  bi0 = to_next[0] = from[0];
+ 	  from += 1;
+@@ -760,6 +1104,9 @@
+ 	  n_left_to_next -= 1;
+ 
+ 	  b0 = vlib_get_buffer (vm, bi0);
++	  /* Read and clear the decrypt nodes' mark, so no later lookup sees it. */
++	  decrypted = (b0->flags & VNET_BUFFER_F_IPSEC_DECRYPTED) != 0;
++	  b0->flags &= ~VNET_BUFFER_F_IPSEC_DECRYPTED;
+ 	  b0->flags |= VNET_BUFFER_F_IS_IP6;
+ 	  b0->flags &= ~VNET_BUFFER_F_IS_IP4;
+ 	  c0 = vnet_feature_next_with_data (&next0, b0, sizeof (c0[0]));
+@@ -834,7 +1181,8 @@
+ 	    }
+ 	  else
+ 	    {
+-	    counters.unprocessed += 1;
++	    ipsec6_input_cleartext_process (vm, node, b0, ip0, spd0, thread_index, decrypted,
++					    &counters, &next0);
+ 	    }
+ 
+ 	  vlib_validate_buffer_enqueue_x1 (vm, node, next_index, to_next,
+@@ -852,6 +1200,10 @@
+ 			       counters.by_policy_type[IPSEC_SPD_POLICY_IP6_INBOUND_DISCARD]);
+   vlib_node_increment_counter (vm, ipsec6_input_node.index, IPSEC_INPUT_ERROR_RX_POLICY_BYPASS,
+ 			       counters.by_policy_type[IPSEC_SPD_POLICY_IP6_INBOUND_BYPASS]);
++  vlib_node_increment_counter (vm, ipsec6_input_node.index, IPSEC_INPUT_ERROR_RX_CLEARTEXT_PROTECT,
++			       counters.cleartext_protect);
++  vlib_node_increment_counter (vm, ipsec6_input_node.index, IPSEC_INPUT_ERROR_RX_DECRYPTED,
++			       counters.decrypted);
+ 
+   return from_frame->n_vectors;
+ }

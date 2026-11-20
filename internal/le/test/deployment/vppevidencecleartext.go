@@ -2,19 +2,30 @@
 // Overview: vppevidencerun.go -- runIPsec, which runs this probe after its own checks
 // Related: vppevidencempls.go -- the packet-generator pcap pattern and the trace readers reused here
 //
-// The cleartext probe MEASURES what VPP does with an unprotected packet that
-// arrives on an interface whose SPD holds inbound PROTECT, DISCARD and BYPASS
-// entries. RFC 4301 Section 5.2 step 3b: "If there is a match and the packet is
-// to be discarded or bypassed, do so." and "If there is no match, discard the
-// traffic." A packet whose selectors match a PROTECT entry has no SPD-I match.
+// The cleartext proof holds VPP to what RFC 4301 Section 5.2 owes an
+// unprotected packet that arrives on an interface whose SPD holds inbound
+// PROTECT, DISCARD and BYPASS entries. RFC 4301 Section 5.2 step 3b: "If there
+// is a match and the packet is to be discarded or bypassed, do so." A packet
+// whose selectors match a PROTECT entry arrived without the protection it was
+// owed, and is discarded too.
 //
-// It is a probe, not a proof: each check passes when VPP's answer was read
-// unambiguously, and its detail states what VPP did beside what the RFC requires.
-// A check fails only when the measurement itself did not happen: the generator
-// sent nothing, or VPP's IPsec input node did not count the frame.
+// Upstream VPP forwards all three unjudged (measured on v26.06, 2026-11-20).
+// The run's default image carries Ze's patch for it
+// (third_party/vpp-patches-v26.06/README.md), so the proof passes there and
+// fails on an upstream image named through ZE_VPP_DOCKER_IMAGE. Each check
+// fails when VPP's fate for the frame, or the ipsec4-input-feature count that
+// names the rule which decided it, is not what the check owes, and when the
+// measurement itself did not happen: the generator sent nothing, or VPP's
+// IPsec input node did not count the frame.
+//
+// The last frame is ESP the probe's inbound SA decrypts: the patch must still
+// deliver what a policy-mode SA decrypted, which re-enters the same input node
+// on the same interface.
 package testdeployment
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
 	"encoding/binary"
 	"errors"
 	"net"
@@ -65,9 +76,30 @@ const (
 	vppIPsecInputNoMatch  = "IPSec policy not matched"
 	vppIPsecInputBypass   = "IPSec policy bypass" //nolint:gosec // a VPP error reason, not a credential
 	vppIPsecInputDiscard  = "IPSec policy discard"
+	// The two reasons Ze's patch adds (0106-ipsec-judge-unprotected-inbound-traffic.patch).
+	vppIPsecInputCleartextProtect = "IPSec cleartext matched protect"
+	vppIPsecInputDecrypted        = "IPSec decrypted packet"
 )
 
-// vppCleartextProbeFrame is one frame of the probe and what it measures.
+// The inbound SA TestVPPRealCleartextProbe installs, twins of its
+// realVPPCleartextSPI, realVPPCleartextTunnelRemote and encKey: change both
+// together. The key is 0x40, 0x41, ... 36 octets: the AES-256 key, then the
+// 4-octet salt RFC 4106 appends to it.
+const (
+	vppDecryptSPI          = 0x45450001
+	vppDecryptTunnelSource = "100.64.46.1"
+	vppDecryptKeyFirst     = 0x40
+	vppDecryptKeyLen       = 36
+	vppDecryptSaltLen      = 4
+)
+
+// vppCleartextCount is one ipsec4-input-feature count a frame is owed.
+type vppCleartextCount struct {
+	reason string
+	count  int64
+}
+
+// vppCleartextProbeFrame is one frame of the proof and what it is owed.
 type vppCleartextProbeFrame struct {
 	check string
 	// stream is the packet-generator stream that sends the frame. VPP v26.06's
@@ -77,31 +109,60 @@ type vppCleartextProbeFrame struct {
 	source string
 	target string
 	esp    bool
+	// decrypt says the frame is ESP the probe's SA decrypts, built by
+	// decryptedProbePacket: source and target are its inner datagram's.
+	decrypt bool
 	// entry names the SPD entry whose selectors the frame matches.
 	entry string
-	// owed is what RFC 4301 Section 5.2 requires of that frame.
+	// owed is what RFC 4301 Section 5.2 requires of that frame, in words.
 	owed string
+	// fate is what the frame is owed after ip4-input: forwarded or dropped.
+	fate vppTraceFate
+	// counts are the ipsec4-input-feature counts that name the rule which
+	// must decide the frame.
+	counts []vppCleartextCount
+}
+
+// received answers how many times the frame passes ipsec4-input-feature: once,
+// and twice for a frame the SA decrypts, whose inner datagram re-enters it.
+func (f vppCleartextProbeFrame) received() int64 {
+	if f.decrypt {
+		return 2
+	}
+	return 1
 }
 
 var vppCleartextProbeFrames = []vppCleartextProbeFrame{
 	{check: "probe-cleartext-protect", stream: "ct-protect", source: "100.64.46.10", target: vppCleartextHost,
 		entry: "the inbound PROTECT entry 100.64.46.0/24",
-		owed:  "RFC 4301 Section 5.2 step 3b requires it discarded: it has no SPD-I match"},
+		owed:  "RFC 4301 Section 5.2 step 3b requires it discarded: it has no SPD-I match",
+		fate:  vppTraceFateDropped, counts: []vppCleartextCount{{vppIPsecInputCleartextProtect, 1}}},
 	{check: "probe-cleartext-discard", stream: "ct-discard", source: "100.64.47.10", target: vppCleartextHost,
 		entry: "the inbound DISCARD entry 100.64.47.0/24",
-		owed:  "RFC 4301 Section 5.2 step 3b requires it discarded"},
+		owed:  "RFC 4301 Section 5.2 step 3b requires it discarded",
+		fate:  vppTraceFateDropped, counts: []vppCleartextCount{{vppIPsecInputDiscard, 1}}},
 	{check: "probe-cleartext-bypass", stream: "ct-bypass", source: "100.64.48.10", target: vppCleartextHost,
 		entry: "the inbound BYPASS entry 100.64.48.0/24",
-		owed:  "RFC 4301 Section 5.2 step 3b requires it passed"},
+		owed:  "RFC 4301 Section 5.2 step 3b requires it passed",
+		fate:  vppTraceFateForwarded, counts: []vppCleartextCount{{vppIPsecInputBypass, 1}}},
 	// The two ESP frames tell which address pair VPP compares the DISCARD entry
 	// against: the first in the orientation the IKE engine writes an inbound
 	// selector (source in the remote range), the second with the pair exchanged.
 	{check: "probe-esp-discard", stream: "esp-discard", source: "100.64.47.10", target: vppCleartextHost, esp: true,
 		entry: "the inbound DISCARD entry 100.64.47.0/24, source in its remote range",
-		owed:  "the DISCARD entry is owed the match"},
+		owed:  "the DISCARD entry is owed the match",
+		fate:  vppTraceFateDropped, counts: []vppCleartextCount{{vppIPsecInputDiscard, 1}}},
 	{check: "probe-esp-discard-reversed", stream: "esp-discard-rev", source: "100.64.45.10", target: "100.64.47.1", esp: true,
 		entry: "the inbound DISCARD entry 100.64.47.0/24 only with source and destination exchanged",
-		owed:  "the DISCARD entry is owed no match"},
+		owed:  "the DISCARD entry is owed no match",
+		fate:  vppTraceFateDropped, counts: []vppCleartextCount{{vppIPsecInputDiscard, 0}, {vppIPsecInputNoMatch, 1}}},
+	// ESP from the tunnel's remote end that the inbound SA decrypts, carrying an
+	// echo from the PROTECT entry's remote range: the decrypted datagram re-enters
+	// ipsec4-input-feature on pg1 and must pass on the decrypt node's mark.
+	{check: "probe-esp-decrypted", stream: "esp-decrypt", source: "100.64.46.10", target: vppCleartextHost, decrypt: true,
+		entry: "the inbound PROTECT entry 100.64.46.0/24 and its SA",
+		owed:  "the traffic the SA decrypts is owed delivery",
+		fate:  vppTraceFateForwarded, counts: []vppCleartextCount{{vppIPsecInputMatch, 1}, {vppIPsecInputDecrypted, 1}}},
 }
 
 // vppTraceFate is what VPP's trace shows became of one probe frame.
@@ -263,16 +324,19 @@ func (v *VPP) traceCleartextFrame(container, work string, frame vppCleartextProb
 	return judgeCleartextFrame(frame, generated, streams, trace, counts), nil
 }
 
-// judgeCleartextFrame turns VPP's answers about one frame into its check.
+// judgeCleartextFrame turns VPP's answers about one frame into its check: it
+// passes only when VPP gave the frame the fate it is owed and counted it under
+// the rule that owes it.
 func judgeCleartextFrame(frame vppCleartextProbeFrame, generated bool, streams, trace, counts string) VPPCheck {
 	if !generated {
 		return failVPPCheck(frame.check, "the packet generator did not send the probe frame", streams, nil)
 	}
 	received := vppErrorCount(counts, vppIPsecInputReceived)
-	if received != 1 {
+	if received != frame.received() {
 		var tb textbuf.Buffer
 		return failVPPCheck(frame.check, tb.Str(vppIPsecInputNode).Str(" counted ").Int(received).
-			Str(" frames where the generator sent one, so VPP's IPsec input never judged the probe frame").String(),
+			Str(" packets where the probe frame owes ").Int(frame.received()).
+			Str(", so VPP's IPsec input did not judge the probe frame as sent").String(),
 			counts, nil)
 	}
 	nodes := traceNodes(trace)
@@ -284,6 +348,9 @@ func judgeCleartextFrame(frame vppCleartextProbeFrame, generated bool, streams, 
 	if frame.esp {
 		kind = "an ESP frame with an unknown SPI"
 	}
+	if frame.decrypt {
+		kind = "an ICMP echo inside ESP the inbound SA decrypts,"
+	}
 	verb := "forwarded"
 	if fate == vppTraceFateDropped {
 		verb = "dropped"
@@ -291,11 +358,23 @@ func judgeCleartextFrame(frame vppCleartextProbeFrame, generated bool, streams, 
 	var tb textbuf.Buffer
 	tb.Str("real VPP ").Str(verb).Byte(' ').Str(kind).Str(" from ").Str(frame.source).Str(" to ").Str(frame.target).
 		Str(", which matches ").Str(frame.entry).Str("; ").Str(vppIPsecInputNode).Str(" counted it as")
-	for _, reason := range []string{vppIPsecInputMatch, vppIPsecInputBypass, vppIPsecInputDiscard, vppIPsecInputNoMatch} {
+	for _, reason := range []string{vppIPsecInputMatch, vppIPsecInputBypass, vppIPsecInputDiscard, vppIPsecInputNoMatch,
+		vppIPsecInputCleartextProtect, vppIPsecInputDecrypted} {
 		tb.Str(" '").Str(reason).Str("' ").Int(vppErrorCount(counts, reason))
 	}
 	tb.Str(". ").Str(frame.owed)
-	return passVPPCheck(frame.check, tb.String(), strings.Join(nodes, " -> "))
+	path := strings.Join(nodes, " -> ")
+	if fate != frame.fate {
+		tb.Str(": VPP did not give it that fate")
+		return failVPPCheck(frame.check, tb.String(), path, nil)
+	}
+	for _, want := range frame.counts {
+		if vppErrorCount(counts, want.reason) != want.count {
+			tb.Str(": the rule that owes it did not decide it, '").Str(want.reason).Str("' is owed ").Int(want.count)
+			return failVPPCheck(frame.check, tb.String(), counts, nil)
+		}
+	}
+	return passVPPCheck(frame.check, tb.String(), path)
 }
 
 // traceFate answers what the trace shows became of the frame after ip4-input.
@@ -352,8 +431,14 @@ func vppErrorCount(text, reason string) int64 {
 
 // writeCleartextPcap writes the one Ethernet frame of a probe frame.
 func writeCleartextPcap(path string, frame vppCleartextProbeFrame) error {
-	var packet [vppCleartextFrameLen]byte
-	if err := cleartextProbePacket(packet[:], frame); err != nil {
+	var storage [vppDecryptedFrameLen]byte
+	packet := storage[:vppCleartextFrameLen]
+	if frame.decrypt {
+		packet = storage[:]
+		if err := decryptedProbePacket(packet, frame); err != nil {
+			return err
+		}
+	} else if err := cleartextProbePacket(packet, frame); err != nil {
 		return err
 	}
 	file, err := os.Create(path) //nolint:gosec // a scratch file the container's VPP reads
@@ -361,7 +446,7 @@ func writeCleartextPcap(path string, frame vppCleartextProbeFrame) error {
 		return err
 	}
 	return errors.Join(pcap.WriteFileHeader(file, 65535, pcap.LinkTypeEthernet),
-		pcap.WriteRecord(file, time.Now(), packet[:], len(packet)), file.Close())
+		pcap.WriteRecord(file, time.Now(), packet, len(packet)), file.Close())
 }
 
 // vppCleartextFrameLen is the length of every probe frame, the Ethernet minimum
@@ -429,5 +514,103 @@ func cleartextProbePacket(packet []byte, frame vppCleartextProbeFrame) error {
 	}
 	binary.BigEndian.PutUint16(ip[2:4], uint16(20+length)) //nolint:gosec // 20 plus 16 or 24
 	binary.BigEndian.PutUint16(ip[10:12], ipv4HeaderChecksum(ip))
+	return nil
+}
+
+// The decrypted probe frame's lengths: the inner echo datagram cleartextProbePacket
+// builds (20 + 16), its ESP trailer, and the ESP fields around the ciphertext.
+const (
+	vppDecryptInnerLen     = 36
+	vppDecryptPadLen       = 2
+	vppDecryptPlaintextLen = vppDecryptInnerLen + vppDecryptPadLen + 2 // + Pad Length, Next Header
+	vppDecryptIVLen        = 8
+	vppDecryptICVLen       = 16
+	vppDecryptESPLen       = 8 + vppDecryptIVLen + vppDecryptPlaintextLen + vppDecryptICVLen
+	vppDecryptedFrameLen   = 14 + 20 + vppDecryptESPLen
+	// vppDecryptNextHeader is IPv4 in IPv4: the payload of a tunnel-mode SA.
+	vppDecryptNextHeader = 4
+)
+
+// decryptedProbePacket fills packet, vppDecryptedFrameLen octets, with ESP the
+// probe's inbound tunnel-mode SA decrypts: AES-256-GCM with a 16-octet ICV, from
+// the tunnel's remote end vppDecryptTunnelSource to pg1, sequence number 1. Its
+// payload is the echo datagram cleartextProbePacket builds for frame's inner
+// source and target.
+//
+//	 0                   1                   2                   3
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|        Ethernet: destination, source, type 0x0800  (0-13)    |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|        IPv4 header, protocol 50  (14-33)                      |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|        SPI  (34-37)                                           |
+//	|        Sequence Number  (38-41)                               |
+//	|        IV, 8 octets  (42-49)                                  |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|        ciphertext of: inner datagram (36), Padding 1 2,       |
+//	|        Pad Length 2, Next Header 4  (50-89)                   |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|        ICV, 16 octets  (90-105)                               |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+func decryptedProbePacket(packet []byte, frame vppCleartextProbeFrame) error {
+	if len(packet) != vppDecryptedFrameLen {
+		panic("BUG: decryptedProbePacket needs a vppDecryptedFrameLen-octet frame")
+	}
+	var inner [vppCleartextFrameLen]byte
+	if err := cleartextProbePacket(inner[:], vppCleartextProbeFrame{check: frame.check, source: frame.source, target: frame.target}); err != nil {
+		return err
+	}
+	// The outer header comes from the same builder, with the tunnel's ends.
+	if err := cleartextProbePacket(packet[:vppCleartextFrameLen],
+		vppCleartextProbeFrame{check: frame.check, source: vppDecryptTunnelSource, target: vppCleartextHost, esp: true}); err != nil {
+		return err
+	}
+	ip := packet[14:34]
+	binary.BigEndian.PutUint16(ip[2:4], 20+vppDecryptESPLen)
+	binary.BigEndian.PutUint16(ip[10:12], 0)
+	binary.BigEndian.PutUint16(ip[10:12], ipv4HeaderChecksum(ip))
+
+	esp := packet[34:]
+	binary.BigEndian.PutUint32(esp[0:4], vppDecryptSPI)
+	binary.BigEndian.PutUint32(esp[4:8], 1)
+	iv := esp[8 : 8+vppDecryptIVLen]
+	clear(iv)
+	iv[vppDecryptIVLen-1] = 1
+
+	// RFC 4303 Section 2.4: "The Padding bytes are initialized with a series of
+	// (unsigned, 1-byte) integer values."
+	var plaintext [vppDecryptPlaintextLen]byte
+	copy(plaintext[:vppDecryptInnerLen], inner[14:14+vppDecryptInnerLen])
+	for i := range vppDecryptPadLen {
+		plaintext[vppDecryptInnerLen+i] = byte(i + 1)
+	}
+	plaintext[vppDecryptPlaintextLen-2] = vppDecryptPadLen
+	plaintext[vppDecryptPlaintextLen-1] = vppDecryptNextHeader
+
+	var key [vppDecryptKeyLen]byte
+	for i := range key {
+		key[i] = byte(vppDecryptKeyFirst + i)
+	}
+	block, err := aes.NewCipher(key[:vppDecryptKeyLen-vppDecryptSaltLen])
+	if err != nil {
+		return err
+	}
+	aead, err := cipher.NewGCM(block)
+	if err != nil {
+		return err
+	}
+	// RFC 4106 Section 4: "The nonce passed to the GCM-AES encryption algorithm has the
+	// following layout:" the salt, then the IV.
+	var nonce [vppDecryptSaltLen + vppDecryptIVLen]byte
+	copy(nonce[:vppDecryptSaltLen], key[vppDecryptKeyLen-vppDecryptSaltLen:])
+	copy(nonce[vppDecryptSaltLen:], iv)
+	// RFC 4106 Section 5: "This is done by including those fields in the AES-GCM
+	// Additional Authenticated Data (AAD) field." The SPI and the 32-bit
+	// sequence number, the first 8 octets of the ESP header.
+	sealed := aead.Seal(esp[8+vppDecryptIVLen:8+vppDecryptIVLen], nonce[:], plaintext[:], esp[0:8])
+	if len(sealed) != vppDecryptPlaintextLen+vppDecryptICVLen {
+		panic("BUG: AES-GCM sealed a length other than the plaintext and its ICV")
+	}
 	return nil
 }

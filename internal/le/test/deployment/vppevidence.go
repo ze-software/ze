@@ -91,7 +91,7 @@ func (v *VPP) Run(ctx context.Context) (report VPPReport, err error) {
 	if err := buildCheckedDaemon(ctx, v.Tree, v.Goarch, v.buildBinaries); err != nil {
 		return report, err
 	}
-	if err := ensureImage(ctx, v.Docker, v.Image, v.Progress); err != nil {
+	if err := v.readyImage(); err != nil {
 		return report, err
 	}
 
