@@ -492,16 +492,18 @@ func writeGoPatterns(ctx context) *verdict {
 		return nil
 	}
 	// An Edit's replacement may begin inside a string or comment. Only the
-	// complete proposed file tells the scanner whether panic is a call.
+	// complete proposed file tells the scanner whether panic is a call. The
+	// current file is read for every tool, a Write included, because only the
+	// panic calls the edit adds are judged.
 	content := ctx.content
-	if ctx.tool != toolWrite {
-		current, err := os.ReadFile(absolutePath(ctx))
-		if err != nil {
-			if !errors.Is(err, os.ErrNotExist) {
-				return &verdict{2, "❌ BLOCKED: cannot reconstruct the proposed Go file " + path + ": " + err.Error() +
-					"\n  Make the file readable, then retry so panic calls can be judged."}
-			}
+	current, err := os.ReadFile(absolutePath(ctx))
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return &verdict{2, "❌ BLOCKED: cannot reconstruct the proposed Go file " + path + ": " + err.Error() +
+				"\n  Make the file readable, then retry so panic calls can be judged."}
 		}
+	}
+	if ctx.tool != toolWrite {
 		proposed, applied := proposedSpec(ctx, string(current))
 		// refuse-by-default: guards replaceEdit -- a failed tool replacement publishes no proposed content
 		if !applied {
@@ -509,9 +511,10 @@ func writeGoPatterns(ctx context) *verdict {
 		}
 		content = proposed
 	}
-	if forbiddenPanic(content) {
+	if addedForbiddenPanic(string(current), content) {
 		return &verdict{2, red + "❌ Return error, don't panic()" + reset +
-			"\n  Each panic call must name its own programmer invariant. Return operating errors instead."}
+			"\n  Each panic call this edit adds must name its own programmer invariant. Return operating errors instead." +
+			"\n  A call the file already holds may stay; a call with new text, or another copy, is refused."}
 	}
 	patterns := []editPattern{
 		{regexp.MustCompile(`(?m)^func[ \t]+(?:\([^)]+\)[ \t]+)?[A-Z][A-Za-z]*And[A-Z]`), 1, red + bold + "❌ BLOCKED: Single responsibility violation" + reset + " (function with 'And' in name)", nil},

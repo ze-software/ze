@@ -181,10 +181,14 @@ its native verification action.
 MultiEdit before judging panic calls individually. A replacement inside a
 quoted string or comment is not a call. Each actual call needs its own
 permitted invariant prefix and must parse; an allowed call never exempts
-another. This syntax check does not prove that a peer cannot reach a permitted
-panic.
+another. Disallowed calls are compared by their text with those the file
+already holds: an edit may keep or move a call already there, such as a
+recovered value re-raised after cleanup, but a call with new text, or another
+copy of an existing one, is refused. Content whose calls cannot be judged is
+refused whoever wrote it, and so is a file the check cannot read. This syntax
+check does not prove that a peer cannot reach a permitted panic.
 
-<!-- source: internal/le/hookruntime/panic.go -- forbiddenPanic -->
+<!-- source: internal/le/hookruntime/panic.go -- addedForbiddenPanic, forbiddenPanics -->
 
 
 ### Spec door gate (`internal/le/hookruntime/specdoors.go`)

@@ -638,11 +638,24 @@ var (
 	// Re-sealed 2026-11-20 in the same closure: internal/le/doc/index reads the
 	// // Design: header through docconsistency.DesignHeader too (its 25-line
 	// HeaderLines is deleted), and DesignLink gains its Topic.
+	//
+	// Re-sealed 2026-11-20 for the panic check (owner-approved). writeGoPatterns
+	// judges only the disallowed panic calls an edit adds, compared by text
+	// with those the current file holds (addedForbiddenPanic over
+	// forbiddenPanics), and reads the current file for a Write too, so a file
+	// that already re-raises a recovered value no longer refuses every edit.
+	// Sealed after one independent review, whose two ISSUEs (an overclaiming
+	// README and docstring, an untested unreadable-file refusal) were fixed
+	// before sealing; a deliberate whole-file break turned
+	// TestPanicJudgmentSkipsCallsAlreadyInFile red on all three tools.
+	// Recomputed 2026-11-21 when this seal was rebased onto e1cfe24443 (the
+	// derived spec-set state seal): the digest covers both changes, neither
+	// of which altered the other's hook sources.
 	hookSourcesDigest = [sha256.Size]byte{
-		0xe5, 0x45, 0x2a, 0x80, 0xcc, 0x8a, 0x26, 0xbf,
-		0x05, 0xaa, 0x6c, 0x65, 0x9f, 0x70, 0x9a, 0x0f,
-		0xef, 0x77, 0x71, 0x43, 0x2b, 0x35, 0x65, 0x69,
-		0xd8, 0xc4, 0x57, 0xb0, 0x57, 0xa7, 0x72, 0xad,
+		0x92, 0x84, 0x5f, 0xa8, 0x0d, 0x6d, 0x97, 0xd8,
+		0x5f, 0x96, 0xb2, 0x7c, 0x5a, 0x3b, 0x12, 0x72,
+		0xaa, 0x60, 0x97, 0x31, 0x13, 0xe2, 0x8d, 0x3e,
+		0x52, 0x7e, 0x49, 0xb4, 0x35, 0xb6, 0x17, 0x12,
 	}
 )
 
