@@ -329,7 +329,8 @@ func stubLiveInputs(t *testing.T, catalog string) {
 }
 
 // VALIDATES: a normal full build snapshots the current Pages checkout before
-// cleaning it, so a page the build does not write keeps its exact bytes.
+// cleaning it, so a page the build does not write keeps its exact bytes, and
+// removes the snapshot a killed build left beside it.
 func TestBuildPreservesExistingArtifactSeed(t *testing.T) {
 	stubLiveInputs(t, `[{"path":"show test","short-help":"Show rows","mode":"read-only"}]`)
 	parent := t.TempDir()
@@ -363,6 +364,11 @@ func TestBuildPreservesExistingArtifactSeed(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(output, "assets", "site.js"), nil, 0o644); err != nil {
 		t.Fatal(err)
 	}
+	// A snapshot a killed build left beside the artifact.
+	abandoned := filepath.Join(parent, artifactSnapshotPrefix+"killed")
+	if err := os.MkdirAll(abandoned, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	paths, err := ResolvePaths(root, output)
 	if err != nil {
 		t.Fatal(err)
@@ -372,6 +378,9 @@ func TestBuildPreservesExistingArtifactSeed(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer release()
+	if _, err := os.Stat(abandoned); !os.IsNotExist(err) {
+		t.Fatalf("snapshotArtifact kept the abandoned snapshot %s: %v", abandoned, err)
+	}
 	if err := seedArtifact(paths, previous); err != nil {
 		t.Fatal(err)
 	}

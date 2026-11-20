@@ -125,6 +125,10 @@ The repository command is `./le site build`. `./le site build partial` keeps an
 existing full artifact and refreshes the staged sources, while `./le site build
 output <directory>` names another artifact root. A full build recreates the
 artifact boundary and can seed it from the current complete Pages checkout.
+When it writes over that checkout, it first copies it to a `.site-artifact-*`
+directory beside it, held by a file lock for the life of the build and removed
+at the end; the next build removes any copy a killed build left, and never one
+a running build holds (`internal/le/site/artifactsnapshot.go`).
 Before it builds, it warns on stderr about every supported feature published on
 a stale recorded run; `./le site build refresh` re-records those first
 (`docs/contributing/feature-maturity.md`, "Recorded runs").

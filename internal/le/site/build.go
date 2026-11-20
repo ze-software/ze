@@ -328,6 +328,10 @@ func sameDirectory(first, second string) (bool, error) {
 // The copy is needed only when the build writes over that artifact, so its
 // previous bytes remain available while replacements proceed. A build that
 // writes elsewhere reads the published tree where it stands.
+//
+// The copy lives beside the artifact and is held for the life of the build.
+// A build that was killed never released its copy, so each new copy is taken
+// only after the copies no live build holds are removed.
 func snapshotArtifact(paths Paths) (string, func(), error) {
 	release := func() {}
 	published, err := lastPublished(paths)
@@ -341,18 +345,19 @@ func snapshotArtifact(paths Paths) (string, func(), error) {
 	if !same {
 		return published, release, nil
 	}
-	snapshot, err := os.MkdirTemp(filepath.Dir(paths.Output), ".site-artifact-")
-	if err != nil {
-		return "", release, fmt.Errorf("create site artifact snapshot: %w", err)
+	parent := filepath.Dir(paths.Output)
+	if err := removeAbandonedSnapshots(parent); err != nil {
+		return "", release, err
 	}
-	// The snapshot is a scratch directory beside the artifact. A failed removal
-	// leaves it behind and must not fail a build that otherwise succeeded.
-	release = func() { _ = os.RemoveAll(snapshot) }
-	if err := copyTree(published, snapshot, publishable); err != nil {
-		release()
+	snapshot, err := takeArtifactSnapshot(parent)
+	if err != nil {
+		return "", release, err
+	}
+	if err := copyTree(published, snapshot.path, publishable); err != nil {
+		snapshot.release()
 		return "", func() {}, fmt.Errorf("snapshot site artifact: %w", err)
 	}
-	return snapshot, release, nil
+	return snapshot.path, snapshot.release, nil
 }
 
 // seedArtifact overlays the last published artifact one complete file at a
