@@ -259,3 +259,21 @@ func TestProductObserverRefusesUnavailableOrIncompleteState(t *testing.T) {
 		t.Fatal("observer permits a mutating command")
 	}
 }
+
+// TestProductPlanDeclaresTheDialLog proves a failed product run prints the
+// log the product dial writes, not the mechanism lab's file: a run that
+// stopped before IPCP showed no PPP negotiation because the client declared
+// a file nothing wrote.
+func TestProductPlanDeclaresTheDialLog(t *testing.T) {
+	plan := productPlan("checkout", "/owned", "unit", modePlain, 1)
+	for _, peer := range plan.Peers {
+		if peer.Name != clientPeer {
+			continue
+		}
+		if !slices.Equal(peer.LogFiles, []string{productLog(0)}) {
+			t.Fatalf("client log files = %q, want %q", peer.LogFiles, productLog(0))
+		}
+		return
+	}
+	t.Fatal("product plan has no client peer")
+}
