@@ -305,6 +305,7 @@ dependence on the named boundary, not every semantic fault or whole-RFC support.
 |------------|------|-----------------|
 | `conflicting-feature-contracts.md` | 2026-11-15 | RS live relay and recovery next-hop admission |
 | `silent-fall-through.md` | 2026-11-18 | A route excluded for an unresolved next hop is reported nowhere |
+| `silent-fall-through.md` | 2026-11-20 | `request bgp rib inject` answers success for a route the unresolved next hop then excludes |
 
 ## Review Gate
 
