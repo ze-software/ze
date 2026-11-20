@@ -69,9 +69,18 @@ func imageRecipe(context interoplab.ImageContext) interoplab.ImageBuild {
 		// Suite callers need the compiler diagnostics the build action retains.
 		Progress: os.Stderr,
 		// The recipe sizes its compile jobs to the Docker host's cores and
-		// memory, so a two-GiB host still builds serially. Bound the whole
-		// build so a serial cold build on a small host stays finite.
+		// memory, so a two-GiB host still builds serially. This bound only
+		// ever lengthens the machine's (interoplab.ImageBuild.Timeout: 90
+		// minutes unless BUILD_TIMEOUT says otherwise), so it holds a cold
+		// serial compile on a small host only where BUILD_TIMEOUT is lower.
+		// A build answered from the image cache takes the time of a load.
 		Timeout: 45 * time.Minute, Required: true,
+		// The compile takes about twenty minutes, and the docker-lab guest
+		// discards its image store at every shutdown, so the image is kept in
+		// the host's image cache. VPP_BUILD_NATIVE_ONLY compiles for the
+		// build host's CPU, so the key carries that CPU and an entry is never
+		// loaded on another one.
+		Cache: true, HostCPUSpecific: true,
 	}
 }
 

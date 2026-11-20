@@ -103,6 +103,11 @@ type Docker struct {
 	// does not take one early "No such container" answer for such a name as
 	// proof that nothing is left.
 	unsettled unsettledNames
+	// imageCacheDir answers the directory of the persistent image cache, and
+	// hostCPU the identity of this machine's CPU (docker_image_cache.go). Both
+	// are fields so a test can name a temporary directory and a CPU.
+	imageCacheDir func() (string, error)
+	hostCPU       func() (string, error)
 }
 
 // ImageBuild identifies one image that a suite builds before it starts scenarios.
@@ -124,6 +129,17 @@ type ImageBuild struct {
 	Timeout  time.Duration `json:"timeout,omitempty"`
 	Required bool          `json:"required"`
 	Pull     bool          `json:"pull"`
+	// Cache keeps this image in the host's persistent image cache
+	// (docker_image_cache.go): a build whose inputs match a saved image loads
+	// it rather than building, and a fresh build is saved there. Only an image
+	// whose build is expensive opts in, because the key hashes the whole build
+	// context on every Build.
+	Cache bool `json:"cache,omitempty"`
+	// HostCPUSpecific marks an image compiled for the build host's own CPU
+	// (VPP_BUILD_NATIVE_ONLY, -march=native), so its cache key carries that
+	// CPU's identity and an entry is never loaded on another CPU. It has no
+	// effect without Cache.
+	HostCPUSpecific bool `json:"host-cpu-specific,omitempty"`
 	// Progress receives live stdout and stderr instead of a quiet build.
 	// Nil preserves quiet capture. Build serializes writes to this writer;
 	// the caller MUST NOT write to it concurrently until Build returns.
@@ -142,8 +158,13 @@ type ImageResult struct {
 	Name      string `json:"name"`
 	Tag       string `json:"tag"`
 	Reference string `json:"reference"`
-	Built     bool   `json:"built"`
-	Error     string `json:"error,omitempty"`
+	// Built says Build made the image available under Tag and the run-owned
+	// tag, by `docker build` or from the image cache.
+	Built bool `json:"built"`
+	// Cached says the image came from the image cache rather than a full
+	// `docker build` (ImageBuild.Cache).
+	Cached bool   `json:"cached"`
+	Error  string `json:"error,omitempty"`
 
 	retainedTag string
 }
@@ -320,7 +341,8 @@ func (e *commandError) Unwrap() error { return e.Cause }
 func NewDocker() *Docker {
 	owner, judge := processIdentity()
 	environ, endpointRefusal := dockerhost.Inherited()
-	return &Docker{runner: systemProcessRunner{}, buildTimeout: machineBuildTimeout(os.LookupEnv), owner: owner, judge: judge, oneShotName: randomOneShotName, environ: environ, endpointRefusal: endpointRefusal}
+	return &Docker{runner: systemProcessRunner{}, buildTimeout: machineBuildTimeout(os.LookupEnv), owner: owner, judge: judge, oneShotName: randomOneShotName, environ: environ, endpointRefusal: endpointRefusal,
+		imageCacheDir: hostImageCacheDir, hostCPU: hostCPUIdentity}
 }
 
 // NewBuildToolDocker returns the real Docker client for a build tool: a
@@ -333,7 +355,8 @@ func NewDocker() *Docker {
 // bounded removal, is NewDocker's.
 func NewBuildToolDocker() *Docker {
 	owner, judge := processIdentity()
-	return &Docker{runner: systemProcessRunner{}, buildTimeout: machineBuildTimeout(os.LookupEnv), owner: owner, judge: judge, oneShotName: randomOneShotName, environ: os.Environ()}
+	return &Docker{runner: systemProcessRunner{}, buildTimeout: machineBuildTimeout(os.LookupEnv), owner: owner, judge: judge, oneShotName: randomOneShotName, environ: os.Environ(),
+		imageCacheDir: hostImageCacheDir, hostCPU: hostCPUIdentity}
 }
 
 // run runs one docker command under environ. It is the only route to the
@@ -371,9 +394,12 @@ func NewFixtureDocker(runner ProcessRunner) *Docker {
 }
 
 // newDocker is the test double's client: a fixed owner and a host on which
-// every pid is absent, so a test argv is deterministic.
+// every pid is absent, so a test argv is deterministic. It keeps no image
+// cache, so a build that opts into one builds and says why, unless a test
+// names a cache directory itself.
 func newDocker(runner ProcessRunner) *Docker {
-	return &Docker{runner: runner, buildTimeout: dockerBuildTimeoutDefault, owner: fixtureOwner(), judge: fixtureJudge(), oneShotName: fixtureOneShotName}
+	return &Docker{runner: runner, buildTimeout: dockerBuildTimeoutDefault, owner: fixtureOwner(), judge: fixtureJudge(), oneShotName: fixtureOneShotName,
+		imageCacheDir: fixtureImageCacheDir, hostCPU: fixtureHostCPU}
 }
 
 // oneShotNamePrefix starts every one-shot container's name.
@@ -494,7 +520,10 @@ func architectureToken(value string) bool {
 // `docker build -`, so a symlink in it is sent as a link and docker reads no
 // extended attribute. A macOS host's 9p share answers those reads on a
 // symlink with ELOOP, which failed every guest build (docker_build_context.go).
-// A named context keeps its path argument.
+// A named context keeps its path argument. A build that sets Cache is first
+// looked up in the host's persistent image cache, and a fresh one is saved
+// there; the result carries the same two tags either way
+// (docker_image_cache.go).
 func (d *Docker) Build(ctx context.Context, build ImageBuild) (ImageResult, error) {
 	image := ImageResult{Name: build.Name, Tag: build.Tag}
 	if build.Timeout < 0 {
@@ -515,6 +544,18 @@ func (d *Docker) Build(ctx context.Context, build ImageBuild) (ImageResult, erro
 	if err := d.RequireFreshSource(ctx, build, time.Now()); err != nil {
 		return image, err
 	}
+	// The cache is consulted only after the freshness rule ran, because that
+	// rule may update a followed checkout, which changes the key.
+	if build.Cache {
+		return d.buildCached(ctx, build, timeout)
+	}
+	return d.buildImage(ctx, build, timeout)
+}
+
+// buildImage runs `docker build` for a build Build has validated, under
+// timeout. It tags the image with the shared Tag and a fresh run-owned tag.
+func (d *Docker) buildImage(ctx context.Context, build ImageBuild, timeout time.Duration) (ImageResult, error) {
+	image := ImageResult{Name: build.Name, Tag: build.Tag}
 	image.retainedTag = retainedTagRepository + ":" + rand.Text()
 	arguments := []string{DockerExecutable, "build"}
 	arguments = append(arguments, d.owner.labelArguments(resourceImageTag)...)

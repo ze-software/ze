@@ -5264,12 +5264,74 @@ changes nothing; `BUILD_TIMEOUT` stays the one knob that lowers it. No suite
 declares one. The PPPoE suite did until 2026-09-04: 10 minutes for its ze image,
 15 for accel-ppp and 10 for the client, each written when the shipped default was
 10 minutes and each a cap once the default became 90, because the field then
-replaced the machine bound instead of raising it.
+replaced the machine bound instead of raising it. The VPP lab image
+(`internal/le/build/vpp`, `imageRecipe`) declares 45 minutes, which is below
+the machine bound and so changes the bound only where `BUILD_TIMEOUT` is lower.
 
 Subsequent runs with `NO_BUILD=1` skip rebuilds. Once the images exist, the full
 suite takes roughly 5-10 minutes depending on session establishment times.
 <!-- source: internal/le/interoplab/docker.go -- dockerBuildTimeoutDefault, buildTimeout -->
 <!-- source: internal/le/interoplab/zebuild.go -- StageBinaries, LabBinary -->
+
+### The persistent image cache
+
+An image whose build is expensive opts into a persistent cache on the machine
+`le` runs on, with `ImageBuild.Cache`. Today only the VPP lab images opt in
+(`ze-vpp-pppoe-lab` and its metadata counterfactual): their build compiles VPP
+for about twenty minutes, and `./le test qemu docker-lab` opens its Docker
+host guest's disk with `snapshot=on`, so the guest's own image store is gone
+after every shutdown. No other lab image opts in, because the key hashes the
+whole build context on every `Build`.
+
+The cache is one `docker image save` archive per key, in `docker-image/` under
+the per-user cache (`$XDG_CACHE_HOME/ze`, else `~/.cache/ze`, the target the
+checkout's `cache/` link names). The docker CLI writes and reads the archive on
+its own side, so a daemon reached through a forwarded socket still saves to and
+loads from the `le` machine. No `./le scratch` clean or trim reaches it, the same
+as the docker-host image cache beside it; an entry is removed by hand.
+
+The key is the SHA-256 of everything that decides the image: the Dockerfile's
+place and the main context exactly as `Build` streams it (the same walk, its
+ignore file applied, each entry's name, type, link, mode, size and bytes, but
+not its modification time), each named context whole, the target, the build
+arguments in order, and the architecture the Docker daemon builds for. Owner
+labels and tags are not inputs. An input the context does not carry, such as a
+distribution package a `RUN apt-get install` fetches, is not in the key either:
+an entry keeps the packages of the build that made it, as Docker's own layer
+cache does.
+
+An image compiled for the build host's CPU sets `ImageBuild.HostCPUSpecific`,
+and its key also carries the CPU identity of the `le` machine: on Linux the
+first processor's vendor, family, model, model name and flags (x86) or
+implementer, architecture, variant, part and features (arm64) from
+`/proc/cpuinfo`, on macOS the `machdep.cpu.brand_string`, `hw.cpufamily` and
+`hw.cpusubfamily` sysctls and an Intel Mac's feature lists. The VPP image is
+one (`VPP_BUILD_NATIVE_ONLY=ON`). The `le` machine's CPU stands for the Docker
+host's because the lab's daemon runs on that machine or in a VM it runs with
+its own CPU (`docker-lab` boots its guest with `-cpu max` under KVM or HVF).
+The cache is not used, and the image is built, when that cannot be shown: a
+daemon of another architecture than `le`'s (it runs emulated), an endpoint
+that is neither a local socket nor a loopback address, or a CPU identity that
+cannot be read. One progress line names the reason.
+
+A run takes the key's lock first, so a second run needing the same build waits
+for the first and then loads what it saved. A hit runs `docker image load`
+through the same CLI and endpoint, then builds a one-line Dockerfile `FROM` the
+loaded image, which compiles nothing and gives the image this run's owner
+labels, the shared `Tag` and a new run-owned tag, exactly what a build answers:
+the loaded image carries the labels of the run that built it, and the orphan
+sweep would otherwise remove a run-owned tag on it as abandoned. The result
+says `cached`, and the progress stream prints
+`interop: image <name> loaded from the image cache, key <key> (<ID>)`. A miss
+builds, then saves the built image ID to a partial file in the cache directory
+and renames it into place, so an entry that exists is whole; the next run of
+the same key, holding its lock, removes a partial file a killed run left. The save runs
+without the run's cancellation, so a build reaches the cache once it completes,
+and a save that fails prints a warning with the cause and the fix and leaves
+the build answered. An entry Docker refuses to load is removed, the image is
+built and saved again, and the progress stream says so.
+<!-- source: internal/le/interoplab/docker_image_cache.go -- buildCached, imageCacheKey, dockerHostCPU, loadCachedImage, relabelCachedImage, saveCachedImage -->
+<!-- source: internal/le/interoplab/host_cpu.go -- cpuinfoIdentity -->
 
 
 ### Source-built peers
