@@ -57,6 +57,20 @@ Not done here, owned elsewhere:
 - Tests are run with set-aside files only when a removal is approved but not yet committed; none is pending now.
 - `tmp/commit-weakening-approved-182f508b.md` holds the session's judge rows; rows consumed by commits stay until `./le commit approval clean` runs.
 
+## Update: phases 5c to 7a landed in the same session
+
+| Commit | What |
+|--------|------|
+| 615753f1c6 | 5c and 5d (RIB readers take the declared list, json word gone, RIB declarations per command, YANG args and scope leaves removed) plus B1 (declarations resolve behind a selector value) and B2 (refusal fix line keeps the selector) |
+| 3c642127ca | phase 6 (every in-tree RIB caller uses the pipe form: lg, bmp, REST, interoplab, fixtures, unit tests, docs) and 7a (one pipe-operations list for help, catalog and completion; quote-safe completer stage) |
+
+Remaining, in order:
+- Promote the converted functional drafts after they pass against 3c642127ca: the 14 phase 6 drafts under test/draft/plugin and test/draft/reload, plus filter-wire-batch.ci and dispatch-pipe-chain-applied.ci (each: `./le test bgp plugin --draft --pattern <name>`, the stress repro `ai/skills/ze-test.md` names, then `mv` into test/). `test/plugin/dispatch-pipe-chain-refused.ci` tests the removed refusal: remove it, with its fixture registration in `plugin_fixture_16.go` and `plugin16DispatchPipeChainRefused`, under a ze-test-judge verdict.
+- The 7a draft `test/draft/plugin/command-help-pipe-operations.ci` still lacks its AC-19 plugin-command row and AC-20 Tab-completion row.
+- Website: internal/le/site (the catalog reader for pipe-operations, census rows, testdata, and the operator-guide golden) is uncommitted and waits for Thomas to review the visible sentence "A command may replace it with its own." beside the overridable generics; the judge approved the test changes. Until it lands, internal/le/site reads the removed catalog keys.
+- 7b (T-5 C: ordered optional pipe list on derived MCP tools and REST/gRPC routes), phase 8 (documentation checklist), spec bookkeeping from phase 5 on, then `/ze-close`.
+- Approval rows consumed by 3c642127ca were not cleaned (le could not rebuild while another session's credits package lacked its embedded data): run `./le commit approval clean` later.
+
 ## Then
 
 `./le spec claim spec-pipe-chain-honored-on-every-command-surface.md` (the claim may need `ZE_SPEC_WIP_CAP=22`, authorised by Thomas for this spec only), read the state file, then `/ze-implement` from phase 5c.
