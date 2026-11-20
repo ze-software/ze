@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Scope | config |
 | Priority | P1 |
 | Release reason | Trust repairs are historical; the config-change delivery proof (AC-4) and the two device-side guards of fetch and push (AC-5, AC-6) are correctness defects of shipped managed code. |
@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | 3/3 |
 | Handoff | - |
-| Updated | 2026-11-19 |
+| Updated | 2026-11-20 |
 | Blocker | - (the AC-4 writer blocker was cleared by the owner on 2026-11-19, see "AC-4 config-changed: no operator-reachable writer") |
 
 ## Post-Compaction Recovery
@@ -349,14 +349,13 @@ This design changes no wire format. It adds, removes and renames no fleet verb, 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestManagedClientPinsCertificate` | `internal/component/managed/client_tls_test.go` | AC-1 | PASS |
-| `TestManagedClientRefusesWrongCertificate` | `internal/component/managed/client_tls_test.go` | AC-2 | PASS |
-| `TestManagedClientDefaultFailsClosed` | `internal/component/managed/client_tls_test.go` | AC-2 | PASS |
-| `TestManagedClientFingerprintSources` | `internal/component/managed/client_tls_test.go` | AC-1 (env override, hex case) | PASS |
+| `TestManagedClientValidatesAgainstConfiguredRoot` (was `TestManagedClientPinsCertificate`, renamed when the fingerprint pin became the named pki CA, 8788a29f8b, 2026-09-04) | `internal/component/managed/client_tls_test.go` | AC-1 | PASS |
+| `TestManagedClientRefusesAnotherIssuer` (was `TestManagedClientRefusesWrongCertificate`) | `internal/component/managed/client_tls_test.go` | AC-2 | PASS |
+| `TestManagedClientRefusesWithNoAnchor` (was `TestManagedClientDefaultFailsClosed`) | `internal/component/managed/client_tls_test.go` | AC-2 | PASS |
+| `TestFingerprintConfigIsRefused`, `TestHubCARejectsAnUnusableName` (replace `TestManagedClientFingerprintSources` and `TestHubFingerprintRejectsNonHex`: the fingerprint leaf is gone, and a fingerprint config is now refused) | `internal/component/config/hub_certificate_test.go` | AC-1 (the CA leaf) | PASS |
 | `TestManagedServerServesConfiguredCertificate` | `internal/component/plugin/server/managed_cert_test.go` | AC-1 | PASS |
 | `TestManagedServerFailsClosedOnCertificate` | `internal/component/plugin/server/managed_cert_test.go` | AC-1 | PASS |
 | `TestHubTrustLeavesReachTheStructs` | `internal/component/config/hub_certificate_test.go` | AC-1 (both leaves) | PASS |
-| `TestHubFingerprintRejectsNonHex` | `internal/component/config/hub_certificate_test.go` | AC-1 (leaf pattern) | PASS |
 | `TestHubRefusesDisagreeingCertificates` | `internal/component/config/hub_certificate_test.go` | AC-1 (one certificate per managed server) | PASS |
 | `TestManagedListenerCollisionCases` | `internal/component/plugin/doctor/check_managed_listener_test.go` | AC-3 (each address case, and the documented central hub that must stay silent) | PASS |
 | `TestManagedListenerCollisionNamesBothBlocks` | `internal/component/plugin/doctor/check_managed_listener_test.go` | AC-3 (the message names the block that cannot serve and the one that took the address) | PASS |
@@ -389,7 +388,11 @@ pin branch removed, the pin branch replaced by `InsecureSkipVerify`, the default
 branch made insecure, the env lookup and the lowercasing dropped, the server
 made to ignore its configured certificate name, the two extraction assignments
 dropped, the YANG pattern dropped, and the agreement check dropped. Every
-mutation turned exactly the covering test red.
+mutation turned exactly the covering test red. (Closure note, 2026-11-20: those
+mutations were made on the 2026-08-29 fingerprint-pin tests. The CA design of
+8788a29f8b replaced them with the CA tests named in the first rows above, and
+their end-to-end discrimination is `test/managed/managed-hub-ca-trust.ci`'s
+foreign-root control.)
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
@@ -590,39 +593,172 @@ Step 6 above is superseded by the owner rule that no agent runs `./le verify`: t
 | D-7 (OD-6): first boot's fetch takes `configFetchTimeout` through `FetchConfig`, under a context not derived from the connect context, which keeps the dial, handshake and authentication | Leave first boot under one 5 s context; extend the connect context to 30 s | One fetch bound everywhere (owner); a 30 s connect context would also stretch the dial and handshake bound the operator set |
 | D-5: a refused push sends no ack; the refetch's hold ack answers the hub | Ack the refusal, then refetch | The revert already does this (`applyCommitted`); an extra `ok:false` ack would record a rejection the hub must then clear |
 | D-6: `holdOrApply` reports the hold after the outcome | Report "not holding" first, as today | A refused push becomes a hold, so an early "not holding" would be false for the length of the refetch (R-8) |
-
-## Review Gate
-
-<!-- BLOCKING (ai/rules/planning.md Review Gate). Filled by /ze-implement's /ze-review gate: -->
-<!-- the final review before closure, run AFTER the inline critical/security/doc reviews, over the complete diff. -->
-<!-- Every BLOCKER and ISSUE (severity > NOTE) must be fixed, then re-run /ze-review. -->
-<!-- Loop until the review returns 0 BLOCKER/0 ISSUE (only NOTEs, or nothing). Paste the final clean run. -->
-<!-- NOTE-only findings do not block — record them and proceed. -->
-
-### Run 1 (initial)
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
-
-### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
-
-### Run 2+ (re-runs until clean)
-<!-- Add a new block per re-run. Final run MUST show zero BLOCKER/ISSUE. -->
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
-
-### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+| D-8 (main-thread decision during review round 2, 2026-11-20): a local commit that races both fetches of one push (`errActiveChangedTwice`) ends the connection on both paths, at connect (`runConnection`) and on the loop (`handleConfigChangedRequest`), logged once at Info (`logLocalCommitTwice`), and `RunManagedClient` reconnects with its normal backoff and no "connection lost" Warn; the reconnect's fetch decides again (holds and uploads its copy, or applies). A device whose local commits keep racing reconnects about once a second, because the backoff resets at each successful authentication (`runConnection` `backoff.Reset`) | Keep the connection (round 1's fix): nothing then fetches again, so a diverged device never uploaded its copy or acked holding until the hub's next change; a timer refetch on the loop: a new goroutine lifecycle for a race that needs a local commit inside each of two fetches | The reconnect is the existing path that fetches over what the device runs, so no new mechanism is needed. The cadence needs no Work Not Done row: each round needs a local commit landing inside each of two fetches, and on a managed device only machine writers (a confirmed-commit revert, a signal reload) and an operator change after the freeze is lifted commit locally (A-6), none of them continuous; the round ends at the first fetch no commit races, the cost is one reconnect and one Info line per round, and `docs/architecture/fleet-config.md` "The baseline and the hold" states it. Tests: `TestLocalCommitTwiceReconnectsQuietly`, `TestConfigChangedLocalCommitTwiceLogsDecision` |
 
 ## Checklist
-- [ ] Cert approach decided with the user
-- [ ] Secure connection works without `tls-insecure`
-- [ ] Doctor check registered
-- [ ] Two-instance `.ci` passes
-- [ ] Tests written
-- [ ] Tests FAIL (paste output)
-- [ ] Tests PASS (paste output)
+- [x] Cert approach decided with the user
+- [x] Secure connection works without `tls-insecure`
+- [x] Doctor check registered
+- [x] Two-instance `.ci` passes
+- [x] Tests written
+- [x] Tests FAIL (paste output)
+- [x] Tests PASS (paste output)
 - [ ] `./le verify worktree` passes
 - [ ] (2026-11-19) The line above is superseded by the owner rule that no agent runs any `./le verify` command: the evidence owed is the scoped tests of `internal/component/managed` and `cmd/ze/hub`, `test/managed/fleet-config-change-live.ci`, and the recorded red of each new test, run by the main thread
+
+## Implementation Summary
+
+### What Was Implemented
+- AC-1, AC-2 (2026-08-29 to 2026-09-05, commits up to 8788a29f8b): the hub serves a named pki certificate or a leaf its local authority issues (`managedCertificate`, `internal/component/plugin/server/managed_serve.go`; wired by `startManagedServer`, `cmd/ze/hub/managed_server.go`), and the client verifies against the pki CA it names, the hub root it kept, or the system pool (`clientTLSConfig`, `internal/component/managed/tls.go`), first boot included (`ClientTLSConfig`, called by `fetchInitialConfig`).
+- AC-3: `diagnoseManagedListener` (`internal/component/plugin/doctor/check_managed_listener.go`) reports `doctor-hub-managed-collision`.
+- AC-4 (0318255b49): `test/managed/fleet-config-change-live.ci` and its fixture `managedFleetConfigChangeLiveDriver` (`internal/test/fixture/misc_fixture_managed_config_change_live.go`).
+- AC-5 (75886ea0cd): `ClientConfig.CommitOver` replaces `OnCommit` and `OnRevert`; `applyFetched` commits every push and revert over `activeCheck(decided)`; `wireManagedCommit` stages through `storage.StageMachineCandidateOver`; `holdOrApply` sends a refusal to `refetchOverLocalCommit` and reports the hold after the outcome; `ClientConfig.Version` and the nil-`Baseline` branch are deleted, and `RunManagedClient` refuses a nil `Baseline` under `doctor-internal-defect`.
+- AC-6 (75886ea0cd): `configFetchTimeout` (30 s) in `fetchConfigWithin`, used by `fetchAgainstBaseline` and `FetchConfig`; `fetchInitialConfig` (`cmd/ze/ze_core_start.go`) bounds only dial, handshake and authentication by `ze.managed.connect.timeout`.
+
+### Bugs Found/Fixed
+- The unguarded ordinary push (journal `guard-added-to-one-half-of-a-pair.md`, 2026-11-19): `TestPushHoldsOverLocalCommitDuringFetch`.
+- The unbounded fetch (same journal, 2026-11-19): `TestFetchDeadlineAtConnect`, `TestFetchDeadlineOnNotificationLoop`.
+- Found in review: a double race logged as a hub outage (`TestConfigChangedLocalCommitTwiceLogsDecision`); the no-baseline refusal under the wrong code (`TestRunManagedClientRaisesNoBaselineDefect`); a stale hold report on the fetch made again (`TestPushFetchesAgainOnlyOnce`, `TestFetchMadeAgainReportsHoldWhenDiverged`); a diverged device that never uploaded after a double race (`TestLocalCommitTwiceReconnectsQuietly`).
+
+### Documentation Updates
+- `docs/architecture/fleet-config.md`: "The baseline and the hold" (the guarded push, the double race and its reconnect cadence), "Config Change (Two-Phase)", "Connection Lifecycle" (the fetch bound and its trade-off, anchor `client.go -- configFetchTimeout, fetchConfigWithin, FetchConfig, handleConfigChangedRequest`), "First Boot", the "Client Side" `--connect-timeout` row (75886ea0cd).
+- `docs/guide/fleet-config.md`: "Change a Client's Configuration", "When a Client Holds", three "Troubleshooting" rows, the `ze start` `--connect-timeout` row, anchor `client.go -- configFetchTimeout, handleConfigChangedRequest` (75886ea0cd).
+- `docs/architecture/doctor-and-health-checks.md`: the managed client's `doctor-internal-defect` raise (75886ea0cd).
+- `features/fleet-management.md`: real-path test and extra criterion (0318255b49), Defect review row (closure).
+- `./le doc check all`: see Pre-Commit Verification.
+
+### Deviations from Plan
+- D-8 (Key Design Decisions): a double race ends the connection on both paths instead of keeping it, so the reconnect's fetch decides again.
+- The AC-1/AC-2 TDD rows named the 2026-08-29 fingerprint-pin tests; the CA design replaced them, and the rows now name the CA tests.
+- The Integration Checklist planned the loop's fetch-failure Warn under `doctor-hub-unreachable`; the double race is carved out of it at Info (round 1).
+
+## Mistake Log
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Round 1 kept the connection after a double race, so the log line would not read as a lost connection | Nothing then fetched again, so a diverged device never uploaded its copy or acked holding until the hub's next change | Review round 2 | D-8: end the connection, quiet reconnect |
+| approach | The TDD table kept the AC-1/AC-2 test names of the fingerprint-pin design after the CA design renamed and replaced them | The tests are `TestManagedClientValidatesAgainstConfiguredRoot`, `TestManagedClientRefusesAnotherIssuer`, `TestManagedClientRefusesWithNoAnchor`, `TestFingerprintConfigIsRefused`, `TestHubCARejectsAnUnusableName` | Closure grep of every TDD row | Rows corrected in this closure |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| 1. Secure server-cert verification | Done | `internal/component/managed/tls.go` `clientTLSConfig`; `internal/component/plugin/server/managed_serve.go` `managedCertificate`; `cmd/ze/hub/managed_server.go` `startManagedServer` | |
+| 2. Port-collision doctor check | Done | `internal/component/plugin/doctor/check_managed_listener.go` `diagnoseManagedListener`; code in `internal/core/diagnostic/codes.go` | |
+| 3. Two-instance daemon `.ci` (fetch and config-changed) | Done | `test/managed/managed-hub-ca-trust.ci` (fetch), `test/managed/fleet-config-change-live.ci` (config-changed) | |
+| 4. Device-side guards of fetch and change delivery | Done | `internal/component/managed/client.go` `applyFetched`, `activeCheck`, `fetchConfigWithin`; `cmd/ze/hub/managed.go` `wireManagedCommit` | |
+| 5. Design of the remainder (OD-1..OD-7) | Done | as above; `cmd/ze/ze_core_start.go` `fetchInitialConfig` (OD-6) | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestManagedClientValidatesAgainstConfiguredRoot`, `TestManagedServerServesConfiguredCertificate`, `managed-hub-ca-trust.ci` | |
+| AC-2 | Done | `TestManagedClientRefusesAnotherIssuer`, `TestManagedClientRefusesWithNoAnchor`, the foreign-root half of `managed-hub-ca-trust.ci` | |
+| AC-3 | Done | `TestManagedListenerCollisionCases`, `doctor-hub-managed-collision.ci`, `doctor-hub-managed-separate.ci` | |
+| AC-4 | Done | `fleet-config-change-live.ci` | red with the write observer removed |
+| AC-5 | Done | `TestPushHoldsOverLocalCommitDuringFetch`, `TestPushAppliesWhenActiveUnchanged`, `TestPushFetchesAgainOnlyOnce`, `TestPushRefusalOtherThanLocalCommitAcks`, `TestWireManagedCommitOverRefusesLocalCommit` | |
+| AC-6 | Done | `TestFetchDeadlineAtConnect`, `TestFetchDeadlineOnNotificationLoop`, `TestFetchDeadlineDropsLateAnswer`, `TestFetchAtConnectAfterHubDropsPush`, `TestFirstBootFetchOutlivesConnectTimeout`, `TestFirstBootFetchEndsAtFetchDeadline` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Every row of the TDD Test Plan | Done | the file each row names; located by `grep -rl "func <name>("` at closure, every name found | the AC-1/AC-2 rows renamed, see Mistake Log |
+| `fleet-config-change-live` | Done | `test/managed/fleet-config-change-live.ci` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Modify (2026-11-19), every entry | Done | in 75886ea0cd |
+| Files to Create (2026-11-19), every entry | Done | in 0318255b49 and 75886ea0cd |
+| Files to Modify (AC-1..AC-3) | Done | 2026 commits up to 8788a29f8b |
+
+### Audit Summary
+- **Total items:** 5 requirements, 6 ACs
+- **Done:** all
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** D-8 and the AC-1/AC-2 test names (Deviations)
+
+## Goal Validation (BLOCKING)
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| 1. A client verifies the hub without `tls-insecure` | functional, two daemons | `test/managed/managed-hub-ca-trust.ci`: trusted root fetches, foreign root is refused (managed suite 32/32, 2026-11-20 02:27) |
+| 2. The collision is reported by `ze doctor` | functional | `test/ui/doctor-hub-managed-collision.ci`, control `doctor-hub-managed-separate.ci` |
+| 3. A real hub's change reaches a real device | functional, two daemons | `test/managed/fleet-config-change-live.ci`: passes, red with the hub's write observer removed ("within 10s of the import the device did not run router-id 3.3.3.3 as its baseline"), 40/40 under `./le test stress-repro` |
+| 4a. A push never overwrites a local commit made during its fetch | unit, deterministic race | `TestPushHoldsOverLocalCommitDuringFetch` (client) and `TestWireManagedCommitOverRefusesLocalCommit` (daemon stage under the lock), green in `internal/component/managed` and `cmd/ze/hub` |
+| 4b. A silent hub cannot freeze a device | fault injection (silent hub fake over TLS) | `TestFetchDeadlineAtConnect`, `TestFetchDeadlineOnNotificationLoop`, `TestFirstBootFetchEndsAtFetchDeadline`, green |
+| 5. First boot fetches a large configuration past the connect bound | unit over the real `fetchInitialConfig` | `TestFirstBootFetchOutlivesConnectTimeout` (connect bound 500 ms, hub answers after 1.5 s), green in `cmd/ze` |
+
+## Work Not Done
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | Every AC is done. The reconnect cadence of a device whose local commits keep racing (about once a second) is an accepted cost, not owed work: D-8 gives the reasons | - |
+
+## Review Gate
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/managed-server-hardening-1ecdeafe-7c8e-4b32-a486-fac3ee6445a8.md` (34 files, verdict clean), written by `./le spec review record spec managed-server-hardening verdict CLEAN rounds 4` |
+| `./le spec review check` | clean |
+| Rounds | 4: three implementation review rounds, then the closure pass |
+| Reviewer lenses used | logic and wiring, security and edge cases (guard audit of `activeCheck` and the stage, deadlines and DoS), docs and operator messages |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | A double race was logged at Warn under `doctor-hub-unreachable` with fix `ze doctor`, though the hub answered | `client.go` `handleConfigChangedRequest` | round 1: an Info branch, `logLocalCommitTwice` |
+| 2 | ISSUE | The no-baseline refusal named `doctor-managed-diverged`, whose check never reports that state | `client.go` `RunManagedClient` | round 1: `doctor-internal-defect` and a report-bus raise, `TestRunManagedClientRaisesNoBaselineDefect` |
+| 3 | ISSUE | A-1, A-2, A-3, A-6 left unvalidated | this spec | round 1: confirmed with evidence |
+| 4 | ISSUE | At connect a double race was logged as "connection lost" | `client.go` `runConnection` | round 1 (found by the fixer), then superseded by #6 |
+| 5 | ISSUE | The fetch made again reported holding without reading the store | `client.go` `refetchOverLocalCommit` | round 1 (found by the fixer): reads the store again |
+| 6 | ISSUE | Keeping the connection after a double race left nothing to fetch again, so a diverged device never uploaded | `client.go` `runConnection`, `handleConfigChangedRequest`, `RunManagedClient` | round 2: D-8, `waitBackoff`, `TestLocalCommitTwiceReconnectsQuietly` |
+| 7 | ISSUE | `TestRunManagedClientRaisesNoBaselineDefect` left the report bus dirty; the defect message gave no action | `client_test.go`, `client.go` `noBaselineDefect` | round 2 |
+| 8 | ISSUE | Data Flow step 7, the TDD rows and the architecture page described the kept connection | this spec, `docs/architecture/fleet-config.md` | round 2 |
+
+Round 3: wording only (R-1, the AC-5 survivor cell, the reconnect assertion of `TestLocalCommitTwiceReconnectsQuietly`, the page's cadence sentence). Round 4, the closure pass over 0318255b49 and 75886ea0cd: 0 BLOCKER, 0 ISSUE. NOTEs: (a) `revertRefetch` now bounds a push's refetch too, so its name says less than it does; the approved design kept the name and widened the comment (Files to Modify), so it stays. (b) The AC-1/AC-2 TDD rows and the discrimination paragraph named the replaced fingerprint-pin tests: corrected in this closure, one edit. `./le repo check`: 8 findings, none in this change set (unwired exports in `internal/component/cli` and `internal/le`). `./le test weakened check base 0318255b49~1`: no finding in this change set; the 18 listed are other sessions' (`internal/component/command`, `ike`, `plugin/server/command_pipe_refusal_test.go`, `hookruntime`), and every changed test of 75886ea0cd carries its `Weakening-approved:` trailer.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/managed/fleet-config-change-live.ci` | Yes | `ls`: 2.2K, 2026-11-19 22:24 |
+| `internal/test/fixture/misc_fixture_managed_config_change_live.go`, `register_managed_config_change_live.go` | Yes | `ls`: 7.6K and 353 B |
+| `internal/component/managed/client_fetch_deadline_test.go` | Yes | `ls`: 15K |
+| `test/managed/managed-hub-ca-trust.ci`, `test/ui/doctor-hub-managed-collision.ci`, `test/ui/doctor-hub-managed-separate.ci` | Yes | `ls`: 1.6K, 1.2K, 1.2K |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-2 | the client verifies against a named CA, kept root or system pool; insecure only by opt-in | `clientTLSConfig` read at closure (`tls.go`:43-81); managed suite 32/32 at 02:27 on 2026-11-20 on a fresh build, including `managed-hub-ca-trust` |
+| AC-3 | doctor reports the collision | `diagnoseManagedListener` (`check_managed_listener.go`:54), code registered (`codes.go`:597) |
+| AC-4 | the import reaches the connected device on its session | `fleet-config-change-live` in the 32/32 run; red with `store.SetWriteObserver` removed from `startManagedServer`; 40/40 under stress-repro |
+| AC-5 | every push stages over `activeCheck` under the lock | `wireManagedCommit` sets only `CommitOver`, which calls `storage.StageMachineCandidateOver` (`cmd/ze/hub/managed.go`); `grep OnCommit\|OnRevert\|revertCheck` over `cmd internal pkg docs` finds nothing; `internal/component/managed` green, round-2 tests 3x under -race; `cmd/ze/hub` managed tests green apart from `TestConfiguredPluginConformanceKeepsServerOwnership` (another session's) |
+| AC-6 | every fetch is bounded by 30 s; first boot's connect bound covers only reaching the hub | `fetchConfigWithin` wraps `CallRPC` in `context.WithTimeout(ctx, bound)`; `fetchInitialConfig` calls `managed.FetchConfig(context.Background(), ...)` after clearing the read deadline; `cmd/ze` green apart from `TestPerfSendAnswersWithoutLauncherEnv` (other sessions' `le` edits) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| client connects with cert verification | `test/managed/managed-hub-ca-trust.ci` | Yes: two `ze start` daemons, trusted and foreign root |
+| managed clients on the acceptor's address | `test/ui/doctor-hub-managed-collision.ci` | Yes: `ze doctor --json` |
+| `ze data import client-edge-01.conf` beside a running hub | `test/managed/fleet-config-change-live.ci` | Yes: read at closure; runs `le test fixture managed/fleet-config-change-live`, which imports through the hub daemon and asserts the device's `show fleet status` and the hub's log |
+| a push fetched while a local commit lands | none (unit) | Yes: `TestPushHoldsOverLocalCommitDuringFetch` drives `fetchAndProcess`; the daemon half `TestWireManagedCommitOverRefusesLocalCommit` drives `wireManagedCommit`; the end-to-end apply path is crossed by `fleet-config-change-live.ci` |
+| a hub that never answers `config-fetch` | none (unit) | Yes: `TestFetchDeadlineAtConnect` drives `runConnection` over TLS |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `grep ClientConfig{` outside tests: `extractManagedClientConfig` (sets `Baseline`, `ze_core_start.go`:505) and `fetchInitialConfig` (TLS only) |
+| A-2 | confirmed | managed suite 32/32, fleet-7's revert and hold tests and `fleet-config-change-live` cross the seam |
+| A-3 | confirmed | boot order read; `TestGuardedPushWithNoStoredActive` green |
+| A-4 | confirmed | arithmetic, pinned by `TestFetchTimeoutDocumentsPushBoundTradeOff` |
+| A-5 | confirmed | `managed_serve.go` sends only `config-changed` |
+| A-6 | confirmed | every local writer takes `store.AcquireLock(configPath)` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/architecture/fleet-config.md` fetch bound and cadence | `configFetchTimeout`, `fetchConfigWithin`, `logLocalCommitTwice`, `RunManagedClient` (`backoff.Reset` in `runConnection`) | Yes |
+| `docs/guide/fleet-config.md` `--connect-timeout` row and Troubleshooting | `fetchInitialConfig` `connectCtx`; `handleConfigChangedRequest` Warn under `codeHubUnreachable` | Yes |
+| `ze.managed.connect.timeout` description | `cmd/ze/ze_core_dispatch.go` registration | Yes |
+| No other `connect-timeout` page for this flag | the 2026-11-19 grep in Files to Modify; the `command-reference.md` and `benchmarking.md` rows belong to another tool | Yes |
+| `./le doc check all` | run at closure: every failure is in the published `../gh-pages` and `../wiki` command catalogs (fleet divergence and l2tp session rows awaiting `./le site build` and `./le cli catalog update`), none in this change set, which adds and changes no command | Yes |
