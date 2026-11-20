@@ -95,6 +95,11 @@ linters:
       # slog.Handler interface requires slog.Record by value — cannot use pointer
       - path: "internal/core/slogutil/color\\.go"
         text: "hugeParam"
+      # RFC 3168 Section 5 names the ECN codepoints ECT(0) and ECT(1); "ECT" is not a misspelling.
+      - path: "internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test\\.go"
+        linters:
+          - misspell
+        text: "`ECT`"
       # RFC 1195 Section 3.10.2 spells "prefered", and the quote above the
       # code it governs is kept verbatim (ai/rules/rfc-compliance.md).
       - path: "internal/plugins/isis/spf/route\\.go"

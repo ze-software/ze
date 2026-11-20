@@ -14,11 +14,11 @@
     "rid": "RFC4301-4.4.1-4",
     "polarity": "negative",
     "unit": "internal/component/ike/engine/rfc4301_spd_order_total_test.go::TestSPDPolicyEqualOrderOnOverlapRefused",
-    "unit-sha": "deff006d0df55782",
+    "unit-sha": "3abd811b4e30cb23",
     "claim-sha": "fe54e5d68a68172c",
-    "route": "mutant",
+    "route": "revert",
     "producer": "internal/component/ike/engine/spd_order.go::spdOrderRefusals",
-    "producer-sha": "6a83508b8fc703b9",
-    "break": "line 62: \"if a.Order != b.Order {\" -\u003e \"if a.Order == b.Order {\""
+    "producer-sha": "cd726d85f6a625f7",
+    "break": "body of spdOrderRefusals replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

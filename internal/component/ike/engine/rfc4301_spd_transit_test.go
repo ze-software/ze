@@ -258,7 +258,7 @@ func TestSPDTransitPoliciesLeaveWithTheirEntry(t *testing.T) {
 // PREVENTS: a forward entry and a Child SA's forward entry at one rank, decided by the
 // sequence the kernel received them in.
 func TestSPDOrderJudgesTheForwardEntries(t *testing.T) {
-	peer := orderTotalPeer(t, "192.0.2.0/24", "10.0.0.0/8", 2000, "")
+	peer := orderTotalPeer(t, "192.0.2.0/24", "10.0.0.0/8", "")
 	entry := orderTotalEntry(t, "reversed", "10.1.0.0/16", "192.0.2.0/24", 2001)
 	cfg := &ipsec.IPsecConfig{
 		Policies: map[string]ipsec.SPDPolicy{"reversed": entry},

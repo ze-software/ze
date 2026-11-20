@@ -76,7 +76,7 @@ func TestSPDPreviousFormNotRemovedIsReportedByDoctor(t *testing.T) {
 	dp := &refusingSPDDP{}
 	loadFailClosedBackend(t, dp)
 	state := applyTestState(t)
-	old := spdDiscardEntry(t, "drop", "192.0.2.0/24")
+	old := spdDiscardEntry(t)
 	cfg := withPolicies(lifecycleConfig(t), map[string]ipsec.SPDPolicy{"drop": old})
 	if err := state.applyConfig(cfg, applyStartup); err != nil {
 		t.Fatalf("start: %v", err)
@@ -121,7 +121,7 @@ func TestSPDUndoNotTakenBackIsReportedByDoctor(t *testing.T) {
 	dp := &refusingSPDDP{}
 	loadFailClosedBackend(t, dp)
 	state := applyTestState(t)
-	old := spdDiscardEntry(t, "drop", "192.0.2.0/24")
+	old := spdDiscardEntry(t)
 	cfg := withPolicies(lifecycleConfig(t), map[string]ipsec.SPDPolicy{"drop": old})
 	if err := state.applyConfig(cfg, applyStartup); err != nil {
 		t.Fatalf("start: %v", err)
@@ -148,7 +148,7 @@ func TestSPDUndoNotTakenBackIsReportedByDoctor(t *testing.T) {
 // PREVENTS: the undo of a write being overwritten by the write it undid.
 func TestRecordSPDReconcileAppliesSettledFirst(t *testing.T) {
 	state := applyTestState(t)
-	sp := outboundOf(t, spdDiscardEntry(t, "drop", "192.0.2.0/24"))
+	sp := outboundOf(t, spdDiscardEntry(t))
 	sel := selectorOf(&sp)
 	state.recordSPDReconcile(spdReconcile{
 		settled:  []spdSelector{sel},

@@ -32,11 +32,11 @@ func orderTotalEntry(t *testing.T, name, local, remote string, order uint32) ips
 }
 
 // orderTotalPeer is a policy-based peer whose one traffic selector is local to remote,
-// at priority, bound to the XFRM interface vti when vti is not empty.
-func orderTotalPeer(t *testing.T, local, remote string, priority uint32, vti string) ipsec.SiteToSitePeer {
+// at policy-priority 2000, bound to the XFRM interface vti when vti is not empty.
+func orderTotalPeer(t *testing.T, local, remote, vti string) ipsec.SiteToSitePeer {
 	t.Helper()
 	return ipsec.SiteToSitePeer{
-		PolicyPriority: priority,
+		PolicyPriority: 2000,
 		VTIBind:        vti,
 		TrafficSelectors: []ipsec.TrafficSelectorPolicy{{
 			Number:      "1",
@@ -97,7 +97,7 @@ func TestSPDPolicyEqualOrderOnOverlapRefused(t *testing.T) {
 				orderTotalEntry(t, "hole", "10.1.0.0/16", "192.0.2.0/24", 2000),
 			},
 			peers: map[string]ipsec.SiteToSitePeer{
-				"branch": orderTotalPeer(t, "10.0.0.0/8", "192.0.2.0/24", 2000, ""),
+				"branch": orderTotalPeer(t, "10.0.0.0/8", "192.0.2.0/24", ""),
 			},
 			names: []string{"vpn ipsec policy hole", "site-to-site peer branch", "share order 2000"},
 			fix:   "set vpn ipsec policy hole order 2001",
@@ -108,7 +108,7 @@ func TestSPDPolicyEqualOrderOnOverlapRefused(t *testing.T) {
 				orderTotalEntry(t, "hole", "10.1.0.0/16", "192.0.2.0/24", 1000),
 			},
 			peers: map[string]ipsec.SiteToSitePeer{
-				"branch": orderTotalPeer(t, "10.0.0.0/8", "192.0.2.0/24", 2000, ""),
+				"branch": orderTotalPeer(t, "10.0.0.0/8", "192.0.2.0/24", ""),
 			},
 		},
 		{
@@ -117,7 +117,7 @@ func TestSPDPolicyEqualOrderOnOverlapRefused(t *testing.T) {
 				orderTotalEntry(t, "hole", "10.1.0.0/16", "192.0.2.0/24", 2000),
 			},
 			peers: map[string]ipsec.SiteToSitePeer{
-				"routed": orderTotalPeer(t, "10.0.0.0/8", "192.0.2.0/24", 2000, "vti0"),
+				"routed": orderTotalPeer(t, "10.0.0.0/8", "192.0.2.0/24", "vti0"),
 			},
 		},
 	} {

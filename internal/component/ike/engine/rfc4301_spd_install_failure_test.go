@@ -39,10 +39,11 @@ func (d *refusingSPDDP) InstallPolicy(p dataplane.SPParams) error {
 // the answers isXFRMUnsupported reads as a platform with no XFRM.
 var errSPDRefusedByTest = errors.New("netlink: no buffer space available")
 
-// spdDiscardEntry is the lifecycle bypass entry turned into a discard entry.
-func spdDiscardEntry(t *testing.T, name, local string) ipsec.SPDPolicy {
+// spdDiscardEntry is the lifecycle bypass entry for 192.0.2.0/24 turned into a
+// discard entry named "drop", the name and prefix every caller asserts on.
+func spdDiscardEntry(t *testing.T) ipsec.SPDPolicy {
 	t.Helper()
-	entry := failClosedBypassEntry(t, name, local)
+	entry := failClosedBypassEntry(t, "drop", "192.0.2.0/24")
 	entry.Action = dataplane.SPActionDiscard
 	return entry
 }
@@ -112,7 +113,7 @@ func TestRFC4301FailedOperatorEntryInstallRefusesTheApply(t *testing.T) {
 			dp := &refusingSPDDP{}
 			loadFailClosedBackend(t, dp)
 			state := applyTestState(t)
-			old := spdDiscardEntry(t, "drop", "192.0.2.0/24")
+			old := spdDiscardEntry(t)
 			cfg := withPolicies(lifecycleConfig(t), map[string]ipsec.SPDPolicy{"drop": old})
 			if err := state.applyConfig(cfg, applyStartup); err != nil {
 				t.Fatalf("start: %v", err)
@@ -155,7 +156,7 @@ func TestRFC4301FailedOperatorEntryInstallRefusesTheApply(t *testing.T) {
 		dp := &refusingSPDDP{refuse: refuseInbound}
 		loadFailClosedBackend(t, dp)
 		state := applyTestState(t)
-		entry := spdDiscardEntry(t, "drop", "192.0.2.0/24")
+		entry := spdDiscardEntry(t)
 		err := state.applyConfig(withPolicies(lifecycleConfig(t), map[string]ipsec.SPDPolicy{"drop": entry}), applyReload)
 		if _, ok := errors.AsType[*opererr.Error](err); !ok {
 			t.Fatalf("a first apply whose operator entry the dataplane refused answered %v, want an operator error", err)
@@ -180,7 +181,7 @@ func TestRFC4301FailedOperatorEntryInstallRefusesTheApply(t *testing.T) {
 // install going unreported, or never retried because the engine recorded it as in.
 func TestSPDInstallRefusedAtStartIsReportedByDoctor(t *testing.T) {
 	resetSPDLeft(t)
-	refused := spdDiscardEntry(t, "drop", "192.0.2.0/24")
+	refused := spdDiscardEntry(t)
 	kept := failClosedBypassEntry(t, "keep", "203.0.113.0/24")
 	dp := &refusingSPDDP{refuse: func(p dataplane.SPParams) error {
 		if p.Role != dataplane.PolicyRoleOperator {
