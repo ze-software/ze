@@ -6567,7 +6567,7 @@ The container holds the system-wide settings. This module attaches the local use
   - **resolv-conf-path** `string`: Path Ze writes the DNS servers to, as a resolv.conf file.
     The default /tmp/resolv.conf suits gokrazy, whose rootfs is read-only. Set /etc/resolv.conf on standard Linux. An empty string stops Ze writing the file. Any other value must be an absolute path in clean form: commit refuses a relative path, and one with a dot-dot element or a repeated slash.
   - **timeout** `uint16`: Query timeout in seconds.
-    Ze waits this long for an answer before it gives up on a query. The range is 1 to 60 seconds, and the default is 5.
+    Ze waits this long for one server to answer before it asks the next server, or asks a silent server once more. The range is 1 to 60 seconds, and the default is 5.
 - **domain** `string`: System domain, supports $ENV_VAR expansion.
   Ze expands a $ENV_VAR reference in the value when it reads the config.
 - **host** `string`: System hostname, supports $ENV_VAR expansion.

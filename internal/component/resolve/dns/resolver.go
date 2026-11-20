@@ -30,7 +30,7 @@ type ResolverConfig struct {
 	// daemon the hub keeps them equal to the router's selection
 	// (system.Resolvers).
 	Servers   []string
-	Timeout   uint16 // Query timeout in seconds, for each server asked.
+	Timeout   uint16 // Query timeout in seconds, for each attempt at a server (queryTries attempts at most).
 	CacheSize uint32 // Max cached entries. 0 disables caching.
 	CacheTTL  uint32 // Max cache TTL in seconds. 0 means use response TTL only.
 	// DNSSECValidation controls upstream-answer DNSSEC handling (RFC 4035 stub
@@ -402,15 +402,18 @@ func (r *Resolver) ResolvePTR(address string) ([]string, error) {
 // that gives no answer (a transport error, a timeout) passes the query to the
 // next, and so does one that answers with a status that says nothing about the
 // name (SERVFAIL, REFUSED and every other RCODE but NOERROR and NXDOMAIN). The
-// first NOERROR or NXDOMAIN answer is the answer. When no server gives one, the
-// last server failure a server answered is returned as the status, with no
-// error and no records, so the caller keeps what it had; when no server
-// answered at all, the error names the last failure.
+// first NOERROR or NXDOMAIN answer is the answer. A server that timed out is
+// asked again after every other server was tried, up to queryTries times in
+// all. When no server gives an answer, the last server failure a
+// server answered is returned as the status, with no error and no records, so
+// the caller keeps what it had; when no server answered at all, the error
+// names the last failure.
 //
 // ctx bounds the walk: each exchange ends at its deadline at the latest, and
 // once it is done no further server is asked and its error is returned. The
 // callers with no deadline of their own pass context.Background(), which
-// leaves the configured timeout per server as the only bound.
+// leaves queryTries attempts of the configured timeout per server as the only
+// bound.
 func (r *Resolver) query(ctx context.Context, name string, qtype uint16) ([]string, uint32, Status, error) {
 	servers := *r.servers.Load()
 	if len(servers) == 0 {
@@ -419,34 +422,70 @@ func (r *Resolver) query(ctx context.Context, name string, qtype uint16) ([]stri
 
 	var lastErr error
 	failure := StatusUnspecified
-	for _, server := range servers {
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return nil, 0, StatusUnspecified, fmt.Errorf("dns query %s %s: %w", name, mdns.TypeToString[qtype], ctxErr)
-		}
-		records, ttl, status, err := r.queryServer(ctx, server, name, qtype)
-		if err != nil {
-			var unanswered *unansweredError
-			if !errors.As(err, &unanswered) {
-				return nil, 0, StatusUnspecified, err
+	for range queryTries {
+		// silent: the servers of this pass that timed out, in order, which
+		// the next pass asks again.
+		var silent []string
+		for _, server := range servers {
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return nil, 0, StatusUnspecified, fmt.Errorf("dns query %s %s: %w", name, mdns.TypeToString[qtype], ctxErr)
 			}
-			r.logger.Warn("DNS server did not answer, asking the next", "server", server, "name", name, "err", err)
-			lastErr = err
-			continue
+			records, ttl, status, err := r.queryServer(ctx, server, name, qtype)
+			if err != nil {
+				if _, unanswered := errors.AsType[*unansweredError](err); !unanswered {
+					return nil, 0, StatusUnspecified, err
+				}
+				if timedOut(err) {
+					silent = append(silent, server)
+				}
+				r.logger.Warn("DNS server did not answer, asking the next", "server", server, "name", name, "err", err)
+				lastErr = err
+				continue
+			}
+			// RFC 1034 Section 5.3.3: "if the response shows a servers failure or
+			// other bizarre contents, delete the server from the SLIST and go back
+			// to step 3."
+			if !status.Authoritative() {
+				r.logger.Warn("DNS server answered a server failure, asking the next", "server", server, "name", name, "rcode", status.String())
+				failure = status
+				continue
+			}
+			return records, ttl, status, nil
 		}
-		// RFC 1034 Section 5.3.3: "if the response shows a servers failure or
-		// other bizarre contents, delete the server from the SLIST and go back
-		// to step 3."
-		if !status.Authoritative() {
-			r.logger.Warn("DNS server answered a server failure, asking the next", "server", server, "name", name, "rcode", status.String())
-			failure = status
-			continue
-		}
-		return records, ttl, status, nil
+		servers = silent
 	}
 	if failure != StatusUnspecified {
 		return nil, 0, failure, nil
 	}
 	return nil, 0, StatusUnspecified, lastErr
+}
+
+// queryTries is how many times query sends one question to a server that
+// does not answer in time, the first time included. Each pass over the
+// servers asks again only the ones that timed out, so a server is asked
+// again only after every other server was tried.
+//
+// RFC 1035 Section 4.2.1: "Queries sent using UDP may be lost, and hence a
+// retransmission strategy is required."
+//
+// RFC 1035 Section 4.2.1: "The client should try other servers and server
+// addresses before repeating a query to a specific address of a server."
+//
+// The RFC names no count. Two is the stub resolver default of BIND's
+// resolver library, which glibc keeps in resolv/resolv.h as RES_DFLRETRY
+// ("Default #/tries."), beside a RES_TIMEOUT of 5 seconds per try, the
+// timeout NewResolver defaults to.
+const queryTries = 2
+
+// timedOut reports whether err is a server that did not answer in time,
+// which is what a lost query or a lost reply looks like. A server that
+// refused the exchange, or answered a failure, is not asked again.
+func timedOut(err error) bool {
+	var netErr net.Error
+	if !errors.As(err, &netErr) {
+		return false
+	}
+	return netErr.Timeout()
 }
 
 // unansweredError is a query a server never answered: the next server may.

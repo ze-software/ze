@@ -130,26 +130,59 @@ func (r *resolver) resolve(pol *policy, q dns.Question) result {
 	}
 }
 
+// retransmitIntervalMin is the shortest wait an attempt is given while the
+// time left could fund another attempt after it: below it, the attempt waits
+// for the whole of what is left rather than ask again sooner.
+//
+// RFC 1035 Section 4.2.1: "Depending on how well connected the client is to
+// its expected servers, the minimum retransmission interval should be 2-5
+// seconds."
+const retransmitIntervalMin = 2 * time.Second
+
 // forward asks the upstreams in configured order and returns the first
-// usable reply. An upstream that is silent, fails, or answers with an RCODE
-// other than NOERROR or NXDOMAIN is passed over for the next.
+// usable reply. An upstream that fails, or answers with an RCODE other than
+// NOERROR or NXDOMAIN, is passed over for the next and not asked again. An
+// upstream that stays silent is asked again in the next pass.
+//
+// RFC 1035 Section 4.2.1: "Queries sent using UDP may be lost, and hence a
+// retransmission strategy is required."
 //
 // RFC 1035 Section 4.2.1: "The client should try other servers and server
 // addresses before repeating a query to a specific address of a server."
 //
-// One pass over the list, each attempt given an equal share of the time
-// left, so every upstream is tried before the deadline.
+// Each pass asks every upstream still silent, in configured order, so each
+// is retransmitted to only after every other has been tried. The passes are
+// bounded by the deadline and the query budget, which every attempt checks;
+// each attempt waits for its share of the time left (attemptShare).
 func (r *resolver) forward(pol *policy, b *budget, q dns.Question) (*dns.Msg, bool) {
-	for i, up := range pol.forward {
+	pass := pol.forward
+	for len(pass) > 0 {
+		reply, silent, ok := r.forwardPass(pass, b, q)
+		if ok {
+			return reply, true
+		}
+		pass = silent
+	}
+	return nil, false
+}
+
+// forwardPass asks each upstream of pass once, and returns the first usable
+// reply, or the upstreams that did not answer in time: the ones a lost query
+// or a lost reply may explain, so the next pass retransmits to them. A nil
+// silent list with false ends the resolution: the deadline passed, the
+// budget is spent, or every upstream answered unusably.
+func (r *resolver) forwardPass(pass []upstream, b *budget, q dns.Question) (*dns.Msg, []upstream, bool) {
+	var silent []upstream
+	for i, up := range pass {
 		left := time.Until(b.deadline)
 		if left <= 0 {
-			return nil, false
+			return nil, nil, false
 		}
 		if !b.spendQuery() {
-			return nil, false
+			return nil, nil, false
 		}
 		addr := up.addrPort()
-		attemptEnd := time.Now().Add(left / time.Duration(len(pol.forward)-i))
+		attemptEnd := time.Now().Add(attemptShare(left, len(pass)-i))
 		query := upstreamQuery(q, dns.Id())
 		reply, err := exchange(networkUDP, addr, query, attemptEnd)
 		if err == nil && reply.Truncated {
@@ -158,7 +191,7 @@ func (r *resolver) forward(pol *policy, b *budget, q dns.Question) (*dns.Msg, bo
 			// messages are truncated and the TC bit is set in the header."
 			r.upstreamOutcome(upstreamTruncated)
 			if !b.spendQuery() {
-				return nil, false
+				return nil, nil, false
 			}
 			query = upstreamQuery(q, dns.Id())
 			reply, err = exchange(networkTCP, addr, query, attemptEnd)
@@ -166,19 +199,51 @@ func (r *resolver) forward(pol *policy, b *budget, q dns.Question) (*dns.Msg, bo
 		if err != nil {
 			if err == errUpstreamTimeout { //nolint:errorlint // exchange returns the sentinel itself
 				r.upstreamOutcome(upstreamTimeout)
+				silent = append(silent, up)
 				continue
 			}
 			r.upstreamOutcome(upstreamError)
 			continue
 		}
+		// RFC 1035 Section 7.2: "If a resolver gets a server error or other
+		// bizarre response from a name server, it should remove it from
+		// SLIST, and may wish to schedule an immediate transmission to the
+		// next candidate server address."
 		if reply.Rcode != dns.RcodeSuccess && reply.Rcode != dns.RcodeNameError {
 			r.upstreamOutcome(upstreamFailure)
 			continue
 		}
 		r.upstreamOutcome(upstreamAnswered)
-		return reply, true
+		return reply, nil, true
 	}
-	return nil, false
+	return nil, silent, false
+}
+
+// attemptShare is how long one attempt waits for its reply, given the time
+// left and the untried upstreams of the pass, this one included.
+//
+// The forwarder keeps no response-time history, so every upstream address
+// is one with none, and each gets an equal share of the time left.
+//
+// RFC 1035 Section 7.2: "Part of this step must deal with addresses which
+// have no such history; in this case an expected round trip time of 5-10
+// seconds should be the worst case, with lower estimates for the same local
+// network, etc."
+//
+// The time left is split over the untried upstreams, or over as many
+// attempts of retransmitIntervalMin as it holds when that is more, so a
+// single upstream under the 10 second default is asked up to five times, two
+// seconds apart, and a share that a retransmission follows is never shorter
+// than the minimum interval, less the rounding below. A deadline shorter
+// than one minimum interval per untried upstream leaves one pass, its last
+// attempt waiting for all that is left.
+//
+// left is rounded to 100 ms before it is counted in minimum intervals, so
+// the microseconds spent before the first attempt do not cost a 4 second
+// deadline its second attempt.
+func attemptShare(left time.Duration, untried int) time.Duration {
+	attempts := max(untried, int(left.Round(100*time.Millisecond)/retransmitIntervalMin))
+	return left / time.Duration(attempts)
 }
 
 // stepKind is what one absorbed reply left to do.

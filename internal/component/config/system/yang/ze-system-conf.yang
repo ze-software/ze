@@ -81,8 +81,9 @@ module ze-system-conf {
                     range "1..60";
                 }
                 default 5;
-                description "Ze waits this long for an answer before it gives up on a
-                             query. The range is 1 to 60 seconds, and the default is 5.";
+                description "Ze waits this long for one server to answer before it asks the
+                             next server, or asks a silent server once more. The range is 1 to 60
+                             seconds, and the default is 5.";
                 ze:help "Query timeout in seconds.";
             }
 

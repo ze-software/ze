@@ -144,7 +144,10 @@ for an ordinary query), and the resolver's metrics do not count it.
 Every reply the resolver builds has RA set and AA and AD clear, and copies the
 query's CD bit. An upstream that does not answer in its share of the timeout,
 that fails, or that answers with an RCODE other than NOERROR or NXDOMAIN is passed over for the
-next one. A truncated upstream reply is asked again over TCP. A reply that does
+next one. An upstream that did not answer is asked again once every other
+upstream has been tried, at most every 2 seconds, until the timeout ends, so a
+single lost query to a single upstream is still answered. A truncated upstream
+reply is asked again over TCP. A reply that does
 not match the query (identifier, name, class and type) is ignored. The details
 are in [the LAN resolver design](../architecture/dns/lan-resolver.md).
 

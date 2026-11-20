@@ -26515,7 +26515,7 @@
             "type": "string"
           },
           {
-            "description": "Ze waits this long for an answer before it gives up on a\nquery. The range is 1 to 60 seconds, and the default is 5.",
+            "description": "Ze waits this long for one server to answer before it asks the\nnext server, or asks a silent server once more. The range is 1 to 60\nseconds, and the default is 5.",
             "kind": "leaf",
             "name": "timeout",
             "short-help": "Query timeout in seconds.",

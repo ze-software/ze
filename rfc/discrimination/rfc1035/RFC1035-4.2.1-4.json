@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC1035-4.2.1-4",
+    "polarity": "positive",
+    "unit": "internal/component/resolve/dns/rfc1035_retransmit_test.go::TestRFC1035StubRetransmitsALostQuery",
+    "unit-sha": "66d94ad569cadbbe",
+    "claim-sha": "31427e1fc9e9f72b",
+    "route": "mutant",
+    "producer": "internal/component/resolve/dns/resolver.go::query",
+    "producer-sha": "66f303f87109d3f1",
+    "break": "line 439: \"silent = append(silent, server)\" -\u003e \"silent = silent[:0]\""
+  },
+  {
+    "rid": "RFC1035-4.2.1-4",
+    "polarity": "negative",
+    "unit": "internal/component/resolve/dns/rfc1035_retransmit_test.go::TestRFC1035StubRetransmitsALostQuery",
+    "unit-sha": "66d94ad569cadbbe",
+    "claim-sha": "41303a94e5b4bbf4",
+    "route": "mutant",
+    "producer": "internal/component/resolve/dns/resolver.go::query",
+    "producer-sha": "66f303f87109d3f1",
+    "break": "line 425: \"for range queryTries {\" -\u003e \"for range queryTries + 1 {\""
+  },
+  {
+    "rid": "RFC1035-4.2.1-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/dnsresolver/rfc1035_retransmit_test.go::TestRFC1035LostQueryIsRetransmitted",
+    "unit-sha": "3d55c2597f253ed1",
+    "claim-sha": "ddcc32eb6a27d4d3",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/resolve.go::forwardPass",
+    "producer-sha": "24c0834c2a7ee970",
+    "break": "line 202: \"silent = append(silent, up)\" -\u003e \"silent = silent[:0]\""
+  },
+  {
+    "rid": "RFC1035-4.2.1-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/dnsresolver/rfc1035_retransmit_test.go::TestRFC1035LostQueryIsRetransmitted",
+    "unit-sha": "3d55c2597f253ed1",
+    "claim-sha": "8eac8202b68de821",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/resolve.go::forwardPass",
+    "producer-sha": "24c0834c2a7ee970",
+    "break": "line 217: \"return reply, nil, true\" -\u003e \"return reply, []upstream{up}, false\""
+  },
+  {
+    "rid": "RFC1035-4.2.1-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/dnsresolver/rfc1035_retransmit_test.go::TestRFC1035RetransmissionIsBounded",
+    "unit-sha": "d2cdd25805b9e14f",
+    "claim-sha": "7fc94ce6968dba40",
+    "route": "mutant",
+    "producer": "internal/plugins/dnsresolver/resolve.go::attemptShare",
+    "producer-sha": "46cb66d4ab684876",
+    "break": "line 245: \"attempts := max(untried, int(left.Round(100*time.Millisecond)/retransmitIntervalMin))\" -\u003e \"attempts := max(untried, int(left.Round(100*time.Millisecond)/(retransmitIntervalMin/4)))\""
+  }
+]

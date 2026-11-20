@@ -191,19 +191,34 @@ gap. A pass-through query uses the client's own transport.
 ## Forwarding
 
 `resolver.forward` sends the question to the upstreams of the published
-policy, one pass over the list. That list is what `forward dns-source`
+policy, in passes over the list. That list is what `forward dns-source`
 selects (`forwardUpstreams`): the `configured` class is the `forward server`
 entries in the order the operator wrote them, each with its port, and the
 `received` class is every resolver Ze learned, asked on port 53. With the
 container absent the default is `configured`, then `received`, mode
 `first-usable`, so a resolver with a `forward server` asks exactly those, and
 one with none asks the learned servers. At most 8 upstreams are asked; a
-selection longer than that is cut in list order and logged. Each attempt gets an
-equal share of the time left before the deadline, so every upstream is tried
-before the `timeout` ends. The next upstream is tried when one does not answer
-in its share, when the exchange fails, or when it answers with an RCODE other
-than NOERROR or NXDOMAIN. When no upstream gives a usable answer, the client
-gets SERVFAIL, which is never cached.
+selection longer than that is cut in list order and logged. The next upstream
+is tried when one does not answer in its share, when the exchange fails, or
+when it answers with an RCODE other than NOERROR or NXDOMAIN. When no upstream
+gives a usable answer, the client gets SERVFAIL, which is never cached.
+
+A UDP query or its reply can be lost, so an upstream that does not answer in
+its share is asked again, with a fresh ID and source port, in the next pass
+(RFC 1035 Section 4.2.1). Each pass asks only the upstreams still silent, in
+list order, so every other upstream is tried before one is asked again. An
+upstream whose exchange failed, or that answered an unusable RCODE, is not
+asked again (RFC 1035 Section 7.2). The passes end at the `timeout` deadline
+or at the 32-query budget, whichever comes first.
+
+Each attempt waits for an equal share of the time left (`attemptShare`): the
+time left split over the untried upstreams of the pass, or over as many
+2-second attempts as it holds when that is more, 2 seconds being the minimum
+retransmission interval RFC 1035 Section 4.2.1 recommends. Under the 10
+second default a single upstream is asked up to five times, 2 seconds apart;
+two upstreams are asked in turn, each twice, then once more each in the time
+left. A `timeout` shorter than 2 seconds per upstream leaves one pass, so
+every upstream is still tried once before the deadline.
 
 A reply with TC set is asked again over TCP, to the same upstream, inside the
 same attempt.
@@ -233,6 +248,8 @@ old upstreams, a negative one included, is served until its TTL ends or
 <!-- source: internal/plugins/dnsresolver/state.go -- relearn, clearCaches -->
 
 <!-- source: internal/plugins/dnsresolver/resolve.go -- resolver.forward, servfail -->
+<!-- source: internal/plugins/dnsresolver/resolve.go -- forwardPass, attemptShare, retransmitIntervalMin -->
+<!-- test: internal/plugins/dnsresolver/rfc1035_retransmit_test.go -- TestRFC1035LostQueryIsRetransmitted, TestRFC1035RetransmissionIsBounded -->
 <!-- source: internal/plugins/dnsresolver/state.go -- forwardUpstreams -->
 <!-- source: internal/plugins/dnsresolver/config.go -- forwardDefault, forwardRefusals, parseForwardSources -->
 <!-- test: internal/plugins/dnsresolver/forward_test.go -- TestFailoverAndTimeout, TestUpstreamFailureRcode, TestTCPRetryOnTC -->
