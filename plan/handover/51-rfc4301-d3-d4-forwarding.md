@@ -31,27 +31,37 @@ full status and evidence; this page is the short form. Nothing is pushed.
    bypass on the shared wildcard NAT-T socket MOBIKE uses, and the new Child FWD
    and delivery allows MOBIKE does not migrate. Log:
    `tmp/session/2026-11-19-205719/scratch/interop-mobike-initiator.log`.
-2. AC-8 red proofs on `tunnel-df-treatment` (it passes): break `xfrmDFFlag`
+2. **K1 extension for forwarded ICMP errors (owner decision 2026-11-20, (c)):**
+   extend `gokrazy/kernel/patches/0003-xfrm-state-scope.patch` so the forwarded
+   path, `__xfrm_route_forward` included, tries `xfrm_out_fwd_icmp` when the OUT
+   lookup answers BLOCK (`-EPERM`); advertise it by a K1 feature bit; make the
+   engine require that bit as it requires bit 5; remove the stock-kernel OUT
+   allows at `dataplane.PriorityICMPErrorReturn` and the nft table
+   `ze_ipsec_icmp_error_return` (no layering); add a namespace packet test where
+   an operator out DISCARD covers a forwarded mappable error and it is mapped
+   into the return SA, with the negative that a non-mappable error under the
+   same discard is dropped.
+3. AC-8 red proofs on `tunnel-df-treatment` (it passes): break `xfrmDFFlag`
    for `DFClear` (expect assertions 1 and 3 red), then for `DFCopy` (4 and 6).
-3. Red proofs for `spd-discard-entry` (break `spdPolicyHasDirection` out, then
+4. Red proofs for `spd-discard-entry` (break `spdPolicyHasDirection` out, then
    in: assertions 4, 5) and `pad-subtree-identity` (`textIdentityMatches`
    always true, then false: assertions 7, 1). Both pass clean.
-4. `.ci` drafts: the two parse drafts pass; stress with
+5. `.ci` drafts: the two parse drafts pass; stress with
    `./le test stress-repro run suite "parse --draft" test <name> any-failure iterations 40`
    (the first try ended exit 1 unread: read its log first), promote. The two
    `test/draft/ipsec/` drafts need `./le test qemu ci test test/draft/ipsec/<name>.ci`.
-5. AC-13 records: RFC7296-3.13.1-1 and -2, positive on
+6. AC-13 records: RFC7296-3.13.1-1 and -2, positive on
    `TestTSWireAnyPortsForEveryProtocol` (break `ipsec/traffic_selector.go::Wire`),
    negative on `TestTSWireRefusesUndefinedPortValues` (break
    `engine/ts_narrow.go::selectorsToWire`).
-6. AC-4 remainder and the owner decisions below; then the five disagreeing
+7. AC-4 remainder and the owner decisions below; then the five disagreeing
    summary rows, the independent review, and closure.
 
 ## Decisions for Thomas (no RFC, design or rule answers them)
 
 | # | Decision | Recommendation |
 |---|---|---|
-| 1 | Map a forwarded ICMP error an operator out/both DISCARD covers: (a) allow at order-1 plus order refusals, (b) refuse at commit, (c) extend K1 so `__xfrm_route_forward` tries `xfrm_out_fwd_icmp` on `-EPERM` | (c): it also replaces today's allow entries and nftables table |
+| 1 | Map a forwarded ICMP error an operator out/both DISCARD covers: (a) allow at order-1 plus order refusals, (b) refuse at commit, (c) extend K1 so `__xfrm_route_forward` tries `xfrm_out_fwd_icmp` on `-EPERM` | Decided 2026-11-20: (c) |
 | 2 | A commit-time notice on a port-scoped operator BYPASS until K3's capability bit exists | yes, a notice, not a refusal |
 | 3 | The 13 phase-4 Mobility Header walks: their list was lost; 15 untagged candidates exist | rebuild as one surviving-mutant check per producer guard |
 | 4 | `bypass-fragment-forgery`: its target (the node-wide IKE bypass) is gone | retarget to an operator port-scoped BYPASS, in a K1/K3 lab |

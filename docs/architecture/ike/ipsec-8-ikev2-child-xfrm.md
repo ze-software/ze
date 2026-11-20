@@ -1087,6 +1087,19 @@ configuration display marks them as implied yet. The VPP backend reads no ICMP
 payload on either path and refuses both requests (`vppUnsupportedSA`,
 `vppICMPErrorReturnError`), and gets no mapping entry.
 
+Thomas decided on 2026-11-20 that the forwarded mapping moves into Ze's kernel.
+The K1 patch (`gokrazy/kernel/patches/0003-xfrm-state-scope.patch`) is extended so
+that the forwarded path, `__xfrm_route_forward` included, tries `xfrm_out_fwd_icmp`
+when the out lookup answers a BLOCK (`-EPERM`), as `icmp_route_lookup` already
+does for a locally generated error. A mappable forwarded error is then mapped into
+the return SA even when an operator `out` or `both` discard or the catch-all
+discard covers it. The new kernel path is advertised by a K1 feature bit, and the
+engine requires that bit as it requires bit 5. The stock-kernel route above (the
+out ALLOW entries at `dataplane.PriorityICMPErrorReturn` and the nft table
+`ze_ipsec_icmp_error_return`) is interim: it is removed when the K1 extension
+lands, and it is not kept beside it.
+<!-- source: internal/component/ike/engine/icmp_error_return.go -- the stock-kernel forwarded ICMP error mapping this ruling replaces -->
+
 The outbound flag overrides an operator SPD entry, so config verify refuses the
 pair rather than install an entry the kernel does not honour
 (`verifyICMPOverlap`, `icmp_overlap.go`, the last step of
