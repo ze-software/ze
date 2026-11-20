@@ -1336,6 +1336,15 @@ registry that goes around the lookup.
 | `StreamRenderingTerminal` | SSH exec without the rendering key | as above, and a line with no chain is rendered in the default format too |
 | `StreamRenderingClientPresentation` | SSH exec with the rendering key | every operation before the presentation suffix; the events stay data for the client |
 
+**Each event is one row of the stream.** The daemon runs the chain over one
+event at a time (`applyStreamEventPipes`), so `| match` keeps or removes a
+JSON event whole, by its values, as it judges one row, and never searches
+the event for rows of its own: a BGP OPEN event's body is a map of objects
+that the one-shot row finder would take for rows keyed by identity. The same
+document answered by a one-shot command is the whole answer, matched row by
+row, or refused by name when it holds no rows. A rendered event is matched
+line by line, as text (`applyEventMatch`).
+
 **The rendering key.** A client in another process holds no
 `CallerIdentity`, so it states that it presents a stream through the SSH
 session environment: `ZE_CLI_RENDER=client` (`sshclient.EnvCLIRender`,
@@ -1366,6 +1375,7 @@ never refuses an operation it has not heard of.
 <!-- source: internal/component/plugin/server/handler.go -- GetStreamingHandlerRendered, GetStreamingHandlerForCommand, IsStreamingCommand -->
 <!-- source: internal/component/command/stream_line.go -- ReadStreamLine, StreamRendering, presentationSuffixLength, PresentStreamSuffix -->
 <!-- source: internal/component/command/pipe_stream.go -- RunStreamPipes, streamPipeWriter.Write -->
+<!-- source: internal/component/command/pipe.go -- applyStreamEventPipes, applyEventMatch -->
 <!-- source: internal/component/ssh/session.go -- parseSessionRequest -->
 <!-- source: internal/component/cli/sshclient/terminal.go -- EnvCLIRender, CLIRenderClient -->
 <!-- source: cmd/ze/hub/server_stream.go -- serverStreamCommand -->

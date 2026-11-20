@@ -155,7 +155,7 @@ func trimErrorPrefix(s string) string {
 // the line's whole pipe chain. If the callback returns an error, streaming
 // stops. The function blocks until the session ends (disconnect or callback error).
 func StreamCommand(creds Credentials, command string, callback func(line string) error) error {
-	return streamCommand(creds, command, false, callback)
+	return streamCommand(context.Background(), creds, command, false, callback)
 }
 
 // StreamPresentedCommand is StreamCommand for a client that presents the
@@ -163,13 +163,18 @@ func StreamCommand(creds Credentials, command string, callback func(line string)
 // daemon applies every pipe operation of command before its presentation
 // suffix and leaves the suffix to the caller. The caller MUST apply that
 // suffix to each line (command.PresentStreamSuffix).
-func StreamPresentedCommand(creds Credentials, command string, callback func(line string) error) error {
-	return streamCommand(creds, command, true, callback)
+//
+// Ending ctx is the caller ending the stream (an operator's Ctrl+C): the
+// session closes and the function answers ctx's error, which the caller tells
+// from a failure with errors.Is(err, context.Canceled).
+func StreamPresentedCommand(ctx context.Context, creds Credentials, command string, callback func(line string) error) error {
+	return streamCommand(ctx, creds, command, true, callback)
 }
 
 // streamCommand runs command on an exec channel, setting the rendering key
-// when the caller presents.
-func streamCommand(creds Credentials, command string, presents bool, callback func(line string) error) error {
+// when the caller presents. It ends when the daemon closes the session, the
+// callback fails, or ctx ends; for the last it answers ctx.Err().
+func streamCommand(ctx context.Context, creds Credentials, command string, presents bool, callback func(line string) error) error {
 	client, err := dialDaemon(creds)
 	if err != nil {
 		return err
@@ -196,6 +201,13 @@ func streamCommand(creds Credentials, command string, presents bool, callback fu
 	if err := session.Start(command); err != nil {
 		return fmt.Errorf("start command: %w", err)
 	}
+	// Closing the connection unblocks the scan and the Wait below even when
+	// the daemon never answers the channel close. The stop releases the
+	// registration when the stream ends first.
+	stopOnEnd := context.AfterFunc(ctx, func() {
+		client.Close() //nolint:errcheck,gosec // the stream is ending; the scan reports it
+	})
+	defer stopOnEnd()
 
 	scanner := bufio.NewScanner(stdout)
 	// A line ends with exactly one newline and never with `\r\n`. This stream
@@ -216,6 +228,11 @@ func streamCommand(creds Credentials, command string, presents bool, callback fu
 
 	// Wait for session to complete (server closed connection).
 	waitErr := session.Wait()
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		// The caller ended the stream: whatever the closed session
+		// reported is the consequence, not a failure.
+		return ctxErr
+	}
 	if scanErr := scanner.Err(); scanErr != nil {
 		return scanErr
 	}

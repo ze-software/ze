@@ -29,7 +29,7 @@ func RenderCountedDocument(input, sessionFormat, document string, count, faults 
 		// result before a later format adds table lines or wrapper metadata.
 		// Both segments retain the whole chain's field ordering.
 		request := columnsInChain(plan.ops)
-		rendered, problem = applyPipesWithRequest(document, plan.ops[:last+1], nil, plan.columns, request)
+		rendered, problem = applyPipesWithRequest(document, plan.ops[:last+1], nil, plan.columns, request, pipeSurfaceOneShot)
 		if problem != "" {
 			return "", RecordAnswer{}, errors.New(problem)
 		}
@@ -38,7 +38,7 @@ func RenderCountedDocument(input, sessionFormat, document string, count, faults 
 		if !chainInjectsMetadata(plan.ops, meta) {
 			meta = nil
 		}
-		rendered, problem = applyPipesWithRequest(rendered, plan.ops[last+1:], meta, plan.columns, request)
+		rendered, problem = applyPipesWithRequest(rendered, plan.ops[last+1:], meta, plan.columns, request, pipeSurfaceOneShot)
 	}
 	if problem != "" {
 		return "", RecordAnswer{}, errors.New(problem)

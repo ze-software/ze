@@ -5,6 +5,7 @@
 package client
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -12,6 +13,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
 	"sync"
@@ -436,8 +438,9 @@ type cliClient struct {
 	// the answer turned out to be. A test substitutes either one.
 	stream func(sshclient.Credentials, string, io.Writer) (sshclient.Answer, error)
 	// monitorStream owns a monitor's callback lifecycle. A test substitutes it
-	// to drive event and transport failures without a daemon.
-	monitorStream func(sshclient.Credentials, string, func(string) error) error
+	// to drive event and transport failures without a daemon. Ending the
+	// context ends the stream, and the function then answers context.Canceled.
+	monitorStream func(context.Context, sshclient.Credentials, string, func(string) error) error
 	// notUnderstood, when set, answers a one-shot command the daemon says
 	// names no command it holds (sshclient.Answer.NotUnderstood), in place of
 	// printing the daemon's text. Only RunReached sets it; nil keeps the
@@ -661,6 +664,14 @@ func isMonitorCommand(command string) bool {
 // the monitor event formatter, and `| save`, which writes the operator's own
 // file. It reads the catalog alone, so it never refuses an operation name it
 // does not know: the daemon classifies.
+//
+// A monitor never ends on its own, so an interrupt or a terminate signal is
+// the operator ending it, as Stop is in the interactive model: the events
+// already shown are committed to every `| save` file and the exit is 0. A
+// stream the daemon or the transport broke aborts the saves instead, because
+// an atomic save holds a whole answer or nothing. Before this, the signal
+// killed the process: no save file was ever written, and the temporary one
+// stayed behind.
 func (c *cliClient) StreamMonitor(command string) int {
 	defaultFmt := pluginserver.MonitorEventFormatter()
 	if defaultFmt == nil {
@@ -673,7 +684,9 @@ func (c *cliClient) StreamMonitor(command string) int {
 		return 1
 	}
 
-	err := c.monitorStream(c.creds, command, func(line string) error {
+	ended, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stopSignals()
+	err := c.monitorStream(ended, c.creds, command, func(line string) error {
 		formatted := formatFn(line)
 		if formatted == "" {
 			return nil
@@ -686,6 +699,10 @@ func (c *cliClient) StreamMonitor(command string) int {
 		}
 		return saves.WriteString("\n")
 	})
+	if errors.Is(err, context.Canceled) {
+		// The operator ended the stream: what was shown is the answer.
+		err = nil
+	}
 	if err != nil {
 		cleanupErr := saves.Abort()
 		if cleanupErr != nil {

@@ -342,12 +342,20 @@ func collectPipeMeta(ops []pipeOp) pipeChainMeta {
 // because which fields to answer with is a question the operator asked out
 // loud rather than a rendering choice.
 func ApplyPipes(output string, ops []pipeOp, meta pipeChainMeta, columns []ColumnOrder) (string, string) {
-	return applyPipesWithRequest(output, ops, meta, columns, columnsInChain(ops))
+	return applyPipesWithRequest(output, ops, meta, columns, columnsInChain(ops), pipeSurfaceOneShot)
+}
+
+// applyStreamEventPipes is ApplyPipes over one event of a stream, where the
+// event is one row of the sequence (applyEventMatch). An empty answer is an
+// event the chain removed, which RunStreamPipes writes nothing for.
+func applyStreamEventPipes(event string, ops []pipeOp, meta pipeChainMeta, columns []ColumnOrder) (string, string) {
+	return applyPipesWithRequest(event, ops, meta, columns, columnsInChain(ops), pipeSurfaceStream)
 }
 
 // applyPipesWithRequest retains the whole chain's column request when a counted
-// document captures a selection result before its final presentation.
-func applyPipesWithRequest(output string, ops []pipeOp, meta pipeChainMeta, columns []ColumnOrder, request columnRequest) (string, string) {
+// document captures a selection result before its final presentation. surface
+// says whether output is a whole answer or one event of a stream.
+func applyPipesWithRequest(output string, ops []pipeOp, meta pipeChainMeta, columns []ColumnOrder, request columnRequest, surface pipeSurface) (string, string) {
 	formatCount := 0
 	lastTransform := -1
 	for i, op := range ops {
@@ -397,6 +405,16 @@ func applyPipesWithRequest(output string, ops []pipeOp, meta pipeChainMeta, colu
 			}
 			if lineFormatExecuted {
 				result = applyMatchLines(result, op.arg)
+				continue
+			}
+			if surface == pipeSurfaceStream {
+				kept, remains := applyEventMatch(result, op.arg)
+				if !remains {
+					// The event leaves the stream: no later operation
+					// renders an event the chain removed.
+					return "", ""
+				}
+				result = kept
 				continue
 			}
 			matched, msg := applyMatch(result, op.arg)
@@ -986,35 +1004,65 @@ func hasLogOp(ops []pipeOp) bool {
 // A rendered answer still greps lines, because after `| text` the rows ARE
 // lines and that is what the reader asked for.
 func applyMatch(input, pattern string) (string, string) {
-	lower := strings.ToLower(pattern)
-
 	var data any
-	if err := decodePipeJSON(strings.NewReader(strings.TrimSpace(input)), &data); err == nil {
-		rows, keys, key, ok := rowsInKeyed(data)
-		if !ok {
-			return "", rowOperatorRefusal("match", pattern, data)
-		}
-		keep := make([]int, 0, len(rows))
-		for i, row := range rows {
-			var hay textbuf.Buffer
-			if keys != nil {
-				// The identity key IS a value to a reader: it is the peer
-				// address `show bgp peer list` is keyed by.
-				hay.Str(strings.ToLower(keys[i])).Byte(' ')
-			}
-			appendValueText(&hay, row)
-			if strings.Contains(hay.String(), lower) {
-				keep = append(keep, i)
-			}
-		}
-		out, marshalErr := json.Marshal(selectRows(data, key, keys, rows, keep))
-		if marshalErr != nil {
-			return input, ""
-		}
-		return string(out), ""
+	if err := decodePipeJSON(strings.NewReader(strings.TrimSpace(input)), &data); err != nil {
+		return applyMatchLines(input, pattern), ""
 	}
+	rows, keys, key, ok := rowsInKeyed(data)
+	if !ok {
+		return "", rowOperatorRefusal("match", pattern, data)
+	}
+	return matchRows(input, data, rows, keys, key, pattern), ""
+}
 
-	return applyMatchLines(input, pattern), ""
+// applyEventMatch is match over one event of a stream. A stream's rows are its
+// events, so a JSON event is one row: it is kept whole when one of its values
+// holds the pattern and removed whole otherwise, where the same document
+// answered by a one-shot command is matched row by row or refused
+// (applyMatch). A rendered event is matched line by line, as a rendered
+// one-shot answer is. remains is false when nothing of the event is left.
+//
+// The event is never searched for rows of its own. rowsInKeyed reads a map
+// whose values are all objects as rows keyed by identity, and a monitor
+// event's body is such a map ({"message":{...},"peer":{...},"open":{...}}):
+// row by row, `| match state` emptied a BGP OPEN event and still sent it,
+// and `| match 127.0.0.1` kept its peer and dropped its message type.
+func applyEventMatch(event, pattern string) (kept string, remains bool) {
+	var data any
+	if err := decodePipeJSON(strings.NewReader(strings.TrimSpace(event)), &data); err != nil {
+		lines := applyMatchLines(event, pattern)
+		return lines, lines != ""
+	}
+	var hay textbuf.Buffer
+	appendValueText(&hay, data)
+	if strings.Contains(hay.String(), strings.ToLower(pattern)) {
+		return event, true
+	}
+	return "", false
+}
+
+// matchRows keeps the rows of data, decoded from input, whose values hold
+// pattern, and answers data with only those rows.
+func matchRows(input string, data any, rows []any, keys []string, key, pattern string) string {
+	lower := strings.ToLower(pattern)
+	keep := make([]int, 0, len(rows))
+	for i, row := range rows {
+		var hay textbuf.Buffer
+		if keys != nil {
+			// The identity key IS a value to a reader: it is the peer
+			// address `show bgp peer list` is keyed by.
+			hay.Str(strings.ToLower(keys[i])).Byte(' ')
+		}
+		appendValueText(&hay, row)
+		if strings.Contains(hay.String(), lower) {
+			keep = append(keep, i)
+		}
+	}
+	out, marshalErr := json.Marshal(selectRows(data, key, keys, rows, keep))
+	if marshalErr != nil {
+		return input
+	}
+	return string(out)
 }
 
 func applyMatchLines(input, pattern string) string {
@@ -1603,7 +1651,7 @@ func processStreamPipes(input, sessionFormat string, saveAllowed bool) (cmd stri
 	}
 
 	return cmd, func(rawJSON string) string {
-		result, pipeErr := ApplyPipes(rawJSON, ops, meta, columns)
+		result, pipeErr := applyStreamEventPipes(rawJSON, ops, meta, columns)
 		if pipeErr != "" {
 			return pipeError(pipeErr)
 		}

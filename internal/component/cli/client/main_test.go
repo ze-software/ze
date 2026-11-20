@@ -2,12 +2,14 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"syscall"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -1050,7 +1052,7 @@ func TestPipeHelpSectionsComeFromCatalog(t *testing.T) {
 
 func monitorTestClient(events []string, streamErr error) *cliClient {
 	return &cliClient{
-		monitorStream: func(_ sshclient.Credentials, _ string, callback func(string) error) error {
+		monitorStream: func(_ context.Context, _ sshclient.Credentials, _ string, callback func(string) error) error {
 			for _, event := range events {
 				if err := callback(event); err != nil {
 					return err
@@ -1102,6 +1104,46 @@ func TestStreamMonitorSavesDisplayedEventsInOrder(t *testing.T) {
 		if info.Mode().Perm() != 0o600 {
 			t.Errorf("%s mode = %o, want 600", path, info.Mode().Perm())
 		}
+	}
+}
+
+// TestStreamMonitorTerminateCommitsSaves asks whether a terminate signal,
+// the only way `ze cli -c "monitor ... | save f"` ends, commits the events
+// already shown to the save file and exits 0, as Stop does in the
+// interactive model.
+//
+// Method: a stream substitute shows one event, sends this process SIGTERM,
+// and returns only once the context StreamMonitor handed it has ended, as
+// sshclient.StreamPresentedCommand does. MUTATION: drop the
+// signal.NotifyContext in StreamMonitor; the signal kills the test binary.
+// Drop the context.Canceled arm; the exit is 1 and no file is written.
+func TestStreamMonitorTerminateCommitsSaves(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "events.log")
+	client := &cliClient{
+		monitorStream: func(ctx context.Context, _ sshclient.Credentials, _ string, callback func(string) error) error {
+			if err := callback(`{"seq":1}`); err != nil {
+				return err
+			}
+			if err := syscall.Kill(os.Getpid(), syscall.SIGTERM); err != nil {
+				return err
+			}
+			<-ctx.Done()
+			return ctx.Err()
+		},
+	}
+
+	var code int
+	shown := captureOutput(t, false, func() { code = client.StreamMonitor("monitor event | raw | save " + path) })
+	if code != 0 {
+		t.Fatalf("StreamMonitor exit after SIGTERM = %d, want 0", code)
+	}
+	saved, err := os.ReadFile(path) //nolint:gosec // test-owned temp path
+	if err != nil {
+		t.Fatalf("the terminated stream saved nothing: %v", err)
+	}
+	if string(saved) != shown || !strings.Contains(shown, `"seq":1`) {
+		t.Errorf("saved %q, terminal showed %q, want the shown event", saved, shown)
 	}
 }
 

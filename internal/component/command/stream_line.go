@@ -205,7 +205,7 @@ func (l StreamLine) Run(output io.Writer, produce func(io.Writer) error) error {
 	}
 	ops, meta, columns := l.applied, l.part.meta, l.columns
 	return RunStreamPipes(output, func(rawJSON string) string {
-		result, pipeErr := ApplyPipes(rawJSON, ops, meta, columns)
+		result, pipeErr := applyStreamEventPipes(rawJSON, ops, meta, columns)
 		if pipeErr != "" {
 			return pipeError(pipeErr)
 		}

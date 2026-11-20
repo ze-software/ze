@@ -727,4 +727,13 @@ ze cli -c "show bgp"
 ze cli -c "show bgp rib | received"
 ze cli -c "show bgp rpki status"
 ```
+
+A monitor given to `-c` runs until you stop it. Ctrl+C, or a SIGTERM from a
+script, ends it: every `| save` file then holds the events shown, and `ze cli`
+exits 0. A save file is written whole when the monitor ends, never while it
+runs; a stream the daemon or the connection breaks writes no file.
+
+```
+ze cli -c "monitor event include state | match up | save events.log"
+```
 <!-- source: internal/component/cli/client/main.go -- Run, Execute, StreamMonitor -->

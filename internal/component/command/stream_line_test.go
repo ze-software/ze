@@ -130,6 +130,123 @@ func TestStreamLineAppliesChainAndConsumesLog(t *testing.T) {
 	}
 }
 
+// TestStreamLineMatchKeepsWholeEvents asks whether `| match` on a stream
+// treats each event as one row of the stream: a monitor event that is one
+// document (the BGP OPEN and state events, internal/component/bgp/format
+// text_json.go) is kept whole or removed whole, where the same document as a
+// one-shot answer is refused, and the header line is matched as text.
+//
+// Method: the real ReadStreamLine and Run over the three lines `monitor event
+// include open,state` writes, under the rendering key (the daemon applies
+// `match` alone, so the kept events stay data, one line each) and on a terminal
+// (the default format follows). MUTATION: drop the pipeSurfaceStream arm of
+// the match case in applyPipesWithRequest; the first JSON event is refused
+// with "match needs rows ... it holds one document" and Run fails.
+func TestStreamLineMatchKeepsWholeEvents(t *testing.T) {
+	const (
+		header = "monitoring: include=open,state"
+		open   = `{"type":"bgp","bgp":{"message":{"type":"open"},"peer":{"address":"127.0.0.1"},"open":{"asn":65001}}}`
+		state  = `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"127.0.0.1"},"state":"up"}}`
+	)
+	produce := func(w io.Writer) error {
+		_, err := io.WriteString(w, header+"\n"+open+"\n"+state+"\n")
+		return err
+	}
+	const input = "monitor event include open,state | match state"
+
+	presented, err := ReadStreamLine(input, StreamRenderingClientPresentation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var data bytes.Buffer
+	if err := presented.Run(&data, produce); err != nil {
+		t.Fatalf("the presenting client's stream failed: %v", err)
+	}
+	lines := strings.Split(strings.TrimSuffix(data.String(), "\n"), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("presented stream = %q, want the header and the state event", data.String())
+	}
+	if lines[0] != header {
+		t.Errorf("presented header = %q, want %q", lines[0], header)
+	}
+	if !strings.Contains(lines[1], `"state":"up"`) {
+		t.Errorf("presented event = %q, want the state event as data", lines[1])
+	}
+	if strings.Contains(data.String(), "65001") {
+		t.Errorf("presented stream %q kept the OPEN event match removed", data.String())
+	}
+
+	rendered, err := ReadStreamLine(input, StreamRenderingTerminal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var text bytes.Buffer
+	if err := rendered.Run(&text, produce); err != nil {
+		t.Fatalf("the terminal stream failed: %v", err)
+	}
+	if !strings.Contains(text.String(), "up") {
+		t.Errorf("terminal stream %q lost the state event", text.String())
+	}
+	if strings.Contains(text.String(), "65001") {
+		t.Errorf("terminal stream %q kept the OPEN event match removed", text.String())
+	}
+
+	// The negative: the same document answered by a one-shot command is the
+	// whole answer, not a row, and match still refuses it by name.
+	if _, msg := applyMatch(state, "state"); !strings.Contains(msg, "it holds one document") {
+		t.Errorf("one-shot match over one document = %q, want the refusal", msg)
+	}
+}
+
+// TestStreamLineMatchNeverSplitsAnEvent asks whether `| match` on a stream
+// keeps an event whole even when its body reads as rows: a BGP OPEN event's
+// body is a map whose values are all objects, which the one-shot row finder
+// takes for rows keyed by identity, and an event holding a real row set is
+// still one row of the stream.
+//
+// Method: the real ReadStreamLine and Run under the rendering key, so the kept
+// events stay data. MUTATION: match an event's rows through rowsInKeyed and
+// matchRows in applyEventMatch; `| match 127.0.0.1` answers the OPEN event
+// without its message and open members, and `| match up` sends the `down`
+// event as an empty peer list.
+func TestStreamLineMatchNeverSplitsAnEvent(t *testing.T) {
+	const (
+		open = `{"type":"bgp","bgp":{"message":{"type":"open"},"peer":{"address":"127.0.0.1"},"open":{"asn":65001}}}`
+		up   = `{"peers":[{"state":"up"}]}`
+		down = `{"peers":[{"state":"down"}]}`
+	)
+	run := func(input, events string) string {
+		t.Helper()
+		presented, err := ReadStreamLine(input, StreamRenderingClientPresentation)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var data bytes.Buffer
+		if err := presented.Run(&data, func(w io.Writer) error {
+			_, err := io.WriteString(w, events)
+			return err
+		}); err != nil {
+			t.Fatalf("%s: the stream failed: %v", input, err)
+		}
+		return data.String()
+	}
+
+	kept := run("monitor event | match 127.0.0.1", open+"\n")
+	for _, member := range []string{`"type":"open"`, `"asn":65001`, `"address":"127.0.0.1"`} {
+		if !strings.Contains(kept, member) {
+			t.Errorf("match kept %q, want the whole OPEN event with %s", kept, member)
+		}
+	}
+
+	selected := run("monitor event | match up", up+"\n"+down+"\n")
+	if strings.Count(strings.TrimSuffix(selected, "\n"), "\n") != 0 {
+		t.Fatalf("match up answered %q, want the up event alone", selected)
+	}
+	if !strings.Contains(selected, `"state":"up"`) {
+		t.Errorf("match up answered %q, want the up event", selected)
+	}
+}
+
 // TestStreamLineRefusesDaemonSave asks whether `| save` is refused on the
 // daemon's part of a stream, and left to a client that presents (AC-22).
 func TestStreamLineRefusesDaemonSave(t *testing.T) {

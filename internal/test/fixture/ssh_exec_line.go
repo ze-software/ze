@@ -189,9 +189,16 @@ func sshExecLineStream(ctx context.Context, session *ssh.Session, line, bgpPort,
 		for range lines {
 		}
 	}()
+	// The session copies stderr on its own goroutine, so the refusal a
+	// daemon wrote can still be in flight when stdout closes. Wait returns
+	// once both copies finished, so the stderr read after it is whole.
+	ended := func() string {
+		session.Wait() //nolint:errcheck // the stream ended either way; its stderr says why
+		return stderr.String()
+	}
 	// The first line is the monitor's header, written once it subscribed. It
 	// names the filters the line typed, so reject is not judged on it.
-	if _, err := sshExecLineNext(ctx, lines, &stderr); err != nil {
+	if _, err := sshExecLineNext(ctx, lines, ended); err != nil {
 		return fmt.Errorf("%q printed nothing to subscribe on: %w", line, err)
 	}
 	conn, err := sshExecLinePeerUp(ctx, bgpPort)
@@ -200,7 +207,7 @@ func sshExecLineStream(ctx context.Context, session *ssh.Session, line, bgpPort,
 	}
 	defer conn.Close() //nolint:errcheck // the stream assertions carry the result
 	for range sshExecLineEventsMax {
-		event, err := sshExecLineNext(ctx, lines, &stderr)
+		event, err := sshExecLineNext(ctx, lines, ended)
 		if err != nil {
 			return fmt.Errorf("%q never printed a line holding %q: %w", line, want, err)
 		}
@@ -227,14 +234,16 @@ func sshExecLineRead(stdout io.Reader, lines chan<- string) {
 	}
 }
 
-// sshExecLineNext answers the next stdout line, echoing it to stderr.
-func sshExecLineNext(ctx context.Context, lines <-chan string, stderr *bytes.Buffer) (string, error) {
+// sshExecLineNext answers the next stdout line, echoing it to stderr. ended
+// answers the session's whole stderr once the stream has ended; it is called
+// only then, because it waits for the session to finish.
+func sshExecLineNext(ctx context.Context, lines <-chan string, ended func() string) (string, error) {
 	timer := time.NewTimer(fixture10ProcessTimeout)
 	defer timer.Stop()
 	select {
 	case event, open := <-lines:
 		if !open {
-			return "", fmt.Errorf("the stream ended; stderr %q", stderr.String())
+			return "", fmt.Errorf("the stream ended; stderr %q", ended())
 		}
 		sshExecLineEcho(event)
 		return event, nil
