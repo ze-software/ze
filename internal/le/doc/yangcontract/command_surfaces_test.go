@@ -80,7 +80,7 @@ func writePublishedCommandSurfaceFixture(t *testing.T, root string, dropAddress 
 <table><tbody>
 <tr><td><code>json</code></td><td>Output and control</td><td>Always</td><td>JSON output</td></tr>
 <tr><td><code>save</code></td><td>Output and control</td><td>Always, Local process only</td><td>Save output</td></tr>
-<tr><td><code>match</code></td><td>Row data</td><td>With rows</td><td>Keep matching rows</td></tr>
+<tr><td><code>match</code></td><td>Row data</td><td>With rows</td><td>Keep matching rows. A command may replace it with its own.</td></tr>
 <tr><td><code>log</code></td><td>Streaming</td><td>While streaming</td><td>Append updates</td></tr>
 </tbody></table>
 </section>
@@ -2837,6 +2837,70 @@ func TestCommandSurfacesParseStructuralOperatorGuideRows(t *testing.T) {
 			)
 			if out, err := runRenderedCommandDriftFixture(t, root, livePath); err == nil {
 				t.Fatalf("%s operator row escaped exact validation:\n%s", tc.name, out)
+			}
+		})
+	}
+}
+
+// VALIDATES: the operator table's description is checked as the site writes it
+// (internal/le/site/commands.go, guideDescription): the generic's description,
+// followed by OperatorOverridableNote when a command may replace the operator,
+// even when a command overriding it sorts first.
+// PREVENTS: doc-drift refusing the approved sentence on every overridable
+// generic, and a table that drops the sentence, adds it to an operator no
+// command may replace, or states an override's description passing as current.
+//
+// Method: one live catalog where `show a` overrides `count` with its own
+// description before `show b` declares the overridable generic, and `json` is
+// a generic no command may replace. Each case renders the operator table with
+// one description and asks validatePrimaryOperatorCatalog for its verdict.
+func TestPrimaryOperatorCatalogDescriptionFollowsTheSite(t *testing.T) {
+	live := []publishedCommand{
+		{Path: "show a", Mode: "read-only", PipeOperations: []publishedPipeOperation{
+			{Name: "count", Source: pipeSourceOverride, Argument: "none", Class: "data",
+				Available: availabilityWithRows, Description: "Count the routes"},
+		}},
+		{Path: "show b", Mode: "read-only", PipeOperations: []publishedPipeOperation{
+			{Name: "count", Source: pipeSourceGeneric, Argument: "none", Class: "data",
+				Available: availabilityWithRows, Overridable: true, Description: "Count the rows."},
+			{Name: "json", Source: pipeSourceGeneric, Argument: "optional", Class: "global",
+				Available: availabilityAlways, Description: "JSON output"},
+		}},
+	}
+	const countNoted = "Count the rows. " + OperatorOverridableNote
+	table := func(countDescription, jsonDescription string) string {
+		return "<!doctype html><html><body>\n<section class=\"cli-pipe-guide\"><table><tbody>\n" +
+			"<tr><td><code>count</code></td><td>Row data</td><td>With rows</td><td>" +
+			countDescription + "</td></tr>\n" +
+			"<tr><td><code>json</code></td><td>Output and control</td><td>Always</td><td>" +
+			jsonDescription + "</td></tr>\n" +
+			"</tbody></table></section>\n</body></html>\n"
+	}
+
+	if issues := validatePrimaryOperatorCatalog(
+		"index.html", table(countNoted, "JSON output"), live,
+	); len(issues) != 0 {
+		t.Fatalf("the site's operator descriptions were refused: %#v", issues)
+	}
+	if got := string(renderPrimaryCommandHTML(live)); !strings.Contains(got,
+		"<td>With rows</td><td>"+countNoted+"</td>") {
+		t.Fatalf("the rendered operator table does not state the site's description:\n%s", got)
+	}
+
+	for _, tc := range []struct {
+		name, countDescription, jsonDescription string
+	}{
+		{name: "note dropped", countDescription: "Count the rows.", jsonDescription: "JSON output"},
+		{name: "override's description", countDescription: "Count the routes", jsonDescription: "JSON output"},
+		{
+			name: "note on an operator no command may replace", countDescription: countNoted,
+			jsonDescription: "JSON output. " + OperatorOverridableNote,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			issues := validatePrimaryOperatorCatalog("index.html", table(tc.countDescription, tc.jsonDescription), live)
+			if len(issues) != 1 || !strings.Contains(issues[0].Detail, "description") {
+				t.Fatalf("a drifted operator description was not refused once: %#v", issues)
 			}
 		})
 	}

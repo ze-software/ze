@@ -7364,7 +7364,7 @@
                 "source": "config"
               }
             ],
-            "description": "RFC 4271 Section 3.2 states that the Adj-RIBs-In \"contains unprocessed routing information that has\nbeen advertised to the local BGP speaker by its peers\". show bgp rib received reports those\nroutes, and clear bgp rib in \u003cpeer\u003e discards the routes of one peer. No code answers a read of\nthis subtree.",
+            "description": "RFC 4271 Section 3.2 states that the Adj-RIBs-In \"contains unprocessed routing information that has\nbeen advertised to the local BGP speaker by its peers\". show bgp rib | received reports those\nroutes, and clear bgp rib in \u003cpeer\u003e discards the routes of one peer. No code answers a read of\nthis subtree.",
             "kind": "container",
             "name": "adj-rib-in",
             "short-help": "Routes received from peers.",
@@ -7390,7 +7390,7 @@
                 "source": "config"
               }
             ],
-            "description": "RFC 4271 Section 3.2 states that the Adj-RIBs-Out \"stores information the local BGP speaker\nselected for advertisement to its peers\". show bgp rib sent reports those routes. No code\nanswers a read of this subtree.",
+            "description": "RFC 4271 Section 3.2 states that the Adj-RIBs-Out \"stores information the local BGP speaker\nselected for advertisement to its peers\". show bgp rib | sent reports those routes. No code\nanswers a read of this subtree.",
             "kind": "container",
             "name": "adj-rib-out",
             "short-help": "Routes sent to peers.",

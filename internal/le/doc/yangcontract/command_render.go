@@ -85,32 +85,10 @@ func renderNativeCommandSurfaces(root string, commands []publishedCommand) error
 	return nil
 }
 
-type operatorCatalogRow struct {
-	name, class, description string
-	availability             []string
-}
-
 func renderPrimaryCommandHTML(commands []publishedCommand) []byte {
 	var out textbuf.Buffer
 	out.Str("<!doctype html><html><body>\n<section class=\"cli-pipe-guide\"><table><tbody>\n")
-	rows := make(map[string]*operatorCatalogRow)
-	for index := range commands {
-		command := &commands[index]
-		for _, operator := range command.Operators() {
-			row := rows[operator.Name]
-			if row == nil {
-				row = &operatorCatalogRow{name: operator.Name, class: primaryOperatorClassLabel(operator.Class), description: operator.Description}
-				rows[operator.Name] = row
-			}
-			label := commandAvailabilityLabel(operator.Available)
-			if !slices.Contains(row.availability, label) {
-				row.availability = append(row.availability, label)
-			}
-			if operator.LocalOnly && !slices.Contains(row.availability, localOnlyLabel) {
-				row.availability = append(row.availability, localOnlyLabel)
-			}
-		}
-	}
+	rows := primaryOperatorMetadata(commands)
 	names := make([]string, 0, len(rows))
 	for name := range rows {
 		names = append(names, name)
@@ -118,8 +96,11 @@ func renderPrimaryCommandHTML(commands []publishedCommand) []byte {
 	slices.Sort(names)
 	for _, name := range names {
 		row := rows[name]
-		fmt.Fprintf(&out, "<tr><td><code>%s</code></td><td>%s</td><td>%s</td><td>%s</td></tr>\n",
-			html.EscapeString(row.name), html.EscapeString(row.class), html.EscapeString(strings.Join(row.availability, ", ")), html.EscapeString(row.description))
+		out.Str("<tr><td><code>").Str(html.EscapeString(name)).
+			Str("</code></td><td>").Str(html.EscapeString(row.class)).
+			Str("</td><td>").Str(html.EscapeString(strings.Join(row.available, ", "))).
+			Str("</td><td>").Str(html.EscapeString(row.description)).
+			Str("</td></tr>\n")
 	}
 	out.Str("</tbody></table></section>\n<table><tbody>\n")
 	for index := range commands {

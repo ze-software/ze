@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	docyangcontract "github.com/ze-software/ze/internal/le/doc/yangcontract"
 )
 
 // The CLI reference is registered from here, so a build discovers it through
@@ -163,16 +164,13 @@ type guideOperator struct {
 	fromGeneric bool
 }
 
-// overridableNote is how the operator table says a command may replace the
-// generic with an operation of its own under the same name.
-const overridableNote = "A command may replace it with its own."
-
 // guideDescription answers the operator's description as the table states it.
+//
+// The sentence that says a command may replace the operator is declared once,
+// beside the documentation drift check that reads this table
+// (docyangcontract.OperatorGuideDescription), so the two cannot disagree.
 func (row *guideOperator) guideDescription() string {
-	if row.overridable {
-		return strings.TrimSuffix(row.description, ".") + ". " + overridableNote
-	}
-	return row.description
+	return docyangcontract.OperatorGuideDescription(row.description, row.overridable)
 }
 
 // collectGuideOperators gathers each operator once, with the union of the

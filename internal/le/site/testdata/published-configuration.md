@@ -1775,13 +1775,13 @@ A peer inherits from its group defaults. A group inherits from this global level
 - **rib** `container`: RIB plugin state and operations.
   The subtree is read-only, so the CLI refuses set on every node under it. No code answers a read of it today. show bgp rib status reports the live per-peer counts, and show bgp rib reports the routes. request bgp rib inject and request bgp rib withdraw change what the RIB holds.
   - **adj-rib-in** `container`: Routes received from peers.
-    RFC 4271 Section 3.2 states that the Adj-RIBs-In "contains unprocessed routing information that has been advertised to the local BGP speaker by its peers". show bgp rib received reports those routes, and clear bgp rib in <peer> discards the routes of one peer. No code answers a read of this subtree.
+    RFC 4271 Section 3.2 states that the Adj-RIBs-In "contains unprocessed routing information that has been advertised to the local BGP speaker by its peers". show bgp rib | received reports those routes, and clear bgp rib in <peer> discards the routes of one peer. No code answers a read of this subtree.
     - **peer <address>** `list`: Per-peer Adj-RIB-In.
       One entry for each peer that holds a route, keyed by the peer address. show bgp rib status answers the same numbers under route-counts, which carries an in value and an out value for each peer address.
       - **route-count** `uint32`: Number of routes from this peer.
         The count covers every address family of the peer. show bgp rib status answers it as the in value under route-counts, where a family filter scopes the number to one family.
   - **adj-rib-out** `container`: Routes sent to peers.
-    RFC 4271 Section 3.2 states that the Adj-RIBs-Out "stores information the local BGP speaker selected for advertisement to its peers". show bgp rib sent reports those routes. No code answers a read of this subtree.
+    RFC 4271 Section 3.2 states that the Adj-RIBs-Out "stores information the local BGP speaker selected for advertisement to its peers". show bgp rib | sent reports those routes. No code answers a read of this subtree.
     - **peer <address>** `list`: Per-peer Adj-RIB-Out.
       One entry for each peer that holds a route, keyed by the peer address. show bgp rib status answers the same numbers under route-counts, which carries an in value and an out value for each peer address.
       - **route-count** `uint32`: Number of routes to this peer.

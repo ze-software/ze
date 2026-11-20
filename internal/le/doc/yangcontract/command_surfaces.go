@@ -140,8 +140,9 @@ func (c publishedCommand) Operators() []publishedCommandOperator {
 		switch op.Source {
 		case pipeSourceGeneric, pipeSourceOverride:
 			out = append(out, publishedCommandOperator{
-				Name: op.Name, Class: op.Class, Available: op.Available,
-				LocalOnly: op.LocalOnly, Description: op.Description,
+				Name: op.Name, Source: op.Source, Class: op.Class, Available: op.Available,
+				Overridable: op.Overridable, LocalOnly: op.LocalOnly,
+				Description: op.Description,
 			})
 		default:
 			// A command operation and an alias are no catalog operator.
@@ -185,11 +186,68 @@ type publishedCommandPipe struct {
 }
 
 type publishedCommandOperator struct {
-	Name        string `json:"name"`
+	Name string `json:"name"`
+	// Source is pipeSourceGeneric or pipeSourceOverride: an override's class
+	// and description are its command's, a generic's are the operator's.
+	Source      string `json:"source"`
 	Class       string `json:"class"`
 	Available   string `json:"available"`
+	Overridable bool   `json:"overridable,omitempty"`
 	LocalOnly   bool   `json:"local-only,omitempty"`
 	Description string `json:"description"`
+}
+
+// OperatorOverridableNote is how the CLI reference's operator table says a
+// command may replace the generic with an operation of its own under the same
+// name. It is declared here, beside the check that reads the table, and the
+// site renders it through OperatorGuideDescription (internal/le/site/commands.go),
+// so the producer and the check state one sentence.
+const OperatorOverridableNote = "A command may replace it with its own."
+
+// OperatorGuideDescription answers an operator's description as the operator
+// table states it: the description, followed by OperatorOverridableNote when a
+// command may replace the operator.
+func OperatorGuideDescription(description string, overridable bool) string {
+	if overridable {
+		return strings.TrimSuffix(description, ".") + ". " + OperatorOverridableNote
+	}
+	return description
+}
+
+// primaryOperatorMetadata answers what the operator table states for each
+// operator of the live catalog, as internal/le/site/commands.go
+// (collectGuideOperators) builds it.
+//
+// The class, the description and whether a command may replace the operator
+// come from the first generic entry, and from the first override only until a
+// generic arrives: an override's description is its command's, the RIB's
+// `count` counting routes, never the operator's. The availability is the union
+// over every command.
+func primaryOperatorMetadata(live []publishedCommand) map[string]renderedOperatorMetadata {
+	expected := make(map[string]renderedOperatorMetadata)
+	fromGeneric := make(map[string]bool)
+	for index := range live {
+		command := &live[index]
+		for _, operator := range command.Operators() {
+			meta := expected[operator.Name]
+			if !fromGeneric[operator.Name] {
+				meta.class = primaryOperatorClassLabel(operator.Class)
+				meta.description = OperatorGuideDescription(
+					operator.Description, operator.Overridable,
+				)
+				fromGeneric[operator.Name] = operator.Source == pipeSourceGeneric
+			}
+			availability := commandAvailabilityLabel(operator.Available)
+			if !slices.Contains(meta.available, availability) {
+				meta.available = append(meta.available, availability)
+			}
+			if operator.LocalOnly && !slices.Contains(meta.available, localOnlyLabel) {
+				meta.available = append(meta.available, localOnlyLabel)
+			}
+			expected[operator.Name] = meta
+		}
+	}
+	return expected
 }
 
 type publishedCommandAlias struct {
@@ -219,18 +277,18 @@ type publishedCommand struct {
 	// carries it beside Description because the two answer different
 	// questions, and the parser rejects an unknown field, so a catalog
 	// carrying a long help is unreadable without it.
-	Description   string                     `json:"description,omitempty"`
-	Mode          string                     `json:"mode"`
-	WireMethod    string                     `json:"wire-method,omitempty"`
-	Backend       []string                   `json:"backend,omitempty"`
-	TaskSupport   string                     `json:"task-support,omitempty"`
-	Args          []publishedCommandArg      `json:"args,omitempty"`
+	Description string                `json:"description,omitempty"`
+	Mode        string                `json:"mode"`
+	WireMethod  string                `json:"wire-method,omitempty"`
+	Backend     []string              `json:"backend,omitempty"`
+	TaskSupport string                `json:"task-support,omitempty"`
+	Args        []publishedCommandArg `json:"args,omitempty"`
 	// PipeOperations is everything the command answers to after a pipe, the
 	// one list `ze help command --json` publishes. Operators, Pipes and
 	// Aliases read it by source.
 	PipeOperations []publishedPipeOperation `json:"pipe-operations,omitempty"`
-	AnswerShape   string                     `json:"answer-shape,omitempty"`
-	AddressFields []string                   `json:"address-fields,omitempty"`
+	AnswerShape    string                   `json:"answer-shape,omitempty"`
+	AddressFields  []string                 `json:"address-fields,omitempty"`
 	// ColumnOrders are the answer's record keys in reading order, one list per
 	// record shape. The parser rejects an unknown field, so a catalog carrying
 	// a column order is unreadable without it.
@@ -3277,25 +3335,7 @@ func validatePrimaryOperatorCatalog(
 	path, content string,
 	live []publishedCommand,
 ) []Issue {
-	expected := make(map[string]renderedOperatorMetadata)
-	for index := range live {
-		command := &live[index]
-		for _, operator := range command.Operators() {
-			meta, exists := expected[operator.Name]
-			if !exists {
-				meta.class = primaryOperatorClassLabel(operator.Class)
-				meta.description = operator.Description
-			}
-			availability := commandAvailabilityLabel(operator.Available)
-			if !slices.Contains(meta.available, availability) {
-				meta.available = append(meta.available, availability)
-			}
-			if operator.LocalOnly && !slices.Contains(meta.available, localOnlyLabel) {
-				meta.available = append(meta.available, localOnlyLabel)
-			}
-			expected[operator.Name] = meta
-		}
-	}
+	expected := primaryOperatorMetadata(live)
 
 	rows, guideValid := primaryOperatorRows(parseRenderedHTML(content))
 	actual := make(map[string]renderedOperatorMetadata)

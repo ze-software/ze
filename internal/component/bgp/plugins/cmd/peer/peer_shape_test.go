@@ -198,11 +198,14 @@ func TestPeerListRefusesResolveAndAnswersCount(t *testing.T) {
 //     in its Stage 1 message, through CommandDecl.Shape (pkg/plugin/rpc/types.go)
 //     and RegisterPluginShapes (internal/component/command/answer_shape.go). A
 //     path that later gains an in-core shim enters this set on its own.
-//   - `show bgp decode` and `show bgp encode`. The CLI registers those with
-//     command.MustRegisterLocal and each prints finished text and returns an
-//     exit code, so neither reaches a ResponseData or an operator chain
-//     (operatorsFor in cmd/ze/help_command.go publishes nothing for them for
-//     the same reason).
+//   - `show bgp decode` and `show bgp encode`. internal/component/bgp/cli
+//     registers those with command.MustRegisterLocalData, not as an
+//     RPCRegistration, so AllBuiltinRPCs does not carry them; the daemon
+//     serves the same data handler under their YANG path. They answer data, so
+//     their answers reach the pipe layer, and pipeOperationsFor
+//     (internal/plugins/help/help_command.go, through command.PipeLayerReached
+//     and command.PipeOperations) publishes their pipe operations. Whether each
+//     declares an answer shape is not judged by this test.
 func showBgpPaths(t *testing.T) []string {
 	t.Helper()
 
@@ -233,10 +236,12 @@ func showBgpPaths(t *testing.T) []string {
 // PREVENTS: a command reaching no pre-dispatch refusal and publishing nothing.
 // validateDeclaredShape skips its shape test at `if !declared`
 // (internal/component/command/pipe.go), so an undeclared command accepts every
-// ROW operator until its answer is in hand, and `ze help command --json` says
-// "with-rows" for each one rather than naming what it supports (operatorsFor in
-// cmd/ze/help_command.go). Only the two address operators are refused without a
-// declaration, because no answer says a field of it holds an address.
+// ROW operator until its answer is in hand, and `ze help command --json` gives
+// each one `"available": "with-rows"` rather than naming what it supports
+// (genericAvailability, read by command.PipeOperations in
+// internal/component/command/pipe_operations.go). Only the two address
+// operators are refused without a declaration, because no answer says a field
+// of it holds an address.
 //
 // The population is DERIVED (showBgpPaths), so a `show bgp` command added later
 // fails this test until it declares.

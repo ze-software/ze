@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	docyangcontract "github.com/ze-software/ze/internal/le/doc/yangcontract"
 )
 
 // enrichedCommandCatalog is one command carrying every field the live catalog
@@ -197,7 +199,7 @@ var catalogFieldRenderings = map[string]catalogFieldRendering{
 	"pipe-operations.overridable": {
 		Reason: "whether a command may run its own operation under the generic's name belongs to " +
 			"the operator, so it is published once, in the CLI reference's operator table.",
-		Reference: []string{overridableNote},
+		Reference: []string{docyangcontract.OperatorOverridableNote},
 	},
 	"pipe-operations.local-only": {
 		Reason:    "a local-only operator is refused in a daemon-expanded chain.",
