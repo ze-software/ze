@@ -1,7 +1,7 @@
 # Test: an operator SPD entry the dataplane refuses never commits quietly. At the
 # start it is logged at Error and the rest of the IPsec block installs; on a reload
 # the refusal refuses the reload.
-# Spec: plan/release/fixes/spec-rfc4301-architecture-gaps.md (AC-14, RFC 4301
+# Spec: spec-rfc4301-architecture-gaps (AC-14, RFC 4301
 #       Section 4.4.1, the SPD management interface; owner decision 2026-11-19,
 #       "Install, log, doctor").
 #

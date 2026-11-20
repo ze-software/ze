@@ -1,0 +1,20 @@
+{
+  "code": {
+    "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams": "9c91c6c1b05be55d"
+  },
+  "note": "Re-judged 2026-11-20 by an independent agent after the row gained a {partial} annotation. RFC 4301 Section 6.2: \"If the packet fails this check, the IPsec implementation MUST NOT forwarded the ICMP message to the destination.\" Tested: \"MUST NOT forwarded the ICMP message to the destination\"; Gap: \"If the packet fails this check\", split by case: the ICMPv6 error. Producer: internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams (XFRM_STATE_ICMP on the inbound state), the right producer. The tested scope is enforced, the violating input refused in both receiver cases: TestRFC4301ForwardedICMPUsesPayloadPolicy sends on a real Child SA an error whose reversed quote is traffic the SA does not carry, waits for the kernel's reject counter to rise by one, and asserts it never reaches the protected host while the UDP control after it does; the same error quoting the SA's traffic is forwarded, so the refusal is tied to the check. TestICMPErrorPayloadHeaderCheckedOnLocalDelivery gives the same pair for an error addressed to Ze, with a no-flag control. The gap is honest: Section 6 says \"The discussion in this section applies to ICMPv6 as well as to ICMPv4\", no ICMPv6 error is exercised, and AC-8 of plan/release/validation/spec-ipsec-fragment-receive-and-kernel-proof.md owns it. Label finding, not a test defect: the two tests name the polarities oppositely (the local-delivery test calls the refusal negative, the forwarded test calls it positive); each test carries both. Record finding: the two records on the forwarded test break xfrmStateFromParams by a panic, which proves reachability only, and without the flag the inconsistent error is refused anyway, so that break cannot show the refusal discriminates; the dataplane records are real mutants.",
+  "requirement_sha": "b3efbe7cd52e500c",
+  "tests": {
+    "internal/component/ike/dataplane/rfc4301_icmp_error_integration_linux_test.go::TestICMPErrorPayloadHeaderCheckedOnLocalDelivery": "5b2376bef28fdb4c",
+    "internal/component/ike/dataplane/rfc4301_icmp_error_integration_linux_test.go::TestICMPErrorPayloadHeaderCheckedOnLocalDelivery#2": "5b2376bef28fdb4c",
+    "internal/component/ike/engine/rfc4301_forward_icmp_integration_linux_test.go::TestRFC4301ForwardedICMPUsesPayloadPolicy": "ef585194943c762c",
+    "internal/component/ike/engine/rfc4301_forward_icmp_integration_linux_test.go::TestRFC4301ForwardedICMPUsesPayloadPolicy#2": "ef585194943c762c"
+  },
+  "units": {
+    "internal/component/ike/dataplane/rfc4301_icmp_error_integration_linux_test.go::TestICMPErrorPayloadHeaderCheckedOnLocalDelivery": "0d8ea4771676d4e1",
+    "internal/component/ike/dataplane/rfc4301_icmp_error_integration_linux_test.go::TestICMPErrorPayloadHeaderCheckedOnLocalDelivery#2": "0d8ea4771676d4e1",
+    "internal/component/ike/engine/rfc4301_forward_icmp_integration_linux_test.go::TestRFC4301ForwardedICMPUsesPayloadPolicy": "271c5e05c8d03605",
+    "internal/component/ike/engine/rfc4301_forward_icmp_integration_linux_test.go::TestRFC4301ForwardedICMPUsesPayloadPolicy#2": "271c5e05c8d03605"
+  },
+  "verdict": "partial"
+}

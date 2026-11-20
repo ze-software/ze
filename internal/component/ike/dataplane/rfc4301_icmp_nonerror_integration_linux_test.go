@@ -188,7 +188,7 @@ func TestRFC4301NonErrorICMPOutsideSelectorsIsDiscarded(t *testing.T) {
 	mismatches := encapStat(t, icmpNonErrStatMismatch)
 	headers := encapStat(t, icmpNonErrStatHeader)
 	blocks := encapStat(t, icmpErrStatBlock)
-	msgs := icmpErrSNMP(t, "InMsgs")
+	msgs := icmpInMsgs(t)
 
 	// (a) The forged echo request. Its outer headers miss the state's selector, and
 	// xfrm_selector_inner_icmp_match reads no payload of a non-error type, so the outer
@@ -223,7 +223,7 @@ func TestRFC4301NonErrorICMPOutsideSelectorsIsDiscarded(t *testing.T) {
 	if got := encapStat(t, icmpNonErrStatHeader) - headers; got != 0 {
 		t.Errorf("%s moved by %d: the reverse check ran on the echo request, a non-error type", icmpNonErrStatHeader, got)
 	}
-	if got := icmpErrSNMP(t, "InMsgs") - msgs; got != 1 {
+	if got := icmpInMsgs(t) - msgs; got != 1 {
 		t.Errorf("Icmp InMsgs moved by %d across the echo request and the consistent error, want 1 (the error alone): "+
 			"the forged echo request was delivered", got)
 	}

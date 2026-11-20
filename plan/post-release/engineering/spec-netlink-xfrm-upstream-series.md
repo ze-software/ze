@@ -7,7 +7,7 @@
 | Priority | P3 |
 | Release reason | The XFRM corrections already work through the single vendored patch; reshaping them so upstream can take them changes no shipped behavior, so it does not block release correctness or proof. |
 | RFC gaps | - |
-| Depends | plan/release/fixes/spec-rfc4301-architecture-gaps.md (its uncommitted netlink work, the mapped IPv6 selector fix and the state scope, must be committed first) |
+| Depends | - (the netlink work of spec-rfc4301-architecture-gaps, the mapped IPv6 selector fix and the state scope, is committed in `352f231413`: A-7) |
 | Phase | - |
 | Handoff | - |
 | Design tier | development tier |

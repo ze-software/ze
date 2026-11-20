@@ -1145,9 +1145,10 @@ DF. The zero value now copies on both backends.
 Commit refuses `df-bit set` and a non-copy treatment on a transport-mode or
 IPv6-addressed peer (`ValidateOuterHeader`, `internal/component/ike/ipsec/outer_header.go`),
 so the backend refusals are defence in depth. Setting DF on Linux needs a
-mechanism the kernel lacks; the choice between rewriting the ESP packet after
-the transform and a kernel patch is open in
-`plan/release/fixes/spec-rfc4301-architecture-gaps.md`.
+mechanism the stock kernel lacks. The owner chose a Ze kernel patch after the
+first release over rewriting the ESP packet after the transform
+(`plan/post-release/kernel/spec-xfrm-outer-df-set-dscp.md`); until it lands, the
+refusal stands.
 <!-- source: internal/component/ike/dataplane/outer_header.go -- DFTreatment, outerHeaderTreatmentError -->
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmNoPMTUDisc -->
 <!-- source: internal/component/ike/dataplane/vpp.go -- vppTunnelFlags -->

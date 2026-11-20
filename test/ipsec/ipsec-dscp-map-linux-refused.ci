@@ -1,6 +1,6 @@
 # Functional test: a commit that sets dscp-map 46 on a peer of a daemon running the
 # Linux XFRM dataplane is refused, and the operator is told why and how to fix it.
-# Spec: plan/release/fixes/spec-rfc4301-architecture-gaps.md (RFC 4301 Section
+# Spec: spec-rfc4301-architecture-gaps (RFC 4301 Section
 #       5.1.2.1 note 5). The dataplane-independent half (copy, 0 and 63 accepted; 64
 #       and a value on a transport-mode peer refused) is test/parse/ipsec-dscp-map.ci,
 #       and the accepted values reaching the kernel is ipsec-sa-options-kernel.ci.

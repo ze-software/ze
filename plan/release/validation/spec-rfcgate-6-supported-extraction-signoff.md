@@ -113,7 +113,7 @@ corpus for other sessions. Each carries a replayable classification script besid
 
 | Stem | Why it is held | Where the decision lives |
 |---|---|---|
-| `rfc4301` | 30 sites unclassified: 12 met-and-undeclared, 18 unmet | `plan/release/fixes/spec-rfc4301-architecture-gaps.md`, and the owner held the 12 |
+| `rfc4301` | 30 sites unclassified: 12 met-and-undeclared, 18 unmet | spec-rfc4301-architecture-gaps supplied the evidence; its open rows are owned by `plan/release/validation/spec-ipsec-fragment-receive-and-kernel-proof.md` and `plan/post-release/kernel/spec-xfrm-outer-df-set-dscp.md`, and the owner held the 12 |
 | `rfc3748` | 6 sites reclassified off a circular exclusion; Types 2 and 3 unimplemented | the EAP Notification and NAK spec |
 | `rfc7947` | site `2.1:1` awaited the Adj-RIB-In ruling, now given | the route-server Adj-RIB-In spec |
 | `rfc9069` | 24 sites unclassified; two summary rows state the OPPOSITE of the RFC | the BMP conformance fixit spec |
@@ -504,7 +504,7 @@ each have a recorded cause, and the same test pins each one so the delta cannot 
 |---|---|---|
 | `rfc1997` | its Status cell reads `Yes`, a word the page's own vocabulary paragraph does not define | AC-5, in phase 5 |
 | `rfc2759` | the page carries TWO rows for it, `Supported within PPP and IPsec EAP` in the access table and `Partial` in the IPsec table. `parseStatusLedger` keeps the last of a repeated key with no complaint, so every ledger check reads `Partial` and the support claim is invisible | an owner decision on which row is right (`plan/journal/gate-excludes-part-of-its-population.md`, 2026-08-30). Until then the Tier 1 walk of `rfc2759` is a walk over a stem the gate does not count |
-| `rfc4301` | its Status cell was lowered from `Supported` to `Partial` on 2026-08-30, by owner decision, after the Tier 1 walk found architecture obligations Ze does not meet across ICMP processing, BYPASS and DISCARD fragments, DF and PMTU, PAD matching, SPD ordering and the outer-header DSCP | `plan/release/fixes/spec-rfc4301-architecture-gaps.md` implements the obligations and corrects the summary and the public row. The `rfc4301` extraction sign-off (`rfc/extraction/rfc4301.json`, judged by `evaluateExtractions` in `./le rfc check`) is this spec's, under AC-3 and its open Class A scope question. Corrected 2026-11-19: this cell once said the architecture spec lands the sign-off, while that spec's Depends field names this one as its owner |
+| `rfc4301` | its Status cell was lowered from `Supported` to `Partial` on 2026-08-30, by owner decision, after the Tier 1 walk found architecture obligations Ze does not meet across ICMP processing, BYPASS and DISCARD fragments, DF and PMTU, PAD matching, SPD ordering and the outer-header DSCP | spec-rfc4301-architecture-gaps implemented the obligations it held and corrected the summary and the public row; its open rows are owned by `plan/release/validation/spec-ipsec-fragment-receive-and-kernel-proof.md` and `plan/post-release/kernel/spec-xfrm-outer-df-set-dscp.md`. The `rfc4301` extraction sign-off (`rfc/extraction/rfc4301.json`, judged by `evaluateExtractions` in `./le rfc check`) is this spec's, under AC-3 and its open Class A scope question. Corrected 2026-11-19: this cell once said the architecture spec lands the sign-off, while that spec's Depends field names this one as its owner |
 
 The page carries 153 RFC-keyed rows and 152 distinct keys, so RFC 2759 is the only stem in
 that state.

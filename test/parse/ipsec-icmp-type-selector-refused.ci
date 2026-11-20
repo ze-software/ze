@@ -1,6 +1,6 @@
 # Test: ze config validate accepts an ICMP type and code-range SPD entry and refuses
 # every ICMP selector the entry cannot carry.
-# Spec: plan/release/fixes/spec-rfc4301-architecture-gaps.md (RFC 4301 Section 4.4.1.1).
+# Spec: spec-rfc4301-architecture-gaps (RFC 4301 Section 4.4.1.1).
 #
 # VALIDATES: the operator path of `vpn ipsec policy <name> icmp-type / icmp-code`,
 #   through the ike plugin's offline verifier (engine/config.go validateIPsecSections

@@ -112,7 +112,9 @@ Items marked DONE were reported done by the main thread on 2026-11-20.
 12. DONE (`8a991db40e`, a netns packet test, not a peer scenario). Decision 4: retarget `bypass-fragment-forgery` to an operator port-scoped
     BYPASS on Ze's kernel in a K1/K3 lab, proving K3's reassembly defeats forged
     fragments on the forward path (`1dc1323b86` projects such a bypass).
-13. MOVED OUT, not owed here. Decision 5a on VPP: the VPP backend installs no
+13. MOVED OUT by Thomas's ruling (`88d28a7fda`), not owed here; the VPP half
+    is owned by `plan/post-release/features/spec-ipsec-vpp-policy-interface.md`
+    AC-6 and AC-8. Decision 5a on VPP: the VPP backend installs no
     operator SPD entries today, and making it install each one on every interface
     Ze's SPD is attached to is AC-6 of
     `plan/post-release/features/spec-ipsec-vpp-policy-interface.md`, which binds
@@ -127,10 +129,14 @@ Items marked DONE were reported done by the main thread on 2026-11-20.
     report a doctor finding that states the default discard is not in force.
 15. DONE: the `break-df-copy-out` walk, the outbound-only break, red at
     assertions 4 and 6.
-16. Stress of `test/draft/ipsec/ipsec-spd-discard-entry.ci` and
-    `test/draft/ipsec/ipsec-spd-order-readback.ci`, then promotion: blocked by
-    another session's daemon start failure ("local command thanks declares
-    daemon path show thanks list, which no YANG ze:command node declares").
+16. DONE (`98dbb4f5b6`): `test/ipsec/ipsec-spd-discard-entry.ci` and
+    `test/ipsec/ipsec-spd-order-readback.ci` promoted after an 80-iteration
+    stress of each in Ze's arm64 guest, with no failure.
+17. Owed by the 2026-11-20 re-judge of the summary rows (below, "Summary rows
+    re-judged at closure"): the `./le rfc record` records of the new tags and
+    the re-taken records of `TestRFC4301NonErrorICMPOutsideSelectorsIsDiscarded`,
+    the independent `ze-test-judge` approval of that tagged test's change, and
+    the re-judge of the audit verdicts the changed rows staled.
 
 Decision 5b implies no work here: the RFC 4301 extraction sign-off stays in
 `plan/release/validation/spec-rfcgate-6-supported-extraction-signoff.md`, and
@@ -1472,8 +1478,8 @@ changes; the operator config gains a refusal and changes no leaf.
 | A-4 | The Section 8.2.2 PMTU aging obligation is met by the kernel's own PMTU expiry for an XFRM route | the kernel ages a dst entry's PMTU, and Ze holds no PMTU value of its own | the phase must add a per-SA PMTU field, its aging timer and its reset period | read the producing kernel path (`__ip_rt_update_pmtu`, net/ipv4/route.c; `rt6_do_update_pmtu`, net/ipv6/route.c), then the namespace tests `TestXFRMTunnelPMTUAgesBackToTheLinkMTU`, `TestXFRMPolicyPMTUAgesBackToTheLinkMTU` and `TestXFRMTunnelPMTUAgesBackToTheLinkMTUOverIPv6` (`internal/component/ike/dataplane/rfc4301_pmtu_*integration_linux_test.go`), recorded as kernel-producer escapes | validated by the kernel read; the 2026-11-10 evidence table records the package runs and the QEMU IPv6 aging unit green |
 | A-5 | The seven `{not-applicable}` annotations on `rfc/short/rfc4301.md` are void under the owner directive of 2026-07-27 and must be re-answered rather than cited | `ai/rules/rfc-compliance.md`, "Every earlier answer that pointed away from full compliance or full proof is VOID" | the annotations stand and phase 9 shrinks to a prose repair | read each annotation's producing function and record the fresh answer | overtaken: on 2026-11-14 the file holds no `{not-applicable}` annotation. What remains is the five rows of "Summary rows that disagree with this spec" |
 | A-6 | The VPP backend can express a DISCARD policy | 2026-09-06 read of `IPSEC_API_SPD_ACTION_DISCARD` in the VPP API binding | a backend without the action must refuse rather than substitute | session evidence above | confirmed: `vppSPDAction` maps it |
-| A-7 | No existing interop scenario would break when `SPAction` gains a member and `SPParams` gains fields | the zero value of every new field means "as before", and `SPActionProtect` stays 0 | a landed scenario reds and the change is wider than one enum member | run the whole `test/interop-ipsec` suite at the end of phase 2 | unvalidated |
-| A-8 | Linux looks a forwarded packet up in the forward direction and then in the out direction, and applies the namespace forward default to a cleartext packet no forward entry matches | `LL-XFRM-FRAGMENT-SELECTOR` quotes `ip_forward` calling `xfrm4_policy_check` for forward and then `xfrm4_route_forward`; the design page says forwarded traffic is looked up "in fwd and out" | D-4 is not reachable, or ordinary transit under `unmatched discard` is refused for a policy-based peer | `TestRFC4301TransitFromIKEPortIsNotBypassed` with its positive control, in the QEMU guest | unvalidated: the kernel source is not in the checkout |
+| A-7 | No existing interop scenario would break when `SPAction` gains a member and `SPParams` gains fields | the zero value of every new field means "as before", and `SPActionProtect` stays 0 | a landed scenario reds and the change is wider than one enum member | run the whole `test/interop-ipsec` suite at the end of phase 2 | confirmed for every scenario run, none broken: on 2026-11-20, on the bit-7 docker-host image `c88a4387bff259f1`, `tunnel-df-treatment`, `spd-discard-entry`, `pad-subtree-identity`, `mobike-initiator` and `mobike-responder` PASS, and their red walks went red at the predicted assertions (Interop table of the current checkpoint); the whole suite was not run locally, which is GitHub CI's run of the pushed commit |
+| A-8 | Linux looks a forwarded packet up in the forward direction and then in the out direction, and applies the namespace forward default to a cleartext packet no forward entry matches | `LL-XFRM-FRAGMENT-SELECTOR` quotes `ip_forward` calling `xfrm4_policy_check` for forward and then `xfrm4_route_forward`; the design page says forwarded traffic is looked up "in fwd and out" | D-4 is not reachable, or ordinary transit under `unmatched discard` is refused for a policy-based peer | `TestRFC4301TransitFromIKEPortIsNotBypassed` with its positive control, in the QEMU guest | confirmed by packets: at `69fc643e50` (amd64 guest, K1 kernel `docker-1562c4ae`) transit UDP from source ports 500 and 4500 left in clear under `unmatched bypass`, the node-wide bypass deciding a forwarded packet, and at `e700fb7392` the test passes under both `unmatched` values; `TestRFC4301OperatorEntryDecidesTransitTraffic` passes at `0c283fffc6` and goes red with `spdTransitPolicies` emptied, so the forward lookup decides the remote-to-local packet |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -1721,7 +1727,7 @@ fragment needs a raw sender and a capture, which the netns packet tests carry.
 | 11 | Affects daemon comparison? | Yes | `docs/comparison.md` compares IPsec features against strongSwan |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` and `docs/architecture/ike/ipsec-dataplane-inspection.md` |
 | 13 | Route metadata keys added/changed? | No | no route metadata |
-| 14 | Prometheus counters added/changed? | Yes | the subsystem telemetry doc for the three new counters |
+| 14 | Prometheus counters added/changed? | No | none was built. The three receive-side drop counters this row once planned (a forged forwarded fragment, an unauthenticated ICMP error an operator entry rejects, a transit ICMP error the payload check refuses) are owed by `plan/release/validation/spec-ipsec-fragment-receive-and-kernel-proof.md` AC-6 |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | no registry entry changes |
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes | DERIVED: run `./le spec citation anchors spec plan/release/fixes/spec-rfc4301-architecture-gaps.md` at the start of each phase and name every doc it lists. `docs/features/rfc-status.md` already carries a `<!-- source: internal/component/ike/dataplane/dataplane.go -->` anchor over a file every phase edits |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/ipsec.md` shows the `vpn ipsec` grammar; verify every example against the YANG after each phase |
@@ -1883,9 +1889,7 @@ publication contract. No tooling behavior is changed by this reconciliation.
 |------------|------|-----------------|
 | `test-asserts-superseded-behaviour.md` | 2026-11-13 | `TestRFC4301OrderedInboundSearchAdmitsOnTheFirstRankedEntry` wants XfrmInPolBlock for an out-of-selector packet |
 | `guard-added-to-one-half-of-a-pair.md` | 2026-11-10 | RFC4301-6-1: operator SPD entries install out and in, never fwd |
-| `silent-fall-through.md` | 2026-11-10 | forwarded fragments (port 0) miss a port-specific Child SA policy and meet the catch-all, in clear under `unmatched bypass` |
 | `field-carries-two-meanings.md` | 2026-11-10 | protocol 135: the IKE MH-type value is installed as a port, Linux compares the bare type |
-| `two-owners-share-one-name.md` | 2026-11-10 | reqid 1 and SPI-less templates on every Child SA of a peer; a sibling's any-port fwd policy accepts a fragment of an exact-port SA |
 | `guard-enumerates-instead-of-subtracting.md` | 2026-11-10 | RFC7296-3.13.1-1/2 weak: a port under a portless protocol other than 0 is committed and emitted |
 | `address-family-inferred-from-address-bytes.md` | 2026-11-13 | netlink `selFromPolicy` loses mapped IPv6 prefix family and transport scope byte identity |
 
@@ -1913,9 +1917,46 @@ or change the remaining architecture requirements.
 - **On a kernel without K3's capability bit 3, a port-scoped operator BYPASS does not decide forwarded traffic.** There `spdEntryHasTransit` gives it no forward projection, because the forward check classifies a non-initial fragment with port 0 before any reassembly (RFC 4301 Section 7.4, `LL-XFRM-FRAGMENT-SELECTOR`). By owner decision 2 ("refusal until done", 2026-11-20) the commit refuses such an entry (`a29420771d`, AC-22), except one whose local prefix is one address this host holds; that one is accepted, and forwarded traffic on its ports takes the next entry that matches it, which under `unmatched discard` fails closed. With bit 3 the entry is projected (`1dc1323b86`). A port-scoped DISCARD is projected either way.
 - **An `in` ICMP entry whose selector holds type 0 code 0 is not projected onto the forward path**, because every forwarded fragment reads as that type and code.
 - **A packet Ze itself originates with a source inside a policy-based tunnel's remote selector and a destination inside its local selector leaves in clear towards the protected side** rather than meeting the catch-all. This is the tradeoff of the delivery entry `ce5c276457` installs so a policy-based gateway forwards decrypted traffic under `unmatched discard` (`appendChildDeliveryPolicies`).
-- **A forwarded ICMP error that an operator out or both DISCARD covers is dropped, not mapped into the return SA**, because the DISCARD outranks the return allow at `dataplane.PriorityICMPErrorReturn`. Thomas chose the repair on 2026-11-20: the K1 extension of the forwarded path, which is owed work (AC-4).
+- **The forwarded ICMP error mapping and the payload check of a forwarded error need Ze's kernel.** K1's bit 6 maps a forwarded error that the OUT catch-all or an operator out or both DISCARD blocks into the return SA (`40cf3cfaec`, `TestRFC4301ForwardedICMPErrorUnderOperatorDiscardMapsToReturnSA`), and bit 7 judges a forwarded error past a transit gate by its payload (`4663a5e15e`, `42edf271d9`). On a kernel whose receipt lacks either bit, `checkXFRMStateScopeCapabilities` refuses the Child SA install (required features 0xef), so no Child SA runs there with the stock kernel's forwarded ICMP handling. The stock-kernel return route (OUT allows at `dataplane.PriorityICMPErrorReturn`, nftables table `ze_ipsec_icmp_error_return`) is retired (`78d79ad79a`).
 
 ## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| The Section 4.4.2.1 byte-count SAD lifetime | designed by its own spec; a second design of one fact was refused (Key Design Decisions) | `plan/release/fixes/spec-ipsec-lifetime-volume.md` |
+| The `rfc4301` extraction sign-off and its scope set (decision 5b) | the sign-off is that spec's; this spec supplied the evidence | `plan/release/validation/spec-rfcgate-6-supported-extraction-signoff.md` |
+| `RFC4301-8.1-2` DF set and `RFC4301-5.1.2.1-1` a fixed DSCP 1 to 63 on Linux XFRM; the per-value DSCP map of `RFC4301-4.4.2.1-16` and `RFC4301-5.1.2.1-1`; the per-SA observed path MTU and its aging of `RFC4301-4.4.2.1-17` | owner decision of 2026-11-12: refused for the first release, a Ze kernel feature after it; the map and the path MTU homed there at closure (AC-6, AC-7) | `plan/post-release/kernel/spec-xfrm-outer-df-set-dscp.md` |
+| Real-kernel proof of the fragment discards of `RFC4301-4.4.1.1-3`, `RFC4301-7.3-4` and `RFC4301-7.3-5` (the gateway receiver included), under the production permission | no tagged test sends such a fragment on an exact-port SA under `childStateScope`'s permission | `plan/release/validation/spec-ipsec-fragment-receive-and-kernel-proof.md` (AC-2) |
+| Forwarded fragments of a port-specific Child SA meeting the catch-all in clear under `unmatched bypass` (journal row `silent-fall-through.md`, 2026-11-10) | found 2026-11-10; needs K3's forward reassembly proof per Child SA selector, not per operator entry | `plan/release/validation/spec-ipsec-fragment-receive-and-kernel-proof.md` (AC-4) |
+| Shared reqid 1 with SPI-less templates across a peer's Child SAs (journal row `two-owners-share-one-name.md`, 2026-11-10) | found 2026-11-10; the per-state scope may already give the drop, unproven | `plan/release/validation/spec-ipsec-fragment-receive-and-kernel-proof.md` (AC-5) |
+| The three receive-side drop counters (Documentation row 14) | planned and never built | `plan/release/validation/spec-ipsec-fragment-receive-and-kernel-proof.md` (AC-6) |
+| Per-SA isolation across a multi-pair or sibling set (`RFC4301-5.2-2`, `RFC4301-5.2-11`) | no packet test observes a sibling's traffic refused by this SA's scope | `plan/release/validation/spec-ipsec-fragment-receive-and-kernel-proof.md` (AC-7) |
+| A port range or OPAQUE in an operator entry and in a traffic selector | moved 2026-11-19; every range is refused today | `plan/post-release/features/spec-ipsec-opaque-selector-port-mask.md` (AC-14) |
+| An exact Mobility Header type classifier | the release repair refuses an exact type; the classifier is kernel work | `plan/post-release/kernel/spec-xfrm-ipv6-mh-selector.md` |
+| Operator SPD entries on the VPP backend, bound to the `vpn ipsec interface` interface (decisions 5a and 7, item 13) | Thomas placed VPP IPsec after the release (`88d28a7fda`) | `plan/post-release/features/spec-ipsec-vpp-policy-interface.md` (AC-6, AC-8) |
+
+### Summary rows re-judged at closure, 2026-11-20
+
+The 15 rows of `rfc/short/rfc4301.md` that named this spec, each read against
+`rfc/full/rfc4301.txt` and the producing code:
+
+- Proven by this spec's work, annotation removed, tags added (records owed):
+  `RFC4301-4.4.2.1-14` (`TestXFRMStateCarriesTheDFTreatment`,
+  `TestXFRMStateRefusesDFItCannotExpress`), `RFC4301-6-1`
+  (`TestRFC4301ForwardedICMPErrorUnderOperatorDiscardMapsToReturnSA`, its Echo
+  Request case), `RFC4301-6.2-3` (`TestRFC4301ForwardedICMPErrorsMapUnderDiscard`,
+  `TestRFC4301LocalGeneratedICMPUsesReturnSA`, beside the refusal tags it held),
+  `RFC4301-6.2-4` and `RFC4301-6.2-5` (`TestRFC4301ForwardedICMPUsesPayloadPolicy`,
+  beside the local-delivery tags they held). `RFC4301-6.2-2` is a `{rollup}` of
+  6.2-3 to 6.2-5.
+- Narrowed to `{partial}` with tags: `RFC4301-4.4.2.1-16` (bypass DSCP true and
+  false proven; the per-value map is not built).
+- Re-homed, annotation kept: `RFC4301-4.4.2.1-17` `{gap}`, `RFC4301-5.1.2.1-1`
+  and `RFC4301-8.1-2` `{partial}` to the DF/DSCP kernel spec; `RFC4301-5.2-2`,
+  `RFC4301-5.2-11`, `RFC4301-4.4.1.1-3`, `RFC4301-7.3-4` and `RFC4301-7.3-5`
+  `{partial}` to the fragment-receive spec (rows above).
+
+### Historical inventory, 2026-11-10 (superseded by the table above)
 
 Historical inventory from 2026-11-10, with the dated corrections in its rows.
 The current checkpoint supersedes completed product-fix status in this table.

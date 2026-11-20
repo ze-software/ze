@@ -1,7 +1,7 @@
 # Functional test: two overlapping operator SPD entries at distinct orders reach the
 # REAL kernel SPD at the priority each order wrote, and read back through
 # `show vpn ipsec dataplane policy`.
-# Spec: plan/release/fixes/spec-rfc4301-architecture-gaps.md (AC-15, RFC 4301
+# Spec: spec-rfc4301-architecture-gaps (AC-15, RFC 4301
 #       Section 4.4.1: the management interface "MUST support (total) ordering of
 #       these entries, as seen via this interface."). The listing is documented in
 #       docs/architecture/ike/ipsec-dataplane-inspection.md.

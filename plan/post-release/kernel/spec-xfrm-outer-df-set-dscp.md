@@ -5,8 +5,8 @@
 | Status | skeleton |
 | Scope | protocol |
 | Priority | P3 |
-| Release reason | Kernel work: it patches the Linux kernel Ze runs, which Thomas placed after the first release. Until it lands, Ze refuses `df-bit set` and `dscp-map` 1 to 63 on Linux at commit and at install (owner decision, recorded in `plan/release/fixes/spec-rfc4301-architecture-gaps.md`) |
-| RFC gaps | RFC4301-8.1-2, RFC4301-5.1.2.1-1 |
+| Release reason | Kernel work: it patches the Linux kernel Ze runs, which Thomas placed after the first release. Until it lands, Ze refuses `df-bit set` and `dscp-map` 1 to 63 on Linux at commit and at install (owner decision of 2026-11-12, recorded under Task below and first in spec-rfc4301-architecture-gaps) |
+| RFC gaps | RFC4301-8.1-2, RFC4301-5.1.2.1-1, RFC4301-4.4.2.1-16, RFC4301-4.4.2.1-17 |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
@@ -49,7 +49,7 @@ refusals lift on a kernel that carries the patch, and only there.
 Owner decision (2026-11-12): keep the refusal for the first release, and write
 the kernel feature after it. An nftables rewrite of the outer ESP header (a
 `postrouting` rule per SA setting the DF bit or the DSCP) was weighed in
-`plan/release/fixes/spec-rfc4301-architecture-gaps.md` as a way Ze could meet
+spec-rfc4301-architecture-gaps as a way Ze could meet
 both rows with state it installs on a stock kernel; the owner chose the kernel
 feature.
 
@@ -139,6 +139,8 @@ Still to read at design: `outer_header.go`, the kernel's
 | AC-3 | either option on a kernel without the patch (a stock distribution kernel) | the commit is refused naming the missing kernel feature and the fix, and `ze doctor` reports the capability absent; no SA is installed with another treatment |
 | AC-4 | the interop scenario `tunnel-df-treatment` extended with a `set` phase, and a DSCP phase | strongSwan's counters read DF set and the configured DSCP on the outer header; each phase proven red by breaking the producer |
 | AC-5 | `rfc/short/rfc4301.md` read after the change | RFC4301-8.1-2 and RFC4301-5.1.2.1-1 carry tagged tests for set and for a fixed value, with discrimination records |
+| AC-6 (amended 2026-11-20, from the closure of spec-rfc4301-architecture-gaps, which homed the row here) | RFC4301-4.4.2.1-16 and RFC4301-5.1.2.1-1 "map to unprotected DSCP values (array)": a tunnel-mode peer configured with a per-value map from inner DSCP values to outer DSCP values | each inner DSCP the map names reaches the wire as its mapped outer value and an unnamed one takes the configured default, observed on the wire on Ze's kernel with the patch; a backend that cannot write a mapped value refuses the commit rather than installing another; both rows' `{partial}` annotations are replaced by tagged proof with discrimination records |
+| AC-7 (amended 2026-11-20, same origin) | RFC4301-4.4.2.1-17 "Path MTU: any observed path MTU and aging variables.": a tunnel-mode SA whose path MTU is lowered by an ICMP Fragmentation Needed or Packet Too Big | the SAD entry's observed path MTU and its aging are held for that SA (the per-SA MTU Linux XFRM caches on the SA's bundle is read first, as the candidate holder) and Ze reads it back per SA; a tagged positive and negative test proves the value and its expiry, and the row's `{gap}` is replaced by that proof |
 
 ## 🧪 TDD Test Plan
 

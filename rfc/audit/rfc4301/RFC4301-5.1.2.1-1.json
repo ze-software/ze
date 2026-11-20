@@ -1,0 +1,32 @@
+{
+  "code": {
+    "internal/component/ike/dataplane/xfrm_linux.go::xfrmDSCPFlag": "dba9e3fef843a802"
+  },
+  "note": "First verdict 2026-11-20 by an independent agent, after the annotation was re-homed to plan/post-release/kernel/spec-xfrm-outer-df-set-dscp.md (which lists this row); no tagged unit changed. RFC 4301 Section 5.1.2.1: \"If the packet will immediately enter a domain for which the DSCP value in the outer header is not appropriate, that value MUST be mapped to an appropriate value for the domain\". Tested: \"that value MUST be mapped\". Gap: \"to an appropriate value for the domain\". Producer: internal/component/ike/dataplane/xfrm_linux.go::xfrmDSCPFlag. Positives: the dscp-map leaf parses copy or 0 to 63 per peer (TestDSCPMapIsConfigurablePerPeer); the engine carries the peer's mapping onto the outbound SA with the inbound kept copy (TestOuterHeaderDSCPReachesTheBackend) and across rekey (TestRekeyKeepsTheOuterHeaderTreatment); XFRM builds DontEncapDSCP for 0 and not for copy (TestXFRMStateCarriesTheOuterDSCP); VPP sends ENCAP_COPY_DSCP or Dscp 46 (TestVPPInstallSACarriesTheOuterDSCP); and on the wire an EF inner datagram leaves with DSCP 46 under copy and 0 under the mapping (TestXFRMOuterHeaderCarriesTheOuterDSCP), which asserts one header per send. Negatives: a value XFRM cannot write is refused at state build, at config verify (TestXFRMSAOptionsSupportedRefusesOuterDSCPItCannotWrite, TestVerifyPeerSAOptionsRefusesWhatTheBackendCannotApply, naming the peer) and at install without a degraded Child SA (TestChildSAOptionRefusalIsNotKeptDegraded). The scoped claim holds: the mapping is applied, never silently replaced. The gap (a fixed 1 to 63 on Linux XFRM, a per-class table) stays unmet and is never counted conformant.",
+  "requirement_sha": "47949556560ea74d",
+  "tests": {
+    "internal/component/ike/dataplane/rfc4301_dscp_linux_test.go::TestXFRMSAOptionsSupportedRefusesOuterDSCPItCannotWrite": "a6168cf1ff56d0ba",
+    "internal/component/ike/dataplane/rfc4301_dscp_linux_test.go::TestXFRMStateCarriesTheOuterDSCP": "a6168cf1ff56d0ba",
+    "internal/component/ike/dataplane/rfc4301_dscp_linux_test.go::TestXFRMStateRefusesOuterDSCPItCannotWrite": "a6168cf1ff56d0ba",
+    "internal/component/ike/dataplane/rfc4301_dscp_vpp_test.go::TestVPPInstallSACarriesTheOuterDSCP": "f8c2f83e8e1f7bd7",
+    "internal/component/ike/dataplane/rfc4301_outer_header_integration_linux_test.go::TestXFRMOuterHeaderCarriesTheOuterDSCP": "00535cb1b9bc6e9e",
+    "internal/component/ike/engine/rfc4301_dscp_test.go::TestOuterHeaderDSCPReachesTheBackend": "acacd7e67ad93cf7",
+    "internal/component/ike/engine/rfc4301_outer_header_rekey_test.go::TestRekeyKeepsTheOuterHeaderTreatment": "80709e05039b1546",
+    "internal/component/ike/engine/rfc4301_sa_options_test.go::TestChildSAOptionRefusalIsNotKeptDegraded": "c51be0253aca349f",
+    "internal/component/ike/engine/rfc4301_sa_options_test.go::TestVerifyPeerSAOptionsRefusesWhatTheBackendCannotApply": "c51be0253aca349f",
+    "internal/component/ike/ipsec/rfc4301_dscp_map_test.go::TestDSCPMapIsConfigurablePerPeer": "703424ce5d46102c"
+  },
+  "units": {
+    "internal/component/ike/dataplane/rfc4301_dscp_linux_test.go::TestXFRMSAOptionsSupportedRefusesOuterDSCPItCannotWrite": "0d3fe9fd2963574f",
+    "internal/component/ike/dataplane/rfc4301_dscp_linux_test.go::TestXFRMStateCarriesTheOuterDSCP": "c2d8e5d11e0c4398",
+    "internal/component/ike/dataplane/rfc4301_dscp_linux_test.go::TestXFRMStateRefusesOuterDSCPItCannotWrite": "9a677b72f23ce113",
+    "internal/component/ike/dataplane/rfc4301_dscp_vpp_test.go::TestVPPInstallSACarriesTheOuterDSCP": "2358cba8534565f5",
+    "internal/component/ike/dataplane/rfc4301_outer_header_integration_linux_test.go::TestXFRMOuterHeaderCarriesTheOuterDSCP": "35c5f4e958784d68",
+    "internal/component/ike/engine/rfc4301_dscp_test.go::TestOuterHeaderDSCPReachesTheBackend": "35e1c41aecf21655",
+    "internal/component/ike/engine/rfc4301_outer_header_rekey_test.go::TestRekeyKeepsTheOuterHeaderTreatment": "b96ec0eb2605c5dd",
+    "internal/component/ike/engine/rfc4301_sa_options_test.go::TestChildSAOptionRefusalIsNotKeptDegraded": "e5b5f799aed6f2fa",
+    "internal/component/ike/engine/rfc4301_sa_options_test.go::TestVerifyPeerSAOptionsRefusesWhatTheBackendCannotApply": "7fda91d8ae6d9391",
+    "internal/component/ike/ipsec/rfc4301_dscp_map_test.go::TestDSCPMapIsConfigurablePerPeer": "837444e5fe7aa63f"
+  },
+  "verdict": "partial"
+}

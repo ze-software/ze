@@ -1,7 +1,7 @@
 # Functional test: an operator sets a tunnel's three per-SA options (df-bit clear,
 # dscp-map 0, icmp-error-check false), and the REAL kernel's Child SA states carry
 # each of them, read back through `show vpn ipsec dataplane sa`.
-# Spec: plan/release/fixes/spec-rfc4301-architecture-gaps.md (RFC 4301 Sections 8.1,
+# Spec: spec-rfc4301-architecture-gaps (RFC 4301 Sections 8.1,
 #       5.1.2.1 and 6.2; user story 6). The commit-time halves are
 #       test/parse/ipsec-df-bit-treatment.ci, test/parse/ipsec-dscp-map.ci,
 #       test/parse/ipsec-icmp-error-check.ci and

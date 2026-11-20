@@ -40,6 +40,7 @@ func dfTunnelSA(df DFTreatment) SAParams {
 // RFC requirement: RFC4301-8.1-1 positive -- an outbound IPv4 tunnel-mode SA asking for DF copy is built without XFRM_STATE_NOPMTUDISC, the state under which the kernel copies the inner DF bit.
 // RFC requirement: RFC4301-8.1-1 negative -- an outbound IPv4 tunnel-mode SA asking for DF clear is built with XFRM_STATE_NOPMTUDISC rather than as a copy.
 // RFC requirement: RFC4301-8.1-2 positive -- an outbound IPv4 tunnel-mode SA asking for DF clear is built with XFRM_STATE_NOPMTUDISC, and one asking for copy without it.
+// RFC requirement: RFC4301-4.4.2.1-14 positive -- the SAD entry of an outbound IPv4 tunnel-mode SA holds its bypass-DF choice: copy (bypass true) is built without XFRM_STATE_NOPMTUDISC, the state under which the kernel copies the inner DF bit, and clear (bypass false) is built with it.
 func TestXFRMStateCarriesTheDFTreatment(t *testing.T) {
 	for _, tc := range []struct {
 		df         DFTreatment
@@ -63,6 +64,7 @@ func TestXFRMStateCarriesTheDFTreatment(t *testing.T) {
 // PREVENTS: DF set installed as a copy (a clear inner bit then reaches the wire clear),
 // and a treatment on an SA that builds no IPv4 outer header being accepted and ignored.
 // RFC requirement: RFC4301-8.1-2 negative -- a DF treatment Linux XFRM cannot express (set), or one asked of a transport-mode, inbound or IPv6-outer SA, is refused with ErrSAOptionRefused, never with ErrNotSupported (which the engine would keep as a degraded Child SA), instead of installed.
+// RFC requirement: RFC4301-4.4.2.1-14 negative -- a DF treatment asked of an SA the bypass-DF field does not apply to, a transport-mode SA or one whose outer header is IPv6, is refused with ErrSAOptionRefused and no state is built.
 func TestXFRMStateRefusesDFItCannotExpress(t *testing.T) {
 	transport := dfTunnelSA(DFClear)
 	transport.Mode = ModeTransport

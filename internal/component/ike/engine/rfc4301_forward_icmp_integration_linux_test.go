@@ -3,7 +3,6 @@
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- ICMP error messages carried by a Child SA.
 // Related: rfc4301_forward_default_integration_linux_test.go -- final-disposition lifecycle.
 // Related: rfc4301_fragment_forward_integration_linux_test.go -- shared ordinary AF_PACKET observer.
-// RFC naming: untagged -- packet-level conformance probe awaiting guest observation.
 
 package engine
 
@@ -336,6 +335,16 @@ func runICMPForwarding(t *testing.T, ifID uint32, check, decision bool) {
 // lookup. With checking disabled, this UDP Child SA refuses the error's own ICMP
 // headers, regardless of its quote. No explicit receive entry authorizes those headers.
 
+// TestRFC4301ForwardedICMPUsesPayloadPolicy checks that a forwarded ICMP error that
+// arrives on a tunnel-mode Child SA whose state carries XFRM_STATE_ICMP, and whose own
+// headers the SA's UDP selectors do not cover, is judged by its quoted header. Method:
+// runICMPForwarding with checking on, at if_id 0 and with no operator decision, after a
+// UDP control has crossed the same SA to the protected host.
+//
+// RFC requirement: RFC4301-6.2-4 positive -- a forwarded ICMP error received on the Child SA whose IP and ICMP headers miss the SA's selectors, and whose quoted header, reversed, is the SA's traffic, reaches the protected host.
+// RFC requirement: RFC4301-6.2-5 positive -- a forwarded ICMP error received on the Child SA whose quoted header, reversed, is traffic the SA does not carry is refused (the kernel's reject counter rises by one) and does not reach the protected host.
+// RFC requirement: RFC4301-6.2-5 negative -- a forwarded ICMP error received on the same SA whose quoted header, reversed, is the SA's traffic is forwarded to the protected host.
+//
 //ze:guest-root
 func TestRFC4301ForwardedICMPUsesPayloadPolicy(t *testing.T) {
 	runICMPForwarding(t, 0, true, false)

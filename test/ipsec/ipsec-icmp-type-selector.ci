@@ -1,6 +1,6 @@
 # Functional test: an operator rejects one ICMP type and permits another with
 # `vpn ipsec policy`, and reads both back from the REAL kernel SPD.
-# Spec: plan/release/fixes/spec-rfc4301-architecture-gaps.md (RFC 4301 Section
+# Spec: spec-rfc4301-architecture-gaps (RFC 4301 Section
 #       4.4.1.1 ICMP type and code selector; Sections 6.1.1 and 6.1.2, the per-type
 #       control over unauthenticated ICMP; user story 3). The listing is documented
 #       in docs/architecture/ike/ipsec-dataplane-inspection.md.

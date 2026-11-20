@@ -3,23 +3,23 @@
     "rid": "RFC4301-6.1.2-1",
     "polarity": "positive",
     "unit": "internal/component/ike/dataplane/rfc4301_icmp_nonerror_integration_linux_test.go::TestRFC4301NonErrorICMPOutsideSelectorsIsDiscarded",
-    "unit-sha": "a970c6f1c3d5750e",
+    "unit-sha": "bd51f1518798b158",
     "claim-sha": "a4718873fa6dde14",
     "route": "mutant",
     "producer": "internal/component/ike/dataplane/xfrm_linux.go::catchAllYieldsToICMPErrorCheck",
     "producer-sha": "ca13b50b7debffa0",
-    "break": "line 857: \"return p.Role == PolicyRoleCatchAll || p.Role == PolicyRoleInterfaceCatchAll\" -\u003e \"return true\""
+    "break": "line 886: \"return p.Role == PolicyRoleCatchAll || p.Role == PolicyRoleInterfaceCatchAll\" -\u003e \"return true\""
   },
   {
     "rid": "RFC4301-6.1.2-1",
     "polarity": "negative",
     "unit": "internal/component/ike/dataplane/rfc4301_icmp_nonerror_integration_linux_test.go::TestRFC4301NonErrorICMPOutsideSelectorsIsDiscarded",
-    "unit-sha": "a970c6f1c3d5750e",
+    "unit-sha": "bd51f1518798b158",
     "claim-sha": "fc14ed1621a09fbd",
     "route": "mutant",
     "producer": "internal/component/ike/dataplane/xfrm_linux.go::catchAllYieldsToICMPErrorCheck",
     "producer-sha": "ca13b50b7debffa0",
-    "break": "line 857: \"return p.Role == PolicyRoleCatchAll || p.Role == PolicyRoleInterfaceCatchAll\" -\u003e \"return false\""
+    "break": "line 886: \"return p.Role == PolicyRoleCatchAll || p.Role == PolicyRoleInterfaceCatchAll\" -\u003e \"return false\""
   },
   {
     "rid": "RFC4301-6.1.2-1",

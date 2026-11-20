@@ -25,22 +25,33 @@
     "rid": "RFC4301-6.2-4",
     "polarity": "positive",
     "unit": "internal/component/ike/dataplane/rfc4301_icmp_nonerror_integration_linux_test.go::TestRFC4301NonErrorICMPOutsideSelectorsIsDiscarded",
-    "unit-sha": "a970c6f1c3d5750e",
+    "unit-sha": "bd51f1518798b158",
     "claim-sha": "30f50884833cac4c",
     "route": "mutant",
     "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
     "producer-sha": "ff2b495eb4b26154",
-    "break": "line 296: \"state.ICMP = true\" -\u003e \"state.ICMP = false\""
+    "break": "line 300: \"state.ICMP = true\" -\u003e \"state.ICMP = false\""
   },
   {
     "rid": "RFC4301-6.2-4",
     "polarity": "negative",
     "unit": "internal/component/ike/dataplane/rfc4301_icmp_nonerror_integration_linux_test.go::TestRFC4301NonErrorICMPOutsideSelectorsIsDiscarded",
-    "unit-sha": "a970c6f1c3d5750e",
+    "unit-sha": "bd51f1518798b158",
     "claim-sha": "2465610141f9e929",
     "route": "mutant",
     "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
     "producer-sha": "ff2b495eb4b26154",
-    "break": "line 247: \"state.Selector = \u0026netlink.XfrmPolicy{\" -\u003e \"_ = \u0026netlink.XfrmPolicy{\""
+    "break": "line 251: \"state.Selector = \u0026netlink.XfrmPolicy{\" -\u003e \"_ = \u0026netlink.XfrmPolicy{\""
+  },
+  {
+    "rid": "RFC4301-6.2-4",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_forward_icmp_integration_linux_test.go::TestRFC4301ForwardedICMPUsesPayloadPolicy",
+    "unit-sha": "226a775465c19523",
+    "claim-sha": "a90685ec9896a4fd",
+    "route": "revert",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
+    "producer-sha": "ff2b495eb4b26154",
+    "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

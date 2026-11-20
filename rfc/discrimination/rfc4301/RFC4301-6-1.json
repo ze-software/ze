@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4301-6-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_icmp_return_integration_linux_test.go::TestRFC4301ForwardedICMPErrorUnderOperatorDiscardMapsToReturnSA",
+    "unit-sha": "c53a225351049e45",
+    "claim-sha": "90c0e310588fcb16",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/spd_policy.go::spdTransitPolicies",
+    "producer-sha": "4da0bbab5afb3c2c",
+    "break": "body of spdTransitPolicies replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-6-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_icmp_return_integration_linux_test.go::TestRFC4301OperatorBypassForwardsTransitEchoInClear",
+    "unit-sha": "8a941573158fdbc7",
+    "claim-sha": "ae88b5369bd904ad",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/spd_policy.go::spdTransitPolicies",
+    "producer-sha": "4da0bbab5afb3c2c",
+    "break": "body of spdTransitPolicies replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

@@ -20,5 +20,27 @@
     "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmPolicyFromParams",
     "producer-sha": "02594c6a007f8840",
     "break": "line 794: \"Src:     p.Src,\" -\u003e \"Src:     \u0026net.IPNet{IP: net.IPv4zero, Mask: net.CIDRMask(0, 32)},\""
+  },
+  {
+    "rid": "RFC4301-6.2-5",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_forward_icmp_integration_linux_test.go::TestRFC4301ForwardedICMPUsesPayloadPolicy",
+    "unit-sha": "226a775465c19523",
+    "claim-sha": "1be60843134d6b98",
+    "route": "revert",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
+    "producer-sha": "ff2b495eb4b26154",
+    "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-6.2-5",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_forward_icmp_integration_linux_test.go::TestRFC4301ForwardedICMPUsesPayloadPolicy",
+    "unit-sha": "226a775465c19523",
+    "claim-sha": "e3f0fd6b8ee0dff9",
+    "route": "revert",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
+    "producer-sha": "ff2b495eb4b26154",
+    "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

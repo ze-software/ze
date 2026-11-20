@@ -34,7 +34,7 @@ module and outside `kernelTestTree`, so the unit must name the in-package
 producers it excludes, and prove it with a fixture test.
 
 Found by the independent test judge on spec
-`plan/release/fixes/spec-rfc4301-architecture-gaps.md` (2026-11-10).
+spec-rfc4301-architecture-gaps (2026-11-10).
 
 ## Required Reading
 

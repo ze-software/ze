@@ -1,0 +1,22 @@
+{
+  "code": {
+    "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams": "9c91c6c1b05be55d"
+  },
+  "note": "Re-judged 2026-11-20 by an independent agent after the row gained a {partial} annotation. RFC 4301 Section 6.2: \"If an IPsec implementation receives an inbound ICMP error message on an SA, and the IP and ICMP headers of the message do not match the traffic selectors for the SA, the receiver MUST process the received message in a special fashion. Specifically, the receiver must extract the header of the triggering packet from the ICMP payload, and reverse fields as described above to determine if the packet is consistent with the selectors for the SA via which the ICMP error message was received.\" Tested: \"the receiver MUST process the received message in a special fashion\"; Gap: \"If an IPsec implementation receives an inbound ICMP error message on an SA\", split by case: the ICMPv6 error. Producer: internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams, which sets XFRM_STATE_ICMP on the inbound state, the flag icmp_rcv and icmpv6_rcv read; it is the right producer for this row. The tested scope is enforced: TestICMPErrorPayloadHeaderCheckedOnLocalDelivery delivers an error addressed to Ze whose outer headers miss the SA's policy when its reversed quote matches, drops one whose quote matches nothing, and its no-flag control ties the delivery to the payload check; TestRFC4301ForwardedICMPUsesPayloadPolicy forwards, through a real Child SA after a UDP control crossed it, an error whose own headers miss the SA's UDP selectors and whose reversed quote is the SA's traffic, byte for byte to the protected host; TestRFC4301NonErrorICMPOutsideSelectorsIsDiscarded is the negative outside the clause (an Echo Request with the same bytes gets no special processing). The gap is honest: Section 6 says \"The discussion in this section applies to ICMPv6 as well as to ICMPv4\", every packet here is ICMPv4, and the ICMPv6 case is owed by AC-8 of plan/release/validation/spec-ipsec-fragment-receive-and-kernel-proof.md. Record finding: the record on the forwarded test breaks xfrmStateFromParams by a panic, which proves reachability only; the dataplane records are real mutants.",
+  "requirement_sha": "8e480722b8cf9c63",
+  "tests": {
+    "internal/component/ike/dataplane/rfc4301_icmp_error_integration_linux_test.go::TestICMPErrorPayloadHeaderCheckedOnLocalDelivery": "5b2376bef28fdb4c",
+    "internal/component/ike/dataplane/rfc4301_icmp_error_integration_linux_test.go::TestICMPErrorPayloadHeaderCheckedOnLocalDelivery#2": "5b2376bef28fdb4c",
+    "internal/component/ike/dataplane/rfc4301_icmp_nonerror_integration_linux_test.go::TestRFC4301NonErrorICMPOutsideSelectorsIsDiscarded": "4896e855dbdf0982",
+    "internal/component/ike/dataplane/rfc4301_icmp_nonerror_integration_linux_test.go::TestRFC4301NonErrorICMPOutsideSelectorsIsDiscarded#2": "4896e855dbdf0982",
+    "internal/component/ike/engine/rfc4301_forward_icmp_integration_linux_test.go::TestRFC4301ForwardedICMPUsesPayloadPolicy": "ef585194943c762c"
+  },
+  "units": {
+    "internal/component/ike/dataplane/rfc4301_icmp_error_integration_linux_test.go::TestICMPErrorPayloadHeaderCheckedOnLocalDelivery": "0d8ea4771676d4e1",
+    "internal/component/ike/dataplane/rfc4301_icmp_error_integration_linux_test.go::TestICMPErrorPayloadHeaderCheckedOnLocalDelivery#2": "0d8ea4771676d4e1",
+    "internal/component/ike/dataplane/rfc4301_icmp_nonerror_integration_linux_test.go::TestRFC4301NonErrorICMPOutsideSelectorsIsDiscarded": "ba3ca7577fc2f9a6",
+    "internal/component/ike/dataplane/rfc4301_icmp_nonerror_integration_linux_test.go::TestRFC4301NonErrorICMPOutsideSelectorsIsDiscarded#2": "ba3ca7577fc2f9a6",
+    "internal/component/ike/engine/rfc4301_forward_icmp_integration_linux_test.go::TestRFC4301ForwardedICMPUsesPayloadPolicy": "271c5e05c8d03605"
+  },
+  "verdict": "partial"
+}

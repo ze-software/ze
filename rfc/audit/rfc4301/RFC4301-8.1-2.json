@@ -1,0 +1,31 @@
+{
+  "code": {
+    "internal/component/ike/dataplane/vpp.go::vppDFError": "319731ee13597cc6",
+    "internal/component/ike/dataplane/xfrm_linux.go::xfrmDFFlag": "1ec448b3393edb7e"
+  },
+  "note": "First verdict 2026-11-20 by an independent agent, after the annotation was re-homed to plan/post-release/kernel/spec-xfrm-outer-df-set-dscp.md (which lists this row); no tagged unit changed. RFC 4301 Section 8.1: \"This means that it MUST be possible to configure the implementation's treatment of the DF bit (set, clear, copy from inner header) for each SA.\" Tested: \"clear, copy from inner header\". Gap: \"set\". Producer: internal/component/ike/dataplane/xfrm_linux.go::xfrmDFFlag and internal/component/ike/dataplane/vpp.go::vppDFError. Positives: df-bit parses per peer with absent as copy (TestDFBitIsConfigurablePerPeer); the engine hands the outbound SA the peer's treatment and the inbound copy, exactly one of each (TestDFBitTreatmentReachesTheBackend), and rekey keeps it (TestRekeyKeepsTheOuterHeaderTreatment); XFRM sets NoPMTUDisc for clear and not for copy (TestXFRMStateCarriesTheDFTreatment); VPP sends ENCAP_COPY_DF for copy and neither DF flag for clear (TestVPPInstallSACarriesTheDFTreatment); on the wire clear emits a clear outer DF for a set inner bit and copy follows the inner bit (TestXFRMOuterHeaderCarriesTheDFTreatment). Negatives: set, and a treatment on a transport, inbound or IPv6-outer SA, are refused with ErrSAOptionRefused on XFRM and VPP with nothing installed or sent (TestXFRMStateRefusesDFItCannotExpress, TestVPPInstallSARefusesDFItCannotExpress), and ValidateOuterHeader refuses set and an inapplicable clear (TestDFBitValidation). The scoped claim holds; DF set is refused, never installed as another treatment, and stays unmet.",
+  "requirement_sha": "f75e6e667b4c657a",
+  "tests": {
+    "internal/component/ike/dataplane/rfc4301_df_linux_test.go::TestXFRMStateCarriesTheDFTreatment": "e9bff2500068f524",
+    "internal/component/ike/dataplane/rfc4301_df_linux_test.go::TestXFRMStateRefusesDFItCannotExpress": "e9bff2500068f524",
+    "internal/component/ike/dataplane/rfc4301_df_vpp_test.go::TestVPPInstallSACarriesTheDFTreatment": "873bfddaff4416a3",
+    "internal/component/ike/dataplane/rfc4301_df_vpp_test.go::TestVPPInstallSARefusesDFItCannotExpress": "873bfddaff4416a3",
+    "internal/component/ike/dataplane/rfc4301_outer_header_integration_linux_test.go::TestXFRMOuterHeaderCarriesTheDFTreatment": "00535cb1b9bc6e9e",
+    "internal/component/ike/engine/rfc4301_df_bit_test.go::TestDFBitTreatmentReachesTheBackend": "fe10ef26a8362141",
+    "internal/component/ike/engine/rfc4301_outer_header_rekey_test.go::TestRekeyKeepsTheOuterHeaderTreatment": "80709e05039b1546",
+    "internal/component/ike/ipsec/rfc4301_df_bit_test.go::TestDFBitIsConfigurablePerPeer": "adbaabe592173943",
+    "internal/component/ike/ipsec/rfc4301_df_bit_test.go::TestDFBitValidation": "adbaabe592173943"
+  },
+  "units": {
+    "internal/component/ike/dataplane/rfc4301_df_linux_test.go::TestXFRMStateCarriesTheDFTreatment": "e39d6280e6e8dc57",
+    "internal/component/ike/dataplane/rfc4301_df_linux_test.go::TestXFRMStateRefusesDFItCannotExpress": "4a7326cb6fa75823",
+    "internal/component/ike/dataplane/rfc4301_df_vpp_test.go::TestVPPInstallSACarriesTheDFTreatment": "ad8f431819bd98fa",
+    "internal/component/ike/dataplane/rfc4301_df_vpp_test.go::TestVPPInstallSARefusesDFItCannotExpress": "08b09007b02a5ade",
+    "internal/component/ike/dataplane/rfc4301_outer_header_integration_linux_test.go::TestXFRMOuterHeaderCarriesTheDFTreatment": "4d34a613b5339868",
+    "internal/component/ike/engine/rfc4301_df_bit_test.go::TestDFBitTreatmentReachesTheBackend": "db62389fde9017be",
+    "internal/component/ike/engine/rfc4301_outer_header_rekey_test.go::TestRekeyKeepsTheOuterHeaderTreatment": "b96ec0eb2605c5dd",
+    "internal/component/ike/ipsec/rfc4301_df_bit_test.go::TestDFBitIsConfigurablePerPeer": "af39a095ea5750fd",
+    "internal/component/ike/ipsec/rfc4301_df_bit_test.go::TestDFBitValidation": "6700d224a9de44f2"
+  },
+  "verdict": "partial"
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4301-4.4.2.1-14",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4301_df_linux_test.go::TestXFRMStateCarriesTheDFTreatment",
+    "unit-sha": "94a9dbb131c0afd6",
+    "claim-sha": "7daba9e3d9f9f54a",
+    "route": "revert",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmDFFlag",
+    "producer-sha": "01639084dd4e863a",
+    "break": "body of xfrmDFFlag replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-4.4.2.1-14",
+    "polarity": "negative",
+    "unit": "internal/component/ike/dataplane/rfc4301_df_linux_test.go::TestXFRMStateRefusesDFItCannotExpress",
+    "unit-sha": "5be92f066f31f80b",
+    "claim-sha": "f10a9ce73a366f4a",
+    "route": "revert",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmDFFlag",
+    "producer-sha": "01639084dd4e863a",
+    "break": "body of xfrmDFFlag replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

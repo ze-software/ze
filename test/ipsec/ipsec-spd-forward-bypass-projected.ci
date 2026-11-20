@@ -2,7 +2,7 @@
 # fragment guard), a commit that adds a port-scoped bypass for a protected subnet is
 # accepted, and the kernel holds the entry's forward decision with its port and its
 # forward gate, beside the projections of the start configuration's accepted shapes.
-# Spec: plan/release/fixes/spec-rfc4301-architecture-gaps.md (AC-22's bit-3 half,
+# Spec: spec-rfc4301-architecture-gaps (AC-22's bit-3 half,
 #       AC-2, AC-16; the projection is documented in
 #       docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md, "Transit traffic").
 #

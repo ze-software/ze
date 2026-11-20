@@ -5,7 +5,7 @@
 #
 # Test: ze config validate accepts dscp-map copy, 0 and 63 on tunnel-mode peers,
 # and refuses 64 and a value on a transport-mode peer.
-# Spec: plan/release/fixes/spec-rfc4301-architecture-gaps.md (RFC 4301 Section
+# Spec: spec-rfc4301-architecture-gaps (RFC 4301 Section
 #       5.1.2.1 note 5; boundary row "DSCP value 0 to 63").
 #
 # VALIDATES: RFC 4301 Section 5.1.2.1 note 5: "If the packet will immediately enter

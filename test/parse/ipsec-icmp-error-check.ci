@@ -1,6 +1,6 @@
 # Test: the icmp-error-check peer leaf parses true and false, reads back from the
 # config serializer, and refuses a value that is not a boolean.
-# Spec: plan/release/fixes/spec-rfc4301-architecture-gaps.md (RFC 4301 Section 6.2).
+# Spec: spec-rfc4301-architecture-gaps (RFC 4301 Section 6.2).
 #
 # VALIDATES: `site-to-site peer <name> icmp-error-check` (ze-ipsec-conf.yang, boolean,
 #   default true; read by ipsec/config.go into SiteToSitePeer.SkipICMPErrorCheck):

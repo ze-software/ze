@@ -1,6 +1,6 @@
 # Test: `ze config validate` refuses two operator SPD entries whose order the
 # configuration leaves undecided, and accepts the entries a total order separates.
-# Spec: plan/release/fixes/spec-rfc4301-architecture-gaps.md (AC-15, RFC 4301
+# Spec: spec-rfc4301-architecture-gaps (AC-15, RFC 4301
 #       Section 4.4.1: the management interface "MUST support (total) ordering of
 #       these entries, as seen via this interface.").
 #

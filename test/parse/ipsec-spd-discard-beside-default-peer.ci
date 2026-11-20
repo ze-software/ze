@@ -1,7 +1,7 @@
 # Test: a discard entry with the default direction and protocol commits beside a
 # policy-based peer with the default icmp-error-check, while a bypass entry that
 # carries ICMP errors in clear to the same peer's remote selectors is still refused.
-# Spec: plan/release/fixes/spec-rfc4301-architecture-gaps.md (AC-19, D-6).
+# Spec: spec-rfc4301-architecture-gaps (AC-19, D-6).
 #
 # Question: does the ike plugin's offline verifier, reached through `ze config
 # validate`, accept the default discard entry beside a default peer? A unit test

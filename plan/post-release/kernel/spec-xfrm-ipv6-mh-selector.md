@@ -5,9 +5,9 @@
 | Status | skeleton |
 | Scope | protocol |
 | Priority | P3 |
-| Release reason | Missing exact IPv6 Mobility Header selector capability requires Linux receive-flow extraction work. The release repair in `plan/release/fixes/spec-rfc4301-architecture-gaps.md` must refuse ineffective constrained MH configuration and negotiation; this future feature remains owed under the owner's release-timing rule. |
+| Release reason | Missing exact IPv6 Mobility Header selector capability requires Linux receive-flow extraction work. The release repair of spec-rfc4301-architecture-gaps (`466ab09fd8`, its mutation walks `baed2a8b3d`) refuses ineffective constrained MH configuration and negotiation; this future feature remains owed under the owner's release-timing rule. |
 | RFC gaps | RFC4301-4.4.1.1-1 |
-| Depends | `plan/release/fixes/spec-rfc4301-architecture-gaps.md` -- owns exact-or-refuse validation and the observed shipped-kernel baseline |
+| Depends | - (the exact-or-refuse validation and the observed shipped-kernel baseline landed with spec-rfc4301-architecture-gaps, `466ab09fd8`) |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-11-12 |
@@ -162,5 +162,5 @@ config grammar or alternate protocol registry is authorized here.
 
 ## Known Limitations
 This owns the absent exact MH capability. The release correctness repair stays
-owned by `plan/release/fixes/spec-rfc4301-architecture-gaps.md`; recording this
+with spec-rfc4301-architecture-gaps, where it landed (`466ab09fd8`); recording this
 skeleton does not complete that repair or close its remaining validation.

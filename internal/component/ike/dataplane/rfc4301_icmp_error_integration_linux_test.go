@@ -58,10 +58,11 @@ const (
 	icmpErrRemotePort  = 40001
 )
 
-// icmpErrSNMP reads one Icmp counter from the namespace's /proc/thread-self/net/snmp,
-// for the thread reason encapStat gives.
-func icmpErrSNMP(t *testing.T, name string) int {
+// icmpInMsgs reads the Icmp InMsgs counter from the namespace's
+// /proc/thread-self/net/snmp, for the thread reason encapStat gives.
+func icmpInMsgs(t *testing.T) int {
 	t.Helper()
+	const name = "InMsgs"
 	raw, err := os.ReadFile("/proc/thread-self/net/snmp")
 	if err != nil {
 		t.Fatalf("read snmp: %v", err)
@@ -194,7 +195,7 @@ func icmpErrPacket(target, embeddedDst string) []byte {
 func icmpErrSend(t *testing.T, fd int, target, embeddedDst string, wantBlocks int) bool {
 	t.Helper()
 	blocks := encapStat(t, icmpErrStatBlock)
-	msgs := icmpErrSNMP(t, "InMsgs")
+	msgs := icmpInMsgs(t)
 
 	to := &unix.SockaddrInet4{}
 	copy(to.Addr[:], net.ParseIP(target).To4())
@@ -217,7 +218,7 @@ func icmpErrSend(t *testing.T, fd int, target, embeddedDst string, wantBlocks in
 	// value. An accepted one raises InMsgs just after the check that let it through,
 	// on the softirq's CPU, so a reader on another CPU can see the policy counter first:
 	// it waits for InMsgs, bounded by the same deadline.
-	for icmpErrSNMP(t, "InMsgs") == msgs {
+	for icmpInMsgs(t) == msgs {
 		if time.Now().After(deadline) {
 			return false
 		}

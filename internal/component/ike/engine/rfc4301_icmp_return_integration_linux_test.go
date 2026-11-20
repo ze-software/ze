@@ -2,7 +2,6 @@
 
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- ICMP error messages carried by a Child SA.
 // Related: rfc4301_forward_icmp_integration_linux_test.go -- real Child creator and namespace lab.
-// RFC naming: untagged -- actual return packets must be observed before conformance is claimed.
 
 package engine
 
@@ -283,6 +282,9 @@ func icmpReturnPeerCapture(t *testing.T, lab *espPolLab) int {
 // tries the return SA. The peer's capture decrypts the ESP it receives and counts
 // errors in clear, beside a UDP control through the same SA.
 //
+// RFC requirement: RFC4301-6.2-3 positive -- under `unmatched discard` with no operator entry, a forwarded ICMP Destination Unreachable from the protected host, which no SA and no SPD entry carries, that quotes the Child SA's return traffic meets the OUT catch-all (XfrmOutPolBlock rises by one) and is decrypted at the outside peer from that Child SA, and is not seen there in clear.
+// RFC requirement: RFC4301-6.2-3 negative -- the same error quoting traffic no SA carries, which has no return SA to be mapped to, is seen at the outside peer neither protected nor in clear.
+//
 //ze:guest-root
 func TestRFC4301ForwardedICMPErrorsMapUnderDiscard(t *testing.T) {
 	forwardedICMPErrorUnderDiscard(t, 0x7a10, func(quotedDestination string, tag uint16) []byte {
@@ -403,6 +405,8 @@ func icmpReturnForwarded(typ, code byte, quotedDestination string, tag uint16) [
 // The peer's capture decrypts the ESP it receives and counts errors in clear, beside a
 // UDP control through the same SA. It needs K1's feature bit 6 on Ze's kernel.
 //
+// RFC requirement: RFC4301-6-1 negative -- a forwarded ICMP Echo Request from the protected host that an operator out DISCARD for ICMP covers meets that entry's OUT policy (XfrmOutPolBlock rises by one) and is seen at the outside peer neither protected nor in clear.
+//
 //ze:guest-root
 func TestRFC4301ForwardedICMPErrorUnderOperatorDiscardMapsToReturnSA(t *testing.T) {
 	lab := newEspPolLab(t)
@@ -458,6 +462,100 @@ func TestRFC4301ForwardedICMPErrorUnderOperatorDiscardMapsToReturnSA(t *testing.
 	}
 }
 
+// transitEchoPacket is an ICMP Echo Request from source to target, tagged id in its
+// IPv4 identification, which transitArrived matches.
+func transitEchoPacket(source, target string, id uint16) []byte {
+	packet := sadSelIPv4(source, sadSelProtoICMP, sadSelICMPEcho())
+	copy(packet[16:20], net.ParseIP(target).To4())
+	fragmentPacketID(packet, id)
+	return packet
+}
+
+// TestRFC4301OperatorBypassForwardsTransitEchoInClear checks that the disposition of a
+// non-error ICMP message a gateway forwards, not addressed to Ze, is the one an
+// operator SPD entry gives it. RFC 4301 Section 6: "Disposition of non-error, ICMP
+// messages (that are not addressed to the IPsec implementation itself) MUST be
+// explicitly accounted for using SPD entries."
+//
+// Method: the netns lab with the protected host 10.2.0.2 behind Ze and the outside
+// peer 10.1.0.5, the catch-all `unmatched discard` (espPolSPD) and no Child SA. In each
+// forwarding direction an ICMP Echo Request is first sent with no operator entry and
+// must not leave Ze towards its destination, so the catch-all and not some other path
+// decides it. A both-direction operator BYPASS for ICMP between 10.2.0.0/24 and
+// 10.1.0.0/24, checked by the configuration verifier and installed through the
+// reconciler config apply uses, then carries a second Echo Request in each direction,
+// which must be seen leaving Ze in clear on the link towards its destination. The
+// negative, an operator DISCARD covering the same Echo Request, is
+// TestRFC4301ForwardedICMPErrorUnderOperatorDiscardMapsToReturnSA.
+//
+// RFC requirement: RFC4301-6-1 positive -- under `unmatched discard` with no Child SA, a forwarded ICMP Echo Request between the protected host and the outside peer, in each direction, is not forwarded while no operator entry names it, and is seen leaving Ze in clear towards its destination once an operator both-direction BYPASS for ICMP between 10.2.0.0/24 and 10.1.0.0/24 is installed.
+//
+//ze:guest-root
+func TestRFC4301OperatorBypassForwardsTransitEchoInClear(t *testing.T) {
+	lab := newEspPolLab(t)
+	hostSender, peerCapture := fragmentForwardPeers(t, lab)
+	espPolSPD(t)
+
+	lab.enter(t, lab.peer)
+	if err := netlink.RouteAdd(&netlink.Route{
+		LinkIndex: espPolLink(t, espPolPeerLink).Attrs().Index,
+		Dst:       mustCIDRNet(t, "10.2.0.0/24"),
+		Gw:        net.ParseIP(espPolZeOuter),
+	}); err != nil {
+		t.Fatalf("route the peer's cleartext towards the protected host through Ze: %v", err)
+	}
+	peerSender := fragmentRawSender(t, sadSelInnerRemote)
+	lab.enter(t, lab.ze)
+	hostEgress := transitEgressCapture(t, espPolLink(t, fragmentRouterLink).Attrs().Index)
+
+	directions := []struct {
+		name           string
+		sender         *ipv4.RawConn
+		capture        int
+		source, target string
+		id             uint16
+	}{
+		{"remote to local", peerSender, hostEgress, sadSelInnerRemote, fragmentHostAddress, 0x7d01},
+		{"local to remote", hostSender, peerCapture, fragmentHostAddress, sadSelInnerRemote, 0x7d11},
+	}
+	for _, tc := range directions {
+		fragmentSend(t, tc.sender, transitEchoPacket(tc.source, tc.target, tc.id))
+		if transitArrived(t, tc.capture, sadSelProtoICMP, tc.source, tc.target, tc.id) {
+			t.Fatalf("%s: an Echo Request no operator entry names (%s to %s) was forwarded under `unmatched discard`, "+
+				"so the bypass below could not be what admits it", tc.name, tc.source, tc.target)
+		}
+	}
+
+	entries := map[string]ipsec.SPDPolicy{
+		"transit-echo": {
+			Name: "transit-echo", Action: dataplane.SPActionBypass, Order: 1000,
+			Direction: ipsec.SPDDirBoth, Protocol: sadSelProtoICMP,
+			LocalPrefix: mustCIDRNet(t, "10.2.0.0/24"), LocalPort: ipsec.AnyPort(),
+			RemotePrefix: mustCIDRNet(t, "10.1.0.0/24"), RemotePort: ipsec.AnyPort(),
+		},
+	}
+	if err := verifySPDOrder(&ipsec.IPsecConfig{Policies: entries}); err != nil {
+		t.Fatalf("the operator SPD under test is one Ze refuses at commit: %v", err)
+	}
+	log := slogutil.DiscardLogger()
+	// RFC 4301 Section 6.
+	if err := installSPDPolicies(dataplane.Get(), nil, entries, log); err != nil {
+		t.Fatalf("install the operator SPD entry: %v", err)
+	}
+	t.Cleanup(func() { removeSPDPolicies(dataplane.Get(), entries, log) })
+	transitWantInstalled(t, entries)
+
+	for _, tc := range directions {
+		id := tc.id + 1
+		fragmentSend(t, tc.sender, transitEchoPacket(tc.source, tc.target, id))
+		if !transitArrived(t, tc.capture, sadSelProtoICMP, tc.source, tc.target, id) {
+			t.Errorf("%s: the Echo Request the operator bypass names (%s to %s) was not forwarded in clear "+
+				"(XfrmInPolBlock=%d, XfrmInNoPols=%d, XfrmOutPolBlock=%d)", tc.name, tc.source, tc.target,
+				sadSelStat(t, inStepStatPolBlock), sadSelStat(t, "XfrmInNoPols"), sadSelStat(t, outStepStatPolBlock))
+		}
+	}
+}
+
 func localICMPReturn(t *testing.T, check bool) {
 	t.Helper()
 	lab := newEspPolLab(t)
@@ -478,6 +576,14 @@ func localICMPReturn(t *testing.T, check bool) {
 	icmpReturnObserve(t, capture, decoder, trigger, tag, true, check)
 }
 
+// TestRFC4301LocalGeneratedICMPUsesReturnSA checks that an ICMP error Ze's own
+// namespace generates, for an authenticated UDP trigger to a closed port received on a
+// Child SA that carries the mapping flag, leaves through that Child SA's return SA.
+// Method: the trigger arrives encapsulated, the namespace's UDP NoPorts counter rises by
+// one, and the outside peer's capture decrypts the error beside a UDP control.
+//
+// RFC requirement: RFC4301-6.2-3 positive -- under `unmatched discard`, the ICMP error Ze generates for an authenticated trigger received on the Child SA, which no SPD entry carries, is decrypted at the outside peer from that Child SA's return SA and is not seen there in clear.
+//
 //ze:guest-root
 func TestRFC4301LocalGeneratedICMPUsesReturnSA(t *testing.T) {
 	localICMPReturn(t, true)

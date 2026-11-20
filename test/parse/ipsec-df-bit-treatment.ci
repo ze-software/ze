@@ -1,6 +1,6 @@
 # Test: ze config validate accepts df-bit copy and clear on a tunnel-mode IPv4 peer,
 # and refuses every DF treatment no SA of the peer can apply.
-# Spec: plan/release/fixes/spec-rfc4301-architecture-gaps.md (RFC 4301 Section 8.1).
+# Spec: spec-rfc4301-architecture-gaps (RFC 4301 Section 8.1).
 #
 # VALIDATES: RFC 4301 Section 8.1: "This means that it MUST be possible to configure
 #   the implementation's treatment of the DF bit (set, clear, copy from inner

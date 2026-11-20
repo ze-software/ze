@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4301-4.4.2.1-16",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4301_dscp_linux_test.go::TestXFRMStateCarriesTheOuterDSCP",
+    "unit-sha": "55440673aa16703d",
+    "claim-sha": "66f1a4f423b2860a",
+    "route": "revert",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmDSCPFlag",
+    "producer-sha": "31344c0bb9a3a66f",
+    "break": "body of xfrmDSCPFlag replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-4.4.2.1-16",
+    "polarity": "negative",
+    "unit": "internal/component/ike/dataplane/rfc4301_dscp_linux_test.go::TestXFRMStateRefusesOuterDSCPItCannotWrite",
+    "unit-sha": "662c521b767c10bc",
+    "claim-sha": "286f6083178f5f62",
+    "route": "revert",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmDSCPFlag",
+    "producer-sha": "31344c0bb9a3a66f",
+    "break": "body of xfrmDSCPFlag replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

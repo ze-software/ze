@@ -84,7 +84,7 @@ spec must keep it, and no phase can drop it.
 ### Amended scope, 2026-11-19: port ranges
 
 This item moved here from the Work Not Done table of
-`plan/release/fixes/spec-rfc4301-architecture-gaps.md`, because it works the same
+spec-rfc4301-architecture-gaps, because it works the same
 mechanism: the kernel selector's port and its separate port mask.
 
 RFC 4301 Section 4.4.1.1 says: "Each of these selectors has a list of ranges of

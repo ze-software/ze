@@ -72,9 +72,16 @@ func transitEntryPacket(source, target string, port, id uint16) []byte {
 }
 
 // transitEntryArrived reports whether fd saw the UDP packet tagged id from source to
-// target within fragmentCaptureWait. At most 64 frames are read, and a frame that is
-// not IPv4 (the egress capture's ARP) is read and skipped.
+// target within fragmentCaptureWait.
 func transitEntryArrived(t *testing.T, fd int, source, target string, id uint16) bool {
+	t.Helper()
+	return transitArrived(t, fd, sadSelProtoUDP, source, target, id)
+}
+
+// transitArrived reports whether fd saw the IPv4 packet of protocol tagged id from
+// source to target within fragmentCaptureWait. At most 64 frames are read, and a frame
+// that is not IPv4 (the egress capture's ARP) is read and skipped.
+func transitArrived(t *testing.T, fd, protocol int, source, target string, id uint16) bool {
 	t.Helper()
 	deadline := time.Now().Add(fragmentCaptureWait)
 	buf := make([]byte, 65535)
@@ -109,7 +116,7 @@ func transitEntryArrived(t *testing.T, fd int, source, target string, id uint16)
 		if err != nil {
 			t.Fatalf("parse an observed IPv4 header: %v", err)
 		}
-		if header.Protocol == sadSelProtoUDP && header.ID == int(id) &&
+		if header.Protocol == protocol && header.ID == int(id) &&
 			header.Src.Equal(net.ParseIP(source)) && header.Dst.Equal(net.ParseIP(target)) {
 			return true
 		}

@@ -83,3 +83,5 @@ plan/release/fixes/spec-single-owner-lifecycle-4-ike-unauthenticated-input.md
 plan/release/fixes/spec-single-owner-lifecycle-5-session-end-locals.md
 plan/release/fixes/spec-ssh-editor-authorization.md
 plan/release/validation/spec-doctor-coverage-12-plugin-infra.md
+plan/release/fixes/spec-ipsec-vpp-policy-interface.md
+plan/spec-ipsec-vpp-policy-interface.md

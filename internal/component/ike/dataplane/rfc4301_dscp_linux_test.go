@@ -16,6 +16,7 @@ import (
 // PREVENTS: a configured mapping to 0 being installed as a copy, which carries the
 // inner class into a domain where it is not appropriate.
 // RFC requirement: RFC4301-5.1.2.1-1 positive -- an outbound tunnel-mode SA mapping the outer DSCP to 0 is built with DontEncapDSCP, and one copying it without.
+// RFC requirement: RFC4301-4.4.2.1-16 positive -- the SAD entry of an outbound tunnel-mode SA holds its bypass-DSCP choice: copy (bypass true) is built without DontEncapDSCP, and a mapping to 0 (bypass false) is built with it.
 func TestXFRMStateCarriesTheOuterDSCP(t *testing.T) {
 	zero, err := FixedOuterDSCP(0)
 	if err != nil {
@@ -41,6 +42,7 @@ func TestXFRMStateCarriesTheOuterDSCP(t *testing.T) {
 // an SA that builds no outer header.
 // PREVENTS: dscp-map 46 installed as copy or as 0 while the config says 46.
 // RFC requirement: RFC4301-5.1.2.1-1 negative -- a fixed outer DSCP other than 0, or any fixed value on a transport-mode or inbound SA, is refused on Linux XFRM with ErrSAOptionRefused and never with ErrNotSupported, which the engine would keep as a degraded Child SA.
+// RFC requirement: RFC4301-4.4.2.1-16 negative -- a bypass-DSCP mapping asked of a transport-mode SA, which the field does not apply to, is refused on Linux XFRM with ErrSAOptionRefused.
 func TestXFRMStateRefusesOuterDSCPItCannotWrite(t *testing.T) {
 	ef, err := FixedOuterDSCP(46)
 	if err != nil {
