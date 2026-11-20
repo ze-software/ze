@@ -326,10 +326,58 @@ func tacacsMockReplyAcct(conn net.Conn, hdr tacacs.PacketHeader, body, key []byt
 	case flags&0x08 != 0:
 		kind = KindAcctWatchdog
 	}
-	remember(Record{Kind: kind, Seq: hdr.SeqNo, Ordinal: n}, logPackets)
+	command, commandSent := parseAcctCommand(body)
+	remember(Record{Kind: kind, Seq: hdr.SeqNo, Ordinal: n, Command: command, CommandSent: commandSent}, logPackets)
 
 	reply := []byte{0x00, 0x00, 0x00, 0x00, 0x01}
 	tacacsMockSendReply(conn, hdr, reply, key, replyFlags)
+}
+
+// parseAcctCommand answers the command an accounting REQUEST records: its cmd
+// argument and each cmd-arg after it, joined by spaces, as parseAuthorRequest
+// joins them. commandSent is false when the body carries no cmd argument or
+// does not parse, so a .ci can tell "no command recorded" from the empty one.
+//
+// RFC 8907 Section 7.1 body: flags[0] authen_method[1] priv_lvl[2]
+// authen_type[3] authen_service[4] user_len[5] port_len[6] rem_addr_len[7]
+// arg_cnt[8], then arg_cnt length bytes, then user, port, rem_addr and the
+// arguments. The accounting arguments (task_id, start_time, stop_time and
+// Ze's truncation pair) precede cmd and are skipped. The loop is bounded by
+// arg_cnt, one byte, and every length is checked against the body first.
+func parseAcctCommand(body []byte) (command string, commandSent bool) {
+	if len(body) < 9 {
+		return "", false
+	}
+	argCount := int(body[8])
+	off := 9 + argCount
+	if off > len(body) {
+		return "", false
+	}
+	off += int(body[5]) + int(body[6]) + int(body[7])
+	var cmdArgs []string
+	for i := range argCount {
+		argLen := int(body[9+i])
+		if off+argLen > len(body) {
+			return "", false
+		}
+		arg := string(body[off : off+argLen])
+		off += argLen
+		switch {
+		case strings.HasPrefix(arg, "cmd="):
+			command = arg[4:]
+			commandSent = true
+		case strings.HasPrefix(arg, "cmd-arg="):
+			cmdArgs = append(cmdArgs, arg[8:])
+		}
+	}
+	if !commandSent {
+		return "", false
+	}
+	if len(cmdArgs) == 0 {
+		return command, true
+	}
+	var tb textbuf.Buffer
+	return tb.Str(command).Byte(' ').Join(cmdArgs, " ").String(), true
 }
 
 func tacacsMockSendReply(conn net.Conn, hdr tacacs.PacketHeader, body, key []byte, replyFlags uint8) {

@@ -40,11 +40,16 @@ type Record struct {
 	Remote    string // connection and single-connect: the client address
 	Ordinal   uint64 // connection: its number; accounting: the running total
 	User      string // authen and author
-	Command   string // author: the command, arguments joined by spaces
+	Command   string // author and accounting: the command, arguments joined by spaces
 	Pass      bool   // authen and author: the reply passed
 	Status    uint8  // authen: the reply status
 	Privilege string // author: the priv-lvl argument returned, or empty
 	Seq       uint8  // accounting: the packet sequence number
+	// CommandSent is set on an accounting record whose request carried a
+	// cmd argument. Its line then ends with cmd="<Command>", so a request
+	// naming the empty command prints cmd="" and one carrying no cmd
+	// argument prints no cmd field at all.
+	CommandSent bool
 }
 
 // mockPrefix opens every line the mock prints.
@@ -70,6 +75,9 @@ func (r Record) Line() string {
 		tb.Str(" user=").Quoted(r.User).Str(" privilege=").Quoted(r.Privilege)
 	case KindAcctStart, KindAcctStop, KindAcctWatchdog, KindAcctOther:
 		tb.Str("ACCT ").Str(acctKindName(r.Kind)).Str(" seq=").Uint8(r.Seq).Str(" total=").Uint(r.Ordinal)
+		if r.CommandSent {
+			tb.Str(" cmd=").Quoted(r.Command)
+		}
 	case KindUnspecified:
 		tb.Str("unspecified record")
 	default:

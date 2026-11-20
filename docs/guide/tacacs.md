@@ -317,6 +317,13 @@ The `.ci` tests in `test/plugin/` cover the main behaviours:
 | `tacacs-singleconnect.ci` | Single-connect mode TCP reuse |
 | `tacacs-show.ci` | `ze tacacs show` reachability probe, in its table and `| json` renderings |
 
+These tests run against `le mock tacacs`, which prints one stderr line per
+packet it answers. An AUTHOR line names the command it judged
+(`AUTHOR cmd="show bgp" reply=PASS_ADD ...`), and an ACCT line names the
+command the record carries, its `cmd` and `cmd-arg` arguments joined by
+spaces (`ACCT START seq=1 total=3 cmd="show bgp rib | count"`), so a test
+asserts what Ze authorized and what it accounted.
+
 Strict fallback is covered by `TestExtractConfigStrictFallback` and
 `TestTacacsAuthorizerStrictFallbackDeniesUnreachable` in the TACACS+ unit tests.
 
