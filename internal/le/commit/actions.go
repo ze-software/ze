@@ -516,7 +516,7 @@ var createParameters = []leaction.Parameter{
 	reasonParameter(keywordRFCChangeOK, "why the commit changes an unapproved RFC-tagged test unit"),
 	reasonParameter(keywordNoNews, "why a spec closure carries no news fragment (No-news:)"),
 	{Keyword: keywordDecisionChange, Kind: leaction.KindString, Value: "owner words", Requirement: leaction.Optional,
-		Help: "Thomas's words for a changed decision row, from his terminal (Decision-changed:)"},
+		Help: "Thomas's words for a changed decision row"},
 	{Keyword: keywordDryRun, Kind: leaction.KindSwitch, Help: "print the message and the script and write neither"},
 	{Keyword: keywordPush, Retired: `./le commit push "<owner authorisation>"`},
 	{Keyword: "unverified", Retired: noVerifyOwed},
