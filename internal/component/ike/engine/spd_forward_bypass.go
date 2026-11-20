@@ -1,5 +1,5 @@
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- SPD dispositions, transit traffic
-// Related: spd_policy.go -- spdEntryHasTransit, which gives a port-scoped bypass no forward projection
+// Related: spd_policy.go -- spdEntryHasTransit and spdForwardGathers, which project a port-scoped bypass only where the kernel gathers fragments
 // Related: register.go -- OnConfigVerify, where a commit holding such an entry is refused
 // Related: apply.go -- applyConfig, where the start logs such an entry instead
 // Related: doctor_runtime.go -- engineDoctorChecks, where the ipsec-spd-forward-bypass check is declared
@@ -9,6 +9,7 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"maps"
 	"net"
@@ -65,7 +66,8 @@ func readHeldAddresses() (map[netip.Addr]bool, error) {
 }
 
 // spdBypassHasPort reports whether p is a bypass with a port on either side: the entry
-// spdEntryHasTransit gives no forward projection.
+// spdEntryHasTransit projects onto the forward lookup only where the dataplane gathers
+// fragments first, and spdForwardBypassRefusals refuses everywhere else.
 func spdBypassHasPort(p ipsec.SPDPolicy) bool {
 	if p.Action != dataplane.SPActionBypass {
 		return false
@@ -97,24 +99,31 @@ func spdLocalIsHeldAddress(p ipsec.SPDPolicy, held map[netip.Addr]bool) bool {
 
 // spdForwardBypassRefusals answers one refusal for each operator bypass with a port
 // that could match traffic this node forwards, on a dataplane whose forwarding path
-// consults a forward lookup, in entry name order.
+// consults a forward lookup that runs before reassembly, in entry name order.
 //
 // RFC 4301 Section 7.4: "All implementations MUST support stateful fragment checking
 // to accommodate BYPASS traffic for which a non-trivial port range is specified."
-// Linux checks a forwarded packet in FWD before any reassembly and reads port 0 from a
-// non-initial fragment (LL-XFRM-FRAGMENT-SELECTOR), so spdEntryHasTransit projects no
-// port-scoped bypass and the entry decides no forwarded traffic: the operator wrote a
-// bypass that forwarded traffic on its ports never meets. Thomas decided on 2026-11-20
-// that such an entry is refused at commit, not reported in a notice, until the forward
-// path performs the stateful check.
+// Stock Linux checks a forwarded packet in FWD before any reassembly and reads port 0
+// from a non-initial fragment (LL-XFRM-FRAGMENT-SELECTOR), so there spdEntryHasTransit
+// projects no port-scoped bypass and the entry decides no forwarded traffic: the
+// operator wrote a bypass that forwarded traffic on its ports never meets. Thomas
+// decided on 2026-11-20 that such an entry is refused at commit, not reported in a
+// notice, until the forward path performs the stateful check. Ze's kernel performs it
+// (K3, capability bit 3: spdForwardGathers answers true), and there the entry is
+// projected and nothing is refused.
 //
-// Three cases are not refused, because the entry does what it says there:
+// Four cases are not refused, because the entry does what it says there:
 //   - No dataplane is loaded: nothing is installed.
 //   - The dataplane applies its inbound SPD before routing (VPP): every entry it holds
 //     decides forwarded traffic already (spdEntryPolicies).
+//   - The dataplane's forward check sees whole datagrams (spdForwardGathers): the entry
+//     is projected onto it (spdEntryHasTransit).
 //   - The local prefix is one address this host holds: the entry names only traffic to
 //     and from Ze, which is reassembled before the inbound check (ip_local_deliver) and
 //     classified before it is fragmented on output.
+//
+// A gathering answer the dataplane could not read refuses, with the read failure as the
+// refusal's cause: spdEntryPolicies projects no port-scoped bypass on it either.
 func spdForwardBypassRefusals(dp dataplane.Dataplane, policies map[string]ipsec.SPDPolicy) []*opererr.Error {
 	// refuse-by-default: guards installChildTolerant -- with no dataplane loaded no entry
 	// is installed, so none can miss forwarded traffic.
@@ -122,6 +131,11 @@ func spdForwardBypassRefusals(dp dataplane.Dataplane, policies map[string]ipsec.
 		return nil
 	}
 	if !dp.RequiresForwardPolicy() {
+		return nil
+	}
+	// RFC 4301 Section 7.4
+	gathers, gatherErr := spdForwardGathers(dp)
+	if gathers {
 		return nil
 	}
 	var refusals []*opererr.Error
@@ -140,35 +154,40 @@ func spdForwardBypassRefusals(dp dataplane.Dataplane, policies map[string]ipsec.
 		if spdLocalIsHeldAddress(p, held) {
 			continue
 		}
-		refusals = append(refusals, spdForwardBypassRefusal(p, heldErr))
+		refusals = append(refusals, spdForwardBypassRefusal(p, gatherErr, heldErr))
 	}
 	return refusals
 }
 
 // spdForwardBypassRefusal is the refusal of one port-scoped bypass that forwarded
-// traffic can match. heldErr is why this host's addresses could not be read, or nil.
-func spdForwardBypassRefusal(p ipsec.SPDPolicy, heldErr error) *opererr.Error {
+// traffic can match. gatherErr is why the dataplane could not say whether its forward
+// check sees whole datagrams, and heldErr why this host's addresses could not be read;
+// either is nil when its read answered.
+func spdForwardBypassRefusal(p ipsec.SPDPolicy, gatherErr, heldErr error) *opererr.Error {
 	side, other := "local", "remote"
 	if p.LocalPort.IsAny() {
 		side, other = "remote", "local"
 	}
 	problem := "vpn ipsec policy " + p.Name + " is a bypass with a port, and Ze cannot apply it to the traffic it forwards"
-	why := "Linux checks forwarded traffic before it reassembles it and reads port 0 from every fragment " +
-		"but the first, and RFC 4301 Section 7.4 requires stateful fragment checking for such a bypass, " +
-		"which Ze does not perform for forwarded traffic yet. Forwarded traffic on the entry's ports would " +
-		"meet the next entry instead, and under unmatched discard it is dropped. A bypass with both ports " +
-		"any is accepted, and so is a discard with a port, or a bypass whose local prefix is one address " +
-		"of this host (traffic to and from Ze is reassembled before it is checked)"
+	why := "This kernel checks forwarded traffic before it reassembles it and reads port 0 from every fragment " +
+		"but the first, and RFC 4301 Section 7.4 requires stateful fragment checking for such a bypass. " +
+		"Forwarded traffic on the entry's ports would meet the next entry instead, and under unmatched discard " +
+		"it is dropped. Ze's runtime kernel performs the check (its XFRM fragment guard reassembles forwarded " +
+		"fragments first, capability bit 3) and accepts the entry. A bypass with both ports any is accepted on " +
+		"any kernel, and so is a discard with a port, or a bypass whose local prefix is one address of this " +
+		"host (traffic to and from Ze is reassembled before it is checked)"
 	if !p.LocalPort.IsAny() && !p.RemotePort.IsAny() {
 		why += ". Set " + other + " port any as well"
 	}
-	fix := "set vpn ipsec policy " + p.Name + " " + side + " port any"
-	if heldErr != nil {
-		return opererr.Wrap(heldErr, problem,
-			why+". Ze could not read this host's addresses, so it cannot tell whether the local prefix is one of them",
-			fix)
+	if gatherErr != nil {
+		why += ". Ze could not read whether this kernel reassembles forwarded fragments first"
 	}
-	return opererr.New(problem, why, fix)
+	if heldErr != nil {
+		why += ". Ze could not read this host's addresses, so it cannot tell whether the local prefix is one of them"
+	}
+	fix := "set vpn ipsec policy " + p.Name + " " + side + " port any\n" +
+		"or, to keep the port, build and boot Ze's runtime kernel:\n" + dataplane.RuntimeKernelBuildFix()
+	return opererr.Wrap(errors.Join(gatherErr, heldErr), problem, why, fix)
 }
 
 // verifyForwardBypass is the commit half: it answers the first refusal, so the commit
@@ -209,7 +228,7 @@ func answerSPDForwardBypass(s *ikeEngineState) []rpc.DoctorCheckDiagnostic {
 	for _, refusal := range refusals {
 		message := refusal.Problem() + ". " + refusal.Why() + "."
 		if cause := refusal.Unwrap(); cause != nil {
-			message += " The address read answered: " + cause.Error() + "."
+			message += " The read answered: " + cause.Error() + "."
 		}
 		out = append(out, rpc.DoctorCheckDiagnostic{
 			Code:     diagnostic.CodeDoctorIPsecSPDForwardBypass,

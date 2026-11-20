@@ -19,6 +19,12 @@ func newXFRMBackend() (Dataplane, error) {
 // RequiresForwardPolicy preserves XFRM's policy model; installation remains unsupported.
 func (b *xfrmBackend) RequiresForwardPolicy() bool { return true }
 
+// GathersForwardFragments has no kernel to ask on this platform, so it answers that it
+// cannot tell rather than that the kernel does not gather.
+func (b *xfrmBackend) GathersForwardFragments() (bool, error) {
+	return false, fmt.Errorf("%w: xfrm not available on %s", ErrNotSupported, runtime.GOOS)
+}
+
 func (b *xfrmBackend) InstallSA(_ SAParams) error {
 	return fmt.Errorf("%w: xfrm not available on %s", ErrNotSupported, runtime.GOOS)
 }

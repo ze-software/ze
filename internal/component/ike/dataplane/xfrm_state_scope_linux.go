@@ -9,7 +9,7 @@ package dataplane
 import (
 	"errors"
 	"fmt"
-	"runtime"
+	"sync"
 
 	"github.com/vishvananda/netlink"
 
@@ -66,14 +66,64 @@ func checkXFRMStateScopeCapabilities() error {
 }
 
 func xfrmStateScopeRefusal(cause error) error {
-	// Keep the exact native command contract of RuntimeKernelBuild in
-	// internal/le/build/hostdriver/hostdriver.go. Shipped dataplane code MUST NOT
-	// import le's build tooling to format the repair.
-	fix := "  ./le build host-driver\n  ./ze-host appliance kernel --target runtime --arch " + runtime.GOARCH
 	return opererr.Wrap(errors.Join(ErrSAOptionRefused, cause),
 		"Ze cannot verify kernel support for the IPsec SA's complete traffic selector scope",
 		"the SA needs verified state, ICMP quote, ICMP reverse and fragment checks, the forwarded ICMP error mapping and the forwarded ICMP error past a transit gate, before any state can be installed; rebuild and boot Ze's native runtime kernel",
-		fix)
+		RuntimeKernelBuildFix())
+}
+
+// xfrmForwardGather keeps the first answer GathersForwardFragments read from the live
+// kernel. The zero value has read nothing. Safe for concurrent use: mu guards both
+// fields.
+type xfrmForwardGather struct {
+	mu      sync.Mutex
+	known   bool
+	gathers bool
+}
+
+// GathersForwardFragments reports whether the live kernel advertises K3's fragment
+// guard, capability bit 3 (xfrmZECapFragmentGuard). While any policy whose selector
+// holds a protocol or a port owns a guard reference, which every port-scoped BYPASS
+// does, a template-free one in FWD included (xfrm_policy_insert takes it before
+// publication, xfrm_policy_hold_fragment_guard), the PRE_ROUTING hooks
+// xfrm4_fragment_gather and xfrm6_fragment_gather reassemble every fragment ahead of
+// ip_forward's XFRM_POLICY_FWD check, so that check reads the ports of the whole
+// datagram. A fragment that never completes stays in the queue until it expires and is
+// never forwarded.
+//
+// RFC 4301 Section 7.4: "All implementations MUST support stateful fragment checking to
+// accommodate BYPASS traffic for which a non-trivial port range is specified."
+//
+// A GETDEFAULT answer without Ze's receipt proves no guard, which is the answer false.
+// A read that fails, or a receipt that is not Ze's ABI, is no answer, and its error is
+// returned with false.
+//
+// The first answer is kept, so every later call repeats it. The bit cannot change while
+// the kernel runs (xfrm_fragment_ready is __ro_after_init, set once by
+// xfrm_fragment_init), and the engine derives one set of policies for an entry's
+// install, replacement and removal from this answer (engine/spd_policy.go,
+// spdEntryPolicies): a later read that failed would otherwise split them. A failure
+// keeps nothing, so the next call reads again.
+func (b *xfrmBackend) GathersForwardFragments() (bool, error) {
+	b.forwardGather.mu.Lock()
+	defer b.forwardGather.mu.Unlock()
+	if b.forwardGather.known {
+		return b.forwardGather.gathers, nil
+	}
+	caps, err := xfrmScopeCapsRead()
+	if errors.Is(err, errXFRMZECapabilitiesAbsent) {
+		b.forwardGather.known = true
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("read the kernel's XFRM capability receipt: %w", err)
+	}
+	if caps == nil {
+		return false, errors.New("the kernel returned no capability receipt")
+	}
+	b.forwardGather.known = true
+	b.forwardGather.gathers = caps.Features.Has(xfrmZECapFragmentGuard)
+	return b.forwardGather.gathers, nil
 }
 
 // xfrmStateScopeFromParams projects only owned records. For transport the kernel

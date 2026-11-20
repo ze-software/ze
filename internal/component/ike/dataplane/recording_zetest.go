@@ -116,6 +116,10 @@ func (d *recordingDataplane) Close() error                         { return nil 
 // CatchAllSupported answers yes: the backend holds an entry bound to no interface.
 func (d *recordingDataplane) CatchAllSupported() error { return nil }
 
+// GathersForwardFragments answers no: the backend records SPD writes and carries no
+// packet, so it reassembles none, and it has no forward lookup (RequiresForwardPolicy).
+func (d *recordingDataplane) GathersForwardFragments() (bool, error) { return false, nil }
+
 // SAOptionsSupported answers yes: the backend records SPD writes and carries no
 // packet, so no option is left unapplied.
 func (d *recordingDataplane) SAOptionsSupported(SAOptions) error { return nil }

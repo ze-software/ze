@@ -33,6 +33,11 @@ func (noopDataplane) Close() error                                     { return 
 // CatchAllSupported answers yes, as every other install of this test-only backend does.
 func (noopDataplane) CatchAllSupported() error { return nil }
 
+// GathersForwardFragments answers no: this backend carries no packet, so it reassembles
+// none. It has no forward lookup either (RequiresForwardPolicy), so the engine never
+// projects an entry onto one.
+func (noopDataplane) GathersForwardFragments() (bool, error) { return false, nil }
+
 // SAOptionsSupported answers yes, as every other install of this test-only backend
 // does: it carries no packet, so no option is left unapplied.
 func (noopDataplane) SAOptionsSupported(SAOptions) error { return nil }

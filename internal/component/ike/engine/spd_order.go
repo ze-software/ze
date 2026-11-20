@@ -52,9 +52,9 @@ import (
 // The forward projection of each side joins the comparison (spdJudgedPolicies): an
 // operator entry's transit decisions sit at its order, and a tunnel-mode peer's forward
 // entries at its policy-priority and one rank below it (peerConfiguredPolicies). The
-// verifier runs with no dataplane in hand, so it judges the set Linux XFRM installs,
-// the only backend with a forward lookup; on VPP a pair that meets only in FWD is
-// refused although VPP would install neither forward entry. The gates of
+// verifier runs with no dataplane in hand, so it judges the set Linux XFRM installs on
+// Ze's kernel, the only backend with a forward lookup; on VPP a pair that meets only in
+// FWD is refused although VPP would install neither forward entry. The gates of
 // spdTransitPolicies are judged for a shared selector only: they are allows at one rank
 // beneath every configured one, so an order between two of them is never observable.
 func spdOrderRefusals(cfg *ipsec.IPsecConfig) []*opererr.Error {
@@ -104,9 +104,12 @@ func spdOrderRefusals(cfg *ipsec.IPsecConfig) []*opererr.Error {
 // spdJudgedPolicies is what the order check compares for one operator entry: its out
 // and in halves and its transit decisions, all at its order, and with gates its transit
 // gates as well (spdTransitPolicies). It is spdEntryPolicies on a dataplane with a
-// forward lookup.
+// forward lookup that gathers fragments (Ze's kernel, capability bit 3), the widest set
+// XFRM installs: the verifier runs with no dataplane in hand, so it judges a port-scoped
+// bypass's forward entries too, and on a kernel without the bit it refuses a pair that
+// meets only there although neither forward entry would be installed.
 func spdJudgedPolicies(p ipsec.SPDPolicy, gates bool) []dataplane.SPParams {
-	transit := spdTransitPolicies(p)
+	transit := spdTransitPolicies(p, true)
 	out := spdPolicyParams(p)
 	out = append(out, transit.decisions...)
 	if !gates {

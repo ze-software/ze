@@ -686,23 +686,40 @@ TSr TCP installs TCP.
 <!-- source: internal/component/ike/engine/child_forward_policy_linux_test.go -- TestChildTunnelForwardsProtectedHostTraffic -->
 
 **A port-scoped operator bypass that forwarded traffic can match is refused at
-commit, until the forward path performs the stateful fragment check.** Thomas
-decided this on 2026-11-20 ("refusal until done"), in place of a notice at commit.
-No port-scoped bypass reaches the forward lookup (`spdEntryHasTransit`, "Transit
-traffic" below), so such an entry bypasses nothing Ze forwards. The refusal binds a
-dataplane whose `RequiresForwardPolicy` answers true (XFRM). It spares three cases
-where the entry does what it says: no dataplane is loaded; the dataplane applies its
-inbound SPD before routing (VPP); the local prefix is one address the host holds,
-because traffic to and from Ze is reassembled before the inbound check and is
-classified before it is fragmented on output. A start never refuses the IPsec block
-(owner decision 3 (a) of 2026-11-19), so the start installs the entry for Ze's own
-traffic, logs it at Error, and the `ipsec-spd-forward-bypass` doctor check reports
-it, judged on the addresses the host holds when it runs. The refusal is lifted when
-the engine projects a port-scoped bypass onto FWD on a kernel whose receipt carries
-capability bit 3: K3 then reassembles every fragment at PRE_ROUTING while a
-port-scoped policy exists, so the FWD check sees the ports of the whole datagram.
+commit on a kernel whose forward path does not perform the stateful fragment
+check.** Thomas decided this on 2026-11-20 ("refusal until done"), in place of a
+notice at commit. The forward path performs the check on a kernel whose receipt
+carries capability bit 3: while any policy with a protocol or port selector holds
+a guard reference (`xfrm_policy_hold_fragment_guard`, which covers template-free
+BYPASS policies in FWD), K3's `xfrm4_fragment_gather` and `xfrm6_fragment_gather`
+reassemble every fragment at PRE_ROUTING, ahead of `ip_forward`'s FWD check, so the
+check reads the ports of the whole datagram and a fragment of no complete datagram
+stays queued until it expires. There the engine projects the port-scoped bypass
+onto FWD (`spdEntryHasTransit`, "Transit traffic" below) and nothing is refused.
+The dataplane answers the question through `dataplane.ForwardFragmentGatherer`:
+the XFRM backend reads bit 3 from a fresh receipt and keeps its first answer, since
+the bit is fixed for the kernel's boot and install, replacement and removal must
+derive one policy set; a receipt it cannot read is an error, never "does not
+gather". On any other kernel no port-scoped bypass reaches the forward lookup, so
+such an entry bypasses nothing Ze forwards, and the refusal binds a dataplane whose
+`RequiresForwardPolicy` answers true (XFRM). It spares three cases where the entry
+does what it says: no dataplane is loaded; the dataplane applies its inbound SPD
+before routing (VPP); the local prefix is one address the host holds, because
+traffic to and from Ze is reassembled before the inbound check and is classified
+before it is fragmented on output. An unreadable gathering answer refuses, naming
+the read failure. The refusal's fix names both routes: the any-port form, and the
+build of Ze's runtime kernel (`dataplane.RuntimeKernelBuildFix`). A start never
+refuses the IPsec block (owner decision 3 (a) of 2026-11-19), so the start installs
+the entry for Ze's own traffic, logs it at Error, and the `ipsec-spd-forward-bypass`
+doctor check reports it, judged on the addresses the host holds when it runs.
 
 <!-- source: internal/component/ike/engine/spd_forward_bypass.go -- spdForwardBypassRefusals, verifyForwardBypass, warnForwardBypassAtStart, answerSPDForwardBypass -->
+<!-- source: internal/component/ike/engine/spd_policy.go -- spdEntryHasTransit, spdForwardGathers -->
+<!-- source: internal/component/ike/dataplane/forward_fragments.go -- ForwardFragmentGatherer, RuntimeKernelBuildFix -->
+<!-- source: internal/component/ike/dataplane/xfrm_state_scope_linux.go -- GathersForwardFragments -->
+<!-- source: gokrazy/kernel/patches/0003-xfrm-state-scope.patch -- xfrm_policy_hold_fragment_guard -->
+<!-- test: internal/component/ike/engine/spd_forward_bypass_test.go TestPortScopedBypassForwardPathFollowsFragmentGathering -->
+<!-- test: internal/component/ike/dataplane/forward_fragments_linux_test.go TestXFRMGathersForwardFragmentsReadsCapabilityBit3 -->
 <!-- source: internal/component/ike/engine/register.go -- OnConfigVerify -->
 <!-- source: gokrazy/kernel/patches/0005-xfrm-fragment-guard.patch -- xfrm4_fragment_gather, xfrm6_fragment_gather -->
 
@@ -1497,8 +1514,10 @@ and delivery entries sit), that overlap (`dataplane.PolicySelectorsOverlap` over
 the installed projections, the transit decisions below included) at one rank, and
 two entries that install one selector, transit gates included; the start logs the
 same pairs at Error (`warnSPDOrderAtStart`). The verifier runs with no dataplane,
-so it judges the XFRM set: on VPP a pair that meets only in FWD is refused although
-neither forward entry would be installed.
+so it judges the XFRM set on Ze's kernel, a port-scoped bypass's forward entries
+included (`spdJudgedPolicies`): on VPP, or for such a bypass on a kernel without
+capability bit 3, a pair that meets only in FWD is refused although neither
+forward entry would be installed.
 
 ### Transit traffic
 
@@ -1535,24 +1554,32 @@ template-free entry but a Child SA's), and `show vpn ipsec dataplane policy` lis
 each policy with its direction, the `operator` role and its priority. VPP gets no
 forward entry, because its inbound SPD applies before routing.
 
-Two shapes get no projection, because the forward check runs before any
-reassembly and would read them wider than written:
+Two shapes can get no projection, because a forward check that runs before
+reassembly would read them wider than written:
 
-- A bypass with a port. RFC 4301 Section 7.4: "All implementations MUST support
-  stateful fragment checking to accommodate BYPASS traffic for which a
-  non-trivial port range is specified." The forward check classifies a
-  non-initial fragment with port 0 (`LL-XFRM-FRAGMENT-SELECTOR`), and the
-  stateful check is the kernel route of owner decision 1, whose capability Ze
-  does not hold yet. Until it does, no port-scoped bypass is stored in FWD
+- A bypass with a port, projected only on a kernel that gathers fragments. RFC
+  4301 Section 7.4: "All implementations MUST support stateful fragment checking
+  to accommodate BYPASS traffic for which a non-trivial port range is
+  specified." Stock Linux classifies a forwarded non-initial fragment with port 0
+  (`LL-XFRM-FRAGMENT-SELECTOR`). The stateful check is the kernel route of owner
+  decision 1: on a kernel whose receipt carries capability bit 3, K3 reassembles
+  every fragment at PRE_ROUTING while a port-scoped policy exists, so the FWD
+  check reads the whole datagram's ports, and the entry gets its decision and
+  gates like any other (`spdForwardGathers`,
+  `TestPortScopedBypassForwardPathFollowsFragmentGathering`; the packet proof is
+  the unmatched-discard half of
+  `TestRFC4301ForwardedFragmentsRespectOperatorDisposition`, where a bypassed
+  datagram's fragments cross and a lone tail or a datagram no entry names stays
+  behind). On any other kernel no port-scoped bypass is stored in FWD
   (`TestPortScopedBypassNeverReachesTheForwardPath`), so forwarded traffic on its
   ports would keep the disposition of the next entry that matches it. A commit
-  therefore refuses such an entry unless its local prefix is one address the host
+  there refuses such an entry unless its local prefix is one address the host
   holds (Thomas, 2026-11-20, "refusal until done"; Decisions above), and a start
   installs it for Ze's own traffic, logs it at Error and reports it through the
-  `ipsec-spd-forward-bypass` doctor check. A port-scoped discard is projected, since
-  it can only drop what another entry would admit; a forwarded non-initial
-  fragment of its traffic, read with port 0, still escapes it to the next entry
-  (AC-2 of the RFC 4301 architecture spec).
+  `ipsec-spd-forward-bypass` doctor check. A port-scoped discard is projected on
+  every kernel, since it can only drop what another entry would admit; without
+  bit 3 a forwarded non-initial fragment of its traffic, read with port 0, still
+  escapes it to the next entry (AC-2 of the RFC 4301 architecture spec).
 - An ICMP selector that holds type 0 code 0, which is what Linux reads from every
   fragment (`ICMPSelector.MatchesFragmentTypeCode`). The commit refuses such an
   `out` or `both` entry (`validateICMPFragments`); an `in` entry is accepted for

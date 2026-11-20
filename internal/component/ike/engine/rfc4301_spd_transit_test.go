@@ -297,8 +297,10 @@ func TestSPDOrderJudgesTheForwardEntries(t *testing.T) {
 // for which a non-trivial port range is specified." A bypass whose ports are both any
 // names no port range, and the forward path is where Ze hands it: its remote-to-local
 // decision at its order and its local-to-remote gate. The same entry with a local port
-// is handed none, so the withholding TestPortScopedBypassNeverReachesTheForwardPath
-// proves is tied to the port and is not a refusal of every forward bypass.
+// is handed none on a dataplane that does not gather fragments (transitForwardDP
+// declares no dataplane.ForwardFragmentGatherer), so the withholding
+// TestPortScopedBypassNeverReachesTheForwardPath proves is tied to the port and is not a
+// refusal of every forward bypass.
 // METHOD: spdEntryPolicies over a forward-lookup dataplane for a both-direction UDP
 // bypass with both ports any, then with local port 161, reading every FWD policy.
 // PREVENTS: a port test that withholds every bypass from FWD, which would pass the
@@ -306,7 +308,7 @@ func TestSPDOrderJudgesTheForwardEntries(t *testing.T) {
 //
 // RFC requirement: RFC4301-7.4-2 negative -- an operator BYPASS with both ports any
 // reaches the forward path in both orientations, and the same entry with a local port
-// does not.
+// does not on a dataplane that does not gather fragments.
 func TestAnyPortBypassReachesTheForwardPath(t *testing.T) {
 	dp := transitForwardDP()
 	entry := transitEntry(t, dataplane.SPActionBypass, ipsec.SPDDirBoth)

@@ -1493,14 +1493,18 @@ these with role `operator`. Linux tells which way a forwarded packet travels onl
 by its addresses, so an entry whose local and remote prefixes overlap also
 decides the overlapping part of the other direction.
 
-A bypass with a port decides only traffic to and from Ze, not forwarded traffic.
-Linux classifies a forwarded fragment before reassembling it, reading port 0 from
-every fragment but the first, and RFC 4301 Section 7.4 requires "stateful
-fragment checking to accommodate BYPASS traffic for which a non-trivial port
-range is specified", which Ze cannot perform for forwarded traffic yet. On Linux
-a commit therefore refuses a bypass with a port, unless its `local prefix` is one
-address of this host (a /32 or /128 that an interface holds), because forwarded
-traffic on that port would meet the next entry instead:
+A bypass with a port decides forwarded traffic only on Ze's runtime kernel.
+RFC 4301 Section 7.4 requires "stateful fragment checking to accommodate BYPASS
+traffic for which a non-trivial port range is specified". Ze's kernel performs
+it: while any entry with a port is installed, its XFRM fragment guard
+reassembles every forwarded fragment before the forward check, so that check
+reads the ports of the whole datagram, and a fragment of no complete datagram is
+never forwarded. Ze projects the bypass onto the forward check there and accepts
+it. Any other Linux kernel classifies a forwarded fragment before reassembling
+it, reading port 0 from every fragment but the first, so on such a kernel a
+commit refuses a bypass with a port, unless its `local prefix` is one address of
+this host (a /32 or /128 that an interface holds), because forwarded traffic on
+that port would meet the next entry instead:
 
 ```
 set vpn ipsec policy ssh-ze action bypass
@@ -1510,13 +1514,15 @@ set vpn ipsec policy ssh-ze local port 22
 set vpn ipsec policy ssh-ze remote prefix 198.51.100.0/24
 ```
 
-is accepted when 192.0.2.1 is an address of this host, and refused for a
-protected subnet such as 10.1.0.0/16, with the fix
-`set vpn ipsec policy ssh-ze local port any`. Write the bypass with both ports
-`any` to pass forwarded traffic. A discard with a port is accepted and does
-decide forwarded traffic, except a fragment after the first, which no port can
-match. With VPP the refusal does not apply, because VPP checks forwarded traffic
-in its inbound SPD. A configuration Ze starts with is not refused: the entry is
+is accepted on such a kernel when 192.0.2.1 is an address of this host, and
+refused for a protected subnet such as 10.1.0.0/16. The refusal names two fixes:
+`set vpn ipsec policy ssh-ze local port any`, which passes every port, or
+building and booting Ze's runtime kernel, which keeps the port. A discard with a
+port is accepted on every kernel and decides forwarded traffic; on a kernel
+without the fragment guard a fragment after the first escapes it, because no
+port can match that fragment. With VPP the refusal does not apply, because VPP
+checks forwarded traffic in its inbound SPD. A configuration Ze starts with is
+not refused: the entry is
 installed for Ze's own traffic, logged at Error, and `ze doctor` reports it
 (`ipsec-spd-forward-bypass`, code `doctor-ipsec-spd-forward-bypass`), also when
 an address the entry named has left the host.

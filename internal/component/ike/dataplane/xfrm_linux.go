@@ -73,6 +73,10 @@ type xfrmBackend struct {
 	// forwardDefault retains the namespace's original FWD disposition across reloads.
 	// Failed policy removals keep this lease; Close must not restore it independently.
 	forwardDefault *xfrmForwardDefaultLease
+
+	// forwardGather keeps the kernel's answer to GathersForwardFragments
+	// (xfrm_state_scope_linux.go) once it has given one.
+	forwardGather xfrmForwardGather
 }
 
 func newXFRMBackend() (Dataplane, error) {

@@ -34,11 +34,15 @@ func portScopedBypasses(policies []dataplane.SPParams) []dataplane.SPParams {
 	return out
 }
 
-// VALIDATES: RFC4301-7.4-2. Every port-scoped BYPASS entry Ze can install is confined
-// to the two directions in which the Linux stack completes fragment reassembly before
-// the XFRM policy check reads the ports. Ze projects an operator entry into the forward
-// direction only when both its ports are any (spdEntryPolicies, D-3), and the forward
-// path is the one place the check classifies a non-initial fragment.
+// VALIDATES: RFC4301-7.4-2. On a dataplane whose forward check runs before reassembly
+// (stock Linux; forwardPolicyDP declares no dataplane.ForwardFragmentGatherer), every
+// port-scoped BYPASS entry Ze can install is confined to the two directions in which
+// the Linux stack completes fragment reassembly before the XFRM policy check reads the
+// ports. There Ze projects an operator entry into the forward direction only when both
+// its ports are any (spdEntryPolicies, D-3), and the forward path is the one place the
+// check classifies a non-initial fragment. On Ze's kernel, whose fragment guard
+// reassembles at PRE_ROUTING (capability bit 3), the entry is projected instead
+// (TestPortScopedBypassForwardPathFollowsFragmentGathering).
 //
 // THE KERNEL HALF, read in Linux v6.8 and not inferred:
 //
@@ -72,8 +76,9 @@ func portScopedBypasses(policies []dataplane.SPParams) []dataplane.SPParams {
 // be classified against a non-initial fragment whose ports read as zero, which is the
 // forged-fragment bypass RFC 4301 Section 7.4 and Appendix D.4 describe, and no test
 // over the priority numbers or the selector prefixes would see it.
-// RFC requirement: RFC4301-7.4-2 positive -- no port-scoped bypass reaches the
-// forward path, where the kernel would classify a non-initial fragment.
+// RFC requirement: RFC4301-7.4-2 positive -- on a dataplane that does not gather
+// fragments, no port-scoped bypass reaches the forward path, where the kernel would
+// classify a non-initial fragment.
 func TestPortScopedBypassNeverReachesTheForwardPath(t *testing.T) {
 	var all []dataplane.SPParams
 

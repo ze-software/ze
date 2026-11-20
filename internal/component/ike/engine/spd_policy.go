@@ -79,15 +79,23 @@ func spdPolicyHasDirection(d ipsec.SPDDirection, dir dataplane.SADir) bool {
 // in halves (spdPolicyParams), then, on a dataplane whose forwarding path consults a
 // forward lookup, its transit projection (spdTransitPolicies), decisions before gates.
 // Install, undo, replacement and shutdown all read this one set, so they cannot
-// disagree on it. A dataplane that applies its inbound SPD before routing (VPP) needs
-// no forward entry, and is not handed one: it would refuse the direction.
+// disagree on it: dp's answer on fragment gathering, which the set depends on, does not
+// change while dp is loaded (dataplane.ForwardFragmentGatherer). A dataplane that
+// applies its inbound SPD before routing (VPP) needs no forward entry, and is not
+// handed one: it would refuse the direction.
 func spdEntryPolicies(dp dataplane.Dataplane, p ipsec.SPDPolicy) []dataplane.SPParams {
 	halves := spdPolicyParams(p)
 	if !dp.RequiresForwardPolicy() {
 		return halves
 	}
-	// RFC 4301 Section 6.
-	transit := spdTransitPolicies(p)
+	// refuse-by-default: guards spdEntryHasTransit -- a gathering answer dp could not
+	// read projects no port-scoped bypass. verifyForwardBypass refuses such an entry at
+	// commit with the same read failure as its cause, and warnForwardBypassAtStart and
+	// the ipsec-spd-forward-bypass doctor check report it, so the omission is never
+	// silent.
+	gathers, err := spdForwardGathers(dp)
+	// RFC 4301 Sections 6 and 7.4.
+	transit := spdTransitPolicies(p, gathers && err == nil)
 	out := make([]dataplane.SPParams, 0, len(halves)+len(transit.decisions)+len(transit.gates))
 	out = append(out, halves...)
 	out = append(out, transit.decisions...)
@@ -131,9 +139,14 @@ type spdTransit struct {
 // the set (selector, direction and if_id, never the priority) is left out: the kernel
 // would replace the first with it. Decisions are taken before gates for that reason, so
 // an entry whose local and remote sides are equal keeps its decision at its order.
-func spdTransitPolicies(p ipsec.SPDPolicy) spdTransit {
+//
+// gathers is the dataplane's answer to whether its forward check sees whole datagrams
+// (spdForwardGathers), which decides whether a port-scoped bypass is projected
+// (spdEntryHasTransit).
+func spdTransitPolicies(p ipsec.SPDPolicy, gathers bool) spdTransit {
 	var transit spdTransit
-	if !spdEntryHasTransit(p) {
+	// RFC 4301 Section 7.4
+	if !spdEntryHasTransit(p, gathers) {
 		return transit
 	}
 	halves := spdPolicyParams(p)
@@ -185,32 +198,56 @@ func appendSPDTransit(list []dataplane.SPParams, held map[spdSelector]bool, sp d
 	return append(list, sp)
 }
 
-// spdEntryHasTransit reports whether an operator entry gets a forwarding projection. Two
-// shapes do not, and both are entries the forward check would read wider than written,
-// because that check runs before any reassembly:
+// spdEntryHasTransit reports whether an operator entry gets a forwarding projection.
+// gathers is the dataplane's answer to whether its forward check sees whole datagrams
+// (spdForwardGathers). Two shapes may not, both entries the forward check would read
+// wider than written when that check runs before reassembly:
 //
-//   - A bypass with a port. RFC 4301 Section 7.4: "All implementations MUST support
-//     stateful fragment checking to accommodate BYPASS traffic for which a non-trivial
-//     port range is specified." The forward check classifies a non-initial fragment with
-//     port 0 (LL-XFRM-FRAGMENT-SELECTOR), and the stateful check that would give such a
-//     fragment the disposition of its datagram is the kernel route of owner decision 1,
-//     whose capability Ze does not hold yet. Until it does, no port-scoped bypass is
-//     stored in FWD (TestPortScopedBypassNeverReachesTheForwardPath), so transit traffic
-//     its ports name keeps the disposition of the next entry that matches it. A
-//     port-scoped discard is projected: it can only drop what another entry would admit.
+//   - A bypass with a port (spdBypassHasPort), projected only when gathers is true.
+//     RFC 4301 Section 7.4: "All implementations MUST support stateful fragment checking
+//     to accommodate BYPASS traffic for which a non-trivial port range is specified."
+//     Stock Linux checks a forwarded packet in FWD before any reassembly and classifies a
+//     non-initial fragment with port 0 (LL-XFRM-FRAGMENT-SELECTOR). Ze's kernel route of
+//     owner decision 1 is the stateful check: with K3's fragment guard (capability bit 3,
+//     dataplane.ForwardFragmentGatherer) the kernel reassembles every fragment at
+//     PRE_ROUTING while a port-scoped policy exists, so the FWD check reads the ports of
+//     the whole datagram and a fragment of no complete datagram is never forwarded.
+//     Without it no port-scoped bypass is stored in FWD
+//     (TestPortScopedBypassNeverReachesTheForwardPath), and the commit refuses such an
+//     entry unless it names only this host's traffic (spdForwardBypassRefusals). A
+//     port-scoped discard is projected either way: it can only drop what another entry
+//     would admit.
 //   - An ICMP selector holding type 0 code 0, which is what Linux reads from every
 //     fragment (ipsec.ICMPSelector.MatchesFragmentTypeCode). Its forward entry would also
 //     take every forwarded ICMP fragment between its prefixes. The commit refuses such
 //     an out or both entry for the same reason (validateICMPFragments); an in entry is
 //     accepted for traffic to this node and projects nothing.
-func spdEntryHasTransit(p ipsec.SPDPolicy) bool {
+func spdEntryHasTransit(p ipsec.SPDPolicy, gathers bool) bool {
 	if p.ICMP.MatchesFragmentTypeCode() {
 		return false
 	}
-	if p.Action != dataplane.SPActionBypass {
+	if gathers {
 		return true
 	}
-	return p.LocalPort.IsAny() && p.RemotePort.IsAny()
+	return !spdBypassHasPort(p)
+}
+
+// spdForwardGathers answers whether dp's forward check sees whole datagrams, the one
+// answer spdEntryHasTransit and spdForwardBypassRefusals both read. A dataplane that
+// could not read it answers false with the error.
+func spdForwardGathers(dp dataplane.Dataplane) (bool, error) {
+	gatherer, ok := dp.(dataplane.ForwardFragmentGatherer)
+	// refuse-by-default: guards spdEntryHasTransit and spdForwardBypassRefusals -- a
+	// backend that declares nothing is not taken to gather, so a port-scoped bypass gets
+	// no forward projection and the commit refuses it, naming the fix.
+	if !ok {
+		return false, nil
+	}
+	gathers, err := gatherer.GathersForwardFragments()
+	if err != nil {
+		return false, err
+	}
+	return gathers, nil
 }
 
 // spdICMPMatch is one ICMP selector as the kernel holds it: the message type in the

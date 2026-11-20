@@ -37,6 +37,108 @@ func holdAddresses(t *testing.T, addrs ...netip.Addr) {
 	}
 }
 
+// fixCommand is the first line of a refusal's fix: the config change that clears the
+// port. The lines after it name the kernel route that keeps the port.
+func fixCommand(fix string) string {
+	command, _, _ := strings.Cut(fix, "\n")
+	return command
+}
+
+// gatheringDP is a forward-lookup dataplane (XFRM's shape) that answers the
+// fragment-gathering question (dataplane.ForwardFragmentGatherer) with gathers and err.
+type gatheringDP struct {
+	*forwardPolicyDP
+	gathers bool
+	err     error
+}
+
+func (d *gatheringDP) GathersForwardFragments() (bool, error) { return d.gathers, d.err }
+
+// VALIDATES: RFC 4301 Section 7.4 on the kernel route of owner decision 1, which lifts
+// the 2026-11-20 refusal ("refusal until done"): where the forward check sees whole
+// datagrams (Ze's kernel, K3 capability bit 3) a port-scoped bypass is projected onto
+// the forward lookup, its decision and its gate both keeping the port, and the commit
+// accepts it; where the check does not, or the dataplane cannot say, the entry is
+// projected nowhere and the commit refuses it, naming the unreadable answer as the cause.
+// METHOD: spdEntryPolicies and verifyForwardBypass over one both-direction TCP bypass
+// with local port 22 for a protected subnet, on three forward-lookup dataplanes: one that
+// gathers, one that does not, and one whose answer fails.
+// PREVENTS: a kernel that reassembles forwarded fragments still refusing an entry the
+// RFC lets it carry, a projection that drops the port (which would bypass every port),
+// and a dataplane whose answer could not be read being taken to gather.
+// RFC requirement: RFC4301-7.4-2 positive -- on a dataplane that gathers fragments
+// before its forward check, a port-scoped bypass is projected onto the forward path
+// with its port and committed; on one that does not gather, or cannot say, it reaches
+// no forward policy and the commit is refused, naming the kernel route.
+func TestPortScopedBypassForwardPathFollowsFragmentGathering(t *testing.T) {
+	holdAddresses(t, zeHostAddress)
+	entry := forwardBypassEntry(t, "ssh-hosts", dataplane.SPActionBypass, "10.1.0.0/16", true)
+	port := dataplane.ExactPortMatch(22)
+	forwardPolicies := func(dp dataplane.Dataplane) (decision, gate bool) {
+		for _, p := range spdEntryPolicies(dp, entry) {
+			if p.Dir != dataplane.SADirFwd {
+				continue
+			}
+			if p.Action != dataplane.SPActionBypass {
+				t.Errorf("a forward policy of the bypass carries action %v", p.Action)
+				continue
+			}
+			// The remote-to-local decision at the entry's order: local port 22 is the
+			// destination port.
+			if p.Src.String() == "198.51.100.0/24" && p.DstPort == port && p.SrcPort.IsAny() &&
+				p.Priority != dataplane.PriorityTransitGate {
+				decision = true
+				continue
+			}
+			// The local-to-remote gate: local port 22 is the source port.
+			if p.Src.String() == "10.1.0.0/16" && p.SrcPort == port && p.DstPort.IsAny() &&
+				p.Priority == dataplane.PriorityTransitGate {
+				gate = true
+				continue
+			}
+			t.Errorf("an unexpected forward policy: src=%v dst=%v sport=%v dport=%v priority=%d",
+				p.Src, p.Dst, p.SrcPort, p.DstPort, p.Priority)
+		}
+		return decision, gate
+	}
+	commit := func(dp dataplane.Dataplane) error {
+		return verifyForwardBypass(dp, &ipsec.IPsecConfig{Policies: map[string]ipsec.SPDPolicy{entry.Name: entry}})
+	}
+
+	gathering := &gatheringDP{forwardPolicyDP: &forwardPolicyDP{spdDP: newSPDDP()}, gathers: true}
+	if decision, gate := forwardPolicies(gathering); !decision || !gate {
+		t.Errorf("on a dataplane that gathers fragments the port-scoped bypass was not projected with its port: decision=%v gate=%v",
+			decision, gate)
+	}
+	if err := commit(gathering); err != nil {
+		t.Errorf("on a dataplane that gathers fragments the port-scoped bypass was refused: %v", err)
+	}
+
+	errGather := errors.New("capability receipt read refused by test")
+	for _, tc := range []struct {
+		name string
+		dp   *gatheringDP
+	}{
+		{"does not gather", &gatheringDP{forwardPolicyDP: &forwardPolicyDP{spdDP: newSPDDP()}}},
+		{"cannot say", &gatheringDP{forwardPolicyDP: &forwardPolicyDP{spdDP: newSPDDP()}, gathers: true, err: errGather}},
+	} {
+		if decision, gate := forwardPolicies(tc.dp); decision || gate {
+			t.Errorf("%s: the port-scoped bypass reached the forward lookup: decision=%v gate=%v", tc.name, decision, gate)
+		}
+		err := commit(tc.dp)
+		if err == nil {
+			t.Errorf("%s: the port-scoped bypass committed although forwarded fragments are checked before reassembly", tc.name)
+			continue
+		}
+		if !strings.Contains(err.Error(), dataplane.RuntimeKernelBuildFix()) {
+			t.Errorf("%s: the refusal does not name the kernel route: %v", tc.name, err)
+		}
+		if got := errors.Is(err, errGather); got != (tc.dp.err != nil) {
+			t.Errorf("%s: the refusal carries the read failure: %v, want %v: %v", tc.name, got, tc.dp.err != nil, err)
+		}
+	}
+}
+
 // forwardBypassEntry is an operator entry from local to 198.51.100.0/24 over TCP, with
 // local port 22 when port is true and both ports any when it is false.
 func forwardBypassEntry(t *testing.T, name string, action dataplane.SPAction, local string, port bool) ipsec.SPDPolicy {
@@ -95,8 +197,11 @@ func TestRFC4301PortScopedForwardBypassRefusedAtCommit(t *testing.T) {
 	if !strings.Contains(refusal.Why(), "RFC 4301 Section 7.4") || !strings.Contains(refusal.Why(), "forwarded") {
 		t.Errorf("the refusal does not say why: %q", refusal.Why())
 	}
-	if want := "set vpn ipsec policy ssh-hosts local port any"; refusal.Fix() != want {
-		t.Errorf("the refusal's fix is %q, want %q", refusal.Fix(), want)
+	if want := "set vpn ipsec policy ssh-hosts local port any"; fixCommand(refusal.Fix()) != want {
+		t.Errorf("the refusal's fix is %q, want it to open with %q", refusal.Fix(), want)
+	}
+	if !strings.Contains(refusal.Fix(), dataplane.RuntimeKernelBuildFix()) {
+		t.Errorf("the refusal's fix does not name the kernel route that keeps the port: %q", refusal.Fix())
 	}
 
 	accepted := []struct {
@@ -200,7 +305,7 @@ func TestPortScopedForwardBypassAtStartIsLoggedAndReportedByDoctor(t *testing.T)
 	if finding.Code != diagnostic.CodeDoctorIPsecSPDForwardBypass || finding.Severity != severityError {
 		t.Fatalf("the finding is %s/%s, want %s/%s", finding.Severity, finding.Code, severityError, diagnostic.CodeDoctorIPsecSPDForwardBypass)
 	}
-	if !strings.Contains(finding.Message, "ssh-hosts") || finding.Fix != "set vpn ipsec policy ssh-hosts local port any" {
+	if !strings.Contains(finding.Message, "ssh-hosts") || fixCommand(finding.Fix) != "set vpn ipsec policy ssh-hosts local port any" {
 		t.Fatalf("the finding does not name the entry and its fix: %+v", finding)
 	}
 

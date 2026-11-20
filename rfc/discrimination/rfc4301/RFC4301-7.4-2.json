@@ -3,22 +3,22 @@
     "rid": "RFC4301-7.4-2",
     "polarity": "positive",
     "unit": "internal/component/ike/dataplane/rfc4301_fragment_integration_linux_test.go::TestXFRMPortScopedBypassIsNeverStoredOnTheForwardPath",
-    "unit-sha": "5afdaee62bec6aab",
-    "claim-sha": "dd0a36c3799455cb",
-    "route": "mutant",
+    "unit-sha": "9e607d1c7722192e",
+    "claim-sha": "e427710cb84de184",
+    "route": "revert",
     "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmPolicyFromParams",
-    "producer-sha": "02594c6a007f8840",
-    "break": "line 748: \"netlink.Dir(p.Dir - 1)\" -\u003e \"netlink.Dir(p.Dir)\""
+    "producer-sha": "df1eafce891a6164",
+    "break": "body of xfrmPolicyFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4301-7.4-2",
     "polarity": "positive",
     "unit": "internal/component/ike/engine/rfc4301_fragment_test.go::TestPortScopedBypassNeverReachesTheForwardPath",
     "unit-sha": "73d0bb046da8a8a8",
-    "claim-sha": "1ec0d3daa6eb0788",
+    "claim-sha": "90e2029d97aba9c5",
     "route": "revert",
     "producer": "internal/component/ike/engine/spd_policy.go::spdEntryHasTransit",
-    "producer-sha": "ac36d16a5809f613",
+    "producer-sha": "a4251211510120a1",
     "break": "body of spdEntryHasTransit replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -26,10 +26,21 @@
     "polarity": "negative",
     "unit": "internal/component/ike/engine/rfc4301_spd_transit_test.go::TestAnyPortBypassReachesTheForwardPath",
     "unit-sha": "d73774be1fb58bad",
-    "claim-sha": "36a4f13fb68ba485",
+    "claim-sha": "2df3847c55bd63e1",
     "route": "revert",
     "producer": "internal/component/ike/engine/spd_policy.go::spdEntryHasTransit",
-    "producer-sha": "ac36d16a5809f613",
+    "producer-sha": "a4251211510120a1",
+    "break": "body of spdEntryHasTransit replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-7.4-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/spd_forward_bypass_test.go::TestPortScopedBypassForwardPathFollowsFragmentGathering",
+    "unit-sha": "abbfcd0b3de4fce1",
+    "claim-sha": "5f4baf2fc8eed799",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/spd_policy.go::spdEntryHasTransit",
+    "producer-sha": "a4251211510120a1",
     "break": "body of spdEntryHasTransit replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

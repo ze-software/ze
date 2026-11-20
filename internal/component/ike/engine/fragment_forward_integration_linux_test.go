@@ -31,6 +31,9 @@ const (
 	fragmentHostAddress   = "10.2.0.2"
 	fragmentRouterAddress = "10.2.0.254"
 	fragmentCaptureWait   = 3 * time.Second
+	// fragmentUnnamedPort is a UDP port no operator entry and no Child SA names, so under
+	// unmatched discard its forwarded traffic meets only the catch-all.
+	fragmentUnnamedPort = 7100
 )
 
 // fragmentForwardPeers adds one protected host to the existing isolated Ze/peer
@@ -235,6 +238,10 @@ func fragmentPacketID(packet []byte, id uint16) {
 // leaves as ESP, BYPASS UDP is delivered in the clear, and DISCARD UDP is blocked.
 // Fragments of protected or discarded traffic must not fall through to cleartext;
 // reassembly before protection or exact refusal are permitted for the protected row.
+// It then turns unmatched to DISCARD, where only the port-scoped bypass's forward
+// entry admits its traffic, and requires the fragments of a bypassed datagram to cross
+// and the fragments of no permitted datagram to stay behind
+// (fragmentForwardedPortScopedBypass).
 // RFC 4301 Section 7.3: "If an implementation does not successfully negotiate
 // transmission of non-initial fragments for such an SA, it MUST NOT send such
 // fragments over the SA."
@@ -329,6 +336,92 @@ func TestRFC4301ForwardedFragmentsRespectOperatorDisposition(t *testing.T) {
 			if got := sadSelStat(t, outStepStatPolBlock) - blocked; got != 1 {
 				t.Errorf("%s: XfrmOutPolBlock moved by %d, want 1", tc.name, got)
 			}
+		}
+	}
+
+	fragmentForwardedPortScopedBypass(t, sender, capture, child.OutboundSPI, bypassed)
+}
+
+// fragmentForwardedPortScopedBypass is the forward half of RFC 4301 Section 7.4 for a
+// port-scoped bypass. RFC 4301 Section 7.4: "All implementations MUST support stateful
+// fragment checking to accommodate BYPASS traffic for which a non-trivial port range is
+// specified."
+//
+// Under unmatched DISCARD the bypass entry's port-scoped FWD gate is the only forward
+// policy that admits its traffic, so a fragment of it crosses only when the kernel
+// reassembled the datagram before ip_forward's FWD check read its ports: K3's fragment
+// guard (capability bit 3), on which spdEntryHasTransit projects the entry. The negatives
+// are the fragments that belong to no permitted datagram: a lone non-initial fragment of
+// the bypass port, which never completes, and a whole fragment pair of a datagram to a
+// port no entry names. The caller MUST be in Ze's namespace.
+func fragmentForwardedPortScopedBypass(t *testing.T, sender *ipv4.RawConn, capture int, spi uint32, bypassed *net.UDPConn) {
+	t.Helper()
+	policies, err := dataplane.Get().ListPolicies()
+	if err != nil {
+		t.Fatalf("read back the forward projection: %v", err)
+	}
+	gate := false
+	for i := range policies {
+		p := &policies[i]
+		if p.Role == dataplane.PolicyRoleOperator && p.Dir == dataplane.SADirFwd &&
+			p.Action == dataplane.SPActionBypass && p.DstPort == dataplane.ExactPortMatch(fragmentBypassPort) {
+			gate = true
+		}
+	}
+	if !gate {
+		t.Fatalf("the kernel holds no forward entry for the bypass on port %d; the engine projects one only on a "+
+			"kernel whose capability receipt carries bit 3 (fragment gathering)", fragmentBypassPort)
+	}
+	// RFC 4301 Sections 4.4.1 and 7.4: use the configured fallback, not a test-only drop.
+	if err := installUnmatched(dataplane.Get(), dataplane.SPActionDiscard, slogutil.DiscardLogger()); err != nil {
+		t.Fatalf("select the production unmatched-DISCARD disposition: %v", err)
+	}
+
+	for index, tc := range []struct {
+		name          string
+		port          uint16
+		initial, tail bool
+		bypass        bool
+	}{
+		{"whole BYPASS under discard", fragmentBypassPort, false, false, true},
+		{"fragmented BYPASS under discard", fragmentBypassPort, true, true, true},
+		{"lone BYPASS tail under discard", fragmentBypassPort, false, true, false},
+		{"fragmented unnamed port under discard", fragmentUnnamedPort, true, true, false},
+	} {
+		id := uint16(0x6b00 + index*2)
+		packet := fragmentForwardPacket(t, tc.port, id)
+		initial, nonInitial := fragSplit(packet)
+		fragmentPacketID(initial, id)
+		fragmentPacketID(nonInitial, id)
+		switch {
+		case !tc.initial && !tc.tail:
+			fragmentSend(t, sender, packet)
+		case tc.initial:
+			fragmentSend(t, sender, initial)
+			fragmentSend(t, sender, nonInitial)
+		default:
+			fragmentSend(t, sender, nonInitial)
+		}
+		// The barrier is a whole datagram on the bypass port: under discard it crosses
+		// only through the forward entry the projection installed.
+		fragmentSend(t, sender, fragmentForwardPacket(t, fragmentBypassPort, id+1))
+		seen := fragmentObserve(t, capture, id, id+1, spi, false)
+		if !sadSelDelivered(t, bypassed) {
+			t.Fatalf("%s: the subsequent whole BYPASS barrier was not delivered", tc.name)
+		}
+		if tc.bypass {
+			if !sadSelDelivered(t, bypassed) {
+				t.Errorf("%s: only one of the datagram and its barrier was delivered", tc.name)
+			}
+			whole := seen.whole == 1 && seen.initial == 0 && seen.nonInitial == 0 && seen.other == 0
+			fragments := seen.whole == 0 && seen.initial == 1 && seen.nonInitial == 1 && seen.other == 0
+			if !whole && !fragments {
+				t.Errorf("%s: outside peer saw %+v, want one whole datagram or the complete fragment pair", tc.name, seen)
+			}
+			continue
+		}
+		if seen.whole+seen.initial+seen.nonInitial+seen.other+seen.protected != 0 {
+			t.Errorf("%s: a fragment of no permitted datagram reached the outside peer: %+v", tc.name, seen)
 		}
 	}
 }

@@ -59,16 +59,20 @@ func fragBypassPair() []SPParams {
 //     and applied to the transport protocol after ipv6_frag_rcv reassembles.
 //   - OUT: ip_fragment runs in __ip_finish_output (net/ipv4/ip_output.c), after the
 //     routing-time XFRM lookup, so the decision is made on the whole datagram.
-//   - FWD: ip_forward calls xfrm4_policy_check(XFRM_POLICY_FWD) with NO defrag, so a
-//     non-initial fragment is classified on ports the kernel could not read.
+//   - FWD: ip_forward calls xfrm4_policy_check(XFRM_POLICY_FWD) with NO defrag on stock
+//     Linux, so a non-initial fragment is classified on ports the kernel could not read.
+//     Ze's kernel gathers first while a port-scoped policy exists (K3, capability bit
+//     3), and only there does the engine add a FWD projection of an operator bypass
+//     (GathersForwardFragments, engine/spd_policy.go spdEntryHasTransit).
 //
-// So a port-scoped bypass on FWD is the forged-fragment hole of Section 7.4 and
-// Appendix D.4, and this test reads the kernel's own answer about where ze put it.
+// So on stock Linux a port-scoped bypass on FWD is the forged-fragment hole of Section
+// 7.4 and Appendix D.4, and this test reads the kernel's own answer about where the
+// in and out halves ze installs were put.
 // PREVENTS: the netlink direction conversion (netlink.Dir(p.Dir - 1)) drifting. Ze
 // counts SADir from 1 and the kernel counts from 0, and an off-by-one there moves an
 // exemption onto the forward path with every unit test still green.
-// RFC requirement: RFC4301-7.4-2 positive -- the kernel stores no port-scoped bypass
-// on the forward path.
+// RFC requirement: RFC4301-7.4-2 positive -- the kernel stores the in and out halves of
+// a port-scoped bypass in IN and OUT, never on the forward path.
 func TestXFRMPortScopedBypassIsNeverStoredOnTheForwardPath(t *testing.T) {
 	if !userns.Enter(t) {
 		return
@@ -110,6 +114,14 @@ func TestXFRMPortScopedBypassIsNeverStoredOnTheForwardPath(t *testing.T) {
 		}
 		if p.Dir != netlink.XFRM_DIR_IN && p.Dir != netlink.XFRM_DIR_OUT {
 			t.Errorf("the kernel stored a port-scoped bypass in direction %s, which is neither in nor out", p.Dir)
+		}
+		// fragBypassPair pins the local port as the source of the out half and the
+		// destination of the in half, so each half has exactly one kernel direction.
+		if p.SrcPort == fragTestPort && p.Dir != netlink.XFRM_DIR_OUT {
+			t.Errorf("the out half (sport=%d) was stored in direction %s, want out", p.SrcPort, p.Dir)
+		}
+		if p.DstPort == fragTestPort && p.Dir != netlink.XFRM_DIR_IN {
+			t.Errorf("the in half (dport=%d) was stored in direction %s, want in", p.DstPort, p.Dir)
 		}
 		if p.Action != netlink.XFRM_POLICY_ALLOW {
 			t.Errorf("dir %s: action = %s, want allow", p.Dir, p.Action)
