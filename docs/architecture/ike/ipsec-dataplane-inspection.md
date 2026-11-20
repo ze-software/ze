@@ -197,8 +197,8 @@ where Ze's kernel lets the inbound payload check deliver an ICMP error whose
 reversed payload matches its SA (`catchAllYieldsToICMPErrorCheck`). An
 operator discard row reads `false`, and every VPP row does. On a
 template-free forward allow the same flag is read as `icmp-error-payload`: Ze
-sets it on the FWD transit gate of an operator bypass alone, where Ze's kernel
-judges a forwarded ICMP error that arrived on an SA by the policy its payload
+sets it on the FWD policies of an operator bypass alone (its FWD transit gate,
+and the FWD decision of an `in` or `both` bypass), where Ze's kernel judges a forwarded ICMP error that arrived on an SA by the policy its payload
 selects (`spdTransitPolicies`, K1 bit 7). Every other row reads `false`.
 <!-- source: internal/component/ike/engine/spd_policy.go -- spdTransitPolicies -->
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- saOptionsFromState, saDirFromKernel, policyInfoFromKernel, catchAllYieldsToICMPErrorCheck -->

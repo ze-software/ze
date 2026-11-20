@@ -592,9 +592,11 @@ type SPParams struct {
 	// ICMPErrorPayload marks a forward BYPASS that a forwarded ICMP error which arrived
 	// on an SA does not stop: the error is judged by the forward policy its payload
 	// header selects, as when no policy matches its own headers. It is meaningful on
-	// the FWD transit gate of an operator bypass alone (engine/spd_policy.go,
-	// spdTransitPolicies), which only keeps a catch-all from refusing what another entry
-	// admitted, and the Linux backend refuses it on any other policy.
+	// the template-free FWD allows of an operator bypass alone (engine/spd_policy.go,
+	// spdTransitPolicies): the transit gate, which only keeps a catch-all from refusing
+	// what another entry admitted, and the FWD decision of an in or both bypass at the
+	// operator's order (owner ruling 2026-11-20). The Linux backend refuses it on any
+	// other policy: an OUT policy, a discard, a protect policy.
 	//
 	// RFC 4301 Section 5.2, step 4: "Then match the packet against the inbound
 	// selectors identified by the SAD entry to verify that the received packet is
@@ -730,7 +732,8 @@ type PolicyInfo struct {
 	// ICMPErrorPayload says this forward BYPASS lets a forwarded ICMP error that
 	// arrived on an SA be judged by the policy its payload selects
 	// (SPParams.ICMPErrorPayload): on Linux the XFRM_POLICY_ICMP flag read back from a
-	// template-free FWD allow, which Ze sets on an operator bypass's transit gate alone.
+	// template-free FWD allow, which Ze sets on an operator bypass's FWD gate and FWD
+	// decision alone.
 	ICMPErrorPayload bool
 
 	// Owner names the peer that installed this policy, and OwnerKnown says

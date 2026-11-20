@@ -160,6 +160,15 @@ func spdTransitPolicies(p ipsec.SPDPolicy, gathers bool) spdTransit {
 		}
 		decision := halves[i]
 		decision.Dir = dataplane.SADirFwd
+		// RFC 4301 Section 5.2, step 4: "Then match the packet against the inbound
+		// selectors identified by the SAD entry to verify that the received packet is
+		// appropriate for the SA via which it was received."
+		// A bypass decision is a template-free FWD allow at the operator's order, so it
+		// can match, by its own headers, a forwarded ICMP error that arrived on a Child
+		// SA, as a FWD gate can, and it carries the same flag (owner ruling 2026-11-20).
+		// Ze's kernel acts on the flag for an ALLOW only, so a discard decision does not
+		// carry it.
+		decision.ICMPErrorPayload = p.Action == dataplane.SPActionBypass
 		transit.decisions = appendSPDTransit(transit.decisions, held, decision)
 	}
 	if p.Action != dataplane.SPActionBypass {
@@ -178,7 +187,8 @@ func spdTransitPolicies(p ipsec.SPDPolicy, gathers bool) spdTransit {
 		// A FWD gate can match, by its own headers, a forwarded ICMP error that arrived
 		// on a Child SA, whose payload is what the SA's selectors judge. Ze's kernel
 		// takes the payload's policy past a gate that carries the flag (K1 bit 7,
-		// dataplane.SPParams.ICMPErrorPayload). An OUT gate does not carry it: there
+		// dataplane.SPParams.ICMPErrorPayload), as on the FWD decision above. An OUT gate
+		// does not carry it (owner ruling 2026-11-20): there
 		// the flag is what icmp_route_lookup reads to source an error this node sends
 		// from the address it quotes.
 		gate.ICMPErrorPayload = gate.Dir == dataplane.SADirFwd

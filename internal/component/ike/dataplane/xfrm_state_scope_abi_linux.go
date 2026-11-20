@@ -268,10 +268,10 @@ const (
 	// xfrmZECapICMPForwardGate is K1's forwarded ICMP error past a transit gate
 	// (XFRM_ZE_CAP_ICMP_FORWARD_GATE, bit 7): when a forwarded ICMP error that arrived on
 	// an SA meets, by its own headers, a template-free FWD allow carrying
-	// XFRM_POLICY_ICMP (every FWD transit gate, SPParams.ICMPErrorPayload),
-	// __xfrm_policy_check judges it by the policy its payload selects
-	// (xfrm_in_fwd_icmp). Without it the gate's empty template list refuses the
-	// consistent error (XfrmInTmplMismatch).
+	// XFRM_POLICY_ICMP (every FWD gate and FWD decision of an operator bypass,
+	// SPParams.ICMPErrorPayload), __xfrm_policy_check judges it by the policy its
+	// payload selects (xfrm_in_fwd_icmp). Without it the bypass's empty template list
+	// refuses the consistent error (XfrmInTmplMismatch).
 	xfrmZECapICMPForwardGate
 )
 

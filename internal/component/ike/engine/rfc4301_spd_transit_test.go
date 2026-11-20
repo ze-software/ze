@@ -341,48 +341,61 @@ func TestAnyPortBypassReachesTheForwardPath(t *testing.T) {
 	}
 }
 
-// VALIDATES: RFC 4301 Section 5.2, step 4, past a transit gate (owner decision
-// 2026-11-20, K1 bit 7): every FWD transit gate an operator bypass projects asks the
-// dataplane for the forwarded ICMP error payload check (SPParams.ICMPErrorPayload), and
-// no other policy of the entry does: not its halves, not its FWD decision at the entry's
-// order, not its OUT gate, and nothing a discard projects.
+// VALIDATES: RFC 4301 Section 5.2, step 4, past an operator bypass in FWD (owner
+// rulings 2026-11-20, K1 bit 7): every template-free FWD allow an operator bypass
+// projects asks the dataplane for the forwarded ICMP error payload check
+// (SPParams.ICMPErrorPayload): the FWD transit gate of an out or both bypass, and the
+// FWD decision of an in or both bypass at the entry's order. No other policy of the
+// entry does: not its out or in halves, not its OUT gate, and nothing a discard
+// projects, its FWD decision included.
 // METHOD: spdEntryPolicies over a forward-lookup dataplane for each direction and
-// action; each policy's flag is compared with "a gate in FWD", and an out or both bypass
-// must yield at least one flagged gate so the comparison is not vacuous.
-// PREVENTS: a FWD gate without the flag, which on Ze's kernel still refuses a consistent
-// forwarded ICMP error that arrived on a Child SA (XfrmInTmplMismatch); and the flag on
-// an OUT gate, where icmp_route_lookup would source an error this node sends from the
-// address it quotes, or on an operator decision the operator ranked.
-func TestSPDTransitFWDGatesCarryTheICMPErrorPayloadCheck(t *testing.T) {
+// action; each policy's flag is compared with "a FWD policy of a bypass", and the
+// flagged FWD gates and FWD decisions are counted apart, so each case must yield the
+// exact flagged set its direction projects and the comparison is not vacuous.
+// PREVENTS: a FWD gate or FWD bypass decision without the flag, which on Ze's kernel
+// still refuses a consistent forwarded ICMP error that arrived on a Child SA
+// (XfrmInTmplMismatch); the flag on an OUT gate or an OUT half, where
+// icmp_route_lookup would source an error this node sends from the address it quotes;
+// and the flag on a discard, where the kernel acts on it for an ALLOW only.
+func TestSPDTransitFWDBypassesCarryTheICMPErrorPayloadCheck(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
 		action    dataplane.SPAction
 		direction ipsec.SPDDirection
-		flagged   int
+		gates     int
+		decisions int
 	}{
-		{"in bypass", dataplane.SPActionBypass, ipsec.SPDDirIn, 0},
-		{"out bypass", dataplane.SPActionBypass, ipsec.SPDDirOut, 1},
-		{"both bypass", dataplane.SPActionBypass, ipsec.SPDDirBoth, 1},
-		{"in discard", dataplane.SPActionDiscard, ipsec.SPDDirIn, 0},
-		{"out discard", dataplane.SPActionDiscard, ipsec.SPDDirOut, 0},
-		{"both discard", dataplane.SPActionDiscard, ipsec.SPDDirBoth, 0},
+		{"in bypass", dataplane.SPActionBypass, ipsec.SPDDirIn, 0, 1},
+		{"out bypass", dataplane.SPActionBypass, ipsec.SPDDirOut, 1, 0},
+		{"both bypass", dataplane.SPActionBypass, ipsec.SPDDirBoth, 1, 1},
+		{"in discard", dataplane.SPActionDiscard, ipsec.SPDDirIn, 0, 0},
+		{"out discard", dataplane.SPActionDiscard, ipsec.SPDDirOut, 0, 0},
+		{"both discard", dataplane.SPActionDiscard, ipsec.SPDDirBoth, 0, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			policies := spdEntryPolicies(transitForwardDP(), transitEntry(t, tc.action, tc.direction))
-			flagged := 0
+			gates, decisions := 0, 0
 			for i := range policies {
 				p := &policies[i]
-				gate := p.Priority == dataplane.PriorityTransitGate && p.Dir == dataplane.SADirFwd
-				if p.ICMPErrorPayload != gate {
+				want := p.Dir == dataplane.SADirFwd && p.Action == dataplane.SPActionBypass
+				if p.ICMPErrorPayload != want {
 					t.Errorf("dir=%d priority=%d action=%d src=%v dst=%v: ICMPErrorPayload=%v, want %v",
-						p.Dir, p.Priority, p.Action, p.Src, p.Dst, p.ICMPErrorPayload, gate)
+						p.Dir, p.Priority, p.Action, p.Src, p.Dst, p.ICMPErrorPayload, want)
 				}
-				if p.ICMPErrorPayload {
-					flagged++
+				if !p.ICMPErrorPayload {
+					continue
 				}
+				if p.Priority == dataplane.PriorityTransitGate {
+					gates++
+					continue
+				}
+				decisions++
 			}
-			if flagged != tc.flagged {
-				t.Errorf("%d policies carry the payload check, want %d: %+v", flagged, tc.flagged, policies)
+			if gates != tc.gates {
+				t.Errorf("%d FWD gates carry the payload check, want %d: %+v", gates, tc.gates, policies)
+			}
+			if decisions != tc.decisions {
+				t.Errorf("%d FWD decisions carry the payload check, want %d: %+v", decisions, tc.decisions, policies)
 			}
 		})
 	}

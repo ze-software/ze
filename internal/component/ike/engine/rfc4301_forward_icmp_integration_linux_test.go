@@ -229,7 +229,40 @@ func icmpForwardRejects(t *testing.T) uint64 {
 		sadSelStat(t, "XfrmInStateMismatch") + sadSelStat(t, "XfrmInTmplMismatch"))
 }
 
-func runICMPForwarding(t *testing.T, ifID uint32, check bool) {
+// icmpForwardDecision is the operator `in` BYPASS whose FWD decision, at the entry's
+// order, matches the forwarded error's own headers (the forged outer source to the
+// protected network). It outranks the transit gate of the protected-side output entry,
+// so with it installed the decision, not the gate, is the policy the error meets.
+const icmpForwardDecision = "icmp-forged-source-input"
+
+// icmpForwardDecisionFlagged reads the installed FWD decision of icmpForwardDecision
+// back from the kernel and requires XFRM_POLICY_ICMP on it, so a run that delivers the
+// consistent error is known to have met a flagged decision rather than no decision.
+func icmpForwardDecisionFlagged(t *testing.T) {
+	t.Helper()
+	policies, err := netlink.XfrmPolicyList(netlink.FAMILY_V4)
+	if err != nil {
+		t.Fatalf("read the installed XFRM policies: %v", err)
+	}
+	forged := mustCIDRNet(t, icmpForwardForged+"/32")
+	for i := range policies {
+		p := &policies[i]
+		if p.Dir != netlink.XFRM_DIR_FWD || p.Src == nil || p.Src.String() != forged.String() {
+			continue
+		}
+		if p.Action != netlink.XFRM_POLICY_ALLOW || len(p.Tmpls) != 0 {
+			t.Fatalf("the FWD decision of %s is action %d with %d templates, want a template-free allow",
+				icmpForwardDecision, p.Action, len(p.Tmpls))
+		}
+		if !p.ICMP {
+			t.Fatalf("the FWD decision of %s carries no XFRM_POLICY_ICMP: %+v", icmpForwardDecision, *p)
+		}
+		return
+	}
+	t.Fatalf("no FWD decision from %s was installed for %s", forged, icmpForwardDecision)
+}
+
+func runICMPForwarding(t *testing.T, ifID uint32, check, decision bool) {
 	t.Helper()
 	lab := newEspPolLab(t)
 	capture := icmpForwardHostCapture(t, lab)
@@ -241,10 +274,20 @@ func runICMPForwarding(t *testing.T, ifID uint32, check bool) {
 		Direction: ipsec.SPDDirOut, LocalPrefix: mustCIDRNet(t, "0.0.0.0/0"), LocalPort: ipsec.AnyPort(),
 		RemotePrefix: mustCIDRNet(t, "10.2.0.0/24"), RemotePort: ipsec.AnyPort(),
 	}}
+	if decision {
+		entries[icmpForwardDecision] = ipsec.SPDPolicy{
+			Name: icmpForwardDecision, Action: dataplane.SPActionBypass, Order: 900,
+			Direction: ipsec.SPDDirIn, LocalPrefix: mustCIDRNet(t, "10.2.0.0/24"), LocalPort: ipsec.AnyPort(),
+			RemotePrefix: mustCIDRNet(t, icmpForwardForged+"/32"), RemotePort: ipsec.AnyPort(),
+		}
+	}
 	if err := installSPDPolicies(dataplane.Get(), nil, entries, slogutil.DiscardLogger()); err != nil {
 		t.Fatalf("install the operator SPD entries: %v", err)
 	}
 	t.Cleanup(func() { removeSPDPolicies(dataplane.Get(), entries, slogutil.DiscardLogger()) })
+	if decision {
+		icmpForwardDecisionFlagged(t)
+	}
 	if ifID != 0 {
 		link := &netlink.Xfrmi{Name: icmpForwardXFRMLink, Ifid: ifID}
 		if err := netlink.LinkAdd(link); err != nil {
@@ -295,20 +338,40 @@ func runICMPForwarding(t *testing.T, ifID uint32, check bool) {
 
 //ze:guest-root
 func TestRFC4301ForwardedICMPUsesPayloadPolicy(t *testing.T) {
-	runICMPForwarding(t, 0, true)
+	runICMPForwarding(t, 0, true, false)
+}
+
+// VALIDATES: RFC 4301 Section 5.2, step 4, past an operator bypass decision (owner
+// ruling 2026-11-20, K1 bit 7): "Then match the packet against the inbound selectors
+// identified by the SAD entry to verify that the received packet is appropriate for the
+// SA via which it was received." A forwarded ICMP error that arrived on the Child SA and
+// meets, by its own headers, the FWD decision of an operator `in` BYPASS is judged by
+// the policy its payload selects: an error quoting the SA's traffic reaches the
+// protected host, and one quoting traffic the SA does not carry is refused.
+// METHOD: the lab of TestRFC4301ForwardedICMPUsesPayloadPolicy plus an `in` bypass from
+// the error's forged outer source to the protected network, whose FWD decision outranks
+// the protected-side output entry's transit gate; the installed decision is read back
+// with XFRM_POLICY_ICMP, then the consistent and the inconsistent error are sent through
+// the real Child SA and observed at the protected host's ingress.
+// PREVENTS: the flag dropped from the FWD decision of a bypass, which leaves the
+// decision's empty template list refusing the consistent error (XfrmInTmplMismatch).
+//
+//ze:guest-root
+func TestRFC4301ForwardedICMPPastBypassDecisionUsesPayloadPolicy(t *testing.T) {
+	runICMPForwarding(t, 0, true, true)
 }
 
 //ze:guest-root
 func TestRFC4301ForwardedICMPUsesPayloadPolicyOnXFRMInterface(t *testing.T) {
-	runICMPForwarding(t, icmpForwardIfID, true)
+	runICMPForwarding(t, icmpForwardIfID, true, false)
 }
 
 //ze:guest-root
 func TestRFC4301ForwardedICMPWithoutStateCheckRequiresOwnHeadersToMatch(t *testing.T) {
-	runICMPForwarding(t, 0, false)
+	runICMPForwarding(t, 0, false, false)
 }
 
 //ze:guest-root
 func TestRFC4301ForwardedICMPWithoutStateCheckRequiresOwnHeadersToMatchOnXFRMInterface(t *testing.T) {
-	runICMPForwarding(t, icmpForwardIfID, false)
+	runICMPForwarding(t, icmpForwardIfID, false, false)
 }

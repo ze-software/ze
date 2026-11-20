@@ -95,7 +95,8 @@ func TestXFRMOutboundPolicyCarriesICMPErrorReturn(t *testing.T) {
 }
 
 // VALIDATES: RFC 4301 Section 5.2, step 4, for a forwarded ICMP error past a transit
-// gate: a template-free FWD bypass asked for the payload check (a FWD transit gate)
+// gate: a template-free FWD bypass asked for the payload check (a FWD transit gate, or
+// the FWD decision of an operator bypass at its order)
 // carries XFRM_POLICY_ICMP, which Ze's kernel reads through K1 bit 7, and reads it back
 // as ICMPErrorPayload; the same bypass not asked carries none. The request on an OUT
 // bypass, a FWD discard or a protect policy is refused rather than installed where the
@@ -133,6 +134,21 @@ func TestXFRMForwardGateCarriesICMPErrorPayload(t *testing.T) {
 	}
 	if info := (&xfrmBackend{}).policyInfoFromKernel(off); info.ICMPErrorPayload {
 		t.Errorf("a FWD bypass without the flag reads back as a payload check")
+	}
+	// The FWD decision of an operator in or both bypass sits at the operator's order,
+	// not at PriorityTransitGate, and is asked for the same check (owner ruling
+	// 2026-11-20): the guard judges the policy's kind, never its priority.
+	decision := gate(true)
+	decision.Priority = PriorityTransitGate - 1
+	ranked, err := xfrmPolicyFromParams(decision)
+	if err != nil {
+		t.Fatalf("project the FWD bypass decision asked for the payload check: %v", err)
+	}
+	if !ranked.ICMP {
+		t.Errorf("a FWD bypass decision asked for the payload check carries no XFRM_POLICY_ICMP")
+	}
+	if info := (&xfrmBackend{}).policyInfoFromKernel(ranked); !info.ICMPErrorPayload {
+		t.Errorf("the FWD bypass decision's flag does not read back as the payload check")
 	}
 	outbound := gate(true)
 	outbound.Dir = SADirOut

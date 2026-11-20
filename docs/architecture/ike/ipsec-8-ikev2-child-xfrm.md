@@ -870,6 +870,23 @@ outbound one. On VPP the outbound SA, with no window, carries no
 cycled sequence counter on every outbound SA whatever the flag (`esp_seq_advance`,
 `src/vnet/ipsec/esp.h`), which is the sender's check RFC 4303 Section 3.3.3 names.
 
+**A forwarded ICMP error that arrived on a Child SA is judged by its payload
+past every FWD policy an operator bypass projects, and past no OUT policy.**
+Thomas decided both on 2026-11-20, for K1 capability bit 7. First, the flag that
+asks for the payload check (`XFRM_POLICY_ICMP`, `SPParams.ICMPErrorPayload`)
+stays on FWD policies only, never on an OUT gate: on an OUT allow the stock
+`icmp_route_lookup` reversed lookup would accept a flagged policy and source an
+error this node sends from the far end's address. Second, the FWD decision of an
+operator `in` or `both` bypass carries the flag too, as the FWD transit gate
+does, because it can match such an error by the error's own headers. The error
+is then judged by `xfrm_in_fwd_icmp`'s payload policy, as RFC 4301 Section 5.2
+step 4 requires: "Then match the packet against the inbound selectors identified
+by the SAD entry to verify that the received packet is appropriate for the SA via
+which it was received." A discard's FWD decision does not carry the flag, since
+the kernel acts on it for an ALLOW only. "Transit traffic" below has the
+mechanism.
+<!-- source: internal/component/ike/engine/spd_policy.go -- spdTransitPolicies -->
+
 **The XFRM interface id comes from the interface the peer's `vti { bind }` names.**
 `resolveIfID` reads the if_id of that xfrm interface through the iface component
 (`GetXFRMInfo`) when the first Child SA is created, on both roles. A peer with no
@@ -1590,29 +1607,35 @@ entry whose local and remote prefixes overlap also decides the overlapping part
 of the other orientation.
 
 A FWD gate can also match a forwarded ICMP error that arrived on a Child SA, by
-the error's own headers. Stock `__xfrm_policy_check` then never takes
-`xfrm_in_fwd_icmp`'s payload policy, and it rejects a consistent error
-(`XfrmInTmplMismatch`), which RFC 4301 Section 5.2 step 4 forbids: the payload
-is what must match. Thomas decided on 2026-11-20 that the kernel repairs it. A
-new K1 capability bit 7, "forwarded ICMP error past a gate", changes the FWD
-check: an ICMP error that arrived with a secpath, and whose own-header policy is
-a template-free ALLOW carrying `XFRM_POLICY_ICMP`, takes `xfrm_in_fwd_icmp`'s
-payload policy instead. Ze sets `XFRM_POLICY_ICMP` on every transit gate and
-requires bit 7 as it requires bits 5 and 6. Two routes were set aside: not
-projecting a bypass into a FWD gate where it would cover Child SA traffic (it
-narrows what an operator entry decides), and a template on the gate (the
-kernel's `xfrm_state_ok` needs an exact tunnel destination, which a gate does not
-have). The bit 7 hunk sits in `__xfrm_policy_check` just before the stock
-`xfrm_in_fwd_icmp` call: a payload policy it finds replaces the gate, and an
-error whose payload selects no policy keeps the gate's verdict. The kernel reads
-the flag there on a FWD gate alone, so `spdTransitPolicies` sets it on every FWD
-gate (`SPParams.ICMPErrorPayload`, written as `XFRM_POLICY_ICMP` by
-`xfrmPolicyFromParams`, which refuses it on any other policy), and the OUT gate
-of an `in` or `both` bypass does not carry it: on an OUT allow the flag is what
-`icmp_route_lookup`'s reversed `XFRM_LOOKUP_ICMP` lookup accepts, and an error
-this node sends about traffic the gate covers would then leave sourced from the
-address it quotes. The readback reports the flag as `ICMPErrorPayload`, shown as
-`icmp-error-payload`.
+the error's own headers, and so can the FWD decision of an `in` or `both`
+bypass, which is a template-free allow at the operator's order. Stock
+`__xfrm_policy_check` then never takes `xfrm_in_fwd_icmp`'s payload policy, and
+it rejects a consistent error (`XfrmInTmplMismatch`), which RFC 4301 Section 5.2
+step 4 forbids: the payload is what must match. Thomas decided on 2026-11-20
+that the kernel repairs it. A new K1 capability bit 7, "forwarded ICMP error
+past a gate", changes the FWD check: an ICMP error that arrived with a secpath,
+and whose own-header policy is a template-free ALLOW carrying
+`XFRM_POLICY_ICMP`, takes `xfrm_in_fwd_icmp`'s payload policy instead. The hunk
+tests the policy's kind (FWD, no template, ALLOW, the flag) and never its
+priority, so it serves a gate and a bypass decision alike. Ze sets
+`XFRM_POLICY_ICMP` on every FWD policy an operator bypass projects, its FWD gate
+and its FWD decision, and requires bit 7 as it requires bits 5 and 6. Two routes
+were set aside: not projecting a bypass into a FWD gate where it would cover
+Child SA traffic (it narrows what an operator entry decides), and a template on
+the gate (the kernel's `xfrm_state_ok` needs an exact tunnel destination, which
+a gate does not have). The bit 7 hunk sits in `__xfrm_policy_check` just before
+the stock `xfrm_in_fwd_icmp` call: a payload policy it finds replaces the
+bypass, and an error whose payload selects no policy keeps the bypass's verdict.
+The kernel reads the flag there on a FWD allow alone, so `spdTransitPolicies`
+sets it on the FWD gate and the FWD decision of every bypass
+(`SPParams.ICMPErrorPayload`, written as `XFRM_POLICY_ICMP` by
+`xfrmPolicyFromParams`, which refuses it on an OUT policy, a discard and a
+protect policy). A discard's FWD decision does not carry it, since the hunk acts
+on an ALLOW only, and neither does the OUT gate of an `in` or `both` bypass, nor
+any OUT half: on an OUT allow the flag is what `icmp_route_lookup`'s reversed
+`XFRM_LOOKUP_ICMP` lookup accepts, and an error this node sends about traffic
+the policy covers would then leave sourced from the address it quotes. The
+readback reports the flag as `ICMPErrorPayload`, shown as `icmp-error-payload`.
 <!-- source: gokrazy/kernel/patches/0003-xfrm-state-scope.patch -- __xfrm_policy_check, XFRM_ZE_CAP_ICMP_FORWARD_GATE -->
 <!-- source: internal/component/ike/engine/spd_policy.go -- spdTransitPolicies -->
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmPolicyFromParams, policyInfoFromKernel -->

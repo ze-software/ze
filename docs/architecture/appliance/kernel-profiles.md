@@ -631,7 +631,8 @@ only and stops at an inbound discard entry the message matches as received
 (`XFRM_ZE_CAP_ICMP_REVERSE`), bit 6, the forwarded ICMP error mapping that
 tries the return SA when the out lookup of a forwarded error answers BLOCK
 (`XFRM_ZE_CAP_ICMP_FORWARD_MAP`), and bit 7, the payload check of a forwarded
-ICMP error that arrived on an SA and meets a transit gate by its own headers
+ICMP error that arrived on an SA and meets a flagged template-free forward allow
+(an operator bypass's transit gate or forward decision) by its own headers
 (`XFRM_ZE_CAP_ICMP_FORWARD_GATE`). A kernel with only part of that support cannot install a
 scoped SA, even when its configuration passed the build's checks.
 <!-- source: gokrazy/kernel/runtime.config -- CONFIG_XFRM_FRAGMENT_GUARD -->

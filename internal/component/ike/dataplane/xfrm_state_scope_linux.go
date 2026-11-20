@@ -36,7 +36,7 @@ func (*xfrmBackend) CheckSAStateScope() error {
 // is the only route by which a forwarded ICMP error that an out DISCARD covers, the
 // catch-all's included, reaches its return SA (RFC 4301 Section 6.2), so a kernel
 // without it installs no Child SA either. Bit 7 is what lets a forwarded ICMP error
-// that arrived on the SA past an operator bypass's FWD transit gate be judged by its
+// that arrived on the SA past an operator bypass's FWD gate or FWD decision be judged by its
 // payload (RFC 4301 Section 5.2, step 4), so a kernel without it installs none either.
 func checkXFRMStateScopeCapabilities() error {
 	caps, err := xfrmScopeCapsRead()

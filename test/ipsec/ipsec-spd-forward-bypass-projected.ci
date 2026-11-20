@@ -1,0 +1,233 @@
+# Functional test: on Ze's kernel, whose K1 receipt carries capability bit 3 (K3's
+# fragment guard), a commit that adds a port-scoped bypass for a protected subnet is
+# accepted, and the kernel holds the entry's forward decision with its port and its
+# forward gate, beside the projections of the start configuration's accepted shapes.
+# Spec: plan/release/fixes/spec-rfc4301-architecture-gaps.md (AC-22's bit-3 half,
+#       AC-2, AC-16; the projection is documented in
+#       docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md, "Transit traffic").
+#
+# RFC 4301 Section 7.4: "All implementations MUST support stateful fragment checking
+# to accommodate BYPASS traffic for which a non-trivial port range is specified."
+#
+# QUESTION: on a kernel that gathers forwarded fragments, does a port-scoped bypass
+# for a protected subnet commit through the real reload pipeline and reach the REAL
+# kernel SPD as a forward entry carrying its port? Unit tests decide each half over
+# dataplane doubles: TestPortScopedBypassForwardPathFollowsFragmentGathering
+# (engine/spd_policy.go spdTransitPolicies), TestRFC4301PortScopedForwardBypassRefusedAtCommit
+# (the refusal without bit 3). Only a guest booted on Ze's kernel answers bit 3 from a
+# real K1 receipt (dataplane.ForwardFragmentGatherer on the xfrm backend), runs the
+# commit verifier (verifyForwardBypass, from the ike plugin's OnConfigVerify) against
+# that answer, and reads back what XFRM stored, through
+# `show vpn ipsec dataplane policy` (ListPolicies -> policyInfoFromKernel).
+#
+# VALIDATES:
+#   The start configuration holds `all-hosts` (any-port bypass, 198.18.253.0/24 ->
+#   198.18.254.0/24), `drop-ssh` (port 22 discard, local 198.18.252.0/24) and `mgmt-ze`
+#   (port 22 bypass, local 127.0.0.1/32, an address the host holds). After the start
+#   the kernel holds a forward decision for each: all-hosts with no port, drop-ssh as
+#   discard on port 22, and mgmt-ze, a port-scoped bypass, on port 22.
+#   The reload adds `transit-ssh` (port 22 bypass, local 198.18.250.0/24, remote
+#   198.18.251.0/24, direction both by default). The reload is accepted, no refusal is
+#   logged, and the kernel holds both halves of its transit projection:
+#     - the decision, the in half's selectors in FWD with the entry's action:
+#       bypass, fwd, dst 198.18.250.0/24, dst-port 22;
+#     - the FWD gate, the out half's selectors in FWD at PriorityTransitGate:
+#       bypass, fwd, dst 198.18.251.0/24, dst-port any, and on the same row
+#       priority 4294967293 (dataplane.PriorityUnmatched - 2), src 198.18.250.0/24,
+#       src-port 22.
+#   mgmt-ze's forward decision is still held after the reload.
+# PREVENTS: a port-scoped bypass refused, or committed with no forward entry, on the
+#   kernel that gathers fragments (RFC 4301 Section 7.4 met by the stateful check, yet
+#   forwarded traffic on the bypass port kept the next entry's disposition); a forward
+#   entry stored without its port, which would bypass every port.
+#
+# NO NEGATIVE HERE. The refused shape (a port-scoped bypass for a protected subnet on a
+# kernel without bit 3) is not reachable in this guest: every QEMU guest boots Ze's
+# kernel with K3, and its receipt carries bit 3. That half is proven by
+# TestRFC4301PortScopedForwardBypassRefusedAtCommit and
+# TestPortScopedBypassNeverReachesTheForwardPath over dataplane doubles that declare
+# no gathering. The RED PROOF below reaches the same refusal by forcing the answer.
+#
+# WHY A RELOAD AND NOT ONLY A START. A start is never verified and never refuses the
+# IPsec block (owner decision 3 (a) of 2026-11-19); only a commit runs
+# verifyForwardBypass, so only a reload proves the commit accepts the entry.
+#
+# WHY THESE PREFIXES. RFC 2544 benchmarking ranges. transit-ssh's remote
+# 198.18.251.0/24 is named by no other entry here, so its FWD gate is the only fwd row
+# with that destination. The SPD is node-wide, and option=exclusive:group=ipsec-xfrm
+# keeps every other real-XFRM test's entries out of it while this one runs.
+#
+# WHY EACH NEEDLE BINDS ONE ROW. `has` re-encodes the answer as compact JSON, whose map
+# keys are sorted: action, direction, dst, dst-port, icmp-error-payload, ..., priority,
+# reqid, role, spd, src, src-port, tunnel-dst, tunnel-src, upper-proto. A needle is one
+# contiguous run of adjacent keys, so it cannot span two rows. action, direction, dst
+# and dst-port are adjacent, and so are priority, reqid, role, spd, src and src-port.
+# The in half (direction in) and the OUT gate (direction out) share the decision's
+# selectors and do not match its needle; the out half shares the FWD gate's source but
+# sits at the entry's order 1004, so it does not match the gate's priority needle.
+#
+# RED PROOF: in internal/component/ike/engine/spd_policy.go, make spdForwardGathers
+# answer false: the start installs mgmt-ze with no forward entry, so the first `has`
+# on dst 127.0.0.1/32 fails (LIVE-STAGES line, rejected below); with that step removed,
+# the reload is refused naming transit-ssh (the reject on "is a bypass with a port"
+# fires) and no FWD entry with dst 198.18.250.0/24 or 198.18.251.0/24 appears.
+#
+# Gated option=needs-linux:caps=net-admin,bpf: the daemon loads the real xfrm backend
+# and programs real XFRM policies, so this SKIPs on a host without CAP_NET_ADMIN and
+# runs as root in the QEMU guest.
+
+# bpf: the default `vpn ipsec application-override deny` loads a cgroup setsockopt guard.
+option=needs-linux:caps=net-admin,bpf
+# Serialize against every other real-XFRM ipsec test: the SPD is NODE-WIDE.
+option=exclusive:group=ipsec-xfrm
+option=env:var=ze_test_ike_port:value=$PORT2
+option=timeout:value=90s
+option=env:var=ze_log_ike:value=info
+
+# The configuration the operator commits: the start configuration plus transit-ssh.
+# The plugin block is byte-identical to the start one, so the reload keeps the
+# fixture alive.
+tmpfs=config2.conf:terminator=EOF_CONFIG2
+plugin {
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+
+vpn {
+	ipsec {
+		unmatched bypass
+		policy all-hosts {
+			action bypass
+			order 1001
+			protocol 6
+			local {
+				prefix 198.18.253.0/24
+			}
+			remote {
+				prefix 198.18.254.0/24
+			}
+		}
+		policy drop-ssh {
+			action discard
+			order 1002
+			protocol 6
+			local {
+				prefix 198.18.252.0/24
+				port 22
+			}
+			remote {
+				prefix 198.18.254.0/24
+			}
+		}
+		policy mgmt-ze {
+			action bypass
+			order 1003
+			protocol 6
+			local {
+				prefix 127.0.0.1/32
+				port 22
+			}
+			remote {
+				prefix 198.18.254.0/24
+			}
+		}
+		policy transit-ssh {
+			action bypass
+			order 1004
+			protocol 6
+			local {
+				prefix 198.18.250.0/24
+				port 22
+			}
+			remote {
+				prefix 198.18.251.0/24
+			}
+		}
+	}
+}
+EOF_CONFIG2
+
+# Each `has` polls the command until its compact JSON answer holds the needle (20s
+# bound), so every step waits on kernel state, never on time.
+tmpfs=stages.script:terminator=EOF_SCRIPT
+# The start configuration's forward decisions.
+has show vpn ipsec dataplane policy => "action":"bypass","direction":"fwd","dst":"198.18.253.0/24","dst-port":"any"
+has show vpn ipsec dataplane policy => "action":"discard","direction":"fwd","dst":"198.18.252.0/24","dst-port":"22"
+has show vpn ipsec dataplane policy => "action":"bypass","direction":"fwd","dst":"127.0.0.1/32","dst-port":"22"
+reload config2.conf
+# transit-ssh's decision: the in half's selectors in FWD, with its port.
+has show vpn ipsec dataplane policy => "action":"bypass","direction":"fwd","dst":"198.18.250.0/24","dst-port":"22"
+# transit-ssh's FWD gate: the out half's selectors in FWD.
+has show vpn ipsec dataplane policy => "action":"bypass","direction":"fwd","dst":"198.18.251.0/24","dst-port":"any"
+# The same gate row: PriorityTransitGate, sourced from the bypass's port.
+has show vpn ipsec dataplane policy => "priority":4294967293,"reqid":0,"role":"operator","spd":"node","src":"198.18.250.0/24","src-port":"22"
+# mgmt-ze's forward decision survived the reload.
+has show vpn ipsec dataplane policy => "action":"bypass","direction":"fwd","dst":"127.0.0.1/32","dst-port":"22"
+say FORWARD-BYPASS-PROJECTED
+EOF_SCRIPT
+
+# ── The daemon (REAL xfrm): the three accepted entries ──
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+
+vpn {
+	ipsec {
+		unmatched bypass
+		policy all-hosts {
+			action bypass
+			order 1001
+			protocol 6
+			local {
+				prefix 198.18.253.0/24
+			}
+			remote {
+				prefix 198.18.254.0/24
+			}
+		}
+		policy drop-ssh {
+			action discard
+			order 1002
+			protocol 6
+			local {
+				prefix 198.18.252.0/24
+				port 22
+			}
+			remote {
+				prefix 198.18.254.0/24
+			}
+		}
+		policy mgmt-ze {
+			action bypass
+			order 1003
+			protocol 6
+			local {
+				prefix 127.0.0.1/32
+				port 22
+			}
+			remote {
+				prefix 198.18.254.0/24
+			}
+		}
+	}
+}
+EOF_CONF
+
+# The fixture's last step passes, then it asks the daemon to shut down cleanly.
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=85s
+
+expect=exit:code=0
+expect=stderr:contains=FORWARD-BYPASS-PROJECTED
+# No refusal at the commit and no Error log at the start (both carry this problem text).
+reject=stderr:contains=is a bypass with a port, and Ze cannot apply it to the traffic it forwards
+reject=stderr:pattern=could not install operator SPD policy
+reject=stderr:pattern=LIVE-STAGES line
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error

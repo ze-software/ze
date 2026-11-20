@@ -740,15 +740,15 @@ func xfrmPolicyFromParams(p SPParams) (*netlink.XfrmPolicy, error) {
 		// would install a request nothing performs, or a different one.
 		if p.ICMPErrorPayload {
 			if p.Dir != SADirFwd {
-				// Only a Ze defect reaches this: the flag is set on a FWD transit gate alone.
+				// Only a Ze defect reaches this: the flag is set on an operator bypass's FWD policies alone.
 				return nil, fmt.Errorf("BUG: the forwarded ICMP error payload check is set on a direction %d policy, and the kernel performs it on a forward (%d) policy only; "+
-					"the code that built this SPParams must set ICMPErrorPayload on a FWD transit gate alone, as engine/spd_policy.go spdTransitPolicies does, so report this as a Ze defect",
+					"the code that built this SPParams must set ICMPErrorPayload on the FWD gate or the FWD decision of an operator bypass alone, as engine/spd_policy.go spdTransitPolicies does, so report this as a Ze defect",
 					p.Dir, SADirFwd)
 			}
 			if p.Action != SPActionBypass {
-				// Only a Ze defect reaches this: a transit gate is always a bypass.
+				// Only a Ze defect reaches this: the flag is set on a bypass alone.
 				return nil, fmt.Errorf("BUG: the forwarded ICMP error payload check is set on a policy with action %d, and the kernel performs it on a bypass (%d) only; "+
-					"the code that built this SPParams must set ICMPErrorPayload on a FWD transit gate alone, as engine/spd_policy.go spdTransitPolicies does, so report this as a Ze defect",
+					"the code that built this SPParams must set ICMPErrorPayload on the FWD gate or the FWD decision of an operator bypass alone, as engine/spd_policy.go spdTransitPolicies does, so report this as a Ze defect",
 					p.Action, SPActionBypass)
 			}
 		}
@@ -789,9 +789,9 @@ func xfrmPolicyFromParams(p SPParams) (*netlink.XfrmPolicy, error) {
 		}, nil
 	}
 	if p.ICMPErrorPayload {
-		// Only a Ze defect reaches this: a transit gate carries no template.
+		// Only a Ze defect reaches this: an operator bypass carries no template.
 		return nil, errors.New("BUG: the forwarded ICMP error payload check is set on a protect policy, and the kernel performs it on a template-free forward bypass only; " +
-			"the code that built this SPParams must set ICMPErrorPayload on a FWD transit gate alone, as engine/spd_policy.go spdTransitPolicies does, so report this as a Ze defect")
+			"the code that built this SPParams must set ICMPErrorPayload on the FWD gate or the FWD decision of an operator bypass alone, as engine/spd_policy.go spdTransitPolicies does, so report this as a Ze defect")
 	}
 	// The kernel reads XFRM_POLICY_ICMP only on the policy an outbound XFRM_LOOKUP_ICMP
 	// lookup finds (xfrm_lookup_with_ifid, net/xfrm/xfrm_policy.c), so the flag on an
@@ -1129,10 +1129,11 @@ func (b *xfrmBackend) policyInfoFromKernel(p *netlink.XfrmPolicy) PolicyInfo {
 		// XFRM_POLICY_ICMP, the flag xfrmPolicyFromParams sets for
 		// SPParams.ICMPErrorReturn on a protect policy and on the catch-all's inbound
 		// discard (catchAllYieldsToICMPErrorCheck), and for SPParams.ICMPErrorPayload on
-		// a FWD transit gate; netlink parseXfrmPolicy reads it into ICMP. The kernel
-		// reads it as the return mapping on a policy with a template, as the reverse
-		// check's pass on a BLOCK policy and as the payload check on a template-free FWD
-		// allow, so each field takes it on its own kind of policy only.
+		// the FWD gate or FWD decision of an operator bypass; netlink parseXfrmPolicy
+		// reads it into ICMP. The kernel reads it as the return mapping on a policy with
+		// a template, as the reverse check's pass on a BLOCK policy and as the payload
+		// check on a template-free FWD allow, so each field takes it on its own kind of
+		// policy only.
 		ICMPErrorReturn:  p.ICMP && len(p.Tmpls) > 0,
 		ICMPErrorYield:   p.ICMP && p.Action == netlink.XFRM_POLICY_BLOCK,
 		ICMPErrorPayload: p.ICMP && p.Action == netlink.XFRM_POLICY_ALLOW && len(p.Tmpls) == 0 && p.Dir == netlink.XFRM_DIR_FWD,

@@ -271,7 +271,8 @@ func policyInfoToMap(p *dataplane.PolicyInfo) map[string]any {
 	// admit an ICMP error whose reversed payload matches its SA (the catch-all only).
 	row["icmp-error-yield"] = p.ICMPErrorYield
 	// RFC 4301 Section 5.2, step 4: whether this forward bypass lets a forwarded ICMP
-	// error that arrived on an SA be judged by its payload (a transit gate only).
+	// error that arrived on an SA be judged by its payload (an operator bypass's FWD
+	// gate or FWD decision only).
 	row["icmp-error-payload"] = p.ICMPErrorPayload
 	return row
 }
