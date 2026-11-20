@@ -715,136 +715,141 @@ func TestApplyPipesCountOfCount(t *testing.T) {
 	}
 }
 
-// VALIDATES: foldFilters folds registered filters into command args.
-// PREVENTS: filters being hardcoded in generic pipe code.
-func TestFoldFilters(t *testing.T) {
+// TestPartitionDeclaredOperations asks whether the partition takes a
+// command's declared operations out of the chain in the order typed, leaves
+// the command part as typed, keeps every other operation in the residual
+// chain, and records the whole chain's metadata.
+// Method: one command declares two own names without an argument, one with
+// an argument, and the overrides match and count; each row partitions a
+// chain and reads the command part, the declared list and the residual kinds.
+// VALIDATES: spec-pipe-chain-honored-on-every-command-surface, the partition
+// that replaced foldFilters; the line is never rewritten.
+// PREVENTS: filters being hardcoded in generic pipe code, and a declared
+// operation reaching the handler as a command word.
+func TestPartitionDeclaredOperations(t *testing.T) {
 	ResetPipeFiltersForTest()
 	t.Cleanup(ResetPipeFiltersForTest)
 	RegisterPipeFilters([]string{"show routes"},
-		PipeFilter{Name: "first", Description: "first source", Leading: true},
-		PipeFilter{Name: "second", Description: "second source", Leading: true},
-		PipeFilter{Name: "path", Description: "AS path", TakesArg: true},
-		PipeFilter{Name: "match", Description: "structured match", TakesArg: true},
+		PipeFilter{Name: "source-a", Description: "first source"},
+		PipeFilter{Name: "source-b", Description: "second source"},
+		PipeFilter{Name: "path", Description: "AS path", Argument: ArgText},
+		PipeFilter{Name: "match", Description: "structured match", Argument: ArgText},
 		PipeFilter{Name: "count", Description: "count routes"},
 	)
 	RegisterPipeFilters([]string{"show routes status"})
 
 	tests := []struct {
-		name    string
-		command string
-		ops     []pipeOp
-		wantCmd string
-		wantOps []pipeKind
+		name         string
+		command      string
+		ops          []pipeOp
+		wantDeclared []PipeOperation
+		wantOps      []pipeKind
 	}{
 		{
 			name:    "unregistered command unchanged",
 			command: "peer list",
 			ops:     []pipeOp{{kind: pipeMatch, arg: "established"}},
-			wantCmd: "peer list",
 			wantOps: []pipeKind{pipeMatch},
 		},
 		{
-			name:    "registered command with path filter",
-			command: "show routes first",
-			ops:     []pipeOp{{kind: pipeUnknown, arg: "path 65001", words: []string{"path", "65001"}}},
-			wantCmd: "show routes first path 65001",
+			name:         "registered command with path filter",
+			command:      "show routes source-a",
+			ops:          []pipeOp{{kind: pipeUnknown, arg: "path 65001", words: []string{"path", "65001"}}},
+			wantDeclared: []PipeOperation{{Name: "path", Args: []string{"65001"}}},
 		},
 		{
 			name:    "registered command rejects unknown filter",
 			command: "show routes",
 			ops:     []pipeOp{{kind: pipeUnknown, arg: "bogus", words: []string{"bogus"}}},
-			wantCmd: "show routes",
 			wantOps: []pipeKind{pipeInvalid},
 		},
 		{
 			name:    "registered command rejects missing filter argument",
 			command: "show routes",
 			ops:     []pipeOp{{kind: pipeUnknown, arg: "path", words: []string{"path"}}},
-			wantCmd: "show routes",
 			wantOps: []pipeKind{pipeInvalid},
 		},
 		{
 			name:    "registered command rejects extra flag argument",
 			command: "show routes",
-			ops:     []pipeOp{{kind: pipeUnknown, arg: "first unexpected", words: []string{"first", "unexpected"}}},
-			wantCmd: "show routes",
+			ops:     []pipeOp{{kind: pipeUnknown, arg: "source-a unexpected", words: []string{"source-a", "unexpected"}}},
 			wantOps: []pipeKind{pipeInvalid},
 		},
 		{
-			name:    "registered command with count terminal",
-			command: "show routes",
-			ops:     []pipeOp{{kind: pipeCount}},
-			wantCmd: "show routes count",
+			name:         "registered command with count override",
+			command:      "show routes",
+			ops:          []pipeOp{{kind: pipeCount}},
+			wantDeclared: []PipeOperation{{Name: "count"}},
 		},
 		{
-			name:    "registered command reorders leading selector",
+			name:    "declared operations keep the order typed",
 			command: "show routes",
-			ops:     []pipeOp{{kind: pipeUnknown, arg: "path 65001", words: []string{"path", "65001"}}, {kind: pipeUnknown, arg: "second", words: []string{"second"}}},
-			wantCmd: "show routes second path 65001",
+			ops: []pipeOp{
+				{kind: pipeUnknown, arg: "path 65001", words: []string{"path", "65001"}},
+				{kind: pipeUnknown, arg: "source-b", words: []string{"source-b"}},
+			},
+			wantDeclared: []PipeOperation{{Name: "path", Args: []string{"65001"}}, {Name: "source-b"}},
 		},
 		{
-			name:    "match folded server-side when registered",
-			command: "show routes",
-			ops:     []pipeOp{{kind: pipeMatch, arg: "10.0.0.0"}},
-			wantCmd: "show routes match 10.0.0.0",
+			name:         "match override taken when registered",
+			command:      "show routes",
+			ops:          []pipeOp{{kind: pipeMatch, arg: "10.0.0.0"}},
+			wantDeclared: []PipeOperation{{Name: "match", Args: []string{"10.0.0.0"}}},
 		},
 		{
-			name:    "match stays client-side when not registered",
+			name:    "match stays generic when not registered",
 			command: "peer list",
 			ops:     []pipeOp{{kind: pipeMatch, arg: "established"}},
-			wantCmd: "peer list",
 			wantOps: []pipeKind{pipeMatch},
 		},
 		{
-			name:    "registered command keeps no-more client-side",
-			command: "show routes",
-			ops:     []pipeOp{{kind: pipeUnknown, arg: "path 65001", words: []string{"path", "65001"}}, {kind: pipeNoMore}},
-			wantCmd: "show routes path 65001",
-			wantOps: []pipeKind{pipeNoMore},
+			name:         "registered command keeps no-more residual",
+			command:      "show routes",
+			ops:          []pipeOp{{kind: pipeUnknown, arg: "path 65001", words: []string{"path", "65001"}}, {kind: pipeNoMore}},
+			wantDeclared: []PipeOperation{{Name: "path", Args: []string{"65001"}}},
+			wantOps:      []pipeKind{pipeNoMore},
 		},
 		{
-			name:    "registered command keeps table client-side",
-			command: "show routes first",
-			ops:     []pipeOp{{kind: pipeCount}, {kind: pipeTable}},
-			wantCmd: "show routes first count",
-			wantOps: []pipeKind{pipeTable},
+			name:         "registered command keeps table residual",
+			command:      "show routes source-a",
+			ops:          []pipeOp{{kind: pipeCount}, {kind: pipeTable}},
+			wantDeclared: []PipeOperation{{Name: "count"}},
+			wantOps:      []pipeKind{pipeTable},
 		},
 		{
-			name:    "registered command keeps json client-side",
+			name:    "registered command keeps json residual",
 			command: "show routes",
 			ops:     []pipeOp{{kind: pipeJSON, arg: jsonPretty}},
-			wantCmd: "show routes",
 			wantOps: []pipeKind{pipeJSON},
 		},
 		{
-			name:    "more specific command with empty registration keeps count client-side",
+			name:    "more specific command with empty registration keeps count generic",
 			command: "show routes status",
 			ops:     []pipeOp{{kind: pipeCount}},
-			wantCmd: "show routes status",
 			wantOps: []pipeKind{pipeCount},
 		},
 		{
-			name:    "more specific command with empty registration rejects route filters as generic unknowns",
+			name:    "more specific command with empty registration leaves route filters as generic unknowns",
 			command: "show routes status",
-			ops:     []pipeOp{{kind: pipeUnknown, arg: "first", words: []string{"first"}}},
-			wantCmd: "show routes status",
+			ops:     []pipeOp{{kind: pipeUnknown, arg: "source-a", words: []string{"source-a"}}},
 			wantOps: []pipeKind{pipeUnknown},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd, ops, _ := foldFilters(tt.command, tt.ops)
-			if cmd != tt.wantCmd {
-				t.Errorf("command = %q, want %q", cmd, tt.wantCmd)
+			part := partitionPipeChain(tt.command, tt.ops)
+			if part.command != tt.command {
+				t.Errorf("command = %q, want %q unchanged", part.command, tt.command)
 			}
-			if len(ops) != len(tt.wantOps) {
-				t.Fatalf("got %d client ops, want %d", len(ops), len(tt.wantOps))
+			if !samePipeOperations(part.declared, tt.wantDeclared) {
+				t.Errorf("declared = %+v, want %+v", part.declared, tt.wantDeclared)
 			}
-			for i, want := range tt.wantOps {
-				if ops[i].kind != want {
-					t.Errorf("client op %d = %v, want %v", i, ops[i].kind, want)
-				}
+			if got := residualKinds(part.residual); !slices.Equal(got, tt.wantOps) {
+				t.Errorf("residual = %v, want %v", got, tt.wantOps)
+			}
+			if want := collectPipeMeta(tt.ops); !slices.Equal(part.meta, want) {
+				t.Errorf("meta = %+v, want the whole chain's %+v", part.meta, want)
 			}
 		})
 	}
@@ -856,8 +861,8 @@ func TestFoldFiltersValidationErrors(t *testing.T) {
 	ResetPipeFiltersForTest()
 	t.Cleanup(ResetPipeFiltersForTest)
 	RegisterPipeFilters([]string{"show routes"},
-		PipeFilter{Name: "received", Description: "received source", Leading: true},
-		PipeFilter{Name: "path", Description: "AS path", TakesArg: true},
+		PipeFilter{Name: "received", Description: "received source"},
+		PipeFilter{Name: "path", Description: "AS path", Argument: ArgText},
 	)
 
 	tests := []struct {
@@ -885,7 +890,7 @@ func TestFoldFiltersValidationErrors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cmd, ops := ParsePipe(tt.input)
-			_, ops, _ = foldFilters(cmd, ops)
+			ops = partitionPipeChain(cmd, ops).residual
 			if got := ValidatePipes(ops); got != tt.want {
 				t.Fatalf("validation error = %q, want %q", got, tt.want)
 			}
@@ -930,7 +935,7 @@ func TestHasFormatPipe(t *testing.T) {
 func TestProcessPipesChecked_InvalidFilter(t *testing.T) {
 	ResetPipeFiltersForTest()
 	t.Cleanup(ResetPipeFiltersForTest)
-	RegisterPipeFilters([]string{"show routes"}, PipeFilter{Name: "path", Description: "AS path", TakesArg: true})
+	RegisterPipeFilters([]string{"show routes"}, PipeFilter{Name: "path", Description: "AS path", Argument: ArgText})
 
 	cmd, format, errMsg := processPipesChecked("show routes | bogus")
 	if cmd != "show routes" {
@@ -944,7 +949,7 @@ func TestProcessPipesChecked_InvalidFilter(t *testing.T) {
 	}
 }
 
-// VALIDATES: display pipes stay client-side when server filters are folded.
+// VALIDATES: display pipes stay residual when the command declares count.
 // PREVENTS: explicit JSON output being reformatted by the interactive default formatter.
 func TestProcessPipesDefaultFormat_FilterKeepsJSON(t *testing.T) {
 	ResetPipeFiltersForTest()
@@ -954,8 +959,8 @@ func TestProcessPipesDefaultFormat_FilterKeepsJSON(t *testing.T) {
 	t.Cleanup(env.ResetCache)
 
 	cmd, format, _ := ProcessPipesDefaultFormatChecked("show routes | count | json", "")
-	if cmd != "show routes count" {
-		t.Fatalf("command = %q, want %q", cmd, "show routes count")
+	if cmd != "show routes" {
+		t.Fatalf("command = %q, want %q unchanged", cmd, "show routes")
 	}
 
 	result := format(`{"count":2}`)
@@ -1581,16 +1586,19 @@ func TestFoldFiltersFirst(t *testing.T) {
 	ResetPipeFiltersForTest()
 	t.Cleanup(ResetPipeFiltersForTest)
 	RegisterPipeFilters([]string{"show routes"},
-		PipeFilter{Name: "first", Description: "Take first N", TakesArg: true},
-		PipeFilter{Name: "last", Description: "Take last N", TakesArg: true},
+		PipeFilter{Name: "first", Description: "Take first N", Argument: ArgCount},
+		PipeFilter{Name: "last", Description: "Take last N", Argument: ArgCount},
 	)
 
-	cmd, ops, _ := foldFilters("show routes", []pipeOp{{kind: pipeFirst, arg: "10"}})
-	if cmd != "show routes first 10" {
-		t.Errorf("command = %q, want %q", cmd, "show routes first 10")
+	part := partitionPipeChain("show routes", []pipeOp{{kind: pipeFirst, arg: "10"}})
+	if part.command != "show routes" {
+		t.Errorf("command = %q, want it unchanged", part.command)
 	}
-	if len(ops) != 0 {
-		t.Errorf("expected 0 client ops, got %d", len(ops))
+	if want := []PipeOperation{{Name: "first", Args: []string{"10"}}}; !samePipeOperations(part.declared, want) {
+		t.Errorf("declared = %+v, want %+v", part.declared, want)
+	}
+	if len(part.residual) != 0 {
+		t.Errorf("expected 0 residual ops, got %d", len(part.residual))
 	}
 }
 
@@ -1598,7 +1606,8 @@ func TestFoldFiltersFirstNotRegistered(t *testing.T) {
 	ResetPipeFiltersForTest()
 	t.Cleanup(ResetPipeFiltersForTest)
 
-	cmd, ops, _ := foldFilters("peer list", []pipeOp{{kind: pipeFirst, arg: "5"}})
+	part := partitionPipeChain("peer list", []pipeOp{{kind: pipeFirst, arg: "5"}})
+	cmd, ops := part.command, part.residual
 	if cmd != "peer list" {
 		t.Errorf("command = %q, want %q", cmd, "peer list")
 	}
@@ -1828,9 +1837,9 @@ func TestRawPipeIsRefusedBesideAnotherFormat(t *testing.T) {
 // TestRawPipeSurvivesFilterFolding covers the one path where a new operator can
 // disappear without a compile error.
 //
-// foldFilters splits a chain into what the command executes server-side and what
-// stays a client-side operator. Its switch is exhaustive-exempt, so an operator
-// it does not name falls out of both lists. The chain then names no format, the
+// partitionPipeChain splits a chain into the operations the command declares and
+// the residual chain. An operation it does not take goes to the residual chain;
+// were it dropped instead, it would fall out of both lists. The chain then names no format, the
 // configured default is appended, and an RPC caller quietly gets a rendering.
 //
 // VALIDATES: spec-fixit-cli-format-default-everywhere AC-9 -- `| raw` survives a
@@ -1842,14 +1851,14 @@ func TestRawPipeSurvivesFilterFolding(t *testing.T) {
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
 
-	RegisterPipeFilters([]string{"show routes"}, PipeFilter{Name: "peer", Description: "Filter by peer", TakesArg: true})
+	RegisterPipeFilters([]string{"show routes"}, PipeFilter{Name: "peer", Description: "Filter by peer", Argument: ArgText})
 
 	command, format, errMsg := ProcessPipesDefaultFormatChecked("show routes | peer 192.0.2.1 | raw", "")
 	if errMsg != "" {
 		t.Fatalf("the chain was refused: %s", errMsg)
 	}
-	if command != "show routes peer 192.0.2.1" {
-		t.Errorf("command = %q, want the filter folded into it", command)
+	if command != "show routes" {
+		t.Errorf("command = %q, want the command part unchanged: peer reaches the handler in its declared list", command)
 	}
 	const response = `{"routes":[{"prefix":"192.0.2.0/24"}]}`
 	if got := format(response); got != response {
@@ -1918,18 +1927,18 @@ func requireTextOrderingIsLive(t *testing.T, payload string) {
 // VALIDATES: AC-8, R-3. An alias used on a command that owns pipe filters
 // expands and applies. `show bgp rib` is that command, and its real filter set
 // is what this test registers.
-// PREVENTS: the expansion vanishing inside foldFilters. That switch splits a
-// chain into the ops folded into server arguments and the ops the client still
-// runs. A kind it named nowhere used to reach neither side, and nothing
-// reported the loss. The assertion is that the answer CHANGED.
+// PREVENTS: the expansion vanishing inside partitionPipeChain. The partition
+// splits a chain into the operations the command declares and the residual
+// chain ApplyPipes runs. An operation it took into neither would reach no side,
+// and nothing would report the loss. The assertion is that the answer CHANGED.
 func TestAliasSurvivesFoldFiltersOnFilteredCommand(t *testing.T) {
 	resetAliasTables(t)
 
 	RegisterPipeFilters([]string{"show bgp rib"},
-		PipeFilter{Name: "peer", Description: "Filter by peer", TakesArg: true},
-		PipeFilter{Name: "prefix", Description: "Filter by prefix", TakesArg: true},
+		PipeFilter{Name: "peer", Description: "Filter by peer", Argument: ArgText},
+		PipeFilter{Name: "prefix", Description: "Filter by prefix", Argument: ArgText},
 		PipeFilter{Name: "count", Description: "Count matching routes"},
-		PipeFilter{Name: "first", Description: "Take first N routes", TakesArg: true},
+		PipeFilter{Name: "first", Description: "Take first N routes", Argument: ArgCount},
 	)
 	RegisterAliases([]string{"show bgp rib"}, Alias{Name: "prefixes", Expansion: "display prefix"})
 
@@ -1939,8 +1948,8 @@ func TestAliasSurvivesFoldFiltersOnFilteredCommand(t *testing.T) {
 	if errMsg != "" {
 		t.Fatalf("the chain was refused: %s", errMsg)
 	}
-	if command != "show bgp rib peer 192.0.2.1" {
-		t.Errorf("command = %q, want the command's own filter folded into it", command)
+	if command != "show bgp rib" {
+		t.Errorf("command = %q, want the command part unchanged: peer reaches the handler in its declared list", command)
 	}
 
 	got := format(payload)
@@ -1963,7 +1972,7 @@ func TestFoldFiltersKeepsAnInvalidOpOnAFilteredCommand(t *testing.T) {
 	resetAliasTables(t)
 
 	RegisterPipeFilters([]string{"show bgp rib"},
-		PipeFilter{Name: "peer", Description: "Filter by peer", TakesArg: true},
+		PipeFilter{Name: "peer", Description: "Filter by peer", Argument: ArgText},
 	)
 	RegisterAliases([]string{"show bgp rib"}, Alias{Name: "prefixes", Expansion: "display prefix"})
 
@@ -2524,13 +2533,13 @@ func TestPipeArgumentsFollowTheCatalog(t *testing.T) {
 // VALIDATES: IR2-11 -- the final safe last count and bare count fold, while the
 // first oversized last and surplus count fail before a handler or row walk.
 // A row transform after text stays client-side for IR2-15 line semantics.
-// PREVENTS: foldFilters deleting malformed or post-format operators.
+// PREVENTS: partitionPipeChain deleting malformed or post-format operators.
 func TestFoldedFiltersValidateCatalogArgumentsBeforeDispatch(t *testing.T) {
 	ResetPipeFiltersForTest()
 	t.Cleanup(ResetPipeFiltersForTest)
 	RegisterPipeFilters([]string{"show test rib"},
 		PipeFilter{Name: "count", Description: "count routes"},
-		PipeFilter{Name: "last", Description: "last routes", TakesArg: true},
+		PipeFilter{Name: "last", Description: "last routes", Argument: ArgCount},
 	)
 
 	lastValid := textbuf.StringInt(int64(recordsLastLimit))
@@ -2538,22 +2547,31 @@ func TestFoldedFiltersValidateCatalogArgumentsBeforeDispatch(t *testing.T) {
 	if msg != "" {
 		t.Fatalf("folded last %s was refused: %s", lastValid, msg)
 	}
-	if command != "show test rib last "+lastValid {
-		t.Errorf("valid last did not fold: %q", command)
+	if command != "show test rib" {
+		t.Errorf("valid last changed the command part to %q", command)
+	}
+	if part := partitionOf("show test rib | last " + lastValid); !samePipeOperations(part.declared, []PipeOperation{{Name: "last", Args: []string{lastValid}}}) || len(part.residual) != 0 {
+		t.Errorf("valid last: declared %+v residual %+v, want declared [last %s] and no residual", part.declared, part.residual, lastValid)
 	}
 	command, _, msg = processPipesChecked("show test rib | count")
 	if msg != "" {
 		t.Fatalf("folded count was refused: %s", msg)
 	}
-	if command != "show test rib count" {
-		t.Errorf("valid count did not fold: %q", command)
+	if command != "show test rib" {
+		t.Errorf("valid count changed the command part to %q", command)
+	}
+	if part := partitionOf("show test rib | count"); !samePipeOperations(part.declared, []PipeOperation{{Name: "count"}}) || len(part.residual) != 0 {
+		t.Errorf("valid count: declared %+v residual %+v, want declared [count] and no residual", part.declared, part.residual)
 	}
 	command, _, msg = processPipesChecked("show test rib | text | last 1")
 	if msg != "" {
 		t.Fatalf("format-before-last was refused: %s", msg)
 	}
 	if command != "show test rib" {
-		t.Errorf("last after text folded into dispatch spelling %q", command)
+		t.Errorf("last after text changed the command part to %q", command)
+	}
+	if part := partitionOf("show test rib | text | last 1"); len(part.declared) != 0 || !slices.Equal(residualKinds(part.residual), []pipeKind{pipeText, pipeLast}) {
+		t.Errorf("text | last 1: declared %+v residual %v, want none declared and residual [text last]", part.declared, residualKinds(part.residual))
 	}
 
 	wrappers := []struct {
@@ -2656,18 +2674,18 @@ func TestFoldedFiltersValidateCatalogArgumentsBeforeDispatch(t *testing.T) {
 // operators still belong to the pipe engine.
 //
 // VALIDATES: IR7-1 -- count/document validation sees the expanded chain before
-// foldFilters can remove count. A formatted line follower remains valid.
+// partitionPipeChain can remove count. A formatted line follower remains valid.
 // PREVENTS: dispatching a command or pulling its records after the fold erased
 // the count that made match, first, or last invalid.
 func TestOwnedCountCannotHideInvalidDocumentFollowers(t *testing.T) {
 	ResetPipeFiltersForTest()
 	t.Cleanup(ResetPipeFiltersForTest)
 	RegisterPipeFilters([]string{"show bgp rib"},
-		PipeFilter{Name: "received", Description: "Select received routes", Leading: true},
-		PipeFilter{Name: "advertised", Description: "Select advertised routes", Leading: true},
-		PipeFilter{Name: "peer", Description: "Filter by peer", TakesArg: true},
-		PipeFilter{Name: "family", Description: "Filter by family", TakesArg: true},
-		PipeFilter{Name: "prefix", Description: "Filter by prefix", TakesArg: true},
+		PipeFilter{Name: "received", Description: "Select received routes"},
+		PipeFilter{Name: "advertised", Description: "Select advertised routes"},
+		PipeFilter{Name: "peer", Description: "Filter by peer", Argument: ArgText},
+		PipeFilter{Name: "family", Description: "Filter by family", Argument: ArgText},
+		PipeFilter{Name: "prefix", Description: "Filter by prefix", Argument: ArgText},
 		PipeFilter{Name: "count", Description: "Count matching routes"},
 	)
 
@@ -2700,9 +2718,13 @@ func TestOwnedCountCannotHideInvalidDocumentFollowers(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			input := "show bgp rib | count | " + tt.follower
 			command, ops := parsePipeChain(input)
-			foldedCommand, folded, meta := foldFilters(command, ops)
+			part := partitionPipeChain(command, ops)
+			foldedCommand, folded, meta := part.command, part.residual, part.meta
 			if foldedCommand != command {
 				t.Errorf("invalid chain changed dispatch command to %q, want %q", foldedCommand, command)
+			}
+			if len(part.declared) != 0 {
+				t.Errorf("invalid chain declared %+v, want nothing taken before the refusal", part.declared)
 			}
 			if len(folded) != 1 || folded[0].kind != pipeInvalid || folded[0].arg != tt.want {
 				t.Fatalf("folded ops = %+v, want one pipeInvalid carrying %q", folded, tt.want)
@@ -2762,8 +2784,8 @@ func TestOwnedCountCannotHideInvalidDocumentFollowers(t *testing.T) {
 	if errMsg != "" {
 		t.Fatalf("formatted count follower was refused: %s", errMsg)
 	}
-	if command != "show bgp rib count" {
-		t.Errorf("valid count did not fold: command = %q", command)
+	if command != "show bgp rib" {
+		t.Errorf("valid count changed the command part: command = %q", command)
 	}
 	result := format(`{"count":3}`)
 	if IsPipeError(result) {

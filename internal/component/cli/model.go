@@ -673,6 +673,13 @@ type CommandOutput struct {
 }
 
 // CommandExecutor executes one operational command.
+//
+// The model hands it the line as typed, pipe chain included, and renders the
+// residual chain over the answer itself (executeOperationalCommand). An
+// executor MUST answer the line as a caller that renders: in the daemon it
+// dispatches with plugin.CallerIdentity.RendersResidualChain set; across a
+// process boundary it sends what lets the daemon run only the command's
+// declared operations (command.DispatchLine.DeclaredLine).
 type CommandExecutor func(string) (CommandOutput, error)
 
 // handleCommandResult applies the result of an executed command to the model.

@@ -2,10 +2,11 @@
 package api
 
 import (
-	"github.com/ze-software/ze/internal/core/opererr"
 	"strings"
+	"unicode"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -43,6 +44,12 @@ func (e *APIEngine) prepareCommand(input string, params map[string]string) (stri
 // Exact paths take typed inline placement. An existing raw invocation is
 // retained byte-for-byte and receives only a keyword suffix: it is never
 // rebuilt, and supplied selector values are never inserted a second time.
+//
+// The parameters are written into the command part, before the first pipe
+// outside quotes (pipeAt, from command.ScanExecution), so they reach the
+// handler as arguments and the chain stays the chain the caller typed.
+// WriteInvocation quotes a value holding a pipe or a quote, so no parameter
+// opens an operation.
 func buildInvocation(input string, params map[string]string, words []string, pipeAt int, meta *CommandMeta) (string, error) {
 	if len(params) == 0 {
 		return input, nil
@@ -65,13 +72,21 @@ func buildInvocation(input string, params map[string]string, words []string, pip
 		}
 		return "", command.InvocationFlagError(name, err)
 	}
-	var output textbuf.Buffer
-	if meta != nil && pipeAt < 0 && strings.EqualFold(strings.Join(words, " "), meta.Name) {
-		command.WriteInvocation(&output, strings.Fields(meta.Name), defs, values)
-		return output.String(), nil
+	commandPart, chain := input, ""
+	if pipeAt >= 0 {
+		commandPart = strings.TrimRightFunc(input[:pipeAt], unicode.IsSpace)
+		chain = input[pipeAt:]
 	}
-	output.Str(input)
-	command.WriteInvocation(&output, nil, defs, values)
+	var output textbuf.Buffer
+	if meta != nil && strings.EqualFold(strings.Join(words, " "), meta.Name) {
+		command.WriteInvocation(&output, strings.Fields(meta.Name), defs, values)
+	} else {
+		output.Str(commandPart)
+		command.WriteInvocation(&output, nil, defs, values)
+	}
+	if chain != "" {
+		output.Byte(' ').Str(chain)
+	}
 	return output.String(), nil
 }
 

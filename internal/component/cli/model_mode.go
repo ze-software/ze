@@ -197,8 +197,11 @@ func isConfigCommandWithArgs(input string) bool {
 }
 
 // executeOperationalCommand sends a command to the daemon via the injected executor.
-// Pipe operators (| table, | json, | match, etc.) are processed here so all
-// entry points (ze cli, SSH, plugin CLI) get pipe support automatically.
+// The executor receives the line as typed, pipe chain included, and the model
+// renders the residual chain here, so all entry points (ze cli, SSH, plugin
+// CLI) get pipe support automatically. The executor MUST therefore answer the
+// line as a caller that renders: the command's declared operations run in its
+// handler, and the answer is data for formatFn, built from the same partition.
 // Returns a tea.Cmd that produces a commandResultMsg with the response.
 func (m Model) executeOperationalCommand(input string) tea.Cmd {
 	executor := m.commandExecutor
@@ -208,19 +211,18 @@ func (m Model) executeOperationalCommand(input string) tea.Cmd {
 				err: errNoDaemonConnectionOperationalModeRequires,
 			}
 		}
-		var cmdStr string
 		var formatFn func(string) string
 		var pipeErr string
 		if m.filesystemAuthority == FilesystemAuthorityOperatorLocal {
-			cmdStr, formatFn, pipeErr = command.ProcessPipesDefaultFormatLocal(input, m.cliFormat)
+			_, formatFn, pipeErr = command.ProcessPipesDefaultFormatLocal(input, m.cliFormat)
 		} else {
-			cmdStr, formatFn, pipeErr = command.ProcessPipesDefaultFormatChecked(input, m.cliFormat)
+			_, formatFn, pipeErr = command.ProcessPipesDefaultFormatChecked(input, m.cliFormat)
 		}
 		if pipeErr != "" {
 			var tb2 textbuf.Buffer
 			return commandResultMsg{err: errors.New(tb2.Str("pipe error: ").Str(pipeErr).String())}
 		}
-		output, err := executor(cmdStr)
+		output, err := executor(input)
 		result := commandResult{
 			output:            withWarning(output.Warning, formatFn(output.Text)),
 			transportComplete: output.TransportComplete,

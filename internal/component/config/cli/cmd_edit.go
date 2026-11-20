@@ -172,13 +172,21 @@ var execEditorCommand = sshclient.ExecCommand
 
 // sshCommandExecutor is the operational-command executor the editor's Model runs.
 //
-// The Model splits the pipe chain and renders the answer itself
+// The Model hands it the typed line and renders the residual chain itself
 // (internal/component/cli/model_mode.go, executeOperationalCommand), so this
 // executor asks for the dispatcher's JSON. An answer the daemon already
-// rendered in the configured format cannot be rendered a second time.
+// rendered in the configured format cannot be rendered a second time. The
+// editor runs in another process than the daemon, so it sends the command
+// part with only the operations the command declares
+// (command.DispatchLine.DeclaredLine): the daemon runs those in the handler,
+// and the residual chain is applied once, here.
 func sshCommandExecutor(creds sshclient.Credentials) cli.CommandExecutor {
 	return func(input string) (cli.CommandOutput, error) {
-		output, err := execEditorCommand(creds, sshclient.RawCommand(input))
+		line, err := command.ReadDispatchLine(input)
+		if err != nil {
+			return cli.CommandOutput{}, err
+		}
+		output, err := execEditorCommand(creds, sshclient.RawCommand(line.DeclaredLine()))
 		return cli.CommandOutput{Text: output}, err
 	}
 }

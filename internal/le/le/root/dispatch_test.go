@@ -88,7 +88,7 @@ func TestDispatchUsesTheDeclaredActionShapeWithoutReparsingArguments(t *testing.
 	RegisterShape(name, command.ShapeDoc)
 	RegisterShape(name+" selftest", command.ShapeMap)
 	command.RegisterPipeFilters([]string{CommandPath(name + " selftest")},
-		command.PipeFilter{Name: "select", Description: "owned selector", TakesArg: true})
+		command.PipeFilter{Name: "select", Description: "owned selector", Argument: command.ArgText})
 
 	for _, tc := range []struct {
 		name string

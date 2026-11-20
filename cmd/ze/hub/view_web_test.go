@@ -73,10 +73,15 @@ func TestWebViewBindingRetainsCallerForPollAndDetail(t *testing.T) {
 	defer cancel()
 	ctx = context.WithValue(ctx, webViewContextKey{}, "original-request")
 	caller := plugin.CallerIdentity{Username: "alice", RemoteAddr: "192.0.2.25:1234", Authorizer: webStreamPolicy{allowed: true}}
+	// The bound model renders the residual chain of every line it sends
+	// (cli.CommandExecutor), so the binding dispatches as the original caller
+	// stating that it renders, and otherwise unchanged.
+	renderer := caller
+	renderer.RendersResidualChain = true
 	inputs := make(chan string, 8)
 	dispatch := plugin.CommandDispatcher(func(bound context.Context, accepted plugin.CallerIdentity, input string) (*plugin.Response, error) {
 		assert.Equal(t, "original-request", bound.Value(webViewContextKey{}))
-		assert.Equal(t, caller, accepted)
+		assert.Equal(t, renderer, accepted)
 		deadline, found := bound.Deadline()
 		original, originalFound := ctx.Deadline()
 		assert.True(t, found)

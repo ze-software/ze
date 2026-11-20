@@ -47,6 +47,17 @@ type CallerIdentity struct {
 	// it with the request prevents a reload publication between authentication
 	// and dispatch from authorizing the caller against a different generation.
 	Authorizer Authorizer
+	// RendersResidualChain is the rendering statement of an in-process
+	// surface that runs the pipe chain's residual operations over the answer
+	// itself (the SSH exec channel, the web terminal, the daemon-hosted
+	// model). The dispatcher then answers the handler's data and leaves that
+	// chain to it. False, the zero value, is a guard and the safe side: the
+	// engine applies the residual chain, so a data caller (a plugin's
+	// dispatch-command, MCP, REST, gRPC) and any caller that says nothing get
+	// the chain applied. It is never read from a client: a client in another
+	// process states it through its SSH session instead, and only for the
+	// presentation suffix (docs/architecture/api/commands.md).
+	RendersResidualChain bool
 }
 
 type callerAuthorizerContextKey struct{}

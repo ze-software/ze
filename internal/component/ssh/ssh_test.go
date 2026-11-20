@@ -1065,8 +1065,10 @@ func TestSSHExecAppliesConfiguredFormatDefault(t *testing.T) {
 }
 
 // VALIDATES: AC-3 -- an explicit format pipe wins over the configured default, and
-// the pipe chain is stripped before the command reaches the dispatcher.
-// PREVENTS: `tokenize` receiving `|` and `json` as ordinary command arguments.
+// the dispatcher receives the line as typed, chain included, while this channel
+// renders the format (spec-pipe-chain-honored-on-every-command-surface, T-2 A).
+// PREVENTS: the exec channel cutting the chain off, so a declared operation
+// never reaches the command's handler.
 func TestSSHExecRunsAFormatPipe(t *testing.T) {
 	t.Setenv("ze.cli.format", "table")
 	env.ResetCache()
@@ -1075,7 +1077,7 @@ func TestSSHExecRunsAFormatPipe(t *testing.T) {
 	srv, received := execFormatServer(t, `{"version":"1.2.3"}`)
 	out := execFormatRun(t, srv, "show version | json")
 
-	assert.Equal(t, "show version", *received, "the pipe chain must not reach the dispatcher")
+	assert.Equal(t, "show version | json", *received, "the dispatcher must receive the line as typed")
 	// The executor answers compact JSON; the | json operator indents it, so the
 	// space after the colon proves the pipe ran rather than the payload passing
 	// through untouched.
@@ -1108,7 +1110,7 @@ func TestExecCommandRawAnswersTheDispatcherJSON(t *testing.T) {
 
 	raw, err := sshclient.ExecCommandRaw(creds, "show version")
 	require.NoError(t, err)
-	assert.Equal(t, "show version", *received, "the raw pipe must not reach the dispatcher")
+	assert.Equal(t, "show version | raw", *received, "the dispatcher must receive the line as typed, | raw included")
 	assert.JSONEq(t, `{"version":"1.2.3"}`, raw)
 	assert.False(t, isTableRendering(raw), "the configured default must not reach an RPC caller; got:\n%s", raw)
 

@@ -5,9 +5,6 @@ package api
 import (
 	"fmt"
 	"strings"
-
-	"github.com/ze-software/ze/internal/component/command"
-	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // ExecuteRequest is the domain request for command execution.
@@ -67,20 +64,6 @@ type ConfigCommitRequest struct {
 type ConfigDiscardRequest struct {
 	Username  string
 	SessionID string
-}
-
-// BuildCommand appends params as "key value" pairs to a command string.
-// Returns an error if any key or value contains whitespace.
-func BuildCommand(input string, params map[string]string) (string, error) {
-	if len(params) == 0 {
-		return input, nil
-	}
-	if err := ValidateParams(params); err != nil {
-		return "", err
-	}
-	var b textbuf.Buffer
-	command.WriteInvocation(&b, []string{input}, nil, params)
-	return b.String(), nil
 }
 
 // ValidateParams preserves the transport's parameter refusal before it

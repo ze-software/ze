@@ -155,6 +155,17 @@ PASS_ADD retains the request arguments and applies the response; PASS_REPL
 replaces them. The dispatcher executes the original command, so a response
 that removes, reorders or changes that command's arguments is denied.
 
+A line typed with a pipe chain is authorized as typed: after the command's own
+arguments, the `cmd-arg` values carry each operation of the chain as a `|`
+value, the operation's name and its argument words, so a per-command policy on
+the server sees `show bgp rib | received | count`, not `show bgp rib`. The
+tokens come from the dispatcher's one scan of the line, so a backslash in the
+chain (`| match a\b`) stays one literal word. They are for authorization only:
+the handler's arguments never hold a chain token, and the local fallback judges
+the same tokens.
+<!-- source: internal/component/plugin/server/command.go -- isAuthorized -->
+<!-- source: internal/component/tacacs/authorizer.go -- AuthorizeCommandArgs, fallbackArgs -->
+
 Command values use Go quoted-string escapes without surrounding quotes:
 `café` becomes `caf\u00e9`, and literal backslashes are doubled. Ordinary
 printable text without quotes or backslashes is unchanged. The encoding is
@@ -178,7 +189,10 @@ same accounting hook and retain the STOP callback until the stream finishes.
 Accounting failures are logged and never refuse command execution; a full queue
 waits for capacity instead of discarding commands.
 
-Accounting receives the redacted display tokens from dispatch. After ASCII
+Accounting receives the redacted display tokens from dispatch: the line as
+typed, pipe chain included, because the chain is part of the command entered
+(RFC 8907 Section 8.3). Each operation of the chain follows the command as a
+`|` token, its name and its argument words. After ASCII
 escaping, each AV is at most 255 bytes and each request has at most 255 AVs.
 An oversized display carries `ze-command-truncated=1` and
 `ze-command-sha256=<hex digest>` before the service/command arguments. The

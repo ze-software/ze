@@ -64,7 +64,8 @@ type RecordAnswer struct {
 func RenderRecords(w io.Writer, input, sessionFormat, key string, fields []string, rows iter.Seq[rpc.Record]) (RecordAnswer, error) {
 	command, ops := parsePipeChain(input)
 	columns := ColumnsForCommand(command)
-	_, chain, meta := foldFilters(command, ops)
+	part := partitionPipeChain(command, ops)
+	chain, meta := part.residual, part.meta
 	if msg := ValidatePipes(chain); msg != "" {
 		return RecordAnswer{}, errors.New(msg)
 	}

@@ -248,6 +248,29 @@ type CommandContext struct {
 	// authority by omission (ai/rules/evidence.md,
 	// internal/component/bgp/reactor/send_permission.go).
 	Sender plugin.Sender
+	// RendersResidualChain is the caller's rendering statement
+	// (plugin.CallerIdentity.RendersResidualChain): true leaves the residual
+	// pipe chain to the surface that renders the answer. False, the zero
+	// value, is the guard: Dispatch applies that chain, so a caller that says
+	// nothing receives the answer the chain asked for.
+	RendersResidualChain bool
+
+	// pipeOperations is the declared list of the line Dispatch is running:
+	// the operations the command declares, in chain order. Only Dispatch
+	// sets it, from the partition, so no caller can hand a handler an
+	// operation the line did not hold.
+	pipeOperations []command.PipeOperation
+}
+
+// PipeOperations answers a copy of the operations the dispatched command
+// declares, in the order typed, which its handler computes with before the
+// answer exists. A plugin's command receives the same list through the
+// request routeToProcess sends.
+func (c *CommandContext) PipeOperations() []command.PipeOperation {
+	if c == nil {
+		return nil
+	}
+	return append([]command.PipeOperation(nil), c.pipeOperations...)
 }
 
 // Reactor returns the BGP reactor lifecycle interface via Server.
@@ -607,7 +630,7 @@ func (c *Command) TakesInlineSelector() bool {
 	if len(keyTokens) < 2 {
 		return false
 	}
-	return implicitSelectorDef(keyTokens, c.ArgDefs, nil) != nil
+	return implicitSelectorDef(keyTokens, c.ArgDefs) != nil
 }
 
 // RegisterOptions holds optional settings for command registration.
@@ -837,8 +860,9 @@ func (d *Dispatcher) isCommandPath(lowerPath []byte) bool {
 // RecognizesCommand reports whether Dispatch can resolve input, without running
 // authorization, accounting or a handler. Interactive surfaces use this before
 // entering the config editor, so an operational command keeps its meaning even
-// when its verb is also an editor command. Pipes belong to the rendering surface
-// and do not affect command recognition. Safe alongside registry publications;
+// when its verb is also an editor command. The pipe chain runs over the answer
+// or reaches the handler as its declared list, so it does not affect command
+// recognition. Safe alongside registry publications;
 // builtin registration follows Dispatch's existing startup/freeze contract.
 func (d *Dispatcher) RecognizesCommand(input string) bool {
 	tokens, pipeAt, quoteOpen, err := command.ScanInvocation(input)
@@ -912,8 +936,8 @@ func anchoredDef(keyTok string, defs []command.ArgDef, matched map[string]string
 	return command.AnchoredInvocationArg(keyTok, defs, matched)
 }
 
-func implicitSelectorDef(keyTokens []string, defs []command.ArgDef, matched map[string]string) *command.ArgDef {
-	return command.ImplicitInvocationArg(keyTokens, defs, matched)
+func implicitSelectorDef(keyTokens []string, defs []command.ArgDef) *command.ArgDef {
+	return command.ImplicitInvocationArg(keyTokens, defs, nil)
 }
 
 func applyExtractedSelectors(ctx *CommandContext, selectors map[string]string) {
@@ -950,19 +974,35 @@ func (d *Dispatcher) Commands() []*Command {
 
 // IsAuthorized checks if the user is allowed to execute the command.
 // Exported for use by streaming handlers (e.g., monitor) that bypass the normal dispatch path.
+//
+// input is the line as typed, pipe chain included (T-6 A of
+// spec-pipe-chain-honored-on-every-command-surface): a string authorizer
+// receives it whole and a typed one its tokens, read by the one grammar.
 func (d *Dispatcher) IsAuthorized(ctx *CommandContext, input string, readOnly bool) bool {
-	return d.isAuthorized(ctx, input, readOnly)
+	tokens, err := command.TypedLineTokens(input)
+	if err != nil {
+		// A line the grammar refuses never runs; a typed authorizer, which
+		// judges tokens, has none to judge and denies it.
+		tokens = nil
+	}
+	return d.isAuthorized(ctx, input, tokens, readOnly)
 }
 
 // BeginAccounting records command START and returns a function that records STOP.
 // Streaming callers MUST call it before lookup and authorization and MUST defer
 // the returned function until the stream ends, including refused commands.
+//
+// input is the line as typed, pipe chain included: RFC 8907 Section 8.3 asks
+// for a record of every command entered, and the chain is part of what was
+// entered. It is masked by config.DisplayCommand first, and a typed
+// accountant receives the masked line's tokens as the one grammar reads them
+// (command.TypedLineTokens), so a backslash in the chain stays one token.
 func (d *Dispatcher) BeginAccounting(ctx *CommandContext, input string) func() {
 	if d.accountant == nil {
 		return func() {}
 	}
 	input = config.DisplayCommand(input)
-	tokens, err := tokenize(input)
+	tokens, err := command.TypedLineTokens(input)
 	if err != nil {
 		// A malformed command is still accounted, but never executed.
 		tokens = []string{input}
@@ -1001,8 +1041,13 @@ func (d *Dispatcher) beginAccounting(ctx *CommandContext, input string, tokens [
 	}
 }
 
-// isAuthorized checks if the user is allowed to execute the command.
-func (d *Dispatcher) isAuthorized(ctx *CommandContext, input string, readOnly bool) bool {
+// isAuthorized checks if the user is allowed to execute the command. input is
+// the line as typed, for a string authorizer; tokens are its typed tokens
+// (command.DispatchLine.TypedTokens), for a typed one: the command's words,
+// then the pipe chain as a pipe token, each operation's name and its argument
+// words. The chain tokens are for authorization only. readOnly is the
+// command path's own flag, which a chain never changes.
+func (d *Dispatcher) isAuthorized(ctx *CommandContext, input string, tokens []string, readOnly bool) bool {
 	authorizer := d.authorizer
 	var username, remoteAddr string
 	if ctx != nil {
@@ -1016,8 +1061,7 @@ func (d *Dispatcher) isAuthorized(ctx *CommandContext, input string, readOnly bo
 		return true
 	}
 	if typed, ok := authorizer.(aaa.CommandArgsAuthorizer); ok {
-		tokens, err := tokenize(input)
-		if err != nil || len(tokens) == 0 {
+		if len(tokens) == 0 {
 			return false
 		}
 		return typed.AuthorizeCommandArgs(username, remoteAddr, tokens[0], tokens[1:], "*", readOnly)
@@ -1048,10 +1092,16 @@ func (d *Dispatcher) isAuthorizedCommandArgs(ctx *CommandContext, command string
 	return authorizer.Authorize(username, remoteAddr, aaa.CanonicalCommand(command, args, peer), readOnly)
 }
 
-// Dispatch parses and executes a command.
+// Dispatch parses and executes a command line, pipe chain included.
 // Supports inline selector extraction both for typed forms like
 // `show demo name <name> detail` and for positional selector slots that
 // appear before a later action token.
+//
+// The line is accounted and authorized as typed. The operations the command
+// declares reach its handler as a list (CommandContext.PipeOperations and
+// command.ValidatedArgs.PipeOperations). The residual chain runs over the
+// answer, through the same ApplyPipes the operator surfaces run, unless the
+// caller said it renders the chain itself (CommandContext.RendersResidualChain).
 func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Response, error) {
 	// RFC 8907 Section 8.3: "TACACS+ client devices MUST be configured to
 	// send an accounting start packet for every command entered, irrespective
@@ -1060,7 +1110,11 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 	if strings.TrimSpace(input) != "" {
 		defer d.BeginAccounting(ctx, input)()
 	}
-	tokens, pipeAt, err := command.ScanExecution(input)
+	// The line is scanned once, command part and pipe chain, and the chain
+	// partitioned for the command (command.ReadDispatchLine): the operations
+	// the command declares reach its handler as a list, never as arguments,
+	// and the residual chain runs over the answer.
+	line, err := command.ReadDispatchLine(input)
 	if err != nil {
 		refusal, operatorError := errors.AsType[*opererr.Error](err)
 		if operatorError {
@@ -1068,19 +1122,107 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 		}
 		return nil, err
 	}
-	// A pipe outside quotes is the operator's spelling of a chain that the
-	// surface rendering the answer applies (ssh execMiddleware, the web CLI,
-	// ze cli). The dispatcher answers data, so a chain that reached it would
-	// arrive at a handler, a subsystem or a plugin process as arguments and be
-	// answered as if it were not there. It is refused here, after accounting
-	// started and before any resolution, so every caller of an unsplit line
-	// (a plugin's dispatch-command, MCP, REST, gRPC) meets the same refusal.
-	if pipeAt != noPipe {
-		refusal := pipeChainRefusal(input[:pipeAt], input[pipeAt+1:], input)
-		return plugin.OperatorErrorResponse(refusal), refusal
+	engineApplies := line.HasAnswerStep() && (ctx == nil || !ctx.RendersResidualChain)
+	if engineApplies {
+		// Refused before any resolution, so no handler runs for a chain the
+		// engine could not apply to its answer.
+		if refusal := line.ResidualRefusal(); refusal != nil {
+			return &plugin.Response{Status: plugin.StatusError, Error: refusal.Error()}, refusal
+		}
 	}
+	resp, err := d.dispatchLine(ctx, line, input)
+	if !engineApplies {
+		return resp, err
+	}
+	return applyAnswerStep(line, resp, err)
+}
+
+// applyAnswerStep runs line's residual pipe chain over a handler's answer for
+// a caller that does not render it (T-1 of
+// spec-pipe-chain-honored-on-every-command-surface): the answer becomes the
+// chain's result, a JSON document (a chain with no format, or with `| json`
+// or `| raw`), or, when the chain holds a format that prints text, that text
+// as a renderedAnswer, which marshals to a JSON string. That is what
+// `ze cli -c` prints for the same line. A failed answer, or one with no data,
+// belongs to its failure and passes unchanged.
+func applyAnswerStep(line command.DispatchLine, resp *plugin.Response, err error) (*plugin.Response, error) {
+	if err != nil {
+		return resp, err
+	}
+	if resp == nil || resp.Data == nil {
+		return resp, nil
+	}
+	if resp.Status == plugin.StatusError {
+		return resp, nil
+	}
+	document, failure := plugin.ResponseJSON(resp, nil)
+	if failure != nil {
+		// A row generator is walked once, so the document it collapsed to
+		// replaces it; the caller's flatten reports the same failure again.
+		if document != "" {
+			resp.Data = plugin.RawJSON(document)
+		}
+		return resp, nil
+	}
+	rendered, text, problem := line.ApplyAnswerStep(document)
+	if problem != "" {
+		chainErr := errors.New(problem)
+		return &plugin.Response{Status: plugin.StatusError, Error: problem}, chainErr
+	}
+	if !text {
+		if !json.Valid([]byte(rendered)) {
+			chainErr := errors.New("the pipe chain answered no JSON document: add a format operation such as | text to the line")
+			return &plugin.Response{Status: plugin.StatusError, Error: chainErr.Error()}, chainErr
+		}
+		resp.Data = plugin.RawJSON(rendered)
+		return resp, nil
+	}
+	resp.Data = renderedAnswer{text: rendered}
+	return resp, nil
+}
+
+// renderedAnswer is the data of an answer the engine has already rendered:
+// the text a format operation (`| table`, `| text`, `| yaml`, `| ndjson`)
+// printed, for a caller that does not render the pipe chain. It marshals to
+// that text as one JSON string, which is the data the caller receives (T-1
+// and D-6 of spec-pipe-chain-honored-on-every-command-surface).
+//
+// It is not plugin.RawJSON, whose guard refuses a JSON string: a HANDLER that
+// answers finished text hands a rendering surface text that `| yaml` or
+// `| table` would print back. This text is the end of the chain instead.
+// applyAnswerStep runs only for a caller that renders nothing itself
+// (CommandContext.RendersResidualChain is false), so no formatter reads it
+// again. The type is unexported so that the engine alone produces it: a
+// handler still answers data, and RawJSON still refuses finished text from
+// one. Immutable, safe for concurrent use.
+type renderedAnswer struct {
+	plugin.DataMarker
+	text string
+}
+
+// MarshalJSON writes the rendered text as one JSON string.
+func (r renderedAnswer) MarshalJSON() ([]byte, error) {
+	return json.Marshal(r.text)
+}
+
+// dispatchLine resolves and runs line, a line Dispatch already accounted and
+// read. input is the line as typed: what authorization, audit and the
+// refusals name.
+func (d *Dispatcher) dispatchLine(ctx *CommandContext, line command.DispatchLine, input string) (*plugin.Response, error) {
+	tokens := line.Words()
 	if len(tokens) == 0 {
 		return nil, ErrEmptyCommand
+	}
+	declared := line.DeclaredOperations()
+	if ctx == nil {
+		// The context is the declared list's carrier to a plugin process
+		// (routeToProcessWithEvents reads it), so without one the list
+		// would be dropped on that route with no error.
+		if len(declared) > 0 {
+			return nil, errors.New("a command line with declared pipe operations needs a command context to carry them")
+		}
+	} else {
+		ctx.pipeOperations = declared
 	}
 
 	if ctx != nil {
@@ -1130,7 +1272,17 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 		// It runs for every matched command, including one whose model declares
 		// no definitions: that call passes the tokens through, and the handler
 		// is invoked only with the value a successful call returned.
-		validated, argErr := command.ValidateArgs(args, matchedCmd.ArgDefs, selectors)
+		//
+		// A word the command declares as a pipe operation is refused first,
+		// with the pipe form of the line as the fix: an operation is typed
+		// after a pipe and reaches the handler in its declared list, so no
+		// line carries one as an argument.
+		var validated command.ValidatedArgs
+		argErr := command.RefusePipeOperationWords(matchedCmd.Name, args)
+		if argErr == nil {
+			validated, argErr = command.ValidateArgs(args, matchedCmd.ArgDefs, selectors)
+		}
+		validated = validated.WithPipeOperations(declared)
 
 		// Adopt the trailing positional as the peer selector, under three fences
 		// that together mean no command which resolves today changes meaning:
@@ -1193,7 +1345,7 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 		}
 
 		// Authorization check, after command resolution, before execution.
-		if !d.isAuthorized(ctx, input, matchedCmd.ReadOnly) {
+		if !d.isAuthorized(ctx, input, line.TypedTokens(), matchedCmd.ReadOnly) {
 			return &plugin.Response{
 				Status: plugin.StatusError,
 				Error:  unauthorizedError(input),
@@ -1214,12 +1366,11 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 		// Only FLAG-shaped tokens are rejected, never leftovers generally: zero
 		// ArgDefs does not mean "takes no arguments" (extractArgDefs reads YANG
 		// leaf children only, so most nodes have none while their handlers still
-		// read positional args), and `| peer X` is folded into trailing args
-		// by foldFilters on the surface that splits the chain off. A pipe
-		// outside quotes never reaches this point: Dispatch refused the line
-		// above (pipeChainRefusal). A leading dash, though, is never valid
-		// here: no ArgKind is signed, and folding only emits bare filter names
-		// and values. So a flag can only be a client-side flag that leaked.
+		// read positional args). The pipe chain never reaches args: the
+		// partition took it off the line, and a declared operation reaches
+		// the handler in its list. A leading dash, though, is never valid
+		// here: no ArgKind is signed. So a flag can only be a client-side flag
+		// that leaked.
 		flagArgs := args
 		if argErr == nil {
 			// Typed keyword/rest values are data. Only tokens that the
@@ -1268,6 +1419,9 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 
 		resp, handlerErr := matchedCmd.Handler(ctx, validated)
 		d.recordCommandAudit(ctx, matchedCmd.AuditAction, input, resp, handlerErr)
+		if shapeErr := checkOverrideAnswer(matchedCmd.Name, declared, resp, handlerErr); shapeErr != nil {
+			return plugin.OperatorErrorResponse(shapeErr), shapeErr
+		}
 		return resp, handlerErr
 	}
 
@@ -1277,8 +1431,12 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 	// makes any typo come back as an authorization denial for a read-only
 	// profile (this path authorizes as a write), which sends the operator to
 	// debug their RBAC config for a command that never existed.
-	pluginInput := input
-	pluginLower := strings.ToLower(strings.TrimSpace(input))
+	//
+	// These routes read the command part alone: the residual chain runs over
+	// their answer, and a declared operation travels in ctx.
+	commandPart := line.Command()
+	pluginInput := commandPart
+	pluginLower := strings.ToLower(commandPart)
 	peerSelector := "*"
 	if ctx != nil {
 		peerSelector = ctx.PeerSelector()
@@ -1286,7 +1444,7 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 
 	var subsystemHandler *SubsystemHandler
 	if d.subsystems != nil {
-		subsystemHandler = d.subsystems.FindHandler(input)
+		subsystemHandler = d.subsystems.FindHandler(commandPart)
 	}
 	if subsystemHandler == nil {
 		if matched, _ := d.matchPluginCommand(pluginLower); matched == nil {
@@ -1297,7 +1455,7 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 
 	// The command exists. Authorization applies to these paths too; treat as
 	// non-read-only (write), as before.
-	if !d.isAuthorized(ctx, input, false) {
+	if !d.isAuthorized(ctx, input, line.TypedTokens(), false) {
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Error:  unauthorizedError(input),
@@ -1305,7 +1463,11 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 	}
 
 	if subsystemHandler != nil {
-		return d.dispatchSubsystem(ctx, subsystemHandler, input)
+		if len(declared) > 0 {
+			refusal := pipeOperationsNotCarried(commandPart, "the subsystem that owns it")
+			return plugin.OperatorErrorResponse(refusal), refusal
+		}
+		return d.dispatchSubsystem(ctx, subsystemHandler, commandPart)
 	}
 	return d.dispatchPlugin(ctx, pluginInput, pluginLower, peerSelector)
 }
@@ -1394,56 +1556,54 @@ func flagRefusal(path, flag, input string) error {
 	return errors.New(tb.String())
 }
 
-// pipeChainRefusal is the answer to a line that carries a pipe outside quotes
-// (Dispatch, from the offset scanCommand found). commandPart is the text before
-// that pipe, chain the text after it, and line the whole line.
-//
-// The fix is the line the caller sends instead. When every operator of the
-// chain folds into the command's own filters, that is the folded line
-// (command.FoldPipeChain, which runs the fold the operator surfaces run), the
-// dispatch grammar a plugin already uses. Otherwise the fix is the command part
-// alone, whose data the caller selects from, and the why names the `ze cli -c`
-// form of the original line, which applies the chain for an operator.
-//
-// Every echoed part passes through config.DisplayCommand, so a secret value on
-// the line reads as the placeholder.
-func pipeChainRefusal(commandPart, chain, line string) *opererr.Error {
-	commandPart = strings.TrimSpace(commandPart)
-	shownChain := config.DisplayCommand(strings.TrimSpace(chain))
-	shownLine := config.DisplayCommand(strings.TrimSpace(line))
-	const why = "the dispatcher answers data, and a pipe chain is applied by the surface that renders the answer"
-
-	if commandPart == "" {
-		var problem textbuf.Buffer
-		problem.Str("the line ").Quoted(shownLine).Str(" starts with a pipe chain and names no command")
-		return opererr.New(problem.String(), why, zeCLIForm("<command> | "+shownChain))
+// checkOverrideAnswer holds a builtin's answer to the shape of the generic its
+// last declared operation overrides (command.CheckOverrideAnswer), on the
+// dispatcher's route as ServeLocal does on the local one. path is the command
+// path, declared the list the handler was handed. Only a complete answer is
+// flattened to be judged: a row generator is walked once, so a streamed answer
+// is not judged here and is not consumed.
+func checkOverrideAnswer(path string, declared []command.PipeOperation, resp *plugin.Response, handlerErr error) *opererr.Error {
+	if len(declared) == 0 {
+		return nil
 	}
-
-	shownCommand := config.DisplayCommand(commandPart)
-	var problem textbuf.Buffer
-	problem.Str("the command ").Quoted(shownCommand).Str(" carries the pipe chain ").
-		Quoted("| " + shownChain).Str(", which the dispatcher does not apply")
-
-	if folded, whole := command.FoldPipeChain(commandPart, chain); whole {
-		return opererr.New(problem.String(), why, config.DisplayCommand(folded))
+	outcome := command.AnswerDone
+	document := ""
+	if handlerErr != nil || resp == nil || resp.Status == plugin.StatusError {
+		outcome = command.AnswerFailed
+	} else if _, generated := plugin.RecordRows(resp); generated {
+		outcome = command.AnswerStreamed
+	} else {
+		flat, failure := plugin.ResponseJSON(resp, nil)
+		if failure != nil {
+			outcome = command.AnswerFailed
+		}
+		document = flat
 	}
-
-	// The fix line is one exact command (ai/rules/user-facing-errors.md), so the
-	// operator form that applies the chain goes in the why.
-	var unfolded textbuf.Buffer
-	unfolded.Str(why).Str("; send the command alone and select from its data, or run ").
-		Str(zeCLIForm(shownLine)).Str(" to apply the chain")
-	return opererr.New(problem.String(), unfolded.String(), shownCommand)
+	err := command.CheckOverrideAnswer(path, declared, outcome, document)
+	if err == nil {
+		return nil
+	}
+	refusal, operatorError := errors.AsType[*opererr.Error](err)
+	if !operatorError {
+		return opererr.Wrap(err, "the answer of "+path+" does not keep the shape of the operation it overrides",
+			"an override keeps the generic's answer shape", "show command help \""+path+"\"")
+	}
+	return refusal
 }
 
-// zeCLIForm answers the `ze cli -c` command that applies line's pipe chain,
-// with line single-quoted for a POSIX shell: an embedded single quote closes
-// the quoted string, is written escaped as \', and opens a new quoted string,
-// so the copied command reaches ze cli unchanged.
-func zeCLIForm(line string) string {
-	var tb textbuf.Buffer
-	tb.Str("ze cli -c '").Str(strings.ReplaceAll(line, "'", `'\''`)).Byte('\'')
-	return tb.String()
+// pipeOperationsNotCarried refuses a line whose declared pipe operations the
+// route to the command's owner cannot carry: the request routeToProcess sends
+// and a subsystem's handler hold the command and its arguments only. Running
+// the command without them would answer what the operator did not ask for
+// (the whole table where a count was asked), so it is refused by name.
+// commandPart is the command as typed, owner who serves it.
+func pipeOperationsNotCarried(commandPart, owner string) *opererr.Error {
+	shown := config.DisplayCommand(commandPart)
+	var problem textbuf.Buffer
+	problem.Str("the pipe operations of ").Quoted(shown).Str(" cannot be sent to ").Str(owner)
+	return opererr.New(problem.String(),
+		"the request to "+owner+" carries the command and its arguments, and no pipe operation",
+		shown)
 }
 
 // firstFlagToken returns the first flag-shaped token in args, or "" if there is
@@ -1658,6 +1818,22 @@ func (d *Dispatcher) routeToProcessWithEvents(cmdCtx *CommandContext, cmd *Regis
 	validated, argErr := command.ValidateModelArgs(cmd.LowerName, args, bound)
 	if argErr != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: argErr.Error()}, argErr
+	}
+
+	// The declared list (cmdCtx.PipeOperations) is the one fact this request
+	// does not carry yet: rpc.ExecuteCommandInput holds the command, its
+	// arguments and the peer. A command run without the operations its line
+	// declared answers what was not asked, so the line is refused by name
+	// until the request carries the list beside the arguments.
+	if declared := cmdCtx.PipeOperations(); len(declared) > 0 {
+		name := cmd.Name
+		if cmd.Process != nil {
+			name = cmd.Process.Name()
+		}
+		var owner textbuf.Buffer
+		owner.Str("plugin ").Quoted(name)
+		refusal := pipeOperationsNotCarried(cmd.Name, owner.String())
+		return plugin.OperatorErrorResponse(refusal), refusal
 	}
 
 	proc := cmd.Process
@@ -1916,10 +2092,10 @@ const noPipe = -1
 // Unquoted backslash is rejected; double-quoted values decode their escapes.
 // Quotes are stripped from the result.
 //
-// It reads the pipe offset scanCommand also answers not at all: accounting
-// (BeginAccounting) and the typed authorizer (isAuthorized) tokenize every
-// line the same way whether or not it holds a pipe, and only Dispatch refuses
-// a pipe chain.
+// It splits the argument text after a matched plugin or subsystem command,
+// which holds no pipe chain: Dispatch read the line through
+// command.ReadDispatchLine, which took the chain off it. Accounting and
+// authorization read the typed tokens of that scan instead.
 func tokenize(input string) ([]string, error) {
 	tokens, _, err := scanCommand(input)
 	return tokens, err

@@ -198,7 +198,7 @@ runtime request, see the gotcha below.
 |------|------|
 | `engine.go` | `APIEngine`: `Execute`/`Stream`/`ListCommands`/`DescribeCommand`, auth + read-only gating |
 | `types.go` | `CommandMeta`, `ParamMeta`, `ExecResult` (alias of `plugin.Response`), `CallerIdentity` (alias of `plugin.CallerIdentity`), status/auth-command constants |
-| `requests.go` | Domain request structs retaining `Params`, `ValidateParams`, legacy metadata-free `BuildCommand` |
+| `requests.go` | Domain request structs retaining `Params`, `ValidateParams` (the parameters are written by `invocation.go` `buildInvocation`, before the first pipe) |
 | `invocation.go` | One metadata generation for shared matching, flag normalization, invocation construction and read-only classification |
 | `config_session.go` | `ConfigSessionManager`/`ConfigSession`/`ConfigEditor`: per-user config edit sessions |
 | `schema.go` | `CommandSchema`/`OpenAPISchema`: JSON Schema + OpenAPI generation from `CommandMeta` |

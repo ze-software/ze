@@ -46,7 +46,7 @@ func TestBrowserCLIDownloadFiniteFormattedResult(t *testing.T) {
 	browser := newDownloadBrowser(t, func(_ context.Context, caller plugin.CallerIdentity, input string) (*plugin.Response, error) {
 		calls.Add(1)
 		require.Equal(t, "alice", caller.Username)
-		require.Equal(t, "show download probe", input)
+		require.Equal(t, "show download probe | json compact", input, "the terminal dispatches the line as typed")
 		return plugin.NewResponse(plugin.StatusDone, plugin.Map{"answer": payload}), nil
 	})
 	browser.submit("run show download probe | json compact")

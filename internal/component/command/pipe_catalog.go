@@ -255,13 +255,48 @@ type PipeOperator struct {
 	// operator started. A daemon-expanded remote chain refuses it at the
 	// effect boundary because otherwise it would act with daemon privileges.
 	LocalOnly bool
+	// Presentation marks an operator that only presents the answer (the
+	// formats, paging and `save`): it selects and reduces nothing, so the
+	// trailing run of such operators is the part of a chain a client in another
+	// process may render itself. Every operator that selects or reduces leaves
+	// it false, which keeps that operator on the daemon's side.
+	Presentation bool
 
 	// shapes is the set this operator acts on.
 	shapes shapeSet
+	// override is the answer shape a command's own operation of the same name
+	// is held to, and overrideNone for an operator no command may override.
+	override overrideShape
 }
+
+// overrideShape is what a command's override of a generic operator must
+// answer, so the override keeps the generic's answer shape
+// (docs/architecture/api/commands.md, "How an override keeps the generic's
+// shape"). Its zero value refuses the override: a new catalog entry is not
+// overridable until it states the shape an override is held to.
+type overrideShape uint8
+
+const (
+	// overrideNone: no command may declare an operation of this name.
+	overrideNone overrideShape = iota
+	// overrideCount: one object holding an integer `count`, as applyCount
+	// answers.
+	overrideCount
+	// overrideRowsAtMost: the command's rows, at most the N the operation
+	// names, as applyFirst and applyLast answer.
+	overrideRowsAtMost
+	// overrideRows: the command's rows. Which rows is the override's meaning,
+	// which no check can read, so its own test holds it.
+	overrideRows
+)
 
 // Applies answers whether this operator can act on an answer of that shape.
 func (op PipeOperator) Applies(shape AnswerShape) bool { return op.shapes.has(shape) }
+
+// Overridable answers whether a command may declare an operation of this
+// operator's name, which then runs in the command's handler in place of the
+// generic and is held to the generic's argument contract and answer shape.
+func (op PipeOperator) Overridable() bool { return op.override != overrideNone }
 
 // Renders reports whether this operator decides the FORM the answer is printed
 // in, rather than which rows or fields it holds: `json`, `ndjson`, `table`,
@@ -317,31 +352,31 @@ var rowShapes = setOf(ShapeMap, ShapeTab)
 // it: the formats first, then paging, then the operators that act on rows.
 var pipeCatalog = []PipeOperator{
 	{Name: pipeNameJSON, Kind: pipeJSON, Class: ClassGlobal, Arg: ArgOptional, Repeat: RepeatRefuse, shapes: anyShape,
-		Description: "JSON output"},
+		Description: "JSON output", Presentation: true},
 	{Name: "ndjson", Kind: pipeNDJSON, Class: ClassGlobal, Arg: ArgNone, Repeat: RepeatRefuse, shapes: anyShape,
-		Description: "One JSON object per line"},
+		Description: "One JSON object per line", Presentation: true},
 	{Name: "table", Kind: pipeTable, Class: ClassGlobal, Arg: ArgNone, Repeat: RepeatRefuse, shapes: anyShape,
-		Description: "Render as table"},
+		Description: "Render as table", Presentation: true},
 	{Name: pipeNameText, Kind: pipeText, Class: ClassGlobal, Arg: ArgNone, Repeat: RepeatRefuse, shapes: anyShape,
-		Description: "Space-aligned columns"},
+		Description: "Space-aligned columns", Presentation: true},
 	{Name: "yaml", Kind: pipeYAML, Class: ClassGlobal, Arg: ArgNone, Repeat: RepeatRefuse, shapes: anyShape,
-		Description: "YAML output"},
+		Description: "YAML output", Presentation: true},
 	{Name: "raw", Kind: pipeRaw, Class: ClassGlobal, Arg: ArgNone, Repeat: RepeatRefuse, shapes: anyShape,
-		Description: "Dispatcher JSON, unformatted"},
+		Description: "Dispatcher JSON, unformatted", Presentation: true},
 	{Name: "no-more", Kind: pipeNoMore, Class: ClassGlobal, Arg: ArgNone, Repeat: RepeatIdempotent, shapes: anyShape,
-		Description: "Disable paging"},
+		Description: "Disable paging", Presentation: true},
 	{Name: "log", Kind: pipeLog, Class: ClassStream, Arg: ArgNone, Repeat: RepeatIdempotent, shapes: anyShape,
 		Description: "Append each update instead of replacing it, where the command keeps answering"},
 	{Name: "save", Kind: pipeSave, Class: ClassGlobal, Arg: ArgPath, Repeat: RepeatCompose, shapes: anyShape,
-		Description: "Write the answer to a file", LocalOnly: true},
+		Description: "Write the answer to a file", LocalOnly: true, Presentation: true},
 	{Name: "match", Kind: pipeMatch, Class: ClassData, Arg: ArgText, Repeat: RepeatCompose, shapes: rowShapes,
-		Description: "Keep the rows holding this text"},
+		Description: "Keep the rows holding this text", override: overrideRows},
 	{Name: pipeNameCount, Kind: pipeCount, Class: ClassData, Arg: ArgNone, Repeat: RepeatRefuse, shapes: rowShapes,
-		Description: "Count the rows"},
+		Description: "Count the rows", override: overrideCount},
 	{Name: "first", Kind: pipeFirst, Class: ClassData, Arg: ArgCount, Repeat: RepeatCompose, shapes: rowShapes,
-		Description: "Take first N rows"},
+		Description: "Take first N rows", override: overrideRowsAtMost},
 	{Name: "last", Kind: pipeLast, Class: ClassData, Arg: ArgCount, Repeat: RepeatCompose, shapes: rowShapes,
-		Description: "Take last N rows"},
+		Description: "Take last N rows", override: overrideRowsAtMost},
 	{Name: "display", Kind: pipeDisplay, Class: ClassData, Arg: ArgFields, Repeat: RepeatCompose, shapes: rowShapes,
 		Description: "Answer with these fields, in this order"},
 	{Name: "fill", Kind: pipeFill, Class: ClassData, Arg: ArgOptional, Repeat: RepeatRefuse, shapes: setOf(ShapeTab),
@@ -378,6 +413,28 @@ var knownPipeOps = func() map[string]pipeKind {
 	}
 	return ops
 }()
+
+// lookupPipeOperatorByName answers the catalog entry of a generic operator's
+// name, and whether the catalog holds one.
+func lookupPipeOperatorByName(name string) (PipeOperator, bool) {
+	kind, known := knownPipeOps[name]
+	if !known {
+		return PipeOperator{}, false
+	}
+	return lookupPipeOperatorByKind(kind)
+}
+
+// declarable reports whether a is one of the closed argument kinds a command's
+// own operation may state. A kind outside the vocabulary is a Ze defect in the
+// declaration, refused when it is recorded.
+func (a PipeArgKind) declarable() bool {
+	switch a {
+	case ArgNone, ArgOptional, ArgText, ArgCount, ArgFields, ArgPath:
+		return true
+	default:
+		return false
+	}
+}
 
 // RenderOperatorReference answers the published operator table, in Markdown.
 //

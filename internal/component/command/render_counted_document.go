@@ -72,6 +72,9 @@ type documentPipePlan struct {
 	ops     []pipeOp
 	meta    pipeChainMeta
 	columns []ColumnOrder
+	// declared is the operations the command declares, in chain order, for
+	// its handler (partitionPipeChain). ops holds the residual chain.
+	declared []PipeOperation
 }
 
 func prepareDocumentPipes(input, sessionFormat string, saveAllowed bool) (documentPipePlan, string) {
@@ -82,7 +85,8 @@ func prepareDocumentPipes(input, sessionFormat string, saveAllowed bool) (docume
 		return plan, err.Error()
 	}
 	plan.columns = ColumnsForCommand(plan.command)
-	plan.command, plan.ops, plan.meta = foldFilters(plan.command, plan.ops)
+	part := partitionPipeChain(plan.command, plan.ops)
+	plan.command, plan.declared, plan.ops, plan.meta = part.command, part.declared, part.residual, part.meta
 	if problem := validatePipesForSurface(plan.command, plan.ops, pipeSurfaceOneShot, saveAllowed); problem != "" {
 		return plan, problem
 	}

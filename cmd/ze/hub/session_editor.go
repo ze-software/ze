@@ -8,11 +8,13 @@
 package hub
 
 import (
+	"context"
 	"fmt"
 	"os"
 
 	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -53,6 +55,27 @@ func newSessionEditor(store storage.Storage, configPath, username, origin string
 		ed.SetConfirmWindow(daemonConfirmWindow.Load)
 	}
 	return ed, nil
+}
+
+// attachedCLIExecutor is the operational executor of the `ze start --cli`
+// console: each line goes to dispatch as root on the local console. The
+// attached model renders the residual chain itself (cli.CommandExecutor), so
+// the line is dispatched as a caller that renders.
+// The result is an unnamed func type so that it is assignable both to
+// cli.CommandExecutor and to the console's client.CommandFunc.
+func attachedCLIExecutor(dispatch plugin.CommandDispatcher) func(string) (cli.CommandOutput, error) {
+	return func(command string) (cli.CommandOutput, error) {
+		rendered, err := dispatch.JSON(context.Background(), plugin.CallerIdentity{
+			Username: "root", RemoteAddr: "local", RendersResidualChain: true,
+		}, command)
+		if rendered == nil {
+			return cli.CommandOutput{}, err
+		}
+		return cli.CommandOutput{
+			Text:              rendered.Output,
+			TransportComplete: rendered.TransportComplete,
+		}, err
+	}
 }
 
 // attachedConsoleEditor builds the edit session for the `ze start --cli`

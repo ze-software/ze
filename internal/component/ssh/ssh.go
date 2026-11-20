@@ -87,6 +87,13 @@ const (
 
 // CommandExecutor executes an operational command and carries the response
 // completion action to the SSH writer.
+//
+// input is the line as typed, pipe chain included. Every caller renders the
+// residual chain itself (the exec channel here, the session model through
+// cli.Model's executor), so a factory MUST dispatch it as a caller that
+// renders (plugin.CallerIdentity.RendersResidualChain): the dispatcher then
+// hands the command its declared operations and answers data, and the caller
+// MUST apply the residual chain to that answer.
 type CommandExecutor func(input string) (*plugin.RenderedResponse, error)
 
 // CommandExecutorFactory creates a per-session CommandExecutor.
@@ -985,14 +992,16 @@ func (s *Server) execMiddleware() wish.Middleware {
 				return
 			}
 
-			// Split the pipe chain off the command. The dispatcher answers data
-			// and refuses a line with "|" outside quotes, so the chain is applied
-			// here, where the answer is rendered. The formatter
-			// renders the answer in the format the chain names, or in the
-			// configured default (ze.cli.format) when it names none. An exec
-			// channel holds no per-session "set cli format" override, so the
-			// session format is empty.
-			dispatched, formatOutput, pipeErr := command.ProcessPipesDefaultFormatChecked(input, "")
+			// The typed line goes to the dispatcher whole, and this channel
+			// renders the residual chain: the executor states it renders
+			// (CommandExecutor), so the dispatcher hands the command's declared
+			// operations to its handler and answers data, and the formatter
+			// built here from the same partition (command.ReadDispatchLine)
+			// applies the rest of the chain. It renders the answer in the format
+			// the chain names, or in the configured default (ze.cli.format) when
+			// it names none. An exec channel holds no per-session "set cli
+			// format" override, so the session format is empty.
+			_, formatOutput, pipeErr := command.ProcessPipesDefaultFormatChecked(input, "")
 			if pipeErr != "" {
 				fmt.Fprintln(sess.Stderr(), "error:", pipeErr) //nolint:errcheck // best-effort
 				sess.Exit(1)                                   //nolint:errcheck // best-effort
@@ -1007,7 +1016,7 @@ func (s *Server) execMiddleware() wish.Middleware {
 			defer frame.release()
 
 			executor := factory(sess.Context(), sess.User(), sess.RemoteAddr().String(), getSessionAuthorizer(sess))
-			result, err := executor(dispatched)
+			result, err := executor(input)
 			if err != nil {
 				if result != nil {
 					if metadata, completed := result.Response.RecordAnswerMetadata(); completed {

@@ -288,9 +288,13 @@ func ServeLocal(input, sessionFormat string) (answer string, code int, served bo
 	// work starts, so a command that says it holds one document refuses a row
 	// operator here rather than answering something the published catalog says
 	// it does not support.
-	_, format, errMsg := ProcessPipesDefaultFormatLocal(input, sessionFormat)
-	if errMsg != "" {
-		return pipeError(errMsg), 1, true
+	//
+	// The same partition every route runs splits the chain: the operations the
+	// command declares reach its handler in the declared list, and the residual
+	// chain renders the answer here (partitionPipeChain).
+	plan, problem := prepareDocumentPipes(input, sessionFormat, true)
+	if problem != "" {
+		return pipeError(problem), 1, true
 	}
 
 	// The arguments are judged against the leaves the command's YANG declares,
@@ -315,7 +319,7 @@ func ServeLocal(input, sessionFormat string) (answer string, code int, served bo
 	// handler that returns both MUST have both honored. A handler with nothing
 	// to say returns a nil payload and its reason as the diagnostic, which
 	// this local route prints on stderr where the operator always read it.
-	result := handler(validated.onRoute(RouteLocal))
+	result := handler(validated.WithPipeOperations(plan.declared).onRoute(RouteLocal))
 	writeLocalDiagnostic(result.Diagnostic)
 	if result.Payload == nil {
 		return "", result.Code, true
@@ -328,9 +332,18 @@ func ServeLocal(input, sessionFormat string) (answer string, code int, served bo
 		return pipeError(tb.Str("the answer could not be encoded: ").Str(err.Error()).String()), 1, true
 	}
 
-	rendered := format(string(encoded))
-	if IsPipeError(rendered) {
-		return rendered, 1, true
+	outcome := AnswerDone
+	if code != 0 {
+		outcome = AnswerFailed
+	}
+	path := strings.Join(words[:len(words)-len(args)], " ")
+	if shapeErr := CheckOverrideAnswer(path, plan.declared, outcome, string(encoded)); shapeErr != nil {
+		return pipeError(shapeErr.Error()), 1, true
+	}
+
+	rendered, failure := ApplyPipes(string(encoded), plan.ops, plan.meta, plan.columns)
+	if failure != "" {
+		return pipeError(failure), 1, true
 	}
 	return rendered, code, true
 }
@@ -406,6 +419,13 @@ func validateModelArgsAs(invocation, path string, args []string, preMatched map[
 	defs, err := argDefSource(ModelPath(path))
 	if err != nil {
 		return ValidatedArgs{}, fmt.Errorf("argument definitions of %q: %w", path, err)
+	}
+	// A declared pipe operation typed as an argument is refused before any
+	// argument is bound, whether or not the model leaves a definition open for
+	// the word: an open definition would take it as its value, and none would
+	// pass it to the handler unjudged.
+	if err := RefusePipeOperationWords(path, args); err != nil {
+		return ValidatedArgs{}, err
 	}
 	validated, err := ValidateArgs(args, defs, preMatched)
 	faults, listed := errors.AsType[*ArgumentFaults](err)

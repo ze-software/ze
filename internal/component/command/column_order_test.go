@@ -221,10 +221,10 @@ func declarationCases() []declarationCase {
 			reset: ResetPipeFiltersForTest,
 			none:  func() { RegisterPipeFilters([]string{declaredPath}) },
 			one: func() {
-				RegisterPipeFilters([]string{declaredPath}, PipeFilter{Name: "peer", Description: "Filter by peer", TakesArg: true})
+				RegisterPipeFilters([]string{declaredPath}, PipeFilter{Name: "peer", Description: "Filter by peer", Argument: ArgText})
 			},
 			other: func() {
-				RegisterPipeFilters([]string{declaredPath}, PipeFilter{Name: "family", Description: "Filter by family", TakesArg: true})
+				RegisterPipeFilters([]string{declaredPath}, PipeFilter{Name: "family", Description: "Filter by family", Argument: ArgText})
 			},
 			oneText:   "peer",
 			otherText: "family",

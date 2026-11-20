@@ -51,7 +51,7 @@ func TestWebCLIFiniteWarningKeepsSelectedBytes(t *testing.T) {
 				handler := HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr, schema, tree, func(_ context.Context, caller plugin.CallerIdentity, input string) (*plugin.Response, error) {
 					calls++
 					require.Equal(t, "testuser", caller.Username)
-					require.Equal(t, "show data cat meta/finite-warning-blob", input)
+					require.Equal(t, "show data cat meta/finite-warning-blob"+format.pipe, input, "the terminal dispatches the line as typed")
 					response := plugin.NewResponse(plugin.StatusWarning, plugin.RawJSON(wire))
 					response.Warnings = warnings
 					return response, nil

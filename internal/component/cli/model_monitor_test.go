@@ -35,7 +35,7 @@ func TestModelMonitorHandsDeclaredOperations(t *testing.T) {
 		})
 	t.Cleanup(func() { pluginserver.UnregisterStreamingHandler(prefix) })
 	command.RegisterPipeFilters([]string{prefix},
-		command.PipeFilter{Name: "only", Description: "Keep the events of one state", TakesArg: true})
+		command.PipeFilter{Name: "only", Description: "Keep the events of one state", Argument: command.ArgText})
 
 	validated, err := extractMonitorCmdArgs(prefix + " alpha | only up")
 	if err != nil {

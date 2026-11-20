@@ -27,7 +27,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/authz"
-	unicli "github.com/ze-software/ze/internal/component/cli"
 	zecli "github.com/ze-software/ze/internal/component/cli/client"
 	showCmd "github.com/ze-software/ze/internal/component/cmd/show"
 	"github.com/ze-software/ze/internal/component/command"
@@ -1808,16 +1807,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 
 	if cliAttach {
-		zecli.RunAttached(func(command string) (unicli.CommandOutput, error) {
-			rendered, err := cliDispatch.JSON(context.Background(), zePlugin.CallerIdentity{Username: "root", RemoteAddr: "local"}, command)
-			if rendered == nil {
-				return unicli.CommandOutput{}, err
-			}
-			return unicli.CommandOutput{
-				Text:              rendered.Output,
-				TransportComplete: rendered.TransportComplete,
-			}, err
-		}, attachedConsoleEditor(store, configPath, reloadAfterCommit), serverOperationalCommand(apiServer))
+		zecli.RunAttached(attachedCLIExecutor(cliDispatch), attachedConsoleEditor(store, configPath, reloadAfterCommit), serverOperationalCommand(apiServer))
 		fmt.Println("CLI detached. Press Ctrl+C to stop daemon.")
 	}
 

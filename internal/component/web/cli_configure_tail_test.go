@@ -22,7 +22,8 @@ func TestWebCLIConfigureRejectsTrailingInput(t *testing.T) {
 		want string
 	}{
 		{name: "operational-argument", line: "configure garbage", mode: terminalModeOperational, want: "configure garbage"},
-		{name: "operational-pipe", line: "configure | json", mode: terminalModeOperational, want: "configure"},
+		// The terminal dispatches the line as typed, chain included.
+		{name: "operational-pipe", line: "configure | json", mode: terminalModeOperational, want: "configure | json"},
 		{name: "config-argument", line: "configure garbage", mode: terminalModeConfig},
 		{name: "config-pipe", line: "configure | json", mode: terminalModeConfig},
 		{name: "config-bare", line: "configure", mode: terminalModeConfig},

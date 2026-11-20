@@ -167,18 +167,19 @@ func TestValidatePipesRejectsBadColumnArguments(t *testing.T) {
 
 // VALIDATES: both operators apply to a command that registers pipe filters
 // (AC-9, A-3).
-// PREVENTS: the silent drop foldFilters performs on any kind its switch does
-// not name. The switch has no default arm, so an unclassified operator reaches
-// neither the server nor the renderer, and nothing reports it.
+// PREVENTS: an operation the command does not declare being dropped by the
+// partition instead of staying in the residual chain, so it would reach neither
+// the handler nor the renderer, and nothing would report it.
 func TestColumnOpsSurviveFoldFiltersOnFilteredCommand(t *testing.T) {
 	ResetColumnsForTest()
 	ResetPipeFiltersForTest()
 	t.Cleanup(ResetColumnsForTest)
 	t.Cleanup(ResetPipeFiltersForTest)
-	RegisterPipeFilters([]string{"show test rib"}, PipeFilter{Name: "source", Description: "Select source", TakesArg: true})
+	RegisterPipeFilters([]string{"show test rib"}, PipeFilter{Name: "source", Description: "Select source", Argument: ArgText})
 
 	command, ops := ParsePipe("show test rib | display state address | fill alpha")
-	command, ops, _ = foldFilters(command, ops)
+	part := partitionPipeChain(command, ops)
+	command, ops = part.command, part.residual
 	if command != "show test rib" {
 		t.Errorf("command = %q, want it unchanged: neither operator is a server-side filter", command)
 	}
@@ -188,7 +189,7 @@ func TestColumnOpsSurviveFoldFiltersOnFilteredCommand(t *testing.T) {
 	}
 	for _, want := range []pipeKind{pipeDisplay, pipeFill} {
 		if !slices.Contains(kinds, want) {
-			t.Fatalf("foldFilters dropped kind %v: ops = %+v", want, ops)
+			t.Fatalf("the partition dropped kind %v: ops = %+v", want, ops)
 		}
 	}
 

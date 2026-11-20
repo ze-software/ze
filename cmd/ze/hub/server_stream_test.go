@@ -8,11 +8,15 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"slices"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/api"
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	_ "github.com/ze-software/ze/internal/component/plugin/all"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -120,3 +124,89 @@ func (w *webStreamCancelWriter) Write(p []byte) (int, error) {
 }
 
 var _ io.Writer = (*webStreamCancelWriter)(nil)
+
+// TestStreamRoutePartitionsAndHandsDeclaredOperations asks whether a monitor
+// line with a chain reaches its streaming handler partitioned on the two stream
+// sites in this package: the web site (serverStreamCommand) and the REST and
+// gRPC site (apiStreamSource, which APIEngine.Stream calls). The monitor's own
+// declared operation must arrive in the declared list of ValidatedArgs, and no
+// chain word may arrive as an argument.
+//
+// Method: a monitor prefix declares one operation, `only`, taking an argument.
+// The line carries one argument before the pipe and that operation after it,
+// and the registered handler records what it was handed.
+//
+// Red before the partition: the web site folds the operation into the command
+// (arguments `alpha only up`), the REST and gRPC site splits nothing
+// (arguments `alpha | only up`), and neither hands a declared list.
+// MUTATION: drop the declared list GetStreamingHandlerForCommand attaches; the
+// operations comparison fails on both sites.
+func TestStreamRoutePartitionsAndHandsDeclaredOperations(t *testing.T) {
+	const prefix = "monitor test stream-declared-operations"
+	const line = prefix + " alpha | only up"
+	type handed struct {
+		tokens     []string
+		operations []command.PipeOperation
+	}
+	calls := make(chan handed, 1)
+	pluginserver.RegisterStreamingHandler(prefix, pluginserver.OneShotStreamingOnly,
+		func(_ context.Context, _ *pluginserver.Server, output io.Writer, _ string, args command.ValidatedArgs) error {
+			calls <- handed{tokens: args.Tokens(), operations: args.PipeOperations()}
+			_, err := io.WriteString(output, "{\"state\":\"up\"}\n")
+			return err
+		})
+	t.Cleanup(func() { pluginserver.UnregisterStreamingHandler(prefix) })
+	command.RegisterPipeFilters([]string{prefix},
+		command.PipeFilter{Name: "only", Description: "Keep the events of one state", Argument: command.ArgText})
+
+	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
+	require.NoError(t, err)
+	t.Cleanup(server.Stop)
+	require.NoError(t, server.StartWithContext(t.Context()))
+	allow := webStreamPolicy{allowed: true}
+
+	sites := []struct {
+		name string
+		run  func(t *testing.T)
+	}{
+		{"web", func(t *testing.T) {
+			var output bytes.Buffer
+			handled, runErr := serverStreamDispatcher(server)(t.Context(), plugin.CallerIdentity{
+				Username: "alice", RemoteAddr: "192.0.2.25:1234", Authorizer: allow,
+			}, line, &output)
+			require.True(t, handled)
+			require.NoError(t, runErr)
+		}},
+		{"rest and grpc", func(t *testing.T) {
+			events, cancel, runErr := apiStreamSource(server)(t.Context(), api.CallerIdentity{
+				Username: "alice", RemoteAddr: "192.0.2.25:1234", Authorizer: allow,
+			}, line)
+			require.NoError(t, runErr)
+			for range events {
+			}
+			cancel()
+		}},
+	}
+	want := []command.PipeOperation{{Name: "only", Args: []string{"up"}}}
+	for _, site := range sites {
+		t.Run(site.name, func(t *testing.T) {
+			site.run(t)
+			var got handed
+			select {
+			case got = <-calls:
+			case <-time.After(3 * time.Second):
+				t.Fatal("the streaming handler was never called")
+			}
+			assert.Equal(t, []string{"alpha"}, got.tokens,
+				"a chain word reached the monitor as an argument")
+			assert.True(t, slices.EqualFunc(want, got.operations, sameStreamPipeOperation),
+				"declared list = %+v, want %+v", got.operations, want)
+		})
+	}
+}
+
+// sameStreamPipeOperation compares two declared operations by name and
+// argument words.
+func sameStreamPipeOperation(a, b command.PipeOperation) bool {
+	return a.Name == b.Name && slices.Equal(a.Args, b.Args)
+}

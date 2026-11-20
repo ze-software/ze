@@ -51,3 +51,52 @@ func TestBuildInvocationWritesParamsBeforePipe(t *testing.T) {
 		t.Errorf("chain of %q = %q, want %q: a parameter landed in the chain", built, chain, "count")
 	}
 }
+
+// TestInvocationKeepsPipeAndQuoteInValue asks whether a REST or gRPC
+// parameter value holding a pipe or a double quote stays one argument and
+// opens no operation, on a line with no chain and on a line with one (AC-11).
+//
+// Method: buildInvocation over the declared command, then the built line is
+// scanned again with ScanExecution: the decoded command words must end in the
+// parameter name and its whole value, and the chain must be exactly what the
+// caller typed.
+//
+// MUTATION: write the value bare (drop WriteInvocationValue's quoting); the
+// value's pipe then cuts the command part and the chain gains an operation.
+func TestInvocationKeepsPipeAndQuoteInValue(t *testing.T) {
+	const path = "show fixture pipe rows"
+	const value = `a|b"c`
+	meta := &CommandMeta{Name: path, ReadOnly: true, Params: []ParamMeta{{Name: "name", Type: "string"}}}
+	for _, test := range []struct {
+		input string
+		chain string
+	}{
+		{input: path},
+		{input: path + " | count", chain: "count"},
+	} {
+		t.Run(test.input, func(t *testing.T) {
+			words, pipeAt, err := command.ScanExecution(test.input)
+			if err != nil {
+				t.Fatalf("scan %q: %v", test.input, err)
+			}
+			built, err := buildInvocation(test.input, map[string]string{"name": value}, words, pipeAt, meta)
+			if err != nil {
+				t.Fatalf("build %q: %v", test.input, err)
+			}
+			builtWords, builtPipeAt, err := command.ScanExecution(built)
+			if err != nil {
+				t.Fatalf("scan built line %q: %v", built, err)
+			}
+			if want := []string{"show", "fixture", "pipe", "rows", "name", value}; !slices.Equal(builtWords, want) {
+				t.Errorf("command part of %q = %q, want %q", built, builtWords, want)
+			}
+			chain := ""
+			if builtPipeAt >= 0 {
+				chain = strings.TrimSpace(built[builtPipeAt+1:])
+			}
+			if chain != test.chain {
+				t.Errorf("chain of %q = %q, want %q: the value opened an operation", built, chain, test.chain)
+			}
+		})
+	}
+}

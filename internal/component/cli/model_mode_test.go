@@ -627,20 +627,21 @@ func TestOperationalSaveRequiresOperatorLocalFilesystemAuthority(t *testing.T) {
 	}
 
 	localPath := filepath.Join(dir, "local-answer.json")
+	var localInput textbuf.Buffer
+	localLine := localInput.Str("show version | json compact | save ").Str(localPath).String()
 	localDispatched := false
 	local := NewCommandModel(FilesystemAuthorityOperatorLocal)
 	local.SetCommandExecutor(func(input string) (CommandOutput, error) {
 		localDispatched = true
-		if input != "show version" {
-			return CommandOutput{}, fmt.Errorf("dispatched command = %q, want show version", input)
+		// The executor receives the typed line and the model renders the
+		// residual chain, the save included (cli.CommandExecutor).
+		if input != localLine {
+			return CommandOutput{}, fmt.Errorf("dispatched command = %q, want the typed line %q", input, localLine)
 		}
 		return CommandOutput{Text: `{"value":"local"}`}, nil
 	})
 
-	var localInput textbuf.Buffer
-	rawLocal := local.executeOperationalCommand(
-		localInput.Str("show version | json compact | save ").Str(localPath).String(),
-	)()
+	rawLocal := local.executeOperationalCommand(localLine)()
 	localMsg, ok := rawLocal.(commandResultMsg)
 	if !ok {
 		t.Fatalf("local command result type = %T, want commandResultMsg", rawLocal)

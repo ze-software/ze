@@ -45,7 +45,7 @@ func TestBrowserCLIDownloadFiniteBinaryBlob(t *testing.T) {
 			browser := newDownloadBrowser(t, func(_ context.Context, caller plugin.CallerIdentity, input string) (*plugin.Response, error) {
 				calls.Add(1)
 				require.Equal(t, "alice", caller.Username)
-				require.Equal(t, "show data cat meta/finite-blob", input)
+				require.Equal(t, "show data cat meta/finite-blob"+tc.pipe, input, "the terminal dispatches the line as typed")
 				response := plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(wire))
 				if tc.warning != "" {
 					response.Status = plugin.StatusWarning

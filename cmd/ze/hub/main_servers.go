@@ -61,6 +61,9 @@ func serverDispatcher(s *pluginserver.Server, surface string) plugin.CommandDisp
 			// so a peer's `attach process` block does not gate it
 			// (internal/component/bgp/reactor/send_permission.go).
 			Sender: plugin.OperatorSender(),
+			// The rendering statement crosses here and nowhere else: only an
+			// in-process surface builds a CallerIdentity.
+			RendersResidualChain: caller.RendersResidualChain,
 		}
 		// Thread a genuine per-request context: the REST/gRPC transport passes
 		// its request ctx so the command cancels with the request. Text surfaces

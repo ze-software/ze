@@ -228,7 +228,7 @@ func (s *Server) wrapHandler(handler Handler, cliCommand string, readOnly bool) 
 		// by the transport layer (see loader.go SSH wiring, dispatch.go plugin wiring).
 
 		// Authorization check — same path as Dispatch() in command.go
-		if s.dispatcher != nil && !s.dispatcher.isAuthorized(ctx, cliCommand, readOnly) {
+		if s.dispatcher != nil && !s.dispatcher.IsAuthorized(ctx, cliCommand, readOnly) {
 			// The code stays "unauthorized" (wire contract); only the human
 			// text carries the operator-facing wording.
 			return nil, rpc.NewCodedError("unauthorized", plugin.UnauthorizedMessage)

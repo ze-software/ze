@@ -42,14 +42,17 @@ command declaration before authorization and dispatch. A structured flag value
 of `false` omits that flag; it never becomes the words `force false`, which
 would enable a presence-only flag. Ordinary boolean data remains a value.
 Existing raw command text is retained, including terminal, declared ancestor
-and implicit selectors, while extra parameters form a keyword suffix.
+and implicit selectors, while extra parameters form a keyword suffix of the
+command part: on a line with a pipe chain they are written before the first
+pipe, so the chain stays the one the caller typed and the dispatcher applies
+it to the answer.
 Declaration matching reuses the dispatcher's matcher with its original typed
 definitions. The API's private definitions are excluded from JSON metadata.
 <!-- source: internal/component/api/invocation.go -- prepareCommand, buildInvocation -->
 <!-- source: internal/component/command/invocation_match.go -- MatchInvocationPath -->
 <!-- source: internal/component/command/invocation_flags.go -- NormalizeInvocationFlags -->
 <!-- source: internal/component/command/arguments.go -- WriteInvocation -->
-<!-- source: internal/component/api/requests.go -- BuildCommand -->
+<!-- source: internal/component/api/requests.go -- ValidateParams -->
 <!-- source: internal/component/api/rest/convert.go -- fromRESTExecuteRequest -->
 <!-- source: internal/component/api/grpc/convert.go -- fromProtoExecuteRequest, fromProtoStreamRequest -->
 <!-- source: internal/component/mcp/tools.go -- dispatchGenerated -->

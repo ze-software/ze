@@ -474,7 +474,7 @@ func pipesFor(path string) []Pipe {
 	pipes := make([]Pipe, 0, len(filters))
 	for _, filter := range filters {
 		pipes = append(pipes, Pipe{
-			Name: filter.Name, Description: filter.Description, TakesArg: filter.TakesArg,
+			Name: filter.Name, Description: filter.Description, TakesArg: filter.Argument != command.ArgNone,
 		})
 	}
 	return pipes

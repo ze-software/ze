@@ -27,8 +27,11 @@ func TestTerminalSessionFormat(t *testing.T) {
 	t.Cleanup(env.ResetCache)
 	mgr, schema, tree, _ := setupCLITerminalYANGTest(t)
 	var callers []plugin.CallerIdentity
+	// The terminal dispatches the line as typed, chain included, so the one
+	// line that types `| yaml` sets the line the dispatcher must see.
+	dispatched := "show format probe"
 	dispatch := func(_ context.Context, caller plugin.CallerIdentity, input string) (*plugin.Response, error) {
-		assert.Equal(t, "show format probe", input)
+		assert.Equal(t, dispatched, input)
 		callers = append(callers, caller)
 		return plugin.NewResponse(plugin.StatusDone, plugin.Map{"answer": "kept"}), nil
 	}
@@ -49,7 +52,9 @@ func TestTerminalSessionFormat(t *testing.T) {
 	assert.JSONEq(t, `{"answer":"kept"}`, run("alice", "operational", "show format probe").Output)
 	assert.Equal(t, "cli format: yaml", run("bob", "operational", "set cli format").Output)
 	assert.Contains(t, run("bob", "operational", "show format probe").Output, "answer: kept")
+	dispatched = "show format probe | yaml"
 	assert.Contains(t, run("alice", "operational", "show format probe | yaml").Output, "answer: kept")
+	dispatched = "show format probe"
 	assert.Equal(t, "cli format: json", run("alice", "operational", "set cli format").Output)
 	invalid := run("alice", "operational", "set cli format bogus")
 	assert.Contains(t, invalid.Output, `cli format: "bogus" is not an accepted value`)

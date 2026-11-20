@@ -226,7 +226,7 @@ func pipeFilterHelp(filters []command.PipeFilter) []map[string]any {
 		items = append(items, map[string]any{
 			"name":         filter.Name,
 			keyDescription: filter.Description,
-			"takes-arg":    filter.TakesArg,
+			"takes-arg":    filter.Argument != command.ArgNone,
 		})
 	}
 	return items

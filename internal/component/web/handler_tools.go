@@ -171,8 +171,9 @@ func HandleRelatedToolRun(renderer *Renderer, schema *config.Schema, tree *confi
 		// A dispatcher answers structured data, so the overlay renders it
 		// through the configured display default, exactly as the tool pages
 		// and the web terminal do. There is no session format override on this
-		// surface, and a related-tool command carries no pipe of its own.
-		cmdStr, formatFn, pipeErr := command.ProcessPipesDefaultFormatChecked(res.Command, "")
+		// surface. The command goes to the dispatcher as written, and the
+		// overlay renders any residual chain with formatFn.
+		_, formatFn, pipeErr := command.ProcessPipesDefaultFormatChecked(res.Command, "")
 		if pipeErr != "" {
 			var tb textbuf.Buffer
 			data := errorOverlay(toolID, contextPath, tool, tb.Str("pipe error: ").Str(pipeErr).String())
@@ -183,7 +184,9 @@ func HandleRelatedToolRun(renderer *Renderer, schema *config.Schema, tree *confi
 		// Dispatch through the standard pipeline. Authz, accounting, and
 		// peer-selector extraction live there; this handler only constructs
 		// the trusted command and identity.
-		rendered, dispatchErr := dispatch.JSON(r.Context(), plugin.CallerIdentity{Username: username, RemoteAddr: r.RemoteAddr}, cmdStr)
+		rendered, dispatchErr := dispatch.JSON(r.Context(), plugin.CallerIdentity{
+			Username: username, RemoteAddr: r.RemoteAddr, RendersResidualChain: true,
+		}, res.Command)
 		defer rendered.TransportComplete()
 		output := rendered.Output
 		if dispatchErr != nil {

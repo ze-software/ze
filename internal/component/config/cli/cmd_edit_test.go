@@ -537,8 +537,8 @@ func TestEditRefusesWithoutStore(t *testing.T) {
 // call site on the SSH exec channel.
 //
 // The editor hands its executor to internal/component/cli's Model, and that
-// Model splits the pipe chain and renders the answer itself
-// (model_mode.go, executeOperationalCommand). An answer the daemon already
+// Model renders the residual pipe chain itself (model_mode.go,
+// executeOperationalCommand). An answer the daemon already
 // rendered in the configured format cannot be rendered a second time, so this
 // executor asks for the dispatcher's JSON.
 //

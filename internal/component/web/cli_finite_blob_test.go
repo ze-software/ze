@@ -45,7 +45,7 @@ func TestWebCLIFiniteBlobPreservesOriginalBytes(t *testing.T) {
 			handler := HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr, schema, tree, func(_ context.Context, caller plugin.CallerIdentity, input string) (*plugin.Response, error) {
 				calls++
 				require.Equal(t, "testuser", caller.Username)
-				require.Equal(t, "show data cat meta/finite-blob", input)
+				require.Equal(t, "show data cat meta/finite-blob"+tc.pipe, input, "the terminal dispatches the line as typed")
 				response := plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(wire))
 				if tc.warning != "" {
 					response.Status = plugin.StatusWarning

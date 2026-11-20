@@ -484,7 +484,7 @@ func TestTerminalModeOperationalSwitching(t *testing.T) {
 	opsResp := runTerminalCommandForm(t, handler, url.Values{"command": {"show event namespaces | json"}, "mode": {"operational"}})
 	assert.Equal(t, terminalModeOperational, opsResp.Mode)
 	assert.Contains(t, opsResp.Output, `"namespace"`)
-	assert.Equal(t, []string{"show event namespaces|testuser|192.0.2.1:1234"}, seen)
+	assert.Equal(t, []string{"show event namespaces | json|testuser|192.0.2.1:1234"}, seen, "the terminal dispatches the line as typed")
 
 	configResp := runTerminalCommandForm(t, handler, url.Values{"command": {"configure"}, "mode": {"operational"}})
 	assert.Equal(t, terminalModeConfig, configResp.Mode)
@@ -495,7 +495,7 @@ func TestTerminalModeOperationalSwitching(t *testing.T) {
 	assert.Equal(t, terminalModeConfig, runResp.Mode)
 	assert.Contains(t, runResp.Output, `"namespace"`)
 	assert.Len(t, seen, 2)
-	assert.Equal(t, "show event namespaces|testuser|192.0.2.1:1234", seen[1])
+	assert.Equal(t, "show event namespaces | json|testuser|192.0.2.1:1234", seen[1], "run dispatches the line after it as typed")
 }
 
 // TestCLICompleteOperationalMode verifies that terminal mode requests command

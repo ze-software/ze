@@ -381,7 +381,7 @@ client reaches. The aliases built into Ze itself, `| summary` and `| peers` on
 ### Command-specific filters
 
 Some commands extend the generic set with their own filter vocabulary,
-folded into the command itself rather than applying to its answer. `show bgp
+handed to the command's own handler rather than applied to its answer. `show bgp
 rib`, for example, adds:
 
 | Filter | Description |
@@ -399,9 +399,14 @@ rib`, for example, adds:
 | `graph` | Answer the AS-path topology as `nodes` and `edges`; the text format draws it as a box diagram and `\| json` shows the structure. More than 100 ASes is refused: narrow it with a filter first |
 | `reason` | Explain best-path selection (`show bgp rib best` only) |
 
-These are parsed and validated the same way as generic pipes, but resolved
-into command arguments before the command runs, rather than filtering
-output afterward. `show bgp rib | peer 10.0.0.1 | count` counts only that peer's
+These are parsed and validated the same way as generic pipes, but handed to
+the command as its declared operations before it runs, rather than filtering
+output afterward. The command line is never rewritten: typing one as an
+argument (`show bgp rib received count`) is refused with the pipe form as the
+fix. A command filter comes before the first generic operator:
+`show bgp rib | table | peer 10.0.0.1` is refused with the reordered line, and
+`count`, `first`, `last` or `match` typed after a generic operator runs as the
+generic over the answer in hand. `show bgp rib | peer 10.0.0.1 | count` counts only that peer's
 routes in the RIB iterator. It does not serialize every route and count the
 answer. Both kinds run in the daemon. A generic pipe filters what the command
 already produced. A command filter stops it being produced. The `path`
@@ -410,4 +415,4 @@ pattern, with its `^` and `$` anchors, is described in the
 
 <!-- source: internal/component/bgp/plugins/cmd/rib/rib.go -- PipeFilter registrations -->
 <!-- source: internal/component/bgp/plugins/rib/rib_topology.go -- graphTerminal, renderGraphText -->
-<!-- source: internal/component/command/pipe.go -- foldFilters, lookupFilter, validateFilter -->
+<!-- source: internal/component/command/pipe_partition.go -- partitionPipeChain, lookupFilter, validateDeclaredArgument -->

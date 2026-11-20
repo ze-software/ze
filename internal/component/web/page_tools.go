@@ -301,16 +301,19 @@ func dispatchToolCommand(r *http.Request, dispatch CommandDispatcher, cmd string
 	// A dispatcher answers structured data, so a tool page renders it the same
 	// way the web terminal does: through the configured display default. A tool
 	// command carries no pipe (every input above is validated first), so the
-	// helper only supplies the formatter. There is no session format override
-	// on this surface.
-	cmdStr, formatFn, pipeErr := command.ProcessPipesDefaultFormatChecked(cmd, "")
+	// helper only supplies the formatter, and the page sends the command as
+	// written, stating it renders any chain itself. There is no session
+	// format override on this surface.
+	_, formatFn, pipeErr := command.ProcessPipesDefaultFormatChecked(cmd, "")
 	if pipeErr != "" {
 		var tb textbuf.Buffer
 		return toolPageData{Error: tb.Str("pipe error: ").Str(pipeErr).String()}
 	}
 
 	username := GetUsernameFromRequest(r)
-	rendered, err := dispatch.JSON(r.Context(), plugin.CallerIdentity{Username: username, RemoteAddr: r.RemoteAddr}, cmdStr)
+	rendered, err := dispatch.JSON(r.Context(), plugin.CallerIdentity{
+		Username: username, RemoteAddr: r.RemoteAddr, RendersResidualChain: true,
+	}, cmd)
 	defer rendered.TransportComplete()
 	output := rendered.Output
 	if err != nil {

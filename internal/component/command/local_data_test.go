@@ -140,7 +140,7 @@ func TestServeLocalHandsDeclaredOperations(t *testing.T) {
 	}, registry.Meta{}, func(string, any) int { return 0 }); err != nil {
 		t.Fatalf("register local data handler: %v", err)
 	}
-	RegisterPipeFilters([]string{path}, PipeFilter{Name: "only", Description: "Keep the rows of one state", TakesArg: true})
+	RegisterPipeFilters([]string{path}, PipeFilter{Name: "only", Description: "Keep the rows of one state", Argument: ArgText})
 	withArgDefSource(t, func(string) ([]ArgDef, error) { return nil, nil })
 
 	answer, code, served := ServeLocal(path+" alpha | only up", "")

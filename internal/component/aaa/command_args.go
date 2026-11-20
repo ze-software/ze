@@ -22,6 +22,15 @@ import (
 // semantics: if peer is explicit, the command is peer-scoped, but the selector
 // value itself is not part of the legacy RBAC token stream. Typed authorizers
 // that need the selector can inspect the peer parameter directly.
+//
+// For a line typed with a pipe chain, args ends with the chain as typed: a
+// "|" token before each operation, then the operation's name and its argument
+// words, as the chain grammar decoded them (a backslash there stays a literal
+// character). They are given for authorization only, so a per-command policy
+// sees what the operator entered; the handler's arguments never hold them.
+// isReadOnly is the command path's own flag, which a chain never changes. An
+// implementation passes the tokens on unchanged, or flattens them with
+// CanonicalCommand for a string authorizer.
 type CommandArgsAuthorizer interface {
 	AuthorizeCommandArgs(username, remoteAddr, command string, args []string, peer string, isReadOnly bool) bool
 }

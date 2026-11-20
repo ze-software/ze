@@ -4,7 +4,7 @@
 //
 // pipe_records.go runs a pipe chain over the records of a streamed answer, one
 // record at a time. It is the record half of pipe.go: the same chain, the same
-// operator names, and the same folded filters, reading a sequence instead of a
+// operator names, and the same partition of the chain, reading a sequence instead of a
 // string.
 //
 // The memory shape is the reason this half exists. An operator that reads a
@@ -48,8 +48,8 @@ const (
 // display must narrow names and values together before collapse.
 //
 // The chain is read the way ApplyPipes reads it: parsePipeChain expands the
-// aliases, and foldFilters drops the operators the command already applied at
-// the source of the data. A chain ValidatePipes refuses answers one fault
+// aliases, and partitionPipeChain takes out the operations the command applies
+// at the source of the data. A chain ValidatePipes refuses answers one fault
 // record and pulls nothing. A positional display that names no schema field
 // returns a message before pulling a record.
 //
@@ -63,7 +63,7 @@ func applyPipesRecords(
 	records iter.Seq[rpc.Record],
 ) (iter.Seq[rpc.Record], []string, string) {
 	command, ops := parsePipeChain(input)
-	_, ops, _ = foldFilters(command, ops)
+	ops = partitionPipeChain(command, ops).residual
 	if msg := ValidatePipes(ops); msg != "" {
 		return faultRecords(msg), fields, ""
 	}

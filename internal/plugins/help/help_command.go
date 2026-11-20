@@ -615,7 +615,7 @@ func extractPipes(cliPath string) []commandPipe {
 		pipes = append(pipes, commandPipe{
 			Name:        f.Name,
 			Description: f.Description,
-			TakesArg:    f.TakesArg,
+			TakesArg:    f.Argument != command.ArgNone,
 		})
 	}
 	return pipes

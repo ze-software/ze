@@ -809,6 +809,22 @@ API command responses:
 | response.data | any | Optional | Payload or error message |
 <!-- source: internal/component/plugin/types.go -- Response -->
 
+When the command line carries a pipe chain and the caller does not render it
+(a plugin's `dispatch-command`, MCP, REST, gRPC), `data` is the chain's result.
+A chain holding a format that prints text (`| text`, `| table`, `| yaml`,
+`| ndjson`) makes `data` a JSON string: the rendered text, as `ze cli -c`
+prints it for the same line. The engine alone answers this form, and nothing
+renders it again; a command's own handler still answers data, and a JSON
+string from a handler is refused. A chain that leaves JSON, or ends in
+`| json`, makes `data` the document `ze cli -c` prints for the line with
+`| json`, so it carries the chain's row-shaping steps under `pipe` beside the
+result: a command answering two rows, sent with `| count`, answers
+`{"count":2,"pipe":[{"op":"count"}]}`. A chain holding `| raw` answers the
+result with no `pipe` key.
+<!-- source: internal/component/plugin/server/command.go -- applyAnswerStep -->
+<!-- source: internal/component/plugin/server/command.go -- renderedAnswer -->
+<!-- source: internal/component/command/dispatch_line.go -- ApplyAnswerStep -->
+
 ---
 
 ## Text Format

@@ -31,7 +31,7 @@ func TestImplicitSelectorPrefersThePatternlessLeaf(t *testing.T) {
 		commandtest.Must(command.NewStringArg("address", nil, []*regexp.Regexp{mac}, command.ArgOptions{Mandatory: true})),
 	}
 
-	def := implicitSelectorDef([]string{"request", "interface", "mac"}, defs, nil)
+	def := implicitSelectorDef([]string{"request", "interface", "mac"}, defs)
 	require.NotNil(t, def, "the pattern-less leaf is the inline identifier")
 	assert.Equal(t, "name", def.Name())
 }
@@ -47,7 +47,7 @@ func TestImplicitSelectorRefusesTwoPatternlessLeaves(t *testing.T) {
 		commandtest.Must(command.NewStringArg("peer", nil, nil, command.ArgOptions{Mandatory: true})),
 	}
 
-	assert.Nil(t, implicitSelectorDef([]string{"create", "interface", "veth"}, defs, nil))
+	assert.Nil(t, implicitSelectorDef([]string{"create", "interface", "veth"}, defs))
 }
 
 // TestImplicitSelectorTakesALonePatternedLeaf pins the case where the only
@@ -62,7 +62,7 @@ func TestImplicitSelectorTakesALonePatternedLeaf(t *testing.T) {
 		commandtest.Must(command.NewStringArg("selector", nil, []*regexp.Regexp{regexp.MustCompile(`^\S+$`)}, command.ArgOptions{Mandatory: true})),
 	}
 
-	def := implicitSelectorDef([]string{"show", "bgp", "detail"}, defs, nil)
+	def := implicitSelectorDef([]string{"show", "bgp", "detail"}, defs)
 	require.NotNil(t, def)
 	assert.Equal(t, "selector", def.Name())
 }

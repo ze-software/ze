@@ -1,5 +1,6 @@
 // Design: docs/architecture/api/commands.md — command-owned pipe filters
 // Related: pipe.go — generic pipe parsing and formatting
+// Related: pipe_partition.go — the one partition that reads this registry
 // Related: completer.go — pipe completion
 
 package command
@@ -12,13 +13,20 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// PipeFilter declares a pipe segment accepted by a specific command.
-// Generic pipes such as match, json, table, and resolve do not use this type.
+// PipeFilter declares a pipe operation a specific command runs in its own
+// handler: the engine hands it over in the declared list rather than running a
+// generic operator over the answer. Generic operators such as json, table and
+// resolve are not declared with this type; a declaration whose name is an
+// overridable generic's (count, first, last, match) is an override, held to the
+// generic's argument contract and answer shape.
 type PipeFilter struct {
 	Name        string
 	Description string
-	TakesArg    bool
-	Leading     bool
+	// Argument is the operation's argument contract, one of the closed
+	// argument kinds of the catalog (ArgNone, ArgOptional, ArgText, ArgCount,
+	// ArgFields, ArgPath). The partition validates the typed words against it
+	// before the handler runs. An override MUST state the generic's own kind.
+	Argument PipeArgKind
 }
 
 type pipeFilterSet struct {
@@ -41,6 +49,13 @@ var pipeFilterRegistry = newDeclarationRegistry("pipe filter set",
 // time. RegisterAliases refuses the same pair from the other side, so init
 // order decides which of the two reports it.
 //
+// A filter whose name is a generic operator's is an override. It is refused
+// the same way when the catalog does not let a command override that operator
+// (declaredFilterRefusal), or when its argument contract is not the generic's, and
+// so is an argument kind outside the closed vocabulary. Each is a Ze defect in
+// the declaration, found when it is recorded rather than when an operator
+// first types the name.
+//
 // Two packages declaring two DIFFERENT filter sets for one command path is
 // refused the same way, and an empty declaration never overrides a non-empty
 // one (declarationRegistry.declare).
@@ -59,9 +74,41 @@ func RegisterPipeFilters(commands []string, filters ...PipeFilter) {
 			continue
 		}
 		set.filters[i].Name = name
+		if refusal := declaredFilterRefusal(commands, set.filters[i]); refusal != "" {
+			panic("BUG: " + refusal)
+		}
 		set.byName[name] = set.filters[i]
 	}
 	pipeFilterRegistry.declare(commands, set)
+}
+
+// declaredFilterRefusal answers why a declared operation cannot be recorded,
+// or "" when it can: its argument kind is outside the closed vocabulary, or
+// its name is a generic operator's that the catalog does not let a command
+// override, or that it overrides with another argument contract. filter.Name
+// is already lowercased.
+func declaredFilterRefusal(commands []string, filter PipeFilter) string {
+	var tb textbuf.Buffer
+	paths := textbuf.Join(commands, ", ")
+	if !filter.Argument.declarable() {
+		return tb.Str("pipe filter ").Str(filter.Name).Str(" of ").Str(paths).
+			Str(" states an argument kind outside none, optional, text, count, fields and path").String()
+	}
+	generic, isGeneric := lookupPipeOperatorByName(filter.Name)
+	if !isGeneric {
+		return ""
+	}
+	if !generic.Overridable() {
+		return tb.Str("pipe filter ").Str(filter.Name).Str(" of ").Str(paths).
+			Str(" is the generic pipe operator ").Str(generic.Name).
+			Str(", which a command cannot override; give the operation a name of its own").String()
+	}
+	if filter.Argument != generic.Arg {
+		return tb.Str("pipe filter ").Str(filter.Name).Str(" of ").Str(paths).
+			Str(" overrides the generic ").Str(generic.Name).Str(" with argument ").Str(filter.Argument.String()).
+			Str(", but the generic takes ").Str(generic.Arg.String()).String()
+	}
+	return ""
 }
 
 func lookupPipeFilters(command string) (pipeFilterSet, bool) {

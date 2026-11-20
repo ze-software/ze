@@ -19,8 +19,12 @@ func webViewBinding(dispatch plugin.CommandDispatcher) zeweb.CLIViewBinding {
 		if dispatch == nil {
 			return opererr.New("The daemon cannot answer live monitor requests.", "No command dispatcher is available for this web server.", "Start the daemon and open /cli again")
 		}
+		// The model renders the residual chain of every line it sends
+		// (cli.CommandExecutor); the dashboard's own lines carry no chain.
+		renderer := caller
+		renderer.RendersResidualChain = true
 		execute := func(input string) (*plugin.RenderedResponse, error) {
-			return dispatch.JSON(ctx, caller, input)
+			return dispatch.JSON(ctx, renderer, input)
 		}
 		model.SetCommandExecutor(cliExecutor(execute))
 		injectViewFactories(model, execute)

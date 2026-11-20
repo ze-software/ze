@@ -17,8 +17,10 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 
 	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/redact"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -65,10 +67,65 @@ type ValidatedArgs struct {
 	request context.Context
 	// pipeOperations is the declared list: the operations of the typed chain
 	// that the command declares as its own, in chain order. It is nil when the
-	// chain held none. WIRING SKELETON: no route fills it yet; the one
-	// partition of the pipe chain does (docs/architecture/api/commands.md),
-	// and until it lands a handler is handed none.
+	// chain held none. Only the route that partitioned the chain
+	// (partitionPipeChain) attaches it, through WithPipeOperations.
 	pipeOperations []PipeOperation
+}
+
+// WithPipeOperations answers v carrying operations as its declared list. The
+// route that partitioned the typed chain calls it once, after ValidateArgs, so
+// the handler receives the operations it declares beside its arguments rather
+// than as words rewritten into them. The list is copied.
+func (v ValidatedArgs) WithPipeOperations(operations []PipeOperation) ValidatedArgs {
+	v.pipeOperations = slices.Clone(operations)
+	return v
+}
+
+// RefusePipeOperationWords refuses an argument word that is one of the pipe
+// operations path declares (RegisterPipeFilters), before any argument is bound:
+// such an operation is typed after a pipe and reaches the handler in its
+// declared list, never as an argument, so the line is never rewritten to carry
+// one. The refusal names the word and gives the same line in the pipe form as
+// its fix: the words before the first operation stay arguments, each operation
+// starts a pipe stage, and the words after it until the next one are its
+// argument words.
+//
+// path is the command path the args follow. A command that declares no
+// operation refuses nothing. Generic operators and aliases are not judged
+// here: only an operation the command itself runs can be typed as an argument
+// of that command by mistake.
+func RefusePipeOperationWords(path string, args []string) error {
+	set, declared := lookupPipeFilters(path)
+	if !declared || len(set.filters) == 0 {
+		return nil
+	}
+	first := -1
+	for i, word := range args {
+		if _, operation := set.byName[strings.ToLower(word)]; operation {
+			first = i
+			break
+		}
+	}
+	if first < 0 {
+		return nil
+	}
+	var fix textbuf.Buffer
+	fix.Str(path)
+	for i, word := range args {
+		if i >= first {
+			if _, operation := set.byName[strings.ToLower(word)]; operation {
+				fix.Str(" |")
+			}
+		}
+		fix.Byte(' ')
+		WriteInvocationValue(&fix, word)
+	}
+	var problem, why textbuf.Buffer
+	problem.Str(args[first]).Str(" is a pipe operation of ").Str(path).Str(", not an argument")
+	why.Str(path).Str(" runs its own pipe operations, which are typed after a pipe")
+	// The fix repeats the operator's arguments, so a secret among them is
+	// masked as every echo of a line is (redact.Command).
+	return opererr.New(problem.String(), why.String(), redact.Command(fix.String()))
 }
 
 // PipeOperation is one operation of the typed pipe chain that the command

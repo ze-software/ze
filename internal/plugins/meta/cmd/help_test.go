@@ -22,8 +22,8 @@ func TestPipeFilterHelp(t *testing.T) {
 	}
 
 	items := pipeFilterHelp([]command.PipeFilter{
-		{Name: "grep", Description: "match lines", TakesArg: true},
-		{Name: "count", Description: "count lines", TakesArg: false},
+		{Name: "grep", Description: "match lines", Argument: command.ArgText},
+		{Name: "count", Description: "count lines"},
 	})
 	if len(items) != 2 {
 		t.Fatalf("len = %d, want 2", len(items))

@@ -45,6 +45,23 @@ func sshSessionPolicy(authorizer plugin.Authorizer) plugin.Authorizer {
 	return authorizer
 }
 
+// standaloneSSHExecutorFactory is the exec-channel executor of the standalone
+// SSH server (sshBuildStandaloneImpl): each session's lines go to dispatch
+// under the session's own identity.
+func standaloneSSHExecutorFactory(dispatch plugin.CommandDispatcher) zessh.CommandExecutorFactory {
+	return func(sessionCtx context.Context, username, remoteAddr string, authorizer plugin.Authorizer) zessh.CommandExecutor {
+		return func(input string) (*plugin.RenderedResponse, error) {
+			// Answer rather than JSON: the exec channel renders a row
+			// generator itself, and Records is walked once. Every caller of
+			// a zessh.CommandExecutor renders the residual chain itself.
+			return dispatch.Answer(sessionCtx, plugin.CallerIdentity{
+				Username: username, RemoteAddr: remoteAddr, Authorizer: sshSessionPolicy(authorizer),
+				RendersResidualChain: true,
+			}, input)
+		}
+	}
+}
+
 // sshBuildImpl builds and starts the ssh server from generic infra inputs and
 // returns it as the opaque sshServer handle (nil on config/start error).
 func sshBuildImpl(in *sshBuildInputs) sshServer {
@@ -121,6 +138,9 @@ func sshWireImpl(handle sshServer, in *sshWireInputs) {
 				// An SSH session is an operator, authenticated as Username above.
 				Authorizer: sshSessionPolicy(authorizer),
 				Sender:     plugin.OperatorSender(),
+				// Every caller of a zessh.CommandExecutor renders the
+				// residual chain itself (zessh.CommandExecutor).
+				RendersResidualChain: true,
 			}
 			resp, err := d.Dispatch(ctx, input)
 			if err != nil {
@@ -278,16 +298,7 @@ func sshBuildStandaloneImpl(in *sshStandaloneInputs) func() {
 	}, in.Recorder, func() error {
 		return in.ConfigOwner.Reload(context.Background())
 	}))
-	dispatch := in.Dispatch
-	srv.SetExecutorFactory(func(sessionCtx context.Context, username, remoteAddr string, authorizer plugin.Authorizer) zessh.CommandExecutor {
-		return func(input string) (*plugin.RenderedResponse, error) {
-			// Answer rather than JSON: the exec channel renders a row
-			// generator itself, and Records is walked once.
-			return dispatch.Answer(sessionCtx, plugin.CallerIdentity{
-				Username: username, RemoteAddr: remoteAddr, Authorizer: sshSessionPolicy(authorizer),
-			}, input)
-		}
-	})
+	srv.SetExecutorFactory(standaloneSSHExecutorFactory(in.Dispatch))
 
 	if startErr := srv.Start(context.Background(), nil, nil); startErr != nil {
 		log.Warn("SSH server failed to start", "error", startErr)

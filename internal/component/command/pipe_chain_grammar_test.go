@@ -79,10 +79,10 @@ func TestSplitPipeLineQuoteAware(t *testing.T) {
 // TestChainGrammar holds one row per rule of the chain grammar
 // (docs/architecture/api/commands.md, "The pipe chain takes the invocation's
 // quote grammar"), then the two readers that reach the chain by another door:
-// a command's own filter folded into its command words, and an alias
+// a command's own filter handed over in its declared list, and an alias
 // expansion.
-// Method: ParsePipe for the word rules; foldFilters then ScanExecution for the
-// declared filter, so the words the handler receives are the ones decoded;
+// Method: ParsePipe for the word rules; partitionPipeChain for the declared
+// filter, so the words the handler receives are the ones decoded;
 // RegisterAliases and expandAliases for the expansion.
 // VALIDATES: spec-pipe-chain-honored-on-every-command-surface AC-6 and D-1.
 // PREVENTS: quotes reaching the operation as data, and a second grammar for
@@ -111,35 +111,28 @@ func TestChainGrammar(t *testing.T) {
 		})
 	}
 
-	t.Run("a declared value stays one word of the command", func(t *testing.T) {
+	t.Run("a declared value stays one word of the declared list", func(t *testing.T) {
 		ResetPipeFiltersForTest()
 		t.Cleanup(ResetPipeFiltersForTest)
 		RegisterPipeFilters([]string{"show grammar rows"},
-			PipeFilter{Name: "path", Description: "AS path", TakesArg: true},
+			PipeFilter{Name: "path", Description: "AS path", Argument: ArgText},
 		)
 		for _, tc := range []struct {
-			chain  string
-			folded string
-			value  string
+			chain string
+			value string
 		}{
-			{chain: `path "a|b"`, folded: `show grammar rows path "a|b"`, value: "a|b"},
-			{chain: `path "65001 65002"`, folded: `show grammar rows path "65001 65002"`, value: "65001 65002"},
-			{chain: `path a\b`, folded: `show grammar rows path "a\\b"`, value: `a\b`},
+			{chain: `path "a|b"`, value: "a|b"},
+			{chain: `path "65001 65002"`, value: "65001 65002"},
+			{chain: `path a\b`, value: `a\b`},
 		} {
-			command, ops := ParsePipe("show grammar rows | " + tc.chain)
-			folded, remaining, _ := foldFilters(command, ops)
-			if folded != tc.folded || len(remaining) != 0 {
-				t.Errorf("fold of %s = %q with %+v left, want %q with none", tc.chain, folded, chainOps(remaining), tc.folded)
+			part := partitionOf("show grammar rows | " + tc.chain)
+			if part.command != "show grammar rows" || len(part.residual) != 0 {
+				t.Errorf("partition of %s = %q with %+v left, want the command part unchanged and none left", tc.chain, part.command, chainOps(part.residual))
 				continue
 			}
-			words, _, err := ScanExecution(folded)
-			if err != nil {
-				t.Errorf("the folded line %q does not scan: %v", folded, err)
-				continue
-			}
-			want := []string{"show", "grammar", "rows", "path", tc.value}
-			if !slices.Equal(words, want) {
-				t.Errorf("the handler would receive %q for %s, want %q", words, tc.chain, want)
+			want := []PipeOperation{{Name: "path", Args: []string{tc.value}}}
+			if !samePipeOperations(part.declared, want) {
+				t.Errorf("the handler would receive %+v for %s, want %+v", part.declared, tc.chain, want)
 			}
 		}
 	})

@@ -42,7 +42,7 @@ func TestBrowserCLIDownloadFiniteWarningKeepsSelectedBytes(t *testing.T) {
 			browser := newDownloadBrowser(t, func(_ context.Context, caller plugin.CallerIdentity, input string) (*plugin.Response, error) {
 				calls.Add(1)
 				require.Equal(t, "alice", caller.Username)
-				require.Equal(t, "show data cat meta/finite-warning-blob", input)
+				require.Equal(t, "show data cat meta/finite-warning-blob"+format.pipe, input, "the terminal dispatches the line as typed")
 				response := plugin.NewResponse(plugin.StatusWarning, plugin.RawJSON(wire))
 				response.Warnings = []string{"warning: the snapshot excludes expired records", "run show data cat meta/finite-warning-blob"}
 				return response, nil

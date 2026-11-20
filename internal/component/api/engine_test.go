@@ -194,6 +194,49 @@ func TestEngineReadOnlyCallerDeniedWrite(t *testing.T) {
 	assert.Contains(t, writeResult.Error, plugin.UnauthorizedMessage)
 }
 
+// TestExecutePipedReadOnlyCaller asks whether a chain can change the
+// read-only verdict of a REST or gRPC caller (A-1, AC-28): a write command
+// with a chain stays refused, on Execute and on Stream, and runs nothing; a
+// read command with a chain is answered, and the executor receives the line
+// whole, chain included, for the engine to apply it.
+//
+// Method: one engine over the fake declarations, an executor and a stream
+// source that record what reached them.
+//
+// MUTATION: judge read-only on the whole line, or skip the check when the
+// line holds a pipe; the piped write then reaches the executor.
+func TestExecutePipedReadOnlyCaller(t *testing.T) {
+	var executed []string
+	executor := func(_ context.Context, _ CallerIdentity, command string) (*plugin.Response, error) {
+		executed = append(executed, command)
+		return plugin.NewResponse(StatusDone, plugin.RawJSON(`{"count":1}`)), nil
+	}
+	streamed := 0
+	stream := func(_ context.Context, _ CallerIdentity, _ string) (<-chan string, func(), error) {
+		streamed++
+		events := make(chan string)
+		close(events)
+		return events, func() {}, nil
+	}
+	eng := NewAPIEngine(executor, fakeCommands(), allowAllAuth(), stream)
+	caller := CallerIdentity{Username: "api", ReadOnly: true}
+
+	writeResult, writeErr := eng.Execute(t.Context(), &ExecuteRequest{Caller: caller, Command: "daemon reload | count"})
+	assert.ErrorIs(t, writeErr, ErrUnauthorized)
+	assert.Equal(t, StatusError, writeResult.Status)
+	assert.Contains(t, writeResult.Error, plugin.UnauthorizedMessage)
+
+	_, _, streamErr := eng.Stream(t.Context(), &StreamRequest{Caller: caller, Command: "daemon reload | count"})
+	assert.ErrorIs(t, streamErr, ErrUnauthorized)
+	assert.Zero(t, streamed, "a refused piped write reached the stream source")
+	assert.Empty(t, executed, "a refused piped write reached the executor")
+
+	readResult, readErr := eng.Execute(t.Context(), &ExecuteRequest{Caller: caller, Command: "bgp summary | count"})
+	require.NoError(t, readErr)
+	assert.Equal(t, StatusDone, readResult.Status)
+	assert.Equal(t, []string{"bgp summary | count"}, executed)
+}
+
 // VALIDATES: Execute propagates executor errors.
 // PREVENTS: swallowed errors in dispatch path.
 func TestEngineExecuteError(t *testing.T) {

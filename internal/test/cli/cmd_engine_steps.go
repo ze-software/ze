@@ -138,12 +138,14 @@ func CmdEngineSteps(args []string) int {
 // line to the daemon the way SSH sends one, so a step reads what `ze cli -c`
 // prints for the same line.
 //
-// The daemon's dispatcher answers data and applies no pipe chain: every
-// operator surface splits the chain off before it dispatches and renders the
-// answer through it (the SSH exec channel, the web CLI and `ze cli` all call
-// command.ProcessPipesDefaultFormatChecked). Sent whole, `show doctor config f
-// | json` is refused by the dispatcher, which names the line to send instead,
-// so the step would read that refusal and never the rendered answer.
+// The step renders the chain as the SSH exec channel does, so it reads what
+// `ze cli -c` prints. It runs in a plugin process, which holds no
+// plugin.CallerIdentity to say it renders, so it sends the command part with
+// only the operations the command declares (command.DispatchLine.DeclaredLine):
+// the daemon runs those in the handler and answers data, and the residual
+// chain is applied here, once, by the formatter built from the same partition
+// (command.ProcessPipesDefaultFormatChecked). Sent whole, the line would have
+// the daemon apply the residual chain too, and the step would render it twice.
 //
 // A line with no pipe keeps the raw JSON answer: no default format is added,
 // because json= predicates walk that answer (runner.RunEngineSteps). A refused
@@ -157,11 +159,23 @@ func pipedEngineDispatch(send func(ctx context.Context, line string) (string, []
 			status, data, err := send(ctx, line)
 			return status, string(data), err
 		}
-		dispatched, format, pipeErr := command.ProcessPipesDefaultFormatChecked(line, "")
+		_, format, pipeErr := command.ProcessPipesDefaultFormatChecked(line, "")
 		if pipeErr != "" {
 			return "", "", errors.New(pipeErr)
 		}
-		status, data, err := send(ctx, dispatched)
+		dispatchLine, err := command.ReadDispatchLine(line)
+		if err != nil {
+			return "", "", err
+		}
+		sent := dispatchLine.DeclaredLine()
+		if len(dispatchLine.DeclaredOperations()) > 0 {
+			// A data caller's answer carries the declared operations' pipe
+			// metadata, which the formatter here adds again and then refuses
+			// as a field already present; | raw answers the handler's JSON
+			// byte for byte, with no metadata.
+			sent += " | raw"
+		}
+		status, data, err := send(ctx, sent)
 		if err != nil {
 			return status, string(data), err
 		}

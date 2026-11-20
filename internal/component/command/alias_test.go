@@ -121,7 +121,7 @@ func TestAliasCommandSpecificBeatsGlobal(t *testing.T) {
 
 // VALIDATES: AC-9, R-2. An alias name a pipe filter of the same command already
 // carries is refused at registration, whichever of the two registers second.
-// PREVENTS: the filter winning in silence at use time. foldFilters resolves a
+// PREVENTS: the filter winning in silence at use time. partitionPipeChain resolves a
 // command's own filter before anything generic, so the operator sees the filter
 // and never learns the alias existed.
 func TestAliasRegistrationRefusesFilterCollision(t *testing.T) {
@@ -388,7 +388,7 @@ func TestRegisterPluginAliasesRefusesBuiltinOperatorName(t *testing.T) {
 }
 
 // VALIDATES: AC-3, and that the population of this check is OVERLAPPING command
-// paths. foldFilters resolves a command's own filter for the whole subtree the
+// paths. partitionPipeChain resolves a command's own filter for the whole subtree the
 // filter covers, so an alias admitted anywhere in that subtree is dark.
 // PREVENTS: the check being read as the exact path, which would admit an alias
 // under a filter's subtree where nothing reports that the filter always wins.

@@ -431,14 +431,19 @@ func executeTerminalOperationalResult(ctx context.Context, dispatch CommandDispa
 		err := errors.New("operational command dispatch not available")
 		return "error: " + err.Error(), nil, nil, false, err
 	}
-	cmdStr, formatFn, pipeErr := command.ProcessPipesDefaultFormatResult(input, sessionFormat)
+	// The typed line goes to the dispatcher whole, and the terminal renders
+	// the residual chain: the dispatcher hands the command its declared
+	// operations and answers data, and formatFn, built from the same
+	// partition, applies the rest of the chain.
+	_, formatFn, pipeErr := command.ProcessPipesDefaultFormatResult(input, sessionFormat)
 	if pipeErr != "" {
 		var tb textbuf.Buffer
 		return tb.Str("pipe error: ").Str(pipeErr).String(), nil, nil, false, errors.New(pipeErr)
 	}
 	rendered, executionErr := dispatch.JSON(ctx, plugin.CallerIdentity{
 		Username: username, RemoteAddr: remoteAddr, Authorizer: plugin.CallerAuthorizer(ctx),
-	}, cmdStr)
+		RendersResidualChain: true,
+	}, input)
 	if executionErr != nil {
 		output := "error: " + executionErr.Error()
 		if line, refused := plugin.RefusalLine(executionErr); refused {
