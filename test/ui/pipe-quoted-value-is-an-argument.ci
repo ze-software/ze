@@ -1,0 +1,97 @@
+# Test: a double-quoted value in the pipe chain is one argument, its quotes removed
+#
+# The one question: does the chain after the first pipe follow the same quote
+# grammar as the command part on the operator's real surface, so a quoted
+# value holding spaces or a pipe character reaches `match` whole and decoded,
+# and an unfinished quote in the chain is refused with its column? The
+# grammar's unit tests prove the scan; only a daemon proves the SSH exec route
+# and the rendering formatter both read the chain through it.
+#
+# VALIDATES: spec-pipe-chain-honored-on-every-command-surface AC-6 (spaces and
+#   a pipe inside quotes, in the chain) and AC-7 (the chain half of the
+#   unfinished-quote refusal). User story 4.
+# PREVENTS: parsePipeOps splitting the chain at every pipe and reading each
+#   segment with strings.Fields, so the quotes reach `match` as data
+#   (plan/journal row splitter-ignores-the-quoting-its-tokenizer-honors).
+#
+# Red today:
+#   - `| match "show bgp rib"` hands match the pattern `"show bgp rib"`, quotes
+#     included, so no row matches and `show bgp rib best` is not printed;
+#   - `| match "rib|xyz" | count` splits at the quoted pipe and refuses `xyz"`
+#     as an unknown operator, so no count is printed;
+#   - `| match "abc` keeps the quote as a character and answers.
+#
+# `match` is a case-insensitive substring, never a regular expression, so
+# "rib|xyz" is ten literal characters that no command name holds: count 0.
+#
+# Method: test/ui/cli-argument-refused-plugin-route.ci (ze init, ze start,
+# `ze cli -c` over SSH on $PORT). `system command list` answers one row per
+# command the daemon dispatches (test/plugin/answer-many-records.ci), so its
+# rows are known text.
+
+option=timeout:value=60s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT
+EOF_INIT
+
+tmpfs=quoted.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+plugin {
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=ze start quoted.conf:name=daemon:ready=Ze running.
+
+# AC-6, spaces: the quoted pattern is one argument without its quotes.
+cmd=foreground:seq=3:exec=ze cli -c 'system command list | match "show bgp rib"':exit=0
+expect=stdout:contains=show bgp rib best
+reject=stdout:contains=show interface
+
+# AC-6, a pipe inside quotes opens no operation: one match, then the count.
+cmd=foreground:seq=4:exec=ze cli -c 'system command list | match "rib|xyz" | count | json':exit=0
+expect=stdout:pattern="count": ?0
+# A reject reads both streams of the command's span, the daemon's SSH log line
+# of the typed command (which holds `xyz`) included, so the reject names the
+# refusal a split at the quoted pipe answers (`unknown pipe operator` or
+# `unknown pipe filter`), never a word of the line.
+reject=stderr:contains=unknown pipe
+
+# AC-7, chain half: an unfinished quote after the first pipe is refused with
+# its column and the fix, and nothing answers. The wording is ScanExecution's
+# (internal/component/command/invocation_scan.go), which today refuses only
+# the command half; the opening quote is the 29th character of the line.
+cmd=foreground:seq=5:exec=ze cli -c 'system command list | match "abc'
+expect=stderr:contains=The command has an unfinished quote at column 29.
+expect=stderr:contains=Add the closing double quote before trying again.
+# `ze cli -c` first sends `show version`, which the daemon logs inside this
+# span, so the reject names a row of the unfiltered list, never the bare verb.
+reject=stdout:contains=show bgp
+
+cmd=stop:seq=6:name=daemon:signal=term

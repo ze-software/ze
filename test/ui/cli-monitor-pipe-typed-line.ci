@@ -1,0 +1,164 @@
+# Test: `ze cli -c` with a monitor, a chain and `| save` sends the typed line and saves only what the chain keeps
+#
+# The one question: when an operator runs `ze cli -c "monitor ... | match
+# state | save events.log"`, does the client send the typed line with the
+# rendering key, so the daemon accounts the line as typed and applies `match`,
+# while the client formats and writes the file holding only the kept events?
+# TestPresentationSuffixSameOnClientAndDaemon proves the split and
+# TestExecSessionRendersStatement the key; only the two processes together
+# prove which side selects, which side saves, and what is accounted.
+#
+# VALIDATES: spec-pipe-chain-honored-on-every-command-surface AC-23, AC-36
+#   (the client half), user stories 7 and 12.
+# PREVENTS: the client splitting the chain and sending `monitor ...` alone
+#   (internal/component/cli/client/main.go StreamMonitor today), so accounting
+#   records a line nobody typed and the client decides which rows it keeps.
+#
+# Red today: the ACCT START record is `monitor event include open,state`
+#   with no chain. The file assertions pass today (the client filters and
+#   saves); they must stay green when the daemon takes `match` over.
+#
+# Method: monitor-pipe-chain-ssh.ci's daemon and TACACS+ mock. `ze cli -c`
+# runs in the background, ready once it prints the monitor's header (its
+# subscription barrier, which `match state` keeps); then
+# plugin/ssh-exec-line brings the dynamic BGP session up (its own monitor
+# line only waits for the state event), wait-file.sh polls the save in
+# progress for the state event, and the client is stopped with SIGTERM.
+#
+# A stream's `| save` is atomic (StreamSaves, internal/component/command
+# pipe_save.go): the client writes a `.ze-save-*` temporary file beside the
+# destination and renames it onto events.log only when the stream ends, so
+# events.log does not exist while the monitor runs. The poll reads the
+# temporary file; the assertions after the stop read events.log, which the
+# terminate signal commits (StreamMonitor, internal/component/cli/client
+# main.go), with no temporary file left.
+
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+# Polls state, never time: the loop exits as soon as the file holds the
+# text; the 0.2s pause is only the poll interval.
+tmpfs=wait-file.sh:terminator=EOF_WAIT
+i=0
+while [ $i -lt 150 ]; do
+	for f in .ze-save-*; do
+		if [ -f "$f" ] && grep -q "$1" "$f"; then
+			echo "wait-file: the save in progress holds $1"
+			exit 0
+		fi
+	done
+	i=$((i+1))
+	sleep 0.2
+done
+echo "wait-file: the save in progress never held $1" >&2
+exit 1
+EOF_WAIT
+
+tmpfs=monitor.conf:terminator=EOF_CONF
+system {
+	authentication {
+		tacacs {
+			server 127.0.0.1 { port $PORT; key "ze-mock-key"; }
+			timeout 2
+			authorization true
+			accounting true
+		}
+		tacacs-profile 15 { profile [ admin ]; }
+	}
+	authorization {
+		profile admin { run { default-action allow; } edit { default-action allow; } }
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+bgp {
+	group dynamic-monitor {
+		connection {
+			remote {
+				ip dynamic
+				connect false
+				range 127.0.0.1/32
+			}
+			local {
+				ip 127.0.0.1
+				port $PORT3
+				accept true
+			}
+		}
+		session {
+			asn { local 65000; }
+			router-id 1.1.1.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le mock tacacs --port $PORT --key ze-mock-key --user admin:testpass:15:name=tacacs:ready=le mock tacacs: listening on
+expect=stderr:pattern=ACCT START seq=[0-9]+ total=[0-9]+ cmd="monitor event include open,state \| match state \| save events.log"
+reject=stderr:pattern=ACCT START .*cmd="monitor event include open,state"
+
+cmd=foreground:seq=2:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=3:exec=ze start monitor.conf:name=daemon:ready=Ze running.
+
+cmd=background:seq=4:exec=ze cli -c "monitor event include open,state | match state | save events.log":name=client:ready=monitoring
+cmd=foreground:seq=5:exec=sh wait-file.sh monitoring:timeout=40s:exit=0
+
+cmd=foreground:seq=6:exec=le test fixture plugin/ssh-exec-line stream $PORT2 $PORT3 'monitor event include state' up -:timeout=45s
+expect=exit:code=0
+
+# The client formats each kept event before it saves it
+# (internal/component/cli/client/main.go StreamMonitor, formatMonitorLine in
+# internal/component/bgp/plugins/cmd/monitor/format.go), so the file holds
+# one-liners, never the JSON: a state event is `---- STATE  <peer> <AS> up`.
+cmd=foreground:seq=7:exec=sh wait-file.sh 'STATE.* up':timeout=40s:exit=0
+cmd=stop:seq=8:name=client:signal=term
+
+# Only what `match state` keeps was saved: no OPEN event reached the file. A
+# saved OPEN is formatted `recv OPEN   <peer> ...` (formatOpen); the header
+# names `open` in lower case, so the case-sensitive check reads ` OPEN `.
+tmpfs=no-open.sh:terminator=EOF_NOOPEN
+if [ ! -f events.log ]; then
+	echo "no-open: the stopped stream committed no events.log" >&2
+	exit 1
+fi
+for f in .ze-save-*; do
+	if [ -f "$f" ]; then
+		echo "no-open: the stopped stream left $f behind" >&2
+		exit 1
+	fi
+done
+if ! grep -q 'STATE.* up' events.log; then
+	echo "no-open: events.log lost the state event" >&2
+	exit 1
+fi
+if grep -q ' OPEN ' events.log; then
+	echo "no-open: an OPEN event was saved" >&2
+	exit 1
+fi
+echo "no-open: no OPEN event saved"
+EOF_NOOPEN
+cmd=foreground:seq=9:exec=sh no-open.sh:exit=0
+expect=stdout:contains=no-open: no OPEN event saved
+
+cmd=stop:seq=10:name=daemon:signal=term
+cmd=stop:seq=11:name=tacacs:signal=term

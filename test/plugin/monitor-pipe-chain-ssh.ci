@@ -1,0 +1,105 @@
+# Test: a monitor line with a chain over SSH exec is rendered by the daemon and accounted as typed
+#
+# The one question: when an SSH client sends a monitor line with a chain on
+# the exec channel and sets no rendering key, does the daemon apply the whole
+# chain to the stream (only the lines `| match state` keeps arrive), and does
+# the TACACS+ accounting START record hold the line as typed, chain included?
+# TestExecStreamPassesTypedLine and TestSSHExecStreamAccountsAndAuthorizesTyped
+# Line prove the pieces in process; only a daemon proves the exec channel, the
+# stream route, the event monitor and the TACACS+ client agree on one line.
+#
+# VALIDATES: spec-pipe-chain-honored-on-every-command-surface AC-22 and AC-35
+#   (SSH exec), user story 7.
+# PREVENTS: the stream route accounting and authorizing the command part
+#   alone (`ProcessRemoteStreamPipes` splits the chain off before the stream
+#   factory runs, internal/component/ssh/ssh.go execMiddleware), so a policy
+#   or an audit reads a line nobody typed.
+#
+# Red at 5ebf3c1c8e (run 2026-11-20 19:19): the accounting record held the
+#   typed line, and the stream ended on the first OPEN event with "match
+#   needs rows, and this answer has none: it holds one document": every
+#   stream ran its chain over each event as if it were a one-shot answer, so
+#   `| match` refused an event that is one document. A stream's rows are its
+#   events: applyEventMatch (internal/component/command/pipe.go) keeps or
+#   removes such an event whole, TestStreamLineMatchKeepsWholeEvents.
+#
+# The mock writes its own stderr, so its quotes print plain (records.go).
+#
+# The barrier: StreamEventMonitor subscribes, then writes its header
+# ("monitoring: include=open,state"), which `match state` keeps, so the
+# driver brings the BGP session up only after the subscription exists. The
+# OPEN events ({"type":"bgp",...,"message":{"type":"open",...}}) hold no
+# "state" and are dropped; the state event ({"type":"state",...,"state":"up"})
+# is kept. A line holding "open" in quotes proves the chain was not applied.
+#
+# Method: internal/test/fixture ssh_exec_line.go (plugin/ssh-exec-line): an
+# x/crypto/ssh client logs in as admin (TACACS+ mock, PAP), sends the line on
+# an exec channel, waits for the header, completes a dynamic BGP handshake
+# as AS65001 on $PORT3 (monitor_remote_as_stream.go's session), and returns
+# once a line holding "up" arrived, which ends the monitor.
+
+option=timeout:value=60s
+
+tmpfs=monitor.conf:terminator=EOF_CONF
+system {
+	authentication {
+		tacacs {
+			server 127.0.0.1 { port $PORT; key "ze-mock-key"; }
+			timeout 2
+			authorization true
+			accounting true
+		}
+		tacacs-profile 15 { profile [ admin ]; }
+	}
+	authorization {
+		profile admin { run { default-action allow; } edit { default-action allow; } }
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+bgp {
+	group dynamic-monitor {
+		connection {
+			remote {
+				ip dynamic
+				connect false
+				range 127.0.0.1/32
+			}
+			local {
+				ip 127.0.0.1
+				port $PORT3
+				accept true
+			}
+		}
+		session {
+			asn { local 65000; }
+			router-id 1.1.1.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le mock tacacs --port $PORT --key ze-mock-key --user admin:testpass:15:name=tacacs:ready=le mock tacacs: listening on
+expect=stderr:pattern=ACCT START seq=[0-9]+ total=[0-9]+ cmd="monitor event include open,state \| match state"
+reject=stderr:pattern=ACCT START .*cmd="monitor event include open,state"
+
+cmd=background:seq=2:exec=ze start monitor.conf:name=daemon:ready=Ze running.
+
+cmd=foreground:seq=3:exec=le test fixture plugin/ssh-exec-line stream $PORT2 $PORT3 'monitor event include open,state | match state' up open:timeout=45s
+expect=exit:code=0
+expect=stderr:contains=OK: monitor event include open,state | match state printed up and no line holding open
+reject=stderr:contains=ZE-OBSERVER-FAIL
+
+cmd=stop:seq=4:name=daemon:signal=term
+cmd=stop:seq=5:name=tacacs:signal=term

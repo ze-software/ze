@@ -1,0 +1,106 @@
+# Test: the rendering key hands over presentation only, never selection
+#
+# The one question (security negative): when an SSH client sets the session
+# rendering key and sends `monitor ... | match state`, does the daemon still
+# apply `match`, so the client receives no line the chain removes; is a value
+# of the key other than the defined one refused by name before any command
+# runs; and does the key on a one-shot exec change nothing? The unit tests
+# (TestRenderingKeyNeverSkipsSelection, TestRenderingKeyUnknownValueRefused,
+# TestRenderingKeyIgnoredOnOneShotExec) prove each arm in process; only a
+# daemon proves the exec channel reads the key the way an outside client
+# sends it.
+#
+# VALIDATES: spec-pipe-chain-honored-on-every-command-surface AC-36, AC-37,
+#   R-12, user story 12.
+# PREVENTS: the key read as permission: a client that sets it receiving the
+#   rows a `| match` the authorizer judged would have removed.
+#
+# The key: sshclient.EnvCLIRender = "ZE_CLI_RENDER", its one value
+# CLIRenderClient = "client" (internal/component/cli/sshclient/terminal.go),
+# read by parseSessionRequest (internal/component/ssh/session.go).
+#
+# Red at 5ebf3c1c8e (run 2026-11-20 19:20): seq 2's stream ended after the
+#   header. With the key the daemon applies `match` alone, over raw events,
+#   where it refuses an OPEN event as one document (read, not observed: the
+#   run's stderr was lost, see below), the same fault
+#   monitor-pipe-chain-ssh.ci met (fixed by applyEventMatch,
+#   internal/component/command/pipe.go). The fixture printed an empty stderr
+#   because it read the session's stderr before the session's copy of it
+#   finished; it now waits for the session first (ssh_exec_line.go ended).
+#
+# Method: monitor-pipe-chain-ssh.ci's daemon, with a local user instead of
+# TACACS+, driven by internal/test/fixture plugin/ssh-exec-line, which sets
+# each KEY=VALUE argument on the session before the exec.
+
+option=timeout:value=60s
+
+tmpfs=monitor.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+			profile [ admin ]
+		}
+	}
+	authorization {
+		profile admin { run { default-action allow; } edit { default-action allow; } }
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+bgp {
+	group dynamic-monitor {
+		connection {
+			remote {
+				ip dynamic
+				connect false
+				range 127.0.0.1/32
+			}
+			local {
+				ip 127.0.0.1
+				port $PORT3
+				accept true
+			}
+		}
+		session {
+			asn { local 65000; }
+			router-id 1.1.1.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze start monitor.conf:name=daemon:ready=Ze running.
+
+# AC-36: the key set; `match state` still runs in the daemon, so no OPEN
+# event reaches the client. The `| save` of the AC needs a client that
+# writes files and is cli-monitor-pipe-typed-line.ci's question.
+cmd=foreground:seq=2:exec=le test fixture plugin/ssh-exec-line stream $PORT2 $PORT3 'monitor event include open,state | match state' up open ZE_CLI_RENDER=client:timeout=45s
+expect=exit:code=0
+expect=stderr:contains=OK: monitor event include open,state | match state printed up and no line holding open
+
+# AC-37: a value other than the defined one is refused by name, before any
+# command runs: the header of the monitor never prints.
+cmd=foreground:seq=3:exec=le test fixture plugin/ssh-exec-line refused $PORT2 - 'monitor event include state' ZE_CLI_RENDER monitoring ZE_CLI_RENDER=everything:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=OK: monitor event include state refused, naming ZE_CLI_RENDER
+
+# AC-37: on a one-shot exec the key changes nothing: the daemon renders the
+# whole chain, so the answer is the count document, not rows.
+cmd=foreground:seq=4:exec=le test fixture plugin/ssh-exec-line once $PORT2 - 'system command list | count | json' count - ZE_CLI_RENDER=client:timeout=30s
+expect=exit:code=0
+expect=stderr:pattern=ssh-exec: .*"count": ?[1-9]
+
+cmd=stop:seq=5:name=daemon:signal=term
