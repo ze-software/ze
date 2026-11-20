@@ -136,7 +136,10 @@ func sendStatsReconnectSegment(conn *net.UnixConn, file *os.File) error {
 func startStatsReconnectReplacement(t *testing.T, file *os.File) (
 	string, <-chan struct{}, <-chan error, func()) {
 	t.Helper()
-	path := filepath.Join(t.TempDir(), "replacement.sock")
+	// A short name: under a long TMPDIR this subtest's directory leaves no
+	// room for "replacement.sock" in the 107 bytes sun_path holds, and the
+	// socket must share a filesystem with the original for the rename.
+	path := filepath.Join(t.TempDir(), "r.sock")
 	listener, err := net.ListenUnix("unixpacket", &net.UnixAddr{Name: path, Net: "unixpacket"})
 	if err != nil {
 		t.Fatal(err)
