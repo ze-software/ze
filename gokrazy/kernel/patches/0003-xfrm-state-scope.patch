@@ -124,7 +124,7 @@ diff --git a/include/uapi/linux/xfrm.h b/include/uapi/linux/xfrm.h
  	__XFRMA_MAX
  
  #define XFRMA_OUTPUT_MARK XFRMA_SET_MARK	/* Compatibility */
-@@ -342,6 +344,35 @@
+@@ -342,6 +344,40 @@
  struct xfrm_mark {
  	__u32           v; /* value */
  	__u32           m; /* mask */
@@ -150,6 +150,11 @@ diff --git a/include/uapi/linux/xfrm.h b/include/uapi/linux/xfrm.h
 + * received, unless the policy carries XFRM_POLICY_ICMP (a final catch-all).
 + */
 +#define XFRM_ZE_CAP_ICMP_REVERSE		(1U << 5)
++/* __xfrm_route_forward maps a forwarded ICMP error whose OUT lookup answers
++ * BLOCK into the SA of the return traffic it quotes (xfrm_out_fwd_icmp), and
++ * still drops the error when no such SA carries it.
++ */
++#define XFRM_ZE_CAP_ICMP_FORWARD_MAP	(1U << 6)
 +#define XFRM_ZE_CAP_ABI			0x5a450001U
 +
 +struct xfrm_user_ze_caps {
@@ -792,7 +797,85 @@ diff --git a/net/xfrm/xfrm_policy.c b/net/xfrm/xfrm_policy.c
  					ret = 0;
  				if (ret) {
  					XFRM_INC_STATS(net, LINUX_MIB_XFRMINSTATEMISMATCH);
-@@ -4322,6 +4655,7 @@
+@@ -3879,11 +4212,33 @@
+ }
+ EXPORT_SYMBOL(__xfrm_policy_check);
+ 
++/* RFC 4301 Section 6.2 (quoted at its caller, __xfrm_route_forward): the
++ * OUT lookup of a forwarded ICMP error answered BLOCK, so only the SA that
++ * would carry the return traffic of the packet the error quotes may carry
++ * it. xfrm_out_fwd_icmp keeps its refusals: icmp_err_packet decides the
++ * error types it maps, and XFRM_LOOKUP_ICMP refuses a return policy
++ * without XFRM_POLICY_ICMP. Takes ownership of route and answers the return
++ * SA's bundle, or NULL once route is released: an error no SA carries stays
++ * dropped, as the BLOCK verdict said.
++ */
++static struct dst_entry *xfrm_out_fwd_icmp_block(struct sk_buff *skb,
++						 struct flowi *fl,
++						 unsigned short family,
++						 struct dst_entry *route)
++{
++	struct dst_entry *dst = xfrm_out_fwd_icmp(skb, fl, family, route);
++
++	if (dst->xfrm)
++		return dst;
++	dst_release(dst);
++	return NULL;
++}
++
+ int __xfrm_route_forward(struct sk_buff *skb, unsigned short family)
+ {
+ 	struct net *net = dev_net(skb->dev);
+ 	struct flowi fl;
+-	struct dst_entry *dst;
++	struct dst_entry *dst, *route;
+ 	int res = 1;
+ 
+ 	if (xfrm_decode_session(net, skb, &fl, family) < 0) {
+@@ -3898,16 +4253,36 @@
+ 		return 0;
+ 	}
+ 
+-	/* ignore return value from skb_dstref_steal, xfrm_lookup takes
+-	 * care of dropping the refcnt if needed.
+-	 */
++	/* ignore return value from skb_dstref_steal: route now holds the
++	 * reference, which xfrm_lookup keeps on an error so that the ICMP
++	 * error mapping below can still use it.
++	 */
+ 	skb_dstref_steal(skb);
++	route = dst;
+ 
+-	dst = xfrm_lookup(net, dst, &fl, NULL, XFRM_LOOKUP_QUEUE);
++	dst = xfrm_lookup(net, route, &fl, NULL,
++			  XFRM_LOOKUP_QUEUE | XFRM_LOOKUP_KEEP_DST_REF);
+ 	if (IS_ERR(dst)) {
+-		res = 0;
+-		dst = NULL;
++		/* RFC 4301 Section 6.2:
++		 * "If no SA exists that would carry the outbound ICMP message in
++		 * question, and if no SPD entry would allow carriage of this
++		 * outbound ICMP error message, then an IPsec implementation MUST
++		 * map the message to the SA that would carry the return traffic
++		 * associated with the packet that triggered the ICMP error
++		 * message."
++		 * A BLOCK verdict (-EPERM) allows no carriage, so the error tries
++		 * its return SA, as icmp_route_lookup does for an error this host
++		 * generates. Any other failure drops the packet as before.
++		 */
++		if (PTR_ERR(dst) == -EPERM) {
++			dst = xfrm_out_fwd_icmp_block(skb, &fl, family, route);
++		} else {
++			dst_release(route);
++			dst = NULL;
++		}
++		if (!dst)
++			res = 0;
+ 	}
+ 
+ 	if (dst && !dst->xfrm)
+ 		dst = xfrm_out_fwd_icmp(skb, &fl, family, dst);
+@@ -4322,6 +4697,7 @@
  	int rv;
  
  	/* Initialize the per-net locks here */
@@ -1137,7 +1220,7 @@ diff --git a/net/xfrm/xfrm_user.c b/net/xfrm/xfrm_user.c
  	struct xfrm_userpolicy_default *r_up;
 -	int len = NLMSG_ALIGN(sizeof(struct xfrm_userpolicy_default));
 +	struct xfrm_user_ze_caps caps = {
-+		.features = XFRM_ZE_CAP_STATE_SCOPE | XFRM_ZE_CAP_ICMP_QUOTE | XFRM_ZE_CAP_ICMP_REVERSE,
++		.features = XFRM_ZE_CAP_STATE_SCOPE | XFRM_ZE_CAP_ICMP_QUOTE | XFRM_ZE_CAP_ICMP_REVERSE | XFRM_ZE_CAP_ICMP_FORWARD_MAP,
 +		.max_selectors = XFRM_STATE_SCOPE_MAX,
 +		.guard_refs = atomic_read(&net->xfrm.fragment_guard_refs),
 +		.abi = XFRM_ZE_CAP_ABI,

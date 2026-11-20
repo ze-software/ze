@@ -159,13 +159,6 @@ const (
 	// decision. Its order against PriorityUnmatchedXFRMInterface decides nothing a
 	// packet can observe: both are allows.
 	PriorityTransitGate = PriorityUnmatched - 2
-	// PriorityICMPErrorReturn ranks the out ALLOW entries that let a forwarded ICMP
-	// error reach the kernel's return-SA mapping under `unmatched discard`
-	// (engine/icmp_error_return.go). They sit three places above the catch-all, so
-	// every Child SA policy and every operator entry is still searched before them:
-	// an SA or an entry that carries the error keeps carrying it. Their order against
-	// the other allows above the catch-all decides nothing a packet can observe.
-	PriorityICMPErrorReturn = PriorityUnmatched - 3
 )
 
 // kernelXFRMMode converts a Ze dataplane mode to the kernel XFRM mode number.
@@ -589,8 +582,11 @@ type SPParams struct {
 	// message, then an IPsec implementation MUST map the message to the SA that would
 	// carry the return traffic associated with the packet that triggered the ICMP error
 	// message." The Linux XFRM backend sets XFRM_POLICY_ICMP, which xfrm_lookup_with_ifid
-	// requires of the policy an XFRM_LOOKUP_ICMP lookup finds. A backend that cannot
-	// perform the mapping MUST reject the install rather than report success.
+	// requires of the policy an XFRM_LOOKUP_ICMP lookup finds. A forwarded error whose
+	// OUT lookup answers BLOCK reaches that lookup only on Ze's kernel, through K1's
+	// feature bit 6 (xfrmZECapICMPForwardMap), which InstallSA requires of every scoped
+	// SA (checkXFRMStateScopeCapabilities). A backend that
+	// cannot perform the mapping MUST reject the install rather than report success.
 	ICMPErrorReturn bool
 }
 

@@ -258,6 +258,13 @@ const (
 	// XFRM_POLICY_ICMP, which only the catch-all's inbound entry does
 	// (xfrmPolicyFromParams).
 	xfrmZECapICMPReverse
+	// xfrmZECapICMPForwardMap is K1's forwarded ICMP error mapping
+	// (XFRM_ZE_CAP_ICMP_FORWARD_MAP, bit 6): when the OUT lookup of a forwarded error
+	// answers BLOCK, whether from an operator DISCARD or the catch-all,
+	// __xfrm_route_forward tries xfrm_out_fwd_icmp, the RFC 4301 Section 6.2 mapping into
+	// the SA that carries the return traffic of the quoted packet, and drops the error
+	// when no such SA carries it. Without it Linux drops such an error before the mapping.
+	xfrmZECapICMPForwardMap
 )
 
 // Has reports whether f carries every bit of required. No bits is never carried.
@@ -322,7 +329,7 @@ func parseXFRMZECapabilities(payload []byte) (*xfrmZECapabilities, error) {
 			return nil, fmt.Errorf("XFRM selector limit %d differs from %d", caps.MaxSelectors, saStateScopeMaxSelectors)
 		}
 		const known = xfrmZECapStateScope | xfrmZECapICMPQuote | xfrmZECapFragmentContext |
-			xfrmZECapFragmentGuard | xfrmZECapICMPFinal | xfrmZECapICMPReverse
+			xfrmZECapFragmentGuard | xfrmZECapICMPFinal | xfrmZECapICMPReverse | xfrmZECapICMPForwardMap
 		if caps.Features & ^known != 0 {
 			return nil, errors.New("XFRM capability receipt contains unknown feature bits")
 		}

@@ -561,7 +561,12 @@ For a `library` entry, read the module in the module cache:
   namespace's FWD default, preserving IN and OUT. On the out direction the mapping runs only after the
   lookup passed the error untransformed: under `unmatched bypass` the
   catch-all does, and the error is mapped to the return SA; under
-  `unmatched discard` the catch-all blocks it first. On the out direction the
+  `unmatched discard` the catch-all blocks it first, and so does an operator
+  `out` or `both` discard entry that covers it. Ze's runtime kernel lifts that
+  for the forwarded path: K1 (capability bit 6,
+  `XFRM_ZE_CAP_ICMP_FORWARD_MAP`) has `__xfrm_route_forward` try
+  `xfrm_out_fwd_icmp` when its out lookup answers `-EPERM`, and keep the drop
+  when the mapping finds no SA. On the out direction the
   mapping also reaches errors Section 6.2 leaves alone, for forwarded and
   locally generated errors alike: the kernel cannot tell a BYPASS entry from
   no entry, because a template-free allow policy and an absent one both
@@ -632,25 +637,29 @@ For a `library` entry, read the module in the module cache:
   (`interfaceSPDCatchAll`) can be removed, because a secpath packet no
   policy matches is still rejected
   (`if (sp && secpath_has_nontransport(sp, 0, &xerr_idx) && !is_crypto_offload)`).
-  Forwarded outbound under `unmatched discard`: allow entries for the ICMP
-  error types ranked above the out catch-all and operator discard entries,
-  below PROTECT and BYPASS, let `xfrm_out_fwd_icmp` run, and an nftables
-  rule (`rt ipsec missing`, `nft_rt`; `ip_forward` calls
-  `xfrm4_route_forward` before the FORWARD hook, and the output hook covers
-  `icmp_route_lookup`'s `goto relookup_failed` exit) drops what stayed
-  untransformed and no bypass entry covers. A bypass entry the kernel
+  Forwarded outbound under a discard: on the stock kernel, allow entries for
+  the ICMP error types ranked above the out catch-all let `xfrm_out_fwd_icmp`
+  run, and an nftables rule (`rt ipsec missing`, `nft_rt`) drops what stayed
+  untransformed; that design cannot outrank an operator discard entry. Ze
+  carried it (`516671704b`) until the owner chose the kernel route on
+  2026-11-20: K1's bit 6, above, which Ze requires as it requires bit 5, so
+  Ze no longer installs the entries or the table. A bypass entry the kernel
   overrides: a mark set on the errors it covers, with PROTECT policies masked
   to unmarked traffic, makes the reversed lookup miss
   (`fl1->flowi_mark = fl->flowi_mark;`). The inbound discard override and
   the non-error case: K1 in Ze's runtime kernel, which Ze requires
   (`checkXFRMStateScopeCapabilities` refuses every scoped Child SA on a
-  kernel whose receipt lacks bit 5).
+  kernel whose receipt lacks bit 5 or bit 6).
 - **Ze meanwhile:** the XFRM backend implements the FWD-default alternative
   through `ApplyForwardDefault` and `ReleaseForwardDefault`. The namespace
   tests in `engine/rfc4301_forward_icmp_integration_linux_test.go` exercise
   consistent and inconsistent quotes, checking enabled and disabled, node
-  and interface SPDs, with actual protected-host egress controls. The distinct
-  outbound mapping under discard remains Ze-owed work. The outbound override
+  and interface SPDs, with actual protected-host egress controls. The
+  outbound mapping of a forwarded error under the catch-all discard or an
+  operator out discard is K1's bit 6, exercised on Ze's kernel by
+  `TestRFC4301ForwardedICMPErrorsMapUnderDiscard` and
+  `TestRFC4301ForwardedICMPErrorUnderOperatorDiscardMapsToReturnSA`
+  (`engine/rfc4301_icmp_return_integration_linux_test.go`). The outbound override
   is refused at commit by owner decision (2026-11-12), and logged at start for
   a configuration no commit judged: a bypass entry, or `unmatched bypass`,
   that would carry an ICMP error the kernel maps into a Child SA of a peer

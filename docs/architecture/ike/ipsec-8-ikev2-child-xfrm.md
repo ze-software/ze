@@ -209,9 +209,11 @@ catch-all under `unmatched discard`. The readback reports the flag as
 values, `features`, `max_selectors`, `guard_refs` and `abi`. The ABI word must
 equal `0x5a450001`; an absent or different receipt proves no support. Feature
 bits are 0 for state scope, 1 for quote availability, 2 for fragment context,
-3 for fragment gathering, 4 for strict ICMP final-policy mapping and 5 for the
-error-only, discard-honouring ICMP reverse check. K1 advertises bits 0, 1 and
-5; K2 adds bit 2 when both IP families are compiled.
+3 for fragment gathering, 4 for strict ICMP final-policy mapping, 5 for the
+error-only, discard-honouring ICMP reverse check and 6 for the mapping of a
+forwarded ICMP error whose out lookup answers BLOCK ("ICMP error messages
+carried by a Child SA" below). K1 advertises bits 0, 1, 5 and 6; K2 adds bit 2
+when both IP families are compiled.
 K3 adds bit 3 only when `CONFIG_XFRM_FRAGMENT_GUARD` is built and its namespace
 hooks initialized successfully.
 Guard references belong to scoped states and
@@ -258,7 +260,8 @@ sending an API request because its SAD entry cannot carry the set.
 <!-- source: internal/component/ike/dataplane/vpp.go -- vppUnsupportedSA -->
 
 Every explicit XFRM scope requires a fresh capability receipt with the exact
-ABI and 64-record limit, and every feature bit from 0 through 3. This applies
+ABI and 64-record limit, and every feature bit from 0 through 3, bit 5 and bit 6.
+Bit 4 is known and not required. This applies
 even when that SA does not permit noninitial fragments. Partial K1 and K2
 receipts remain readable evidence but cannot authorize an installation.
 The check precedes state publication and ESP receiver setup. A missing,
@@ -1046,59 +1049,46 @@ use that transport. The engine releases its dataplane before explicitly closing
 the SDK. A daemon disconnect may already have closed the connection, so a failed
 report attempt retains a coded warning with its own log command.
 
-A forwarded error leaving towards a Child SA is mapped to the return SA (`xfrm_out_fwd_icmp`,
-called by `__xfrm_route_forward`) only after the out lookup passed it
-untransformed (`if (dst && !dst->xfrm)`); the out catch-all under `unmatched
-discard` answers `-EPERM` first. So under `unmatched discard`, on the XFRM
-backend, Ze adds the ICMP error return mapping (`icmpErrorReturns.apply`,
-`icmp_error_return.go`, run by `applyConfig` after `installUnmatched`):
+A forwarded error leaving towards a Child SA is mapped to the return SA by
+`xfrm_out_fwd_icmp`, which `__xfrm_route_forward` calls. Stock Linux calls it
+only after the out lookup passed the error untransformed
+(`if (dst && !dst->xfrm)`), so an out BLOCK, the catch-all under `unmatched
+discard` or an operator `out` or `both` discard, answers `-EPERM` first and the
+error is dropped before the mapping is tried.
 
-- one out ALLOW entry (role `icmp-error-return`) per ICMP error type
-  `icmp_err_packet` maps (IPv4 3 and 11, IPv6 1, 2 and 3), from any source,
-  towards each remote selector of a peer with `icmp-error-check true` and no
-  `vti bind`, at `dataplane.PriorityICMPErrorReturn`, three places above the
-  catch-all and beneath every Child SA policy and operator entry, so an SA or
-  an entry that carries the error still does;
-- the nft table `ze_ipsec_icmp_error_return` (ip and ip6), whose forward and
-  output chains accept such an error when its dst is an XFRM bundle (`rt ipsec
-  exists`) and drop it otherwise. `ip_forward` reaches its forward hook after
-  `xfrm4_route_forward`; the output chain is owed because the entry turns the
-  local route lookup's `-EPERM` into a pass, and `icmp_route_lookup` and
-  `icmpv6_route_lookup` send an error whose reverse lookup fails on that plain
-  route.
+**Owner decision, 2026-11-20: the forwarded mapping is Ze's kernel's.** K1
+(`gokrazy/kernel/patches/0003-xfrm-state-scope.patch`) extends
+`__xfrm_route_forward`: its out lookup keeps the route's reference on an error
+(`XFRM_LOOKUP_KEEP_DST_REF`), and when that lookup answers `-EPERM` the error
+tries `xfrm_out_fwd_icmp` (`xfrm_out_fwd_icmp_block`), as `icmp_route_lookup`
+already continues on `-EPERM` for an error this host generates. So a mappable
+forwarded error is mapped into the return SA when an operator `out` or `both`
+discard covers it, and under the catch-all discard. The mapping keeps its own
+limits:
 
-The table is published before the entries are installed and withdrawn after
-they are removed. A table the kernel refuses leaves no entry, so the catch-all
-discards the error and nothing leaks; the runtime doctor check
-`ipsec-icmp-error-return` (`doctor-ipsec-icmp-error-return`) reports that and
-any refused entry or removal. Refusal A keeps every bypass that would carry
-these errors towards such a peer out of a committed configuration, so the table
-never drops an error an operator entry carries. An operator entry that installs
-the very selector of one entry keeps it, and that entry is not built.
+- only the types `icmp_err_packet` maps: under K1 every IPv4 error type
+  `icmp_is_err` names (3, 4, 5, 11 and 12) and every ICMPv6 type below 128;
+- only a return policy that carries `XFRM_POLICY_ICMP`, which the
+  `XFRM_LOOKUP_ICMP` lookup requires (`ICMPErrorReturn`, set for a peer with
+  `icmp-error-check true`);
+- only an answer that is an XFRM bundle: an error the mapping cannot carry, a
+  non-error message such as an echo request included, stays dropped as the
+  BLOCK said, and never leaves in clear.
 
-Limits of this mapping: a forwarded error of another type (IPv4 parameter
-problem 12, IPv6 parameter problem 4) is not mapped by Linux's forward path and
-stays discarded; an operator `out` or `both` discard covering the error ranks
-above the entry, so a forwarded error it covers is discarded, not mapped (a
-locally generated one is mapped, `icmp_route_lookup` continuing on `-EPERM`).
-The entries and the table show in `show vpn ipsec policy` (role
-`icmp-error-return`) and `show firewall ruleset ipsec_icmp_error_return`; no
-configuration display marks them as implied yet. The VPP backend reads no ICMP
-payload on either path and refuses both requests (`vppUnsupportedSA`,
-`vppICMPErrorReturnError`), and gets no mapping entry.
-
-Thomas decided on 2026-11-20 that the forwarded mapping moves into Ze's kernel.
-The K1 patch (`gokrazy/kernel/patches/0003-xfrm-state-scope.patch`) is extended so
-that the forwarded path, `__xfrm_route_forward` included, tries `xfrm_out_fwd_icmp`
-when the out lookup answers a BLOCK (`-EPERM`), as `icmp_route_lookup` already
-does for a locally generated error. A mappable forwarded error is then mapped into
-the return SA even when an operator `out` or `both` discard or the catch-all
-discard covers it. The new kernel path is advertised by a K1 feature bit, and the
-engine requires that bit as it requires bit 5. The stock-kernel route above (the
-out ALLOW entries at `dataplane.PriorityICMPErrorReturn` and the nft table
-`ze_ipsec_icmp_error_return`) is interim: it is removed when the K1 extension
-lands, and it is not kept beside it.
-<!-- source: internal/component/ike/engine/icmp_error_return.go -- the stock-kernel forwarded ICMP error mapping this ruling replaces -->
+`ip6_forward` reaches the same function through `xfrm6_route_forward`, so a
+forwarded ICMPv6 error takes the same path. The kernel advertises the path as
+K1 feature bit 6 (`XFRM_ZE_CAP_ICMP_FORWARD_MAP`), and Ze requires it as it
+requires bit 5 (`checkXFRMStateScopeCapabilities`): a kernel without it installs
+no Child SA. The stock-kernel route Ze carried before the ruling (out ALLOW
+entries above the catch-all and an nft drop table, `516671704b`) is removed, not
+kept beside it, so Ze installs nothing of its own for this mapping. An out lookup
+that answers untransformed is unchanged: a bypass that covers the error, an
+operator's or the out transit gate of an `in` or `both` ICMP bypass
+(`spdTransitPolicies`), carries an error the mapping cannot carry in clear, as
+the bypass says. The VPP backend reads no ICMP payload on either path and
+refuses both requests (`vppUnsupportedSA`, `vppICMPErrorReturnError`).
+<!-- source: gokrazy/kernel/patches/0003-xfrm-state-scope.patch -- xfrm_out_fwd_icmp_block, __xfrm_route_forward, XFRM_ZE_CAP_ICMP_FORWARD_MAP -->
+<!-- source: internal/component/ike/dataplane/xfrm_state_scope_linux.go -- checkXFRMStateScopeCapabilities -->
 
 The outbound flag overrides an operator SPD entry, so config verify refuses the
 pair rather than install an entry the kernel does not honour
@@ -1151,7 +1141,6 @@ problem at Error, and `ze doctor` reports the conflict and the command that
 fixes it. The door's trap records why: an earlier start-time refusal left a box
 with no tunnels at all.
 
-<!-- source: internal/component/ike/engine/icmp_error_return.go -- icmpErrorReturnDestinations, icmpErrorReturnPolicies, icmpErrorReturnTables, apply, release, answerICMPErrorReturn -->
 <!-- source: internal/component/ike/engine/icmp_overlap.go -- refuseICMPErrorBypass, verifyICMPOverlap, warnICMPOverlapAtStart -->
 <!-- source: internal/component/ike/engine/config.go -- validateIPsecSections -->
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmStateFromParams, xfrmPolicyFromParams -->
