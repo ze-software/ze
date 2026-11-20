@@ -20,9 +20,25 @@ type linuxProcessDescriptor struct {
 
 func (d *linuxProcessDescriptor) Identity() processIdentity { return d.identity }
 func (d *linuxProcessDescriptor) Close() error              { return unix.Close(d.fd) }
+
+// peerPollAttempts bounds the retries of one zero-timeout pidfd poll. The Go
+// runtime preempts goroutines with signals, so a poll of a live peer can
+// return EINTR; that interruption says nothing about the peer.
+const peerPollAttempts = 8
+
+// pollPeer is unix.Poll; a test replaces it to deliver EINTR.
+var pollPeer = unix.Poll
+
 func (d *linuxProcessDescriptor) Exited() (bool, error) {
 	descriptors := [1]unix.PollFd{{Fd: int32(d.fd), Events: unix.POLLIN}}
-	_, err := unix.Poll(descriptors[:], 0)
+	var err error
+	for range peerPollAttempts {
+		descriptors[0].Revents = 0
+		_, err = pollPeer(descriptors[:], 0)
+		if !errors.Is(err, unix.EINTR) {
+			break
+		}
+	}
 	if err != nil {
 		return false, fmt.Errorf("vpp: observe Unix peer exit: %w", err)
 	}
