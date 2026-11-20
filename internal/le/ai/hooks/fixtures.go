@@ -90,11 +90,18 @@ var (
 	// carries none), each run through the hook by
 	// TestSubagentRuleSetSitesMatchTheHook. 406 sites are 408. No existing site
 	// changed. Sealed after five independent reviews.
+	// Re-sealed 2026-11-20 for spec-design-needs-owner-approval: three
+	// categories join, design-decisions-read (writeDesignDoorsRead owes the
+	// Design decisions section of each page a file's // Design: header names),
+	// owner-record (bashOwnerRecord refuses a shell write under
+	// tmp/spec-design/) and spec-ready (writeSpecReady refuses a subagent's
+	// ready move and an unapproved one). 408 sites are 411. No existing site
+	// changed. Sealed after the independent closure review of that spec.
 	fixtureSiteDigest = [sha256.Size]byte{
-		0x29, 0xf7, 0xa6, 0xac, 0xf4, 0x3a, 0xeb, 0x9a,
-		0x18, 0x56, 0x4a, 0x31, 0x2a, 0xfc, 0x1c, 0xb6,
-		0xf2, 0xee, 0xfd, 0x36, 0x99, 0x0b, 0x02, 0x70,
-		0xd0, 0x6f, 0xc9, 0xb2, 0x50, 0xb5, 0xc7, 0x04,
+		0xc5, 0x1a, 0x07, 0x52, 0x48, 0xde, 0xf9, 0x01,
+		0xa7, 0xb9, 0xb2, 0x8e, 0x45, 0x52, 0xfb, 0xcd,
+		0x5b, 0xa5, 0xd2, 0xe1, 0xea, 0x77, 0xee, 0x93,
+		0xab, 0x28, 0x1e, 0x37, 0x22, 0x24, 0x23, 0x92,
 	}
 	// Re-sealed 2026-09-25 for the same spec, Phase 2: it hashes the site and
 	// category text above, which name the subject-first commands.
@@ -137,11 +144,16 @@ var (
 	// Re-sealed 2026-11-14 for spec-agent-economy-3-preamble: the same two
 	// subagent rule-set sites as fixtureSiteDigest expand to their fixtures.
 	// Sealed after five independent reviews.
+	// Re-sealed 2026-11-20 for spec-design-needs-owner-approval: the same three
+	// sites as fixtureSiteDigest expand to 19 fixtures (10 design-decisions-read,
+	// 5 owner-record, 4 spec-ready), and the design-ref allow tree also writes
+	// the page its header names. 553 fixtures are 572. Sealed after the
+	// independent closure review of that spec.
 	fixtureCatalogDigest = [sha256.Size]byte{
-		0xbe, 0x19, 0xa3, 0x87, 0x23, 0x8a, 0xa7, 0x27,
-		0x35, 0x38, 0x86, 0x79, 0x63, 0xd2, 0x84, 0xf4,
-		0x71, 0x7d, 0xdd, 0xae, 0xc6, 0xeb, 0xb9, 0x34,
-		0xd3, 0x0b, 0x00, 0xdf, 0xbe, 0x2b, 0x84, 0xd6,
+		0xd9, 0xbc, 0xc1, 0x8d, 0x57, 0xdd, 0x3e, 0x5a,
+		0x42, 0xfb, 0x05, 0xb2, 0xba, 0xcb, 0xf7, 0xf3,
+		0x75, 0xf6, 0xef, 0xab, 0x41, 0x28, 0x78, 0x48,
+		0x65, 0x34, 0x60, 0xd7, 0x57, 0x26, 0x87, 0x55,
 	}
 	// Re-sealed 2026-09-24 for spec-le-subject-first-command-tree:
 	// the design-ref producer moved from internal/le/consistency to
@@ -160,11 +172,17 @@ var (
 	// producer moved from writeSpecStatus, which judges spec status, to the
 	// commit gate's testCoverageProblemsSelected, and its allow and refuse
 	// values became the commit's paths.
+	// Re-sealed 2026-11-20 for spec-design-needs-owner-approval: three
+	// categories join with their producers (design-decisions-read on
+	// writeDesignDoorsRead, owner-record on bashOwnerRecord, spec-ready on
+	// writeSpecReady), 24 categories are 27, and the design-ref allow value is
+	// spelled from probeDesignPage. Sealed after the independent closure review
+	// of that spec.
 	fixtureCategoryDigest = [sha256.Size]byte{
-		0xa4, 0x61, 0xa1, 0xdd, 0x30, 0x8b, 0x08, 0xa9,
-		0xcd, 0xe8, 0x16, 0x7c, 0xd5, 0x5b, 0x55, 0x77,
-		0x1f, 0x88, 0x64, 0x27, 0xa4, 0xfa, 0x10, 0x3e,
-		0x0c, 0x9c, 0x84, 0xb6, 0x42, 0x22, 0x49, 0xcf,
+		0x80, 0x0d, 0xce, 0x57, 0xee, 0x42, 0x40, 0xa8,
+		0xcd, 0x7d, 0x5c, 0x1e, 0x55, 0x68, 0x18, 0x0e,
+		0x7e, 0xdc, 0x34, 0x66, 0x5d, 0xda, 0xc7, 0x30,
+		0x87, 0x29, 0x7e, 0xed, 0xc0, 0xe2, 0x18, 0x3b,
 	}
 	// Re-sealed 2026-09-25 for spec-le-subject-first-command-tree:
 	// the weakened-test action and proposed-edit owners moved from
@@ -605,11 +623,26 @@ var (
 	// internal/le/ai/rules/x.go passes). Sealed after two independent reviews,
 	// whose admitted spellings are blocked rows of
 	// TestGovernedPathStartsAtTheTree.
+	//
+	// Re-sealed 2026-11-20 for spec-design-needs-owner-approval. The code and
+	// spec door gates (unreadDoors) also owe the ## Design decisions section of
+	// every page a // Design: header names, recorded per agent by section digest
+	// (sectionread.go, internal/le/doc/readrecord), the header read by the one
+	// reader docconsistency.DesignHeader; the door index moved to
+	// internal/le/doc/doorindex. writeSpecReady refuses a subagent's move of a
+	// spec to ready and an unapproved one (specdesign.Admit), and
+	// writeOwnerRecord and bashOwnerRecord refuse writes under tmp/spec-design/.
+	// hookSourcePackages gains internal/le/doc/readrecord and
+	// internal/le/spec/design. Sealed after the independent closure review of
+	// that spec, whose one ISSUE (three header readers) was fixed before sealing.
+	// Re-sealed 2026-11-20 in the same closure: internal/le/doc/index reads the
+	// // Design: header through docconsistency.DesignHeader too (its 25-line
+	// HeaderLines is deleted), and DesignLink gains its Topic.
 	hookSourcesDigest = [sha256.Size]byte{
-		0xf0, 0x80, 0x00, 0x57, 0x0a, 0xc1, 0x79, 0x13,
-		0xbc, 0x23, 0x90, 0xa3, 0x69, 0x5c, 0x29, 0x51,
-		0x8c, 0x3e, 0x05, 0x71, 0x6b, 0xe2, 0x47, 0xdf,
-		0x2c, 0x79, 0xb2, 0xba, 0x3c, 0xb7, 0x27, 0x5b,
+		0xd4, 0x31, 0xba, 0x9f, 0x30, 0xb0, 0x97, 0x4c,
+		0x3e, 0x61, 0x73, 0x27, 0x36, 0xb1, 0xcb, 0xc9,
+		0x93, 0x5a, 0x53, 0xee, 0xaa, 0xf7, 0x6d, 0xac,
+		0x81, 0xa5, 0x16, 0xbd, 0x8a, 0x9d, 0xd1, 0x23,
 	}
 )
 

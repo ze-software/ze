@@ -183,9 +183,13 @@ two.
 <!-- source: internal/le/hookruntime/bash.go -- preMaterializeDerived -->
 
 Every non-test `.go` file carries its own answer in a `// Design: <doc> -- topic`
-header. The scan stops after 25 lines (`HeaderLines`, `internal/le/doc/index/docstocode.go`),
-so the header block is always in the first 25 lines, and `designLine` in the
-same file is what parses it.
+header. The header is the file's leading run of comment and blank lines, so a
+`// Design:` line counts wherever it sits in that run and not after the
+`package` clause. `DesignHeader` (`internal/le/doc/consistency/decisions.go`)
+is the one reader of it: `ai/DOCS-TO-CODE.md`, `./le doc consistency`, the spec
+citation audit and the edit gate all read a header through it.
+<!-- source: internal/le/doc/consistency/decisions.go -- DesignHeader, designTargets -->
+<!-- source: internal/le/doc/index/docstocode.go -- designRefs -->
 
 A digest orients; it never proves. `ai/digests/*.md` are hand-maintained
 (`ai/digests/README.md`), so open the files a digest names before you state what

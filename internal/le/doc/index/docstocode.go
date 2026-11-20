@@ -13,7 +13,6 @@
 package docindex
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -23,7 +22,8 @@ import (
 	"slices"
 	"sort"
 	"strings"
-	"unicode"
+
+	docconsistency "github.com/ze-software/ze/internal/le/doc/consistency"
 )
 
 const (
@@ -36,21 +36,9 @@ const (
 	// code is the contract, and the warning text CAN change.
 	StaleExit = 3
 
-	// HeaderLines limits the search for a `// Design:` line in a file. The
-	// header block contains that line. This exported CONTRACT value matches the
-	// Python half. Output cannot show a difference because neither half finds a
-	// later citation.
-	HeaderLines = 25
-
-	// maxLineBytes bounds one line of a source file. It is the same bound the
-	// verify log reader uses, and three orders of magnitude above the longest
-	// generated line in this tree.
-	maxLineBytes = 4 << 20
-
 	// InlineRefs is the largest reference list rendered as bullets. Above it
 	// the entry becomes a table, because a longer list is read by scanning a
-	// column rather than by reading sentences. It is exported for the same
-	// reason as HeaderLines: it is a number both halves must share.
+	// column rather than by reading sentences.
 	InlineRefs = 3
 
 	// ModCache holds extracted external modules AND a self-copy of ze,
@@ -79,11 +67,6 @@ var skipDirs = map[string]bool{
 	"node_modules": true,
 	".git":         true,
 }
-
-// separators are the leading topic separators a `// Design:` line can use
-// between the document path and the topic. The longest match wins, so `--` is
-// tried before `-`.
-var separators = [...]string{"—", "--", "-", ":"}
 
 // Reference is one edge of the index: a design document, the file that cites
 // it, and the topic that citation names.
@@ -184,76 +167,24 @@ func walkGo(root, dir string, visit func(path, rel string) error) error {
 	return nil
 }
 
-// designRefs answers every design edge one file's header block declares.
+// designRefs answers every design edge one file's header declares. The header
+// rule is docconsistency.DesignHeader, the one every reader of a `// Design:`
+// header shares, so a line this index records is a line the doc check, the
+// spec citation audit and the edit gate read too.
 func designRefs(path, rel string) ([]Reference, error) {
-	file, err := os.Open(path) //nolint:gosec // path comes from a walk of the tree the caller named
+	content, err := os.ReadFile(path) //nolint:gosec // path comes from a walk of the tree the caller named
 	if err != nil {
 		if vanished(path, err) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("opening %s: %w", path, err)
-	}
-	defer file.Close() //nolint:errcheck // read-only
-
-	scanner := bufio.NewScanner(file)
-	scanner.Buffer(make([]byte, 0, 64*1024), maxLineBytes)
-
-	var refs []Reference
-	for read := 0; read < HeaderLines && scanner.Scan(); read++ {
-		doc, topic, ok := designLine(strings.TrimSpace(scanner.Text()))
-		if !ok || !isDocPath(doc) {
-			continue
-		}
-		refs = append(refs, Reference{Doc: doc, File: rel, Topic: topic})
-	}
-	if err := scanner.Err(); err != nil {
-		// A scan that STOPS on a long line leaves the header block half read,
-		// so the edges after it go unrecorded. That is the same omission an
-		// unreadable file would contribute, and it is reported the same way.
 		return nil, fmt.Errorf("reading %s: %w", path, err)
 	}
+
+	var refs []Reference
+	for _, link := range docconsistency.DesignHeader(string(content)) {
+		refs = append(refs, Reference{Doc: link.Page, File: rel, Topic: link.Topic})
+	}
 	return refs, nil
-}
-
-// designLine reads a `// Design: <doc> <topic>` header line.
-func designLine(line string) (doc, topic string, ok bool) {
-	rest, ok := strings.CutPrefix(line, "//")
-	if !ok {
-		return "", "", false
-	}
-	rest = strings.TrimLeftFunc(rest, unicode.IsSpace)
-	rest, ok = strings.CutPrefix(rest, "Design:")
-	if !ok {
-		return "", "", false
-	}
-	rest = strings.TrimLeftFunc(rest, unicode.IsSpace)
-	if rest == "" {
-		return "", "", false
-	}
-	// The document path is one run of non-space characters. The topic follows
-	// it after the parser removes its leading separator.
-	idx := strings.IndexFunc(rest, unicode.IsSpace)
-	if idx < 0 {
-		return rest, "", true
-	}
-	return rest[:idx], stripSeparator(strings.TrimSpace(rest[idx:])), true
-}
-
-// stripSeparator removes the leading topic separator a citation writes between
-// the document path and the topic.
-func stripSeparator(topic string) string {
-	for _, sep := range separators {
-		if rest, ok := strings.CutPrefix(topic, sep); ok {
-			return strings.TrimSpace(rest)
-		}
-	}
-	return strings.TrimSpace(topic)
-}
-
-// isDocPath reports a real design-document reference, as against a `(none ...)`
-// placeholder: a markdown path with a directory in it.
-func isDocPath(token string) bool {
-	return strings.HasSuffix(token, ".md") && strings.Contains(token, "/")
 }
 
 // vanished reports a path that disappeared during the walk. This checkout is
@@ -285,10 +216,6 @@ func SkipsDir(rel string) bool {
 	}
 	return strings.HasPrefix(name, ".")
 }
-
-// Separators answers the leading topic separators a citation can use between
-// the document path and the topic, longest first.
-func Separators() []string { return slices.Clone(separators[:]) }
 
 // IsDesignSource reports whether writing source can change ai/DOCS-TO-CODE.md.
 // source is relative to the checkout root, in slash form.

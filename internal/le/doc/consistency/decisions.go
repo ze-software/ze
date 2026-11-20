@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/ze-software/ze/internal/le/repo/objects"
 )
@@ -355,21 +356,23 @@ func pathProblem(root, entry string) string {
 const designHeaderPrefix = "// Design:"
 
 // DesignLink is one page a `// Design:` line of a file's header names: the
-// page, the line's number counting from 1, and the line as written, which a
-// refusal quotes.
+// page, the topic the line gives it, the line's number counting from 1, and the
+// line as written, which a refusal quotes. Every page of one line shares that
+// line's topic.
 type DesignLink struct {
 	Page   string
+	Topic  string
 	Number int
 	Line   string
 }
 
 // DesignHeader answers every page the `// Design:` lines of text's header
-// name, in header order, each line's pages as designTargets reads them. The
-// header is the leading run of comment and blank lines: it ends at the first
-// other line, `package` in Go and templ, `module` in YANG, the first statement
-// elsewhere, so a `// Design:` line further down the file names no page. It is
-// the one header rule `./le doc consistency`, the spec citation audit and the
-// edit gate read a file by.
+// name, in header order, each line's pages and topic as designTargets reads
+// them. The header is the leading run of comment and blank lines: it ends at
+// the first other line, `package` in Go and templ, `module` in YANG, the first
+// statement elsewhere, so a `// Design:` line further down the file names no
+// page. It is the one header rule `./le doc consistency`, the spec citation
+// audit, the edit gate and the ai/DOCS-TO-CODE.md generator read a file by.
 func DesignHeader(text string) []DesignLink {
 	var links []DesignLink
 	number := 0
@@ -382,8 +385,9 @@ func DesignHeader(text string) []DesignLink {
 		if !strings.HasPrefix(line, designHeaderPrefix) {
 			continue
 		}
-		for _, page := range designTargets(line) {
-			links = append(links, DesignLink{Page: page, Number: number, Line: line})
+		pages, topic := designTargets(line)
+		for _, page := range pages {
+			links = append(links, DesignLink{Page: page, Topic: topic, Number: number, Line: line})
 		}
 	}
 	return links
@@ -403,23 +407,55 @@ func headerLine(line string) bool {
 // line and start its description.
 var headerSeparators = []string{"--", "—", "-"}
 
-// designTargets answers the `.md` pages one `// Design:` line names: every
-// word before the separator (` -- ` or a dash) that ends in `.md` once the
-// punctuation around it is trimmed. A line naming `(none ...)` or a `.go`
-// file names no page.
-func designTargets(text string) []string {
+// topicSeparators are the leading separators removed from a topic, longest
+// first so `--` is tried before `-`. A colon is one too: `docs/a.md : topic`.
+var topicSeparators = [...]string{"—", "--", "-", ":"}
+
+// designTargets answers the `.md` pages one `// Design:` line names and the
+// topic it gives them. A page is every word before the separator (` -- ` or a
+// dash) that ends in `.md` once the punctuation around it is trimmed. A line
+// naming `(none ...)` or a `.go` file names no page. The topic is the text
+// after the separator, or, when a word that is not a page comes first, the text
+// from that word on, with one leading separator removed.
+func designTargets(text string) (pages []string, topic string) {
 	rest, _ := strings.CutPrefix(text, designHeaderPrefix)
-	var pages []string
-	for word := range strings.FieldsSeq(rest) {
+	topicFound := false
+	for rest = strings.TrimLeftFunc(rest, unicode.IsSpace); rest != ""; {
+		word, after := headerWord(rest)
 		if slices.Contains(headerSeparators, word) {
+			if !topicFound {
+				topic = strings.TrimSpace(after)
+			}
 			break
 		}
-		page := strings.Trim(word, "`(),.;:")
-		if strings.HasSuffix(page, ".md") {
+		if page := strings.Trim(word, "`(),.;:"); strings.HasSuffix(page, ".md") {
 			pages = append(pages, page)
+		} else if !topicFound {
+			topic, topicFound = stripTopicSeparator(strings.TrimSpace(rest)), true
+		}
+		rest = after
+	}
+	return pages, topic
+}
+
+// headerWord splits text, which starts with a non-space, into its first word
+// and the text after it with the leading space removed.
+func headerWord(text string) (word, after string) {
+	end := strings.IndexFunc(text, unicode.IsSpace)
+	if end < 0 {
+		return text, ""
+	}
+	return text[:end], strings.TrimLeftFunc(text[end:], unicode.IsSpace)
+}
+
+// stripTopicSeparator removes one leading topicSeparators entry from topic.
+func stripTopicSeparator(topic string) string {
+	for _, separator := range topicSeparators {
+		if rest, ok := strings.CutPrefix(topic, separator); ok {
+			return strings.TrimSpace(rest)
 		}
 	}
-	return pages
+	return topic
 }
 
 // checkDesignDecisions judges the Design decisions section of every page in

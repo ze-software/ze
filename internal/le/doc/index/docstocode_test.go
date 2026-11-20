@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -89,39 +90,49 @@ func TestBuildReportsADanglingSymbolicLink(t *testing.T) {
 	}
 }
 
-func TestDesignLineReadsEachSeparator(t *testing.T) {
-	for _, tc := range []struct{ line, doc, topic string }{
-		{"// Design: docs/a/b.md -- dashes", "docs/a/b.md", "dashes"},
-		{"// Design: docs/a/b.md - dash", "docs/a/b.md", "dash"},
-		{"// Design: docs/a/b.md — em dash", "docs/a/b.md", "em dash"},
-		{"// Design: docs/a/b.md : colon", "docs/a/b.md", "colon"},
-		{"// Design: docs/a/b.md plain", "docs/a/b.md", "plain"},
-		{"//Design: docs/a/b.md", "docs/a/b.md", ""},
-	} {
-		doc, topic, ok := designLine(tc.line)
-		if !ok || doc != tc.doc || topic != tc.topic {
-			t.Errorf("designLine(%q) = (%q, %q, %v), want (%q, %q, true)",
-				tc.line, doc, topic, ok, tc.doc, tc.topic)
-		}
+// TestBuildReadsADesignLinePastLine25 is the header extent the index shares
+// with docconsistency.DesignHeader. Method: a file whose `// Design:` line is
+// line 27, after a long package comment, as in
+// internal/component/command/registry/registry.go. A 25-line scan left that
+// file out of ai/DOCS-TO-CODE.md while `./le doc consistency` judged its page.
+func TestBuildReadsADesignLinePastLine25(t *testing.T) {
+	deep := strings.Repeat("// Package widget is described at length.\n", 25) + "//\n"
+	root := tree(t, map[string]string{
+		"internal/a/a.go": deep + "// Design: docs/architecture/deep.md -- deep\npackage a\n",
+	})
+
+	refs, err := Build(root)
+	if err != nil {
+		t.Fatalf("Build: %v", err)
 	}
-	if _, _, ok := designLine("// something else"); ok {
-		t.Error("a line that is not a citation was read as one")
+	want := Reference{Doc: "docs/architecture/deep.md", File: "internal/a/a.go", Topic: "deep"}
+	if len(refs) != 1 || refs[0] != want {
+		t.Fatalf("Build = %+v, want [%+v]", refs, want)
 	}
 }
 
-func TestOnlyAMarkdownPathInADirectoryIsADocument(t *testing.T) {
-	for _, tc := range []struct {
-		token string
-		want  bool
-	}{
-		{"docs/architecture/one.md", true},
-		{"one.md", false},
-		{"docs/architecture/one", false},
-		{"(none", false},
-	} {
-		if got := isDocPath(tc.token); got != tc.want {
-			t.Errorf("isDocPath(%q) = %v, want %v", tc.token, got, tc.want)
-		}
+// TestBuildIndexesEveryPageOfAHeaderLineAndNoLineAfterIt is the page rule.
+// Method: one header line naming two pages, a line naming no page, a line
+// naming a path that is not markdown, and a line after the package clause;
+// only the two pages are indexed, each with the line's topic.
+func TestBuildIndexesEveryPageOfAHeaderLineAndNoLineAfterIt(t *testing.T) {
+	root := tree(t, map[string]string{
+		"internal/a/a.go": "// Design: docs/architecture/one.md, docs/architecture/two.md -- both\n" +
+			"// Design: (none -- a generated file)\n" +
+			"// Design: docs/architecture/one -- not a page\n" +
+			"package a\n\n// Design: docs/architecture/late.md -- after the header\n",
+	})
+
+	refs, err := Build(root)
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	want := []Reference{
+		{Doc: "docs/architecture/one.md", File: "internal/a/a.go", Topic: "both"},
+		{Doc: "docs/architecture/two.md", File: "internal/a/a.go", Topic: "both"},
+	}
+	if !slices.Equal(refs, want) {
+		t.Fatalf("Build = %+v, want %+v", refs, want)
 	}
 }
 
@@ -143,8 +154,7 @@ func TestARunOfCitationsCrossesFromBulletsIntoATable(t *testing.T) {
 }
 
 func TestTheWholeIndexIsRenderedByteForByte(t *testing.T) {
-	// The Python half joins a line list whose final element is empty. Thus, the
-	// blank line between two sections also stops the file. The file has one
+	// The blank line between two sections also stops the file. The file has one
 	// newline after its final reference and a blank line before each heading.
 	// A VERDICT comparison cannot see either fact, but both affect the committed
 	// index bytes.
@@ -175,9 +185,8 @@ func TestTheWholeIndexIsRenderedByteForByte(t *testing.T) {
 }
 
 func TestFourCitationsOfOneDocumentAreATable(t *testing.T) {
-	// Both halves must share the size that changes a list into a table. A test
-	// that uses InlineRefs cannot detect a moved constant. This test names the
-	// literal size from the Python half.
+	// A test that uses InlineRefs cannot detect a moved constant, so this test
+	// names the literal size that changes a list into a table.
 	var refs []Reference
 	for _, file := range []string{"a.go", "b.go", "c.go"} {
 		refs = append(refs, Reference{Doc: "docs/a.md", File: file, Topic: "t"})
