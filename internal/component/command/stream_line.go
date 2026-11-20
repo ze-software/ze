@@ -1,7 +1,7 @@
 // Design: docs/architecture/api/commands.md — the pipe chain on the stream route
 // Related: dispatch_line.go — the one-shot route's reading of the same line
 // Related: pipe_partition.go — the one split of a chain between the command and the engine
-// Related: pipe_stream.go — RunStreamPipes, which applies the formatter to each event
+// Related: pipe_stream.go — runStreamEvents, which judges and formats each event
 //
 // stream_line.go is the command package's entry point for the stream route: a
 // monitor line read once, under the one grammar, into the command part its
@@ -12,6 +12,7 @@ package command
 
 import (
 	"io"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/opererr"
@@ -144,8 +145,8 @@ func streamAppliedOperations(part pipePartition, typed [][]string, rendering Str
 // the client read the suffix through this one function.
 func presentationSuffixLength(typed [][]string) int {
 	length := 0
-	for i := len(typed) - 1; i >= 0; i-- {
-		entry, known := lookupPipeOperatorByName(typed[i][0])
+	for _, operation := range slices.Backward(typed) {
+		entry, known := lookupPipeOperatorByName(operation[0])
 		if !known {
 			break
 		}
@@ -199,12 +200,25 @@ func (l StreamLine) DeclaredOperations() []PipeOperation {
 // operations the daemon applies to each event (RunStreamPipes), or straight
 // to output when it applies none. produce MUST stop writing before it
 // returns and MUST propagate writer failures (RunStreamPipes).
+//
+// When the last operation the command declares on this line is an override,
+// each event the handler writes is first held to the shape of the generic it
+// overrides (overrideEventJudge): an event of another shape is not written,
+// and its refusal stops the stream and is the error answered. Every stream
+// site runs the handler through this method, so the check has this one place.
+// Such a stream is read event by event even when the daemon applies no
+// operation to it, so a blank line is dropped and the last event ends in a
+// newline.
 func (l StreamLine) Run(output io.Writer, produce func(io.Writer) error) error {
+	judge, held := overrideEventJudge(l.part.command, l.part.declared)
 	if len(l.applied) == 0 {
-		return produce(output)
+		if !held {
+			return produce(output)
+		}
+		return runStreamEvents(output, judge, func(event string) string { return event }, produce)
 	}
 	ops, meta, columns := l.applied, l.part.meta, l.columns
-	return RunStreamPipes(output, func(rawJSON string) string {
+	return runStreamEvents(output, judge, func(rawJSON string) string {
 		result, pipeErr := applyStreamEventPipes(rawJSON, ops, meta, columns)
 		if pipeErr != "" {
 			return pipeError(pipeErr)

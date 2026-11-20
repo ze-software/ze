@@ -6,7 +6,10 @@
 // pipe_partition.go is the ONE place a typed pipe chain is split between the
 // command and the engine. The command part is never rewritten: the operations
 // the command declares leave the chain as a structured list its handler
-// receives, and the rest of the chain runs over the answer.
+// receives, and the rest of the chain runs over the answer. The check that
+// holds an override's answer to its generic's shape lives beside it: for one
+// answer (CheckOverrideAnswer) and for each event of a stream
+// (overrideEventJudge).
 
 package command
 
@@ -295,23 +298,28 @@ const (
 	// AnswerFailed is an error answer: it belongs to the error, not to the
 	// override, so its shape is not checked.
 	AnswerFailed
-	// AnswerStreamed is an answer delivered as a sequence of records, which the
-	// engine does not hold whole and so does not count.
+	// AnswerStreamed is a complete answer delivered as a generator of rows,
+	// which the engine does not hold whole. It is the command's rows by
+	// construction: it keeps the shape of every override that answers rows,
+	// with no count of them, and never the shape of `count`. The events of a
+	// monitor are another thing, judged one by one (overrideEventJudge).
 	AnswerStreamed
 )
 
 // CheckOverrideAnswer holds the answer of a command's override to the shape of
 // the generic it overrides (docs/architecture/api/commands.md, "Per-command
-// declarations: what a command says about itself"). Every route that hands a handler its
-// declared list runs it on the answer: Dispatch, ServeLocal and the stream
-// sites, so the check is a step beside the partition and not of one route.
+// declarations: what a command says about itself"). Every route that hands a
+// handler its declared list judges the answer: Dispatch and ServeLocal call
+// this function on the one answer, and the stream route judges each event
+// inside StreamLine.Run (overrideEventJudge), so the check is a step beside
+// the partition and not of one route.
 //
 // path is the command path, operations the declared list the handler was
 // handed, and document the answer's JSON. Only the LAST declared operation is
-// judged, only when it is an override, and only on AnswerDone: an error answer,
-// a streamed answer, an override followed by another declared operation and a
-// list ending in an own-named operation are not checked, because the answer
-// then belongs to something else.
+// judged, and only when it is an override: an error answer, an override
+// followed by another declared operation and a list ending in an own-named
+// operation are not checked, because the answer then belongs to something
+// else.
 //
 // The answer of a `count` override is one object holding an integer `count`;
 // that of `first N` and `last N` the command's rows, at most N of them; that of
@@ -319,23 +327,26 @@ const (
 // the command's rows, the envelope its generic keeps. The catalog entry's
 // override shape decides which, so an operator the catalog adds is held to the
 // shape its entry states.
+//
+// On AnswerStreamed document is not read, because the rows were not collected:
+// the answer is rows, which a `count` override never answers and every other
+// override does, and `first N` and `last N` are not counted.
 func CheckOverrideAnswer(path string, operations []PipeOperation, outcome AnswerOutcome, document string) error {
 	switch outcome {
-	case AnswerDone:
-	case AnswerFailed, AnswerStreamed:
+	case AnswerDone, AnswerStreamed:
+	case AnswerFailed:
 		return nil
 	case answerOutcomeUnspecified:
 		panic("BUG: CheckOverrideAnswer called with no answer outcome")
 	default:
 		panic("BUG: CheckOverrideAnswer called with an unknown answer outcome")
 	}
-	if len(operations) == 0 {
+	generic, args, held := lastOverride(operations)
+	if !held {
 		return nil
 	}
-	last := operations[len(operations)-1]
-	generic, isGeneric := lookupPipeOperatorByName(last.Name)
-	if !isGeneric {
-		return nil
+	if outcome == AnswerStreamed {
+		return checkOverrideRowGenerator(path, generic)
 	}
 	var data any
 	if err := json.Unmarshal([]byte(document), &data); err != nil {
@@ -343,12 +354,11 @@ func CheckOverrideAnswer(path string, operations []PipeOperation, outcome Answer
 	}
 	switch generic.override {
 	case overrideCount:
-		object, isObject := data.(map[string]any)
+		isObject, holdsCount := countObject(data)
 		if !isObject {
 			return overrideShapeRefusal(path, generic, "an answer that is not one object")
 		}
-		count, holds := object[pipeNameCount].(float64)
-		if !holds || count != float64(int64(count)) {
+		if !holdsCount {
 			return overrideShapeRefusal(path, generic, "an object with no integer count")
 		}
 		return nil
@@ -357,7 +367,7 @@ func CheckOverrideAnswer(path string, operations []PipeOperation, outcome Answer
 		if !hasRows {
 			return overrideShapeRefusal(path, generic, "an answer with no rows")
 		}
-		limit, err := strconv.Atoi(firstArg(last.Args))
+		limit, err := strconv.Atoi(firstArg(args))
 		if err != nil {
 			return overrideShapeRefusal(path, generic, "an answer to a count it cannot read")
 		}
@@ -375,6 +385,121 @@ func CheckOverrideAnswer(path string, operations []PipeOperation, outcome Answer
 	default:
 		panic("BUG: unknown override shape of " + generic.Name)
 	}
+}
+
+// lastOverride answers the generic the last operation of operations overrides,
+// and that operation's argument words. held is false when the list is empty or
+// ends in an operation of the command's own name: no override owns the answer
+// then, and nothing is judged.
+func lastOverride(operations []PipeOperation) (generic PipeOperator, args []string, held bool) {
+	if len(operations) == 0 {
+		return PipeOperator{}, nil, false
+	}
+	last := operations[len(operations)-1]
+	generic, held = lookupPipeOperatorByName(last.Name)
+	if !held {
+		return PipeOperator{}, nil, false
+	}
+	return generic, last.Args, true
+}
+
+// countObject answers whether data is one object, and whether that object
+// holds an integer `count`, the shape applyCount answers.
+func countObject(data any) (isObject, holdsCount bool) {
+	object, isObject := data.(map[string]any)
+	if !isObject {
+		return false, false
+	}
+	count, isNumber := object[pipeNameCount].(float64)
+	if !isNumber {
+		return true, false
+	}
+	return true, count == float64(int64(count))
+}
+
+// checkOverrideRowGenerator judges an answer delivered as a generator of rows
+// (AnswerStreamed) without reading a row: what was answered is rows.
+func checkOverrideRowGenerator(path string, generic PipeOperator) error {
+	switch generic.override {
+	case overrideCount:
+		return overrideShapeRefusal(path, generic, "its rows, one by one, where one count was asked for")
+	case overrideRowsAtMost, overrideRows:
+		return nil
+	case overrideNone:
+		panic("BUG: command " + path + " recorded an override of " + generic.Name + ", which the catalog does not let a command override")
+	default:
+		panic("BUG: unknown override shape of " + generic.Name)
+	}
+}
+
+// acceptStreamEvent is the judge of a stream no override answers: every event
+// passes.
+func acceptStreamEvent(string) error { return nil }
+
+// overrideEventJudge answers the function that holds each event of a monitor's
+// stream to the shape of the generic the command overrides. It is
+// CheckOverrideAnswer for the stream route, where no answer ever ends: the
+// same last declared operation is judged, on every event the handler writes.
+//
+// A stream's rows are its events (applyEventMatch), so an event is one row of
+// the command's rows. The event of a `count` override is one object holding an
+// integer `count`; that of every other override one JSON document, which is
+// the row. The events of `first N` and `last N` are not counted, because the
+// engine holds no stream whole. A blank line is no event and is not judged.
+//
+// path is the command as typed, named in the refusal by the path its
+// operations are declared at. held is false when no override owns the stream:
+// the judge then passes every event, and a caller need not run it.
+func overrideEventJudge(path string, operations []PipeOperation) (judge func(event string) error, held bool) {
+	generic, _, held := lastOverride(operations)
+	if !held {
+		return acceptStreamEvent, false
+	}
+	if _, declaredAt, found := pipeFilterRegistry.lookupPath(path); found {
+		path = declaredAt
+	}
+	switch generic.override {
+	case overrideCount:
+		return func(event string) error { return checkCountEvent(path, generic, event) }, true
+	case overrideRowsAtMost, overrideRows:
+		return func(event string) error { return checkRowEvent(path, generic, event) }, true
+	case overrideNone:
+		panic("BUG: command " + path + " recorded an override of " + generic.Name + ", which the catalog does not let a command override")
+	default:
+		panic("BUG: unknown override shape of " + generic.Name)
+	}
+}
+
+// checkCountEvent holds one event of a `count` override's stream to one object
+// holding an integer `count`.
+func checkCountEvent(path string, generic PipeOperator, event string) error {
+	if strings.TrimSpace(event) == "" {
+		return nil
+	}
+	var data any
+	if err := json.Unmarshal([]byte(event), &data); err != nil {
+		return overrideEventRefusal(path, generic, "an event that is not one JSON document")
+	}
+	isObject, holdsCount := countObject(data)
+	if !isObject {
+		return overrideEventRefusal(path, generic, "an event that is not one object")
+	}
+	if !holdsCount {
+		return overrideEventRefusal(path, generic, "an event with no integer count")
+	}
+	return nil
+}
+
+// checkRowEvent holds one event of a rows override's stream to one row: one
+// JSON document, whatever its fields, which are the override's meaning.
+func checkRowEvent(path string, generic PipeOperator, event string) error {
+	if strings.TrimSpace(event) == "" {
+		return nil
+	}
+	if !json.Valid([]byte(event)) {
+		return overrideEventRefusal(path, generic, "an event that is not one JSON document")
+	}
+	return nil
 }
 
 func firstArg(args []string) string {
@@ -403,6 +528,31 @@ func overrideShapeText(generic PipeOperator) string {
 		return "the command's rows, at most the N asked for"
 	case overrideRows:
 		return "the command's rows"
+	case overrideNone:
+		return "none, because it cannot be overridden"
+	default:
+		panic("BUG: unknown override shape of " + generic.Name)
+	}
+}
+
+// overrideEventRefusal names the command whose override of generic wrote, on
+// its stream, an event the generic never answers.
+func overrideEventRefusal(path string, generic PipeOperator, answered string) error {
+	var problem, why, fix textbuf.Buffer
+	problem.Str("The override of ").Str(generic.Name).Str(" by ").Str(path).Str(" answered ").Str(answered)
+	why.Str("A command that overrides ").Str(generic.Name).Str(" keeps its answer shape on a stream: ").Str(overrideEventShapeText(generic))
+	fix.Str(`show command help "`).Str(path).Byte('"')
+	return opererr.New(problem.String(), why.String(), fix.String())
+}
+
+// overrideEventShapeText says in words what each event of a stream answered by
+// an override of generic is.
+func overrideEventShapeText(generic PipeOperator) string {
+	switch generic.override {
+	case overrideCount:
+		return `each event is one object holding an integer count, {"count": N}`
+	case overrideRowsAtMost, overrideRows:
+		return "each event is one row, a JSON document"
 	case overrideNone:
 		return "none, because it cannot be overridden"
 	default:

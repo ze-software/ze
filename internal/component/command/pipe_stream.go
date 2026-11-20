@@ -1,5 +1,6 @@
 // Design: docs/architecture/api/commands.md -- shared remote stream event pipes.
 // Related: pipe.go -- stream validation and event formatting.
+// Related: pipe_partition.go -- overrideEventJudge, the judge of an override's events.
 
 package command
 
@@ -21,7 +22,15 @@ const streamPipeEventBytesMax = 4 * 1024 * 1024
 // MUST provide the formatter returned by successful stream pipe validation.
 // This call owns no workers and is not safe for concurrent writes.
 func RunStreamPipes(output io.Writer, format func(string) string, produce func(io.Writer) error) error {
-	writer := &streamPipeWriter{output: output, format: format}
+	return runStreamEvents(output, acceptStreamEvent, format, produce)
+}
+
+// runStreamEvents is RunStreamPipes with a judge of each event as the producer
+// wrote it, run before format. An event judge refuses is not written, and its
+// error stops the stream and is the error answered. StreamLine.Run hands it
+// the judge of an override's events (overrideEventJudge).
+func runStreamEvents(output io.Writer, judge func(string) error, format func(string) string, produce func(io.Writer) error) error {
+	writer := &streamPipeWriter{output: output, judge: judge, format: format}
 	if err := produce(writer); err != nil {
 		return err
 	}
@@ -35,9 +44,10 @@ func RunStreamPipes(output io.Writer, format func(string) string, produce func(i
 }
 
 // streamPipeWriter retains only one bounded event. It is constructed and owned
-// by RunStreamPipes; its zero value is not initialized for writes.
+// by runStreamEvents; its zero value is not initialized for writes.
 type streamPipeWriter struct {
 	output  io.Writer
+	judge   func(string) error
 	format  func(string) string
 	pending bytes.Buffer
 	failure error
@@ -77,8 +87,11 @@ func (w *streamPipeWriter) Write(p []byte) (int, error) {
 
 func (w *streamPipeWriter) writeEvent() error {
 	raw := strings.TrimSuffix(w.pending.String(), "\r")
-	formatted := strings.TrimRight(w.format(raw), "\r\n")
 	w.pending.Reset()
+	if err := w.judge(raw); err != nil {
+		return err
+	}
+	formatted := strings.TrimRight(w.format(raw), "\r\n")
 	if IsPipeError(formatted) {
 		return opererr.New("a live pipe could not format this event", formatted,
 			"remove the refused pipe and repeat the monitor command")

@@ -4,8 +4,10 @@
 package hub
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"reflect"
 	"strings"
 	"testing"
@@ -169,4 +171,102 @@ func parityOutcome(t *testing.T, resp *plugin.Response, err error) (data any, re
 	}
 	require.NoError(t, json.Unmarshal([]byte(output), &data), "answer %q is not JSON", output)
 	return data, ""
+}
+
+// TestOverrideShapeCheckedOnEveryRoute asks whether one wrong-shaped override
+// is refused on every route that hands a handler its declared list, and the
+// right shape accepted on each (AC-17): through Dispatch, through ServeLocal,
+// and on the stream route under every rendering.
+//
+// Method: a command declares an override of `count`. Its handler on each route
+// answers the same payload: first rows where a count was asked for, then a
+// count. The dispatcher's builtin is reached by Dispatch, the local-data
+// handler by command.ServeLocal, and the streaming handler by the one lookup
+// every stream site calls (pluginserver.GetStreamingHandlerRendered), which
+// writes the payload as one event.
+//
+// Red before the stream check: the stream rows answer no error and write the
+// wrong event.
+// MUTATION: drop the judge StreamLine.Run hands the event writer, or either
+// CheckOverrideAnswer call; that route's wrong-shape row accepts.
+func TestOverrideShapeCheckedOnEveryRoute(t *testing.T) {
+	const path = "show fixture override shape"
+	const monitor = "monitor test override-shape-route"
+	t.Cleanup(command.EmptyPipeFiltersForTest())
+	command.RegisterPipeFilters([]string{path, monitor},
+		command.PipeFilter{Name: "count", Description: "Count at the source", Argument: command.ArgNone})
+
+	var payload plugin.Map
+	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
+	require.NoError(t, err)
+	t.Cleanup(server.Stop)
+	require.NoError(t, server.StartWithContext(t.Context()))
+	require.NoError(t, server.Dispatcher().RegisterWithOptions(path, func(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
+		return plugin.NewResponse(plugin.StatusDone, payload), nil
+	}, "Answer the fixture payload", pluginserver.RegisterOptions{ReadOnly: true}))
+	t.Cleanup(command.AddLocalDataForTest(path, func(command.ValidatedArgs) command.LocalAnswer {
+		return command.LocalAnswer{Payload: payload}
+	}))
+	pluginserver.RegisterStreamingHandler(monitor, pluginserver.OneShotStreamingOnly,
+		func(_ context.Context, _ *pluginserver.Server, output io.Writer, _ string, _ command.ValidatedArgs) error {
+			event, encodeErr := json.Marshal(payload)
+			if encodeErr != nil {
+				return encodeErr
+			}
+			_, writeErr := output.Write(append(event, '\n'))
+			return writeErr
+		})
+	t.Cleanup(func() { pluginserver.UnregisterStreamingHandler(monitor) })
+
+	// Each route answers its refusal text, or "" when it accepted the answer.
+	stream := func(rendering command.StreamRendering) func(t *testing.T) string {
+		return func(t *testing.T) string {
+			handler, validated, lookupErr := pluginserver.GetStreamingHandlerRendered(monitor+" | count", rendering)
+			require.NoError(t, lookupErr)
+			require.NotNil(t, handler, "the monitor is not a streaming command")
+			var output bytes.Buffer
+			runErr := handler(t.Context(), server, &output, "alice", validated)
+			if runErr == nil {
+				return ""
+			}
+			require.NotContains(t, output.String(), "10.0.0.0/8", "the refused event was written")
+			return runErr.Error()
+		}
+	}
+	routes := []struct {
+		name string
+		send func(t *testing.T) string
+	}{
+		{"dispatch", func(*testing.T) string {
+			_, sendErr := server.Dispatcher().Dispatch(&pluginserver.CommandContext{Server: server}, path+" | count")
+			if sendErr == nil {
+				return ""
+			}
+			return sendErr.Error()
+		}},
+		{"serve-local", func(t *testing.T) string {
+			answer, code, served := command.ServeLocal(path+" | count", "")
+			require.True(t, served, "the local-data handler did not serve the line")
+			if !command.IsPipeError(answer) {
+				require.Zero(t, code)
+				return ""
+			}
+			require.Equal(t, 1, code)
+			return answer
+		}},
+		{"stream, engine rendering", stream(command.StreamRenderingEngine)},
+		{"stream, terminal rendering", stream(command.StreamRenderingTerminal)},
+		{"stream, client presentation", stream(command.StreamRenderingClientPresentation)},
+	}
+	for _, route := range routes {
+		t.Run(route.name, func(t *testing.T) {
+			payload = plugin.Map{"routes": []any{map[string]any{"prefix": "10.0.0.0/8"}}}
+			refusal := route.send(t)
+			require.Contains(t, refusal, "The override of count by ", "rows answered for a count override were accepted")
+			require.Contains(t, refusal, "keeps its answer shape")
+
+			payload = plugin.Map{"count": 2}
+			require.Empty(t, route.send(t), "a count answered for a count override was refused")
+		})
+	}
 }

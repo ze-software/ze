@@ -292,6 +292,115 @@ func TestStreamLineWithoutChain(t *testing.T) {
 	}
 }
 
+// TestStreamLineHoldsOverrideEventsToShape asks whether the stream route
+// holds each event of a command's override to the shape of the generic it
+// overrides, as Dispatch and ServeLocal hold the one answer (AC-17): a
+// `count` override's event is one object holding an integer count, a rows
+// override's event is one JSON document, and an event of another shape stops
+// the stream with a refusal naming the command, what the event was and the
+// command that explains the override, the wrong event never written. An override followed by an operation of the command's
+// own, and a line with no declared operation, are not judged.
+//
+// Method: the real ReadStreamLine and Run, under every rendering, over a
+// producer that writes one event of the right shape and then one of the
+// wrong shape. Under the rendering key the daemon applies nothing, so the
+// output is exactly the events that passed.
+// MUTATION: make StreamLine.Run call produce without overrideEventJudge, or
+// make the judge answer nil, and the wrong events are written with no error.
+func TestStreamLineHoldsOverrideEventsToShape(t *testing.T) {
+	const prefix = "monitor test override-shape"
+	t.Cleanup(ResetPipeFiltersForTest)
+	RegisterPipeFilters([]string{prefix},
+		PipeFilter{Name: "count", Description: "Count the events at the source"},
+		PipeFilter{Name: "match", Description: "Match at the source", Argument: ArgText},
+		PipeFilter{Name: "first", Description: "The first events at the source", Argument: ArgCount},
+		PipeFilter{Name: "top-talkers", Description: "The busiest peers", Argument: ArgNone})
+
+	renderings := []StreamRendering{StreamRenderingEngine, StreamRenderingTerminal, StreamRenderingClientPresentation}
+	for _, row := range []struct {
+		name     string
+		chain    string
+		good     string
+		wrong    string
+		refused  bool
+		answered string
+	}{
+		{name: "count, a route event", chain: "| count", good: `{"count":3}`, wrong: `{"prefix":"10.0.0.0/8"}`, refused: true, answered: "an event with no integer count"},
+		{name: "count, a fraction", chain: "| count", good: `{"count":3}`, wrong: `{"count":1.5}`, refused: true, answered: "an event with no integer count"},
+		{name: "count, an array", chain: "| count", good: `{"count":3}`, wrong: `[3]`, refused: true, answered: "an event that is not one object"},
+		{name: "count, a sentence", chain: "| count", good: `{"count":3}`, wrong: `three events`, refused: true, answered: "an event that is not one JSON document"},
+		{name: "match, a sentence", chain: "| match up", good: `{"peer":"Blue","state":"up"}`, wrong: `peer Blue is up`, refused: true, answered: "an event that is not one JSON document"},
+		{name: "first, two documents in one event", chain: "| first 1", good: `{"peer":"Blue"}`, wrong: `{"peer":"Blue"} {"peer":"Red"}`, refused: true, answered: "an event that is not one JSON document"},
+		{name: "first, more events than asked", chain: "| first 1", good: `{"peer":"Blue"}`, wrong: `{"peer":"Red"}`},
+		{name: "count followed by an own operation", chain: "| count | top-talkers", good: `{"count":3}`, wrong: `{"prefix":"10.0.0.0/8"}`},
+		{name: "no declared operation", chain: "", good: `{"count":3}`, wrong: `{"prefix":"10.0.0.0/8"}`},
+	} {
+		for _, rendering := range renderings {
+			line, err := ReadStreamLine(prefix+" "+row.chain, rendering)
+			if err != nil {
+				t.Fatalf("%s, rendering %d: %v", row.name, rendering, err)
+			}
+			var output bytes.Buffer
+			err = line.Run(&output, func(w io.Writer) error {
+				_, writeErr := io.WriteString(w, row.good+"\n"+row.wrong+"\n")
+				return writeErr
+			})
+			written := output.String()
+			if !row.refused {
+				if err != nil {
+					t.Errorf("%s, rendering %d: refused: %v", row.name, rendering, err)
+				}
+				if rendering == StreamRenderingClientPresentation && written != row.good+"\n"+row.wrong+"\n" {
+					t.Errorf("%s: output %q, want both events unchanged", row.name, written)
+				}
+				continue
+			}
+			if err == nil {
+				t.Errorf("%s, rendering %d: the wrong event was accepted, output %q", row.name, rendering, written)
+				continue
+			}
+			text := err.Error()
+			if !strings.Contains(text, prefix) || !strings.Contains(text, row.answered) {
+				t.Errorf("%s, rendering %d: refusal %q does not name the command and %q", row.name, rendering, text, row.answered)
+			}
+			if !strings.Contains(text, `show command help "`+prefix+`"`) {
+				t.Errorf("%s, rendering %d: refusal %q does not end in the command that explains the override", row.name, rendering, text)
+			}
+			if rendering == StreamRenderingClientPresentation && written != row.good+"\n" {
+				t.Errorf("%s: output %q, want only the event that kept the shape", row.name, written)
+			}
+		}
+	}
+}
+
+// TestStreamLineOverrideRefusalNamesDeclaredPath asks whether the refusal of
+// an override's event names the path the operation is declared at, when the
+// line carries arguments after it: the fix line is a command an operator can
+// run, and the arguments typed are not part of the command's name.
+func TestStreamLineOverrideRefusalNamesDeclaredPath(t *testing.T) {
+	const prefix = "monitor test override-path"
+	t.Cleanup(ResetPipeFiltersForTest)
+	RegisterPipeFilters([]string{prefix}, PipeFilter{Name: "count", Description: "Count the events at the source"})
+	line, err := ReadStreamLine(prefix+" peer Blue | count", StreamRenderingClientPresentation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	err = line.Run(&output, func(w io.Writer) error {
+		_, writeErr := io.WriteString(w, "{\"total\":5}\n")
+		return writeErr
+	})
+	if err == nil {
+		t.Fatalf("a count event with no count was accepted, output %q", output.String())
+	}
+	if !strings.Contains(err.Error(), `show command help "`+prefix+`"`) {
+		t.Errorf("refusal %q does not name the declared path %q in its fix", err, prefix)
+	}
+	if output.Len() != 0 {
+		t.Errorf("output %q, want nothing written", output.String())
+	}
+}
+
 // presentedBy names which formatter PresentStreamSuffix answered for a line.
 type presentedBy uint8
 

@@ -295,24 +295,55 @@ func TestOverrideAnswerShapeRefused(t *testing.T) {
 	}
 }
 
-// TestOverrideShapeCheckScope asks whether an answer that does not belong to
-// the override is left unchecked: an error answer, a streamed answer, an
-// override followed by another declared operation, and no declared operation.
+// TestOverrideShapeCheckScope asks which answers the check leaves alone and
+// which it judges without reading: an error answer, an override followed by
+// another declared operation and no declared operation are not checked,
+// whatever the outcome; an answer delivered as a generator of rows
+// (AnswerStreamed) is rows, so it is refused for a `count` override, by name,
+// and accepted for a rows override with no row counted and no document read.
+// The events of a monitor are judged one by one on the stream route
+// (TestStreamLineHoldsOverrideEventsToShape).
 func TestOverrideShapeCheckScope(t *testing.T) {
 	const wrong = `{"total":5}`
 	count := []PipeOperation{{Name: "count"}}
 	if err := CheckOverrideAnswer("show scope rows", count, AnswerFailed, wrong); err != nil {
 		t.Errorf("an error answer was checked: %v", err)
 	}
-	if err := CheckOverrideAnswer("show scope rows", count, AnswerStreamed, wrong); err != nil {
-		t.Errorf("a streamed answer was checked: %v", err)
-	}
 	followed := []PipeOperation{{Name: "count"}, {Name: "histogram"}}
-	if err := CheckOverrideAnswer("show scope rows", followed, AnswerDone, wrong); err != nil {
-		t.Errorf("an override followed by another declared operation was checked: %v", err)
+	for _, outcome := range []AnswerOutcome{AnswerDone, AnswerStreamed} {
+		if err := CheckOverrideAnswer("show scope rows", followed, outcome, wrong); err != nil {
+			t.Errorf("outcome %d: an override followed by another declared operation was checked: %v", outcome, err)
+		}
+		if err := CheckOverrideAnswer("show scope rows", nil, outcome, wrong); err != nil {
+			t.Errorf("outcome %d: an answer with no declared operation was checked: %v", outcome, err)
+		}
 	}
-	if err := CheckOverrideAnswer("show scope rows", nil, AnswerDone, wrong); err != nil {
-		t.Errorf("an answer with no declared operation was checked: %v", err)
+
+	// The document of a generated answer is never read: a `count` override
+	// is refused even beside a document of the right shape, because what the
+	// handler delivered is rows.
+	err := CheckOverrideAnswer("show scope rows", count, AnswerStreamed, `{"count":5}`)
+	if err == nil {
+		t.Fatal("a count override that answered a generator of rows was accepted")
+	}
+	if !strings.Contains(err.Error(), "show scope rows") || !strings.Contains(err.Error(), "count") {
+		t.Errorf("refusal %q does not name the command and the operator", err)
+	}
+	// A rows override keeps its shape by delivering rows, and `first N` is
+	// not counted: three rows beside `first 1`, and a document that is not
+	// JSON, are both left unread.
+	for _, operation := range []PipeOperation{
+		{Name: "first", Args: []string{"1"}},
+		{Name: "last", Args: []string{"1"}},
+		{Name: "match", Args: []string{"up"}},
+		{Name: "display", Args: []string{"prefix"}},
+	} {
+		declared := []PipeOperation{operation}
+		for _, document := range []string{`{"routes":[{"a":1},{"a":2},{"a":3}]}`, `not json`} {
+			if err := CheckOverrideAnswer("show scope rows", declared, AnswerStreamed, document); err != nil {
+				t.Errorf("%s answering a generator of rows beside %s: refused: %v", operation.Name, document, err)
+			}
+		}
 	}
 }
 

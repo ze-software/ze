@@ -1576,8 +1576,9 @@ func flagRefusal(path, flag, input string) error {
 // last declared operation overrides (command.CheckOverrideAnswer), on the
 // dispatcher's route as ServeLocal does on the local one. path is the command
 // path, declared the list the handler was handed. Only a complete answer is
-// flattened to be judged: a row generator is walked once, so a streamed answer
-// is not judged here and is not consumed.
+// flattened to be judged. A row generator is walked once, so it is judged
+// without being consumed (command.AnswerStreamed): what it delivers is rows,
+// which a `count` override never answers, and its rows are not counted.
 func checkOverrideAnswer(path string, declared []command.PipeOperation, resp *plugin.Response, handlerErr error) *opererr.Error {
 	if len(declared) == 0 {
 		return nil

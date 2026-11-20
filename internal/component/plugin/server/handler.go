@@ -232,7 +232,9 @@ func GetStreamingHandlerForCommand(input string) (StreamingHandler, command.Vali
 // and the operations the command declares are attached to that value
 // (ValidatedArgs.PipeOperations). The handler answered writes its events
 // through the part of the residual chain the daemon applies
-// (command.StreamLine.Run), so a caller runs the chain by running it.
+// (command.StreamLine.Run), so a caller runs the chain by running it. The
+// same method holds each event of a command's override to the shape of the
+// generic it overrides, so no stream site checks it for itself.
 //
 // handler is nil when no prefix matches, and when the line, its chain or an
 // argument is refused: the refusal is then err, and the caller MUST report it
