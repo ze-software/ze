@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | Shipped subscriber PPP violates RFC 1661 Sections 3.7, 4.3 and 5.7: a CPE that Protocol-Rejects IPv6CP or IPCP never has that NCP stopped, a family withdrawn after session-up stays announced in the redistribution feed and in the subscriber registry and RADIUS accounting, and a session whose last NCP has finished is held with no idle-period bound. |
