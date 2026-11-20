@@ -24,7 +24,7 @@ func productHostUniq(index int) string { return fmt.Sprintf("%08x", index+1) }
 // Only this owned process writes the capacity artifact, and its join precedes
 // parsing. The fixed stem and bounded filter never accept a caller path.
 func startProductCapacity(ctx context.Context, lab interoplab.CheckerLab) error {
-	command := `rm -f /evidence/product-capacity.done /evidence/product-capacity.log /evidence/product-capacity.pcap; timeout --signal=INT 120s tcpdump -U -n -s 512 -i eth0 -c 128 -w /evidence/product-capacity.pcap 'ether proto 0x8863 or (vlan 100 and ether proto 0x8863)' > /evidence/product-capacity.log 2>&1 & child=$!; echo "$child" > /evidence/product-capacity.pid; wait "$child"; status=$?; echo "$status" > /evidence/product-capacity.done`
+	command := `rm -f /evidence/product-capacity.done /evidence/product-capacity.log /tmp/product-capacity.pcap; timeout --signal=INT 120s tcpdump -U -n -s 512 -i eth0 -c 128 -w /tmp/product-capacity.pcap 'ether proto 0x8863 or (vlan 100 and ether proto 0x8863)' > /evidence/product-capacity.log 2>&1 & child=$!; echo "$child" > /evidence/product-capacity.pid; wait "$child"; status=$?; echo "$status" > /evidence/product-capacity.done`
 	if err := lab.ExecDetached(ctx, vppPeer, []string{"sh", "-c", command}, nil); err != nil {
 		return err
 	}
@@ -40,7 +40,7 @@ func finishProductCapacity(ctx context.Context, lab interoplab.CheckerLab) error
 	if err := productCaptureNoDrops(log); err != nil {
 		return err
 	}
-	encoded, err := query(ctx, lab, vppPeer, "base64", "/evidence/product-capacity.pcap")
+	encoded, err := query(ctx, lab, vppPeer, "base64", "/tmp/product-capacity.pcap")
 	if err != nil {
 		return err
 	}

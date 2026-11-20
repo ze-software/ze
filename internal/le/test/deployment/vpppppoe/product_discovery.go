@@ -18,8 +18,11 @@ import (
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
+// The capture file lives in the container's own /tmp: tcpdump drops to its
+// own user and chowns the savefile, which the 9p /evidence share refuses
+// ("Couldn't change ownership of savefile"). It is read back in place.
 func startProductDiscovery(ctx context.Context, lab interoplab.CheckerLab) error {
-	command := `rm -f /evidence/product-discovery.done /evidence/product-discovery.log /evidence/product-discovery.pcap; timeout --signal=INT 600s tcpdump -U -n -s 512 -i eth0 -c 2048 -w /evidence/product-discovery.pcap 'ether proto 0x8863 or (vlan 100 and ether proto 0x8863)' > /evidence/product-discovery.log 2>&1 & child=$!; echo "$child" > /evidence/product-discovery.pid; wait "$child"; status=$?; echo "$status" > /evidence/product-discovery.done`
+	command := `rm -f /evidence/product-discovery.done /evidence/product-discovery.log /tmp/product-discovery.pcap; timeout --signal=INT 600s tcpdump -U -n -s 512 -i eth0 -c 2048 -w /tmp/product-discovery.pcap 'ether proto 0x8863 or (vlan 100 and ether proto 0x8863)' > /evidence/product-discovery.log 2>&1 & child=$!; echo "$child" > /evidence/product-discovery.pid; wait "$child"; status=$?; echo "$status" > /evidence/product-discovery.done`
 	if err := lab.ExecDetached(ctx, vppPeer, []string{"sh", "-c", command}, nil); err != nil {
 		return err
 	}
@@ -35,7 +38,7 @@ func finishProductDiscovery(ctx context.Context, lab interoplab.CheckerLab, sess
 	if err := productCaptureNoDrops(log); err != nil {
 		return err
 	}
-	encoded, err := query(ctx, lab, vppPeer, "base64", "/evidence/product-discovery.pcap")
+	encoded, err := query(ctx, lab, vppPeer, "base64", "/tmp/product-discovery.pcap")
 	if err != nil {
 		return err
 	}
