@@ -179,7 +179,10 @@ func policyTransitConnections() (uint32, error) {
 }
 
 func checkTopicIRR() error {
-	before, err := showcaseCLI("show bgp irr | json | no-more")
+	// `| raw` is the dispatcher's JSON unchanged. `| json` is a renderer: it
+	// prints an object whose single key holds a list as the bare list, which
+	// is what this answer became once the refresh schedule moved to `show irr`.
+	before, err := showcaseCLI("show bgp irr | raw | no-more")
 	if err != nil {
 		return err
 	}

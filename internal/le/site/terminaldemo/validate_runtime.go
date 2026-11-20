@@ -305,14 +305,17 @@ func validateRIBFIB() error {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
+	// Each refusal names the read that missed the route, and the first carries
+	// what the inject answered: three reads share one expectation, so the bare
+	// message could not say which stage lost the route.
 	if err := requireAll(best, prefix); err != nil {
-		return err
+		return fmt.Errorf("show bgp rib best, after the inject answered %q: %w", inject, err)
 	}
 	if err := requireAll(rib, prefix); err != nil {
-		return err
+		return fmt.Errorf("show rib: %w", err)
 	}
 	if err := requireAll(kernel, prefix, "proto 250"); err != nil {
-		return err
+		return fmt.Errorf("kernel route: %w", err)
 	}
 	withdraw, err := cli(env, "request bgp rib withdraw 192.0.2.10 ipv4/unicast "+prefix)
 	if err != nil {

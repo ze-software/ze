@@ -158,7 +158,9 @@ func observeTopicBFD(stage string) error {
 		}
 		return fmt.Errorf("BFD stage %s: session %+v; BGP %+v", stage, session, peer)
 	}
-	return fmt.Errorf("FRR BFD session absent at %s", stage)
+	// The check reads Ze's own session list, so the message says so and
+	// carries what Ze answered: an empty list means BGP never asked for one.
+	return fmt.Errorf("no BFD session in Ze for the FRR peer %s at %s; show bfd sessions answered %+v", showcaseFRRPeerAddress, stage, sessions)
 }
 
 func awaitTopicBFD(stage string) error {

@@ -28,7 +28,7 @@ Show
 Type "ze cli -c 'request bgp rib inject 192.0.2.10 ipv4/unicast 198.51.100.0/24 origin igp nexthop 127.0.0.1 med 42'"
 Enter
 Sleep 2s
-Type "ze cli -c 'show bgp rib best prefix 198.51.100.0/24 | no-more'"
+Type "ze cli -c 'show bgp rib best | prefix 198.51.100.0/24 | no-more'"
 Enter
 Wait+Screen /best-peer/
 Sleep 3s
