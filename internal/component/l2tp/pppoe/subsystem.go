@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"reflect"
 	"sync"
 	"syscall"
 
@@ -22,8 +23,10 @@ import (
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	subevents "github.com/ze-software/ze/internal/component/l2tp/subscriber/events"
 	"github.com/ze-software/ze/internal/component/traffic"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/pacer"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -33,6 +36,10 @@ var errPppoeSubsystemAlreadyStarted = errors.New("pppoe: subsystem already start
 var _ ze.Subsystem = (*Subsystem)(nil)
 
 const SubsystemName = "pppoe"
+
+// configRoot is the top-level configuration container the PPPoE access
+// concentrator reads its settings from.
+const configRoot = "pppoe"
 
 // Subsystem is the ze.Subsystem implementation for PPPoE.
 type Subsystem struct {
@@ -448,6 +455,8 @@ func (s *Subsystem) handlePPPEvent(ev ppp.Event) {
 		s.onSessionUp(e)
 	case ppp.EventSessionIPAssigned:
 		s.onSessionIPAssigned(e)
+	case ppp.EventSessionIPReleased:
+		s.onSessionIPReleased(e)
 	case ppp.EventSessionDown:
 		s.onSessionDown(e)
 	case ppp.EventSessionRejected:
@@ -459,6 +468,63 @@ func (s *Subsystem) handlePPPEvent(ev ppp.Event) {
 			return
 		}
 		s.finishRejectedAdmission(server, session, e)
+	case ppp.EventEchoRTT:
+		// PPPoE keeps no CQM state: only the L2TP reactor relays echo
+		// round-trip times. One arrives per LCP Echo-Reply, so it must
+		// never reach the defect arm below.
+	default:
+		s.reportUnhandledPPPEvent(ev)
+	}
+}
+
+// pppEventReportSubject is the runtime doctor subject of an unhandled event.
+const pppEventReportSubject = "ppp event dispatch"
+
+// reportUnhandledPPPEvent reports a ppp.Event type handlePPPEvent has no case
+// for, then the event is ignored. Only a Ze defect produces one: the sealed
+// ppp.Event set gained a type and this switch did not.
+func (s *Subsystem) reportUnhandledPPPEvent(ev ppp.Event) {
+	const problem = "PPPoE ignored a PPP event it has no handler for"
+	const fix = "ze show doctor"
+	eventType := pppEventTypeName(ev)
+	s.logger.Warn(problem, "code", diagnostic.CodeDoctorInternalDefect, "fix", fix, "type", eventType)
+	report.RaiseWarningFix(SubsystemName, diagnostic.CodeDoctorInternalDefect, pppEventReportSubject,
+		problem, fix, map[string]any{"type": eventType})
+}
+
+// pppEventTypeName names the event's Go type, as the %T verb does.
+func pppEventTypeName(ev ppp.Event) string {
+	if ev == nil {
+		return "<nil>"
+	}
+	return reflect.TypeOf(ev).String()
+}
+
+// onSessionIPReleased removes one family from the registered session after
+// its NCP left Opened, then publishes the release, which the route observer
+// reads to withdraw that family's routes. The other family and the session
+// stay. The next assignment of the family sets the fields again.
+func (s *Subsystem) onSessionIPReleased(e ppp.EventSessionIPReleased) {
+	if !e.Control.Active() {
+		return
+	}
+	family := e.Family.NoticeFamily()
+	sess, ok := s.subscriberSession(e.Control, e.SessionID)
+	if !ok {
+		return
+	}
+	subevents.ClearReleasedFamily(&sess, family)
+	subscriber.DefaultRegistry.Add(&sess)
+	if s.bus == nil {
+		return
+	}
+	if _, err := subevents.SessionIPReleased.Emit(s.bus, &subevents.SessionIPReleasedPayload{
+		Session:         sess,
+		Family:          family,
+		NetworkLifetime: e.NetworkLifetime,
+	}); err != nil {
+		s.logger.Warn("pppoe: subscriber session-ip-released emit failed",
+			"code", diagnostic.CodeDoctorInternalDefect, "fix", "ze show doctor", "error", err)
 	}
 }
 

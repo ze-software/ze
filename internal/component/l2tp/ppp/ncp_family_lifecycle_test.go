@@ -27,6 +27,7 @@ func TestNCPRenegotiationWithdrawsOnlyItsFamily(t *testing.T) {
 			if fixture.session.handleFrame(fixture.configureRequest(family)) {
 				t.Fatal("one family's Configure-Request ended the PPP session")
 			}
+			fixture.expectFamilyRelease(t, family)
 			if got := fixture.session.ncpState(family); got != LCPStateAckSent {
 				t.Fatalf("restarting NCP state = %s, want Ack-Sent", got)
 			}
@@ -62,6 +63,7 @@ func TestNCPReopenRestoresOnlyItsFamily(t *testing.T) {
 			if fixture.session.handleFrame(fixture.configureRequest(family)) {
 				t.Fatal("Configure-Request ended the PPP session")
 			}
+			fixture.expectFamilyRelease(t, family)
 			request := fixture.lastConfigureRequest(t, family)
 			fixture.acknowledgeAssignment(t, family, func() bool {
 				return !fixture.session.handleFrame(lcpFrame(ncpProto(family), LCPConfigureAck,
@@ -103,6 +105,7 @@ func TestNCPNakWithdrawsInstalledIPv4Pair(t *testing.T) {
 		ipcpOpt(IPCPOptIPAddress, proposal))) {
 		t.Fatal("a valid IPCP Nak ended the PPP session")
 	}
+	fixture.expectFamilyRelease(t, AddressFamilyIPv4)
 	if fixture.session.localIPv4 != proposal {
 		t.Fatalf("new negotiation proposal = %s, want %s", fixture.session.localIPv4, proposal)
 	}
@@ -185,6 +188,7 @@ func TestNCPClosingOneFamilyPreservesOtherFamily(t *testing.T) {
 			if fixture.session.handleFrame(lcpFrame(ncpProto(family), LCPTerminateRequest, 31, nil)) {
 				t.Fatal("one NCP's Terminate-Request ended PPP")
 			}
+			fixture.expectFamilyRelease(t, family)
 			if fixture.session.handleFrame(lcpFrame(ncpProto(family), LCPTerminateAck, 31, nil)) {
 				t.Fatal("one NCP's Stopped state ended the independent family")
 			}
@@ -248,7 +252,9 @@ func newNCPFamilyLifecycle(t *testing.T) *ncpFamilyLifecycle {
 		t.Fatal(err)
 	}
 	session.channelConnected = true
-	session.afterLCPOpenIPv6Service()
+	if err := session.afterLCPOpenIPv6Service(); err != nil {
+		t.Fatalf("initial IPv6 service failed the session: %v", err)
+	}
 	if session.ipv6Svc == nil {
 		t.Fatal("initial IPv6 service was not created")
 	}
@@ -329,6 +335,45 @@ func (fixture *ncpFamilyLifecycle) assertNoSessionDown(t *testing.T) {
 		t.Fatalf("independent NCP transition published unexpected %T", event)
 	default:
 	}
+}
+
+// expectFamilyRelease requires the next event to be the release of exactly
+// this family, for this session and the network lifetime its published
+// assignment carried (AC-4; RFC 1661 Section 4.4, tld). It consumes only that
+// one event, so a following assertNoSessionDown still proves that nothing
+// else, the other family's release included, was published. It MUST be called
+// on the test goroutine while no producer worker runs: it reads the session's
+// network lifetime, which the fixture's own frames alone change.
+func (fixture *ncpFamilyLifecycle) expectFamilyRelease(t *testing.T, family AddressFamily) EventSessionIPReleased {
+	t.Helper()
+	select {
+	case event := <-fixture.events:
+		released, ok := event.(EventSessionIPReleased)
+		if !ok {
+			t.Fatalf("%s leaving Opened published %T, want its release", family, event)
+		}
+		if released.Family != family {
+			t.Fatalf("released family = %s, want %s", released.Family, family)
+		}
+		if released.TunnelID != fixture.session.tunnelID {
+			t.Fatalf("release names tunnel %d, want %d", released.TunnelID, fixture.session.tunnelID)
+		}
+		if released.SessionID != fixture.session.sessionID {
+			t.Fatalf("release names session %d, want %d", released.SessionID, fixture.session.sessionID)
+		}
+		lifetime, assigned := fixture.session.assignedNetworkLifetime()
+		if !assigned {
+			t.Fatal("release published with no network lifetime assigned")
+		}
+		if released.NetworkLifetime != lifetime {
+			t.Fatalf("release network lifetime = %+v, want the published assignment's %+v",
+				released.NetworkLifetime, lifetime)
+		}
+		return released
+	default:
+		t.Fatalf("%s leaving Opened published no release", family)
+	}
+	return EventSessionIPReleased{}
 }
 
 func otherNCPFamily(family AddressFamily) AddressFamily {

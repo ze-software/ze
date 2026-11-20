@@ -93,6 +93,16 @@ give ten requests over 30 seconds. `max-terminate` bounds unanswered
 Terminate-Requests, and `max-failure` bounds Naks sent without a Configure-Ack
 before unacceptable options are rejected. The Restart timer controls each wait.
 
+IPCP and IPv6CP open and close independently: one NCP closing leaves the
+other and the link up. A session comes up only once at least one NCP is open,
+and a link with no NCP open is held for a fixed 30 seconds, counted from the
+start of NCP negotiation or from the moment the last open NCP closed. PPPoE has
+no leaf for this bound; L2TP's is `ncp timeout`. If an NCP opens within it,
+the session goes on. Otherwise a session that never came up ends with NAS
+Error, and one that was up sends an LCP Terminate-Request and ends with Idle
+Timeout.
+<!-- source: internal/component/l2tp/ppp/ncp_bound.go -- noNCPTimeout, closeIdleLink -->
+
 <!-- source: internal/component/l2tp/ppp/yang/ze-ppp-lcp.yang -- shared LCP settings -->
 <!-- source: internal/component/l2tp/ppp/session_run.go -- applyTransition, spendRestartCount, handleRestartTimeout, sendConfigureNakOrReject -->
 

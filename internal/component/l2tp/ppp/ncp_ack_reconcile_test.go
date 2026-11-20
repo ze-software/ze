@@ -22,6 +22,7 @@ func TestNCPInitialCompletionPreservesClosedFamily(t *testing.T) {
 			if fixture.session.handleFrame(lcpFrame(ncpProto(family), LCPTerminateRequest, 31, nil)) {
 				t.Fatal("family termination ended PPP")
 			}
+			fixture.expectFamilyRelease(t, family)
 			if fixture.session.ncpsComplete(true, true) {
 				t.Fatal("unsettled termination permitted initial activation")
 			}
@@ -65,6 +66,7 @@ func TestNCPReopenReconcilesAfterAssignmentAcknowledgment(t *testing.T) {
 			if fixture.session.handleFrame(fixture.configureRequest(family)) {
 				t.Fatal("renegotiation ended PPP")
 			}
+			released := fixture.expectFamilyRelease(t, family)
 			request := fixture.lastConfigureRequest(t, family)
 			finished := make(chan bool, 1)
 			fixture.workers.Go(func() {
@@ -85,6 +87,12 @@ func TestNCPReopenReconcilesAfterAssignmentAcknowledgment(t *testing.T) {
 			}
 			if assignment.Family != family {
 				t.Fatalf("assignment family = %s, want %s", assignment.Family, family)
+			}
+			// The reopen does not begin a new network: its assignment carries
+			// the lifetime the release named.
+			if assignment.NetworkLifetime != released.NetworkLifetime {
+				t.Fatalf("reopen assignment network lifetime = %+v, want the released lifetime %+v",
+					assignment.NetworkLifetime, released.NetworkLifetime)
 			}
 			publication.Store(&assignment)
 			if family == AddressFamilyIPv4 && fixture.session.installedIPv4 != fixture.localPrefix(family) {

@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC1661-5.7-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_ncp_protocol_reject_test.go::TestProtocolRejectAfterSessionUpWithdrawsFamily",
+    "unit-sha": "c1a34968a61b68ed",
+    "claim-sha": "471e7919874a6ad6",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/ncp.go::stopRejectedNCP",
+    "producer-sha": "279b8b5675cb915c",
+    "break": "line 304: \"s.applyNCPTransition(family, current, transition, LCPPacket{})\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC1661-5.7-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_ncp_protocol_reject_test.go::TestProtocolRejectIPCPKeepsIPv6Session",
+    "unit-sha": "46c917aac40b3c4c",
+    "claim-sha": "b19cfca938dfd5b7",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::receiveProtocolReject",
+    "producer-sha": "9d4aeb4ddf337e31",
+    "break": "line 1504: \"s.stopRejectedNCP(AddressFamilyIPv4)\" -\u003e \"s.stopRejectedNCP(AddressFamilyIPv6)\""
+  },
+  {
+    "rid": "RFC1661-5.7-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_ncp_protocol_reject_test.go::TestProtocolRejectIPv6CPKeepsIPv4Session",
+    "unit-sha": "c1799f5943729693",
+    "claim-sha": "0e331f247dcfcf0a",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/ncp.go::stopRejectedNCP",
+    "producer-sha": "279b8b5675cb915c",
+    "break": "line 270: \"s.applyNCPTransition(family, current, transition, LCPPacket{})\" -\u003e \"false\""
+  }
+]

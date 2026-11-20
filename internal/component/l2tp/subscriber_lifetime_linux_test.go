@@ -162,16 +162,21 @@ func TestL2TPSubscriberNetworkLifetime(t *testing.T) {
 			require.Equal(t, first.DNSPrimary, configured.DNSPrimary)
 			require.Equal(t, first.DNSSecondary, configured.DNSSecondary)
 			require.Equal(t, baseline, l2tpActiveSubscribers(t))
-			oldPrefixes := []netip.Prefix{netip.PrefixFrom(first.Peer, 32), oldRoute, oldV6Route}
-			require.Len(t, liveRoutes, len(oldPrefixes))
-			for _, prefix := range oldPrefixes {
-				require.True(t, liveRoutes[prefix], "missing published route %s", prefix)
-			}
+			// The IPv4 install announces the host and the IPv4 framed route; the
+			// IPv6 framed route waits for the IPv6 install (AC-4).
+			oldPrefixes := []netip.Prefix{netip.PrefixFrom(first.Peer, 32), oldRoute}
+			require.Equal(t, map[netip.Prefix]bool{oldPrefixes[0]: true, oldRoute: true}, liveRoutes,
+				"the IPv4 assignment must announce exactly its host and IPv4 framed route")
 
 			var timeoutCtx, idleCtx context.Context
 			if activateFirst {
 				firstV6 = wire.assign(t, ppp.AddressFamilyIPv6)
 				r.handlePPPEvent(firstV6)
+				oldPrefixes = append(oldPrefixes, oldV6Route)
+				require.Len(t, liveRoutes, len(oldPrefixes))
+				for _, prefix := range oldPrefixes {
+					require.True(t, liveRoutes[prefix], "missing published route %s", prefix)
+				}
 				r.handlePPPEvent(wire.nextUp(t))
 				require.Len(t, up, 1)
 				assertL2TPLifetimeAddresses(t, &up[0], first, firstV6)
@@ -430,4 +435,188 @@ func TestL2TPSubscriberLCPDownWithdrawsPublishedLifetime(t *testing.T) {
 	require.ErrorIs(t, ctx.Err(), context.Canceled)
 	require.Same(t, transport, tun.lookupSession(sid))
 	assertNoL2TPLifetimePacket(t, peer)
+}
+
+// TestL2TPFamilyReleaseWithdrawsLiveIPv4Routes proves the redistribution feed
+// follows an IPv4 family release on the real actor chain: the PPP session's
+// release reaches the reactor, the subscriber bridge republishes it as the
+// subscriber release, and the route observer removes that family alone.
+//
+// Method: a dual-stack L2TP session on the actual PPP driver holds one
+// Framed-Route and one Framed-IPv6-Route; the observer's batches are folded
+// into liveRoutes, as TestL2TPSubscriberNetworkLifetime does. The peer's new
+// IPCP Configure-Request takes IPCP out of Opened (RFC 1661 Section 4.4, tld),
+// so the release is the one the PPP session publishes; the peer's
+// Configure-Ack then reopens IPCP. The Terminate-Request trigger of the same
+// release is TestNCPTerminateAfterSessionUpOnUnitFD (ppp).
+//
+// MUTATION: remove the subscriber release republication from
+// subscriberBridge.onSessionIPReleased (subscriber_bridge.go): the /32 and the
+// IPv4 framed route stay in liveRoutes and the release assertion goes red.
+func TestL2TPFamilyReleaseWithdrawsLiveIPv4Routes(t *testing.T) {
+	chain := newFamilyReleaseChain(t, 460, 461, "ppp46")
+
+	chain.reactor.handlePPPEvent(chain.release(t, ppp.AddressFamilyIPv4))
+	require.ElementsMatch(t, []netip.Prefix{chain.host, chain.v4Route}, chain.removed,
+		"an IPv4 release removes the /32 and the IPv4 framed routes")
+	require.Equal(t, map[netip.Prefix]bool{chain.v6Route: true}, chain.liveRoutes,
+		"an IPv4 release leaves the IPv6 framed routes announced")
+
+	chain.reactor.handlePPPEvent(chain.reopen(t, ppp.AddressFamilyIPv4))
+	require.ElementsMatch(t, []netip.Prefix{chain.host, chain.v4Route}, chain.added,
+		"the IPv4 reopen restores exactly the /32 and the IPv4 framed routes")
+	require.Equal(t, chain.allRoutes(), chain.liveRoutes)
+}
+
+// TestL2TPFamilyReleaseWithdrawsLiveIPv6FramedRoutes is the IPv6 half of
+// TestL2TPFamilyReleaseWithdrawsLiveIPv4Routes, on the same chain and session:
+// an IPv6CP renegotiation releases IPv6, which removes the Framed-IPv6-Route
+// prefix while the /32 and the IPv4 framed route stay; the reopen restores
+// exactly the IPv6 framed route. There is no IPv6 host route to remove.
+//
+// MUTATION: remove the subscriber release republication from
+// subscriberBridge.onSessionIPReleased (subscriber_bridge.go): the IPv6 framed
+// route stays in liveRoutes and the release assertion goes red.
+func TestL2TPFamilyReleaseWithdrawsLiveIPv6FramedRoutes(t *testing.T) {
+	chain := newFamilyReleaseChain(t, 470, 471, "ppp47")
+
+	chain.reactor.handlePPPEvent(chain.release(t, ppp.AddressFamilyIPv6))
+	require.Equal(t, []netip.Prefix{chain.v6Route}, chain.removed,
+		"an IPv6 release removes only the IPv6 framed routes")
+	require.Equal(t, map[netip.Prefix]bool{chain.host: true, chain.v4Route: true}, chain.liveRoutes,
+		"an IPv6 release leaves the /32 and the IPv4 framed routes announced")
+
+	chain.reactor.handlePPPEvent(chain.reopen(t, ppp.AddressFamilyIPv6))
+	require.Equal(t, []netip.Prefix{chain.v6Route}, chain.added,
+		"the IPv6 reopen restores exactly the IPv6 framed routes")
+	require.Equal(t, chain.allRoutes(), chain.liveRoutes)
+}
+
+// familyReleaseChain is one dual-stack L2TP session wired through the real
+// reactor, subscriber bridge and route observer, with the observer's batches
+// folded into liveRoutes. added and removed hold the prefixes of the batches
+// since the last release or reopen began. Every bus delivery runs on the test
+// goroutine, inside handlePPPEvent, so the fold needs no lock.
+type familyReleaseChain struct {
+	reactor    *l2tpReactor
+	wire       *currentCoreWire
+	liveRoutes map[netip.Prefix]bool
+	added      []netip.Prefix
+	removed    []netip.Prefix
+	host       netip.Prefix
+	v4Route    netip.Prefix
+	v6Route    netip.Prefix
+	// configure is the Configure-Request Ze sent when the peer's
+	// renegotiation took the family out of Opened; reopen acknowledges it.
+	configure ppp.LCPPacket
+}
+
+func newFamilyReleaseChain(t *testing.T, tid, sid uint16, ifname string) *familyReleaseChain {
+	t.Helper()
+	_, r, stop := newUnstartedReactor(t)
+	t.Cleanup(stop)
+	_, peerAddr := openPeerSocket(t)
+	tun := mkTunnel(r, tid, tid+100, peerAddr)
+	transport := addEstablishedSession(t, tun, sid, sid+100, true)
+	id := transport.SubscriberID()
+	transport.pppInterface = ifname
+	t.Cleanup(func() { cancelSessionTimeouts(transport) })
+	t.Cleanup(func() { ClearSessionMetadata(id) })
+
+	bus := newTestBus()
+	reg := subscriber.NewRegistry()
+	bridge := newSubscriberBridge(reg, bus, r.logger)
+	t.Cleanup(bridge.stop)
+	r.eventBus = bus
+	reader := StartSubscriberRouteObserver(r.logger, bus, subscriber.AccessL2TP, l2tpevents.ProtocolID, l2tpevents.RouteChange)
+	t.Cleanup(reader.Stop)
+
+	peer := netip.MustParseAddr("192.0.2.46")
+	chain := &familyReleaseChain{
+		reactor:    r,
+		liveRoutes: make(map[netip.Prefix]bool),
+		host:       netip.PrefixFrom(peer, 32),
+		v4Route:    netip.MustParsePrefix("198.51.100.0/24"),
+		v6Route:    netip.MustParsePrefix("2001:db8:46::/64"),
+	}
+	bus.Subscribe(l2tpevents.Namespace, redistevents.EventType, func(payload any) {
+		batch, ok := payload.(*redistevents.RouteChangeBatch)
+		if !ok {
+			t.Errorf("route event payload is %T, want *redistevents.RouteChangeBatch", payload)
+			return
+		}
+		for _, entry := range batch.Entries {
+			switch entry.Action {
+			case redistevents.ActionAdd:
+				chain.liveRoutes[entry.Prefix] = true
+				chain.added = append(chain.added, entry.Prefix)
+			case redistevents.ActionRemove:
+				delete(chain.liveRoutes, entry.Prefix)
+				chain.removed = append(chain.removed, entry.Prefix)
+			case redistevents.ActionUnspecified:
+				t.Errorf("unexpected route action %v for %s", entry.Action, entry.Prefix)
+			default:
+				// Route actions are an open event-bus input; report unknown actions.
+				t.Errorf("unexpected route action %v for %s", entry.Action, entry.Prefix)
+			}
+		}
+	})
+	StoreSessionMetadata(id, &AuthMetadata{FramedRoutes: []FramedRoute{{Prefix: chain.v4Route}, {Prefix: chain.v6Route}}})
+
+	chain.wire = newCurrentCoreAdmission(t, r, &currentCoreAdmissionConfig{
+		ids: currentCoreSessionIDs{tunnelID: tid, sessionID: sid}, ipv6: true, subscriberID: "",
+	})
+	chain.wire.prepareNetwork(t, "family-user", ppp.IPResponseArgs{Accept: true, Family: ppp.AddressFamilyIPv4,
+		Local: netip.MustParseAddr("192.0.2.1"), Peer: peer}, [8]byte{2, 0, 0, 0, 0, 0, 0, 46})
+	r.handlePPPEvent(chain.wire.assign(t, ppp.AddressFamilyIPv4))
+	r.handlePPPEvent(chain.wire.assign(t, ppp.AddressFamilyIPv6))
+	r.handlePPPEvent(chain.wire.nextUp(t))
+	require.Equal(t, chain.allRoutes(), chain.liveRoutes, "each family's install announces its own routes")
+	return chain
+}
+
+func (chain *familyReleaseChain) allRoutes() map[netip.Prefix]bool {
+	return map[netip.Prefix]bool{chain.host: true, chain.v4Route: true, chain.v6Route: true}
+}
+
+// release sends the peer's new Configure-Request for the family and returns
+// the release the PPP session publishes for it. RFC 1661 Section 4.4 orders
+// the Opened RCR+ actions tld, scr, sca, so the release precedes Ze's frames.
+func (chain *familyReleaseChain) release(t *testing.T, family ppp.AddressFamily) ppp.EventSessionIPReleased {
+	t.Helper()
+	protocol, options := chain.peerConfigure(family)
+	chain.added, chain.removed = nil, nil
+	chain.wire.write(t, protocol, ppp.LCPConfigureRequest, 0x63, options)
+	event := chain.wire.event(t)
+	released, ok := event.(ppp.EventSessionIPReleased)
+	require.True(t, ok, "the %s renegotiation published %T, want the family release", family, event)
+	require.Equal(t, family, released.Family)
+	chain.configure = chain.wire.read(t, protocol, ppp.LCPConfigureRequest)
+	chain.wire.read(t, protocol, ppp.LCPConfigureAck)
+	return released
+}
+
+// reopen acknowledges Ze's Configure-Request, which takes the family to
+// Opened again, and returns the assignment the PPP session publishes.
+func (chain *familyReleaseChain) reopen(t *testing.T, family ppp.AddressFamily) ppp.EventSessionIPAssigned {
+	t.Helper()
+	protocol, _ := chain.peerConfigure(family)
+	chain.added, chain.removed = nil, nil
+	chain.wire.write(t, protocol, ppp.LCPConfigureAck, chain.configure.Identifier, chain.configure.Data)
+	event := chain.wire.event(t)
+	assigned, ok := event.(ppp.EventSessionIPAssigned)
+	require.True(t, ok, "the %s reopen published %T, want the assignment", family, event)
+	require.Equal(t, family, assigned.Family)
+	return assigned
+}
+
+// peerConfigure answers the protocol and the peer's Configure-Request options
+// for the family, from the addresses the pool answered.
+func (chain *familyReleaseChain) peerConfigure(family ppp.AddressFamily) (uint16, []byte) {
+	answer := chain.wire.answers[family]
+	if family == ppp.AddressFamilyIPv4 {
+		address := answer.Peer.As4()
+		return ppp.ProtoIPCP, append([]byte{ppp.IPCPOptIPAddress, 6}, address[:]...)
+	}
+	return ppp.ProtoIPv6CP, append([]byte{ppp.IPv6CPOptInterfaceID, 10}, answer.PeerInterfaceID[:]...)
 }

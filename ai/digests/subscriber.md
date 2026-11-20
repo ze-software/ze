@@ -156,7 +156,13 @@ channel and unit to a kernel session handle before handing borrowed frames to PP
     `requestIPCPAddresses` at `ncp.go`), then drives each family's FSM via
     `startNCP`/`handleNCPPacket` (`ncp.go,330`). On IPCP `Opened`, `onNCPOpened`
     (`ncp.go`) programs typed local/peer addresses through the session handle and emits
-    `EventSessionIPAssigned` (`ncp.go`). The pool handler is wired the same
+    `EventSessionIPAssigned` (`ncp.go`). When one family's NCP leaves Opened
+    while LCP stays up, its TLD withdraws the family from pppN and
+    `publishNCPRelease` (`ncp.go`) emits `EventSessionIPReleased`; the L2TP
+    reactor (`handleSessionIPReleased`, clears `assignedAddr` for IPv4) and the
+    PPPoE subsystem (`onSessionIPReleased`) clear that family in the registry
+    (`subevents.ClearReleasedFamily`) and publish `session-ip-released`, which
+    the route observer (`release`) and RADIUS accounting read. The pool handler is wired the same
     transport-parallel way as auth: PPPoE `startPPPoEPoolDrain` (`pppoe/drain.go`) /
     L2TP `startPoolDrain` (`l2tp/drain.go`), both resolving through
     `subscriber.GetPoolHandler()` (`subscriber/handler_registry.go`), e.g. the static-pool

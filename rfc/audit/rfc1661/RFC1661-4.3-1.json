@@ -1,20 +1,20 @@
 {
   "code": {
     "internal/component/l2tp/ppp/ppp_fsm.go::LCPDoTransition": "5d8dbd54e9961d01",
-    "internal/component/l2tp/ppp/session_run.go::handleLCPPacket": "e6d18268699bada3",
-    "internal/component/l2tp/pppoeclient/connected_session.go::connectedSession.restart": "50bdbcf67cfb9108",
+    "internal/component/l2tp/ppp/session_run.go::handleLCPPacket": "703c511e74d635b3",
+    "internal/component/l2tp/pppoeclient/connected_session.go::connectedSession.restart": "f03b9ad715ed8ba5",
     "internal/component/l2tp/pppoeclient/network_phase.go::keepaliveLoop": "1c0cb6ce12dcab33",
     "internal/component/l2tp/pppoeclient/phases.go::negotiatePhases": "318da5d6e462a076"
   },
-  "note": "Re-read Section 4.3's immediate-renegotiation sentence, the Section 4.1 Opened RCR+/RCR- table, and all six tagged units. The server tests require exact tld/scr/sca or tld/scr/scn actions, Ack-Sent for an acceptable request, actual Configure-Request and Ack output, and no session-down event; the distinct Echo control retains Opened without scr or tld. Client Auth, IPCP and Network probes require their own Configure-Request immediately before an exact peer Ack with Identifier 0x73 and Magic 0x55667788; Auth additionally requires the second CHAP Response. The request is structurally valid, so malformed-option discard cannot satisfy these assertions. The changed network fixture and shared exchange helper now explicitly supply Max-Failure five, preserving their prior packets and assertions. Current mutant records address phase dispatch; producer-disable records establish reachability only. The semantic assertions and current reentry/phase producer chain, not the record routes alone, ground this judgment.",
+  "note": "Rejudged after handleLCPPacket gained a Protocol-Reject branch (RFC 1661 Section 5.7) and connectedSession.restart moved its NPMode constants to pppkernel. Re-read Section 4.3's immediate-renegotiation sentence and the Section 4.1 Opened RCR+/RCR- cells. The new branch runs only for pkt.Code == LCPProtocolReject: outside Opened it returns before codeToEvent, and in Opened it hands the Rejected-Protocol to receiveProtocolReject. A Configure-Request reaches evalLCPRequest, the Opened resetAuthNegotiation and LCPDoTransition along byte-identical code, and the restart change is an import rename with the same modes. All six tagged units are unchanged and send no Protocol-Reject. The server tests still require exact tld/scr/sca or tld/scr/scn actions, Ack-Sent, the Configure-Request and Ack output and no session-down event. The Echo control still refuses scr/tld. The client Auth, IPCP and Network probes still require their own Configure-Request before an exact peer Ack, Identifier 0x73 and Magic 0x55667788. The earlier judgment stands, and its record caveat still applies: the mutant records cover phase dispatch, and the producer-disable records prove only reachability.",
   "requirement_sha": "f615a6f02dc3c0c1",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ConfigureRequestInOpenedRenegotiates": "480d72ff3c4dac57",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoDoesNotRenegotiate": "a1d8f8274d199376",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661RenegotiateOnConfigureRequestInOpened": "a1d8f8274d199376",
-    "internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go::TestRFC1661ClientRenegotiatesLCPDuringAuth": "8a4a42a539b82f1c",
-    "internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go::TestRFC1661ClientRenegotiatesLCPDuringIPCP": "8a4a42a539b82f1c",
-    "internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go::TestRFC1661ClientRenegotiatesLCPInNetworkPhase": "8a4a42a539b82f1c"
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoDoesNotRenegotiate": "3ac1fd8ae501d890",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661RenegotiateOnConfigureRequestInOpened": "3ac1fd8ae501d890",
+    "internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go::TestRFC1661ClientRenegotiatesLCPDuringAuth": "c492443329fdce1d",
+    "internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go::TestRFC1661ClientRenegotiatesLCPDuringIPCP": "c492443329fdce1d",
+    "internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go::TestRFC1661ClientRenegotiatesLCPInNetworkPhase": "c492443329fdce1d"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ConfigureRequestInOpenedRenegotiates": "10e4e2442df38e91",

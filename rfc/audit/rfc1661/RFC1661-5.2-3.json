@@ -1,10 +1,10 @@
 {
   "code": {
     "internal/component/l2tp/ppp/lcp.go::ValidateLCPReply": "d780e35728fa1ac8",
-    "internal/component/l2tp/ppp/session_run.go::handleLCPPacket": "e6d18268699bada3",
+    "internal/component/l2tp/ppp/session_run.go::handleLCPPacket": "703c511e74d635b3",
     "internal/component/l2tp/pppoeclient/session.go::negotiateLCP": "039a2c530a0ae987"
   },
-  "note": "Re-read Section 5.2 and both server/client correlation units. An otherwise exact Ack with only its Identifier changed leaves the server FSM/wire and client completion/output unchanged; the matching exact Ack advances the server to Ack-Rcvd and completes the client whose peer direction was already acknowledged. Those positive controls reject unconditional silence. The wrong-Identifier input has the correct original options, isolating this clause from the exact-options rule. The client now explicitly supplies Max-Failure five without changing a packet or assertion. ValidateLCPReply compares Identifier before either receiving path can mutate negotiation. Current client producer-disable records establish reachability; the independently read wrong/matching Identifier assertions supply the semantic distinction.",
+  "note": "Rejudged after handleLCPPacket gained a Protocol-Reject branch for pkt.Code == LCPProtocolReject. Re-read Section 5.2. The Configure-Ack path keeps its ValidateLCPReply check, which compares Identifier against lastLCPRequestID ahead of the new branch and before any state change, and it is byte-identical. An Ack never enters the branch. The tagged server and client units are unchanged. An exact Ack differing only in its Identifier still leaves the server FSM and wire and the client completion and output unchanged, while the matching Ack still advances the server to Ack-Rcvd and completes the client. Those positive controls rule out blanket silence, and the wrong-Identifier input keeps the correct options, isolating this clause. The verdict holds.",
   "requirement_sha": "e28f64e845acd868",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "6e1e87cfaa4fb86b",

@@ -139,12 +139,25 @@ type actorRouteInput struct {
 	username     string
 	address      netip.Addr
 	framedRoutes []FramedRoute
+	// ipv6 enables IPv6CP: the admission answers the IPv6 pool request with
+	// actorRouteInterfaceID and drives the IPv6 assignment after the IPv4 one.
+	ipv6 bool
 }
 
+// actorRouteInterfaceID is the peer interface identifier an ipv6 admission
+// answers its IPv6 pool request with.
+var actorRouteInterfaceID = [8]byte{2, 0, 0, 0, 0, 0, 0, 0x72}
+
+// actorRouteAdmission holds the admitted session. routesAfterIPv4 and
+// routesAfterIPv6 count the route-change events recorded once each family's
+// assignment was handled, so a test reads each install's adds apart; they are
+// equal when the admission left IPv6CP disabled.
 type actorRouteAdmission struct {
-	reactor *l2tpReactor
-	session *L2TPSession
-	wire    *currentCoreWire
+	reactor         *l2tpReactor
+	session         *L2TPSession
+	wire            *currentCoreWire
+	routesAfterIPv4 int
+	routesAfterIPv6 int
 }
 
 // newActorRouteAdmission uses actual ICRQ/ICCN allocation, Driver admission,
@@ -207,7 +220,7 @@ func newActorRouteAdmission(t *testing.T, observer *recordingRouteObserver, inpu
 	wire.startSession = ppp.StartSession{
 		LCP: lcp, TunnelID: 17, SessionID: 7,
 		L2TPBirth: birth, SubscriberID: id, Attempt: attempt, Frames: owner, Dataplane: owner,
-		LNSMode: true, DisableIPv6CP: true, AuthMethod: ppp.AuthMethodPAP,
+		LNSMode: true, DisableIPv6CP: !input.ipv6, AuthMethod: ppp.AuthMethodPAP,
 		AuthFallbackOrder: []ppp.AuthMethod{ppp.AuthMethodPAP}, AuthTimeout: time.Hour,
 		IPTimeout: time.Hour, EchoInterval: time.Hour, ProxyLCPInitialRecv: options,
 		ProxyLCPLastSent: options, ProxyLCPLastRecv: options,
@@ -238,17 +251,36 @@ func newActorRouteAdmission(t *testing.T, observer *recordingRouteObserver, inpu
 	require.NoError(t, driver.IPResponse(addressRequest, answer))
 	wire.answers[ppp.AddressFamilyIPv4] = answer
 	wire.configurations[ppp.AddressFamilyIPv4] = wire.read(t, ppp.ProtoIPCP, ppp.LCPConfigureRequest)
+	if input.ipv6 {
+		wire.ipv6 = true
+		addressRequest = wire.poolRequest(t)
+		require.Equal(t, ppp.AddressFamilyIPv6, addressRequest.Family)
+		answerIPv6 := ppp.IPResponseArgs{Accept: true, Family: ppp.AddressFamilyIPv6,
+			PeerInterfaceID: actorRouteInterfaceID, HasPeerInterface: true}
+		require.NoError(t, driver.IPResponse(addressRequest, answerIPv6))
+		wire.answers[ppp.AddressFamilyIPv6] = answerIPv6
+		wire.configurations[ppp.AddressFamilyIPv6] = wire.read(t, ppp.ProtoIPv6CP, ppp.LCPConfigureRequest)
+	}
 	wire.assignment = wire.assign(t, ppp.AddressFamilyIPv4)
 	require.Equal(t, opened.Control, wire.assignment.Control)
 	require.Equal(t, birth, wire.assignment.Birth)
 	require.Equal(t, id, wire.assignment.SubscriberID)
 	reactor.handleSessionIPAssigned(wire.assignment)
+	routesAfterIPv4 := len(observer.routes.events())
+	if input.ipv6 {
+		assignment := wire.assign(t, ppp.AddressFamilyIPv6)
+		require.Equal(t, opened.Control, assignment.Control)
+		require.Equal(t, actorRouteInterfaceID, assignment.InterfaceID)
+		reactor.handleSessionIPAssigned(assignment)
+	}
+	routesAfterIPv6 := len(observer.routes.events())
 	up := wire.nextUp(t)
 	require.Equal(t, opened.Control, up.Control)
 	require.Equal(t, birth, up.Birth)
 	require.Equal(t, id, up.SubscriberID)
 	reactor.handleSessionUp(up)
-	return &actorRouteAdmission{reactor: reactor, session: session, wire: wire}
+	return &actorRouteAdmission{reactor: reactor, session: session, wire: wire,
+		routesAfterIPv4: routesAfterIPv4, routesAfterIPv6: routesAfterIPv6}
 }
 
 func actorRouteEcho(t *testing.T, wire *currentCoreWire) {

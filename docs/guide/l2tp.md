@@ -522,7 +522,18 @@ PPP negotiation proceeds through these phases:
    subscriber's CPE does not run one of them: a CPE that answers IPv6CP
    (or IPCP) with an LCP Protocol-Reject, as pppd run with `noipv6` does,
    gets that NCP stopped until LCP renegotiates, and the session comes up
-   with the other family as soon as it opens.
+   with the other family as soon as it opens. An NCP the subscriber
+   terminates, or one that reaches Max-Configure unanswered, finishes on its
+   own too: the other family and the link stay up, and the subscriber can
+   reopen it at any time (RFC 1661 Section 3.7: one NCP closing "is not
+   sufficient reason to cause the termination of the PPP link").
+   The session comes up only once at least one NCP is open. A link with no
+   NCP open is held for the `ncp timeout`, counted from the start of NCP
+   negotiation or from the moment the last open NCP closed, and never reset
+   while no NCP is open. If an NCP opens within it, the session goes on.
+   Otherwise a session that never came up ends with NAS Error, and one that
+   was up sends an LCP Terminate-Request and ends with Idle Timeout.
+<!-- source: internal/component/l2tp/ppp/ncp_bound.go -- armNoNCPBound, trackNoNCPBound, closeIdleLink -->
 
 The PPP MRU counts the Information field, not the two-octet Protocol field.
 Ze's userspace buffers hold 1502 octets, and the kernel receive MRU stays at
@@ -705,6 +716,13 @@ l2tp {
     }
 }
 ```
+
+`timeout` (seconds, default 30) is the no-NCP bound: how long a session may
+hold the link with no NCP open. It runs from the start of NCP negotiation, and
+again from the moment the last open NCP closes after the session came up; a
+peer that keeps one NCP negotiating cannot extend it. Expiry before the
+session came up ends it with NAS Error; expiry after it ends it with an LCP
+Terminate-Request and Idle Timeout.
 
 <!-- source: internal/component/l2tp/yang/ze-l2tp-conf.yang -- ncp container -->
 

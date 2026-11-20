@@ -19,15 +19,20 @@ import (
 	"github.com/ze-software/ze/pkg/ze"
 )
 
-// routeRecord is the live state the observer tracks per session.
+// routeRecord is the live state the observer tracks per session. framedRoutes
+// holds both families' authorized framed routes, counted together against
+// l2tpevents.FramedRoutesMax; each family's half is announced on that family's
+// install and withdrawn on its release, and its emitted flag says the half is
+// live in the feed now.
 type routeRecord struct {
-	instance      uint32
-	network       l2tpevents.NetworkLifetime
-	username      string
-	v4            netip.Addr
-	v6            netip.Addr
-	framedRoutes  []FramedRoute
-	framedEmitted bool
+	instance          uint32
+	network           l2tpevents.NetworkLifetime
+	username          string
+	v4                netip.Addr
+	v6                netip.Addr
+	framedRoutes      []FramedRoute
+	framedEmittedIPv4 bool
+	framedEmittedIPv6 bool
 }
 
 // subscriberRouteObserver retains live routes by subscriber ID for one access
@@ -62,7 +67,7 @@ type SubscriberRouteSubscription struct {
 	unsubs   []func()
 }
 
-// StartSubscriberRouteObserver subscribes to assignment, down and replay for
+// StartSubscriberRouteObserver subscribes to assignment, family release, down and replay for
 // one access type. The owning transport MUST start it before emitting notices
 // and retain it until its terminal notices have all returned.
 func StartSubscriberRouteObserver(logger *slog.Logger, bus ze.EventBus, access subscriber.AccessType,
@@ -72,10 +77,13 @@ func StartSubscriberRouteObserver(logger *slog.Logger, bus ze.EventBus, access s
 	if bus != nil {
 		subscription.unsubs = []func(){
 			subevents.SessionIPAssigned.Subscribe(bus, func(p *subevents.SessionIPAssignedPayload) {
-				subscription.deliver(func() { subscription.observer.assign(p.Session, p.NetworkLifetime, p.Address, p.FramedRoutes) })
+				subscription.deliver(func() { subscription.observer.assign(&p.Session, p.NetworkLifetime, p.Address, p.FramedRoutes) })
+			}),
+			subevents.SessionIPReleased.Subscribe(bus, func(p *subevents.SessionIPReleasedPayload) {
+				subscription.deliver(func() { subscription.observer.release(&p.Session, p.NetworkLifetime, p.Family) })
 			}),
 			subevents.SessionDown.Subscribe(bus, func(p *subevents.SessionDownPayload) {
-				subscription.deliver(func() { subscription.observer.withdraw(p.Session, p.NetworkLifetime) })
+				subscription.deliver(func() { subscription.observer.withdraw(&p.Session, p.NetworkLifetime) })
 			}),
 			redistevents.ReplayRequestEvent.Subscribe(bus, func(p *redistevents.ReplayRequest) {
 				subscription.deliver(func() { subscription.observer.reemitAll(p.ReplayID) })
@@ -133,7 +141,7 @@ func newAccessRouteObserver(logger *slog.Logger, bus ze.EventBus, access subscri
 	}
 }
 
-func (o *subscriberRouteObserver) ownsSession(session subscriber.Session, operation string) bool {
+func (o *subscriberRouteObserver) ownsSession(session *subscriber.Session, operation string) bool {
 	if session.AccessType != o.access {
 		return false
 	}
@@ -144,10 +152,19 @@ func (o *subscriberRouteObserver) ownsSession(session subscriber.Session, operat
 	return subscriber.RequireID(o.logger, session.ID) == nil
 }
 
-// assign tracks each family under the same subscriber ID and copies framed
-// routes from the first address assignment of that network lifetime.
-func (o *subscriberRouteObserver) assign(session subscriber.Session, network l2tpevents.NetworkLifetime, addr netip.Addr, framedRoutes []FramedRoute) {
-	if !addr.IsValid() || !o.ownsSession(session, "route assignment") {
+// assign installs one family under the subscriber's record. A notice with an
+// address installs that address's family and its host route; a notice with no
+// address and an interface identifier is the IPv6CP install, which has no
+// host route. The record, and its instance, are created by the first family
+// installed in the network lifetime, which copies the framed routes. Each
+// family's framed routes are announced on that family's install, never on the
+// other family's, so an IPv6-only session announces its IPv6 framed routes.
+func (o *subscriberRouteObserver) assign(session *subscriber.Session, network l2tpevents.NetworkLifetime, addr netip.Addr, framedRoutes []FramedRoute) {
+	installed := installedFamily(session, addr)
+	if installed == l2tpevents.AddressFamilyUnspecified {
+		return
+	}
+	if !o.ownsSession(session, "route assignment") {
 		return
 	}
 	if len(framedRoutes) > l2tpevents.FramedRoutesMax {
@@ -178,39 +195,173 @@ func (o *subscriberRouteObserver) assign(session subscriber.Session, network l2t
 	if session.Username != "" && r.username == "" {
 		r.username = session.Username
 	}
-	if addr.Is4() {
-		prev = r.v4
-		r.v4 = addr
-	} else {
-		prev = r.v6
-		r.v6 = addr
+	if addr.IsValid() {
+		if addr.Is4() {
+			prev = r.v4
+			r.v4 = addr
+		} else {
+			prev = r.v6
+			r.v6 = addr
+		}
+		o.injectedTotal++
 	}
-	var emitFramed []FramedRoute
-	if !r.framedEmitted && len(r.framedRoutes) > 0 {
-		emitFramed = r.framedRoutes
-		r.framedEmitted = true
-	}
-	o.injectedTotal++
+	emitFramed := r.takeFramedRoutes(installed)
 	instance := r.instance
 	username := r.username
 	o.mu.Unlock()
 	o.logger.Info(string(o.access)+": subscriber route inject",
-		"session-id", routeSessionLabel(session),
+		reportFieldSessionID, routeSessionLabel(session),
 		"username", username,
-		"address", addr.String(),
-		"family", familyOf(addr))
-	if prev.IsValid() && prev != addr {
-		o.emitRemove(prev, instance)
+		"family", installed.String(),
+		"framed-routes", len(emitFramed))
+	if addr.IsValid() {
+		if prev.IsValid() && prev != addr {
+			o.emitRemove(prev, instance)
+		}
+		o.emitAdd(addr, instance)
 	}
-	o.emitAdd(addr, instance)
 	if len(emitFramed) > 0 {
 		o.emitFramedRoutes(redistevents.ActionAdd, emitFramed, instance)
 	}
 }
 
-// withdraw removes each recorded host route and all captured framed routes
-// for this subscriber and network lifetime.
-func (o *subscriberRouteObserver) withdraw(session subscriber.Session, network l2tpevents.NetworkLifetime) {
+// installedFamily names the family an assignment notice installs: the
+// address's family when it carries one, IPv6 when it carries only an IPv6CP
+// interface identifier, and Unspecified when it installs nothing.
+func installedFamily(session *subscriber.Session, addr netip.Addr) l2tpevents.AddressFamily {
+	if addr.Is4() {
+		return l2tpevents.AddressFamilyIPv4
+	}
+	if addr.Is6() {
+		return l2tpevents.AddressFamilyIPv6
+	}
+	if session.IPv6InterfaceID != [8]byte{} {
+		return l2tpevents.AddressFamilyIPv6
+	}
+	return l2tpevents.AddressFamilyUnspecified
+}
+
+// takeFramedRoutes returns the family's framed routes when they are not live
+// yet and marks them live; nil when they already are or the family has none.
+// Caller MUST hold the observer's mu.
+func (r *routeRecord) takeFramedRoutes(family l2tpevents.AddressFamily) []FramedRoute {
+	routes := framedRoutesOf(r.framedRoutes, family)
+	if len(routes) == 0 {
+		return nil
+	}
+	switch family {
+	case l2tpevents.AddressFamilyIPv4:
+		if r.framedEmittedIPv4 {
+			return nil
+		}
+		r.framedEmittedIPv4 = true
+	case l2tpevents.AddressFamilyIPv6:
+		if r.framedEmittedIPv6 {
+			return nil
+		}
+		r.framedEmittedIPv6 = true
+	case l2tpevents.AddressFamilyUnspecified:
+		return nil
+	}
+	return routes
+}
+
+// liveFramedRoutes returns the framed routes now announced, both families.
+// Caller MUST hold the observer's mu.
+func (r *routeRecord) liveFramedRoutes() []FramedRoute {
+	var live []FramedRoute
+	if r.framedEmittedIPv4 {
+		live = append(live, framedRoutesOf(r.framedRoutes, l2tpevents.AddressFamilyIPv4)...)
+	}
+	if r.framedEmittedIPv6 {
+		live = append(live, framedRoutesOf(r.framedRoutes, l2tpevents.AddressFamilyIPv6)...)
+	}
+	return live
+}
+
+// framedRoutesOf selects the framed routes of one family: Framed-Route
+// (RFC 2865 Section 5.22) is IPv4, Framed-IPv6-Route (RFC 3162 Section 2.5)
+// is IPv6.
+func framedRoutesOf(routes []FramedRoute, family l2tpevents.AddressFamily) []FramedRoute {
+	var selected []FramedRoute
+	for _, fr := range routes {
+		if framedRouteFamily(fr) == family {
+			selected = append(selected, fr)
+		}
+	}
+	return selected
+}
+
+func framedRouteFamily(fr FramedRoute) l2tpevents.AddressFamily {
+	if fr.Prefix.Addr().Is4() {
+		return l2tpevents.AddressFamilyIPv4
+	}
+	return l2tpevents.AddressFamilyIPv6
+}
+
+// release removes one family's routes while the session and the other family
+// stay up: IPv4 its /32 and its framed routes, IPv6 its framed routes (and a
+// /128 host route, which only a notice with an IPv6 address installs). The
+// record and its instance stay, and the family's emitted flag is cleared, so
+// its next install re-adds exactly its own routes under the same instance.
+func (o *subscriberRouteObserver) release(session *subscriber.Session, network l2tpevents.NetworkLifetime, family l2tpevents.AddressFamily) {
+	if !o.ownsSession(session, "route release") {
+		return
+	}
+	o.mu.Lock()
+	r := o.records[session.ID]
+	if r == nil {
+		o.mu.Unlock()
+		return
+	}
+	if r.network.IsValid() && network.IsValid() && r.network != network {
+		o.mu.Unlock()
+		return
+	}
+	var host netip.Addr
+	var framed []FramedRoute
+	switch family {
+	case l2tpevents.AddressFamilyIPv4:
+		host = r.v4
+		r.v4 = netip.Addr{}
+		if r.framedEmittedIPv4 {
+			framed = framedRoutesOf(r.framedRoutes, family)
+			r.framedEmittedIPv4 = false
+		}
+	case l2tpevents.AddressFamilyIPv6:
+		host = r.v6
+		r.v6 = netip.Addr{}
+		if r.framedEmittedIPv6 {
+			framed = framedRoutesOf(r.framedRoutes, family)
+			r.framedEmittedIPv6 = false
+		}
+	case l2tpevents.AddressFamilyUnspecified:
+		o.mu.Unlock()
+		return
+	}
+	if host.IsValid() {
+		o.withdrawnTotal++
+	}
+	instance := r.instance
+	username := r.username
+	o.mu.Unlock()
+	if host.IsValid() {
+		o.emitRemove(host, instance)
+	}
+	if len(framed) > 0 {
+		o.emitFramedRoutes(redistevents.ActionRemove, framed, instance)
+	}
+	o.logger.Info(string(o.access)+": subscriber family routes withdrawn",
+		reportFieldSessionID, routeSessionLabel(session),
+		"username", username,
+		"family", family.String(),
+		"framed-routes", len(framed))
+}
+
+// withdraw removes each recorded host route and every framed route still
+// announced, of either family, for this subscriber and network lifetime. A
+// family released earlier contributes nothing a second time.
+func (o *subscriberRouteObserver) withdraw(session *subscriber.Session, network l2tpevents.NetworkLifetime) {
 	if !o.ownsSession(session, "route withdrawal") {
 		return
 	}
@@ -226,7 +377,7 @@ func (o *subscriberRouteObserver) withdraw(session subscriber.Session, network l
 	o.mu.Unlock()
 	o.emitRecordRemovals(r)
 	o.logger.Info(string(o.access)+": subscriber routes withdrawn",
-		"session-id", routeSessionLabel(session),
+		reportFieldSessionID, routeSessionLabel(session),
 		"username", r.username,
 		"withdrawn", withdrawn)
 }
@@ -264,12 +415,10 @@ func (o *subscriberRouteObserver) emitRecordRemovals(r *routeRecord) {
 	if r.v6.IsValid() {
 		o.emitRemove(r.v6, r.instance)
 	}
-	if r.framedEmitted {
-		o.emitFramedRoutes(redistevents.ActionRemove, r.framedRoutes, r.instance)
-	}
+	o.emitFramedRoutes(redistevents.ActionRemove, r.liveFramedRoutes(), r.instance)
 }
 
-func routeSessionLabel(session subscriber.Session) uint16 {
+func routeSessionLabel(session *subscriber.Session) uint16 {
 	if session.AccessType == subscriber.AccessPPPoE {
 		return session.PPPoESID
 	}
@@ -329,7 +478,7 @@ func (o *subscriberRouteObserver) emitEntries(replayID uint64, fam family.Family
 		const fix = "ze show doctor"
 		o.logger.Warn(problem, "code", report.CodeInternalDefect, "access-type", o.access, "error", err, "fix", fix)
 		report.RaiseWarningFix(string(o.access), report.CodeInternalDefect, "subscriber route publication",
-			problem, fix, map[string]any{"cause": err.Error()})
+			problem, fix, map[string]any{reportFieldCause: err.Error()})
 	}
 }
 
@@ -359,14 +508,12 @@ func (o *subscriberRouteObserver) reemitAll(replayID uint64) {
 		if r.v6.IsValid() {
 			v6addrs = append(v6addrs, sessionAddress{address: r.v6, instance: r.instance})
 		}
-		if r.framedEmitted {
-			for _, fr := range r.framedRoutes {
-				e := redistevents.RouteChangeEntry{Action: redistevents.ActionAdd, Prefix: fr.Prefix, Metric: fr.Metric, SourceInstance: r.instance}
-				if fr.Prefix.Addr().Is4() {
-					v4framed = append(v4framed, e)
-				} else {
-					v6framed = append(v6framed, e)
-				}
+		for _, fr := range r.liveFramedRoutes() {
+			e := redistevents.RouteChangeEntry{Action: redistevents.ActionAdd, Prefix: fr.Prefix, Metric: fr.Metric, SourceInstance: r.instance}
+			if fr.Prefix.Addr().Is4() {
+				v4framed = append(v4framed, e)
+			} else {
+				v6framed = append(v6framed, e)
 			}
 		}
 	}
@@ -433,12 +580,4 @@ func familyForAddr(addr netip.Addr) family.Family {
 		return family.IPv4Unicast
 	}
 	return family.IPv6Unicast
-}
-
-// familyOf returns "ipv4" or "ipv6" for the given address.
-func familyOf(a netip.Addr) string {
-	if a.Is4() {
-		return "ipv4"
-	}
-	return "ipv6"
 }

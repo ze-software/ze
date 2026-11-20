@@ -28,12 +28,12 @@ func newSubscriberRouteObserver(logger *slog.Logger, bus ze.EventBus) *subscribe
 }
 
 func (o *subscriberRouteObserver) OnSessionIPUp(birth subscriberid.L2TPBirth, tunnelID, sessionID uint16, username string, addr netip.Addr, framedRoutes []FramedRoute) {
-	o.assign(subscriber.Session{ID: birth.String(), L2TPBirth: birth, AccessType: subscriber.AccessL2TP,
+	o.assign(&subscriber.Session{ID: birth.String(), L2TPBirth: birth, AccessType: subscriber.AccessL2TP,
 		TunnelID: tunnelID, SessionID: sessionID, Username: username}, l2tpevents.NetworkLifetime{}, addr, framedRoutes)
 }
 
 func (o *subscriberRouteObserver) OnSessionDown(birth subscriberid.L2TPBirth, tunnelID, sessionID uint16) {
-	o.withdraw(subscriber.Session{ID: birth.String(), L2TPBirth: birth, AccessType: subscriber.AccessL2TP,
+	o.withdraw(&subscriber.Session{ID: birth.String(), L2TPBirth: birth, AccessType: subscriber.AccessL2TP,
 		TunnelID: tunnelID, SessionID: sessionID}, l2tpevents.NetworkLifetime{})
 }
 
@@ -432,7 +432,12 @@ func TestObserver_OnSessionDown_WithdrawsFramedRoutes(t *testing.T) {
 	require.Equal(t, netip.MustParsePrefix("10.0.0.0/8"), b1.Entries[0].Prefix)
 }
 
-// VALIDATES: AC-9 -- IPv6 framed routes emitted in ipv6/unicast batch.
+// VALIDATES: AC-9 -- IPv6 framed routes emitted in ipv6/unicast batch, on the
+// session's IPv6 install and never on its IPv4 one (AC-4: a release removes
+// only its own family's routes, so each family announces only its own).
+// Method: the IPv4 assignment, then the IPv6CP notice the transports deliver,
+// an interface identifier with no address, so the IPv6 install emits no /128
+// host batch and its one batch is the framed route.
 func TestObserver_OnSessionIPUp_EmitsIPv6FramedRoutes(t *testing.T) {
 	bus := &recordingBus{}
 	o := newSubscriberRouteObserver(slog.Default(), bus)
@@ -440,19 +445,35 @@ func TestObserver_OnSessionIPUp_EmitsIPv6FramedRoutes(t *testing.T) {
 	framed := []FramedRoute{
 		{Prefix: netip.MustParsePrefix("2001:db8::/32"), Metric: 5},
 	}
+	birth := fixedRouteFixtureBirth(t, 72)
+	session := subscriber.Session{ID: birth.String(), L2TPBirth: birth, AccessType: subscriber.AccessL2TP,
+		TunnelID: 1, SessionID: 72, Username: "carol"}
 
-	o.OnSessionIPUp(fixedRouteFixtureBirth(t, 72), 1, 72, "carol", netip.MustParseAddr("192.0.2.72"), framed)
+	o.assign(&session, l2tpevents.NetworkLifetime{}, netip.MustParseAddr("192.0.2.72"), framed)
 
 	evts := bus.events()
-	require.Len(t, evts, 2)
+	require.Len(t, evts, 1, "the IPv4 install emits its /32 alone")
+	b0, ok := evts[0].payload.(*redistevents.RouteChangeBatch)
+	require.True(t, ok)
+	require.Equal(t, uint16(1), b0.AFI, "ipv4")
+	require.Len(t, b0.Entries, 1)
+	require.Equal(t, redistevents.ActionAdd, b0.Entries[0].Action)
+	require.Equal(t, netip.MustParsePrefix("192.0.2.72/32"), b0.Entries[0].Prefix)
+	instance := b0.Entries[0].SourceInstance
 
+	session.IPv6InterfaceID = [8]byte{0x02, 0, 0, 0, 0, 0, 0, 0x72}
+	o.assign(&session, l2tpevents.NetworkLifetime{}, netip.Addr{}, nil)
+
+	evts = bus.events()
+	require.Len(t, evts, 2, "the IPv6 install emits one AFI 2 batch")
 	b1, ok := evts[1].payload.(*redistevents.RouteChangeBatch)
 	require.True(t, ok)
 	require.Equal(t, uint16(2), b1.AFI, "ipv6")
-	require.Len(t, b1.Entries, 1)
+	require.Len(t, b1.Entries, 1, "the framed route alone, no second /32")
 	require.Equal(t, redistevents.ActionAdd, b1.Entries[0].Action)
 	require.Equal(t, netip.MustParsePrefix("2001:db8::/32"), b1.Entries[0].Prefix)
 	require.Equal(t, uint32(5), b1.Entries[0].Metric)
+	require.Equal(t, instance, b1.Entries[0].SourceInstance, "the IPv6 install carries the record's instance")
 }
 
 // VALIDATES: dual-stack subscriber does not double-emit framed routes.

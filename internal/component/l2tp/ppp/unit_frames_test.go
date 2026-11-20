@@ -16,11 +16,13 @@
 package ppp
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"net"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -380,4 +382,203 @@ func TestUnitReadErrorEndsTheSession(t *testing.T) {
 	if !strings.HasPrefix(down.Reason, "unit fd read error: ") {
 		t.Fatalf("EventSessionDown reason %q does not name the unit read error", down.Reason)
 	}
+}
+
+// TestUnknownProtocolOnUnitFDProtocolRejected proves AC-9: once the session
+// is up, a CCP Configure-Request (Protocol 0x80fd, which Ze does not
+// implement) that the kernel queues on the unit descriptor is read from the
+// unit and answered on the channel with an LCP Protocol-Reject whose
+// Rejected-Protocol is 0x80fd and whose Rejected-Information is the CCP
+// packet. Linux ppp_receive_nonmp_frame queues a protocol with no
+// network-protocol index on the unit ("control or unknown frame - pass it to
+// pppd"), and RFC 1661 Section 3.6 asks the answer: "While LCP is in the
+// Opened state, any protocol packet which is unsupported by the
+// implementation MUST be returned in a Protocol-Reject (described later)."
+// The channel-side answer is rfc1661_protocol_reject_test.go's; this test
+// proves the unit-side route into it, a proof of landed behavior.
+//
+// MUTATION: make the unitFramesIn arm of run (session_run.go) return the
+// frame to the pool without calling handleFrame: the unit is still read, so
+// the write succeeds, but no Protocol-Reject reaches the channel and the read
+// fails on its deadline.
+func TestUnknownProtocolOnUnitFDProtocolRejected(t *testing.T) {
+	driverUnit, peerUnit := net.Pipe()
+	t.Cleanup(func() { _ = peerUnit.Close() }) //nolint:errcheck // test cleanup
+
+	td := newNCPTestDriverUnit(t, &StartSession{DisableIPv6CP: true}, autoAcceptIP, discardLogger(), driverUnit)
+	td.completeIPCP(t)
+	if _, ok := waitForEventOfType[EventSessionUp](t, td.driver.EventsOut(), 2*time.Second); !ok {
+		t.Fatal("no EventSessionUp, so the session never connected the channel to the unit")
+	}
+
+	options := []byte{0x11, 0x04, 0x00, 0x01}
+	writeUnitNCPPacket(t, peerUnit, ProtoCCP, LCPConfigureRequest, 0x33, options)
+	reject := td.readPeerNCPPacket(t, ProtoLCP)
+	if reject.Code != LCPProtocolReject {
+		t.Fatalf("answer to CCP on the unit has LCP Code %d, want Protocol-Reject", reject.Code)
+	}
+	// Rejected-Protocol, then the CCP packet: Code, Identifier, Length, options.
+	want := append([]byte{0x80, 0xfd, LCPConfigureRequest, 0x33, 0x00, byte(4 + len(options))}, options...)
+	if !bytes.Equal(reject.Data, want) {
+		t.Fatalf("Protocol-Reject data = % x, want % x", reject.Data, want)
+	}
+}
+
+// countedUnit is a kernelUnit that counts the reads in progress, so a test
+// sees the unit reader inside a read and sees it leave.
+type countedUnit struct {
+	*kernelUnit
+	reading atomic.Int32
+}
+
+func (u *countedUnit) Read(buf []byte) (int, error) {
+	u.reading.Add(1)
+	defer u.reading.Add(-1)
+	return u.kernelUnit.Read(buf)
+}
+
+func (u *countedUnit) isClosed() bool {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	return u.closed
+}
+
+// runUnitReaderSession runs session through run with unit as its unit
+// descriptor. The fake connect and disconnect move the unit's channel as
+// PPPIOCCONNECT and PPPIOCDISCONN do, and the session owner closes the unit
+// at teardown as the kernel handle does. stop ends the session as Driver.Stop
+// does; done closes once run has returned.
+func runUnitReaderSession(t *testing.T, session *pppSession, unit *countedUnit) (net.Conn, func(), <-chan struct{}) {
+	t.Helper()
+	server, peer := net.Pipe()
+	session.chanFile = server
+	session.unitFile = unit
+	session.frames = &testSessionFrames{control: server, opened: unit}
+	owner := testHandleFor(session)
+	owner.owned = append(owner.owned, server, unit)
+	owner.ops.connect = func(int, int) error { unit.setConnected(true); return nil }
+	owner.ops.disconnect = func(int) error { unit.setConnected(false); return nil }
+	stopCh := make(chan struct{})
+	session.stopCh = stopCh
+	var once sync.Once
+	stop := func() { once.Do(func() { close(stopCh) }) }
+	stopRelay := relayLifecycleEvents(session)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		session.run(&StartSession{})
+	}()
+	t.Cleanup(func() {
+		stop()
+		_ = peer.Close() //nolint:errcheck // test cleanup
+		<-done
+		stopRelay()
+	})
+	return peer, stop, done
+}
+
+// awaitUnitReaderExit requires run to return after a stop, with the unit
+// reader goroutine already gone, no unit read in progress, and the unit
+// closed. run joins both readers before it returns, so the reader's own exit
+// signal, unitGone, is checked with no wait: a reader run did not join can
+// still be running here.
+func awaitUnitReaderExit(t *testing.T, session *pppSession, unit *countedUnit, done <-chan struct{}) {
+	t.Helper()
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("run did not return after the stop: it is still joining a reader")
+	}
+	select {
+	case <-session.unitGone:
+	default:
+		t.Fatal("run returned while the unit reader goroutine was still running")
+	}
+	if n := unit.reading.Load(); n != 0 {
+		t.Fatalf("%d unit reads still in progress after the session ended", n)
+	}
+	if !unit.isClosed() {
+		t.Fatal("the session ended without closing its unit descriptor")
+	}
+}
+
+// TestUnitReaderExitsOnClose proves AC-11 and A-2 through run: the session's
+// one unit reader ends with the session, whether the session ends before the
+// unit was ever connected, while the reader is blocked in a unit read, or
+// after LCP went down and the disconnect put the reader back to sleep. LCP
+// going down alone does not end the reader: the peer's Terminate-Request
+// leaves the session waiting in Stopped for a new Configure-Request (RFC 1661
+// Section 4.3, RTR), so the reader leaves its read on the disconnect's EOF
+// and sleeps until the next connect, and it exits when that session ends.
+// synctest.Test fails a bubble whose goroutines stay blocked after the test
+// returns, so no goroutine of the session outlives it.
+//
+// MUTATION: remove the stop arm from the connect wait in readUnitFrames
+// (session_run.go): the reader never leaves that wait, run blocks joining it,
+// and the first and third subtests fail on their deadline.
+// MUTATION: remove the closeFiles call from run's teardown (session_run.go):
+// the unit stays open, the reader stays in its read, and the second subtest
+// fails on its deadline.
+func TestUnitReaderExitsOnClose(t *testing.T) {
+	t.Run("session ends before the unit connects", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			session, _, _ := newRFC1661Session(LCPStateInitial)
+			authEvents, _ := prepareIPCPLifecycle(session)
+			unit := &countedUnit{kernelUnit: newKernelUnit()}
+			peer, stop, done := runUnitReaderSession(t, session, unit)
+			openLifecycleLCP(t, peer)
+			// Authentication is never answered, so the channel is never
+			// connected and the reader waits for its first wake.
+			awaitAuthRequest(t, authEvents)
+			synctest.Wait()
+			if n := unit.reading.Load(); n != 0 {
+				t.Fatalf("%d unit reads before any connect", n)
+			}
+			stop()
+			awaitUnitReaderExit(t, session, unit, done)
+		})
+	})
+	t.Run("session ends during a unit read", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			session, _, events := newRFC1661Session(LCPStateInitial)
+			authEvents, ips := prepareIPCPLifecycle(session)
+			unit := &countedUnit{kernelUnit: newKernelUnit()}
+			peer, stop, done := runUnitReaderSession(t, session, unit)
+			openLifecycleIPCP(t, peer, negotiateIPCPLifecycle(t, peer, authEvents, ips), events)
+			synctest.Wait()
+			if n := unit.reading.Load(); n != 1 {
+				t.Fatalf("%d unit reads in progress after session-up, want the reader blocked in one", n)
+			}
+			stop()
+			awaitUnitReaderExit(t, session, unit, done)
+		})
+	})
+	t.Run("LCP goes down, then the session ends", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			session, _, events := newRFC1661Session(LCPStateInitial)
+			authEvents, ips := prepareIPCPLifecycle(session)
+			unit := &countedUnit{kernelUnit: newKernelUnit()}
+			peer, stop, done := runUnitReaderSession(t, session, unit)
+			openLifecycleIPCP(t, peer, negotiateIPCPLifecycle(t, peer, authEvents, ips), events)
+			synctest.Wait()
+			if n := unit.reading.Load(); n != 1 {
+				t.Fatalf("%d unit reads in progress after session-up, want the reader blocked in one", n)
+			}
+			writeLifecyclePacket(t, peer, ProtoLCP, LCPTerminateRequest, 0x61, nil)
+			if ack := readLifecyclePacket(t, peer, ProtoLCP, LCPTerminateAck); ack.Identifier != 0x61 {
+				t.Fatalf("LCP Terminate-Ack Identifier = %#02x, want the request's 0x61", ack.Identifier)
+			}
+			synctest.Wait()
+			if n := unit.reading.Load(); n != 0 {
+				t.Fatalf("%d unit reads in progress after LCP down disconnected the unit, want none", n)
+			}
+			select {
+			case <-done:
+				t.Fatal("the session ended on the peer's LCP Terminate-Request, want it waiting for a new Configure-Request")
+			default:
+			}
+			stop()
+			awaitUnitReaderExit(t, session, unit, done)
+		})
+	})
 }

@@ -172,9 +172,11 @@ func TestNGLCPEchoShorterThanMagicDropped(t *testing.T) {
 // neither ends the session nor sends anything nor leaves Opened.
 //
 // Source: accel-ppp-ng 1957e7d (T8830), the ProtoRej minimum length.
-// Ze reads no Rejected-Protocol field on receive: every Protocol-Reject maps
-// to the RXJ+ event (codeToEvent), which RFC 1661 Section 4.1 makes a no-op
-// in Opened. This test pins that the short form stays that no-op.
+// In Opened, receiveProtocolReject (session_run.go) reads the 2-octet
+// Rejected-Protocol to stop the NCP it names; Data shorter than that names no
+// protocol, so it stops nothing, and LCP takes the RXJ+ event (codeToEvent),
+// which RFC 1661 Section 4.1 makes a no-op in Opened. This test pins that the
+// short form stays that no-op.
 func TestNGLCPShortProtocolRejectIsNoOp(t *testing.T) {
 	s, rec, _ := newRFC1661Session(LCPStateOpened)
 	for _, short := range [][]byte{nil, {0x80}} {

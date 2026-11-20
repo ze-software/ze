@@ -1,10 +1,10 @@
 {
   "code": {
     "internal/component/l2tp/ppp/lcp.go::ValidateLCPReply": "d780e35728fa1ac8",
-    "internal/component/l2tp/ppp/session_run.go::handleLCPPacket": "e6d18268699bada3",
+    "internal/component/l2tp/ppp/session_run.go::handleLCPPacket": "703c511e74d635b3",
     "internal/component/l2tp/pppoeclient/session.go::negotiateLCP": "039a2c530a0ae987"
   },
-  "note": "Re-read Section 5.4 and all three tagged units. A Reject carrying an unchanged requested MRU option under the wrong Identifier leaves FSM/wire or client completion/output unchanged. A matching Identifier causes the next request to omit that option, and the client covers MRU-only, Magic-only and whole-request Rejects before completing on an exact replacement Ack. The wrong-Identifier Reject contains an otherwise valid requested subset, isolating the Identifier rule. The client fixture adds only valid Max-Failure five, retaining every packet and assertion. Both current receiving paths apply the shared Identifier validator before rejection flags or requests change. Producer-disable records prove those paths are reached; the exact acceptance/discard assertions independently enforce this clause.",
+  "note": "Rejudged after handleLCPPacket gained a Protocol-Reject branch for pkt.Code == LCPProtocolReject. Re-read Section 5.4. A Configure-Reject still passes ValidateLCPReply's Identifier check before the lcpRejectedMRU/lcpRejectedMagic flags are set, all ahead of the new branch and byte-identical, and a Reject never enters the branch. The tagged units are unchanged. A Reject of the requested MRU under the wrong Identifier still leaves the FSM and wire, or the client completion and output, unchanged. A matching Identifier still makes the next request omit the option, and the client still covers MRU-only, Magic-only and whole-request Rejects before completing on an exact replacement Ack. The verdict holds.",
   "requirement_sha": "ef8cbb2be56072e4",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "6e1e87cfaa4fb86b",

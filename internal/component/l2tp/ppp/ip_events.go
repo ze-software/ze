@@ -5,7 +5,11 @@
 
 package ppp
 
-import "net/netip"
+import (
+	"net/netip"
+
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
+)
 
 // AddressFamily names the IP family a single NCP negotiates. Only
 // IPv4 and IPv6 are in scope; IPX and AppleTalk NCPs (RFC 1552 /
@@ -26,6 +30,19 @@ func (f AddressFamily) String() string {
 		return "ipv4"
 	case AddressFamilyIPv6:
 		return "ipv6"
+	}
+	panic("BUG: unknown AddressFamily")
+}
+
+// NoticeFamily returns the family as the transports' notices name it
+// (l2tpevents.AddressFamily, whose zero value is Unspecified). Panics on an
+// unregistered value, as String does.
+func (f AddressFamily) NoticeFamily() l2tpevents.AddressFamily {
+	switch f {
+	case AddressFamilyIPv4:
+		return l2tpevents.AddressFamilyIPv4
+	case AddressFamilyIPv6:
+		return l2tpevents.AddressFamilyIPv6
 	}
 	panic("BUG: unknown AddressFamily")
 }

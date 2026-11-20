@@ -1,10 +1,10 @@
 {
   "code": {
     "internal/component/l2tp/ppp/lcp.go::ValidateLCPReply": "d780e35728fa1ac8",
-    "internal/component/l2tp/ppp/session_run.go::handleLCPPacket": "e6d18268699bada3",
+    "internal/component/l2tp/ppp/session_run.go::handleLCPPacket": "703c511e74d635b3",
     "internal/component/l2tp/pppoeclient/session.go::negotiateLCP": "039a2c530a0ae987"
   },
-  "note": "Re-read Section 5.2 and both correlation units. With the outstanding Identifier retained, missing, modified and reordered Ack options cannot advance either negotiation; the server also rejects an extra option. Each buffer remains an LCP Ack and the changed/reordered cases have valid option structure, so an unrelated malformed-packet branch is not the proof. Exact original options subsequently enter Ack-Rcvd on the server and open the client, providing a distinct acceptance control. Client Max-Failure-five fixture initialization changes no expected bytes or outcome. The current shared validator uses byte equality for the entire Ack options field before either receiver changes state. Producer-disable records are credited for reachability only, with the exact options assertions independently judged.",
+  "note": "Rejudged after handleLCPPacket gained a Protocol-Reject branch for pkt.Code == LCPProtocolReject. Re-read Section 5.2. ValidateLCPReply's byte equality over the whole Ack options field still runs ahead of the new branch, on an unchanged path, and an Ack never enters the branch. The tagged units are unchanged. With the outstanding Identifier kept, missing, modified and reordered options, plus an extra option on the server, still cannot advance either negotiation. Each case is a structurally valid Ack, so no malformed-packet branch carries the proof. The exact original options still enter Ack-Rcvd on the server and open the client, as a distinct acceptance control. The verdict holds. The producer-disable records still count for reachability only.",
   "requirement_sha": "d4341112f3ab2d9b",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "6e1e87cfaa4fb86b",

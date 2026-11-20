@@ -1,10 +1,10 @@
 {
   "code": {
-    "internal/component/l2tp/ppp/session_run.go::handleLCPPacket": "e6d18268699bada3",
+    "internal/component/l2tp/ppp/session_run.go::handleLCPPacket": "703c511e74d635b3",
     "internal/component/l2tp/ppp/session_run.go::sendConfigureRequest": "ac2d6361902b9606",
     "internal/component/l2tp/pppoeclient/session.go::negotiateLCP": "039a2c530a0ae987"
   },
-  "note": "Re-read Section 5.1 and all three distinct tagged units. TestLCPConfigureRequestIdentifierLifecycle separately requires a new Identifier after changed options and after a valid Ack even when the next options are unchanged. Its timeout retry preserves the outstanding bytes and Identifier, a permitted retransmission control, and a stale Ack leaves the current request unchanged. Client matching Nak and MRU/Magic/all-option Reject probes require replacement Identifiers to differ, refuse the old Ack, and complete on the replacement Ack. Their well-formed replies isolate reply processing rather than a parse failure. The client change is an explicit valid Max-Failure-five fixture with all packet and Identifier assertions retained. The current server request writer and client negotiator implement both Identifier-change conditions. The client revert records prove failure when the producer is disabled, not a targeted Identifier mutation; the exact Identifier assertions were independently read.",
+  "note": "Rejudged after handleLCPPacket gained a Protocol-Reject branch gated on pkt.Code == LCPProtocolReject, placed after reply validation and option mutation. Re-read Section 5.1. The Identifier lifecycle reaches sendConfigureRequest through the reply validation and the RCN/RCA transitions, which are byte-identical, and no tagged unit sends a Protocol-Reject. TestLCPConfigureRequestIdentifierLifecycle still requires a new Identifier after changed options and after a valid Ack with unchanged options, keeps the timeout retransmission's bytes and Identifier, and leaves the current request in place on a stale Ack. The client Nak and MRU/Magic/all-option Reject probes still require differing replacement Identifiers, refuse the old Ack and complete on the replacement Ack. The tests and both producers' Identifier logic are unchanged, so the verdict holds. The client revert records still prove reachability only; the exact Identifier assertions carry the proof.",
   "requirement_sha": "5bc700d2390ce180",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPConfigureRequestIdentifierLifecycle": "6e1e87cfaa4fb86b",

@@ -1,10 +1,10 @@
 {
   "code": {
     "internal/component/l2tp/ppp/lcp.go::ValidateLCPReply": "d780e35728fa1ac8",
-    "internal/component/l2tp/ppp/session_run.go::handleLCPPacket": "e6d18268699bada3",
+    "internal/component/l2tp/ppp/session_run.go::handleLCPPacket": "703c511e74d635b3",
     "internal/component/l2tp/pppoeclient/session.go::negotiateLCP": "039a2c530a0ae987"
   },
-  "note": "Re-read Section 5.4, retained verified erratum543, and all three tagged units. The corrected requirement permits a subset including the entire original option list. Client valid MRU-only, Magic-only and all-option Rejects create the exact remaining options; modified or reordered Rejects with the current Identifier produce no replacement. The server additionally refuses an unrequested option while accepting the original ordered MRU subset. These are structurally valid option lists, so changed content, membership and ordering are isolated from a packet-length fault. Explicit Max-Failure five changes no assertion. ValidateLCPReply matches each Reject option byte-for-byte against its requested instance and preserves request order, without requiring a proper subset. Revert records establish receiving-path reachability rather than a targeted subset cut; the semantic input pairs were independently read.",
+  "note": "Rejudged after handleLCPPacket gained a Protocol-Reject branch for pkt.Code == LCPProtocolReject. Re-read Section 5.4 with the retained verified erratum 543, which permits any subset, the whole option list included. ValidateLCPReply still matches each Reject option byte for byte against its requested instance and keeps request order, ahead of the new branch and unchanged, and a Reject never enters the branch. The tagged units are unchanged. The client's valid MRU-only, Magic-only and all-option Rejects still yield the exact remaining options, and modified or reordered Rejects under the current Identifier still yield no replacement. The server still refuses an unrequested option and accepts the ordered MRU subset. The verdict holds. The revert records still prove reachability rather than a targeted subset cut.",
   "requirement_sha": "1db404df8454e0e0",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "6e1e87cfaa4fb86b",

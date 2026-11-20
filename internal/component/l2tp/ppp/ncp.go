@@ -115,6 +115,14 @@ func (s *pppSession) runNCPPhase() bool {
 			// an independent NCP must not tear down a good session.
 			s.disableIPv6CP = true
 			ipv6cpEnabled = false
+			if !ipcpEnabled {
+				// A pool-declined family counts as never enabled, so this
+				// session enables no NCP: it is outside the no-NCP bound and
+				// the Opened requirement, and comes up at once, as a session
+				// with both NCPs disabled by configuration does.
+				s.cancelNoNCPBound()
+				return true
+			}
 		} else if !s.startNCP(AddressFamilyIPv6) {
 			return false
 		}
@@ -134,8 +142,10 @@ func (s *pppSession) runNCPPhase() bool {
 		// EventSessionUp needs a network protocol: a phase whose families
 		// all finished with none Opened waits for a reopen, within the
 		// no-NCP bound, rather than coming up with nothing to carry.
-		if opened && s.ncpsComplete(ipcpEnabled, ipv6cpEnabled) {
-			return true
+		if opened {
+			if s.ncpsComplete(ipcpEnabled, ipv6cpEnabled) {
+				return true
+			}
 		}
 		if s.ncpInitialNegotiationPending(ipcpEnabled, ipv6cpEnabled) {
 			if convergence == nil {
@@ -270,7 +280,7 @@ func (s *pppSession) ncpProtocolRejected(family AddressFamily) *bool {
 // v2.5.5, whose ipcp_protrej and ipv6cp_protrej call fsm_lowerdown, the Down
 // event: from Opened the tld withdrawal (withdrawNCPFamily, the family
 // release) then Starting; from Stopping, Req-Sent, Ack-Rcvd and Ack-Sent
-// Starting with the Restart timer cancelled (applyNCPTransition stops it in
+// Starting with the Restart timer canceled (applyNCPTransition stops it in
 // every state whose timer does not run); from Stopped tls then Starting; from
 // Closed and Closing Initial. Starting and Initial take no receive event, so
 // no packet of the protocol leaves until LCP renegotiates.

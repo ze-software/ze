@@ -1,12 +1,12 @@
 {
   "code": {
-    "internal/component/l2tp/ppp/session_run.go::applyTransition": "73ee329731725986",
-    "internal/component/l2tp/ppp/session_run.go::run": "20872ed232fd3c6e",
+    "internal/component/l2tp/ppp/session_run.go::applyTransition": "887fef8174dfb6bc",
+    "internal/component/l2tp/ppp/session_run.go::run": "1c825e552324977e",
     "internal/component/l2tp/ppp/session_run.go::sendConfigureRequest": "ac2d6361902b9606",
     "internal/component/l2tp/pppconfig/lcp.go::ParseLCP": "c4a2f42d76ad4fad",
     "internal/component/l2tp/pppoeclient/session.go::negotiateLCP": "039a2c530a0ae987"
   },
-  "note": "Independent CURRENT-Core source rejudgment against RFC1661 Section4.6, Max-Configure must be configurable. Complete TestConfiguredLCPMaxConfigure contrasts budgets3/5, exact Configure-Request counts, exhausted restartCount0 and Stopped, plus a matching answering peer that opens after exactly two requests. Complete proxy restart pair and helper enter accepted proxy LCP through a real Driver, observe no initial/retry packets while Opened, then require configured3/5 requests at exact500ms boundaries after peer RCR, final session-down/Stopped and matching elapsed time. The answering proxy contrast requires reopening after exactly two requests and no later event. Current run retains configured MaxConfigure for accepted proxy lifetime; applyTransition loads appropriate configured IRC value, sendConfigureRequest decrements, handleRestartTimeout dispatches TO+/TO-. Read ParseLCP parameter-to-NewLCPConfig flow and client negotiateLCP configured remaining counter: no changed shared code replaced configuration with a fixed value. Source rejudgment covers this counter, not other NCP/client settings; native evidence/stamp is not claimed.",
+  "note": "Rejudged after applyTransition gained the noNCPBoundExpired reason/cause branch, and run gained the no-NCP bound arm, the deferred cancelNoNCPBound, the sessStop arm and the shared cleanup gate. Re-read Section 4.6: Max-Configure must be configurable. The applyTransition branch changes only the session-down reason and cause inside sessionEndedAt. restartMax still loads s.lcpConfig.MaxConfigure(), and run still creates the restart timer from s.lcpConfig.RestartTimer(). None of the new run arms touches the restart counter or the timer that sendConfigureRequest and handleRestartTimeout use. The tagged units are unchanged. TestConfiguredLCPMaxConfigure still contrasts budgets 3 and 5 with exact request counts and Stopped, and its answering peer still opens after two requests. The proxy pair still requires 3 or 5 requests at exact 500 ms boundaries and a reopen after two. The verdict holds. It covers this counter only; no native evidence is claimed.",
   "requirement_sha": "311ab45a10d13659",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPMaxConfigure": "5133b1b1fbe707ca",

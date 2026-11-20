@@ -1899,10 +1899,15 @@ action. Catastrophic rejection (`RXJ-`) finishes the lower layer in Closed,
 Closing and Stopping, ending in Closed, Closed and Stopped respectively.
 These last three cells describe the abstract automaton: `codeToEvent`
 currently maps both Code-Reject and Protocol-Reject to `RXJ+`, so they do
-not establish wire reachability of `RXJ-`.
+not establish wire reachability of `RXJ-`. A Protocol-Reject reaches that
+mapping only in Opened, where `RXJ+` changes nothing: received in any other
+LCP state it is discarded first (RFC 1661 Section 5.7), and in Opened
+`receiveProtocolReject` reads its Rejected-Protocol and stops the IPCP or
+IPv6CP it names with the Down event (`stopRejectedNCP`), so the RFC 1661
+Section 4.3 stop applies to the named NCP while LCP stays Opened.
 <!-- source: internal/component/l2tp/ppp/ppp_fsm.go -- LCPDoTransition -->
-<!-- source: internal/component/l2tp/ppp/session_run.go -- codeToEvent, applyTransition -->
-<!-- source: internal/component/l2tp/ppp/ncp.go -- handleNCPPacket -->
+<!-- source: internal/component/l2tp/ppp/session_run.go -- codeToEvent, applyTransition, handleLCPPacket, receiveProtocolReject -->
+<!-- source: internal/component/l2tp/ppp/ncp.go -- handleNCPPacket, stopRejectedNCP -->
 
 ### 22.2 LAC PPP Proxying
 

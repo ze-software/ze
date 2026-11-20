@@ -576,6 +576,7 @@ const NamespaceL2TP = "l2tp"
 | `session-up` | L2TP subsystem | `{"session-id": N, "tunnel-id": N, "interface": "pppN", "calling": "...", "called": "..."}` | l2tp-shaper, l2tp-stats, redistribute |
 | `session-down` | L2TP subsystem | `{"session-id": N, "tunnel-id": N, "interface": "pppN", "reason": "..."}` | l2tp-pool, l2tp-shaper, l2tp-stats, redistribute |
 | `session-ip-assigned` | L2TP subsystem | `{"session-id": N, "interface": "pppN", "ipv4": "...", "ipv6": "...", "prefix": "..."}` | redistribute, fibkernel |
+| `session-ip-released` | L2TP subsystem (`l2tp` namespace, from `ppp.EventSessionIPReleased`); the subscriber bridge and the PPPoE subsystem re-publish it in the `subscriber` namespace | `SessionIPReleasedPayload`: the session identity, its network lifetime and `family` (IPv4 or IPv6) | the route observer (removes that family's routes only), RADIUS accounting (stops reporting a released IPv4 Framed-IP-Address), the subscriber registry (clears that family's fields) |
 | `session-auth-request` | L2TP subsystem | `{"session-id": N, "username": "...", "auth-type": "chap", ...}` | l2tp-auth |
 | `session-ip-request` | L2TP subsystem | `{"session-id": N, "pool-name": "...", "username": "..."}` | l2tp-pool |
 | `listener-ready` | L2TP subsystem | `{"address": "0.0.0.0", "port": 1701}` | Monitoring |
@@ -1506,20 +1507,62 @@ withdraws only that family's resources before any replacement Configure output.
 IPCP retains the prefix actually installed separately from its mutable proposal,
 so a Nak cannot redirect cleanup to the proposed replacement address. IPv6CP
 stops its existing service and keeps that owner if withdrawal fails. Normal
-Closed or Stopped NCP state leaves the other family and PPP link available;
-mandatory-option rejection retains its separate refusal policy. A failed
-withdrawal ends negotiation and prohibits reusing the unresolved lifetime.
+Closed or Stopped NCP state leaves the other family and PPP link available
+(RFC 1661 Section 3.7: "Conversely, the fact that one NCP has Closed is not
+sufficient reason to cause the termination of the PPP link, even if that NCP
+was the only NCP currently in the Opened state."); mandatory-option rejection
+retains its separate refusal policy. A failed withdrawal ends negotiation and
+prohibits reusing the unresolved lifetime.
 Each family owns its own bounded Restart counter and timer, driven by the same
 RFC 1661 transition table as LCP. A peer's Terminate-Request receives one
 Terminate-Ack and enters its termination grace; the timer settles Stopping to
 Stopped without an acknowledgment of that Ack. Both the initial convergence
-loop and the active session dispatch these timers. Once only termination grace
-remains, the initial convergence deadline cannot shorten it or end an
-independently opened family. LCP down and final session exit stop both timers.
-The convergence deadline is disabled while only that grace remains. If another
-family resumes Configure negotiation before the grace finishes, it gets a new
-bounded convergence interval; valid replies inside that interval may reset the
-RFC Restart budget but cannot extend the convergence deadline.
+loop and the active session dispatch these timers. LCP down and final session
+exit stop both timers.
+
+A link with no enabled NCP Opened is held for one no-NCP bound: `ncp timeout`
+on L2TP, the fixed 30 seconds (`defaultIPTimeout`) on PPPoE. The bound is armed
+when the session enters that state, at the start of the NCP phase or when the
+last Opened NCP leaves Opened for any reason (a Terminate-Request, a
+renegotiating Configure-Request, a Protocol-Reject). While no enabled NCP is
+Opened nothing stops or resets it, whatever the families do: negotiating,
+answering Naks, Stopping in termination grace, finished or rejected. An NCP
+reaching Opened cancels it, and so does LCP leaving Opened; the next NCP phase
+arms a new one. The NCP phase settles only with an enabled NCP Opened, so
+`EventSessionUp` always carries a network protocol; a phase whose families all
+finished with none Opened waits for a reopen. Expiry in the NCP phase fails the
+session with NAS Error and sends no LCP Terminate-Request. Expiry after
+session-up is the idle-period timer RFC 1661 Section 3.7 names ("the
+expiration of an idle-period timer"): Ze drives LCP Close, sends an LCP
+Terminate-Request, and the session ends with Idle Timeout. A session whose
+configuration enables no NCP is outside the bound and comes up at once.
+
+While some enabled NCP is Opened the bound is not armed and the convergence
+deadline applies to the other family: it is disabled while only termination
+grace remains beside the Opened family, so that grace cannot shorten an
+independently opened family. If a family resumes Configure negotiation beside
+an Opened one, it gets a new bounded convergence interval; valid replies inside
+that interval may reset the RFC Restart budget but cannot extend the deadline.
+<!-- source: internal/component/l2tp/ppp/ncp_bound.go -- armNoNCPBound, trackNoNCPBound, closeIdleLink -->
+<!-- source: internal/component/l2tp/ppp/ncp.go -- runNCPPhase, setNCPState -->
+
+A peer that does not run one NCP answers it with an LCP Protocol-Reject (pppd
+run with `noipv6` does so for IPv6CP). Received in LCP Opened, the
+Rejected-Protocol names the NCP to stop, and that NCP takes the RFC 1661 Down
+event, as pppd's `ipcp_protrej` and `ipv6cp_protrej` do through
+`fsm_lowerdown`: from Opened its withdrawal and release run, then Starting;
+from a negotiating or Stopping state it goes to Starting with its Restart timer
+stopped. LCP keeps its RXJ+, which leaves Opened unchanged, and the other family
+is untouched. Starting takes no receive event, so the NCP sends nothing more
+until LCP renegotiates. A per-family record of the rejection, cleared when LCP
+goes down, lets the initial convergence loop count that NCP settled rather than
+pending, so the session comes up with the other family as soon as it opens. A
+Protocol-Reject received while LCP is not Opened is discarded before the LCP
+automaton, and one too short to hold a Rejected-Protocol, or naming no NCP,
+stops nothing.
+<!-- source: internal/component/l2tp/ppp/session_run.go -- handleLCPPacket, receiveProtocolReject -->
+<!-- source: internal/component/l2tp/ppp/ncp.go -- stopRejectedNCP, ncpSettled, resetNCP -->
+<!-- source: internal/component/l2tp/ppp/ncp_restart.go -- ncpPending -->
 
 A connected reopen installs IPv4 before publishing its assignment, waits for
 the existing acknowledgment, then reconciles forwarding. IPv6 waits for the

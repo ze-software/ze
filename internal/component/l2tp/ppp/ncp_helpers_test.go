@@ -126,6 +126,11 @@ func newNCPTestDriverUnit(t *testing.T, overrides *StartSession, ipFn func(*Driv
 	if overrides.IPTimeout != 0 {
 		start.IPTimeout = overrides.IPTimeout
 	}
+	// A zero LCPConfig is no admitted setting (NewLCPConfig refuses it), so
+	// it means "keep testLCPConfig".
+	if overrides.LCP != (LCPConfig{}) {
+		start.LCP = overrides.LCP
+	}
 	d.SessionsIn() <- start
 	// Drain EventLCPUp; the session is now in auth phase. autoAcceptAuth
 	// immediately responds, the NCP phase begins.

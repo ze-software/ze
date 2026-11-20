@@ -251,6 +251,17 @@ type pppSession struct {
 	// budget. The session goroutine owns these; run/resetNCP MUST stop them.
 	ipcpRestart   ncpRestart
 	ipv6cpRestart ncpRestart
+	// noNCPBound is the no-NCP bound (ncp_bound.go): one timer of
+	// noNCPTimeout that runs while no enabled NCP is Opened, armed at the
+	// start of the NCP phase or when the last Opened NCP leaves Opened, and
+	// canceled by an NCP reaching Opened. Nil until the first NCP phase arms
+	// it. Session goroutine only. resetNCP and run MUST cancel it.
+	noNCPBound *time.Timer
+	// noNCPBoundExpired records that the bound expired after session-up and
+	// Ze drove LCP Close for it (closeIdleLink), so the Closed that Close
+	// reaches reports Idle Timeout rather than User Request. Session
+	// goroutine only; set once, the session ends at that Closed.
+	noNCPBoundExpired bool
 
 	// NCP dispatch starts only after authentication completes. runNCPPhase
 	// MUST set ncpStarted; LCP This-Layer-Down MUST clear it through resetNCP.
@@ -408,6 +419,29 @@ type pppSession struct {
 	// it, so a peer that never sends the option converges instead of
 	// being Naked forever. resetNCP MUST clear it when LCP goes down.
 	ipv6cpMissingIdentifierNaked bool
+
+	// ipv4AssignmentPublished and ipv6AssignmentPublished record that this
+	// LCP lifetime published that family's EventSessionIPAssigned and that
+	// no EventSessionIPReleased has withdrawn it since. They are the guard
+	// publishNCPRelease (ncp.go) reads: a family that reached Opened without
+	// publishing (IPv6CP with no negotiated peer identifier, or an MRU below
+	// the IPv6 minimum, onNCPOpened) holds nothing in the transport to
+	// release. The network lifetime cannot answer this: it is one per
+	// session, so the other family's assignment sets it too. Session
+	// goroutine only. resetNCP MUST clear both when LCP goes down.
+	ipv4AssignmentPublished bool
+	ipv6AssignmentPublished bool
+
+	// ipcpProtocolRejected and ipv6cpProtocolRejected record that the peer
+	// Protocol-Rejected that NCP in this LCP lifetime, which took it to
+	// Starting or Initial (stopRejectedNCP, ncp.go). The state alone cannot
+	// say so: Starting is also the state of an NCP not yet started. The
+	// NCP-phase settle (ncpSettled) counts a rejected NCP finished, and the
+	// initial-negotiation bound (ncpPending) counts it no longer pending.
+	// Session goroutine only. resetNCP MUST clear both when LCP goes down,
+	// because the NCPs restart from Initial in the next LCP lifetime.
+	ipcpProtocolRejected   bool
+	ipv6cpProtocolRejected bool
 
 	ipv6Svc *IPv6Service
 }

@@ -365,6 +365,10 @@ func (r *l2tpReactor) handlePPPEvent(ev ppp.Event) {
 		r.handleSessionIPAssigned(ipAssigned)
 		return
 	}
+	if ipReleased, ok := ev.(ppp.EventSessionIPReleased); ok {
+		r.handleSessionIPReleased(ipReleased)
+		return
+	}
 
 	var tid, sid uint16
 	var reason string
@@ -728,6 +732,57 @@ func (r *l2tpReactor) handleSessionIPAssigned(ev ppp.EventSessionIPAssigned) {
 			DNSSecondary:     ev.DNSSecondary,
 		}); err != nil {
 			r.logger.Warn("l2tp: session-ip-assigned emit failed", "error", err)
+		}
+	})
+}
+
+// handleSessionIPReleased removes one family from the L2TP session and
+// publishes (l2tp, session-ip-released) in the tunnel's order ticket, as
+// handleSessionIPAssigned publishes the install, so a teardown that follows
+// is delivered after it. An IPv4 release clears assignedAddr, which `show l2tp
+// sessions` prints; the next IPv4 assignment sets it again. The subscriber
+// bridge carries the release to the registry and the route observer, and
+// RADIUS accounting stops reporting the released IPv4 address.
+func (r *l2tpReactor) handleSessionIPReleased(ev ppp.EventSessionIPReleased) {
+	family := ev.Family.NoticeFamily()
+	r.tunnelsMu.Lock()
+	tunnel, sess := r.pppSessionLocked("ip-released", ev.TunnelID, ev.SessionID, ev.Control, ev.Birth, ev.SubscriberID)
+	if sess == nil {
+		r.tunnelsMu.Unlock()
+		return
+	}
+	if !ev.Control.Active() {
+		r.tunnelsMu.Unlock()
+		return
+	}
+	if family == l2tpevents.AddressFamilyIPv4 {
+		sess.assignedAddr = netip.Addr{}
+	}
+	birth := sess.Birth()
+	subscriberID := sess.SubscriberID()
+	if r.eventBus == nil {
+		r.tunnelsMu.Unlock()
+		return
+	}
+	// The ticket is the last step under tunnelsMu and its delivery the first
+	// after it, so nothing that can panic runs between the two.
+	ticket := tunnel.issueNoticeTicket()
+	r.tunnelsMu.Unlock()
+
+	ticket.deliver(func() {
+		r.logger.Info("l2tp: session family released",
+			reportFieldTunnelID, ev.TunnelID, reportFieldSessionID, ev.SessionID, "family", family.String())
+		if _, err := l2tpevents.SessionIPReleased.Emit(r.eventBus, &l2tpevents.SessionIPReleasedPayload{
+			Birth:           birth,
+			SubscriberID:    subscriberID,
+			NetworkLifetime: ev.NetworkLifetime,
+			Generation:      r.params.Generation,
+			TunnelID:        ev.TunnelID,
+			SessionID:       ev.SessionID,
+			Family:          family,
+		}); err != nil {
+			r.logger.Warn("l2tp: session-ip-released emit failed", "code", diagnostic.CodeDoctorInternalDefect,
+				"fix", "ze show doctor", "error", err)
 		}
 	})
 }

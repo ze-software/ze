@@ -113,14 +113,26 @@ func (s *pppSession) handleNCPRestartTimeout(family AddressFamily) bool {
 // Restart timer supplies its own bound; a normal close cannot kill the link.
 func (s *pppSession) ncpInitialNegotiationPending(ipcpEnabled, ipv6cpEnabled bool) bool {
 	if ipcpEnabled {
-		if ncpNegotiationPending(s.ipcpState) {
+		if s.ncpPending(AddressFamilyIPv4) {
 			return true
 		}
 	}
 	if ipv6cpEnabled {
-		return ncpNegotiationPending(s.ipv6cpState)
+		return s.ncpPending(AddressFamilyIPv6)
 	}
 	return false
+}
+
+// ncpPending reports whether one enabled NCP still awaits its initial
+// Configure negotiation. An NCP the peer Protocol-Rejected sits in Starting,
+// which ncpNegotiationPending counts pending for an NCP not yet started, but
+// it negotiates nothing until LCP renegotiates, so the rejection record
+// answers first.
+func (s *pppSession) ncpPending(family AddressFamily) bool {
+	if *s.ncpProtocolRejected(family) {
+		return false
+	}
+	return ncpNegotiationPending(s.ncpState(family))
 }
 
 func ncpNegotiationPending(state LCPState) bool {

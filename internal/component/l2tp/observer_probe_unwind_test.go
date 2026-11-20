@@ -46,7 +46,7 @@ func (bus *cqmProbeUnwindBus) Subscribe(namespace, event string, handler func(an
 // MUTATION: returning the probe error without unwind strands the first observer,
 // admits its copied callback and leaves its subscriptions alive after retry.
 func TestObserverProbeRefusalUnwindsBeforeStopAndRetry(t *testing.T) {
-	const subscriptions = 11 // four CQM, four bridge and three route subscriptions
+	const subscriptions = 13 // four CQM, five bridge and four route subscriptions
 	// These original package seams and cached environment values are process-wide;
 	// this test deliberately cannot run in parallel.
 	useEnv(t, map[string]string{"ze.l2tp.skip-kernel-probe": "false"})

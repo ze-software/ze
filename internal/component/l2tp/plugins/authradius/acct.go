@@ -459,12 +459,37 @@ func (a *radiusAcct) subscribeEventBus(bus ze.EventBus) func() {
 	up := l2tpevents.SessionIPAssigned.Subscribe(bus, func(payload *l2tpevents.SessionIPAssignedPayload) {
 		a.onSessionIPAssigned(payload)
 	})
+	released := l2tpevents.SessionIPReleased.Subscribe(bus, func(payload *l2tpevents.SessionIPReleasedPayload) {
+		a.onSessionIPReleased(payload)
+	})
 	down := l2tpevents.SessionDown.Subscribe(bus, func(payload *l2tpevents.SessionDownPayload) {
 		a.onSessionDown(payload)
 	})
 	return func() {
 		up()
+		released()
 		down()
+	}
+}
+
+// onSessionIPReleased stops reporting the IPv4 address of a session whose
+// IPCP left Opened while the session stays up, so the next Interim-Update
+// carries no Framed-IP-Address until IPCP opens again and onSessionIPAssigned
+// sets it. An IPv6 release changes nothing here: Framed-IP-Address is IPv4.
+// The session's accounting continues: a family release is not the end of
+// service.
+func (a *radiusAcct) onSessionIPReleased(payload *l2tpevents.SessionIPReleasedPayload) {
+	if payload.Family != l2tpevents.AddressFamilyIPv4 {
+		return
+	}
+	key := sessionKey{birth: payload.Birth, tunnelID: payload.TunnelID, sessionID: payload.SessionID}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	// RFC 2866 Section 4.1: "the Framed-IP-Address (if any) in the
+	// Accounting-Request MUST contain the actual IP address assigned or
+	// negotiated." A released address is neither any more.
+	if sess := a.sessions[key]; sess != nil {
+		sess.peerAddr = ""
 	}
 }
 

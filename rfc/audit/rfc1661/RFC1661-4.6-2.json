@@ -1,10 +1,10 @@
 {
   "code": {
-    "internal/component/l2tp/ppp/session_run.go::applyTransition": "73ee329731725986",
+    "internal/component/l2tp/ppp/session_run.go::applyTransition": "887fef8174dfb6bc",
     "internal/component/l2tp/ppp/session_run.go::sendTerminateRequest": "17239e3886955542",
     "internal/component/l2tp/pppconfig/lcp.go::ParseLCP": "c4a2f42d76ad4fad"
   },
-  "note": "Section 4.6 defines Max-Terminate as the number of unanswered Terminate-Requests. TestConfiguredLCPMaxTerminate drives Close with budgets of 2 and 4, requires exactly that many transmissions and Closed on exhaustion, and contrasts a matching first Terminate-Ack that closes after one request. Both branches explicitly require each emitted frame to use ProtoLCP and LCPTerminateRequest, so an unrelated LCP packet cannot satisfy the request-count claim. Both server transports configure this shared automaton; the client has no local Terminate-Request sender. Its PADT cleanup capability is documented separately, not treated as a general exemption for PPP clients.",
+  "note": "Rejudged after applyTransition gained a branch that reports TerminateCauseIdleTimeout and idleCloseReason when noNCPBoundExpired is set. Re-read Section 4.6. The branch runs only inside sessionEndedAt, after the transition, and picks the EventSessionDown reason and cause. It does not touch restartMax, which still loads s.lcpConfig.MaxTerminate() on the Terminate edges, or the Terminate-Request count. closeIdleLink's Close goes through the same applyTransition, so an idle close is held to the same configured Max-Terminate. Both TestConfiguredLCPMaxTerminate units are unchanged. With budgets 2 and 4 they still require exactly that many LCP Terminate-Requests and Closed on exhaustion, and they contrast a first matching Terminate-Ack that closes after one request. The verdict holds.",
   "requirement_sha": "7776fff902cc3b78",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPMaxTerminate": "5133b1b1fbe707ca",

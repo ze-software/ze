@@ -37,6 +37,8 @@ func TestRFC1661CorrectedTransitionCells(t *testing.T) {
 // TestRFC1661AckRcvdControlPackets drives actual LCP frame and NCP packet
 // consumers. Reject codes currently classify as RXJ+, never RXJ-; this test
 // makes no claim that a catastrophic rejection is reachable from wire input.
+// An LCP Protocol-Reject outside Opened is discarded before the automaton
+// (RFC 1661 Section 5.7), so it raises no RXJ+ in Ack-Rcvd.
 //
 // Protocol-Reject is an LCP Code only. RFC 1332 Section 2 and RFC 5072
 // Section 3: "Only Codes 1 through 7 (...) are used.  Other Codes should be
@@ -50,8 +52,16 @@ func TestRFC1661AckRcvdControlPackets(t *testing.T) {
 			if s.handleFrame(lcpFrame(ProtoLCP, code, 17, transitionControlData(code))) {
 				t.Fatal("LCP consumer ended negotiation")
 			}
-			if got := s.currentState(); got != LCPStateReqSent {
-				t.Errorf("LCP state = %v, want ReqSent", got)
+			// RFC 1661 Section 5.7: "Protocol-Reject packets received in any
+			// state other than the LCP Opened state SHOULD be silently
+			// discarded." So a Protocol-Reject raises no RXJ+ and LCP stays
+			// in Ack-Rcvd; Terminate-Ack and Code-Reject move it to Req-Sent.
+			want := LCPStateReqSent
+			if code == LCPProtocolReject {
+				want = LCPStateAckRcvd
+			}
+			if got := s.currentState(); got != want {
+				t.Errorf("LCP state = %v, want %v", got, want)
 			}
 			if rec.count() != 0 || len(events) != 0 {
 				t.Fatal("action-free transition emitted a frame or lifecycle event")

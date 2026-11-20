@@ -3513,7 +3513,8 @@ selectors. Independent children retain different instances even with the same
 interface and remote prefix. An SPI, interface ID or peer label is not that identity.
 
 L2TP draws a separate instance for each route lifetime from a process-wide
-sequence when the session's first address is assigned. The instance is never
+sequence when the session's first family is installed: the IPv4 address, or
+the IPv6CP interface identifier of a session with no IPv4. The instance is never
 recycled within the process and is never derived from the tunnel or session
 ID, so a reused session ID cannot alias an earlier contribution. Address and
 framed-prefix add, replay and removal carry that same instance, even when two

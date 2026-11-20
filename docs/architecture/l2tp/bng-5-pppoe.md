@@ -232,7 +232,22 @@ failed session before returning.
 `EventSessionRejected.ExistingSession` preserves the already admitted session
 and its transport. A refusal of a new key releases its pending admission,
 publishes subscriber teardown and sends PADT through the normal teardown path.
-<!-- source: internal/component/l2tp/pppoe/subsystem.go -- handlePPPEvent, onSessionDown -->
+
+**A family release changes the registry entry, not the session.** When one
+NCP leaves Opened while LCP stays up, PPP withdraws that family from pppN and
+emits `ppp.EventSessionIPReleased`. `onSessionIPReleased` clears that family's
+fields from the registry entry (`subevents.ClearReleasedFamily`) and publishes
+`(subscriber, session-ip-released)`, which the shared route observer reads to
+withdraw that family's routes. No PADT is sent. The next
+`EventSessionIPAssigned` of the family reinstalls it.
+
+**Every `ppp.Event` type has a case.** `EventEchoRTT`, which only the L2TP
+reactor relays for CQM, has an explicit no-op case, because one arrives per
+LCP Echo-Reply. Any other type the switch does not name reaches the default
+arm, `reportUnhandledPPPEvent`: a Warn with `CodeDoctorInternalDefect`, its
+fix and the Go type, beside the matching runtime doctor finding. Only a Ze
+defect produces one: the sealed event set gained a type this switch lacks.
+<!-- source: internal/component/l2tp/pppoe/subsystem.go -- handlePPPEvent, onSessionDown, onSessionIPReleased, reportUnhandledPPPEvent -->
 
 **Kernel relay borrows its descriptor from the transport owner.** A transport
 may implement the optional `RelayTransport` capability. The opened session's

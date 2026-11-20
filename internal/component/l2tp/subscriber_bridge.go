@@ -12,6 +12,7 @@ import (
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	subevents "github.com/ze-software/ze/internal/component/l2tp/subscriber/events"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -37,6 +38,7 @@ func (b *subscriberBridge) subscribe() {
 		l2tpevents.SessionUp.Subscribe(b.bus, b.onSessionUp),
 		l2tpevents.SessionDown.Subscribe(b.bus, b.onSessionDown),
 		l2tpevents.SessionIPAssigned.Subscribe(b.bus, b.onSessionIPAssigned),
+		l2tpevents.SessionIPReleased.Subscribe(b.bus, b.onSessionIPReleased),
 		subevents.SessionAuthResult.Subscribe(b.bus, b.onAuthResult),
 	)
 }
@@ -198,5 +200,41 @@ func (b *subscriberBridge) onSessionIPAssigned(p *l2tpevents.SessionIPAssignedPa
 		NetworkLifetime: p.NetworkLifetime,
 	}); err != nil {
 		b.logger.Warn("l2tp: subscriber session-ip-assigned emit failed", "error", err)
+	}
+}
+
+// onSessionIPReleased clears the released family from the registry entry and
+// re-publishes the release on the subscriber namespace, where the route
+// observer removes that family's routes. The next assignment of the family
+// sets the fields again. An entry the registry no longer holds is not
+// recreated: the release still reaches the observer under the session's ID.
+func (b *subscriberBridge) onSessionIPReleased(p *l2tpevents.SessionIPReleasedPayload) {
+	if !p.Birth.IsValid() {
+		reportSessionBirthRefusal(b.logger, "subscriber family release", p.TunnelID, p.SessionID)
+		return
+	}
+	if err := subscriber.RequireID(b.logger, p.SubscriberID); err != nil {
+		return
+	}
+	id := p.SubscriberID
+	sess, ok := b.registry.Get(id)
+	if !ok {
+		sess = subscriber.Session{
+			ID: id, AccessType: subscriber.AccessL2TP,
+			L2TPBirth: p.Birth,
+			TunnelID:  p.TunnelID, SessionID: p.SessionID,
+		}
+	}
+	subevents.ClearReleasedFamily(&sess, p.Family)
+	if ok {
+		b.registry.Add(&sess)
+	}
+	if _, err := subevents.SessionIPReleased.Emit(b.bus, &subevents.SessionIPReleasedPayload{
+		Session:         sess,
+		Family:          p.Family,
+		NetworkLifetime: p.NetworkLifetime,
+	}); err != nil {
+		b.logger.Warn("l2tp: subscriber session-ip-released emit failed",
+			"code", diagnostic.CodeDoctorInternalDefect, "fix", "ze show doctor", "error", err)
 	}
 }

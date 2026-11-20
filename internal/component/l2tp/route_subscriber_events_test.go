@@ -68,21 +68,23 @@ func TestSubscriberRouteEventsKeepAccessAndLifetimeApart(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Len(t, *l2tpNotices, 2, "PPPoE assignment must never be exported as L2TP")
-	require.Len(t, *pppoeNotices, 2, "PPPoE assignment must advertise both its own host and framed route")
+	// The access framed route is IPv6, so the IPv4 install announces the host
+	// alone; the IPv6 install below announces the framed route (AC-4).
+	require.Len(t, *pppoeNotices, 1, "PPPoE IPv4 assignment must advertise its host and not the IPv6 framed route")
 	lnsInstance, accessInstance := (*l2tpNotices)[0].entry.SourceInstance, (*pppoeNotices)[0].entry.SourceInstance
 	require.NotZero(t, lnsInstance)
 	require.NotZero(t, accessInstance)
 	require.NotEqual(t, lnsInstance, accessInstance, "equal labels and IPs still own distinct contributions")
 	host := netip.PrefixFrom(address, 32)
 	assertSubscriberRoutePair(t, *l2tpNotices, l2tpevents.ProtocolID, lnsInstance, 0, redistevents.ActionAdd, host, lnsFramed)
-	assertSubscriberRoutePair(t, *pppoeNotices, pppoeProtocol, accessInstance, 0, redistevents.ActionAdd, host, accessFramed)
 
 	access.IPv6InterfaceID[7] = 9
 	_, err = subevents.SessionIPAssigned.Emit(bus, &subevents.SessionIPAssignedPayload{
 		Session: access, NetworkLifetime: current,
 	})
 	require.NoError(t, err)
-	require.Len(t, *pppoeNotices, 2, "an IPv6CP identifier must not re-advertise a prior IPv4 assignment")
+	require.Len(t, *pppoeNotices, 2, "an IPv6CP identifier must add its framed route and not re-advertise the IPv4 host")
+	assertSubscriberRoutePair(t, *pppoeNotices, pppoeProtocol, accessInstance, 0, redistevents.ActionAdd, host, accessFramed)
 
 	_, err = subevents.SessionDown.Emit(bus, &subevents.SessionDownPayload{Session: access, NetworkLifetime: previous})
 	require.NoError(t, err)

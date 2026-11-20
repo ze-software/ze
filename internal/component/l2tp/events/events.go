@@ -7,7 +7,7 @@
 // (bgp-redistribute, the session readers) each call events.Register with the
 // same (namespace, eventType, T) tuple; the events registry is idempotent.
 //
-// Reader contract for SessionIPAssigned, SessionUp and SessionDown: the
+// Reader contract for SessionIPAssigned, SessionIPReleased, SessionUp and SessionDown: the
 // reactor publishes the notifications of one tunnel's sessions one at a time,
 // in the order the sessions' state changed, and an in-process reader runs on
 // the publishing goroutine. A reader MUST NOT cause a publication for the
@@ -213,6 +213,59 @@ type SessionIPAssignedPayload struct {
 // SessionIPAssigned is the typed handle for (l2tp, session-ip-assigned).
 // Emitted by the reactor after NCP negotiation assigns an IP to the peer.
 var SessionIPAssigned = events.Register[*SessionIPAssignedPayload](Namespace, SessionIPAssignedEvent)
+
+// AddressFamily names the network protocol one NCP carries. The zero value
+// is Unspecified, which no release notice carries.
+type AddressFamily uint8
+
+const (
+	// AddressFamilyUnspecified is the zero value; no producer emits it.
+	AddressFamilyUnspecified AddressFamily = iota
+	// AddressFamilyIPv4 is the family IPCP negotiates (RFC 1332).
+	AddressFamilyIPv4
+	// AddressFamilyIPv6 is the family IPv6CP negotiates (RFC 5072).
+	AddressFamilyIPv6
+)
+
+// String returns the lowercase family name used in logs.
+func (f AddressFamily) String() string {
+	switch f {
+	case AddressFamilyIPv4:
+		return "ipv4"
+	case AddressFamilyIPv6:
+		return "ipv6"
+	case AddressFamilyUnspecified:
+		return "unspecified"
+	}
+	return "unspecified"
+}
+
+// SessionIPReleasedEvent is the event type string for session-ip-released notifications.
+const SessionIPReleasedEvent = "session-ip-released"
+
+// SessionIPReleasedPayload carries the identity of a session whose NCP for
+// one family left Opened while the session stays up. The PPP session has
+// already withdrawn that family from pppN. The reactor publishes it under the
+// session's order ticket, like SessionIPAssigned, and the subscriber bridge
+// re-publishes it on the subscriber namespace, which the route observer reads
+// to remove that family's routes. RADIUS accounting stops reporting a
+// released IPv4 address. A later SessionIPAssigned for the same family is the
+// reinstall.
+type SessionIPReleasedPayload struct {
+	Birth           subscriberid.L2TPBirth `json:",omitzero"`
+	SubscriberID    string                 `json:",omitempty"`
+	NetworkLifetime NetworkLifetime        `json:"network-lifetime,omitzero"`
+	Generation      ObservationGeneration  `json:",omitzero"`
+	TunnelID        uint16
+	SessionID       uint16
+	Family          AddressFamily `json:"family"`
+}
+
+// SessionIPReleased is the typed handle for (l2tp, session-ip-released).
+// Emitted by the reactor for each ppp.EventSessionIPReleased; readers are the
+// ones SessionIPReleasedPayload names. Its readers obey the reader contract
+// of SessionIPAssigned above.
+var SessionIPReleased = events.Register[*SessionIPReleasedPayload](Namespace, SessionIPReleasedEvent)
 
 // FramedRoute is a static route learned from RADIUS Framed-Route (attr 22)
 // or Framed-IPv6-Route (attr 99). The prefix is the destination network,

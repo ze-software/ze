@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1661-5.7-5",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_ncp_protocol_reject_test.go::TestProtocolRejectIPv6CPKeepsIPv4Session",
+    "unit-sha": "c1799f5943729693",
+    "claim-sha": "fa68466e34f31c35",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
+    "producer-sha": "53db7f2c7c97ae2b",
+    "break": "line 1767: \"s.receiveProtocolReject(pkt)\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC1661-5.7-5",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_ncp_protocol_reject_test.go::TestProtocolRejectIgnoredOutsideLCPOpened",
+    "unit-sha": "d75dfe5594d8592e",
+    "claim-sha": "867532054cd8e42e",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
+    "producer-sha": "53db7f2c7c97ae2b",
+    "break": "line 1756: \"if cur != LCPStateOpened {\" -\u003e \"if false {\""
+  }
+]

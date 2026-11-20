@@ -3,9 +3,11 @@
 package cmd
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
@@ -139,6 +141,12 @@ func sessionFull(s *subscriber.Session) map[string]any {
 	}
 	if s.DNSSecondary.IsValid() {
 		m["dns-secondary"] = s.DNSSecondary.String()
+	}
+	// The IPv6CP interface identifier (RFC 5072 Section 4.1) is raw hex:
+	// uppercase, no 0x. A zero identifier is no IPv6 family, so the key is
+	// omitted, as ipv4 is while no IPv4 address is held.
+	if s.IPv6InterfaceID != [8]byte{} {
+		m["ipv6-interface-id"] = strings.ToUpper(hex.EncodeToString(s.IPv6InterfaceID[:]))
 	}
 	if s.IPv6Prefix.IsValid() {
 		m["ipv6-prefix"] = s.IPv6Prefix.String()

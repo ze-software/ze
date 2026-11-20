@@ -260,9 +260,11 @@ module ze-l2tp-conf {
                     range "1..3600";
                 }
                 default 30;
-                description "NCP negotiation timeout in seconds. A session that does not complete NCP within this window is torn
-                    down. The default is 30 seconds.";
-                ze:help "NCP negotiation timeout in seconds, 30 by default.";
+                description "How long, in seconds, a session may hold the link with no NCP open. It runs from the start of
+                    NCP negotiation, and again from the moment the last open NCP closes after the session came up.
+                    A session that opens no NCP within it is torn down: with NAS Error before it came up, with an
+                    LCP Terminate-Request and Idle Timeout after. The default is 30 seconds.";
+                ze:help "Seconds a session may hold the link with no NCP open, 30 by default.";
             }
         }
 

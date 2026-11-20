@@ -241,7 +241,8 @@ site names the cause that is TRUE of its own path.
 
 | Teardown path | Cause | RFC 2866 Section 5.10 value |
 |---------------|-------|------------------------------|
-| LCP reaching Closed or Stopped without an authentication-policy refusal, including the Stopped a peer's Terminate-Request leads to | User Request | 1 |
+| LCP reaching Closed or Stopped without an authentication-policy refusal or a no-NCP bound expiry, including the Stopped a peer's Terminate-Request leads to | User Request | 1 |
+| The LCP Close Ze drives when a session that came up holds no NCP Opened for one no-NCP bound (`ncp timeout` on L2TP, 30 seconds on PPPoE), RFC 1661 Section 3.7 "the expiration of an idle-period timer", reaching Closed | Idle Timeout | 4 |
 | LCP echo probes unanswered past the limit | Lost Carrier | 2 |
 | A CDN whose Result Code is 1, "Call disconnected due to loss of carrier" | Lost Carrier | 2 |
 | The dead-peer keepalive timeout and the exhausted retransmit budget, which are both the peer no longer answering | Lost Carrier | 2 |
@@ -256,8 +257,12 @@ site names the cause that is TRUE of its own path.
 | The PPP driver stopping a running session on purpose, including an authentication-policy refusal before LCP Opened | NAS Request | 10 |
 
 These are session-down event causes. The pre-Opened policy-refusal row does
-not imply an Accounting-Stop record before authentication.
+not imply an Accounting-Stop record before authentication. The two Idle
+Timeout rows are different timers: the RADIUS Idle-Timeout attribute, and the
+no-NCP bound, which ends a session that carries no network protocol. The same
+bound expiring before the session came up is a negotiation timeout, NAS Error.
 <!-- source: internal/component/l2tp/ppp/session_run.go -- applyTransition -->
+<!-- source: internal/component/l2tp/ppp/ncp_bound.go -- closeIdleLink -->
 
 **A peer's LCP Terminate-Request reaches that row since 2026-09-20.** RFC 1661
 puts Opened plus RTR into Stopping with the Restart counter zeroed, and ze's
