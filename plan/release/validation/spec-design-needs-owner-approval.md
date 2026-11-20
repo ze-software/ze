@@ -8,7 +8,7 @@
 | Release reason | The release must ship behavior that matches its design documentation and Thomas's decisions. On 2026-11-12 a design he never saw, contradicting his own decision, was implemented into the daemon. This spec is the gate that stops that, and it must hold before the first release (`plan/README.md`, `release/validation/`: evidence that shipped behavior works, including accurate claims) |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 2/7 |
+| Phase | 7/7 |
 | Handoff | - |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
@@ -94,6 +94,17 @@ The goal:
 4. A decision row, once written, changes or leaves its page only with Thomas's approval.
 5. A spec lists every design document its files link, and every decision those pages carry, with an `agrees`, `departs` or `silent` verdict. An independent judge confirms the verdicts before the design is presented. A departure reaches implementation only with Thomas's approval of a presentation with before and after examples.
 
+Three small defects met in this work are fixed in it (`ai/META-DECISIONS.md`,
+"How agents work"), each in a commit of its own:
+
+- 8c1675f95f: the `decision-change` keyword's help ran past the 60-character
+  menu line, and the help-length check failed every le build.
+- d332d8275a: two test files carried a `// Design:` header naming a deleted
+  spec, which the new missing-page check (AC-7, AC-8) reports.
+- ff2b53da2e: the doc index asked git about the checkout enclosing a tree
+  rather than the tree itself, so a tree under an ignored directory (the
+  functional test's working directory under `tmp/`) answered no anchor at all.
+
 ## Required Reading
 
 ### Architecture Docs
@@ -129,7 +140,7 @@ The goal:
 - A whole read of a `// Design:` page cannot be the owed read. Measured on 2026-11-19: 400 distinct pages are named, `docs/architecture/core-design.md` (290 KB, named by 1091 files), `docs/architecture/api/process-protocol.md` (366 KB, 585 files) and `docs/architecture/api/commands.md` (295 KB, 321 files) lead the list, 28 named targets pass 100 KB, the Read tool stops at 25,000 tokens without an override, and a Bash print is credited only up to 25,000 bytes (`plainReadPrintMax`).
 - The source-read record (`recordSourceRead`) is already range-bound and digest-bound, so a read record for one section of a page extends an existing shape.
 - A commit-time check registers through `changecheck.Register`; the commit code names no check.
-- The harness sends `agent_id` in the hook payload of a subagent's call (`Payload.AgentID`). Nothing in the tree states what a fork sends.
+- The harness sends `agent_id` in the hook payload of a subagent's call (`Payload.AgentID`). A fork's call carries one too (A-2, broken by the live probe), so the ready-edit check treats a fork as a subagent.
 
 ## Current Behavior (MANDATORY)
 
@@ -151,7 +162,7 @@ The goal:
 - [ ] `internal/le/commit/changecheck/changecheck.go`, `internal/le/commit/changechecks.go` - `Register`, `Change` and `runChangeChecks`: a check registers from its own package and judges what the commit adds, reading both sides
 - [ ] `internal/le/commit/prepare.go` - `Create`, `checkVerificationGates`, which finds a closure stem (`closureStemSelected`) and its change set (`specWorkPopulation`); the `Spec-work:` trailer is appended after the person-act trailers
 - [ ] `internal/le/commit/actions.go` - `declaredTrailers`, each with the one route that writes it
-- [ ] `internal/le/commit/authorization.go` - `requireAttestationTerminal`: the `attest` keyword of `commit create` needs the owner terminal
+- [ ] `internal/le/commit/authorization.go` - `requireAttestationTerminal` (renamed `requireOwnerTerminal` in phase 2, which guards `decision-change` too): the `attest` keyword of `commit create` needs the owner terminal
 - [ ] `internal/le/spec/citation/anchors.go` - `AuditAnchors`: for the source bullets of Files to Modify and Files to Create, the `// Design:` document (`declaredDesignDocument`, first match in the first 25 lines only) and every document the doc index anchors to the file (`docindex.DocumentsByPath`)
 - [ ] `internal/le/le/human/human.go` - `RequireAuthorization`: refuses unless stdin and stdout are terminals, and states that a terminal is an operational restriction, not authenticated authorship
 - [ ] `internal/le/spec/review_authorization.go` - an owner keyword guarded by `RequireAuthorization`
@@ -191,7 +202,7 @@ The goal:
 | Change-set check seam | `internal/le/commit/changecheck/changecheck.go` `Register`; `internal/le/commit/changechecks.go` | Runs every registered check over what a commit adds, both sides readable | Extends: the consistency package registers the decision-row check, so `prepare.go` learns no page rule |
 | Owe-on-next-edit commit judge | `internal/le/commit/specmechanisms.go` `specMechanismsRefusal` | Judges a spec's sections only in a commit that changes its text | Extends the pattern: a decision row is judged only in a commit that adds, changes or removes it |
 | Owner terminal gate | `internal/le/le/human/human.go` `RequireAuthorization` | Refuses an owner action without interactive stdin and stdout | Extends: `./le spec design approve`, `away`, `return`, and the `decision-change` keyword of `./le commit create` |
-| Owner keyword on `commit create` | `internal/le/commit/authorization.go` `requireAttestationTerminal` | `attest` is admitted only from the owner terminal and writes `Owner-attested:` | Extends the pattern: `decision-change` beside it |
+| Owner keyword on `commit create` | `internal/le/commit/authorization.go` `requireAttestationTerminal`, renamed `requireOwnerTerminal` | `attest` is admitted only from the owner terminal and writes `Owner-attested:` | Extends the pattern: `decision-change` beside it |
 | Judge approval file and trailer | `internal/le/test/weakened/approve.go`; `internal/le/commit/actions.go` `declaredTrailers` | Untracked file read by hook and commit gate; trailer per used row; hand-written trailer refused | Extends the pattern: records keyed by spec under `tmp/spec-design/`, a `Design-approved:` trailer |
 | Claim and the ready transition | `internal/le/spec/session.go` `Claim`, `CheckWIPTransition` | The only route to `in-progress` | Extends: checks the approval or the away admission before the cap |
 | WIP edit check | `internal/le/hookruntime/specwip.go` `writeSpecWIP` | Refuses an edit that makes a spec `in-progress` | Extends the pattern: a sibling check for the edit that makes a spec `ready` |
@@ -294,14 +305,15 @@ The goal:
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Claude Code puts `agent_id` in every subagent hook payload and the agent cannot alter it | `fromSubagent` reads `Payload.AgentID` alone; the comment of `documentReadMarker`; the identity check and the call budget rely on it | Subagent detection fails open for the ready edit only; C-5 still requires the approval | A hook test over a subagent payload plus a live probe | unvalidated |
-| A-2 | A fork's payload carries no `agent_id` | No source in the tree states it (an earlier draft cited a comment that does not exist) | A fork is judged as the main session, which C-5 makes harmless: its ready edit needs the approval too | A live probe at implementation | unvalidated |
-| A-3 | The owed-set computation is fast enough for a pre-write hook | It reads the first 25 lines of each named code file and scans each named page once; `hookValidateSpec` already derives the whole doc index on every spec write | Every spec edit slows | Time it on this spec and on the incident fixture | unvalidated |
+| A-1 | Claude Code puts `agent_id` in every subagent hook payload and the agent cannot alter it | `fromSubagent` reads `Payload.AgentID` alone; the comment of `documentReadMarker`; the identity check and the call budget rely on it | Subagent detection fails open for the ready edit only; C-5 still requires the approval | A hook test over a subagent payload plus a live probe | confirmed: `sectionReadMarker` (`sectionread.go`) fingerprints with `ctx.payload.AgentID`, and the closure agent's own markdown Reads on 2026-11-20 left `tmp/session/.section-read-<key>-e0191060-6d33-4f66-981b-0a754041ef73+ad9c5f966a7a40f39`, its agent id taken from the payload; the same payloads made `bashAgentIdentity` refuse its unprefixed Bash lines as a subagent's |
+| A-2 | A fork's payload carries no `agent_id` | No source in the tree states it (an earlier draft cited a comment that does not exist) | A fork is judged as the main session, which C-5 makes harmless: its ready edit needs the approval too | A live probe at implementation | broken by the main thread's live probe on 2026-11-20: a fork's payload carries `agent_id` (SubagentStart gave it a `ZE_AGENT_ID`, `bashAgentIdentity` refused its non-reader line, and its section-read marker ends in `+<agent>`). So `writeSpecReady` refuses a fork's ready move as it refuses a subagent's: stricter than assumed, and consistent with the rule that only the main session presents a design. C-5 still holds on its own ground, since the main session's own ready edit needs the approval. No design change |
+| A-3 | The owed-set computation is fast enough for a pre-write hook | It reads the header of each named code file and scans each named page once; `hookValidateSpec` already derives the whole doc index on every spec write | Every spec edit slows | Time it on this spec and on the incident fixture | confirmed 2026-11-20: `./le ai hooks pretool-writeedit` on an Edit payload of `internal/component/command/pipe.go` took 0.19 s real, and on this spec 0.34 s real |
 | A-4 | Thomas runs le from a real terminal on both machines | Five owner actions already use the gate | He cannot approve | His first approval | unvalidated |
-| A-5 | The Read hook receives the returned content, start line and line count for a markdown page as it does for source | `recordSourceRead` parses them for source files | No section record can be written | `TestSectionReadRecordedForMarkdown` over a real payload | unvalidated |
-| A-6 | `./le scratch clean` and the session reaper leave `tmp/spec-design/` alone | The reaper removes `tmp/session` entries; not read for this directory | An approval disappears and a claim is refused until the trailer exists | Read both producers in phase 5 and add the directory to what they keep | unvalidated |
-| A-7 | A judge agent runs `./le` under its own `ZE_AGENT_ID` | The identity line every subagent types (`ai/rules/planning.md`) | The judge action cannot find the judge's read records | `TestJudgeRefusesWithoutAgentIdentity` | unvalidated |
-| A-8 | A `// Design:` header line names its pages as the words before its separator (` -- `, ` — ` or ` - `), and a page is a word ending in `.md` | Phase 2 grep of every header line under `internal/`, `cmd/`, `pkg/` on 2026-11-20: 97 lines name `(none ...)`, some name a `.go` file or an RFC text, 7 lines name two `.md` pages, some end a page with `,` or `.`; none names a page with a `#` anchor or a `../` path | A page is missed, or a word is read as a page that is none | `designTargets` takes every such word, trimmed of punctuation; `./le doc consistency` on the real tree counts the `design-refs` errors it raises | unvalidated |
+| A-5 | The Read hook receives the returned content, start line and line count for a markdown page as it does for source | `recordSourceRead` parses them for source files | No section record can be written | `TestSectionReadRecordedForMarkdown` over a real payload | confirmed live on 2026-11-20: the closure agent's real Reads of markdown pages (`ai/skills/ze-review.md`, this spec) wrote section records holding one `<digest>\t<heading>` line per section returned whole (`recordSectionRead`, `readrecord.RecordRead`), and another agent's Read of a `## Design decisions` section recorded it |
+| A-6 | `./le scratch clean` and the session reaper leave `tmp/spec-design/` alone | The reaper removes `tmp/session` entries; not read for this directory | An approval disappears and a claim is refused until the trailer exists | Read both producers in phase 5 and add the directory to what they keep | confirmed in phase 5: nothing lists `tmp/` itself. `./le scratch clean` (`cacheclean.go`) empties only caches and dead files of `tmp/.ze-jobs`; the store trim (`livetrim.go` `livenessRows`, `trimTestTemp`) walks `bin/`, `tmp/session`, the build store and the Go test temp; `./le session scratch clean` (`session/scratch.go` `cleanScratch`) removes only its own `tmp/session` directory |
+| A-7 | A judge agent runs `./le` under its own `ZE_AGENT_ID` | The identity line every subagent types (`ai/rules/planning.md`) | The judge action cannot find the judge's read records | `TestJudgeRefusesWithoutAgentIdentity` | confirmed at the producer: `judge` (`judge.go`) takes the agent from `lepath.Agent`, which reads `ZE_AGENT_ID`, and refuses an empty one; the Bash hook makes every subagent line carry it |
+| A-8 | A `// Design:` header line names its pages as the words before its separator (` -- `, ` — ` or ` - `), and a page is a word ending in `.md` | Phase 2 grep of every header line under `internal/`, `cmd/`, `pkg/` on 2026-11-20: 97 lines name `(none ...)`, some name a `.go` file or an RFC text, 7 lines name two `.md` pages, some end a page with `,` or `.`; none names a page with a `#` anchor or a `../` path | A page is missed, or a word is read as a page that is none | `designTargets` takes every such word, trimmed of punctuation; `./le doc consistency` on the real tree counts the `design-refs` errors it raises | confirmed 2026-11-20: `./le doc consistency` on the main checkout raises no `// Design: names ..., which does not exist` error and no `design-decisions` finding |
+| A-10 | The spec design package can read the doors and the section read records without importing `hookruntime` | `hookruntime` will import the spec design package (phase 6, `writeSpecReady`), so the reverse import is a cycle; `loadDoors`, `coveringDoors` and the marker names were unexported in `hookruntime` | The derivation and the judge cannot name a door or a read record | Phase 4 moved the rules into `internal/le/doc/doorindex` (`Load`, `Index.Covering`) and `internal/le/doc/readrecord` (`Sections`, `RecordRead`, `SectionRead`, `SectionMarker`, `WholeReadMarker`); phase 3's `sectionread.go` writes and reads through `readrecord` | confirmed |
 | A-9 | A Source path resolves when the checkout holds the file; "tracked" in AC-8 is read as "in the checkout" | The phase 1 wiring tests judge fixture trees with no repository and expect a Source on disk to resolve (`TestCommitRefusesChangedDecisionRow`, the added row) | An untracked record outside `tmp/` passes as a Source | `pathProblem` refuses a path under `tmp/`, outside the checkout, a directory, or absent | confirmed |
 
 ### Risks
@@ -317,6 +329,14 @@ The goal:
 | R-8 | A decision row is added that Thomas never made | A row whose Source does not hold the decision | The Source must resolve; the judge and the review lens read it; Known Limitations |
 | R-9 | The hook source seal in `fixtures.go` goes red in another session's run between phases | `./le ai hooks unit` red on `checkHookSources` | Each phase that edits a hook source re-seals in its own commit |
 | R-10 | The `design-refs` missing-page error raises tree-wide reds on headers written before it existed | `./le doc consistency` errors naming `design-refs` after phase 2 | Reds are owed at release and refuse no commit; each finding names the file and its header line |
+| R-11 | `hookruntime` keeps its own `loadDoors`, `doorBases`, `coveringDoors`, `underBase` and `documentMarkerName` beside `internal/le/doc/doorindex` and `readrecord.WholeReadMarker`: two declarations of one rule | A door the gate and the derivation place differently | Done in phase 3: the copies are deleted; `unreadDoors` calls `doorindex.Load`/`Covering`, `documentReadMarker` calls `readrecord.WholeReadMarker`, and `DoorsCovering` (called by `arch/errorinventory` and `arch/doctorcoverage`) delegates to `doorindex` |
+| R-12 | Phase 3's read gate compiles only beside phase 4's work: it uses `internal/le/doc/readrecord`, `internal/le/doc/doorindex`, `docconsistency.DesignTargets` and `speccitation.DeclaredDesignDocuments`, all phase 4's and uncommitted when phase 3 ended | A build of `internal/le/hookruntime` that names an undefined symbol | Land phases 3 and 4 in one commit, or phase 4 first |
+| R-13 | The section read record is judged from the returned text alone (`readrecord.RecordRead`), so a Read must reach the heading that ends the section, or the page's last line, to record it; a Read of exactly the section's lines records nothing | An agent that read the refusal's line range is refused again | The refusal's Read limit runs through that heading (`owedSection.through`), so the advised Read records; its line range still names the section's own lines |
+| R-14 | The owner-record Bash guard refuses a commit whose message names `tmp/spec-design/` | `./le commit create` refused by `bashOwnerRecord` | `ownerRecordAdmit` admits a literal `./le commit create`, which writes only under `tmp/commit-*`; every other le action is judged as any command, because `job run` runs what it is handed |
+| R-15 | Two spellings of the `Design-approved:` trailer, one written and one read | A trailer the claim never finds | One spelling: phase 5's `FormatApprovalTrailer`; phase 6's `designApprovedTrailers` writes through it (`OwedApprovalTrailer`) and `parseApprovalTrailers` reads it |
+| R-16 | An away trailer keeps admitting a design after Thomas is back | A start after his return with no approval | `Admit` admits an away trailer only while the away record is current; an absence that lapses before the commit writes no away trailer |
+| R-17 | The approval lookup fails closed outside a git repository, so a fixture tree refuses every claim | Claim tests red with a git error | Every fixture git-inits its root (`designtest.InitRepository`, `initProbeRepository`) |
+| R-18 | The missing-page check reports headers written before it existed | `design-refs` errors after phase 2 | It found two headers naming deleted specs, fixed in d332d8275a (AC-38) |
 
 ## Blast Radius
 
@@ -384,6 +404,9 @@ The goal:
 | AC-34 | A Write or Edit whose path lies under `tmp/spec-design/`, or a Bash line that names that directory and is not made only of readers | Exits 2 and prints `BLOCKED: tmp/spec-design/ holds Thomas's approvals, written only by ./le spec design`, why, and the command to hand him | `ls` and `cat` of the records, and every `./le spec design` action, which names no path under it |
 | AC-35 | `plan/templates/TEMPLATE.md`, `ai/skills/ze-spec.md`, `ai/skills/ze-design-judge.md`, the review skills and the pages in Files to Modify, after phase 7 | Each states the two sections, the judge step, the approve command and what `ready` now means, and a spec written from the template and filled passes AC-14 | The closure template is unchanged: the lens is in the review skills |
 | AC-36 | The incident: the spec text of 2616478e64 with Status `ready`; `docs/architecture/api/commands.md` carrying the row of AC-12 | The claim is refused (AC-22); a subagent's ready edit is refused (AC-20); an edit of `pipe.go` by a context that never read the row is refused (AC-1); `./le spec design documents` lists `docs/architecture/api/commands.md`, `docs/architecture/api/process-protocol.md`, the doors and the decision row; a table that omits the decision row fails the check (AC-14); the commit that rewrote the page's decision is refused (AC-10) | No survivor: this is the case the spec exists to stop |
+| AC-37 | `./le help commit create`, and every le build, after the `decision-change` keyword lands (8c1675f95f) | The keyword's help fits one menu line, and the help-length check passes | None |
+| AC-38 | `./le doc consistency` over the two test files d332d8275a corrected | Each file's `// Design:` header names a page the checkout holds, and the check reports the `design-refs` group with no missing-page error for them | None: a header naming a deleted spec is the case the check exists to report |
+| AC-39 | The doc index generator run over a tree that lies under an ignored directory of an enclosing checkout, with `GIT_DIR` or `GIT_WORK_TREE` set (ff2b53da2e) | `filterGitignored` asks git about that tree alone (`GIT_CEILING_DIRECTORIES`, discovery variables dropped), so its anchors are indexed | A tree that is not a repository keeps the unfiltered list |
 
 ## 🧪 TDD Test Plan
 
@@ -582,7 +605,10 @@ stem and the digest. The departures of a trailer-only approval are the
 
 ## Design documents
 
-Filled by hand for this spec: the derivation does not exist yet, so the judge of C-3 re-checks it once it does.
+Filled by hand while the derivation did not exist, then regenerated at closure
+from `./le spec design documents spec plan/release/validation/spec-design-needs-owner-approval.md`
+(2026-11-20: 18 design pages, 1 decision row). `ai/rules/planning.md` and the
+`ai/META-DECISIONS.md` rows are hand-added beside the derived ones.
 
 | Document | Section | Derived from | Binding statement | Verdict | How this design stands against it |
 |----------|---------|--------------|-------------------|---------|-----------------------------------|
@@ -590,18 +616,26 @@ Filled by hand for this spec: the derivation does not exist yet, so the judge of
 | `ai/doors/le-tooling.md` | Who depends on it from outside | `internal/le/` | "A hook that panics or refuses wrongly blocks every session at once" | agrees | The read gate is inert until a page carries a decision; the approve action lands before the claim gate; an edit of an already ready spec is never judged |
 | `ai/doors/le-tooling.md` | Boundaries | `internal/le/` | "The package sits at the path its command name predicts" | agrees | `le spec design` is `internal/le/spec/design` |
 | `docs/architecture/core-design.md` | Command engine and composition roots | Design header of `session.go`, `writeedit.go`, `specdoors.go`, `lifecycle.go`, `runtime.go`, `anchors.go`, `consistency.go`, `actions.go`, `fixtures.go`, `internal/le/register.go` | "no second command engine for repository tooling" | agrees | The new area registers like every other |
-| `docs/contributing/spec-workflow.md` | Spec status vocabulary | Design header of `designevidence.go`, `specwip.go`; a page this spec modifies | "Design complete, ready for implementation" | departs | `ready` comes to mean "design approved by Thomas, or a judged fix spec admitted while he is away"; the page is corrected in this work |
+| `docs/contributing/spec-workflow.md` | Spec status vocabulary | Design header of `designevidence.go`, `specwip.go`; a page this spec modifies | "Design approved: Thomas approved the design as the spec now states it, or the spec is a judged fix spec admitted while he is away" | departs | `ready` read "Design complete, ready for implementation" and now means "design approved by Thomas, or a judged fix spec admitted while he is away"; the page was corrected in this work (1abfbb00b5), so the row quotes the corrected text |
 | `docs/contributing/committing.md` | The keywords | Design header of `authorization.go` and the change-set seam | "hand-written `No-news:` line is refused like any declared key." | agrees | Two more declared trailers, same refusal; one more owner keyword beside `attest` |
 | `docs/features/ai-first.md` | Development-Time Discovery | Design header of `prepare.go` | "`./le commit create` prepares a commit" | agrees | `create` still prepares the commit |
 | `docs/contributing/documentation-testing.md` | Adding a new documentation check | the doc check this spec extends | "A related check joins an existing area rather than opening another root name." | agrees | The new check joins `./le doc consistency` |
 | `docs/contributing/running-commands.md` | Issuing owner authorization also requires a terminal | Design header of `human.go` | "No environment variable, keyword or flag skips it." | agrees | The three owner actions and the keyword call the same gate, with no skip |
-| `docs/architecture/README.md` | the page's opening | a page this spec modifies | "Architecture documents describe how the current implementation is wired." | agrees | The Page format section adds where decisions live and changes nothing else |
-| `docs/architecture/api/commands.md` | The surface splits the pipe chain; the dispatcher refuses one | a page this spec modifies | "The dispatcher answers data, and a pipe chain renders text, so the chain is applied by the surface that renders the answer." | agrees | This spec adds the decision row and leaves the section to the spec that repairs the incident |
+| `docs/architecture/README.md` | Page format | a page this spec modifies; the `// Design:` page of `decisions.go`; anchored to `consistency.go` and `decisions.go` | "Thomas's decisions about the subject such a page documents are written on that page, in one section, and nowhere else: no separate register of decisions exists." | agrees | This spec writes the section and the check that judges it |
+| `docs/architecture/api/commands.md` | Design decisions | a page this spec modifies; the decision row of 2026-08-21 | "The pipe wins: a command path names the subject and stops; scope, presentation and format are pipe operations after it, selector words included" | agrees | This spec records the decision and changes no pipe behavior; the incident's repair is `plan/release/fixes/spec-pipe-chain-honored-on-every-command-surface.md` |
+| `docs/architecture/appliance/self-update.md` | Trap | anchored to `writeedit.go` (`writeFilePatterns`) | | silent | The anchor is the file-pattern hook, which this spec does not change |
+| `docs/architecture/diagnostics/crash-capture.md` | The decisions | anchored to `writeedit.go` (`writeGoPatterns`) | | silent | The anchor is the Go-pattern hook, which this spec does not change |
+| `docs/architecture/firewall/backend-command-dispatch.md` | Registration is explicit | anchored to `writeedit.go` (`writeGoPatterns`) | | silent | The anchor is the Go-pattern hook, which this spec does not change |
+| `docs/architecture/plugin/show-enrichers.md` | The decisions | anchored to `writeedit.go` (`writeGoPatterns`) | | silent | The anchor is the Go-pattern hook, which this spec does not change |
+| `docs/architecture/show-enricher.md` | Contract | anchored to `writeedit.go` (`writeGoPatterns`) | | silent | The anchor is the Go-pattern hook, which this spec does not change |
+| `docs/architecture/testing/ci-format.md` | Sleeps and their justification markers | anchored to `writeedit.go` (`writeCISleep`) | | silent | The anchor is the `.ci` sleep hook, which this spec does not change |
+| `docs/architecture/testing/test-health.md` | One approval names one test | anchored to `writeedit.go` (`writeWeakening`) and `prepare.go` (`checkSourceGates`) | | silent | The weakening hook and the source gates keep their behavior; this spec adds its own approval route beside theirs |
+| `docs/architecture/testing/verify-freshness-scope.md` | The push debt, derived | anchored to `lifecycle.go` (`reportDerivedDebt`) | | silent | The push-debt report is unchanged; this spec changes only `hookSourceRead` in that file |
 | `ai/rules/planning.md` | Directives | the rule this spec enforces | "Five MUST stay in the main thread" | agrees | Enforced for the ready transition |
 | `ai/META-DECISIONS.md` | How agents work | owner rule | "a spec's design is put to him and approved before the spec moves to ready, and the main session presents it, never a subagent" | agrees | AC-20 to AC-26 |
 | `ai/META-DECISIONS.md` | How agents work | owner rule | "A spec never departs from the design documentation" | agrees | AC-10, AC-14, AC-32, AC-33 |
-| `ai/META-DECISIONS.md` | How agents work | owner rule | "A design decision Thomas makes is written into the design page that documents its subject, never into a separate register of decisions." | agrees | The Page format; no register |
-| `ai/META-DECISIONS.md` | How agents work | owner rule | "it reads the design page the file's `// Design:` header links" | departs | The owed read is the page's Design decisions section, since the pages cannot be read whole (C-6). If he chooses the whole page, this row becomes `agrees` |
+| `ai/META-DECISIONS.md` | How agents work | owner rule | "A design decision Thomas makes is written into the `## Design decisions` section of the design page that documents its subject, never into a separate register of decisions." | agrees | The Page format; no register |
+| `ai/META-DECISIONS.md` | How agents work | owner rule | "it reads that section of each design page the file's `// Design:` header links" | departs | The rule read "it reads the design page the file's `// Design:` header links"; Thomas took C-6 (a), so the owed read is the page's Design decisions section, and b1c51d82f7 corrected the rule's wording, which the row now quotes |
 | `ai/META-DECISIONS.md` | How agents work | owner rule | "A hook checks what a command, path or file is, never how a message is worded." | agrees | Every check reads paths, headers, status cells, verdict tokens, verbatim spans, digests and payload identity |
 | `ai/META-DECISIONS.md` | How agents work | owner rule | "While Thomas is away, a fix spec's design needs no approval from him" | agrees | AC-27 to AC-29; the judge still runs, at no cost to him |
 | `ai/META-DECISIONS.md` | How agents work | owner rule | "The hook that refuses a shell write covers those two trees and is not widened to the rest of the repository." | agrees | That hook is unchanged. `bashOwnerRecord` is another check over one untracked directory of owner records, which no codebase tool writes |
@@ -945,3 +979,160 @@ N-A: tooling.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`
 - [ ] **Commit A:** code + tests + docs + edited spec
 - [ ] **Commit B:** `remove plan/release/validation/spec-design-needs-owner-approval.md` only, in the same `./le commit create` script
+
+## Implementation Summary
+
+### What Was Implemented
+- Phase 1 (81cf9c2852): the `le spec design` area, the three hook checks and the change-set check wired as stubs, every wiring test red
+- Phase 2 (d7fcd2ef3b): the `## Design decisions` page format (`docs/architecture/README.md`, "Page format"), its parser and tree check (`decisions.go`), the change-set check (`decisionschange.go`), the `decision-change` owner keyword and `Decision-changed:` trailer, the first decision row in `docs/architecture/api/commands.md`
+- Phases 3 to 7 (1abfbb00b5): the Design decisions read owed before code and spec edits (`sectionread.go`, `writeedit.go` `unreadDoors`), the read records (`internal/le/doc/readrecord`), the door index moved out of hookruntime (`internal/le/doc/doorindex`), the derivation, check, judge, approve, away, return and pending actions, the one approval lookup (`approval.go`), the admission (`admission.go`) read by `Claim`, `writeSpecReady` and `./le commit create`, the owner-record guards, the closure departure checks, the skills, rules, template and pages
+- b1c51d82f7: the `ai/META-DECISIONS.md` wording for C-6 (a)
+- ef4ae4b2cf: `test/ui/le-spec-design-check.ci`
+
+### Bugs Found/Fixed
+- 8c1675f95f: the `decision-change` help passed the menu line and failed every le build (AC-37)
+- d332d8275a: two `// Design:` headers named deleted specs (AC-38)
+- ff2b53da2e: the doc index asked an enclosing checkout's git, so the `.ci` tree indexed no anchor (AC-39, `TestDocumentsByPathAsksGitAboutTheRootAndNotAnEnclosingCheckout` in `codetodocs_test.go`)
+
+### Documentation Updates
+- `docs/architecture/README.md` "Page format"; `docs/architecture/api/commands.md` "Design decisions"; `docs/contributing/spec-workflow.md` status table and "Design approval"; `docs/contributing/committing.md` keywords, trailers and the two closure refusals; `docs/contributing/documentation-testing.md`; `docs/contributing/running-commands.md` owner routes; `.claude/hooks/README.md`; `ai/INDEX.md`; the skills `ze-spec`, `ze-design`, `ze-implement`, `ze-close`, `ze-review`, `ze-review-spec`, `ze-design-judge`; `plan/templates/TEMPLATE.md`; three rule points
+- `./le doc check all`: owed (see Pre-Commit Verification)
+
+### Deviations from Plan
+- The door and read-record rules moved into `internal/le/doc/doorindex` and `internal/le/doc/readrecord` (A-10), not planned: `hookruntime` imports the spec design package, so the reverse import was a cycle
+- `docs/architecture/core-design.md` was not edited: it lists no le gate or hook policy that this spec changes (phase 7, grep of `hookruntime`, `le spec`, "Command engine")
+- `docs/features/ai-first.md` was not edited: it lists no trailer route
+- A-2 broke: a fork is judged as a subagent, so its ready move is refused. The design is unchanged; it is stricter than the assumption said
+- The header rule became one reader, `docconsistency.DesignHeader` (08d423ef42, a530d921ec): the gate, the derivation, the doc check and the DOCS-TO-CODE index read the leading comment block, no longer the first 25 lines
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The hand-filled Design documents table named a section "the page's opening" and missed 9 derived rows | The derivation adds the anchored architecture pages and every decision row | Phase 4 derivation; regenerated at closure | Table regenerated from `./le spec design documents` |
+| assumption | A-2 held that a fork's hook payload carries no `agent_id` | It carries one: the harness gives a fork an agent identity like a subagent | The main thread's live probe at closure | Recorded as broken; `writeSpecReady` refuses a fork's ready move, which only tightens C-5 |
+| approach | Phase 3 compiled only beside phase 4's packages (R-12) | Two phases shared new packages | Phase 3 handoff | Landed together in 1abfbb00b5 |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Goal 1: no implementation of an unapproved design; no subagent ready move | Done | `internal/le/spec/session.go` `Claim`; `internal/le/hookruntime/specready.go` `writeSpecReady`; `internal/le/spec/design/admission.go` `Admit` | |
+| Goal 2: decisions in the page's `## Design decisions`, validated | Done | `docs/architecture/README.md` "Page format"; `internal/le/doc/consistency/decisions.go` | |
+| Goal 3: the header makes the section owed reading, per agent, owed again on a new row | Done | `internal/le/hookruntime/sectionread.go`, `writeedit.go` `unreadDoors`, `internal/le/doc/readrecord` | one header reader since 08d423ef42 (Review Gate ISSUE 1) |
+| Goal 4: a decision row changes only with Thomas | Done | `internal/le/doc/consistency/decisionschange.go` `judgeDecisionRows` | |
+| Goal 5: Design documents, judge, approval of departures | Done | `internal/le/spec/design/` `derive`, `checkSpec`, `judge`, `approve`; `internal/le/commit/designapproval.go` `departureRefusal` | |
+| Small fixes 8c1675f95f, d332d8275a, ff2b53da2e | Done | AC-37 to AC-39 | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 to AC-7 | Done | `sectionread_test.go` (seven tests), `TestSpecDoorGateOwesTheDecisionsSection`, fixture category `design-decisions-read` | owed run |
+| AC-8 to AC-10, AC-12 | Done | `TestDesignDecisionsSectionJudged`, `TestCommitRefusesMalformedAddedDecisionRow`, `TestCommitRefusesChangedDecisionRow`; `./le doc consistency` | AC-12 confirmed by the closure run: no `design-decisions` finding |
+| AC-11 | Done | `TestDecisionChangeNeedsTheOwnerTerminal` | owed run |
+| AC-13 to AC-16 | Done | `TestDesignDocumentsDerivation`, `TestDesignCheckJudgement`, `TestJudgeRecordsADigestBoundVerdict`, `TestJudgeRefusesUncoveredRow`, `TestJudgeRefusesWithoutAgentIdentity`, `TestJudgeRefusesMalformedReason`; `test/ui/le-spec-design-check.ci` | owed run |
+| AC-17 to AC-19, AC-27, AC-30 | Done | the three approve tests, `TestAwayRequiresTerminalAndUntil`, `TestPendingListsUnapprovedReadySpecsByPriority` | owed run |
+| AC-20, AC-21 | Done | `TestSpecReadyRefusedFromSubagent`, `TestSpecReadyNeedsTheApproval`, fixture category `spec-ready` | owed run |
+| AC-22 to AC-26, AC-28, AC-29 | Done | the six claim tests in `internal/le/spec/session_test.go` | green in the main thread's run of `./internal/le/spec/` |
+| AC-24 digest | Done | `TestDesignDigestCoversFourSections` | owed run |
+| AC-31 to AC-33 | Done | `TestDesignApprovedTrailerWrittenFromRecord`, `TestClosureRefusesUncorrectedDeparture`, `TestClosureRefusesUnapprovedDeparture` | owed run |
+| AC-34 | Done | `TestOwnerRecordWriteRefused`, fixture category `owner-record` | owed run |
+| AC-35 | Done | `plan/templates/TEMPLATE.md`, the skills named in Documentation Updates | read at closure |
+| AC-36 | Done | `TestIncidentPipeChainSpecIsRefused` | green (main thread) |
+| AC-37 to AC-39 | Done | le builds since 8c1675f95f; `./le doc consistency`; `codetodocs_test.go` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Every Unit Tests row | Done | the files the table names; `judge_test.go` beside `judge_record_test.go` | owed runs listed in the closure report |
+| Fixture categories `design-decisions-read`, `spec-ready`, `owner-record` | Done | `internal/le/ai/hooks/fixtures.go`, `fixture_catalog.go` | seals owed |
+| `le-spec-design-check` | Done | `test/ui/le-spec-design-check.ci` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Modify and Files to Create | Done | except `docs/architecture/core-design.md`, `docs/features/ai-first.md` (Deviations) and `plan/learned/HOOK-FRICTION.md` (no false positive observed) |
+
+### Audit Summary
+- **Total items:** 39 AC, 5 goals, 3 small fixes
+- **Done:** all
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** the doorindex and readrecord packages, recorded in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| 1. Unapproved design never starts; subagent ready move refused | unit and replay | `TestIncidentPipeChainSpecIsRefused` replays the incident spec of 2616478e64 and is refused at the claim and the ready edit; `TestClaimRefusesReadySpecWithoutApproval` |
+| 2. Decisions in the page, validated | tree check | `./le doc consistency` over the main checkout on 2026-11-20: the commands.md section judged with no finding |
+| 3. The header makes the section owed reading | live hook | the closure agent's own spec edit was refused naming `docs/architecture/api/commands.md, ## Design decisions (lines 8 to 14): Read it with offset 8 and limit 9`, and passed after that Read |
+| 4. A decision row changes only with Thomas | unit and replay | `TestCommitRefusesChangedDecisionRow`; the incident replay refuses the commit that rewrote the 2026-08-21 decision |
+| 5. Design documents, judge, departures approved | functional | `test/ui/le-spec-design-check.ci` through the launcher; `TestClosureRefusesUnapprovedDeparture`, `TestClosureRefusesUncorrectedDeparture` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| C-7 (a): walk Thomas's past rulings and propose each as a Design decisions row | Thomas chose a child spec for it; this spec writes only the pipe decision | `plan/release/validation/spec-design-decisions-walk-past-rulings.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | recorded by `./le spec review record` after Run 3 (path in the closure report) |
+| `./le spec review check` | run at record time |
+| Rounds | 3 |
+| Reviewer lenses used | wiring and logic; guards and security (fail-closed, forgery, path handling); design-documents lens |
+
+### Run 1 (closure agent, 2026-11-20, every commit of the spec)
+| # | Severity | Finding | Location |
+|---|----------|---------|----------|
+| 1 | ISSUE | One header rule, three declarations that disagree: `DeclaredDesignDocuments` and `proposedDesignLinks` read `// Design:` lines from the first 25 lines only, `designHeader` reads every line before the package clause. `internal/component/command/registry/registry.go` carries its line at line 27, so doc consistency judges its page while the edit gate owes nothing and the derivation lists no row: the gate fails open on a real file | `internal/le/spec/citation/anchors.go` `DeclaredDesignDocuments`, `designHeaderLines`; `internal/le/hookruntime/sectionread.go` `proposedDesignLinks`, `proposedHeaderLines`; `internal/le/doc/consistency/consistency.go` `designHeader` |
+| 2 | NOTE | `approved` answers the newest trailer of a stem and digest: an away trailer newer than Thomas's own (reachable only by rebasing concurrent branches) is read as the away admission. It fails closed | `internal/le/spec/design/approval.go` `approvalLookup.approved` |
+| 3 | NOTE | `Departure.names` matches every departure of the page's Design decisions section when the parent row's Decision is empty; such a row is refused when added | `internal/le/spec/design/approve.go` `Departure.names` |
+| 4 | NOTE | A failing check prints the documents command twice when rows are missing (`missingRows` fix line and `answerCheck`) | `internal/le/spec/design/check.go`, `answers.go` |
+
+### Run 2 (closure agent, 2026-11-20, over 08d423ef42 and the reseal of `internal/le/ai/hooks/fixtures.go`)
+0 BLOCKER, 0 ISSUE within its scope. `docconsistency.DesignHeader` (`decisions.go`) is the one header reader: the leading run of blank and `//` lines, called by `designHeader`, `DeclaredDesignDocuments` and `editedFilePages`; an unreadable file is reported or refused, never read as no link. `readrecord.RecordRead` admits `start+len(lines) >= total`, which is safe because `SectionRead` compares the digest of the section as it stands, so a Read cut one line short never counts. `Section.Through` and `ReadLimit` replace the hook's own `sectionThrough`, one declaration of the Read limit. Found in ISSUE 1's class and routed as Run 3: `internal/le/doc/index/docstocode.go` `HeaderLines` (25) is a fourth reader of the same `// Design:` header, for the DOCS-TO-CODE index, and `docs/contributing/navigating-the-code.md` line 185 states the header is always in the first 25 lines, which `internal/component/command/registry/registry.go` (line 27) contradicts. `repo/packagemap` `HeaderLines` (40) reads the `// Package` block, another rule, and is not this.
+
+### Run 3 (closure agent, 2026-11-20, over a530d921ec and the closure's spec edits)
+0 BLOCKER, 0 ISSUE. `internal/le/doc/index` `designRefs` reads the header through `docconsistency.DesignHeader`, whose `DesignLink.Topic` comes from `designTargets` with one leading separator removed, so the DOCS-TO-CODE index, the doc check, the citation audit and the edit gate read one header rule; `HeaderLines` and the parser copy are deleted, and `navigating-the-code.md` states the leading-comment rule. `TestBuildReadsADesignLinePastLine25` covers the line-27 case. The two deleted index tests were judged by an independent agent; the behaviors they pinned (a `//Design:` with no space, a bare `one.md`) occur in no tree file. Final run: 0 BLOCKER, 0 ISSUE.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | Three header readers disagreed; `registry.go`'s line-27 header owed no read | `anchors.go`, `sectionread.go`, `consistency.go` | 08d423ef42: `docconsistency.DesignHeader`; `TestDesignHeaderReadsTheLeadingComments`, `TestDesignPageGateReadsADeepHeaderLine`, `TestDesignDocumentsReadTheWholeHeader` (red before) |
+| 2 | ISSUE | A fourth reader of the same header, `internal/le/doc/index` `HeaderLines` (25), and a page stating the 25-line rule | `docstocode.go`, `docs/contributing/navigating-the-code.md` | a530d921ec: the index reads `docconsistency.DesignHeader`; `TestBuildReadsADesignLinePastLine25` |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `ai/skills/ze-design-judge.md`, `test/ui/le-spec-design-check.ci`, `internal/le/spec/design/testdata/incident-pipe-chain.md`, `internal/le/spec/design/judge_test.go` | Yes | `ls` at closure, 2026-11-20 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-12 | commands.md holds the 2026-08-21 row, judged clean | `./le doc consistency`: no `design-decisions` finding; lines 8 to 12 of the page |
+| AC-36 | the incident is refused | `TestIncidentPipeChainSpecIsRefused` green in the main thread's run |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le spec design documents` and `check` through the launcher | `test/ui/le-spec-design-check.ci` | read at closure: seq 1 documents, seq 2 a missing page and decision row, seq 3 a whole table owing only the judge |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1, A-5, A-6, A-7, A-8, A-9, A-10 | confirmed | the Status cells of the Assumptions table |
+| A-2 | broken | live probe 2026-11-20: a fork's payload carries `agent_id`; Mistake Log row; no design change (Deviations) |
+| A-3 | confirmed | 0.19 s (`pipe.go` edit) and 0.34 s (this spec) for `./le ai hooks pretool-writeedit` |
+| A-4 | open | the terminal gate already admitted Thomas once: 87a2e67147 carries an `Owner-attested:` trailer, which only `requireOwnerTerminal` admits; his first `./le spec design approve` confirms it on the gate this spec adds |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Page format, Design approval, committing.md refusals | read against `decisions.go`, `admission.go`, `designapproval.go` at closure | Yes |
