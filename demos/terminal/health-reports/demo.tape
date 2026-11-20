@@ -19,7 +19,7 @@ Type "ze-demo card health-reports intro"
 Enter
 Show
 Wait+Screen /====/
-Sleep 500ms
+Sleep 250ms
 Screenshot artifacts/health-reports.png
 
 Hide
@@ -29,7 +29,7 @@ Show
 Type "sshpass -e ssh ze-demo"
 Enter
 Wait+Screen /stale prefix data/
-Sleep 5s
+Sleep 2500ms
 Type "exit"
 Enter
 Wait+Screen /ze>/
@@ -40,24 +40,24 @@ Type "sshpass -e ssh ze-demo 'show health'"
 Enter
 Wait+Screen /ipsec/
 Wait+Screen /status\s+down/
-Sleep 6s
+Sleep 3s
 Type "sshpass -e ssh ze-demo 'show warnings source bgp'"
 Enter
 Wait+Screen /prefix-stale/
 Wait+Screen /count\s+1/
-Sleep 6s
+Sleep 3s
 Type "sshpass -e ssh ze-demo 'request peer 127.0.0.2 teardown 4'"
 Enter
 Wait+Screen /(?m)^peer\s+127\.0\.0\.2/
 Wait+Screen /subcode\s+4/
-Sleep 4s
+Sleep 2s
 Type "sshpass -e ssh ze-demo 'show errors source bgp'"
 Enter
 Wait+Screen /notification-sent/
-Sleep 6s
 Sleep 3s
-Sleep 3s
-Sleep 3s
+Sleep 1500ms
+Sleep 1500ms
+Sleep 1500ms
 
 Hide
 Type "ze-demo run health-reports stop"
@@ -68,4 +68,4 @@ Enter
 Type "ze-demo card health-reports recap"
 Enter
 Show
-Sleep 9s
+Sleep 4500ms

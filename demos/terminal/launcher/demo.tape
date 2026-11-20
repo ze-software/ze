@@ -6,7 +6,7 @@ Type "ze-demo card launcher intro"
 Enter
 Show
 Wait+Screen /====/
-Sleep 500ms
+Sleep 250ms
 Screenshot artifacts/launcher.png
 
 Hide
@@ -16,32 +16,32 @@ Show
 Type "ze"
 Enter
 Wait+Screen /Operations/
-Sleep 5s
+Sleep 2500ms
 
 Type "show"
 Wait+Screen /filter: show/
-Sleep 4s
+Sleep 2s
 Enter
 Wait+Screen /ze > show/
-Sleep 4s
+Sleep 2s
 
 Type "traceroute"
 Wait+Screen /filter: traceroute/
-Sleep 7s
+Sleep 3500ms
 
 Escape
-Sleep 3s
+Sleep 1500ms
 Left
-Sleep 3s
+Sleep 1500ms
 Type "doctor"
 Wait+Screen /filter: doctor/
-Sleep 7s
+Sleep 3500ms
 Escape
-Sleep 3s
+Sleep 1500ms
 Escape
-Sleep 3s
+Sleep 1500ms
 Escape
-Sleep 3s
+Sleep 1500ms
 Wait+Screen /\$ /
 Hide
 Sleep 2s
@@ -54,4 +54,4 @@ Enter
 Type "ze-demo card launcher recap"
 Enter
 Show
-Sleep 9s
+Sleep 4500ms

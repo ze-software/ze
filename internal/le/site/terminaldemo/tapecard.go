@@ -20,12 +20,12 @@ const tapeCardCommand = "Card"
 
 const (
 	// cardHoldBase and cardHoldPerWord set how long a card stays on screen:
-	// a fixed moment to notice the card, then 300 words a minute to read it.
-	cardHoldBase    = 2 * time.Second
-	cardHoldPerWord = 200 * time.Millisecond
-	// cardHoldMax bounds the hold of a long card: past ten seconds a card
+	// a fixed moment to notice the card, then 600 words a minute to read it.
+	cardHoldBase    = time.Second
+	cardHoldPerWord = 100 * time.Millisecond
+	// cardHoldMax bounds the hold of a long card: past five seconds a card
 	// stalls the recording, and a viewer who wants every word pauses it.
-	cardHoldMax = 10 * time.Second
+	cardHoldMax = 5 * time.Second
 
 	// cardClear resets the colors, homes the cursor and erases the screen, so
 	// a card and the repaint after it each start from a blank screen.

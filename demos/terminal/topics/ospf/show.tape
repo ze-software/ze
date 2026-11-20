@@ -7,22 +7,22 @@ Enter
 Show
 Type "ze-demo card topic-ospf proof"
 Enter
-Sleep 6s
+Sleep 3s
 Type "ze cli -c 'show ospf neighbor detail | no-more'"
 Enter
-Sleep 4s
+Sleep 2s
 Type "ze cli -c 'show ospf interface detail | no-more'"
 Enter
-Sleep 4s
+Sleep 2s
 Type "ze cli -c 'show ospf database router | no-more'"
 Enter
-Sleep 4s
+Sleep 2s
 Type "ze cli -c 'show ospf route | no-more'"
 Enter
-Sleep 4s
+Sleep 2s
 Type "ze-demo card topic-ospf failure"
 Enter
-Sleep 6s
+Sleep 3s
 Type "sshpass -e ssh ze-demo"
 Enter
 Wait+Screen /ze#/
@@ -30,14 +30,14 @@ Card topic-ospf mismatch
 Type "load file absolute merge topics/ospf/3-mismatch.conf"
 Enter
 Wait+Screen /merged from \S*3-mismatch\.conf/
-Sleep 3s
+Sleep 1500ms
 Type "show | compare"
 Enter
-Sleep 6s
+Sleep 3s
 Type "commit now"
 Enter
 Wait+Screen /Session committed/
-Sleep 3s
+Sleep 1500ms
 Type "exit"
 Enter
 Wait+Screen /operational\]/
@@ -53,19 +53,19 @@ Enter
 Show
 Type "ze cli -c 'show ospf neighbor detail | no-more'"
 Enter
-Sleep 4s
+Sleep 2s
 Type "ze cli -c 'show ospf interface detail | no-more'"
 Enter
-Sleep 4s
+Sleep 2s
 Type "ze cli -c 'show metrics name ze_ospf_packets_dropped_total label interface frr0 label reason hello-interval | no-more'"
 Enter
-Sleep 4s
+Sleep 2s
 Type "ze cli -c 'show ospf route | no-more'"
 Enter
-Sleep 4s
+Sleep 2s
 Type "ze-demo card topic-ospf fix"
 Enter
-Sleep 6s
+Sleep 3s
 Type "sshpass -e ssh ze-demo"
 Enter
 Wait+Screen /ze#/
@@ -73,14 +73,14 @@ Card topic-ospf recovery
 Type "load file absolute merge topics/ospf/4-recovery.conf"
 Enter
 Wait+Screen /merged from \S*4-recovery\.conf/
-Sleep 3s
+Sleep 1500ms
 Type "show | compare"
 Enter
-Sleep 6s
+Sleep 3s
 Type "commit now"
 Enter
 Wait+Screen /Session committed/
-Sleep 3s
+Sleep 1500ms
 Type "exit"
 Enter
 Wait+Screen /operational\]/
@@ -96,16 +96,16 @@ Enter
 Show
 Type "ze cli -c 'show ospf neighbor detail | no-more'"
 Enter
-Sleep 4s
+Sleep 2s
 Type "ze cli -c 'show ospf database router | no-more'"
 Enter
-Sleep 4s
+Sleep 2s
 Type "ze cli -c 'show ospf route | no-more'"
 Enter
-Sleep 4s
+Sleep 2s
 Type "cat /src/tmp/terminal-demos/state/showcase-lab/ze.pid"
 Enter
-Sleep 2s
+Sleep 1s
 Type "ze-demo card topic-ospf recap"
 Enter
-Sleep 6s
+Sleep 3s

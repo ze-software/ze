@@ -18,7 +18,7 @@ Type "ze-demo card rib-fib intro"
 Enter
 Show
 Wait+Screen /====/
-Sleep 500ms
+Sleep 250ms
 Screenshot artifacts/rib-fib.png
 
 Hide
@@ -27,15 +27,15 @@ Enter
 Show
 Type "ze cli -c 'request bgp rib inject 192.0.2.10 ipv4/unicast 198.51.100.0/24 origin igp nexthop 127.0.0.1 med 42'"
 Enter
-Sleep 4s
+Sleep 2s
 Type "ze cli -c 'show bgp rib best prefix 198.51.100.0/24 | no-more'"
 Enter
 Wait+Screen /best-peer/
-Sleep 6s
+Sleep 3s
 Type "ip -details route show exact 198.51.100.0/24"
 Enter
 Wait+Screen /proto 250/
-Sleep 6s
+Sleep 3s
 
 Hide
 Type "clear"
@@ -43,4 +43,4 @@ Enter
 Type "ze-demo card rib-fib recap"
 Enter
 Show
-Sleep 9s
+Sleep 4500ms

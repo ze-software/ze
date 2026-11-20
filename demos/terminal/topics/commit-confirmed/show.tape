@@ -5,11 +5,11 @@ Wait+Screen /edge-original/
 Type "show | compare"
 Enter
 Wait+Screen /ze#/
-Sleep 2s
+Sleep 1s
 Type "show | changes"
 Enter
 Wait+Screen /No pending changes/
-Sleep 4s
+Sleep 2s
 Card topic-commit-confirmed confirmed
 Type "load file absolute merge topics/commit-confirmed/2-confirmed-host.conf"
 Enter
@@ -26,11 +26,11 @@ Wait+Screen /Commit accepted/
 # Keep the accepted change visible beyond its fifteen-second deadline. The
 # window is longer than the trial's because the reading floor and the typing
 # of commit accept must fit inside it.
-Sleep 12s
+Sleep 6s
 Type "show system host"
 Enter
 Wait+Screen /edge-confirmed/
-Sleep 3s
+Sleep 1500ms
 Type "exit"
 Enter
 Wait+Screen /operational\]/
@@ -47,8 +47,8 @@ Show
 Type "ze cli -c \"show config history $ZE_CONFIG_DIR/ze.conf | yaml | no-more\""
 Enter
 Wait+Screen /revision:/
-Sleep 4s
+Sleep 2s
 Type "ze-demo card topic-commit-confirmed recap"
 Enter
 Wait+Screen /====/
-Sleep 5s
+Sleep 2500ms

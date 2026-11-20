@@ -15,7 +15,7 @@ import (
 // read its key line. Without it a section load or a commit result showed for
 // about a second before the next card covered it. A tape Sleeps longer where
 // a screen has more to read, and that Sleep counts toward the floor.
-const resultHold = 4 * time.Second
+const resultHold = 2 * time.Second
 
 // outerCardPattern matches the shell command that prints a card from
 // cards.json in the outer shell, capturing its demo and phase.

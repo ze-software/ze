@@ -11,7 +11,7 @@ Type "ze-demo card cli-dashboard intro"
 Enter
 Show
 Wait+Screen /====/
-Sleep 500ms
+Sleep 250ms
 Screenshot artifacts/cli-dashboard.png
 
 Hide
@@ -21,29 +21,29 @@ Show
 Type "sshpass -e ssh ze-demo"
 Enter
 Wait+Screen /ze#/
-Sleep 3s
+Sleep 1500ms
 Type "exit"
 Enter
 Wait+Screen /ze>/
-Sleep 3s
+Sleep 1500ms
 Type "monitor bgp"
 Enter
 Wait+Screen /established/
-Sleep 8s
+Sleep 4s
 
 Type "s"
-Sleep 5s
+Sleep 2500ms
 Down
-Sleep 3s
+Sleep 1500ms
 Enter
 Wait+Screen /Peer Detail/
-Sleep 7s
+Sleep 3500ms
 
 Escape
-Sleep 3s
+Sleep 1500ms
 Type "q"
 Wait+Screen /ze>/
-Sleep 3s
+Sleep 1500ms
 Type "exit"
 Enter
 Wait+Screen /\$ /
@@ -55,4 +55,4 @@ Wait+Screen /terminal demo stopped/
 Type "ze-demo card cli-dashboard recap"
 Enter
 Show
-Sleep 9s
+Sleep 4500ms

@@ -2,11 +2,11 @@
 Type "ze-demo card topic-ipsec lab"
 Enter
 Wait+Screen /====/
-Sleep 5s
+Sleep 2500ms
 Type "ze-demo card topic-ipsec overview"
 Enter
 Wait+Screen /====/
-Sleep 6s
+Sleep 3s
 Type "sshpass -e ssh ze-demo"
 Enter
 Wait+Screen /ze#/
@@ -29,7 +29,7 @@ Wait+Screen /merged from \S*4-xfrm\.conf/
 Type "show | compare"
 Enter
 Wait+Screen /vpn-xfrm/
-Sleep 3s
+Sleep 1500ms
 Type "commit now"
 Enter
 Wait+Screen /Session committed/

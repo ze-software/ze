@@ -85,7 +85,7 @@ func defaultTapeSettings() tapeSettings {
 		height:   600,
 		padding:  60,
 		shell:    "bash",
-		typing:   50 * time.Millisecond,
+		typing:   25 * time.Millisecond,
 		wait:     30 * time.Second,
 		width:    1200,
 

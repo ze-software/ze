@@ -1,14 +1,14 @@
 Type "ze-demo card topic-irr proof"
 Enter
 Wait+Screen /====/
-Sleep 5s
+Sleep 2500ms
 Type "ze cli -c 'show bgp irr | yaml | no-more'"
 Enter
 Wait+Screen /status: ok/
 Type "ze cli -c 'show bgp irr prefix customer | yaml | no-more'"
 Enter
 Wait+Screen /2001:db8::\/32/
-Sleep 3s
+Sleep 1500ms
 Type "ze cli -c 'show bgp irr check customer 10.0.0.0/24 | yaml | no-more'"
 Enter
 Wait+Screen /accepted: true/
@@ -19,11 +19,11 @@ Type "ze cli -c 'show bgp adj-rib-in | no-more'"
 Enter
 Wait+Screen /10\.0\.0\.0\/24/
 Wait+Screen /10\.0\.1\.0\/24/
-Sleep 4s
+Sleep 2s
 Type "ze-demo card topic-irr failure"
 Enter
 Wait+Screen /====/
-Sleep 5s
+Sleep 2500ms
 Type "sshpass -e ssh ze-demo"
 Enter
 Wait+Screen /ze#/
@@ -62,11 +62,11 @@ Wait+Screen /192\.0\.2\.0\/24/
 Type "ze cli -c 'show bgp adj-rib-in | no-more'"
 Enter
 Wait+Screen /192\.0\.2\.0\/24/
-Sleep 4s
+Sleep 2s
 Type "ze-demo card topic-irr recovery"
 Enter
 Wait+Screen /====/
-Sleep 5s
+Sleep 2500ms
 Type "sshpass -e ssh ze-demo"
 Enter
 Wait+Screen /ze#/
@@ -106,4 +106,4 @@ Type "ze cli -c 'show bgp adj-rib-in | no-more'"
 Enter
 Wait+Screen /10\.0\.0\.0\/24/
 Wait+Screen /10\.0\.1\.0\/24/
-Sleep 5s
+Sleep 2500ms

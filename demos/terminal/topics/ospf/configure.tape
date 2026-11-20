@@ -1,7 +1,7 @@
 # Shared by the standalone topic and the continuous showcase.
 Type "ze-demo card topic-ospf overview"
 Enter
-Sleep 6s
+Sleep 3s
 Hide
 Type "ze-demo run ospf-adjacency await absent"
 Enter
@@ -11,10 +11,10 @@ Enter
 Show
 Type "cat /src/tmp/terminal-demos/state/showcase-lab/ze.pid"
 Enter
-Sleep 2s
+Sleep 1s
 Type "ze cli -c 'show ospf neighbor | no-more'"
 Enter
-Sleep 4s
+Sleep 2s
 Type "sshpass -e ssh ze-demo"
 Enter
 Wait+Screen /ze#/
@@ -22,19 +22,19 @@ Card topic-ospf area
 Type "load file absolute merge topics/ospf/1-area.conf"
 Enter
 Wait+Screen /merged from \S*1-area\.conf/
-Sleep 3s
+Sleep 1500ms
 Card topic-ospf interface
 Type "load file absolute merge topics/ospf/2-interface.conf"
 Enter
 Wait+Screen /merged from \S*2-interface\.conf/
-Sleep 3s
+Sleep 1500ms
 Type "show | compare"
 Enter
-Sleep 6s
+Sleep 3s
 Type "commit now"
 Enter
 Wait+Screen /Session committed/
-Sleep 3s
+Sleep 1500ms
 Type "exit"
 Enter
 Wait+Screen /operational\]/

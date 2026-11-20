@@ -11,7 +11,7 @@ Type "ze-demo card traceroute intro"
 Enter
 Show
 Wait+Screen /====/
-Sleep 500ms
+Sleep 250ms
 Screenshot artifacts/traceroute.png
 
 Hide
@@ -21,22 +21,22 @@ Show
 Type "sshpass -e ssh ze-demo"
 Enter
 Wait+Screen /ze#/
-Sleep 3s
+Sleep 1500ms
 Type "run show traceroute 192.0.2.53"
 Enter
 Wait+Screen /192\.0\.2\.53\s+\d+\.\d+/
-Sleep 7s
+Sleep 3500ms
 Type "run monitor traceroute 192.0.2.53"
 Enter
 Wait+Screen /Loss/
-Sleep 10s
-Sleep 3s
+Sleep 5s
+Sleep 1500ms
 Type "q"
-Sleep 3s
+Sleep 1500ms
 Escape
-Sleep 3s
+Sleep 1500ms
 Escape
-Sleep 3s
+Sleep 1500ms
 
 Hide
 Type "ze-demo run traceroute stop"
@@ -45,4 +45,4 @@ Wait+Screen /terminal demo stopped/
 Type "ze-demo card traceroute recap"
 Enter
 Show
-Sleep 9s
+Sleep 4500ms

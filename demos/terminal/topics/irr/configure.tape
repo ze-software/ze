@@ -1,15 +1,15 @@
 Type "ze-demo card topic-irr lab"
 Enter
 Wait+Screen /====/
-Sleep 6s
+Sleep 3s
 Type "ze cli -c 'show bgp irr | yaml | no-more'"
 Enter
 Wait+Screen /entries: \[\]/
-Sleep 3s
+Sleep 1500ms
 Type "ze-demo card topic-irr overview"
 Enter
 Wait+Screen /====/
-Sleep 6s
+Sleep 3s
 Type "sshpass -e ssh ze-demo"
 Enter
 Wait+Screen /ze#/
@@ -28,7 +28,7 @@ Wait+Screen /merged from \S*3-import\.conf/
 Type "show | compare"
 Enter
 Wait+Screen /AS-TEST/
-Sleep 3s
+Sleep 1500ms
 Type "commit now"
 Enter
 Wait+Screen /Session committed/

@@ -1,15 +1,15 @@
 Type "ze-demo card topic-rpki lab"
 Enter
 Wait+Screen /====/
-Sleep 6s
+Sleep 3s
 Type "ze cli -c 'show bgp rpki status | yaml | no-more'"
 Enter
 Wait+Screen /running: false/
-Sleep 3s
+Sleep 1500ms
 Type "ze cli -c 'show bgp adj-rib-in | no-more'"
 Enter
 Wait+Screen /11\.43\.0\.0\/24/
-Sleep 3s
+Sleep 1500ms
 Hide
 Type "ze cli -c 'request log level bgp.rpki info'"
 Enter
@@ -20,7 +20,7 @@ Show
 Type "ze-demo card topic-rpki overview"
 Enter
 Wait+Screen /====/
-Sleep 6s
+Sleep 3s
 Type "sshpass -e ssh ze-demo"
 Enter
 Wait+Screen /ze#/
@@ -39,7 +39,7 @@ Wait+Screen /merged from \S*3-attach\.conf/
 Type "show | compare"
 Enter
 Wait+Screen /bgp-rpki/
-Sleep 3s
+Sleep 1500ms
 Type "commit now"
 Enter
 Wait+Screen /Session committed/

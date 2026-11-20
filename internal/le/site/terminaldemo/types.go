@@ -30,7 +30,7 @@ const (
 	// query and the probe container, whose own bound is two minutes.
 	kernelCheckTimeout     = 3 * time.Minute
 	renderSpeedup          = 5
-	renderTypingSpeedMS    = 25
+	renderTypingSpeedMS    = 12
 	rendererCheckMode      = "check"
 	rendererValidateMode   = "validate"
 	rendererRenderMode     = "render"

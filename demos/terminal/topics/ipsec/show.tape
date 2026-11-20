@@ -9,30 +9,30 @@ Show
 Type "ze-demo card topic-ipsec proof"
 Enter
 Wait+Screen /====/
-Sleep 4s
+Sleep 2s
 Type "ze cli -c 'show vpn ipsec status | no-more'"
 Enter
 Wait+Screen /established-sas/
 Type "ze cli -c 'show vpn ipsec sa | no-more'"
 Enter
 Wait+Screen /inbound-spi/
-Sleep 3s
+Sleep 1500ms
 Type "ze cli -c 'show vpn ipsec dataplane sa | no-more'"
 Enter
 Wait+Screen /replay-window/
-Sleep 3s
+Sleep 1500ms
 Type "ze-demo run showcase-lab control vpn ping"
 Enter
 Wait+Screen /4 received/
 Type "ze cli -c 'show vpn ipsec sa | no-more'"
 Enter
 Wait+Screen /packets-in/
-Sleep 3s
+Sleep 1500ms
 # Beat 4: only ESP changes; the far end offers AES-256, not AES-128.
 Type "ze-demo card topic-ipsec failure"
 Enter
 Wait+Screen /====/
-Sleep 4s
+Sleep 2s
 Type "sshpass -e ssh ze-demo"
 Enter
 Wait+Screen /ze#/
@@ -63,23 +63,23 @@ Show
 Type "ze-demo card topic-ipsec diagnosis"
 Enter
 Wait+Screen /====/
-Sleep 5s
+Sleep 2500ms
 Type "ze cli -c 'show vpn ipsec peer name responder | no-more'"
 Enter
 Wait+Screen /established/
-Sleep 3s
+Sleep 1500ms
 Type "ze cli -c 'show log recent level warn | match NO_PROPOSAL_CHOSEN | last 1 | yaml | no-more'"
 Enter
 Wait+Screen /notify: NO_PROPOSAL_CHOSEN/
 Wait+Screen /peer: responder/
-Sleep 4s
+Sleep 2s
 Type "ze cli -c 'show vpn ipsec dataplane sa | yaml | no-more'"
 Enter
 Wait+Screen /sas: \[\]/
 Type "ze cli -c 'show vpn ipsec dataplane drift | yaml | no-more'"
 Enter
 Wait+Screen /drift: \[\]/
-Sleep 3s
+Sleep 1500ms
 Type "sshpass -e ssh ze-demo"
 Enter
 Wait+Screen /ze#/
@@ -115,11 +115,11 @@ Wait+Screen /4 received/
 Type "ze cli -c 'show vpn ipsec sa | no-more'"
 Enter
 Wait+Screen /packets-in/
-Sleep 3s
+Sleep 1500ms
 Type "ze cli -c 'show vpn ipsec dataplane sa | no-more'"
 Enter
 Wait+Screen /replay-window/
 Type "ze-demo card topic-ipsec recap"
 Enter
 Wait+Screen /====/
-Sleep 4s
+Sleep 2s

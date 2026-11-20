@@ -14,7 +14,7 @@ Type "ze-demo card rbac intro"
 Enter
 Show
 Wait+Screen /====/
-Sleep 500ms
+Sleep 250ms
 Screenshot artifacts/rbac.png
 
 Hide
@@ -24,11 +24,11 @@ Show
 Type "ze config show rbac.conf system authorization profile read-only"
 Enter
 Wait+Screen /match clear/
-Sleep 6s
+Sleep 3s
 Type "ze config show rbac.conf system authentication user noc profile"
 Enter
 Wait+Screen /profile read-only/
-Sleep 4s
+Sleep 2s
 
 Hide
 Type "export ZE_SSH_PASSWORD=noc-secret"
@@ -38,13 +38,13 @@ Enter
 Show
 Type "ze cli --user noc -c 'show version'"
 Enter
-Sleep 5s
+Sleep 2500ms
 
 Hide
 Type "ze-demo card rbac deny"
 Enter
 Show
-Sleep 9s
+Sleep 4500ms
 
 Hide
 Type "clear"
@@ -53,8 +53,8 @@ Show
 Type "ze cli --user noc -c 'clear interface counters all'"
 Enter
 Wait+Screen /restricted by access control/
-Sleep 6s
 Sleep 3s
+Sleep 1500ms
 
 Hide
 Type "ze-demo run rbac stop"
@@ -63,4 +63,4 @@ Wait+Screen /terminal demo stopped/
 Type "ze-demo card rbac recap"
 Enter
 Show
-Sleep 9s
+Sleep 4500ms
