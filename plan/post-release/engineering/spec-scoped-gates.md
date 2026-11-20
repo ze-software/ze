@@ -10,25 +10,25 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-11 |
+| Updated | 2026-11-20 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-Child 5 of `plan/post-release/engineering/spec-agent-economy-0-umbrella.md`,
-which holds the baseline.
-
 Two gates judge the whole tree on every run although each run follows one
-small change. `./le repo compiles check` is required after every commit that
-carries Go: it exports HEAD and builds five flavors of the whole tree, 401
-runs and 11.5 hours in three weeks at a median 107 seconds. `./le rfc check`
-judges every row of the corpus and vets every package holding an RFC tag: 439
-runs and 4.8 hours at a median 29 seconds.
+small change. Measured from the session transcripts over the three weeks to
+2026-11-11: `./le repo compiles check` is required after every commit that
+carries Go, exports HEAD and builds five flavors of the whole tree, 401 runs
+and 11.5 hours at a median 107 seconds. `./le rfc check` judges every row of
+the corpus and vets every package holding an RFC tag: 439 runs and 4.8 hours
+at a median 29 seconds.
 
-This is the only child that changes what a gate proves, so it runs last, and
-only after the wait record of child 2 shows the time is run time. CI keeps
-both whole-tree runs unchanged.
+This spec changes what a gate proves, so it was held until the queue-wait
+record showed the time is run time rather than wait. That record now exists
+and shows it: from 2026-11-15 to 2026-11-20 the admitted runs waited 12,691
+seconds in all against 503,423 seconds of running (`./le ai tokens report
+from 2026-11-15 days 5`). CI keeps both whole-tree runs unchanged.
 
 The goal: the local run of each gate judges what the change in hand can
 reach, in a fraction of the time, and proves for that change what the
@@ -54,7 +54,7 @@ Unverified, to measure before designing on it:
 |----------|---------|
 | How the compile gate's 107 seconds split between the export and the five flavors | One run with the structured report, by the main thread |
 | What share of the RFC check's 29 seconds is the vet | The same |
-| Whether queueing adds to either | The wait record of child 2 |
+| Whether queueing adds to either | The queue-wait record of each admitted run: overall wait was 2.5% of run time over 2026-11-15..20; the split for these two gates is read at design |
 
 ## Required Reading
 

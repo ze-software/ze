@@ -1868,8 +1868,8 @@ the same message, so an agent that batched its calls, as
 `ai/rules/context-economy.md` asks, lost more than one that did not. None of
 this was a violation by the agent.
 
-**What it cost.** `plan/post-release/engineering/spec-agent-economy-0-umbrella.md`
-holds the baseline: about 490 voided calls recorded over three weeks, and the
+**What it cost.** The baseline of spec-agent-economy-0-umbrella (closed
+2026-11-20): about 490 voided calls recorded over three weeks, and the
 research agents of 2026-11-11 lost between one call in four and one in three.
 Each lost call is a whole turn, and a turn re-reads the agent's context.
 

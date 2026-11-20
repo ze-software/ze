@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | done |
 | Scope | tooling |
 | Priority | P1 |
 | Release reason | Release-independent development tooling: it changes no shipped binary, and it is ordered first because every other spec is paid for in the tokens and wall time it removes. |
@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-11 |
+| Updated | 2026-11-20 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -112,7 +112,7 @@ Forced reads: the Go style guide (49KB) 858 times, the system door (11KB)
 | 2 | spec-agent-economy-2-scoped-test (closed) | A short action that tests, vets or compiles named packages; persisted queue wait; nearest-name answer for an unknown command; commit-create ergonomics | 1 (the hook messages name this action) |
 | 3 | spec-agent-economy-3-preamble (closed) | D-1, D-2, D-3; the skill listing served to phase agents; main-only `.claude/rules/` files | - |
 | 4 | spec-agent-economy-4-supervision (closed) | Context-size nudge at agent spawn; a warning on a second spec claim; the agent's call count reported to the main thread; skill bodies shed branch-only reference text; test-judge batching; the kept measure; the spec-set safeguards: a set's state derived from its children and reported as live or stalled, a refused stop that would leave a claimed spec half done, and the one WIP cap replaced by an open limit and an active limit | 1 (same hook file) |
-| 5 | `plan/post-release/engineering/spec-scoped-gates.md` | A cheaper post-commit compile gate and a changed-only RFC check, CI keeping the whole-corpus runs | 2 |
+| 5 | `plan/post-release/engineering/spec-scoped-gates.md` (detached 2026-11-20, a standalone spec) | A cheaper post-commit compile gate and a changed-only RFC check, CI keeping the whole-corpus runs | 2 |
 | 6 | spec-agent-economy-6-shell-parser (closed) | The pre-tool Bash hook reads a command line with one bash parser (`mvdan.cc/sh/v3/syntax`) in place of the hand splitter and the byte allow-list; a reader line through loops, conditionals, groups and substitutions; a heavy job refused wherever the line runs it; the after-line walk's wrapper options, base-name match and `set`; the raw-job refusal's quiet form | 1 (the hook it replaces) |
 
 ### Where the set stands (2026-11-20)
@@ -128,11 +128,8 @@ record.
 
 | Order | Child | Status | To pick it up |
 |-------|-------|--------|---------------|
-| 1 | 5 scoped gates | skeleton | Last, by owner decision D-5: it waits for the queue-wait record child 2 landed to show whether it is worth its risk |
-| 2 | this umbrella | skeleton | Its criteria are measured over the two weeks after the last child closes: `./le ai tokens report from <date> days 14` |
-
-The umbrella's Status is still `skeleton`; the set's state is derived by child
-4's `DeriveSets`, never declared here.
+| 1 | 5 scoped gates | detached | Now `plan/post-release/engineering/spec-scoped-gates.md`, a standalone skeleton (owner decision, 2026-11-20) |
+| 2 | this umbrella | closed 2026-11-20 | Its criteria were measured over 2026-11-15..20, judged at once rather than over two weeks, by owner decision |
 
 ### Model tier per child (owner, 2026-11-11)
 
@@ -302,13 +299,144 @@ child closes.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] Every child spec closed, or its remaining work a spec of its own named here
-- [ ] AC-1..AC-7 measured and recorded with the measurement window
+- [x] Every child spec closed, or its remaining work a spec of its own named here: children 1 to 4 and 6 closed; child 5 is `plan/post-release/engineering/spec-scoped-gates.md`
+- [x] AC-1..AC-7 measured and recorded with the measurement window: 2026-11-15..20, see Implementation Audit
 
 ### TDD
-- [ ] Tests written
-- [ ] Tests FAIL (paste output)
-- [ ] Tests PASS (paste output)
+- [x] Tests written: the umbrella carries none of its own; each child carried its tests
+- [x] Tests FAIL (paste output): in each child's record
+- [x] Tests PASS (paste output): in each child's record
 
 ### Closure
-- [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
+- [x] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
+
+## Implementation Summary
+
+### What Was Implemented
+- The umbrella edits no file. Its children carried the work: 1, 2 and 6 closed
+  on 2026-11-11; 3 closed on 2026-11-20 (588464afb8, removal b5d2bb1ec5); 4
+  closed on 2026-11-20 (e1cfe24443, removal d2b439374c) with its scope cut
+  recorded there.
+- Child 5 is detached as a standalone skeleton,
+  `plan/post-release/engineering/spec-scoped-gates.md`, by owner decision of
+  2026-11-20.
+- One commit carries this umbrella's trailer and Go: 9d2636d728, the split of
+  the Go style page, with `internal/le/doc/check/stylecore_test.go`. It was
+  child 3's work committed under this claim.
+
+### Bugs Found/Fixed
+- None in the umbrella.
+
+### Documentation Updates
+- None: the umbrella changes no behavior. The pages each child changed are in
+  that child's record.
+
+### Deviations from Plan
+- The criteria were to be measured over the two weeks after the last child
+  closed. By owner decision of 2026-11-20 ("can you clean the spec so we are
+  finished") they were measured over 2026-11-15..20, judged at once, and the
+  umbrella closes with AC-3 and AC-5 not met.
+- Child 5 was to run last, inside the set. It leaves the set as a spec of its
+  own; it moves in a rename commit before the rewrite of its Task, so the
+  commit gate does not read the move as a closure (`renamedSpecs`,
+  `internal/le/spec/path/closure.go`).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| none | | | | |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Hold the measurement, the owner's decisions and the children's criteria | Done | this spec, Baseline, Owner decisions, Children | |
+| Children remove the waste | Done for 1 to 4 and 6; 5 detached | Children table | owner decision, 2026-11-20 |
+
+### Acceptance Criteria
+
+Window: 2026-11-15 to 2026-11-20, 48 main sessions, 279 agents, measured with
+`./le ai tokens report from 2026-11-15 days 5`.
+
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Met | subagent first call median 21.9k, max 25.6k, 0 above 35k | baseline median 53k |
+| AC-2 | Met | 0 of 8,840 subagent Bash calls had no verdict | baseline about 490 |
+| AC-3 | Not met | failed Bash 7.7% against 2%; failed Edit and Write 9.0% against 4% | most are ordinary test failures and hook refusals; not pursued, owner decision 2026-11-20 |
+| AC-4 | Met | 6.9% of ze-work agents reached the 100-call budget, against 8% | |
+| AC-5 | Not met | main-session peak 718k, median 188k, 90th percentile 608k | measured before the 400k hand-off nudge landed in e1cfe24443; closed as is, owner decision 2026-11-20 |
+| AC-6 | Met | `./le test unit pkg path <pkg>`, five words | child 2 |
+| AC-7 | Met | every admitted run records its wait: 9,566 runs, waited 12,691s against 503,423s run | child 2 |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestSubagentReaderCommandPassesUnchanged` | Done | `internal/le/hookruntime` | child 1's wiring test; per-child tests are in each child's record |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| The child specs | Done | 1 to 4 and 6 closed; 5 is `plan/post-release/engineering/spec-scoped-gates.md` |
+
+### Audit Summary
+- **Total items:** 7 criteria, 6 children
+- **Done:** 5 criteria; 5 children closed
+- **Partial:** none
+- **Skipped:** AC-3 and AC-5 not met, closed as is by owner decision of 2026-11-20
+- **Changed:** child 5 detached; the measurement window (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Agents burn fewer tokens and less wall time on the development system | measurement | `./le ai tokens report from 2026-11-15 days 5`: subagent first call median 21.9k against 53k, 0 of 8,840 Bash calls without a verdict against about 490, 6.9% of editing agents at the budget; AC-3 and AC-5 not met (Implementation Audit) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Child 5: a scoped compile gate and a changed-only RFC check | detached from the set by owner decision of 2026-11-20 | `plan/post-release/engineering/spec-scoped-gates.md` |
+| AC-3 (failed-call rates) and AC-5 (main-session peak) | not met; not pursued, owner decision of 2026-11-20 | none: dropped by the owner |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | owed: `./le spec review record spec agent-economy-0-umbrella verdict CLEAN rounds 1 file internal/le/doc/check/stylecore_test.go`; the closing agent's attempt was refused by the permission layer on 2026-11-20 |
+| `./le spec review check` | owed, before commit B |
+| Rounds | 1 |
+| Reviewer lenses used | logic, edge cases, test strength over the one code file of the change set; the plan files by reading |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | none | no BLOCKER or ISSUE. NOTE: `styleSections` toggles a fence on a line starting with three backticks only, not `~~~`; the page uses backticks | `internal/le/doc/check/stylecore_test.go`, `styleSections` | not required |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `plan/post-release/engineering/spec-scoped-gates.md` | Yes | written 2026-11-20; its rename commit carries the old text with the stem replaced, checked with `sed` and `diff` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-7 | as in the Implementation Audit | `./le ai tokens report from 2026-11-15 days 5`, figures given by the owner's session on 2026-11-20 |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| per child | per child | each child's closure record |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| harness serves a subagent fewer instruction files | confirmed | this closing agent started with `omitClaudeMd` and the hook's rule-set section (child 3) |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| No page names this umbrella or child 5's old path | `git grep -e spec-agent-economy-5 -e agent-economy-5`: only this spec, the handover and a test fixture stem (`internal/le/spec/status/closed_test.go`, `agent-economy-5-skills`, not a path) | Yes |
