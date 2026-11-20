@@ -75,7 +75,7 @@ func rcbRun(t *testing.T, n int, establishOn map[int]bool) []time.Duration {
 	}
 	t.Cleanup(func() { afterFunc = old })
 
-	go ps.run(peer, testIKEGroup(), NewSATable(), nil, nil, log)
+	go ps.run(peer, testIKEGroup(), NewSATable(), nil, log)
 	select {
 	case <-ps.done:
 	case <-time.After(rtxArrive):

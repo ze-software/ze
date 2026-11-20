@@ -1114,7 +1114,8 @@ func TestMobikeAuthRetransmitKeepsProtectedTuple(t *testing.T) {
 	respPeer.LocalAddress, respPeer.RemoteAddress = "127.0.0.1", "127.0.0.1"
 	iniPeer.ProhibitNAT = true
 	group, esp := testIKEGroup(), testESPGroup()
-	ps := &PeerSession{peerName: "retry", peerCfg: iniPeer, espGroup: esp, natt: iniTr, stopCh: make(chan struct{})}
+	ps := &PeerSession{peerName: "retry", peerCfg: iniPeer, espGroup: esp, stopCh: make(chan struct{})}
+	ps.sockets.Store(&sessionSockets{natt: iniTr})
 	table := NewSATable()
 	var responder *SA
 	var first transport.Packet

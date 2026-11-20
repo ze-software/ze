@@ -291,8 +291,11 @@ type SA struct {
 
 	// mobikeUp is 1 once MOBIKE was negotiated on this SA (acceptMobikeOffer). It is
 	// the copy of sa.mobike.enabled the address worker reads from its own goroutine
-	// (restartVanishedRouteSources, dynamic_wan.go), through atomic.LoadInt32 for the
-	// reason hardExpiry gives: the twin-SA test copies this struct.
+	// (restartVanishedRouteSources, dynamic_wan.go; mobileSessionsOn, apply.go), through
+	// atomic.LoadInt32 for the reason hardExpiry gives: the twin-SA test copies this
+	// struct. acceptMobikeOffer stores it after the float to port 4500, so a reader that
+	// loads 1 knows the SA sends from the NAT-T socket; inheritSendPath carries it to a
+	// rekeyed IKE SA.
 	mobikeUp int32
 
 	// unauthenticatedDrops counts the messages for this SA that openProtected dropped
@@ -687,6 +690,10 @@ func (sa *SA) inheritSendPath(old *SA) {
 	sa.BehindNAT = old.BehindNAT
 	sa.PeerBehindNAT = old.PeerBehindNAT
 	sa.mobike = old.mobike
+	// The address worker's copy of mobike.enabled goes with it, or a rebind would read
+	// a rekeyed MOBIKE SA as one without MOBIKE and restart it (mobileSessionsOn,
+	// restartVanishedRouteSources).
+	atomic.StoreInt32(&sa.mobikeUp, atomic.LoadInt32(&old.mobikeUp))
 	sa.mobike.pending = nil
 	if old.mobike.pending != nil {
 		if sa.mobike.originalInitiator {

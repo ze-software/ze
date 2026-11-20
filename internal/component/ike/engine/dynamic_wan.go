@@ -64,6 +64,11 @@ type peerPlan struct {
 	literalHosts map[string]bool
 	// waiting are the peers held back because the interface has no address, sorted.
 	waiting []string
+	// fromInterface are the running peers whose local address is the interface's,
+	// filled in because they name none. A move of that address is not an edit of
+	// theirs: a MOBIKE session among them is re-pointed rather than restarted
+	// (mobileSessionsOn, followedInterfaceAddress).
+	fromInterface map[string]bool
 }
 
 // planPeers derives the plan of cfg for the interface address ifIP (empty: none, or the
@@ -72,7 +77,10 @@ type peerPlan struct {
 func planPeers(cfg *ipsec.IPsecConfig, ifIP string) *peerPlan {
 	running := *cfg
 	running.Peers = make(map[string]ipsec.SiteToSitePeer, len(cfg.Peers))
-	plan := &peerPlan{cfg: &running, hostOf: make(map[string]string, len(cfg.Peers)), literalHosts: map[string]bool{}}
+	plan := &peerPlan{
+		cfg: &running, hostOf: make(map[string]string, len(cfg.Peers)),
+		literalHosts: map[string]bool{}, fromInterface: map[string]bool{},
+	}
 
 	if cfg.Interface == "" {
 		// One pair for every peer, as before the listener set: the wildcard in
@@ -106,6 +114,7 @@ func planPeers(cfg *ipsec.IPsecConfig, ifIP string) *peerPlan {
 			continue
 		case peer.LocalAddress == "":
 			peer.LocalAddress = ifIP
+			plan.fromInterface[name] = true
 		case peer.LocalAddress == ifIP:
 			// One address and port cannot be bound twice, so a literal equal to the
 			// interface address shares its pair, and follows it when it leaves.
@@ -292,7 +301,9 @@ func (w *addressWorker) Stop() {
 // followAddress re-reads the configured interface and, when the address moved or a
 // literal pair is still missing its socket, re-plans the running configuration onto it:
 // the primary pair moves, only the sessions that held it stop, and the reconcile starts
-// the peers the new address serves. It then restarts any route-chosen session whose
+// the peers the new address serves. A session on that pair whose SA negotiated MOBIKE is
+// the exception: it is re-pointed to the reopened pair and kept, and MOBIKE moves its SA
+// (mobileSessionsOn, repointSessions, apply.go). It then restarts any route-chosen session whose
 // source left the host, and rebuilds the SPD entries of the bound XFRM interfaces (each
 // interface SPD's catch-all and the if_id 0 exemptions) from what they hold now. It does nothing before the first apply.
 //

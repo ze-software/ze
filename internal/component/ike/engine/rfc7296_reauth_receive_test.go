@@ -299,7 +299,7 @@ func TestInitiatePeerReauthChildRefusedKeepsOldSA(t *testing.T) {
 // VALIDATES: AC-12. The old IKE SA ends while the successor is still held childless:
 // the session does not stay up childless (owner decision Q-5), so the successor is
 // retired, it leaves the SATable, and the cycle ends so the initiator reconnects. The
-// gateway is told: Ze's session socket (ps.ike) is a loopback stand-in for the gateway
+// gateway is told: Ze's session socket (PeerSession.sockets) is a loopback stand-in for the gateway
 // (rtxPeerLink), and the next datagram it reads is a Delete of the successor, protected
 // under the successor's keys (RFC 7296 Section 1.4.1).
 func TestInitiatePeerOldDeletedWhileSuccessorChildlessReconnects(t *testing.T) {
@@ -313,7 +313,7 @@ func TestInitiatePeerOldDeletedWhileSuccessorChildlessReconnects(t *testing.T) {
 	}
 	gatewayReadsAuth(t, gw, pending)
 	peerTr, myTr := rtxPeerLink(t, pending)
-	ps.ike = myTr
+	ps.sockets.Store(&sessionSockets{ike: myTr})
 	pending.peerEndpoint = loopbackOf(t, peerTr)
 
 	// The owner loop ended (the gateway deleted the old IKE SA).

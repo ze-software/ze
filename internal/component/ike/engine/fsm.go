@@ -176,8 +176,10 @@ func (ps *PeerSession) runInitiator(
 	sa.innerSelectors = ps.innerSelectors
 	// Give the SA both sockets before anything sends. RFC 7296 Section 2.23 MUST: an
 	// endpoint that discovers a NAT "MUST send all subsequent traffic from port 4500",
-	// and sa.sendPath needs that socket in hand at the moment the verdict lands.
-	sa.bindSockets(tr, ps.natt)
+	// and sa.sendPath needs that socket in hand at the moment the verdict lands. tr is
+	// the IKE socket run read for this cycle; natt is the same pair's, since a re-point
+	// leaves natt unchanged (PeerSession.sockets).
+	sa.bindSockets(tr, ps.currentSockets().natt)
 	ps.setSA(sa)
 
 	// RFC 7296 Section 2.12 MUST: a closed connection forgets its keys and

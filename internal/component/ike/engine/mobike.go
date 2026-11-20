@@ -98,9 +98,11 @@ func (sa *SA) acceptMobikeOffer(inner []wire.PayloadEntry) {
 	// RFC 4555 Section 4.2.1: "its contents (if any) MUST be ignored when this
 	// notification is received". Presence negotiates support, data does not.
 	sa.mobike.enabled = true
-	atomic.StoreInt32(&sa.mobikeUp, 1)
 	sa.mobike.originalInitiator = sa.IsInitiator
 	sa.floatToNATTPort()
+	// Published last: a reader on the address worker that loads mobikeUp as 1 then also
+	// knows the SA sends from port 4500 (mobileSessionsOn, apply.go).
+	atomic.StoreInt32(&sa.mobikeUp, 1)
 }
 
 func (sa *SA) recordMobikeLocal(local *net.UDPAddr) {
@@ -574,8 +576,17 @@ func (ps *PeerSession) serviceMobike(sa *SA, tr *transport.UDPTransport, now tim
 	if !sa.mobike.enabled {
 		return
 	}
+	placed := ps.currentSockets()
+	if placed.fromInterface {
+		// A rebind that re-pointed this session closed the IKE socket the SA was bound
+		// to (repointSessions, apply.go). The SA sends from the shared NAT-T socket, but a
+		// reply to a request that reached port 500 leaves from its IKE socket (sendRaw),
+		// so the owner loop, which owns the SA, takes the reopened one.
+		sa.ikeSocket = placed.ike
+	}
 	if sa.mobike.originalInitiator {
-		local, err := mobikeRouteSource(sa, tr)
+		// RFC 4555 Section 3.5
+		local, err := mobikeSource(sa, placed, tr)
 		if err != nil {
 			log.Debug("ike: MOBIKE source unavailable", "peer", sa.PeerName, "error", err)
 		} else {
@@ -601,6 +612,44 @@ func (ps *PeerSession) serviceMobike(sa *SA, tr *transport.UDPTransport, now tim
 	}
 }
 
+// mobikeSource answers the local address the original initiator's SA moves to. Under
+// `vpn ipsec interface` with no local-address, the operator named the interface the
+// tunnel runs from, so the answer is that interface's address as the session holds it
+// now (sessionSockets.host, which a rebind moves with the interface); the routing table
+// may name another source toward the peer, which is not what was configured. Every other
+// session asks the routing table (mobikeRouteSource).
+//
+// RFC 4555 Section 3.5: "Typically, triggers include information received from lower
+// layers, such as changes in IP addresses or link-down indications."
+func mobikeSource(sa *SA, placed sessionSockets, tr *transport.UDPTransport) (*net.UDPAddr, error) {
+	if !placed.fromInterface {
+		return mobikeRouteSource(sa, tr)
+	}
+	ip := net.ParseIP(placed.host)
+	if ip == nil {
+		return nil, fmt.Errorf("ike: MOBIKE source: the interface address %q is not an IP address", placed.host)
+	}
+	port, err := mobikeSendPort(sa, tr)
+	if err != nil {
+		return nil, err
+	}
+	return &net.UDPAddr{IP: ip, Port: port}, nil
+}
+
+// mobikeSendPort answers the UDP port the SA sends from, the one a new local address
+// keeps.
+func mobikeSendPort(sa *SA, tr *transport.UDPTransport) (int, error) {
+	out, _ := sa.sendPath(tr)
+	if out == nil {
+		return 0, fmt.Errorf("ike: MOBIKE has no send socket")
+	}
+	bound, ok := out.LocalAddr().(*net.UDPAddr)
+	if !ok {
+		return 0, fmt.Errorf("ike: MOBIKE socket has no UDP port")
+	}
+	return bound.Port, nil
+}
+
 func mobikeRouteSource(sa *SA, tr *transport.UDPTransport) (*net.UDPAddr, error) {
 	addresses, err := net.InterfaceAddrs()
 	if err != nil {
@@ -621,15 +670,9 @@ func mobikeRouteSource(sa *SA, tr *transport.UDPTransport) (*net.UDPAddr, error)
 	if err != nil {
 		return nil, fmt.Errorf("ike: MOBIKE cannot find the source address it moves to: %w", err)
 	}
-	local := &net.UDPAddr{IP: source}
-	out, _ := sa.sendPath(tr)
-	if out == nil {
-		return nil, fmt.Errorf("ike: MOBIKE has no send socket")
+	port, err := mobikeSendPort(sa, tr)
+	if err != nil {
+		return nil, err
 	}
-	bound, ok := out.LocalAddr().(*net.UDPAddr)
-	if !ok {
-		return nil, fmt.Errorf("ike: MOBIKE socket has no UDP port")
-	}
-	local.Port = bound.Port
-	return local, nil
+	return &net.UDPAddr{IP: source, Port: port}, nil
 }

@@ -300,12 +300,14 @@ Replies instead use the request's received destination: this includes the initia
 IKE_SA_INIT success, its cached retransmission, COOKIE and INVALID_KE responses.
 The wildcard socket must not let route selection substitute another local address.
 When the configured host changes, `rebindListeners` stops
-every session, closes both sockets, opens a new pair, and lets the reconcile
-start every peer against it.
+every session on the moving pair, closes both sockets, opens a new pair, and lets
+the reconcile start every peer against it. An interface-mode session whose SA
+negotiated MOBIKE is kept and re-pointed to the new pair instead.
 
-The order is the whole of it. `PeerSession.ike` and `PeerSession.natt` are
-immutable after `startPeerSession`, so a session that survives a rebind holds a
-closed file descriptor and every message it sends is refused. The case that
+The order is the whole of it. A session that survives a rebind still holding the
+old pair holds a closed file descriptor, and every message it sends is refused. The
+one session a rebind keeps is re-pointed to the new pair instead: an interface-mode
+session whose SA negotiated MOBIKE ("Following a dynamic WAN address" below). The case that
 needs the sequence is the one `peerConfigChanged` cannot see: the operator edits
 `vpn ipsec interface`, every peer carries its own `local-address`, and the peer
 half of the configuration compares equal while the socket under it moves.
@@ -589,9 +591,12 @@ the address checks.
 Promotion refreshes that path from the old SA: a COOKIE2 check started while an
 IKE replacement awaited Delete is reissued under the new keys and Message ID.
 
-The original initiator finds its new source on each tick: while the current local
-address is still held by an interface it keeps it, and otherwise it asks the
-routing table for the source toward the peer (`routeSourceTo`). On Linux that is
+The original initiator finds its new source on each tick (`mobikeSource`). A session
+whose local address `vpn ipsec interface` filled in takes that interface's address,
+which a rebind moves with the interface ("Following a dynamic WAN address" below).
+Any other session keeps its current local address while an interface still holds
+it, and otherwise asks the routing table for the source toward the peer
+(`routeSourceTo`). On Linux that is
 an `RTM_GETROUTE` request, as strongSwan's kernel-netlink `get_source_addr` does,
 and never a connected socket: a UDP connect is an output route lookup the kernel
 runs through the SPD, an ephemeral socket carries none of the per-socket bypass
@@ -714,23 +719,40 @@ which peers run, the local address each sends from, and the socket pair each hol
 | `interface`, another literal | a pair bound to that literal, untouched by interface events |
 
 With live XFRM migration the port-4500 socket is one wildcard socket every pair
-shares. `rebindListeners` stops only the sessions whose pair moves
-(`PeerSession.bindHost`), then closes and reopens that pair; the reconcile restarts
+shares. `rebindListeners` stops only the sessions whose pair moves (the host in
+`PeerSession.sockets`), then closes and reopens that pair; the reconcile restarts
 them, since their filled `local-address` changed. A route-chosen session whose
 source left the host is restarted unless its SA negotiated MOBIKE, which moves
 itself (RFC 4555 Section 3.5).
 
 **Owner decision, 2026-11-20: an interface-mode session whose SA negotiated MOBIKE
-survives an address move.** Today `rebindListeners` stops it like any other
-session on the moving pair, so a fresh IKE_SA_INIT from the new address replaces
-the SA before `serviceMobike` can send UPDATE_SA_ADDRESSES (seen in the
-`mobike-initiator` interop scenario). The owed design: such a session is not
-stopped; it is re-pointed to the reopened pair, the reconcile does not restart it
-for a `local-address` change that comes only from the interface fill-in, and
-MOBIKE moves the SA, as a route-chosen MOBIKE session already does. The paragraph
-above describes the current code until that change lands. Set aside: keeping the
-restart and running the scenario in route-chosen mode, which leaves MOBIKE
+survives an address move.** Stopping it like any other session on the moving pair
+let a fresh IKE_SA_INIT from the new address replace the SA before `serviceMobike`
+could send UPDATE_SA_ADDRESSES (seen in the `mobike-initiator` interop scenario).
+`mobileSessionsOn` keeps a session on the moving primary pair when its local address
+is the interface's fill-in before and after the move, its SA negotiated MOBIKE
+(`SA.mobikeUp`, which an IKE SA rekey carries), it sends from the shared wildcard
+NAT-T socket, which the move leaves open, and no parallel responder handshake is
+pending. Its SA floated to port 4500 when MOBIKE was negotiated, so the closing IKE
+socket carries none of its traffic. Once the new pair is open, `repointSessions`
+stores that pair in the session (`PeerSession.sockets`, one atomic value holding
+both sockets, the pair's host and whether the interface filled the local address
+in), and every reader loads it whole: the next connect cycle, a responder SA the
+dispatch goroutine creates, and the Delete of a retired successor. The reconcile
+leaves the session running (`followedInterfaceAddress`): a `local-address` that
+differs only by the interface fill-in, on a session that already holds the pair the
+plan names, is not an edit. On its next tick the owner loop takes the reopened IKE
+socket for the SA and asks `mobikeSource` for its address: the interface's, as the
+session now holds it, rather than the routing table's answer, because the operator
+named the interface. MOBIKE then sends UPDATE_SA_ADDRESSES from there and moves the
+IKE and Child SAs, as a route-chosen MOBIKE session already does. A session that
+misses any of these conditions is stopped and restarted as above. Set aside: keeping
+the restart and running the scenario in route-chosen mode, which leaves MOBIKE
 unusable on a CPE that uses `vpn ipsec interface`.
+
+<!-- source: internal/component/ike/engine/apply.go -- rebindListeners, mobileSessionsOn, repointSessions, stopSessionsExcept -->
+<!-- source: internal/component/ike/engine/reconcile.go -- sessionSockets, currentSockets, cyclePeer, followedInterfaceAddress -->
+<!-- source: internal/component/ike/engine/mobike.go -- serviceMobike, mobikeSource -->
 
 Each initiator cycle resolves its pair first (`resolveCyclePair`, `cycle_addr.go`):
 the remote name, and the route-chosen source through `routeSourceTo`. The pair is

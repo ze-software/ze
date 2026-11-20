@@ -177,7 +177,7 @@ func (ps *PeerSession) retireHeldSuccessor(pending *SA, table *SATable, log *slo
 		log.Warn("ike: the established IKE SA ended while its re-initiated successor held no Child SA, deleting the successor",
 			"peer", ps.peerName, "ispi", SPIHex(pending.InitiatorSPI), "rspi", SPIHex(pending.ResponderSPI),
 			"fix", "make the peer's traffic selectors and ESP proposals match this peer's configuration; the session reconnects")
-		ps.sendDeleteIKE(pending, ps.ike, log)
+		ps.sendDeleteIKE(pending, ps.currentSockets().ike, log)
 	}
 	ps.forgetSecondSlot(pending, table)
 }

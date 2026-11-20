@@ -40,7 +40,7 @@ func wiringResponder(t *testing.T, table *SATable, name, remote string) *PeerSes
 		LocalAddress:   "10.0.0.2", RemoteAddress: remote,
 		Auth: ipsec.AuthConfig{Mode: ipsec.AuthPreSharedSecret, PSK: wiringPSK},
 	}
-	ps := startPeerSession(name, peer, testIKEGroup(), testESPGroup(), table, nil, nil, nil, slogutil.DiscardLogger())
+	ps := startPeerSession(name, peer, testIKEGroup(), testESPGroup(), table, sessionSockets{}, nil, slogutil.DiscardLogger())
 	close(ps.stopCh)
 	<-ps.done
 	return ps
@@ -289,7 +289,7 @@ func TestRFC3948InitiatorSessionRefusesHeldInnerAddress(t *testing.T) {
 		ch <- time.Now()
 		return ch
 	}
-	ps := startPeerSession("ze", iniPeer, ikeGroup, espGroup, table, nil, nil, nil, slog.New(iniLog))
+	ps := startPeerSession("ze", iniPeer, ikeGroup, espGroup, table, sessionSockets{}, nil, slog.New(iniLog))
 	session.Store(ps)
 	close(ready)
 

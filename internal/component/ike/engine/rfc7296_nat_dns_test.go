@@ -164,7 +164,7 @@ func TestUnresolvableRemoteRetriesWithBackoff(t *testing.T) {
 	peer := testPeer()
 	peer.RemoteAddress = "vpn.example.net"
 	peer.LocalAddress = "203.0.113.1"
-	ps := startPeerSession(peer.Name, peer, testIKEGroup(), testESPGroup(), NewSATable(), nil, nil, nil, slog.Default())
+	ps := startPeerSession(peer.Name, peer, testIKEGroup(), testESPGroup(), NewSATable(), sessionSockets{}, nil, slog.Default())
 	t.Cleanup(func() {
 		ps.Stop()
 		<-ps.done

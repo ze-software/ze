@@ -191,7 +191,7 @@ func TestInterfaceAddressArrivalStartsPeers(t *testing.T) {
 	if state.listeners.host != "127.0.0.1" || state.listeners.ike == nil {
 		t.Fatalf("listener at %q (ike=%v), want 127.0.0.1", state.listeners.host, state.listeners.ike)
 	}
-	if ps.ike != state.listeners.ike {
+	if ps.currentSockets().ike != state.listeners.ike {
 		t.Fatal("the peer does not hold the socket bound at the interface address")
 	}
 }
@@ -260,7 +260,7 @@ func TestInterfaceAppearingWithoutMonitorStartsPeers(t *testing.T) {
 	if state.listeners.host != "127.0.0.1" || state.listeners.ike == nil {
 		t.Fatalf("listener at %q (ike=%v), want 127.0.0.1", state.listeners.host, state.listeners.ike)
 	}
-	if ps.ike != state.listeners.ike {
+	if ps.currentSockets().ike != state.listeners.ike {
 		t.Fatal("the peer does not hold the socket bound at the interface address")
 	}
 }
@@ -294,7 +294,7 @@ func TestInterfaceAddressChangeRehomesPeers(t *testing.T) {
 	if now == nil || now == old {
 		t.Fatal("no new session was started on the new address")
 	}
-	if now.peerCfg.LocalAddress != "127.0.0.2" || now.ike != state.listeners.ike || state.listeners.host != "127.0.0.2" {
+	if now.peerCfg.LocalAddress != "127.0.0.2" || now.currentSockets().ike != state.listeners.ike || state.listeners.host != "127.0.0.2" {
 		t.Fatalf("new session local %q on pair %q", now.peerCfg.LocalAddress, state.listeners.host)
 	}
 	if err := sendOn(oldIKE); !errors.Is(err, transport.ErrClosed) {
@@ -491,7 +491,7 @@ func TestLiteralPeerKeepsItsSocketAcrossInterfaceRebind(t *testing.T) {
 	if kept == nil || runningPeer(state, "test-peer") == nil {
 		t.Fatal("setup: both peers should run")
 	}
-	keptIKE := kept.ike
+	keptIKE := kept.currentSockets().ike
 	if keptIKE == nil || keptIKE == state.listeners.ike {
 		t.Fatal("the literal peer does not hold a socket of its own")
 	}

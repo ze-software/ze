@@ -57,7 +57,8 @@ func TestMobikeInitialResponsesUseReceivedDestination(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			ps := &PeerSession{peerName: "ze", peerCfg: respPeer, ikeGroup: group, espGroup: esp, natt: serverTr}
+			ps := &PeerSession{peerName: "ze", peerCfg: respPeer, ikeGroup: group, espGroup: esp}
+			ps.sockets.Store(&sessionSockets{natt: serverTr})
 			setActivePeers(map[string]*PeerSession{"ze": ps})
 			t.Cleanup(func() { setActivePeers(nil) })
 			table := NewSATable()

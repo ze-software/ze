@@ -127,14 +127,16 @@ type PeerSession struct {
 	// responder SA created from a datagram that reached port 4500 must still know
 	// which socket is which, and the arrival socket alone cannot say.
 	//
-	// Immutable after startPeerSession, so they are read from any goroutine.
-	ike  *transport.UDPTransport
-	natt *transport.UDPTransport
-
-	// bindHost names the socket pair ike and natt belong to (ikeEngineState.pairOf), so a
-	// rebind stops exactly the sessions that hold the pair it moves (stopSessionsOn).
-	// Written by reconcilePeersWith before the session is published, never after.
-	bindHost string
+	// sockets holds them with the host of the pair they belong to, so a rebind stops
+	// exactly the sessions that hold the pair it moves (stopSessionsOn). startPeerSession
+	// stores it before the session goroutine starts. One other writer replaces it: a
+	// rebind that keeps a MOBIKE session on the moved pair (repointSessions, apply.go)
+	// stores the reopened pair, under applyMu. Every reader loads the whole value once
+	// (currentSockets), so it never holds the IKE socket of one pair beside the host of
+	// another. A re-point leaves natt unchanged, because the shared wildcard port-4500
+	// socket is the condition of it (mobileSessionsOn), so a reader that took natt from
+	// an earlier load still holds the socket of the current pair.
+	sockets atomic.Pointer[sessionSockets]
 
 	// pendingRekey and supersededChild are owned exclusively by the maintainSA
 	// loop (no lock): the CREATE_CHILD_SA exchange we initiated and await a
@@ -546,10 +548,12 @@ func (ps *PeerSession) Info() PeerInfo {
 	info := PeerInfo{
 		PeerName:      ps.peerName,
 		RemoteAddress: ps.peerCfg.RemoteAddress,
-		LocalAddress:  ps.peerCfg.LocalAddress,
-		AuthMode:      ps.peerCfg.Auth.Mode.String(),
-		Lifetime:      ps.getESPGroup().Lifetime,
-		RekeyCount:    rekeys,
+		// The address the session runs from now: a re-pointed MOBIKE session follows
+		// the interface (cyclePeer), and ps.peerCfg keeps the one it started with.
+		LocalAddress: ps.currentSockets().cyclePeer(ps.peerCfg).LocalAddress,
+		AuthMode:     ps.peerCfg.Auth.Mode.String(),
+		Lifetime:     ps.getESPGroup().Lifetime,
+		RekeyCount:   rekeys,
 	}
 	if child != nil {
 		info.HasChild = true
@@ -621,11 +625,42 @@ func (ps *PeerSession) StopGraceful() {
 	ps.Stop()
 }
 
-// peerSockets answers the socket pair a peer's session holds, and the bind host of that
-// pair (PeerSession.bindHost). The natt member is nil when its bind failed. Every SA a
-// started session creates is bound to both sockets, so RFC 7296 Section 2.23's "MUST send
-// all subsequent traffic from port 4500" has a socket to send from.
-type peerSockets func(name string) (ike, natt *transport.UDPTransport, host string)
+// sessionSockets is where a session runs: the two sockets it sends from, the host of the
+// pair they belong to (ikeEngineState.pairOf), and whether the session's local address
+// is that host because `vpn ipsec interface` filled it in (planPeers) rather than because
+// the operator wrote it. Either socket is nil when its bind failed. Every SA a started
+// session creates is bound to both sockets, so RFC 7296 Section 2.23's "MUST send all
+// subsequent traffic from port 4500" has a socket to send from.
+type sessionSockets struct {
+	ike, natt     *transport.UDPTransport
+	host          string
+	fromInterface bool
+}
+
+// peerSockets answers where a peer's session runs (sessionSockets).
+type peerSockets func(name string) sessionSockets
+
+// currentSockets answers where the session runs now. A session a unit test builds by
+// hand stores none, and holds no socket and no pair host, which every sender already
+// reads as a failed bind.
+func (ps *PeerSession) currentSockets() sessionSockets {
+	if placed := ps.sockets.Load(); placed != nil {
+		return *placed
+	}
+	return sessionSockets{}
+}
+
+// cyclePeer is peer as a cycle on these sockets runs it. A local address the interface
+// filled in follows the pair the session holds, which a re-point moves
+// (repointSessions, apply.go); every other member is the configuration the session was
+// started with, which ps.peerCfg keeps unchanged. The caller takes placed from one
+// currentSockets load, so the address and the IKE socket it sends from are one pair.
+func (placed sessionSockets) cyclePeer(peer ipsec.SiteToSitePeer) ipsec.SiteToSitePeer {
+	if placed.fromInterface {
+		peer.LocalAddress = placed.host
+	}
+	return peer
+}
 
 // reconcilePeers is reconcilePeersWith with no socket pair and no event bus, the shape
 // the reconcile tests drive.
@@ -635,7 +670,7 @@ func reconcilePeers(
 	table *SATable,
 	log *slog.Logger,
 ) {
-	onePair := func(string) (*transport.UDPTransport, *transport.UDPTransport, string) { return nil, nil, "" }
+	onePair := func(string) sessionSockets { return sessionSockets{} }
 	reconcilePeersWith(newCfg, active, table, onePair, nil, log)
 }
 
@@ -693,6 +728,8 @@ func reconcilePeersWith(
 		// would disagree with a restarted one about the same file.
 		newIKE := newCfg.IKEGroups[newPeer.IKEGroup]
 		newESP, espResolved := newCfg.ESPGroups[newPeer.ESPGroup]
+		// RFC 4555 Section 3.5
+		newPeer = followedInterfaceAddress(ps, newPeer, sockets(name))
 		if !peerConfigChanged(ps, newPeer, newIKE, newESP) {
 			continue
 		}
@@ -741,10 +778,7 @@ func reconcilePeersWith(
 			log.Warn("ike: peer references unknown esp-group", "peer", name, "esp-group", peer.ESPGroup)
 			continue
 		}
-		tr, natt, host := sockets(name)
-		ps := startPeerSession(name, peer, ikeGroup, espGroup, table, tr, natt, bus, log)
-		// Written before the session is published in the map, and never after.
-		ps.bindHost = host
+		ps := startPeerSession(name, peer, ikeGroup, espGroup, table, sockets(name), bus, log)
 		peersMu.Lock()
 		active[name] = ps
 		dataplaneChanged()
@@ -827,13 +861,36 @@ func peerConfigChanged(ps *PeerSession, newPeer ipsec.SiteToSitePeer, newIKE ips
 		!ps.getESPGroup().Equal(newESP)
 }
 
+// followedInterfaceAddress answers newPeer as peerConfigChanged compares it with the
+// running session. One difference is not an edit: a local address `vpn ipsec interface`
+// filled in, on both sides, for a session that already holds the pair the plan puts it
+// on. That session is a MOBIKE session a rebind kept and re-pointed to the moved pair
+// (repointSessions, apply.go), and its SA moves itself, so the session's own local
+// address stands in for the new one and the restart that would replace the SA is not
+// asked for. Every other member still decides, and so does a local address the operator
+// wrote on either side.
+//
+// RFC 4555 Section 3.5: "Typically, triggers include information received from lower
+// layers, such as changes in IP addresses or link-down indications."
+func followedInterfaceAddress(ps *PeerSession, newPeer ipsec.SiteToSitePeer, planned sessionSockets) ipsec.SiteToSitePeer {
+	running := ps.currentSockets()
+	if !planned.fromInterface || !running.fromInterface {
+		return newPeer
+	}
+	if running.host != planned.host {
+		return newPeer
+	}
+	newPeer.LocalAddress = ps.peerCfg.LocalAddress
+	return newPeer
+}
+
 func startPeerSession(
 	name string,
 	peer ipsec.SiteToSitePeer,
 	ikeGroup ipsec.IKEGroup,
 	espGroup ipsec.ESPGroup,
 	table *SATable,
-	tr, natt *transport.UDPTransport,
+	sockets sessionSockets,
 	bus ze.EventBus,
 	log *slog.Logger,
 ) *PeerSession {
@@ -849,8 +906,6 @@ func startPeerSession(
 		virtualIP:  table.virtualIP,
 		// RFC 3948 Section 5.1
 		innerSelectors: table.innerSelectors,
-		ike:            tr,
-		natt:           natt,
 		inbound:        make(chan transport.Packet, inboundQueueDepth),
 		stopCh:         make(chan struct{}),
 		done:           make(chan struct{}),
@@ -861,23 +916,30 @@ func startPeerSession(
 		espReloads:    make(chan espReload),
 		suspicious:    make(chan transport.Packet, suspiciousQueueDepth),
 	}
-	go ps.run(peer, ikeGroup, table, tr, bus, log)
+	// Stored before the goroutine starts, so its first cycle reads it.
+	ps.sockets.Store(&sockets)
+	go ps.run(peer, ikeGroup, table, bus, log)
 	return ps
 }
 
 // run is the main goroutine for a peer session with reconnection on failure.
+//
+// Each cycle reads where the session runs when it starts (currentSockets, cyclePeer):
+// a MOBIKE session a rebind kept (repointSessions, apply.go) holds the reopened pair
+// from then on, so a cycle after its SA ends sends from the socket and the local
+// address the interface has now, not from the closed pair it started on.
 func (ps *PeerSession) run(
 	peer ipsec.SiteToSitePeer,
 	ikeGroup ipsec.IKEGroup,
 	table *SATable,
-	tr *transport.UDPTransport,
 	bus ze.EventBus,
 	log *slog.Logger,
 ) {
 	defer close(ps.done)
 
 	for {
-		err := ps.runOnce(peer, ikeGroup, table, tr, bus, log)
+		placed := ps.currentSockets()
+		err := ps.runOnce(placed.cyclePeer(peer), ikeGroup, table, placed.ike, bus, log)
 		if err == nil || ps.stopped() {
 			return
 		}

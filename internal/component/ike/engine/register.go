@@ -954,7 +954,10 @@ func tryResponderSAInit(pkt transport.Packet, iSPI, rSPI [8]byte, table *SATable
 		log.Debug("ike: responder busy, dropping concurrent IKE_SA_INIT", "peer", ps.peerName)
 		return true
 	}
-	sa, err := newResponderSA(ps.peerName, ps.peerCfg, ps.ikeGroup, ps.getESPGroup(), iSPI)
+	// One load: the local address and the sockets of the pair the session holds now,
+	// which a re-pointed MOBIKE session moved with the interface (PeerSession.sockets).
+	placed := ps.currentSockets()
+	sa, err := newResponderSA(ps.peerName, placed.cyclePeer(ps.peerCfg), ps.ikeGroup, ps.getESPGroup(), iSPI)
 	if err == nil {
 		// The peering's EAP-TLS resumption state, so the ticket keys this
 		// authenticator issues under outlive the SA (eapTLSServerConfig).
@@ -963,7 +966,7 @@ func tryResponderSAInit(pkt transport.Packet, iSPI, rSPI [8]byte, table *SATable
 		sa.innerSelectors = ps.innerSelectors
 		// Both sockets, before the IKE_SA_INIT is processed. detectResponderNAT runs
 		// inside that processing and can float the SA at once (RFC 7296 Section 2.23).
-		sa.bindSockets(ps.ike, ps.natt)
+		sa.bindSockets(placed.ike, placed.natt)
 		// The pair this handshake runs on, before anything reads it: the initiator's
 		// source, which matched the remote-address or an address its name resolved to,
 		// and, for a peer that names no local-address, the address the request reached.

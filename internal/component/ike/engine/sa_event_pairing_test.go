@@ -185,7 +185,7 @@ func TestSAUpAndSADownBalanceAcrossReconnects(t *testing.T) {
 		return ch
 	}
 
-	go ps.run(peer, testIKEGroup(), NewSATable(), nil, bus, log)
+	go ps.run(peer, testIKEGroup(), NewSATable(), bus, log)
 	select {
 	case <-ps.done:
 	case <-time.After(rtxArrive):

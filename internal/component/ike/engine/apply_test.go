@@ -147,8 +147,9 @@ func TestReloadRebindsTheListenSocketsWhenTheAddressChanges(t *testing.T) {
 //
 // This is the case the order exists for, and `peerConfigChanged` cannot reach it: the
 // operator edited `vpn ipsec interface`, every peer carries its own local-address, and
-// the peer half of the configuration compares equal. PeerSession.ike is immutable after
-// startPeerSession, so a session that survives the rebind can never send again.
+// the peer half of the configuration compares equal. A session that survives the rebind
+// still holding the old pair can never send again (only a MOBIKE session on the shared
+// NAT-T socket is kept and re-pointed, mobileSessionsOn, and this peer has no SA).
 //
 // The interface lookup is stubbed because the box running this test has one address to
 // bind. It first answers the wildcard, so the peer's local-address 127.0.0.1 gets a
@@ -177,7 +178,7 @@ func TestReloadRestartsAnUneditedPeerWhoseSocketMoved(t *testing.T) {
 		t.Fatal("setup: the peer did not start")
 	}
 	lit := state.literalPairs["127.0.0.1"]
-	if lit == nil || lit.ike == nil || first.ike != lit.ike {
+	if lit == nil || lit.ike == nil || first.currentSockets().ike != lit.ike {
 		t.Fatal("setup: the session does not hold the literal pair the apply bound")
 	}
 
@@ -202,10 +203,10 @@ func TestReloadRestartsAnUneditedPeerWhoseSocketMoved(t *testing.T) {
 	if second == first {
 		t.Fatal("the peer survived the rebind, so it holds a closed socket")
 	}
-	if second.ike != state.listeners.ike {
+	if second.currentSockets().ike != state.listeners.ike {
 		t.Fatal("the restarted peer does not hold the socket the rebind opened")
 	}
-	if second.natt != state.listeners.natt {
+	if second.currentSockets().natt != state.listeners.natt {
 		t.Fatal("the restarted peer does not hold the NAT-T socket the rebind opened")
 	}
 	select {

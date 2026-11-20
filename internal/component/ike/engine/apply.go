@@ -62,6 +62,11 @@ func natTraversalMobile() bool {
 	return mobile && ikeTestPortFn() == ""
 }
 
+// shareNATTFn is natTraversalMobile, the decision openPair reads. A unit test swaps it
+// and restores it in t.Cleanup: it runs under the test port, where natTraversalMobile
+// answers false, and the MOBIKE re-point it proves exists only on the shared socket.
+var shareNATTFn = natTraversalMobile
+
 // ikeEngineState is the running state one IKE engine owns across the configurations it
 // is given: the two sockets, the peer sessions, the SA table, the operator's SPD
 // entries and the remote-access address pool.
@@ -204,7 +209,7 @@ func (s *ikeEngineState) openPair(l *ikeListeners, host string) {
 	if l.natt != nil {
 		return
 	}
-	if natTraversalMobile() {
+	if shareNATTFn() {
 		if s.sharedNATT == nil {
 			s.sharedNATT = openNATT("0.0.0.0", s.table, s.log)
 		}
@@ -264,9 +269,9 @@ func openNATT(host string, table *SATable, log *slog.Logger) *transport.UDPTrans
 // loops openPair started. A shared NAT-T member is dropped from the pair and left open:
 // ikeEngineState.closeAllListeners closes it at exit.
 //
-// The caller MUST have stopped every peer session that holds them first. PeerSession.ike
-// and PeerSession.natt are immutable after startPeerSession, so a session that outlives
-// this call keeps a closed file descriptor and every message it sends is refused.
+// The caller MUST have stopped every peer session that holds them first, or kept it to
+// re-point once the new pair opens (repointSessions). A session that outlives this call
+// on neither route keeps a closed file descriptor and every message it sends is refused.
 func (l *ikeListeners) closeSockets(log *slog.Logger) {
 	if l.ike != nil {
 		if err := l.ike.Close(); err != nil {
@@ -449,9 +454,6 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 	if err := installUnmatched(dataplane.Get(), cfg.Unmatched, s.log); err != nil {
 		return err
 	}
-	// RFC 4301 Section 6.2. After the catch-all, which these entries rank above; a
-	// failure is logged and reported and leaves the error discarded, never refused.
-	icmpReturns.apply(dataplane.Get(), cfg, s.log)
 	if firstApply {
 		if err := applyApplicationOverride(dataplane.Get(), cfg.ApplicationOverride); err != nil {
 			// The catch-all is in force, so the refusal of an implicit discard on the
@@ -625,12 +627,12 @@ func (s *ikeEngineState) pairOf(host string) *ikeListeners {
 // socketsFor answers each peer's sockets from the pairs as they are bound now. The
 // caller holds applyMu for as long as it uses the answer.
 func (s *ikeEngineState) socketsFor(plan *peerPlan) peerSockets {
-	return func(name string) (*transport.UDPTransport, *transport.UDPTransport, string) {
-		host := plan.hostOf[name]
-		if pair := s.pairOf(host); pair != nil {
-			return pair.ike, pair.natt, host
+	return func(name string) sessionSockets {
+		placed := sessionSockets{host: plan.hostOf[name], fromInterface: plan.fromInterface[name]}
+		if pair := s.pairOf(placed.host); pair != nil {
+			placed.ike, placed.natt = pair.ike, pair.natt
 		}
-		return nil, nil, host
+		return placed
 	}
 }
 
@@ -645,10 +647,11 @@ func (s *ikeEngineState) socketSnapshot(plan *peerPlan) peerSockets {
 		}
 	}
 	hostOf := maps.Clone(plan.hostOf)
-	return func(name string) (*transport.UDPTransport, *transport.UDPTransport, string) {
+	fromInterface := maps.Clone(plan.fromInterface)
+	return func(name string) sessionSockets {
 		host := hostOf[name]
 		pair := frozen[host]
-		return pair.ike, pair.natt, host
+		return sessionSockets{ike: pair.ike, natt: pair.natt, host: host, fromInterface: fromInterface[name]}
 	}
 }
 
@@ -656,11 +659,19 @@ func (s *ikeEngineState) socketSnapshot(plan *peerPlan) peerSockets {
 // host, one pair for each literal host, and no pair nobody holds.
 //
 // The ORDER is the whole of this function, and it is why the rebind is not a
-// create-if-nil line. PeerSession.ike and PeerSession.natt are immutable after
-// startPeerSession, so a session that survives its pair's rebind holds a closed file
-// descriptor and every message it sends is refused. The sessions that hold a moving
-// pair therefore stop, then its sockets close, then the new pair opens, and the
-// reconcile that follows starts those peers against it.
+// create-if-nil line. A session that survives its pair's rebind still holding the old
+// pair holds a closed file descriptor, and every message it sends is refused. The
+// sessions that hold a moving pair therefore stop, then its sockets close, then the new
+// pair opens, and the reconcile that follows starts those peers against it.
+//
+// One kind of session on the moving primary pair is kept instead (mobileSessionsOn): its
+// local address is the interface's, its SA negotiated MOBIKE, and it sends from the
+// shared wildcard port-4500 socket, which the move does not close. It is re-pointed to
+// the new pair once that pair is open (repointSessions), the reconcile leaves it running
+// (followedInterfaceAddress), and MOBIKE moves its IKE and Child SAs to the new address
+// (serviceMobike), as a route-chosen MOBIKE session already moves
+// (restartVanishedRouteSources). Restarting it would replace the SA with a fresh
+// IKE_SA_INIT from the new address before MOBIKE could send UPDATE_SA_ADDRESSES.
 //
 // Only the sessions that held the moved pair stop (stopSessionsOn). A peer on another
 // pair, a literal local-address the interface event did not move, keeps its session and
@@ -674,10 +685,13 @@ func (s *ikeEngineState) socketSnapshot(plan *peerPlan) peerSockets {
 // (planPeers). Opened first, the primary pair would bind an address the departing
 // literal pair still holds, fail, and leave every peer on it without a socket.
 func (s *ikeEngineState) rebindListeners(plan *peerPlan) {
+	var mobile map[string]*PeerSession
 	if s.listeners.boundElsewhere(plan.primaryHost) {
 		s.log.Info("ike: listen address changed, rebinding",
 			"from", s.listeners.host, "to", plan.primaryHost, "peers", len(s.peers))
-		s.stopSessionsOn(s.listeners.host)
+		// RFC 4555 Section 3.5
+		mobile = s.mobileSessionsOn(s.listeners.host, plan)
+		s.stopSessionsExcept(s.listeners.host, mobile)
 		s.listeners.closeSockets(s.log)
 	}
 	for host, pair := range s.literalPairs {
@@ -705,6 +719,9 @@ func (s *ikeEngineState) rebindListeners(plan *peerPlan) {
 		}
 		s.openPairFor(pair, host)
 	}
+	// Last, once every pair is open, so the kept sessions take the primary pair as it
+	// is finally bound. RFC 4555 Section 3.5
+	s.repointSessions(mobile, &s.listeners)
 }
 
 // openPairFor opens the absent sockets of pair at host, and stops the sessions that were
@@ -720,12 +737,22 @@ func (s *ikeEngineState) openPairFor(pair *ikeListeners, host string) {
 // stopSessionsOn stops every session that holds the pair bound for host, removing each
 // Child SA before it returns (stopPeerSession).
 func (s *ikeEngineState) stopSessionsOn(host string) {
+	s.stopSessionsExcept(host, nil)
+}
+
+// stopSessionsExcept is stopSessionsOn leaving running the sessions kept names, which
+// the caller re-points (repointSessions).
+func (s *ikeEngineState) stopSessionsExcept(host string, kept map[string]*PeerSession) {
 	peersMu.RLock()
 	stopping := make(map[string]*PeerSession, len(s.peers))
 	for name, ps := range s.peers {
-		if ps.bindHost == host {
-			stopping[name] = ps
+		if ps.currentSockets().host != host {
+			continue
 		}
+		if kept[name] == ps {
+			continue
+		}
+		stopping[name] = ps
 	}
 	peersMu.RUnlock()
 
@@ -733,6 +760,88 @@ func (s *ikeEngineState) stopSessionsOn(host string) {
 	bus := getEventBus()
 	for name, ps := range stopping {
 		stopPeerSession(name, ps, s.peers, s.table, dp, bus, s.log)
+	}
+}
+
+// mobileSessionsOn answers the sessions on the primary pair bound for host that a move
+// of that pair keeps, by peer name: those MOBIKE moves itself. Each one meets every
+// condition below, and a session that misses one is stopped and restarted as before.
+//   - plan reopens the primary pair at the new address, so there is a pair to re-point
+//     to; an interface that lost its address leaves its peers waiting.
+//   - the session's local address is the interface's on both sides of the move
+//     (sessionSockets.fromInterface, plan.fromInterface). A local address the operator
+//     wrote is an edit, which restarts.
+//   - it sends from the shared wildcard port-4500 socket (ikeEngineState.sharedNATT),
+//     which the move leaves open. Its SA floated there when MOBIKE was negotiated
+//     (acceptMobikeOffer, RFC 4555 Section 3.3), and the float is sticky, so the IKE
+//     socket the move closes carries none of its traffic.
+//   - its SA negotiated MOBIKE (SA.mobikeUp), so it can send UPDATE_SA_ADDRESSES.
+//   - no parallel responder handshake is pending (getPendingSA): that SA was bound to the
+//     IKE socket the move closes, and it has not negotiated anything that moves it.
+//
+// The caller holds applyMu, which repointSessions, the one writer that replaces the pair
+// of a published session, holds too, so no session moves between this answer and the
+// re-point.
+//
+// RFC 4555 Section 3.5: "Typically, triggers include information received from lower
+// layers, such as changes in IP addresses or link-down indications."
+func (s *ikeEngineState) mobileSessionsOn(host string, plan *peerPlan) map[string]*PeerSession {
+	if !plan.primaryWanted() || s.sharedNATT == nil {
+		return nil
+	}
+	peersMu.RLock()
+	defer peersMu.RUnlock()
+	var kept map[string]*PeerSession
+	for name, ps := range s.peers {
+		placed := ps.currentSockets()
+		if placed.host != host || !placed.fromInterface || !plan.fromInterface[name] {
+			continue
+		}
+		if placed.natt != s.sharedNATT {
+			continue
+		}
+		sa := ps.getSA()
+		if sa == nil || atomic.LoadInt32(&sa.mobikeUp) != 1 {
+			continue
+		}
+		if ps.getPendingSA() != nil {
+			continue
+		}
+		if kept == nil {
+			kept = map[string]*PeerSession{}
+		}
+		kept[name] = ps
+	}
+	return kept
+}
+
+// repointSessions moves each kept session to pair, which rebindListeners has just
+// opened at the interface's new address. The session's SA keeps running: MOBIKE reads
+// the new address from the session on its next tick (mobikeSource) and moves the IKE and
+// Child SAs with UPDATE_SA_ADDRESSES.
+//
+// A pair that did not take the shared NAT-T socket cannot carry the SA, which sends
+// from that socket alone; the session is then stopped, and the reconcile that follows
+// starts it on the new pair, as for every other session. The caller holds applyMu.
+//
+// RFC 4555 Section 3.5: "In MOBIKE, the initiator decides what addresses are used in the
+// IPsec SAs."
+func (s *ikeEngineState) repointSessions(kept map[string]*PeerSession, pair *ikeListeners) {
+	dp := dataplane.Get()
+	bus := getEventBus()
+	for name, ps := range kept {
+		placed := ps.currentSockets()
+		if pair.natt == nil || pair.natt != placed.natt {
+			s.log.Warn("ike: the reopened socket pair does not hold the shared NAT-T socket, restarting the MOBIKE peer instead of moving its SA",
+				"peer", name, "address", pair.host,
+				"code", diagnostic.CodeDoctorIPsecMOBIKEUnavailable,
+				"fix", "ze show doctor names whether the kernel can migrate a tunnel (CONFIG_XFRM_MIGRATE); the peer renegotiates from the new address meanwhile")
+			stopPeerSession(name, ps, s.peers, s.table, dp, bus, s.log)
+			continue
+		}
+		ps.sockets.Store(&sessionSockets{ike: pair.ike, natt: pair.natt, host: pair.host, fromInterface: true})
+		s.log.Info("ike: interface address moved, MOBIKE moves the IKE SA instead of restarting the peer",
+			"peer", name, "from", placed.host, "to", pair.host)
 	}
 }
 
@@ -828,9 +937,6 @@ func (s *ikeEngineState) releaseSPD(dp dataplane.Dataplane, log *slog.Logger) {
 	defer releaseApplicationOverride(dp, log)
 	removeSPDPolicies(dp, s.installedSPD, log)
 	s.pruneXFRMInterfaceEntries(dp, xfrmInterfacePlan{})
-	// The ICMP error return entries go before the catch-all they rank above, and
-	// their drop table after them (icmpErrorReturns.release).
-	icmpReturns.release(dp, log)
 	if warnSPDLeft(dp, log) {
 		return
 	}
