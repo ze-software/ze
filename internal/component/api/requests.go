@@ -5,20 +5,27 @@ package api
 import (
 	"fmt"
 	"strings"
+
+	"github.com/ze-software/ze/internal/component/command"
 )
 
-// ExecuteRequest is the domain request for command execution.
+// ExecuteRequest is the domain request for command execution. Pipe is the
+// optional ordered pipe list (command.PipeListParameter), written after the
+// parameters as the chain of the invocation.
 type ExecuteRequest struct {
 	Caller  CallerIdentity
 	Command string
 	Params  map[string]string
+	Pipe    []command.PipeListElement
 }
 
-// StreamRequest is the domain request for streaming command execution.
+// StreamRequest is the domain request for streaming command execution. Pipe
+// is as on ExecuteRequest.
 type StreamRequest struct {
 	Caller  CallerIdentity
 	Command string
 	Params  map[string]string
+	Pipe    []command.PipeListElement
 }
 
 // ListCommandsRequest is the domain request for listing commands.

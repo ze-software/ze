@@ -57,12 +57,14 @@ type catalogCommand struct {
 	// same tokens, so a second rendering would state one fact twice. It is
 	// modeled because the model is what says which published fields this
 	// package has considered (catalogfields_test.go).
-	Grammar       []catalogToken    `json:"grammar,omitempty"`
-	Args          []catalogArg      `json:"args,omitempty"`
-	Pipes         []catalogPipe     `json:"pipes,omitempty"`
-	Operators     []catalogOperator `json:"operators,omitempty"`
-	AnswerShape   string            `json:"answer-shape,omitempty"`
-	AddressFields []string          `json:"address-fields,omitempty"`
+	Grammar []catalogToken `json:"grammar,omitempty"`
+	Args    []catalogArg   `json:"args,omitempty"`
+	// PipeOperations is everything the command answers to after a pipe, as
+	// one list (internal/component/command, PipeOperationEntry). The surfaces
+	// read it through Operators, Pipes and Aliases, which project it.
+	PipeOperations []catalogPipeOperation `json:"pipe-operations,omitempty"`
+	AnswerShape    string                 `json:"answer-shape,omitempty"`
+	AddressFields  []string               `json:"address-fields,omitempty"`
 	// ColumnOrders are the answer's JSON keys in the order a person reads
 	// them, one list per record shape the command renders. A command that
 	// answers an outer record and a list of rows declares two orders. A flat
@@ -71,8 +73,7 @@ type catalogCommand struct {
 	// `| table` prints this order and `| json` deliberately ignores it. So a
 	// reader comparing the two renderings is told the order rather than left
 	// to infer it (internal/plugins/help/help_command.go, commandEntry.ColumnOrders).
-	ColumnOrders [][]string     `json:"column-orders,omitempty"`
-	Aliases      []catalogAlias `json:"pipe-aliases,omitempty"`
+	ColumnOrders [][]string `json:"column-orders,omitempty"`
 	// Subcommands names the children an operator can type after this command.
 	Subcommands []string `json:"subcommands,omitempty"`
 }
@@ -103,24 +104,114 @@ type catalogToken struct {
 	Kind  string         `json:"kind"`
 }
 
-type catalogPipe struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	TakesArg    bool   `json:"takes-arg,omitempty"`
-}
-
-type catalogOperator struct {
-	Name        string `json:"name"`
-	Class       string `json:"class"`
+// catalogPipeOperation is one entry of a command's `pipe-operations` list.
+type catalogPipeOperation struct {
+	Name string `json:"name"`
+	// Source is one of the pipeSource values: where the word comes from.
+	Source string `json:"source"`
+	// Argument is the argument kind the operation takes, "none" for none.
+	Argument    string `json:"argument"`
 	Available   string `json:"available"`
+	Class       string `json:"class,omitempty"`
+	Overridable bool   `json:"overridable,omitempty"`
 	LocalOnly   bool   `json:"local-only,omitempty"`
 	Description string `json:"description"`
+	Expansion   string `json:"expansion,omitempty"`
 }
 
+// The sources a pipe operation names (internal/component/command, PipeSource).
+// An entry carrying anything else is refused by name, because no projection
+// below would publish it and it would vanish in silence.
+const (
+	pipeSourceGeneric  = "generic"
+	pipeSourceOverride = "override"
+	pipeSourceCommand  = "command"
+	pipeSourceAlias    = "alias"
+)
+
+// pipeArgumentNone is the argument kind of an operation that takes no value.
+const pipeArgumentNone = "none"
+
+// catalogPipe is an operation the command runs itself: an override of a
+// generic, or a name of its own.
+type catalogPipe struct {
+	Name        string
+	Description string
+	Argument    string
+}
+
+// catalogOperator is a catalog operator the command answers to: a generic, or
+// an override the command runs in the generic's place, which keeps the
+// generic's class and contract.
+type catalogOperator struct {
+	Name        string
+	Source      string
+	Class       string
+	Available   string
+	Overridable bool
+	LocalOnly   bool
+	Description string
+}
+
+// catalogAlias is a named chain the command answers to.
 type catalogAlias struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Expansion   string `json:"expansion"`
+	Name        string
+	Description string
+	Expansion   string
+}
+
+// Operators answers the catalog operators the command answers to, its
+// generics and its overrides, in list order. An override is listed here and
+// in Pipes, because both facts are true of it: it is the catalog operator,
+// and the command runs it.
+func (command *catalogCommand) Operators() []catalogOperator {
+	var operators []catalogOperator
+	for _, operation := range command.PipeOperations {
+		switch operation.Source {
+		case pipeSourceGeneric, pipeSourceOverride:
+			operators = append(operators, catalogOperator{
+				Name: operation.Name, Source: operation.Source, Class: operation.Class,
+				Available: operation.Available, Overridable: operation.Overridable,
+				LocalOnly: operation.LocalOnly, Description: operation.Description,
+			})
+		default:
+			// A command operation and an alias are no catalog operator.
+		}
+	}
+	return operators
+}
+
+// Pipes answers the operations the command runs itself, its overrides and its
+// own names, sorted by name: the list places an override in its generic's
+// place, and a reader scans the command's own pipes alphabetically.
+func (command *catalogCommand) Pipes() []catalogPipe {
+	var pipes []catalogPipe
+	for _, operation := range command.PipeOperations {
+		switch operation.Source {
+		case pipeSourceOverride, pipeSourceCommand:
+			pipes = append(pipes, catalogPipe{
+				Name: operation.Name, Description: operation.Description, Argument: operation.Argument,
+			})
+		default:
+			// A generic and an alias run nothing in the command's handler.
+		}
+	}
+	sort.Slice(pipes, func(left, right int) bool { return pipes[left].Name < pipes[right].Name })
+	return pipes
+}
+
+// Aliases answers the named chains the command answers to, in list order.
+func (command *catalogCommand) Aliases() []catalogAlias {
+	var aliases []catalogAlias
+	for _, operation := range command.PipeOperations {
+		if operation.Source != pipeSourceAlias {
+			continue
+		}
+		aliases = append(aliases, catalogAlias{
+			Name: operation.Name, Description: operation.Description, Expansion: operation.Expansion,
+		})
+	}
+	return aliases
 }
 
 // The availability values an operator declares, and the order the surfaces
@@ -224,7 +315,15 @@ func (command *catalogCommand) validate() error {
 	if command.Mode == "" {
 		return fmt.Errorf("command %q states no mode", command.Path)
 	}
-	for _, operator := range command.Operators {
+	for _, operation := range command.PipeOperations {
+		switch operation.Source {
+		case pipeSourceGeneric, pipeSourceOverride, pipeSourceCommand, pipeSourceAlias:
+		default:
+			return fmt.Errorf("command %q: pipe operation %q names the unknown source %q",
+				command.Path, operation.Name, operation.Source)
+		}
+	}
+	for _, operator := range command.Operators() {
 		if _, known := availabilityLabels[operator.Available]; !known {
 			return fmt.Errorf("command %q: operator %q declares the unknown availability %q",
 				command.Path, operator.Name, operator.Available)
@@ -280,7 +379,7 @@ func argumentRequiredLabel(argument catalogArg) string {
 // pipeDisplayName answers how a command pipe is written for a reader: its name,
 // and a value placeholder when the pipe takes one.
 func pipeDisplayName(pipe catalogPipe) string {
-	if pipe.TakesArg {
+	if pipe.Argument != pipeArgumentNone {
 		return pipe.Name + " <value>"
 	}
 	return pipe.Name
@@ -293,7 +392,7 @@ func pipeDisplayName(pipe catalogPipe) string {
 // states both, which is what the retired renderer did.
 func operatorsByAvailability(command *catalogCommand) map[string][]string {
 	grouped := make(map[string][]string, len(availabilityOrder))
-	for _, operator := range command.Operators {
+	for _, operator := range command.Operators() {
 		grouped[operator.Available] = append(grouped[operator.Available], operator.Name)
 		if operator.LocalOnly {
 			grouped[availabilityLocalOnly] = append(grouped[availabilityLocalOnly], operator.Name)

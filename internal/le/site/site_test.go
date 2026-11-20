@@ -215,7 +215,7 @@ func TestBuildStagesADeployableArtifact(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(source, "tools", "source.txt"), []byte("source only\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	catalog := `[{"path":"show test","short-help":"Show rows","mode":"read-only","operators":[{"name":"json","class":"global","available":"always","description":"JSON"}]}]`
+	catalog := `[{"path":"show test","short-help":"Show rows","mode":"read-only","pipe-operations":[{"name":"json","source":"generic","argument":"optional","class":"global","available":"always","description":"JSON"}]}]`
 	stubLiveInputs(t, catalog)
 	// This build is about staging, so the page producers are stubbed out: a
 	// synthetic checkout carries no docs/ tree for them to publish, and

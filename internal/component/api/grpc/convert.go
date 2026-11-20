@@ -7,20 +7,34 @@ import (
 
 	zepb "github.com/ze-software/ze/api/proto"
 	"github.com/ze-software/ze/internal/component/api"
+	"github.com/ze-software/ze/internal/component/command"
 )
 
 func fromProtoExecuteRequest(pb *zepb.CommandRequest, caller api.CallerIdentity) (*api.ExecuteRequest, error) {
 	if err := api.ValidateParams(pb.GetParams()); err != nil {
 		return nil, err
 	}
-	return &api.ExecuteRequest{Caller: caller, Command: pb.GetCommand(), Params: pb.GetParams()}, nil
+	return &api.ExecuteRequest{Caller: caller, Command: pb.GetCommand(), Params: pb.GetParams(), Pipe: fromProtoPipe(pb.GetPipe())}, nil
 }
 
 func fromProtoStreamRequest(pb *zepb.CommandRequest, caller api.CallerIdentity) (*api.StreamRequest, error) {
 	if err := api.ValidateParams(pb.GetParams()); err != nil {
 		return nil, err
 	}
-	return &api.StreamRequest{Caller: caller, Command: pb.GetCommand(), Params: pb.GetParams()}, nil
+	return &api.StreamRequest{Caller: caller, Command: pb.GetCommand(), Params: pb.GetParams(), Pipe: fromProtoPipe(pb.GetPipe())}, nil
+}
+
+// fromProtoPipe answers the request's pipe list as the engine takes it. The
+// engine judges each name and quotes each word (command.WritePipeList).
+func fromProtoPipe(pipe []*zepb.PipeOperation) []command.PipeListElement {
+	if len(pipe) == 0 {
+		return nil
+	}
+	chain := make([]command.PipeListElement, len(pipe))
+	for i, operation := range pipe {
+		chain[i] = command.PipeListElement{Name: operation.GetName(), Args: operation.GetArgs()}
+	}
+	return chain
 }
 
 func fromProtoListCommandsRequest(pb *zepb.ListCommandsRequest) *api.ListCommandsRequest {

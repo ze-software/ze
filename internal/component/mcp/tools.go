@@ -21,6 +21,7 @@ import (
 	"github.com/ze-software/ze/internal/component/aihelp"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -416,6 +417,11 @@ func buildToolDef(g toolGroup) (map[string]any, error) {
 		}
 	}
 
+	// Every derived tool takes the ordered pipe list, described once in the
+	// command package so the OpenAPI document publishes the same list. It is
+	// written after the typed parameters, so no YANG leaf can take its place.
+	properties[command.PipeListParameter] = command.PipeListSchema()
+
 	schema := map[string]any{
 		schemaKeyType:       elicitTypeObject,
 		schemaKeyProperties: properties,
@@ -575,7 +581,7 @@ func yangTypeToJSON(yangType string) string {
 }
 
 // reservedParams are the built-in dispatch parameters, not forwarded as typed args.
-var reservedParams = map[string]bool{"action": true, "arguments": true, "peer": true}
+var reservedParams = map[string]bool{"action": true, "arguments": true, "peer": true, command.PipeListParameter: true}
 
 // peerKeyword is the command token a peer selector value attaches to. The
 // grammar's peer exception spells the selector immediately after it
@@ -752,6 +758,23 @@ func (s *server) dispatchGenerated(prefix string, actionSelector map[string]bool
 	action, _ := all["action"].(string)
 	arguments, _ := all["arguments"].(string)
 	peer, _ := all["peer"].(string)
+	// The pipe list is read strictly, from its own bytes: a misspelt element
+	// key is refused rather than dropped (command.DecodePipeList). The member is
+	// found by its exact key, the same match reservedParams makes: a struct
+	// field would also take `Pipe` or `PIPE`, which the typed parameters below
+	// forward as an unknown parameter, so one member would be read twice.
+	var members map[string]json.RawMessage
+	if err := json.Unmarshal(args, &members); err != nil {
+		var problem textbuf.Buffer
+		problem.Str("The tool arguments cannot be read for their ").Quoted(command.PipeListParameter).Str(" list")
+		return ErrResult(opererr.Wrap(err, problem.String(),
+			"No command ran. The arguments are one JSON object, and its \"pipe\" member is an array of pipe operations",
+			`send the arguments as one JSON object, such as {"pipe": [{"name": "count"}]}`).Error())
+	}
+	chain, err := command.DecodePipeList(members[command.PipeListParameter])
+	if err != nil {
+		return ErrResult(err.Error())
+	}
 
 	if peer != "" {
 		if err := noSpaces("peer", peer); err != nil {
@@ -850,6 +873,11 @@ func (s *server) dispatchGenerated(prefix string, actionSelector map[string]bool
 
 	if arguments != "" {
 		cmd.Byte(' ').Str(arguments)
+	}
+	// The pipe list goes last, judged against the operations of the command
+	// the client named: that is the path its operations are registered under.
+	if err := command.WritePipeList(&cmd, commandName, chain); err != nil {
+		return ErrResult(err.Error())
 	}
 
 	return s.run(cmd.String())

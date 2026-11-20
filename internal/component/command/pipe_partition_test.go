@@ -207,11 +207,12 @@ func recordPanic(register func()) (text string) {
 }
 
 // TestOverridableComesFromTheCatalog asks whether the catalog alone decides
-// which generic names a command may declare: count, first, last and match,
-// and no other (D-5, AC-30 in-tree).
+// which generic names a command may declare: every data operator, and no
+// format, paging, `save` or `log` (D-5 as Thomas decided it on 2026-11-20,
+// AC-30 in-tree).
 // Method: every catalog operator is declared, with its own argument kind, on
 // a fresh path; the registration must panic exactly for the operators the
-// catalog does not let a command override.
+// catalog does not let a command override, and the overridable set is pinned.
 func TestOverridableComesFromTheCatalog(t *testing.T) {
 	ResetPipeFiltersForTest()
 	t.Cleanup(ResetPipeFiltersForTest)
@@ -232,7 +233,7 @@ func TestOverridableComesFromTheCatalog(t *testing.T) {
 		}
 	}
 	slices.Sort(overridable)
-	if want := []string{"count", "first", "last", "match"}; !slices.Equal(overridable, want) {
+	if want := []string{"count", "display", "fill", "first", "last", "match", "origin", "resolve"}; !slices.Equal(overridable, want) {
 		t.Errorf("overridable generics = %v, want %v", overridable, want)
 	}
 }
@@ -312,6 +313,86 @@ func TestOverrideShapeCheckScope(t *testing.T) {
 	}
 	if err := CheckOverrideAnswer("show scope rows", nil, AnswerDone, wrong); err != nil {
 		t.Errorf("an answer with no declared operation was checked: %v", err)
+	}
+}
+
+// TestEveryDataOperatorIsOverridable asks whether the catalog states an
+// override shape for every operator that acts on a command's data, and for no
+// operator that is the data format or the display of a stream (Thomas,
+// 2026-11-20: a command may override an operation "as long as their data
+// format is not changed").
+// Method: every catalog entry's Overridable is compared with its class; a
+// presentation operator that answered Overridable would let a command change
+// the data format.
+func TestEveryDataOperatorIsOverridable(t *testing.T) {
+	for _, op := range PipeOperatorCatalog() {
+		want := op.Class == ClassData
+		if op.Overridable() != want {
+			t.Errorf("%s (class %s): Overridable = %v, want %v", op.Name, op.Class, op.Overridable(), want)
+		}
+		if op.Presentation && op.Overridable() {
+			t.Errorf("%s is presentation and overridable: a command could change the data format", op.Name)
+		}
+	}
+}
+
+// TestDataOperatorOverrideAnswerShapeChecked asks whether an override of a
+// data operator beyond count, first and last is held to the rows envelope its
+// generic answers: display, fill, resolve and origin each keep the command's
+// rows, so a done answer with rows is accepted and one with none, or with two
+// row sets to choose between, is refused naming the command and the operator.
+func TestDataOperatorOverrideAnswerShapeChecked(t *testing.T) {
+	for _, operation := range []PipeOperation{
+		{Name: "display", Args: []string{"prefix"}},
+		{Name: "fill"},
+		{Name: "resolve"},
+		{Name: "origin"},
+	} {
+		declared := []PipeOperation{operation}
+		if err := CheckOverrideAnswer("show shape rows", declared, AnswerDone, `{"routes":[{"prefix":"10.0.0.0/8"}]}`); err != nil {
+			t.Errorf("%s answering the command's rows: refused: %v", operation.Name, err)
+		}
+		if err := CheckOverrideAnswer("show shape rows", declared, AnswerDone, `{"routes":[]}`); err != nil {
+			t.Errorf("%s answering no rows: refused: %v", operation.Name, err)
+		}
+		for _, wrong := range []string{`"a sentence"`, `{"a":[{"x":1}],"b":[{"y":2}]}`, `not json`} {
+			err := CheckOverrideAnswer("show shape rows", declared, AnswerDone, wrong)
+			if err == nil {
+				t.Errorf("%s answering %s: accepted", operation.Name, wrong)
+				continue
+			}
+			if !strings.Contains(err.Error(), "show shape rows") || !strings.Contains(err.Error(), operation.Name) {
+				t.Errorf("%s answering %s: refusal %q does not name the command and the operator", operation.Name, wrong, err)
+			}
+		}
+	}
+}
+
+// TestDisplayOverrideRecordedWithItsArgumentContract asks whether a command
+// may declare `display` now that every data operator is overridable, held to
+// the generic's argument kind, while a format of the same chain stays refused.
+func TestDisplayOverrideRecordedWithItsArgumentContract(t *testing.T) {
+	ResetPipeFiltersForTest()
+	t.Cleanup(ResetPipeFiltersForTest)
+	if text := recordPanic(func() {
+		RegisterPipeFilters([]string{"show display own"}, PipeFilter{Name: "display", Description: "Select route fields", Argument: ArgFields})
+	}); text != "" {
+		t.Errorf("display declared with the generic's contract panicked: %s", text)
+	}
+	if got := PipeFiltersForCommand("show display own"); len(got) != 1 || got[0].Name != "display" {
+		t.Errorf("show display own holds %+v, want its display override", got)
+	}
+	text := recordPanic(func() {
+		RegisterPipeFilters([]string{"show display text"}, PipeFilter{Name: "display", Description: "Select route fields", Argument: ArgText})
+	})
+	if !strings.Contains(text, "overrides the generic display with argument text, but the generic takes fields") {
+		t.Errorf("display declared with another argument kind: panic %q", text)
+	}
+	text = recordPanic(func() {
+		RegisterPipeFilters([]string{"show display table"}, PipeFilter{Name: "table", Description: "own table"})
+	})
+	if !strings.Contains(text, "table") || !strings.Contains(text, "cannot override") {
+		t.Errorf("table declared by a command: panic %q, want a BUG naming that a command cannot override it", text)
 	}
 }
 

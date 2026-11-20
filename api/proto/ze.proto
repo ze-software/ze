@@ -49,10 +49,23 @@ service ZeConfigService {
 // Empty is used for RPCs with no input.
 message Empty {}
 
-// CommandRequest carries a command to execute.
+// CommandRequest carries a command to execute. pipe is the optional ordered
+// pipe list: the engine writes it after the parameters as the command's pipe
+// chain, one `| name args` stage per element, in order. Each name must be one
+// of the command's pipe operations (`show command help <command>` lists them);
+// any other name is refused, naming the valid ones.
 message CommandRequest {
   string command = 1;
   map<string, string> params = 2;
+  repeated PipeOperation pipe = 3;
+}
+
+// PipeOperation is one element of the pipe list: a pipe operation of the
+// command and its argument words. Each word reaches the operation as one
+// word, whatever it holds.
+message PipeOperation {
+  string name = 1;
+  repeated string args = 2;
 }
 
 // CommandResponse carries the result of a command execution.

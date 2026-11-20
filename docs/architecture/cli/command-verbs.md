@@ -477,8 +477,9 @@ handler rather than over the answer: `show bgp rib | peer 10.0.0.1` reaches the
 handler as the command `show bgp rib` with the declared operation `peer
 10.0.0.1`, and the line is never rewritten. A command takes an owned operation
 only while no generic one precedes it, and declares a generic's name only where
-the catalog lets it override that operator (`count`, `first`, `last`, `match`),
-keeping the generic's argument contract and answer shape; an operation that
+the catalog lets it override that operator: every data operator, and never a
+format, paging, `save` or `log`, which are the answer's data format or its
+display. An override keeps the generic's argument contract and answer shape; an operation that
 means something else takes a name of its own. The daemon does the selecting, and only the
 matching rows cross the wire.
 <!-- source: internal/component/command/pipe_partition.go -- partitionPipeChain, CheckOverrideAnswer -->

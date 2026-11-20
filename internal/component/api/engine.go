@@ -117,7 +117,7 @@ func unauthorizedError(command string) string {
 // Execute runs a command and returns the result.
 // Returns ErrUnauthorized if the auth checker denies the request.
 func (e *APIEngine) Execute(ctx context.Context, req *ExecuteRequest) (*ExecResult, error) {
-	input, readOnly, err := e.prepareCommand(req.Command, req.Params)
+	input, readOnly, err := e.prepareCommand(req.Command, req.Params, req.Pipe)
 	if err != nil {
 		return &ExecResult{
 			Status: StatusError,
@@ -173,7 +173,7 @@ func (e *APIEngine) Stream(ctx context.Context, req *StreamRequest) (<-chan stri
 	if e.stream == nil {
 		return nil, nil, errors.New("streaming not supported")
 	}
-	input, readOnly, err := e.prepareCommand(req.Command, req.Params)
+	input, readOnly, err := e.prepareCommand(req.Command, req.Params, req.Pipe)
 	if err != nil {
 		return nil, nil, err
 	}

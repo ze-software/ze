@@ -12,7 +12,10 @@ an interactive CLI view is not automatically a one-shot MCP operation.
 ## Discoverable command tools
 
 Generated groups use typed inputs where YANG RPC metadata supplies them.
-Groups without typed inputs expose an `arguments` string.
+Groups without typed inputs expose an `arguments` string. Every generated
+group takes an optional ordered `pipe` list of `{"name", "args"}` elements,
+applied to the answer as `| name args` stages, each name one of the command's
+pipe operations.
 <!-- source: internal/component/mcp/tools.go -- buildToolDef -->
 
 | Tool | Description |
@@ -91,7 +94,7 @@ An AI assistant connected via MCP can:
 1. Read `tools/list` and call `ze_reference` to discover this daemon's commands. <!-- doc-links: ignore (MCP method name, not a path) -->
 2. Call `ze_execute` with `show bgp peer list` to inspect configured peers.
 3. Announce through `ze_execute` with `send bgp * update text origin igp next-hop 10.0.0.1 nlri add 10.0.0.0/24`.
-4. Call `ze_execute` with `show bgp rib sent peer peer1 family ipv4/unicast` to inspect that peer's sent routes.
+4. Call `ze_execute` with `show bgp rib | sent | peer peer1 | family ipv4/unicast` to inspect that peer's sent routes.
 5. If withdrawal is needed, use the current `send bgp` withdrawal grammar through `ze_execute`, rather than assuming a `ze_withdraw` tool exists.
 
 Current results use MCP text-content envelopes. JSON references and rendered

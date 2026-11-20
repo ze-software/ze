@@ -45,7 +45,11 @@ Existing raw command text is retained, including terminal, declared ancestor
 and implicit selectors, while extra parameters form a keyword suffix of the
 command part: on a line with a pipe chain they are written before the first
 pipe, so the chain stays the one the caller typed and the dispatcher applies
-it to the answer.
+it to the answer. The optional ordered `pipe` list of REST execute and of the
+gRPC `CommandRequest` is written after them, and after the typed chain, each
+name judged against the command's pipe operations
+(`docs/architecture/api/commands.md`); the authorizer and the accounting
+record see the whole line, list included.
 Declaration matching reuses the dispatcher's matcher with its original typed
 definitions. The API's private definitions are excluded from JSON metadata.
 <!-- source: internal/component/api/invocation.go -- prepareCommand, buildInvocation -->

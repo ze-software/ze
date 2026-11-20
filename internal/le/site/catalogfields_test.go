@@ -40,17 +40,17 @@ const enrichedCommandCatalog = `[{
   {"text": "family", "values": ["ipv4", "ipv6"], "kind": "value"},
   {"text": "detail", "group": [{"text": "level", "kind": "value"}], "kind": "group"}
  ],
- "pipes": [{"name": "peer", "description": "Filter by peer", "takes-arg": true}],
- "operators": [{
-  "name": "match", "class": "data", "available": "with-rows", "local-only": true,
-  "description": "Keep the rows holding this text"
- }],
+ "pipe-operations": [
+  {"name": "match", "source": "generic", "argument": "text", "available": "with-rows", "class": "data",
+   "overridable": true, "local-only": true, "description": "Keep the rows holding this text"},
+  {"name": "peer", "source": "command", "argument": "text", "available": "always",
+   "description": "Filter by peer"},
+  {"name": "summary", "source": "alias", "argument": "none", "available": "always",
+   "description": "The aggregate fields", "expansion": "display router-id"}
+ ],
  "answer-shape": "tab",
  "address-fields": ["target"],
  "column-orders": [["peer", "state"], ["prefix", "next-hop"]],
- "pipe-aliases": [{
-  "name": "summary", "description": "The aggregate fields", "expansion": "display router-id"
- }],
  "subcommands": ["neighbor", "status"]
 }]`
 
@@ -167,46 +167,54 @@ var catalogFieldRenderings = map[string]catalogFieldRendering{
 		Reference: []string{"<ipv4"},
 		Detail:    []string{"<ipv4"},
 	},
-	"pipes.name": {
-		Reason:    "a command pipe is a filter this command alone accepts after a bar.",
-		Reference: []string{"peer"},
-		Detail:    []string{"peer"},
+	"pipe-operations.name": {
+		Reason:    "a pipe operation is a word this command answers to after a bar.",
+		Reference: []string{"match", "peer", "summary"},
+		Detail:    []string{"match", "peer", "summary"},
 	},
-	"pipes.description": {
-		Reason:    "the description says what the pipe filters on.",
-		Reference: []string{"Filter by peer"},
-		Detail:    []string{"Filter by peer"},
+	"pipe-operations.source": {
+		Reason: "the source decides which list publishes the entry: the command's own pipes, " +
+			"its aliases, or the operators grouped by availability. An override is published " +
+			"in both the first and the last, because both facts are true of it.",
+		Detail: []string{"Command pipes", "Pipe aliases"},
 	},
-	"pipes.takes-arg": {
-		Reason:    "a pipe that takes a value is written with the placeholder the operator fills.",
+	"pipe-operations.argument": {
+		Reason:    "an operation that takes a value is written with the placeholder the operator fills.",
 		Reference: []string{"<value>"},
 		Detail:    []string{"<value>"},
 	},
-	"operators.name": {
-		Reason:    "an operator is what the command accepts after a bar.",
-		Reference: []string{"match"},
-		Detail:    []string{"match"},
+	"pipe-operations.available": {
+		Reason:    "availability says what an answer must hold before the operator applies.",
+		Reference: []string{"With rows"},
+		Detail:    []string{"on its rows"},
 	},
-	"operators.class": {
+	"pipe-operations.class": {
 		Reason: "the class groups the operators for a reader learning the set. It belongs to the " +
 			"operator rather than to the command, so it is published once, in the CLI " +
 			"reference's operator table, rather than on each of 395 detail pages.",
 		Reference: []string{"Row data"},
 	},
-	"operators.available": {
-		Reason:    "availability says what an answer must hold before the operator applies.",
-		Reference: []string{"With rows"},
-		Detail:    []string{"on its rows"},
+	"pipe-operations.overridable": {
+		Reason: "whether a command may run its own operation under the generic's name belongs to " +
+			"the operator, so it is published once, in the CLI reference's operator table.",
+		Reference: []string{overridableNote},
 	},
-	"operators.local-only": {
+	"pipe-operations.local-only": {
 		Reason:    "a local-only operator is refused in a daemon-expanded chain.",
 		Reference: []string{"Local process only"},
 		Detail:    []string{"local process only"},
 	},
-	"operators.description": {
-		Reason: "the description belongs to the operator rather than to the command, and is " +
-			"published once beside its class, in the CLI reference's operator table.",
-		Reference: []string{"Keep the rows holding this text"},
+	"pipe-operations.description": {
+		Reason: "an operator's description belongs to the operator and is published once beside " +
+			"its class, in the CLI reference's operator table; a command pipe's and an alias's " +
+			"say what that command's operation answers, beside it.",
+		Reference: []string{"Keep the rows holding this text", "Filter by peer", "The aggregate fields"},
+		Detail:    []string{"Filter by peer", "The aggregate fields"},
+	},
+	"pipe-operations.expansion": {
+		Reason:    "the expansion is the chain the alias stands for.",
+		Reference: []string{"display router-id"},
+		Detail:    []string{"display router-id"},
 	},
 	"answer-shape": {
 		Reason:    "the declared shape is what decides which operators are always available.",
@@ -226,21 +234,6 @@ var catalogFieldRenderings = map[string]catalogFieldRendering{
 			"declares two and a flattened list would state neither.",
 		Reference: []string{"peer, state; prefix, next-hop"},
 		Detail:    []string{"peer, state; prefix, next-hop"},
-	},
-	"pipe-aliases.name": {
-		Reason:    "an alias is a chain the command names.",
-		Reference: []string{"summary"},
-		Detail:    []string{"summary"},
-	},
-	"pipe-aliases.description": {
-		Reason:    "the description says what the alias answers with.",
-		Reference: []string{"The aggregate fields"},
-		Detail:    []string{"The aggregate fields"},
-	},
-	"pipe-aliases.expansion": {
-		Reason:    "the expansion is the chain the alias stands for.",
-		Reference: []string{"display router-id"},
-		Detail:    []string{"display router-id"},
 	},
 	"subcommands": {
 		Reason:    "the subcommands say what an operator can type after this command.",
@@ -344,11 +337,13 @@ func writeEquivalentMapping(t *testing.T, output string) {
 	}
 }
 
-// The two files that between them spell the published catalog: the producer,
-// and the package that owns the grammar token it embeds.
+// The files that between them spell the published catalog: the producer, and
+// the files of the package that own the grammar token and the pipe operation
+// entry it embeds.
 var catalogProducerFiles = []string{
 	"internal/plugins/help/help_command.go",
 	"internal/component/command/usage.go",
+	"internal/component/command/pipe_operations.go",
 }
 
 // publishedCatalogFields answers every JSON field the live command catalog

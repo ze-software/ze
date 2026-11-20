@@ -512,6 +512,20 @@ A nonflag boolean remains ordinary data. An invalid flag value refuses before
 dispatch and names the command's help. A call carrying both `peer` and a parameter anchored
 to `peer` names one slot twice and is refused by name.
 
+Every derived tool also takes the reserved `pipe` argument, the ordered pipe
+list REST and gRPC take too: each element an operation name and its `args`
+words. `dispatchGenerated` reads it strictly (`command.DecodePipeList`) and
+`command.WritePipeList` writes it last, after the typed parameters and the
+raw `arguments`, judged against the pipe operations of the command the tool
+call names (prefix and action). A name the command does not take is refused
+with the valid list before anything runs, and each word is quoted when it
+holds a pipe or a quote, so the call answers what `<command> | name args`
+answers through `ze_execute`. The property's schema is
+`command.PipeListSchema`, the one the OpenAPI document publishes
+(`docs/architecture/api/commands.md`).
+<!-- source: internal/component/command/pipe_list.go -- PipeListSchema, DecodePipeList, WritePipeList -->
+<!-- test: internal/component/mcp/tools_pipe_list_test.go TestDerivedToolPipeList -->
+
 <!-- source: cmd/ze/hub/command_meta.go -- buildCommandMeta hidden plugin command skip, anchoredParams -->
 <!-- source: internal/component/command/arguments.go -- WriteInvocation -->
 

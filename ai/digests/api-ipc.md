@@ -31,9 +31,11 @@ runtime request, see the gotcha below.
    (`cmd/ze/hub/api.go`) the `CommandSource`, and `apiStreamSource(server)` (`cmd/ze/hub/api.go`)
    the `StreamSource`.
 2. **HTTP entry.** `POST /api/v1/execute` → `RESTServer.handleExecute` (`rest/server.go`)
-   decodes `{"command":"...","params":{...}}`, then `fromRESTExecuteRequest`
+   decodes `{"command":"...","params":{...},"pipe":[...]}`, then `fromRESTExecuteRequest`
    (`rest/convert.go`) validates parameter whitespace and retains the original
-   command plus a string-valued `Params` map in the domain request. Construction
+   command plus a string-valued `Params` map in the domain request;
+   `command.DecodePipeList` reads `pipe` strictly into `ExecuteRequest.Pipe`,
+   which `appendPipeList` (`api/invocation.go`) writes after the parameters. Construction
    waits for the engine's selected typed declaration. Convenience routes
    (`GET /api/v1/peers/*`, `/rib/*`, `/system/*`)
    build a fixed command string directly (e.g. `rest/server.go`, `:578`, `:620`) instead of

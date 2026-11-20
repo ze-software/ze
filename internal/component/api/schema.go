@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -88,59 +89,35 @@ func CommandSchema(cmd CommandMeta) map[string]any {
 
 // OpenAPISchema generates an OpenAPI 3.1 specification from the command list.
 // The schema is built once at startup and cached by the caller.
+//
+// Every path it publishes is a route `rest.registerRoutes` serves: a client
+// that follows the document never meets a 404. A command is run through the
+// one execute route, so a command has no path of its own. It is published as
+// a schema component instead, the request body that runs it on that route.
 func OpenAPISchema(commands []CommandMeta) ([]byte, error) {
-	paths := make(map[string]any, len(commands))
-
+	schemas := make(map[string]any, len(commands)+1)
 	for _, cmd := range commands {
-		pathKey := "/api/v1/execute/" + strings.ReplaceAll(cmd.Name, " ", "/")
-
-		// OpenAPI 3.1 defines `summary` as the short form and `description` as
-		// the long one. The two halves map one to one, and neither is derived
-		// from the other. A command with no explanation carries no description
-		// key. An empty one would render as a blank paragraph.
-		operation := map[string]any{
-			"summary":     cmd.ShortHelp,
-			"operationId": operationID(cmd.Name),
-			"tags":        []string{commandTag(cmd.Name)},
-			"responses": map[string]any{
-				"200": map[string]any{
-					schemaKeyDescription: "Command result",
-					schemaKeyContent: map[string]any{
-						mediaTypeJSON: map[string]any{
-							schemaKeySchema: map[string]any{
-								"$ref": "#/components/schemas/ExecResult",
-							},
-						},
-					},
-				},
+		schemas[operationID(cmd.Name)] = commandRequestSchema(cmd)
+	}
+	schemas["ExecResult"] = map[string]any{
+		schemaKeyType: schemaTypeObject,
+		schemaKeyProperties: map[string]any{
+			"status": map[string]any{
+				schemaKeyType: schemaTypeString,
+				"enum":        []string{"done", "error"},
 			},
-		}
-
-		if cmd.Description != "" {
-			operation[schemaKeyDescription] = cmd.Description
-		}
-
-		if len(cmd.Params) > 0 {
-			operation["requestBody"] = map[string]any{
-				schemaKeyContent: map[string]any{
-					mediaTypeJSON: map[string]any{
-						schemaKeySchema: CommandSchema(cmd),
-					},
-				},
-			}
-		}
-
-		method := "get"
-		if !cmd.ReadOnly {
-			method = "post"
-		}
-
-		paths[pathKey] = map[string]any{
-			method: operation,
-		}
+			"data": map[string]any{
+				schemaKeyDescription: "Response payload",
+			},
+			"error": map[string]any{
+				schemaKeyType:        schemaTypeString,
+				schemaKeyDescription: "Error message",
+			},
+		},
+		schemaKeyRequired: []string{"status"},
 	}
 
-	// Also add the generic execute endpoint.
+	paths := make(map[string]any, 1)
 	paths["/api/v1/execute"] = map[string]any{
 		"post": map[string]any{
 			"summary":     "Execute any command",
@@ -161,6 +138,9 @@ func OpenAPISchema(commands []CommandMeta) ([]byte, error) {
 									schemaKeyType:        schemaTypeObject,
 									schemaKeyDescription: "Command parameters",
 								},
+								// The one description of the pipe list, which the MCP
+								// tool schema publishes too.
+								command.PipeListParameter: command.PipeListSchema(),
 							},
 							schemaKeyRequired: []string{"command"},
 						},
@@ -190,25 +170,7 @@ func OpenAPISchema(commands []CommandMeta) ([]byte, error) {
 		},
 		"paths": paths,
 		"components": map[string]any{
-			"schemas": map[string]any{
-				"ExecResult": map[string]any{
-					schemaKeyType: schemaTypeObject,
-					schemaKeyProperties: map[string]any{
-						"status": map[string]any{
-							schemaKeyType: schemaTypeString,
-							"enum":        []string{"done", "error"},
-						},
-						"data": map[string]any{
-							schemaKeyDescription: "Response payload",
-						},
-						"error": map[string]any{
-							schemaKeyType:        schemaTypeString,
-							schemaKeyDescription: "Error message",
-						},
-					},
-					schemaKeyRequired: []string{"status"},
-				},
-			},
+			"schemas": schemas,
 			"securitySchemes": map[string]any{
 				"bearerAuth": map[string]any{
 					schemaKeyType: "http",
@@ -224,8 +186,44 @@ func OpenAPISchema(commands []CommandMeta) ([]byte, error) {
 	return json.MarshalIndent(spec, "", "  ")
 }
 
-// operationID converts a command name to an operationId.
-// "show bgp rib" -> "showBgpRib".
+// commandRequestSchema is the body of POST /api/v1/execute that runs one
+// command: `command` fixed to the command's name, its `params`, and the
+// optional pipe list every command takes.
+//
+// JSON Schema defines `title` as the short text and `description` as the long
+// one. The two halves map one to one, and neither is derived from the other. A
+// command with no explanation carries no description key. An empty one would
+// render as a blank paragraph.
+func commandRequestSchema(cmd CommandMeta) map[string]any {
+	params := CommandSchema(cmd)
+	required := []string{"command"}
+	if _, ok := params[schemaKeyRequired]; ok {
+		required = append(required, "params")
+	}
+	schema := map[string]any{
+		schemaKeyType: schemaTypeObject,
+		schemaKeyProperties: map[string]any{
+			"command": map[string]any{
+				schemaKeyType: schemaTypeString,
+				"const":       cmd.Name,
+			},
+			"params":                  params,
+			command.PipeListParameter: command.PipeListSchema(),
+		},
+		schemaKeyRequired: required,
+	}
+	if cmd.ShortHelp != "" {
+		schema[schemaKeyTitle] = cmd.ShortHelp
+	}
+	if cmd.Description != "" {
+		schema[schemaKeyDescription] = cmd.Description
+	}
+	return schema
+}
+
+// operationID converts a command name to the key of its schema component.
+// "show bgp rib" -> "showBgpRib". A command word is lower case, so no key
+// collides with a fixed component such as ExecResult.
 func operationID(name string) string {
 	words := strings.Fields(name)
 	if len(words) == 0 {
@@ -240,11 +238,4 @@ func operationID(name string) string {
 		}
 	}
 	return b.String()
-}
-
-// commandTag extracts the first word as the OpenAPI tag.
-// "show bgp rib" -> "show".
-func commandTag(name string) string {
-	word, _, _ := strings.Cut(name, " ")
-	return word
 }

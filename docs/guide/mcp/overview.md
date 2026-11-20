@@ -487,6 +487,14 @@ declares: the property's `title` is the leaf's `ze:help` summary and its
 `description` is the leaf's `description` explanation. A text the leaf does not
 declare writes no key, and neither is derived from the other.
 
+Every generated tool also takes an optional `pipe` argument: an ordered list
+of pipe operations applied to the answer, each `{"name": ..., "args": [...]}`.
+`{"action": "rib", "pipe": [{"name": "received"}, {"name": "count"}]}` on
+`ze_show_bgp` answers what `ze_execute` answers for
+`show bgp rib | received | count`. A name that is not one of the command's
+pipe operations is refused with the valid list.
+<!-- source: internal/component/mcp/tools.go -- dispatchGenerated -->
+
 Ze cannot advertise a single answer here, because the two clients get different
 behaviour. A schema-validating host would otherwise refuse to make the very call
 that reaches the prompt.

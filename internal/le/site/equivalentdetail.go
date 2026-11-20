@@ -79,13 +79,13 @@ func equivalentZeCard(command *catalogCommand) string {
 		writeDetailRow(&card, detailPipeLabel(availability, command.AnswerShape != ""),
 			html.EscapeString(strings.Join(names, ", ")))
 	}
-	if len(grouped) == 0 && len(command.Pipes) == 0 && len(command.Aliases) == 0 {
+	if len(grouped) == 0 && len(command.Pipes()) == 0 && len(command.Aliases()) == 0 {
 		writeDetailRow(&card, "Pipes", "none: this command reaches no pipe layer")
 	}
-	if len(command.Pipes) != 0 {
+	if len(command.Pipes()) != 0 {
 		writeDetailRow(&card, "Command pipes", strings.Join(commandPipeLines(command), "<br>"))
 	}
-	if len(command.Aliases) != 0 {
+	if len(command.Aliases()) != 0 {
 		writeDetailRow(&card, "Pipe aliases", strings.Join(aliasLines(command), "<br>"))
 	}
 	if command.AnswerShape != "" {
@@ -128,8 +128,8 @@ func subcommandsHTML(command *catalogCommand) string {
 
 // commandPipeLines renders each of a command's own pipes as one line.
 func commandPipeLines(command *catalogCommand) []string {
-	lines := make([]string, 0, len(command.Pipes))
-	for _, pipe := range command.Pipes {
+	lines := make([]string, 0, len(command.Pipes()))
+	for _, pipe := range command.Pipes() {
 		line := "<code>" + html.EscapeString(pipeDisplayName(pipe)) + "</code>"
 		if pipe.Description != "" {
 			line += ": " + html.EscapeString(pipe.Description)
@@ -141,8 +141,8 @@ func commandPipeLines(command *catalogCommand) []string {
 
 // aliasLines renders each of a command's pipe aliases as one line.
 func aliasLines(command *catalogCommand) []string {
-	lines := make([]string, 0, len(command.Aliases))
-	for _, alias := range command.Aliases {
+	lines := make([]string, 0, len(command.Aliases()))
+	for _, alias := range command.Aliases() {
 		line := "<code>" + html.EscapeString(alias.Name) + "</code>"
 		if alias.Description != "" {
 			line += ": " + html.EscapeString(alias.Description)
@@ -449,8 +449,8 @@ func orNoSourceRef(value string) string {
 
 // commandPipeMirrorList writes a command's own pipes as one mirror line.
 func commandPipeMirrorList(command *catalogCommand, renderCode func(string) string) string {
-	values := make([]string, 0, len(command.Pipes))
-	for _, pipe := range command.Pipes {
+	values := make([]string, 0, len(command.Pipes()))
+	for _, pipe := range command.Pipes() {
 		value := renderCode(pipeDisplayName(pipe))
 		if pipe.Description != "" {
 			value += ": " + markdownProse(pipe.Description)
@@ -462,8 +462,8 @@ func commandPipeMirrorList(command *catalogCommand, renderCode func(string) stri
 
 // aliasMirrorList writes a command's pipe aliases as one mirror line.
 func aliasMirrorList(command *catalogCommand, renderCode func(string) string) string {
-	values := make([]string, 0, len(command.Aliases))
-	for _, alias := range command.Aliases {
+	values := make([]string, 0, len(command.Aliases()))
+	for _, alias := range command.Aliases() {
 		value := renderCode(alias.Name)
 		if alias.Description != "" {
 			value += ": " + markdownProse(alias.Description)

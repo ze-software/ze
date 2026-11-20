@@ -6,6 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/command"
 )
 
 // VALIDATES: AC-6 -- OpenAPISchema returns valid OpenAPI 3.1 JSON.
@@ -30,16 +32,70 @@ func TestOpenAPISchemaValid(t *testing.T) {
 
 	paths, ok := spec["paths"].(map[string]any)
 	require.True(t, ok)
-	// 2 per-command paths + 1 generic execute.
-	assert.Len(t, paths, 3)
-	assert.Contains(t, paths, "/api/v1/execute/bgp/summary")
-	assert.Contains(t, paths, "/api/v1/execute/daemon/reload")
+	// The one execute route REST serves; a command has no path of its own.
+	assert.Len(t, paths, 1)
 	assert.Contains(t, paths, "/api/v1/execute")
 }
 
-// VALIDATES: read-only commands use GET, write commands use POST.
-// PREVENTS: wrong HTTP method in OpenAPI spec.
-func TestOpenAPISchemaHTTPMethods(t *testing.T) {
+// VALIDATES: each command is published as the request body that runs it on
+// POST /api/v1/execute: `command` fixed to its name, its parameters under
+// `params`, the pipe list, and `params` required only when a parameter is.
+// PREVENTS: a command's parameter schema lost with its unserved path, or a
+// schema that does not name the command it runs.
+func TestOpenAPIPublishesEachCommandRequestBody(t *testing.T) {
+	commands := []CommandMeta{
+		{Name: "bgp summary", ShortHelp: "Show BGP summary", ReadOnly: true},
+		{Name: "show bgp rib", ShortHelp: "Show routes", ReadOnly: true, Params: []ParamMeta{
+			{Name: "limit", Type: "uint32", ShortHelp: "Max results", Required: true},
+		}},
+	}
+
+	data, err := OpenAPISchema(commands)
+	require.NoError(t, err)
+
+	var spec map[string]any
+	require.NoError(t, json.Unmarshal(data, &spec))
+	components, ok := spec["components"].(map[string]any)
+	require.True(t, ok)
+	schemas, ok := components["schemas"].(map[string]any)
+	require.True(t, ok)
+	assert.Contains(t, schemas, "ExecResult")
+
+	summary, ok := schemas["bgpSummary"].(map[string]any)
+	require.True(t, ok, "a command without parameters is still published")
+	summaryProps, ok := summary["properties"].(map[string]any)
+	require.True(t, ok)
+	summaryCommand, ok := summaryProps["command"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "bgp summary", summaryCommand["const"])
+	assert.Contains(t, summaryProps, command.PipeListParameter)
+	assert.Equal(t, []any{"command"}, summary["required"],
+		"params is not required when no parameter is")
+
+	rib, ok := schemas["showBgpRib"].(map[string]any)
+	require.True(t, ok)
+	ribProps, ok := rib["properties"].(map[string]any)
+	require.True(t, ok)
+	ribCommand, ok := ribProps["command"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "show bgp rib", ribCommand["const"])
+	params, ok := ribProps["params"].(map[string]any)
+	require.True(t, ok)
+	paramProps, ok := params["properties"].(map[string]any)
+	require.True(t, ok)
+	limit, ok := paramProps["limit"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "integer", limit["type"])
+	assert.Equal(t, []any{"limit"}, params["required"])
+	assert.Equal(t, []any{"command", "params"}, rib["required"],
+		"params is required when one of its parameters is")
+}
+
+// VALIDATES: OpenAPISchema publishes no path of its own for a command: the
+// one execute route REST serves runs every command.
+// PREVENTS: a published /api/v1/execute/<command path> that no handler
+// serves, so a client following the document meets a 404.
+func TestOpenAPIPublishesNoPerCommandPath(t *testing.T) {
 	commands := []CommandMeta{
 		{Name: "bgp summary", ShortHelp: "Show BGP summary", ReadOnly: true},
 		{Name: "daemon reload", ShortHelp: "Reload config", ReadOnly: false},
@@ -50,19 +106,52 @@ func TestOpenAPISchemaHTTPMethods(t *testing.T) {
 
 	var spec map[string]any
 	require.NoError(t, json.Unmarshal(data, &spec))
-
 	paths, ok := spec["paths"].(map[string]any)
 	require.True(t, ok)
+	assert.Len(t, paths, 1)
+	assert.Contains(t, paths, "/api/v1/execute")
+	assert.NotContains(t, paths, "/api/v1/execute/bgp/summary")
+	assert.NotContains(t, paths, "/api/v1/execute/daemon/reload")
+}
 
-	bgpPath, ok := paths["/api/v1/execute/bgp/summary"].(map[string]any)
-	require.True(t, ok)
-	assert.Contains(t, bgpPath, "get")
-	assert.NotContains(t, bgpPath, "post")
+// VALIDATES: OpenAPI's command request body carries the command's one-line
+// summary as `title` and its long explanation as `description`, the two roles
+// JSON Schema defines for them, and no description key when none is declared.
+// PREVENTS: a client reading the whole explanation as a list-row label, or
+// finding no explanation at all because both halves went into one key.
+func TestOpenAPICommandSchemaCarriesSummaryAndDescription(t *testing.T) {
+	commands := []CommandMeta{
+		{
+			Name:        "bgp summary",
+			ShortHelp:   "Show one line for each configured peer.",
+			Description: "The state column is the FSM state.\nThe prefix counts are what the peer has sent.",
+			ReadOnly:    true,
+		},
+		{Name: "daemon reload", ShortHelp: "Reload the running configuration."},
+	}
 
-	reloadPath, ok := paths["/api/v1/execute/daemon/reload"].(map[string]any)
+	data, err := OpenAPISchema(commands)
+	require.NoError(t, err)
+
+	var spec map[string]any
+	require.NoError(t, json.Unmarshal(data, &spec))
+	components, ok := spec["components"].(map[string]any)
 	require.True(t, ok)
-	assert.Contains(t, reloadPath, "post")
-	assert.NotContains(t, reloadPath, "get")
+	schemas, ok := components["schemas"].(map[string]any)
+	require.True(t, ok)
+
+	summary, ok := schemas["bgpSummary"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Show one line for each configured peer.", summary["title"],
+		"title is the one-line half, verbatim")
+	assert.Equal(t,
+		"The state column is the FSM state.\nThe prefix counts are what the peer has sent.",
+		summary["description"], "description is the long half, verbatim and with its newlines")
+
+	reload, ok := schemas["daemonReload"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Reload the running configuration.", reload["title"])
+	assert.NotContains(t, reload, "description")
 }
 
 // VALIDATES: CommandSchema maps YANG params to JSON Schema properties.
@@ -140,52 +229,6 @@ func TestOpenAPISchemaSecurityScheme(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "http", bearer["type"])
 	assert.Equal(t, "bearer", bearer["scheme"])
-}
-
-// VALIDATES: story 8 -- the OpenAPI operation carries the one-line summary in
-// `summary` and the long explanation in `description`, the two roles OpenAPI
-// defines for them.
-// PREVENTS: a client reading the whole explanation as a list-row label, or
-// finding no explanation at all because both halves went into one key.
-func TestOpenAPICarriesSummaryAndDescription(t *testing.T) {
-	commands := []CommandMeta{
-		{
-			Name:        "bgp summary",
-			ShortHelp:   "Show one line for each configured peer.",
-			Description: "The state column is the FSM state.\nThe prefix counts are what the peer has sent.",
-			ReadOnly:    true,
-		},
-		{Name: "daemon reload", ShortHelp: "Reload the running configuration."},
-	}
-
-	data, err := OpenAPISchema(commands)
-	require.NoError(t, err)
-
-	var spec map[string]any
-	require.NoError(t, json.Unmarshal(data, &spec))
-
-	paths, ok := spec["paths"].(map[string]any)
-	require.True(t, ok)
-
-	bgpPath, ok := paths["/api/v1/execute/bgp/summary"].(map[string]any)
-	require.True(t, ok)
-	get, ok := bgpPath["get"].(map[string]any)
-	require.True(t, ok)
-
-	assert.Equal(t, "Show one line for each configured peer.", get["summary"],
-		"summary is the one-line half, verbatim")
-	assert.Equal(t,
-		"The state column is the FSM state.\nThe prefix counts are what the peer has sent.",
-		get["description"], "description is the long half, verbatim and with its newlines")
-
-	// A command declaring no explanation carries no description key at all,
-	// rather than an empty string a client would render as a blank paragraph.
-	reloadPath, ok := paths["/api/v1/execute/daemon/reload"].(map[string]any)
-	require.True(t, ok)
-	post, ok := reloadPath["post"].(map[string]any)
-	require.True(t, ok)
-	assert.Equal(t, "Reload the running configuration.", post["summary"])
-	assert.NotContains(t, post, "description")
 }
 
 // TestCommandSchemaWritesTitleAndDescription proves a property carries the

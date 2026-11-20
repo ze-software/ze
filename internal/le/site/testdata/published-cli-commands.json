@@ -13,96 +13,132 @@
     "description": "A peer name, a peer address, or all for every configured peer."
    }
   ],
-  "operators": [
+  "pipe-operations": [
    {
     "name": "json",
-    "class": "global",
+    "source": "generic",
+    "argument": "optional",
     "available": "always",
+    "class": "global",
     "description": "JSON output"
    },
    {
     "name": "ndjson",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "One JSON object per line"
    },
    {
     "name": "table",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "Render as table"
    },
    {
     "name": "text",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "Space-aligned columns"
    },
    {
     "name": "yaml",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "YAML output"
    },
    {
     "name": "raw",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "Dispatcher JSON, unformatted"
    },
    {
     "name": "no-more",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "Disable paging"
    },
    {
     "name": "log",
-    "class": "stream",
+    "source": "generic",
+    "argument": "none",
     "available": "when-streaming",
+    "class": "stream",
     "description": "Append each update instead of replacing it, where the command keeps answering"
    },
    {
     "name": "save",
-    "class": "global",
+    "source": "generic",
+    "argument": "path",
     "available": "always",
+    "class": "global",
     "local-only": true,
     "description": "Write the answer to a file"
    },
    {
     "name": "match",
-    "class": "data",
+    "source": "generic",
+    "argument": "text",
     "available": "with-rows",
+    "class": "data",
+    "overridable": true,
     "description": "Keep the rows holding this text"
    },
    {
     "name": "count",
-    "class": "data",
+    "source": "generic",
+    "argument": "none",
     "available": "with-rows",
+    "class": "data",
+    "overridable": true,
     "description": "Count the rows"
    },
    {
     "name": "first",
-    "class": "data",
+    "source": "generic",
+    "argument": "count",
     "available": "with-rows",
+    "class": "data",
+    "overridable": true,
     "description": "Take first N rows"
    },
    {
     "name": "last",
-    "class": "data",
+    "source": "generic",
+    "argument": "count",
     "available": "with-rows",
+    "class": "data",
+    "overridable": true,
     "description": "Take last N rows"
    },
    {
     "name": "display",
-    "class": "data",
+    "source": "generic",
+    "argument": "fields",
     "available": "with-rows",
+    "class": "data",
+    "overridable": true,
     "description": "Answer with these fields, in this order"
    },
    {
     "name": "fill",
-    "class": "data",
+    "source": "generic",
+    "argument": "optional",
     "available": "with-rows",
+    "class": "data",
+    "overridable": true,
     "description": "Bring the remaining columns back, in the command's order or a named one"
    }
   ]
@@ -117,126 +153,172 @@
   "short-help": "BGP peers, sessions, RIB, and protocol tools.\nTyped with no subcommand, lists every peer with state, ASN, prefixes\nreceived, and uptime. Optionally scope by address family: ipv4,\nipv6, or l2vpn.",
   "mode": "read-only",
   "wire-method": "ze-bgp:overview",
-  "operators": [
+  "pipe-operations": [
    {
     "name": "json",
-    "class": "global",
+    "source": "generic",
+    "argument": "optional",
     "available": "always",
+    "class": "global",
     "description": "JSON output"
    },
    {
     "name": "ndjson",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "One JSON object per line"
    },
    {
     "name": "table",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "Render as table"
    },
    {
     "name": "text",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "Space-aligned columns"
    },
    {
     "name": "yaml",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "YAML output"
    },
    {
     "name": "raw",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "Dispatcher JSON, unformatted"
    },
    {
     "name": "no-more",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "Disable paging"
    },
    {
     "name": "log",
-    "class": "stream",
+    "source": "generic",
+    "argument": "none",
     "available": "when-streaming",
+    "class": "stream",
     "description": "Append each update instead of replacing it, where the command keeps answering"
    },
    {
     "name": "save",
-    "class": "global",
+    "source": "generic",
+    "argument": "path",
     "available": "always",
+    "class": "global",
     "local-only": true,
     "description": "Write the answer to a file"
    },
    {
     "name": "match",
-    "class": "data",
+    "source": "generic",
+    "argument": "text",
     "available": "always",
+    "class": "data",
+    "overridable": true,
     "description": "Keep the rows holding this text"
    },
    {
     "name": "count",
-    "class": "data",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "data",
+    "overridable": true,
     "description": "Count the rows"
    },
    {
     "name": "first",
-    "class": "data",
+    "source": "generic",
+    "argument": "count",
     "available": "always",
+    "class": "data",
+    "overridable": true,
     "description": "Take first N rows"
    },
    {
     "name": "last",
-    "class": "data",
+    "source": "generic",
+    "argument": "count",
     "available": "always",
+    "class": "data",
+    "overridable": true,
     "description": "Take last N rows"
    },
    {
     "name": "display",
-    "class": "data",
+    "source": "generic",
+    "argument": "fields",
     "available": "always",
+    "class": "data",
+    "overridable": true,
     "description": "Answer with these fields, in this order"
    },
    {
     "name": "fill",
-    "class": "data",
+    "source": "generic",
+    "argument": "optional",
     "available": "always",
+    "class": "data",
+    "overridable": true,
     "description": "Bring the remaining columns back, in the command's order or a named one"
    },
    {
     "name": "resolve",
-    "class": "data",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "data",
+    "overridable": true,
     "description": "Reverse DNS for IP addresses"
    },
    {
     "name": "origin",
-    "class": "data",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "data",
+    "overridable": true,
     "description": "ASN and network for IP addresses"
-   }
-  ],
-  "answer-shape": "tab",
-  "address-fields": [
-   "address"
-  ],
-  "pipe-aliases": [
+   },
    {
     "name": "peers",
+    "source": "alias",
+    "argument": "none",
+    "available": "always",
     "description": "The peer rows, without the aggregate fields",
     "expansion": "display peers"
    },
    {
     "name": "summary",
+    "source": "alias",
+    "argument": "none",
+    "available": "always",
     "description": "The aggregate fields, without the peer rows",
     "expansion": "display router-id local-as uptime peers-configured peers-established"
    }
+  ],
+  "answer-shape": "tab",
+  "address-fields": [
+   "address"
   ],
   "subcommands": [
    "decode",
@@ -253,171 +335,210 @@
   "mode": "read-only",
   "wire-method": "ze-bgp:rib-routes",
   "task-support": "required",
-  "pipes": [
-   {
-    "name": "advertised",
-    "description": "Select advertised routes"
-   },
-   {
-    "name": "community",
-    "description": "Filter by standard community",
-    "takes-arg": true
-   },
-   {
-    "name": "count",
-    "description": "Count matching routes without serializing rows"
-   },
-   {
-    "name": "family",
-    "description": "Filter by AFI/SAFI",
-    "takes-arg": true
-   },
-   {
-    "name": "first",
-    "description": "Take first N routes",
-    "takes-arg": true
-   },
-   {
-    "name": "graph",
-    "description": "Render AS-path topology graph"
-   },
-   {
-    "name": "histogram",
-    "description": "Count routes by family and prefix length"
-   },
-   {
-    "name": "last",
-    "description": "Take last N routes",
-    "takes-arg": true
-   },
-   {
-    "name": "match",
-    "description": "Cross-field structured match",
-    "takes-arg": true
-   },
-   {
-    "name": "path",
-    "description": "Filter by AS path",
-    "takes-arg": true
-   },
-   {
-    "name": "peer",
-    "description": "Filter by peer",
-    "takes-arg": true
-   },
-   {
-    "name": "prefix",
-    "description": "Filter by prefix",
-    "takes-arg": true
-   },
-   {
-    "name": "received",
-    "description": "Select received routes"
-   }
-  ],
-  "operators": [
+  "pipe-operations": [
    {
     "name": "json",
-    "class": "global",
+    "source": "generic",
+    "argument": "optional",
     "available": "always",
+    "class": "global",
     "description": "JSON output"
    },
    {
     "name": "ndjson",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "One JSON object per line"
    },
    {
     "name": "table",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "Render as table"
    },
    {
     "name": "text",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "Space-aligned columns"
    },
    {
     "name": "yaml",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "YAML output"
    },
    {
     "name": "raw",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "Dispatcher JSON, unformatted"
    },
    {
     "name": "no-more",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "Disable paging"
    },
    {
     "name": "log",
-    "class": "stream",
+    "source": "generic",
+    "argument": "none",
     "available": "when-streaming",
+    "class": "stream",
     "description": "Append each update instead of replacing it, where the command keeps answering"
    },
    {
     "name": "save",
-    "class": "global",
+    "source": "generic",
+    "argument": "path",
     "available": "always",
+    "class": "global",
     "local-only": true,
     "description": "Write the answer to a file"
    },
    {
     "name": "match",
-    "class": "data",
+    "source": "override",
+    "argument": "text",
     "available": "always",
-    "description": "Keep the rows holding this text"
+    "class": "data",
+    "description": "Cross-field structured match"
    },
    {
     "name": "count",
-    "class": "data",
+    "source": "override",
+    "argument": "none",
     "available": "always",
-    "description": "Count the rows"
+    "class": "data",
+    "description": "Count matching routes without serializing rows"
    },
    {
     "name": "first",
-    "class": "data",
+    "source": "override",
+    "argument": "count",
     "available": "always",
-    "description": "Take first N rows"
+    "class": "data",
+    "description": "Take first N routes"
    },
    {
     "name": "last",
-    "class": "data",
+    "source": "override",
+    "argument": "count",
     "available": "always",
-    "description": "Take last N rows"
+    "class": "data",
+    "description": "Take last N routes"
    },
    {
     "name": "display",
-    "class": "data",
+    "source": "generic",
+    "argument": "fields",
     "available": "always",
+    "class": "data",
+    "overridable": true,
     "description": "Answer with these fields, in this order"
    },
    {
     "name": "fill",
-    "class": "data",
+    "source": "generic",
+    "argument": "optional",
     "available": "always",
+    "class": "data",
+    "overridable": true,
     "description": "Bring the remaining columns back, in the command's order or a named one"
    },
    {
     "name": "resolve",
-    "class": "data",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "data",
+    "overridable": true,
     "description": "Reverse DNS for IP addresses"
    },
    {
     "name": "origin",
-    "class": "data",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "data",
+    "overridable": true,
     "description": "ASN and network for IP addresses"
+   },
+   {
+    "name": "advertised",
+    "source": "command",
+    "argument": "none",
+    "available": "always",
+    "description": "Select advertised routes"
+   },
+   {
+    "name": "community",
+    "source": "command",
+    "argument": "text",
+    "available": "always",
+    "description": "Filter by standard community"
+   },
+   {
+    "name": "family",
+    "source": "command",
+    "argument": "text",
+    "available": "always",
+    "description": "Filter by AFI/SAFI"
+   },
+   {
+    "name": "graph",
+    "source": "command",
+    "argument": "none",
+    "available": "always",
+    "description": "Render AS-path topology graph"
+   },
+   {
+    "name": "histogram",
+    "source": "command",
+    "argument": "none",
+    "available": "always",
+    "description": "Count routes by family and prefix length"
+   },
+   {
+    "name": "path",
+    "source": "command",
+    "argument": "text",
+    "available": "always",
+    "description": "Filter by AS path"
+   },
+   {
+    "name": "peer",
+    "source": "command",
+    "argument": "text",
+    "available": "always",
+    "description": "Filter by peer"
+   },
+   {
+    "name": "prefix",
+    "source": "command",
+    "argument": "text",
+    "available": "always",
+    "description": "Filter by prefix"
+   },
+   {
+    "name": "received",
+    "source": "command",
+    "argument": "none",
+    "available": "always",
+    "description": "Select received routes"
    }
   ],
   "answer-shape": "tab",
@@ -437,108 +558,150 @@
   "mode": "read-only",
   "wire-method": "ze-ping:monitor-ping",
   "task-support": "required",
-  "operators": [
+  "pipe-operations": [
    {
     "name": "json",
-    "class": "global",
+    "source": "generic",
+    "argument": "optional",
     "available": "always",
+    "class": "global",
     "description": "JSON output"
    },
    {
     "name": "ndjson",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "One JSON object per line"
    },
    {
     "name": "table",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "Render as table"
    },
    {
     "name": "text",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "Space-aligned columns"
    },
    {
     "name": "yaml",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "YAML output"
    },
    {
     "name": "raw",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "Dispatcher JSON, unformatted"
    },
    {
     "name": "no-more",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "Disable paging"
    },
    {
     "name": "log",
-    "class": "stream",
+    "source": "generic",
+    "argument": "none",
     "available": "when-streaming",
+    "class": "stream",
     "description": "Append each update instead of replacing it, where the command keeps answering"
    },
    {
     "name": "save",
-    "class": "global",
+    "source": "generic",
+    "argument": "path",
     "available": "always",
+    "class": "global",
     "local-only": true,
     "description": "Write the answer to a file"
    },
    {
     "name": "match",
-    "class": "data",
+    "source": "generic",
+    "argument": "text",
     "available": "always",
+    "class": "data",
+    "overridable": true,
     "description": "Keep the rows holding this text"
    },
    {
     "name": "count",
-    "class": "data",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "data",
+    "overridable": true,
     "description": "Count the rows"
    },
    {
     "name": "first",
-    "class": "data",
+    "source": "generic",
+    "argument": "count",
     "available": "always",
+    "class": "data",
+    "overridable": true,
     "description": "Take first N rows"
    },
    {
     "name": "last",
-    "class": "data",
+    "source": "generic",
+    "argument": "count",
     "available": "always",
+    "class": "data",
+    "overridable": true,
     "description": "Take last N rows"
    },
    {
     "name": "display",
-    "class": "data",
+    "source": "generic",
+    "argument": "fields",
     "available": "always",
+    "class": "data",
+    "overridable": true,
     "description": "Answer with these fields, in this order"
    },
    {
     "name": "fill",
-    "class": "data",
+    "source": "generic",
+    "argument": "optional",
     "available": "always",
+    "class": "data",
+    "overridable": true,
     "description": "Bring the remaining columns back, in the command's order or a named one"
    },
    {
     "name": "resolve",
-    "class": "data",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "data",
+    "overridable": true,
     "description": "Reverse DNS for IP addresses"
    },
    {
     "name": "origin",
-    "class": "data",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "data",
+    "overridable": true,
     "description": "ASN and network for IP addresses"
    }
   ],
@@ -557,96 +720,132 @@
   "short-help": "Zero the Rx/Tx counters for every managed interface.\nUsage: clear interface counters.",
   "mode": "daemon",
   "wire-method": "ze-iface:clear-interface-counters",
-  "operators": [
+  "pipe-operations": [
    {
     "name": "json",
-    "class": "global",
+    "source": "generic",
+    "argument": "optional",
     "available": "always",
+    "class": "global",
     "description": "JSON output"
    },
    {
     "name": "ndjson",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "One JSON object per line"
    },
    {
     "name": "table",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "Render as table"
    },
    {
     "name": "text",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "Space-aligned columns"
    },
    {
     "name": "yaml",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "YAML output"
    },
    {
     "name": "raw",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "Dispatcher JSON, unformatted"
    },
    {
     "name": "no-more",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "Disable paging"
    },
    {
     "name": "log",
-    "class": "stream",
+    "source": "generic",
+    "argument": "none",
     "available": "when-streaming",
+    "class": "stream",
     "description": "Append each update instead of replacing it, where the command keeps answering"
    },
    {
     "name": "save",
-    "class": "global",
+    "source": "generic",
+    "argument": "path",
     "available": "always",
+    "class": "global",
     "local-only": true,
     "description": "Write the answer to a file"
    },
    {
     "name": "match",
-    "class": "data",
+    "source": "generic",
+    "argument": "text",
     "available": "with-rows",
+    "class": "data",
+    "overridable": true,
     "description": "Keep the rows holding this text"
    },
    {
     "name": "count",
-    "class": "data",
+    "source": "generic",
+    "argument": "none",
     "available": "with-rows",
+    "class": "data",
+    "overridable": true,
     "description": "Count the rows"
    },
    {
     "name": "first",
-    "class": "data",
+    "source": "generic",
+    "argument": "count",
     "available": "with-rows",
+    "class": "data",
+    "overridable": true,
     "description": "Take first N rows"
    },
    {
     "name": "last",
-    "class": "data",
+    "source": "generic",
+    "argument": "count",
     "available": "with-rows",
+    "class": "data",
+    "overridable": true,
     "description": "Take last N rows"
    },
    {
     "name": "display",
-    "class": "data",
+    "source": "generic",
+    "argument": "fields",
     "available": "with-rows",
+    "class": "data",
+    "overridable": true,
     "description": "Answer with these fields, in this order"
    },
    {
     "name": "fill",
-    "class": "data",
+    "source": "generic",
+    "argument": "optional",
     "available": "with-rows",
+    "class": "data",
+    "overridable": true,
     "description": "Bring the remaining columns back, in the command's order or a named one"
    }
   ]
@@ -656,96 +855,132 @@
   "short-help": "Show network interfaces on this box.\nWithout arguments, returns all interfaces with full detail.\nSubcommands: brief, type <t>, errors, rate [<name>], name <name> detail,\nname <name> counters.",
   "mode": "read-only",
   "wire-method": "ze-iface:show-interface",
-  "operators": [
+  "pipe-operations": [
    {
     "name": "json",
-    "class": "global",
+    "source": "generic",
+    "argument": "optional",
     "available": "always",
+    "class": "global",
     "description": "JSON output"
    },
    {
     "name": "ndjson",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "One JSON object per line"
    },
    {
     "name": "table",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "Render as table"
    },
    {
     "name": "text",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "Space-aligned columns"
    },
    {
     "name": "yaml",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "YAML output"
    },
    {
     "name": "raw",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "Dispatcher JSON, unformatted"
    },
    {
     "name": "no-more",
-    "class": "global",
+    "source": "generic",
+    "argument": "none",
     "available": "always",
+    "class": "global",
     "description": "Disable paging"
    },
    {
     "name": "log",
-    "class": "stream",
+    "source": "generic",
+    "argument": "none",
     "available": "when-streaming",
+    "class": "stream",
     "description": "Append each update instead of replacing it, where the command keeps answering"
    },
    {
     "name": "save",
-    "class": "global",
+    "source": "generic",
+    "argument": "path",
     "available": "always",
+    "class": "global",
     "local-only": true,
     "description": "Write the answer to a file"
    },
    {
     "name": "match",
-    "class": "data",
+    "source": "generic",
+    "argument": "text",
     "available": "with-rows",
+    "class": "data",
+    "overridable": true,
     "description": "Keep the rows holding this text"
    },
    {
     "name": "count",
-    "class": "data",
+    "source": "generic",
+    "argument": "none",
     "available": "with-rows",
+    "class": "data",
+    "overridable": true,
     "description": "Count the rows"
    },
    {
     "name": "first",
-    "class": "data",
+    "source": "generic",
+    "argument": "count",
     "available": "with-rows",
+    "class": "data",
+    "overridable": true,
     "description": "Take first N rows"
    },
    {
     "name": "last",
-    "class": "data",
+    "source": "generic",
+    "argument": "count",
     "available": "with-rows",
+    "class": "data",
+    "overridable": true,
     "description": "Take last N rows"
    },
    {
     "name": "display",
-    "class": "data",
+    "source": "generic",
+    "argument": "fields",
     "available": "with-rows",
+    "class": "data",
+    "overridable": true,
     "description": "Answer with these fields, in this order"
    },
    {
     "name": "fill",
-    "class": "data",
+    "source": "generic",
+    "argument": "optional",
     "available": "with-rows",
+    "class": "data",
+    "overridable": true,
     "description": "Bring the remaining columns back, in the command's order or a named one"
    }
   ],

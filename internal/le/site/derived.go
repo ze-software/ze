@@ -445,16 +445,16 @@ func commandMetadataLine(command *catalogCommand) string {
 	if len(command.AddressFields) != 0 {
 		meta = append(meta, "address-fields "+strings.Join(command.AddressFields, " "))
 	}
-	if len(command.Pipes) != 0 {
-		names := make([]string, 0, len(command.Pipes))
-		for _, pipe := range command.Pipes {
+	if len(command.Pipes()) != 0 {
+		names := make([]string, 0, len(command.Pipes()))
+		for _, pipe := range command.Pipes() {
 			names = append(names, "`"+pipe.Name+"`")
 		}
 		meta = append(meta, "filters "+strings.Join(names, " "))
 	}
-	if len(command.Aliases) != 0 {
-		values := make([]string, 0, len(command.Aliases))
-		for _, alias := range command.Aliases {
+	if len(command.Aliases()) != 0 {
+		values := make([]string, 0, len(command.Aliases()))
+		for _, alias := range command.Aliases() {
 			values = append(values, "`"+alias.Name+"`=`"+alias.Expansion+"`")
 		}
 		meta = append(meta, "aliases "+strings.Join(values, ", "))

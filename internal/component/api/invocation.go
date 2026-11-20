@@ -13,7 +13,9 @@ import (
 // prepareCommand reads one command generation for both construction and the
 // read-only authorization decision. It builds the text before either the
 // authorizer or executor sees it; transports never guess selector placement.
-func (e *APIEngine) prepareCommand(input string, params map[string]string) (string, bool, error) {
+// The pipe list is written last, so the authorizer and the accounting record
+// see the whole line that runs, chain included.
+func (e *APIEngine) prepareCommand(input string, params map[string]string, pipe []command.PipeListElement) (string, bool, error) {
 	var all []CommandMeta
 	if e.commands != nil {
 		var err error
@@ -31,6 +33,10 @@ func (e *APIEngine) prepareCommand(input string, params map[string]string) (stri
 		return "", false, err
 	}
 	built, err := buildInvocation(input, params, words, pipeAt, meta)
+	if err != nil {
+		return "", false, err
+	}
+	built, err = appendPipeList(built, words, pipe, meta)
 	if err != nil {
 		return "", false, err
 	}
@@ -86,6 +92,32 @@ func buildInvocation(input string, params map[string]string, words []string, pip
 	}
 	if chain != "" {
 		output.Byte(' ').Str(chain)
+	}
+	return output.String(), nil
+}
+
+// appendPipeList writes the route's pipe list (command.PipeListParameter)
+// after the invocation built, so its stages run after the parameters and after
+// any chain the caller typed in the line, in the order the list holds them.
+// command.WritePipeList judges each name against the matched command's pipe
+// operations and quotes each argument word. With no command matched there is
+// no set to judge the names against, so the list is refused rather than
+// written unjudged.
+func appendPipeList(built string, words []string, pipe []command.PipeListElement, meta *CommandMeta) (string, error) {
+	if len(pipe) == 0 {
+		return built, nil
+	}
+	if meta == nil {
+		var problem textbuf.Buffer
+		problem.Str("Cannot apply the pipe list to ").Quoted(strings.Join(words, " ")).Str(": no command matches it")
+		return "", opererr.New(problem.String(),
+			"No command ran. A pipe list is judged against the pipe operations of the command it follows.",
+			"ze help command")
+	}
+	var output textbuf.Buffer
+	output.Str(built)
+	if err := command.WritePipeList(&output, meta.Name, pipe); err != nil {
+		return "", err
 	}
 	return output.String(), nil
 }

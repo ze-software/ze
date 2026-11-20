@@ -271,9 +271,17 @@ type PipeOperator struct {
 
 // overrideShape is what a command's override of a generic operator must
 // answer, so the override keeps the generic's answer shape
-// (docs/architecture/api/commands.md, "How an override keeps the generic's
-// shape"). Its zero value refuses the override: a new catalog entry is not
-// overridable until it states the shape an override is held to.
+// (docs/architecture/api/commands.md, "Per-command declarations: what a
+// command says about itself", the RegisterPipeFilters row). Every data
+// operator states one: a command may override any
+// operation that acts on its data, as long as the answer keeps the generic's
+// data format (Thomas, 2026-11-20). A format, paging and `save` are the data
+// format, and `log` is how the caller shows a stream of answers, so none of
+// them states one and no command may declare their names.
+//
+// Its zero value refuses the override: a new catalog entry is not overridable
+// until it states the shape an override is held to
+// (TestEveryDataOperatorIsOverridable holds every data operator to stating it).
 type overrideShape uint8
 
 const (
@@ -285,8 +293,11 @@ const (
 	// overrideRowsAtMost: the command's rows, at most the N the operation
 	// names, as applyFirst and applyLast answer.
 	overrideRowsAtMost
-	// overrideRows: the command's rows. Which rows is the override's meaning,
-	// which no check can read, so its own test holds it.
+	// overrideRows: the command's rows, the envelope every other data operator
+	// answers: applyMatch keeps some rows, applyDisplaySelect keeps some fields
+	// of each row, `fill` changes no data, and applyResolve and applyOrigin add
+	// a field beside an address. Which rows and which fields is the override's
+	// meaning, which no check can read, so its own test holds it.
 	overrideRows
 )
 
@@ -378,13 +389,13 @@ var pipeCatalog = []PipeOperator{
 	{Name: "last", Kind: pipeLast, Class: ClassData, Arg: ArgCount, Repeat: RepeatCompose, shapes: rowShapes,
 		Description: "Take last N rows", override: overrideRowsAtMost},
 	{Name: "display", Kind: pipeDisplay, Class: ClassData, Arg: ArgFields, Repeat: RepeatCompose, shapes: rowShapes,
-		Description: "Answer with these fields, in this order"},
+		Description: "Answer with these fields, in this order", override: overrideRows},
 	{Name: "fill", Kind: pipeFill, Class: ClassData, Arg: ArgOptional, Repeat: RepeatRefuse, shapes: setOf(ShapeTab),
-		Description: "Bring the remaining columns back, in the command's order or a named one"},
+		Description: "Bring the remaining columns back, in the command's order or a named one", override: overrideRows},
 	{Name: "resolve", Kind: pipeResolve, Class: ClassData, Arg: ArgNone, Repeat: RepeatIdempotent, shapes: rowShapes,
-		Description: "Reverse DNS for IP addresses", NeedsAddressField: true},
+		Description: "Reverse DNS for IP addresses", NeedsAddressField: true, override: overrideRows},
 	{Name: "origin", Kind: pipeOrigin, Class: ClassData, Arg: ArgNone, Repeat: RepeatIdempotent, shapes: rowShapes,
-		Description: "ASN and network for IP addresses", NeedsAddressField: true},
+		Description: "ASN and network for IP addresses", NeedsAddressField: true, override: overrideRows},
 }
 
 // PipeOperatorCatalog answers every operator and its contract, in published

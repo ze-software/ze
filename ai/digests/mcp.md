@@ -373,7 +373,8 @@ package.
   There is no session cap, TTL or lifetime, because there is no session. The execution deadline
   is what replaces the liveness guarantee the session reaper used to provide.
 - **Reserved param names are never forwarded as typed args.** `dispatchGenerated` treats
-  `action`, `arguments`, `peer` as protocol-level fields (`tools.go`). Any other JSON key
+  `action`, `arguments`, `peer`, `pipe` as protocol-level fields (`tools.go`); `pipe` is the
+  ordered pipe list, written last by `command.WritePipeList`. Any other JSON key
   becomes a `key value` pair appended to the CLI command string. Values containing
   newlines/tabs are rejected before they reach the dispatcher (`tools.go`).
 - **No stdio transport exists.** "stdio/HTTP" is a common MCP transport pairing elsewhere. But

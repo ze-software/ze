@@ -155,6 +155,24 @@ func cliReferenceLead(lookup *factLookup) string {
 type guideOperator struct {
 	name, class, description string
 	availability             []string
+	// overridable marks an operator a command may run under its own name.
+	overridable bool
+	// fromGeneric is set once a generic entry stated the row's class and
+	// description. Until then they are an override's, which describe one
+	// command's operation rather than the operator.
+	fromGeneric bool
+}
+
+// overridableNote is how the operator table says a command may replace the
+// generic with an operation of its own under the same name.
+const overridableNote = "A command may replace it with its own."
+
+// guideDescription answers the operator's description as the table states it.
+func (row *guideOperator) guideDescription() string {
+	if row.overridable {
+		return strings.TrimSuffix(row.description, ".") + ". " + overridableNote
+	}
+	return row.description
 }
 
 // collectGuideOperators gathers each operator once, with the union of the
@@ -162,16 +180,24 @@ type guideOperator struct {
 //
 // The catalog arrives sorted by command path, so the first command that names
 // an operator decides its position, and the order is the same on every build.
+// The class, the description and whether a command may replace it come from a
+// generic entry: an override's description is its command's, the RIB's
+// `count` counting routes.
 func collectGuideOperators(commands []catalogCommand) []*guideOperator {
 	rows := make(map[string]*guideOperator, 24)
 	var order []*guideOperator
 	for index := range commands {
-		for _, operator := range commands[index].Operators {
+		for _, operator := range commands[index].Operators() {
 			row := rows[operator.Name]
 			if row == nil {
-				row = &guideOperator{name: operator.Name, class: operator.Class, description: operator.Description}
+				row = &guideOperator{name: operator.Name}
 				rows[operator.Name] = row
 				order = append(order, row)
+			}
+			if !row.fromGeneric {
+				row.class, row.description = operator.Class, operator.Description
+				row.overridable = operator.Overridable
+				row.fromGeneric = operator.Source == pipeSourceGeneric
 			}
 			row.availability = appendOnce(row.availability, operator.Available)
 			if operator.LocalOnly {
@@ -209,7 +235,7 @@ func renderOperatorGuide(commands []catalogCommand) string {
 		guide.Str("<tr><td><code>").Str(html.EscapeString(row.name)).Str("</code></td><td>").
 			Str(html.EscapeString(operatorClassLabel(row.class))).Str("</td><td>").
 			Str(html.EscapeString(availabilityList(row.availability))).Str("</td><td>").
-			Str(html.EscapeString(row.description)).Str("</td></tr>\n")
+			Str(html.EscapeString(row.guideDescription())).Str("</td></tr>\n")
 	}
 	guide.Str("</tbody></table>\n</details>\n</section>\n")
 	return guide.String()
@@ -355,7 +381,7 @@ func codeSpanList(values []string) string {
 // closed, and the detail behind it.
 func writeCommandPipeCell(out *textbuf.Buffer, command *catalogCommand) {
 	grouped := operatorsByAvailability(command)
-	if len(grouped) == 0 && len(command.Pipes) == 0 && len(command.Aliases) == 0 &&
+	if len(grouped) == 0 && len(command.Pipes()) == 0 && len(command.Aliases()) == 0 &&
 		command.AnswerShape == "" && len(command.AddressFields) == 0 &&
 		len(command.ColumnOrders) == 0 {
 		out.Str(`<span class="cli-pipe-none">None</span>`)
@@ -375,23 +401,23 @@ func writeCommandPipeCell(out *textbuf.Buffer, command *catalogCommand) {
 		out.Str("<p><span>Column order</span><code>").
 			Str(html.EscapeString(columnOrdersLine(command))).Str("</code></p>")
 	}
-	if len(command.Pipes) != 0 {
+	if len(command.Pipes()) != 0 {
 		out.Str(`<strong>Command pipes</strong><div class="cli-pipe-chips">`)
-		for _, pipe := range command.Pipes {
+		for _, pipe := range command.Pipes() {
 			out.Str(`<code title="`).Str(html.EscapeString(pipe.Description)).Str(`">`).
 				Str(html.EscapeString(pipeDisplayName(pipe))).Str("</code>")
 		}
 		out.Str("</div>")
 		out.Str(`<details class="cli-pipe-descriptions"><summary>Command pipe descriptions</summary><dl>`)
-		for _, pipe := range command.Pipes {
+		for _, pipe := range command.Pipes() {
 			out.Str("<dt><code>").Str(html.EscapeString(pipeDisplayName(pipe))).Str("</code></dt><dd>").
 				Str(html.EscapeString(pipe.Description)).Str("</dd>")
 		}
 		out.Str("</dl></details>")
 	}
-	if len(command.Aliases) != 0 {
+	if len(command.Aliases()) != 0 {
 		out.Str("<strong>Aliases</strong><dl>")
-		for _, alias := range command.Aliases {
+		for _, alias := range command.Aliases() {
 			out.Str("<dt><code>").Str(html.EscapeString(alias.Name)).Str("</code></dt><dd>").
 				Str(html.EscapeString(alias.Description)).Str(" <code>").
 				Str(html.EscapeString(alias.Expansion)).Str("</code></dd>")
@@ -412,10 +438,10 @@ func writeCommandPipeCell(out *textbuf.Buffer, command *catalogCommand) {
 // commandPipeSummary is the one line a reader sees with the pipe detail closed.
 func commandPipeSummary(command *catalogCommand) string {
 	var parts []string
-	if count := len(command.Pipes); count != 0 {
+	if count := len(command.Pipes()); count != 0 {
 		parts = append(parts, plural(count, "command pipe"))
 	}
-	if count := len(command.Aliases); count != 0 {
+	if count := len(command.Aliases()); count != 0 {
 		// "alias" is the one irregular plural on this page, so it is spelled
 		// out rather than made to fit the regular rule plural states.
 		word := " aliases"
@@ -424,7 +450,7 @@ func commandPipeSummary(command *catalogCommand) string {
 		}
 		parts = append(parts, strconv.Itoa(count)+word)
 	}
-	if count := len(command.Operators); count != 0 {
+	if count := len(command.Operators()); count != 0 {
 		parts = append(parts, plural(count, "operator"))
 	}
 	if command.AnswerShape != "" {
@@ -489,7 +515,7 @@ func operatorGuideMirror(commands []catalogCommand) string {
 		out.Str("| `").Str(markdownCell(row.name)).Str("` | ").
 			Str(markdownCell(operatorClassLabel(row.class))).Str(" | ").
 			Str(markdownCell(availabilityList(row.availability))).Str(" | ").
-			Str(markdownProse(row.description)).Str(" |\n")
+			Str(markdownProse(row.guideDescription())).Str(" |\n")
 	}
 	out.Byte('\n')
 	return out.String()
@@ -563,10 +589,10 @@ func commandMirrorPipes(command *catalogCommand) string {
 	}
 	// The two lists are the detail page's mirror renderers, so a command pipe
 	// and an alias read the same on either surface, description included.
-	if len(command.Pipes) != 0 {
+	if len(command.Pipes()) != 0 {
 		parts = append(parts, "Command: "+commandPipeMirrorList(command, markdownCellCode))
 	}
-	if len(command.Aliases) != 0 {
+	if len(command.Aliases()) != 0 {
 		parts = append(parts, "Aliases: "+aliasMirrorList(command, markdownCellCode))
 	}
 	grouped := operatorsByAvailability(command)

@@ -58,11 +58,16 @@ func (*Empty) Descriptor() ([]byte, []int) {
 	return file_api_proto_ze_proto_rawDescGZIP(), []int{0}
 }
 
-// CommandRequest carries a command to execute.
+// CommandRequest carries a command to execute. pipe is the optional ordered
+// pipe list: the engine writes it after the parameters as the command's pipe
+// chain, one `| name args` stage per element, in order. Each name must be one
+// of the command's pipe operations (`show command help <command>` lists them);
+// any other name is refused, naming the valid ones.
 type CommandRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Command       string                 `protobuf:"bytes,1,opt,name=command,proto3" json:"command,omitempty"`
 	Params        map[string]string      `protobuf:"bytes,2,rep,name=params,proto3" json:"params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Pipe          []*PipeOperation       `protobuf:"bytes,3,rep,name=pipe,proto3" json:"pipe,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -111,6 +116,68 @@ func (x *CommandRequest) GetParams() map[string]string {
 	return nil
 }
 
+func (x *CommandRequest) GetPipe() []*PipeOperation {
+	if x != nil {
+		return x.Pipe
+	}
+	return nil
+}
+
+// PipeOperation is one element of the pipe list: a pipe operation of the
+// command and its argument words. Each word reaches the operation as one
+// word, whatever it holds.
+type PipeOperation struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Args          []string               `protobuf:"bytes,2,rep,name=args,proto3" json:"args,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PipeOperation) Reset() {
+	*x = PipeOperation{}
+	mi := &file_api_proto_ze_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PipeOperation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PipeOperation) ProtoMessage() {}
+
+func (x *PipeOperation) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_ze_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PipeOperation.ProtoReflect.Descriptor instead.
+func (*PipeOperation) Descriptor() ([]byte, []int) {
+	return file_api_proto_ze_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *PipeOperation) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *PipeOperation) GetArgs() []string {
+	if x != nil {
+		return x.Args
+	}
+	return nil
+}
+
 // CommandResponse carries the result of a command execution.
 // Data is JSON-encoded bytes to ensure identical content with REST.
 type CommandResponse struct {
@@ -128,7 +195,7 @@ type CommandResponse struct {
 
 func (x *CommandResponse) Reset() {
 	*x = CommandResponse{}
-	mi := &file_api_proto_ze_proto_msgTypes[2]
+	mi := &file_api_proto_ze_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -140,7 +207,7 @@ func (x *CommandResponse) String() string {
 func (*CommandResponse) ProtoMessage() {}
 
 func (x *CommandResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_ze_proto_msgTypes[2]
+	mi := &file_api_proto_ze_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -153,7 +220,7 @@ func (x *CommandResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CommandResponse.ProtoReflect.Descriptor instead.
 func (*CommandResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_ze_proto_rawDescGZIP(), []int{2}
+	return file_api_proto_ze_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *CommandResponse) GetStatus() string {
@@ -194,7 +261,7 @@ type ListCommandsRequest struct {
 
 func (x *ListCommandsRequest) Reset() {
 	*x = ListCommandsRequest{}
-	mi := &file_api_proto_ze_proto_msgTypes[3]
+	mi := &file_api_proto_ze_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -206,7 +273,7 @@ func (x *ListCommandsRequest) String() string {
 func (*ListCommandsRequest) ProtoMessage() {}
 
 func (x *ListCommandsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_ze_proto_msgTypes[3]
+	mi := &file_api_proto_ze_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -219,7 +286,7 @@ func (x *ListCommandsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCommandsRequest.ProtoReflect.Descriptor instead.
 func (*ListCommandsRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_ze_proto_rawDescGZIP(), []int{3}
+	return file_api_proto_ze_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ListCommandsRequest) GetPrefix() string {
@@ -239,7 +306,7 @@ type ListCommandsResponse struct {
 
 func (x *ListCommandsResponse) Reset() {
 	*x = ListCommandsResponse{}
-	mi := &file_api_proto_ze_proto_msgTypes[4]
+	mi := &file_api_proto_ze_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -251,7 +318,7 @@ func (x *ListCommandsResponse) String() string {
 func (*ListCommandsResponse) ProtoMessage() {}
 
 func (x *ListCommandsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_ze_proto_msgTypes[4]
+	mi := &file_api_proto_ze_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -264,7 +331,7 @@ func (x *ListCommandsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCommandsResponse.ProtoReflect.Descriptor instead.
 func (*ListCommandsResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_ze_proto_rawDescGZIP(), []int{4}
+	return file_api_proto_ze_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ListCommandsResponse) GetCommands() []*CommandInfo {
@@ -291,7 +358,7 @@ type CommandInfo struct {
 
 func (x *CommandInfo) Reset() {
 	*x = CommandInfo{}
-	mi := &file_api_proto_ze_proto_msgTypes[5]
+	mi := &file_api_proto_ze_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -303,7 +370,7 @@ func (x *CommandInfo) String() string {
 func (*CommandInfo) ProtoMessage() {}
 
 func (x *CommandInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_ze_proto_msgTypes[5]
+	mi := &file_api_proto_ze_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -316,7 +383,7 @@ func (x *CommandInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CommandInfo.ProtoReflect.Descriptor instead.
 func (*CommandInfo) Descriptor() ([]byte, []int) {
-	return file_api_proto_ze_proto_rawDescGZIP(), []int{5}
+	return file_api_proto_ze_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *CommandInfo) GetName() string {
@@ -369,7 +436,7 @@ type ParamInfo struct {
 
 func (x *ParamInfo) Reset() {
 	*x = ParamInfo{}
-	mi := &file_api_proto_ze_proto_msgTypes[6]
+	mi := &file_api_proto_ze_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -381,7 +448,7 @@ func (x *ParamInfo) String() string {
 func (*ParamInfo) ProtoMessage() {}
 
 func (x *ParamInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_ze_proto_msgTypes[6]
+	mi := &file_api_proto_ze_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -394,7 +461,7 @@ func (x *ParamInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ParamInfo.ProtoReflect.Descriptor instead.
 func (*ParamInfo) Descriptor() ([]byte, []int) {
-	return file_api_proto_ze_proto_rawDescGZIP(), []int{6}
+	return file_api_proto_ze_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ParamInfo) GetName() string {
@@ -442,7 +509,7 @@ type DescribeCommandRequest struct {
 
 func (x *DescribeCommandRequest) Reset() {
 	*x = DescribeCommandRequest{}
-	mi := &file_api_proto_ze_proto_msgTypes[7]
+	mi := &file_api_proto_ze_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -454,7 +521,7 @@ func (x *DescribeCommandRequest) String() string {
 func (*DescribeCommandRequest) ProtoMessage() {}
 
 func (x *DescribeCommandRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_ze_proto_msgTypes[7]
+	mi := &file_api_proto_ze_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -467,7 +534,7 @@ func (x *DescribeCommandRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DescribeCommandRequest.ProtoReflect.Descriptor instead.
 func (*DescribeCommandRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_ze_proto_rawDescGZIP(), []int{7}
+	return file_api_proto_ze_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *DescribeCommandRequest) GetPath() string {
@@ -487,7 +554,7 @@ type CommandDescription struct {
 
 func (x *CommandDescription) Reset() {
 	*x = CommandDescription{}
-	mi := &file_api_proto_ze_proto_msgTypes[8]
+	mi := &file_api_proto_ze_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -499,7 +566,7 @@ func (x *CommandDescription) String() string {
 func (*CommandDescription) ProtoMessage() {}
 
 func (x *CommandDescription) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_ze_proto_msgTypes[8]
+	mi := &file_api_proto_ze_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -512,7 +579,7 @@ func (x *CommandDescription) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CommandDescription.ProtoReflect.Descriptor instead.
 func (*CommandDescription) Descriptor() ([]byte, []int) {
-	return file_api_proto_ze_proto_rawDescGZIP(), []int{8}
+	return file_api_proto_ze_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *CommandDescription) GetInfo() *CommandInfo {
@@ -532,7 +599,7 @@ type CompleteRequest struct {
 
 func (x *CompleteRequest) Reset() {
 	*x = CompleteRequest{}
-	mi := &file_api_proto_ze_proto_msgTypes[9]
+	mi := &file_api_proto_ze_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -544,7 +611,7 @@ func (x *CompleteRequest) String() string {
 func (*CompleteRequest) ProtoMessage() {}
 
 func (x *CompleteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_ze_proto_msgTypes[9]
+	mi := &file_api_proto_ze_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -557,7 +624,7 @@ func (x *CompleteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompleteRequest.ProtoReflect.Descriptor instead.
 func (*CompleteRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_ze_proto_rawDescGZIP(), []int{9}
+	return file_api_proto_ze_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CompleteRequest) GetPartial() string {
@@ -577,7 +644,7 @@ type CompleteResponse struct {
 
 func (x *CompleteResponse) Reset() {
 	*x = CompleteResponse{}
-	mi := &file_api_proto_ze_proto_msgTypes[10]
+	mi := &file_api_proto_ze_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -589,7 +656,7 @@ func (x *CompleteResponse) String() string {
 func (*CompleteResponse) ProtoMessage() {}
 
 func (x *CompleteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_ze_proto_msgTypes[10]
+	mi := &file_api_proto_ze_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -602,7 +669,7 @@ func (x *CompleteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompleteResponse.ProtoReflect.Descriptor instead.
 func (*CompleteResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_ze_proto_rawDescGZIP(), []int{10}
+	return file_api_proto_ze_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *CompleteResponse) GetCompletions() []string {
@@ -622,7 +689,7 @@ type ConfigResponse struct {
 
 func (x *ConfigResponse) Reset() {
 	*x = ConfigResponse{}
-	mi := &file_api_proto_ze_proto_msgTypes[11]
+	mi := &file_api_proto_ze_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -634,7 +701,7 @@ func (x *ConfigResponse) String() string {
 func (*ConfigResponse) ProtoMessage() {}
 
 func (x *ConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_ze_proto_msgTypes[11]
+	mi := &file_api_proto_ze_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -647,7 +714,7 @@ func (x *ConfigResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigResponse.ProtoReflect.Descriptor instead.
 func (*ConfigResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_ze_proto_rawDescGZIP(), []int{11}
+	return file_api_proto_ze_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ConfigResponse) GetConfig() string {
@@ -667,7 +734,7 @@ type SessionResponse struct {
 
 func (x *SessionResponse) Reset() {
 	*x = SessionResponse{}
-	mi := &file_api_proto_ze_proto_msgTypes[12]
+	mi := &file_api_proto_ze_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -679,7 +746,7 @@ func (x *SessionResponse) String() string {
 func (*SessionResponse) ProtoMessage() {}
 
 func (x *SessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_ze_proto_msgTypes[12]
+	mi := &file_api_proto_ze_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -692,7 +759,7 @@ func (x *SessionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SessionResponse.ProtoReflect.Descriptor instead.
 func (*SessionResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_ze_proto_rawDescGZIP(), []int{12}
+	return file_api_proto_ze_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *SessionResponse) GetSessionId() string {
@@ -714,7 +781,7 @@ type ConfigSetRequest struct {
 
 func (x *ConfigSetRequest) Reset() {
 	*x = ConfigSetRequest{}
-	mi := &file_api_proto_ze_proto_msgTypes[13]
+	mi := &file_api_proto_ze_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -726,7 +793,7 @@ func (x *ConfigSetRequest) String() string {
 func (*ConfigSetRequest) ProtoMessage() {}
 
 func (x *ConfigSetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_ze_proto_msgTypes[13]
+	mi := &file_api_proto_ze_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -739,7 +806,7 @@ func (x *ConfigSetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigSetRequest.ProtoReflect.Descriptor instead.
 func (*ConfigSetRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_ze_proto_rawDescGZIP(), []int{13}
+	return file_api_proto_ze_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ConfigSetRequest) GetSessionId() string {
@@ -774,7 +841,7 @@ type ConfigSetResponse struct {
 
 func (x *ConfigSetResponse) Reset() {
 	*x = ConfigSetResponse{}
-	mi := &file_api_proto_ze_proto_msgTypes[14]
+	mi := &file_api_proto_ze_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -786,7 +853,7 @@ func (x *ConfigSetResponse) String() string {
 func (*ConfigSetResponse) ProtoMessage() {}
 
 func (x *ConfigSetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_ze_proto_msgTypes[14]
+	mi := &file_api_proto_ze_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -799,7 +866,7 @@ func (x *ConfigSetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigSetResponse.ProtoReflect.Descriptor instead.
 func (*ConfigSetResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_ze_proto_rawDescGZIP(), []int{14}
+	return file_api_proto_ze_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ConfigSetResponse) GetSuccess() bool {
@@ -827,7 +894,7 @@ type ConfigDeleteRequest struct {
 
 func (x *ConfigDeleteRequest) Reset() {
 	*x = ConfigDeleteRequest{}
-	mi := &file_api_proto_ze_proto_msgTypes[15]
+	mi := &file_api_proto_ze_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -839,7 +906,7 @@ func (x *ConfigDeleteRequest) String() string {
 func (*ConfigDeleteRequest) ProtoMessage() {}
 
 func (x *ConfigDeleteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_ze_proto_msgTypes[15]
+	mi := &file_api_proto_ze_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -852,7 +919,7 @@ func (x *ConfigDeleteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigDeleteRequest.ProtoReflect.Descriptor instead.
 func (*ConfigDeleteRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_ze_proto_rawDescGZIP(), []int{15}
+	return file_api_proto_ze_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ConfigDeleteRequest) GetSessionId() string {
@@ -880,7 +947,7 @@ type ConfigDeleteResponse struct {
 
 func (x *ConfigDeleteResponse) Reset() {
 	*x = ConfigDeleteResponse{}
-	mi := &file_api_proto_ze_proto_msgTypes[16]
+	mi := &file_api_proto_ze_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -892,7 +959,7 @@ func (x *ConfigDeleteResponse) String() string {
 func (*ConfigDeleteResponse) ProtoMessage() {}
 
 func (x *ConfigDeleteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_ze_proto_msgTypes[16]
+	mi := &file_api_proto_ze_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -905,7 +972,7 @@ func (x *ConfigDeleteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigDeleteResponse.ProtoReflect.Descriptor instead.
 func (*ConfigDeleteResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_ze_proto_rawDescGZIP(), []int{16}
+	return file_api_proto_ze_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ConfigDeleteResponse) GetSuccess() bool {
@@ -932,7 +999,7 @@ type SessionRequest struct {
 
 func (x *SessionRequest) Reset() {
 	*x = SessionRequest{}
-	mi := &file_api_proto_ze_proto_msgTypes[17]
+	mi := &file_api_proto_ze_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -944,7 +1011,7 @@ func (x *SessionRequest) String() string {
 func (*SessionRequest) ProtoMessage() {}
 
 func (x *SessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_ze_proto_msgTypes[17]
+	mi := &file_api_proto_ze_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -957,7 +1024,7 @@ func (x *SessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SessionRequest.ProtoReflect.Descriptor instead.
 func (*SessionRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_ze_proto_rawDescGZIP(), []int{17}
+	return file_api_proto_ze_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *SessionRequest) GetSessionId() string {
@@ -977,7 +1044,7 @@ type DiffResponse struct {
 
 func (x *DiffResponse) Reset() {
 	*x = DiffResponse{}
-	mi := &file_api_proto_ze_proto_msgTypes[18]
+	mi := &file_api_proto_ze_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -989,7 +1056,7 @@ func (x *DiffResponse) String() string {
 func (*DiffResponse) ProtoMessage() {}
 
 func (x *DiffResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_ze_proto_msgTypes[18]
+	mi := &file_api_proto_ze_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1002,7 +1069,7 @@ func (x *DiffResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiffResponse.ProtoReflect.Descriptor instead.
 func (*DiffResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_ze_proto_rawDescGZIP(), []int{18}
+	return file_api_proto_ze_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *DiffResponse) GetDiff() string {
@@ -1023,7 +1090,7 @@ type CommitRequest struct {
 
 func (x *CommitRequest) Reset() {
 	*x = CommitRequest{}
-	mi := &file_api_proto_ze_proto_msgTypes[19]
+	mi := &file_api_proto_ze_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1035,7 +1102,7 @@ func (x *CommitRequest) String() string {
 func (*CommitRequest) ProtoMessage() {}
 
 func (x *CommitRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_ze_proto_msgTypes[19]
+	mi := &file_api_proto_ze_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1048,7 +1115,7 @@ func (x *CommitRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CommitRequest.ProtoReflect.Descriptor instead.
 func (*CommitRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_ze_proto_rawDescGZIP(), []int{19}
+	return file_api_proto_ze_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *CommitRequest) GetSessionId() string {
@@ -1076,7 +1143,7 @@ type CommitResponse struct {
 
 func (x *CommitResponse) Reset() {
 	*x = CommitResponse{}
-	mi := &file_api_proto_ze_proto_msgTypes[20]
+	mi := &file_api_proto_ze_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1088,7 +1155,7 @@ func (x *CommitResponse) String() string {
 func (*CommitResponse) ProtoMessage() {}
 
 func (x *CommitResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_ze_proto_msgTypes[20]
+	mi := &file_api_proto_ze_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1101,7 +1168,7 @@ func (x *CommitResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CommitResponse.ProtoReflect.Descriptor instead.
 func (*CommitResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_ze_proto_rawDescGZIP(), []int{20}
+	return file_api_proto_ze_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *CommitResponse) GetSuccess() bool {
@@ -1128,7 +1195,7 @@ type DiscardResponse struct {
 
 func (x *DiscardResponse) Reset() {
 	*x = DiscardResponse{}
-	mi := &file_api_proto_ze_proto_msgTypes[21]
+	mi := &file_api_proto_ze_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1140,7 +1207,7 @@ func (x *DiscardResponse) String() string {
 func (*DiscardResponse) ProtoMessage() {}
 
 func (x *DiscardResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_ze_proto_msgTypes[21]
+	mi := &file_api_proto_ze_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1153,7 +1220,7 @@ func (x *DiscardResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscardResponse.ProtoReflect.Descriptor instead.
 func (*DiscardResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_ze_proto_rawDescGZIP(), []int{21}
+	return file_api_proto_ze_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *DiscardResponse) GetSuccess() bool {
@@ -1168,13 +1235,17 @@ var File_api_proto_ze_proto protoreflect.FileDescriptor
 const file_api_proto_ze_proto_rawDesc = "" +
 	"\n" +
 	"\x12api/proto/ze.proto\x12\tze.api.v1\"\a\n" +
-	"\x05Empty\"\xa4\x01\n" +
+	"\x05Empty\"\xd2\x01\n" +
 	"\x0eCommandRequest\x12\x18\n" +
 	"\acommand\x18\x01 \x01(\tR\acommand\x12=\n" +
-	"\x06params\x18\x02 \x03(\v2%.ze.api.v1.CommandRequest.ParamsEntryR\x06params\x1a9\n" +
+	"\x06params\x18\x02 \x03(\v2%.ze.api.v1.CommandRequest.ParamsEntryR\x06params\x12,\n" +
+	"\x04pipe\x18\x03 \x03(\v2\x18.ze.api.v1.PipeOperationR\x04pipe\x1a9\n" +
 	"\vParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"o\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"7\n" +
+	"\rPipeOperation\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
+	"\x04args\x18\x02 \x03(\tR\x04args\"o\n" +
 	"\x0fCommandResponse\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12\x12\n" +
 	"\x04data\x18\x02 \x01(\fR\x04data\x12\x14\n" +
@@ -1276,66 +1347,68 @@ func file_api_proto_ze_proto_rawDescGZIP() []byte {
 	return file_api_proto_ze_proto_rawDescData
 }
 
-var file_api_proto_ze_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_api_proto_ze_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_api_proto_ze_proto_goTypes = []any{
 	(*Empty)(nil),                  // 0: ze.api.v1.Empty
 	(*CommandRequest)(nil),         // 1: ze.api.v1.CommandRequest
-	(*CommandResponse)(nil),        // 2: ze.api.v1.CommandResponse
-	(*ListCommandsRequest)(nil),    // 3: ze.api.v1.ListCommandsRequest
-	(*ListCommandsResponse)(nil),   // 4: ze.api.v1.ListCommandsResponse
-	(*CommandInfo)(nil),            // 5: ze.api.v1.CommandInfo
-	(*ParamInfo)(nil),              // 6: ze.api.v1.ParamInfo
-	(*DescribeCommandRequest)(nil), // 7: ze.api.v1.DescribeCommandRequest
-	(*CommandDescription)(nil),     // 8: ze.api.v1.CommandDescription
-	(*CompleteRequest)(nil),        // 9: ze.api.v1.CompleteRequest
-	(*CompleteResponse)(nil),       // 10: ze.api.v1.CompleteResponse
-	(*ConfigResponse)(nil),         // 11: ze.api.v1.ConfigResponse
-	(*SessionResponse)(nil),        // 12: ze.api.v1.SessionResponse
-	(*ConfigSetRequest)(nil),       // 13: ze.api.v1.ConfigSetRequest
-	(*ConfigSetResponse)(nil),      // 14: ze.api.v1.ConfigSetResponse
-	(*ConfigDeleteRequest)(nil),    // 15: ze.api.v1.ConfigDeleteRequest
-	(*ConfigDeleteResponse)(nil),   // 16: ze.api.v1.ConfigDeleteResponse
-	(*SessionRequest)(nil),         // 17: ze.api.v1.SessionRequest
-	(*DiffResponse)(nil),           // 18: ze.api.v1.DiffResponse
-	(*CommitRequest)(nil),          // 19: ze.api.v1.CommitRequest
-	(*CommitResponse)(nil),         // 20: ze.api.v1.CommitResponse
-	(*DiscardResponse)(nil),        // 21: ze.api.v1.DiscardResponse
-	nil,                            // 22: ze.api.v1.CommandRequest.ParamsEntry
+	(*PipeOperation)(nil),          // 2: ze.api.v1.PipeOperation
+	(*CommandResponse)(nil),        // 3: ze.api.v1.CommandResponse
+	(*ListCommandsRequest)(nil),    // 4: ze.api.v1.ListCommandsRequest
+	(*ListCommandsResponse)(nil),   // 5: ze.api.v1.ListCommandsResponse
+	(*CommandInfo)(nil),            // 6: ze.api.v1.CommandInfo
+	(*ParamInfo)(nil),              // 7: ze.api.v1.ParamInfo
+	(*DescribeCommandRequest)(nil), // 8: ze.api.v1.DescribeCommandRequest
+	(*CommandDescription)(nil),     // 9: ze.api.v1.CommandDescription
+	(*CompleteRequest)(nil),        // 10: ze.api.v1.CompleteRequest
+	(*CompleteResponse)(nil),       // 11: ze.api.v1.CompleteResponse
+	(*ConfigResponse)(nil),         // 12: ze.api.v1.ConfigResponse
+	(*SessionResponse)(nil),        // 13: ze.api.v1.SessionResponse
+	(*ConfigSetRequest)(nil),       // 14: ze.api.v1.ConfigSetRequest
+	(*ConfigSetResponse)(nil),      // 15: ze.api.v1.ConfigSetResponse
+	(*ConfigDeleteRequest)(nil),    // 16: ze.api.v1.ConfigDeleteRequest
+	(*ConfigDeleteResponse)(nil),   // 17: ze.api.v1.ConfigDeleteResponse
+	(*SessionRequest)(nil),         // 18: ze.api.v1.SessionRequest
+	(*DiffResponse)(nil),           // 19: ze.api.v1.DiffResponse
+	(*CommitRequest)(nil),          // 20: ze.api.v1.CommitRequest
+	(*CommitResponse)(nil),         // 21: ze.api.v1.CommitResponse
+	(*DiscardResponse)(nil),        // 22: ze.api.v1.DiscardResponse
+	nil,                            // 23: ze.api.v1.CommandRequest.ParamsEntry
 }
 var file_api_proto_ze_proto_depIdxs = []int32{
-	22, // 0: ze.api.v1.CommandRequest.params:type_name -> ze.api.v1.CommandRequest.ParamsEntry
-	5,  // 1: ze.api.v1.ListCommandsResponse.commands:type_name -> ze.api.v1.CommandInfo
-	6,  // 2: ze.api.v1.CommandInfo.params:type_name -> ze.api.v1.ParamInfo
-	5,  // 3: ze.api.v1.CommandDescription.info:type_name -> ze.api.v1.CommandInfo
-	1,  // 4: ze.api.v1.ZeService.Execute:input_type -> ze.api.v1.CommandRequest
-	1,  // 5: ze.api.v1.ZeService.Stream:input_type -> ze.api.v1.CommandRequest
-	3,  // 6: ze.api.v1.ZeService.ListCommands:input_type -> ze.api.v1.ListCommandsRequest
-	7,  // 7: ze.api.v1.ZeService.DescribeCommand:input_type -> ze.api.v1.DescribeCommandRequest
-	9,  // 8: ze.api.v1.ZeService.Complete:input_type -> ze.api.v1.CompleteRequest
-	0,  // 9: ze.api.v1.ZeConfigService.GetRunningConfig:input_type -> ze.api.v1.Empty
-	0,  // 10: ze.api.v1.ZeConfigService.EnterSession:input_type -> ze.api.v1.Empty
-	13, // 11: ze.api.v1.ZeConfigService.SetConfig:input_type -> ze.api.v1.ConfigSetRequest
-	15, // 12: ze.api.v1.ZeConfigService.DeleteConfig:input_type -> ze.api.v1.ConfigDeleteRequest
-	17, // 13: ze.api.v1.ZeConfigService.DiffSession:input_type -> ze.api.v1.SessionRequest
-	19, // 14: ze.api.v1.ZeConfigService.CommitSession:input_type -> ze.api.v1.CommitRequest
-	17, // 15: ze.api.v1.ZeConfigService.DiscardSession:input_type -> ze.api.v1.SessionRequest
-	2,  // 16: ze.api.v1.ZeService.Execute:output_type -> ze.api.v1.CommandResponse
-	2,  // 17: ze.api.v1.ZeService.Stream:output_type -> ze.api.v1.CommandResponse
-	4,  // 18: ze.api.v1.ZeService.ListCommands:output_type -> ze.api.v1.ListCommandsResponse
-	8,  // 19: ze.api.v1.ZeService.DescribeCommand:output_type -> ze.api.v1.CommandDescription
-	10, // 20: ze.api.v1.ZeService.Complete:output_type -> ze.api.v1.CompleteResponse
-	11, // 21: ze.api.v1.ZeConfigService.GetRunningConfig:output_type -> ze.api.v1.ConfigResponse
-	12, // 22: ze.api.v1.ZeConfigService.EnterSession:output_type -> ze.api.v1.SessionResponse
-	14, // 23: ze.api.v1.ZeConfigService.SetConfig:output_type -> ze.api.v1.ConfigSetResponse
-	16, // 24: ze.api.v1.ZeConfigService.DeleteConfig:output_type -> ze.api.v1.ConfigDeleteResponse
-	18, // 25: ze.api.v1.ZeConfigService.DiffSession:output_type -> ze.api.v1.DiffResponse
-	20, // 26: ze.api.v1.ZeConfigService.CommitSession:output_type -> ze.api.v1.CommitResponse
-	21, // 27: ze.api.v1.ZeConfigService.DiscardSession:output_type -> ze.api.v1.DiscardResponse
-	16, // [16:28] is the sub-list for method output_type
-	4,  // [4:16] is the sub-list for method input_type
-	4,  // [4:4] is the sub-list for extension type_name
-	4,  // [4:4] is the sub-list for extension extendee
-	0,  // [0:4] is the sub-list for field type_name
+	23, // 0: ze.api.v1.CommandRequest.params:type_name -> ze.api.v1.CommandRequest.ParamsEntry
+	2,  // 1: ze.api.v1.CommandRequest.pipe:type_name -> ze.api.v1.PipeOperation
+	6,  // 2: ze.api.v1.ListCommandsResponse.commands:type_name -> ze.api.v1.CommandInfo
+	7,  // 3: ze.api.v1.CommandInfo.params:type_name -> ze.api.v1.ParamInfo
+	6,  // 4: ze.api.v1.CommandDescription.info:type_name -> ze.api.v1.CommandInfo
+	1,  // 5: ze.api.v1.ZeService.Execute:input_type -> ze.api.v1.CommandRequest
+	1,  // 6: ze.api.v1.ZeService.Stream:input_type -> ze.api.v1.CommandRequest
+	4,  // 7: ze.api.v1.ZeService.ListCommands:input_type -> ze.api.v1.ListCommandsRequest
+	8,  // 8: ze.api.v1.ZeService.DescribeCommand:input_type -> ze.api.v1.DescribeCommandRequest
+	10, // 9: ze.api.v1.ZeService.Complete:input_type -> ze.api.v1.CompleteRequest
+	0,  // 10: ze.api.v1.ZeConfigService.GetRunningConfig:input_type -> ze.api.v1.Empty
+	0,  // 11: ze.api.v1.ZeConfigService.EnterSession:input_type -> ze.api.v1.Empty
+	14, // 12: ze.api.v1.ZeConfigService.SetConfig:input_type -> ze.api.v1.ConfigSetRequest
+	16, // 13: ze.api.v1.ZeConfigService.DeleteConfig:input_type -> ze.api.v1.ConfigDeleteRequest
+	18, // 14: ze.api.v1.ZeConfigService.DiffSession:input_type -> ze.api.v1.SessionRequest
+	20, // 15: ze.api.v1.ZeConfigService.CommitSession:input_type -> ze.api.v1.CommitRequest
+	18, // 16: ze.api.v1.ZeConfigService.DiscardSession:input_type -> ze.api.v1.SessionRequest
+	3,  // 17: ze.api.v1.ZeService.Execute:output_type -> ze.api.v1.CommandResponse
+	3,  // 18: ze.api.v1.ZeService.Stream:output_type -> ze.api.v1.CommandResponse
+	5,  // 19: ze.api.v1.ZeService.ListCommands:output_type -> ze.api.v1.ListCommandsResponse
+	9,  // 20: ze.api.v1.ZeService.DescribeCommand:output_type -> ze.api.v1.CommandDescription
+	11, // 21: ze.api.v1.ZeService.Complete:output_type -> ze.api.v1.CompleteResponse
+	12, // 22: ze.api.v1.ZeConfigService.GetRunningConfig:output_type -> ze.api.v1.ConfigResponse
+	13, // 23: ze.api.v1.ZeConfigService.EnterSession:output_type -> ze.api.v1.SessionResponse
+	15, // 24: ze.api.v1.ZeConfigService.SetConfig:output_type -> ze.api.v1.ConfigSetResponse
+	17, // 25: ze.api.v1.ZeConfigService.DeleteConfig:output_type -> ze.api.v1.ConfigDeleteResponse
+	19, // 26: ze.api.v1.ZeConfigService.DiffSession:output_type -> ze.api.v1.DiffResponse
+	21, // 27: ze.api.v1.ZeConfigService.CommitSession:output_type -> ze.api.v1.CommitResponse
+	22, // 28: ze.api.v1.ZeConfigService.DiscardSession:output_type -> ze.api.v1.DiscardResponse
+	17, // [17:29] is the sub-list for method output_type
+	5,  // [5:17] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_api_proto_ze_proto_init() }
@@ -1349,7 +1422,7 @@ func file_api_proto_ze_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_proto_ze_proto_rawDesc), len(file_api_proto_ze_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   23,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

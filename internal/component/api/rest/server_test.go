@@ -651,6 +651,47 @@ func TestRESTOpenAPISchema(t *testing.T) {
 	assert.Equal(t, "3.1.0", spec["openapi"])
 }
 
+// VALIDATES: every operation the served OpenAPI document publishes is a route
+// registerRoutes serves, for the method it is published under.
+// PREVENTS: a published route a client follows and gets the mux's 404 or 405
+// for, as the per-command /api/v1/execute/<command path> operations did.
+// Method: read the document the server serves, then send each published
+// method and path (a template segment filled with "x") and refuse only the
+// mux's own answers for an unregistered route: a 405, or a 404 whose body is
+// the mux's plain-text page. A handler's own refusal (400, 401, 404 JSON)
+// proves the route is served.
+func TestRESTEveryPublishedPathIsServed(t *testing.T) {
+	srv := testServer(t)
+	r := do(t, srv, "GET", "/api/v1/openapi.json", "")
+	require.Equal(t, http.StatusOK, r.Status)
+
+	var spec struct {
+		Paths map[string]map[string]any `json:"paths"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(r.Body), &spec))
+	require.NotEmpty(t, spec.Paths)
+
+	const muxNotFound = "404 page not found\n"
+	for path, operations := range spec.Paths {
+		segments := strings.Split(path, "/")
+		for i, segment := range segments {
+			if strings.HasPrefix(segment, "{") {
+				segments[i] = "x"
+			}
+		}
+		target := strings.Join(segments, "/")
+		for method := range operations {
+			answer := do(t, srv, strings.ToUpper(method), target, "")
+			assert.NotEqual(t, http.StatusMethodNotAllowed, answer.Status,
+				"%s %s is published but no handler serves that method", method, path)
+			if answer.Status == http.StatusNotFound {
+				assert.NotEqual(t, muxNotFound, answer.Body,
+					"%s %s is published but no handler serves it", method, path)
+			}
+		}
+	}
+}
+
 // VALIDATES: AC-7 -- GET /api/v1/docs returns HTML page referencing vendored assets.
 // PREVENTS: docs endpoint broken or still using external CDN.
 func TestRESTDocs(t *testing.T) {

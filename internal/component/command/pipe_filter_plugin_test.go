@@ -150,6 +150,37 @@ func TestPluginOperationAccepted(t *testing.T) {
 	assert.Equal(t, "mine", pipeFilterRegistry.ownerOf("show x"))
 }
 
+// TestPluginDataOperatorOverrideAccepted proves a plugin may override any data
+// operator, here `display` and `resolve`, with the generic's argument kind,
+// and that a plugin declaring a presentation operator (`no-more`, paging) is
+// refused at Stage 1 with nothing of its batch recorded.
+//
+// VALIDATES: D-5 as Thomas decided it on 2026-11-20 ("it should be possible to
+// overwrite more command as long as their data format is not changed"), AC-30.
+// PREVENTS: the overridable set falling back to four names on the plugin
+// route, or a plugin taking over the data format.
+func TestPluginDataOperatorOverrideAccepted(t *testing.T) {
+	resetPluginOperationRegistries(t)
+	t.Cleanup(func() { UnregisterPluginPipeFilters("mine") })
+
+	require.NoError(t, RegisterPluginPipeFilters("mine", []string{"show x"}, []PluginPipeFilter{
+		{Command: "show x", Filter: PipeFilter{Name: "display", Description: "Select flow fields.", Argument: ArgFields}},
+		{Command: "show x", Filter: PipeFilter{Name: "resolve", Description: "Resolve flow addresses.", Argument: ArgNone}},
+	}))
+	assert.Equal(t, []PipeFilter{
+		{Name: "display", Description: "Select flow fields.", Argument: ArgFields},
+		{Name: "resolve", Description: "Resolve flow addresses.", Argument: ArgNone},
+	}, PipeFiltersForCommand("show x"))
+
+	err := RegisterPluginPipeFilters("paging", []string{"show y"}, []PluginPipeFilter{
+		{Command: "show y", Filter: PipeFilter{Name: "no-more", Argument: ArgNone}},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no-more")
+	assert.Contains(t, err.Error(), "cannot override")
+	assert.Nil(t, PipeFiltersForCommand("show y"))
+}
+
 // TestPipeFilterArgumentKindRecorded proves an in-tree PipeFilter and a
 // plugin's declared argument spelling record the same field, and that a
 // spelling or a kind outside the closed vocabulary is refused when recorded.

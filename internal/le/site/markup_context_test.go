@@ -17,8 +17,10 @@ func TestEquivalentDetailMirrorPreservesPipeText(t *testing.T) {
 	command := &catalogCommand{
 		Path: "show test", Mode: "operational", Usage: "show test <ipv4|ipv6>",
 		Backend: []string{"linux|vpp"}, Subcommands: []string{"one|two"},
-		Pipes:   []catalogPipe{{Name: "view|detail", Description: "Choose <one|two>."}},
-		Aliases: []catalogAlias{{Name: "brief", Expansion: "select name | table", Description: "Use <a|b>."}},
+		PipeOperations: []catalogPipeOperation{
+			{Name: "view|detail", Source: pipeSourceCommand, Argument: pipeArgumentNone, Description: "Choose <one|two>."},
+			{Name: "brief", Source: pipeSourceAlias, Argument: pipeArgumentNone, Expansion: "select name | table", Description: "Use <a|b>."},
+		},
 	}
 	row := &equivalentRow{Command: command}
 	mirror := equivalentDetailMirror(&equivalentMapping{}, row, nil)
@@ -41,8 +43,10 @@ func TestEquivalentDetailMirrorPreservesPipeText(t *testing.T) {
 // producers in an actual GFM table and checks both cell count and visible text.
 func TestCommandMirrorPipeCellsKeepTheirColumns(t *testing.T) {
 	command := &catalogCommand{
-		Pipes:   []catalogPipe{{Name: "view|detail", Description: "Choose <one|two>."}},
-		Aliases: []catalogAlias{{Name: "brief", Expansion: "select name | table"}},
+		PipeOperations: []catalogPipeOperation{
+			{Name: "view|detail", Source: pipeSourceCommand, Argument: pipeArgumentNone, Description: "Choose <one|two>."},
+			{Name: "brief", Source: pipeSourceAlias, Argument: pipeArgumentNone, Expansion: "select name | table"},
+		},
 	}
 	page, _, err := renderMarkdown([]byte("| Pipes | End |\n| --- | --- |\n| " + commandMirrorPipes(command) + " | sentinel |\n"))
 	if err != nil {

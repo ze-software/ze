@@ -459,6 +459,9 @@ func (s *RESTServer) handleExecute(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Command string         `json:"command"`
 		Params  map[string]any `json:"params"`
+		// Pipe is the optional ordered pipe list (command.PipeListParameter),
+		// read strictly by command.DecodePipeList.
+		Pipe json.RawMessage `json:"pipe"`
 	}
 	if err := readJSON(r, &body); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -474,6 +477,12 @@ func (s *RESTServer) handleExecute(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, buildErr.Error())
 		return
 	}
+	pipe, pipeErr := command.DecodePipeList(body.Pipe)
+	if pipeErr != nil {
+		writeError(w, http.StatusBadRequest, pipeErr.Error())
+		return
+	}
+	domainReq.Pipe = pipe
 
 	result, execErr := s.engine.Execute(r.Context(), domainReq)
 	if errors.Is(execErr, api.ErrUnauthorized) {

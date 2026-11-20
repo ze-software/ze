@@ -341,8 +341,8 @@ func TestTheCatalogPublishesUsageAndNotTheScrapedSyntax(t *testing.T) {
 // qualifier at all, which reads as "always".
 func TestAnUnknownOperatorAvailabilityStopsTheBuild(t *testing.T) {
 	paths := commandSurfacePaths(t)
-	writeCatalog(t, paths.Output, `[{"path":"show test","mode":"read-only","operators":
-		[{"name":"json","class":"global","available":"sometimes","description":"JSON"}]}]`)
+	writeCatalog(t, paths.Output, `[{"path":"show test","mode":"read-only","pipe-operations":
+		[{"name":"json","source":"generic","argument":"optional","class":"global","available":"sometimes","description":"JSON"}]}]`)
 
 	_, err := renderCLIReference(paths)
 	if err == nil {

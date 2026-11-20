@@ -301,8 +301,8 @@ const (
 )
 
 // CheckOverrideAnswer holds the answer of a command's override to the shape of
-// the generic it overrides (docs/architecture/api/commands.md, "How an
-// override keeps the generic's shape"). Every route that hands a handler its
+// the generic it overrides (docs/architecture/api/commands.md, "Per-command
+// declarations: what a command says about itself"). Every route that hands a handler its
 // declared list runs it on the answer: Dispatch, ServeLocal and the stream
 // sites, so the check is a step beside the partition and not of one route.
 //
@@ -315,7 +315,10 @@ const (
 //
 // The answer of a `count` override is one object holding an integer `count`;
 // that of `first N` and `last N` the command's rows, at most N of them; that of
-// `match` the command's rows.
+// every other data operator (`match`, `display`, `fill`, `resolve`, `origin`)
+// the command's rows, the envelope its generic keeps. The catalog entry's
+// override shape decides which, so an operator the catalog adds is held to the
+// shape its entry states.
 func CheckOverrideAnswer(path string, operations []PipeOperation, outcome AnswerOutcome, document string) error {
 	switch outcome {
 	case AnswerDone:

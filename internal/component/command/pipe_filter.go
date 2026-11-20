@@ -15,10 +15,11 @@ import (
 
 // PipeFilter declares a pipe operation a specific command runs in its own
 // handler: the engine hands it over in the declared list rather than running a
-// generic operator over the answer. Generic operators such as json, table and
-// resolve are not declared with this type; a declaration whose name is an
-// overridable generic's (count, first, last, match) is an override, held to the
-// generic's argument contract and answer shape.
+// generic operator over the answer. A presentation operator such as json or
+// table is never declared with this type; a declaration whose name is an
+// overridable generic's (every data operator of the catalog,
+// PipeOperator.Overridable) is an override, held to the generic's argument
+// contract and answer shape.
 type PipeFilter struct {
 	Name        string
 	Description string
