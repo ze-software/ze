@@ -2,6 +2,28 @@
   {
     "rid": "RFC7296-3.13.1-1",
     "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_protocol_selector_test.go::TestTSWireAnyPortsForEveryProtocol",
+    "unit-sha": "70f7917ad6e5596c",
+    "claim-sha": "ab1efafb8cba176e",
+    "route": "revert",
+    "producer": "internal/component/ike/ipsec/traffic_selector.go::PortSelector.Wire",
+    "producer-sha": "6acad497fad92586",
+    "break": "body of PortSelector.Wire replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.13.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_protocol_selector_test.go::TestTSWireRefusesUndefinedPortValues",
+    "unit-sha": "1a3ec8b3846ec637",
+    "claim-sha": "c21ae6336d57cc5b",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/ts_narrow.go::selectorsToWire",
+    "producer-sha": "f2978751932b4a12",
+    "break": "body of selectorsToWire replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.13.1-1",
+    "polarity": "positive",
     "unit": "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131",
     "unit-sha": "d5f685013b712816",
     "claim-sha": "e01c19727ff1199d",
