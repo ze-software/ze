@@ -7,18 +7,33 @@ its annotation naming that role; Ze may build its own DNS library on
 miekg/dns ahead of use, counting a requirement met only once a shipped path
 uses it.
 
+## State at 2026-11-20 (session 57690576 hands over here)
+
+Landed on main: the pre-2119 keyword rule and its gate (8cc0a93795, c4b77f99df,
+register derived from the extraction's declared `prose` plus no BCP 14 citation);
+RFC1035-4.2-1 and RFC2181-5.5-4 annotated as binding the zone-transfer role
+(c9117eb99f, 0fe775d8f2); RFC 2308 enrolled (c9117eb99f) and its met rows proven
+(8f52d99804); DNS defects fixed (cd9c79b63c: DoT on 53, cleartext on 853, DoH
+negative freshness, GeoDNS ECS echo and FORMERR, SRV target); RFC 2181 and RFC 1035
+resolver rows proven and the RFC 1035 extraction re-walked (3406b2f346); query
+retransmission (3eabbf1443, RFC1035-4.2.1-4 met). 3eabbf1443 committed the two
+internal/le/site/testdata goldens whole, which also carried another session's edits;
+its body does not say so.
+
 ## Outstanding items
 
 | # | Item | State |
 |---|------|-------|
-| 1 | RFC gate cannot express the role annotation for RFC 1035 | Gate change written (2026-11-19), uncommitted until the main thread runs its owed commands, see below |
-| 2 | RFC1035-4.2-1 (zone refresh over TCP) annotated as binding the secondary server role | Meta `Ze roles` row added to rfc/short/rfc1035.md; the annotation, in the role-sentence form, is held in "Item 2" below and goes into the summary in the commit after the gate commit, because HEAD's `le` refuses it |
-| 3 | RFC 4035 rows 3.1.5-3 to 3.1.5-7 recorded as `{gap}` for zone-transfer MUSTs | No exclusion shape fits (see "Item 3" below). The `{gap}` reasons now name the primary or secondary zone-transfer server role and the owner rule; the rows stay counted gaps until the main thread picks a route |
-| 4 | RFC1035-3.3.13-1 (SOA MINIMUM as TTL floor, redefined by RFC 2308 Section 4) | A resolver does negative caching, so RFC 2308 is resolver work: enrol RFC 2308 under the fttx-edge use case (summary, extraction walk, tests), then mark 3.3.13-1 updated by it |
-| 5 | Sweep every DNS summary (rfc/short with Support dns: 1035, 1877, 2181, 2782, 4033, 4034, 4035, 5625, 7084, 7534, 7858, 7535, 8106, 7871, 8484 and others) against the resolver role | Not started |
-| 6 | rfc/extraction/rfc1035.json reasons cite "ze's only DNS code, the authoritative answerQuery"; internal/plugins/dnsresolver and internal/core/dnsserver Recursive now exist, so some querier/resolver `binds-another-role` exclusions (4.2.1:1, the Section 7 sites) may bind a role Ze fills | Re-walk those sites |
-| 7 | rfc/short/rfc1035.md Enrolment reason still says the owner ruled RFC 1035 out of scope on 2026-08-18, while Use cases is fttx-edge | Correct the reason |
-| 8 | RFC 9582 (ROA validation, 16 rows): not DNS; the owner has not said whether ROA validation is Ze's role or the relying party's | Owner question, carry it |
+| A | Uncommitted annotation batch in the working tree: rfc/short/rfc4035.md (41 signer and signed-zone rows keep `{gap}` with reasons naming the role, because no not-applicable shape fits), rfc4034.md (Enrolment reason no longer says "declined"), rfc7534.md (3.5-3 lowered to SHOULD NOT, rfc/corrections/rfc7534.md), rfc7535.md (6-1 retired, rfc/corrections/rfc7535.md), rfc7871.md and rfc8484.md (see B), rfc/extraction/rfc7535.json and rfc7871.json, features/lan-dns-resolver.md | Not checked clean. The RFC gate reported: RFC7871-7.1.2-5 names its producer as a Go method expression `(*Resolver).queryServer` (use `Resolver.queryServer`); rfc/extraction/rfc7535.json raised its exclusions from 5 to 6 with no `resign-reason` (add one, name the reviewer, bump signed-off); RFC4035-2.2-1 and 3.1.1-4 audit verdicts are stale because cd9c79b63c changed geodns answerQuestions (re-read with ze-rfc-audit). Then run the gate and commit |
+| B | Owner question: the batch marks 18 resolver-side RFC 7871 ECS rows and RFC8484-5.4-2 (media types other than application/dns-message) `{feature-declined}`. The META rule says a feature leaves the count as declined only when Thomas said Ze will never build it, and he has not said so for resolver ECS or other DoH media types | Ask Thomas: never build resolver-side ECS and other DoH media types (keep declined), or later (revert those rows to `{gap}`) |
+| C | RFC 4035 3.1.5-3..-7 and RFC 4034/4035 signer rows stay counted gaps: RFC 4035 adopts BCP 14 and never names the bound role in a sentence the gate reads. A cross-RFC role sentence (RFC 1035 Section 2.2 for secondary servers) would express them | Gate extension, not built: new syntax `RFC 1035 §2.2 "<sentence>"`, roleSentenceGap loading another RFC's text |
+| D | RFC 7871 positives without negatives, RFC 2308 DNSSEC rows (3-2, 5-2, 5-3, 6-2) | Gaps owed with DNSSEC validation (plan/post-release/features/spec-dns-resolver-dnssec-validation.md) |
+| E | Interop test for the GeoDNS ECS echo (dig +subnet or a resolver with ECS against geodns) | Owed by interop-and-goal-validation for a wire change; not written |
+| F | geodns/rfc7871_server_test.go VALIDATES comments describe the old no-echo behaviour | Tagged test: judge before the edit |
+| G | The stub resolver's extractRecords appends a CNAME target into the A/AAAA lists | Unverified whether a caller is hurt; trace it |
+| H | RFC 7534 3.5-1 and 3.5-2 are MUST rows on indicative or lowercase sentences in a BCP 14 RFC | Fix the levels with a correction |
+| I | RFC 9582 (ROA validation, 16 rows): not DNS | Owner question: ROA validation Ze's role or the relying party's |
+| J | Two drafts (draft-ietf-idr-linklocal-capability, sflow-v5) write lowercase obligations but stay upper case because drafts are unchanged | Owner may rule |
 
 ## Item 1: the gate change
 
