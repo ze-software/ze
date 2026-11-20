@@ -125,8 +125,11 @@ func spdCatchAllEntries(family net.IP, action dataplane.SPAction, ifID uint32) [
 // packet MUST be discarded." The kernel passes a packet no entry matches, so without
 // the entry an inbound packet meets no SPD-I entry at all and is delivered, which is
 // neither the discard the MUST names nor a disposition the operator chose. A BYPASS
-// entry is still an entry: the packet met a policy. So the caller fails the apply
-// rather than report the configuration in force (owner decision 2026-10-20, Q7 A).
+// entry is still an entry: the packet met a policy. So a reload fails the apply
+// rather than report the configuration in force (owner decision 2026-10-20, Q7 A). The
+// start is never refused: it installs what it can, logs the rest at Error and
+// `ze doctor` says the catch-all is not in force (owner decision 2026-11-20, 5c;
+// installUnmatchedAtStart).
 //
 // One case is not installed and not refused: a BYPASS on a backend that declares,
 // ahead of any install, that it holds no entry bound to no interface (the VPP backend,
@@ -135,7 +138,35 @@ func spdCatchAllEntries(family net.IP, action dataplane.SPAction, ifID uint32) [
 // matches meet no SPD-I entry on it, which rfc/short/rfc4301.md records as one of the
 // two open gaps of RFC4301-5.2-1 and RFC4301-5.2-9 (the other is OSPFv3 manual keying,
 // which installs its entries outside this engine with no catch-all).
-func installUnmatched(dp dataplane.Dataplane, action dataplane.SPAction, log *slog.Logger) (err error) {
+//
+// This is the form every reload uses: it stops at the first refusal and takes back the
+// namespace FWD claim, because the apply is refused. The daemon's start uses
+// installUnmatchedAtStart instead.
+func installUnmatched(dp dataplane.Dataplane, action dataplane.SPAction, log *slog.Logger) error {
+	return installUnmatchedEntries(dp, action, applyReload, log)
+}
+
+// installUnmatchedAtStart is installUnmatched for the configuration the daemon starts
+// with, which nothing can refuse (owner decision 2026-11-19, "Install, log, doctor",
+// which Thomas extended to the catch-all on 2026-11-20). It tries every entry of the
+// catch-all, keeps each one the dataplane accepted and the namespace FWD claim, and
+// answers every refusal joined, nil when the whole catch-all is in force. The caller
+// logs the answer at Error, records it for the ipsec-spd-install doctor check and goes
+// on with the rest of the configuration (applyConfig).
+//
+// A missing dataplane is still answered alone and at once (errUnmatchedNoDataplane):
+// there is nothing to install into, and the start then refuses the configure step as a
+// reload does, because the later SPD writers read a nil dataplane as "nothing to do"
+// on the strength of this refusal (installXFRMInterfaceEntries,
+// installSPDPoliciesAtStart).
+func installUnmatchedAtStart(dp dataplane.Dataplane, action dataplane.SPAction, log *slog.Logger) error {
+	return installUnmatchedEntries(dp, action, applyStartup, log)
+}
+
+// installUnmatchedEntries is the one install of the catch-all. phase decides what a
+// refused entry does: a reload stops there and takes the namespace FWD claim back, and
+// the start tries every other entry and keeps what went in.
+func installUnmatchedEntries(dp dataplane.Dataplane, action dataplane.SPAction, phase applyPhase, log *slog.Logger) (err error) {
 	if dp == nil {
 		return errUnmatchedNoDataplane
 	}
@@ -146,22 +177,31 @@ func installUnmatched(dp dataplane.Dataplane, action dataplane.SPAction, log *sl
 			return nil
 		}
 	}
+	// refused collects the start's refusals; a reload returns at its first one.
+	var refused []error
 	defaults, usesDefault := forwardDefaultInstaller(dp)
 	if usesDefault {
 		undo, applyErr := defaults.ApplyForwardDefault(action)
-		if applyErr != nil {
+		switch {
+		case applyErr != nil && phase == applyReload:
 			return fmt.Errorf("ike: %w", applyErr)
+		case applyErr != nil:
+			refused = append(refused, fmt.Errorf("ike: %w", applyErr))
+		case phase == applyReload:
+			defer func() {
+				if err != nil {
+					err = errors.Join(err, undo())
+				}
+			}()
+		default:
+			// The start keeps the claim whatever the entries below answer: it is part
+			// of the catch-all the start installs as far as it can.
 		}
-		defer func() {
-			if err != nil {
-				err = errors.Join(err, undo())
-			}
-		}()
 	}
 	for _, family := range spdFamilies {
-		policies, err := unmatchedPolicies(family, action)
-		if err != nil {
-			return fmt.Errorf("ike: build the SPD catch-all entry: %w", err)
+		policies, buildErr := unmatchedPolicies(family, action)
+		if buildErr != nil {
+			return fmt.Errorf("ike: build the SPD catch-all entry: %w", buildErr)
 		}
 		for i := range policies {
 			p := &policies[i]
@@ -172,15 +212,42 @@ func installUnmatched(dp dataplane.Dataplane, action dataplane.SPAction, log *sl
 			// that matches anything that is otherwise unmatched, and discards it."
 			// RFC 4301 Section 5.2: "If there is no match, discard the traffic." The
 			// entry is what makes every inbound packet meet an SPD-I entry, so one that
-			// did not reach the dataplane refuses the configuration.
-			if err := dp.InstallPolicy(*p); err != nil {
-				return fmt.Errorf("ike: install the SPD catch-all %s entry (dir %d): %w; "+
-					"the daemon needs CAP_NET_ADMIN and a kernel with XFRM (CONFIG_XFRM_USER) to hold it",
-					unmatchedActionName(action), p.Dir, err)
+			// did not reach the dataplane refuses a reload, and is reported by the start.
+			installErr := dp.InstallPolicy(*p)
+			if installErr == nil {
+				continue
 			}
+			refusal := fmt.Errorf("ike: install the SPD catch-all %s entry (dir %d): %w; "+
+				"the daemon needs CAP_NET_ADMIN and a kernel with XFRM (CONFIG_XFRM_USER) to hold it",
+				unmatchedActionName(action), p.Dir, installErr)
+			if phase == applyReload {
+				return refusal
+			}
+			refused = append(refused, refusal)
 		}
 	}
-	return nil
+	return errors.Join(refused...)
+}
+
+// unmatchedStartRefusal is the operator error for a catch-all the start could not
+// install whole: the Error log line and the ipsec-spd-install doctor finding both
+// carry it, under diagnostic.CodeDoctorIPsecSPDCatchAllMissing. cause is what
+// installUnmatchedAtStart answered.
+//
+// The fix is a restart: a reload reaches the engine only when `vpn` changed, so the
+// running configuration is installed again by a restart (or by any commit that changes
+// `vpn ipsec`, which re-asserts the catch-all and refuses itself if it fails again).
+func unmatchedStartRefusal(action dataplane.SPAction, cause error) *opererr.Error {
+	name := unmatchedActionName(action)
+	problem := "The SPD catch-all `vpn ipsec unmatched " + name + "` is NOT in force: Ze could not install it when the daemon started"
+	why := "Traffic that no SPD entry matches meets no final entry, so the kernel passes it in the clear"
+	if action == dataplane.SPActionDiscard {
+		problem = "The default discard is NOT in force: Ze could not install the SPD catch-all `vpn ipsec unmatched discard` when the daemon started"
+		why = "Traffic that no SPD entry matches is not discarded: the kernel passes it in the clear, which RFC 4301 Section 4.4.1 forbids"
+	}
+	why += ". A start never refuses the IPsec block, so Ze installed the rest of the configuration and every catch-all entry the dataplane accepted. " +
+		"Remove the cause the dataplane names (the daemon needs CAP_NET_ADMIN and a kernel with XFRM), then restart Ze"
+	return opererr.Wrap(cause, problem, why, spdInstallFixRestart)
 }
 
 // Wrappers may expose this optional interface even when their wrapped backend does

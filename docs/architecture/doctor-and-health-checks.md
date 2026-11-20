@@ -141,7 +141,7 @@ plugin's process:
 | `fib-vpp-label-entries` | `fib-vpp` | label entries installed without their path MTU; a label route a previous run left in VPP that could not be removed | `doctor-fib-vpp-mpls-path-mtu`, `doctor-fib-vpp-mpls-stale-label` |
 | `fib-vpp-stale-routes` | `fib-vpp` | an IP route or labeled push a previous run left in VPP that could not be removed, IP tables that could not be read, or no FIB source to mark routes with | `doctor-fib-vpp-stale-route` |
 | `ipsec-state-scope` | `ike` | a missing, partial or unreadable complete state-scope receipt with configured IPsec peers, before a Child SA attempt; the finding retains the shared installation validator's cause and native kernel-build repair commands | `doctor-ipsec-state-scope` |
-| `ipsec-spd-install` | `ike` | an operator SPD entry the dataplane refused at start; a selector where a failed undo or removal left the dataplane disagreeing with the running configuration, with its direction, selector, priority and the dataplane's answer | `doctor-ipsec-spd-install-refused`, `doctor-ipsec-spd-undo-incomplete` |
+| `ipsec-spd-install` | `ike` | the SPD catch-all (`vpn ipsec unmatched`), or a bound XFRM interface's own final entry, the dataplane refused at start, so that default discard is not in force; an if_id 0 exemption of a bound XFRM interface the dataplane refused on the last install pass, so the traffic routed into that interface is dropped; an operator SPD entry the dataplane refused at start; a selector where a failed undo or removal left the dataplane disagreeing with the running configuration, with its direction, selector, priority and the dataplane's answer | `doctor-ipsec-spd-catch-all-missing`, `doctor-ipsec-spd-exemption-missing`, `doctor-ipsec-spd-install-refused`, `doctor-ipsec-spd-undo-incomplete` |
 | `ipsec-spd-forward-bypass` | `ike` | an installed operator SPD bypass with a port, on a dataplane with a forward lookup (XFRM) whose kernel does not reassemble forwarded fragments first (no capability bit 3, or a receipt Ze could not read), whose local prefix is not one address the host holds now, so forwarded traffic on its ports misses it (RFC 4301 Section 7.4); a commit refuses such an entry and a start installs and logs it. Ze's runtime kernel gathers fragments, so the entry is projected and nothing is reported | `doctor-ipsec-spd-forward-bypass` |
 | `ipsec-ike-socket-bypass` | `ike` | an IKE socket the engine holds whose per-socket IPsec bypass the kernel refused, with the socket and the kernel's answer | `doctor-ipsec-ike-socket-bypass` |
 
@@ -716,7 +716,16 @@ records (`recordChildRefused`), which exists only in the engine's process.
 `ipsec-spd-install` is a third: it reports each operator `vpn ipsec policy`
 entry the dataplane refused when the daemon started, which the start records
 (`installSPDPoliciesAtStart`) instead of refusing the IPsec block. A reload
-never leaves one behind, because a refused entry refuses the commit. The same
+never leaves one behind, because a refused entry refuses the commit. It reports
+first, under `doctor-ipsec-spd-catch-all-missing`, an SPD catch-all the start
+could not install whole (`assertUnmatched`): the finding says the catch-all, under
+`discard` the default discard, is not in force, with the dataplane's answer and
+`ze signal restart`; the reload whose catch-all goes in clears it. Under `doctor-ipsec-spd-exemption-missing` it reports each bound XFRM
+interface with an if_id 0 exemption the last install pass could not place
+(`interfaceExemptionRefused`, rebuilt by every pass at start, reload or address
+event), with the direction, the dataplane's answer and `ze signal restart`; the
+pass that places the exemption clears it. No commit is refused for it, because
+the entry fails closed. The same
 check reports, under `doctor-ipsec-spd-undo-incomplete`, each selector at which
 a failed reconcile step left the dataplane disagreeing with the running
 configuration: the undo of a refused install that could not restore or remove a

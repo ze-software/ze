@@ -7,8 +7,11 @@
 package engine
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"maps"
 	"net"
 	"net/netip"
 	"slices"
@@ -16,6 +19,8 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 // The DISCARD catch-all (unmatched.go) sits at if_id 0, and a route-based peer's Child
@@ -334,7 +339,20 @@ func exemptionSource(p *dataplane.SPParams) (netip.Addr, bool) {
 // and a source exemption whose address the guard does not hold is not installed: no
 // instant holds a source BYPASS without its guard (source_guard.go). The caller holds
 // applyMu.
+//
+// This is the form a reload and the address worker use. The daemon's start calls
+// placeXFRMInterfaceEntries itself and reports a refused interface catch-all instead of
+// returning it (owner decision 2026-11-20, 5c; recordInterfaceCatchAllAtStart).
 func (s *ikeEngineState) installXFRMInterfaceEntries(dp dataplane.Dataplane, plan xfrmInterfacePlan) error {
+	return interfaceCatchAllRefused(s.placeXFRMInterfaceEntries(dp, plan))
+}
+
+// placeXFRMInterfaceEntries is the install pass of installXFRMInterfaceEntries. It
+// answers each interface whose SPD catch-all the backend refused in this pass, with the
+// backend's answer; nil or empty when there is none. An interface the start recorded
+// (interfaceCatchAllRefused) that this pass did not refuse again leaves the record: its
+// catch-all is in, or no peer binds it any more. The caller holds applyMu.
+func (s *ikeEngineState) placeXFRMInterfaceEntries(dp dataplane.Dataplane, plan xfrmInterfacePlan) map[string]error {
 	if dp == nil {
 		// refuse-by-default: guards installUnmatched -- every apply refuses a missing dataplane there
 		return nil
@@ -346,6 +364,9 @@ func (s *ikeEngineState) installXFRMInterfaceEntries(dp dataplane.Dataplane, pla
 	noIfIDSPD := catchAllUnsupported(dp)
 	// noFinalEntry names each interface whose catch-all the backend refused in this pass.
 	noFinalEntry := make(map[string]error)
+	// noExemption names each interface with an exemption the backend refused in this
+	// pass, with the first refusal.
+	noExemption := make(map[string]*opererr.Error)
 	for _, role := range xfrmInterfaceRoleOrder {
 		if role == dataplane.PolicyRoleInterfaceCatchAll && noIfIDSPD != nil {
 			s.warnNoInterfaceCatchAll(next, noIfIDSPD)
@@ -374,21 +395,86 @@ func (s *ikeEngineState) installXFRMInterfaceEntries(dp dataplane.Dataplane, pla
 					continue
 				}
 			}
-			if err := dp.InstallPolicy(entry.params); err != nil {
-				s.log.Error("ike: could not install an SPD entry of a bound XFRM interface; "+
-					"an exemption that is missing drops the traffic routed into it at the DISCARD catch-all, "+
-					"a catch-all that is missing leaves the interface SPD without its final entry and fails the apply; "+
-					"the daemon needs CAP_NET_ADMIN to install it, and the next commit or address change retries it",
-					"interface", entry.iface, "role", entry.role.String(), "dir", entry.params.Dir, "error", err)
-				if role == dataplane.PolicyRoleInterfaceCatchAll {
-					noFinalEntry[entry.iface] = err
-				}
+			err := dp.InstallPolicy(entry.params)
+			if err == nil {
+				s.xfrmEntries[sel] = entry
 				continue
 			}
-			s.xfrmEntries[sel] = entry
+			if role == dataplane.PolicyRoleInterfaceCatchAll {
+				s.log.Error("ike: could not install the SPD catch-all of a bound XFRM interface, so that interface's SPD has no final entry: "+
+					"a commit is refused, and the daemon's start goes on without it and reports it in `ze doctor`; "+
+					"the daemon needs CAP_NET_ADMIN to install it, and the next commit or address change retries it",
+					"interface", entry.iface, "dir", entry.params.Dir, "error", err,
+					"code", diagnostic.CodeDoctorIPsecSPDCatchAllMissing)
+				noFinalEntry[entry.iface] = err
+				continue
+			}
+			s.log.Error("ike: could not install an SPD exemption of a bound XFRM interface, so under `unmatched discard` "+
+				"the traffic routed into that interface is dropped at the node-wide catch-all; "+
+				"the daemon needs CAP_NET_ADMIN to install it, and the next commit or address change retries it",
+				"interface", entry.iface, "dir", entry.params.Dir, "error", err,
+				"code", diagnostic.CodeDoctorIPsecSPDExemptionMissing)
+			if _, seen := noExemption[entry.iface]; !seen {
+				noExemption[entry.iface] = interfaceExemptionRefusal(entry, err)
+			}
 		}
 	}
-	return interfaceCatchAllRefused(noFinalEntry)
+	for name := range s.interfaceCatchAllRefused {
+		if _, still := noFinalEntry[name]; !still {
+			delete(s.interfaceCatchAllRefused, name)
+		}
+	}
+	// Every pass retries each exemption it does not hold, so this pass's refusals are the
+	// whole record: an exemption that went in, or that no plan names any more, is gone
+	// from it. One skipped because its interface has no final entry is reported by that
+	// interface's catch-all finding instead.
+	s.interfaceExemptionRefused = noExemption
+	return noFinalEntry
+}
+
+// interfaceExemptionRefusal is the operator error for an if_id 0 exemption of a bound
+// XFRM interface the backend refused, which the ipsec-spd-install doctor check reports
+// under diagnostic.CodeDoctorIPsecSPDExemptionMissing. A reload is not refused for it,
+// because the entry fails closed: the traffic it would hand on is dropped, never passed.
+func interfaceExemptionRefusal(entry *xfrmInterfaceEntry, cause error) *opererr.Error {
+	return opererr.Wrap(cause,
+		"Ze could not install the SPD exemption that hands traffic routed into XFRM interface "+entry.iface+
+			" on to that interface (direction "+dirLabel(entry.params.Dir)+")",
+		"Under `unmatched discard` that traffic meets the node-wide catch-all and is dropped, so the tunnel bound to "+
+			entry.iface+" carries none of it. The next commit or address change retries the entry. "+
+			"Remove the cause the dataplane names (the daemon needs CAP_NET_ADMIN), then restart Ze",
+		spdInstallFixRestart)
+}
+
+// recordInterfaceCatchAllAtStart is what the daemon's start does with the interfaces
+// whose SPD catch-all the backend refused (placeXFRMInterfaceEntries), where a reload
+// refuses the commit: each is logged at Error and recorded for the ipsec-spd-install
+// doctor check, in name order, and the apply goes on (owner decision 2026-11-20, 5c,
+// the start-up rule of decision 3 (a)). The pass has already installed every other
+// entry it could and no exemption of a refused interface. The caller holds applyMu.
+func (s *ikeEngineState) recordInterfaceCatchAllAtStart(noFinalEntry map[string]error) {
+	for _, name := range slices.Sorted(maps.Keys(noFinalEntry)) {
+		refusal := interfaceCatchAllStartRefusal(name, noFinalEntry[name])
+		s.log.LogAttrs(context.Background(), slog.LevelError, "ike: "+refusal.Problem(),
+			refusal.LogAttrs(slog.String("code", diagnostic.CodeDoctorIPsecSPDCatchAllMissing))...)
+		if s.interfaceCatchAllRefused == nil {
+			s.interfaceCatchAllRefused = make(map[string]*opererr.Error)
+		}
+		s.interfaceCatchAllRefused[name] = refusal
+	}
+}
+
+// interfaceCatchAllStartRefusal is the operator error for one XFRM interface whose SPD
+// catch-all, always a discard (interfaceSPDCatchAll), the start could not install. The
+// fix is a restart for the reason unmatchedStartRefusal gives.
+func interfaceCatchAllStartRefusal(name string, cause error) *opererr.Error {
+	return opererr.Wrap(cause,
+		"The default discard of XFRM interface "+name+" is NOT in force: Ze could not install that interface's SPD catch-all when the daemon started",
+		"Traffic that no entry of that interface's SPD matches meets no final entry, and the kernel accepts some of it "+
+			"(an inbound packet under a transport-mode or offloaded state), which RFC 4301 Section 4.4.1 forbids. "+
+			"A start never refuses the IPsec block, so Ze installed the rest of the configuration and no entry hands traffic on to that interface. "+
+			"Remove the cause the dataplane names (the daemon needs CAP_NET_ADMIN), then restart Ze",
+		spdInstallFixRestart)
 }
 
 // A namespace FWD default also closes every if_id's forward lookup. An explicit

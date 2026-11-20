@@ -147,6 +147,27 @@ type ikeEngineState struct {
 	// applyMu (doctor_spd_install.go).
 	spdDiverged map[spdSelector]spdDivergence
 
+	// unmatchedRefused is the catch-all the start could not install whole
+	// (installUnmatchedAtStart, unmatchedStartRefusal); nil when the running catch-all is
+	// in force. A reload whose catch-all goes in clears it, and a refused reload leaves it
+	// as it was. The ipsec-spd-install doctor check reads it under applyMu
+	// (doctor_spd_install.go).
+	unmatchedRefused *opererr.Error
+
+	// interfaceCatchAllRefused is each bound XFRM interface whose SPD catch-all the start
+	// could not install, by interface name; nil or empty when there is none
+	// (recordInterfaceCatchAllAtStart). A later install pass that puts that catch-all in,
+	// or finds no peer binding the interface, removes it (placeXFRMInterfaceEntries). The
+	// ipsec-spd-install doctor check reads it under applyMu.
+	interfaceCatchAllRefused map[string]*opererr.Error
+
+	// interfaceExemptionRefused is each bound XFRM interface with an if_id 0 exemption the
+	// backend refused on the last install pass, start, reload or address event alike, by
+	// interface name, with the first refusal (placeXFRMInterfaceEntries). Each pass
+	// replaces it, since each pass retries every exemption it does not hold. The
+	// ipsec-spd-install doctor check reads it under applyMu.
+	interfaceExemptionRefused map[string]*opererr.Error
+
 	// xfrmEntries is the SPD entries of the bound XFRM interfaces as currently
 	// installed, keyed by selector (unmatched_xfrm_interface.go): each interface SPD's
 	// own catch-all and the if_id 0 exemptions above the node catch-all. Nil until the
@@ -307,9 +328,12 @@ type reEstablishCtx struct {
 // their local address when that interface cannot supply one, and one with an operator
 // SPD entry the dataplane refused to install (reconcileSPDPolicies). The start applies
 // both and says so: see applyPhase and unbindablePeers for why the two deliveries
-// answer the first differently, and installSPDPoliciesAtStart for the second. Both
-// phases refuse an SPD catch-all, an XFRM interface's final entry or an application
-// override guard that could not be put in place.
+// answer the first differently, and installSPDPoliciesAtStart for the second. The
+// reload also refuses an SPD catch-all that could not be installed, which the start
+// installs as far as it can and reports (assertUnmatched), and so it does for an XFRM
+// interface's final entry (recordInterfaceCatchAllAtStart). Both phases refuse an
+// application override guard that could not be put in place, and a catch-all with no
+// dataplane to hold it.
 //
 // The order of the steps below is load-bearing, and each one states why it sits where it
 // does.
@@ -376,8 +400,12 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 	// threshold, and on the first apply it is the first step that can refuse the
 	// configuration after the interface check above. A catch-all that
 	// could not be installed, DISCARD or BYPASS, leaves an inbound packet meeting no
-	// SPD-I entry at all, so the apply fails and the configuration is not reported
-	// applied (installUnmatched, unmatched.go). Running it before the operator's entries
+	// SPD-I entry at all, so a reload fails and the configuration is not reported
+	// applied (installUnmatched, unmatched.go). The start is never refused: it installs
+	// every catch-all entry the dataplane accepts, logs the rest at Error, records them
+	// for `ze doctor` and goes on, with no discard in force (assertUnmatched; owner
+	// decision 2026-11-20, 5c). Only a missing dataplane still refuses the start, since
+	// nothing can be installed. Running it before the operator's entries
 	// and the cookie threshold means a refusal leaves those unchanged. The entries a
 	// partial install did place carry the configured disposition: under DISCARD they
 	// drop what they match, under BYPASS they pass it in the clear, which is what the
@@ -412,8 +440,10 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 	// tunnel's traffic, and the stale ones come out AFTER it, so a catch-all turning to
 	// BYPASS never does either. On the first apply the catch-all still goes in first.
 	//
-	// An interface catch-all the backend refuses fails the apply, as the node-wide one
+	// An interface catch-all the backend refuses fails a reload, as the node-wide one
 	// does: the interface's SPD would have no final entry (installXFRMInterfaceEntries).
+	// The start places what it can and reports the rest, as it does for the node-wide one
+	// (recordInterfaceCatchAllAtStart).
 	// On a reload the refusal comes before the node catch-all is re-asserted, so the
 	// running disposition stays. On the first apply the node catch-all and the prune
 	// have run, so the SPD state matches discardInForce, and releaseSPD
@@ -451,27 +481,41 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 	}
 	firstApply := !s.spdApplied
 	s.spdApplied = true
-	if err := installUnmatched(dataplane.Get(), cfg.Unmatched, s.log); err != nil {
-		return err
+	catchAllInForce, unmatchedErr := s.assertUnmatched(cfg.Unmatched, phase)
+	if unmatchedErr != nil {
+		return unmatchedErr
 	}
+	// The refusal of an implicit discard on the next commit judges the SPD as it is: a
+	// catch-all the start could not install whole is no discard in force.
+	discardInForce := catchAllInForce && cfg.Unmatched == dataplane.SPActionDiscard
 	if firstApply {
 		if err := applyApplicationOverride(dataplane.Get(), cfg.ApplicationOverride); err != nil {
-			// The catch-all is in force, so the refusal of an implicit discard on the
-			// next commit judges the SPD as it is.
-			s.discardInForce.Store(cfg.Unmatched == dataplane.SPActionDiscard)
+			s.discardInForce.Store(discardInForce)
 			return err
 		}
 	}
-	interfaceErr := s.installXFRMInterfaceEntries(dataplane.Get(), interfaceEntries)
+	noFinalEntry := s.placeXFRMInterfaceEntries(dataplane.Get(), interfaceEntries)
 	s.pruneXFRMInterfaceEntries(dataplane.Get(), interfaceEntries)
-	s.discardInForce.Store(cfg.Unmatched == dataplane.SPActionDiscard)
-	if interfaceErr != nil {
-		return interfaceErr
+	s.discardInForce.Store(discardInForce)
+	switch {
+	case len(noFinalEntry) == 0:
+		// Every bound interface's SPD holds its final entry.
+	case phase == applyStartup:
+		// The start is never refused (owner decision 2026-11-20, 5c): the pass placed
+		// what it could, and each interface left without its final entry is logged and
+		// reported by `ze doctor`.
+		s.recordInterfaceCatchAllAtStart(noFinalEntry)
+	default:
+		return interfaceCatchAllRefused(noFinalEntry)
 	}
 	if phase == applyStartup {
 		// The start is never verified, so refuseImplicitDiscard and verifyICMPOverlap
-		// cannot run here.
-		warnImplicitDiscardAtStart(cfg, s.log)
+		// cannot run here. The implicit-discard line says the discard is in force, so
+		// it is not written when the catch-all is not: the Error line of assertUnmatched
+		// says what is.
+		if catchAllInForce {
+			warnImplicitDiscardAtStart(cfg, s.log)
+		}
 		warnICMPOverlapAtStart(cfg, s.log)
 		warnSPDOrderAtStart(cfg, s.log)
 		// RFC 4301 Section 7.4
@@ -558,6 +602,38 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 
 	s.log.Info("ike engine configured", "peers", len(cfg.Peers))
 	return nil
+}
+
+// assertUnmatched installs the SPD catch-all `unmatched` names, on every apply, and
+// answers whether the whole catch-all is in force. The caller holds applyMu.
+//
+// A reload answers a refusal as its error, so the apply is refused (installUnmatched).
+// The start answers none but a missing dataplane (installUnmatchedAtStart): it installs
+// every entry the dataplane accepts, logs the refusal at Error, records it for the
+// ipsec-spd-install doctor check and lets the apply go on (owner decision 2026-11-20,
+// 5c). The access-security door trap "A refusal added for reload also ran at startup"
+// is why the two deliveries take different functions here.
+func (s *ikeEngineState) assertUnmatched(action dataplane.SPAction, phase applyPhase) (bool, error) {
+	if phase == applyReload {
+		if err := installUnmatched(dataplane.Get(), action, s.log); err != nil {
+			return false, err
+		}
+		s.unmatchedRefused = nil
+		return true, nil
+	}
+	err := installUnmatchedAtStart(dataplane.Get(), action, s.log)
+	if err == nil {
+		s.unmatchedRefused = nil
+		return true, nil
+	}
+	if errors.Is(err, errUnmatchedNoDataplane) {
+		return false, err
+	}
+	refusal := unmatchedStartRefusal(action, err)
+	s.log.LogAttrs(context.Background(), slog.LevelError, "ike: "+refusal.Problem(),
+		refusal.LogAttrs(slog.String("code", diagnostic.CodeDoctorIPsecSPDCatchAllMissing))...)
+	s.unmatchedRefused = refusal
+	return false, nil
 }
 
 // recordESPFormTUN opens and closes the TUN clone device the dual-form receiver needs,

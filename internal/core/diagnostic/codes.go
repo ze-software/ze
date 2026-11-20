@@ -100,6 +100,8 @@ const (
 	CodeDoctorIPsecStateScope                      = "doctor-ipsec-state-scope"
 	CodeDoctorIPsecChildInstallRefused             = "doctor-ipsec-child-install-refused"
 	CodeDoctorIPsecSPDInstallRefused               = "doctor-ipsec-spd-install-refused"
+	CodeDoctorIPsecSPDCatchAllMissing              = "doctor-ipsec-spd-catch-all-missing"
+	CodeDoctorIPsecSPDExemptionMissing             = "doctor-ipsec-spd-exemption-missing"
 	CodeDoctorIPsecSPDUndoIncomplete               = "doctor-ipsec-spd-undo-incomplete"
 	CodeDoctorIPsecSPDForwardBypass                = "doctor-ipsec-spd-forward-bypass" //nolint:gosec // G101: a doctor code name, not a credential
 	CodeDoctorIPsecIKESocketBypass                 = "doctor-ipsec-ike-socket-bypass"
@@ -1438,6 +1440,35 @@ var builtinCodes = append([]CodeMeta{
 			"dataplane refuses is refused itself and keeps the running entries. The doctor finding names " +
 			"the entry, the dataplane's answer and the command that retries.",
 		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-spd-install-refused"},
+	},
+	{
+		Code:  CodeDoctorIPsecSPDCatchAllMissing,
+		Title: "The SPD catch-all is not in force: the dataplane refused it at start",
+		Description: "The daemon started with a `vpn ipsec` block whose SPD catch-all (`vpn ipsec unmatched`, " +
+			"discard unless set) the dataplane refused to install, wholly or in part. A start never refuses the " +
+			"IPsec block, so Ze installed every catch-all entry the dataplane accepted and the rest of the " +
+			"configuration, and logged the refusal at Error. Under `discard` the default discard is NOT in " +
+			"force: traffic no SPD entry matches is passed in the clear by the kernel instead of being " +
+			"discarded (RFC 4301 Section 4.4.1). The usual cause is a daemon without CAP_NET_ADMIN or a kernel " +
+			"without XFRM (CONFIG_XFRM_USER). Remove the cause, then restart Ze: ze signal restart. A commit that " +
+			"changes `vpn ipsec` installs the catch-all again too, and is refused if the dataplane still refuses " +
+			"it. The same holds for the final entry of each XFRM interface a peer binds with `vti bind`, " +
+			"which is always a discard: the finding then names the interface whose default discard is not in " +
+			"force, and Ze hands that interface no traffic from the node-wide SPD. The doctor finding names the " +
+			"disposition or the interface and the dataplane's answer for each refused entry.",
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-spd-catch-all-missing"},
+	},
+	{
+		Code:  CodeDoctorIPsecSPDExemptionMissing,
+		Title: "A bound XFRM interface's SPD exemption is not installed",
+		Description: "A peer binds an XFRM interface with `vti bind`, and under `unmatched discard` Ze installs " +
+			"if_id 0 exemptions that hand the traffic routed into that interface on to the interface's own SPD. " +
+			"The dataplane refused one, so that traffic meets the node-wide catch-all and is dropped: the tunnel " +
+			"carries none of it. The entry fails closed, so no commit is refused for it. The next commit or " +
+			"address change retries it, and the finding clears when it goes in. The usual cause is a daemon " +
+			"without CAP_NET_ADMIN. Remove the cause, then restart Ze: ze signal restart. The doctor finding " +
+			"names the interface, the direction and the dataplane's answer.",
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-spd-exemption-missing"},
 	},
 	{
 		Code:  CodeDoctorIPsecSPDForwardBypass,

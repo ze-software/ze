@@ -75,29 +75,33 @@ func loadFailClosedBackend(t *testing.T, dp dataplane.Dataplane) {
 	})
 }
 
-// A failed catch-all install fails the apply, on both deliveries and for both
-// dispositions, and the error names the catch-all. A failed BYPASS used to be logged and
-// tolerated, which left an inbound packet meeting no SPD-I entry at all (RFC 4301 Section
-// 5.2 step 3b; owner decision 2026-10-20, Q7 A).
-func TestUnmatchedInstallFailureFailsTheApply(t *testing.T) {
+// A failed catch-all install fails a reload, the daemon's first apply arriving as a
+// reload included, for both dispositions, and the error names the catch-all. A failed
+// BYPASS used to be logged and tolerated, which left an inbound packet meeting no SPD-I
+// entry at all (RFC 4301 Section 5.2 step 3b; owner decision 2026-10-20, Q7 A). The
+// start is not refused (owner decision 2026-11-20, 5c), which
+// TestUnmatchedInstallFailureAtStartIsReportedByDoctor proves; a start with no dataplane
+// at all still is (TestUnmatchedWithNoDataplaneRefusesTheStart).
+func TestUnmatchedInstallFailureFailsTheReload(t *testing.T) {
 	loadFailClosedBackend(t, &bypassDP{installErr: errors.New("operation not permitted")})
 
 	// Each engine runs in its own subtest, so one is live at a time (applyTestState).
-	for _, phase := range []applyPhase{applyStartup, applyReload} {
-		for _, action := range []dataplane.SPAction{dataplane.SPActionDiscard, dataplane.SPActionBypass} {
-			t.Run(strconv.Itoa(int(phase))+"-"+strconv.Itoa(int(action)), func(t *testing.T) {
-				state := applyTestState(t)
-				cfg := testIPsecConfig(applyTestPeer("127.0.0.1"))
-				cfg.Unmatched = action
-				err := state.applyConfig(cfg, phase)
-				if err == nil {
-					t.Fatalf("phase %d action %d: a catch-all that failed to install was reported applied", phase, action)
-				}
-				if !strings.Contains(err.Error(), "catch-all") {
-					t.Errorf("phase %d action %d: error %q does not name the catch-all", phase, action, err)
-				}
-			})
-		}
+	for _, action := range []dataplane.SPAction{dataplane.SPActionDiscard, dataplane.SPActionBypass} {
+		t.Run(strconv.Itoa(int(action)), func(t *testing.T) {
+			state := applyTestState(t)
+			cfg := testIPsecConfig(applyTestPeer("127.0.0.1"))
+			cfg.Unmatched = action
+			err := state.applyConfig(cfg, applyReload)
+			if err == nil {
+				t.Fatalf("action %d: a reload whose catch-all failed to install was reported applied", action)
+			}
+			if !strings.Contains(err.Error(), "catch-all") {
+				t.Errorf("action %d: error %q does not name the catch-all", action, err)
+			}
+			if findings := answerSPDInstall(state); len(findings) != 0 {
+				t.Errorf("action %d: a refused reload recorded a doctor finding: %+v", action, findings)
+			}
+		})
 	}
 }
 

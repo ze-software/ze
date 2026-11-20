@@ -52,13 +52,15 @@ func peersNeedInterfaceAddress(cfg *ipsec.IPsecConfig) bool {
 	return peersWithoutLocalAddress(cfg) > 0
 }
 
-// applyPhase names which delivery is applying a configuration. The two differ in ONE
-// decision and in nothing else: what a peer set the configured interface cannot bind
-// does. A reload REFUSES it, so the transaction rolls back and the running tunnels are
-// untouched. Startup WARNS and applies the configuration anyway, because there is no
-// previous configuration to fall back to and no running tunnel to protect: refusing there
-// would leave the box with no IPsec at all, and no transport, over an interface an
-// operator can bring up after the daemon starts.
+// applyPhase names which delivery is applying a configuration. The two differ in what a
+// failure the start cannot fall back from does: a peer set the configured interface
+// cannot bind, an operator SPD entry the dataplane refuses (installSPDPoliciesAtStart)
+// and an SPD catch-all the dataplane refuses (assertUnmatched). A reload REFUSES each,
+// so the transaction rolls back and the running tunnels are untouched. Startup applies
+// the configuration anyway and says so, because there is no previous configuration to
+// fall back to and no running tunnel to protect: refusing there would leave the box with
+// no IPsec at all, and no transport, over an interface an operator can bring up after
+// the daemon starts.
 type applyPhase int
 
 const (

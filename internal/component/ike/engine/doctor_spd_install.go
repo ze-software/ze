@@ -2,6 +2,7 @@
 // Related: doctor_runtime.go -- engineDoctorChecks, where this runtime check is declared and dispatched
 // Related: spd_policy.go -- installSPDPoliciesAtStart, which records the entries the start could not install
 // Related: spd_policy.go -- spdReconcile, what each reconcile left in the dataplane, selector by selector
+// Related: apply.go -- assertUnmatched, which records a catch-all the start could not install
 // RFC: rfc/short/rfc4301.md -- the SPD management interface (Section 4.4.1)
 
 package engine
@@ -9,8 +10,10 @@ package engine
 import (
 	"maps"
 	"slices"
+	"strings"
 
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -25,7 +28,12 @@ var spdInstallCheckDecl = rpc.DoctorCheckDecl{
 	Name:  spdInstallCheckName,
 	Phase: rpc.DoctorPhaseRuntime,
 	Order: 746,
-	Codes: []string{diagnostic.CodeDoctorIPsecSPDInstallRefused, diagnostic.CodeDoctorIPsecSPDUndoIncomplete},
+	Codes: []string{
+		diagnostic.CodeDoctorIPsecSPDCatchAllMissing,
+		diagnostic.CodeDoctorIPsecSPDExemptionMissing,
+		diagnostic.CodeDoctorIPsecSPDInstallRefused,
+		diagnostic.CodeDoctorIPsecSPDUndoIncomplete,
+	},
 }
 
 // recordSPDReconcile folds what one reconcile left in the dataplane into spdDiverged.
@@ -54,8 +62,14 @@ func (s *ikeEngineState) recordSPDReconcile(outcome spdReconcile) {
 	}
 }
 
-// answerSPDInstall answers ipsec-spd-install from the engine's process: one error for
-// each operator SPD entry of the running configuration that the dataplane refused at
+// answerSPDInstall answers ipsec-spd-install from the engine's process: first one error
+// when the start could not install the SPD catch-all whole and no later apply has
+// (unmatchedRefused, assertUnmatched), saying plainly that it is not in force, and one
+// for each bound XFRM interface whose own catch-all the start could not install, in name
+// order (interfaceCatchAllRefused, recordInterfaceCatchAllAtStart); then one for each
+// bound XFRM interface with an exemption the last install pass could not place, in name
+// order (interfaceExemptionRefused); then one
+// error for each operator SPD entry of the running configuration that the dataplane refused at
 // the start and that no later apply has installed, in entry name order; then one error
 // for each selector at which a failed reconcile step left the dataplane disagreeing
 // with the running configuration (recordSPDReconcile), in message order.
@@ -70,17 +84,37 @@ func (s *ikeEngineState) recordSPDReconcile(outcome spdReconcile) {
 func answerSPDInstall(s *ikeEngineState) []rpc.DoctorCheckDiagnostic {
 	s.applyMu.Lock()
 	defer s.applyMu.Unlock()
-	out := make([]rpc.DoctorCheckDiagnostic, 0, len(s.spdRefused)+len(s.spdDiverged))
+	out := make([]rpc.DoctorCheckDiagnostic, 0, 1+len(s.interfaceCatchAllRefused)+len(s.spdRefused)+len(s.spdDiverged))
+	missing := make([]*opererr.Error, 0, 1+len(s.interfaceCatchAllRefused))
+	if s.unmatchedRefused != nil {
+		missing = append(missing, s.unmatchedRefused)
+	}
+	for _, name := range slices.Sorted(maps.Keys(s.interfaceCatchAllRefused)) {
+		missing = append(missing, s.interfaceCatchAllRefused[name])
+	}
+	for _, refusal := range missing {
+		out = append(out, rpc.DoctorCheckDiagnostic{
+			Code:     diagnostic.CodeDoctorIPsecSPDCatchAllMissing,
+			Severity: severityError,
+			Message:  spdRefusalMessage(refusal),
+			Fix:      refusal.Fix(),
+		})
+	}
+	for _, name := range slices.Sorted(maps.Keys(s.interfaceExemptionRefused)) {
+		refusal := s.interfaceExemptionRefused[name]
+		out = append(out, rpc.DoctorCheckDiagnostic{
+			Code:     diagnostic.CodeDoctorIPsecSPDExemptionMissing,
+			Severity: severityError,
+			Message:  spdRefusalMessage(refusal),
+			Fix:      refusal.Fix(),
+		})
+	}
 	for _, name := range slices.Sorted(maps.Keys(s.spdRefused)) {
 		refusal := s.spdRefused[name]
-		message := refusal.Problem() + ". " + refusal.Why() + "."
-		if cause := refusal.Unwrap(); cause != nil {
-			message += " The dataplane answered: " + cause.Error() + "."
-		}
 		out = append(out, rpc.DoctorCheckDiagnostic{
 			Code:     diagnostic.CodeDoctorIPsecSPDInstallRefused,
 			Severity: severityError,
-			Message:  message,
+			Message:  spdRefusalMessage(refusal),
 			Fix:      refusal.Fix(),
 		})
 	}
@@ -98,4 +132,16 @@ func answerSPDInstall(s *ikeEngineState) []rpc.DoctorCheckDiagnostic {
 		})
 	}
 	return out
+}
+
+// spdRefusalMessage is the doctor message of a refusal the start recorded: its problem,
+// why it matters, and the dataplane's own answer as the evidence. A cause that joins
+// several answers (installUnmatchedAtStart, one per refused entry) is written on one line,
+// each answer after a semicolon, because a finding is one line.
+func spdRefusalMessage(refusal *opererr.Error) string {
+	message := refusal.Problem() + ". " + refusal.Why() + "."
+	if cause := refusal.Unwrap(); cause != nil {
+		message += " The dataplane answered: " + strings.ReplaceAll(cause.Error(), "\n", "; ") + "."
+	}
+	return message
 }

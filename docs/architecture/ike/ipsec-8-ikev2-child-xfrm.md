@@ -904,8 +904,24 @@ owed work, not a description of the current backend.
 decided this on 2026-11-20: owner decision 3 of 2026-11-19 (install what it can,
 log at Error, `ze doctor` reports, start-up never refuses the IPsec block) also
 covers the catch-all. The doctor finding states that the default discard is not
-in force. Today such a failure fails the apply (`installUnmatched`), so the
-change is owed code.
+in force. The start installs the catch-all through `installUnmatchedAtStart`,
+which tries every entry and keeps each one the dataplane accepts; `assertUnmatched`
+logs the refusal at Error, records no discard in force, and the `ipsec-spd-install`
+check reports it under `doctor-ipsec-spd-catch-all-missing` with the dataplane's
+answer and `ze signal restart`. The final entry of a bound XFRM interface follows
+the same rule: `recordInterfaceCatchAllAtStart` logs and records each interface
+whose catch-all the backend refused, under the same code, the finding saying that
+interface's default discard is not in force, and no exemption hands it traffic. An
+exemption the backend refuses fails no apply: it is recorded per interface
+(`interfaceExemptionRefused`) and reported under `doctor-ipsec-spd-exemption-missing`
+until an install pass places it, because until then the traffic routed into that
+interface meets the DISCARD catch-all. A reload still refuses a catch-all it cannot install (`installUnmatched`,
+`installXFRMInterfaceEntries`), and a start with no dataplane loaded is still
+refused, because nothing can hold any entry.
+<!-- source: internal/component/ike/engine/apply.go -- assertUnmatched -->
+<!-- source: internal/component/ike/engine/unmatched_xfrm_interface.go -- recordInterfaceCatchAllAtStart -->
+<!-- source: internal/component/ike/engine/unmatched.go -- installUnmatchedAtStart -->
+<!-- source: internal/component/ike/engine/doctor_spd_install.go -- answerSPDInstall -->
 
 **The XFRM interface id comes from the interface the peer's `vti { bind }` names.**
 `resolveIfID` reads the if_id of that xfrm interface through the iface component
@@ -1387,11 +1403,15 @@ catch-all at all. A DISCARD catch-all that is not installed is never a warning:
 config verify refuses `unmatched discard` when the loaded backend's
 `CatchAllSupported` (`dataplane.CatchAllInstaller`) says no, or when no
 dataplane is loaded, and `installUnmatched` returns an error for a discard
-install that fails, which fails the apply before the operator's entries, the
+install that fails, which fails a reload before the operator's entries, the
 cookie threshold or any peer change. A BYPASS catch-all that is not installed
-fails the apply the same way (no dataplane, no XFRM, a failed install), because
+fails a reload the same way (no dataplane, no XFRM, a failed install), because
 without the entry an inbound packet meets no SPD-I entry at all (RFC 4301
-Section 5.2). The one bypass neither installed nor refused is on a backend whose
+Section 5.2). The daemon's start is never refused for a failed install, of
+either disposition: it installs what the dataplane accepts, logs the rest at
+Error and `ze doctor` reports the catch-all not in force (the decision
+"A catch-all that fails to install at boot follows the start-up rule" above).
+Only a start with no dataplane loaded is refused. The one bypass neither installed nor refused is on a backend whose
 `CatchAllSupported` answers `dataplane.ErrNoNodeWideSPD` (VPP), one of the two open gaps on
 RFC4301-5.2-1 and RFC4301-5.2-9.
 

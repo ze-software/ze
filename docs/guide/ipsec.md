@@ -1836,15 +1836,21 @@ entry VPP holds.
 
 A catch-all that is not installed leaves a packet no entry matches meeting no
 entry at all, which RFC 4301 Section 5.2 forbids ("If there is no match,
-discard the traffic"), so Ze never reports such a configuration as applied,
-whichever value `unmatched` holds. The one exception is the VPP backend:
+discard the traffic"), so Ze never reports such a commit as applied,
+whichever value `unmatched` holds. The configuration the daemon starts with is
+never refused for it: Ze installs every catch-all entry the kernel accepts and
+the rest of the block, logs the failure at Error, and `ze doctor`
+(`ipsec-spd-install`, code `doctor-ipsec-spd-catch-all-missing`) says the
+catch-all, under `discard` the default discard, is not in force, with the
+kernel's answer and `ze signal restart` as the retry. The one exception is the
+VPP backend:
 
 | Situation | `discard` | `bypass` |
 |---|---|---|
-| The VPP backend, which holds no entry bound to no interface | Refused at commit. A configuration the daemon starts with is not verified, so a start with `unmatched` unset (or `discard`) fails instead: installing the discard entry fails, and the configure step returns that error. Fix: `set vpn ipsec unmatched bypass` in the configuration file, then start again | Accepted; no entry is installed, and the traffic crosses in the clear. This is an open RFC 4301 gap on VPP |
-| A build off Linux, or a kernel without XFRM | Refused at commit, and a start fails as in the row above | The apply fails: a commit is refused, and at startup the configure step returns the error. Fix: run Ze on a Linux kernel with XFRM (`CONFIG_XFRM_USER`) |
-| No dataplane loaded (the daemon logged that the load failed) | Refused at commit | The apply fails. Fix: the cause the daemon logged |
-| The install itself fails when the configuration is applied, which includes a daemon without `CAP_NET_ADMIN`: it can open the XFRM socket, so the commit check passes, and the kernel refuses the install | The apply fails with the error, and the configuration is not reported applied: a commit is refused, and at startup the configure step returns the error | Same as `discard`. Fix: give the daemon `CAP_NET_ADMIN` |
+| The VPP backend, which holds no entry bound to no interface | Refused at commit. A configuration the daemon starts with is not verified, so a start with `unmatched` unset (or `discard`) runs without the discard instead: installing the entry fails, the daemon logs it at Error and `ze doctor` reports the default discard not in force. Fix: `set vpn ipsec unmatched bypass` in the configuration file, then start again | Accepted; no entry is installed, and the traffic crosses in the clear. This is an open RFC 4301 gap on VPP |
+| A build off Linux, or a kernel without XFRM | Refused at commit; a start runs without the entry and reports it, as in the row above | A commit is refused; a start runs without the entry, logs it at Error and `ze doctor` reports it. Fix: run Ze on a Linux kernel with XFRM (`CONFIG_XFRM_USER`) |
+| No dataplane loaded (the daemon logged that the load failed) | Refused at commit, and a start fails: the configure step returns the error | The apply fails, at start too. Fix: the cause the daemon logged |
+| The install itself fails when the configuration is applied, which includes a daemon without `CAP_NET_ADMIN`: it can open the XFRM socket, so the commit check passes, and the kernel refuses the install | A commit fails with the error and is not reported applied. A start installs every entry the kernel accepts, logs the failure at Error, and `ze doctor` reports that the default discard is not in force | Same as `discard`, the finding naming the bypass entry. Fix: give the daemon `CAP_NET_ADMIN`, then `ze signal restart` |
 | Before the first configuration is applied, and after the engine stops | The IPsec engine holds no SPD entry and no SA, so it is not acting as an IPsec implementation and no packet is looked up in an SPD of its own; the kernel passes traffic as it does with no IPsec configured. Two exceptions: an entry the engine could not remove on stop keeps the catch-all beneath it (the warning names both), and OSPFv3 authentication with manual keys installs its own SAs and policies with no catch-all, an open RFC 4301 gap | Same |
 
 The catch-all is installed before the `policy` entries, the peers and the
@@ -1903,11 +1909,14 @@ no peer binds the interface and when the engine stops; the `if_id` 0 entries als
 leave when `unmatched` turns to `bypass`. An interface that reports `if_id` 0 is
 treated as one that cannot be read, because `if_id` 0 is the node-wide database. If the interface cannot be read, its entries stay as they were and
 the daemon logs a warning. If an `if_id` 0 entry cannot be installed, the daemon
-logs an error: the tunnel's traffic is then dropped by the catch-all. If an
+logs an error and `ze doctor` reports it (`doctor-ipsec-spd-exemption-missing`)
+until the next commit or address change installs it: the tunnel's traffic is then
+dropped by the catch-all. If an
 interface's own final entry cannot be installed, which includes a daemon without
-`CAP_NET_ADMIN`, the apply fails as it does for the node-wide catch-all: a
-commit is refused, at startup the configure step returns the error, and no
-`if_id` 0 entry hands that interface any traffic. Without its final entry the
+`CAP_NET_ADMIN`, a commit is refused as it is for the node-wide catch-all. A
+start is not refused: the daemon logs it at Error and `ze doctor`
+(`doctor-ipsec-spd-catch-all-missing`) says that interface's default discard is
+not in force. Either way no `if_id` 0 entry hands that interface any traffic. Without its final entry the
 kernel would still accept an unmatched inbound packet that arrived under a
 transport-mode or offloaded state. Fix: give the daemon `CAP_NET_ADMIN`, then
 commit again. An interface address change meets the same failure with no commit
