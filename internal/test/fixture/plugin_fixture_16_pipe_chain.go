@@ -46,17 +46,18 @@ func plugin16DispatchPipeChainApplied(ctx context.Context, p *sdk.Plugin) error 
 	}
 
 	// AC-5: a format on a data caller answers done, its data the rendered text.
+	// The data is decoded straight into a string, never through
+	// plugin16Dispatch: that helper decodes a string answer again as JSON, so
+	// the rendered text "5" would come back as a number. Data that is not one
+	// JSON string fails the decode here.
 	const formatted = "show bgp rib | received | count | text"
-	rendered := plugin16Dispatch(ctx, p, formatted)
-	if rendered.err != nil {
-		return fmt.Errorf("%q: %w", formatted, rendered.err)
+	var text string
+	status, err := Dispatch(ctx, p, formatted, &text)
+	if err != nil {
+		return fmt.Errorf("%q, expected the rendered text as a string: %w", formatted, err)
 	}
-	if rendered.status != statusDone {
-		return fmt.Errorf("%q: status=%s data=%s", formatted, rendered.status, rendered.text())
-	}
-	text, isText := rendered.data.(string)
-	if !isText {
-		return fmt.Errorf("%q answered %T, expected the rendered text as a string: %v", formatted, rendered.data, rendered.data)
+	if status != statusDone {
+		return fmt.Errorf("%q: status=%s data=%q", formatted, status, text)
 	}
 	if !strings.Contains(text, "5") {
 		return fmt.Errorf("%q rendered %q, which holds no count of 5", formatted, text)

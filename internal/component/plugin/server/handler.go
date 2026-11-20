@@ -1,4 +1,5 @@
 // Design: docs/architecture/api/process-protocol.md — plugin process management
+// Design: docs/architecture/api/commands.md — the stream route partitions in one lookup
 // Detail: event_monitor.go — monitor event streaming handler
 
 package server

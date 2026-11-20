@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -59,7 +58,6 @@ func init() {
 		{"plugin/warnings-filter-show", "warnings-filter-show-test", plugin16AfterEOR(plugin16WarningsFilter)},
 		{"plugin/warnings-show", "warnings-show-test", plugin16AfterEOR(plugin16Warnings)},
 		{"plugin/test-pipe-first-last", "pipe-first-last-test", plugin16PipeFirstLast},
-		{"plugin/dispatch-pipe-chain-refused", "dispatch-pipe-chain-refused-test", plugin16DispatchPipeChainRefused},
 		{"plugin/wellknown-no-advertise-egress", "wellknown-noadv", plugin16WellknownNoAdvertise},
 		{"plugin/wellknown-no-export-egress", "wellknown-noexport", plugin16WellknownNoExport},
 		{"plugin/wellknown-no-export-withdraw-egress", "wellknown-withdraw", plugin16WellknownWithdraw},
@@ -590,14 +588,14 @@ func plugin16WarningsFilter(ctx context.Context, p *sdk.Plugin) error {
 func plugin16PipeFirstLast(ctx context.Context, p *sdk.Plugin) error {
 	var settled map[string]any
 	if !Poll(ctx, 40, 100*time.Millisecond, func() bool {
-		r := plugin16Dispatch(ctx, p, "show bgp rib received count")
+		r := plugin16Dispatch(ctx, p, "show bgp rib | received | count")
 		settled, _ = r.data.(map[string]any)
 		count, ok := plugin16Number(settled["count"])
 		return r.status == statusDone && ok && count == 5
 	}) {
 		return fmt.Errorf("adj-rib-in never reached 5 routes, last=%v", settled)
 	}
-	first, err := plugin16DoneMap(ctx, p, "show bgp rib received first 3", "first 3")
+	first, err := plugin16DoneMap(ctx, p, "show bgp rib | received | first 3", "first 3")
 	if err != nil {
 		return err
 	}
@@ -629,7 +627,7 @@ func plugin16PipeFirstLast(ctx context.Context, p *sdk.Plugin) error {
 		command string
 		want    int64
 		label   string
-	}{{"show bgp rib received first 3 count", 3, "first 3 count"}, {"show bgp rib received last 2 count", 2, "last 2 count"}} {
+	}{{"show bgp rib | received | first 3 | count", 3, "first 3 count"}, {"show bgp rib | received | last 2 | count", 2, "last 2 count"}} {
 		data, err := plugin16DoneMap(ctx, p, check.command, check.label)
 		if err != nil {
 			return err
@@ -641,108 +639,6 @@ func plugin16PipeFirstLast(ctx context.Context, p *sdk.Plugin) error {
 		fmt.Fprintf(os.Stderr, "OK: %s = %d\n", check.label, count)
 	}
 	fmt.Fprintln(os.Stderr, "OK: all pipe first/last tests passed")
-	if !plugin16WaitEOR(ctx, p, "show bgp peer peer1 detail", 40) {
-		return fmt.Errorf("ze never sent EOR to the peer")
-	}
-	fmt.Fprintln(os.Stderr, "OK: ze sent its EOR")
-	return nil
-}
-
-// plugin16PipeRefusalFix answers the fix line of a refused dispatch: the
-// dispatcher's refusal is an operator error, whose text ends with the
-// "fix: <line>" line (opererr.Error.Error), and a forked plugin reads that
-// text as its dispatch error. An answer that is not an error refusal is
-// reported with what the daemon answered instead.
-func plugin16PipeRefusalFix(r plugin16Response, command string) (string, error) {
-	if r.err == nil {
-		return "", fmt.Errorf("%q was answered, not refused: status=%s data=%s", command, r.status, r.text())
-	}
-	message := r.err.Error()
-	lines := strings.Split(message, "\n")
-	fix, found := strings.CutPrefix(lines[len(lines)-1], "fix: ")
-	if !found {
-		return "", fmt.Errorf("%q refusal carries no fix line: %q", command, message)
-	}
-	return fix, nil
-}
-
-// plugin16SayRefused prints the line that records a refusal and its fix.
-func plugin16SayRefused(command, fix string) {
-	var tb textbuf.Buffer
-	tb.Str("OK: ").Quoted(command).Str(" refused, fix ").Quoted(fix).Byte('\n').
-		StdErr() //nolint:errcheck // fixture output; the .ci reads it
-}
-
-// plugin16DispatchPipeChainRefused proves a forked plugin that dispatches a
-// pipe chain against a running daemon is refused with the line to send
-// instead, and that the line it is told to send answers.
-//
-// Method: over an adj-rib-in holding five received routes, the folded form is
-// polled to 5 first (the positive control, and the barrier that the RIB is
-// populated). The piped form of the same request must then be refused, with a
-// problem naming the command and the chain and a fix that is exactly the
-// folded line; that fix line is dispatched and must count 5. A chain whose
-// operator does not fold (a format) must be refused with the command part
-// alone as its fix and the `ze cli -c` form of the original line in its why,
-// while the command itself answers.
-func plugin16DispatchPipeChainRefused(ctx context.Context, p *sdk.Plugin) error {
-	const folded = "show bgp rib received count"
-	var settled map[string]any
-	if !Poll(ctx, 40, 100*time.Millisecond, func() bool {
-		r := plugin16Dispatch(ctx, p, folded)
-		settled, _ = r.data.(map[string]any)
-		count, ok := plugin16Number(settled["count"])
-		return r.status == statusDone && ok && count == 5
-	}) {
-		return fmt.Errorf("adj-rib-in never reached 5 routes, last=%v", settled)
-	}
-	fmt.Fprintln(os.Stderr, "OK: folded form counts 5")
-
-	const piped = "show bgp rib received | count"
-	refused := plugin16Dispatch(ctx, p, piped)
-	fix, err := plugin16PipeRefusalFix(refused, piped)
-	if err != nil {
-		return err
-	}
-	message := refused.err.Error()
-	if !strings.Contains(message, "show bgp rib received") {
-		return fmt.Errorf("%q refusal does not name the command: %q", piped, message)
-	}
-	if !strings.Contains(message, "count") {
-		return fmt.Errorf("%q refusal does not name the chain: %q", piped, message)
-	}
-	if fix != folded {
-		return fmt.Errorf("%q refusal fix is %q, expected the folded line %q", piped, fix, folded)
-	}
-	plugin16SayRefused(piped, fix)
-
-	data, err := plugin16DoneMap(ctx, p, fix, "the refusal's fix line")
-	if err != nil {
-		return err
-	}
-	count, ok := plugin16Number(data["count"])
-	if !ok || count != 5 {
-		return fmt.Errorf("the refusal's fix line %q returned %v, expected 5", fix, data["count"])
-	}
-	fmt.Fprintln(os.Stderr, "OK: the fix line counts 5")
-
-	if _, err := plugin16DoneMap(ctx, p, "show system platform", "platform"); err != nil {
-		return err
-	}
-	const unfoldable = "show system platform | json"
-	refused = plugin16Dispatch(ctx, p, unfoldable)
-	fix, err = plugin16PipeRefusalFix(refused, unfoldable)
-	if err != nil {
-		return err
-	}
-	if fix != "show system platform" {
-		return fmt.Errorf("%q refusal fix is %q, expected the command part alone %q", unfoldable, fix, "show system platform")
-	}
-	if cliForm := "ze cli -c '" + unfoldable + "'"; !strings.Contains(refused.err.Error(), cliForm) {
-		return fmt.Errorf("%q refusal does not name the operator form %q: %q", unfoldable, cliForm, refused.err.Error())
-	}
-	plugin16SayRefused(unfoldable, fix)
-
 	if !plugin16WaitEOR(ctx, p, "show bgp peer peer1 detail", 40) {
 		return fmt.Errorf("ze never sent EOR to the peer")
 	}

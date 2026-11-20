@@ -1,5 +1,5 @@
-# Test: show bgp rib received queries Adj-RIB-In
-# VALIDATES: show bgp rib received dispatches through engine to bgp-rib plugin
+# Test: show bgp rib | received queries Adj-RIB-In
+# VALIDATES: show bgp rib | received dispatches through engine to bgp-rib plugin
 # PREVENTS: rib show proxy handler broken or bgp-rib plugin unreachable
 
 # ze-peer expectations
@@ -9,7 +9,7 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Native test plugin: exercises dispatch-command for show bgp rib received
+# Native test plugin: exercises dispatch-command for show bgp rib | received
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF

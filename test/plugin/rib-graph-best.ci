@@ -2,7 +2,7 @@
 #
 # Flow:
 # 1. Inject routes with AS paths via rib inject
-# 2. Run "rib show best graph"
+# 2. Run "show bgp rib best | graph"
 # 3. Verify output contains box-drawing characters and ASN labels
 #
 # VALIDATES: AC-6 "rib show best graph works with best-path pipeline"

@@ -352,7 +352,7 @@ try:
     # consumed, so absence assertions below cannot pass on in-flight events.
     deadline = time.monotonic() + 10
     for attempt in range(1000):
-        rib = command("show bgp rib received")["routes"]
+        rib = command("show bgp rib | received")["routes"]
         actual = [row["prefix"] for row in rib]
         if sentinels <= set(actual):
             break
@@ -365,7 +365,7 @@ try:
     metrics = command("show metrics values")["metrics"].splitlines()
     assert 'ze_policy_route_set_refusals_total{filter="batch:judge"} 1' in metrics, metrics
     log("OK default reject isolated undeclared set in " + invalid_prefix + "; same-batch survivors intact; refusal count=1")
-    count = command("show bgp rib received count")
+    count = command("show bgp rib | received | count")
     assert count["count"] == len(wanted), count
     # The independent RIB count agrees with the complete typed prefix census.
     log("OK bounded batches=%s ordered per-route sets checked; failed batch absent; next batch intact; accepted=%d count=%s" %

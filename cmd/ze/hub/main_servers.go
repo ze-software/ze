@@ -1,4 +1,5 @@
 // Design: docs/architecture/hub-architecture.md -- Web, LG, and SSH server startup
+// Design: docs/architecture/api/commands.md -- serverDispatcher and the residual pipe chain of a data caller
 // Related: main.go -- orchestration calls these, main_reload.go -- reload logic
 // Detail: service_web.go -- ze_web-gated web service factory and web-only helpers
 

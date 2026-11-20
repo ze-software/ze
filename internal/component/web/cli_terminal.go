@@ -1,4 +1,5 @@
 // Design: docs/architecture/web-interface.md -- CLI terminal mode and rendering helpers
+// Design: docs/architecture/api/commands.md -- the terminal sends the typed line and renders the residual chain
 // Related: cli.go -- command handlers and dispatch
 
 package web

@@ -191,7 +191,8 @@ type DecodeMPUnreachOutput = rpc.DecodeMPUnreachOutput
 // DecodeUpdateOutput is the output for decode-update (plugin→engine).
 type DecodeUpdateOutput = rpc.DecodeUpdateOutput
 
-// PipeDecl declares a pipe alias for one of the plugin's own commands.
+// PipeDecl declares, for one of the plugin's own commands, a pipe alias (an
+// Expansion) or a pipe operation its handler runs (an Argument).
 type PipeDecl = rpc.PipeDecl
 
 // EnricherDecl declares a show enricher the plugin provides.

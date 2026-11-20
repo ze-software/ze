@@ -1,4 +1,5 @@
 // Design: docs/architecture/api/architecture.md -- domain request types for API transports
+// Design: docs/architecture/api/commands.md -- the ordered pipe list of execute and stream
 
 package api
 

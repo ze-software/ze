@@ -197,7 +197,7 @@ Plugin sends `ze-plugin-engine:declare-registration` with a `DeclareRegistration
 | `doctor-checks` | `[]DoctorCheckDecl` | Doctor checks the plugin provides, each with a `phase`: `pre-config`, `missing-config`, `parsed-config`, `post-config`, or `runtime`. Declare `runtime` (`sdk.DoctorPhaseRuntime`) for a check that reads your plugin's live state: only `show doctor` on the running daemon runs it, never a local `ze doctor` process, which holds no live state. A `runtime` check only reads; it changes nothing |
 | `resolver-caches` | `[]string` | Resolver caches the plugin holds clients for: `peeringdb`, `irr`, `cymru`. Set by `OnResolverCacheClear`; any other name is refused |
 | `enrichers` | `[]EnricherDecl` | Show enrichers the plugin provides |
-| `pipes` | `[]PipeDecl` | CLI pipe aliases the plugin names for its own commands |
+| `pipes` | `[]PipeDecl` | CLI pipe aliases the plugin names for its own commands, and the pipe operations its handler runs |
 | `claims` | `[]string` | Exclusive runtime roles the plugin takes over |
 | `dissemination` | `[]DisseminationDecl` | Peer-output roles and the explicit source/destination grants each needs; declaring a role grants no permission |
 | `failure-policy` | `string` | What ze does when this plugin fails: `restart`, `ignore` or `fatal`. Omitting it means `ignore` |

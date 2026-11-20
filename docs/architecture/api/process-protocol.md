@@ -4799,20 +4799,15 @@ Plugins can dispatch commands to other plugins via the external-compatible strin
 #4 ze-plugin-engine:dispatch-command {"command":"rib adjacent inbound show"}
 ```
 
-The `command` line carries no pipe chain. The answer of `dispatch-command` is
-data, and a chain renders text, so the dispatcher does not apply one. A line
-that holds a pipe outside double quotes gets the error answer before any
-handler or plugin process runs, and the plugin's request is logged as refused
-(`dispatch-command failed`, doctor code `CodeDoctorPluginRequestRefused`). The
-error gives the line to send instead. When the chain is only filters the
-command registered, that line is the folded form, such as
-`show bgp rib received count` for `show bgp rib received` piped to `count`.
-Otherwise that line is the command part alone, so the plugin selects from the
-data itself, and the error's why names the `ze cli -c` form an operator uses to
-apply the chain. A pipe
-inside double quotes stays an argument value.
+The `command` line may carry a pipe chain, written as an operator types it:
+`show bgp rib | received | count` answers the count of the received routes.
+The dispatcher reads the line once, command part and chain. The operations the
+command declares reach its handler as a list, and the rest of the chain runs
+over the answer the way it does on every other surface. A format such as
+`| text` still answers `done`, its data the rendered text. A pipe inside double
+quotes stays an argument value.
 <!-- source: internal/component/plugin/server/command.go -- Dispatcher.Dispatch -->
-<!-- source: internal/component/command/pipe.go -- foldFilters -->
+<!-- source: internal/component/command/pipe_partition.go -- partitionPipeChain -->
 <!-- source: internal/component/plugin/server/dispatch.go -- dispatchCommandResponse -->
 
 Internal plugins that already know the exact registered command should use the

@@ -2,7 +2,7 @@
 #       does not touch the routes a peer announces.
 #
 # VALIDATES: spec-fixit-redistribution-chain-drops-silently. The peer announces
-# 10.0.0.0/24 and `show bgp rib received` names it, while a `redistribute` block
+# 10.0.0.0/24 and `show bgp rib | received` names it, while a `redistribute` block
 # is configured that mentions neither BGP nor this peer.
 #
 # THE REDISTRIBUTE BLOCK IS THE VARIABLE. Its twin,

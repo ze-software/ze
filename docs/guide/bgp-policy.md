@@ -745,7 +745,7 @@ uses `final-source: learned-export-policy`, distinct from `rfc8212`.
 Use the same route at each boundary:
 
 ```console
-ze cli -c "show bgp rib peer transit-a"
+ze cli -c "show bgp rib | peer transit-a"
 ze cli -c "show bgp rib best"
 ze cli -c "show bgp irr check peer transit-a prefix 192.0.2.0/24"
 ze cli -c "show bgp peer transit-b rib"

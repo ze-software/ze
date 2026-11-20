@@ -2,7 +2,7 @@
 #
 # Flow:
 # 1. Native test fixture injects routes with known AS paths via rib inject
-# 2. Dispatches "rib show received graph" command
+# 2. Dispatches "show bgp rib | received | graph"
 # 3. Verifies output contains box-drawing characters and ASN labels
 #
 # VALIDATES: AC-1 "Output contains box-drawing characters and both ASN labels"

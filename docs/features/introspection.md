@@ -109,9 +109,9 @@ with everything it started: the run string is given to a shell, and a shell
 that runs more than one command holds the plugin as its own child.
 <!-- source: internal/component/plugin/declarations.go -- dataDeclarations, declarationRows, queriedDeclarationRow -->
 <!-- source: internal/component/config/register_plugin_declarations.go -- readConfiguredPlugins -->
-<!-- source: internal/plugins/help/help_command.go -- collectCommands, extractPipes -->
+<!-- source: internal/plugins/help/help_command.go -- collectCommands, pipeOperationsFor -->
 <!-- source: internal/component/command/declared.go -- DeclaredForCommand -->
-<!-- source: internal/plugins/meta/cmd/help.go -- commandHelp, pipeAliasHelp -->
+<!-- source: internal/plugins/meta/cmd/help.go -- commandHelp -->
 
 ## Build-Time Verification
 

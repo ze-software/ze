@@ -3,7 +3,7 @@
 # STATUS: Phase 3 (spec-ci-observer-per-test-audit) -- runtime_fail wired;
 #         AC-12 verified (equivalent strength to original) via the
 #         `community ingress applied` production log. Original test asserted
-#         bgp-rib query `bgp rib show received community 65000:300`; the
+#         bgp-rib query `show bgp rib | received | community 65000:300`; the
 #         production log is a more direct check of the same invariant.
 # PREVENTS: Non-deterministic filter ordering causing unpredictable behavior
 #

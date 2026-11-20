@@ -12,7 +12,7 @@ answered wrongly. A command whose answer is text or bytes, such as `show data
 cat` returning the bytes of one stored file, declares the `blob` shape: it
 prints the bytes unchanged, `| json` shows them inside an envelope that names
 their encoding, and every row operator is refused by name.
-<!-- source: internal/plugins/help/help_command.go -- operatorsFor, pathHasOnlyPlainLocalHandler -->
+<!-- source: internal/plugins/help/help_command.go -- pipeOperationsFor, daemonHandlesPath -->
 <!-- source: internal/component/command/pipe.go -- validateDeclaredShape -->
 
 ### The simple way: set a default once
@@ -386,15 +386,16 @@ rib`, for example, adds:
 
 | Filter | Description |
 |--------|-------------|
-| `received` / `advertised` | Select the Adj-RIB-In or Adj-RIB-Out side |
+| `received` / `advertised` (`sent` is another spelling) / `sent-received` | Select the Adj-RIB-In side, the Adj-RIB-Out side, or both (the default) |
 | `peer <selector>` | Filter by peer |
 | `family <afi/safi>` | Filter by address family |
 | `prefix <pattern>` | Filter by prefix |
-| `path <pattern>` | Filter by AS path |
+| `covering <address>` / `exact <prefix>` | Received routes whose prefix contains the address, or of exactly that prefix |
+| `path <pattern>` (`aspath` is another spelling) | Filter by AS path |
 | `community <value>` | Filter by standard community |
-| `match <pattern>` | Cross-field structured match |
-| `count` | Count matching routes without serializing rows |
-| `first <n>` / `last <n>` | Take first or last N routes |
+| `match <pattern>` | Cross-field structured match, an override of the generic `match`: a case-insensitive substring of the prefix, peer, family, next hop, origin, AS path, standard, large or extended community (in the hex the route row shows), MED or local preference |
+| `count` | Count matching routes without serializing rows, an override of the generic `count` |
+| `first <n>` / `last <n>` | Take first or last N routes, overrides of the generic `first` and `last` |
 | `histogram` | Count routes by family and prefix length |
 | `graph` | Answer the AS-path topology as `nodes` and `edges`; the text format draws it as a box diagram and `\| json` shows the structure. More than 100 ASes is refused: narrow it with a filter first |
 | `reason` | Explain best-path selection (`show bgp rib best` only) |
@@ -413,6 +414,13 @@ already produced. A command filter stops it being produced. The `path`
 pattern, with its `^` and `$` anchors, is described in the
 [CLI guide](../guide/cli.md#route-commands).
 
-<!-- source: internal/component/bgp/plugins/cmd/rib/rib.go -- PipeFilter registrations -->
+An override answers what its generic answers (`count` one object with an
+integer `count`, `first N` at most N rows), so a script reads the same shape
+either way. `show bgp rib protocol <protocol>` takes the same set without a
+scope word, and `show bgp rib best` takes neither a scope word nor `covering`
+and `exact`, and adds `reason`. `show command help "<command>"` lists every operation a command
+takes after the pipe, each marked `generic`, `override`, `command` or `alias`.
+
+<!-- source: internal/component/bgp/plugins/cmd/rib/rib.go -- registerPipeFilters, ribScopeFilters, ribAttributeFilters, ribSourceFilters, ribRouteReducers, ribBestReducers -->
 <!-- source: internal/component/bgp/plugins/rib/rib_topology.go -- graphTerminal, renderGraphText -->
 <!-- source: internal/component/command/pipe_partition.go -- partitionPipeChain, lookupFilter, validateDeclaredArgument -->

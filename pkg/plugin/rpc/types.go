@@ -1,4 +1,5 @@
 // Design: docs/architecture/api/ipc_protocol.md — plugin RPC types
+// Design: docs/architecture/api/commands.md — PipeDecl and the pipe list of execute-command
 // RFC: rfc/short/rfc7911.md — ADD-PATH; Section 3 is the NLRIFraming contract below
 // Related: message.go — RPC wire message types
 //

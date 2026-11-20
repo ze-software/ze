@@ -4061,7 +4061,7 @@ Stage 1 channel the next section describes.
 
 `DeclareRegistrationInput.Pipes` is a list of `PipeDecl`, beside the lists that
 carry families, commands, filters, doctor checks and enrichers. The SDK
-re-exports the type, so an external author imports one package. Each entry
+re-exports the type, so an external author imports one package. An alias entry
 carries four strings, and the engine parses the expansion once, at registration.
 
 | Field | Meaning |
@@ -4261,18 +4261,19 @@ in the daemon's registry alone.
 | Surface | Parses the chain | A plugin's alias works |
 |---------|------------------|------------------------|
 | `ze cli -c "<command>"`, and any SSH exec channel | the daemon, in `execMiddleware` | Yes |
-| The TUI a plain ssh client with a pty reaches | the daemon, which hosts the Bubble Tea model | Yes |
-| `ze cli` with no command argument | the CLIENT process, in `executeOperationalCommand` | No |
+| The TUI a plain ssh client with a pty reaches, and `ze cli` with no command argument, which opens that pty | the daemon, which hosts the Bubble Tea model | Yes |
+| An operational command typed in `ze config edit` | the CLIENT process: `sshCommandExecutor` reads the line with `ReadDispatchLine`, sends `DeclaredLine`, and the editor's model applies the residual chain | No |
 | `cliClient.StreamMonitor`, for a streaming monitor command | the daemon; the client reads only the presentation suffix, where no alias is ever part of it | Yes |
 
 On the client-side row the operator reads
 `pipe error: unknown pipe operator: <name>`, and Tab offers the name nowhere.
 The aliases compiled into the client resolve there, which is what hid the gap.
-Tab after the pipe character on `show bgp` offers `summary` and `peers` in the
-same client. The repair is a wire surface that carries the daemon's alias table
-to the client at session start, and it is NOT built.
+The repair is a wire surface that carries the daemon's alias table to the
+client at session start, and it is NOT built.
 
 <!-- source: internal/component/ssh/ssh.go -- execMiddleware -->
+<!-- source: internal/component/cli/sshclient/terminal.go -- RunInteractive -->
+<!-- source: internal/component/config/cli/cmd_edit.go -- sshCommandExecutor -->
 <!-- source: internal/component/cli/model_mode.go -- executeOperationalCommand -->
 
 A surface missing from the table parses no chain of its own. A plugin's

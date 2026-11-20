@@ -1,4 +1,5 @@
 // Design: docs/architecture/api/process-protocol.md — callback registration methods
+// Design: docs/architecture/api/commands.md — the pipe list an OnExecuteCommand handler receives
 // Overview: sdk.go — plugin SDK core
 
 package sdk

@@ -1,4 +1,5 @@
 // Design: docs/architecture/system-architecture.md -- SSH server subsystem
+// Design: docs/architecture/api/commands.md -- the exec channel sends the typed line and renders the residual chain
 // Detail: session.go -- per-session unified CLI model creation
 // Detail: model_lifetime.go -- sealed per-run model join and per-channel closer ownership
 

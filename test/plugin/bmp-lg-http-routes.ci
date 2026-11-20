@@ -2,7 +2,7 @@
 # VALIDATES: GET /api/looking-glass/protocols/bmp names each BMP-monitored peer
 #            by the rib-peer key `show bmp peers` reports, and
 #            GET /api/looking-glass/routes/bmp/{name} answers that peer's routes
-#            through `show bgp rib protocol bmp peer <name>`
+#            through `show bgp rib protocol bmp | peer <name>`
 #            (handleAPIBMPRoutes, internal/component/lg/handler_api.go).
 # PREVENTS: the endpoint dispatching a command the tree does not declare, and
 #           protocols/bmp naming a peer "<router>:<bgp-id>", a string the RIB

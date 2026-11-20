@@ -73,7 +73,7 @@ func p12WaitRoutes(minimum int) p12Scenario {
 }
 
 func p12RIBCount(ctx context.Context, plugin *sdk.Plugin) (int, bool) {
-	status, data, err := p12DispatchObject(ctx, plugin, "show bgp rib received count")
+	status, data, err := p12DispatchObject(ctx, plugin, "show bgp rib | received | count")
 	if err != nil || status != statusDone {
 		return 0, false
 	}
@@ -92,19 +92,19 @@ func p12WarnOnlyDropsNLRI(ctx context.Context, plugin *sdk.Plugin) error {
 		return readable && count >= 1
 	})
 	if !readable {
-		return fmt.Errorf("bgp-rib did not answer show bgp rib received count")
+		return fmt.Errorf("bgp-rib did not answer show bgp rib | received | count")
 	}
 	if count < 1 {
 		return fmt.Errorf("the control route never reached the RIB: count=%d, wanted at least 1", count)
 	}
-	fmt.Fprintf(os.Stderr, "OK control: an in-limit route is installed, show bgp rib received count=%d\n", count)
+	fmt.Fprintf(os.Stderr, "OK control: an in-limit route is installed, show bgp rib | received | count=%d\n", count)
 
 	Poll(ctx, 12, 250*time.Millisecond, func() bool {
 		count, readable = p12RIBCount(ctx, plugin)
 		return readable && count > 2
 	})
 	if !readable {
-		return fmt.Errorf("show bgp rib received count stopped answering")
+		return fmt.Errorf("show bgp rib | received | count stopped answering")
 	}
 	if count > 2 {
 		return fmt.Errorf("AC-2: warn-only must not install routes past the maximum: count=%d, maximum=2, announced=4, after-control=3", count)

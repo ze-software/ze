@@ -1,4 +1,5 @@
 // Design: docs/architecture/api/process-protocol.md — 5-stage plugin startup protocol
+// Design: docs/architecture/api/commands.md — a plugin declares a pipe alias or a pipe operation
 // Overview: server.go — Server struct and lifecycle
 // Detail: startup_autoload.go — auto-loading plugins for families and event types
 // Detail: startup_failure.go — the error reported when a plugin never reaches StageRunning

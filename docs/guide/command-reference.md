@@ -2803,8 +2803,9 @@ command's summary under `description` and its long explanation under
 `description`. The full RPKI command list is in `docs/guide/rpki.md`.
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, summaryAliasExpansion -->
 <!-- source: internal/plugins/help/help_command.go -- appendPluginCommands -->
-<!-- source: internal/le/cli/list/commandlist.go -- aliasesFor -->
-<!-- source: internal/plugins/help/help_command.go -- collectCommands, extractPipes -->
+<!-- source: internal/le/cli/list/commandlist.go -- Collect -->
+<!-- source: internal/le/cli/list/report.go -- joinAliases -->
+<!-- source: internal/plugins/help/help_command.go -- collectCommands, pipeOperationsFor -->
 
 `show bgp summary` was a second spelling of this command until 2026-08. It is
 removed, not aliased, so it answers an unknown-command error. `show bgp` gives

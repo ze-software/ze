@@ -638,7 +638,8 @@ func TestHandleCommandOldCommandsError(t *testing.T) {
 
 // TestFilterMatchCrossField verifies match filter checks AS-path and community values.
 //
-// VALIDATES: match filter searches across origin, AS-path, communities, MED, local-pref fields.
+// VALIDATES: match filter searches across origin, AS-path, standard, large and
+// extended communities, MED, local-pref fields.
 // PREVENTS: match filter only checking prefix/peer/family/next-hop.
 func TestFilterMatchCrossField(t *testing.T) {
 	med100 := uint32(100)
@@ -665,6 +666,24 @@ func TestFilterMatchCrossField(t *testing.T) {
 			items: []RouteItem{
 				{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", OutRoute: &Route{Communities: []attribute.Community{attribute.Community(65000<<16 | 100)}}},
 				{Peer: "p2", Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", OutRoute: &Route{Communities: []attribute.Community{attribute.Community(65001<<16 | 200)}}},
+			},
+			want: 1,
+		},
+		{
+			name:    "match large community value",
+			pattern: "65000:3:4",
+			items: []RouteItem{
+				{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", OutRoute: &Route{LargeCommunities: []attribute.LargeCommunity{{GlobalAdmin: 65000, LocalData1: 3, LocalData2: 4}}}},
+				{Peer: "p2", Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", OutRoute: &Route{LargeCommunities: []attribute.LargeCommunity{{GlobalAdmin: 65000, LocalData1: 3, LocalData2: 5}}}},
+			},
+			want: 1,
+		},
+		{
+			name:    "match extended community hex",
+			pattern: "0002fde8",
+			items: []RouteItem{
+				{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", OutRoute: &Route{ExtendedCommunities: []attribute.ExtendedCommunity{{0x00, 0x02, 0xfd, 0xe8, 0x00, 0x00, 0x00, 0x01}}}},
+				{Peer: "p2", Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", OutRoute: &Route{ExtendedCommunities: []attribute.ExtendedCommunity{{0x00, 0x03, 0xfd, 0xe9, 0x00, 0x00, 0x00, 0x01}}}},
 			},
 			want: 1,
 		},
@@ -714,6 +733,29 @@ func TestFilterMatchCrossField(t *testing.T) {
 			assert.Len(t, results, tt.want, "expected %d results for pattern %q", tt.want, tt.pattern)
 		})
 	}
+}
+
+// TestMatchPoolCommunities verifies the received-side match reads the large and
+// extended communities a stored route holds.
+//
+// VALIDATES: poolMatchesLargeCommunity and poolMatchesExtCommunity find a value
+// in the pool bytes by the text the route row shows, and miss a neighbour value
+// and a trailing partial value.
+// PREVENTS: `show bgp rib | received | match <a:b:c>` counting zero for a route
+// that carries the large community, as before these stages read it.
+func TestMatchPoolCommunities(t *testing.T) {
+	large := []byte{
+		0x00, 0x00, 0xfd, 0xe8, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x04, // 65000:3:4
+		0x00, 0x00, 0xfd, 0xe9, 0x00, 0x00, 0x00, 0x01, // trailing partial value
+	}
+	assert.True(t, poolMatchesLargeCommunity(large, "65000:3:4"))
+	assert.False(t, poolMatchesLargeCommunity(large, "65000:3:5"))
+	assert.False(t, poolMatchesLargeCommunity(large, "65001:"), "a partial trailing value is not a community")
+
+	extended := []byte{0x00, 0x02, 0xfd, 0xe8, 0x00, 0x00, 0x00, 0x01, 0x00, 0x02}
+	assert.True(t, poolMatchesExtCommunity(extended, "0002fde800000001"))
+	assert.False(t, poolMatchesExtCommunity(extended, "0003fde8"))
+	assert.False(t, poolMatchesExtCommunity(extended, "00010002"), "a value spanning into the partial tail is not read")
 }
 
 // TestParsePipelineInvalidASN verifies invalid ASN in path filter is rejected at parse time.

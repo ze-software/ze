@@ -451,7 +451,7 @@ func prefixCountExact(expected int, control bool, label string) Driver {
 			}
 			if control {
 				var count int
-				if !Poll(ctx, 60, 250*time.Millisecond, func() bool { count, _ = routeCount(ctx, p, "show bgp rib received count"); return count >= 1 }) {
+				if !Poll(ctx, 60, 250*time.Millisecond, func() bool { count, _ = routeCount(ctx, p, "show bgp rib | received | count"); return count >= 1 }) {
 					return errors.New("no route reached the RIB at all")
 				}
 				fmt.Fprintf(os.Stderr, "OK control: the RIB answers, %d routes received\n", count)
@@ -461,7 +461,10 @@ func prefixCountExact(expected int, control bool, label string) Driver {
 			if label == "reannounce" {
 				attempts = 40
 			}
-			Poll(ctx, attempts, 250*time.Millisecond, func() bool { count, _ = routeCount(ctx, p, "show bgp rib received count"); return count >= expected })
+			Poll(ctx, attempts, 250*time.Millisecond, func() bool {
+				count, _ = routeCount(ctx, p, "show bgp rib | received | count")
+				return count >= expected
+			})
 			if count != expected {
 				return fmt.Errorf("%s: %d routes received, wanted exactly %d", label, count, expected)
 			}
@@ -482,20 +485,20 @@ func prefixCountBounded(maximum int, label string) Driver {
 				return err
 			}
 			var count int
-			if !Poll(ctx, 60, 250*time.Millisecond, func() bool { count, _ = routeCount(ctx, p, "show bgp rib received count"); return count >= 1 }) {
+			if !Poll(ctx, 60, 250*time.Millisecond, func() bool { count, _ = routeCount(ctx, p, "show bgp rib | received | count"); return count >= 1 }) {
 				return errors.New("the control route never reached the RIB")
 			}
 			fmt.Fprintf(os.Stderr, "OK control: an in-limit route is installed, %d routes received\n", count)
 			var readable bool
 			for range 12 {
-				count, readable = routeCount(ctx, p, "show bgp rib received count")
+				count, readable = routeCount(ctx, p, "show bgp rib | received | count")
 				if count > maximum {
 					return fmt.Errorf("RIB holds %d routes, maximum is %d", count, maximum)
 				}
 				time.Sleep(250 * time.Millisecond)
 			}
 			if !readable {
-				return errors.New("show bgp rib received count stopped answering")
+				return errors.New("show bgp rib | received | count stopped answering")
 			}
 			fmt.Fprintf(os.Stderr, "OK %s: %d routes installed, never past the maximum of %d\n", label, count, maximum)
 			return nil

@@ -258,7 +258,7 @@ In `ze cli` interactive mode:
   `short-help` and its long explanation under `description`. Neither is derived
   from the other, and no row is cut at a sentence or a newline.
   <!-- source: internal/component/command/pipe.go -- applyMatch, applyMatchLines -->
-  <!-- source: internal/plugins/help/help_command.go -- operatorsFor, collectCommands -->
+  <!-- source: internal/plugins/help/help_command.go -- pipeOperationsFor, collectCommands -->
 - **History** is immediately browsable and published across sessions without
   blocking input. Graceful session close drains queued history; abrupt process
   death can lose commands still waiting for publication.

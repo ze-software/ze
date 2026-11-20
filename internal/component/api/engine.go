@@ -1,4 +1,5 @@
 // Design: docs/architecture/api/architecture.md -- API engine core
+// Design: docs/architecture/api/commands.md -- execute and stream send the line with its pipe chain
 // Related: types.go -- shared types used by the engine
 // Related: config_session.go -- config session manager for API use
 

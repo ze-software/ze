@@ -1,4 +1,5 @@
 // Design: docs/architecture/config/yang-config-design.md — editor mode switching
+// Design: docs/architecture/api/commands.md — the model sends the typed line and renders the residual chain
 // Overview: model.go — editor model and update loop
 // Detail: completer_command.go — operational mode command completion
 // Related: model_render.go — mode-aware prompt rendering

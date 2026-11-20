@@ -1,4 +1,5 @@
 // Design: docs/guide/mcp/overview.md -- MCP tool auto-generation from command registry
+// Design: docs/architecture/api/commands.md -- the ordered pipe list of a derived tool
 // Related: streamable.go -- Streamable HTTP transport (the only HTTP entry point)
 // Related: apps.go -- gates the _meta.ui object buildToolDef emits below
 

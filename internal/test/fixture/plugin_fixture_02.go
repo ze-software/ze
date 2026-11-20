@@ -86,7 +86,7 @@ func as112DoHAddress02(args []string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return net.JoinHostPort("127.0.0.1", strconv.Itoa(port)), nil
+	return net.JoinHostPort(addrLoopback, strconv.Itoa(port)), nil
 }
 
 func command02(ctx context.Context, plugin *sdk.Plugin, command string) (string, json.RawMessage, error) {
@@ -203,7 +203,7 @@ func apiRIBInject02(ctx context.Context, plugin *sdk.Plugin) error {
 	if !strings.Contains(text02(data), "192.168.1.0/24") {
 		return fmt.Errorf("inject response missing prefix: %s", text02(data))
 	}
-	data, err = requireDone02(ctx, plugin, "show bgp rib received")
+	data, err = requireDone02(ctx, plugin, "show bgp rib | received")
 	if err != nil {
 		return err
 	}
@@ -229,10 +229,10 @@ func apiRIBOutShow02(ctx context.Context, plugin *sdk.Plugin) error {
 	if err := apiRIBReady02(ctx, plugin); err != nil {
 		return err
 	}
-	if _, err := requireDone02(ctx, plugin, "show bgp rib sent"); err != nil {
+	if _, err := requireDone02(ctx, plugin, "show bgp rib | sent"); err != nil {
 		return err
 	}
-	fmt.Fprintln(os.Stderr, "OK: show bgp rib sent dispatched")
+	fmt.Fprintln(os.Stderr, "OK: show bgp rib | sent dispatched")
 	return nil
 }
 
@@ -250,7 +250,7 @@ func apiRIBWithdraw02(ctx context.Context, plugin *sdk.Plugin) error {
 	if !strings.Contains(text02(data), `"existed":true`) {
 		return fmt.Errorf("withdraw should report existed=true: %s", text02(data))
 	}
-	data, err = requireDone02(ctx, plugin, "show bgp rib received")
+	data, err = requireDone02(ctx, plugin, "show bgp rib | received")
 	if err != nil {
 		return err
 	}
@@ -290,7 +290,7 @@ func routeRefreshSent02(ctx context.Context, plugin *sdk.Plugin) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	row, _ := peers["127.0.0.1"].(map[string]any)
+	row, _ := peers[addrLoopback].(map[string]any)
 	messages, _ := row["messages"].(map[string]any)
 	sent, _ := messages["sent"].(map[string]any)
 	return int02(sent["route-refresh"]), nil
@@ -518,7 +518,7 @@ func updateReceivedObserver02(ctx context.Context, plugin *sdk.Plugin) error {
 		if err != nil {
 			return false
 		}
-		row, _ := peers["127.0.0.1"].(map[string]any)
+		row, _ := peers[addrLoopback].(map[string]any)
 		return int02(row["updates-received"]) >= 1
 	}) {
 		return errors.New("peer1 never reported an UPDATE received")
@@ -572,7 +572,7 @@ func pathASNExportDriver02() Driver {
 }
 
 func deliveryGraph02(ctx context.Context, plugin *sdk.Plugin) error {
-	if !eorSent02(ctx, plugin, "127.0.0.1", 1, 40) {
+	if !eorSent02(ctx, plugin, addrLoopback, 1, 40) {
 		return fmt.Errorf("delivery: peer1 never reached its initial-sync end-of-rib")
 	}
 	raw, err := requireDone02(ctx, plugin, "show event delivery")
@@ -602,7 +602,7 @@ func deliveryGraph02(ctx context.Context, plugin *sdk.Plugin) error {
 		Process: "bgp-filter-community", Receive: []string{eventState}, Implicit: []string{eventState},
 	}
 	expected := map[string][]processEdge{
-		"127.0.0.1": {
+		addrLoopback: {
 			community,
 			{Process: "delivery-graph-test", Receive: []string{eventState}},
 		},
@@ -667,7 +667,7 @@ func bestpathReason02(ctx context.Context, plugin *sdk.Plugin) error {
 	}
 	var chosen map[string]any
 	if !Poll(ctx, 20, 250*time.Millisecond, func() bool {
-		raw, err := requireDone02(ctx, plugin, "show bgp rib best reason")
+		raw, err := requireDone02(ctx, plugin, "show bgp rib best | reason")
 		if err != nil {
 			return false
 		}

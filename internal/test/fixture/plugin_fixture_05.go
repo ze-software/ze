@@ -157,10 +157,10 @@ func p05CommunityBlackhole(ctx context.Context, args []string) error {
 		if err := p05WaitTotalRoute(ctx, plugin); err != nil {
 			return err
 		}
-		if _, err := p05RequireStatus(ctx, plugin, "show bgp rib received community 65535:666", "done"); err != nil {
+		if err := p05RequireOneRoute(ctx, plugin, "show bgp rib | received | community 65535:666 | count", "65535:666"); err != nil {
 			return fmt.Errorf("BLACKHOLE must survive ingress: %w", err)
 		}
-		if _, err := p05RequireStatus(ctx, plugin, "show bgp rib received community 65535:65281", "done"); err != nil {
+		if err := p05RequireOneRoute(ctx, plugin, "show bgp rib | received | community 65535:65281 | count", "65535:65281"); err != nil {
 			return fmt.Errorf("the RFC 7999 Section 3.2 guard must add NO_EXPORT: %w", err)
 		}
 		fmt.Fprintln(os.Stderr, "OK: BLACKHOLE survived and NO_EXPORT was added")
@@ -174,8 +174,8 @@ func p05CommunityCumulative(ctx context.Context, args []string) error {
 			return err
 		}
 		for _, community := range []string{"65000:1", "65000:2"} {
-			if _, err := p05RequireStatus(ctx, plugin, "show bgp rib received community "+community, "done", "error"); err != nil {
-				return fmt.Errorf("rib show community %s rpc failed: %w", community, err)
+			if err := p05RequireOneRoute(ctx, plugin, "show bgp rib | received | community "+community+" | count", community); err != nil {
+				return fmt.Errorf("cumulative community %s absent: %w", community, err)
 			}
 		}
 		fmt.Fprintln(os.Stderr, "OK: both cumulative communities tagged on ingress")
@@ -247,8 +247,8 @@ func p05CommunityPriority(ctx context.Context, args []string) error {
 		if err := p05WaitTotalRoute(ctx, plugin); err != nil {
 			return err
 		}
-		if _, err := p05RequireStatus(ctx, plugin, "show bgp rib received community 65000:300", "done", "error"); err != nil {
-			return fmt.Errorf("rib show community rpc failed: %w", err)
+		if err := p05RequireOneRoute(ctx, plugin, "show bgp rib | received | community 65000:300 | count", "65000:300"); err != nil {
+			return fmt.Errorf("priority-mark 65000:300 absent: %w", err)
 		}
 		fmt.Fprintln(os.Stderr, "OK: both filters active, priority ordering correct")
 		return nil
@@ -260,12 +260,27 @@ func p05CommunityRelationTag(ctx context.Context, args []string) error {
 		if err := p05WaitTotalRoute(ctx, plugin); err != nil {
 			return err
 		}
-		if _, err := p05RequireStatus(ctx, plugin, "show bgp rib received large-community 65000:3:4", "done"); err != nil {
+		if err := p05RequireOneRoute(ctx, plugin, "show bgp rib | received | match 65000:3:4 | count", "65000:3:4"); err != nil {
 			return fmt.Errorf("relation tag 65000:3:4 absent: %w", err)
 		}
 		fmt.Fprintln(os.Stderr, "OK: relation community 65000:3:4 written on ingress")
 		return nil
 	})
+}
+
+// p05RequireOneRoute answers an error unless the counted selection holds
+// exactly the one route each community scenario's peer sends (10.0.0.0/24).
+// A status-only check answered done on an empty selection, so it could not
+// see the community missing.
+func p05RequireOneRoute(ctx context.Context, plugin *sdk.Plugin, command, subject string) error {
+	count, err := p05Count(ctx, plugin, command, subject)
+	if err != nil {
+		return err
+	}
+	if count != 1 {
+		return fmt.Errorf("%s: %s counted %v routes, want 1", subject, command, count)
+	}
+	return nil
 }
 
 func p05Count(ctx context.Context, plugin *sdk.Plugin, command, subject string) (float64, error) {
@@ -288,7 +303,7 @@ func p05CommunityScrubOwnGA(ctx context.Context, args []string) error {
 	return p05Observe(ctx, args, "test-scrub", func(ctx context.Context, plugin *sdk.Plugin) error {
 		var barrierErr error
 		reached := Poll(ctx, 50, 200*time.Millisecond, func() bool {
-			count, err := p05Count(ctx, plugin, "show bgp rib received prefix 10.0.0.0/24 count", "10.0.0.0/24")
+			count, err := p05Count(ctx, plugin, "show bgp rib | received | prefix 10.0.0.0/24 | count", "10.0.0.0/24")
 			if err != nil {
 				barrierErr = err
 				return true
@@ -311,7 +326,7 @@ func p05CommunityScrubOwnGA(ctx context.Context, args []string) error {
 			{"65000:99", 0, "65000:99 is our own number outside the keep-list and must be removed"},
 		}
 		for _, check := range checks {
-			count, err := p05Count(ctx, plugin, "show bgp rib received community "+check.community+" count", check.community)
+			count, err := p05Count(ctx, plugin, "show bgp rib | received | community "+check.community+" | count", check.community)
 			if err != nil {
 				return err
 			}
@@ -394,7 +409,7 @@ func p05CommunityTag(ctx context.Context, args []string) error {
 		if err := p05WaitTotalRoute(ctx, plugin); err != nil {
 			return err
 		}
-		if _, err := p05RequireStatus(ctx, plugin, "show bgp rib received community 65000:100", "done"); err != nil {
+		if err := p05RequireOneRoute(ctx, plugin, "show bgp rib | received | community 65000:100 | count", "65000:100"); err != nil {
 			return fmt.Errorf("community tag missing: %w", err)
 		}
 		fmt.Fprintln(os.Stderr, "OK: community 65000:100 tagged on ingress")
@@ -433,7 +448,7 @@ func p05ConfigAdjRIB(ctx context.Context, args []string) error {
 		if status, _, err := plugin.DispatchCommand(ctx, "request quiesce"); err != nil || status != statusDone {
 			return fmt.Errorf("quiesce barrier did not settle: status=%q: %w", status, err)
 		}
-		if _, err := p05RequireStatus(ctx, plugin, "show bgp rib received", "done"); err != nil {
+		if _, err := p05RequireStatus(ctx, plugin, "show bgp rib | received", "done"); err != nil {
 			return fmt.Errorf("rib show-in: %w", err)
 		}
 		fmt.Fprintln(os.Stderr, "OK: adj-rib-in query dispatched")

@@ -3,7 +3,7 @@
 #       route.
 #
 # VALIDATES: spec-fixit-redistribution-chain-drops-silently. The peer announces
-# 10.0.0.0/24 and `show bgp rib received` names it.
+# 10.0.0.0/24 and `show bgp rib | received` names it.
 #
 # THIS FILE IS ONLY MEANINGFUL BESIDE ITS TWIN,
 # redistribute-block-does-not-gate-peer-routes.ci, which is byte-identical

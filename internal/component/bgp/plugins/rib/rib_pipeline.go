@@ -1,4 +1,5 @@
 // Design: docs/architecture/plugin/rib-storage-design.md — iterator pipeline for RIB show commands
+// Design: docs/architecture/api/commands.md — the stages come from the declared pipe operations
 // RFC: rfc/short/rfc4271.md -- route attributes surfaced by show pipelines
 // Overview: rib.go — RIB plugin core types and event handlers
 // Related: rib_pipeline_best.go — best-path pipeline (bestSource, bestPipeline, bestPathRows)
@@ -10,6 +11,8 @@
 package rib
 
 import (
+	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"iter"
 	"net/netip"
@@ -859,7 +862,8 @@ func (f *matchFilter) matches(item RouteItem) bool {
 	return false
 }
 
-// matchOutRoute checks OutRoute fields: next-hop, origin, AS-path, communities, MED, local-pref.
+// matchOutRoute checks OutRoute fields: next-hop, origin, AS-path, standard,
+// large and extended communities, MED, local-pref.
 func (f *matchFilter) matchOutRoute(rt *Route) bool {
 	if strings.Contains(strings.ToLower(rt.NextHop), f.pattern) {
 		return true
@@ -881,6 +885,18 @@ func (f *matchFilter) matchOutRoute(rt *Route) bool {
 			return true
 		}
 	}
+	// Large communities in their RFC 8092 canonical text, as the route row shows them.
+	for _, lc := range rt.LargeCommunities {
+		if strings.Contains(lc.String(), f.pattern) {
+			return true
+		}
+	}
+	// Extended communities in the lower-case hex the route row shows them in.
+	for _, ec := range rt.ExtendedCommunities {
+		if strings.Contains(hex.EncodeToString(ec[:]), f.pattern) {
+			return true
+		}
+	}
 	// MED
 	if rt.MED != nil {
 		if strings.Contains(strconv.FormatUint(uint64(*rt.MED), 10), f.pattern) {
@@ -896,7 +912,8 @@ func (f *matchFilter) matchOutRoute(rt *Route) bool {
 	return false
 }
 
-// matchInEntry checks InEntry pool attributes: next-hop, origin, AS-path, communities, MED, local-pref.
+// matchInEntry checks InEntry pool attributes: next-hop, origin, AS-path,
+// standard, large and extended communities, MED, local-pref.
 func (f *matchFilter) matchInEntry(entry storage.RouteEntry) bool {
 	b := entry.GetBundle()
 	if b.HasNextHop() {
@@ -932,6 +949,20 @@ func (f *matchFilter) matchInEntry(entry storage.RouteEntry) bool {
 			}
 		}
 	}
+	if b.LargeCommunities.IsValid() {
+		if data, err := pool.LargeCommunities.Get(b.LargeCommunities); err == nil {
+			if poolMatchesLargeCommunity(data, f.pattern) {
+				return true
+			}
+		}
+	}
+	if b.ExtCommunities.IsValid() {
+		if data, err := pool.ExtCommunities.Get(b.ExtCommunities); err == nil {
+			if poolMatchesExtCommunity(data, f.pattern) {
+				return true
+			}
+		}
+	}
 	if b.HasMED() {
 		if data, err := pool.MED.Get(b.MED); err == nil {
 			if v, ok := formatUint32Attr(data); ok {
@@ -948,6 +979,36 @@ func (f *matchFilter) matchInEntry(entry storage.RouteEntry) bool {
 					return true
 				}
 			}
+		}
+	}
+	return false
+}
+
+// poolMatchesLargeCommunity reports whether one LARGE_COMMUNITIES value in the
+// pool bytes, in its canonical text, holds pattern. RFC 8092 Section 3: "Each
+// BGP Large Community value is encoded as a 12-octet quantity". A trailing
+// partial value is not a community and is not read.
+func poolMatchesLargeCommunity(data []byte, pattern string) bool {
+	for i := 0; i+12 <= len(data); i += 12 {
+		lc := attribute.LargeCommunity{
+			GlobalAdmin: binary.BigEndian.Uint32(data[i:]),
+			LocalData1:  binary.BigEndian.Uint32(data[i+4:]),
+			LocalData2:  binary.BigEndian.Uint32(data[i+8:]),
+		}
+		if strings.Contains(lc.String(), pattern) {
+			return true
+		}
+	}
+	return false
+}
+
+// poolMatchesExtCommunity reports whether one EXTENDED_COMMUNITIES value in the
+// pool bytes, in the lower-case hex the route row shows, holds pattern. RFC 4360
+// Section 2: "Each Extended Community is encoded as an 8-octet quantity".
+func poolMatchesExtCommunity(data []byte, pattern string) bool {
+	for i := 0; i+8 <= len(data); i += 8 {
+		if strings.Contains(hex.EncodeToString(data[i:i+8]), pattern) {
+			return true
 		}
 	}
 	return false

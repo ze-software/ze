@@ -71,6 +71,12 @@ two commands. The structure is built and it is used by one family.
 
 ### 1.3 The three mechanisms, and which axis each one serves
 
+> Note, 2026-11-20: `foldFilters` no longer exists. A command's declared
+> operations reach its handler as a structured list, never as arguments, from
+> every caller; `docs/architecture/api/commands.md`, "The dispatcher takes the
+> line with its pipe chain", states the mechanism today. This section records
+> the code as it stood when the audit was written.
+
 A `|` word can be served in three different ways, and the difference decides
 what a proposal costs. This is the part the framing of this audit got half
 right, so it is stated with the evidence.
@@ -698,6 +704,11 @@ This group is the majority of the presentation work in every family this audit
 read. It blocks on nothing.
 
 ### 4.2 Needs a per-command handler change, and no new mechanism
+
+> Note, 2026-11-20: the fold this section relies on is gone. A scope pipe is
+> now a declared operation the handler receives in its pipe list
+> (`docs/architecture/api/commands.md`, "The dispatcher takes the line with its
+> pipe chain"); a word typed as an argument is refused with the pipe form.
 
 Every SCOPE pipe is here. `RegisterPipeFilters` plus `foldFilters` already turn
 `| <name> <value>` into command arguments, and the dispatcher already passes

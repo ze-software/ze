@@ -4,7 +4,7 @@
 # 1. The daemon config writes its local and remote AS in asdot (1.10 = 65546)
 #    and sets as-notation asdot.
 # 2. The fixture injects a route whose AS path is typed "1.10,100".
-# 3. `show bgp rib received` answers the AS path as ["1.10","100"].
+# 3. `show bgp rib | received` answers the AS path as ["1.10","100"].
 # 4. `show bgp peer 127.0.0.1 detail` answers remote-as as "1.10".
 #
 # VALIDATES: AC-1 asdot config input, AC-3 asdot rendering of an AS number of

@@ -481,9 +481,13 @@ the catalog lets it override that operator: every data operator, and never a
 format, paging, `save` or `log`, which are the answer's data format or its
 display. An override keeps the generic's argument contract and answer shape; an operation that
 means something else takes a name of its own. The daemon does the selecting, and only the
-matching rows cross the wire.
+matching rows cross the wire. What a command takes after the pipe, generic,
+override, own operation or alias, is one derivation (`PipeOperationsForCommand`):
+`show command help`, `ze help command --json` and Tab completion after `|` all
+read it, and a word it holds is refused when typed as an argument.
 <!-- source: internal/component/command/pipe_partition.go -- partitionPipeChain, CheckOverrideAnswer -->
 <!-- source: internal/component/command/pipe_filter.go -- PipeFilter, RegisterPipeFilters -->
+<!-- source: internal/component/command/pipe_operations.go -- PipeOperationsForCommand -->
 
 **An owned filter takes the name of the field it selects on.** `show bgp rib`
 owns `peer`, `family`, `prefix`, `path` and `community`, and each word names the

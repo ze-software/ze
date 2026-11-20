@@ -1,4 +1,5 @@
 // Design: docs/architecture/api/process-protocol.md — plugin process management
+// Design: docs/architecture/api/commands.md — the dispatcher takes the line with its pipe chain
 // Related: ensure.go -- ze:ensure-exists chain wrapping for compound commands
 
 package server

@@ -389,7 +389,7 @@ func plugin15RIBBestWalk(ctx context.Context, p *sdk.Plugin) error {
 	} else {
 		failures = append(failures, fmt.Sprintf("best: expected status=done, got=%s data=%s", best.status, best.text()))
 	}
-	first := plugin15Dispatch(ctx, p, "show bgp rib best first 2")
+	first := plugin15Dispatch(ctx, p, "show bgp rib best | first 2")
 	if plugin15Done(first) {
 		fmt.Fprintln(os.Stderr, "OK best-first: status=done")
 		data, _ := plugin15Map(first)
@@ -402,7 +402,7 @@ func plugin15RIBBestWalk(ctx context.Context, p *sdk.Plugin) error {
 	} else {
 		failures = append(failures, fmt.Sprintf("best-first: expected status=done, got=%s", first.status))
 	}
-	count := plugin15Dispatch(ctx, p, "show bgp rib best count")
+	count := plugin15Dispatch(ctx, p, "show bgp rib best | count")
 	if plugin15Done(count) {
 		fmt.Fprintln(os.Stderr, "OK best-count: status=done")
 		data, _ := plugin15Map(count)
@@ -454,12 +454,12 @@ func plugin15RIBUnderLoad(ctx context.Context, p *sdk.Plugin) error {
 	var failures []string
 	for walks < walksMax {
 		walkCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
-		r := plugin15Dispatch(walkCtx, p, "show bgp rib count")
+		r := plugin15Dispatch(walkCtx, p, "show bgp rib | count")
 		timedOut := walkCtx.Err() == context.DeadlineExceeded
 		cancel()
 		if r.err != nil && r.status == statusError {
 			if timedOut {
-				return fmt.Errorf("`show bgp rib count` did not answer within 20s at count-%d: the walk is wedged against the UPDATE path", walks)
+				return fmt.Errorf("`show bgp rib | count` did not answer within 20s at count-%d: the walk is wedged against the UPDATE path", walks)
 			}
 			continue
 		}

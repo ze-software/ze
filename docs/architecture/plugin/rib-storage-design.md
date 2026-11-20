@@ -2706,7 +2706,7 @@ communities without RIB code changes. The RIB stores per-peer GR state
 
 <!-- source: internal/component/bgp/plugins/rib/rib_commands.go — markStaleCommand, registerCommunityCommands -->
 
-**Show output:** `show bgp rib received` includes `"stale": true` and `"stale-level": N` on stale routes (omitted when level is 0).
+**Show output:** `show bgp rib | received` includes `"stale": true` and `"stale-level": N` on stale routes (omitted when level is 0).
 `show bgp rib status` includes aggregate `stale-routes` count and per-peer GR state with
 `stale-at` and `expires-at` absolute times.
 
@@ -2875,7 +2875,7 @@ terminal took to drain a full table.
 stage that HOLDS items past the pull that produced them is outside that cover
 and takes a reference of its own. `last N` is that stage: it drains the whole
 walk into a ring of N and emits from the ring afterwards, so without one, every
-row `show bgp rib best last N` produced but the final one would be encoded from
+row `show bgp rib best | last N` produced but the final one would be encoded from
 a released slot. `applyBestStages` is where the ring is given its reference and
 where the release it owes is returned to the caller.
 

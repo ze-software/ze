@@ -45,7 +45,7 @@ func countFrom13(result commandResult13) (int, bool) {
 // bgpASNotation13 proves the bgp/as-notation leaf reaches the route rows an
 // operator reads. It also proves an AS number is accepted in the asdot form on
 // the way in. The scenario injects a route whose AS path is typed "1.10,100".
-// It then reads the route back through `show bgp rib received`.
+// It then reads the route back through `show bgp rib | received`.
 //
 // The daemon config sets as-notation asdot, and writes its own local and
 // remote AS in asdot. A config that refused the dotted spelling would never
@@ -58,7 +58,7 @@ func bgpASNotation13(ctx context.Context, args []string) error {
 		a := &assertions13{}
 		a.status("inject", command13(ctx, plugin, "request bgp rib inject 10.0.0.1 ipv4/unicast 10.10.1.0/24 aspath 1.10,100"))
 
-		show := pollCommand13(ctx, plugin, "show bgp rib received prefix 10.10.1.0/24", 20, 250*time.Millisecond, func(result commandResult13) bool {
+		show := pollCommand13(ctx, plugin, "show bgp rib | received | prefix 10.10.1.0/24", 20, 250*time.Millisecond, func(result commandResult13) bool {
 			return done13(result) && strings.Contains(result.text(), "10.10.1.0/24")
 		})
 		a.status("show", show)
@@ -130,7 +130,7 @@ func ribAdvertisedUserPath13(ctx context.Context, args []string) error {
 		if err := requireDone13("wait for update acknowledgement", command13(ctx, plugin, "request quiesce")); err != nil {
 			return err
 		}
-		result := pollCommand13(ctx, plugin, "show bgp rib advertised prefix 1.1.0.0/24 count", 20, 250*time.Millisecond, func(result commandResult13) bool {
+		result := pollCommand13(ctx, plugin, "show bgp rib | advertised | prefix 1.1.0.0/24 | count", 20, 250*time.Millisecond, func(result commandResult13) bool {
 			count, ok := countFrom13(result)
 			return done13(result) && ok && count == 1
 		})
@@ -140,14 +140,14 @@ func ribAdvertisedUserPath13(ctx context.Context, args []string) error {
 		if count, ok := countFrom13(result); !ok || count != 1 {
 			return fmt.Errorf("advertised count did not reach 1: %s", result.raw)
 		}
-		result = command13(ctx, plugin, "show bgp rib received prefix 1.1.0.0/24 count")
+		result = command13(ctx, plugin, "show bgp rib | received | prefix 1.1.0.0/24 | count")
 		if err := requireDone13("show received count", result); err != nil {
 			return err
 		}
 		if count, ok := countFrom13(result); !ok || count != 0 {
 			return fmt.Errorf("expected received count 0, got %s", result.raw)
 		}
-		fmt.Fprintln(os.Stderr, "OK: show bgp rib advertised selects Adj-RIB-Out from user update")
+		fmt.Fprintln(os.Stderr, "OK: show bgp rib | advertised selects Adj-RIB-Out from user update")
 		return waitEORSent13(ctx, plugin, "*")
 	})
 }
@@ -241,7 +241,7 @@ func ribBestSelection13(ctx context.Context, args []string) error {
 		if row := bestPathFor13(best, "10.30.1.0/24"); row == nil || row["best-peer"] != "10.0.0.5" {
 			a.failures = append(a.failures, fmt.Errorf("tiebreak winner=%v want 10.0.0.5", row))
 		}
-		count := command13(ctx, plugin, "show bgp rib best count")
+		count := command13(ctx, plugin, "show bgp rib best | count")
 		a.status("best-count", count)
 		if value, ok := countFrom13(count); !ok || value != 3 {
 			a.failures = append(a.failures, fmt.Errorf("best count=%d valid=%v want 3", value, ok))
@@ -279,7 +279,7 @@ func ribWholeSetMED13(ctx context.Context, plugin *sdk.Plugin) error {
 		if row := bestPathFor13(best, prefix); row == nil || row["best-peer"] != addrPeerTwo {
 			return fmt.Errorf("MED order %v: best=%v, want 10.0.0.2", order, row)
 		}
-		reason := command13(ctx, plugin, "show bgp rib best prefix "+prefix+" reason")
+		reason := command13(ctx, plugin, "show bgp rib best | prefix "+prefix+" | reason")
 		if err := requireDone13("whole-set MED reason", reason); err != nil {
 			return err
 		}
@@ -363,15 +363,15 @@ func ribClearOutFamily13(ctx context.Context, args []string) error {
 
 func ribFilterShow13(ctx context.Context, args []string) error {
 	return observe13(ctx, "filter-test", func(ctx context.Context, plugin *sdk.Plugin) error {
-		pollCommand13(ctx, plugin, "show bgp rib count", 20, 250*time.Millisecond, done13)
+		pollCommand13(ctx, plugin, "show bgp rib | count", 20, 250*time.Millisecond, done13)
 		checks := []struct {
 			label, command string
 			refused        bool
 		}{
-			{fieldCommunity, "show bgp rib received community 65000:100", false},
-			{fieldPath, "show bgp rib received path 64501", false},
-			{pipeCount, "show bgp rib count", false},
-			{"family+community", "show bgp rib received family ipv4/unicast community 65000:100", false},
+			{fieldCommunity, "show bgp rib | received | community 65000:100", false},
+			{fieldPath, "show bgp rib | received | path 64501", false},
+			{pipeCount, "show bgp rib | count", false},
+			{"family+community", "show bgp rib | received | family ipv4/unicast | community 65000:100", false},
 			{"unknown-keyword", "show bgp rib bogus", true},
 		}
 		for _, check := range checks {
@@ -383,10 +383,12 @@ func ribFilterShow13(ctx context.Context, args []string) error {
 				if result.err == nil {
 					return fmt.Errorf("%s: no refusal reason", check.label)
 				}
-				if !strings.Contains(result.err.Error(), "unknown keyword: bogus") {
+				// refuseRouteReadArguments (rib_commands.go) names the word the
+				// path carried and gives the pipe form as the fix.
+				if !strings.Contains(result.err.Error(), "was given the argument bogus") {
 					return fmt.Errorf("%s: refusal lost the invalid argument: %w", check.label, result.err)
 				}
-				if !strings.Contains(result.err.Error(), "fix: show bgp rib count") {
+				if !strings.Contains(result.err.Error(), "fix: show bgp rib | count") {
 					return fmt.Errorf("%s: refusal names no corrected command: %w", check.label, result.err)
 				}
 				continue
@@ -420,15 +422,22 @@ type graph13 struct {
 }
 
 // decodeGraph13 reads the structured graph answer. A pre-rendered text answer,
-// or any document that is not exactly `{"graph":{"nodes":[...],"edges":[...]}}`,
-// is an error.
+// or any document that is not exactly
+// `{"graph":{"nodes":[...],"edges":[...]},"pipe":[...,{"op":"graph"}]}`, is an
+// error. The `pipe` key is the chain metadata the command engine adds to a
+// piped JSON answer (`injectPipeMeta`, internal/component/command/pipe.go);
+// since the RIB takes `graph` as a pipe operation, the answer carries it, and
+// its last operation must be `graph`.
 func decodeGraph13(result commandResult13) (graph13, error) {
 	var envelope map[string]json.RawMessage
 	if err := json.Unmarshal(result.raw, &envelope); err != nil {
 		return graph13{}, fmt.Errorf("graph answer is not a JSON object: %w: %.200s", err, result.raw)
 	}
-	if len(envelope) != 1 {
-		return graph13{}, fmt.Errorf("graph answer carries more than the \"graph\" key: %.200s", result.raw)
+	if len(envelope) != 2 {
+		return graph13{}, fmt.Errorf("graph answer carries other keys than \"graph\" and \"pipe\": %.200s", result.raw)
+	}
+	if err := requireGraphPipeMeta13(envelope["pipe"]); err != nil {
+		return graph13{}, fmt.Errorf("%w: %.200s", err, result.raw)
 	}
 	inner, ok := envelope["graph"]
 	if !ok {
@@ -462,6 +471,29 @@ func decodeGraph13(result commandResult13) (graph13, error) {
 	slices.Sort(g.nodes)
 	slices.Sort(g.edges)
 	return g, nil
+}
+
+// requireGraphPipeMeta13 answers an error unless meta is the pipe chain
+// metadata of a chain whose last operation is `graph`. An absent key, a chain
+// that never ran `graph`, or one that ran another operation after it is an
+// error.
+func requireGraphPipeMeta13(meta json.RawMessage) error {
+	if meta == nil {
+		return errors.New("graph answer has no \"pipe\" metadata")
+	}
+	var chain []struct {
+		Op string `json:"op"`
+	}
+	if err := json.Unmarshal(meta, &chain); err != nil {
+		return fmt.Errorf("graph answer \"pipe\" metadata is not a chain: %w", err)
+	}
+	if len(chain) == 0 {
+		return errors.New("graph answer \"pipe\" metadata is an empty chain")
+	}
+	if last := chain[len(chain)-1].Op; last != "graph" {
+		return fmt.Errorf("graph answer \"pipe\" metadata ends in %q, want \"graph\"", last)
+	}
+	return nil
 }
 
 // graphIs records a failure unless the graph answer holds exactly nodes and
@@ -503,7 +535,7 @@ func ribGraphBest13(ctx context.Context, args []string) error {
 		}
 		a := &assertions13{}
 		a.status("inject", command13(ctx, plugin, "request bgp rib inject 10.0.0.1 ipv4/unicast 10.10.1.0/24 aspath 64501,64502"))
-		graph := command13(ctx, plugin, "show bgp rib best graph")
+		graph := command13(ctx, plugin, "show bgp rib best | graph")
 		a.status("best-graph", graph)
 		a.graphIs("best-graph", graph, []uint32{64501, 64502}, []string{ribGraphEdge64501To64502})
 		return a.finish("best-graph")
@@ -522,7 +554,7 @@ func ribGraphFiltered13(ctx context.Context, args []string) error {
 		a := &assertions13{}
 		a.status("inject-1", command13(ctx, plugin, "request bgp rib inject 10.0.0.1 ipv4/unicast 10.10.1.0/24 aspath 64501,64502"))
 		a.status("inject-2", command13(ctx, plugin, "request bgp rib inject 10.0.0.2 ipv4/unicast 10.20.1.0/24 aspath 64601,64602"))
-		graph := command13(ctx, plugin, "show bgp rib received prefix 10.10 graph")
+		graph := command13(ctx, plugin, "show bgp rib | received | prefix 10.10 | graph")
 		a.status("filtered-graph", graph)
 		// 64601 and 64602 ride only on the route the prefix filter excludes.
 		a.graphIs("filtered-graph", graph, []uint32{64501, 64502}, []string{ribGraphEdge64501To64502})
@@ -538,10 +570,10 @@ func ribGraph13(ctx context.Context, args []string) error {
 		a := &assertions13{}
 		a.status("inject-1", command13(ctx, plugin, "request bgp rib inject 10.0.0.1 ipv4/unicast 10.10.1.0/24 aspath 64501,64502,64503"))
 		a.status("inject-2", command13(ctx, plugin, "request bgp rib inject 10.0.0.2 ipv4/unicast 10.10.2.0/24 aspath 64504,64502,64503"))
-		graph := command13(ctx, plugin, "show bgp rib received graph")
+		graph := command13(ctx, plugin, "show bgp rib | received | graph")
 		a.status("graph", graph)
 		a.graphIs("graph", graph, []uint32{64501, 64502, 64503, 64504}, []string{ribGraphEdge64501To64502, "64502>64503", "64504>64502"})
-		empty := command13(ctx, plugin, "show bgp rib received prefix 99.99.99.0/24 graph")
+		empty := command13(ctx, plugin, "show bgp rib | received | prefix 99.99.99.0/24 | graph")
 		a.status("empty-graph", empty)
 		a.graphIs("empty-graph", empty, nil, nil)
 		return a.finish("graph")
@@ -614,13 +646,13 @@ func ribPipeFilter13(ctx context.Context, args []string) error {
 		if err := requireDone13("settle injected route", command13(ctx, plugin, "request quiesce")); err != nil {
 			return err
 		}
-		settled := pollCommand13(ctx, plugin, "show bgp rib count", 40, 250*time.Millisecond, func(result commandResult13) bool {
+		settled := pollCommand13(ctx, plugin, "show bgp rib | count", 40, 250*time.Millisecond, func(result commandResult13) bool {
 			count, ok := countFrom13(result)
 			return done13(result) && ok && count == 2
 		})
 		if count, ok := countFrom13(settled); !done13(settled) || !ok || count != 2 {
-			received := command13(ctx, plugin, "show bgp rib received count")
-			sent := command13(ctx, plugin, "show bgp rib sent count")
+			received := command13(ctx, plugin, "show bgp rib | received | count")
+			sent := command13(ctx, plugin, "show bgp rib | sent | count")
 			receivedCount, receivedOK := countFrom13(received)
 			sentCount, sentOK := countFrom13(sent)
 			return fmt.Errorf("RIB never contained both received and sent routes: total=%d valid=%v received=%d valid=%v sent=%d valid=%v", count, ok, receivedCount, receivedOK, sentCount, sentOK)
@@ -630,9 +662,9 @@ func ribPipeFilter13(ctx context.Context, args []string) error {
 			label, command string
 			directions     []string
 		}{
-			{"scope-received", "show bgp rib received", []string{directionReceived}},
-			{"scope-sent", "show bgp rib sent", []string{directionSent}},
-			{"scope-sent-received", "show bgp rib sent-received", []string{directionReceived, directionSent}},
+			{"scope-received", "show bgp rib | received", []string{directionReceived}},
+			{"scope-sent", "show bgp rib | sent", []string{directionSent}},
+			{"scope-sent-received", "show bgp rib | sent-received", []string{directionReceived, directionSent}},
 			{"scope-default", "show bgp rib", []string{directionReceived, directionSent}},
 		} {
 			result := command13(ctx, plugin, check.command)
@@ -648,14 +680,14 @@ func ribPipeFilter13(ctx context.Context, args []string) error {
 			label, command string
 			count          int
 		}{
-			{"count-total", "show bgp rib count", 2},
-			{"count-received", "show bgp rib received count", 1},
-			{"count-sent", "show bgp rib sent count", 1},
-			{"path-filter", "show bgp rib received path 64501 count", 0},
-			{"community-filter", "show bgp rib received community 65000:100 count", 0},
-			{"family-filter", "show bgp rib received family ipv4/unicast count", 1},
-			{"prefix-filter", "show bgp rib sent prefix 192.168.1.0/24 count", 1},
-			{"combined-filter", "show bgp rib received family ipv4/unicast community 65000:100 count", 0},
+			{"count-total", "show bgp rib | count", 2},
+			{"count-received", "show bgp rib | received | count", 1},
+			{"count-sent", "show bgp rib | sent | count", 1},
+			{"path-filter", "show bgp rib | received | path 64501 | count", 0},
+			{"community-filter", "show bgp rib | received | community 65000:100 | count", 0},
+			{"family-filter", "show bgp rib | received | family ipv4/unicast | count", 1},
+			{"prefix-filter", "show bgp rib | sent | prefix 192.168.1.0/24 | count", 1},
+			{"combined-filter", "show bgp rib | received | family ipv4/unicast | community 65000:100 | count", 0},
 		} {
 			result := command13(ctx, plugin, check.command)
 			a.status(check.label, result)
@@ -663,7 +695,7 @@ func ribPipeFilter13(ctx context.Context, args []string) error {
 				a.failures = append(a.failures, fmt.Errorf("%s count=%d valid=%v want %d", check.label, count, ok, check.count))
 			}
 		}
-		for _, check := range []struct{ label, command string }{{"best-path", "show bgp rib best"}, {"best-prefix", "show bgp rib best prefix 0.0.0.0/0"}} {
+		for _, check := range []struct{ label, command string }{{"best-path", "show bgp rib best"}, {"best-prefix", "show bgp rib best | prefix 0.0.0.0/0"}} {
 			result := command13(ctx, plugin, check.command)
 			a.status(check.label, result)
 			if _, ok := result.object()["best-path"]; !ok {

@@ -39,7 +39,7 @@
 # after config2 answers "action":"accept" for UPDATE A and fails. With that
 # stage removed, the stage after config3 answers accept for UPDATE B and fails.
 # With the peer's announcement removed (the action=send line), the first
-# `show bgp rib received` stage finds no 10.1.0.0/24 and fails, so the RIB
+# `show bgp rib | received` stage finds no 10.1.0.0/24 and fails, so the RIB
 # stages read the route the peer sent.
 option=timeout:value=60s
 option=env:var=ze.log.bgp.reactor:value=info
@@ -55,7 +55,7 @@ option=established-file:path=established
 # LOCAL_PREF 100: announced once the OPEN exchange is done. Both members
 # accept it at startup. Sent once. The dynamic session is held until every
 # plugin finished startup (Reactor.peersStarted); the stages'
-# `show bgp rib received` read it.
+# `show bgp rib | received` read it.
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00000140050400000064180A0100
 # EOR from ze
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
@@ -290,18 +290,18 @@ tmpfs=stages.script:terminator=EOF_SCRIPT
 # and the peer's route is in.
 await-file established
 has show policy test peer 127.0.0.1 import update FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE90000FDEA40030401010101180A0000 => "action":"accept"
-has show bgp rib received => 10.1.0.0/24
+has show bgp rib | received => 10.1.0.0/24
 reload config2.conf
 # After the first: max 1 rejects A; B (length 1) still passes both members.
 has show policy test peer 127.0.0.1 import update FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE90000FDEA40030401010101180A0000 => "action":"reject"
 has show policy test peer 127.0.0.1 import update FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000 => "action":"accept"
-has show bgp rib received => 10.1.0.0/24
+has show bgp rib | received => 10.1.0.0/24
 say MATCH-DEFINITION-RELOAD: the edited as-path-length max rejects
 reload config3.conf
 # After the second: the edited prefix-list rejects B; the route accepted
 # before stays.
 has show policy test peer 127.0.0.1 import update FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000 => "action":"reject"
-has show bgp rib received => 10.1.0.0/24
+has show bgp rib | received => 10.1.0.0/24
 say MATCH-DEFINITION-RELOAD: the edited prefix-list rejects
 EOF_SCRIPT
 

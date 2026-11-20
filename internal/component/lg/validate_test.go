@@ -50,7 +50,7 @@ func TestIsValidPeerName(t *testing.T) {
 //
 // VALIDATES: the three bmpCompositeKey forms (bgp/plugins/bmp/bmp.go), IPv4 and
 // bracketed IPv6 routers, monitored and Loc-RIB peers, are accepted.
-// PREVENTS: a crafted name adding words to `show bgp rib protocol bmp peer
+// PREVENTS: a crafted name adding words to `show bgp rib protocol bmp | peer
 // <key>`: the command tokenizer (plugin/server/command.go tokenize) splits on
 // space and tab, groups on a double quote, and the pipe parser cuts on '|'.
 func TestIsValidBMPPeerKey(t *testing.T) {

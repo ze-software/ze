@@ -212,7 +212,7 @@ func TestOperatorSeesGraphBox(t *testing.T) {
 	assert.Contains(t, structured, `"asn": 65001`)
 }
 
-// TestGraphTerminalViaProtocolPipeline: `show bgp rib protocol bmp graph` (and
+// TestGraphTerminalViaProtocolPipeline: `show bgp rib protocol bmp | graph` (and
 // `show bmp rib`, which relays it) answers the same structured document, a
 // JSON object an SDK marshal accepts, not box text passed off as JSON.
 //
