@@ -9,11 +9,91 @@
 | Depends | `plan/release/fixes/spec-ipsec-lifetime-volume.md` (owns the Section 4.4.2.1 byte-count SAD lifetime); `plan/release/validation/spec-rfcgate-6-supported-extraction-signoff.md` (owns the `rfc4301` extraction sign-off, `rfc/extraction/rfc4301.json`, and the ledger scope set; this spec supplies the implemented obligations and the 12 held sites' evidence the walk classifies) |
 | Phase | 2c -- D-1 to D-6 landed; AC-4 remainder, AC-8 red proofs, `.ci` promotion and interop proof in progress |
 | Handoff | - |
-| Updated | 2026-11-19 |
+| Updated | 2026-11-20 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-## Current continuation checkpoint, 2026-11-19 (evening)
+## Current continuation checkpoint, 2026-11-20
+
+Every commit named here is on local `main` (read with `git log` on
+2026-11-20); none is pushed. The 2026-11-19 evening checkpoint below is history.
+
+### Thomas's decisions of 2026-11-20
+
+- Decision 1 (c) and decision 6 (a) were already recorded (see "Owner decisions
+  recorded through 2026-11-19", the 2026-11-20 paragraphs).
+- New: open decision 2 is answered "refusal until done". A port-scoped operator
+  BYPASS is refused at commit, not reported by a notice, until the forward-path
+  stateful fragment check is done. Recorded in the Open decisions table below and
+  in "Owner decisions recorded through 2026-11-19".
+
+### Landed on 2026-11-20
+
+| Commit | What it holds | Still owed |
+|---|---|---|
+| `df3221e7b8` | A MOBIKE SA survives an interface-address move | the `mobike-initiator` and `mobike-responder` interop runs |
+| `40cf3cfaec`, `78d79ad79a` | K1 bit 6: the kernel maps a forwarded ICMP error past a discard; the stock-kernel return route (OUT allows at `dataplane.PriorityICMPErrorReturn`, nftables table `ze_ipsec_icmp_error_return`, doctor check `ipsec-icmp-error-return`) retired | none for bit 6 itself |
+| `3aef55597f` | Bit-6 guest proof on arm64 `qemu-c860ed8b`, as root: `TestRFC4301ForwardedICMPErrorsMapUnderDiscard`, `TestRFC4301ForwardedICMPErrorUnderOperatorDiscardMapsToReturnSA`, `TestRFC4301OperatorEntryDecidesTransitTraffic`, `TestRFC4301TransitFromIKEPortIsNotBypassed` PASS. Two fixtures corrected against the product (judge-approved). Known red there, owned by bit 7: `TestRFC4301ForwardedICMPUsesPayloadPolicy` at if_id 0 | none |
+| `df31eb1c63` | `test/parse/ipsec-spd-order-total.ci` and `test/parse/ipsec-spd-discard-beside-default-peer.ci` promoted after 40 of 40 stress invocations | a red run of each, as its commit body records |
+| `a29420771d` | Decision 2, the refusal: a commit refuses a port-scoped `vpn ipsec policy` BYPASS on an XFRM dataplane unless its local prefix is one address this host holds. At start the entry is installed and logged at Error (decision 3), and doctor check `ipsec-spd-forward-bypass` reports it with the fix. Tests: `TestRFC4301PortScopedForwardBypassRefusedAtCommit`, `TestPortScopedForwardBypassRefusalCoversBothPortsAndUnreadableAddresses`, `TestPortScopedForwardBypassAtStartIsLoggedAndReportedByDoctor` | the guest draft `test/draft/ipsec/ipsec-spd-forward-bypass-refused.ci` |
+| `4663a5e15e` | K1 bit 7, a forwarded ICMP error past a transit gate. `XFRM_POLICY_ICMP` is set on the FWD gates only, not the OUT gates | the bit-7 kernel build and guest run |
+| `7234fdfecc` | AC-13: the four records for `RFC7296-3.13.1-1` and `-2` | a freshness check only |
+
+### Written, uncommitted, unit tests not run
+
+The "done" half of decision 2. `dataplane.ForwardFragmentGatherer`
+(`dataplane/forward_fragments.go`, new) answers from K3's capability bit 3
+(`xfrmZECapFragmentGuard`, `xfrmBackend.GathersForwardFragments` in
+`dataplane/xfrm_state_scope_linux.go`). With bit 3 a port-scoped BYPASS is
+projected onto FWD (`spdEntryHasTransit`, `spdForwardGathers` in
+`engine/spd_policy.go`) and the refusal of `a29420771d` does not apply. A backend
+that declares nothing is taken not to gather. Tests: new tagged
+`TestPortScopedBypassForwardPathFollowsFragmentGathering` (the `RFC4301-7.4-2`
+positive), a new phase in `TestRFC4301ForwardedFragmentsRespectOperatorDisposition`,
+and a strengthened `dataplane.TestXFRMPortScopedBypassIsNeverStoredOnTheForwardPath`.
+The judge's approvals are recorded.
+
+### Guest runs, 2026-11-20
+
+| Test | Where | Result |
+|---|---|---|
+| `test/draft/ipsec/ipsec-spd-discard-entry.ci` | `qemu-c860ed8b` | PASS |
+| `test/draft/ipsec/ipsec-spd-order-readback.ci` | not run | the guest build broke on another session's L2TP edit, since fixed |
+| `test/draft/ipsec/ipsec-spd-forward-bypass-refused.ci` (new) | not run | |
+
+### Open question on `516671704b`
+
+This spec records `TestRFC4301ForwardedICMPUsesPayloadPolicy` passing at
+`516671704b`. Code reading contradicts that pass: the FWD gate existed there
+(`072ef5bf1f`) and matches the error, and the FWD check is identical between the
+two kernels. The untested hypothesis is `DST_NOPOLICY`. The bit-7 guest run, which
+is owed, supersedes the question.
+
+### Pending owner questions
+
+| # | Question | Evidence | Recommendation |
+|---|---|---|---|
+| A | Bit 7's flag is set on the FWD gates only, not the OUT gates | an OUT gate carrying the flag would let stock `icmp_route_lookup` source Ze's own error from the far end | keep it on FWD gates only |
+| B | An `in` BYPASS's FWD decision (a template-free allow at the operator's order) can match a forwarded ICMP error by its own headers too, which the bit-7 ruling does not cover | RFC 4301 Section 5.2 step 4 requires the payload match | flag it as well; it is stricter |
+| 3, 4, 5 | As in the Open decisions table below | unchanged | unchanged |
+
+### Owed next, in order
+
+1. The arm64 bit-7 kernel build (running).
+2. The `ike/engine`, `ike/dataplane`, `cmd` and `ospf` unit tests and lint.
+3. Guest runs: the bit-7 ICMP tests, the scope tests, the fragment test, and the
+   two drafts `ipsec-spd-order-readback.ci` and `ipsec-spd-forward-bypass-refused.ci`.
+4. The docker-host image rebuilt from the bit-7 kernel.
+5. Six interop red walks, patches in `tmp/session/2026-11-20-035940/scratch`:
+   `break-df-clear`, `break-df-copy`, `break-spd-out`, `break-spd-in`,
+   `break-pad-true`, `break-pad-false`, each with its predicted red assertions.
+6. The `mobike-initiator` and `mobike-responder` interop runs.
+7. Four `./le rfc record` lines for `RFC4301-7.4-2`.
+8. The AC-13 freshness check.
+9. The five rows of "Summary rows that disagree with this spec".
+10. Independent review, then closure.
+
+## Historical continuation checkpoint, 2026-11-19 (evening)
 
 Every commit below is on local `main` and none is pushed. The sections after
 this one are history. Where they name the reserved SPD priority band (orders
@@ -64,7 +144,7 @@ None of these is answered by the RFC text, an agreed design or
 | # | Decision | Options | Recommendation |
 |---|---|---|---|
 | 1 | Mapping a forwarded ICMP error that an operator out or both DISCARD covers | DECIDED 2026-11-20, option (c), the kernel route; recorded in "Owner decisions recorded through 2026-11-19" | none left |
-| 2 | A commit-time notice for a port-scoped operator BYPASS, which is not projected onto the forward path until K3's capability bit 3 exists | a notice at commit, or none | none recorded |
+| 2 | A commit-time notice for a port-scoped operator BYPASS, which is not projected onto the forward path until K3's capability bit 3 exists | DECIDED 2026-11-20, "refusal until done": the commit refuses it, not a notice, until the forward-path stateful fragment check is done (`a29420771d`); recorded in "Owner decisions recorded through 2026-11-19" | none left |
 | 3 | The 13 phase-4 Mobility Header mutation walks: the list was lost | rebuild it from the 15 untagged candidate tests that exist, or define a new list | none recorded |
 | 4 | The premise of `bypass-fragment-forgery` after D-4: no node-wide IKE bypass exists to forge fragments against | retarget it to an operator port-scoped BYPASS (AC-2) in a K1/K3 lab | retarget |
 | 5 | Carried from the handover: the interface binding of VPP SPD entries; the RFC 4301 sign-off scope in `plan/release/validation/spec-rfcgate-6-supported-extraction-signoff.md`; whether decision 3 covers a catch-all install failure at boot | as recorded in the handover | none recorded |
@@ -641,14 +721,21 @@ has been compiled natively, and no packet has crossed any of them.
 |---|---|---|---|
 | K1, state scope | `gokrazy/kernel/patches/0003-xfrm-state-scope.patch` | A state can carry an immutable, reference-counted OR-set of up to 64 directional inner selectors with a non-initial-fragment flag (netlink attribute `XFRMA_STATE_SCOPE`). The flow decoder marks which fields a packet really carries, so an unavailable port is never read as an exact 0. The ICMP paths decode the quoted packet through that same decoder. A read-only capability receipt (`XFRMA_ZE_CAPS`: feature bits, selector limit, guard references, ABI number) rides the default-policy answer | `xfrmStateScopeFromParams` writes the attribute from `SAParams.Scope`; `xfrmStateScopeFromAttrs` reads it back; `checkXFRMStateScopeCapabilities` refuses any explicit scope unless the ABI matches and feature bits 0 to 3 are all present |
 | K2, fragment context | `gokrazy/kernel/patches/0004-ip-fragment-xfrm-context.patch` | The IPv4, IPv6 and conntrack reassembly queue keys carry the state scopes the fragment arrived under (up to the secpath depth), with their references and memory charge, so fragments that arrived under different protection are never reassembled together. It sets capability bit 2 | nothing new; Ze reads bit 2 in the receipt |
-| K3, fragment guard | `gokrazy/kernel/proposals/xfrm-fragment-reassembly.patch`, outside the series | Reassembly before the policy decision for traffic a port-scoped entry could match, raw-socket route deferral and output permission, under a new kernel option. It would set capability bit 3 | nothing yet |
+| K3, fragment guard | `gokrazy/kernel/patches/0005-xfrm-fragment-guard.patch`, in the series as 0005 (read 2026-11-20; it was a proposal outside the series when this table was written) | Reassembly before the policy decision for traffic a port-scoped entry could match, raw-socket route deferral and output permission, under a new kernel option. It sets capability bit 3 | Ze reads bit 3 (`xfrmZECapFragmentGuard`) through `xfrmBackend.GathersForwardFragments`, uncommitted on 2026-11-20; with it a port-scoped BYPASS is projected onto FWD and the commit refusal of `a29420771d` does not apply |
 
-What Ze installs today: nothing through this path. No engine function calls
-`dataplane.NewSAStateScope`, so `SAParams.Scope` is nil on every Child SA, and
-the series advertises bits 0 to 2 only, so `checkXFRMStateScopeCapabilities`
-would refuse a scope if one were set. A single-pair tunnel SA carries its
-selector on the inbound state instead (`tunnelStateSelectorSupported`,
-`inboundStateSelector`); a multi-pair SA carries none.
+What Ze installs today (read at the tree on 2026-11-20): on a backend that
+declares `dataplane.SAStateScopeInstaller` and answers `SAStateScopeSupported`,
+`installChildSAs` (`engine/child.go`) sets a state scope on both Child SA states
+through `childStateScope` (`engine/child_scope.go`), which calls
+`dataplane.NewSAStateScope` with the SA's full directional selector set and
+non-initial-fragment permission false; in transport mode the legacy state
+selector is the scope's single record. On any other backend a single-pair tunnel
+SA still carries its selector on the inbound state (`tunnelStateSelectorSupported`,
+`inboundStateSelector`) and a multi-pair SA carries none. The series now
+advertises bits 0, 1, 5, 6 and 7 from K1 (`0003`), bit 2 from K2 (`0004`), and
+bit 3 from K3 (`0005`) only when `CONFIG_XFRM_FRAGMENT_GUARD` is built and the
+guard is ready. `checkXFRMStateScopeCapabilities` requires bits 0, 1, 2, 3, 5, 6
+and 7 and knows bit 4, which no patch sets.
 
 Known defect in the K3 proposal, from its review (handover of 2026-11-13):
 authenticated IPv6 transport ESP can carry plaintext Fragment headers and reach
@@ -679,6 +766,14 @@ unmet list. `./le rfc check` says whether each record still verifies.
 | `RFC4301-7.3-5` | the inbound entry carries the selector and template; `TestRFC4301FragmentsOfANonCompliantPacketAreDiscarded` | a forwarded fragment of a port-specific Child SA misses its policy and meets the catch-all, in clear under `unmatched bypass` (owned row `silent-fall-through.md`) | `{partial}`: tested, a fragment delivered to this node; gap, a forwarded fragment under `unmatched bypass`; this spec |
 | `RFC4301-4.4.1.1-3` | an entry requiring one port carries that exact port | the same forwarded case: the fragment is not discarded, it meets the catch-all | `{partial}`: tested, the selector Ze installs; gap, the forwarded fragment's disposition under `unmatched bypass`; this spec |
 | `RFC4301-4.4.1-4` | the operator orders peers; an unstated order is never 0; an order that captures IKE is refused | D-2: equal orders on overlapping entries are accepted and resolved by install order | `{partial}`: tested, distinct orders; gap, equal orders on overlapping entries; this spec |
+
+Added 2026-11-20: the prose under the FWD row of `rfc/short/rfc4301.md`'s
+fragment table (around line 394) says "every port-scoped BYPASS Ze can install
+is confined to IN and OUT." That is false on Ze's kernel: with K3's capability
+bit 3, the uncommitted "done" half of decision 2 projects a port-scoped BYPASS
+onto FWD. Without bit 3 the commit refuses it (`a29420771d`), except a bypass
+whose local prefix is one address this host holds. The text needs rewriting with
+the `RFC4301-7.4-2` records.
 
 On 2026-11-19 the summary's Purpose line was corrected to describe Ze's native
 IKEv2 engine, and its Enrolment reason to count the 104 rows the file holds
@@ -744,6 +839,18 @@ share a kernel selector, which Ze refuses at commit, and the test now runs
 `verifySPDOrder`. And an open question: this spec records
 `TestRFC4301ForwardedICMPUsesPayloadPolicy` passing at `516671704b`, which already
 held D-3 (`072ef5bf1f`), so that pass is unexplained until it is re-read.
+
+Also on 2026-11-20 Thomas answered open decision 2, the port-scoped operator
+BYPASS that the forward path cannot judge on a stock kernel: "refusal until
+done". The commit refuses such an entry, never a notice, until the forward-path
+stateful fragment check (RFC 4301 Section 7.4) is done. `a29420771d` implements
+the refusal: on an XFRM dataplane a `vpn ipsec policy` bypass with a local or
+remote port is refused unless its local prefix is one address this host holds;
+VPP, a discard with a port and an any-port bypass are not refused; at start the
+entry is installed and logged at Error (decision 3) and doctor check
+`ipsec-spd-forward-bypass` reports it. The "done" half, written and not yet
+committed on 2026-11-20, lifts the refusal and projects the bypass onto FWD when
+the kernel advertises K3's capability bit 3 (`dataplane.ForwardFragmentGatherer`).
 
 This table preserves the choices and evidence recorded at that time. Decision 1
 subsequently selected the full kernel route, whose product fix is now closed.
@@ -847,7 +954,8 @@ pass under race/verbose execution (`job-ipsec-selector-default-units-87450c7b.lo
 and the guest preserves all four ANY packet deliveries plus typed exact refusal
 (`job-ipsec-engine-boundary-guest-b39a72f7.log`). The 13 native mutation walks,
 four AC-13 RFC records, affected audit reseals and broader scoped regression
-remain owed. This does not close phase4 or another outstanding phase. The phase
+remain owed. Update 2026-11-20: the four AC-13 records for `RFC7296-3.13.1-1`
+and `-2` exist (`7234fdfecc`); only their freshness check is owed. This does not close phase4 or another outstanding phase. The phase
 metadata was corrected at this resumption checkpoint; it had remained unset
 during the initial edits.
 
@@ -1356,7 +1464,7 @@ remaining requirements or its own final Review Gate.
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
 | AC-1 | An operator writes an SPD entry whose action is discard | traffic this node sends or receives that matches the entry is dropped by the installed policy (`block` on XFRM, `IPSEC_API_SPD_ACTION_DISCARD` on VPP), and a disposition a backend cannot express is refused, never substituted (`xfrmPolicyAction`). Forwarded traffic is AC-16, a failed install is AC-14, and the default-configuration refusal is AC-19 | Traffic the entry does not name keeps the disposition of the entry it does match, because a discard is one entry of an ordered database |
-| AC-2 | A forwarded non-initial fragment arrives whose addresses and protocol match a port-scoped BYPASS or DISCARD entry, or a port-specific Child SA policy | Under the route owner decision 1 selects: with the kernel route, the fragment takes the disposition of the packet it belongs to, and a fragment that belongs to none is dropped and counted in the kernel's XFRM statistics; with the refusal route, the commit that would install the port-scoped entry on a forwarding node is refused, naming the entry and the any-port form that is accepted. Proof: `TestRFC4301ForwardedFragmentsRespectOperatorDisposition` and `TestRFC4301CleartextFragmentsRespectOperatorDisposition`, observed on Ze's kernel | Fragments under an any-port entry or SA pass, because RFC 4301 Section 7.1 lets such an SA carry every fragment; fragments addressed to this node are reassembled before the check and take the whole packet's disposition |
+| AC-2 | A forwarded non-initial fragment arrives whose addresses and protocol match a port-scoped BYPASS or DISCARD entry, or a port-specific Child SA policy | Under the route owner decision 1 selects: with the kernel route, the fragment takes the disposition of the packet it belongs to, and a fragment that belongs to none is dropped and counted in the kernel's XFRM statistics; with the refusal route, the commit that would install the port-scoped entry on a forwarding node is refused, naming the entry and the any-port form that is accepted. Proof: `TestRFC4301ForwardedFragmentsRespectOperatorDisposition` and `TestRFC4301CleartextFragmentsRespectOperatorDisposition`, observed on Ze's kernel. Status 2026-11-20: for an operator port-scoped BYPASS entry the kernel route is implemented (uncommitted, unit tests not run): with K3's capability bit 3 the entry is projected onto FWD and the kernel reassembles before the check; the commit refusal of `a29420771d` applies only on a kernel without bit 3. A fragment of no permitted datagram is dropped: an IPv4 orphan fragment expires in reassembly and is counted as `ReasmTimeout` in the kernel's SNMP counters, not in the XFRM statistics, so the "counted in the kernel's XFRM statistics" wording above does not hold for that case. Port-specific Child SA selectors are not covered by this change. The new phase of `TestRFC4301ForwardedFragmentsRespectOperatorDisposition` has not run in the guest yet | Fragments under an any-port entry or SA pass, because RFC 4301 Section 7.1 lets such an SA carry every fragment; fragments addressed to this node are reassembled before the check and take the whole packet's disposition |
 | AC-3 | An administrator writes a discard entry for one ICMP type with `direction in` | an ICMP message of that type arriving in clear for this node is dropped, and one of another type is delivered (`TestKernelICMPSelectorDropsOnlyTheNamedMessages`, `test/ipsec/ipsec-icmp-type-selector.ci`). This covers traffic addressed to this node only. Transit ICMP is AC-16, and ICMP arriving on a Child SA is AC-18 | Every ICMP type the entry does not name is delivered, because the control is per type; type 0 with a code range holding 0 on an out or both entry stays refused (`validateICMPFragments`) |
 | AC-4 | A protected transit ICMP error message arrives whose payload header, with source and destination addresses and ports reversed, does not match the traffic selectors of the SA it arrived on | the message is dropped when the check is configured, and forwarded when an SPD entry explicitly allows carriage of such traffic. Proof for the forwarded case: `TestRFC4301ForwardedICMPUsesPayloadPolicy`, `TestRFC4301ForwardedICMPErrorsMapUnderDiscard`; for local delivery: `TestICMPErrorPayloadHeaderCheckedOnLocalDelivery`. Status 2026-11-19 (evening): the forwarded half is green on amd64 (`516671704b`: OUT allows at `dataplane.PriorityICMPErrorReturn`, the nftables table `ze_ipsec_icmp_error_return`, doctor check `ipsec-icmp-error-return`). Still owed, by the owner decision of 2026-11-20 (the kernel route): the K1 extension so the forwarded path tries `xfrm_out_fwd_icmp` on a BLOCK (`-EPERM`); its K1 feature bit; the engine's requirement of that bit, as for bit 5; removal of the stock-kernel OUT allows and the nftables table `ze_ipsec_icmp_error_return`; and a namespace packet test in which an operator out DISCARD covers a forwarded mappable error and the error is mapped into the return SA, with its negative, a non-mappable error under the same discard dropped. Also owed: a forwarded parameter-problem, a namespace test of a local error under the mapping, and refusal A extended to the D-3 gates | An error whose embedded header matches the SA is delivered or forwarded, which is the Section 6.2 processing; a peer with `icmp-error-check false` skips the check by the operator's choice |
 | AC-5 | An SPD entry names an ICMP type and a code or code range, ANY port, or one port | the selector is programmed exactly (a code range as mask-aligned blocks, `spdICMPMatches`), and an entry the backend cannot program exactly is refused rather than widened. A port range is refused today (`parseSPDPort`), which meets "never widened" and does not meet RFC 4301 Section 4.4.1.1: "Each of these selectors has a list of ranges of values." The port range stays a gap on `RFC4301-4.4.1.1-1`; since 2026-11-19 its home is AC-14 of `plan/post-release/features/spec-ipsec-opaque-selector-port-mask.md` | ANY port, one port, ANY type, one type with ANY code or a code range are all programmed; a port range, OPAQUE and an exact Mobility Header type are refused until their owning work lands |
@@ -1370,12 +1478,13 @@ remaining requirements or its own final Review Gate.
 | AC-13 | A configured or peer-proposed selector names a port under a protocol with undefined ports, including 47 and 50 as well as 0 | Refuse or narrow the selector without emitting a specific port; RFC7296-3.13.1-1 and RFC7296-3.13.1-2 have discriminating tests and independent enforced verdicts. Owns the weak verdicts transferred under P-3 from spec-rfc-verdict-fix-ike-eap | ANY port under such a protocol is accepted and emitted as 0 to 65535, as RFC 7296 Section 3.13.1 sets it; ANY Mobility Header type stays usable |
 | AC-14 | An operator DISCARD or BYPASS entry fails to install, on a first apply or after an in-place edit (D-1) | the apply fails with an operator error naming the entry, the cause and the command that retries, and the commit is refused. For an edited entry the dataplane still holds the previous form, so matching traffic stays dropped throughout: the new form is installed before the old one is removed wherever their selectors differ, and replaced in place where they are equal. Tests: `TestRFC4301FailedOperatorEntryInstallRefusesTheApply` (engine, through `applyConfig`), `TestRFC4301DiscardHoldsAcrossAnEditedEntry` (netns packet test), `test/ipsec/ipsec-spd-discard-entry.ci`. At start-up, by owner decision 3 (a) of 2026-11-19, there is no commit to refuse: Ze installs every entry it can, logs each one that fails at Error with its name, cause and fix, and `ze doctor` reports it with the same fix; the IPsec block is never refused at start. Status 2026-11-19 (evening): both Go tests exist and `TestRFC4301DiscardHoldsAcrossAnEditedEntry` passes on amd64; the `.ci` is the draft `test/draft/ipsec/ipsec-spd-discard-entry.ci`, not yet run (it needs the guest), then stress and promotion | A platform with no XFRM at all still runs the control plane (`isXFRMUnsupported`), because no dataplane exists there to hold any entry; a removal that finds nothing stays silent |
 | AC-15 | Two operator entries, or an operator entry and a peer, overlap in selector and direction and carry the same order, including two entries left at the default (D-2) | the commit is refused, naming both entries, the shared order and the `set vpn ipsec policy <name> order <n>` command that separates them, which is what the YANG `name` leaf already promises. Entries that do not overlap keep equal orders. The dataplane receives the entries in order, never in map order. Tests: `TestSPDPolicyEqualOrderOnOverlapRefused` (engine, `engine/rfc4301_spd_order_total_test.go`, the recorded negative of `RFC4301-4.4.1-4`), `test/parse/ipsec-spd-order-total.ci`, `test/ipsec/ipsec-spd-order-readback.ci`. Status 2026-11-19 (evening): the Go test exists with its record; `test/draft/parse/ipsec-spd-order-total.ci` passes as a draft, stress and promotion owed; `test/draft/ipsec/ipsec-spd-order-readback.ci` not yet run (it needs the guest) | Entries whose selectors or directions do not overlap may share an order, because no packet matches both and so no order between them is observable |
-| AC-16 | A gateway operator writes a bypass or a discard entry for traffic forwarded between a protected host and the outside (D-3) | the entry decides that traffic in both forwarding directions, and `show vpn ipsec dataplane policy` lists its forward projection. On XFRM, for an entry with direction in or both, the in half's selectors are installed in FWD at the entry's order: these are the decisions. A BYPASS also gets gates, template-free allows at `dataplane.PriorityTransitGate`, just above the catch-all: its in selectors in OUT and its out selectors in FWD. The gates are not at the entry's order, because at the entry's order the OUT gate of an `in` any-to-any bypass would outrank every Child SA's outbound PROTECT policy. A non-initial fragment is handled as AC-2 says. Test: `TestRFC4301OperatorEntryDecidesTransitTraffic` (netns packet test with a protected host, a positive control that passes and the discarded flow that does not). Status 2026-11-19 (evening): landed in `072ef5bf1f`; the test passes at `0c283fffc6` and goes red with `spdTransitPolicies` emptied; the order checks now judge the forward entries (`TestSPDOrderJudgesTheForwardEntries`) and a peer's P and P+1 entries. Defect found 2026-11-20: a BYPASS's FWD gate matches a forwarded ICMP error that arrived on a Child SA, so the consistent error is rejected (`TestRFC4301ForwardedICMPUsesPayloadPolicy` red at if_id 0 on `qemu-c860ed8b`). Owed, by the owner decision of 2026-11-20: the K1 bit 7 hunk, `XFRM_POLICY_ICMP` on every transit gate, the engine's requirement of bit 7, the scope tests' complete receipt moved to 255 or as the bit list says, and the guest run | Forwarded traffic no operator entry names keeps the Child SA policy or the final disposition. A port-scoped BYPASS is not projected (RFC 4301 Section 7.4, `LL-XFRM-FRAGMENT-SELECTOR`, owner decision 1, the kernel route), so forwarded traffic on its ports fails closed under `unmatched discard`; a port-scoped DISCARD is projected. An `in` ICMP entry whose selector holds type 0 code 0 is not projected, because every forwarded fragment reads as that type and code. VPP needs no forward entry, because its inbound SPD applies before routing |
+| AC-16 | A gateway operator writes a bypass or a discard entry for traffic forwarded between a protected host and the outside (D-3) | the entry decides that traffic in both forwarding directions, and `show vpn ipsec dataplane policy` lists its forward projection. On XFRM, for an entry with direction in or both, the in half's selectors are installed in FWD at the entry's order: these are the decisions. A BYPASS also gets gates, template-free allows at `dataplane.PriorityTransitGate`, just above the catch-all: its in selectors in OUT and its out selectors in FWD. The gates are not at the entry's order, because at the entry's order the OUT gate of an `in` any-to-any bypass would outrank every Child SA's outbound PROTECT policy. A non-initial fragment is handled as AC-2 says. Test: `TestRFC4301OperatorEntryDecidesTransitTraffic` (netns packet test with a protected host, a positive control that passes and the discarded flow that does not). Status 2026-11-19 (evening): landed in `072ef5bf1f`; the test passes at `0c283fffc6` and goes red with `spdTransitPolicies` emptied; the order checks now judge the forward entries (`TestSPDOrderJudgesTheForwardEntries`) and a peer's P and P+1 entries. Defect found 2026-11-20: a BYPASS's FWD gate matches a forwarded ICMP error that arrived on a Child SA, so the consistent error is rejected (`TestRFC4301ForwardedICMPUsesPayloadPolicy` red at if_id 0 on `qemu-c860ed8b`). Owed, by the owner decision of 2026-11-20: the K1 bit 7 hunk, `XFRM_POLICY_ICMP` on every transit gate, the engine's requirement of bit 7, the scope tests' complete receipt moved to 255 or as the bit list says, and the guest run. Status 2026-11-20: bit 7 landed in `4663a5e15e`, with `XFRM_POLICY_ICMP` on the FWD gates only (pending owner question A in the current checkpoint); the bit-7 kernel build and guest run are owed. Open decision 2 was decided "refusal until done": `a29420771d` refuses a port-scoped BYPASS at commit on a kernel without K3's bit 3 (AC-22) | Forwarded traffic no operator entry names keeps the Child SA policy or the final disposition. A port-scoped BYPASS is not projected only on a kernel without K3's capability bit 3 (RFC 4301 Section 7.4, `LL-XFRM-FRAGMENT-SELECTOR`, owner decision 1, the kernel route); there the commit refuses it (AC-22), and one whose local prefix is one address this host holds is accepted and not projected, so forwarded traffic on its ports fails closed under `unmatched discard`. With bit 3 it is projected (uncommitted on 2026-11-20); a port-scoped DISCARD is projected either way. An `in` ICMP entry whose selector holds type 0 code 0 is not projected, because every forwarded fragment reads as that type and code. VPP needs no forward entry, because its inbound SPD applies before routing |
 | AC-17 | A protected host behind Ze sends UDP with source port 500 or 4500 to a destination a tunnel's selectors cover, under `unmatched bypass` and under `unmatched discard` (D-4) | Route, by owner decision of 2026-11-19: Ze's IKE bypass is per-socket XFRM policies on Ze's own IKE sockets, as strongSwan does, and the node-wide any-address UDP port 500 and 4500 bypass (`ikeBypassPolicies`, `installIKEBypass`) is removed. The packet leaves inside the tunnel under both, never in clear, while Ze's own IKE exchange with the same peer still completes a rekey. The positive control, ordinary transit from the same host, is carried by the tunnel under both values. Test: `TestRFC4301TransitFromIKEPortIsNotBypassed` (netns packet test; the peer's inbound SA counter and a cleartext capture on the outside link are the two observations). MET 2026-11-19: `e700fb7392` removes the node-wide bypass and deletes `engine/bypass.go`; red observed at `69fc643e50` (transit UDP from source ports 500 and 4500 left in clear under `unmatched bypass`, amd64 guest, K1 kernel `docker-1562c4ae`), green at `e700fb7392`; `ce5c276457` fixes the test's 9-octet IKE reply and the forwarding defect the positive control exposed under `unmatched discard`. Passing: `TestRFC4301TransitFromIKEPortIsNotBypassed` under both values, `TestRFC4301IKESocketsCarryTheirOwnBypass`, 40 MOBIKE tests. The R-8 interop set ran 2026-11-19, result recorded in the commit that follows | Ze's own IKE datagrams on UDP 500 and 4500 stay exempt, in and out, because RFC 4301 Section 5.2 gives IKE traffic an explicit BYPASS entry |
 | AC-18 | A non-error ICMP message arrives on a Child SA from outside its selectors, with the bytes after its ICMP header forged to match the SA, on a peer with the default `icmp-error-check` (D-5) | the message is dropped and the SA's selector mismatch is counted, while an ICMP error whose embedded header matches is still delivered (the Section 6.2 processing). Test: `TestRFC4301NonErrorICMPOutsideSelectorsIsDiscarded` (netns packet test, with the consistent error as its positive control). Status 2026-11-19 (evening): passes on Ze's 7.3 kernel with the K1 series, amd64 guest | An ICMP error whose embedded header, reversed, matches the SA is delivered, because that is the Section 6.2 processing; non-error ICMP inside the selectors is delivered as any packet is |
 | AC-19 | An operator commits a discard entry with the default direction and protocol beside a policy-based peer with the default `icmp-error-check` (D-6) | the commit is accepted and the entry drops the traffic it names, ICMP included. Route, by owner decision of 2026-11-19: the kernel honours the discard. K1 is extended so the reverse ICMP-error check never overrides an operator DISCARD entry, and the commit refusal `refuseICMPCheckDiscard` goes (decision 4 is superseded). No refusal or recipe tells the operator to turn the Section 6.2 check off to get a working discard. Tests: `test/parse/ipsec-spd-discard-beside-default-peer.ci`, and the packet half in `TestRFC4301NonErrorICMPOutsideSelectorsIsDiscarded`. Status 2026-11-19 (evening): `refuseICMPCheckDiscard` is gone; the packet half passes on amd64; `test/draft/parse/ipsec-spd-discard-beside-default-peer.ci` passes as a draft, stress and promotion owed | Refusal A stays: a bypass that would carry an ICMP error in clear beside a peer whose SAs map it (owner ruling 2026-11-12, "refuse at commit") |
 | AC-20 | Ze's kernel is built with the patch series and a multi-pair Child SA is installed (phase 2b) | the receipt reports the ABI number and the feature bits the series provides; the engine sets the SA's complete directional selector set as its state scope; a decrypted packet outside every pair of its own SA is dropped although a sibling SA's policy would admit it; `show vpn ipsec dataplane sa` reads the scope back. On a kernel without the receipt the install is refused with the kernel build command named. Tests: `TestRFC4301KernelAdvertisesExactStateScope`, `TestRFC4301ChildStateScopeReadback`, `TestRFC4301MultipairSAsRejectSiblingScope`, `TestRFC4301ParallelMultipairSAsKeepPermittedDelivery`, in the QEMU guest. Owed only under owner decision 1 (a) or (c) | A single-pair SA keeps its legacy state selector, byte-identical to its one scope record; a packet inside any pair of its own SA is delivered (`TestRFC4301ParallelMultipairSAsKeepPermittedDelivery`) |
 | AC-21 | A Child SA is installed on Linux 6.10 or later, and `show vpn ipsec dataplane sa` reads it back (owner decision 2 (a), 2026-11-19) | CLOSED 2026-11-19 by the owner; evidence in the AC-21 evidence paragraph of the current checkpoint. the inbound state reads back `in` and the outbound one `out`, each showing only its own options (the ICMP error check on `in`; DF and outer DSCP on `out`); the outbound state carries no anti-replay window and the inbound one keeps the negotiated 64 (RFC 4301 Section 4.4.2.1: the window is "used to determine whether an inbound AH or ESP packet is a replay"); an `SAParams` with `Dir` out and a nonzero window, or with `Dir` fwd, is refused before the kernel as a Ze defect; the OSPFv3 per-neighbor outbound state drops its window too. Tests: `TestXFRMStateCarriesTheSADirection`, `TestXFRMStateReplayWindowOnlyOnTheReceivingSA`, `TestXFRMStateRefusesADirectionNoStateCarries` (dataplane, linux), `TestXFRMReadbackReportsTheDirectionZeInstalled` (kernel readback, QEMU guest), `TestChildSAReplayWindowDefault` (engine), `TestIPsecSAReplayWindowOnlyOnTheReceivingSA` (ospf), `TestVPPSAFlagsAntiReplayPerDirection` (ze_vpp) | A zero-`Dir` state, the RFC 4552 OSPFv3 multicast SA serving both directions, is installed without a direction and keeps its window; a kernel older than 6.10 ignores the attribute and reads back `unknown`; the VPP outbound SA carries no window and so no `USE_ANTI_REPLAY`, and still refuses a cycled counter, because VPP v26.06 `esp_seq_advance` does so on every outbound SA (RFC 4303 Section 3.3.3) |
+| AC-22 | An operator commits a `vpn ipsec policy` BYPASS with a local or remote port on an XFRM dataplane whose kernel does not advertise K3's capability bit 3 (owner decision 2, "refusal until done", 2026-11-20) | the commit is refused with the entry named and the fix, unless the entry's local prefix is one address this host holds (traffic to and from Ze is reassembled before the IN check and classified before fragmentation); a host address list that cannot be read refuses rather than guesses. At start, by decision 3 (a), the entry is installed and logged at Error, and doctor check `ipsec-spd-forward-bypass` reports it with the fix. With bit 3 the refusal does not apply and the entry is projected onto FWD (AC-2, AC-16). Landed in `a29420771d`. Tests: `TestRFC4301PortScopedForwardBypassRefusedAtCommit`, `TestPortScopedForwardBypassRefusalCoversBothPortsAndUnreadableAddresses`, `TestPortScopedForwardBypassAtStartIsLoggedAndReportedByDoctor`, which its commit records passing on darwin; `test/draft/ipsec/ipsec-spd-forward-bypass-refused.ci` not run yet. The bit-3 positive is `TestPortScopedBypassForwardPathFollowsFragmentGathering` (uncommitted, not run) | No dataplane, VPP (its inbound SPD runs before routing), a DISCARD with a port and an any-port BYPASS are not refused, because none of them leaves a forwarded fragment judged on ports the check could not read |
 
 Rows of Work Not Done that had no criterion: the forwarded `RFC4301-6.2-3` and
 `RFC4301-6.2-4` cases are AC-4 (its forwarded half, proven by
@@ -1736,7 +1845,7 @@ or change the remaining architecture requirements.
 - **It does not independently approve `rfc/extraction/rfc4301.json` or its sign-off population.** That work belongs to `plan/release/validation/spec-rfcgate-6-supported-extraction-signoff.md`; this spec preserves its scope question and cannot settle it by regenerating a ledger.
 - **It does not answer the Section 6.1.1 MAY.** ICMP type-and-code granularity is a MAY, and `ai/rules/rfc-compliance.md` reserves a MAY to the owner. Phase 3 puts it to him with the cost of each option.
 - **It does not widen the class gate in `remoteIDMatches`.** Sub-tree matching is added inside each existing class. An asserted ID_FQDN still cannot satisfy an address-valued `remote-id`.
-- **A port-scoped operator BYPASS does not decide forwarded traffic.** `spdEntryHasTransit` gives it no forward projection, because the forward check classifies a non-initial fragment with port 0 before any reassembly (RFC 4301 Section 7.4, `LL-XFRM-FRAGMENT-SELECTOR`), and the stateful check is the kernel route of owner decision 1, whose capability bit 3 (K3) Ze does not hold yet. Forwarded traffic on its ports takes the next entry that matches it, which under `unmatched discard` fails closed. A port-scoped DISCARD is projected. Whether the commit tells the operator is open decision 2.
+- **On a kernel without K3's capability bit 3, a port-scoped operator BYPASS does not decide forwarded traffic.** There `spdEntryHasTransit` gives it no forward projection, because the forward check classifies a non-initial fragment with port 0 before any reassembly (RFC 4301 Section 7.4, `LL-XFRM-FRAGMENT-SELECTOR`). By owner decision 2 ("refusal until done", 2026-11-20) the commit refuses such an entry (`a29420771d`, AC-22), except one whose local prefix is one address this host holds; that one is accepted, and forwarded traffic on its ports takes the next entry that matches it, which under `unmatched discard` fails closed. With bit 3 the entry is projected (uncommitted on 2026-11-20). A port-scoped DISCARD is projected either way.
 - **An `in` ICMP entry whose selector holds type 0 code 0 is not projected onto the forward path**, because every forwarded fragment reads as that type and code.
 - **A packet Ze itself originates with a source inside a policy-based tunnel's remote selector and a destination inside its local selector leaves in clear towards the protected side** rather than meeting the catch-all. This is the tradeoff of the delivery entry `ce5c276457` installs so a policy-based gateway forwards decrypted traffic under `unmatched discard` (`appendChildDeliveryPolicies`).
 - **A forwarded ICMP error that an operator out or both DISCARD covers is dropped, not mapped into the return SA**, because the DISCARD outranks the return allow at `dataplane.PriorityICMPErrorReturn`. Thomas chose the repair on 2026-11-20: the K1 extension of the forwarded path, which is owed work (AC-4).
@@ -1750,7 +1859,7 @@ update does not independently close an old defect or promote an RFC row.
 
 | Item | Why not done | Home |
 |------|--------------|------|
-| `RFC4301-6-1`: project operator SPD entries onto fwd, so a gateway can bypass or discard transit ICMP | DONE 2026-11-19 in `072ef5bf1f` (AC-16), except a port-scoped BYPASS and an `in` ICMP entry holding type 0 code 0, which are not projected (Known Limitations). Still owed: refusal A extended to the D-3 gates | this spec, `plan/release/fixes/spec-rfc4301-architecture-gaps.md`; journal row `guard-added-to-one-half-of-a-pair.md` 2026-11-10, owned above |
+| `RFC4301-6-1`: project operator SPD entries onto fwd, so a gateway can bypass or discard transit ICMP | DONE 2026-11-19 in `072ef5bf1f` (AC-16), except a port-scoped BYPASS on a kernel without K3's bit 3 (refused at commit since `a29420771d`, AC-22) and an `in` ICMP entry holding type 0 code 0, which are not projected (Known Limitations). Still owed: refusal A extended to the D-3 gates | this spec, `plan/release/fixes/spec-rfc4301-architecture-gaps.md`; journal row `guard-added-to-one-half-of-a-pair.md` 2026-11-10, owned above |
 | Stale names in the post-release port-mask spec | kept as they are by owner decision | `plan/post-release/features/spec-ipsec-opaque-selector-port-mask.md` |
 | `RFC4301-8.1-2` DF set and `RFC4301-5.1.2.1-1` a fixed DSCP 1 to 63 on Linux | owner decision 2026-11-12: refused for the first release, a Ze kernel feature after it | `plan/post-release/kernel/spec-xfrm-outer-df-set-dscp.md` |
 | `RFC4301-6.2-3` and the inbound discard override: the two commit refusals | corrected 2026-11-14: the code is in the tree (`refuseICMPErrorBypass`, `refuseICMPCheckDiscard`, `verifyICMPOverlap`, with the `TestICMPOverlap...` units of `engine/rfc4301_icmp_overlap_test.go`). Refusal B is what makes a default discard uncommittable (D-6, AC-19). By owner decision of 2026-11-19, refusal B goes and K1 is extended so the kernel honours the discard; refusal A stays | this spec |
