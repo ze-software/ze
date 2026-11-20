@@ -490,8 +490,7 @@
                     "licence": "GPL-3.0",
                     "copyright": "",
                     "copyright-unstated": true,
-                    "source": "https://github.com/golangci/golangci-lint/v2",
-                    "licence-note": "upstream ships the bare GNU GPL version 3 text and states neither only nor or-later; GPL-3.0 is the SPDX identifier for that unstated variant"
+                    "source": "https://github.com/golangci/golangci-lint/v2"
                 },
                 {
                     "module": "honnef.co/go/tools",

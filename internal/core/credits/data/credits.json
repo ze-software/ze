@@ -1,6 +1,6 @@
 {
   "generated-by": "./le deps credits update",
-  "declaration-sha256": "b6bcf4d5be713900b5e6e481e0b0a655af58f6e4641a5a664df48f14faac5d9a",
+  "declaration-sha256": "8807f58d477193a7c734cc572b3adbbe5872511e581c09bdf479ef932fb36997",
   "groups": [
     "Terminal, Web & SSH Interfaces",
     "Networking & Protocols",
