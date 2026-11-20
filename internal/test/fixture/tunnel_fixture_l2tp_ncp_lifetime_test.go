@@ -146,11 +146,11 @@ func TestNCPLifetimeJudgeRefusesAShortWindow(t *testing.T) {
 // peer before any session exists, rather than turning into a zero hold.
 func TestNCPLifetimeArgDurationRefuses(t *testing.T) {
 	for _, args := range [][]string{{"1701"}, {"1701", "x"}, {"1701", "0"}, {"1701", "-3"}} {
-		if _, err := ncpLifetimeArgDuration(args, 1, time.Second, "ncp timeout seconds"); err == nil {
+		if _, err := ncpLifetimeArgDuration(args, time.Second, "ncp timeout seconds"); err == nil {
 			t.Fatalf("args %q were accepted", args)
 		}
 	}
-	got, err := ncpLifetimeArgDuration([]string{"1701", "15"}, 1, time.Second, "ncp timeout seconds")
+	got, err := ncpLifetimeArgDuration([]string{"1701", "15"}, time.Second, "ncp timeout seconds")
 	if err != nil || got != 15*time.Second {
 		t.Fatalf("15 seconds read as %s, %v", got, err)
 	}

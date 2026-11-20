@@ -105,7 +105,7 @@ delegates nothing.
   real target wire behavior and fail today with `errIPv6CPNeverEngaged`; this
   spec is what turns them from a documented block into a proof.
 - Run the two L2TP interop scenarios moved here from
-  `plan/release/fixes/spec-ppp-ncp-independent-lifetime.md` on 2026-11-20
+  `spec-ppp-ncp-independent-lifetime` (closed) on 2026-11-20
   (Thomas's decision, its C-3): they need a pool that accepts IPv6, so they
   cannot run before this spec. Both go in `test/interop-l2tp/scenarios/`, with
   xl2tpd and pppd 2.5.5 dialling Ze's dual-stack LNS through the relay, and both

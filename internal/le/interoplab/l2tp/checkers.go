@@ -124,10 +124,10 @@ func checkBGPRedistribute(ctx context.Context, lab labOperations, timeout time.D
 	if _, err := waitPPPInterface(ctx, lab, peerZe, 60*time.Second); err != nil {
 		return err
 	}
-	if err := waitFRRRoute(ctx, lab, peerPrefix, true, 30*time.Second); err != nil {
+	if err := waitFRRRoute(ctx, lab, true); err != nil {
 		return err
 	}
-	hasRoute, err := frrHasRoute(ctx, lab, peerPrefix)
+	hasRoute, err := frrHasRoute(ctx, lab)
 	if err != nil {
 		return err
 	}
@@ -140,7 +140,7 @@ func checkBGPRedistribute(ctx context.Context, lab labOperations, timeout time.D
 	if err := waitPeerLog(ctx, lab, peerZe, "subscriber routes withdrawn", 30*time.Second); err != nil {
 		return err
 	}
-	if err := waitFRRRoute(ctx, lab, peerPrefix, false, 30*time.Second); err != nil {
+	if err := waitFRRRoute(ctx, lab, false); err != nil {
 		return err
 	}
 	return requireFRRSession(ctx, lab, zeAddress)
@@ -471,20 +471,25 @@ func frrSessionEvidence(ctx context.Context, lab labOperations, neighbor string)
 	return "", interoplab.WithSearchedOutput(errors.New("BGP session dropped after withdrawal"), output)
 }
 
-func waitFRRRoute(ctx context.Context, lab labOperations, prefix string, present bool, timeout time.Duration) error {
+// waitFRRRoute waits up to 30 seconds until FRR's view of the subscriber
+// prefix peerPrefix matches present. Ze's BGP announce or withdraw of the /32
+// reaches FRR within one update cycle, and every scenario waits the same.
+func waitFRRRoute(ctx context.Context, lab labOperations, present bool) error {
 	var tb textbuf.Buffer
-	description := tb.Str("FRR route ").Str(prefix).String()
+	description := tb.Str("FRR route ").Str(peerPrefix).String()
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
-		Timeout: timeout, Interval: 2 * time.Second, Description: description,
+		Timeout: 30 * time.Second, Interval: 2 * time.Second, Description: description,
 	}, func(probeCtx context.Context) (bool, error) {
-		return frrHasRoute(probeCtx, lab, prefix)
+		return frrHasRoute(probeCtx, lab)
 	}, func(value bool) bool { return value == present })
 	return err
 }
 
-func frrHasRoute(ctx context.Context, lab labOperations, prefix string) (bool, error) {
+// frrHasRoute answers whether FRR's BGP table holds the subscriber prefix
+// peerPrefix, the one route every L2TP redistribute scenario announces.
+func frrHasRoute(ctx context.Context, lab labOperations) (bool, error) {
 	var tb textbuf.Buffer
-	command := tb.Str(commandShow).Str(" bgp ipv4 unicast ").Str(prefix).Str(" json").String()
+	command := tb.Str(commandShow).Str(" bgp ipv4 unicast ").Str(peerPrefix).Str(" json").String()
 	output, err := execOutput(ctx, lab, peerFRR, []string{commandVTYSH, "-c", command})
 	if err != nil {
 		return false, err

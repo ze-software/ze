@@ -69,7 +69,7 @@ func tunnelL2TPNCPTerminateAfterUp(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	bound, err := ncpLifetimeArgDuration(args, 1, time.Second, "ncp timeout seconds")
+	bound, err := ncpLifetimeArgDuration(args, time.Second, "ncp timeout seconds")
 	if err != nil {
 		return err
 	}
@@ -198,7 +198,13 @@ func (peer *tunnelAccountingPeer) awaitState(ctx context.Context, what string, p
 // means the session-up reached the registry, so the Terminate-Request that
 // follows lands after session-up.
 func (peer *tunnelAccountingPeer) awaitActiveSubscriber(ctx context.Context, address netip.Addr) (string, string, error) {
-	const command = sessionClearShowSubscribers
+	const (
+		command = sessionClearShowSubscribers
+		// accessType is the `access-type` an L2TP subscriber row carries. It
+		// spells the same word as namespaceL2TP, the event namespace, and is a
+		// different fact.
+		accessType = "l2tp"
+	)
 	var subscriberID, pppName string
 	what := "an active l2tp subscriber with address " + address.String() + " in `" + command + "`"
 	err := peer.awaitState(ctx, what, func() error {
@@ -208,7 +214,7 @@ func (peer *tunnelAccountingPeer) awaitActiveSubscriber(ctx context.Context, add
 		}
 		rows := jsonObjectsWith(answer, "access-type")
 		index := slices.IndexFunc(rows, func(row map[string]any) bool {
-			return row["access-type"] == "l2tp" && row["state"] == "active" && row["ipv4"] == address.String()
+			return row["access-type"] == accessType && row["state"] == stateActive && row["ipv4"] == address.String()
 		})
 		if index < 0 {
 			return errors.New("an answer without it: " + describeJSON(answer))
@@ -253,7 +259,7 @@ func (peer *tunnelAccountingPeer) awaitDetailIPv4(ctx context.Context, subscribe
 			return errors.New("an answer holding " + strconv.Itoa(len(rows)) + " subscriber objects, want 1: " + describeJSON(answer))
 		}
 		row := rows[0]
-		if row["id"] != subscriberID || row["state"] != "active" {
+		if row["id"] != subscriberID || row["state"] != stateActive {
 			return errors.New("an answer for another subscriber or state: " + describeJSON(answer))
 		}
 		ipv4, held := row["ipv4"]
@@ -354,7 +360,7 @@ func tunnelL2TPNCPProtocolRejectIPCP(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	restart, err := ncpLifetimeArgDuration(args, 1, time.Millisecond, "lcp restart-timer milliseconds")
+	restart, err := ncpLifetimeArgDuration(args, time.Millisecond, "lcp restart-timer milliseconds")
 	if err != nil {
 		return err
 	}
@@ -412,9 +418,11 @@ func (peer *tunnelAccountingPeer) judgeNoNCPCDN(cdnAt time.Time, restart time.Du
 	return nil
 }
 
-// ncpLifetimeArgDuration reads a positive whole count of unit from args at
-// index. name says what the argument is, for the refusal.
-func ncpLifetimeArgDuration(args []string, index int, unit time.Duration, name string) (time.Duration, error) {
+// ncpLifetimeArgDuration reads a positive whole count of unit from the second
+// argument, the one after the L2TP port every NCP lifetime peer takes first.
+// name says what the argument is, for the refusal.
+func ncpLifetimeArgDuration(args []string, unit time.Duration, name string) (time.Duration, error) {
+	const index = 1
 	if len(args) <= index {
 		return 0, errors.New("missing " + name + " argument")
 	}

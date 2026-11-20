@@ -837,3 +837,169 @@ Rejected-Protocol at offset 4, Rejected-Information) is documented above the par
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- Release wiring (d22b547b51): `ppp.EventSessionIPReleased` from `publishNCPRelease` (`ncp.go`) after a successful `withdrawNCPFamily`, the L2TP and subscriber release events, the route observer's per-family `release` (`route_observer.go`) with per-family framed routes, the reactor clearing `assignedAddr`, the bridge and PPPoE registry clears, `authradius` clearing `peerAddr`, `ipv6-interface-id` in `sessionFull`, PPPoE's `EventEchoRTT` no-op case and its `reportUnhandledPPPEvent` default arm.
+- Protocol-Reject (d22b547b51, 438bb234e4): the LCP-Opened gate and `receiveProtocolReject` (`session_run.go`), the Down event and the per-family rejected record in `stopRejectedNCP` (`ncp.go`); a Code-Reject stops what it names, and an RXJ- ends LCP with NAS Error.
+- Last NCP (d22b547b51): the no-NCP bound (`ncp_bound.go` `armNoNCPBound`, `trackNoNCPBound`, `closeIdleLink`), NAS Error in the NCP phase, Idle Timeout after session-up (`applyTransition`).
+- Proofs (d22b547b51): the restart, reopen, unit-reader and unknown-protocol tests.
+- Functional and interop (216f756d01, a3bb822aad, b498edbfc9): three L2TP scenarios, the CCP relay marker, `ppp-code-reject-xl2tpd` extended to the IPCP reopen, the fixture peers and the two `.ci`, the fixture ff03 fix, and the reactor's Debug log of a dropped data message.
+- Closure: lint fixes (unparam, goconst, misspell) over the interop checkers, `session_run.go` and the fixture; the RFC 5072 and RFC 1332 summaries' LCP-relationship prose. The lint edits to `ppp_code_reject.go` and to the `runParallelNCPPeer` helper and its callers were reverted to HEAD, because they staled eight RFC 1661 discrimination records; their two unparam findings (`checkPPPCodeReject$1` assertion, `runParallelNCPPeer` expect flags) stay as known lint reds, named in commit A.
+
+### Bugs Found/Fixed
+- A-5: an Interim-Update reported a withdrawn Framed-IP-Address (`TestAcctInterimOmitsReleasedIPv4`).
+- The registry kept a withdrawn family (`TestSubscriberBridgeFamilyReleaseClearsAddress`); `show l2tp sessions` kept a withdrawn address (`TestReactorFamilyReleaseClearsAssignedAddr`).
+- An IPv6-only session never emitted its Framed-IPv6-Route (`TestRouteObserverIPv6OnlySessionEmitsIPv6FramedRoutes`).
+- PPPoE dropped an unhandled `ppp.Event` with no log line (`TestPPPoEUnknownEventIsLogged`).
+- The fixture peer's PPP lacked ff03, so its NCP frames fell under `L2TP_HDR_SIZE_MAX` and never reached the session (a3bb822aad).
+
+### Documentation Updates
+- Landed with the phases: `docs/research/l2tpv2-ze-integration.md` 7.2 and 11.3, `docs/research/l2tpv2-implementation-guide.md` 22.1, `docs/architecture/core-design.md`, `docs/architecture/l2tp/bng-1-radius-attributes.md`, `bng-5-pppoe.md`, `subscriber-session-model.md`, `docs/guide/l2tp.md`, `docs/guide/pppoe.md`, `docs/labs/l2tp-interop.md`, `docs/architecture/testing/interop.md`, `ai/digests/subscriber.md`, `rfc/short/rfc1661.md`.
+- At closure: `rfc/short/rfc5072.md` and `rfc/short/rfc1332.md` "Relationship to LCP" gain Ze's NCP Restart timer, Protocol-Reject stop and per-family withdrawal, with source anchors to `stopRejectedNCP`, `withdrawNCPFamily`, `publishNCPRelease` and `receiveProtocolReject`. `./le doc check all` and `./le rfc update` results: see the closing agent's report.
+
+### Deviations from Plan
+- C-3 (Thomas, 2026-11-20): three IPv4-reachable scenarios replace the two IPv6 ones, which moved to `spec-l2tp-ipv6-subscriber`.
+- Phase 2b (438bb234e4) widened the Protocol-Reject work to Code-Reject (RFC1661-4.3-3). Owner decision: a Code-Rejected Echo-Request stops echo for the whole session; the Echo-Reply exception is in `rfc/short/rfc1661.md` Error Handling.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-5: accounting was assumed to follow the families | `buildAcctPacket` reported `sess.peerAddr`, which nothing cleared | read of the interim builder | fixed under AC-4 and AC-8 |
+| approach | Phase 5 left the RFC 5072 and RFC 1332 prose its Files to Modify named | the summaries still described the NCP as LCP's automaton with nothing of Ze's timer or stop | closure documentation review | written at closure |
+| approach | The first unparam fixes left new constant parameters (`waitFRRRoute` timeout, `frrHasRoute` prefix, `pppCodeRejectFailure` name) | each removed parameter made the next one constant at every call | lint re-run | folded in at closure, every remaining parameter checked against all callers |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| 1. no-NCP bound, session-up rule | Done | `ppp/ncp_bound.go`, `ncp.go` `runNCPPhase` | |
+| 2. NCP Restart timer proven | Done | `ncp_restart_lifetime_test.go` | |
+| 3. Protocol-Reject stops the named NCP | Done | `session_run.go` `receiveProtocolReject`, `ncp.go` `stopRejectedNCP` | |
+| 4. the release reaches the transports | Done | `ncp.go` `publishNCPRelease`, `route_observer.go` `release` | |
+| `ipv6-interface-id` | Done | `subscriber/cmd/subscriber.go` `sessionFull` | |
+| PPPoE default arm | Done | `pppoe/subsystem.go` `reportUnhandledPPPEvent` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `ncp_idle_bound_test.go` | |
+| AC-2 | Done | `TestProtocolRejectIPv6CPKeepsIPv4Session`; interop `l2tp-lns-pppd-noip-rejects-ipcp` (IPCP form) | |
+| AC-3 | Done | `TestProtocolRejectIPCPKeepsIPv6Session` | |
+| AC-4 | Done | `TestNCPTerminateAfterSessionUpOnUnitFD`, `TestRouteObserverFamilyDownRemovesPrefix`, `TestL2TPFamilyReleaseWithdrawsLiveIPv4Routes`, `.ci` `ppp-ncp-terminate-after-up` | |
+| AC-5 | Done | `TestProtocolRejectAfterSessionUpWithdrawsFamily` | |
+| AC-6 | Done | `TestLastNCPFinishedIdlesThenClosesLCP`, `TestNoNCPBoundEndsPostUpNakLoop`, `TestLastNCPIdleCancelledByReopen` | |
+| AC-7 | Done | `TestNCPRestartTimerRetransmitsConfigureRequest` | |
+| AC-8 | Done | `TestRouteObserverFamilyReopenReaddsFramedRoutes`, interop `l2tp-lns-pppd-ipcp-terminate-redistribute` | |
+| AC-9 | Done | `TestUnknownProtocolOnUnitFDProtocolRejected`, interop `l2tp-lns-pppd-ipv6cp-rejected-by-lns` (CCP) | |
+| AC-10 | Done | `TestProtocolRejectIgnoredOutsideLCPOpened` | |
+| AC-11 | Done | `TestUnitReaderExitsOnClose` | |
+| AC-12 | Done | `TestAllNCPsFinishedBeforeUpEndsWithNASError`, `TestNCPStoppingWhileOtherStoppedBeforeUpEndsAtNoNCPBound`, `.ci` `ppp-ncp-protocol-reject-ipcp` | |
+| AC-13 | Done | `TestPPPoEUnknownEventIsLogged` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| PPP lifetime tests (phases 1-4) | Done | `ppp/ncp_lifetime_test.go`, `ncp_idle_bound_test.go`, `ncp_restart_lifetime_test.go`, `ncp_reopen_lifetime_test.go`, `rfc1661_ncp_protocol_reject_test.go`, `unit_frames_test.go` | |
+| release wiring tests | Done | `route_observer_family_test.go`, `subscriber_bridge_family_test.go`, `pppoe/subsystem_release_test.go`, `reactor_kernel_test.go`, `authradius/acct_test.go`, `subscriber_lifetime_linux_test.go` | |
+| Tests to convert | Done | each with its approval line in d22b547b51 | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Modify, Files to Create | Done | in d22b547b51, 216f756d01, 438bb234e4, a3bb822aad, b498edbfc9; `rfc/short/rfc5072.md` and `rfc1332.md` at closure |
+
+### Audit Summary
+- **Total items:** 13 AC, 6 Task requirements
+- **Done:** all
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** C-3 and phase 2b (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An NCP opens and closes independently | interop | `l2tp-lns-pppd-noip-rejects-ipcp` passes; red with `receiveProtocolReject` removed ("assertion 3: ze sent 3 packets of protocol 0x8021 ...") |
+| The redistribution feed, registry and accounting hold exactly the open families | interop and functional | `l2tp-lns-pppd-ipcp-terminate-redistribute` passes; red with `publishNCPRelease` removed ("assertion 2: wait for FRR without 10.100.0.2/32 ... timed out"); `.ci` `ppp-ncp-terminate-after-up` passes and goes red under the same break |
+| A session with no NCP Opened is bounded | functional | `.ci` `ppp-ncp-protocol-reject-ipcp` passes (CDN, NAS Error at the bound) and goes red with `receiveProtocolReject` removed |
+| Thomas's home-line case | interop | `l2tp-lns-pppd-ipv6cp-rejected-by-lns` passes (IPv4 up past `ncp timeout`, IPv6CP and CCP Protocol-Rejected); goal evidence, no revert walk |
+| The `.ci` hold under load | functional | each `.ci` 80/80 (`./le test qemu ci test`, main thread, 2026-11-20) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| The two IPv6 L2TP interop scenarios | they need a pool that accepts IPv6 (C-3) | `plan/post-release/features/spec-l2tp-ipv6-subscriber.md` |
+| The design gate that walked past rulings | a tooling gap met during design | `plan/release/validation/spec-design-decisions-walk-past-rulings.md` |
+| A PPPoE `ncp timeout` leaf (RFC1661-3.6-4 on PPPoE) | a config feature of its own | `plan/release/fixes/spec-pppoe-ncp-timeout-leaf.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/ppp-ncp-independent-lifetime-f50aa876-00f8-42e3-b88c-3ade4988cae1.md` (20 files, verdict clean) |
+| `./le spec review check` | clean, run by the closing agent after the record |
+| Rounds | 3: round 3 read the committed diffs of d22b547b51, 216f756d01, 438bb234e4, a3bb822aad and b498edbfc9 for every file they touch (product code line by line; tests and `.ci` scanned for sleeps, skips, goroutines and silent discards), which rounds 1 and 2 had only spot-checked |
+| Reviewer lenses used | logic and wiring of the producers (`receiveProtocolReject`, `stopRejectedNCP`, `publishNCPRelease`, `ncp_bound.go`, `reportUnhandledPPPEvent`, `route_observer.go` `release`), the uncommitted lint-fix hunks, the design-documents rows, the style pass over every changed Go file (no `panic`, no goroutine, no new error path), docs, journal rows, citers |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | unparam: `waitFRRRoute` timeout always 30 s | `interoplab/l2tp/checkers.go` | the wait is the function's own, documented |
+| 2 | ISSUE | unparam: `frrHasRoute` prefix always `peerPrefix` | `checkers.go` | it reads `peerPrefix` itself |
+| 3 | ISSUE | unparam: `pppCodeRejectFailure` name always the one scenario | `ppp_framing.go`, `ppp_framing_test.go` | the test drives it with a scenario name of its own, which also proves the failure names the scenario it is given; the RFC-tagged `checkPPPCodeReject` keeps its text |
+| 4 | ISSUE | goconst: `"l2tp"` literal | `fixture/tunnel_fixture_l2tp_ncp_lifetime.go` `awaitActiveSubscriber` | a local `accessType` const; `namespaceL2TP` is the event namespace, a different fact |
+| 5 | ISSUE | the RFC 5072 and RFC 1332 summaries not updated as Files to Modify named | `rfc/short/rfc5072.md`, `rfc1332.md` | prose and source anchors |
+| 6 | ISSUE | the four owned journal rows still `open:` | `transient-failure-treated-as-fatal.md`, `silent-fall-through.md` | marker `fixed:` |
+| 7 | ISSUE | a path citation of this spec | `spec-l2tp-ipv6-subscriber.md` | the bare stem |
+
+NOTEs. The design judge's three wording notes stand unedited, because those sections are under approval digest e3afee3bd56e: "Documents departed from" opens by naming departures whose rows now read `agrees`; the `docs/guide/l2tp.md` PPP-negotiation row says the paragraph "is rewritten", which has landed; user story 1's CCP is injected by the relay, not sent by pppd. `noNCPTimeout` answers `defaultIPTimeout` for an `ipTimeout` of zero: that zero is PPPoE's, which sets none, a guard kept from `runNCPPhase`. Ze departs from pppd 2.5.5 on a Code-Rejected Echo-Request (RFC 1661 Section 4.3, owner decision).
+
+Run 2: the round-1 fixes re-read; 0 BLOCKER, 0 ISSUE.
+
+Run 3, the committed diffs of the five commits: 0 BLOCKER, 0 ISSUE. NOTEs: `l2tpevents.AddressFamily` and the subscriber `SessionIPReleasedPayload.Family` marshal as an integer, and the L2TP payload's `TunnelID`, `SessionID`, `Birth` keys are Go field names, both following the sibling `SessionIPAssignedPayload`; no external consumer reads the release today. `reactor.go`'s new Debug line spells `tunnel-id` and `session-id` literally beside `reportFieldTunnelID`. The fixture's new CDN acknowledgement discards `WriteToUDP`'s error as the file's three existing writes do. The no-NCP bound unit tests wait on real timers (`time.Sleep` past the bound), the only way to observe a timer's expiry, and were green under the main thread's package runs. `ppp.AddressFamily.NoticeFamily` panics only on a value no producer constructs (closed set).
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `ppp/ncp_bound.go`, `ppp/ncp_lifetime_test.go`, `reactor_kernel_test.go`, `authradius/acct_test.go`, `route_observer_family_test.go`, `subscriber_bridge_family_test.go`, `pppoe/subsystem_release_test.go`, `interoplab/l2tp/ncp_lifetime.go` | yes | `ls`, 2026-11-20 |
+| `test/l2tp/ppp-ncp-terminate-after-up.ci`, `test/l2tp/ppp-ncp-protocol-reject-ipcp.ci`, the three `test/interop-l2tp/scenarios/l2tp-lns-pppd-*` directories | yes | `ls` |
+| `rfc/discrimination/rfc1661/RFC1661-5.7-2.json`, `RFC1661-5.7-5.json`, `RFC1661-4.3-3.json` | yes | `ls` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-2, AC-3, AC-10 | Protocol-Reject gated on LCP Opened, dispatched by Rejected-Protocol | `session_run.go` `handleLCPPacket`: `cur != LCPStateOpened` discards, then `receiveProtocolReject`; package run green (main thread) |
+| AC-4, AC-8 | the release follows the withdrawal | `ncp.go` `publishNCPRelease` sends `EventSessionIPReleased`; FRR goes red under its removal |
+| AC-6, AC-12 | the bound arms when the last Opened NCP leaves | `ncp_bound.go` `trackNoNCPBound`, `closeIdleLink` |
+| AC-13 | default arm | `pppoe/subsystem.go`: `default: s.reportUnhandledPPPEvent(ev)` after `case ppp.EventEchoRTT` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| IPCP Terminate-Request after up, real kernel | `test/l2tp/ppp-ncp-terminate-after-up.ci` | pass, 80/80, red with `publishNCPRelease` removed |
+| IPCP Protocol-Reject, real kernel | `test/l2tp/ppp-ncp-protocol-reject-ipcp.ci` | pass, 80/80, red with `receiveProtocolReject` removed |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | IPCP from the unit in `ppp-code-reject-xl2tpd`; CCP in `l2tp-lns-pppd-ipv6cp-rejected-by-lns`; IPv6CP on the kernel source (C-3) |
+| A-2 | confirmed | `TestUnitReaderExitsOnClose` |
+| A-3 | confirmed | `ppp-code-reject-xl2tpd` |
+| A-4 | confirmed | pppd 2.5.5 source quoted in the row; both scenarios pass |
+| A-5 | broken | fixed (Mistake Log) |
+| A-6 | confirmed | `fsm_rtermack` at v2.5.5; the reopen observed in both IPCP scenarios |
+| A-7 | confirmed | no checker reads IPv6 state on pppN |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| RFC 5072 and RFC 1332 Ze paragraphs | `ncp_restart.go` `applyNCPTransition` reads `lcpConfig.MaxConfigure` and `MaxTerminate`, `armNCPRestartTimer` `RestartTimer`; `stopRejectedNCP`; `publishNCPRelease` | yes |
+| `ipv6-interface-id` in `subscriber-session-model.md` | `sessionFull` | yes |
+| the scenarios in `interop.md` | `register_scenarios.go`, the three directories | yes |

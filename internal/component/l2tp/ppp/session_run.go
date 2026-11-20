@@ -2182,15 +2182,16 @@ func (s *pppSession) applyTransition(cur LCPState, tr lCPTransition, pkt LCPPack
 		var tb textbuf.Buffer
 		reason := tb.Str("LCP terminated: state=").Str(tr.NewState.String()).String()
 		cause := l2tpevents.TerminateCauseUserRequest
-		if s.authRefusalReason != "" {
+		switch {
+		case s.authRefusalReason != "":
 			reason = s.authRefusalReason
 			cause = l2tpevents.TerminateCauseNASRequest
-		} else if s.noNCPBoundExpired {
+		case s.noNCPBoundExpired:
 			// The Close closeIdleLink drove: RFC 2866 Section 5.10 value 4,
 			// "Idle timer expired."
 			reason = s.idleCloseReason()
 			cause = l2tpevents.TerminateCauseIdleTimeout
-		} else if s.lcpRejectFatalReason != "" {
+		case s.lcpRejectFatalReason != "":
 			// The RXJ- handleLCPPacket recorded: the peer rejected what LCP
 			// needs, an error and no request of the user's. RFC 2866 Section
 			// 5.10 value 9: "NAS detected some error (other than on the

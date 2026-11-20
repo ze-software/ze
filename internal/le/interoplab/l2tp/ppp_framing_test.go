@@ -256,8 +256,10 @@ func TestPPPCompressedEchoEvidence(t *testing.T) {
 
 // TestPPPFramingAssertionAttribution preserves assertion 7's anchor before
 // Wait flattens a typed cause, instead of letting an earlier poll own it.
+// The scenario name is not the shipped checker's, so the prefix checks also
+// prove the failure names the scenario it is given rather than a fixed one.
 func TestPPPFramingAssertionAttribution(t *testing.T) {
-	const name = "ppp-code-reject-xl2tpd"
+	const name = "scenario-under-test"
 	tagged := pppCodeRejectFailure(name, 2, &pppFramingError{errors.New("missing ff 03")})
 	if !strings.HasPrefix(tagged.Error(), "scenario "+name+" assertion 7:") {
 		t.Fatal(tagged)

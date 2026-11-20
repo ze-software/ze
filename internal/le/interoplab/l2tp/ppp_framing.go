@@ -38,6 +38,9 @@ func (e *pppFramingError) Unwrap() error { return e.cause }
 
 // pppCodeRejectFailure preserves the existing numbered error shape and keeps
 // a framing failure on its own assertion before Wait can flatten its type.
+// name is the scenario the failing checker drives; the checker declares it as
+// its grouped `name` const, the text interopScenarioOf (`internal/le/rfc`)
+// reads, so the scenario is spelled once, in the checker.
 func pppCodeRejectFailure(name string, assertion int, cause error) error {
 	if _, framing := errors.AsType[*pppFramingError](cause); framing {
 		assertion = 7

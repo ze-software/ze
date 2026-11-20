@@ -81,7 +81,7 @@ const (
 // session, and Ze answers with an LCP Protocol-Reject naming 0x80fd.
 //
 // pppd 2.5.5 source the checks rely on (read at the v2.5.5 tag the LAC image
-// pins). IPv6CP is on by default: ipv6cp.c initialises ipv6cp_protent with
+// pins). IPv6CP is on by default: ipv6cp.c initializes ipv6cp_protent with
 // enabled_flag 1 (the `1,` before "IPV6CP"). On Ze's Protocol-Reject,
 // lcp.c lcp_rprotrej upcalls the enabled protocol:
 //
@@ -117,7 +117,7 @@ func checkIPv6CPRejectedByLNS(ctx context.Context, lab labOperations, _ time.Dur
 
 	// Assertion 2. pppd offered IPv6CP and Ze Protocol-Rejected it, sending
 	// no IPv6CP of its own.
-	if _, err := waitCapture(ctx, lab, "ze's LCP Protocol-Reject of pppd's IPv6CP", 30*time.Second,
+	if err := waitCapture(ctx, lab, "ze's LCP Protocol-Reject of pppd's IPv6CP", 30*time.Second,
 		func(frames []pppFrame) error {
 			_, rejectErr := ipv6cpRejected(frames)
 			return rejectErr
@@ -157,7 +157,7 @@ func checkIPv6CPRejectedByLNS(ctx context.Context, lab labOperations, _ time.Dur
 	if err := pingThroughSession(ctx, lab); err != nil {
 		return fail(4, err)
 	}
-	if _, err := waitCapture(ctx, lab, "the injected CCP Configure-Request and ze's Protocol-Reject naming 0x80fd",
+	if err := waitCapture(ctx, lab, "the injected CCP Configure-Request and ze's Protocol-Reject naming 0x80fd",
 		30*time.Second, ccpProtocolRejected); err != nil {
 		return fail(4, err)
 	}
@@ -212,7 +212,7 @@ func checkNoIPRejectsIPCP(ctx context.Context, lab labOperations, _ time.Duratio
 
 	// Assertion 1. pppd answers Ze's IPCP Configure-Request with an LCP
 	// Protocol-Reject naming 0x8021.
-	if _, err := waitCapture(ctx, lab, "pppd's LCP Protocol-Reject of ze's IPCP", 60*time.Second,
+	if err := waitCapture(ctx, lab, "pppd's LCP Protocol-Reject of ze's IPCP", 60*time.Second,
 		func(frames []pppFrame) error {
 			_, rejectErr := ipcpRejectedByPeer(frames)
 			return rejectErr
@@ -229,7 +229,7 @@ func checkNoIPRejectsIPCP(ctx context.Context, lab labOperations, _ time.Duratio
 		if readErr != nil {
 			return 0, readErr
 		}
-		return zeControlMessages(logs.Text, cdnMessageType)
+		return zeCallDisconnects(logs.Text)
 	}, func(count int) bool { return count > 0 }); err != nil {
 		return fail(2, err)
 	}
@@ -278,7 +278,7 @@ func checkNoIPRejectsIPCP(ctx context.Context, lab labOperations, _ time.Duratio
 // with a Terminate-Ack carrying its Identifier, the IPv4 address leaves Ze's
 // pppN and FRR loses the /32. Phase B: pppd renegotiates IPCP, the address
 // and the /32 return, traffic crosses the session, and the no-NCP bound armed
-// when IPCP left Opened was cancelled, so no CDN follows.
+// when IPCP left Opened was canceled, so no CDN follows.
 //
 // pppd 2.5.5 source phase B relies on: fsm.c fsm_rtermack, shared by every
 // pppd NCP, answers a Terminate-Ack it did not ask for in Opened with a
@@ -314,7 +314,7 @@ func checkIPCPTerminateRedistribute(ctx context.Context, lab labOperations, time
 	if err := pingThroughSession(ctx, lab); err != nil {
 		return fail(1, err)
 	}
-	if err := waitFRRRoute(ctx, lab, peerPrefix, true, 30*time.Second); err != nil {
+	if err := waitFRRRoute(ctx, lab, true); err != nil {
 		return fail(1, err)
 	}
 
@@ -338,11 +338,11 @@ func checkIPCPTerminateRedistribute(ctx context.Context, lab labOperations, time
 		Timeout: window, Interval: frrWithdrawalPoll,
 		Description: tb.Str("FRR without ").Str(peerPrefix).Str(" inside the IPCP Stopping window").String(),
 	}, func(probeCtx context.Context) (bool, error) {
-		return frrHasRoute(probeCtx, lab, peerPrefix)
+		return frrHasRoute(probeCtx, lab)
 	}, func(held bool) bool { return !held }); err != nil {
 		return fail(2, err)
 	}
-	if _, err := waitCapture(ctx, lab, "the injected IPCP Terminate-Request and ze's Terminate-Ack", 30*time.Second,
+	if err := waitCapture(ctx, lab, "the injected IPCP Terminate-Request and ze's Terminate-Ack", 30*time.Second,
 		zeTerminateAck); err != nil {
 		return fail(2, err)
 	}
@@ -357,14 +357,14 @@ func checkIPCPTerminateRedistribute(ctx context.Context, lab labOperations, time
 	// Assertion 3, phase B. pppd renegotiates IPCP, Ze reinstalls the family
 	// on the same pppN (RFC 1661 Section 3.6: "Each NCP MAY be Opened and
 	// Closed at any time."), FRR holds the /32 again and traffic crosses.
-	if _, err := waitCapture(ctx, lab, "an IPCP Configure-Ack from each side after ze's Terminate-Ack", 30*time.Second,
+	if err := waitCapture(ctx, lab, "an IPCP Configure-Ack from each side after ze's Terminate-Ack", 30*time.Second,
 		ipcpReopened); err != nil {
 		return fail(3, err)
 	}
 	if err := waitIPv4Reinstalled(ctx, lab, zeLink); err != nil {
 		return fail(3, err)
 	}
-	if err := waitFRRRoute(ctx, lab, peerPrefix, true, 30*time.Second); err != nil {
+	if err := waitFRRRoute(ctx, lab, true); err != nil {
 		return fail(3, err)
 	}
 	if err := requireSameLinks(ctx, lab, zeLink, lacLink); err != nil {
@@ -377,7 +377,7 @@ func checkIPCPTerminateRedistribute(ctx context.Context, lab labOperations, time
 	// Assertion 4. Past the no-NCP bound measured from IPCP leaving Opened,
 	// plus one Restart time, the session, its interfaces, the /32 and the
 	// BGP session all stay, and nobody ended LCP or the call: the reopen
-	// cancelled the bound.
+	// canceled the bound.
 	if err := sleepContext(ctx, time.Until(triggeredAt.Add(redistributeNCPTimeout+redistributeRestartTimer))); err != nil {
 		return fail(4, err)
 	}
@@ -387,7 +387,7 @@ func checkIPCPTerminateRedistribute(ctx context.Context, lab labOperations, time
 	if err := requireSameLinks(ctx, lab, zeLink, lacLink); err != nil {
 		return fail(4, err)
 	}
-	held, err := frrHasRoute(ctx, lab, peerPrefix)
+	held, err := frrHasRoute(ctx, lab)
 	if err != nil {
 		return fail(4, err)
 	}
@@ -458,12 +458,12 @@ func requirePeerLogAbsent(ctx context.Context, lab labOperations, peer, needle s
 	return nil
 }
 
-// waitCapture polls the relay's capture until match answers nil, and answers
-// the frames it accepted. A capture the checker cannot read counts as a
-// failed probe, and a later readSessionCapture refuses it for good.
+// waitCapture polls the relay's capture until match answers nil. A capture
+// the checker cannot read counts as a failed probe, and a later
+// readSessionCapture refuses it for good.
 func waitCapture(ctx context.Context, lab labOperations, description string, timeout time.Duration,
-	match func([]pppFrame) error) ([]pppFrame, error) {
-	frames, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+	match func([]pppFrame) error) error {
+	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout: timeout, Interval: time.Second, Description: description,
 	}, func(probeCtx context.Context) ([]pppFrame, error) {
 		logs, readErr := lab.Logs(probeCtx, peerAVPRelay, pppCaptureLines)
@@ -472,10 +472,7 @@ func waitCapture(ctx context.Context, lab labOperations, description string, tim
 		}
 		return sessionPPPFrames(logs.Text)
 	}, func(frames []pppFrame) bool { return match(frames) == nil })
-	if err != nil {
-		return nil, err
-	}
-	return frames, nil
+	return err
 }
 
 // readSessionCapture reads the relay's whole capture once.
@@ -545,10 +542,10 @@ func sessionPPPFrames(text string) ([]pppFrame, error) {
 	return frames, nil
 }
 
-// zeControlMessages counts the L2TP control messages of messageType Ze sent
+// zeCallDisconnects counts the L2TP Call-Disconnect-Notify messages Ze sent
 // through the relay. A ZLB acknowledgement carries no Message Type and is not
 // counted; a control message the checker cannot read is refused.
-func zeControlMessages(text string, messageType uint16) (int, error) {
+func zeCallDisconnects(text string) (int, error) {
 	count := 0
 	for line := range strings.SplitSeq(text, "\n") {
 		if strings.TrimSpace(line) == "" {
@@ -578,7 +575,7 @@ func zeControlMessages(text string, messageType uint16) (int, error) {
 		if !carried {
 			continue
 		}
-		if found == messageType {
+		if found == cdnMessageType {
 			count++
 		}
 	}
@@ -767,7 +764,7 @@ func requireNoPacketsWithCode(frames []pppFrame, direction string, protocol uint
 // requireSessionNotEnded requires the capture to hold no CDN from Ze and no
 // LCP Terminate-Request from either side.
 func requireSessionNotEnded(text string, frames []pppFrame) error {
-	disconnects, err := zeControlMessages(text, cdnMessageType)
+	disconnects, err := zeCallDisconnects(text)
 	if err != nil {
 		return err
 	}

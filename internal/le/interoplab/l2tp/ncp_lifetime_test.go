@@ -121,7 +121,7 @@ func TestZeControlMessagesCountsOnlyZeCDN(t *testing.T) {
 	capture.control(relayFromZe, 0, true)
 	capture.control(relayFromZe, 6, false)
 	capture.control(relayFromLAC, cdnMessageType, false)
-	count, err := zeControlMessages(capture.text(), cdnMessageType)
+	count, err := zeCallDisconnects(capture.text())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +129,7 @@ func TestZeControlMessagesCountsOnlyZeCDN(t *testing.T) {
 		t.Fatalf("counted %d CDNs with none from ze", count)
 	}
 	capture.control(relayFromZe, cdnMessageType, false)
-	count, err = zeControlMessages(capture.text(), cdnMessageType)
+	count, err = zeCallDisconnects(capture.text())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +138,7 @@ func TestZeControlMessagesCountsOnlyZeCDN(t *testing.T) {
 	}
 	broken := &captureBuilder{t: t}
 	broken.row(relayFromZe, []byte{0xc8, 0x02, 0, 20, 0, 1, 0, 2, 0, 1, 0, 1, 0, 8, 0, 0, 0, 0, 0, 14}, 0)
-	if _, err := zeControlMessages(broken.text(), cdnMessageType); err == nil {
+	if _, err := zeCallDisconnects(broken.text()); err == nil {
 		t.Fatal("accepted a control message that does not open with its Message Type AVP")
 	}
 }
