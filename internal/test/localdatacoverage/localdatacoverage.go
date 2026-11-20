@@ -18,6 +18,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+
 	// The help plugin is hand-wired outside plugin/all (it imports
 	// cli/client, which cycles with plugin/all), so this binary links it here.
 	_ "github.com/ze-software/ze/internal/plugins/help"
@@ -47,7 +48,7 @@ const pluginNameRIB = "rib"
 // workspace store keeps for the two divergence views.
 const coverageHeldClient = "coverage-01"
 
-const CompletionMarker = "OK: 74/74 local-data commands and local one-shot save"
+const CompletionMarker = "OK: 76/76 local-data commands and local one-shot save"
 
 // Marker returns the terminal-delimited evidence emitted after a local command
 // has successfully run and answered JSON.
@@ -141,6 +142,8 @@ func Evidence() []Invocation {
 		{Command: "show exabgp migration environment content %s name caller-input.conf | json compact", Evidence: "show exabgp migration environment"},
 		{Command: "show secret encode content %s | json compact", Evidence: "show secret encode"},
 		{Command: "show secret decode content %s | json compact", Evidence: "show secret decode"},
+		{Command: "thanks | json compact", Evidence: "thanks"},
+		{Command: "thanks licence | name github.com/miekg/dns | json compact", Evidence: "thanks licence"},
 	}
 }
 
@@ -834,6 +837,10 @@ func runScenario(output io.Writer, work string) error {
 		return err
 	}
 
+	if err := runThanksCommands(output); err != nil {
+		return err
+	}
+
 	commandTree, err := localJSON("show yang tree --commands | json compact", "show yang tree", output)
 	if err != nil {
 		return err
@@ -1127,6 +1134,39 @@ func runScenario(output io.Writer, work string) error {
 		return fmt.Errorf("write coverage completion: %w", err)
 	}
 	return nil
+}
+
+// runThanksCommands covers the two credits commands. The work asserted is
+// github.com/miekg/dns, the module spec-thanks-third-party-credits AC-1 names
+// as linked by the shipped ze: the list holds its row with a recorded licence,
+// and the licence document narrowed to it by the declared `name` operation
+// holds its copyright line, copied from vendor/github.com/miekg/dns/LICENSE.
+// The `| json` pipe unwraps the list's one key, so the rows arrive as the
+// list itself.
+func runThanksCommands(output io.Writer) error {
+	payload, err := localJSON("thanks | json compact", "thanks", output)
+	if err != nil {
+		return err
+	}
+	values, isList := payload.([]any)
+	if err := require(isList && len(values) > 0, "thanks answered no rows: %#v", payload); err != nil {
+		return err
+	}
+	if err := validateRows(values, "thanks"); err != nil {
+		return err
+	}
+	if err := requireAnyRow(values, func(row map[string]any) bool {
+		licence, hasLicence := row["licence"].(string)
+		return row["name"] == "github.com/miekg/dns" && hasLicence && licence != "" && licence != "not recorded"
+	}, "thanks lost the row of github.com/miekg/dns or its licence: %#v", values); err != nil {
+		return err
+	}
+	content, err := blobContent("thanks licence | name github.com/miekg/dns | json compact", "thanks licence", output)
+	if err != nil {
+		return err
+	}
+	return require(strings.Contains(content, "Copyright (c) 2009, The Go Authors. Extensions copyright (c) 2011, Miek Gieben."),
+		"thanks licence | name github.com/miekg/dns answered no copyright line of the work: %q", content)
 }
 
 // runDivergenceCommands seeds the workspace store with the configuration a hub

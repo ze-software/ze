@@ -391,6 +391,9 @@ string literal.
 | `doctor` | `show doctor` | the builtin `HandleDoctor`, which adds the plugin checks |
 | `help command` | `show command catalog` | the same local-data handler, through the bridge |
 | `help ai` | `show command reference` | the same local-data handler, through the bridge |
+| `thanks` | `show thanks list` | the same local-data handler, through the bridge |
+| `thanks licence` | `show thanks licence` | the same local-data handler, through the bridge; the declared `name` operation reaches it in the declared list on both routes |
+<!-- source: internal/plugins/thanks/register.go -- show thanks list, show thanks licence -->
 
 `show command list` is not the daemon form of `help command`: it answers the
 commands the running daemon's dispatcher serves, a name and a summary each,
@@ -2147,7 +2150,7 @@ application error separately from its output, so a transport can preserve
 completion status without interpreting diagnostic-looking result bytes.
 
 <!-- source: internal/component/command/local_data.go -- ServeLocal -->
-<!-- source: internal/plugins/help/help_command.go -- operatorsFor -->
+<!-- source: internal/component/command/pipe_operations.go -- PipeOperations, PipeLayerReached -->
 <!-- source: internal/component/ssh/ssh.go -- execMiddleware -->
 <!-- source: internal/component/cli/client/main.go -- Execute, commandWithFormat -->
 <!-- source: internal/component/cli/client/answer.go -- daemonOutput, newDaemonOutput -->
@@ -4262,13 +4265,24 @@ slice. The Stage 1 registration message reaches a running daemon. The plugin's
 `registry.Registration` reaches anything that links the composition root, which
 is how a catalog generator reads a declaration without starting an engine.
 `Commands` carries the answer shape, the column order and the address fields;
-`Pipes` carries the aliases the plugin puts on its own commands. Until
-2026-09-07 the alias had no second channel, so no reader outside a daemon could
-report one.
+`Pipes` carries the aliases the plugin puts on its own commands and the
+operations its handler runs (an entry with an `argument` and no expansion).
+Until 2026-09-07 the alias had no second channel, so no reader outside a daemon
+could report one.
+
+Every surface below answers what a command takes after a pipe as ONE list,
+`pipe-operations`, from one function (`command.PipeOperations`; the daemon view
+is `command.PipeOperationsForCommand`). Each entry carries `name`, `source`
+(`generic`, `override`, `command` or `alias`), `argument`, `available`
+(`always`, `with-rows` or `when-streaming`) and `description`; a generic and an
+override also carry `class`, a generic `overridable` and `local-only`, and an
+alias `expansion`. An override sits in its generic's place with the command's
+own description, so the RIB's `count` appears once. Tab completion after `|`
+offers exactly this list.
 
 | Surface | Reads | Alias | Shape, column order, address fields |
 |---------|-------|-------|-------------------------------------|
-| `show command help "<name>"` | the running daemon's registries | Yes, as a `pipe-aliases` list beside `pipe-filters` | Yes, as `answer-shape`, `column-orders` and `address-fields` |
+| `show command help "<name>"` | the running daemon's registries | Yes, as entries of the `pipe-operations` list, `source` `alias` | Yes, as `answer-shape`, `column-orders` and `address-fields` |
 | Tab completion in the daemon-hosted TUI | the running daemon's registries | Yes | Yes |
 | `./le cli list` | the compiled tree and `registry.All()` | Yes | Yes |
 | `ze help command --json` | the compiled tree and `registry.All()` | Yes | Yes |
@@ -4383,10 +4397,10 @@ Two rules govern what such an entry carries.
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.Commands -->
 <!-- source: internal/le/plugin/declarations/plugindeclarations.go -- Check -->
 
-<!-- source: internal/plugins/meta/cmd/help.go -- commandHelp, pipeAliasHelp, handleBgpCommandHelp -->
+<!-- source: internal/plugins/meta/cmd/help.go -- commandHelp, handleBgpCommandHelp -->
 <!-- source: internal/le/cli/list/commandlist.go -- Collect, Answer -->
-<!-- source: internal/le/cli/catalog/catalog.go -- Collect, operatorsFor -->
-<!-- source: internal/plugins/help/help_command.go -- collectCommands, extractPipes -->
+<!-- source: internal/le/cli/catalog/catalog.go -- Collect -->
+<!-- source: internal/plugins/help/help_command.go -- collectCommands, pipeOperationsFor -->
 
 #### A plugin declares its own answer shape
 

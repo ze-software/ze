@@ -392,11 +392,13 @@ func TestEvidenceAndMarkersAreTheCurrentPopulation(t *testing.T) {
 		{Command: "show exabgp migration environment content %s name caller-input.conf | json compact", Evidence: "show exabgp migration environment"},
 		{Command: "show secret encode content %s | json compact", Evidence: "show secret encode"},
 		{Command: "show secret decode content %s | json compact", Evidence: "show secret decode"},
+		{Command: "thanks | json compact", Evidence: "thanks"},
+		{Command: "thanks licence | name github.com/miekg/dns | json compact", Evidence: "thanks licence"},
 	}
 	if got := Evidence(); !reflect.DeepEqual(got, want) {
 		t.Fatalf("Evidence() = %#v, want %#v", got, want)
 	}
-	if CompletionMarker != "OK: 74/74 local-data commands and local one-shot save" {
+	if CompletionMarker != "OK: 76/76 local-data commands and local one-shot save" {
 		t.Fatalf("CompletionMarker = %q", CompletionMarker)
 	}
 	for _, invocation := range want {

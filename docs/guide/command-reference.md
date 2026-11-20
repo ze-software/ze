@@ -917,7 +917,7 @@ Every pipe operator applies: `| json`, `| yaml`, `| table`, `| count`,
 | `kind` | `internal` for code this binary carries, `external` for another program |
 | `state` | One of the seven below |
 | `commands` | The commands the plugin declares. Absent when it declares none |
-| `pipes` | The pipe aliases the plugin declares. Absent when it declares none |
+| `pipes` | The pipe aliases and pipe operations the plugin declares: an alias carries an `expansion`, an operation an `argument`. Absent when it declares none |
 | `reason` | Why a row carries no declaration. Absent when one was read |
 
 | State | What it means |
@@ -1499,6 +1499,39 @@ ze cli -c "show data cat support/archive/ze-support-router1-20261102-101500.tar.
 <!-- source: internal/component/support/support.go -- Run, Answer, storeAnswer, collect, SupportManifest -->
 <!-- source: internal/component/command/blob.go -- BlobRemoteOctetsMax -->
 <!-- source: internal/component/support/modules.go -- moduleRegistry, ModuleNames, ModuleList -->
+
+### ze thanks / ze thanks licence
+
+Ze is built on other people's work. `ze thanks` lists every third-party work
+compiled into this binary: one row per work, under the group headings of the
+website's Dependencies page, with the version this binary carries, its licence,
+its copyright holder, why Ze uses it and where its source is. `ze thanks
+licence` prints the licence texts the binary carries as one document: for each
+distinct text, the works it covers with their copyright lines and source, then
+the text as the works ship it. The `name` pipe operation narrows the document to
+the one work with that exact name, as the list prints it.
+
+```
+ze thanks                                     # One row per carried work
+ze thanks licence                             # Every licence text
+ze cli -c "thanks licence | name github.com/miekg/dns"
+```
+
+Both are answered in the caller's own process, with no daemon. The daemon
+serves the same answers as `show thanks list` and `show thanks licence`, so
+SSH, the web command pages, REST, gRPC and MCP offer them too:
+
+```
+ze cli -c "show thanks list | json"
+ze cli -c "show thanks licence | name github.com/miekg/dns"
+```
+
+The list's columns, and its JSON keys, are `group`, `name`, `version`,
+`licence`, `copyright`, `why` and `source`. A name no carried work has is
+refused, and the refusal names `show thanks list` as the way to see the names.
+
+<!-- source: internal/plugins/thanks/register.go -- the two registrations, their daemon paths and the name operation -->
+<!-- source: internal/plugins/thanks/thanks.go -- listHandler, licenceHandler, creditsRefusal -->
 
 ### ze interface
 
@@ -4313,7 +4346,7 @@ unicast; `mp <family> add <prefixes>`, `mp <family> del <prefixes>` and
 | `show bgp rib \| advertised` | read-only | Stream advertised routes only |
 | `show bgp rib \| peer <selector>` | read-only | Stream routes for one peer selector |
 | `show bgp rib \| received \| covering <address>` | read-only | Stream the received routes whose prefix contains the address, most specific first within each peer; refused on advertised routes and on `show bgp rib best` <!-- source: internal/component/bgp/plugins/rib/rib_pipeline_covering.go -- receivedWalk, refuseCoveringScope, coveringOnBestRefusal --> |
-| `show bgp rib \| received \| exact <prefix>` | read-only | Stream the received routes of exactly that prefix, every ADD-PATH path of it, for example `show bgp rib received exact 10.0.0.0/8`; `prefix` is a text filter that also matches longer prefixes sharing its leading text. Refused on advertised routes, on `show bgp rib best`, and beside `covering` <!-- source: internal/component/bgp/plugins/rib/rib_pipeline_covering.go -- receivedWalk, parseExactPrefix, refuseExactScope, exactOnBestRefusal, walkConflictRefusal --> |
+| `show bgp rib \| received \| exact <prefix>` | read-only | Stream the received routes of exactly that prefix, every ADD-PATH path of it, for example `show bgp rib \| received \| exact 10.0.0.0/8`; `prefix` is a text filter that also matches longer prefixes sharing its leading text. Refused on advertised routes, on `show bgp rib best`, and beside `covering` <!-- source: internal/component/bgp/plugins/rib/rib_pipeline_covering.go -- receivedWalk, parseExactPrefix, refuseExactScope, exactOnBestRefusal, walkConflictRefusal --> |
 | `show bgp rib \| path <pattern>` | read-only | Stream the routes whose AS path matches the pattern: AS numbers joined by commas, matched as a run anywhere in the path. `^` first ties the run to the start of the path and `$` last ties it to the end, so `path 65001$` lists the routes AS 65001 originates and `path ^65010,65001$` lists the routes whose path is exactly those two AS numbers. A `$` anywhere but directly after the last AS number is refused. `show bgp rib best` takes the same filter <!-- source: internal/component/bgp/plugins/rib/rib_pipeline.go -- parsePathPattern, pathPattern.matches --> |
 | `show bgp rib best` | read-only | Best-path per prefix |
 | `show bgp rib best status` | read-only | Best-path computation status |
@@ -4386,7 +4419,7 @@ declares `map` rather than `tab`. `| fill` is refused by name.
 | Command | Access | Purpose |
 |---------|--------|---------|
 | `show bmp sessions` | read-only | Show active BMP receiver sessions (router address, sysName, uptime) |
-| `show bmp peers` | read-only | Show monitored BGP peers (AS, BGP ID, up/down status, and `rib-peer`, the key `show bgp rib protocol bmp peer` takes) |
+| `show bmp peers` | read-only | Show monitored BGP peers (AS, BGP ID, up/down status, and `rib-peer`, the key `show bgp rib protocol bmp \| peer` takes) |
 | `show bmp collectors` | read-only | Show BMP sender collector connection status |
 | `show bmp rib` | read-only | Show BMP-monitored routes <!-- source: internal/component/bgp/plugins/bmp/cmd_show.go -- ForwardToPlugin proxy --> |
 

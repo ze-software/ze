@@ -1,0 +1,37 @@
+module ze-thanks-cmd {
+    namespace "urn:ze:thanks:cmd";
+    prefix thankscmd;
+    import ze-extensions { prefix ze; }
+    description "show thanks list and show thanks licence, the daemon forms of ze thanks and ze thanks licence, owned by the thanks plugin, which registers their handlers. thanks is an offline root, not a verb, so no command path starts with it. See the plugin self-containment rule.";
+    revision 2026-11-20 { description "Initial: declare show thanks list and show thanks licence, so the daemon serves the third-party credits and their licence texts on every surface."; }
+
+    container show {
+        config false;
+        ze:help "Read-only commands to inspect system, protocol, and network state.";
+
+        container thanks {
+            config false;
+            description "The third-party works this binary carries: Go itself, the Go modules it links,
+the web assets it serves, and the code copied or ported into Ze, with the licence of each.";
+            ze:help "The third-party works Ze is built on, and their licences.";
+
+            container list {
+                config false;
+                ze:command "ze-thanks:show-list";
+                description "Prints one row per third-party work this binary carries, under the group
+headings of the curated list, with its version, licence, copyright holder and
+the reason Ze uses it.";
+                ze:help "List the third-party works this binary carries, with version, licence and copyright.";
+            }
+
+            container licence {
+                config false;
+                ze:command "ze-thanks:show-licence";
+                description "Prints one document: for each distinct licence text, the works it covers with
+their copyright lines and source location, then the text as the works ship it.
+The name pipe operation narrows it to one work.";
+                ze:help "Print the licence texts of the third-party works this binary carries.";
+            }
+        }
+    }
+}
