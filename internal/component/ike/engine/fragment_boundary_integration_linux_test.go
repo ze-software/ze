@@ -140,7 +140,17 @@ func fragmentSend(t *testing.T, conn *ipv4.RawConn, packet []byte) {
 // Authenticated PROTECT delivery and readback of both operator entries are controls.
 // RFC 4301 Section 7.4: "All implementations MUST support stateful fragment checking
 // to accommodate BYPASS traffic for which a non-trivial port range is specified."
-// This local-path probe does not claim the distinct forwarding obligation.
+// This local-path probe does not claim the distinct forwarding obligation. It sends no
+// lone non-initial fragment: local input reassembles a datagram before any policy check,
+// so a lone tail is never delivered whatever the SPD holds, and its absence would prove
+// nothing about the BYPASS entry.
+//
+// RFC requirement: RFC4301-7.4-2 positive -- on Ze's kernel, under unmatched discard,
+// the kernel holds the inbound BYPASS and DISCARD entries Ze installs for operator
+// entries on one IPv4 UDP local port each, and a whole and a fragmented cleartext
+// datagram to the bypassed port are delivered locally, while a whole and a fragmented
+// cleartext datagram to the discarded port (XfrmInPolBlock) or to the port a Child SA
+// protects (XfrmInTmplMismatch) are not.
 //
 //ze:guest-root
 func TestRFC4301CleartextFragmentsRespectOperatorDisposition(t *testing.T) {

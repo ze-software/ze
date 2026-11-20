@@ -33,6 +33,8 @@ import (
 // the check off, and a `vti bind` peer.
 // PREVENTS: an `in` bypass whose transit gate Linux silently overrides with the Child SA,
 // committed with no refusal; and the refusal reaching an `in` entry no error can meet.
+//
+// RFC requirement: RFC4301-6.2-3 negative -- under `vpn ipsec unmatched discard`, a `vpn ipsec policy` bypass entry, direction in or both, protocol 0, 1 or 58 with icmp-type any or an error type, whose local prefix overlaps the remote selectors of a site-to-site peer with icmp-error-check true and no `vti bind`, and to whose local prefix spdTransitPolicies gives an OUT transit gate, is refused by verifyICMPOverlap with an operator error naming the peer, the entry, the entry's transit gate, `icmp-error-check false` and a fix on the entry's local prefix, never its remote prefix, also when the remote prefix is disjoint from the peer's selectors; an in entry whose local prefix is disjoint, whose icmp-type is 8, whose protocol is 6, which discards, or beside a peer with icmp-error-check false or with `vti bind`, is accepted.
 func TestICMPOverlapBypassTransitGate(t *testing.T) {
 	bypass, in, both := dataplane.SPActionBypass, ipsec.SPDDirIn, ipsec.SPDDirBoth
 	const (

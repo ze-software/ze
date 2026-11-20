@@ -13,6 +13,17 @@
   {
     "rid": "RFC4301-7.4-2",
     "polarity": "positive",
+    "unit": "internal/component/ike/engine/fragment_boundary_integration_linux_test.go::TestRFC4301CleartextFragmentsRespectOperatorDisposition",
+    "unit-sha": "29dd29258cd6c67a",
+    "claim-sha": "a9f6376db6d6e536",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/spd_policy.go::spdPolicyParams",
+    "producer-sha": "09525a3dcbb72c53",
+    "break": "body of spdPolicyParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-7.4-2",
+    "polarity": "positive",
     "unit": "internal/component/ike/engine/rfc4301_fragment_forward_integration_linux_test.go::TestRFC4301ForwardedFragmentsRespectOperatorDisposition",
     "unit-sha": "040f30770fa78884",
     "claim-sha": "37462bfd165ac7d6",

@@ -2,6 +2,17 @@
   {
     "rid": "RFC4301-6.2-3",
     "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_icmp_overlap_gate_test.go::TestICMPOverlapBypassTransitGate",
+    "unit-sha": "6273c46634aaf5cb",
+    "claim-sha": "2587756c2654df1e",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/icmp_overlap.go::icmpErrorSides",
+    "producer-sha": "bc7813358a9e007f",
+    "break": "body of icmpErrorSides replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-6.2-3",
+    "polarity": "negative",
     "unit": "internal/component/ike/engine/rfc4301_icmp_overlap_test.go::TestICMPOverlapBypassCatchAll",
     "unit-sha": "364b10826d1eb1ed",
     "claim-sha": "5a4f8ecc262a2acf",
