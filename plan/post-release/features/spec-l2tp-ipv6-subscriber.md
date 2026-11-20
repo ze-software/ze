@@ -29,7 +29,18 @@ IPv4-only.** The question put to him was whether the first release carries L2TP
 IPv6 subscribers at all, given that wiring the path is a feature slice rather
 than a fix. Deferring it is a scope decision, and it is his.
 
-## Current behavior
+## Required Reading
+
+- [ ] `docs/architecture/l2tp/cpe-1-pppoe-client.md`, "IPv6CP" - the client-side IPv6CP automaton the server side does not have
+- [ ] `docs/architecture/testing/interop.md` - the L2TP and PPPoE suites the scenarios below join
+
+## Current Behavior
+
+**Source files read:**
+- [ ] `internal/component/l2tp/plugins/pool/register.go` - `poolPlugin.handle`, the only registered pool handler
+- [ ] `internal/component/l2tp/ppp/ncp.go` - `runNCPPhase`, which reads the refusal as declined
+- [ ] `internal/component/l2tp/ppp/session_run.go` - `startIPv6Service`, gated on IPv6CP Opened
+- [ ] `internal/component/l2tp/pppoeclient/ipv6cp_client.go` - `clientIPv6CP`, the client side that works today
 
 Each link read at its producer:
 
@@ -133,3 +144,62 @@ The interop row needs a host whose kernel carries `l2tp_ppp`. The development
 machine's Docker VM has `ppp_generic` built in and no L2TP module anywhere in
 `/lib/modules`, so the four existing L2TP scenarios cannot start there either.
 That is a machine constraint, not a code one.
+
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
+
+### Entry Point
+- A subscriber's PPP client, behind an L2TP LAC or as a PPPoE host, reaching the NCP phase of a session where Ze is the LNS or the access concentrator
+
+### Transformation Path
+1. `runNCPPhase` asks for an IPv6 interface identifier (`requestIPv6CPInterfaceID`), which the registered pool handler answers
+2. `poolPlugin.handle` declines every non-IPv4 family today; this spec makes it accept when the operator configured a pool that carries IPv6 prefix delegation
+3. On accept the IPv6 NCP starts and, once `ipv6cpState` is Opened, `startIPv6Service` runs with a prefix allocator from `l2tp.GetPrefixHandler` rather than nil
+4. At teardown the prefix returns through `l2tp.GetPrefixReleaser`, and `stopRASender` emits the final zero-lifetime Router Advertisement
+
+### Boundaries Crossed
+| Boundary | How | Verified |
+|----------|-----|----------|
+| PPP session to the pool plugin | The handler registries `l2tp.RegisterPoolHandler`, `RegisterPrefixHandler`, `RegisterPrefixReleaser`, shared by L2TP and PPPoE | No |
+
+### Integration Points
+- `poolPlugin.handle`, `poolPlugin.handlePrefix` and `releasePrefixBySubscriberID` (`internal/component/l2tp/plugins/pool/register.go`)
+- The `startIPv6Service` call in `internal/component/l2tp/ppp/session_run.go`, which passes a nil prefix allocator today
+
+## Wiring Test (MANDATORY -- NOT deferrable)
+
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+| A subscriber session in the QEMU guest | → | `poolPlugin.handle` accepts IPv6, IPv6CP Opened | `ppp-ipv6cp-negotiation` functional test |
+| A subscriber session teardown | → | `stopRASender` | the zero-lifetime Router Advertisement `.ci`, named at design |
+| xl2tpd and pppd 2.5.5 dialling Ze's dual-stack LNS | → | IPv6CP on the LNS | `l2tp-lns-ipv4-only-pppd-rejects-ipv6cp`, `l2tp-lns-pppd-ipv6cp-terminate-after-up` |
+| A PPPoE host | → | IPv6CP on the access concentrator | `ipv6cp-zero-identifier`, `ipv6cp-missing-option` |
+
+## 🧪 TDD Test Plan
+
+### Unit Tests
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| to be named at design | `internal/component/l2tp/plugins/pool/` | IPv6 accepted with a configured prefix-delegation pool, declined without one | |
+
+## Files to Modify
+- `internal/component/l2tp/plugins/pool/register.go` - accept IPv6 when a prefix-delegation pool is configured
+- `internal/component/l2tp/ppp/session_run.go` - pass the prefix allocator to `startIPv6Service`
+- The new functional tests and the two `test/interop-l2tp/scenarios/` directories, named at design
+
+## Implementation Steps
+1. **Phase: accept** -- the pool accepts IPv6 only with a configured prefix-delegation pool
+2. **Phase: delegation** -- `GetPrefixHandler` and `GetPrefixReleaser` reach the session path
+3. **Phase: functional** -- the zero-lifetime RA `.ci` and `ppp-ipv6cp-negotiation`
+4. **Phase: interop** -- the two PPPoE scenarios pass, and the two L2TP scenarios are written and pass
+
+## Checklist
+
+### Goal Gates (MUST pass)
+- [ ] `./le test unit pkg path ./internal/component/l2tp/plugins/pool/` and `./le test unit pkg path ./internal/component/l2tp/ppp/` green
+- [ ] `./le test functional l2tp` green, with the two new functional tests
+- [ ] The four interop scenarios above pass, each with a recorded red
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)

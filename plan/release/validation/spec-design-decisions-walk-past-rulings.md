@@ -29,6 +29,17 @@ This spec walks those records, and for each ruling proposes one row (the
 decision as he stated it, what it forbids, its Source, its Date) on the page
 that documents its subject, for Thomas to confirm before it is written.
 
+It also carries one gate fix to the same approval mechanism. The owner rule in
+`ai/META-DECISIONS.md` ("How agents work") says a change to an approved design
+that only writes in a choice Thomas himself made is judged by the independent
+design judge and not put back to him. The gate does not implement it: an
+approval binds to `DesignDigest`, which leaves out only the `### Choices for
+Thomas` subsection, so writing his answer into Task, Acceptance Criteria,
+Design documents or the rest of Design presentation demands a fresh owner-only
+`./le spec design approve` at `./le spec claim`, the ready hook and the commit
+gate. The fix: a design judge's approval of an owner-choice-only change carries
+the earlier owner approval forward to the new digest.
+
 ## Existing Mechanisms (MANDATORY)
 
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
@@ -37,6 +48,7 @@ that documents its subject, for Thomas to confirm before it is written.
 | The section check | `internal/le/doc/consistency/decisions.go` `JudgeDecisionRow`, `./le doc consistency` | Refuses a row with an empty cell, a bad Date or a Source that does not resolve | Does not change: every proposed row passes it before it is written |
 | The decision records | `plan/records/`, `plan/learned/DESIGN-HISTORY.md` | Hold Thomas's rulings as history | Does not apply as a home: each becomes the Source cell of its row |
 | The derivation | `./le spec design documents` (`internal/le/spec/design/documents.go` `derive`) | Lists the decision rows a spec owes a verdict on | Does not change: each new row is owed by every spec whose files link its page |
+| The design approval | `internal/le/spec/design/approval.go` `DesignDigest`, `approvalLookup.approved`; `admission.go` `Admit`, `OwedApprovalTrailer` | Admits a design only when an owner approval names its current digest | Extends: a judge approval of an owner-choice-only change carries the earlier owner approval forward |
 
 ## Required Reading
 
@@ -55,6 +67,7 @@ that documents its subject, for Thomas to confirm before it is written.
 
 **Behavior to change:**
 - Each confirmed past ruling becomes a row of the page that documents its subject
+- A change that only writes in Thomas's own answer is admitted on the design judge's approval, carrying his earlier approval forward, with no new `./le spec design approve`
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -89,15 +102,24 @@ that documents its subject, for Thomas to confirm before it is written.
 
 ## Files to Modify
 - The design pages that document each ruling's subject, named at design
+- `internal/le/spec/design/approval.go`, `admission.go` and their tests, for the carry-forward
 
 ## Implementation Steps
 1. **Phase: walk** -- list every ruling with its record and the page that documents its subject
 2. **Phase: rows** -- each row Thomas confirms is written, and `./le doc consistency` judges it
+3. **Phase: carry-forward** -- a judge approval of an owner-choice-only change carries the owner approval to the new digest
+
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `gate-fires-outside-its-population.md` | 2026-11-20 | design approval demands Thomas again for a change that only writes in his own answer |
 
 ## Checklist
 
 ### Goal Gates (MUST pass)
 - [ ] Every ruling of the walk is a confirmed row or named as declined by Thomas
+- [ ] A spec whose approved text changes only by writing in Thomas's answer, with the design judge's approval of the new text, is admitted by `./le spec claim`, the ready hook and the commit gate with no new `./le spec design approve`; a change carrying anything else still waits for him (a unit test of `Admit` for each)
 - [ ] `./le test unit pkg path ./internal/le/doc/consistency/` green, and `./le doc consistency` reports no `design-decisions` finding
 
 ### TDD
