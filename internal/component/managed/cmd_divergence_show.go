@@ -171,7 +171,10 @@ func answerDivergenceShow(validated command.ValidatedArgs) command.LocalAnswer {
 // answerDivergenceShowWith is the show handler over one ask, routed as
 // answerDivergenceListWith routes the list.
 func answerDivergenceShowWith(validated command.ValidatedArgs, ask divergenceAsk) command.LocalAnswer {
-	name, named := validated.Value(leafDivergenceName)
+	name, named, refusal := divergenceClientArg(pathDivergenceShow, validated)
+	if refusal != nil {
+		return command.LocalRefusal(1, command.LocalErrorLine(refusal))
+	}
 	if !named {
 		// The YANG leaf is mandatory, so the validator refused this before.
 		return command.LocalRefusal(1, command.LocalErrorLine(opererr.New(
@@ -189,6 +192,42 @@ func answerDivergenceShowWith(validated command.ValidatedArgs, ask divergenceAsk
 		return command.LocalAnswer{Payload: detail}
 	}
 	return storeDivergence(divergenceShowCommand(name), nil, read)
+}
+
+// divergenceClientArg answers the client a divergence command names, for the
+// command registered at path, and refuses a line that carries a word the
+// command does not declare. named is false when the line named no client.
+//
+// The two routes hand the client over differently. The daemon dispatcher
+// reads the word after the name keyword of the path as the selector, so the
+// client arrives keyed and every other spare word is left positional. The
+// local route consumes the whole path, keyword included, so the client is the
+// first positional word. command.ValidateArgs binds a positional word to its
+// leaf only when it is the lone spare word, and lets a word through once every
+// leaf is filled, so a line with one word too many is judged here: the client
+// is read the same way on both routes, and the extra word is refused the same
+// way on both.
+func divergenceClientArg(path string, validated command.ValidatedArgs) (client string, named bool, refusal *opererr.Error) {
+	spare := validated.PositionalTokens()
+	client, named = validated.Keyed(leafDivergenceName)
+	if !named && len(spare) > 0 {
+		client, named, spare = spare[0], true, spare[1:]
+	}
+	if len(spare) == 0 {
+		return client, named, nil
+	}
+	var problem textbuf.Buffer
+	problem.Str(divergenceCommandOf(path, client)).Str(": unexpected ")
+	if len(spare) == 1 {
+		problem.Str("word ")
+	} else {
+		problem.Str("words ")
+	}
+	problem.Quoted(textbuf.Join(spare, " "))
+	return client, named, opererr.New(problem.String(),
+		"the command declares no such word, so it did nothing rather than guess what the word means; "+
+			"the show of the client answers the words its divergence commands take",
+		divergenceShowCommand(client))
 }
 
 // handleDivergenceShow is the builtin RPC ze-managed:fleet-divergence-show: the

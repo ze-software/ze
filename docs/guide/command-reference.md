@@ -1273,12 +1273,15 @@ client's secrets. The diff compares the whole configuration, as
 holds a section of an external plugin the hub did not start, the answer still
 carries the hashes and the times, `diff-available` is `false`, and
 `diff-unavailable` names the plugins. A client with no copy is refused, and
-the refusal names `show fleet divergence list`.
+the refusal names `show fleet divergence list`. A word after the client name is
+refused, beside a running hub and with the hub stopped alike, and the refusal
+names the word; `update ... adopt` and `request ... revert` refuse a word they
+do not declare the same way.
 
 In the interactive CLI, Tab after `name` offers the clients whose copy the
 running hub keeps.
 
-<!-- source: internal/component/managed/cmd_divergence_show.go -- answerDivergenceShowWith, readDivergenceDetail, divergenceDiff, divergenceParseRefusal, divergenceChanges, completeDivergenceClients, handleDivergenceShow -->
+<!-- source: internal/component/managed/cmd_divergence_show.go -- answerDivergenceShowWith, divergenceClientArg, readDivergenceDetail, divergenceDiff, divergenceParseRefusal, divergenceChanges, completeDivergenceClients, handleDivergenceShow -->
 <!-- source: internal/component/managed/register.go -- show fleet divergence name registration, ze-managed:fleet-divergence-show -->
 <!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container divergence -->
 

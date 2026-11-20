@@ -78,12 +78,13 @@ func divergenceHeldRecord(t *testing.T, content string) string {
 	return string(encoded)
 }
 
-// divergenceArgs answers the validated arguments of a show that names client.
-func divergenceArgs(t *testing.T, client string) command.ValidatedArgs {
+// divergenceArgs answers the validated arguments of a show that names
+// divergenceClient.
+func divergenceArgs(t *testing.T) command.ValidatedArgs {
 	t.Helper()
 	name, err := command.NewStringArg(leafDivergenceName, nil, nil, command.ArgOptions{})
 	require.NoError(t, err)
-	validated, err := command.ValidateArgs([]string{leafDivergenceName, client}, []command.ArgDef{name}, nil)
+	validated, err := command.ValidateArgs([]string{leafDivergenceName, divergenceClient}, []command.ArgDef{name}, nil)
 	require.NoError(t, err)
 	return validated
 }
@@ -129,7 +130,7 @@ func TestShowDivergenceMasksSecrets(t *testing.T) {
 		map[string]string{pluginserver.ClientConfigKey(divergenceClient): served})
 	installServing(t, divergenceClient)
 
-	got := command.AnswerRemote(answerDivergenceShow, divergenceArgs(t, divergenceClient))
+	got := command.AnswerRemote(answerDivergenceShow, divergenceArgs(t))
 	require.Equal(t, 0, got.Code, "diagnostic: %s", got.Diagnostic)
 	detail, isDetail := got.Payload.(divergenceDetail)
 	require.True(t, isDetail, "payload is %T, want a divergence detail", got.Payload)
@@ -294,7 +295,7 @@ func TestShowDivergenceUncheckedPluginDegrades(t *testing.T) {
 		map[string]string{pluginserver.ClientConfigKey(divergenceClient): served})
 	installServing(t, divergenceClient)
 
-	got := command.AnswerRemote(answerDivergenceShow, divergenceArgs(t, divergenceClient))
+	got := command.AnswerRemote(answerDivergenceShow, divergenceArgs(t))
 	require.Equal(t, 0, got.Code, "diagnostic: %s", got.Diagnostic)
 	detail, isDetail := got.Payload.(divergenceDetail)
 	require.True(t, isDetail, "payload is %T, want a divergence detail", got.Payload)
@@ -318,7 +319,7 @@ func TestShowDivergenceRefusesWithoutRecord(t *testing.T) {
 	fleetStatusStore(t, nil, nil)
 	installServing(t, divergenceClient)
 
-	got := command.AnswerRemote(answerDivergenceShow, divergenceArgs(t, divergenceClient))
+	got := command.AnswerRemote(answerDivergenceShow, divergenceArgs(t))
 	assert.Equal(t, 1, got.Code)
 	assert.Contains(t, got.Diagnostic, "keeps no held configuration for client "+divergenceClient)
 	assert.True(t, strings.HasSuffix(strings.TrimSpace(got.Diagnostic), pathDivergenceList), "diagnostic: %s", got.Diagnostic)
@@ -414,6 +415,86 @@ func TestDivergenceRefusalNamesTypedCommand(t *testing.T) {
 	_, _, adoptRefusal := adoptArgs(unnamed)
 	require.NotNil(t, adoptRefusal)
 	assert.Equal(t, "update fleet divergence name <client> adopt: no client was named", adoptRefusal.Problem())
+}
+
+// TestDivergenceExtraWordRefusedOnBothRoutes proves a divergence command typed
+// with a word it does not declare is refused the same way on both routes,
+// naming the client and the word.
+//
+// Method: the show validated as each route validates it. The local route
+// consumes the path with its name keyword, so the client and the extra word
+// are two spare tokens; the daemon dispatcher binds the client as the name
+// selector, so the extra word is the one spare token. Adopt and revert are
+// judged on the local shape, where the client is a spare token beside the
+// keyed hashes.
+// VALIDATES: TestLocalCommandDaemonMatchesLocal/show_fleet_divergence_name
+// (cmd/ze/hub), where the local route answered "no client was named" and the
+// daemon route read the store for the client.
+// PREVENTS: the extra word making the client unread on the local route, or
+// being ignored on the daemon route.
+// MUTATION: read the client with validated.Value, or drop the spare-word
+// refusal of divergenceClientArg, and this fails.
+func TestDivergenceExtraWordRefusedOnBothRoutes(t *testing.T) {
+	const extra = "ze-match-no-such-word"
+	name, err := command.NewStringArg(leafDivergenceName, nil, nil, command.ArgOptions{})
+	require.NoError(t, err)
+	defs := []command.ArgDef{name}
+	noDaemon := func(string) (string, error) {
+		t.Fatal("a refused line must not reach the daemon")
+		return "", nil
+	}
+
+	local, err := command.ValidateArgs([]string{divergenceClient, extra}, defs, nil)
+	require.NoError(t, err)
+	daemon, err := command.ValidateArgs([]string{extra}, defs, map[string]string{leafDivergenceName: divergenceClient})
+	require.NoError(t, err)
+
+	want := `show fleet divergence name edge-01: unexpected word "ze-match-no-such-word"`
+	localAnswer := answerDivergenceShowWith(local, noDaemon)
+	daemonAnswer := answerDivergenceShowWith(daemon, noDaemon)
+	assert.Equal(t, 1, localAnswer.Code)
+	assert.Contains(t, localAnswer.Diagnostic, want)
+	assert.Equal(t, localAnswer, daemonAnswer, "both routes must refuse the extra word in the same words")
+	_, _, refusal := divergenceClientArg(pathDivergenceShow, local)
+	require.NotNil(t, refusal)
+	assert.Equal(t, want, refusal.Problem())
+	assert.Equal(t, "show fleet divergence name edge-01", refusal.Fix())
+
+	// A line that names the client alone is read the same way on both routes.
+	for _, validated := range []command.ValidatedArgs{
+		divergenceArgs(t),
+		mustValidate(t, []string{divergenceClient}, defs, nil),
+		mustValidate(t, nil, defs, map[string]string{leafDivergenceName: divergenceClient}),
+	} {
+		client, named, refusal := divergenceClientArg(pathDivergenceShow, validated)
+		assert.Nil(t, refusal)
+		assert.True(t, named)
+		assert.Equal(t, divergenceClient, client)
+	}
+
+	hash, err := command.NewStringArg(leafDivergenceVersion, nil, nil, command.ArgOptions{})
+	require.NoError(t, err)
+	hub, err := command.NewStringArg(leafDivergenceHubVersion, nil, nil, command.ArgOptions{})
+	require.NoError(t, err)
+	adopt := mustValidate(t, []string{divergenceClient, extra, leafDivergenceVersion, "d"},
+		[]command.ArgDef{name, hash}, nil)
+	_, _, adoptRefusal := adoptArgs(adopt)
+	require.NotNil(t, adoptRefusal)
+	assert.Equal(t, `update fleet divergence name edge-01 adopt: unexpected word "ze-match-no-such-word"`, adoptRefusal.Problem())
+	revert := mustValidate(t, []string{divergenceClient, extra, leafDivergenceVersion, "d", leafDivergenceHubVersion, "v"},
+		[]command.ArgDef{name, hash, hub}, nil)
+	_, _, _, revertRefusal := revertArgs(revert)
+	require.NotNil(t, revertRefusal)
+	assert.Equal(t, `request fleet divergence name edge-01 revert: unexpected word "ze-match-no-such-word"`, revertRefusal.Problem())
+}
+
+// mustValidate answers ValidateArgs over args, defs and preMatched, failing
+// the test on a refusal.
+func mustValidate(t *testing.T, args []string, defs []command.ArgDef, preMatched map[string]string) command.ValidatedArgs {
+	t.Helper()
+	validated, err := command.ValidateArgs(args, defs, preMatched)
+	require.NoError(t, err)
+	return validated
 }
 
 // TestDivergenceReadRefusalKeepsAFixAndNamesOne proves the refusal of a failed

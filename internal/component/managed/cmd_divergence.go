@@ -252,9 +252,12 @@ func revertUnknown(client string) string {
 // revertArgs answers the client, the device hash and the hub hash a revert
 // names. The three leaves are mandatory in the YANG, so the validator refused
 // a line without one before; the refusal here answers a caller that bypassed
-// it.
+// it. A word the command does not declare is refused (divergenceClientArg).
 func revertArgs(validated command.ValidatedArgs) (client, version, hubVersion string, refusal *opererr.Error) {
-	client, named := validated.Value(leafDivergenceName)
+	client, named, refusal := divergenceClientArg(pathDivergenceRevert, validated)
+	if refusal != nil {
+		return "", "", "", refusal
+	}
 	if !named {
 		return "", "", "", opererr.New(
 			divergenceCommandOf(pathDivergenceRevert, "")+": no client was named",
@@ -519,9 +522,13 @@ func adoptDaemonRefusal(client string, err error) *opererr.Error {
 
 // adoptArgs answers the client and the device hash an adopt names. Both
 // leaves are mandatory in the YANG, so the validator refused a line without
-// either before; the refusal here answers a caller that bypassed it.
+// either before; the refusal here answers a caller that bypassed it. A word
+// the command does not declare is refused (divergenceClientArg).
 func adoptArgs(validated command.ValidatedArgs) (client, version string, refusal *opererr.Error) {
-	client, named := validated.Value(leafDivergenceName)
+	client, named, refusal := divergenceClientArg(pathDivergenceAdopt, validated)
+	if refusal != nil {
+		return "", "", refusal
+	}
 	if !named {
 		return "", "", opererr.New(
 			divergenceCommandOf(pathDivergenceAdopt, "")+": no client was named",
