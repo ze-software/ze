@@ -29,6 +29,7 @@ import (
 	"go.fd.io/govpp/binapi/tunnel_types"
 
 	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // capturingChannel is an api.Channel that records what the backend sent and leaves
@@ -658,6 +659,94 @@ func TestVPPInstallPolicy(t *testing.T) {
 	if vppPriority(testBypassPriority) <= vppPriority(PriorityChildSA) {
 		t.Errorf("vppPriority inverts the ranking: bypass %d, child SA %d",
 			vppPriority(testBypassPriority), vppPriority(PriorityChildSA))
+	}
+}
+
+// TestVPPInstallPolicyInboundSides: method: install an INBOUND UDP discard written the
+// way the engine writes one (childPairPolicy, ike/engine/child.go: Src and SrcPort are
+// the remote side), read the entry sent, the vppctl delete command PolicyDeleteCommand
+// names and the delete RemovePolicyParams sends; then install the same selector
+// OUTBOUND on a fresh backend as the control. The inbound entry's local range and port
+// must be the policy's Dst and DstPort and its remote side Src and SrcPort, while the
+// outbound entry keeps Src local.
+// PREVENTS: every inbound SPD entry installed address-reversed. VPP's inbound lookup
+// compares a packet's destination with the local range, which the cleartext probe
+// measured on VPP v26.06 (vppevidencecleartext.go): with Src written local for both
+// directions, an inbound DISCARD matched ESP from the local subnet toward the remote
+// range and missed ESP from the remote range, the traffic it was written for.
+// It DISCRIMINATES: the old mapping writes 198.51.100.0/24 and port 5000 local for the
+// inbound entry and fails the first assertions and the command; mapping both
+// directions the inbound way fails the outbound control.
+func TestVPPInstallPolicyInboundSides(t *testing.T) {
+	_, remote, _ := net.ParseCIDR("198.51.100.0/24")
+	_, local, _ := net.ParseCIDR("192.0.2.0/24")
+	discard := func(dir SADir) SPParams {
+		return SPParams{
+			Src: remote, Dst: local, Dir: dir, IfIndex: 3,
+			Action: SPActionDiscard, Priority: testBypassPriority, UpperProto: 17,
+			SrcPort: ExactPortMatch(5000), DstPort: ExactPortMatch(53),
+		}
+	}
+	type sides struct {
+		local, remote         [2]ip_types.IP4Address
+		localPort, remotePort [2]uint16
+	}
+	sidesOf := func(e *ipsec_types.IpsecSpdEntryV2) sides {
+		return sides{
+			local:      [2]ip_types.IP4Address{e.LocalAddressStart.Un.GetIP4(), e.LocalAddressStop.Un.GetIP4()},
+			remote:     [2]ip_types.IP4Address{e.RemoteAddressStart.Un.GetIP4(), e.RemoteAddressStop.Un.GetIP4()},
+			localPort:  [2]uint16{e.LocalPortStart, e.LocalPortStop},
+			remotePort: [2]uint16{e.RemotePortStart, e.RemotePortStop},
+		}
+	}
+	dstSide := [2]ip_types.IP4Address{{192, 0, 2, 0}, {192, 0, 2, 255}}
+	srcSide := [2]ip_types.IP4Address{{198, 51, 100, 0}, {198, 51, 100, 255}}
+
+	b, ch := newCapturingBackend()
+	p := discard(SADirIn)
+	if err := b.InstallPolicy(p); err != nil {
+		t.Fatalf("InstallPolicy inbound: %v", err)
+	}
+	added := sentSPD(t, ch).Entry
+	if added.IsOutbound {
+		t.Fatal("the inbound policy reached VPP as outbound")
+	}
+	want := sides{local: dstSide, remote: srcSide, localPort: [2]uint16{53, 53}, remotePort: [2]uint16{5000, 5000}}
+	if got := sidesOf(&added); got != want {
+		t.Errorf("inbound entry sides = %+v, want local = Dst %v port 53, remote = Src %v port 5000", got, dstSide, srcSide)
+	}
+
+	command, err := b.PolicyDeleteCommand(p)
+	if err != nil {
+		t.Fatalf("PolicyDeleteCommand: %v", err)
+	}
+	var wantCommand textbuf.Buffer
+	wantCommand.Str("vppctl ipsec policy del spd ").Uint32(b.spdID).Str(" priority -100 inbound action discard").
+		Str(" protocol 17 local-ip-range 192.0.2.0 - 192.0.2.255 remote-ip-range 198.51.100.0 - 198.51.100.255").
+		Str(" local-port-range 53 - 53 remote-port-range 5000 - 5000")
+	if command != string(wantCommand.Bytes()) {
+		t.Errorf("delete command\n got %q\nwant %q", command, string(wantCommand.Bytes()))
+	}
+
+	ch.sent = nil
+	if err := b.RemovePolicyParams(p); err != nil {
+		t.Fatalf("RemovePolicyParams inbound: %v", err)
+	}
+	if req := sentSPD(t, ch); req.IsAdd || req.Entry != added {
+		t.Errorf("removal sent add=%v entry %+v, want the delete of the entry the add sent %+v", req.IsAdd, req.Entry, added)
+	}
+	if len(b.spdEntries) != 0 {
+		t.Errorf("the backend still records %d SPD entries after removing the only one", len(b.spdEntries))
+	}
+
+	b, ch = newCapturingBackend()
+	if err := b.InstallPolicy(discard(SADirOut)); err != nil {
+		t.Fatalf("InstallPolicy outbound: %v", err)
+	}
+	outbound := sentSPD(t, ch).Entry
+	wantOut := sides{local: srcSide, remote: dstSide, localPort: [2]uint16{5000, 5000}, remotePort: [2]uint16{53, 53}}
+	if got := sidesOf(&outbound); got != wantOut {
+		t.Errorf("outbound entry sides = %+v, want local = Src %v port 5000, remote = Dst %v port 53", got, srcSide, dstSide)
 	}
 }
 

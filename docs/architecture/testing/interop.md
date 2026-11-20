@@ -896,10 +896,21 @@ dropped the frame, what the node counted under `IPSec policy match`, `bypass`,
 `discard` and `not matched`, and what the RFC requires. `IPSec policy not
 matched` alone settles nothing: the IPv4 loop counts the cleartext it forwards
 there too. The two ESP checks show which address pair VPP compares against an
-inbound entry, because the backend writes `SPParams.Src` into the local range
-for both directions, and VPP's inbound lookup compares the packet's destination
-with the local range.
+inbound entry. VPP's inbound lookup compares the packet's destination with the
+local range, so the backend writes an inbound policy's `SPParams.Dst` into the
+local range and its `Src` into the remote range (`vppSPDSelector`).
+
+The run of 2026-11-20 on VPP v26.06 (commit `aba3cec65b`) measured all five
+frames. The three cleartext frames were forwarded, each counted `IPSec policy
+match` 0, `bypass` 0, `discard` 0 and `not matched` 1: VPP's inbound SPD does
+not judge cleartext. The backend then still wrote `SPParams.Src` into the local
+range for both directions, and the ESP checks showed it: `probe-esp-discard`
+was dropped with `discard` 0 and `not matched` 1, and
+`probe-esp-discard-reversed` with `discard` 1. With the inbound mapping fixed,
+the expected run shows `probe-esp-discard` with `discard` 1 and the reversed
+frame with `discard` 0.
 <!-- source: internal/le/test/deployment/vppevidencecleartext.go -- runCleartextProbe, judgeCleartextFrame, traceFate, vppErrorCount -->
+<!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppSPDSelector -->
 
 ## Live Interop Tests (`test/interop/`)
 
@@ -3789,8 +3800,9 @@ validation (no matching StopCCN 2/8), then passed after a normal rebuild.
 <!-- source: internal/le/interoplab/l2tp/mandatory_avp.go -- checkUnknownMandatoryAVP -->
 <!-- source: internal/le/interoplab/l2tp/avprelay/main.go -- run, inject -->
 
-`ppp-code-reject-xl2tpd` puts the same relay between xl2tpd and Ze, and it is
-the one scenario where the relay originates frames. No lab peer sends a PPP
+`ppp-code-reject-xl2tpd` puts the same relay between xl2tpd and Ze, and it was
+the first scenario where the relay originates frames; `lcp-restart-timer-pppd`
+and the three NCP lifetime scenarios below do too. No lab peer sends a PPP
 Code it does not know, so the relay injects them on the live L2TP session,
 and only after the checker creates `/run/code-reject` once PPP traffic has
 flowed. The next data message from the LAC is the trigger: the relay
@@ -3835,6 +3847,54 @@ capture.
 <!-- source: internal/le/interoplab/l2tp/ppp_code_reject.go -- checkPPPCodeReject -->
 <!-- source: internal/le/interoplab/l2tp/ppp_ipcp_reopen.go -- waitIPv4Withdrawn, ipcpReopened, waitIPv4Reinstalled -->
 <!-- source: internal/le/interoplab/l2tp/avprelay/pppinject.go -- relayData, codeRejectFrames -->
+
+Three scenarios prove the independent lifetime of IPCP and IPv6CP against
+pppd 2.5.5 on Ze's IPv4-only pool, the only pool Ze ships, so Ze's own IPv6CP
+never starts in any of them and pppd's is answered with an LCP Protocol-Reject
+naming 0x8057. Each reads the relay's complete capture: every normal data
+datagram of both directions carries a consecutive `data_ordinal` from one, and
+the reader refuses a gap or a missing prefix, so an assertion that something
+was not sent never reads a truncated log as silence. The IPCP Terminate-Request
+(`/run/ipcp-terminate`) and the CCP Configure-Request (`/run/ccp-configure-request`)
+markers each inject once per relay on the next LAC datagram, and neither needs
+the Code-Reject marker.
+
+- `l2tp-lns-pppd-ipv6cp-rejected-by-lns` runs stock pppd, which offers IPv6CP
+  (`ipv6cp_protent` `enabled_flag` 1). Ze Protocol-Rejects it, pppd sends no
+  IPv6CP after (`ipv6cp_protrej` calls `fsm_lowerdown`, and no `np_finished`
+  follows), and IPv4 still carries a ping past `ncp timeout`. The relay then
+  injects one CCP Configure-Request (Protocol 0x80fd, Code 1, Identifier
+  0x3c, no option); Ze runs no CCP and answers with an LCP Protocol-Reject
+  naming 0x80fd whose Rejected-Information is that packet. It is goal
+  evidence, passing before and after the lifetime work, and owes no revert
+  walk.
+- `l2tp-lns-pppd-noip-rejects-ipcp` runs pppd `noip`, so pppd answers Ze's
+  IPCP with an LCP Protocol-Reject naming 0x8021 and keeps the link for its
+  IPv6CP (`continue_networks` counts it in `num_np_open`). Ze must send no
+  IPCP after that reject (RFC 1661 Section 5.7: "Upon reception of a
+  Protocol-Reject, the implementation MUST stop sending packets of the
+  indicated protocol at the earliest opportunity."), log no `PPP session up`,
+  send no LCP Terminate-Request, and end the call with a CDN when the no-NCP
+  bound expires. Its `ncp timeout` (8 s) exceeds several `lcp restart-timer`
+  periods (2 s), so a Ze that ignored the reject retransmits IPCP before the
+  session ends, and removing the dispatch (`receiveProtocolReject`) turns the
+  no-IPCP-after assertion red.
+- `l2tp-lns-pppd-ipcp-terminate-redistribute` is the one topology with both
+  the relay and FRR: xl2tpd dials the relay on `172.29.0.4`, and FRR moves to
+  `172.29.0.6` (`relayFRRHost`), where the scenario's `frr.conf` and
+  `ze.conf` place it. After the relay injects the IPCP Terminate-Request, the
+  address leaves Ze's `pppN` and FRR loses the subscriber `/32`, polled every
+  250 ms inside the one Restart time Ze holds IPCP in Stopping; pppd
+  renegotiates (`fsm_rtermack`, `case OPENED:`), and the address, the `/32` and
+  traffic return. Past `ncp timeout` from the trigger no CDN follows, because
+  the reopen cancelled the no-NCP bound. The timers keep that order: Ze
+  ignores pppd's Configure-Requests until Stopped, so the reopen waits up to
+  pppd's 3 s retransmission after the 10 s Restart time, and `ncp timeout` 20 s
+  exceeds both. Removing the release event (`publishNCPRelease`) leaves the
+  `/32` in FRR and turns phase A red.
+<!-- source: internal/le/interoplab/l2tp/ncp_lifetime.go -- checkIPv6CPRejectedByLNS, checkNoIPRejectsIPCP, checkIPCPTerminateRedistribute, sessionPPPFrames -->
+<!-- source: internal/le/interoplab/l2tp/avprelay/pppinject.go -- injectCCP, injectTerminate -->
+<!-- source: internal/le/interoplab/l2tp/l2tp.go -- prepareScenario, standardImageBuilds -->
 
 `pppoe-chap-rechallenge-ze-client` observes two accel-ppp reauthentication
 exchanges after working IPCP traffic, checks each CHAP Response's Identifier

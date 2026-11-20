@@ -699,19 +699,38 @@ func vppSPDSelector(p SPParams) (ipsec_types.IpsecSpdEntryV2, error) {
 	if err := vppICMPErrorReturnError(p); err != nil {
 		return entry, err
 	}
-	localPortStart, localPortStop, err := vppPortRange(p.SrcPort)
+	// SPParams names the selector by the PACKET'S fields, source and destination, and
+	// the engine writes an inbound policy with Src on the remote side (childPairPolicy,
+	// ike/engine/child.go). An ipsec_spd_entry_v2 names it by SIDE, local and remote:
+	// VPP's outbound lookup compares a packet's source with the local range, and its
+	// inbound lookup compares a packet's DESTINATION with the local range. So an
+	// outbound policy's Src is the local side, and an inbound policy's Dst is.
+	//
+	// MEASURED on VPP v26.06 on 2026-11-20 by the cleartext probe
+	// (internal/le/test/deployment/vppevidencecleartext.go). With Src written to the
+	// local range for both directions, an inbound DISCARD for remote 100.64.47.0/24
+	// left ESP from 100.64.47.10 to 100.64.45.1 unmatched ('discard' 0, 'not matched'
+	// 1) and discarded ESP from 100.64.45.10 to 100.64.47.1 ('discard' 1): every
+	// inbound entry was installed address-reversed.
+	local, remote := p.Src, p.Dst
+	localPort, remotePort := p.SrcPort, p.DstPort
+	if p.Dir == SADirIn {
+		local, remote = p.Dst, p.Src
+		localPort, remotePort = p.DstPort, p.SrcPort
+	}
+	localPortStart, localPortStop, err := vppPortRange(localPort)
 	if err != nil {
 		return entry, fmt.Errorf("vpp: policy local port: %w", err)
 	}
-	remotePortStart, remotePortStop, err := vppPortRange(p.DstPort)
+	remotePortStart, remotePortStop, err := vppPortRange(remotePort)
 	if err != nil {
 		return entry, fmt.Errorf("vpp: policy remote port: %w", err)
 	}
-	localStart, localStop, err := vppRange(p.Src)
+	localStart, localStop, err := vppRange(local)
 	if err != nil {
 		return entry, fmt.Errorf("vpp: policy local selector: %w", err)
 	}
-	remoteStart, remoteStop, err := vppRange(p.Dst)
+	remoteStart, remoteStop, err := vppRange(remote)
 	if err != nil {
 		return entry, fmt.Errorf("vpp: policy remote selector: %w", err)
 	}

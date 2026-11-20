@@ -154,6 +154,55 @@ SPD entry's match counter.
 | The cleartext packet is dropped by the DISCARD entry | The design stands; the measurement becomes AC-8's test |
 | The packet passes, counted as `unprocessed` | The design cannot meet 5a for inbound cleartext. Stop and take it back to Thomas with the measurement: it is a design problem, not an implementation detail |
 
+### Outcome of the first task (measured 2026-11-20)
+
+Measured on real VPP v26.06 (x86 server, docker-lab on Ze's kernel), `./le test
+deployment vpp` at commit `aba3cec65b`, by `TestVPPRealCleartextProbe`
+(`internal/component/ike/dataplane/vpp_real_cleartext_integration_test.go`) and
+`internal/le/test/deployment/vppevidencecleartext.go`. The counters are those of
+`ipsec4-input-feature`, verbatim:
+
+| # | Frame | Matching entry | VPP's verdict | Counters |
+|---|-------|----------------|---------------|----------|
+| 1 | cleartext ICMP `100.64.46.10` -> `100.64.45.1` | inbound PROTECT `100.64.46.0/24` | FORWARDED | 'policy match' 0, 'bypass' 0, 'discard' 0, 'not matched' 1 |
+| 2 | cleartext ICMP from `100.64.47.10` | inbound DISCARD `100.64.47.0/24` | FORWARDED | same counters as 1 |
+| 3 | cleartext ICMP from `100.64.48.10` | inbound BYPASS `100.64.48.0/24` | FORWARDED | same counters as 1 |
+| 4 | ESP, unknown SPI, `100.64.47.10` -> `100.64.45.1` (the orientation the engine writes an inbound selector: Src is the remote range) | inbound DISCARD `100.64.47.0/24` | dropped | 'discard' 0, 'not matched' 1 |
+| 5 | ESP `100.64.45.10` -> `100.64.47.1` (the pair exchanged) | inbound DISCARD, only with the pair exchanged | dropped | 'discard' 1, 'not matched' 0 |
+
+Two findings follow.
+
+1. **Confirmed: VPP's inbound SPD never judges cleartext.** Frames 1 to 3 were
+   forwarded unjudged whatever entry they matched, so RFC 4301 Section 5.2 step 3b
+   ("If there is a match and the packet is to be discarded or bypassed, do so." and
+   "If there is no match, discard the traffic.") is unmet on VPP in policy mode. This
+   is the second row of the table above: the design cannot meet 5a for inbound
+   cleartext, and AC-8 is not met by design. **Pending Thomas's ruling**; nothing in
+   this spec decides it, and no work proceeds on AC-6's inbound half or AC-8 until he
+   rules.
+2. **Defect found in passing: the VPP backend installed every inbound SPD entry
+   address-reversed.** Frames 4 and 5 show it: VPP's inbound lookup compares the
+   packet's destination with the entry's local range, and `vppSPDSelector`
+   (`internal/component/ike/dataplane/vpp_policy.go`) wrote `SPParams.Src` and
+   `SrcPort` into the local side for both directions, while the engine writes an
+   inbound policy with Src on the remote side (`childPairPolicy`,
+   `internal/component/ike/engine/child.go`). Small, and related to the work in
+   hand, so it is fixed here (AC-9, "Found in passing" below).
+
+The same run also showed an unrelated red: the scenario `fib` reported "real VPP
+FIB route not observed" (a BGP-learned route installed through `fib-vpp` is not in
+`show ip fib`). It was not investigated. This work did not cause it: that scenario
+does not touch `pg1` or IPsec.
+
+## Found in passing: inbound SPD entries address-reversed on VPP
+
+| Item | Detail |
+|------|--------|
+| Defect | `vppSPDSelector` mapped `SPParams.Src`/`SrcPort` to VPP's local side for an inbound policy too, so an inbound BYPASS or DISCARD matched the traffic flowing the other way and missed the traffic it was written for (outcome, frames 4 and 5) |
+| Fix | An inbound (`SADirIn`) policy maps `Dst`/`DstPort` to the local range and port and `Src`/`SrcPort` to the remote ones; outbound is unchanged. `recordedEntry` builds its probe through `vppSPDSelector`, and `PolicyDeleteCommand` and `Close` send back the recorded entry, so install, removal, the vppctl delete command and teardown agree |
+| Unit test | `TestVPPInstallPolicyInboundSides` (`internal/component/ike/dataplane/rfc7296_vpp_message_test.go`): the inbound entry's local side is Dst and port 53, its remote side Src and port 5000, the delete command and the removal name the same entry, and the outbound control keeps Src local |
+| Real-VPP evidence | the next `./le test deployment vpp` run: `probe-esp-discard` counts 'discard' 1, `probe-esp-discard-reversed` counts 'discard' 0 |
+
 ## Existing Mechanisms (MANDATORY)
 
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
@@ -321,7 +370,8 @@ is owed before the design is presented, with every row it lists.
 | AC-5 | A Child SA rekey over the VPP backend | ONE SPD entry per direction names the live SA, and the retired entry AND the retired SA are gone: from VPP, from `b.spdEntries` and from `b.sadIDs`. A delete VPP reports retval 0 for while keeping the object is not read as success. Proven against a real VPP | None: a retired entry or SA that survives is the leak this criterion exists for |
 | AC-6 | A `vpn ipsec policy` entry (bypass or discard) committed on the VPP dataplane with the leaf set | the entry is installed in the same SPD as the Child SA policies, at its order, and decides matching traffic on the WAN interface; an entry VPP cannot express exactly (an ICMP type or code, which VPP does not compare) is refused at commit with the entry named and its fix; an install VPP refuses fails the apply as AC-14 of `spec-rfc4301-architecture-gaps` requires | Inbound cleartext depends on the first task: until it is measured, no claim is made that an inbound entry decides cleartext |
 | AC-7 | The leaf changes on reload from `<a>` to `<b>`, or `<b>` already holds an SPD Ze did not bind | on a change the SPD is unbound from `<a>` and bound to `<b>` in the same apply, read back from VPP; a bind VPP refuses because `<b>` holds another SPD fails the apply naming `<b>` and the cause, and at start is logged and reported by doctor | None |
-| AC-8 | The first task's measurement: cleartext matching an inbound DISCARD entry arrives on the bound interface of a real VPP | the packet is dropped and the entry's match counter rises, and cleartext matching an inbound BYPASS is delivered | If the measurement shows the packet passing as `unprocessed`, this criterion is not met by design and goes back to Thomas; it is never closed as a limitation |
+| AC-8 | The first task's measurement: cleartext matching an inbound DISCARD entry arrives on the bound interface of a real VPP | the packet is dropped and the entry's match counter rises, and cleartext matching an inbound BYPASS is delivered | If the measurement shows the packet passing as `unprocessed`, this criterion is not met by design and goes back to Thomas; it is never closed as a limitation. Measured 2026-11-20: the packet passes unjudged (first task outcome); pending Thomas's ruling |
+| AC-9 | An inbound (`SADirIn`) policy installed on the VPP backend (found in passing, 2026-11-20) | the SPD entry's local range and port are the policy's `Dst` and `DstPort`, its remote range and port `Src` and `SrcPort`; an outbound policy keeps `Src` local; removal, the vppctl delete command and `Close` send back that same entry; on a real VPP an inbound DISCARD counts 'discard' for ESP from its remote range (`probe-esp-discard`) and not for the exchanged pair (`probe-esp-discard-reversed`) | None |
 
 ## End-to-End User Stories
 
@@ -340,6 +390,7 @@ is owed before the design is presented, with every row it lists.
 | `TestVPPChildSAPolicyLandsInTheWANSPD` | `internal/component/ike/engine/` | AC-1 from the engine | not written |
 | `TestVPPWithoutIPsecInterfaceRefusedAtCommit` | `internal/component/ike/engine/` | AC-3 | not written |
 | `TestXFRMPoliciesKeepInterfaceIndexZero` | `internal/component/ike/dataplane/` | AC-2 | not written |
+| `TestVPPInstallPolicyInboundSides` | `internal/component/ike/dataplane/rfc7296_vpp_message_test.go` | AC-9 | written 2026-11-20, not yet run |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -358,7 +409,7 @@ is owed before the design is presented, with every row it lists.
 
 ## Files to Modify
 - `internal/component/ike/dataplane/dataplane.go` - the backend-level interface call on `Dataplane`; the `SPParams.IfIndex` comment (count of refusals, the spec path)
-- `internal/component/ike/dataplane/vpp_policy.go` - `vppPolicyInterface` reads 0 as the bound SPD; `ensureSPD` binds from the resolved leaf; rebind; the stale "one producer" comment
+- `internal/component/ike/dataplane/vpp_policy.go` - `vppPolicyInterface` reads 0 as the bound SPD; `ensureSPD` binds from the resolved leaf; rebind; the stale "one producer" comment; `vppSPDSelector` maps an inbound policy's Dst to the local side (AC-9, done 2026-11-20)
 - `internal/component/ike/dataplane/vpp.go` - record the interface name; rekey replacement (AC-5); the `RemoveSA` comment's spec path
 - `internal/component/ike/dataplane/xfrm_linux.go` and the noop backend - the documented no-op answer
 - `internal/component/ike/engine/apply.go`, `internal/component/ike/engine/dynamic_wan.go` - hand the leaf to the backend; refuse a VPP dataplane with no leaf; retry a refused bind
@@ -601,7 +652,7 @@ none
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-8 all demonstrated
+- [ ] AC-1..AC-9 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] The targeted tests for what changed pass, run in the main checkout by the main thread: `./le test unit pkg path ./internal/component/ike/dataplane/` (with the `ze_vpp` tag the toolchain supplies), `./le test unit pkg path ./internal/component/ike/engine/`, `./le test functional parse` for the new `.ci`, and the real-VPP IPsec evidence run
