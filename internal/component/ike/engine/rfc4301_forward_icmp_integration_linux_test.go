@@ -2,7 +2,7 @@
 
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- ICMP error messages carried by a Child SA.
 // Related: rfc4301_forward_default_integration_linux_test.go -- final-disposition lifecycle.
-// Related: fragment_forward_integration_linux_test.go -- shared ordinary AF_PACKET observer.
+// Related: rfc4301_fragment_forward_integration_linux_test.go -- shared ordinary AF_PACKET observer.
 // RFC naming: untagged -- packet-level conformance probe awaiting guest observation.
 
 package engine
