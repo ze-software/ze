@@ -71,6 +71,18 @@ Remaining, in order:
 - 7b (T-5 C: ordered optional pipe list on derived MCP tools and REST/gRPC routes), phase 8 (documentation checklist), spec bookkeeping from phase 5 on, then `/ze-close`.
 - Approval rows consumed by 3c642127ca were not cleaned (le could not rebuild while another session's credits package lacked its embedded data): run `./le commit approval clean` later.
 
+## Update: implementation complete; closure is what remains
+
+Landed after 3c642127ca: 6537dc0f86 (Thomas's 2026-11-20 override ruling: every data operator overridable keeping its answer shape; the site catalog reader with his approved sentence; 7b pipe list on MCP/REST/gRPC; OpenAPI published unserved routes), 4faad7bbe7 (phase 6 continuation, phase 8 docs, RIB match never read large/extended communities), 5ebf3c1c8e, adfaec2d77, 2f50baa36d (26 functional tests promoted, each stress-run 80 times), 72502f3950 (stream match judged per event; a stopped ze cli monitor commits its | save), 18a3f2c17e (spec at phase 8/8 with evidence per goal). Only test/draft/plugin/rib-advertised-user-path.ci stays a draft: its user update is refused "no peers match selector" in another session's route-origin path (a27a951239); TestSendWildcardSelectorReachesTheUpdateHandler rules this spec out.
+
+The /ze-close review (its full report and prepared edits are in the state file, last section) found 0 BLOCKER and 5 ISSUE, to fix first:
+1. internal/le/site/testdata published-configuration.md and published-yang-config-tree.json still show `show bgp rib sent`/`received` (step 6g); refresh through ze-test-judge (golden).
+2. `./le doc yang-contract doc-drift` fails: the comparator (internal/le/doc/yangcontract/command_surfaces.go, generatedCommandValueIssue) must accept the site's approved overridable sentence (internal/le/site/commands.go overridableNote).
+3. The stream route never checks an override's answer shape (CheckOverrideAnswer only in plugin/server/command.go and command/local_data.go; TestOverrideShapeCheckScope pins streams unchecked): add it in StreamLine.Run, or record a deviation in the spec.
+4. AC-17 and its Goal row cite TestRIBOverridesKeepGenericMeaning, which does not exist: cite TestFilterMatchCrossField / TestMatchPoolCommunities or write it.
+5. Stale comments naming operatorsFor in internal/component/bgp/plugins/cmd/peer/peer_shape_test.go.
+Then: the 15 interop scenarios the close report lists (`INTEROP_SCENARIO=<name> ./le test integration interop`), `./le test weakened check`, `./le repo check`, `./le rfc check`; fill the closure sections and Review Gate (needs the doors and the producing sources read in that context); `./le spec review record ...`; commit A (spec, ai/rules/cli.md, the two journal rows set fixed, commands.md citation, website/changes/fragments/pipe-chain-honored-on-every-command-surface.md, the two container-spec citers, the fixes, and `remove` this handover); commit B (`remove` the spec); `./le spec release`. Uncommitted closure edits already in the tree: the two journal rows, the commands.md citation, the news fragment, ai/rules/cli.md.
+
 ## Then
 
 `./le spec claim spec-pipe-chain-honored-on-every-command-surface.md` (the claim may need `ZE_SPEC_WIP_CAP=22`, authorised by Thomas for this spec only), read the state file, then `/ze-implement` from phase 5c.
