@@ -558,7 +558,9 @@ backend declares `RequiresForwardPolicy`. Linux declares it for tunnel reception
 local delivery checks `IN`, while delivery to a protected host checks `FWD`.
 The forward policy has the inbound selectors, ports, template, SA id, priority,
 owner and `if_id`. VPP declares no separate forward lookup because its inbound SPD
-applies before routing; it still refuses a caller's explicit `SADirFwd`.
+applies before routing; it still refuses a caller's explicit `SADirFwd`. That SPD
+judges ESP, AH and IKE only: on VPP, Ze owes the inbound cleartext verdict itself,
+by a mechanism still open (Decisions).
 Transport mode does not add a forward policy.
 
 **A packet a protected host sends towards the tunnel gets a forward entry too.**
@@ -917,6 +919,35 @@ same day Thomas chose to build this interface model rather than refuse operator
 entries on VPP until it exists. None of this is built yet: `plan/release/fixes/spec-ipsec-vpp-policy-interface.md`
 owns it, and until it lands `vppPolicyInterface` refuses every policy IKE produces
 ("SPD dispositions").
+
+**On VPP, Ze itself discards inbound cleartext that matches an inbound PROTECT or
+DISCARD entry; the inbound ACL Thomas ruled for it is unworkable as stated.**
+Thomas decided on 2026-11-20 (option 3a) that Ze meets this itself, through an
+inbound ACL it derives on the IPsec WAN interface. RFC 4301 Section 5.2 step 3b
+requires the discard ("If there is a match and the packet is to be discarded or
+bypassed, do so."), and VPP's SPD does not perform it: on a real VPP v26.06,
+cleartext matching an inbound PROTECT, DISCARD or BYPASS entry on a bound
+interface was forwarded unjudged, because `ipsec4-input-feature` examines only
+ESP, AH and IKE's UDP ports (measured, `plan/release/fixes/spec-ipsec-vpp-policy-interface.md`,
+"Outcome of the first task"). The ruling derives the ACL from those inbound entries
+on the interface `vpn ipsec interface` names, the one its VPP SPD is bound to (the
+decision above), to share one owner with the VPP firewall backend
+(`internal/plugins/firewall/vpp`), which writes an interface's whole ACL vector with
+`ACLInterfaceSetACLList` (`docs/architecture/firewall/fw-6-firewall-vpp.md`). Two
+alternatives were set aside: keeping VPP IPsec unselectable until such enforcement
+exists, and VPP's route-based mode (an ipip tunnel with `tunnel protect`), which
+brings no RFC 4301 inbound policy either. **The mechanism was found unworkable as
+stated on 2026-11-20, and the alternatives are with Thomas:** in VPP's SPD mode the
+packet ESP decryption yields re-enters `ip4-unicast` on the WAN interface with its
+receive interface unchanged and no decrypted flag (`esp_decrypt.c`, v26.06), so an
+input ACL that denies a PROTECT selector also drops the tunnel traffic that entry
+protects. The outcome owed is unchanged: cleartext matching an inbound PROTECT or
+DISCARD entry is dropped, BYPASS passes, and ESP, IKE and decrypted tunnel traffic
+are unaffected. Following the ruling, Thomas brought the real-VPP ESP dual-form
+proof (`plan/release/validation/spec-ipsec-vpp-dual-form-proof.md`) and the
+operator dataplane selector (`plan/release/fixes/spec-ipsec-dataplane-selector.md`)
+into the first release, so VPP IPsec is a first-release feature. None of this is
+built yet: `plan/release/fixes/spec-ipsec-vpp-policy-interface.md` owns the outcome.
 
 **A catch-all that fails to install at boot follows the start-up rule.** Thomas
 decided this on 2026-11-20: owner decision 3 of 2026-11-19 (install what it can,
@@ -1439,7 +1470,10 @@ Error and `ze doctor` reports the catch-all not in force (the decision
 "A catch-all that fails to install at boot follows the start-up rule" above).
 Only a start with no dataplane loaded is refused. The one bypass neither installed nor refused is on a backend whose
 `CatchAllSupported` answers `dataplane.ErrNoNodeWideSPD` (VPP), one of the two open gaps on
-RFC4301-5.2-1 and RFC4301-5.2-9.
+RFC4301-5.2-1 and RFC4301-5.2-9. On VPP no inbound entry judges cleartext at all,
+catch-all or not, because VPP's SPD never examines it. Ze owes that verdict itself
+(Decisions; the mechanism is still open), and
+`plan/release/fixes/spec-ipsec-vpp-policy-interface.md` owns it.
 
 The catch-all sits at if_id 0, and a `vti bind` peer's Child SA policies sit at
 its XFRM interface's if_id (`resolveIfID`). Linux keeps one database per if_id

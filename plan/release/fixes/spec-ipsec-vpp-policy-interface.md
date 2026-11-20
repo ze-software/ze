@@ -26,11 +26,13 @@ interface an SPD binds to, the installation of IKE Child SA policies and operato
 SPD entries on VPP, and the policy and rekey correctness that installation makes
 reachable.
 
-**Open, not decided by Thomas:** whether the real-VPP ESP proof
-(`plan/post-release/features/spec-ipsec-vpp-dual-form-proof.md`) and the operator
-dataplane selector (`plan/post-release/features/spec-ipsec-dataplane-selector.md`)
-also come into release scope. Both stay post-release until he says otherwise, and
-both still depend on this spec (Choices for Thomas, C-2).
+**Decided by Thomas on 2026-11-20 (C-2, his decision 2):** the real-VPP ESP proof
+(`plan/release/validation/spec-ipsec-vpp-dual-form-proof.md`) and the operator
+dataplane selector (`plan/release/fixes/spec-ipsec-dataplane-selector.md`) come
+into the first release, so VPP IPsec is a first-release feature. It follows from
+his ruling 3a on the first task's finding (1): Ze meets RFC 4301 Section 5.2 for
+inbound cleartext on VPP itself, through an inbound ACL it derives on the IPsec
+WAN interface (Thomas's rulings, below). Both specs still depend on this one.
 
 ## Task
 
@@ -59,6 +61,8 @@ The refusal is right. The gap is that nothing supplies the interface.
 | 2026-11-20 | (5a) "An operator SPD entry on VPP binds to every interface Ze's SPD is attached to" | An operator entry shares the SPD Child SA policies use, with the node-wide meaning it has on XFRM |
 | 2026-11-20 | Decision 7: "Pull the post-release spec forward" | This spec is release scope; operator entries on VPP are installed, not refused |
 | 2026-11-20 | "reuse the existing IPsec WAN interface leaf" | On VPP the one Ze SPD is bound to the interface `vpn ipsec interface` names, resolved with `iface.ResolveVPPIndex`; Child SA policies and operator entries both land in it. XFRM is unchanged: `SPParams.IfIndex` stays 0 there |
+| 2026-11-20 | Decision 3, answer "3a" | On VPP, RFC 4301 Section 5.2 inbound processing (cleartext matching an inbound PROTECT or DISCARD entry is discarded) is met by Ze itself: Ze derives an inbound ACL on the IPsec WAN interface (the `vpn ipsec interface` leaf, the interface Ze's one VPP SPD binds to) from the inbound PROTECT and DISCARD entries, because real VPP v26.06 forwards such cleartext (first task outcome). The ACL needs one owner shared with the VPP firewall backend, a composition still to be presented. **Found unworkable as stated on 2026-11-20; alternatives with Thomas (C-4)**: in SPD mode the decrypted inner packet re-enters `ip4-unicast` on the WAN interface with its RX interface unchanged and no decrypted flag (`esp_decrypt.c`, v26.06), so an input ACL denying the PROTECT selectors also drops decrypted tunnel traffic |
+| 2026-11-20 | Decision 2, following from 3a | `spec-ipsec-vpp-dual-form-proof` (now `plan/release/validation/`) and `spec-ipsec-dataplane-selector` (now `plan/release/fixes/`) come into the first release; VPP IPsec is a first-release feature (C-2) |
 
 Alternatives Thomas rejected for the interface source:
 
@@ -66,6 +70,13 @@ Alternatives Thomas rejected for the interface source:
 |-------------|---------------------|
 | A per-Child-SA route lookup toward the peer (`iface.RouteLookup`) | It handles several WANs, but the SPD moves whenever routing changes |
 | strongSwan's VPP plugin approach: bind to the interface holding the local address, exact match | It breaks when the local address is on a loopback |
+
+Alternatives Thomas rejected for inbound cleartext on VPP (decision 3):
+
+| Alternative | Why he set it aside |
+|-------------|---------------------|
+| (b) Keep VPP IPsec unselectable until such enforcement exists | He chose to build the enforcement (3a) and bring VPP IPsec into the first release |
+| (c) VPP route-based mode (an ipip tunnel with `tunnel protect`) | It brings no RFC 4301 inbound policy either |
 
 ## Required Reading
 
@@ -179,7 +190,13 @@ Two findings follow.
    is the second row of the table above: the design cannot meet 5a for inbound
    cleartext, and AC-8 is not met by design. **Pending Thomas's ruling**; nothing in
    this spec decides it, and no work proceeds on AC-6's inbound half or AC-8 until he
-   rules.
+   rules. **Ruled 2026-11-20, no longer pending:** Thomas answered decision 3 with
+   "3a": Ze meets Section 5.2 for inbound cleartext itself, through an inbound ACL it
+   derives on the IPsec WAN interface from the inbound PROTECT and DISCARD entries
+   (Thomas's rulings). The same day that ACL was found unworkable as stated (it would
+   also drop decrypted tunnel traffic, see the rulings row), and the alternatives are
+   with Thomas (C-4, "Open design item" below). AC-8 is restated as the outcome only;
+   its mechanism is pending.
 2. **Defect found in passing: the VPP backend installed every inbound SPD entry
    address-reversed.** Frames 4 and 5 show it: VPP's inbound lookup compares the
    packet's destination with the entry's local range, and `vppSPDSelector`
@@ -203,6 +220,37 @@ does not touch `pg1` or IPsec.
 | Unit test | `TestVPPInstallPolicyInboundSides` (`internal/component/ike/dataplane/rfc7296_vpp_message_test.go`): the inbound entry's local side is Dst and port 53, its remote side Src and port 5000, the delete command and the removal name the same entry, and the outbound control keeps Src local |
 | Real-VPP evidence | the next `./le test deployment vpp` run: `probe-esp-discard` counts 'discard' 1, `probe-esp-discard-reversed` counts 'discard' 0 |
 
+## Open design item: the inbound cleartext mechanism on VPP (C-4)
+
+**Not designed here; to be presented to Thomas by the main session.** Ruling 3a
+puts an inbound ACL, derived from the inbound PROTECT and DISCARD entries, on the
+interface `vpn ipsec interface` names. On 2026-11-20 that was found unworkable as
+stated: in VPP's SPD mode the packet ESP decryption yields re-enters `ip4-unicast`
+on the WAN interface with its RX interface unchanged and no decrypted flag
+(`esp_decrypt.c`, v26.06), so an input ACL denying a PROTECT selector drops the
+decrypted tunnel traffic too, which AC-8 forbids. The alternatives are with Thomas,
+and the mechanism stays open until he rules. Whatever mechanism he chooses, one
+constraint found for the ACL form stands if any ACL is part of it. The VPP firewall backend
+(`internal/plugins/firewall/vpp`) already writes ACLs to interfaces, and
+`ACLInterfaceSetACLList` replaces an interface's whole ACL vector, input and output
+in one write (`docs/architecture/firewall/fw-6-firewall-vpp.md`, the merge
+paragraphs). That backend preserves ACLs it does not own and treats every ze-tagged
+index as its own on each reconcile (`discoverACLs`, `reconcileRemovals`, per
+`plan/release/fixes/spec-vpp-nat44-pool-ownership.md`). Two writers on one vector
+therefore need one owner both share; which one, and how an IPsec ACL and the
+firewall's ACLs are ordered and tagged in that vector, would be part of the design.
+
+Where it lives, and why: this spec, not a new child. `plan/` holds no spec that
+owns VPP ACL composition (searched 2026-11-20 for `ACLInterfaceSetACLList`,
+`firewall` with `vpp` and `acl`: `spec-finish-vpp-stub` only lists the ACL messages
+its stub misses, `spec-vpp-nat44-pool-ownership` uses the ACL reconcile as a pattern,
+`spec-firewall-vpp-apply-before-connect` and `spec-vpp-interface-in-use` touch
+start order and interface references). The ACL exists only to meet AC-8, which
+this spec owns, so splitting the mechanism off would separate an acceptance
+criterion from it; `ai/META-DECISIONS.md` asks for the existing spec to be amended first.
+If the C-4 design grows its own firewall-side scope, the main session may split it
+then.
+
 ## Existing Mechanisms (MANDATORY)
 
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
@@ -217,6 +265,8 @@ does not touch `pg1` or IPsec.
 | The start-up rule for SPD install failures | `installUnmatchedAtStart` (`engine/unmatched.go`), `assertUnmatched` (`engine/apply.go`); doctor `ipsec-spd-install` | At start, install what it can, log at Error, report through doctor; a reload refuses | Extends: an SPD bind that fails at start (interface absent, already holding another SPD) follows the same rule |
 | The dynamic WAN worker | `startAddressWorker`, `readInterfaceAddr` (`engine/dynamic_wan.go`) | Re-reads the leaf's interface on address and create events; an absent interface means "wait" | Extends: the same event retries a bind that failed because the interface was absent |
 | The real-VPP evidence run | `runIPsec` (`internal/le/test/deployment/vppevidencerun.go`) | Programs a real VPP from a hand-set sw_if_index | Extends: the run names the interface by the leaf and lets the backend resolve it (AC-4) |
+| The VPP firewall ACL writer | `internal/plugins/firewall/vpp` (`docs/architecture/firewall/fw-6-firewall-vpp.md`) | Merges ze-owned ACLs into an interface's vector and writes it whole with `ACLInterfaceSetACLList`, preserving foreign ACLs | Open (C-4): ruling 3a put an inbound ACL in the same vector on the WAN interface under one shared owner; that form was found unworkable as stated, and whether any ACL remains part of the mechanism is with Thomas |
+| The cleartext probe | `TestVPPRealCleartextProbe` (`dataplane/vpp_real_cleartext_integration_test.go`), `internal/le/test/deployment/vppevidencecleartext.go` | Measured that VPP's SPD forwards cleartext unjudged | Extends: the same frames become AC-8's real-VPP proof once the mechanism exists |
 
 ## Design
 
@@ -330,7 +380,7 @@ is owed before the design is presented, with every row it lists.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | VPP's inbound SPD judges cleartext arriving on a bound interface | RFC 4301 Section 5.2; contradicted by a read of `ipsec_input.c` | 5a cannot be met for inbound cleartext; back to Thomas | First task, a real-VPP measurement | unvalidated |
+| A-1 | VPP's inbound SPD judges cleartext arriving on a bound interface | RFC 4301 Section 5.2; contradicted by a read of `ipsec_input.c` | 5a cannot be met for inbound cleartext; back to Thomas | First task, a real-VPP measurement | broken (measured 2026-11-20; Thomas ruled 3a, found unworkable as stated, C-4 open) |
 | A-2 | Ze is the only writer of an SPD on the WAN interface | the appliance runs Ze's VPP | a bind is refused | AC-7's test against a pre-bound interface | unvalidated |
 | A-3 | `iface.ResolveVPPIndex` answers in the IKE engine's process | `fib/vpp` and `static` call it; `resolveInterfaceAddr` calls `iface.Addresses` there | the backend must get the index another way | a unit test with the vpp iface backend loaded, and the real-VPP run | unvalidated |
 
@@ -368,9 +418,9 @@ is owed before the design is presented, with every row it lists.
 | AC-3 | The VPP dataplane with no `vpn ipsec interface`, or with an interface `iface.ResolveVPPIndex` cannot resolve | with no leaf, the commit is refused, naming the VPP dataplane's need and the fix `set vpn ipsec interface <name>`; with a leaf naming an interface that is absent or not a VPP interface, the install is refused naming the interface and what would have been programmed (the SPD and its entries), and the message names `show interface` to find a VPP interface name. At start both follow the start-up rule: logged at Error and reported by `ze doctor` with the same fix | A leaf naming an interface the host does not carry yet is accepted at commit, as the leaf already promises for a late WAN; its SPD is bound when the interface appears |
 | AC-4 | The real-VPP evidence run (`runIPsec`, `internal/le/test/deployment/vppevidencerun.go`) | the run drives an IKE-shaped policy with `IfIndex` 0 and a named WAN interface, and VPP's dump shows the SPD bound to that interface | The hand-set `ZE_VPP_IPSEC_SW_IF_INDEX` path is removed, not kept beside the new one (`ai/rules/no-layering.md`) |
 | AC-5 | A Child SA rekey over the VPP backend | ONE SPD entry per direction names the live SA, and the retired entry AND the retired SA are gone: from VPP, from `b.spdEntries` and from `b.sadIDs`. A delete VPP reports retval 0 for while keeping the object is not read as success. Proven against a real VPP | None: a retired entry or SA that survives is the leak this criterion exists for |
-| AC-6 | A `vpn ipsec policy` entry (bypass or discard) committed on the VPP dataplane with the leaf set | the entry is installed in the same SPD as the Child SA policies, at its order, and decides matching traffic on the WAN interface; an entry VPP cannot express exactly (an ICMP type or code, which VPP does not compare) is refused at commit with the entry named and its fix; an install VPP refuses fails the apply as AC-14 of `spec-rfc4301-architecture-gaps` requires | Inbound cleartext depends on the first task: until it is measured, no claim is made that an inbound entry decides cleartext |
+| AC-6 | A `vpn ipsec policy` entry (bypass or discard) committed on the VPP dataplane with the leaf set | the entry is installed in the same SPD as the Child SA policies, at its order, and decides matching traffic on the WAN interface; an entry VPP cannot express exactly (an ICMP type or code, which VPP does not compare) is refused at commit with the entry named and its fix; an install VPP refuses fails the apply as AC-14 of `spec-rfc4301-architecture-gaps` requires | Inbound cleartext is not decided by the SPD entry on VPP (measured, first task outcome); Ze owes it as AC-8 states, mechanism pending (C-4) |
 | AC-7 | The leaf changes on reload from `<a>` to `<b>`, or `<b>` already holds an SPD Ze did not bind | on a change the SPD is unbound from `<a>` and bound to `<b>` in the same apply, read back from VPP; a bind VPP refuses because `<b>` holds another SPD fails the apply naming `<b>` and the cause, and at start is logged and reported by doctor | None |
-| AC-8 | The first task's measurement: cleartext matching an inbound DISCARD entry arrives on the bound interface of a real VPP | the packet is dropped and the entry's match counter rises, and cleartext matching an inbound BYPASS is delivered | If the measurement shows the packet passing as `unprocessed`, this criterion is not met by design and goes back to Thomas; it is never closed as a limitation. Measured 2026-11-20: the packet passes unjudged (first task outcome); pending Thomas's ruling |
+| AC-8 | On a real VPP with `vpn ipsec interface <wan>` set, cleartext arrives on `<wan>` matching an inbound PROTECT entry, an inbound DISCARD entry, and an inbound BYPASS entry; ESP and IKE (UDP 500 and 4500) for a live Child SA arrive on the same interface | cleartext matching the inbound PROTECT or DISCARD entry is dropped, read from VPP's counters; cleartext matching the inbound BYPASS is delivered; ESP and IKE keep reaching the SPD and the IKE sockets, unaffected; traffic the Child SA decrypts is delivered, unaffected | None. The mechanism is pending (C-4): ruling 3a's derived ACL was found unworkable as stated on 2026-11-20, alternatives with Thomas. The SPD's own verdict on cleartext (forwarded unjudged, measured 2026-11-20) does not meet it |
 | AC-9 | An inbound (`SADirIn`) policy installed on the VPP backend (found in passing, 2026-11-20) | the SPD entry's local range and port are the policy's `Dst` and `DstPort`, its remote range and port `Src` and `SrcPort`; an outbound policy keeps `Src` local; removal, the vppctl delete command and `Close` send back that same entry; on a real VPP an inbound DISCARD counts 'discard' for ESP from its remote range (`probe-esp-discard`) and not for the exchanged pair (`probe-esp-discard-reversed`) | None |
 
 ## End-to-End User Stories
@@ -550,7 +600,8 @@ none
 | # | Choice | Options | Decision |
 |---|--------|---------|----------|
 | C-1 | How the interface reaches the VPP backend | (a) recommended: a backend-level call carrying the leaf's name, resolved by the VPP backend; (b) a VPP-only field in `SPParams` filled by the engine | open |
-| C-2 | Whether `spec-ipsec-vpp-dual-form-proof` and `spec-ipsec-dataplane-selector` also come into release scope | (a) both stay post-release; (b) one or both come forward | open, raised 2026-11-20 |
+| C-2 | Whether `spec-ipsec-vpp-dual-form-proof` and `spec-ipsec-dataplane-selector` also come into release scope | (a) both stay post-release; (b) one or both come forward | DECIDED 2026-11-20 (his decision 2): both come into the first release; moved to `plan/release/validation/` and `plan/release/fixes/` |
+| C-4 | The mechanism that drops inbound cleartext matching an inbound PROTECT or DISCARD entry on VPP (AC-8) | Ruled 3a (an inbound ACL derived on the WAN interface, one owner shared with the VPP firewall backend); found unworkable as stated on 2026-11-20 (it also drops decrypted tunnel traffic, `esp_decrypt.c` v26.06) | open: alternatives with Thomas, presented by the main session |
 | C-3 | The two AC-5 shapes | (a) a VPP replace step keyed on the selector; (b) an engine "same policy, new SA" call both backends honor | open |
 
 ## Implementation Steps
@@ -599,7 +650,7 @@ none
 ### Failure Routing
 | Failure | Route To |
 |---------|----------|
-| The first task shows cleartext is not judged | STOP: back to Thomas with the measurement |
+| The first task shows cleartext is not judged | Happened 2026-11-20: Thomas ruled 3a, found unworkable as stated; AC-8 waits on C-4 |
 | Compilation error | Fix in the phase that introduced it |
 | Test fails on behavior mismatch | Re-read the source in Current Behavior |
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
@@ -628,7 +679,7 @@ none
 ## Known Limitations
 
 - One WAN interface. Several WANs would bind the one SPD to several interfaces, which VPP allows; nothing in this design prevents it, and no request for it exists.
-- VPP stays reachable only through `ze.test.ike.dataplane` until `plan/post-release/features/spec-ipsec-dataplane-selector.md` lands, which also needs the ESP proof of `plan/post-release/features/spec-ipsec-vpp-dual-form-proof.md` (C-2).
+- VPP stays reachable only through `ze.test.ike.dataplane` until `plan/release/fixes/spec-ipsec-dataplane-selector.md` lands, which also needs the ESP proof of `plan/release/validation/spec-ipsec-vpp-dual-form-proof.md` (C-2, both first-release since 2026-11-20).
 
 ## RFC Documentation (Scope: protocol)
 

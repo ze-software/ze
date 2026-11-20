@@ -31,7 +31,7 @@ implementation sequence, not completion or release evidence.
 | Obligation | Sole owner |
 |------------|------------|
 | AC-1..AC-4, AC-6/7 for XFRM and the route decision; Stories 1..3; R-1 throughput and inherited row; A-7 bookkeeping; durable Design links and ledger regeneration | This release-validation spec |
-| AC-5; VPP part of A-6/AC-6, R-4 and Phase 4; real-VPP harness extension, decryption measurement and capability refusal if unsupported | `plan/post-release/features/spec-ipsec-vpp-dual-form-proof.md` |
+| AC-5; VPP part of A-6/AC-6, R-4 and Phase 4; real-VPP harness extension, decryption measurement and capability refusal if unsupported | `plan/release/validation/spec-ipsec-vpp-dual-form-proof.md` |
 | VPP policy-interface prerequisite | `plan/release/fixes/spec-ipsec-vpp-policy-interface.md`, consumed by the VPP child, not a release XFRM dependency |
 
 The complete design and dated history below remain here losslessly. VPP
