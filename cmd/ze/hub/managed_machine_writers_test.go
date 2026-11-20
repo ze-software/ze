@@ -68,7 +68,7 @@ func TestMachineWritersOnManagedStore(t *testing.T) {
 			return storage.PromoteCandidate(store, path)
 		}, nil, nil)
 
-		require.NoError(t, client.OnCommit([]byte("pushed")))
+		require.NoError(t, client.CommitOver([]byte("pushed"), func([]byte) error { return nil }))
 
 		active, err := storage.ReadActiveConfig(store, path)
 		require.NoError(t, err)

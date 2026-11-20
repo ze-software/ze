@@ -16,35 +16,29 @@ import (
 )
 
 // wireManagedCommit makes a hub push the daemon's config: staged as a
-// candidate and applied by reload. While window, the daemon's confirmed-commit
-// window, is open the push is refused with the window's refusal naming its
-// owner, which the managed client returns to the server in its ACK: the
-// window's revert would wipe the push (confirm.WriteOutside). A nil window
-// getter, a daemon with no window, applies the push directly. A revert the
-// hub's operator decided (OnRevert) goes the same way, and its stage first
-// hands the configuration active under the config lock to the client's check
-// (storage.StageMachineCandidateOver), so a local commit that landed after the
-// client read the hash the revert discards is never overwritten.
+// candidate and applied by reload. Every push, an ordinary one and a revert
+// the hub's operator decided, stages over the client's check
+// (storage.StageMachineCandidateOver): under the config lock the stage hands
+// check the configuration active then, and stages nothing when check refuses
+// it, answering check's error as is. The check refuses a configuration other
+// than the one the client read before its fetch, so a local commit that
+// landed during the fetch is never overwritten. While window, the daemon's
+// confirmed-commit window, is open the push is refused with the window's
+// refusal naming its owner before anything is read or staged, which the
+// managed client returns to the server in its ACK: the window's revert would
+// wipe the push (confirm.WriteOutside). A nil window getter, a daemon with no
+// window, applies the push directly.
 func wireManagedCommit(client *managed.ClientConfig, store storage.Storage, configPath string, reload func() error, recorder audit.Recorder, window func() *confirm.Window) {
-	outside := func(stage func() error) error {
+	client.CommitOver = func(data []byte, check func(active []byte) error) error {
 		var open *confirm.Window
 		if window != nil {
 			open = window()
 		}
 		return confirm.WriteOutside(open, func() error {
-			return applyManagedPush(store, configPath, stage, reload, recorder)
-		})
-	}
-	client.OnCommit = func(data []byte) error {
-		return outside(func() error {
-			_, err := storage.StageMachineCandidate(store, configPath, data, time.Now())
-			return err
-		})
-	}
-	client.OnRevert = func(data []byte, check func(active []byte) error) error {
-		return outside(func() error {
-			_, err := storage.StageMachineCandidateOver(store, configPath, data, time.Now(), check)
-			return err
+			return applyManagedPush(store, configPath, func() error {
+				_, err := storage.StageMachineCandidateOver(store, configPath, data, time.Now(), check)
+				return err
+			}, reload, recorder)
 		})
 	}
 }
@@ -58,8 +52,8 @@ func wireManagedCommit(client *managed.ClientConfig, store storage.Storage, conf
 //
 // The push stages through the store's machine entry: a managed device freezes
 // an operator's change to its own configuration, and the hub's push is the
-// one change it exists to take (storage.StageMachineCandidate).
-func applyManagedPush(store storage.Storage, configPath string, stage func() error, reload func() error, recorder audit.Recorder) error {
+// one change it exists to take (storage.StageMachineCandidateOver).
+func applyManagedPush(store storage.Storage, configPath string, stage, reload func() error, recorder audit.Recorder) error {
 	if err := stage(); err != nil {
 		return err
 	}

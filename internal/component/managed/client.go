@@ -23,6 +23,7 @@ import (
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/network"
 	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/fleet"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -57,14 +58,10 @@ var logger = slogutil.LazyLogger("hub.managed")
 
 // ClientConfig holds the configuration for a managed client connection.
 type ClientConfig struct {
-	Name   string // Client identity (from hub client block name)
-	Server string // Hub address (host:port)
-	Token  string // Auth token
-	// Version is the config version hash a fetch sends while Baseline is nil
-	// (empty on first boot). With Baseline set a fetch sends the hash of the
-	// active configuration, read from the store at fetch time.
-	Version     string
-	TLSInsecure bool // Skip TLS certificate verification (INSECURE: only for testing or self-signed hubs with explicit opt-in)
+	Name        string // Client identity (from hub client block name)
+	Server      string // Hub address (host:port)
+	Token       string // Auth token
+	TLSInsecure bool   // Skip TLS certificate verification (INSECURE: only for testing or self-signed hubs with explicit opt-in)
 	// CA names the pki ca entry holding the hub's certificate authority root
 	// (plugin/hub/client/ca). It authenticates a hub whose certificate no
 	// public CA issued, which is what a private fleet hub presents, and it
@@ -80,22 +77,23 @@ type ClientConfig struct {
 	// Zero means connectTimeoutDefault.
 	ConnectTimeout time.Duration
 	Handler        *Handler
-	OnCommit       func([]byte) error // Called to transactionally commit fetched config
-	// OnRevert commits, as OnCommit does, the configuration the hub returned
-	// with a revert its operator decided (applyReverted). Before it stages
-	// anything it MUST hand check the configuration active then, read under
-	// the lock its stage takes, and refuse with check's error when check
-	// refuses it: check refuses a configuration other than the one the revert
-	// discards, so a local commit that landed after the client read that hash
-	// is never overwritten. nil refuses every revert, as a nil OnCommit
-	// refuses every push.
-	OnRevert     func(data []byte, check func(active []byte) error) error
+	// CommitOver transactionally commits data, the validated configuration
+	// the hub returned, by an ordinary push or a revert its operator decided
+	// (applyFetched). Before it stages anything it MUST hand check the
+	// configuration active then, read under the lock its stage takes, and
+	// refuse with check's error, as is, when check refuses it: check refuses a
+	// configuration other than the one the client read before its fetch
+	// (activeCheck), so a local commit that landed during the fetch is never
+	// overwritten. nil refuses every configuration as not ready.
+	CommitOver   func(data []byte, check func(active []byte) error) error
 	CheckManaged func() bool // Returns false when meta/instance/managed is disabled; nil = always managed
 	// Baseline reads the hash of the configuration the device runs and the
 	// baseline (the hash of the last configuration its hub gave it), and
 	// stores the baseline. With it the client holds: it applies nothing the
-	// hub sends while the two differ (fetchAgainstBaseline). nil means the
-	// client compares nothing and applies every configuration the hub returns.
+	// hub sends while the two differ (fetchAgainstBaseline). It is required:
+	// RunManagedClient refuses to run a client without it, because such a
+	// client could compare nothing and would apply every configuration the hub
+	// returns over whatever the device runs.
 	Baseline *BaselineAccess
 	// Endpoint reads the hub connection a config declares. The client calls it
 	// with each config it has applied, so a push that changes the hub address,
@@ -122,6 +120,10 @@ type ClientConfig struct {
 	// it unset, and RunManagedClient's own copy of the configuration starts
 	// with none.
 	held heldUploads
+	// fetchTimeout bounds each config-fetch of this client (fetchBound). Zero
+	// means configFetchTimeout, which every production client uses; a test
+	// shortens it, as ManagedServer.pushTimeout, so no test waits 30 seconds.
+	fetchTimeout time.Duration
 }
 
 // heldUploadTimeout bounds one config-held round-trip, the write of the copy
@@ -129,7 +131,9 @@ type ClientConfig struct {
 // (pkg/plugin/rpc writeFrame). The upload runs on the notification loop, which
 // answers no config-changed while it runs, so it MUST end before the hub gives
 // up on a config-changed it sent meanwhile (pluginserver.ManagedPushTimeout)
-// and closes the connection.
+// and closes the connection. Every bound of a loop round-trip stays below that
+// push bound except the fetch's (configFetchTimeout), which a large answer
+// needs.
 const heldUploadTimeout = 5 * time.Second
 
 // configAckTimeout bounds one config-ack round-trip, the write included (the
@@ -139,7 +143,22 @@ const heldUploadTimeout = 5 * time.Second
 // notification loop for ever. The loop sends the ack of a hold after its
 // upload, so the two bounds together MUST stay below the hub's push bound
 // (pluginserver.ManagedPushTimeout), for the reason heldUploadTimeout gives.
+// The fetch before them is the one exception (configFetchTimeout).
 const configAckTimeout = 3 * time.Second
+
+// configFetchTimeout bounds one config-fetch round-trip, the write included
+// (the context deadline is also the write deadline), at connect, on the
+// notification loop, on the fetch made again over a local commit, and at
+// first boot. Without it a hub that keeps the connection open but never
+// answers a fetch would hold the device there for ever. It is the one loop
+// bound NOT below the hub's push bound (pluginserver.ManagedPushTimeout, 10
+// seconds), by design: the answer can carry a configuration of up to
+// rpc.MaxMessageSize (16 MiB), and 30 seconds carry that on a link of about
+// 4.5 Mbit/s, where any bound below the push bound would cut every large
+// configuration on an ordinary link. A fetch on the loop that runs past the
+// push bound costs the hub's config-changed sent meanwhile: the hub closes the
+// connection, and the device fetches again when it reconnects.
+const configFetchTimeout = 30 * time.Second
 
 // heldUploads is what one run of a client remembers of the copies it sent its
 // hub. Only the connection's goroutine reads and writes it (fetchAndProcess
@@ -270,13 +289,37 @@ func (cfg *ClientConfig) connectTimeout() time.Duration {
 	return connectTimeoutDefault
 }
 
+// fetchBound returns the bound on one config-fetch round-trip.
+func (cfg *ClientConfig) fetchBound() time.Duration {
+	if cfg.fetchTimeout > 0 {
+		return cfg.fetchTimeout
+	}
+	return configFetchTimeout
+}
+
+// noBaselineDefect is the message of RunManagedClient's refusal of a cfg with
+// no Baseline: what the client does not do, why, and that the reader reports
+// it, since nothing an operator configures causes it.
+const noBaselineDefect = "this hub client was built without access to the device's baseline, " +
+	"so it cannot tell a local change from the hub's configuration and does not connect to its hub. " +
+	"This is a defect in ze, not in the configuration: report it with this message"
+
 // RunManagedClient connects to the hub and maintains the connection with
 // reconnect and heartbeat. Blocks until ctx is canceled. This is a
 // long-lived goroutine -- one per managed client instance.
 // A caller that starts a goroutine MUST cancel ctx and wait for this function
-// to return before releasing resources borrowed by CheckManaged, OnCommit or
-// Baseline.
+// to return before releasing resources borrowed by CheckManaged, CommitOver or
+// Baseline. A cfg without Baseline MUST NOT run: it is refused at once with
+// one Error line and one report-bus error under doctor-internal-defect, before
+// any connection. Only a defect in the code that built cfg leaves Baseline
+// nil, so no configuration change and no doctor fix clears it.
 func RunManagedClient(ctx context.Context, cfg ClientConfig) {
+	if cfg.Baseline == nil {
+		logger().Error(noBaselineDefect, "code", diagnostic.CodeDoctorInternalDefect, "name", cfg.Name)
+		report.RaiseErrorFix(doctorComponent, diagnostic.CodeDoctorInternalDefect, "hub client "+cfg.Name,
+			noBaselineDefect, "ze show errors")
+		return
+	}
 	backoff := newBackoff(1*time.Second, 60*time.Second, 0.1)
 
 	for {
@@ -304,18 +347,34 @@ func RunManagedClient(ctx context.Context, cfg ClientConfig) {
 		}
 
 		delay := backoff.Next()
+		if errors.Is(err, errActiveChangedTwice) {
+			// Logged at Info where it was decided (logLocalCommitTwice): the
+			// connection was not lost, and the reconnect is quiet.
+			if !waitBackoff(ctx, delay) {
+				return
+			}
+			continue
+		}
 		logger().Warn("connection lost, reconnecting",
 			"delay", delay.Round(time.Millisecond),
 			"error", err)
 
-		timer := time.NewTimer(delay)
-		select {
-		case <-timer.C:
-			// Continue reconnect loop.
-		case <-ctx.Done():
-			timer.Stop()
+		if !waitBackoff(ctx, delay) {
 			return
 		}
+	}
+}
+
+// waitBackoff waits delay before RunManagedClient dials again, and answers
+// false when ctx ended first.
+func waitBackoff(ctx context.Context, delay time.Duration) bool {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+		return true
+	case <-ctx.Done():
+		return false
 	}
 }
 
@@ -395,8 +454,14 @@ func runConnection(ctx context.Context, cfg *ClientConfig, backoff *Backoff) err
 
 	logger().Info("connected to hub", "server", cfg.Server, "name", cfg.Name)
 
-	// Fetch config.
+	// Fetch config. A local commit that landed during both fetches
+	// (errActiveChangedTwice) is logged here, once, and ends the connection:
+	// the reconnect's fetch decides again over what the device then runs, so
+	// a device that still differs holds, uploads its copy and acks holding.
 	if err := fetchAndProcess(ctx, mc, cfg); err != nil {
+		if errors.Is(err, errActiveChangedTwice) {
+			logLocalCommitTwice(cfg, err)
+		}
 		return err
 	}
 
@@ -443,31 +508,18 @@ const fetchStatusCurrent = "current"
 const holdRefusalPrefix = "holding: the configuration this device runs differs from the last one this hub sent"
 
 // fetchAndProcess fetches config from hub, validates, commits, and ACKs the result.
-// It returns errEndpointChanged or errHubClientRemoved when the config it
+// Each fetch it makes, the one made again over a local commit included, is
+// bounded by cfg's fetchBound (configFetchTimeout). It returns errEndpointChanged or errHubClientRemoved when the config it
 // applied changes or removes the hub connection: the ACK is already sent, and
 // the caller MUST end the connection. A device that holds, or that cannot
 // compare its configuration with its baseline, applies nothing and answers
-// nil: the connection is kept.
+// nil: the connection is kept. cfg.Baseline MUST NOT be nil, which
+// RunManagedClient guarantees.
 func fetchAndProcess(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig) error {
-	if cfg.Baseline != nil {
-		return fetchAgainstBaseline(ctx, mc, cfg, cfg.Baseline, refetchOnce)
-	}
-	resp, err := FetchConfig(ctx, mc, cfg.Version)
-	if err != nil {
-		return fmt.Errorf("fetch: %w", err)
-	}
-	if resp.Status == fetchStatusCurrent {
-		logger().Debug("config is current", "version", cfg.Version)
-		return nil
-	}
-	if resp.Config == "" {
-		logger().Debug("config is current", "version", cfg.Version)
-		return nil
-	}
-	return applyFetched(ctx, mc, cfg, resp)
+	return fetchAgainstBaseline(ctx, mc, cfg, cfg.Baseline, refetchOnce)
 }
 
-// fetchAgainstBaseline is fetchAndProcess for a client that holds: it sends
+// fetchAgainstBaseline is the fetch fetchAndProcess makes: it sends
 // the hash of the configuration the device runs, read now, and applies what
 // the hub returns only while that configuration is the last one the hub gave
 // (Diverged). The hub's "current" answer ends a hold: it proves hub and
@@ -477,8 +529,8 @@ func fetchAndProcess(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig) er
 // discard-version is exactly the active hash is applied (applyReverted). A
 // discard-version that names any other hash is a decision taken on an older
 // configuration of this device, and the device holds. refetch says whether a
-// revert that meets a local commit landed during this fetch may fetch once
-// more over that newer edit (applyReverted).
+// push or a revert that meets a local commit landed during this fetch may
+// fetch once more over that newer edit (refetchOverLocalCommit).
 func fetchAgainstBaseline(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, access *BaselineAccess, refetch revertRefetch) error {
 	active, baseline, err := access.read()
 	if err != nil {
@@ -486,7 +538,7 @@ func fetchAgainstBaseline(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfi
 		cfg.reportHold(true)
 		return nil
 	}
-	resp, err := FetchConfig(ctx, mc, active.Hash())
+	resp, err := fetchConfigWithin(ctx, mc, active.Hash(), cfg.fetchBound())
 	if err != nil {
 		return fmt.Errorf("fetch: %w", err)
 	}
@@ -511,36 +563,30 @@ func fetchAgainstBaseline(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfi
 	if Diverged(active, baseline) && resp.DiscardVersion == active.Hash() {
 		return applyReverted(ctx, mc, cfg, access, resp, active, refetch)
 	}
-	return holdOrApply(ctx, mc, cfg, access, resp, active, baseline)
+	return holdOrApply(ctx, mc, cfg, access, resp, active, baseline, refetch)
 }
 
 // applyReverted applies the configuration the hub returned to a device that
 // holds, because the hub's operator decided that it drops the configuration it
 // runs: the answer's discard-version names exactly the active hash, so the
 // decision was taken on this configuration and on the hub configuration the
-// answer carries (pluginserver.RevertDecision). It commits through OnRevert,
-// the push path with one more check: the stage refuses, under the config's
-// lock, when the configuration active then is no longer the one the hash was
-// read from (revertCheck). A local commit that landed during the fetch is a
-// newer local edit, so the device then fetches again, sending the hash of that
-// edit, and decides the new answer as any fetch (fetchAgainstBaseline): the
-// hub's answer to the first fetch names the version it fetched, the copy it
-// holds and the version its decision discards for the old configuration, and
-// a hold decided on it would send a copy the hub refuses to show. The second
-// fetch carries refetchNone, so a store that changed again during it ends the
-// fetch with errActiveChangedTwice and no third fetch. Like every push, the revert
-// stages through the machine entry the freeze exempts and records the new
-// baseline, and a confirmed-commit window open on the device refuses it. The
-// hold is reported from the store read again after the apply: a refused apply
-// leaves the device holding.
+// answer carries (pluginserver.RevertDecision). It commits as a push does
+// (applyFetched): the stage refuses, under the config's lock, when the
+// configuration active then is no longer the one the hash was read from
+// (activeCheck). A local commit that landed during the fetch is a newer local
+// edit, so the device then fetches again, sending the hash of that edit, and
+// decides the new answer as any fetch (refetchOverLocalCommit): the hub's
+// answer to the first fetch names the version it fetched, the copy it holds
+// and the version its decision discards for the old configuration, and a hold
+// decided on it would send a copy the hub refuses to show. Like every push,
+// the revert stages through the machine entry the freeze exempts and records
+// the new baseline, and a confirmed-commit window open on the device refuses
+// it. The hold is reported from the store read again after the apply: a
+// refused apply leaves the device holding.
 func applyReverted(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, access *BaselineAccess, resp fleet.ConfigFetchResponse, active ConfigVersion, refetch revertRefetch) error {
 	logger().Info("this device held, and its hub's operator decided that it drops the configuration it runs and takes the hub's",
 		"name", cfg.Name, "discarded", active.Hash(), "offered", resp.Version)
-	var commit func([]byte) error
-	if cfg.OnRevert != nil {
-		commit = func(data []byte) error { return cfg.OnRevert(data, revertCheck(active)) }
-	}
-	applyErr := applyCommitted(ctx, mc, cfg, resp, commit)
+	applyErr := applyFetched(ctx, mc, cfg, resp, active)
 	if errors.Is(applyErr, errActiveChanged) {
 		return refetchOverLocalCommit(ctx, mc, cfg, access, active, refetch)
 	}
@@ -549,52 +595,75 @@ func applyReverted(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, acce
 	return applyErr
 }
 
-// revertRefetch says whether a revert refused because a local commit landed
-// during its fetch may fetch again (applyReverted). It bounds that path to two
-// fetches per fetchAndProcess call.
+// revertRefetch says whether a push or a revert refused because a local
+// commit landed during its fetch may fetch again (refetchOverLocalCommit). It
+// bounds that path to two fetches per fetchAndProcess call.
 type revertRefetch bool
 
 const (
-	// refetchOnce is the first fetch of a call: a refused revert fetches again.
+	// refetchOnce is the first fetch of a call: a refused commit fetches again.
 	refetchOnce revertRefetch = true
-	// refetchNone is the fetch made again: a refused revert fetches no more.
+	// refetchNone is the fetch made again: a refused commit fetches no more.
 	refetchNone revertRefetch = false
 )
 
-// errActiveChangedTwice ends a fetch whose revert met a local commit on both
-// of its fetches. The device holds and has told its hub nothing about the
-// newest edit: ending the fetch here, rather than deciding a hold on an answer
-// about another version, leaves the next connection or hub notification to
-// fetch over what the device then runs.
-var errActiveChangedTwice = errors.New("the configuration this device runs changed during both fetches of its hub's revert, so it fetches again at its next connection or hub notification")
+// errActiveChangedTwice ends a fetch whose push or revert met a local commit
+// on both of its fetches. The device applied nothing and has told its hub
+// nothing about the newest edit: ending the fetch here, rather than deciding a
+// hold on an answer about another version, ends the connection, so the
+// reconnect's fetch decides over what the device then runs.
+var errActiveChangedTwice = errors.New("the configuration this device runs changed during both fetches of its hub's configuration, " +
+	"so it applied nothing and fetches again when it connects again")
 
-// refetchOverLocalCommit answers a revert the stage refused because a local
-// commit landed during its fetch (applyReverted): the device holds over the
-// newer edit, and fetches once more with its hash so the hold, its copy and its
-// ack answer a fetch of that version. On the fetch made again (refetchNone) it
-// fetches no more and answers errActiveChangedTwice.
-func refetchOverLocalCommit(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, access *BaselineAccess, discarded ConfigVersion, refetch revertRefetch) error {
+// refetchOverLocalCommit answers a push or a revert the stage refused because
+// a local commit landed during its fetch (activeCheck): the device keeps the
+// newer edit, and fetches once more with its hash so what it decides (a hold,
+// its copy and its ack, or an apply) answers a fetch of that version. decided
+// is the version the refused commit was decided over. On the fetch made again
+// (refetchNone) it fetches no more and answers errActiveChangedTwice.
+func refetchOverLocalCommit(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, access *BaselineAccess, decided ConfigVersion, refetch revertRefetch) error {
 	if refetch == refetchNone {
-		cfg.reportHold(true)
-		return fmt.Errorf("%w (the revert discards %s)", errActiveChangedTwice, discarded.Hash())
+		// The hold is reported from the store read again, as applyReverted
+		// reports it: a later local commit may have put the device back on
+		// its baseline, and a device there does not hold.
+		after, baseline, readErr := access.read()
+		cfg.reportHold(readErr != nil || Diverged(after, baseline))
+		return fmt.Errorf("%w (the first fetch was decided over %s)", errActiveChangedTwice, decided.Hash())
 	}
-	logger().Info("this device's configuration changed while its hub's revert was fetched, so it keeps the newer local edit, the revert does not apply, and it fetches again over that edit",
-		"name", cfg.Name, "discarded", discarded.Hash())
+	logger().Info("this device's configuration changed while its hub's configuration was fetched, so it keeps the newer local edit, "+
+		"applies nothing from that fetch, and fetches again over that edit",
+		"name", cfg.Name, "decided", decided.Hash())
 	return fetchAgainstBaseline(ctx, mc, cfg, access, refetchNone)
 }
 
-// errActiveChanged is revertCheck's refusal: the configuration active when the
-// revert would stage is not the one it discards. applyCommitted answers it
-// without an ack, because the device then holds and its hold ack says so.
-var errActiveChanged = errors.New("the configuration this device runs changed after its hub's revert was decided on it")
+// logLocalCommitTwice logs a fetch that a local commit ended on both of its
+// fetches (errActiveChangedTwice), at connect and after a config-changed
+// alike; the caller then ends the connection, and RunManagedClient
+// reconnects without logging it again. It is Info, not Warn: the hub answered both fetches, and the device
+// chose to keep a local edit over them, which is a decision and no fault. A
+// hold it leaves is reported by the managed-diverged doctor check.
+func logLocalCommitTwice(cfg *ClientConfig, err error) {
+	logger().Info("this device's configuration changed during both fetches of its hub's configuration, "+
+		"so it keeps its local edit, applies nothing from its hub, and connects again so its next fetch decides over that edit",
+		"name", cfg.Name, "server", cfg.Server, "error", err)
+}
 
-// revertCheck is the check a revert's stage runs under the config lock
-// (ClientConfig.OnRevert): it refuses, with errActiveChanged, a configuration
-// whose version is not discarded, the version the revert drops.
-func revertCheck(discarded ConfigVersion) func(active []byte) error {
+// errActiveChanged is activeCheck's refusal: the configuration active when a
+// push or a revert would stage is not the one the client read before its
+// fetch. applyFetched answers it without an ack, because the device then
+// fetches again (refetchOverLocalCommit) and that fetch's ack says what it
+// decided.
+var errActiveChanged = errors.New("the configuration this device runs changed after it fetched its hub's configuration")
+
+// activeCheck is the check every stage of a hub configuration runs under the
+// config lock (ClientConfig.CommitOver): it refuses, with errActiveChanged, a
+// configuration whose version is not decided, the version the client read
+// before its fetch and decided to apply over. It compares with neither the
+// baseline nor the hub's version: the decision rested on decided alone.
+func activeCheck(decided ConfigVersion) func(active []byte) error {
 	return func(active []byte) error {
-		if now := versionOf(active); now != discarded {
-			return fmt.Errorf("%w: it runs %s, the revert discards %s", errActiveChanged, now.Hash(), discarded.Hash())
+		if now := versionOf(active); now != decided {
+			return fmt.Errorf("%w: it runs %s, and the hub's configuration was decided over %s", errActiveChanged, now.Hash(), decided.Hash())
 		}
 		return nil
 	}
@@ -602,15 +671,23 @@ func revertCheck(discarded ConfigVersion) func(active []byte) error {
 
 // holdOrApply decides a fetched configuration that carries no revert of the
 // active version: it holds while the device's configuration differs from its
-// baseline (holdFetched), and applies the configuration otherwise.
-func holdOrApply(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, access *BaselineAccess, resp fleet.ConfigFetchResponse, active, baseline ConfigVersion) error {
+// baseline (holdFetched), and applies the configuration otherwise. A push
+// the stage refused because a local commit landed during the fetch fetches
+// again over that edit (refetchOverLocalCommit, bounded by refetch). The hold
+// is reported after the outcome, so a push that turns into a hold never
+// reports "not holding" first.
+func holdOrApply(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, access *BaselineAccess, resp fleet.ConfigFetchResponse, active, baseline ConfigVersion, refetch revertRefetch) error {
 	if Diverged(active, baseline) {
 		holdFetched(ctx, mc, cfg, access, resp, active, baseline)
 		cfg.reportHold(true)
 		return nil
 	}
+	applyErr := applyFetched(ctx, mc, cfg, resp, active)
+	if errors.Is(applyErr, errActiveChanged) {
+		return refetchOverLocalCommit(ctx, mc, cfg, access, active, refetch)
+	}
 	cfg.reportHold(false)
-	return applyFetched(ctx, mc, cfg, resp)
+	return applyErr
 }
 
 // settleBaseline records active as the baseline after the hub answered
@@ -777,23 +854,20 @@ func sendAck(ctx context.Context, mc *rpc.MuxConn, ack fleet.ConfigAck) {
 }
 
 // applyFetched validates, commits and acknowledges a configuration the hub
-// returned. It returns errEndpointChanged or errHubClientRemoved as
-// fetchAndProcess documents.
-func applyFetched(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, resp fleet.ConfigFetchResponse) error {
-	return applyCommitted(ctx, mc, cfg, resp, cfg.OnCommit)
-}
-
-// applyCommitted is applyFetched through commit, which is OnCommit for a push
-// and OnRevert for a revert; nil refuses the configuration as not ready. A
-// commit refused with errActiveChanged is answered as is and acks nothing:
-// the caller holds, and its hold ack tells the hub.
-func applyCommitted(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, resp fleet.ConfigFetchResponse, commit func([]byte) error) error {
+// returned, a push or a revert. It commits through CommitOver over
+// activeCheck(decided), decided being the version the client read before its
+// fetch; a nil CommitOver refuses the configuration as not ready. A commit
+// refused with errActiveChanged is answered as is and acks nothing: the
+// caller fetches again, and that fetch's ack tells the hub. Any other refusal
+// is acked as a refusal with its cause. It returns errEndpointChanged or
+// errHubClientRemoved as fetchAndProcess documents.
+func applyFetched(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, resp fleet.ConfigFetchResponse, decided ConfigVersion) error {
 	data, ack := cfg.Handler.ValidateConfig(resp)
 	if ack.OK {
-		if commit == nil {
+		if cfg.CommitOver == nil {
 			ack.OK = false
 			ack.Error = "commit not ready"
-		} else if err := commit(data); errors.Is(err, errActiveChanged) {
+		} else if err := cfg.CommitOver(data, activeCheck(decided)); errors.Is(err, errActiveChanged) {
 			return err
 		} else if err != nil {
 			ack.OK = false
@@ -805,7 +879,6 @@ func applyCommitted(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, res
 		logger().Warn("config rejected", "error", ack.Error)
 		return nil
 	}
-	cfg.Version = resp.Version
 	logger().Info("config updated", "version", resp.Version)
 	return cfg.adoptEndpoint(data)
 }
@@ -850,9 +923,13 @@ func handleHubRequest(ctx context.Context, mc *rpc.MuxConn, req *rpc.Request, cf
 
 // handleConfigChangedRequest processes a config-changed notification. It
 // returns errEndpointChanged or errHubClientRemoved when the config it
-// applied changes or removes the hub connection, and the caller MUST then end
-// the connection. A fetch that fails is logged and the connection is kept: the
-// next notification or connection fetches again.
+// applied changes or removes the hub connection, and errActiveChangedTwice
+// when a local commit ended both of its fetches; the caller MUST then end
+// the connection. A fetch that fails, its bound reached included
+// (configFetchTimeout), is logged and the connection is kept: the next
+// notification or connection fetches again. A fetch a local commit ended on
+// both of its fetches (errActiveChangedTwice) is logged at Info, under no hub
+// code, because the hub answered both, and is returned like the two above.
 func handleConfigChangedRequest(ctx context.Context, mc *rpc.MuxConn, req *rpc.Request, cfg *ClientConfig) error {
 	var n fleet.ConfigChanged
 	if err := json.Unmarshal(req.Params, &n); err != nil {
@@ -870,18 +947,42 @@ func handleConfigChangedRequest(ctx context.Context, mc *rpc.MuxConn, req *rpc.R
 	if errors.Is(err, errHubClientRemoved) {
 		return err
 	}
+	if errors.Is(err, errActiveChangedTwice) {
+		// Ends the connection, as at connect: nothing else fetches again, so
+		// the reconnect's fetch is what decides over the newest edit.
+		logLocalCommitTwice(cfg, err)
+		return err
+	}
 	if err != nil {
-		logger().Warn("fetch after notification failed", "error", err)
+		logger().Warn("this device could not fetch its configuration after its hub announced a change, "+
+			"so it keeps the configuration it runs and fetches again at the hub's next change or the next connection; "+
+			"check that the hub is reachable and answers with: ze doctor",
+			"code", codeHubUnreachable, "name", cfg.Name, "server", cfg.Server, "error", err, "fix", "ze doctor")
 	}
 	return nil
 }
 
 // FetchConfig sends a config-fetch RPC to the hub and returns the response.
-// version is the client's current config hash (empty on first boot).
+// version is the client's current config hash (empty on first boot). The
+// round-trip is bounded by configFetchTimeout even when ctx carries no
+// deadline. A shorter deadline ctx carries still ends it first, so a caller
+// MUST NOT derive ctx from a bound it set for another step, as first boot's
+// connect bound (cmd/ze fetchInitialConfig).
 func FetchConfig(ctx context.Context, mc *rpc.MuxConn, version string) (fleet.ConfigFetchResponse, error) {
+	return fetchConfigWithin(ctx, mc, version, configFetchTimeout)
+}
+
+// fetchConfigWithin is the one config-fetch of this package, bounded by
+// bound, as SendConfigAck bounds the ack: FetchConfig passes
+// configFetchTimeout, and fetchAgainstBaseline the client's fetchBound. An
+// answer that arrives after the bound finds no pending call and is dropped
+// (rpc MuxConn), so it is never applied.
+func fetchConfigWithin(ctx context.Context, mc *rpc.MuxConn, version string, bound time.Duration) (fleet.ConfigFetchResponse, error) {
 	req := fleet.ConfigFetchRequest{Version: version}
 
-	result, err := mc.CallRPC(ctx, fleet.VerbConfigFetch, req)
+	fetchCtx, cancel := context.WithTimeout(ctx, bound)
+	defer cancel()
+	result, err := mc.CallRPC(fetchCtx, fleet.VerbConfigFetch, req)
 	if err != nil {
 		return fleet.ConfigFetchResponse{}, fmt.Errorf("config-fetch RPC: %w", err)
 	}

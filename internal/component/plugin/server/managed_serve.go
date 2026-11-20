@@ -51,7 +51,10 @@ const managedMaxConns = 128
 // accepts the notification but never replies cannot stall the notify worker
 // indefinitely. A healthy client replies immediately (it acks before fetching).
 // A managed client bounds every round-trip that keeps its notification loop
-// busy below it (the client's heldUploadTimeout).
+// busy below it (the client's heldUploadTimeout and configAckTimeout), except
+// its config-fetch: configFetchTimeout (30 seconds) carries a 16 MiB answer, so
+// a config-changed sent while a long fetch runs can fail here; the worker then
+// closes the connection, and the client fetches again when it reconnects.
 const ManagedPushTimeout = 10 * time.Second
 
 // managedNotifyWorkers is the size of the config-changed push pool. More than one so a

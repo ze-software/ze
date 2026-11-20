@@ -23,7 +23,7 @@ type Handler struct {
 	// Returns nil if the config is acceptable.
 	Validate func(data []byte) error
 
-	// Cache is deprecated. Fetched config is now committed through ClientConfig.OnCommit.
+	// Cache is deprecated. Fetched config is now committed through ClientConfig.CommitOver.
 	Cache func(data []byte) error
 }
 

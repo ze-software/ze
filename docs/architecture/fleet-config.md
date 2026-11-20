@@ -128,7 +128,7 @@ Managed configuration adds:
 
 The daemon retains the managed server and calls its synchronous `Stop` before
 returning its borrowed store. The outbound client also has a cancel-and-join
-owner. Shutdown waits for `CheckManaged` and `OnCommit` callbacks already using
+owner. Shutdown waits for `CheckManaged` and `CommitOver` callbacks already using
 storage, including candidate writes before reload admission. A pending full-store
 restore cannot replace the store while these managed operations still use it.
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
@@ -421,7 +421,7 @@ and they are different.
 
 | What the store says | The hub answers | What the client does |
 |---------------------|-----------------|----------------------|
-| No baseline, or the active hash equals the baseline | A configuration | It validates, applies and acknowledges as in "Config Change (Two-Phase)". The push records the new baseline |
+| No baseline, or the active hash equals the baseline | A configuration | It validates, applies and acknowledges as in "Config Change (Two-Phase)". The push records the new baseline. A local commit that landed during the fetch is kept: the stage refuses the push, and the client fetches once more over that edit and holds |
 | Anything | `current` | It applies nothing. When the active hash is not the baseline already, it records the active hash as the baseline. A client that was holding then sends a `config-ack` with `ok:true` |
 | The active hash differs from the baseline | A configuration whose `discard-version` is the active hash | It applies the configuration as a hub push, which records the new baseline (see "Revert" below) |
 | The active hash differs from the baseline | A configuration with no `discard-version`, or one naming another hash | It holds |
@@ -450,7 +450,11 @@ and they are different.
 - It keeps the connection and keeps answering the heartbeat. A hold is not a
   connection error: the backoff starts again at each successful
   authentication, so a client that closed the connection would reconnect and
-  hold again about once a second.
+  hold again about once a second. A device whose local commits keep racing
+  its hub's pushes pays that cost: each push whose two fetches both meet a
+  local commit ends the connection (see "Config Change (Two-Phase)"), so it
+  reconnects about once a second while the race lasts, and logs one Info line
+  each round.
 - It holds again at each later `config-changed`: it answers the notification,
   fetches and refuses. The hub therefore gets one refusal for each of its
   writes.
@@ -513,7 +517,9 @@ The client sends no copy when:
 One upload waits at most 5 seconds (`heldUploadTimeout`), below the hub's
 10-second bound on a `config-changed` round-trip (`ManagedPushTimeout`): the
 client answers no `config-changed` while it uploads. An upload that fails is
-logged and the connection is kept.
+logged and the connection is kept. The fetch before it is the one round-trip
+of the loop whose bound is not below the push bound (see "Connection
+Lifecycle").
 <!-- source: internal/component/managed/client.go -- uploadHeld, heldUploads, heldUploadTimeout -->
 <!-- test: internal/component/managed/client_held_test.go TestHoldSkipsUploadWhenHubHoldsActive, TestHoldUploadRefusedOverBound, TestHoldUploadsAtBound, TestHeldUploadDeadline, TestHeldUploadNotRetriedAfterFailure, TestHeldUploadOncePerConnectionOldHub -->
 
@@ -610,20 +616,27 @@ D only while two things still hold: the client fetches with version D, and
 the configuration the hub serves it still hashes to V
 (`RevertDecision.OfferedFor`). The client, in `fetchAgainstBaseline`, beside
 the hold, applies the answer only when `discard-version` is exactly the hash
-it runs (`applyReverted`). It applies it through `ClientConfig.OnRevert`,
-which the device daemon wires to `applyManagedPush` staged with
+it runs (`applyReverted`). It applies it through `ClientConfig.CommitOver`,
+the one commit callback every hub configuration takes, which the device
+daemon wires to `applyManagedPush` staged with
 `storage.StageMachineCandidateOver`: the machine entry the freeze exempts,
 which re-reads the active configuration under the configuration's writer
-lock and stages nothing unless it still hashes to D, then
+lock and stages nothing unless it still hashes to D (`activeCheck`), then
 `recordPushBaseline`. A local commit that lands while the fetch is answered
-therefore wins: nothing is applied, and the device fetches once more naming
+therefore wins, as it does over an ordinary push (see "Config Change
+(Two-Phase)"): nothing is applied, and the device fetches once more naming
 that newer edit (`refetchOverLocalCommit`), so its hold, its upload and its
 holding ack answer a fetch of the version it runs, which is what lets the hub
 show the hold from the copy rather than record a refusal. That second fetch
-cannot fetch again: if the store changed during it too, the device holds,
-sends nothing more, and fetches at its next connection or hub notification.
+cannot fetch again: if the store changed during it too, the device applies
+nothing and sends nothing more, reports its hold from a fresh read of the
+store (a device back on its baseline does not hold), logs that decision once
+at Info, and ends the connection, at connect and on the notification loop
+alike. The client reconnects with its normal backoff, without a "connection
+lost" warning, and the reconnect's fetch decides again over what the device
+then runs: it holds, uploads its copy and acks holding, or applies.
 It acks `ok:true` once applied, which removes the record.
-<!-- source: internal/component/managed/client.go -- applyReverted, refetchOverLocalCommit, ClientConfig -->
+<!-- source: internal/component/managed/client.go -- applyReverted, refetchOverLocalCommit, logLocalCommitTwice, runConnection, RunManagedClient, ClientConfig -->
 <!-- source: cmd/ze/hub/managed.go -- wireManagedCommit, applyManagedPush -->
 <!-- source: internal/component/config/storage/pointer.go -- StageMachineCandidateOver --> A confirmed-commit window open on the client refuses the push as
 today: the ack is `ok:false`, the client still holds, and the decision stays
@@ -747,7 +760,8 @@ refused.
 
 **What is exempt.** A writer that no operator decides stages through a
 separately named entry, `StageMachineCandidate`, which does not read the
-flag: the hub's push (`applyManagedPush`), the revert of an unconfirmed commit
+flag, or through its guarded form `StageMachineCandidateOver`, which every
+hub push takes: the hub's push (`applyManagedPush`), the revert of an unconfirmed commit
 on a running daemon (`confirmRevert`) and at boot (`restoreConfirmOnStart`),
 the boot record of an explicit file (`initializeConfigSource`) and schema
 recovery (`publishRecoveredConfig`). The signal reload stages the bytes the
@@ -839,6 +853,29 @@ Truncated SHA-256 of the config bytes (hex-encoded, first 16 characters). Comput
 10. Heartbeat: `ping` every 30 seconds, timeout after 3 missed (90 seconds)
 11. On a write through the hub's own store: hub sends `config-changed` to the connected client. See "Config Storage (Hub Side)" for which writes reach that store
 
+Every `config-fetch` the client sends waits at most 30 seconds for its
+answer (`configFetchTimeout`): at connect, after a `config-changed`, on the
+fetch made again over a local commit, and at first boot. 30 seconds carry the
+largest answer, 16 MiB (`rpc.MaxMessageSize`), on a link of about 4.5 Mbit/s.
+A fetch at connect that reaches the bound ends the connection, and the client
+reconnects with backoff. A fetch after a `config-changed` that reaches it is
+logged under `doctor-hub-unreachable`, the connection is kept, and the next
+`config-changed` is answered. An answer that arrives after the bound is
+dropped, never applied. In both cases the client keeps the configuration it
+runs.
+
+This is the one bound of the client's notification loop that is not below the
+hub's 10-second bound on a `config-changed` round-trip (`ManagedPushTimeout`),
+by design: a bound that short would cut every large configuration on an
+ordinary link. The cost is that a `config-changed` the hub sends while a
+fetch runs longer than 10 seconds fails on the hub, which closes the
+connection; the client fetches again when it reconnects, which delivers the
+change that notice announced.
+<!-- source: internal/component/managed/client.go -- configFetchTimeout, fetchConfigWithin, FetchConfig, handleConfigChangedRequest -->
+<!-- source: internal/component/plugin/server/managed_serve.go -- ManagedPushTimeout -->
+<!-- test: internal/component/managed/client_fetch_deadline_test.go TestFetchDeadlineAtConnect, TestFetchDeadlineOnNotificationLoop, TestFetchDeadlineDropsLateAnswer, TestFetchAtConnectAfterHubDropsPush -->
+<!-- test: internal/component/managed/client_held_test.go TestFetchTimeoutDocumentsPushBoundTradeOff -->
+
 A panic while the hub serves one client ends that client's connection only.
 The connection closes, the client's name is released so it can authenticate
 again, and the client reconnects under "Reconnect" below; every other client
@@ -867,6 +904,25 @@ window's revert would wipe the push, and the client answers
 version, so a later fetch, on the next `config-changed` or reconnection,
 delivers the push again; nothing retries it when the window closes.
 
+Phase 4's stage is guarded. Before its fetch the client read the hash of the
+configuration it runs, and it decides to apply the hub's answer over that
+version only. `wireManagedCommit` stages through
+`storage.StageMachineCandidateOver`, which re-reads the active configuration
+under the configuration's writer lock and hands it to the client's check
+(`activeCheck`): a configuration that no longer hashes to the version read
+before the fetch is refused, and nothing is staged. A local commit that
+landed during the fetch therefore wins. The client sends no ack for that
+answer and fetches once more, naming the newer edit
+(`refetchOverLocalCommit`); that edit differs from its baseline, so the
+client holds, sends the hub a copy and acks holding (see "The baseline and
+the hold"). The fetch made again never leads to a third: if the store changed
+during it too, the client applies nothing, logs that at Info and ends the
+connection; the reconnect's fetch decides again over what it then runs. Any other refusal of the stage (a confirmed-commit
+window, a candidate already staged, a failed reload) is acked
+`config-ack {"ok":false}` with its cause and starts no second fetch.
+<!-- source: internal/component/managed/client.go -- holdOrApply, applyFetched, activeCheck, refetchOverLocalCommit -->
+<!-- source: cmd/ze/hub/managed.go -- wireManagedCommit -->
+
 A client whose running configuration differs from its baseline fetches and
 then goes no further: it does not validate or apply what the hub returned. It
 holds, and answers `config-ack {"ok":false}` with the hold text (see "The
@@ -887,8 +943,8 @@ The client controls timing. A router in the middle of graceful restart or conver
 |------|--------|
 | 1 | `ze start` |
 | 2 | Read store: `meta/instance/name`, `meta/instance/managed`=true, `meta/managed/hub/address`, `meta/managed/hub/token`, `meta/managed/hub/ca` or `meta/managed/hub/trust`. A flag or its env var replaces the stored value. A value neither gives stops the start with an error naming it |
-| 3 | Connect to hub, authenticate it (see "First start trust"), then authenticate to it |
-| 4 | Fetch config (includes `server local { }` + `client edge-01 { }` + `bgp { }`) |
+| 3 | Connect to hub, authenticate it (see "First start trust"), then authenticate to it, all within `ze.managed.connect.timeout` (default 5 seconds) |
+| 4 | Fetch config (includes `server local { }` + `client edge-01 { }` + `bgp { }`), within the fetch's own 30-second bound (see "Connection Lifecycle"), not the connect bound. A hub that does not answer in time ends the first start with the fetch's deadline error, and nothing is written |
 | 5 | Write config to the local tree |
 | 6 | Start local hub server for plugins, start BGP |
 
@@ -967,7 +1023,7 @@ block connects to no hub whatever the flags say.
 | `--server <host:port>` | `ze.managed.server` | Override hub address |
 | `--name <name>` | `ze.managed.name` | Override client name |
 | `--token <token>` | `ze.managed.token` | Override auth token |
-| `--connect-timeout <dur>` | `ze.managed.connect.timeout` | Bound on the dial and TLS handshake of each connection to the hub, the first fetch included (default: 5s). A value that is not a duration is refused |
+| `--connect-timeout <dur>` | `ze.managed.connect.timeout` | Bound on the dial and TLS handshake of each connection to the hub, and at first start on the authentication too (default: 5s). Every configuration fetch, the first one included, has its own 30-second bound instead (see "Connection Lifecycle"). A value that is not a duration is refused |
 | (none) | `ze.managed.tls.insecure` | Skip server certificate verification (development only) |
 
 ### First start trust

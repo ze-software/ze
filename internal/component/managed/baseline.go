@@ -154,7 +154,7 @@ func RecordActiveAsBaseline(store storage.Storage) (ConfigVersion, error) {
 // BaselineAccess is what a managed client reads and writes in the device's
 // store to decide whether it may apply what its hub sends, and to send its hub
 // a copy of the configuration it holds. The client holds these four
-// operations and never the store, as it holds CheckManaged and OnCommit. The
+// operations and never the store, as it holds CheckManaged and CommitOver. The
 // zero value is not usable: build one with NewBaselineAccess.
 type BaselineAccess struct {
 	active   func() (ConfigVersion, error)

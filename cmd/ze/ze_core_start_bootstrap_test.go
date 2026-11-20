@@ -18,6 +18,7 @@ import (
 	"github.com/ze-software/ze/internal/component/managed"
 	"github.com/ze-software/ze/internal/component/pki"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/pkg/fleet"
 	"github.com/ze-software/ze/pkg/zefs"
 )
@@ -51,6 +52,13 @@ func writeKey(t *testing.T, store storage.Storage, key, value string) {
 // address and its authority.
 func bootHub(t *testing.T) (string, *pki.Root) {
 	t.Helper()
+	return bootHubReading(t, func(string) ([]byte, error) { return []byte(bootConfig), nil })
+}
+
+// bootHubReading is bootHub whose answer to a config-fetch is what
+// readConfig returns, when it returns.
+func bootHubReading(t *testing.T, readConfig func(string) ([]byte, error)) (string, *pki.Root) {
+	t.Helper()
 	root, err := pki.LoadOrGenerateRoot(bootStore(t))
 	if err != nil {
 		t.Fatalf("hub authority: %v", err)
@@ -58,7 +66,7 @@ func bootHub(t *testing.T) (string, *pki.Root) {
 	srv, err := pluginserver.NewManagedServer(pluginserver.ManagedServerConfig{
 		Authority:  root,
 		Listeners:  []pluginserver.ManagedListener{{Addr: "127.0.0.1:0", Clients: map[string]string{bootClient: bootToken}}},
-		ReadConfig: func(string) ([]byte, error) { return []byte(bootConfig), nil },
+		ReadConfig: readConfig,
 	})
 	if err != nil {
 		t.Fatalf("NewManagedServer: %v", err)
@@ -233,6 +241,49 @@ func TestFirstStartAgainstAHubWithItsOwnAuthority(t *testing.T) {
 			t.Fatal("a hub with its own authority was accepted with no root and no first use")
 		}
 	})
+}
+
+// TestFirstBootFetchOutlivesConnectTimeout proves that at first boot
+// ze.managed.connect.timeout bounds reaching the hub and not the fetch: a hub
+// that authenticates the client at once and answers its config-fetch only
+// after more than the connect bound gives the client its configuration.
+//
+// VALIDATES: OD-6 and AC-6 at first boot. fetchInitialConfig answers the hub's
+// configuration when its answer comes later than the connect bound, and well
+// within the fetch's own bound (managed configFetchTimeout).
+// PREVENTS: a first boot that can never fetch a configuration the hub takes
+// longer than 5 seconds to send, a large one on an ordinary link.
+//
+// MUTATION: pass connectCtx to managed.FetchConfig in fetchInitialConfig: the
+// fetch fails on the connect deadline.
+func TestFirstBootFetchOutlivesConnectTimeout(t *testing.T) {
+	const connectBound = 500 * time.Millisecond
+	if err := env.Set("ze.managed.connect.timeout", connectBound.String()); err != nil {
+		t.Fatalf("set ze.managed.connect.timeout: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := env.Set("ze.managed.connect.timeout", ""); err != nil {
+			t.Errorf("clear ze.managed.connect.timeout: %v", err)
+		}
+	})
+	addr, root := bootHubReading(t, func(string) ([]byte, error) {
+		// The hub's answer comes three connect bounds after the fetch: the
+		// scenario is a hub slower than the connect bound, not a wait for state.
+		time.Sleep(3 * connectBound)
+		return []byte(bootConfig), nil
+	})
+	boot := managedBootstrap{server: addr, name: bootClient, token: bootToken, root: root.Certificate()}
+
+	data, kept, err := fetchInitialConfig(boot)
+	if err != nil {
+		t.Fatalf("a first fetch answered after the connect bound failed: %v", err)
+	}
+	if string(data) != bootConfig {
+		t.Errorf("config = %q, want %q", data, bootConfig)
+	}
+	if kept != nil {
+		t.Error("a connection anchored on a stored root kept an authority")
+	}
 }
 
 // TestKeptHubRootAnchorsTheNextConnection: the authority a first-use

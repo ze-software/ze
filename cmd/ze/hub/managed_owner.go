@@ -60,8 +60,8 @@ func noFlagWrite() error { return nil }
 // waits, so state answers while a stop waits for its client.
 type managedClientOwner struct {
 	build ManagedClientBuilder
-	// wire sets what a built client needs from the running daemon (OnCommit,
-	// OnRevert).
+	// wire sets what a built client needs from the running daemon
+	// (CommitOver).
 	wire func(*managed.ClientConfig)
 	// run is the client: managed.RunManagedClient, or a test's stand-in. It
 	// MUST return once its context is canceled.

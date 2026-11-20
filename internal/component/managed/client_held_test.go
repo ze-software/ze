@@ -246,6 +246,26 @@ func TestHeldUploadDeadlineBelowPushBound(t *testing.T) {
 		"the upload and the hold ack after it, both stalled, outlast the hub's push bound")
 }
 
+// TestFetchTimeoutDocumentsPushBoundTradeOff proves the fetch bound is the
+// deliberate exception to the rule above: it carries a full answer of
+// rpc.MaxMessageSize bytes on a link of 4.5 Mbit/s, which no bound below the
+// hub's push bound could.
+//
+// VALIDATES: OD-3 and A-4. configFetchTimeout is at least the time 16 MiB
+// takes at 4.5 Mbit/s, and greater than pluginserver.ManagedPushTimeout.
+// PREVENTS: a later edit that moves the fetch below the push bound, and so
+// cuts every large configuration on an ordinary link.
+//
+// MUTATION: set configFetchTimeout to 2 seconds: both assertions fail.
+func TestFetchTimeoutDocumentsPushBoundTradeOff(t *testing.T) {
+	const linkBitsPerSecond = 4_500_000
+	largestAnswer := time.Duration(rpc.MaxMessageSize) * 8 * time.Second / linkBitsPerSecond
+	assert.GreaterOrEqual(t, configFetchTimeout, largestAnswer,
+		"the fetch bound cannot carry a 16 MiB answer at 4.5 Mbit/s")
+	assert.Greater(t, configFetchTimeout, pluginserver.ManagedPushTimeout,
+		"the fetch bound fits below the hub's push bound, which only a small answer allows")
+}
+
 // TestUnansweredAckReturnsWithinBound proves a hub that takes a config-ack
 // and never answers it does not hold the device: the ack, sent on a context
 // with no deadline, ends at configAckTimeout.
@@ -487,7 +507,7 @@ func ackOf(t *testing.T, seen <-chan *rpc.Request) fleet.ConfigAck {
 
 // TestDiscardAppliesWhenActiveMatches proves a holding device whose hub
 // offers to discard exactly the version it runs applies the hub's
-// configuration through OnRevert, the push path with the stage's check, and
+// configuration through CommitOver, the push path with the stage's check, and
 // acks it ok.
 //
 // VALIDATES: spec-fleet-7 AC-13 (it applies V through the push path and acks
@@ -570,7 +590,7 @@ func TestDiscardForOtherReportedStale(t *testing.T) {
 func TestDiscardRefusedApplyStillHolds(t *testing.T) {
 	store := holdDevice(t, holdDeviceConfig, holdEarlierConfig)
 	cfg, _, _ := holdClient("192.0.2.1:1791", NewBaselineAccess(store))
-	cfg.OnRevert = func([]byte, func([]byte) error) error { return errors.New("a confirmed commit is open") }
+	cfg.CommitOver = func([]byte, func([]byte) error) error { return errors.New("a confirmed commit is open") }
 	var holding []bool
 	cfg.OnHold = func(held bool) { holding = append(holding, held) }
 	mc, seen := heldPipe(t, hubReverting(fleet.VersionHash([]byte(holdDeviceConfig))))
@@ -640,8 +660,8 @@ func TestHoldFixNamesWhatTheHubKeeps(t *testing.T) {
 // hold decided on the first answer, whose fetched version is the old one, so
 // the hub refuses to show the copy and records the device as rejected.
 //
-// MUTATION: commit the revert through OnCommit in applyReverted (no check),
-// and the hub's configuration is committed over the local edit. Hold over the
+// MUTATION: commit the revert with a check that accepts everything in
+// applyReverted, and the hub's configuration is committed over the local edit. Hold over the
 // first answer in refetchOverLocalCommit instead of fetching again, and the
 // second fetch is missing.
 func TestDiscardHoldsOverLocalCommitDuringFetch(t *testing.T) {
@@ -734,4 +754,191 @@ func TestDiscardFetchesAgainOnlyOnce(t *testing.T) {
 	assert.Empty(t, seen, "the device sent its hub more than two fetches")
 	assert.Empty(t, applied, "the revert committed the hub's configuration over a local commit")
 	assert.Equal(t, []bool{true}, holding)
+}
+
+// hubPushing is a hub that holds holdHubConfig for the device and offers no
+// revert: an ordinary push. onFetch runs when a config-fetch arrives, before
+// the hub answers it: the push tests land their local commits there.
+func hubPushing(onFetch func()) func(*rpc.Request) any {
+	pushing := hubHolding("", struct{}{})
+	return func(req *rpc.Request) any {
+		if req.Method == fleet.VerbConfigFetch {
+			onFetch()
+		}
+		return pushing(req)
+	}
+}
+
+// TestPushHoldsOverLocalCommitDuringFetch proves an ordinary hub push never
+// overwrites a local commit that landed during its fetch: the device runs its
+// baseline, and the hub writes local edit L into the device's store before it
+// answers the first config-fetch with its own configuration.
+//
+// VALIDATES: AC-5. The stage's check refuses L, nothing is committed, L stays
+// active, the device fetches again naming L, sends a copy of L and acks
+// holding, and its hold is reported once, as holding.
+// PREVENTS: a hub push that discards a change the hub's operator never saw.
+//
+// MUTATION: commit the push with a check that accepts everything in
+// applyFetched, and the hub's configuration is committed over L.
+func TestPushHoldsOverLocalCommitDuringFetch(t *testing.T) {
+	const localEdit = "device { edited during the push's fetch; }\n"
+	store := holdDevice(t, holdEarlierConfig, holdEarlierConfig)
+	cfg, _, applied := holdClient("192.0.2.1:1791", NewBaselineAccess(store))
+	var holding []bool
+	cfg.OnHold = func(held bool) { holding = append(holding, held) }
+	written := make(chan error, 1)
+	var fetches int
+	mc, seen := heldPipe(t, hubPushing(func() {
+		fetches++
+		if fetches == 1 {
+			// The local commit lands after the device read the hash it sent.
+			written <- store.WriteFile(fleetStatusConfigName, []byte(localEdit), 0)
+		}
+	}))
+
+	holdOnce(t, mc, &cfg)
+
+	select {
+	case err := <-written:
+		require.NoError(t, err, "the hub could not land the local commit")
+	default:
+		t.Fatal("the hub never landed the local commit")
+	}
+	assert.Equal(t, fleet.VersionHash([]byte(holdEarlierConfig)), fetchedVersion(t, nextRequest(t, seen)))
+	assert.Equal(t, fleet.VersionHash([]byte(localEdit)), fetchedVersion(t, nextRequest(t, seen)),
+		"the device did not fetch again over its newer local edit")
+	upload := nextRequest(t, seen)
+	require.Equal(t, fleet.VerbConfigHeld, upload.Method, "the device sent no copy of its newer local edit")
+	var held fleet.ConfigHeld
+	require.NoError(t, json.Unmarshal(upload.Params, &held))
+	assert.Equal(t, fleet.VersionHash([]byte(localEdit)), held.Version)
+	ack := ackOf(t, seen)
+	assert.False(t, ack.OK)
+	assert.True(t, ack.Holding)
+	assert.Empty(t, applied, "the push committed the hub's configuration over the local commit")
+	active, err := ActiveVersion(store)
+	require.NoError(t, err)
+	assert.Equal(t, versionOf([]byte(localEdit)), active)
+	assert.Equal(t, []bool{true}, holding)
+}
+
+// TestPushAppliesWhenActiveUnchanged is the control of
+// TestPushHoldsOverLocalCommitDuringFetch: the same push with no local commit
+// during its fetch.
+//
+// VALIDATES: AC-5 control. The hub's configuration is committed through
+// CommitOver, the ack is ok, the device reports not holding, and it made one
+// config-fetch only.
+// PREVENTS: a check that refuses every push, so a device never takes its
+// hub's configuration again.
+//
+// MUTATION: refuse in activeCheck always, and the push never applies.
+func TestPushAppliesWhenActiveUnchanged(t *testing.T) {
+	store := holdDevice(t, holdEarlierConfig, holdEarlierConfig)
+	cfg, _, applied := holdClient("192.0.2.1:1791", NewBaselineAccess(store))
+	var holding []bool
+	cfg.OnHold = func(held bool) { holding = append(holding, held) }
+	mc, seen := heldPipe(t, hubPushing(func() {}))
+
+	holdOnce(t, mc, &cfg)
+
+	assert.Equal(t, fleet.VersionHash([]byte(holdEarlierConfig)), fetchedVersion(t, nextRequest(t, seen)))
+	ack := ackOf(t, seen)
+	assert.True(t, ack.OK, "ack error: %s", ack.Error)
+	assert.False(t, ack.Holding)
+	assert.Empty(t, seen, "the device sent its hub a second request")
+	select {
+	case data := <-applied:
+		assert.Equal(t, holdHubConfig, string(data))
+	default:
+		t.Fatal("the device committed nothing although it runs its baseline")
+	}
+	assert.Equal(t, []bool{false}, holding)
+}
+
+// TestPushFetchesAgainOnlyOnce proves the fetch made again after a refused
+// push is bounded. The hub writes a local commit during each fetch (L1, then
+// L2), and the stage wrapper writes the baseline's content back after each
+// refusal of its check: after the first, the device runs its baseline again,
+// so its second fetch would apply, and L2 makes the second check refuse too;
+// after the second, the device ends on its baseline content.
+//
+// VALIDATES: AC-5 survivor and R-1. The call answers errActiveChangedTwice
+// after exactly two config-fetch calls, nothing was committed, and the hold
+// is reported from the store read again: the device ends on its baseline
+// content, so it reports not holding.
+// PREVENTS: a device that fetches without end while its store keeps changing.
+//
+// MUTATION: pass refetchOnce on the fetch made again in
+// refetchOverLocalCommit, and a third fetch appears.
+func TestPushFetchesAgainOnlyOnce(t *testing.T) {
+	store := holdDevice(t, holdEarlierConfig, holdEarlierConfig)
+	access := NewBaselineAccess(store)
+	cfg, _, applied := holdClient("192.0.2.1:1791", access)
+	var holding []bool
+	cfg.OnHold = func(held bool) { holding = append(holding, held) }
+	stage := cfg.CommitOver
+	cfg.CommitOver = func(data []byte, check func(active []byte) error) error {
+		err := stage(data, check)
+		if errors.Is(err, errActiveChanged) {
+			// A second local commit restores the baseline's content.
+			require.NoError(t, store.WriteFile(fleetStatusConfigName, []byte(holdEarlierConfig), 0))
+		}
+		return err
+	}
+	written := make(chan error, 4) // Room past two, so a third fetch never blocks the hub.
+	var fetches int
+	mc, seen := heldPipe(t, hubPushing(func() {
+		fetches++
+		written <- store.WriteFile(fleetStatusConfigName, fmt.Appendf(nil, "device { local edit %d; }\n", fetches), 0)
+	}))
+
+	err := fetchAndProcess(context.Background(), mc, &cfg)
+
+	for range 2 {
+		select {
+		case writeErr := <-written:
+			require.NoError(t, writeErr, "the hub could not land a local commit")
+		default:
+			t.Fatal("the hub landed fewer than two local commits")
+		}
+	}
+	require.ErrorIs(t, err, errActiveChangedTwice)
+	assert.Equal(t, []string{fleet.VerbConfigFetch, fleet.VerbConfigFetch}, methodsOf(t, seen, 2))
+	assert.Empty(t, seen, "the device sent its hub more than two fetches")
+	assert.Empty(t, applied, "the push committed the hub's configuration over a local commit")
+	assert.Equal(t, []bool{false}, holding, "a device back on its baseline reported holding")
+}
+
+// TestPushRefusalOtherThanLocalCommitAcks proves only a newer local edit
+// sends a refused push to the fetch made again: a stage refused for another
+// cause, as by a confirmed-commit window open on the device, is acked as a
+// refusal with that cause.
+//
+// VALIDATES: AC-5 survivor. The ack is ok:false and carries the stage's
+// error, the device makes no second fetch, and it reports not holding.
+// PREVENTS: a confirmed-commit window, a staged candidate or a reload
+// failure turned into a hold the device does not have.
+//
+// MUTATION: route every commit error to refetchOverLocalCommit in
+// holdOrApply, and a second fetch appears with no ack of the refusal.
+func TestPushRefusalOtherThanLocalCommitAcks(t *testing.T) {
+	store := holdDevice(t, holdEarlierConfig, holdEarlierConfig)
+	cfg, _, applied := holdClient("192.0.2.1:1791", NewBaselineAccess(store))
+	cfg.CommitOver = func([]byte, func([]byte) error) error { return errors.New("a confirmed commit is open") }
+	var holding []bool
+	cfg.OnHold = func(held bool) { holding = append(holding, held) }
+	mc, seen := heldPipe(t, hubPushing(func() {}))
+
+	holdOnce(t, mc, &cfg)
+
+	require.Equal(t, fleet.VerbConfigFetch, nextRequest(t, seen).Method)
+	ack := ackOf(t, seen)
+	assert.False(t, ack.OK)
+	assert.False(t, ack.Holding)
+	assert.Contains(t, ack.Error, "a confirmed commit is open")
+	assert.Empty(t, seen, "the device sent its hub another request after the refusal")
+	assert.Empty(t, applied)
+	assert.Equal(t, []bool{false}, holding)
 }

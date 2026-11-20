@@ -61,11 +61,13 @@ func applyOnce(t *testing.T, cfg *ClientConfig, config []byte) (fleet.ConfigAck,
 // settings is acknowledged, then ends the connection with the new settings in
 // place for the next one.
 func TestAppliedConfigChangesEndpoint(t *testing.T) {
+	access := appliedDevice(t)
 	cfg := &ClientConfig{
 		Name: "edge-01", Server: "192.0.2.1:1791", Token: testHubToken, CA: "fleet-hub",
-		Handler:  &Handler{Validate: func([]byte) error { return nil }},
-		OnCommit: func([]byte) error { return nil },
-		Endpoint: endpointAt,
+		Handler:    &Handler{Validate: func([]byte) error { return nil }},
+		CommitOver: stagedOver(access, func([]byte) error { return nil }),
+		Baseline:   access,
+		Endpoint:   endpointAt,
 	}
 
 	ack, err := applyOnce(t, cfg, []byte("192.0.2.2:1791"))
@@ -73,17 +75,20 @@ func TestAppliedConfigChangesEndpoint(t *testing.T) {
 	require.ErrorIs(t, err, errEndpointChanged)
 	assert.True(t, ack.OK, "the config was applied, so the hub is told so before the connection ends")
 	assert.Equal(t, "192.0.2.2:1791", cfg.Server)
-	assert.Equal(t, fleet.VersionHash([]byte("192.0.2.2:1791")), cfg.Version)
+	assert.Equal(t, fleet.VersionHash([]byte("192.0.2.2:1791")), ack.Version,
+		"the ack names the version of the configuration the hub sent")
 }
 
 // TestAppliedConfigKeepsEndpoint: an applied config whose hub settings are
 // the ones in use keeps the connection.
 func TestAppliedConfigKeepsEndpoint(t *testing.T) {
+	access := appliedDevice(t)
 	cfg := &ClientConfig{
 		Name: "edge-01", Server: "192.0.2.1:1791", Token: testHubToken, CA: "fleet-hub",
-		Handler:  &Handler{Validate: func([]byte) error { return nil }},
-		OnCommit: func([]byte) error { return nil },
-		Endpoint: endpointAt,
+		Handler:    &Handler{Validate: func([]byte) error { return nil }},
+		CommitOver: stagedOver(access, func([]byte) error { return nil }),
+		Baseline:   access,
+		Endpoint:   endpointAt,
 	}
 
 	ack, err := applyOnce(t, cfg, []byte("192.0.2.1:1791"))
@@ -97,11 +102,13 @@ func TestAppliedConfigKeepsEndpoint(t *testing.T) {
 // block is acknowledged and answers errHubClientRemoved, with the settings in
 // use untouched.
 func TestAppliedConfigWithoutHubClient(t *testing.T) {
+	access := appliedDevice(t)
 	cfg := &ClientConfig{
 		Name: "edge-01", Server: "192.0.2.1:1791", Token: testHubToken, CA: "fleet-hub",
-		Handler:  &Handler{Validate: func([]byte) error { return nil }},
-		OnCommit: func([]byte) error { return nil },
-		Endpoint: endpointAt,
+		Handler:    &Handler{Validate: func([]byte) error { return nil }},
+		CommitOver: stagedOver(access, func([]byte) error { return nil }),
+		Baseline:   access,
+		Endpoint:   endpointAt,
 	}
 
 	ack, err := applyOnce(t, cfg, []byte("none"))
@@ -115,10 +122,12 @@ func TestAppliedConfigWithoutHubClient(t *testing.T) {
 // nothing the client follows, whatever hub block it holds.
 func TestRefusedConfigKeepsEndpoint(t *testing.T) {
 	consulted := false
+	access := appliedDevice(t)
 	cfg := &ClientConfig{
 		Name: "edge-01", Server: "192.0.2.1:1791", Token: testHubToken, CA: "fleet-hub",
-		Handler:  &Handler{Validate: func([]byte) error { return nil }},
-		OnCommit: func([]byte) error { return errors.New("verify rejected") },
+		Handler:    &Handler{Validate: func([]byte) error { return nil }},
+		CommitOver: stagedOver(access, func([]byte) error { return errors.New("verify rejected") }),
+		Baseline:   access,
 		Endpoint: func(config []byte) (Endpoint, error) {
 			consulted = true
 			return endpointAt(config)
@@ -131,7 +140,7 @@ func TestRefusedConfigKeepsEndpoint(t *testing.T) {
 	assert.False(t, ack.OK)
 	assert.False(t, consulted, "the hub block of a refused config was read")
 	assert.Equal(t, "192.0.2.1:1791", cfg.Server)
-	assert.Empty(t, cfg.Version)
+	requireDeviceUnchanged(t, access)
 }
 
 // startServingHub starts a real managed server that admits edge-01 and serves
@@ -190,12 +199,14 @@ func TestRunningClientMovesToTheHubItsConfigNames(t *testing.T) {
 	secondAddr, secondFetched := startServingHub(t, root, func() []byte { return []byte(*own.Load()) })
 	own.Store(&secondAddr)
 	firstAddr, firstFetched := startServingHub(t, root, func() []byte { return []byte(secondAddr) })
+	access := appliedDevice(t)
 
 	runClient(t, ClientConfig{
 		Name: "edge-01", Server: firstAddr, Token: testHubToken, CA: "fleet-hub",
-		Handler:  &Handler{Validate: func([]byte) error { return nil }},
-		OnCommit: func([]byte) error { return nil },
-		Endpoint: endpointAt,
+		Handler:    &Handler{Validate: func([]byte) error { return nil }},
+		CommitOver: stagedOver(access, func([]byte) error { return nil }),
+		Baseline:   access,
+		Endpoint:   endpointAt,
 	})
 
 	select {
@@ -217,12 +228,14 @@ func TestRunningClientStopsWhenItsConfigNamesNoHub(t *testing.T) {
 	root := testRoot(t)
 	installCA(t, root)
 	addr, _ := startServingHub(t, root, func() []byte { return []byte("none") })
+	access := appliedDevice(t)
 
 	done := runClient(t, ClientConfig{
 		Name: "edge-01", Server: addr, Token: testHubToken, CA: "fleet-hub",
-		Handler:  &Handler{Validate: func([]byte) error { return nil }},
-		OnCommit: func([]byte) error { return nil },
-		Endpoint: endpointAt,
+		Handler:    &Handler{Validate: func([]byte) error { return nil }},
+		CommitOver: stagedOver(access, func([]byte) error { return nil }),
+		Baseline:   access,
+		Endpoint:   endpointAt,
 	})
 
 	select {

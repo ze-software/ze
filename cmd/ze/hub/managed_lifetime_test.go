@@ -56,7 +56,7 @@ func TestHubManagedClientJoinsStoredRead(t *testing.T) {
 			held := &managedHeldRead{Storage: base, name: name, entered: make(chan struct{}),
 				release: release, finished: make(chan struct{})}
 			readResult := make(chan error, 1)
-			client := &managed.ClientConfig{CheckManaged: func() bool {
+			client := &managed.ClientConfig{Baseline: managed.NewBaselineAccess(base), CheckManaged: func() bool {
 				_, err := held.ReadFile(name)
 				readResult <- err
 				return false
@@ -88,7 +88,7 @@ func TestHubManagedClientJoinsStoredRead(t *testing.T) {
 // withdraw that same server's doctor record through its synchronous Stop.
 func TestHubManagedServerStopsItsOwner(t *testing.T) {
 	observed := make(chan error, 1)
-	client := &managed.ClientConfig{CheckManaged: func() bool {
+	client := &managed.ClientConfig{Baseline: managed.NewBaselineAccess(newTestStore(t)), CheckManaged: func() bool {
 		_, err := pluginserver.ManagedDoctorSnapshot()
 		observed <- err
 		return false

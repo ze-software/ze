@@ -544,8 +544,7 @@ func firstStartRefused(refusal error) int {
 // client is told how to authenticate its hub; any other failure is a hub the
 // client could not reach or that refused it.
 func fetchRefusal(boot managedBootstrap, cause error) error {
-	var unverified *tls.CertificateVerificationError
-	if errors.As(cause, &unverified) {
+	if _, unverified := errors.AsType[*tls.CertificateVerificationError](cause); unverified {
 		return opererr.Wrap(cause, "fetch config from hub "+boot.server+": the hub's certificate could not be verified",
 			"the client sends its secret only to a hub it has authenticated",
 			"ze init --managed --force --hub-ca <file>   (the file holds what 'ze show pki local-ca pem' prints on the hub)")
@@ -702,9 +701,16 @@ func keepHubRoot(store storage.Storage, root *x509.Certificate) error {
 // initial config. The second return value is the authority a first-use
 // connection kept, and nil on every other connection: the caller MUST store it
 // before any later connection is made.
+//
+// ze.managed.connect.timeout bounds reaching the hub only: the dial, the TLS
+// handshake, the auth line and the read of its answer. The fetch runs under a
+// context not derived from that bound, so managed.FetchConfig's own bound
+// (configFetchTimeout, 30 seconds) alone ends it, as it ends every fetch of a
+// running client: a large first configuration on an ordinary link takes
+// longer than reaching the hub does.
 func fetchInitialConfig(boot managedBootstrap) ([]byte, *x509.Certificate, error) {
 	server, name, token := boot.server, boot.name, boot.token
-	ctx, cancel := context.WithTimeout(context.Background(), env.GetDuration("ze.managed.connect.timeout", 5*time.Second))
+	connectCtx, cancel := context.WithTimeout(context.Background(), env.GetDuration("ze.managed.connect.timeout", 5*time.Second))
 	defer cancel()
 
 	// The SAME rules RunManagedClient uses, through managed.ClientTLSConfig
@@ -732,17 +738,18 @@ func fetchInitialConfig(boot managedBootstrap) ([]byte, *x509.Certificate, error
 		}
 	}
 
-	conn, err := (&tls.Dialer{Config: tlsConf}).DialContext(ctx, "tcp", server)
+	conn, err := (&tls.Dialer{Config: tlsConf}).DialContext(connectCtx, "tcp", server)
 	if err != nil {
 		return nil, nil, fmt.Errorf("connect to %s: %w", server, err)
 	}
 	defer conn.Close() //nolint:errcheck // cleanup
 
-	if err := pluginipc.SendAuth(ctx, conn, token, name); err != nil {
+	if err := pluginipc.SendAuth(connectCtx, conn, token, name); err != nil {
 		return nil, nil, fmt.Errorf("auth: %w", err)
 	}
 
-	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	authDeadline, _ := connectCtx.Deadline() // Always set: WithTimeout above.
+	_ = conn.SetReadDeadline(authDeadline)
 	authLine, readErr := readAuthLine(conn, 512)
 	if readErr != nil {
 		return nil, nil, fmt.Errorf("read auth response: %w", readErr)
@@ -758,7 +765,8 @@ func fetchInitialConfig(boot managedBootstrap) ([]byte, *x509.Certificate, error
 	mc := rpc.NewMuxConn(rc)
 	defer mc.Close() //nolint:errcheck // cleanup
 
-	resp, err := managed.FetchConfig(ctx, mc, "")
+	// Not connectCtx: the connect bound would cut a large first fetch.
+	resp, err := managed.FetchConfig(context.Background(), mc, "")
 	if err != nil {
 		return nil, nil, err
 	}

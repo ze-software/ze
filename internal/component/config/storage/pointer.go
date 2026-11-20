@@ -112,8 +112,8 @@ func WriteCandidateVersionWithGuard(store Storage, guard WriteGuard, configPath 
 // configuration with no operator deciding it, all in cmd/ze/hub:
 //
 //   - applyManagedPush: the hub's push, which is what a managed device follows,
-//     and through StageMachineCandidateOver the revert its hub's operator
-//     decided
+//     an ordinary one and the revert its hub's operator decided, always
+//     through StageMachineCandidateOver
 //   - confirmRevert: the revert of an unconfirmed commit on a running daemon
 //   - publishRecoveredConfig: the same revert at boot (restoreConfirmOnStart)
 //     and the schema recovery of a configuration an older Ze wrote

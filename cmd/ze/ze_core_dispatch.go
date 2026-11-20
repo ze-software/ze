@@ -81,7 +81,7 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.managed.server", Type: typeNameString, Description: "Override hub address (host:port) for managed mode"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.managed.name", Type: typeNameString, Description: "Override client name for managed mode"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.managed.token", Type: typeNameString, Description: "Override auth token for managed mode"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.managed.connect.timeout", Type: "duration", Default: "5s", Description: "Connection timeout for managed hub"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.managed.connect.timeout", Type: "duration", Default: "5s", Description: "Time allowed to reach the managed hub on each connection: the dial and the TLS handshake, and at first boot the authentication too. The configuration fetch has its own 30s bound"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.managed.tls.insecure", Type: "bool", Default: "false", Description: "Skip TLS certificate verification for hub connection (INSECURE)"})
 )
 

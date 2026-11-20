@@ -34,7 +34,7 @@ func TestClientHandleConfigChanged(t *testing.T) {
 
 // TestClientValidateConfigOk verifies that valid config is accepted without caching.
 //
-// VALIDATES: Managed handler validates only; cache is deferred until OnCommit succeeds.
+// VALIDATES: Managed handler validates only; cache is deferred until CommitOver succeeds.
 // PREVENTS: Managed push mutating local config before runtime transaction succeeds.
 func TestClientValidateConfigOk(t *testing.T) {
 	t.Parallel()
@@ -62,7 +62,7 @@ func TestClientValidateConfigOk(t *testing.T) {
 	assert.True(t, ack.OK, "should accept valid config")
 	assert.Equal(t, fleet.VersionHash(configData), ack.Version)
 	assert.Empty(t, ack.Error)
-	assert.False(t, cacheWasCalled, "cache should be deferred to OnCommit")
+	assert.False(t, cacheWasCalled, "cache should be deferred to CommitOver")
 }
 
 // TestClientValidateConfigBad verifies that invalid config is rejected.

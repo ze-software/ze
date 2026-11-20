@@ -217,6 +217,12 @@ The hub tells `edge-01` at once. The client then does four things:
 A client that refuses the configuration keeps the one it runs. The hub shows
 the refusal and its reason in `show doctor`.
 
+A change made on the client while it fetches yours is kept. The client
+applies your configuration only over the one it ran when it fetched. When its
+configuration changed in between, it applies nothing, fetches once more, and
+holds (see "When a Client Holds").
+<!-- source: internal/component/managed/client.go -- holdOrApply, activeCheck, refetchOverLocalCommit -->
+
 A change reaches the client it belongs to and no other. To change ten
 clients, import ten files. A client that is not connected gets the change the
 next time it connects.
@@ -450,7 +456,9 @@ hub. It holds.
 
 The hold protects a change made on the client itself, for example during an
 emergency. Without it, the next configuration from the hub would replace that
-change, and nothing would say so.
+change, and nothing would say so. This is true even when the change is made
+while the client fetches a configuration from the hub: the client does not
+apply that configuration over the change, and holds.
 
 A client that holds:
 
@@ -667,6 +675,9 @@ Start with `show doctor` on the hub, and `ze doctor` on the client.
 | `doctor-hub-managed-collision` on the hub | The clients' block uses the address of the first `server` block | Give the clients' block its own port |
 | `doctor-managed-client-notify-dropped` on the hub | A connected client did not accept the notice of a change | Nothing in most cases: the hub disconnects that client, and it fetches when it reconnects |
 | `doctor-hub-unreachable` on the client | The client cannot reach the hub's address | Check the address and the route. The client keeps running and retrying |
+| The client logs `doctor-hub-unreachable` after a change, with `context deadline exceeded` | The hub did not send the configuration within 30 seconds: a large configuration on a slow link, or a hub that stalls. The client keeps the configuration it runs | Check the link to the hub and the hub's load. The client fetches again at the next change, or when it reconnects |
+| The client reconnects again and again, with `fetch: ... context deadline exceeded` in its log | The same, when the client connects: each connection ends when the fetch reaches its 30 seconds | The same. The client keeps running its configuration meanwhile |
+| The first start fails with `context deadline exceeded` after 30 seconds | The hub did not send the first configuration in time. The client writes no configuration | Check the link to the hub, then run `ze start` again |
 | `doctor-hub-client-missing` on the client | The client applied a configuration with no `client` block, so it follows no hub | Add the `client` block to its configuration on the hub. Then run `ze init --managed --force` on the client, and start it |
 | `doctor-managed-diverged` on the client | The client runs a configuration that is not the last one its hub gave it, so it holds | See [When a Client Holds](#when-a-client-holds) |
 | `doctor-managed-client-rejected` on the hub, the reason starts with `holding:` | The same: that client holds | See [When a Client Holds](#when-a-client-holds) |
@@ -681,6 +692,7 @@ Start with `show doctor` on the hub, and `ze doctor` on the client.
 <!-- source: cmd/ze/hub/managed_owner.go -- startAtBoot, state -->
 <!-- source: internal/component/plugin/server/managed_doctor.go -- authRefused, notifyDropped -->
 <!-- source: internal/component/managed/doctor.go -- checkHubReachable, checkHubClientDeclared, checkManagedDiverged -->
+<!-- source: internal/component/managed/client.go -- configFetchTimeout, handleConfigChangedRequest -->
 <!-- source: internal/component/managed/cmd_fleet.go -- noDeclaredHub, daemonClientReport, reportOf -->
 
 ## Reference
@@ -704,7 +716,7 @@ The flags go before the command: `ze --server 10.0.0.1:1791 start`.
 | `--server <host:port>` | `ze.managed.server` | Hub address |
 | `--name <name>` | `ze.managed.name` | Client name |
 | `--token <secret>` | `ze.managed.token` | Client secret |
-| `--connect-timeout <duration>` | `ze.managed.connect.timeout` | Time allowed to reach the hub, for each attempt. Default `5s` |
+| `--connect-timeout <duration>` | `ze.managed.connect.timeout` | Time allowed to reach the hub, for each attempt: to connect, to check the hub's certificate and, at the first start, to authenticate. Fetching the configuration has its own bound of 30 seconds. Default `5s` |
 | (none) | `ze.managed.tls.insecure` | Do not check the hub's certificate. For development only: the client then sends its secret to a hub it did not check |
 
 `--server`, `--name` and `--token` replace what `ze init` stored, and what the

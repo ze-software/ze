@@ -80,10 +80,11 @@ func TestOwnerStopEndsLiveConnection(t *testing.T) {
 	owner := newManagedClientOwner(func() (*managed.ClientConfig, error) {
 		return &managed.ClientConfig{
 			Name: name, Server: srv.Addrs()[0].String(), Token: secret, TLSInsecure: true,
-			Handler: &managed.Handler{Validate: func([]byte) error { return nil }},
+			Handler:  &managed.Handler{Validate: func([]byte) error { return nil }},
+			Baseline: managed.NewBaselineAccess(newTestStore(t)),
 		}, nil
 	}, func(client *managed.ClientConfig) {
-		client.OnCommit = func([]byte) error {
+		client.CommitOver = func([]byte, func([]byte) error) error {
 			applied <- struct{}{}
 			return nil
 		}
@@ -94,8 +95,10 @@ func TestOwnerStopEndsLiveConnection(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, started)
 	awaitManagedLifetime(t, applied, "the hub client did not apply the configuration its hub serves")
-	require.Equal(t, managed.ClientState{Running: true, Connected: true}, owner.state(),
-		"a client that applied a fetched configuration is connected")
+	require.Equal(t, managed.ClientState{
+		Running: true, Connected: true, HubAnswer: managed.HubAnswer{Revert: managed.RevertAbsent},
+	}, owner.state(),
+		"a client that applied a fetched configuration is connected, and its hub's answer offered no revert")
 
 	stopped := make(chan managed.ClientState, 1)
 	go func() {
@@ -105,8 +108,9 @@ func TestOwnerStopEndsLiveConnection(t *testing.T) {
 	}()
 	select {
 	case before := <-stopped:
-		assert.Equal(t, managed.ClientState{Running: true, Connected: true}, before,
-			"stop answers the state of the client it ended")
+		assert.Equal(t, managed.ClientState{
+			Running: true, Connected: true, HubAnswer: managed.HubAnswer{Revert: managed.RevertAbsent},
+		}, before, "stop answers the state of the client it ended")
 	case <-time.After(3 * time.Second):
 		t.Fatal("stop did not end a live hub connection")
 	}

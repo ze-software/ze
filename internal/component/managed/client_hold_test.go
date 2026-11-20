@@ -64,27 +64,49 @@ func holdClient(server string, access *BaselineAccess) (cfg ClientConfig, valida
 			validated.Store(true)
 			return nil
 		}},
-		OnCommit: func(data []byte) error {
+		CommitOver: stagedOver(access, func(data []byte) error {
 			applied <- data
 			return nil
-		},
-		// OnRevert stands for the daemon's stage: it hands check the
-		// configuration the store holds as active now, and commits only when
-		// check accepts it (storage.StageMachineCandidateOver).
-		OnRevert: func(data []byte, check func(active []byte) error) error {
-			held, err := access.held()
-			if err != nil {
-				return err
-			}
-			if err := check(held.content); err != nil {
-				return err
-			}
-			applied <- data
-			return nil
-		},
+		}),
 		Baseline: access,
 	}
 	return cfg, validated, applied
+}
+
+// stagedOver stands for the daemon's stage (cmd/ze/hub wireManagedCommit): it
+// hands check the configuration the store behind access holds as active now,
+// and commits through commit only when check accepts it
+// (storage.StageMachineCandidateOver).
+func stagedOver(access *BaselineAccess, commit func(data []byte) error) func(data []byte, check func(active []byte) error) error {
+	return func(data []byte, check func(active []byte) error) error {
+		held, err := access.held()
+		if err != nil {
+			return err
+		}
+		if err := check(held.content); err != nil {
+			return err
+		}
+		return commit(data)
+	}
+}
+
+// appliedDevice is the BaselineAccess of a device store that runs
+// holdEarlierConfig and records it as its baseline: a device that does not
+// hold, so a push it fetches is staged and applied over its check.
+func appliedDevice(t *testing.T) *BaselineAccess {
+	t.Helper()
+	return NewBaselineAccess(holdDevice(t, holdEarlierConfig, holdEarlierConfig))
+}
+
+// requireDeviceUnchanged asserts that the store behind access still runs
+// holdEarlierConfig and records it as its baseline: nothing was applied, and
+// the baseline did not move.
+func requireDeviceUnchanged(t *testing.T, access *BaselineAccess) {
+	t.Helper()
+	active, baseline, err := access.read()
+	require.NoError(t, err)
+	assert.Equal(t, versionOf([]byte(holdEarlierConfig)), active, "the device's active configuration changed")
+	assert.Equal(t, versionOf([]byte(holdEarlierConfig)), baseline, "the device's baseline moved")
 }
 
 // hubRefusalOf waits for the hub that was started last to record a refused
@@ -189,7 +211,7 @@ func answerCurrent(*rpc.Request) any {
 // PREVENTS: a device changed locally being overwritten when it connects.
 //
 // MUTATION: drop the Diverged branch of fetchAgainstBaseline and this fails:
-// the hub's configuration reaches Validate and OnCommit.
+// the hub's configuration reaches Validate and CommitOver.
 func TestFetchHoldsWhenActiveDiffersFromBaseline(t *testing.T) {
 	root := testRoot(t)
 	installCA(t, root)
@@ -369,7 +391,7 @@ func TestNoBaselineAppliesAsToday(t *testing.T) {
 
 // TestFetchSendsActiveHash proves which version a fetch names: two fetches
 // over one connection, with the device's configuration replaced in the store
-// between them and an in-memory Version that matches neither.
+// between them.
 //
 // VALIDATES: the version a fetch sends is the hash of the active
 // configuration, read from the store at fetch time.
@@ -379,7 +401,6 @@ func TestNoBaselineAppliesAsToday(t *testing.T) {
 func TestFetchSendsActiveHash(t *testing.T) {
 	store := holdDevice(t, holdEarlierConfig, "")
 	cfg, _, _ := holdClient("192.0.2.1:1791", NewBaselineAccess(store))
-	cfg.Version = "the-hash-read-at-start"
 	mc, seen := holdPipe(t, answerCurrent)
 
 	require.NoError(t, fetchAndProcess(context.Background(), mc, &cfg))
