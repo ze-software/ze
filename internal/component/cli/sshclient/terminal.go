@@ -12,12 +12,19 @@ import (
 	"golang.org/x/term"
 )
 
-// Interactive session request fields shared by the terminal client and server.
+// Session request fields shared by the client and the server. The first two
+// select an interactive session. EnvCLIRender states, on the exec channel,
+// that the client presents the events of the stream it asks for: the daemon
+// then applies every pipe operation before the presentation suffix and the
+// client applies the suffix (formats, paging, `save`). CLIRenderClient is its
+// one value; the server refuses any other.
 const (
-	EnvConfigName  = "ZE_CONFIG_NAME"
-	EnvCLIMode     = "ZE_CLI_MODE"
-	CLIModeEdit    = "edit"
-	CLIModeCommand = "command"
+	EnvConfigName   = "ZE_CONFIG_NAME"
+	EnvCLIMode      = "ZE_CLI_MODE"
+	CLIModeEdit     = "edit"
+	CLIModeCommand  = "command"
+	EnvCLIRender    = "ZE_CLI_RENDER"
+	CLIRenderClient = "client"
 )
 
 // RunInteractive runs the daemon's model over a persistent SSH PTY. The daemon

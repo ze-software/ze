@@ -5,6 +5,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"slices"
 	"strings"
@@ -18,8 +19,8 @@ import (
 // ctx is the session context, s is the plugin server, w is the output writer,
 // username is the authenticated SSH user (for authorization), and args is the
 // value ValidateArgs returned for the words after the streaming prefix, so a
-// handler never sees a token its command's model refuses
-// (GetStreamingHandlerForCommand).
+// handler never sees a token its command's model refuses, carrying the pipe
+// operations the command declares (GetStreamingHandlerRendered).
 type StreamingHandler func(ctx context.Context, s *Server, w io.Writer, username string, args command.ValidatedArgs) error
 
 // MonitorProvider creates a TUI monitor session for a streaming command.
@@ -209,31 +210,77 @@ func UnregisterStreamingHandler(prefix string) {
 	streamingHandlersMu.Unlock()
 }
 
-// GetStreamingHandlerForCommand answers the handler for a streaming command and
-// the arguments after its prefix, judged against the leaves the model declares
-// for that prefix (route R8). Matches the longest registered prefix. handler is
-// nil when no prefix matches, and when the arguments are refused: the refusal
-// is then err, and the caller MUST report it rather than run anything. A caller
-// MUST invoke the handler with the value answered.
+// GetStreamingHandlerForCommand reads a typed streaming line, its pipe chain
+// included, for a caller inside the daemon that leaves the chain to the
+// engine (command.StreamRenderingEngine: the web terminal, the REST and gRPC
+// streams, the daemon-hosted model). It is GetStreamingHandlerRendered with
+// that rendering.
 func GetStreamingHandlerForCommand(input string) (StreamingHandler, command.ValidatedArgs, error) {
-	handler, prefix, args := matchStreamingCommand(input)
-	if handler == nil {
+	return GetStreamingHandlerRendered(input, command.StreamRenderingEngine)
+}
+
+// GetStreamingHandlerRendered is the stream route's one lookup: every caller
+// of a streaming handler reaches the registry through it, and
+// TestEveryPipeSplitGoesThroughThePartition refuses a reader of the registry
+// that goes around it.
+//
+// The line is scanned and its chain partitioned once (command.ReadStreamLine,
+// rendering stating who presents the events). The handler is the one
+// registered at the longest prefix of the command part; the words after the
+// prefix are judged against the leaves the model declares for it (route R8),
+// and the operations the command declares are attached to that value
+// (ValidatedArgs.PipeOperations). The handler answered writes its events
+// through the part of the residual chain the daemon applies
+// (command.StreamLine.Run), so a caller runs the chain by running it.
+//
+// handler is nil when no prefix matches, and when the line, its chain or an
+// argument is refused: the refusal is then err, and the caller MUST report it
+// rather than run anything. A caller MUST invoke the handler with the value
+// answered.
+func GetStreamingHandlerRendered(input string, rendering command.StreamRendering) (StreamingHandler, command.ValidatedArgs, error) {
+	line, err := command.ReadStreamLine(input, rendering)
+	if err != nil {
+		return nil, command.ValidatedArgs{}, err
+	}
+	producer, prefix := matchStreamingCommand(line.Command())
+	if producer == nil {
 		return nil, command.ValidatedArgs{}, nil
+	}
+	// The prefix matched the command part's leading words, so it holds no
+	// more words than the command part does; the guard keeps a scanner that
+	// ever reads them otherwise from slicing past the end.
+	words := line.Words()
+	prefixWords := len(strings.Fields(prefix))
+	if prefixWords > len(words) {
+		return nil, command.ValidatedArgs{}, fmt.Errorf("the monitor line %q does not start with its command %q", line.Command(), prefix)
+	}
+	// No word after the prefix is no arguments, which is nil: the rule the
+	// chain partition keeps (command.argumentWords), because an empty list
+	// does not survive the wire both ways.
+	var args []string
+	if prefixWords < len(words) {
+		args = words[prefixWords:]
 	}
 	validated, err := command.ValidateModelArgs(prefix, args, nil)
 	if err != nil {
 		return nil, command.ValidatedArgs{}, err
 	}
+	validated = validated.WithPipeOperations(line.DeclaredOperations())
+	handler := func(ctx context.Context, s *Server, w io.Writer, username string, args command.ValidatedArgs) error {
+		return line.Run(w, func(output io.Writer) error {
+			return producer(ctx, s, output, username, args)
+		})
+	}
 	return handler, validated, nil
 }
 
 // matchStreamingCommand answers the handler registered at the longest prefix
-// of input, that prefix as registered (lowercased), and the raw words after it.
-// It judges nothing: it answers whether a command IS a streaming command, and
-// GetStreamingHandlerForCommand judges the words before anything runs.
-func matchStreamingCommand(input string) (handler StreamingHandler, prefix string, args []string) {
-	trimmed := strings.TrimSpace(input)
-	lower := strings.ToLower(trimmed)
+// of commandPart, a command part with no pipe chain, and that prefix as
+// registered (lowercased). It judges nothing: it answers whether a command IS
+// a streaming command, and GetStreamingHandlerForCommand judges the words
+// before anything runs.
+func matchStreamingCommand(commandPart string) (handler StreamingHandler, prefix string) {
+	lower := strings.ToLower(strings.TrimSpace(commandPart))
 
 	streamingHandlersMu.RLock()
 	defer streamingHandlersMu.RUnlock()
@@ -246,28 +293,22 @@ func matchStreamingCommand(input string) (handler StreamingHandler, prefix strin
 			}
 		}
 	}
-
-	if handler == nil {
-		return nil, "", nil
-	}
-
-	// Extract args after the matched prefix from the original trimmed input
-	// (not the lowered version) to preserve case of peer selectors and arguments.
-	if len(trimmed) <= len(prefix) {
-		return handler, prefix, nil
-	}
-	rest := strings.TrimSpace(trimmed[len(prefix):])
-	if rest == "" {
-		return handler, prefix, nil
-	}
-	return handler, prefix, strings.Fields(rest)
+	return handler, prefix
 }
 
-// IsStreamingCommand returns true if the input matches any registered streaming
-// prefix, whatever its arguments: a refused argument is reported by the
-// streaming route, not by a fall-through to another one.
+// IsStreamingCommand returns true if the command part of input matches any
+// registered streaming prefix, whatever its arguments and chain: a refused
+// argument or chain is reported by the streaming route, not by a fall-through
+// to another one. The command part ends at the first pipe outside quotes
+// (command.ScanExecution); a line the scanner refuses is matched whole, so a
+// monitor line with an unfinished quote still reaches the streaming route,
+// which names the column.
 func IsStreamingCommand(input string) bool {
-	h, _, _ := matchStreamingCommand(input)
+	commandPart := input
+	if _, pipeAt, err := command.ScanExecution(input); err == nil && pipeAt >= 0 {
+		commandPart = input[:pipeAt]
+	}
+	h, _ := matchStreamingCommand(commandPart)
 	return h != nil
 }
 

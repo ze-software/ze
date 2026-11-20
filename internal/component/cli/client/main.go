@@ -448,7 +448,7 @@ type cliClient struct {
 func newCLIClient(creds sshclient.Credentials) *cliClient {
 	return &cliClient{
 		creds: creds, send: sshclient.ExecCommand, stream: sshclient.ExecCommandStream,
-		monitorStream: sshclient.StreamCommand,
+		monitorStream: sshclient.StreamPresentedCommand,
 	}
 }
 
@@ -652,18 +652,28 @@ func isMonitorCommand(command string) bool {
 }
 
 // StreamMonitor runs a streaming monitor command and prints each event.
+//
+// The line goes to the daemon as typed, with the rendering key set
+// (sshclient.StreamPresentedCommand): the daemon accounts and authorizes the
+// typed line, hands the monitor its declared operations and applies every
+// operation before the presentation suffix, a `| match` included. This client
+// applies only that suffix (cmd.PresentStreamSuffix): the format typed, or
+// the monitor event formatter, and `| save`, which writes the operator's own
+// file. It reads the catalog alone, so it never refuses an operation name it
+// does not know: the daemon classifies.
 func (c *cliClient) StreamMonitor(command string) int {
 	defaultFmt := pluginserver.MonitorEventFormatter()
 	if defaultFmt == nil {
 		defaultFmt = func(s string) string { return s }
 	}
-	cmdStr, formatFn, saves, pipeErr := cmd.ProcessStreamPipesDefaultFunc(command, defaultFmt)
+	formatFn, saves, pipeErr := cmd.PresentStreamSuffix(command, defaultFmt)
 	if pipeErr != "" {
-		fmt.Fprintf(os.Stderr, "error: %s\n", pipeErr)
+		var tb textbuf.Buffer
+		tb.Str("error: ").Str(pipeErr).Byte('\n').StdErr() //nolint:errcheck // CLI diagnostic
 		return 1
 	}
 
-	err := c.monitorStream(c.creds, cmdStr, func(line string) error {
+	err := c.monitorStream(c.creds, command, func(line string) error {
 		formatted := formatFn(line)
 		if formatted == "" {
 			return nil

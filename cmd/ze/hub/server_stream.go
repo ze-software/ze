@@ -7,7 +7,6 @@ import (
 	"context"
 	"io"
 
-	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -63,29 +62,15 @@ func serverStreamCommand(s *pluginserver.Server, ctx context.Context, caller plu
 	if !d.IsAuthorized(cmdCtx, input, true) {
 		return true, plugin.ErrStreamUnauthorized
 	}
-	words, err := cli.ParseCommandWords(input)
-	if err != nil {
-		return true, err
-	}
-	streamCommand, format, _, pipeErr := command.ProcessRemoteStreamPipes(input, "")
-	if pipeErr != "" {
-		return true, opererr.New("the live monitor pipe chain was refused", pipeErr,
-			"remove the refused pipe and repeat the monitor command")
-	}
-	handler, args, err := pluginserver.GetStreamingHandlerForCommand(streamCommand)
+	// The typed line, chain included: the lookup partitions it, hands the
+	// handler the operations the monitor declares, and runs the residual
+	// chain over each event (GetStreamingHandlerForCommand).
+	handler, args, err := pluginserver.GetStreamingHandlerForCommand(input)
 	if err != nil {
 		return true, err
 	}
 	if handler == nil {
 		return true, opererr.New("the monitor command is no longer registered", "its owning plugin stopped before the stream opened", "run help monitor and select an available monitor")
-	}
-	if words.FirstPipe() >= 0 {
-		producer := handler
-		handler = func(ctx context.Context, server *pluginserver.Server, output io.Writer, username string, args command.ValidatedArgs) error {
-			return command.RunStreamPipes(output, format, func(piped io.Writer) error {
-				return producer(ctx, server, piped, username, args)
-			})
-		}
 	}
 	streamCtx, cancel := context.WithCancel(ctx)
 	defer cancel()

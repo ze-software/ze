@@ -151,9 +151,25 @@ func trimErrorPrefix(s string) string {
 
 // StreamCommand connects to the daemon via SSH and runs a streaming command.
 // It reads stdout line-by-line and calls the callback for each line.
-// The callback receives the raw JSON event line. If the callback returns an error,
-// streaming stops. The function blocks until the session ends (disconnect or callback error).
+// The callback receives each line as the daemon rendered it: the daemon applies
+// the line's whole pipe chain. If the callback returns an error, streaming
+// stops. The function blocks until the session ends (disconnect or callback error).
 func StreamCommand(creds Credentials, command string, callback func(line string) error) error {
+	return streamCommand(creds, command, false, callback)
+}
+
+// StreamPresentedCommand is StreamCommand for a client that presents the
+// events itself: it sets the session rendering key (EnvCLIRender), so the
+// daemon applies every pipe operation of command before its presentation
+// suffix and leaves the suffix to the caller. The caller MUST apply that
+// suffix to each line (command.PresentStreamSuffix).
+func StreamPresentedCommand(creds Credentials, command string, callback func(line string) error) error {
+	return streamCommand(creds, command, true, callback)
+}
+
+// streamCommand runs command on an exec channel, setting the rendering key
+// when the caller presents.
+func streamCommand(creds Credentials, command string, presents bool, callback func(line string) error) error {
 	client, err := dialDaemon(creds)
 	if err != nil {
 		return err
@@ -165,6 +181,12 @@ func StreamCommand(creds Credentials, command string, callback func(line string)
 		return fmt.Errorf("create session: %w", err)
 	}
 	defer session.Close() //nolint:errcheck // best-effort cleanup
+
+	if presents {
+		if err := session.Setenv(EnvCLIRender, CLIRenderClient); err != nil {
+			return fmt.Errorf("state that this client presents the stream: %w", err)
+		}
+	}
 
 	stdout, err := session.StdoutPipe()
 	if err != nil {

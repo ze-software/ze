@@ -1182,44 +1182,6 @@ func TestProcessPipesDefaultFormat_Configured(t *testing.T) {
 	}
 }
 
-// TestProcessStreamPipesDefaultFunc verifies a stream uses its custom default.
-func TestProcessStreamPipesDefaultFunc(t *testing.T) {
-	customFmt := func(s string) string { return "CUSTOM:" + s }
-
-	tests := []struct {
-		name       string
-		input      string
-		wantCmd    string
-		wantCustom bool
-	}{
-		{"no pipe uses custom", "monitor event", "monitor event", true},
-		{"explicit json overrides custom", "monitor event | json", "monitor event", false},
-		{"explicit table overrides custom", "monitor event | table", "monitor event", false},
-		{"explicit text overrides custom", "monitor event | text", "monitor event", false},
-		{"explicit yaml overrides custom", "monitor event | yaml", "monitor event", false},
-		{"match only uses custom", "monitor event | match state", "monitor event", true},
-	}
-
-	jsonInput := `{"items":[{"key":"value"}]}`
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			command, format, saves, errMsg := ProcessStreamPipesDefaultFunc(tt.input, customFmt)
-			if errMsg != "" {
-				t.Fatalf("stream chain was refused: %s", errMsg)
-			}
-			t.Cleanup(func() { _ = saves.Abort() })
-			if command != tt.wantCmd {
-				t.Errorf("command = %q, want %q", command, tt.wantCmd)
-			}
-			result := format(jsonInput)
-			hasCustom := strings.HasPrefix(result, "CUSTOM:")
-			if hasCustom != tt.wantCustom {
-				t.Errorf("hasCustom = %v, want %v; result: %q", hasCustom, tt.wantCustom, result)
-			}
-		})
-	}
-}
-
 // TestOneShotRefusesLogAndStreamAcceptsIt drives the same catalog operator
 // through every one-shot wrapper and the explicit stream wrapper.
 func TestOneShotRefusesLogAndStreamAcceptsIt(t *testing.T) {
@@ -2606,15 +2568,6 @@ func TestFoldedFiltersValidateCatalogArgumentsBeforeDispatch(t *testing.T) {
 				return command, errMsg
 			},
 		},
-		{
-			name: "stream default",
-			call: func(input string) (string, string) {
-				command, _, _, errMsg := ProcessStreamPipesDefaultFunc(input, func(value string) string {
-					return value
-				})
-				return command, errMsg
-			},
-		},
 	}
 	firstInvalid := textbuf.StringInt(int64(recordsLastLimit + 1))
 	refused := []struct {
@@ -2633,6 +2586,29 @@ func TestFoldedFiltersValidateCatalogArgumentsBeforeDispatch(t *testing.T) {
 				}
 				if command != "show test rib" {
 					t.Errorf("invalid filter reached dispatch spelling %q, want the base command", command)
+				}
+			})
+		}
+	}
+
+	// The stream route answers no command part on a refusal: the zero
+	// StreamLine it returns names no words to look a handler up by, so
+	// nothing reaches dispatch.
+	for _, rendering := range []struct {
+		name      string
+		rendering StreamRendering
+	}{
+		{name: "stream line terminal", rendering: StreamRenderingTerminal},
+		{name: "stream line client presentation", rendering: StreamRenderingClientPresentation},
+	} {
+		for _, tt := range refused {
+			t.Run(rendering.name+"/"+tt.name, func(t *testing.T) {
+				line, err := ReadStreamLine(tt.input, rendering.rendering)
+				if err == nil {
+					t.Fatalf("%s accepted %q", rendering.name, tt.input)
+				}
+				if line.Command() != "" || len(line.Words()) != 0 {
+					t.Errorf("refused line still names command %q, words %q", line.Command(), line.Words())
 				}
 			})
 		}

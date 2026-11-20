@@ -734,11 +734,11 @@ The `ze-bgp:monitor` RPC provides live BGP event streaming over SSH sessions. Un
 
 | Component | Location | Purpose |
 |-----------|----------|---------|
-| `StreamingExecutorFactory` | SSH server | Detects monitor commands and returns a streaming executor instead of a one-shot executor |
+| `StreamingExecutorFactory` | SSH server | Detects monitor commands and returns a streaming executor instead of a one-shot executor; the exec channel hands it the line as typed, chain included, and the session's rendering (`StreamRequest`) |
 | `MonitorManager` | `internal/component/plugin/` (Server) | Manages active monitor clients (add, remove, broadcast) |
 | Event delivery | All 6 event functions | After delivering events to plugins, each event function also delivers to active monitor clients |
 
-Monitor supports filtering by peer address, event type, and direction. Pipe operators (`| json`, `| table`, `| match`) are applied server-side before streaming to the client.
+Monitor supports filtering by peer address, event type, and direction. Pipe operators (`| json`, `| table`, `| match`) are applied server-side, by the one streaming lookup (`GetStreamingHandlerRendered`), before streaming to the client. A `ze cli` client that sets the session key `ZE_CLI_RENDER=client` receives the events after every operation before the presentation suffix and applies the suffix (formats, paging, `| save`) itself (`docs/architecture/api/commands.md`, "The stream route partitions in one lookup").
 <!-- source: internal/component/plugin/server/monitor.go -- MonitorManager -->
 <!-- source: internal/component/ssh/ssh.go -- StreamingExecutorFactory -->
 

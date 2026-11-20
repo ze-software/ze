@@ -45,8 +45,22 @@ func TestExecutionPipelinesRefuseUnfinishedQuote(t *testing.T) {
 			_, _, _, message := ProcessRemoteStreamPipes(input, "")
 			return message
 		}},
-		{"stream default renderer", func(input string) string {
-			_, _, saves, message := ProcessStreamPipesDefaultFunc(input, func(answer string) string { return answer })
+		{"stream line, terminal", func(input string) string {
+			_, err := ReadStreamLine(input, StreamRenderingTerminal)
+			if err == nil {
+				return ""
+			}
+			return err.Error()
+		}},
+		{"stream line, client presentation", func(input string) string {
+			_, err := ReadStreamLine(input, StreamRenderingClientPresentation)
+			if err == nil {
+				return ""
+			}
+			return err.Error()
+		}},
+		{"stream presentation suffix", func(input string) string {
+			_, saves, message := PresentStreamSuffix(input, func(answer string) string { return answer })
 			if saves != nil {
 				if err := saves.Abort(); err != nil {
 					return err.Error()

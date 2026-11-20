@@ -26,6 +26,7 @@ import (
 	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/component/cli/sshclient"
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -622,14 +623,14 @@ func TestSSHStreamingCommandPropagatesRemoteAddr(t *testing.T) {
 	var (
 		gotUser       string
 		gotRemoteAddr string
-		gotArgs       []string
+		gotRequest    StreamRequest
 	)
 
 	srv.SetStreamingExecutorFactory(func(username, remoteAddr string, _ plugin.Authorizer) StreamingExecutor {
 		gotUser = username
 		gotRemoteAddr = remoteAddr
-		return func(_ context.Context, _ io.Writer, args []string) error {
-			gotArgs = args
+		return func(_ context.Context, _ io.Writer, request StreamRequest) error {
+			gotRequest = request
 			return nil
 		}
 	})
@@ -637,11 +638,12 @@ func TestSSHStreamingCommandPropagatesRemoteAddr(t *testing.T) {
 	exec := srv.streamingExecutorForUser("alice", "203.0.113.5:2222", nil)
 	require.NotNil(t, exec)
 
-	err = exec(context.Background(), io.Discard, []string{"monitor event"})
+	sent := StreamRequest{Line: "monitor event", Rendering: command.StreamRenderingTerminal}
+	err = exec(context.Background(), io.Discard, sent)
 	require.NoError(t, err)
 	assert.Equal(t, "alice", gotUser)
 	assert.Equal(t, "203.0.113.5:2222", gotRemoteAddr)
-	assert.Equal(t, []string{"monitor event"}, gotArgs)
+	assert.Equal(t, sent, gotRequest)
 }
 
 // VALIDATES: interactive SSH sessions preserve remote address into the injected session factory.

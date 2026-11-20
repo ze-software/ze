@@ -1286,22 +1286,71 @@ denied detail request.
 
 | Surface | Route |
 |---------|-------|
-| SSH exec (`ssh router monitor ...`) | `pluginserver.IsStreamingCommand` sends the command to the streaming executor (`cmd/ze/hub/service_ssh.go`), which runs the registered streaming handler on the judged arguments |
-| `ze cli -c "monitor ..."` | The client streams when `pluginserver.IsStreamingCommand` holds (`internal/component/cli/client/main.go`) |
+| SSH exec (`ssh router monitor ...`) | `pluginserver.IsStreamingCommand` judges the command part, and `execMiddleware` hands the streaming executor (`sshStreamingExecutorFactory`, `cmd/ze/hub/service_ssh.go`) the line as typed, chain included, with the session's rendering. The executor accounts and authorizes the typed line, then runs the handler the one lookup answers |
+| `ze cli -c "monitor ..."` | The client streams when `pluginserver.IsStreamingCommand` holds (`internal/component/cli/client/main.go`): it sends the typed line with the rendering key set and presents only the presentation suffix (below) |
 | SSH interactive and the `ze cli` TUI | The model opens a registered live view first (the `monitor bgp` dashboard, the `monitor ping` and `monitor traceroute` views), then a streaming session for any other streaming command (`internal/component/cli/model_keys.go`) |
 | `ze monitor ...` | A registered local handler runs its live loop in-process (`monitor ping`, `monitor traceroute`), and any other command goes through `ze cli -c` |
 | Browser CLI | `/cli/stream` checks the same streaming registry, then runs the judged raw handler through `serverStreamDispatcher`. A consumer negotiating `application/x-ze-cli-view+ndjson` can instead drive the registered shared view. Both use `serverStreamCommand` admission with the browser identity, accepted authorization policy and command accounting; other commands keep the normal terminal response |
 
-Browser admission validates stream pipes with `ProcessRemoteStreamPipes`,
-retaining the full original command for authorization, accounting and rich
-view owners. Raw handler lookup uses the stripped, validated subject. Piped
-raw browser streams and SSH exec share `RunStreamPipes`: each newline event
-is formatted once, a final unterminated event is flushed after producer success,
-and pending event bytes are limited to 4 MiB. A larger event is refused without
-truncation. Remote pathname saves remain refused before a producer starts.
-<!-- source: cmd/ze/hub/server_stream.go -- serverStreamCommand -->
-<!-- source: internal/component/command/pipe.go -- ProcessRemoteStreamPipes -->
+#### The stream route partitions in one lookup
+
+Every caller of a streaming handler (the browser's `serverStreamCommand`, the
+REST and gRPC streams' `apiStreamSource`, the SSH exec executor and the
+daemon-hosted model's `extractMonitorCmdArgs`) hands the typed line, chain
+included, to `pluginserver.GetStreamingHandlerRendered`, which
+`GetStreamingHandlerForCommand` calls with the engine's rendering. It reads
+the line once (`command.ReadStreamLine`): one scan under the chain grammar,
+the alias expansion and the partition the one-shot route runs. The handler
+receives the operations the monitor declares in `ValidatedArgs`
+(`PipeOperations`), never a chain word among its arguments, and the handler
+it answers writes every event through the residual chain (`RunStreamPipes`):
+each newline event is formatted once, a final unterminated event is flushed
+after producer success, and pending event bytes are limited to 4 MiB. A
+larger event is refused without truncation. `| save` is refused before a
+producer starts, because the daemon never writes a caller's file. Each caller
+accounts and authorizes the typed line, chain tokens included.
+`TestEveryPipeSplitGoesThroughThePartition` refuses a reader of the streaming
+registry that goes around the lookup.
+
+| Rendering (`command.StreamRendering`) | Stated by | The daemon applies |
+|----------------------------------------|-----------|--------------------|
+| `StreamRenderingEngine` | the browser, REST, gRPC, the daemon-hosted model | the whole residual chain, in the default format when the chain names none; a line with no chain passes the events unchanged |
+| `StreamRenderingTerminal` | SSH exec without the rendering key | as above, and a line with no chain is rendered in the default format too |
+| `StreamRenderingClientPresentation` | SSH exec with the rendering key | every operation before the presentation suffix; the events stay data for the client |
+
+**The rendering key.** A client in another process holds no
+`CallerIdentity`, so it states that it presents a stream through the SSH
+session environment: `ZE_CLI_RENDER=client` (`sshclient.EnvCLIRender`,
+`CLIRenderClient`), set by `sshclient.StreamPresentedCommand`, which the
+`ze cli` monitor uses. `parseSessionRequest` reads it beside
+`ZE_CONFIG_NAME` and `ZE_CLI_MODE`, on the exec channel and the interactive
+one, and refuses any other value by name before a command runs. It is
+honoured on the exec stream route only: a one-shot exec and the interactive
+session render as without it. The key is untrusted input and hands over
+presentation, never selection. The daemon applies every operation before the
+PRESENTATION SUFFIX, the longest trailing run of operators the catalog marks
+`Presentation` (the formats, `no-more`, `save`), found on the names as typed
+before any alias is expanded, so an alias ends the suffix and the daemon
+applies its whole expansion. The client applies the suffix alone
+(`command.PresentStreamSuffix`): its format, or the monitor event formatter
+when the chain names no format, and `| save`, which writes the operator's own
+file. Both sides find the suffix with one function
+(`presentationSuffixLength`), and the client reads the catalog alone, so it
+never refuses an operation it has not heard of.
+
+| Line, with the key set | The daemon applies | The client applies |
+|------------------------|--------------------|--------------------|
+| `monitor x \| match up \| save f` | `match` | the default format, `save` |
+| `monitor x \| match up \| table \| save f` | `match` | `table`, `save` |
+| `monitor x \| json \| match up` | `json`, then `match` | nothing |
+| `monitor x \| top-talkers \| save f` (the monitor's own operation) | `top-talkers`, in the handler | the default format, `save` |
+| `monitor x \| brief \| save f` (`brief` an alias) | the whole expansion of `brief` | the default format, `save` |
+<!-- source: internal/component/plugin/server/handler.go -- GetStreamingHandlerRendered, GetStreamingHandlerForCommand, IsStreamingCommand -->
+<!-- source: internal/component/command/stream_line.go -- ReadStreamLine, StreamRendering, presentationSuffixLength, PresentStreamSuffix -->
 <!-- source: internal/component/command/pipe_stream.go -- RunStreamPipes, streamPipeWriter.Write -->
+<!-- source: internal/component/ssh/session.go -- parseSessionRequest -->
+<!-- source: internal/component/cli/sshclient/terminal.go -- EnvCLIRender, CLIRenderClient -->
+<!-- source: cmd/ze/hub/server_stream.go -- serverStreamCommand -->
 
 Raw browser consumers can request
 `Accept: application/x-ze-cli-output+ndjson` on the same route and dispatch.
@@ -4099,9 +4148,9 @@ in the daemon's registry alone.
 | `ze cli -c "<command>"`, and any SSH exec channel | the daemon, in `execMiddleware` | Yes |
 | The TUI a plain ssh client with a pty reaches | the daemon, which hosts the Bubble Tea model | Yes |
 | `ze cli` with no command argument | the CLIENT process, in `executeOperationalCommand` | No |
-| `cliClient.StreamMonitor`, for a streaming monitor command | the CLIENT process | No |
+| `cliClient.StreamMonitor`, for a streaming monitor command | the daemon; the client reads only the presentation suffix, where no alias is ever part of it | Yes |
 
-On the two client-side rows the operator reads
+On the client-side row the operator reads
 `pipe error: unknown pipe operator: <name>`, and Tab offers the name nowhere.
 The aliases compiled into the client resolve there, which is what hid the gap.
 Tab after the pipe character on `show bgp` offers `summary` and `peers` in the

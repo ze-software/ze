@@ -45,6 +45,56 @@ func sshSessionPolicy(authorizer plugin.Authorizer) plugin.Authorizer {
 	return authorizer
 }
 
+// sshStreamingExecutorFactory is the exec-channel stream executor of the
+// daemon's SSH server: execMiddleware hands it the line as typed, its pipe
+// chain included, and the rendering the session stated. It accounts and
+// authorizes that typed line, chain tokens included (the dispatcher reads
+// them through command.TypedLineTokens), then looks the stream up through the
+// one lookup, which partitions the chain, hands the handler the operations
+// the monitor declares and runs the residual chain over each event
+// (pluginserver.GetStreamingHandlerRendered). With the client's rendering key
+// the daemon still applies every operation before the presentation suffix.
+func sshStreamingExecutorFactory(apiServer *pluginserver.Server, d *pluginserver.Dispatcher) zessh.StreamingExecutorFactory {
+	return func(username, remoteAddr string, authorizer plugin.Authorizer) zessh.StreamingExecutor {
+		return func(ctx context.Context, w io.Writer, request zessh.StreamRequest) error {
+			input := request.Line
+			if input == "" {
+				return errNoCommandProvided
+			}
+			cmdCtx := &pluginserver.CommandContext{
+				Server:         apiServer,
+				RequestContext: ctx,
+				Username:       username,
+				RemoteAddr:     remoteAddr,
+				// An SSH session is an operator, authenticated as Username above.
+				Authorizer: sshSessionPolicy(authorizer),
+				Sender:     plugin.OperatorSender(),
+			}
+			// RFC 8907 Section 8.3 requires a record for every command,
+			// including a command that authorization or lookup refuses.
+			defer d.BeginAccounting(cmdCtx, input)()
+			// Streaming commands are currently monitor-style read-only commands.
+			// They still must pass through the same AAA authorizer/accountant as
+			// normal SSH commands; future write-capable streaming commands need
+			// explicit registry metadata instead of this read-only default.
+			if !d.IsAuthorized(cmdCtx, input, true) {
+				return pluginserver.ErrUnauthorized
+			}
+			// Route R8: the arguments are judged against the model's leaves
+			// before the stream starts, and the handler runs on the judged
+			// tokens only.
+			handler, validated, argErr := pluginserver.GetStreamingHandlerRendered(input, request.Rendering)
+			if argErr != nil {
+				return argErr
+			}
+			if handler == nil {
+				return fmt.Errorf("unknown streaming command: %q", input)
+			}
+			return handler(ctx, apiServer, w, username, validated)
+		}
+	}
+}
+
 // standaloneSSHExecutorFactory is the exec-channel executor of the standalone
 // SSH server (sshBuildStandaloneImpl): each session's lines go to dispatch
 // under the session's own identity.
@@ -160,44 +210,7 @@ func sshWireImpl(handle sshServer, in *sshWireInputs) {
 			return &plugin.RenderedResponse{Output: formatted, Response: resp}, responseExecErr(resp, formatted)
 		}
 	})
-	sshSrv.SetStreamingExecutorFactory(func(username, remoteAddr string, authorizer plugin.Authorizer) zessh.StreamingExecutor {
-		return func(ctx context.Context, w io.Writer, args []string) error {
-			if len(args) == 0 {
-				return errNoCommandProvided
-			}
-			input := args[0]
-			cmdCtx := &pluginserver.CommandContext{
-				Server:         apiServer,
-				RequestContext: ctx,
-				Username:       username,
-				RemoteAddr:     remoteAddr,
-				// An SSH session is an operator, authenticated as Username above.
-				Authorizer: sshSessionPolicy(authorizer),
-				Sender:     plugin.OperatorSender(),
-			}
-			// RFC 8907 Section 8.3 requires a record for every command,
-			// including a command that authorization or lookup refuses.
-			defer d.BeginAccounting(cmdCtx, input)()
-			// Streaming commands are currently monitor-style read-only commands.
-			// They still must pass through the same AAA authorizer/accountant as
-			// normal SSH commands; future write-capable streaming commands need
-			// explicit registry metadata instead of this read-only default.
-			if !d.IsAuthorized(cmdCtx, input, true) {
-				return pluginserver.ErrUnauthorized
-			}
-			// Route R8: the arguments are judged against the model's leaves
-			// before the stream starts, and the handler runs on the judged
-			// tokens only.
-			handler, validated, argErr := pluginserver.GetStreamingHandlerForCommand(input)
-			if argErr != nil {
-				return argErr
-			}
-			if handler == nil {
-				return fmt.Errorf("unknown streaming command: %q", input)
-			}
-			return handler(ctx, apiServer, w, username, validated)
-		}
-	})
+	sshSrv.SetStreamingExecutorFactory(sshStreamingExecutorFactory(apiServer, d))
 	sshSrv.SetMonitorFactory(func(ctx context.Context, args []string) (*contract.MonitorSession, error) {
 		opts, err := pluginserver.ParseEventMonitorArgs(args)
 		if err != nil {

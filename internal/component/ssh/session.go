@@ -16,7 +16,10 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/ze-software/ze/internal/component/cli/sshclient"
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // createSessionModel builds the selected terminal in the owning daemon.
@@ -33,6 +36,11 @@ func (s *Server) createSessionModel(sessionCtx context.Context, username, remote
 
 func parseSessionRequest(environ []string) (SessionRequest, error) {
 	var request SessionRequest
+	// The interactive session honours no rendering key, but a value of it
+	// this daemon does not define is refused here as on the exec channel.
+	if _, err := clientPresents(environ, "interactive SSH"); err != nil {
+		return SessionRequest{}, err
+	}
 	var configSeen, modeSeen bool
 	for _, entry := range environ {
 		key, value, found := strings.Cut(entry, "=")
@@ -61,4 +69,53 @@ func parseSessionRequest(environ []string) (SessionRequest, error) {
 		}
 	}
 	return request, nil
+}
+
+// execStreamRendering answers the rendering the exec stream route states for
+// a session: the client presents only when it set the rendering key
+// (sshclient.EnvCLIRender) to its one value. It reads that key alone, so the
+// exec channel still ignores the interactive keys (ZE_CONFIG_NAME,
+// ZE_CLI_MODE) as it always did.
+func execStreamRendering(environ []string) (command.StreamRendering, error) {
+	presents, err := clientPresents(environ, "SSH exec")
+	if err != nil {
+		return command.StreamRenderingUnspecified, err
+	}
+	if presents {
+		return command.StreamRenderingClientPresentation, nil
+	}
+	return command.StreamRenderingTerminal, nil
+}
+
+// clientPresents reads the rendering key from environ: true when it holds its
+// one value, false when it is absent. The key is untrusted input from any
+// client and hands over presentation only, so a second setting or any other
+// value is refused by name; route names the channel in the refusal.
+func clientPresents(environ []string, route string) (bool, error) {
+	seen := false
+	for _, entry := range environ {
+		key, value, found := strings.Cut(entry, "=")
+		if !found {
+			continue
+		}
+		if key != sshclient.EnvCLIRender {
+			continue
+		}
+		if seen {
+			var problem textbuf.Buffer
+			return false, opererr.New(
+				problem.Str(route).Str(": the session sets ").Str(sshclient.EnvCLIRender).Str(" more than once").String(),
+				"the daemon cannot tell which rendering the client asked for, so it runs no command",
+				"set "+sshclient.EnvCLIRender+"="+sshclient.CLIRenderClient+" once, or leave it unset")
+		}
+		seen = true
+		if value != sshclient.CLIRenderClient {
+			var problem textbuf.Buffer
+			return false, opererr.New(
+				problem.Str(route).Str(": ").Str(sshclient.EnvCLIRender).Str("=").Quoted(value).Str(" is not a rendering this daemon knows").String(),
+				"the key's one value is "+sshclient.CLIRenderClient+", and an unknown value is refused rather than guessed",
+				"set "+sshclient.EnvCLIRender+"="+sshclient.CLIRenderClient+", or leave it unset so the daemon renders")
+		}
+	}
+	return seen, nil
 }

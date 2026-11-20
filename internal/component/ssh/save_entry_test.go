@@ -104,25 +104,25 @@ func runRawSSHExec(t *testing.T, server *Server, command string) (stdout, stderr
 // the requested renderer must run once for every newline-delimited event.
 func TestSSHRawExecFormatsStreamEventsAndConsumesLog(t *testing.T) {
 	const streamCommand = "monitor ssh-pipe-test"
-	pluginserver.RegisterStreamingHandler(streamCommand, pluginserver.OneShotSample, func(context.Context, *pluginserver.Server, io.Writer, string, command.ValidatedArgs) error {
-		return nil
+	var received [][]string
+	var dispatched atomic.Bool
+	pluginserver.RegisterStreamingHandler(streamCommand, pluginserver.OneShotSample, func(_ context.Context, _ *pluginserver.Server, output io.Writer, _ string, args command.ValidatedArgs) error {
+		dispatched.Store(true)
+		received = append(received, args.Tokens())
+		if _, err := io.WriteString(output, `{"event":"fir`); err != nil {
+			return err
+		}
+		_, err := io.WriteString(output, "st\"}\n{\"event\":\"second\"}")
+		return err
 	})
+	t.Cleanup(func() { pluginserver.UnregisterStreamingHandler(streamCommand) })
 
 	server := answerServer(t, func(string) (*plugin.Response, error) {
 		return plugin.NewResponse(plugin.StatusDone, nil), nil
 	})
-	var received []string
-	var dispatched atomic.Bool
+	var lines []StreamRequest
 	server.SetStreamingExecutorFactory(func(_, _ string, _ plugin.Authorizer) StreamingExecutor {
-		return func(_ context.Context, output io.Writer, args []string) error {
-			dispatched.Store(true)
-			received = append(received, args...)
-			if _, err := io.WriteString(output, `{"event":"fir`); err != nil {
-				return err
-			}
-			_, err := io.WriteString(output, "st\"}\n{\"event\":\"second\"}")
-			return err
-		}
+		return lookupStreamExecutor(&lines)
 	})
 
 	stdout, stderr, err := runRawSSHExec(t, server, streamCommand+" peer Blue | json | log")
@@ -130,7 +130,9 @@ func TestSSHRawExecFormatsStreamEventsAndConsumesLog(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, stderr)
 	assert.True(t, dispatched.Load(), "| log must retain streaming dispatch")
-	assert.Equal(t, []string{streamCommand + " peer Blue"}, received)
+	assert.Equal(t, []StreamRequest{{Line: streamCommand + " peer Blue | json | log", Rendering: command.StreamRenderingTerminal}}, lines,
+		"the exec channel hands the daemon the line as typed")
+	assert.Equal(t, [][]string{{"peer", "Blue"}}, received, "no chain word reached the handler")
 	assert.Equal(t, "{\n  \"event\": \"first\"\n}\n{\n  \"event\": \"second\"\n}\n", stdout)
 }
 
@@ -171,19 +173,18 @@ func TestStreamPipeWriterFormatsEachEventOnce(t *testing.T) {
 // PREVENTS: a late refusal reaching stdout before a later handler event.
 func TestSSHRawExecReturnsLateStreamRefusalOnStderr(t *testing.T) {
 	const streamCommand = "monitor ssh-late-refusal-test"
-	pluginserver.RegisterStreamingHandler(streamCommand, pluginserver.OneShotSample, func(context.Context, *pluginserver.Server, io.Writer, string, command.ValidatedArgs) error {
-		return nil
+	pluginserver.RegisterStreamingHandler(streamCommand, pluginserver.OneShotSample, func(_ context.Context, _ *pluginserver.Server, output io.Writer, _ string, _ command.ValidatedArgs) error {
+		_, err := io.WriteString(output,
+			"{\"event\":\"document\"}\n{\"items\":[{\"event\":\"continued\"}]}\n")
+		return err
 	})
+	t.Cleanup(func() { pluginserver.UnregisterStreamingHandler(streamCommand) })
 
 	server := answerServer(t, func(string) (*plugin.Response, error) {
 		return plugin.NewResponse(plugin.StatusDone, nil), nil
 	})
 	server.SetStreamingExecutorFactory(func(_, _ string, _ plugin.Authorizer) StreamingExecutor {
-		return func(_ context.Context, output io.Writer, _ []string) error {
-			_, err := io.WriteString(output,
-				"{\"event\":\"document\"}\n{\"items\":[{\"event\":\"continued\"}]}\n")
-			return err
-		}
+		return lookupStreamExecutor(nil)
 	})
 
 	stdout, stderr, err := runRawSSHExec(t, server, streamCommand+" | count")
@@ -196,20 +197,21 @@ func TestSSHRawExecReturnsLateStreamRefusalOnStderr(t *testing.T) {
 }
 
 // TestSSHRawExecRefusesStreamSaveBeforeDispatch proves the stream branch uses
-// the remote pipe boundary before it constructs or invokes a handler executor.
+// the remote pipe boundary to refuse `| save` before the streaming handler runs.
 func TestSSHRawExecRefusesStreamSaveBeforeDispatch(t *testing.T) {
 	const streamCommand = "monitor ssh-save-test"
+	var dispatched atomic.Bool
 	pluginserver.RegisterStreamingHandler(streamCommand, pluginserver.OneShotSample, func(context.Context, *pluginserver.Server, io.Writer, string, command.ValidatedArgs) error {
+		dispatched.Store(true)
 		return nil
 	})
+	t.Cleanup(func() { pluginserver.UnregisterStreamingHandler(streamCommand) })
 
 	server := answerServer(t, func(string) (*plugin.Response, error) {
 		return plugin.NewResponse(plugin.StatusDone, nil), nil
 	})
-	var dispatched atomic.Bool
 	server.SetStreamingExecutorFactory(func(_, _ string, _ plugin.Authorizer) StreamingExecutor {
-		dispatched.Store(true)
-		return func(context.Context, io.Writer, []string) error { return nil }
+		return lookupStreamExecutor(nil)
 	})
 	path := filepath.Join(t.TempDir(), "raw-stream-save.json")
 
@@ -219,7 +221,7 @@ func TestSSHRawExecRefusesStreamSaveBeforeDispatch(t *testing.T) {
 	assert.Empty(t, stdout)
 	assert.Contains(t, stderr, "save")
 	assert.Contains(t, stderr, "refused")
-	assert.False(t, dispatched.Load(), "a refused save must not construct the stream executor")
+	assert.False(t, dispatched.Load(), "a refused save must not run the streaming handler")
 	_, statErr := os.Stat(path)
 	assert.ErrorIs(t, statErr, os.ErrNotExist)
 }

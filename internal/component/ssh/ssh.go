@@ -101,10 +101,22 @@ type CommandExecutor func(input string) (*plugin.RenderedResponse, error)
 // sessionCtx MUST be the non-nil owning session context, never a placeholder.
 type CommandExecutorFactory func(sessionCtx context.Context, username, remoteAddr string, authorizer plugin.Authorizer) CommandExecutor
 
+// StreamRequest is one streaming line an exec channel hands the daemon: the
+// line as typed, its pipe chain included, and who presents its events. The
+// daemon partitions the chain and applies it (the hub's executor, through
+// pluginserver.GetStreamingHandlerRendered); the channel applies none of it.
+type StreamRequest struct {
+	Line string
+	// Rendering is command.StreamRenderingTerminal, or
+	// command.StreamRenderingClientPresentation when the session set the
+	// rendering key (sshclient.EnvCLIRender). It is never the zero value.
+	Rendering command.StreamRendering
+}
+
 // StreamingExecutor executes a streaming command, writing output line-by-line
 // to the writer until the context is canceled or a write error occurs.
 // Used by the monitor command to stream live BGP events over SSH.
-type StreamingExecutor func(ctx context.Context, w io.Writer, args []string) error
+type StreamingExecutor func(ctx context.Context, w io.Writer, request StreamRequest) error
 
 // StreamingExecutorFactory creates a StreamingExecutor.
 // The identity and authorizer are the same values used by normal commands.
@@ -908,6 +920,19 @@ func (s *Server) execMiddleware() wish.Middleware {
 			// the logged form is sanitized via loggedCommand.
 			s.logger.Info("SSH exec command", "user", sess.User(), "command", loggedCommand(input), "remote", sess.RemoteAddr().String())
 
+			// The exec channel reads the rendering key alone, before any
+			// command runs, so a value of it this daemon does not define is
+			// refused by name rather than ignored (execStreamRendering). Only
+			// the stream route below honours it. The interactive keys
+			// (ZE_CONFIG_NAME, ZE_CLI_MODE) select a terminal, and a one-shot
+			// exec has none, so it still ignores them.
+			rendering, renderingErr := execStreamRendering(sess.Environ())
+			if renderingErr != nil {
+				writeExecError(sess, renderingErr)
+				sess.Exit(1) //nolint:errcheck // best-effort
+				return
+			}
+
 			// Bare lifecycle controls share the command dispatcher. The normal
 			// answer writer owns completion, including refused or failed writes.
 			if canonical, recognized := contract.LifecycleCommand(input); recognized {
@@ -955,23 +980,18 @@ func (s *Server) execMiddleware() wish.Middleware {
 				return
 			}
 
-			// Parse the stream surface before handler lookup or dispatch. Streaming
-			// is determined from the base command so pipe tokens can neither hide
-			// a stream nor reach its handler arguments. The remote entry point
-			// refuses save before any daemon-side destination exists.
-			streamCommand, formatStreamEvent, _, streamPipeErr := command.ProcessRemoteStreamPipes(input, "")
-			if streamPipeErr != "" {
-				fmt.Fprintln(sess.Stderr(), "error:", streamPipeErr) //nolint:errcheck // best-effort
-				sess.Exit(1)                                         //nolint:errcheck // best-effort
-				return
-			}
-
-			isStreaming := pluginserver.IsStreamingCommand(streamCommand)
+			// Streaming is judged on the command part, so pipe tokens can
+			// neither hide a stream nor reach its handler arguments
+			// (pluginserver.IsStreamingCommand). The typed line goes to the
+			// daemon whole: its stream executor accounts and authorizes what
+			// was typed, partitions the chain and applies it, and refuses
+			// `| save` before any daemon-side destination exists. With the
+			// rendering key set the daemon leaves the presentation suffix to
+			// the client and still applies every operation before it.
+			isStreaming := pluginserver.IsStreamingCommand(input)
 			if streamFactory != nil && isStreaming {
 				streamExec := streamFactory(sess.User(), sess.RemoteAddr().String(), getSessionAuthorizer(sess))
-				streamErr := command.RunStreamPipes(sess, formatStreamEvent, func(output io.Writer) error {
-					return streamExec(sess.Context(), output, []string{streamCommand})
-				})
+				streamErr := streamExec(sess.Context(), sess, StreamRequest{Line: input, Rendering: rendering})
 				if streamErr != nil {
 					writeExecError(sess, streamErr)
 					sess.Exit(1) //nolint:errcheck // best-effort

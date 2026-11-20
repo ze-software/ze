@@ -90,7 +90,7 @@ func newSSHIdleTimeoutServer(t *testing.T, active bool) *Server {
 	})
 	require.NoError(t, err)
 	srv.SetStreamingExecutorFactory(func(_, _ string, _ plugin.Authorizer) StreamingExecutor {
-		return func(ctx context.Context, output io.Writer, _ []string) error {
+		return func(ctx context.Context, output io.Writer, _ StreamRequest) error {
 			encoder := json.NewEncoder(output)
 			if err := encoder.Encode(sshIdleTimeoutEvent{Sequence: 0}); err != nil {
 				return err
