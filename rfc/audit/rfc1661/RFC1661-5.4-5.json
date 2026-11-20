@@ -1,11 +1,11 @@
 {
   "code": {
-    "internal/component/l2tp/ppp/session_run.go::handleLCPPacket": "703c511e74d635b3",
+    "internal/component/l2tp/ppp/session_run.go::handleLCPPacket": "8c830d6f84bc273a",
     "internal/component/l2tp/ppp/session_run.go::sendConfigureRequest": "ac2d6361902b9606",
     "internal/component/l2tp/pppoeclient/session.go::negotiateLCP": "039a2c530a0ae987",
     "internal/component/l2tp/pppoeclient/session.go::runIPCP": "b4d9bfcb44eb357a"
   },
-  "note": "Rejudged after handleLCPPacket gained a Protocol-Reject branch for pkt.Code == LCPProtocolReject. Re-read Section 5.4. The rejection flags that sendConfigureRequest reads are still set in the unchanged Nak/Reject block ahead of the new branch, and a Reject never enters the branch. The tagged units are unchanged. Server MRU-only rejection still keeps the other original bytes, and MRU/Auth/Magic rejection still yields an empty request that a valid Ack advances. The client MRU-only, Magic-only and all-option cases still assert the exact surviving bytes, an unchanged retransmission and no resurrection from later Nak suggestions. The IPCP DNS control still removes both DNS options, or Secondary-DNS alone, and learns no rejected DNS. Removal and preservation remain distinct assertions, so the verdict holds.",
+  "note": "Rejudged after 438bb234e4 changed handleLCPPacket's Code-Reject and Protocol-Reject handling (RXJ+/RXJ- by rejected Code or protocol, stopRejectedCode, lcpRejectFatalReason). Re-read Section 5.4: 'when a new Configure-Request is sent, it MUST NOT include any of the Configuration Options listed in the Configure-Reject.' The rejection flags sendConfigureRequest reads are still set in the unchanged Nak/Reject block, and a Configure-Reject never enters the Code-Reject branches; the new echo flags stopRejectedCode sets are read only by the echo ticker and the ser action, never by the request builder. The tagged units are unchanged. Server MRU-only rejection still keeps the other original bytes, and MRU/Auth/Magic rejection still yields an empty request that a valid Ack advances. The client MRU-only, Magic-only and all-option cases still assert the exact surviving bytes, an unchanged retransmission and no resurrection from later Nak suggestions. The IPCP DNS control still removes both DNS options, or Secondary-DNS alone, and learns no rejected DNS. Removal and preservation remain distinct assertions, so the verdict holds.",
   "requirement_sha": "0f0699a656379b2d",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRejectedOptionsStayRemoved": "6e1e87cfaa4fb86b",

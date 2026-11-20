@@ -5,14 +5,14 @@
     "internal/component/l2tp/ppp/session_run.go::sendConfigureAck": "54468d6ecb39c33b",
     "internal/component/l2tp/ppp/session_run.go::sendConfigureNakOrReject": "4cca71c7667af27e",
     "internal/component/l2tp/pppconfig/lcp.go::ParseLCP": "c4a2f42d76ad4fad",
-    "internal/component/l2tp/pppoeclient/dialer.go::Dialer.Dial": "3cb6cbf9e3d0a92a",
+    "internal/component/l2tp/pppoeclient/dialer.go::Dialer.Dial": "d7367caad58f785f",
     "internal/component/l2tp/pppoeclient/session.go::negotiateLCP": "039a2c530a0ae987"
   },
-  "note": "Section 4.6 counts Configure-Naks sent without sending a Configure-Ack. TestConfiguredLCPMaxFailure and TestRFC1661ClientMaxFailureConvertsFurtherNak each exercise configured limits of two and five, require Naks through the limit, and require the next reply to be a Reject carrying the original unacceptable MRU bytes. The server test and TestRFC1661ClientMaxFailureAckRenewsBudget separately require a successful Ack to renew the budget. Both transport configurations reach the shared server counter; the client schema and Dial snapshot reach negotiateLCP's counter. These assertions distinguish a fixed limit, premature rejection, substituted suggestion bytes and a missing Ack reset. This judgment covers the implemented LCP Configure-Nak senders; it makes no claim about absent IPv6CP counter configuration.",
+  "note": "Rejudged after Dialer.Dial changed (98b534756d and later: the body moved into dialPrepared behind a prepareClientDial backend preparation, descriptors became a clientProtocol owner, and cleanup returns errors). Re-read Section 4.6: 'Max-Failure MUST be configurable, but SHOULD default to five (5) transmissions.' Dial still copies cfg.Timing.LCPMaxFailure into sessionConfig.lcpMaxFailure beside the restart timer and Max-Configure, before negotiateSession, so the configured value still reaches negotiateLCP's Nak counter; the refactor changes only descriptor ownership and cleanup. Section 4.6 counts Configure-Naks sent without sending a Configure-Ack. The tagged units are unchanged. TestConfiguredLCPMaxFailure and TestRFC1661ClientMaxFailureConvertsFurtherNak each exercise configured limits of two and five, require Naks through the limit, and require the next reply to be a Reject carrying the original unacceptable MRU bytes. The server test and TestRFC1661ClientMaxFailureAckRenewsBudget separately require a successful Ack to renew the budget. These assertions distinguish a fixed limit, premature rejection, substituted suggestion bytes and a missing Ack reset. This judgment covers the implemented LCP Configure-Nak senders; it makes no claim about absent IPv6CP counter configuration.",
   "requirement_sha": "7104b6b68b990684",
   "tests": {
-    "internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPMaxFailure": "c7a72d6b7a2dd898",
-    "internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPMaxFailure#2": "c7a72d6b7a2dd898",
+    "internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPMaxFailure": "5133b1b1fbe707ca",
+    "internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPMaxFailure#2": "5133b1b1fbe707ca",
     "internal/component/l2tp/pppoeclient/rfc1661_max_failure_test.go::TestRFC1661ClientMaxFailureAckRenewsBudget": "c484155596753334",
     "internal/component/l2tp/pppoeclient/rfc1661_max_failure_test.go::TestRFC1661ClientMaxFailureConvertsFurtherNak": "c484155596753334"
   },

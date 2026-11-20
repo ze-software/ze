@@ -1,10 +1,10 @@
 {
   "code": {
     "internal/component/l2tp/ppp/lcp.go::ValidateLCPReply": "d780e35728fa1ac8",
-    "internal/component/l2tp/ppp/session_run.go::handleLCPPacket": "703c511e74d635b3",
+    "internal/component/l2tp/ppp/session_run.go::handleLCPPacket": "8c830d6f84bc273a",
     "internal/component/l2tp/pppoeclient/session.go::negotiateLCP": "039a2c530a0ae987"
   },
-  "note": "Rejudged after handleLCPPacket gained a Protocol-Reject branch for pkt.Code == LCPProtocolReject. Re-read Section 5.4 with the retained verified erratum 543, which permits any subset, the whole option list included. ValidateLCPReply still matches each Reject option byte for byte against its requested instance and keeps request order, ahead of the new branch and unchanged, and a Reject never enters the branch. The tagged units are unchanged. The client's valid MRU-only, Magic-only and all-option Rejects still yield the exact remaining options, and modified or reordered Rejects under the current Identifier still yield no replacement. The server still refuses an unrequested option and accepts the ordered MRU subset. The verdict holds. The revert records still prove reachability rather than a targeted subset cut.",
+  "note": "Rejudged after 438bb234e4 changed handleLCPPacket's Code-Reject and Protocol-Reject handling (RXJ+/RXJ- by rejected Code or protocol, stopRejectedCode, lcpRejectFatalReason). Re-read Section 5.4 ('MUST be a proper subset of those in the last transmitted Configure-Request') with the retained verified erratum 543, which permits any subset, the whole option list included. ValidateLCPReply still matches each Reject option byte for byte against its requested instance and keeps request order, unchanged, and a Configure-Reject never enters the Code-Reject branches. The tagged units are unchanged. The client's valid MRU-only, Magic-only and all-option Rejects still yield the exact remaining options, and modified or reordered Rejects under the current Identifier still yield no replacement. The server still refuses an unrequested option and accepts the ordered MRU subset. The verdict holds. The revert records still prove reachability rather than a targeted subset cut.",
   "requirement_sha": "1db404df8454e0e0",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "6e1e87cfaa4fb86b",

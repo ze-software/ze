@@ -1,10 +1,10 @@
 {
   "code": {
     "internal/component/l2tp/ppp/lcp.go::ValidateLCPReply": "d780e35728fa1ac8",
-    "internal/component/l2tp/ppp/session_run.go::handleLCPPacket": "703c511e74d635b3",
+    "internal/component/l2tp/ppp/session_run.go::handleLCPPacket": "8c830d6f84bc273a",
     "internal/component/l2tp/pppoeclient/session.go::negotiateLCP": "039a2c530a0ae987"
   },
-  "note": "Rejudged after handleLCPPacket gained a Protocol-Reject branch for pkt.Code == LCPProtocolReject. Re-read Section 5.3. A Configure-Nak still passes ValidateLCPReply's Identifier check before adjustAuthOnNakOrReject and the MRU adoption, all ahead of the new branch and byte-identical, and a Nak never enters the branch. The tagged units are unchanged. The server's valid MRU Nak with only its Identifier changed still leaves the FSM, output and Magic unchanged, and the matching Nak still sends a fresh request carrying MRU 1400. The client's wrong-Identifier Nak still emits no replacement, and the matching-Nak unit still requires a fresh Identifier, refuses the previous Ack and completes on the new one. The verdict holds.",
+  "note": "Rejudged after 438bb234e4 changed handleLCPPacket's Code-Reject and Protocol-Reject handling (RXJ+/RXJ- by rejected Code or protocol, stopRejectedCode, lcpRejectFatalReason). Re-read Section 5.3: 'On reception of a Configure-Nak, the Identifier field MUST match that of the last transmitted Configure-Request.' A Configure-Nak still passes ValidateLCPReply's Identifier check before adjustAuthOnNakOrReject and the MRU adoption, all byte-identical, and a Nak never enters the new branches. The tagged units are unchanged. The server's valid MRU Nak with only its Identifier changed still leaves the FSM, output and Magic unchanged, and the matching Nak still sends a fresh request carrying MRU 1400. The client's wrong-Identifier Nak still emits no replacement, and the matching-Nak unit still requires a fresh Identifier, refuses the previous Ack and completes on the new one. The verdict holds.",
   "requirement_sha": "fc804cfd2a5f7edc",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "6e1e87cfaa4fb86b",
