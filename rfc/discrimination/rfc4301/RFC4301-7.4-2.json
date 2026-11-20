@@ -35,7 +35,7 @@
   {
     "rid": "RFC4301-7.4-2",
     "polarity": "positive",
-    "unit": "internal/component/ike/engine/spd_forward_bypass_test.go::TestPortScopedBypassForwardPathFollowsFragmentGathering",
+    "unit": "internal/component/ike/engine/rfc4301_spd_forward_bypass_test.go::TestPortScopedBypassForwardPathFollowsFragmentGathering",
     "unit-sha": "abbfcd0b3de4fce1",
     "claim-sha": "5f4baf2fc8eed799",
     "route": "revert",

@@ -718,7 +718,7 @@ doctor check reports it, judged on the addresses the host holds when it runs.
 <!-- source: internal/component/ike/dataplane/forward_fragments.go -- ForwardFragmentGatherer, RuntimeKernelBuildFix -->
 <!-- source: internal/component/ike/dataplane/xfrm_state_scope_linux.go -- GathersForwardFragments -->
 <!-- source: gokrazy/kernel/patches/0003-xfrm-state-scope.patch -- xfrm_policy_hold_fragment_guard -->
-<!-- test: internal/component/ike/engine/spd_forward_bypass_test.go TestPortScopedBypassForwardPathFollowsFragmentGathering -->
+<!-- test: internal/component/ike/engine/rfc4301_spd_forward_bypass_test.go TestPortScopedBypassForwardPathFollowsFragmentGathering -->
 <!-- test: internal/component/ike/dataplane/forward_fragments_linux_test.go TestXFRMGathersForwardFragmentsReadsCapabilityBit3 -->
 <!-- source: internal/component/ike/engine/register.go -- OnConfigVerify -->
 <!-- source: gokrazy/kernel/patches/0005-xfrm-fragment-guard.patch -- xfrm4_fragment_gather, xfrm6_fragment_gather -->
