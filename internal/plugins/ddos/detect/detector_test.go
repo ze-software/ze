@@ -6,6 +6,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/trafficstat"
 	"github.com/ze-software/ze/internal/core/ddosevent"
+	"github.com/ze-software/ze/internal/core/stats"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -335,7 +336,7 @@ func TestDetectorAdaptsToASustainedLoadIncrease(t *testing.T) {
 	before := d.baseline.Threshold()
 	step := []trafficstat.InterfaceEntry{{Name: "xe0", RxPps: 20000}}
 	d.onRates(step)
-	if d.sm.State() != stateActive {
+	if d.sm.State() != stats.HysteresisActive {
 		t.Fatalf("state on the step change: got %v, want active (threshold %v)", d.sm.State(), before)
 	}
 
@@ -346,7 +347,7 @@ func TestDetectorAdaptsToASustainedLoadIncrease(t *testing.T) {
 	adaptedAt := 0
 	for tick := 2; tick <= bound; tick++ {
 		d.onRates(step)
-		if d.sm.State() == stateIdle {
+		if d.sm.State() == stats.HysteresisIdle {
 			adaptedAt = tick
 			break
 		}
@@ -385,7 +386,7 @@ func TestDetectorHoldsTheThresholdThroughASustainedAttack(t *testing.T) {
 	if got := d.baseline.Threshold(); got != before {
 		t.Errorf("threshold after a sustained attack: got %v, want %v unchanged", got, before)
 	}
-	if d.sm.State() != stateActive {
+	if d.sm.State() != stats.HysteresisActive {
 		t.Errorf("state during a sustained attack: got %v, want active", d.sm.State())
 	}
 }

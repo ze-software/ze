@@ -13,6 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/trafficstat"
 	"github.com/ze-software/ze/internal/core/ddosevent"
+	"github.com/ze-software/ze/internal/core/stats"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -70,7 +71,7 @@ type detector struct {
 	// saveMu serializes baseline persistence so the periodic save (spawned off the
 	// tick) never races the save-on-Stop on the same file.
 	saveMu sync.Mutex
-	sm     *stateMachine
+	sm     *stats.Hysteresis
 	// tickNum counts samples of the rate FEED, one per second. startup-grace and
 	// the periodic baseline save are both stated in seconds, so both read it.
 	tickNum int
@@ -178,8 +179,8 @@ func newDetector(cfg *Config, bus ze.EventBus, dispatch dispatchFunc) *detector 
 		baselineBps: newBaseline(cfg.BaselineWindow, cfg.BpsThresholdMultiplier, cfg.BpsFloor/8.0),
 		evalTicks:   max(1, cfg.CheckInterval),
 	}
-	d.sm = newStateMachine(cfg.ConfirmDuration, cfg.ClearConsecutive)
-	d.sm.OnDetected = d.onAttackStart
+	d.sm = stats.NewHysteresis(cfg.ConfirmDuration, cfg.ClearConsecutive)
+	d.sm.OnConfirmed = d.onAttackStart
 	d.sm.OnCleared = d.emitCleared
 	d.ctx, d.cancel = context.WithCancel(context.Background())
 	d.feed.now = time.Now
@@ -366,7 +367,7 @@ func (d *detector) applyTick(maxPps, maxBps float64, maxPpsIface, maxBpsIface st
 	d.bpsTriggered = bpsAbove && !ppsAbove
 
 	st := d.sm.State()
-	attacking := st == stateActive || st == stateClearing
+	attacking := st == stats.HysteresisActive || st == stats.HysteresisClearing
 	d.baseline.Add(maxPps, attacking || above)
 	d.baselineBps.Add(maxBps, attacking || above)
 
@@ -391,7 +392,7 @@ func (d *detector) applyTick(maxPps, maxBps float64, maxPpsIface, maxBpsIface st
 	d.justTriggered = false
 	d.sm.Tick(above)
 
-	if d.sm.State() == stateActive && !d.justTriggered && d.detectedEmitted {
+	if d.sm.State() == stats.HysteresisActive && !d.justTriggered && d.detectedEmitted {
 		d.pending.ongoing = &ddosevent.AttackOngoing{
 			Interface:  d.attackIface,
 			Target:     ddosevent.VectorTuple{DstPrefix: netip.Prefix{}},

@@ -12,7 +12,7 @@ RESPONSE.**
 
 | Part | Owns |
 |------|------|
-| `internal/core/stats` | the math primitives: `Window`, `Mean`, `StdDev`, `Quantile`, `Entropy`, `EWMA`, `IntervalRegularity` |
+| `internal/core/stats` | the math primitives: `Window`, `Mean`, `StdDev`, `Quantile`, `Entropy`, `EWMA`, `IntervalRegularity`, and the `Hysteresis` confirm-and-clear state machine |
 | `internal/component/trafficstat` | per-key rolling aggregation built on `stats.Window` |
 | `internal/component/trafficfeature` | neutral features on three entity axes -- the sending address, the receiving address, and the destination service port: fan-out or fan-in, out/in ratio, destination-port or per-source entropy, new-peer, rare port and protocol, coarse beaconing, plus the entity's origin AS when a publisher supplies it |
 
@@ -65,6 +65,25 @@ neither it nor a consumer of `Snapshot` imports the producer.
 consumer in the stat and feature layers. They are the foundational API for the
 anomaly detector's per-entity baseline, and shipping them with the rest avoided
 a second pass over the package.
+
+## The shared confirm-and-clear machine
+
+`stats.Hysteresis` is the confirm-and-clear state machine detectors share. At
+each evaluation the detector decides whether its condition holds and passes
+that answer to `Tick`. The condition is confirmed after `confirmAfter`
+consecutive evaluations that hold, and cleared after `clearAfter` consecutive
+evaluations that fail. One failing evaluation sends a confirming machine back
+to idle, and one holding evaluation sends a clearing machine back to active, so
+a single noisy sample neither raises an alarm nor drops one. The states are
+idle, confirming, active and clearing. A confirm count of 0 or 1 confirms on
+the first evaluation that holds, and a clear count below 1 reads as 1.
+
+The machine counts answers and nothing else. The detector keeps its threshold,
+its counts and its response, and the machine holds no clock. It began as
+ddos-detect's own state machine and moved here to be shared. ddos-detect drives
+it from `applyTick`: `OnConfirmed` starts the attack and `OnCleared` ends it.
+<!-- source: internal/core/stats/hysteresis.go -- Hysteresis, NewHysteresis, Tick -->
+<!-- source: internal/plugins/ddos/detect/detector.go -- newDetector wires the callbacks, applyTick feeds Tick -->
 
 ## The limit a reader must know
 
