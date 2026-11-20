@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"path"
 	"reflect"
 	"strings"
@@ -194,7 +195,7 @@ func dumpEnd(ping, message api.Message) (bool, error) {
 		}
 		retval = reply.Retval
 	default:
-		panic(fmt.Sprintf("BUG: dump sent %T, which dumpPing never returns", ping))
+		panic("BUG: dump sent a control ping dumpPing never returns")
 	}
 	return true, api.RetvalToVPPApiError(retval)
 }
@@ -314,20 +315,22 @@ func (a *binaryAPI) verifySession(ctx context.Context, index, access, table uint
 			return errors.New("pppoe-vpp: duplicate session readback")
 		}
 		found = true
+		// Each refusal names what VPP read back and what Ze created, because
+		// the session is removed on refusal and its state is gone afterwards.
 		if uint32(reply.SwIfIndex) != index {
-			return errors.New("pppoe-vpp: session readback names another interface")
+			return fmt.Errorf("pppoe-vpp: session readback names interface %d, not the created %d", reply.SwIfIndex, index)
 		}
 		if uint32(reply.EncapIfIndex) != access {
-			return errors.New("pppoe-vpp: client MAC was learned on another access interface")
+			return fmt.Errorf("pppoe-vpp: client MAC was learned on access interface %d, not %d", reply.EncapIfIndex, access)
 		}
 		if reply.SessionID != sid {
-			return errors.New("pppoe-vpp: session readback has another discovery ID")
+			return fmt.Errorf("pppoe-vpp: session readback has discovery ID %d, not %d", reply.SessionID, sid)
 		}
 		if [6]byte(reply.ClientMac) != peer {
-			return errors.New("pppoe-vpp: session readback has another client MAC")
+			return fmt.Errorf("pppoe-vpp: session readback has client MAC %s, not %s", net.HardwareAddr(reply.ClientMac[:]), net.HardwareAddr(peer[:]))
 		}
 		if [6]byte(reply.LocalMac) != local {
-			return errors.New("pppoe-vpp: session readback has another data-plane source MAC")
+			return fmt.Errorf("pppoe-vpp: session readback has data-plane source MAC %s, not the access MAC %s", net.HardwareAddr(reply.LocalMac[:]), net.HardwareAddr(local[:]))
 		}
 		if reply.DecapVrfID != table {
 			return errors.New("pppoe-vpp: session readback has another decapsulation table")
