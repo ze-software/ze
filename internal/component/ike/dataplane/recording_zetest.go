@@ -210,11 +210,12 @@ func (d *recordingDataplane) ListPolicies() ([]PolicyInfo, error) {
 			Mode:       p.Mode,
 			ReqID:      p.ReqID,
 			// The recorded entry is what the kernel would hold, the flag included.
-			ICMPErrorReturn: p.ICMPErrorReturn,
-			Owner:           p.Owner,
-			OwnerKnown:      true,
-			Role:            p.Role,
-			SPDInterface:    p.SPD,
+			ICMPErrorReturn:  p.ICMPErrorReturn,
+			ICMPErrorPayload: p.ICMPErrorPayload,
+			Owner:            p.Owner,
+			OwnerKnown:       true,
+			Role:             p.Role,
+			SPDInterface:     p.SPD,
 		})
 	}
 	nameInterfaceSPDs(out)

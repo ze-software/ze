@@ -588,6 +588,22 @@ type SPParams struct {
 	// SA (checkXFRMStateScopeCapabilities). A backend that
 	// cannot perform the mapping MUST reject the install rather than report success.
 	ICMPErrorReturn bool
+
+	// ICMPErrorPayload marks a forward BYPASS that a forwarded ICMP error which arrived
+	// on an SA does not stop: the error is judged by the forward policy its payload
+	// header selects, as when no policy matches its own headers. It is meaningful on
+	// the FWD transit gate of an operator bypass alone (engine/spd_policy.go,
+	// spdTransitPolicies), which only keeps a catch-all from refusing what another entry
+	// admitted, and the Linux backend refuses it on any other policy.
+	//
+	// RFC 4301 Section 5.2, step 4: "Then match the packet against the inbound
+	// selectors identified by the SAD entry to verify that the received packet is
+	// appropriate for the SA via which it was received." The Linux XFRM backend sets
+	// XFRM_POLICY_ICMP, which Ze's kernel reads on a template-free FWD allow through
+	// K1's feature bit 7 (xfrmZECapICMPForwardGate), required of every scoped SA
+	// (checkXFRMStateScopeCapabilities). Stock Linux takes the payload policy only when
+	// no policy matched, so the gate's empty template list refuses the error.
+	ICMPErrorPayload bool
 }
 
 // SAInfo is one Security Association as the DATAPLANE holds it, returned by
@@ -710,6 +726,12 @@ type PolicyInfo struct {
 	// carries no such flag, so Ze's kernel drops an ICMP error it covers whatever the
 	// payload says.
 	ICMPErrorYield bool
+
+	// ICMPErrorPayload says this forward BYPASS lets a forwarded ICMP error that
+	// arrived on an SA be judged by the policy its payload selects
+	// (SPParams.ICMPErrorPayload): on Linux the XFRM_POLICY_ICMP flag read back from a
+	// template-free FWD allow, which Ze sets on an operator bypass's transit gate alone.
+	ICMPErrorPayload bool
 
 	// Owner names the peer that installed this policy, and OwnerKnown says
 	// whether ze installed it at all.

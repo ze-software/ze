@@ -28,14 +28,16 @@ func (*xfrmBackend) CheckSAStateScope() error {
 }
 
 // checkXFRMStateScopeCapabilities reads the live namespace before InstallSA can
-// publish any state. Every explicit scope needs all six features, independently
+// publish any state. Every explicit scope needs all seven features, independently
 // of whether this particular SA permits noninitial fragments or carries the ICMP
 // error check: the commit no longer refuses an inbound discard entry beside a peer
 // whose check is on (engine/icmp_overlap.go), because the reverse check bit 5 names
 // honors that entry, so a kernel without bit 5 installs no Child SA at all. Bit 6
 // is the only route by which a forwarded ICMP error that an out DISCARD covers, the
 // catch-all's included, reaches its return SA (RFC 4301 Section 6.2), so a kernel
-// without it installs no Child SA either.
+// without it installs no Child SA either. Bit 7 is what lets a forwarded ICMP error
+// that arrived on the SA past an operator bypass's FWD transit gate be judged by its
+// payload (RFC 4301 Section 5.2, step 4), so a kernel without it installs none either.
 func checkXFRMStateScopeCapabilities() error {
 	caps, err := xfrmScopeCapsRead()
 	if err != nil {
@@ -52,7 +54,7 @@ func checkXFRMStateScopeCapabilities() error {
 	}
 	const required = xfrmZECapStateScope | xfrmZECapICMPQuote |
 		xfrmZECapFragmentContext | xfrmZECapFragmentGuard | xfrmZECapICMPReverse |
-		xfrmZECapICMPForwardMap
+		xfrmZECapICMPForwardMap | xfrmZECapICMPForwardGate
 	const known = required | xfrmZECapICMPFinal
 	if caps.Features & ^known != 0 {
 		return xfrmStateScopeRefusal(fmt.Errorf("kernel scope capabilities contain unknown features %#x", caps.Features & ^known))
@@ -70,7 +72,7 @@ func xfrmStateScopeRefusal(cause error) error {
 	fix := "  ./le build host-driver\n  ./ze-host appliance kernel --target runtime --arch " + runtime.GOARCH
 	return opererr.Wrap(errors.Join(ErrSAOptionRefused, cause),
 		"Ze cannot verify kernel support for the IPsec SA's complete traffic selector scope",
-		"the SA needs verified state, ICMP quote, ICMP reverse and fragment checks, and the forwarded ICMP error mapping, before any state can be installed; rebuild and boot Ze's native runtime kernel",
+		"the SA needs verified state, ICMP quote, ICMP reverse and fragment checks, the forwarded ICMP error mapping and the forwarded ICMP error past a transit gate, before any state can be installed; rebuild and boot Ze's native runtime kernel",
 		fix)
 }
 

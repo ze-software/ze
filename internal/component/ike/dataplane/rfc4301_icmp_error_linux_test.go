@@ -93,3 +93,60 @@ func TestXFRMOutboundPolicyCarriesICMPErrorReturn(t *testing.T) {
 		t.Errorf("a bypass entry asked for the return mapping was projected")
 	}
 }
+
+// VALIDATES: RFC 4301 Section 5.2, step 4, for a forwarded ICMP error past a transit
+// gate: a template-free FWD bypass asked for the payload check (a FWD transit gate)
+// carries XFRM_POLICY_ICMP, which Ze's kernel reads through K1 bit 7, and reads it back
+// as ICMPErrorPayload; the same bypass not asked carries none. The request on an OUT
+// bypass, a FWD discard or a protect policy is refused rather than installed where the
+// kernel reads the flag as something else or not at all.
+// PREVENTS: the flag dropped in the projection, which leaves the gate refusing a
+// consistent error (XfrmInTmplMismatch), and the flag on an OUT bypass, where
+// icmp_route_lookup would source an error this node sends from the address it quotes.
+func TestXFRMForwardGateCarriesICMPErrorPayload(t *testing.T) {
+	_, anySource, _ := net.ParseCIDR("0.0.0.0/0")
+	_, protected, _ := net.ParseCIDR("10.2.0.0/24")
+	gate := func(asked bool) SPParams {
+		return SPParams{
+			Src: anySource, Dst: protected,
+			Dir: SADirFwd, Action: SPActionBypass, Priority: PriorityTransitGate,
+			Role: PolicyRoleOperator, ICMPErrorPayload: asked,
+		}
+	}
+	on, err := xfrmPolicyFromParams(gate(true))
+	if err != nil {
+		t.Fatalf("project the FWD gate asked for the payload check: %v", err)
+	}
+	if !on.ICMP {
+		t.Errorf("a FWD transit gate asked for the payload check carries no XFRM_POLICY_ICMP")
+	}
+	if info := (&xfrmBackend{}).policyInfoFromKernel(on); !info.ICMPErrorPayload || info.ICMPErrorYield || info.ICMPErrorReturn {
+		t.Errorf("the gate's flag reads back as payload=%v yield=%v return=%v, want the payload check alone",
+			info.ICMPErrorPayload, info.ICMPErrorYield, info.ICMPErrorReturn)
+	}
+	off, err := xfrmPolicyFromParams(gate(false))
+	if err != nil {
+		t.Fatalf("project the FWD bypass not asked for the payload check: %v", err)
+	}
+	if off.ICMP {
+		t.Errorf("a FWD bypass not asked for the payload check carries XFRM_POLICY_ICMP")
+	}
+	if info := (&xfrmBackend{}).policyInfoFromKernel(off); info.ICMPErrorPayload {
+		t.Errorf("a FWD bypass without the flag reads back as a payload check")
+	}
+	outbound := gate(true)
+	outbound.Dir = SADirOut
+	if _, err := xfrmPolicyFromParams(outbound); err == nil {
+		t.Errorf("an OUT bypass asked for the payload check was projected")
+	}
+	discard := gate(true)
+	discard.Action = SPActionDiscard
+	if _, err := xfrmPolicyFromParams(discard); err == nil {
+		t.Errorf("a FWD discard asked for the payload check was projected")
+	}
+	protect := icmpErrorTestPolicy(false, SADirFwd)
+	protect.ICMPErrorPayload = true
+	if _, err := xfrmPolicyFromParams(protect); err == nil {
+		t.Errorf("a FWD protect policy asked for the payload check was projected")
+	}
+}

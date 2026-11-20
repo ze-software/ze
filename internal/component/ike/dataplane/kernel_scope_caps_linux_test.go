@@ -21,14 +21,14 @@ func scopeCapabilitiesReply(features xfrmZEFeature) []byte {
 	return append([]byte{1, 2, 1, 0}, nl.NewRtAttr(43, payload[:]).Serialize()...)
 }
 
-// TestXFRMStateScopeCapabilitiesPreservePartialReceipt checks all seven individual
+// TestXFRMStateScopeCapabilitiesPreservePartialReceipt checks all eight individual
 // feature bits and retains K1's partial receipt without claiming fragment support.
 func TestXFRMStateScopeCapabilitiesPreservePartialReceipt(t *testing.T) {
 	bits := []xfrmZEFeature{
 		xfrmZECapStateScope, xfrmZECapICMPQuote,
 		xfrmZECapFragmentContext, xfrmZECapFragmentGuard,
 		xfrmZECapICMPFinal, xfrmZECapICMPReverse,
-		xfrmZECapICMPForwardMap,
+		xfrmZECapICMPForwardMap, xfrmZECapICMPForwardGate,
 	}
 	for _, bit := range bits {
 		caps, err := parseXFRMZECapabilities(scopeCapabilitiesReply(bit))
@@ -68,7 +68,7 @@ func TestXFRMStateScopeCapabilitiesRejectMissingOrForeignReceipt(t *testing.T) {
 		{"zero ABI", func(b []byte) []byte { clear(b[20:]); return b }},
 		{"zero maximum", func(b []byte) []byte { clear(b[12:16]); return b }},
 		{"foreign maximum", func(b []byte) []byte { binary.NativeEndian.PutUint32(b[12:], 65); return b }},
-		{"unknown feature", func(b []byte) []byte { binary.NativeEndian.PutUint32(b[8:], 128); return b }},
+		{"unknown feature", func(b []byte) []byte { binary.NativeEndian.PutUint32(b[8:], 256); return b }},
 		{"ignored scope echo", func(b []byte) []byte { binary.NativeEndian.PutUint16(b[6:], 42); return b }},
 		{"duplicate receipt", func(b []byte) []byte { return append(b, b[4:]...) }},
 	}

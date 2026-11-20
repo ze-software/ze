@@ -124,7 +124,7 @@ diff --git a/include/uapi/linux/xfrm.h b/include/uapi/linux/xfrm.h
  	__XFRMA_MAX
  
  #define XFRMA_OUTPUT_MARK XFRMA_SET_MARK	/* Compatibility */
-@@ -342,6 +344,40 @@
+@@ -342,6 +344,45 @@
  struct xfrm_mark {
  	__u32           v; /* value */
  	__u32           m; /* mask */
@@ -155,6 +155,11 @@ diff --git a/include/uapi/linux/xfrm.h b/include/uapi/linux/xfrm.h
 + * still drops the error when no such SA carries it.
 + */
 +#define XFRM_ZE_CAP_ICMP_FORWARD_MAP	(1U << 6)
++/* __xfrm_policy_check judges a forwarded ICMP error that arrived on an SA by its
++ * payload's policy (xfrm_in_fwd_icmp) when its own headers meet a template-free
++ * ALLOW carrying XFRM_POLICY_ICMP (a transit gate).
++ */
++#define XFRM_ZE_CAP_ICMP_FORWARD_GATE	(1U << 7)
 +#define XFRM_ZE_CAP_ABI			0x5a450001U
 +
 +struct xfrm_user_ze_caps {
@@ -797,7 +802,34 @@ diff --git a/net/xfrm/xfrm_policy.c b/net/xfrm/xfrm_policy.c
  					ret = 0;
  				if (ret) {
  					XFRM_INC_STATS(net, LINUX_MIB_XFRMINSTATEMISMATCH);
-@@ -3879,11 +4212,33 @@
+@@ -3756,6 +4089,26 @@
+ 		return 0;
+ 	}
+
++	/* RFC 4301 Section 5.2, step 4:
++	 * "Then match the packet against the inbound selectors identified by
++	 * the SAD entry to verify that the received packet is appropriate for
++	 * the SA via which it was received."
++	 * A template-free ALLOW carrying XFRM_POLICY_ICMP is a transit gate: it
++	 * only keeps a final catch-all from refusing what another entry
++	 * admitted. A forwarded ICMP error that arrived on an SA and meets one
++	 * by its own headers is judged by the policy its payload selects
++	 * (xfrm_in_fwd_icmp), as when no policy matches it.
++	 */
++	if (pol && dir == XFRM_POLICY_FWD && sp && !pol->xfrm_nr &&
++	    pol->action == XFRM_POLICY_ALLOW && (pol->flags & XFRM_POLICY_ICMP)) {
++		struct xfrm_policy *payload = xfrm_in_fwd_icmp(skb, &fl, family, if_id);
++
++		if (payload) {
++			xfrm_pol_put(pol);
++			pol = payload;
++		}
++	}
++
+ 	if (!pol && dir == XFRM_POLICY_FWD)
+ 		pol = xfrm_in_fwd_icmp(skb, &fl, family, if_id);
+
+@@ -3879,11 +4232,33 @@
  }
  EXPORT_SYMBOL(__xfrm_policy_check);
  
@@ -832,7 +864,7 @@ diff --git a/net/xfrm/xfrm_policy.c b/net/xfrm/xfrm_policy.c
  	int res = 1;
  
  	if (xfrm_decode_session(net, skb, &fl, family) < 0) {
-@@ -3898,16 +4253,36 @@
+@@ -3898,16 +4273,36 @@
  		return 0;
  	}
  
@@ -875,7 +907,7 @@ diff --git a/net/xfrm/xfrm_policy.c b/net/xfrm/xfrm_policy.c
  
  	if (dst && !dst->xfrm)
  		dst = xfrm_out_fwd_icmp(skb, &fl, family, dst);
-@@ -4322,6 +4697,7 @@
+@@ -4322,6 +4717,7 @@
  	int rv;
  
  	/* Initialize the per-net locks here */
@@ -1220,7 +1252,7 @@ diff --git a/net/xfrm/xfrm_user.c b/net/xfrm/xfrm_user.c
  	struct xfrm_userpolicy_default *r_up;
 -	int len = NLMSG_ALIGN(sizeof(struct xfrm_userpolicy_default));
 +	struct xfrm_user_ze_caps caps = {
-+		.features = XFRM_ZE_CAP_STATE_SCOPE | XFRM_ZE_CAP_ICMP_QUOTE | XFRM_ZE_CAP_ICMP_REVERSE | XFRM_ZE_CAP_ICMP_FORWARD_MAP,
++		.features = XFRM_ZE_CAP_STATE_SCOPE | XFRM_ZE_CAP_ICMP_QUOTE | XFRM_ZE_CAP_ICMP_REVERSE | XFRM_ZE_CAP_ICMP_FORWARD_MAP | XFRM_ZE_CAP_ICMP_FORWARD_GATE,
 +		.max_selectors = XFRM_STATE_SCOPE_MAX,
 +		.guard_refs = atomic_read(&net->xfrm.fragment_guard_refs),
 +		.abi = XFRM_ZE_CAP_ABI,

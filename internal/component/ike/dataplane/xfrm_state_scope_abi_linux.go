@@ -265,6 +265,14 @@ const (
 	// the SA that carries the return traffic of the quoted packet, and drops the error
 	// when no such SA carries it. Without it Linux drops such an error before the mapping.
 	xfrmZECapICMPForwardMap
+	// xfrmZECapICMPForwardGate is K1's forwarded ICMP error past a transit gate
+	// (XFRM_ZE_CAP_ICMP_FORWARD_GATE, bit 7): when a forwarded ICMP error that arrived on
+	// an SA meets, by its own headers, a template-free FWD allow carrying
+	// XFRM_POLICY_ICMP (every FWD transit gate, SPParams.ICMPErrorPayload),
+	// __xfrm_policy_check judges it by the policy its payload selects
+	// (xfrm_in_fwd_icmp). Without it the gate's empty template list refuses the
+	// consistent error (XfrmInTmplMismatch).
+	xfrmZECapICMPForwardGate
 )
 
 // Has reports whether f carries every bit of required. No bits is never carried.
@@ -329,7 +337,8 @@ func parseXFRMZECapabilities(payload []byte) (*xfrmZECapabilities, error) {
 			return nil, fmt.Errorf("XFRM selector limit %d differs from %d", caps.MaxSelectors, saStateScopeMaxSelectors)
 		}
 		const known = xfrmZECapStateScope | xfrmZECapICMPQuote | xfrmZECapFragmentContext |
-			xfrmZECapFragmentGuard | xfrmZECapICMPFinal | xfrmZECapICMPReverse | xfrmZECapICMPForwardMap
+			xfrmZECapFragmentGuard | xfrmZECapICMPFinal | xfrmZECapICMPReverse | xfrmZECapICMPForwardMap |
+			xfrmZECapICMPForwardGate
 		if caps.Features & ^known != 0 {
 			return nil, errors.New("XFRM capability receipt contains unknown feature bits")
 		}

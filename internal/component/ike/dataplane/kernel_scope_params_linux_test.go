@@ -136,11 +136,15 @@ func TestXFRMStateScopeInstallRequiresCompleteReceipt(t *testing.T) {
 	readBefore, addBefore := xfrmScopeCapsRead, xfrmStateAdd
 	t.Cleanup(func() { xfrmScopeCapsRead, xfrmStateAdd = readBefore, addBefore })
 	for _, noninitial := range []bool{false, true} {
-		// 111 is bits 0 to 3, 5 and 6, the complete receipt; 47 lacks bit 6 (the
-		// forwarded ICMP error mapping), 79 lacks bit 5 (the ICMP reverse check), 15
-		// lacks both, 103, 107, 109 and 110 each lack one of bits 0 to 3 beside bits 5
-		// and 6, and 39, 43, 45 and 46 each lack one of bits 0 to 3 beside bit 5 alone.
-		for _, features := range []xfrmZEFeature{0, 3, 7, 11, 13, 14, 15, 39, 43, 45, 46, 47, 79, 103, 107, 109, 110, 111} {
+		// 239 is bits 0 to 3 and 5 to 7, the complete receipt, and 255 adds the optional
+		// bit 4; 111 lacks bit 7 (the forwarded ICMP error past a transit gate), 175 lacks
+		// bit 6 (the forwarded ICMP error mapping), 207 lacks bit 5 (the ICMP reverse
+		// check), 231, 235, 237 and 238 each lack one of bits 3 to 0 beside bits 5 to 7.
+		// Every receipt below 128 lacks bit 7: 47 also lacks bit 6, 79 bit 5, 15 both,
+		// 103, 107, 109 and 110 one of bits 0 to 3 beside bits 5 and 6, and 39, 43, 45
+		// and 46 one of bits 0 to 3 beside bit 5 alone.
+		for _, features := range []xfrmZEFeature{0, 3, 7, 11, 13, 14, 15, 39, 43, 45, 46, 47, 79, 103, 107, 109, 110, 111,
+			175, 207, 231, 235, 237, 238, 239, 255} {
 			writes := 0
 			xfrmScopeCapsRead = func() (*xfrmZECapabilities, error) {
 				return &xfrmZECapabilities{Features: features, MaxSelectors: 64, ABI: 0x5a450001}, nil
@@ -151,7 +155,7 @@ func TestXFRMStateScopeInstallRequiresCompleteReceipt(t *testing.T) {
 				t.Fatal(err)
 			}
 			err = (&xfrmBackend{}).InstallSA(scopeSAParams(scope))
-			if features == 111 {
+			if features == 239 || features == 255 {
 				if err != nil || writes != 1 {
 					t.Fatalf("complete receipt: error %v, writes %d", err, writes)
 				}

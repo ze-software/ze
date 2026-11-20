@@ -159,6 +159,16 @@ func spdTransitPolicies(p ipsec.SPDPolicy) spdTransit {
 		if halves[i].Dir == dataplane.SADirIn {
 			gate.Dir = dataplane.SADirOut
 		}
+		// RFC 4301 Section 5.2, step 4: "Then match the packet against the inbound
+		// selectors identified by the SAD entry to verify that the received packet is
+		// appropriate for the SA via which it was received."
+		// A FWD gate can match, by its own headers, a forwarded ICMP error that arrived
+		// on a Child SA, whose payload is what the SA's selectors judge. Ze's kernel
+		// takes the payload's policy past a gate that carries the flag (K1 bit 7,
+		// dataplane.SPParams.ICMPErrorPayload). An OUT gate does not carry it: there
+		// the flag is what icmp_route_lookup reads to source an error this node sends
+		// from the address it quotes.
+		gate.ICMPErrorPayload = gate.Dir == dataplane.SADirFwd
 		transit.gates = appendSPDTransit(transit.gates, held, gate)
 	}
 	return transit

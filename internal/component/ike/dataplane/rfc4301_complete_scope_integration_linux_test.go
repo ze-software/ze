@@ -42,7 +42,7 @@ func TestRFC4301KernelAdvertisesCompleteStateScope(t *testing.T) {
 	}
 	const required = xfrmZECapStateScope | xfrmZECapICMPQuote |
 		xfrmZECapFragmentContext | xfrmZECapFragmentGuard | xfrmZECapICMPReverse |
-		xfrmZECapICMPForwardMap
+		xfrmZECapICMPForwardMap | xfrmZECapICMPForwardGate
 	if !caps.Features.Has(required) {
 		t.Fatalf("Ze kernel scope features = %#x, want all enforcement bits %#x; missing %#x; a partial receipt cannot authorize scoped SAs",
 			caps.Features, required, required & ^caps.Features)

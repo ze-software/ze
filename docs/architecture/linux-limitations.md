@@ -649,7 +649,12 @@ For a `library` entry, read the module in the module cache:
   (`fl1->flowi_mark = fl->flowi_mark;`). The inbound discard override and
   the non-error case: K1 in Ze's runtime kernel, which Ze requires
   (`checkXFRMStateScopeCapabilities` refuses every scoped Child SA on a
-  kernel whose receipt lacks bit 5 or bit 6).
+  kernel whose receipt lacks bit 5, bit 6 or bit 7). The forwarded case
+  past an operator bypass: stock `__xfrm_policy_check` takes the payload
+  policy (`xfrm_in_fwd_icmp`) only when no FWD policy matches the error's
+  own headers, so a transit gate that matches them refuses a consistent
+  error; K1's bit 7 (`XFRM_ZE_CAP_ICMP_FORWARD_GATE`) judges such an error
+  by its payload when the gate carries `XFRM_POLICY_ICMP`.
 - **Ze meanwhile:** the XFRM backend implements the FWD-default alternative
   through `ApplyForwardDefault` and `ReleaseForwardDefault`. The namespace
   tests in `engine/rfc4301_forward_icmp_integration_linux_test.go` exercise
