@@ -3,8 +3,12 @@ package rib
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"net/netip"
+	"runtime"
+	"runtime/debug"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
@@ -110,8 +114,57 @@ func flowValidationReceiveLocalAS(t *testing.T, r *RIBManager, peerOwner uint64,
 		RemoteRouterID: 0x01010101,
 		RawMessage:     &bgptypes.RawMessage{Type: msgtype.TypeUPDATE, MessageID: id, SourceOwner: peerOwner, SourceReceipt: peerOwner, RawBytes: body, WireUpdate: wu, AttrsWire: aw},
 	}
-	r.handleReceivedStructured(event)
+	flowValidationHandle(t, r, event)
 	return event
+}
+
+// flowValidationReceiveBound is the failure deadline of one received UPDATE,
+// never a success condition. The handler waits on nothing outside this
+// process: every engine call it makes is answered by the in-process fixture,
+// so a receive still running after this bound is wedged, not slow.
+const flowValidationReceiveBound = 30 * time.Second
+
+// flowValidationHandle delivers one received UPDATE on a goroutine of its own
+// and fails the test when the handler panics or does not return within the
+// bound. A producer that panics while it holds peerMu or flowSpecMu without a
+// deferred unlock (checkRouteBestChange, reconcileFlowSpecs) leaves the lock
+// held, and the handler's deferred failSourceProcessed then blocks on
+// peerMu.Lock in the same goroutine: called directly, that wedge holds the test
+// until the package timeout instead of failing it. The test goroutine reads no
+// RIB state until the handler returned, so every assertion after it sees what a
+// direct call leaves.
+func flowValidationHandle(t *testing.T, r *RIBManager, event *rpc.StructuredEvent) {
+	t.Helper()
+	returned := make(chan string, 1)
+	go func() {
+		defer func() {
+			if cause := recover(); cause != nil {
+				returned <- fmt.Sprintf("panicked: %v\n%s", cause, debug.Stack())
+				return
+			}
+			returned <- ""
+		}()
+		r.handleReceivedStructured(event)
+	}()
+	var messageID uint64
+	if msg, ok := event.RawMessage.(*bgptypes.RawMessage); ok {
+		if msg != nil {
+			messageID = msg.MessageID
+		}
+	}
+	bound := time.NewTimer(flowValidationReceiveBound)
+	defer bound.Stop()
+	select {
+	case failure := <-returned:
+		if failure != "" {
+			t.Fatalf("receiving UPDATE %d from %s %s", messageID, event.PeerAddress, failure)
+		}
+	case <-bound.C:
+		stacks := make([]byte, 1<<20)
+		stacks = stacks[:runtime.Stack(stacks, true)]
+		t.Fatalf("receiving UPDATE %d from %s did not return within %s: the handler is wedged, usually on a lock a panic left held\n%s",
+			messageID, event.PeerAddress, flowValidationReceiveBound, stacks)
+	}
 }
 
 // flowValidationReceiveBody supplies the original complete UPDATE body, including
@@ -126,7 +179,7 @@ func flowValidationReceiveBody(t *testing.T, r *RIBManager, peerOwner uint64, pe
 	if err != nil {
 		t.Fatal(err)
 	}
-	r.handleReceivedStructured(&rpc.StructuredEvent{ConnectionID: 41,
+	flowValidationHandle(t, r, &rpc.StructuredEvent{ConnectionID: 41,
 		EventType:     rpc.EventKindUpdate,
 		PeerOwner:     peerOwner,
 		PeerAddress:   peer.String(),

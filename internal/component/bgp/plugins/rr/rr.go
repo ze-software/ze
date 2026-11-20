@@ -65,7 +65,11 @@ const (
 	eventState  = "state"
 	eventOpen   = "open"
 
-	updateRouteTimeout     = 60 * time.Second
+	updateRouteTimeout = 60 * time.Second
+	// peerReplayTimeout bounds the stored-page phase of one peer-up replay:
+	// every page read, admission and relay runs under it, so none of them can
+	// begin after it ends.
+	peerReplayTimeout      = 2 * time.Minute
 	replayConvergenceMax   = 10
 	replayConvergenceDelay = 20 * time.Millisecond
 	statusDone             = "done"
@@ -1018,7 +1022,7 @@ func (rr *routeReflector) replayForPeer(parent context.Context, target peerTarge
 		return
 	}
 	defer rr.finishPeerReplay(target.identity, state)
-	ctx, cancel := context.WithTimeout(parent, 2*time.Minute)
+	ctx, cancel := context.WithTimeout(parent, peerReplayTimeout)
 	defer cancel()
 	destination := target.identity.address.String()
 	var relayFailure error

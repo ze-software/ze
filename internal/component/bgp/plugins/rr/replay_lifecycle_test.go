@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -33,14 +34,73 @@ func (ctx *replayJoinContext) Done() <-chan struct{} {
 	return ctx.Context.Done()
 }
 
+// replayQuestionReportMargin is the time kept before the test binary's own
+// deadline, so a wait reports which milestone never came instead of the
+// binary's timeout panic, which names no milestone.
+const replayQuestionReportMargin = 30 * time.Second
+
+// replayQuestionDeadline is the failure deadline of one milestone wait:
+// peerReplayTimeout, the bound the product itself puts on a peer-up replay's
+// stored-page phase, or the test binary's deadline less the report margin when
+// that comes first. Load only delays a milestone; one not reached within the
+// replay's own bound is a hang, and it fails here instead of at the package
+// timeout. A product deadline that could fake a milestone (the 30 s
+// cached-write bound ends a held relay too) is refused by each test on state,
+// never by this bound.
+func replayQuestionDeadline(t *testing.T) (context.Context, context.CancelFunc) {
+	t.Helper()
+	limit := time.Now().Add(peerReplayTimeout)
+	if deadline, bounded := t.Deadline(); bounded {
+		margin := min(replayQuestionReportMargin, time.Until(deadline)/4)
+		if report := deadline.Add(-margin); report.Before(limit) {
+			limit = report
+		}
+	}
+	return context.WithDeadline(t.Context(), limit)
+}
+
+// replayQuestionEnter waits for one producer to enter its held relay. A
+// producer whose lifecycle reaches its final readiness report has passed its
+// relay phase, so a finish before the entry fails at once rather than at the
+// deadline: the producer skipped its relay and will never enter it.
+func replayQuestionEnter(t *testing.T, entered, finished <-chan struct{}, name string) {
+	t.Helper()
+	wait, cancel := replayQuestionDeadline(t)
+	defer cancel()
+	select {
+	case <-entered:
+	case <-finished:
+		t.Fatal(name + " finished its replay without entering its held relay")
+	case <-wait.Done():
+		t.Fatal(name + " did not enter its held relay within the replay bound")
+	}
+}
+
 // replayQuestionWait names an actual lifecycle milestone with a bounded failure
 // wait. The bound is a test failure deadline, never a success condition.
 func replayQuestionWait(t *testing.T, milestone <-chan struct{}, name string) {
 	t.Helper()
+	wait, cancel := replayQuestionDeadline(t)
+	defer cancel()
 	select {
 	case <-milestone:
-	case <-time.After(5 * time.Second):
-		t.Fatal(name + " did not finish")
+	case <-wait.Done():
+		t.Fatal(name + " did not finish within the replay bound")
+	}
+}
+
+// replayQuestionResult is replayQuestionWait for a milestone that carries the
+// error its producer returned, which the caller then asserts.
+func replayQuestionResult(t *testing.T, result <-chan error, name string) error {
+	t.Helper()
+	wait, cancel := replayQuestionDeadline(t)
+	defer cancel()
+	select {
+	case err := <-result:
+		return err
+	case <-wait.Done():
+		t.Fatal(name + " did not finish within the replay bound")
+		return nil
 	}
 }
 
@@ -160,21 +220,18 @@ func TestRoleReplayJoinIncludesSupersededStoredPage(t *testing.T) {
 	joined := make(chan error, 1)
 	ctx := &replayJoinContext{Context: t.Context(), entered: make(chan struct{})}
 	go func() { joined <- role.settleReplays(ctx) }()
+	wait, stopWait := replayQuestionDeadline(t)
+	defer stopWait()
 	select {
 	case err := <-joined:
 		t.Fatalf("join acknowledged an escaped original page: %v", err)
 	case <-ctx.entered:
-	case <-time.After(5 * time.Second):
-		t.Fatal("replay join did not begin")
+	case <-wait.Done():
+		t.Fatal("replay join did not begin within the replay bound")
 	}
 	release.Do(func() { close(firstRelease) })
 	replayQuestionWait(t, firstWritten, "original relay return")
-	select {
-	case err := <-joined:
-		require.NoError(t, err)
-	case <-time.After(5 * time.Second):
-		t.Fatal("replay join did not observe original completion")
-	}
+	require.NoError(t, replayQuestionResult(t, joined, "replay join observing original completion"))
 	require.NoError(t, role.settleReplays(t.Context()))
 }
 
@@ -186,9 +243,11 @@ func TestRoleReplayJoinIncludesSupersededStoredPage(t *testing.T) {
 func TestRoleReplayJoinWaitsForReadinessAndRefusesCancellation(t *testing.T) {
 	readyEntered := make(chan struct{})
 	readyRelease := make(chan struct{})
+	readyReturned := make(chan struct{})
 	var release sync.Once
 	role, start := newReplayQuestion(t, func(context.Context, []rpc.StoredRoute) error { return nil },
 		func(ctx context.Context) error {
+			defer close(readyReturned)
 			close(readyEntered)
 			select {
 			case <-readyRelease:
@@ -205,19 +264,24 @@ func TestRoleReplayJoinWaitsForReadinessAndRefusesCancellation(t *testing.T) {
 	ctx := &replayJoinContext{Context: parent, entered: make(chan struct{})}
 	joined := make(chan error, 1)
 	go func() { joined <- role.settleReplays(ctx) }()
+	wait, stopWait := replayQuestionDeadline(t)
+	defer stopWait()
 	select {
 	case err := <-joined:
 		t.Fatalf("join passed the held readiness RPC: %v", err)
 	case <-ctx.entered:
-	case <-time.After(5 * time.Second):
-		t.Fatal("replay join did not begin")
+	case <-wait.Done():
+		t.Fatal("replay join did not begin within the replay bound")
 	}
 	cancel()
+	require.ErrorIs(t, replayQuestionResult(t, joined, "cancelled replay join refusal"), context.Canceled)
+	// The refusal MUST come from the join's own cancellation, while the
+	// readiness RPC is still held: a join that ignored cancellation and
+	// returned its context error once the RPC ended would pass the check above.
 	select {
-	case err := <-joined:
-		require.ErrorIs(t, err, context.Canceled)
-	case <-time.After(5 * time.Second):
-		t.Fatal("cancelled replay join did not refuse")
+	case <-readyReturned:
+		t.Fatal("cancelled replay join refused only after the held readiness RPC returned")
+	default:
 	}
 	release.Do(func() { close(readyRelease) })
 	require.NoError(t, role.settleReplays(t.Context()))
@@ -230,28 +294,46 @@ func TestRoleReplayJoinWaitsForReadinessAndRefusesCancellation(t *testing.T) {
 // MUTATION: omit cancellation of the captured active replay contexts in stop.
 func TestRoleReplayStopCancelsCapturedLifetimes(t *testing.T) {
 	entered := make(chan struct{}, 2)
-	cancelled := make(chan struct{}, 2)
+	cancelled := make(chan error, 2)
+	// A held producer never reaches its final readiness report before stop,
+	// and a cancelled one returns before it, so any report means a producer
+	// passed its relay phase without entering the held relay.
+	finished := make(chan struct{}, 3)
 	var writes atomic.Uint64
 	role, start := newReplayQuestion(t, func(ctx context.Context, _ []rpc.StoredRoute) error {
 		writes.Add(1)
 		entered <- struct{}{}
 		select {
 		case <-ctx.Done():
-			cancelled <- struct{}{}
+			cancelled <- ctx.Err()
 			return ctx.Err()
 		case <-t.Context().Done():
 			return t.Context().Err()
 		}
-	}, nil)
+	}, func(context.Context) error {
+		finished <- struct{}{}
+		return nil
+	})
+	// The fixture's store answers each page read with the next message id of
+	// the same route. The second producer starts after the first entered, so
+	// it reads the newer message and its admission supersedes the held one.
+	// Started together, the producer that read the older message could admit
+	// last, and admission rightly refuses a page older than the inventory
+	// (putWithdrawalLocked keeps the higher MsgID): it would skip its relay.
 	start("192.0.2.252", 174, 204)
+	replayQuestionEnter(t, entered, finished, "first active producer")
 	start("192.0.2.253", 175, 205)
-	replayQuestionWait(t, entered, "first active producer")
-	replayQuestionWait(t, entered, "second active producer")
+	replayQuestionEnter(t, entered, finished, "second active producer")
 	stopped := make(chan struct{})
 	go func() { role.replays.stop(); close(stopped) }()
 	replayQuestionWait(t, stopped, "cancelled replay lifecycle owner")
-	replayQuestionWait(t, cancelled, "first actual producer cancellation")
-	replayQuestionWait(t, cancelled, "second actual producer cancellation")
+	// Each held relay also ends at its own cached-write deadline. Only
+	// context.Canceled proves stop cancelled it; DeadlineExceeded means stop
+	// waited for the deadline instead.
+	for _, producer := range []string{"first", "second"} {
+		err := replayQuestionResult(t, cancelled, producer+" actual producer cancellation")
+		require.ErrorIs(t, err, context.Canceled, "%s producer ended by its own deadline, not by stop", producer)
+	}
 	start("192.0.2.254", 176, 206)
 	require.Equal(t, uint64(2), writes.Load(), "stopped owner admits no new replay")
 	require.Empty(t, role.replays.snapshot(), "completed lifecycles leave no history")
