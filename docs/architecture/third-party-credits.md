@@ -302,3 +302,8 @@ no commit that leaves its imports alone: the check reports it.
 | The appliance image's own contents are a spec of their own | Crediting the image's BusyBox, boot code, firmware and gokrazy binaries in `ze thanks` | 4096f645dc | 2026-11-20 |
 | The router's web interface gets no dedicated page; it reaches the daemon form of the command through the pages that run any command | A web route or page for the credits | 4096f645dc | 2026-11-20 |
 | The commands are spelled `ze thanks` and `ze thanks licence` | Another spelling of the command or of licence | 4096f645dc | 2026-11-20 |
+| The traffic-usage plugin is Ze's own code: it is not a third-party work | A credit for it, or any text describing it as derived from another program | 7581427e54 | 2026-11-20 |
+| The root certificate data inside `golang.org/x/crypto/x509roots/fallback` is credited under that Go module only | A work of its own for the certificate data | 7581427e54 | 2026-11-20 |
+| Where upstream does not state all of a licence, the credit states only what is known: `golangci-lint` is `GPL-3.0`, with no note | A `licence-note` or identifier that guesses what upstream does not say | 1b17c0d2f8 | 2026-11-20 |
+| What the licence is matters more than who holds the copyright; the holder is still shown, on the Dependencies page and in `ze thanks` | Withholding a licence because its holder is unclear | 7581427e54 | 2026-11-20 |
+| `NOTICE` carries no per-work attribution: it points at `ze thanks`, `ze thanks licence` and the Dependencies page, and the upstream NOTICE texts are printed by `ze thanks licence` | Copying a work's attribution or NOTICE text into `NOTICE` | 7581427e54 | 2026-11-20 |

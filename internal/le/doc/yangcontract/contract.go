@@ -590,7 +590,9 @@ func collectLocalHandlersFromFile(path string, paths map[string]string) error {
 		}
 		daemonPath, err := declaredDaemonPath(call.Args[1:])
 		if err != nil {
-			unquoteErr = err
+			// The refusal names the registration, so the reader goes straight
+			// to the line that must spell its DaemonPath as a literal.
+			unquoteErr = fmt.Errorf("%s: registration %q: %w", fset.Position(call.Pos()), cmdPath, err)
 			return false
 		}
 		paths[cmdPath] = daemonPath

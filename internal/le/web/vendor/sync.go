@@ -29,7 +29,7 @@ const consumerCopyMode = 0o644
 
 // asset describes one source-to-name mapping.
 type asset struct {
-	srcDir string // relative to repo root, e.g. "third_party/web/htmx"
+	srcDir string // relative to repo root, e.g. htmxDir
 	name   string // file name shared between source and consumer
 }
 
@@ -42,13 +42,13 @@ var assets = []asset{
 	// Each third-party package's licence file is a row like its assets: a
 	// consumer that serves a package holds every file of it, and the check
 	// refuses a package that holds no licence file (check.go, licenceCheck).
-	{"third_party/web/htmx", "htmx.min.js"},
-	{"third_party/web/htmx", "hx-sse.min.js"},
-	{"third_party/web/htmx", "htmx.LICENSE"},
+	{htmxDir, "htmx.min.js"},
+	{htmxDir, "hx-sse.min.js"},
+	{htmxDir, "htmx.LICENSE"},
 	{"third_party/web/ze", "ze.svg"},
-	{"third_party/web/uplot", "uPlot.min.js"},
-	{"third_party/web/uplot", "uPlot.min.css"},
-	{"third_party/web/uplot", "uPlot.LICENSE"},
+	{uplotDir, "uPlot.min.js"},
+	{uplotDir, "uPlot.min.css"},
+	{uplotDir, "uPlot.LICENSE"},
 }
 
 // consumers are the asset directories that embed the common vendored set
@@ -75,6 +75,16 @@ var consumers = []string{
 	"internal/component/web/assets",
 }
 
+// The directories several rows of the tables in this file name: the two
+// vendored packages every consumer takes, swagger-ui, and the one consumer
+// that takes it.
+const (
+	htmxDir       = "third_party/web/htmx"
+	uplotDir      = "third_party/web/uplot"
+	swaggerDir    = "third_party/web/swagger-ui"
+	restAssetsDir = "internal/component/api/rest/assets"
+)
+
 // targetedAsset is synced to a single consumer instead of every consumer.
 type targetedAsset struct {
 	srcDir string
@@ -83,11 +93,11 @@ type targetedAsset struct {
 }
 
 var targetedAssets = []targetedAsset{
-	{"third_party/web/swagger-ui", "swagger-ui.css", "internal/component/api/rest/assets"},
-	{"third_party/web/swagger-ui", "swagger-ui-bundle.js", "internal/component/api/rest/assets"},
-	{"third_party/web/swagger-ui", "swagger-ui.LICENSE", "internal/component/api/rest/assets"},
-	{"third_party/web/swagger-ui", "swagger-ui.NOTICE", "internal/component/api/rest/assets"},
-	{"third_party/web/swagger-ui", "swagger-ui-bundle.js.LICENSE.txt", "internal/component/api/rest/assets"},
+	{swaggerDir, "swagger-ui.css", restAssetsDir},
+	{swaggerDir, "swagger-ui-bundle.js", restAssetsDir},
+	{swaggerDir, "swagger-ui.LICENSE", restAssetsDir},
+	{swaggerDir, "swagger-ui.NOTICE", restAssetsDir},
+	{swaggerDir, "swagger-ui-bundle.js.LICENSE.txt", restAssetsDir},
 }
 
 // Sync copies every vendored asset into every consumer that embeds it and

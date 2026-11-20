@@ -37,11 +37,15 @@ const keyWorks = "works"
 const operationName = "name"
 
 // commandList is the daemon form of `ze thanks`, which every refusal about a
-// work's name offers as the way to see the names.
+// work's name offers as the way to see the names. register.go spells it again
+// as the literal DaemonPath of its registration, which the YANG/handler
+// contract reads from source; TestThanksDaemonPathsMatchTheConstants compares
+// the two.
 const commandList = "show thanks list"
 
 // commandLicence is the daemon form of `ze thanks licence`, and
-// pathLicence its local path.
+// pathLicence its local path. register.go spells commandLicence again as a
+// literal DaemonPath, compared by the same test.
 const (
 	commandLicence = "show thanks licence"
 	pathLicence    = "thanks licence"

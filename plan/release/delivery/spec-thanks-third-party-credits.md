@@ -8,7 +8,7 @@
 | Release reason | A released `ze` binary redistributes third-party code whose licences require their copyright notice and conditions to travel with the binary. Today the binary carries none of them, and `NOTICE` and the website legal page claim a record that does not exist for the web assets |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 7/7 (Phases 6 and 7 written, awaiting the owner's review) |
+| Phase | 7/7 (all phases committed; closure) |
 | Handoff | - |
 | Updated | 2026-11-20 |
 
@@ -174,7 +174,7 @@ reader.
 | `ai/doors/appliance.md` | Where it sits | the door covering `internal/appliance/cmd_iso.go` | "`internal/appliance` is build-host tooling, not a component." | agrees | The only edit there is a presence declaration read by the host binary's own `thanks`; nothing reaches the image or the device |
 | `docs/architecture/api/json-format.md` | Overview | anchored to `internal/exabgp/bridge/bridge_event.go` | - | silent | The page defines the event JSON the bridge translates; the translation is untouched |
 | `docs/architecture/exabgp-bridge.md` | The text encoder is ExaBGP's own, ported | anchored to `internal/exabgp/bridge/bridge_event.go` | - | silent | The page describes the bridge's runners and translation; the spec adds only the declaration that the ExaBGP-derived tables are present |
-| `docs/architecture/traffic/traffic-usage.md` | Decisions | the `// Design:` page of `internal/plugins/trafficusage/trafficusage.go` | - | silent | The page describes the accounting plugin; the spec adds only the declaration that the ported work is present |
+| `docs/architecture/traffic/traffic-usage.md` | Decisions | the `// Design:` page of `internal/plugins/trafficusage/trafficusage.go` | - | silent | The page describes the accounting plugin, which is Ze's own code (owner, 2026-11-20): nothing is credited for it, and the spec changes only its comments (`099edc4972`) |
 | `docs/architecture/wire/attributes.md` | TL;DR (Read This First) | the `// Design:` page of `internal/core/ipregistry/registry.go` | - | silent | The page describes attribute wire formats and the pinned registry data; the data and its use are untouched |
 | `ai/doors/core.md` | Boundaries | the door covering `internal/core/credits` and `internal/core/ipregistry/registry.go` | "Never import upward." | agrees | `internal/core/credits` imports the standard library only; features declare their presence into it from their own `init()` |
 | `docs/contributing/dependency-approval.md` | The commit gate | the `// Design:` page of `internal/le/commit/dependencies.go` | "It judges only what the commit adds." | agrees | The added refusal judges the modules the commit newly links; a module already linked at HEAD without a credit is refused by the tree check, not by the commit gate. The page gains the refusal in its list |
@@ -227,25 +227,25 @@ reader.
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
-| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | The binary reads only its embedded record and its build information (`internal/core/credits/credits.go` `compiled`, `carried`); every surface reaches the handlers through `command.MustRegisterLocalData` and the dispatcher (`internal/plugins/thanks/register.go` `init`) |
+| No unintended coupling (components stay isolated) | Yes | `internal/core/credits` imports the standard library only (its import block); each carrying package calls `credits.DeclarePresent` from its own `init()`; no product package imports `internal/le` |
+| No duplicated functionality (extends existing, does not recreate) | Yes | One declaration, `website/data/dependencies.json`, read through one reader `credits.ReadDeclaration` by the generator and the site build (`internal/le/site/dependencies.go` `readDependencyDeclaration`); the asset licences ride the existing vendored-web sync (`internal/le/web/vendor/sync.go`) |
+| Zero-copy preserved where applicable (refs, not copies) | N-A | No wire path; the record decodes once (`sync.OnceValues` in `compiled`) |
+| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | Commands, shapes, columns and the `name` pipe operation are registrations in `internal/plugins/thanks/register.go`; works register presence with `credits.DeclarePresent` |
+| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | Yes | `internal/core/credits` names no work: names come from the generated record. Outside the owner, only the generated composition root (by `./le repo update`) and the local-data coverage evidence list (`internal/test/localdatacoverage/localdatacoverage.go` `Evidence`, which exists to enumerate every local-data command) name the plugin |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `debug.ReadBuildInfo` lists every linked third-party module with its version in a vendored build of every shipped flavor | `go version -m bin/ze` prints 72 `dep` lines with versions | The answer cannot know what the binary links; the design fails | A unit test in `internal/core/credits` that the build information is available and non-empty, run under the feature tags | unvalidated |
-| A-2 | The set of modules a shipped flavor links can be computed without compiling it, from `go list -deps` under that flavor's tags | The inventory research computed 97, 84 and 12 that way; `internal/le/repo/compiles/matrix.go` holds the flavors | The check cannot see a flavor's set before a build | Compare the tool's set for the development flavor with `go version -m bin/ze` | unvalidated |
-| A-3 | Every linked module keeps a licence file at its vendored root | Found true for the 97 modules on 2026-11-20 | A module needs its text fetched from upstream and committed under `third_party/` | The check refuses a shipped module with no licence file | unvalidated |
+| A-1 | `debug.ReadBuildInfo` lists every linked third-party module with its version in a vendored build of every shipped flavor | `go version -m bin/ze` prints 72 `dep` lines with versions | The answer cannot know what the binary links; the design fails | A unit test in `internal/core/credits` that the build information is available and non-empty, run under the feature tags | confirmed: `TestEveryLinkedModuleHasACredit` (`internal/plugins/thanks/linked_test.go`) reads the build information of a test binary linking the product's composition root, under the feature tags, and finds every module recorded; green, run by the main thread |
+| A-2 | The set of modules a shipped flavor links can be computed without compiling it, from `go list -deps` under that flavor's tags | The inventory research computed 97, 84 and 12 that way; `internal/le/repo/compiles/matrix.go` holds the flavors | The check cannot see a flavor's set before a build | Compare the tool's set for the development flavor with `go version -m bin/ze` | confirmed: the record `go list` produced (`internal/le/deps/credits/golist.go` `linkedByFlavor`) holds every module the in-binary test's build information lists, or `TestEveryLinkedModuleHasACredit` would see a `not recorded` row; green |
+| A-3 | Every linked module keeps a licence file at its vendored root | Found true for the 97 modules on 2026-11-20 | A module needs its text fetched from upstream and committed under `third_party/` | The check refuses a shipped module with no licence file | confirmed: `./le deps credits check` (`internal/le/deps/credits/check.go` `Check`) exits 0 with no refusal over the tree, run by the main thread after `550bf38477` |
 | A-4 | A declared pipe operation reaches a local-data handler on the daemon route as it does on the local route | `ValidatedArgs.PipeOperations()` is read at `local_data.go` and at `plugin/server/command.go`; not traced end to end | `show thanks licence \| name <work>` answers every text through the daemon | A `.ci` test through the daemon: the draft `thanks-daemon-licence-name` passed, run by the main thread on 2026-11-20 | confirmed |
 | A-5 | The Go licence text Ze must carry is the `LICENSE` file of the Go release `go.mod` pins | The Go distribution ships it one level above GOROOT on this machine | A wrong or missing text for the largest single dependency | Read the file from the Go source release of the pinned version and compare: `third_party/go/README.md` records `LICENSE` and `PATENTS` of tag `go1.27.4`, the version `go.mod` pins, compared with `cmp` against the files fetched from that tag on 2026-11-20 and found identical | confirmed |
 | A-6 | The licence of each work that states none in the repository can be read upstream | Not checked | The work has no licence to record, and whether Ze may ship it is Thomas's decision | Read each upstream; the rows are in "Choices for Thomas". IANA: its licensing statement is quoted in `third_party/iana/README.md`. The root certificate data inside `golang.org/x/crypto/x509roots/fallback` states no licence of its own; Thomas decided on 2026-11-20 that it is credited under that Go module only (C-2) | confirmed for IANA; broken for the root certificate data, decided by Thomas (C-2) |
-| A-7 | `ze cli -c "show thanks list"` answering from the client binary is acceptable | `show plugin list` does the same; client and daemon are one build in every shipped arrangement | A mismatched client reports its own credits; the daemon's are reached by an interactive session or any other surface | Thomas's answer to C-1 | unvalidated |
+| A-7 | `ze cli -c "show thanks list"` answering from the client binary is acceptable | `show plugin list` does the same; client and daemon are one build in every shipped arrangement | A mismatched client reports its own credits; the daemon's are reached by an interactive session or any other surface | Thomas's answer to C-1 | confirmed: C-1 (a) was put to Thomas with the design and he approved it with "implement" on 2026-11-20 |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -461,7 +461,7 @@ reader.
 | 2 | Config syntax changed? | No | No config |
 | 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md` |
 | 4 | API/RPC added/changed? | Yes | `docs/architecture/api/commands.md`: the two daemon paths among the offline roots served by the daemon |
-| 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md` |
+| 5 | Plugin added/changed? | No (closure) | `thanks` is a command-only plugin with no config and no plugin registration (`internal/plugins/thanks/register.go` registers commands only); `docs/guide/plugins.md` lists configurable plugins and names neither `env` nor `help`, the same shape |
 | 6 | Has a user guide page? | No | The command reference entry is the guide |
 | 7 | Wire format changed? | No | No protocol wire |
 | 8 | Plugin SDK/protocol changed? | No | Unchanged |
@@ -471,7 +471,7 @@ reader.
 | 12 | Internal architecture changed? | Yes | `docs/architecture/third-party-credits.md` (new), and `docs/contributing/dependency-approval.md`: what a new dependency owes |
 | 13 | Route metadata keys added/changed? | No | None |
 | 14 | Prometheus counters added/changed? | No | None |
-| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | `docs/plugin-overview.md`, `docs/features/plugins.md`; `ai/INDEX.md` gains the keyword row |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | `ai/INDEX.md` keyword row (line 721); `docs/architecture/api/commands.md` daemon paths. `docs/plugin-overview.md` and `docs/features/plugins.md` list registered plugins and name no command-only plugin (`env`, `help`), so they gain no row |
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes | Run `./le spec citation anchors spec plan/release/delivery/spec-thanks-third-party-credits.md` at the start of implementation and name each page here |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | `website/AI.md`: the description of the dependency data file and of the Dependencies page; `third_party/web/MANIFEST.md` |
 
@@ -637,8 +637,8 @@ none
 | Known reds, none from this work | `internal/component/web` `TestWebHandlerGoldenOutput/get-l2tp-session-json` (another session's uncommitted L2TP edits); `internal/le/web/vendor` `TestEveryAssetDirectoryIsDecided` (fleet interface assets); `internal/le/site` `TestADetailPageStatesWhatAnUndeclaredCommandTakes` and `TestTheHomepageRFCCardSaysWhatTheOldFigureCounted`; `./le arch tier check` (the `internal/core/ipc/yang` test import, the PPPoE VPP dataplane build tags) |
 | Commits | `bf60540663` (generator, check, gate, rule point); `e90ab69e36` (declaration, data, the answer); `b97279eb26` (five functional tests, each seen red against a broken handler and run 80 times under load); `099edc4972` (the traffic-usage comments describe the plugin only); `1b17c0d2f8` (`golangci-lint` shown as `GPL-3.0` with no note) |
 | Phase 5 | Complete. The temporary driver is removed; `./le deps credits update`, `./le deps credits check` and `./le web vendor update` run for real and change nothing |
-| Phases 6 and 7 | Written and rendered for the owner's review, not committed |
-| Remaining | The owner's approval of the two rendered pages; then the test judge for `TestTheDependencyPageReadsAsThePublishedPage` (fixtures) and `TestAPipeInADependencyReasonStaysInItsCell` (expected row); tests and lint of `internal/le/site` and `internal/le/deps/credits`; the commit; `./le site build` and `./le site check`; closure |
+| Phases 6 and 7 | Committed in `550bf38477` after Thomas approved the rendered pages ("yes the site is fine"), with the test judge's approval of the two site units and three fixtures. `./le site build` and `./le site check` both exit 0 with a launcher holding that commit; the built page holds "Also in the shipped binary", `llms.txt` has 66 licence lines, the legal page names `ze thanks` |
+| Remaining | Closure only |
 
 ## Design Insights
 
@@ -706,3 +706,177 @@ none
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/delivery/spec-thanks-third-party-credits.md` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- `ze thanks` and `ze thanks licence`, local-data commands at the offline root `thanks`, served by the daemon as `show thanks list` and `show thanks licence`, with the declared `name` pipe operation (`internal/plugins/thanks/register.go` `init`, `thanks.go` `listHandler`, `licenceHandler`)
+- The record and the join: `internal/core/credits/credits.go` (`loadCatalog`, `carried`, `document`, `licenceOf`, `DeclarePresent`), embedding `internal/core/credits/data/` (119 works, 102 stored texts)
+- The generator, tree check and commit gate: `internal/le/deps/credits` (`Update`, `Check`, `judgeCommit`)
+- The declaration: `website/data/dependencies.json` with `licence`, `copyright`, `source` per module, and the `linked` and `works` lists
+- Licence texts for the works outside `vendor/`: `third_party/go`, `third_party/exabgp`, `third_party/iana/README.md`, `third_party/web/*/`, `third_party/swagger-ui-bundled/`; the vendored-web check refuses an asset directory with no licence file (`internal/le/web/vendor/check.go`)
+- Presence declarations in the carrying packages (web, lg, rest, seccomp, fat, exabgp bridge, ipregistry, portname); three licence routes on the REST documentation page behind `s.withAuth`
+- The Dependencies page licence and holder columns and the "Also in the shipped binary" section, `llms.txt` licences, `NOTICE` and the legal page (`550bf38477`)
+- Commits: `43b3d27123`, `4096f645dc`, `bf60540663`, `e90ab69e36`, `b97279eb26`, `099edc4972`, `1b17c0d2f8`, `7581427e54`, `550bf38477`, and the closure fix in commit A
+
+### Bugs Found/Fixed
+- Closure: the two `registry.Meta.DaemonPath` values in `internal/plugins/thanks/register.go` were constants, so `declaredDaemonPath` (`internal/le/doc/yangcontract/contract.go`) refused the file and the YANG/handler contract step of `./le doc check all` stopped with "registry.Meta.DaemonPath must be a string literal", naming no file. Fixed by literals, with `TestThanksDaemonPathsMatchTheConstants` comparing them to the constants the refusals use; the refusal now names the file, line and registration (`collectLocalHandlersFromFile`), covered by `TestADaemonPathThatIsNotALiteralIsRefusedWhereItIsWritten`
+
+### Documentation Updates
+- `docs/architecture/third-party-credits.md` (new, phases 4 to 6); closure added five Design decisions rows for the owner's rulings of 2026-11-20 (traffic-usage, root certificates, do not guess, licence over holder, `NOTICE`), which had lived only in this spec
+- `docs/guide/command-reference.md` "ze thanks / ze thanks licence", `docs/architecture/api/commands.md` daemon paths, `docs/guide/api.md`, `docs/contributing/dependency-approval.md`, `website/AI.md`, `ai/INDEX.md`, `features/third-party-credits.md`, `NOTICE`, `website/legal/legal.md`, `third_party/web/MANIFEST.md`
+- `./le doc check all`: before the closure fix it failed in validate-commands on this work's register.go; its other failures (CLI reference operator metadata in `../gh-pages`, journal classes) are not this work's. Owed rerun below
+
+### Deviations from Plan
+- Phases 1 to 3 landed as `43b3d27123` and `4096f645dc`, before the generator commit `bf60540663`
+- Unit tests beyond the plan: the toolchain, banner, OR-expression and load-error tests named in the TDD table were added during implementation
+- `docs/guide/plugins.md`, `docs/plugin-overview.md` and `docs/features/plugins.md` gained no row: they do not list command-only plugins (checklist rows 5 and 15)
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The registrations named their daemon paths through constants | The YANG/handler contract reads each DaemonPath from source and refuses a name; the refusal named no file, so nobody saw it was this work's | Closure `./le doc check all` | Literals plus a test comparing them; the refusal now names file, line and registration |
+| approach | The owner's rulings of 2026-11-20 were recorded only in this spec | A design decision lives in the design page's Design decisions section, and the spec is deleted at closure | Closure documentation review | Five rows added to `docs/architecture/third-party-credits.md` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| `ze thanks` lists every third-party work compiled in, with version, licence, holder, why | Done | `internal/plugins/thanks/thanks.go` `listHandler`; `internal/core/credits/credits.go` `carried` | |
+| `ze thanks licence` prints the licence texts the binary carries | Done | `internal/core/credits/credits.go` `document`, `licenceOf` | |
+| The Dependencies page gains the licence information and stays the one curated list | Done | `internal/le/site/dependencies.go` `renderDependencies`; `website/data/dependencies.json` | |
+| Complete by construction: a check refuses a shipped work without a credit or a text | Done | `internal/le/deps/credits/check.go` `Check`, `gate.go` `judgeCommit` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `test/ui/thanks-list.ci` (miekg/dns row) | |
+| AC-2 | Done | `test/ui/thanks-list.ci` (Go row); `TestRowsListGoWithNothingDeclared` | |
+| AC-3 | Done | `test/ui/thanks-list.ci` (htmx row); `TestRowsFollowTheBuildAndThePresence` | |
+| AC-4 | Done | `test/ui/thanks-list.ci` (ExaBGP row); `TestEveryLinkedModuleHasACredit` presence check | |
+| AC-5 | Done | `TestRowsMarkAModuleWithNoRecord`, `TestListMarksAModuleWithNoRecordAndExitsNonZero` | |
+| AC-6 | Done | `TestRowsRefuseWithoutBuildInformation`, `TestThanksRefusesWithoutBuildInformation` | |
+| AC-7 | Done | `test/ui/thanks-licence.ci`; `TestLicenceDocumentGroupsIdenticalTexts` | |
+| AC-8 | Done | `test/plugin/thanks-daemon-licence-name.ci`; `TestLicenceNameSelectsOneWork` | |
+| AC-9 | Done | `test/plugin/thanks-daemon-list.ci` (`\| json` keys); `TestThanksListColumns` | Other surfaces share the dispatcher route |
+| AC-10 | Done | `TestCheckRefusesALinkedModuleWithNoCredit` | |
+| AC-11 | Done | `TestCheckRefusesAStaleLicenceCopy` | |
+| AC-12 | Done | `TestCheckRefusesACopyrightNotInTheText` | |
+| AC-13 | Done | `TestEveryLinkedModuleHasACredit` | |
+| AC-14 | Done | `TestCheckRefusesAVendorDirectoryWithoutALicence` | |
+| AC-15 | Done | `internal/component/lg/server_test.go`, `internal/component/web/render_test.go` (e90ab69e36); `TestDocsServeTheSwaggerLicenceFiles` | |
+| AC-16 | Done | `TestDependenciesPageShowsLicenceAndShippedSection`, `TestDependenciesLeadCountsDirectModulesOnly` | |
+| AC-17 | Done | `NOTICE` lines 14-19; `website/legal/legal.md` lines 19-24 | |
+| AC-18 | Done | `TestGateRefusesANewlyLinkedModuleWithNoCredit`, `TestGateRefusesAChangedLicenceFileWithStaleData`, `TestGatePassesACommitThatOnlyVendorsAModule`, `TestGateIgnoresAnUncreditedModuleAnUnrelatedCommitLeavesAlone` | |
+| AC-19 | Done | `TestLLMSDependenciesStateEachLicence` | |
+| AC-20 | Done | `TestDocsServeTheSwaggerLicenceFiles` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Every unit test of the TDD table | Done | each in the file the table names; every `func TestX(` found by grep at closure | |
+| `thanks-list`, `thanks-licence`, `thanks-daemon-list`, `thanks-daemon-licence-name`, `pipe-local-command` | Done | `test/ui/`, `test/plugin/` | Each seen red against a broken handler, 80 runs under load |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Every file of Files to Create | Done | Listed at closure with `ls` |
+| Every file of Files to Modify | Done | In the commits named above |
+
+### Audit Summary
+- **Total items:** 4 requirements, 20 AC, every TDD unit test and five functional tests
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0 (deviations above are ordering and extra tests)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A user can see every third-party work the binary carries, with its licence | functional | `test/ui/thanks-list.ci` drives the shipped `ze thanks` and matches the miekg/dns, Go, htmx and ExaBGP rows; seen red against a broken handler |
+| The binary carries the licence texts | functional | `test/ui/thanks-licence.ci` matches the miekg/dns copyright line and its redistribution clause byte for byte from `ze thanks licence` |
+| Every daemon surface reaches the same answer | functional | `test/plugin/thanks-daemon-list.ci` (`show thanks list \| json` keys through a running daemon) and `test/plugin/thanks-daemon-licence-name.ci` (one work, unknown name refused) |
+| The list is complete by construction | unit, in-binary | `TestEveryLinkedModuleHasACredit` over a binary linking the composition root; `./le deps credits check` exit 0; the gate tests refuse a newly linked module with no credit |
+| The website page states the licences | site build | `./le site build` and `./le site check` exit 0; the built page holds "Also in the shipped binary"; `TestDependenciesPageShowsLicenceAndShippedSection` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| The appliance image's own contents (BusyBox, boot code, firmware, gokrazy binaries) | Thomas split it out on 2026-11-20 | `plan/release/delivery/spec-appliance-image-third-party-notices.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/thanks-third-party-credits-f0e369f0-d6a0-46f8-9319-2b30545538dc.md`, recorded by `./le spec review record` over the 9 closure files and the 66 files of the `Spec-work: thanks-third-party-credits` commits (`internal/le/web/vendor/report.go` among them, edited in run 3, and `sync.go` and `vendorweb.go`, edited for lint and judged in run 5) |
+| `./le spec review check` | clean, over the same 75 files |
+| Rounds | 5 |
+| Reviewer lenses used | wiring, functional coverage, documentation and design decisions, security, logic, style; run 3 adds path handling, the bounds on `go list` and file reads, HTML and Markdown escaping, and each test's claim against its body, over the 66 files |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | `DaemonPath` given as constants, so the YANG/handler contract refused the file and `./le doc check all` failed | `internal/plugins/thanks/register.go` `init` | Literals; `TestThanksDaemonPathsMatchTheConstants` |
+| 2 | ISSUE | The contract's refusal named no file, line or registration | `internal/le/doc/yangcontract/contract.go` `collectLocalHandlersFromFile` | Wrapped with position and path; `TestADaemonPathThatIsNotALiteralIsRefusedWhereItIsWritten` |
+| 3 | ISSUE | Five owner rulings lived only in the spec, which closure deletes | `docs/architecture/third-party-credits.md`, Design decisions | Five rows added |
+| 4 | ISSUE | The Design documents row for traffic-usage called it a ported work, against the owner's ruling | this spec, Design documents | Row restated |
+| 5 | ISSUE | Stale comment: `Problem.Kind` said "one of the four constants above" after `43b3d27123` added `ProblemUnlicensed` as a fifth, and `Problem.Source` said it is absent for `ProblemUnsynced` alone, while `licenceCheck` sets no `Source` for `ProblemUnlicensed` either | `internal/le/web/vendor/report.go` `Problem` | Both comments state the five kinds and the two verdicts without a source file (run 3) |
+
+NOTEs, not blocking: the REST licence handler swallows a write error as its siblings do (`internal/component/api/rest/server.go` `licenceHandler`); `LicenceDocument` rebuilds the document per call rather than once per process, bounded by the embedded data.
+
+### Run 3
+
+Scope: the 66 files the commit gate names (`Spec-work: thanks-third-party-credits` commits), read as each commit changed them with `git show <sha> -- <path>`, and whole for the new `internal/le/deps/credits` package; none of the 66 differs from HEAD in the working tree. Result: 1 ISSUE (finding 5), fixed; 0 BLOCKER.
+
+Diagnosis of finding 5: symptom, the `Problem` doc comment counts four kinds and names one source-less verdict; root cause, `licenceCheck` (`internal/le/web/vendor/check.go`) added `ProblemUnlicensed` with no `Source`, and the field comments in `report.go` were not updated; owning layer, the `webvendor` report type; `[workaround]` leave the count and add a note elsewhere, `[source]` correct the two field comments; the workaround leaves a comment that contradicts the code (`ai/rules/stale-comments.md`). No regression test: a comment carries no behavior a test can observe.
+
+NOTEs, not blocking (run 3):
+- `goListModules` (`internal/le/deps/credits/golist.go`): when `go list` writes more than 1 MiB, the `LimitReader` stops reading and the child blocks on its pipe until `goListTimeout` kills it, so the error reads "go list failed: signal: killed" rather than the size refusal. Bounded and never silent.
+- `workFiles`, `entryRefusals` (`internal/le/deps/credits/update.go`, `check.go`) accept a declared `files`, `copyright-file` or `licence-files` path that climbs out of the checkout with `..`. The declaration is curated and review-gated, and the byte comparison in `dataRefusals` refuses a copy CI cannot reproduce.
+- `shippedGroupHTML` (`internal/le/site/dependencies.go`) escapes a work's `source` into `href` but does not check its scheme, and `dependenciesMirror` writes it into a Markdown link unescaped; the value is curated.
+- `holders` (`internal/le/deps/credits/licences.go`) splits a declared holder at ", ", so a holder spelled "Acme, Inc." is checked as two shorter strings: a weaker match, never a false refusal.
+
+### Run 4
+
+Scope: the run 3 fix alone, two field comments of `Problem` in `internal/le/web/vendor/report.go`. Read against `licenceCheck` (`internal/le/web/vendor/check.go`), which builds a `ProblemUnlicensed` with `Kind` and `File` only, and the five `Problem*` constants above the type. 0 BLOCKER, 0 ISSUE, 0 NOTE: clean.
+
+### Run 5
+
+Scope: the main thread's two lint fixes for findings `43b3d27123` introduced, which the owed `./le go lint run scope` of `internal/le/web/vendor` reported. `internal/le/web/vendor/sync.go`: the constants `htmxDir`, `uplotDir`, `swaggerDir` and `restAssetsDir` replace the repeated literals in `assets` and `targetedAssets`, each holding the literal it replaces, so every row names the same directory as before. `internal/le/web/vendor/vendorweb.go`: `holdsLicence` moves below the `vendorPackage` type, unchanged. The main thread's runs after the edits: lint exit 0, `./le web vendor check` exit 0, and the package test red only on `TestEveryAssetDirectoryIsDecided` (another session's fleet assets). 0 BLOCKER, 0 ISSUE. One NOTE: the `srcDir` field comment now gives `htmxDir` as its example, a constant name rather than a path. Clean.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| Every path of Files to Create, and the four `.ci` files | Yes | `ls` at closure listed every path; `internal/core/credits/data/texts/` holds 102 files |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-20 | Each test named in the audit exists | grep `func <Test>(` over `internal/` found every one, none missing; the four `.ci` files hold the `exec=` lines quoted above; package runs green by the main thread |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `ze thanks` | `test/ui/thanks-list.ci` | `exec=ze thanks:exit=0`, four row patterns |
+| `ze thanks licence` | `test/ui/thanks-licence.ci` | `exec=ze thanks licence:exit=0`, copyright and clause lines |
+| `show thanks list` | `test/plugin/thanks-daemon-list.ci` | daemon started, `ze cli -c "show thanks list \| json"` |
+| `show thanks licence \| name` | `test/plugin/thanks-daemon-licence-name.ci` | seq 3 one work, seq 4 unknown name exit 1 |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1, A-2, A-3, A-4, A-5, A-7 | confirmed | Risks & Assumptions table |
+| A-6 | confirmed for IANA; broken for the root certificate data, decided by Thomas (C-2) | Design decisions row on `docs/architecture/third-party-credits.md` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Command reference: local route `ze cli -c "thanks licence \| name ..."` | `internal/test/localdatacoverage/localdatacoverage.go` `localJSON` runs that form | Yes |
+| Plugin pages need no row | `grep` of `docs/guide/plugins.md`, `docs/plugin-overview.md`, `docs/features/plugins.md` finds no `env` or `help` plugin | Yes |
+| `NOTICE` and legal page | `grep -n "recorded beside"` matches `NOTICE` line 12 only, followed by the `ze thanks` paragraph | Yes |

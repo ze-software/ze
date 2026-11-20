@@ -7,7 +7,7 @@
 | Priority | P2 |
 | Release reason | A released appliance image redistributes third-party binaries beside `ze` (a shell, boot code, firmware, the gokrazy programs), and only the Linux kernel has a notice in the image today |
 | RFC gaps | - |
-| Depends | `plan/release/delivery/spec-thanks-third-party-credits.md` |
+| Depends | - |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-11-20 |
@@ -22,10 +22,10 @@ states every third-party work it contains, with its licence, its copyright
 holder and where its source is obtained, and that `ze thanks` on an appliance
 lists those works beside the ones compiled into the binary.
 
-This spec was split from `plan/release/delivery/spec-thanks-third-party-credits.md`
-by Thomas on 2026-11-20: that spec covers what is compiled into `ze`, this one
-what the image carries beside it. It reuses that spec's declaration, its
-credits list and its commands.
+This spec was split from spec-thanks-third-party-credits (closed) by Thomas on
+2026-11-20: that spec covered what is compiled into `ze`, this one what the
+image carries beside it. It reuses that work's declaration, its credits list
+and its commands, which `docs/architecture/third-party-credits.md` describes.
 
 What research found on 2026-11-20, each to be re-read at the source before the
 design is written:

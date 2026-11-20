@@ -243,3 +243,28 @@ func TestThanksRefusesWithoutCredits(t *testing.T) {
 		}
 	}
 }
+
+// TestThanksDaemonPathsMatchTheConstants: each registration's DaemonPath, a
+// literal because the YANG/handler contract reads it from source, is the
+// daemon path the refusals name and the shape and column declarations key on.
+// Method: read both registrations back from the local command registry this
+// package's init() filled, and compare each DaemonPath with its constant.
+func TestThanksDaemonPathsMatchTheConstants(t *testing.T) {
+	want := map[string]string{"thanks": commandList, pathLicence: commandLicence}
+	seen := make(map[string]bool, len(want))
+	for _, entry := range command.ListLocal() {
+		daemonPath, registered := want[entry.Path]
+		if !registered {
+			continue
+		}
+		seen[entry.Path] = true
+		if entry.Meta.DaemonPath != daemonPath {
+			t.Errorf("registration %q names daemon path %q, want %q", entry.Path, entry.Meta.DaemonPath, daemonPath)
+		}
+	}
+	for path := range want {
+		if !seen[path] {
+			t.Errorf("no local command is registered at %q", path)
+		}
+	}
+}

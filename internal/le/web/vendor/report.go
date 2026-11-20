@@ -46,14 +46,15 @@ const (
 // Problem is one thing the drift comparison found, and it is one ROW of the
 // check's answer.
 type Problem struct {
-	// Kind is one of the four constants above.
+	// Kind is one of the five constants above.
 	Kind string `json:"kind"`
 	// File is the consumer copy the problem is about, relative to the tree. For
 	// ProblemUnsynced and ProblemUnlicensed it is the vendored package
 	// directory instead, because those verdicts are about a whole package.
 	File string `json:"file"`
 	// Source is the third_party/web/ file the copy is compared against. It is
-	// absent for ProblemUnsynced, which names no single file.
+	// absent for ProblemUnsynced and ProblemUnlicensed, which name no single
+	// file.
 	Source string `json:"source,omitempty"`
 	// Detail is the read error, for ProblemUnreadable alone.
 	Detail string `json:"detail,omitempty"`

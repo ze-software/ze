@@ -79,11 +79,6 @@ func isLicenceFile(name string) bool {
 	return false
 }
 
-// holdsLicence says whether a vendored package holds a licence file.
-func (pkg vendorPackage) holdsLicence() bool {
-	return slices.ContainsFunc(pkg.files, isLicenceFile)
-}
-
 // vendorPackage is one directory under third_party/web/ and the file names it
 // holds. The directory is the unit a consumer subscribes to, so an asset that
 // belongs to one consumer alone gets its own directory (swagger-ui/ is that
@@ -91,6 +86,11 @@ func (pkg vendorPackage) holdsLicence() bool {
 type vendorPackage struct {
 	dir   string   // directory name, e.g. "htmx"
 	files []string // file names, sorted
+}
+
+// holdsLicence says whether a vendored package holds a licence file.
+func (pkg vendorPackage) holdsLicence() bool {
+	return slices.ContainsFunc(pkg.files, isLicenceFile)
 }
 
 // vendorPackages reads the source of truth. It fails when the tree holds no

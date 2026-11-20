@@ -27,21 +27,25 @@ func init() {
 		Subs:      "licence",
 	})
 	source := compiledCredits{}
+	// Each path and each DaemonPath is a literal, not pathLicence, commandList
+	// or commandLicence: the registry's coverage test and the YANG/handler
+	// contract (internal/le/doc/yangcontract declaredDaemonPath) read them from
+	// the source and refuse a name they cannot resolve.
+	// TestThanksDaemonPathsMatchTheConstants compares the literals with the
+	// constants the refusals and the shape declarations use.
 	command.MustRegisterLocalData("thanks", listHandler(source), registry.Meta{
 		ShortHelp: "List the third-party works this binary carries, with version, licence and copyright.",
 		Description: "Each row names one work Ze is built on, the version this binary carries, its licence, " +
 			"its copyright holder and why Ze uses it.",
 		Mode:       modeOffline,
-		DaemonPath: commandList,
+		DaemonPath: "show thanks list",
 	}, command.RenderLocalAnswer)
-	// The path is a literal, not pathLicence: the registry's coverage test
-	// reads each registration's path from the source.
 	command.MustRegisterLocalData("thanks licence", licenceHandler(source), registry.Meta{
 		ShortHelp: "Print the licence texts of the third-party works this binary carries.",
 		Description: "The document holds each licence text as its work ships it, after the works it covers " +
 			"and their copyright lines. The name pipe operation narrows it to one work.",
 		Mode:       modeOffline,
-		DaemonPath: commandLicence,
+		DaemonPath: "show thanks licence",
 	}, command.RenderLocalAnswer)
 
 	// The shape and the column order belong to the answer, so each is declared
