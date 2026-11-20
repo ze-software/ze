@@ -100,12 +100,14 @@ func productDiscovery(wire []byte, local string, sessions []productSession) erro
 	}
 	stages := make(map[string]int, len(sessions))
 	var record pcap.Record
+	frameIndex := 0
 	for {
 		if err := reader.Next(&record); errors.Is(err, io.EOF) {
 			break
 		} else if err != nil {
 			return err
 		}
+		frameIndex++
 		frame := record.Data
 		if record.OriginalLen != len(frame) || len(frame) < 20 {
 			return errors.New("discovery capture contains a truncated Ethernet frame")
@@ -138,14 +140,14 @@ func productDiscovery(wire []byte, local string, sessions []productSession) erro
 		switch code {
 		case 0x09:
 			if sid != 0 || destination != "ff:ff:ff:ff:ff:ff" {
-				return errors.New("PADI has a nonzero SID or nonbroadcast destination")
+				return fmt.Errorf("PADI has a nonzero SID or nonbroadcast destination: %s", describeDiscoveryFrame(frameIndex, source, destination, sid, stages[client]))
 			}
 			if stages[client] == 0 {
 				stages[client] = 1
 			}
 		case 0x07:
 			if stages[client] < 1 || source != local || sid != 0 {
-				return errors.New("PADO did not answer the real PADI from the access MAC")
+				return fmt.Errorf("PADO did not answer the real PADI from the access MAC %s: %s", local, describeDiscoveryFrame(frameIndex, source, destination, sid, stages[client]))
 			}
 			if err := productDiscoveryTags(packet[6 : 6+length]); err != nil {
 				return err
@@ -155,14 +157,14 @@ func productDiscovery(wire []byte, local string, sessions []productSession) erro
 			}
 		case 0x19:
 			if stages[client] < 2 || destination != local || sid != 0 {
-				return errors.New("PADR did not select the observed access concentrator")
+				return fmt.Errorf("PADR did not select the observed access concentrator %s: %s", local, describeDiscoveryFrame(frameIndex, source, destination, sid, stages[client]))
 			}
 			if stages[client] < 3 {
 				stages[client] = 3
 			}
 		case 0x65:
 			if stages[client] < 3 || source != local || sid != wanted || sid == 0 {
-				return errors.New("PADS wire SID/MAC differs from the real daemon/native owner")
+				return fmt.Errorf("PADS wire SID/MAC differs from the real daemon/native owner (SID %d, access MAC %s): %s", wanted, local, describeDiscoveryFrame(frameIndex, source, destination, sid, stages[client]))
 			}
 			if err := productDiscoveryTags(packet[6 : 6+length]); err != nil {
 				return err
@@ -212,4 +214,11 @@ func productDiscoveryTags(payload []byte) error {
 		return errors.New("PADO/PADS lacks the configured AC-Name or Service-Name")
 	}
 	return nil
+}
+
+// describeDiscoveryFrame names one captured discovery frame for a refusal: its
+// position in the capture, its addresses and SID, and how far its
+// subscriber's exchange had got (0 none, 1 PADI, 2 PADO, 3 PADR).
+func describeDiscoveryFrame(index int, source, destination string, sid uint16, stage int) string {
+	return fmt.Sprintf("frame %d src %s dst %s sid %d, exchange at stage %d", index, source, destination, sid, stage)
 }
