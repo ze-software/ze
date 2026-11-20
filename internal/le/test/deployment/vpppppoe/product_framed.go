@@ -29,6 +29,9 @@ const (
 	radiusNASHost   = 6
 	radiusNASDevice = "rad0"
 	radiusNASMAC    = "02:00:00:52:00:06"
+	// framedLinuxDropPriority orders the eth0 blackhole rule after the local
+	// table's rule (0), so the container's own addresses still answer.
+	framedLinuxDropPriority = "100"
 	// radiusSecret is a fixture value published in this repository. It never
 	// protects anything, and it must not resemble an operator secret.
 	radiusSecret = "ze-vpp-framed-fixture-secret"
@@ -210,6 +213,16 @@ func framedNAS(ctx context.Context, check *interoplab.CheckContext) (string, err
 		return "", err
 	}
 	if _, err := query(ctx, lab, vppPeer, "ip", "link", "set", radiusNASDevice, "up"); err != nil {
+		return "", err
+	}
+	// VPP reads eth0 through AF_PACKET with eth0's own MAC, so Linux in this
+	// container receives every frame sent to VPP as well. With the macvlan's
+	// address it would route them, and answer a ping to a subscriber with
+	// "Net Unreachable" from that address before VPP's reply arrives. IPv4
+	// forwarding is inherited from the Docker host and /proc/sys is read-only
+	// here, so a rule discards what Linux would route from eth0 instead; a
+	// blackhole rule sends no ICMP, and VPP's AF_PACKET copy is untouched.
+	if _, err := query(ctx, lab, vppPeer, "ip", "rule", "add", "iif", accessDevice, "priority", framedLinuxDropPriority, "blackhole"); err != nil {
 		return "", err
 	}
 	return framedAuth(nas, server), nil
