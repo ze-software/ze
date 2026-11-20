@@ -11,6 +11,8 @@
 package rib
 
 import (
+	"slices"
+
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -95,41 +97,35 @@ func init() {
 	)
 }
 
+// registerPipeFilters declares the pipe operations each RIB reader runs in the
+// bgp-rib plugin. The engine hands them to the reader as its declared list, in
+// the order typed (command.ValidatedArgs.PipeOperations); none of them is ever
+// a word of the command line, and the argument validator refuses one typed as
+// an argument, with the pipe form as its fix (command.RefusePipeOperationWords).
+//
+// Each reader states its own set, because each reads a different table:
+//   - `show bgp rib` and `show bgp peer rib` forward to the same plugin command
+//     (forwardRibRoutes), so they declare one set, the scope words included.
+//     `show bgp peer rib` inherits nothing: it sits under `show bgp peer`.
+//   - `show bgp rib protocol` reads the Adj-RIB-In tables one protocol feeds,
+//     which hold received routes only, so it declares no scope word and a
+//     scope typed there is refused with its valid set. Without its own set it
+//     would inherit the scope words of `show bgp rib` by prefix and accept
+//     them to do nothing.
+//   - `show bgp rib best` reads best paths, which are received routes too, and
+//     declares neither a scope nor covering and exact, which its reader
+//     refuses (rib_pipeline_covering.go). It adds reason.
+//
+// count, first, last and match are overrides of the generic operations of the
+// same names: each keeps the generic's argument kind, which RegisterPipeFilters
+// refuses otherwise, and its meaning and answer shape.
 func registerPipeFilters() {
-	command.RegisterPipeFilters([]string{cmdRibShow},
-		command.PipeFilter{Name: "received", Description: "Select received routes"},
-		command.PipeFilter{Name: "advertised", Description: "Select advertised routes"},
-		command.PipeFilter{Name: "peer", Description: "Filter by peer", Argument: command.ArgText},
-		command.PipeFilter{Name: "family", Description: "Filter by AFI/SAFI", Argument: command.ArgText},
-		command.PipeFilter{Name: "prefix", Description: "Filter by prefix", Argument: command.ArgText},
-		// covering and exact take the received scope only, and `show bgp rib
-		// best` refuses both, so they are declared here and not below
-		// (rib_pipeline_covering.go).
-		command.PipeFilter{Name: "covering", Description: "Received routes whose prefix contains an IP address", Argument: command.ArgText},
-		command.PipeFilter{Name: "exact", Description: "Received routes of exactly one prefix", Argument: command.ArgText},
-		command.PipeFilter{Name: "path", Description: "Filter by AS path", Argument: command.ArgText},
-		command.PipeFilter{Name: "community", Description: "Filter by standard community", Argument: command.ArgText},
-		command.PipeFilter{Name: "match", Description: "Cross-field structured match", Argument: command.ArgText},
-		command.PipeFilter{Name: "count", Description: "Count matching routes without serializing rows"},
-		command.PipeFilter{Name: "first", Description: "Take first N routes", Argument: command.ArgCount},
-		command.PipeFilter{Name: "last", Description: "Take last N routes", Argument: command.ArgCount},
-		command.PipeFilter{Name: "histogram", Description: "Count routes by family and prefix length"},
-		command.PipeFilter{Name: "graph", Description: "Render AS-path topology graph"},
-	)
+	command.RegisterPipeFilters([]string{cmdRibShow, cmdBgpPeerRib},
+		slices.Concat(ribScopeFilters(), ribAttributeFilters(), ribSourceFilters(), ribRouteReducers())...)
+	command.RegisterPipeFilters([]string{cmdRibProtocol},
+		slices.Concat(ribAttributeFilters(), ribSourceFilters(), ribRouteReducers())...)
 	command.RegisterPipeFilters([]string{cmdRibBest},
-		command.PipeFilter{Name: "peer", Description: "Filter by peer", Argument: command.ArgText},
-		command.PipeFilter{Name: "family", Description: "Filter by AFI/SAFI", Argument: command.ArgText},
-		command.PipeFilter{Name: "prefix", Description: "Filter by prefix", Argument: command.ArgText},
-		command.PipeFilter{Name: "path", Description: "Filter by AS path", Argument: command.ArgText},
-		command.PipeFilter{Name: "community", Description: "Filter by standard community", Argument: command.ArgText},
-		command.PipeFilter{Name: "match", Description: "Cross-field structured match", Argument: command.ArgText},
-		command.PipeFilter{Name: "count", Description: "Count matching best paths without serializing rows"},
-		command.PipeFilter{Name: "first", Description: "Take first N best paths", Argument: command.ArgCount},
-		command.PipeFilter{Name: "last", Description: "Take last N best paths", Argument: command.ArgCount},
-		command.PipeFilter{Name: "histogram", Description: "Count routes by family and prefix length"},
-		command.PipeFilter{Name: "graph", Description: "Render AS-path topology graph"},
-		command.PipeFilter{Name: "reason", Description: "Explain best-path selection"},
-	)
+		slices.Concat(ribAttributeFilters(), ribBestReducers())...)
 	// Scalar-result commands: an EMPTY filter set, not an absent one. Filter
 	// lookup is longest-prefix (command.commandMatchesPrefix), so without this
 	// they would inherit cmdRibShow's route filters via the "show bgp rib"
@@ -173,6 +169,70 @@ func registerPipeFilters() {
 	command.RegisterAddressFields([]string{cmdRibShow}, fieldPeer, fieldNextHop)
 
 	registerRibAnswerShapes()
+}
+
+// ribScopeFilters answers the scope operations: which direction of the RIB a
+// route reader reads. Four names for three scopes, as scopeKeywords
+// (internal/component/bgp/plugins/rib/rib_pipeline.go) resolves them:
+// advertised and sent are two spellings of one scope. The reader accepts one
+// scope at any position of the declared list and refuses a second.
+func ribScopeFilters() []command.PipeFilter {
+	return []command.PipeFilter{
+		{Name: "received", Description: "Select received routes"},
+		{Name: "advertised", Description: "Select advertised routes"},
+		{Name: "sent", Description: "Select advertised routes, another spelling of advertised"},
+		{Name: "sent-received", Description: "Select received and advertised routes, the default"},
+	}
+}
+
+// ribAttributeFilters answers the selections every RIB reader runs over the
+// routes it reads: by peer, family, prefix, AS path, community, or a match
+// across the route's fields.
+func ribAttributeFilters() []command.PipeFilter {
+	return []command.PipeFilter{
+		{Name: "peer", Description: "Filter by peer", Argument: command.ArgText},
+		{Name: "family", Description: "Filter by AFI/SAFI", Argument: command.ArgText},
+		{Name: "prefix", Description: "Filter by prefix", Argument: command.ArgText},
+		{Name: "path", Description: "Filter by AS path", Argument: command.ArgText},
+		{Name: "aspath", Description: "Filter by AS path, another spelling of path", Argument: command.ArgText},
+		{Name: "community", Description: "Filter by standard community", Argument: command.ArgText},
+		{Name: "match", Description: "Cross-field structured match", Argument: command.ArgText},
+	}
+}
+
+// ribSourceFilters answers the two source selections the received walk reads
+// (rib_pipeline_covering.go). `show bgp rib best` refuses both, so it does not
+// declare them.
+func ribSourceFilters() []command.PipeFilter {
+	return []command.PipeFilter{
+		{Name: "covering", Description: "Received routes whose prefix contains an IP address", Argument: command.ArgText},
+		{Name: "exact", Description: "Received routes of exactly one prefix", Argument: command.ArgText},
+	}
+}
+
+// ribRouteReducers answers the operations that reduce or present the routes a
+// route reader selected.
+func ribRouteReducers() []command.PipeFilter {
+	return []command.PipeFilter{
+		{Name: "count", Description: "Count matching routes without serializing rows"},
+		{Name: "first", Description: "Take first N routes", Argument: command.ArgCount},
+		{Name: "last", Description: "Take last N routes", Argument: command.ArgCount},
+		{Name: "histogram", Description: "Count routes by family and prefix length"},
+		{Name: "graph", Description: "Render AS-path topology graph"},
+	}
+}
+
+// ribBestReducers answers the reductions of `show bgp rib best`, whose rows are
+// best paths, and reason, which only a best-path answer can give.
+func ribBestReducers() []command.PipeFilter {
+	return []command.PipeFilter{
+		{Name: "count", Description: "Count matching best paths without serializing rows"},
+		{Name: "first", Description: "Take first N best paths", Argument: command.ArgCount},
+		{Name: "last", Description: "Take last N best paths", Argument: command.ArgCount},
+		{Name: "histogram", Description: "Count routes by family and prefix length"},
+		{Name: "graph", Description: "Render AS-path topology graph"},
+		{Name: "reason", Description: "Explain best-path selection"},
+	}
 }
 
 // registerRibAnswerShapes declares what the rib commands OTHER than
@@ -274,11 +334,22 @@ func forwardRibStatus(ctx *pluginserver.CommandContext, validated command.Valida
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdRibStatus, args, ctx.PeerSelector())
 }
 
+// forwardRibRoutes forwards `show bgp rib` and `show bgp peer <selector> rib`
+// to the plugin's route read. The selection is not in the arguments: it is the
+// list of pipe operations the engine declared for the line, which Dispatch
+// puts on ctx beside validated (CommandContext.PipeOperations) and which
+// ForwardToPlugin writes into the request (routeToProcess,
+// ExecuteCommandInput.Pipe), the same for an internal and a forked bgp-rib.
+// The route read builds its stages from that list alone. A token left on the
+// path is forwarded as it stands, so the plugin refuses it by its one
+// refusal (refuseRouteReadArguments) rather than this forwarder dropping it.
 func forwardRibRoutes(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
 	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdRibShow, args, ctx.PeerSelector())
 }
 
+// forwardRibBest forwards `show bgp rib best`, its declared pipe operations
+// carried on ctx as forwardRibRoutes states.
 func forwardRibBest(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
 	args := validated.Tokens()
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdRibBest, args, ctx.PeerSelector())
@@ -452,10 +523,12 @@ func forwardRibRPF(ctx *pluginserver.CommandContext, validated command.Validated
 // internal/component/plugin/server).
 const protocolLeaf = "protocol"
 
-// protocolArgs puts the bound protocol back in front of the pipeline words,
-// which is where the bgp-rib plugin reads it: the plugin's own dispatch route
-// (`DispatchCommandArgs`, used by bmp) hands the protocol as the first
-// argument, and the handler holds one reading for both routes.
+// protocolArgs puts the bound protocol back in front of the tokens left on the
+// path, which is where the bgp-rib plugin reads it: the plugin's own dispatch
+// route (`DispatchCommandArgs`, used by bmp) hands the protocol as the first
+// argument, and the handler holds one reading for both routes. The selection
+// travels as the declared pipe operations on ctx (forwardRibRoutes), so after
+// the protocol the plugin expects no token and refuses one.
 func protocolArgs(ctx *pluginserver.CommandContext, args []string) []string {
 	out := make([]string, 0, len(args)+1)
 	out = append(out, ctx.Selector(protocolLeaf))

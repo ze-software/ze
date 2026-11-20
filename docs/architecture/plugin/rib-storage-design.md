@@ -2921,16 +2921,28 @@ received row.
 <!-- source: internal/component/bgp/plugins/rib/rib_pipeline.go -- showPipeline, newShowSource, inboundSource, lastFilter -->
 <!-- source: internal/component/bgp/plugins/rib/rib_pipeline_bestfact.go -- markBestFacts, bestFactOf, writeBestFact -->
 
-Invalid arguments to `show bgp rib` and `show bgp rib best` produce an error
-verdict before the route walk starts. The refusal preserves the parser's reason
-and names a valid count command to start from. A JSON object containing an
+The route reads (`show bgp rib`, `show bgp rib best`, `show bgp rib protocol`)
+build their stages from the pipe operations the engine declared for the line,
+handed to the plugin as the ordered list `ExecuteCommandInput.Pipe` on DirectBridge
+and on the forked transport alike; they read no selection from their
+arguments. A scope is taken at any position before the terminal, a second scope
+is refused naming both, and `show bgp rib protocol` refuses a scope. A selection
+word typed as an argument is refused by the engine's argument validator before
+the plugin is reached, and any other word left on the path by the plugin, with
+the pipe form as the fix. The `json` word the RIB once took as a terminal is
+gone: `| json` is the engine's format over the bare answer, which holds the same
+rows. Invalid operations produce an error verdict before the route walk starts.
+The refusal preserves the parser's reason and names a valid count command, in the
+pipe form, to start from. A JSON object containing an
 `error` member is not a successful route answer. Terminal failures, such as an
 oversized graph, use the same refusal path.
-<!-- source: internal/component/bgp/plugins/rib/rib_topology.go -- refusePipelineArgs, commandAnswer -->
+<!-- source: internal/component/bgp/plugins/rib/rib_topology.go -- refusePipeline, commandAnswer -->
+<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- registerPipelineCommand, refuseRouteReadArguments, refuseUndeclaredOperation -->
+<!-- source: internal/component/bgp/plugins/rib/rib_inject.go -- showProtocolPipeline, refuseProtocolScope -->
 
 ### The covering read
 
-`show bgp rib received covering <address>` answers every received route whose
+`show bgp rib | received | covering <address>` answers every received route whose
 prefix contains one IPv4 or IPv6 address: within each peer the most specific
 prefix first, across the peer's families (two families holding a prefix of one
 length answer it in family order), with every ADD-PATH path of each prefix. It is
@@ -2954,7 +2966,7 @@ its `Store.Covering` scans the map and sorts the matches; the cost bound belongs
 to the default backend.
 
 `covering` is a source selector, like `peer`, and not a filter stage:
-`parsePipelineArgs` reads the address once into a `receivedWalk`, and the
+`parsePipelineOperations` reads the address once into a `receivedWalk`, and the
 received sources (`inboundSource`, and `protocolInboundSource` for `show bgp rib
 protocol`) read each peer through that walk. A stage would see every row the
 source yields, which is the scan the read exists to avoid. The walk changes
@@ -2973,11 +2985,11 @@ too: its source collects prefixes with a whole-table walk of every peer.
 <!-- source: internal/component/bgp/plugins/rib/storage/familyrib.go -- iterateCovering, familyHoldsAddress -->
 <!-- source: internal/component/bgp/plugins/rib/storage/peerrib.go -- IterateCovering, iterateExact over several families -->
 <!-- source: internal/component/bgp/plugins/rib/rib_pipeline_covering.go -- receivedWalk, coveringRead, parseCoveringAddress, refuseCoveringScope, coveringOnBestRefusal -->
-<!-- source: internal/component/bgp/plugins/rib/rib_pipeline.go -- parsePipelineArgs, showPipeline, inboundSource -->
+<!-- source: internal/component/bgp/plugins/rib/rib_pipeline.go -- parsePipelineOperations, showPipeline, inboundSource -->
 
 ### The exact read
 
-`show bgp rib received exact <prefix>` answers the received routes whose prefix
+`show bgp rib | received | exact <prefix>` answers the received routes whose prefix
 is that prefix: within each peer, family by family, every ADD-PATH path of it.
 It is the read a looking glass needs when a user types a prefix with its mask.
 The `prefix` filter cannot answer that question. It is a text filter
@@ -2997,7 +3009,7 @@ a family of the other IP version, contribute nothing.
 `receivedWalk` is a sealed interface of three variants, each holding only its
 own payload, so no walk can name both an address and a prefix:
 `wholeTableRead` reads the whole table, `coveringRead` the routes containing an
-address, `exactRead` the routes of one prefix. `parsePipelineArgs` answers
+address, `exactRead` the routes of one prefix. `parsePipelineOperations` answers
 `wholeTableRead` when neither keyword is given, and no walk at all beside a
 refusal. It reads the value once. It refuses a bare
 address (naming the `covering` form), a value that is not a prefix, a zone, and
@@ -3011,7 +3023,7 @@ form, since neither the sent sources nor the best-path source take a walk.
 <!-- source: internal/component/bgp/plugins/rib/storage/familyrib.go -- iterateExact -->
 <!-- source: internal/component/bgp/plugins/rib/storage/peerrib.go -- IterateExact, appendAddressFamilies -->
 <!-- source: internal/component/bgp/plugins/rib/rib_pipeline_covering.go -- receivedWalk, wholeTableRead, coveringRead, exactRead, parseExactPrefix, exactValueRefusal, walkConflictRefusal, refuseExactScope, exactOnBestRefusal -->
-<!-- source: internal/component/bgp/plugins/rib/rib_pipeline.go -- prefixFilter, parsePipelineArgs, showPipeline -->
+<!-- source: internal/component/bgp/plugins/rib/rib_pipeline.go -- prefixFilter, parsePipelineOperations, showPipeline -->
 
 ### Example: IPv4 Unicast
 

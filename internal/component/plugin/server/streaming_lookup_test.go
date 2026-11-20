@@ -38,7 +38,9 @@ func TestStreamingLookupPartitions(t *testing.T) {
 			return err
 		})
 	t.Cleanup(func() { UnregisterStreamingHandler(prefix) })
-	t.Cleanup(command.ResetPipeFiltersForTest)
+	// Restored rather than reset: the binary links plugin/all, whose init()
+	// declarations a later test reads.
+	t.Cleanup(command.EmptyPipeFiltersForTest())
 	command.RegisterPipeFilters([]string{prefix},
 		command.PipeFilter{Name: "only", Description: "Keep the events of one state", Argument: command.ArgText})
 

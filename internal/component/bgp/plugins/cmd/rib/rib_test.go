@@ -40,6 +40,7 @@ func TestRibProxyRPCRegistration(t *testing.T) {
 		"ze-bgp:rib-best-status",
 		"ze-bgp:rib-clear-in",
 		"ze-bgp:rib-clear-out",
+		"ze-bgp:rib-clear-out-excluding-owner",
 		"ze-bgp:rib-rpf",
 		"ze-bgp:rib-inject",
 		"ze-bgp:rib-withdraw",

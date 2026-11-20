@@ -33,9 +33,11 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/internal/core/stringsx"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // grTimerMargin is the extra time added to restart-time for the RIB's safety-net timer.
@@ -110,13 +112,31 @@ func (r *RIBManager) autoExpireStale(peerOwner uint64, owner *peerGRState) {
 	}
 }
 
-// CommandHandler is the signature for RIB command handlers. Every handler is
-// registered by doRegisterBuiltinCommands, which is the table's only writer.
+// CommandHandler is the signature for RIB command handlers that take no pipe
+// operation. Every handler is registered by doRegisterBuiltinCommands, which
+// is the table's only writer.
 type CommandHandler func(r *RIBManager, selector string, args []string) (string, any, error)
 
-// ribCommandEntry holds a registered command handler and its help text.
+// PipelineHandler is the signature of a RIB command that declares pipe
+// operations: the route reads `show bgp rib`, `show bgp rib best` and
+// `show bgp rib protocol`. pipe is the list the engine declared for the line,
+// in chain order (ExecuteCommandInput.Pipe), and the handler builds its stages
+// from it alone; args holds what the model bound on the path.
+type PipelineHandler func(r *RIBManager, selector string, args []string, pipe []sdk.PipeOperation) (string, any, error)
+
+// The paths of the three route reads, the commands whose stages are built
+// from the declared pipe operations.
+const (
+	cmdShowRIB         = "show bgp rib"
+	cmdShowRIBBest     = "show bgp rib best"
+	cmdShowRIBProtocol = "show bgp rib protocol"
+)
+
+// ribCommandEntry holds a registered command handler and its help text. run
+// takes the declared list for every command: a command registered through
+// registerCommand refuses a non-empty one rather than ignore it.
 type ribCommandEntry struct {
-	Handler     CommandHandler
+	run         PipelineHandler
 	Description string
 }
 
@@ -132,14 +152,63 @@ var registeredCommands = map[string]*ribCommandEntry{}
 // builtinsOnce guards against concurrent/double-registration of builtin commands.
 var builtinsOnce sync.Once
 
-// registerCommand adds a command handler to the dispatch table.
-// Returns an error if the command name is already registered.
+// registerCommand adds a command that declares no pipe operation to the
+// dispatch table. Returns an error if the command name is already registered.
+//
+// The engine hands a command only the operations it declared, so a non-empty
+// list here means a declaration and this table disagree. The entry refuses it,
+// naming the first operation, rather than answer as if it had not been typed.
 func registerCommand(name, help string, handler CommandHandler) error {
+	return registerPipelineCommand(name, help, func(r *RIBManager, selector string, args []string, pipe []sdk.PipeOperation) (string, any, error) {
+		if len(pipe) > 0 {
+			return statusError, "", refuseUndeclaredOperation(name, pipe[0].Name)
+		}
+		return handler(r, selector, args)
+	})
+}
+
+// registerPipelineCommand adds a command that reads the declared pipe
+// operations to the dispatch table. Returns an error if the command name is
+// already registered.
+func registerPipelineCommand(name, help string, handler PipelineHandler) error {
 	if _, exists := registeredCommands[name]; exists {
 		return fmt.Errorf("RIB command %q already registered", name)
 	}
-	registeredCommands[name] = &ribCommandEntry{Handler: handler, Description: help}
+	registeredCommands[name] = &ribCommandEntry{run: handler, Description: help}
 	return nil
+}
+
+// refuseUndeclaredOperation is the refusal of a pipe operation handed to a
+// command that declares none.
+func refuseUndeclaredOperation(name, operation string) error {
+	var problem, fix textbuf.Buffer
+	problem.Str(name).Str(" declares no pipe operation, and was handed ").Str(operation)
+	fix.Str("show command help \"").Str(name).Str("\"")
+	return opererr.New(problem.String(),
+		"The engine hands a command only the operations it declares, so the command and its declaration disagree.",
+		fix.String())
+}
+
+// refuseRouteReadArguments refuses a word left on the path of a route read.
+// The route reads take their selection as pipe operations, which the engine
+// hands as the declared list, so a word here was bound to nothing and cannot
+// be read. The engine's argument validator already refuses a declared
+// operation's name typed as an argument (command.RefusePipeOperationWords);
+// this answers any other word, on every route into the plugin.
+func refuseRouteReadArguments(path string, args []string) (pipelineRefusal, bool) {
+	if len(args) == 0 {
+		return pipelineRefusal{}, false
+	}
+	var problem, fix textbuf.Buffer
+	problem.Str(path).Str(" takes its selection after a pipe, and was given the argument ").Str(args[0])
+	fix.Str(path)
+	if path == cmdShowRIBProtocol {
+		fix.Str(" bmp")
+	}
+	fix.Str(" | count")
+	return pipelineRefusal{reason: opererr.New(problem.String(),
+		"The route list was not read because a word on the command path selects nothing.",
+		fix.String())}, true
 }
 
 // registerBuiltinCommands populates the command table with RIB-native commands
@@ -168,10 +237,6 @@ func doRegisterBuiltinCommands() {
 					fam = args[0]
 				}
 				return statusDone, r.status(fam), nil
-			}},
-		{[]string{"show bgp rib"}, "Show routes (scope: sent|received|sent-received, filters, terminals)",
-			func(r *RIBManager, sel string, args []string) (string, any, error) {
-				return commandAnswer(r.showPipeline(sel, args))
 			}},
 		{[]string{"clear bgp rib in"}, "Clear Adj-RIB-In routes",
 			func(r *RIBManager, _ string, args []string) (string, any, error) {
@@ -231,10 +296,6 @@ func doRegisterBuiltinCommands() {
 			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				return r.purgeStaleCommand(args)
 			}},
-		{[]string{"show bgp rib best"}, "Show best-path per prefix (add 'reason' terminal to narrate the RFC 4271 §9.1.2 decision process)",
-			func(r *RIBManager, sel string, args []string) (string, any, error) {
-				return commandAnswer(r.bestPipeline(sel, args))
-			}},
 		{[]string{"show bgp rib best status"}, "Show best-path computation status",
 			func(r *RIBManager, _ string, _ []string) (string, any, error) {
 				return statusDone, r.bestPathStatus(), nil
@@ -273,7 +334,37 @@ func doRegisterBuiltinCommands() {
 
 	for _, b := range builtins {
 		for _, name := range b.names {
-			registeredCommands[name] = &ribCommandEntry{Handler: b.handler, Description: b.help}
+			if err := registerCommand(name, b.help, b.handler); err != nil {
+				panic("BUG: rib command " + name + " registered twice: " + err.Error())
+			}
+		}
+	}
+
+	// The two route reads build their stages from the declared pipe operations
+	// alone (parsePipelineOperations, parseBestPipelineOperations).
+	pipelines := []struct {
+		name    string
+		help    string
+		handler PipelineHandler
+	}{
+		{cmdShowRIB, "Show routes (scope: sent|received|sent-received, filters, terminals)",
+			func(r *RIBManager, sel string, args []string, pipe []sdk.PipeOperation) (string, any, error) {
+				if refusal, refused := refuseRouteReadArguments(cmdShowRIB, args); refused {
+					return commandAnswer(refusal)
+				}
+				return commandAnswer(r.showPipeline(sel, pipe))
+			}},
+		{cmdShowRIBBest, "Show best-path per prefix (add the reason terminal to narrate the RFC 4271 §9.1.2 decision process)",
+			func(r *RIBManager, sel string, args []string, pipe []sdk.PipeOperation) (string, any, error) {
+				if refusal, refused := refuseRouteReadArguments(cmdShowRIBBest, args); refused {
+					return commandAnswer(refusal)
+				}
+				return commandAnswer(r.bestPipeline(sel, pipe))
+			}},
+	}
+	for _, p := range pipelines {
+		if err := registerPipelineCommand(p.name, p.help, p.handler); err != nil {
+			panic("BUG: rib command " + p.name + " registered twice: " + err.Error())
 		}
 	}
 
@@ -624,11 +715,13 @@ const (
 )
 
 // handleCommand processes command requests via SDK execute-command callback.
-// Dispatches to registered handlers from the command table.
+// Dispatches to registered handlers from the command table, with pipe, the
+// operations the engine declared for the line in chain order (none for a
+// command that declares none).
 // Returns (status, data, error) for the SDK to send back to the engine.
-func (r *RIBManager) handleCommand(command, selector string, args []string) (string, any, error) {
+func (r *RIBManager) handleCommand(command, selector string, args []string, pipe ...sdk.PipeOperation) (string, any, error) {
 	if entry, ok := registeredCommands[command]; ok {
-		return entry.Handler(r, selector, args)
+		return entry.run(r, selector, args, pipe)
 	}
 	return statusError, "", fmt.Errorf("unknown command: %s", command)
 }

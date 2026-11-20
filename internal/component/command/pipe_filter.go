@@ -161,3 +161,13 @@ func filterSuggestions(command string) []Suggestion {
 func ResetPipeFiltersForTest() {
 	pipeFilterRegistry.reset()
 }
+
+// EmptyPipeFiltersForTest empties the pipe-filter registry for one test and
+// answers the function that restores what it held, which the test MUST call
+// when it ends, typically through t.Cleanup. Unlike ResetPipeFiltersForTest it
+// gives back the declarations init() made, so a later test of the same binary
+// that links their package (plugin/all) still reads them. Not safe for
+// concurrent use with another test that empties or resets the registry.
+func EmptyPipeFiltersForTest() (restore func()) {
+	return pipeFilterRegistry.emptyForTest()
+}

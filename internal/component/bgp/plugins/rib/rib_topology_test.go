@@ -119,7 +119,7 @@ func TestGraphCommandAnswerStatus(t *testing.T) {
 	assert.Contains(t, err.Error(), "105 nodes")
 
 	r := newTestRIBManager(t)
-	status, _, err = commandAnswer(r.showPipeline("*", []string{"received", "graph"}))
+	status, _, err = commandAnswer(r.showPipeline("*", ribPipe("received", "graph")))
 	assert.Equal(t, statusDone, status)
 	assert.NoError(t, err)
 }
@@ -138,7 +138,7 @@ func TestGraphTerminalViaPipeline(t *testing.T) {
 	r := newTestRIBManager(t)
 	insertGraphRoute(r)
 
-	raw, ok := r.showPipeline("*", []string{"received", "graph"}).(json.RawMessage)
+	raw, ok := r.showPipeline("*", ribPipe("received", "graph")).(json.RawMessage)
 	require.True(t, ok, "graph answers a JSON document")
 	answer := decodeGraphAnswer(t, string(raw))
 	require.Len(t, answer.Nodes, 1)
@@ -152,7 +152,7 @@ func TestGraphTerminalViaBestPipeline(t *testing.T) {
 	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 	insertGraphRoute(r)
 
-	raw, ok := r.bestPipeline("*", []string{"graph"}).(json.RawMessage)
+	raw, ok := r.bestPipeline("*", ribPipe("graph")).(json.RawMessage)
 	require.True(t, ok, "best graph answers a JSON document")
 	answer := decodeGraphAnswer(t, string(raw))
 	require.Len(t, answer.Nodes, 1)
@@ -196,7 +196,7 @@ func TestGraphTextRendererNamesEmptyGraph(t *testing.T) {
 func TestOperatorSeesGraphBox(t *testing.T) {
 	r := newTestRIBManager(t)
 	insertGraphRoute(r)
-	raw, ok := r.showPipeline("*", []string{"received", "graph"}).(json.RawMessage)
+	raw, ok := r.showPipeline("*", ribPipe("received", "graph")).(json.RawMessage)
 	require.True(t, ok)
 
 	_, format, msg := command.ProcessPipesDefaultFormatChecked("show bgp rib received graph", "text")
@@ -224,7 +224,7 @@ func TestGraphTerminalViaProtocolPipeline(t *testing.T) {
 	bmpPeers["router1:peer1"] = storage.NewPeerRIB("router1:peer1")
 	bmpPeers["router1:peer1"].Insert(family.IPv4Unicast, concatBytes(testWireOriginIGP, testWireNextHop, testWireASPath65001), []byte{24, 10, 0, 1})
 
-	status, result, err := r.showProtocolPipeline("bmp", []string{"graph"})
+	status, result, err := r.showProtocolPipeline("bmp", ribPipe("graph"))
 	require.NoError(t, err)
 	require.Equal(t, statusDone, status)
 	raw, ok := result.(json.RawMessage)

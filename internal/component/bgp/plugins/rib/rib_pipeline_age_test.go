@@ -42,7 +42,7 @@ func startRouteAgeClock(r *RIBManager) *routeAgeClock {
 func receivedRouteRow(t *testing.T, r *RIBManager, prefix string) map[string]any {
 	t.Helper()
 	var answer map[string]any
-	require.NoError(t, json.Unmarshal([]byte(dataStr(t, r.showPipeline("*", []string{"received"}))), &answer))
+	require.NoError(t, json.Unmarshal([]byte(dataStr(t, r.showPipeline("*", ribPipe("received")))), &answer))
 	rows, ok := answer["routes"].([]any)
 	require.True(t, ok, "expected a routes list, got %v", answer)
 	for _, raw := range rows {

@@ -1,4 +1,4 @@
-// Design: docs/architecture/plugin/rib-storage-design.md — covering and exact reads for `show bgp rib received covering <address>` and `exact <prefix>`
+// Design: docs/architecture/plugin/rib-storage-design.md — covering and exact reads for `show bgp rib | received | covering <address>` and `| exact <prefix>`
 // Overview: rib_pipeline.go — iterator pipeline for RIB show commands
 // Related: storage/peerrib.go — PeerRIB.IterateCovering and PeerRIB.IterateExact, the trie reads this file selects
 package rib
@@ -26,7 +26,7 @@ import (
 // whole table to keep a handful of rows, on a looking glass endpoint anyone
 // can reach.
 //
-// A nil receivedWalk is no walk: parsePipelineArgs answers nil only beside a
+// A nil receivedWalk is no walk: parsePipelineOperations answers nil only beside a
 // refusal, and a source MUST be built with a non-nil one (wholeTableRead{}
 // when no keyword selects).
 type receivedWalk interface {
@@ -194,8 +194,8 @@ func walkConflictRefusal(addr netip.Addr, pfx netip.Prefix) string {
 // the received scope answers it.
 func refuseCoveringScope(addr netip.Addr) pipelineRefusal {
 	var fix textbuf.Buffer
-	fix.Str("show bgp rib received covering ").Str(addr.String())
-	return refusePipelineArgs("covering reads received routes only, not sent routes", fix.String())
+	fix.Str("show bgp rib | received | covering ").Str(addr.String())
+	return refusePipeline("covering reads received routes only, not sent routes", fix.String())
 }
 
 // refuseExactScope refuses an exact walk asked of the sent routes. The sent
@@ -204,8 +204,8 @@ func refuseCoveringScope(addr netip.Addr) pipelineRefusal {
 // or answer the received half alone; refusing names the scope that answers it.
 func refuseExactScope(pfx netip.Prefix) pipelineRefusal {
 	var fix textbuf.Buffer
-	fix.Str("show bgp rib received exact ").Str(pfx.String())
-	return refusePipelineArgs("exact reads received routes only, not sent routes", fix.String())
+	fix.Str("show bgp rib | received | exact ").Str(pfx.String())
+	return refusePipeline("exact reads received routes only, not sent routes", fix.String())
 }
 
 // coveringOnBestRefusal is the refusal `show bgp rib best` answers for the
@@ -214,10 +214,10 @@ func refuseExactScope(pfx netip.Prefix) pipelineRefusal {
 // covering best-path answer would read every route this keyword exists not to
 // read. The received scope answers the question from the trie.
 const coveringOnBestRefusal = "covering is not available on show bgp rib best: " +
-	"it reads received routes, so use show bgp rib received covering <address>"
+	"it reads received routes, so use show bgp rib | received | covering <address>"
 
 // exactOnBestRefusal is the refusal `show bgp rib best` answers for the exact
 // keyword, for the reason coveringOnBestRefusal states: newBestSource collects
 // its prefixes with a whole-table walk of every peer and takes no walk.
 const exactOnBestRefusal = "exact is not available on show bgp rib best: " +
-	"it reads received routes, so use show bgp rib received exact <prefix>"
+	"it reads received routes, so use show bgp rib | received | exact <prefix>"

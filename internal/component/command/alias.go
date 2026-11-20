@@ -647,3 +647,35 @@ func ResetAliasesForTest() {
 
 	globalAliases.byName = make(map[string]aliasEntry)
 }
+
+// EmptyAliasesForTest empties every alias table ResetAliasesForTest clears, for
+// one test, and answers the function that restores what they held, which the
+// test MUST call when it ends, typically through t.Cleanup. The aliases init()
+// declared come back with it, so a later test of the same binary still reads
+// them. Not safe for concurrent use with another test that empties or resets
+// the aliases.
+func EmptyAliasesForTest() (restore func()) {
+	restoreRegistry := aliasRegistry.emptyForTest()
+
+	pluginAliases.mu.Lock()
+	byOwner := pluginAliases.byOwner
+	pluginAliases.byOwner = make(map[string]map[string]pluginAliasPath)
+	pluginAliases.mu.Unlock()
+
+	globalAliases.mu.Lock()
+	byName := globalAliases.byName
+	globalAliases.byName = make(map[string]aliasEntry)
+	globalAliases.mu.Unlock()
+
+	return func() {
+		restoreRegistry()
+
+		pluginAliases.mu.Lock()
+		pluginAliases.byOwner = byOwner
+		pluginAliases.mu.Unlock()
+
+		globalAliases.mu.Lock()
+		globalAliases.byName = byName
+		globalAliases.mu.Unlock()
+	}
+}

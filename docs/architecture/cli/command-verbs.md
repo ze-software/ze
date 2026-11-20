@@ -489,6 +489,17 @@ owns `peer`, `family`, `prefix`, `path` and `community`, and each word names the
 thing the operator is choosing by. A generic word for "select one of these"
 teaches the operator a second name for a concept the field already names. L-6
 below records the one place this rule is under review.
+
+**Each RIB reader declares its own set.** `show bgp rib` and
+`show bgp peer <selector> rib` declare one set, the scope words `received`,
+`advertised`, `sent` and `sent-received` included, because both read the same
+plugin command; the scope is a pipe operation, never a model leaf.
+`show bgp rib protocol <protocol>` declares the same set without a scope,
+because a protocol's tables hold received routes only, so
+`show bgp rib protocol bmp | advertised` is refused with its valid set.
+`show bgp rib best` declares neither a scope nor `covering` and `exact`, and
+adds `reason`. A declaration on a longer path wins over the shorter one, so
+none of them inherits another's set.
 <!-- source: internal/component/bgp/plugins/cmd/rib/rib.go -- registerPipeFilters -->
 
 ## Idempotency: what the model records

@@ -186,20 +186,33 @@ func TestRibBestDeclaresItsOwnRows(t *testing.T) {
 //
 // VALIDATES: AC-22.
 // PREVENTS: a declared shape changing which side of the boundary an operator is
-// answered on. `| count` and `| graph` are the command's OWN filters
-// (registerPipeFilters, rib.go), so foldFilters rewrites each into a server-side
-// argument and the producer answers it; the row operator never runs. A
-// declaration is read by validateDeclaredShape, at a different step and from a
-// different registry, and neither reads the other.
+// answered on. `| count` and `| graph` are the command's OWN operations
+// (registerPipeFilters, rib.go), so the partition hands each to the producer in
+// the declared list and the producer answers it; the row operator never runs.
+// The command line is never rewritten to carry one. A declaration is read by
+// validateDeclaredShape, at a different step and from a different registry, and
+// neither reads the other.
 func TestRibBestFiltersSurviveDeclaration(t *testing.T) {
 	for _, filter := range []string{"count", "graph", "histogram", "reason"} {
 		t.Run(filter, func(t *testing.T) {
-			folded, format, errMsg := command.ProcessPipesDefaultFormatChecked(cmdRibBest+" | "+filter, "")
+			typed := cmdRibBest + " | " + filter
+			commandPart, format, errMsg := command.ProcessPipesDefaultFormatChecked(typed, "")
 			if errMsg != "" {
-				t.Fatalf("%s | %s was refused: %s", cmdRibBest, filter, errMsg)
+				t.Fatalf("%s was refused: %s", typed, errMsg)
 			}
-			if !strings.Contains(folded, filter) {
-				t.Errorf("%s | %s folded to %q, want the filter carried into the command", cmdRibBest, filter, folded)
+			if commandPart != cmdRibBest {
+				t.Errorf("%s answered the command %q, want the command part as typed, %q", typed, commandPart, cmdRibBest)
+			}
+
+			// The operation reaches the producer in the declared list, the one
+			// carrier the dispatcher hands it in.
+			line, err := command.ReadDispatchLine(typed)
+			if err != nil {
+				t.Fatalf("%s was refused by the dispatcher's read: %v", typed, err)
+			}
+			want := []command.PipeOperation{{Name: filter}}
+			if got := line.DeclaredOperations(); !slices.EqualFunc(got, want, samePipeOperation) {
+				t.Errorf("%s declared %v, want %v", typed, got, want)
 			}
 
 			// The producer answers it, so the formatter must not fold the rows

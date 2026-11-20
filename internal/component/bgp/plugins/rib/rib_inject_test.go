@@ -234,7 +234,7 @@ func TestShowProtocolPipelineSelector(t *testing.T) {
 	bmpPeers["router1:peer2"] = storage.NewPeerRIB("router1:peer2")
 	bmpPeers["router1:peer2"].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 1})
 
-	status, result, err := r.showProtocolPipeline("bmp", []string{"peer", "router1:peer1"})
+	status, result, err := r.showProtocolPipeline("bmp", ribPipe("peer", "router1:peer1"))
 	require.NoError(t, err)
 	require.Equal(t, statusDone, status)
 

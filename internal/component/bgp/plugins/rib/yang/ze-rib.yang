@@ -223,7 +223,7 @@ module ze-rib {
 
             container adj-rib-in {
                 description "RFC 4271 Section 3.2 states that the Adj-RIBs-In \"contains unprocessed routing information that has
-                    been advertised to the local BGP speaker by its peers\". show bgp rib received reports those
+                    been advertised to the local BGP speaker by its peers\". show bgp rib | received reports those
                     routes, and clear bgp rib in <peer> discards the routes of one peer. No code answers a read of
                     this subtree.";
                 ze:help "Routes received from peers.";
@@ -254,7 +254,7 @@ module ze-rib {
 
             container adj-rib-out {
                 description "RFC 4271 Section 3.2 states that the Adj-RIBs-Out \"stores information the local BGP speaker
-                    selected for advertisement to its peers\". show bgp rib sent reports those routes. No code
+                    selected for advertisement to its peers\". show bgp rib | sent reports those routes. No code
                     answers a read of this subtree.";
                 ze:help "Routes sent to peers.";
 

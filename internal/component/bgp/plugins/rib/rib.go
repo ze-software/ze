@@ -819,9 +819,12 @@ func runRIBPlugin(conn net.Conn) int {
 		return nil
 	})
 
-	// Register command handler for bgp-rib plugin commands.
-	p.OnExecuteCommand(func(serial, command string, args []string, peer string, _ []sdk.PipeOperation) (string, any, error) {
-		return r.handleCommand(command, peer, args)
+	// Register command handler for bgp-rib plugin commands. pipe is the list the
+	// engine declared for the line, the same on DirectBridge and on the forked
+	// transport (ExecuteCommandInput.Pipe): the route reads build their stages
+	// from it.
+	p.OnExecuteCommand(func(serial, command string, args []string, peer string, pipe []sdk.PipeOperation) (string, any, error) {
+		return r.handleCommand(command, peer, args, pipe...)
 	})
 
 	// Config: maximum-paths, relax-as-path, the RFC 7999 honoring rules and the

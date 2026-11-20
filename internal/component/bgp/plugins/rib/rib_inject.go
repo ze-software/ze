@@ -16,7 +16,10 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 var (
@@ -157,18 +160,6 @@ func registerInjectCommands() {
 		help    string
 		handler CommandHandler
 	}{
-		// The grammar is the model's, not this sentence's: ze-rib-cmd.yang
-		// declares the protocol leaf, and the pipeline words after it are the
-		// ones `show bgp rib` takes, `peer <selector>` included. The first
-		// argument is the protocol on both routes that reach here, the
-		// forwarder in cmd/rib and the plugin's own dispatch.
-		{"show bgp rib protocol", "Show the routes one protocol feeds into the RIB",
-			func(r *RIBManager, _ string, args []string) (string, any, error) {
-				if len(args) < 1 {
-					return statusError, "", errShowProtocolRequiresProtocol
-				}
-				return r.showProtocolPipeline(args[0], args[1:])
-			}},
 		{"request bgp rib withdraw-protocol", "Withdraw all routes for a peer under a protocol",
 			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				if len(args) < 2 {
@@ -191,24 +182,57 @@ func registerInjectCommands() {
 			logger().Warn("inject command registration failed", "command", c.name, "error", err)
 		}
 	}
+	// The grammar is the model's, not this sentence's: ze-rib-cmd.yang
+	// declares the protocol leaf, which is the one argument, on both routes
+	// that reach here, the forwarder in cmd/rib and the plugin's own dispatch.
+	// The selection (`peer <selector>` and the filters `show bgp rib` takes)
+	// arrives as the operations the engine declared for the line.
+	if err := registerPipelineCommand(cmdShowRIBProtocol, "Show the routes one protocol feeds into the RIB",
+		func(r *RIBManager, _ string, args []string, pipe []sdk.PipeOperation) (string, any, error) {
+			if len(args) < 1 {
+				return statusError, "", errShowProtocolRequiresProtocol
+			}
+			if refusal, refused := refuseRouteReadArguments(cmdShowRIBProtocol, args[1:]); refused {
+				return commandAnswer(refusal)
+			}
+			return r.showProtocolPipeline(args[0], pipe)
+		}); err != nil {
+		panic("BUG: rib command " + cmdShowRIBProtocol + " registered twice: " + err.Error())
+	}
 }
 
 // showProtocolPipeline runs the show pipeline filtered to a single protocol's peers.
 // Protocol "bgp" reads exact received owners and explicit synthetic forwarding
 // inputs; every other protocol reads its string-keyed ribInPool namespace.
 //
-// The peer selector arrives inside args as `peer <selector>`, the pipeline's
-// own word for it, so nothing here guesses whether a bare token is a selector
-// or a keyword (ai/rules/cli.md, keyword before value).
+// The peer selector arrives as the `peer <selector>` operation the engine
+// declared, beside the filters, so nothing here guesses whether a bare token
+// is a selector or a keyword (ai/rules/cli.md, keyword before value). A scope
+// operation is refused: a protocol RIB holds received routes only, so a scope
+// could only be ignored, and an ignored selection answers rows the operator
+// did not ask for.
 //
 // A protocol the registry does not hold is an error rather than an answer,
 // and the error names the registered protocols, because an operator who typed
 // a name Ze does not know needs the list rather than a verdict.
-func (r *RIBManager) showProtocolPipeline(protocol string, args []string) (string, any, error) {
+func (r *RIBManager) showProtocolPipeline(protocol string, operations []sdk.PipeOperation) (string, any, error) {
 	protoID, ok := redistevents.ProtocolIDOf(protocol)
 	if !ok {
 		return statusError, "", fmt.Errorf("show bgp rib protocol: %q is not a registered protocol (registered: %s)",
 			protocol, strings.Join(redistevents.ProtocolNames(), ", "))
+	}
+
+	// The operations are read before the RIB is, so a refused line is refused
+	// on an empty RIB too. A protocol RIB holds received routes only, so a
+	// covering or exact walk applies to it as it stands.
+	for _, operation := range operations {
+		if _, isScope := scopeKeywords[operation.Name]; isScope {
+			return statusError, "", refuseProtocolScope(protocol, operation.Name)
+		}
+	}
+	_, selector, walk, stages, errMsg := parsePipelineOperations(operations)
+	if errMsg != "" {
+		return statusError, "", errors.New(errMsg)
 	}
 
 	// peerMu is taken for the map READS and given straight back. Holding it
@@ -229,13 +253,6 @@ func (r *RIBManager) showProtocolPipeline(protocol string, args []string) (strin
 	// a caller parsing the empty case saw a shape the command no longer uses.
 	if empty {
 		return statusDone, json.RawMessage(`{"routes":[]}`), nil
-	}
-
-	// The scope is not read: a protocol RIB holds received routes only, so a
-	// covering or exact walk applies to it as it stands.
-	_, selector, walk, stages, errMsg := parsePipelineArgs(args)
-	if errMsg != "" {
-		return statusError, "", errors.New(errMsg)
 	}
 
 	// Construction reads the peer-keyed maps, so it takes the lock again, for
@@ -259,7 +276,7 @@ func (r *RIBManager) showProtocolPipeline(protocol string, args []string) (strin
 	}
 
 	if !hasTerminal(stages) {
-		jt := newJSONTerminal(current)
+		jt := newRoutesDocument(current)
 		return statusDone, json.RawMessage(jt.Meta().JSON), nil
 	}
 
@@ -271,6 +288,15 @@ func (r *RIBManager) showProtocolPipeline(protocol string, args []string) (strin
 		return statusDone, json.RawMessage(meta.JSON), nil
 	}
 	return statusDone, map[string]any{jsonKeyCount: meta.Count}, nil
+}
+
+// refuseProtocolScope refuses a scope operation on `show bgp rib protocol`. A
+// protocol RIB holds received routes only, so the scope would be ignored.
+func refuseProtocolScope(protocol, scope string) error {
+	var problem, fix textbuf.Buffer
+	problem.Str(cmdShowRIBProtocol).Str(" takes no scope, and was given ").Str(scope)
+	fix.Str(cmdShowRIBProtocol).Byte(' ').Str(protocol).Str(" | count")
+	return opererr.New(problem.String(), "A protocol RIB holds received routes only, so a scope selects nothing.", fix.String())
 }
 
 // withdrawAllForPeer removes all routes for a peer under a given protocol.

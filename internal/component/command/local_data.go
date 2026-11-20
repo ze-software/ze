@@ -462,7 +462,10 @@ func validateModelArgsAs(invocation, path string, args []string, preMatched map[
 	// argument is bound, whether or not the model leaves a definition open for
 	// the word: an open definition would take it as its value, and none would
 	// pass it to the handler unjudged.
-	if err := RefusePipeOperationWords(path, args); err != nil {
+	// The fix starts at the path: a route here binds any selector out of band
+	// (preMatched), so no value sits inside it, and the `ze <verb>` prefix of
+	// invocation would put the pipe in the operator's shell.
+	if err := RefusePipeOperationWords(path, path, args); err != nil {
 		return ValidatedArgs{}, err
 	}
 	validated, err := ValidateArgs(args, defs, preMatched)

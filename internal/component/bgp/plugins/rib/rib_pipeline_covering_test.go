@@ -1,4 +1,4 @@
-// Design: docs/architecture/plugin/rib-storage-design.md -- covering read for `show bgp rib received covering <address>`
+// Design: docs/architecture/plugin/rib-storage-design.md -- covering read for `show bgp rib | received | covering <address>`
 package rib
 
 import (
@@ -45,7 +45,7 @@ func seedCoveringPeers(r *RIBManager) {
 // answers "peer prefix" for each streamed row, in the order they came.
 func coveringRowKeys(t *testing.T, r *RIBManager, args ...string) []string {
 	t.Helper()
-	status, payload, err := r.handleCommand("show bgp rib", "*", args)
+	status, payload, err := r.handleCommand("show bgp rib", "*", nil, ribPipe(args...)...)
 	require.NoError(t, err)
 	require.Equal(t, statusDone, status)
 	records, streaming := payload.(sdk.Records)
@@ -82,13 +82,13 @@ func drainSource(src pipelineIterator) []RouteItem {
 // address with a message naming the value and a form that works.
 //
 // VALIDATES: AC-12, and the wiring row `show bgp rib received covering` from
-// the CLI to parsePipelineArgs.
+// the CLI to parsePipelineOperations.
 // PREVENTS: the keyword answered `unknown keyword`, a mask silently dropped so
 // `covering 10.0.0.0/8` answers a different question, or a refusal that names
 // neither the value nor what to type instead.
 func TestPipelineCoveringKeyword(t *testing.T) {
 	t.Run("parses", func(t *testing.T) {
-		scope, _, walk, stages, errMsg := parsePipelineArgs([]string{"received", "covering", "10.1.2.3", "count"})
+		scope, _, walk, stages, errMsg := parsePipelineOperations(ribPipe("received", "covering", "10.1.2.3", "count"))
 		require.Empty(t, errMsg)
 		assert.Equal(t, scopeReceived, scope)
 		covering, isCovering := walk.(coveringRead)
@@ -97,7 +97,7 @@ func TestPipelineCoveringKeyword(t *testing.T) {
 		require.Len(t, stages, 1, "covering is a source selector, not a stage")
 		assert.Equal(t, terminalCount, stages[0].kind)
 
-		_, _, whole, _, errMsg := parsePipelineArgs([]string{"received", "count"})
+		_, _, whole, _, errMsg := parsePipelineOperations(ribPipe("received", "count"))
 		require.Empty(t, errMsg)
 		assert.Equal(t, receivedWalk(wholeTableRead{}), whole, "no covering keyword is the whole-table walk")
 	})
@@ -105,7 +105,7 @@ func TestPipelineCoveringKeyword(t *testing.T) {
 	t.Run("answers through the handler with a terminal", func(t *testing.T) {
 		r := newTestRIBManager(t)
 		seedCoveringPeers(r)
-		status, payload, err := r.handleCommand("show bgp rib", "*", []string{"received", "covering", "10.1.2.3", "count"})
+		status, payload, err := r.handleCommand("show bgp rib", "*", nil, ribPipe("received", "covering", "10.1.2.3", "count")...)
 		require.NoError(t, err)
 		require.Equal(t, statusDone, status)
 		var parsed map[string]any
@@ -146,7 +146,7 @@ func TestPipelineCoveringKeyword(t *testing.T) {
 			[]string{"filter after terminal: covering"}},
 	} {
 		t.Run("refuses "+bad.name, func(t *testing.T) {
-			_, _, walk, stages, errMsg := parsePipelineArgs(bad.args)
+			_, _, walk, stages, errMsg := parsePipelineOperations(ribPipe(bad.args...))
 			require.NotEmpty(t, errMsg, "%v must be refused", bad.args)
 			assert.Nil(t, walk, "a refused parse carries no walk")
 			assert.Nil(t, stages)
@@ -155,7 +155,7 @@ func TestPipelineCoveringKeyword(t *testing.T) {
 			}
 
 			r := newTestRIBManager(t)
-			status, _, err := r.handleCommand("show bgp rib", "*", bad.args)
+			status, _, err := r.handleCommand("show bgp rib", "*", nil, ribPipe(bad.args...)...)
 			assert.Equal(t, statusError, status)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), errMsg, "the handler answers the parser's reason")
@@ -180,11 +180,11 @@ func TestCoveringRefusedOnSentScope(t *testing.T) {
 	} {
 		r := newTestRIBManager(t)
 		seedCoveringPeers(r)
-		status, data, err := r.handleCommand("show bgp rib", "*", args)
+		status, data, err := r.handleCommand("show bgp rib", "*", nil, ribPipe(args...)...)
 		assert.Equal(t, statusError, status, "%v", args)
 		require.Error(t, err, "%v", args)
 		assert.Contains(t, err.Error(), "covering reads received routes only", "%v", args)
-		assert.Contains(t, err.Error(), "show bgp rib received covering 10.1.2.3", "%v: the fix names the received form", args)
+		assert.Contains(t, err.Error(), "show bgp rib | received | covering 10.1.2.3", "%v: the fix names the received form", args)
 		assert.Equal(t, "", data, "%v: a refusal carries no rows", args)
 	}
 }
@@ -198,11 +198,11 @@ func TestCoveringRefusedOnSentScope(t *testing.T) {
 func TestCoveringRefusedOnBestScope(t *testing.T) {
 	r := newTestRIBManager(t)
 	seedCoveringPeers(r)
-	status, _, err := r.handleCommand("show bgp rib best", "*", []string{"covering", "10.1.2.3"})
+	status, _, err := r.handleCommand("show bgp rib best", "*", nil, ribPipe("covering", "10.1.2.3")...)
 	assert.Equal(t, statusError, status)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "covering is not available on show bgp rib best")
-	assert.Contains(t, err.Error(), "show bgp rib received covering")
+	assert.Contains(t, err.Error(), "show bgp rib | received | covering")
 }
 
 // TestCoveringReadsOnlyThePath proves the covering read visits the trie entries
@@ -375,7 +375,7 @@ func TestCoveringListsEveryAddPathPath(t *testing.T) {
 // VALIDATES: `show bgp rib protocol <name> covering <address>` reaches
 // protocolInboundSource with the covering walk.
 // PREVENTS: the keyword parsed and then ignored on the one other caller of
-// parsePipelineArgs, answering every route of the protocol.
+// parsePipelineOperations, answering every route of the protocol.
 func TestCoveringOnProtocolPipeline(t *testing.T) {
 	r := newTestRIBManager(t)
 	fam := family.IPv4Unicast
@@ -384,7 +384,7 @@ func TestCoveringOnProtocolPipeline(t *testing.T) {
 	bmpPeers["router1:peer1"].Insert(fam, coveringTestAttrs(), []byte{8, 10})
 	bmpPeers["router1:peer1"].Insert(fam, coveringTestAttrs(), []byte{24, 192, 0, 2})
 
-	status, result, err := r.showProtocolPipeline("bmp", []string{"covering", "10.1.2.3", "count"})
+	status, result, err := r.showProtocolPipeline("bmp", ribPipe("covering", "10.1.2.3", "count"))
 	require.NoError(t, err)
 	require.Equal(t, statusDone, status)
 	var parsed map[string]any
@@ -420,7 +420,7 @@ func TestPrefixTextFilterUnchanged(t *testing.T) {
 	})
 
 	for _, scope := range []string{"sent", "received"} {
-		status, payload, err := r.handleCommand("show bgp rib", "*", []string{scope, "prefix", "10.0", "count"})
+		status, payload, err := r.handleCommand("show bgp rib", "*", nil, ribPipe(scope, "prefix", "10.0", "count")...)
 		require.NoError(t, err, scope)
 		require.Equal(t, statusDone, status, scope)
 		var parsed map[string]any

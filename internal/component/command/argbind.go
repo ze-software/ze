@@ -90,11 +90,15 @@ func (v ValidatedArgs) WithPipeOperations(operations []PipeOperation) ValidatedA
 // starts a pipe stage, and the words after it until the next one are its
 // argument words.
 //
-// path is the command path the args follow. A command that declares no
-// operation refuses nothing. Generic operators and aliases are not judged
-// here: only an operation the command itself runs can be typed as an argument
-// of that command by mistake.
-func RefusePipeOperationWords(path string, args []string) error {
+// path is the registered command path the args follow, which the refusal
+// names. invocation is the command as the operator typed it before args, a
+// selector value inside the path included (`show bgp peer edge1 rib`), and the
+// fix line starts with it: a fix written from the path would drop that value,
+// and the operator could not type it. A command that declares no operation
+// refuses nothing. Generic operators and aliases are not judged here: only an
+// operation the command itself runs can be typed as an argument of that
+// command by mistake.
+func RefusePipeOperationWords(path, invocation string, args []string) error {
 	set, declared := lookupPipeFilters(path)
 	if !declared || len(set.filters) == 0 {
 		return nil
@@ -110,7 +114,7 @@ func RefusePipeOperationWords(path string, args []string) error {
 		return nil
 	}
 	var fix textbuf.Buffer
-	fix.Str(path)
+	fix.Str(invocation)
 	for i, word := range args {
 		if i >= first {
 			if _, operation := set.byName[strings.ToLower(word)]; operation {

@@ -49,7 +49,7 @@ func TestBestPipelineReason_LocalPrefWinner(t *testing.T) {
 	r.peerMeta[2] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.2")}
 	r.bgpPeers[2] = peerB
 
-	result := r.bestPipeline("*", []string{"reason"})
+	result := r.bestPipeline("*", ribPipe("reason"))
 
 	var parsed map[string]any
 	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
@@ -100,7 +100,7 @@ func TestBestPipelineReason_SingleCandidate(t *testing.T) {
 	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
 	r.bgpPeers[1] = peerA
 
-	result := r.bestPipeline("*", []string{"reason"})
+	result := r.bestPipeline("*", ribPipe("reason"))
 
 	var parsed map[string]any
 	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
@@ -138,7 +138,7 @@ func TestBestPipelineReason_WithPrefixFilter(t *testing.T) {
 	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
 	r.bgpPeers[1] = peer
 
-	result := r.bestPipeline("*", []string{"prefix", "10.0.0.0/24", "reason"})
+	result := r.bestPipeline("*", ribPipe("prefix", "10.0.0.0/24", "reason"))
 
 	var parsed map[string]any
 	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
@@ -158,7 +158,7 @@ func TestBestPipelineReason_WithPrefixFilter(t *testing.T) {
 // PREVENTS: Misspelled "reasons" being treated as the default json terminal.
 func TestBestPipelineReason_UnknownKeyword(t *testing.T) {
 	r := newTestRIBManager(t)
-	result := r.bestPipeline("*", []string{"reasons"})
+	result := r.bestPipeline("*", ribPipe("reasons"))
 
 	status, data, err := commandAnswer(result)
 	assert.Equal(t, statusError, status)
@@ -294,17 +294,17 @@ func TestBestPipelineLockReduced(t *testing.T) {
 	require.Len(t, entries, 2, "expected 2 best-path entries (one per prefix)")
 
 	// Count terminal
-	result = r.bestPipeline("*", []string{"count"})
+	result = r.bestPipeline("*", ribPipe("count"))
 	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	assert.Equal(t, float64(2), parsed["count"])
 
 	// Path filter + count
-	result = r.bestPipeline("*", []string{"path", "65001", "count"})
+	result = r.bestPipeline("*", ribPipe("path", "65001", "count"))
 	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	assert.Equal(t, float64(2), parsed["count"])
 
 	// Reason terminal still works
-	result = r.bestPipeline("*", []string{"reason"})
+	result = r.bestPipeline("*", ribPipe("reason"))
 	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	reasons, ok := parsed["best-path-reason"].([]any)
 	require.True(t, ok, "expected best-path-reason array")

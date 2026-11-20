@@ -32,7 +32,7 @@ func TestManualRIBInjectionKeepsForwardingWithoutAuthority(t *testing.T) {
 	require.Equal(t, nextHop, best.NextHop)
 	require.Empty(t, r.bgpPeers, "a synthetic manual source must not become an authenticated Peer owner")
 	require.Nil(t, r.sourceLeases, "passive manual input creates no source-lease service")
-	rows := requirePeerRoutes(t, anyToJSONStr(t, r.showPipeline("*", []string{"received"})), peer)
+	rows := requirePeerRoutes(t, anyToJSONStr(t, r.showPipeline("*", ribPipe("received"))), peer)
 	require.Len(t, rows, 1, "the manual route remains visible through the existing show command")
 	status, _, err = r.handleCommand("request bgp rib withdraw", "", []string{peer, family.IPv4Unicast.String(), prefix.String()})
 	require.NoError(t, err)

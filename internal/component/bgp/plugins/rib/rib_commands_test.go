@@ -214,7 +214,7 @@ func TestInboundShowWithAttributes(t *testing.T) {
 	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
 	r.bgpPeers[1] = peerRIB
 
-	route := requireFirstRoute(t, anyToJSONStr(t, r.showPipeline("*", []string{"received"})), "adj-rib-in", "192.0.2.1")
+	route := requireFirstRoute(t, anyToJSONStr(t, r.showPipeline("*", ribPipe("received"))), "adj-rib-in", "192.0.2.1")
 
 	assert.Equal(t, family.IPv4Unicast.String(), route["family"])
 	assert.Equal(t, "10.0.0.0/24", route["prefix"])
@@ -250,7 +250,7 @@ func TestInboundShowMinimalAttributes(t *testing.T) {
 	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
 	r.bgpPeers[1] = peerRIB
 
-	route := requireFirstRoute(t, anyToJSONStr(t, r.showPipeline("192.0.2.1", []string{"received"})), "adj-rib-in", "192.0.2.1")
+	route := requireFirstRoute(t, anyToJSONStr(t, r.showPipeline("192.0.2.1", ribPipe("received"))), "adj-rib-in", "192.0.2.1")
 
 	assert.Equal(t, "igp", attrVal(route, "origin"))
 	assert.Equal(t, "10.0.0.1", route["next-hop"])
@@ -290,7 +290,7 @@ func TestOutboundShowWithAttributes(t *testing.T) {
 		},
 	})
 
-	route := requireFirstRoute(t, anyToJSONStr(t, r.showPipeline("*", []string{"sent"})), "adj-rib-out", "192.0.2.1")
+	route := requireFirstRoute(t, anyToJSONStr(t, r.showPipeline("*", ribPipe("sent"))), "adj-rib-out", "192.0.2.1")
 
 	assert.Equal(t, family.IPv4Unicast.String(), route["family"])
 	assert.Equal(t, "10.0.0.0/24", route["prefix"])
@@ -443,11 +443,11 @@ func TestInboundShowFamilyFilter(t *testing.T) {
 	r.bgpPeers[1] = peerRIB
 
 	// Without filter: both families
-	allRoutes := requirePeerRoutes(t, anyToJSONStr(t, r.showPipeline("*", []string{"received"})), "192.0.2.1")
+	allRoutes := requirePeerRoutes(t, anyToJSONStr(t, r.showPipeline("*", ribPipe("received"))), "192.0.2.1")
 	assert.Len(t, allRoutes, 2, "expected both routes without filter")
 
 	// With family filter: only IPv4
-	filteredRoutes := requirePeerRoutes(t, anyToJSONStr(t, r.showPipeline("*", []string{"received", "family", family.IPv4Unicast.String()})), "192.0.2.1")
+	filteredRoutes := requirePeerRoutes(t, anyToJSONStr(t, r.showPipeline("*", ribPipe("received", "family", family.IPv4Unicast.String()))), "192.0.2.1")
 	require.Len(t, filteredRoutes, 1, "expected only IPv4 route")
 	first, ok := filteredRoutes[0].(map[string]any)
 	require.True(t, ok)
@@ -473,7 +473,7 @@ func TestInboundShowPrefixFilter(t *testing.T) {
 	r.bgpPeers[1] = peerRIB
 
 	// Filter by prefix (exact prefix string match)
-	routes := requirePeerRoutes(t, anyToJSONStr(t, r.showPipeline("*", []string{"received", "prefix", "10.0.0.0/24"})), "192.0.2.1")
+	routes := requirePeerRoutes(t, anyToJSONStr(t, r.showPipeline("*", ribPipe("received", "prefix", "10.0.0.0/24"))), "192.0.2.1")
 	require.Len(t, routes, 1, "expected only matching prefix")
 	first, ok := routes[0].(map[string]any)
 	require.True(t, ok)
@@ -498,7 +498,7 @@ func TestOutboundShowMinimalAttributes(t *testing.T) {
 		},
 	})
 
-	route := requireFirstRoute(t, anyToJSONStr(t, r.showPipeline("*", []string{"sent"})), "adj-rib-out", "192.0.2.2")
+	route := requireFirstRoute(t, anyToJSONStr(t, r.showPipeline("*", ribPipe("sent"))), "adj-rib-out", "192.0.2.2")
 
 	// Only family, prefix, next-hop should be present
 	assert.Equal(t, family.IPv4Unicast.String(), route["family"])
@@ -542,7 +542,7 @@ func TestInjectAcceptsNexthopAlias(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 
-	route := requireFirstRoute(t, anyToJSONStr(t, r.showPipeline("*", []string{"received"})), "adj-rib-in", "10.0.0.1")
+	route := requireFirstRoute(t, anyToJSONStr(t, r.showPipeline("*", ribPipe("received"))), "adj-rib-in", "10.0.0.1")
 	assert.Equal(t, "10.0.0.2", route["next-hop"])
 }
 
@@ -695,7 +695,7 @@ func TestReceivedShowRendersExtendedNextHop(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "done", status)
 
-	route := requireFirstRoute(t, anyToJSONStr(t, r.showPipeline("*", []string{"received"})), "adj-rib-in", "10.0.0.1")
+	route := requireFirstRoute(t, anyToJSONStr(t, r.showPipeline("*", ribPipe("received"))), "adj-rib-in", "10.0.0.1")
 	assert.Equal(t, "2001:db8::1", route["next-hop"], "received show must render the extended next-hop")
 }
 

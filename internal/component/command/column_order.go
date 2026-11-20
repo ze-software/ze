@@ -66,7 +66,8 @@ func RegisterColumns(commands []string, orders ...ColumnOrder) {
 }
 
 // ColumnsForCommand returns the column orders declared for a command, resolved
-// by the longest registered command path that is a prefix of it. It returns nil
+// by the longest registered command path that is a prefix of it, a value the
+// model places inside the path skipped (invocationReachesCommandPath). It returns nil
 // when the command declares none, and the renderer then orders every column
 // alphabetically.
 func ColumnsForCommand(command string) []ColumnOrder {
@@ -223,7 +224,9 @@ func (r *commandRegistry[T]) lookupPath(command string) (T, string, bool) {
 	bestLen := -1
 	found := false
 	for prefix, value := range r.byCommand {
-		if !invocationMatchesPathPrefix(words, prefix) {
+		// A value the model places inside the path (a peer selector) is
+		// skipped as the dispatcher skips it (invocationReachesCommandPath).
+		if !invocationReachesCommandPath(words, prefix) {
 			continue
 		}
 		if len(prefix) > bestLen {
@@ -286,6 +289,29 @@ func (r *commandRegistry[T]) reset() {
 
 	r.byCommand = make(map[string]T)
 	r.childBoundaries = make(map[string]func(string) bool)
+}
+
+// emptyForTest empties the registry for one test and answers the function that
+// puts back what it held. reset erases what init() declared for the whole test
+// binary, so a test after it that reads a declaration of a linked package
+// finds none; this one hands those declarations back.
+//
+// No write reaches the maps it saves: every write until restore lands in the
+// fresh maps, and restore reinstates the saved ones whole. Safe for concurrent
+// use with the registry's readers; not with another test that empties it.
+func (r *commandRegistry[T]) emptyForTest() (restore func()) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	byCommand, childBoundaries := r.byCommand, r.childBoundaries
+	r.byCommand = make(map[string]T)
+	r.childBoundaries = make(map[string]func(string) bool)
+	return func() {
+		r.mu.Lock()
+		defer r.mu.Unlock()
+
+		r.byCommand, r.childBoundaries = byCommand, childBoundaries
+	}
 }
 
 // declarationRegistry holds ONE declaration for each command path: what a
@@ -534,6 +560,25 @@ func (r *declarationRegistry[T]) reset() {
 	r.byCommand = make(map[string]T)
 	r.childBoundaries = make(map[string]func(string) bool)
 	r.byOwner = make(map[string]map[string]priorDeclaration[T])
+}
+
+// emptyForTest is commandRegistry.emptyForTest with the owner records, which
+// it saves and restores with the declarations they describe, for the reason
+// reset clears both.
+func (r *declarationRegistry[T]) emptyForTest() (restore func()) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	byCommand, childBoundaries, byOwner := r.byCommand, r.childBoundaries, r.byOwner
+	r.byCommand = make(map[string]T)
+	r.childBoundaries = make(map[string]func(string) bool)
+	r.byOwner = make(map[string]map[string]priorDeclaration[T])
+	return func() {
+		r.mu.Lock()
+		defer r.mu.Unlock()
+
+		r.byCommand, r.childBoundaries, r.byOwner = byCommand, childBoundaries, byOwner
+	}
 }
 
 func normalizeCommand(command string) string {

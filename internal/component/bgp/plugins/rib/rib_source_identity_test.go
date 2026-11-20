@@ -285,7 +285,7 @@ func sourceIdentityCount(t *testing.T, r *RIBManager, name string) int {
 	if name != "" {
 		args = []string{"received", "peer", name, "count"}
 	}
-	answer, ok := r.showPipeline("*", args).(map[string]any)
+	answer, ok := r.showPipeline("*", ribPipe(args...)).(map[string]any)
 	require.True(t, ok, "the received-route command must return a count")
 	count, ok := answer[jsonKeyCount].(int)
 	require.True(t, ok, "the command count must retain its declared integer shape")

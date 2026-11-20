@@ -13,7 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/graph"
 )
 
-// graphAnswerKey is the envelope key `show bgp rib ... graph` answers under.
+// graphAnswerKey is the envelope key `show bgp rib ... | graph` answers under.
 // The text rendering finds the box-drawing renderer by it (register.go,
 // command.MustRegisterTextRenderer), so the payload stays data for `| json`.
 const graphAnswerKey = "graph"
@@ -46,7 +46,7 @@ type graphEdgeAnswer struct {
 // narrowing that fixes it.
 func errGraphTooManyNodes(nodes int) error {
 	return fmt.Errorf("%w: narrow the routes with a filter before graph, for example "+
-		"`show bgp rib received prefix 10.0.0.0/8 graph`", graph.TooManyNodesError(nodes))
+		"`show bgp rib | received | prefix 10.0.0.0/8 | graph`", graph.TooManyNodesError(nodes))
 }
 
 // newGraphAnswer converts the built topology to its wire form. Empty lists
@@ -160,11 +160,15 @@ type pipelineRefusal struct {
 	reason error
 }
 
-// refusePipelineArgs carries a nonempty diagnostic produced by the pipeline
-// parser to the command verdict, together with a valid command to start from.
-func refusePipelineArgs(reason, recovery string) pipelineRefusal {
+// refusePipeline carries a nonempty diagnostic produced by the pipeline
+// parser to the command verdict, together with a valid command to start from,
+// written in the pipe form the engine hands the operations in. A selection
+// word typed as an argument never reaches here: the engine's argument
+// validator refuses it with the pipe form as its fix
+// (command.RefusePipeOperationWords).
+func refusePipeline(reason, recovery string) pipelineRefusal {
 	return pipelineRefusal{reason: opererr.New(reason,
-		"The route list was not read because the command arguments are invalid.", recovery)}
+		"The route list was not read because the pipe operations are invalid.", recovery)}
 }
 
 // errPipelineRefusalNoReason guards commandAnswer against a refusal built

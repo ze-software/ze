@@ -589,7 +589,7 @@ func parsePathPattern(pattern string) (pathPattern, string) {
 }
 
 // pathEndAnchorProblem is the refusal of a path pattern whose $ is not
-// directly after its last AS number. refusePipelineArgs adds why it matters
+// directly after its last AS number. refusePipeline adds why it matters
 // and the command to start from.
 func pathEndAnchorProblem(pattern string) string {
 	var problem textbuf.Buffer
@@ -1012,7 +1012,7 @@ type lastFilter struct {
 }
 
 func newLastFilter(upstream pipelineIterator, arg string) *lastFilter {
-	// parsePipelineArgs validates N (positive integer) before construction; the
+	// parsePipelineOperations validates N (positive integer) before construction; the
 	// clamp is a defensive fallback for any direct caller.
 	n, _ := strconv.Atoi(arg)
 	if n <= 0 {
@@ -1212,25 +1212,28 @@ func extractPrefixLength(prefix string) string {
 	return length
 }
 
-// jsonTerminal drains the upstream, serializes all items to JSON, and records metadata.
-type jsonTerminal struct {
+// routesDocument drains the upstream into one document, the rows under
+// "routes", and records the count beside it. It is not a stage: no operation
+// names it. `show bgp rib protocol` answers it for the whole selection, and it
+// holds the rows `show bgp rib` streams, in the same order.
+type routesDocument struct {
 	upstream pipelineIterator
 	meta     PipelineMeta
 	drained  bool
 }
 
-func newJSONTerminal(upstream pipelineIterator) *jsonTerminal {
-	return &jsonTerminal{upstream: upstream}
+func newRoutesDocument(upstream pipelineIterator) *routesDocument {
+	return &routesDocument{upstream: upstream}
 }
 
-func (jt *jsonTerminal) Next() (RouteItem, bool) {
+func (jt *routesDocument) Next() (RouteItem, bool) {
 	if !jt.drained {
 		jt.drain()
 	}
 	return RouteItem{}, false
 }
 
-func (jt *jsonTerminal) drain() {
+func (jt *routesDocument) drain() {
 	jt.drained = true
 
 	rows := make([]map[string]any, 0)
@@ -1253,9 +1256,9 @@ func (jt *jsonTerminal) drain() {
 	// The rows are NOT re-sorted here. They arrive in the sources' own order,
 	// which is deterministic because each source sorts its PEER LIST at
 	// construction, and that is the same order the streaming path yields. A
-	// sort here would give one command two orderings, depending only on whether
-	// `| json` was typed, and the streaming path cannot match it: sorting a
-	// stream means holding every row, which is the thing streaming avoids.
+	// sort here would give the two route answers two orderings, and the
+	// streaming path cannot match it: sorting a stream means holding every
+	// row, which is the thing streaming avoids.
 
 	data, _ := json.Marshal(map[string]any{"routes": rows})
 	jt.meta.JSON = string(data)
@@ -1272,7 +1275,7 @@ const (
 	rowKeyPrefix    = "prefix"
 )
 
-func (jt *jsonTerminal) Meta() PipelineMeta {
+func (jt *routesDocument) Meta() PipelineMeta {
 	if !jt.drained {
 		jt.drain()
 	}
@@ -1320,7 +1323,7 @@ const (
 
 // Pipeline stage keywords: the vocabulary an operator types after a pipe.
 // apply(), filterKeywords and terminalKeywords each transcribe this set, and
-// parseBestPipelineArgs (rib_pipeline_best.go) reads the same two maps, so the
+// parseBestPipelineOperations (rib_pipeline_best.go) reads the same two maps, so the
 // spelling lives here once and the tables cannot drift apart. A keyword that
 // names a route field uses that field's row key above, because the filter
 // selects on the field the output is keyed by.
@@ -1346,13 +1349,13 @@ const (
 	filterExact = "exact"
 
 	terminalCount     = "count"
-	terminalJSON      = "json"
 	terminalHistogram = "histogram"
 	terminalGraph     = "graph"
 )
 
-// showPipeline builds and executes a pipeline from command args.
-// Called by handleCommand for "show bgp rib" with optional scope + filter stages.
+// showPipeline builds and executes a pipeline from the operations the engine
+// declared for the line: an optional scope, filter stages and a terminal
+// (parsePipelineOperations). Called by handleCommand for "show bgp rib".
 // Holds r.peerMu.RLock for source construction alone (newShowSource); each
 // source takes it again per peer inside Next, so no lock is held while a row
 // is serialized, which is what lets markBestFacts take a bestPrev shard lock.
@@ -1365,10 +1368,10 @@ const (
 // see inboundSource and plan/journal/false-synchronization-claim.md. A converted
 // walk covers those with a reference instead (bestSource.Next,
 // rib_pipeline_best.go), and this one is not converted.
-func (r *RIBManager) showPipeline(selector string, args []string) any {
-	scope, pipeSelector, walk, stages, errMsg := parsePipelineArgs(args)
+func (r *RIBManager) showPipeline(selector string, operations []sdk.PipeOperation) any {
+	scope, pipeSelector, walk, stages, errMsg := parsePipelineOperations(operations)
 	if errMsg != "" {
-		return refusePipelineArgs(errMsg, "show bgp rib count")
+		return refusePipeline(errMsg, "show bgp rib | count")
 	}
 	// A covering or exact walk reads the received routes' tries, so a scope
 	// that holds sent routes refuses it rather than answering half the scope.
@@ -1522,14 +1525,12 @@ func (s pipelineStage) apply(upstream pipelineIterator) pipelineIterator {
 		return newLastFilter(upstream, s.arg)
 	case terminalCount:
 		return newCountTerminal(upstream)
-	case terminalJSON:
-		return newJSONTerminal(upstream)
 	case terminalHistogram:
 		return newHistogramTerminal(upstream)
 	case terminalGraph:
 		return newGraphTerminal(upstream)
 	}
-	// parsePipelineArgs validates all keywords before reaching here,
+	// parsePipelineOperations validates all keywords before reaching here,
 	// so this is unreachable in normal operation.
 	return upstream
 }
@@ -1554,16 +1555,18 @@ var filterKeywords = map[string]bool{
 	filterLast:      true,
 }
 
-// terminalKeywords are pipeline terminal keywords that take no value.
+// terminalKeywords are pipeline terminal keywords that take no value. The
+// `json` word the RIB once took here is gone: `| json` is the engine's format,
+// applied to the bare answer, which holds the same routes (D-7).
 var terminalKeywords = map[string]bool{
 	terminalCount:     true,
-	terminalJSON:      true,
 	terminalHistogram: true,
 	terminalGraph:     true,
 }
 
-// scopeKeywords are positional scope keywords (must appear first).
-// enumeration: gated by TestRIBScopeKeywordsMatchTheYANGModel
+// scopeKeywords are the scope operations: at most one per line, taken at any
+// position before the terminal (parsePipelineOperations).
+// enumeration: gated by TestRIBScopeKeywordsMatchTheDeclaredOperations
 var scopeKeywords = map[string]string{
 	"advertised":    scopeSent,
 	"sent":          scopeSent,
@@ -1571,40 +1574,42 @@ var scopeKeywords = map[string]string{
 	"sent-received": scopeSentReceived,
 }
 
-// parsePipelineArgs parses args into scope, selector, received walk, and
-// ordered stage list.
+// parsePipelineOperations reads the operations the engine declared for the
+// line into scope, selector, received walk and ordered stage list.
 // Returns (scope, peerSelector, walk, stages, errorMessage).
-// Validates ordering: filters must precede terminals, and at most one terminal is allowed.
 //
-// `covering <address>` and `exact <prefix>` are parsed into the walk, the way
-// `peer` is parsed into the selector, and the value is read here once rather
+// The engine hands the declared list in chain order, each operation's name
+// and its decoded argument words (sdk.PipeOperation, from the partition in
+// internal/component/command). Nothing here reads a command argument: a
+// selection word typed on the path is refused by the engine's argument
+// validator before the command reaches this plugin
+// (command.RefusePipeOperationWords).
+//
+// A scope (received, advertised, sent, sent-received) is taken at any
+// position before the terminal, and a second scope is refused naming both.
+// Filters must precede the terminal, and at most one terminal is allowed.
+//
+// `covering <address>` and `exact <prefix>` are read into the walk, the way
+// `peer` is read into the selector, and the value is parsed here once rather
 // than per row. The walk answers every received route unless one of them was
 // given; both in one command is refused (walkConflictRefusal). Whether the
 // scope can take such a walk is the caller's to judge: `show bgp rib` refuses
 // it on sent routes, and `show bgp rib protocol` has received routes only.
-func parsePipelineArgs(args []string) (string, string, receivedWalk, []pipelineStage, string) {
+func parsePipelineOperations(operations []sdk.PipeOperation) (string, string, receivedWalk, []pipelineStage, string) {
 	scope := scopeSentReceived
 	selector := ""
 	var walk receivedWalk = wholeTableRead{}
 	var stages []pipelineStage
 
-	i := 0
 	sawTerminal := false
 	scopeName := ""
 
-	// Check for optional scope keyword at position 0
-	if i < len(args) {
-		if s, ok := scopeKeywords[args[i]]; ok {
-			scope = s
-			scopeName = args[i]
-			i++
-		}
-	}
-
-	// Parse remaining args as filter/terminal stages
-	for i < len(args) {
-		keyword := args[i]
-		if _, ok := scopeKeywords[keyword]; ok {
+	for _, operation := range operations {
+		keyword := operation.Name
+		if named, isScope := scopeKeywords[keyword]; isScope {
+			if problem := operationTakesNoValue(operation); problem != "" {
+				return "", "", nil, nil, problem
+			}
 			if sawTerminal {
 				var tb textbuf.Buffer
 				return "", "", nil, nil, tb.Str("filter after terminal: ").Str(keyword).String()
@@ -1613,38 +1618,51 @@ func parsePipelineArgs(args []string) (string, string, receivedWalk, []pipelineS
 				var tb textbuf.Buffer
 				return "", "", nil, nil, tb.Str("multiple route direction filters: ").Str(scopeName).Str(" and ").Str(keyword).String()
 			}
-			scope = scopeKeywords[keyword]
+			scope = named
 			scopeName = keyword
-			i++
 			continue
 		}
-		if keyword == rowKeyPeer {
-			if sawTerminal {
-				return "", "", nil, nil, "filter after terminal: peer"
+
+		if terminalKeywords[keyword] {
+			if problem := operationTakesNoValue(operation); problem != "" {
+				return "", "", nil, nil, problem
 			}
+			if sawTerminal {
+				return "", "", nil, nil, "multiple terminals not allowed"
+			}
+			sawTerminal = true
+			stages = append(stages, pipelineStage{kind: keyword, terminal: true})
+			continue
+		}
+
+		if !isShowFilter(keyword) {
+			var tb textbuf.Buffer
+			return "", "", nil, nil, tb.Str("unknown keyword: ").Str(keyword).String()
+		}
+		if sawTerminal {
+			var tb textbuf.Buffer
+			return "", "", nil, nil, tb.Str("filter after terminal: ").Str(keyword).String()
+		}
+
+		switch keyword {
+		case rowKeyPeer:
 			if selector != "" {
 				return "", "", nil, nil, "duplicate peer filter"
 			}
-			i++
-			if i >= len(args) {
-				return "", "", nil, nil, "peer requires a value"
+			value, problem := operationValue(operation, "peer requires a value")
+			if problem != "" {
+				return "", "", nil, nil, problem
 			}
-			selector = args[i]
-			i++
-			continue
-		}
-		if keyword == filterCovering {
-			if sawTerminal {
-				return "", "", nil, nil, "filter after terminal: covering"
-			}
+			selector = value
+		case filterCovering:
 			if _, held := walk.(coveringRead); held {
 				return "", "", nil, nil, "duplicate covering filter: one address per lookup"
 			}
-			i++
-			if i >= len(args) {
-				return "", "", nil, nil, "covering requires a value: an IP address such as 192.0.2.1"
+			value, problem := operationValue(operation, "covering requires a value: an IP address such as 192.0.2.1")
+			if problem != "" {
+				return "", "", nil, nil, problem
 			}
-			addr, errMsg := parseCoveringAddress(args[i])
+			addr, errMsg := parseCoveringAddress(value)
 			if errMsg != "" {
 				return "", "", nil, nil, errMsg
 			}
@@ -1652,21 +1670,15 @@ func parsePipelineArgs(args []string) (string, string, receivedWalk, []pipelineS
 				return "", "", nil, nil, walkConflictRefusal(addr, held.prefix)
 			}
 			walk = coveringRead{address: addr}
-			i++
-			continue
-		}
-		if keyword == filterExact {
-			if sawTerminal {
-				return "", "", nil, nil, "filter after terminal: exact"
-			}
+		case filterExact:
 			if _, held := walk.(exactRead); held {
 				return "", "", nil, nil, "duplicate exact filter: one prefix per lookup"
 			}
-			i++
-			if i >= len(args) {
-				return "", "", nil, nil, "exact requires a value: a prefix with its mask such as 10.0.0.0/8"
+			value, problem := operationValue(operation, "exact requires a value: a prefix with its mask such as 10.0.0.0/8")
+			if problem != "" {
+				return "", "", nil, nil, problem
 			}
-			pfx, errMsg := parseExactPrefix(args[i])
+			pfx, errMsg := parseExactPrefix(value)
 			if errMsg != "" {
 				return "", "", nil, nil, errMsg
 			}
@@ -1674,55 +1686,87 @@ func parsePipelineArgs(args []string) (string, string, receivedWalk, []pipelineS
 				return "", "", nil, nil, walkConflictRefusal(held.address, pfx)
 			}
 			walk = exactRead{prefix: pfx}
-			i++
-			continue
+		default:
+			stage, problem := filterStage(operation)
+			if problem != "" {
+				return "", "", nil, nil, problem
+			}
+			stages = append(stages, stage)
 		}
-
-		if filterKeywords[keyword] {
-			if sawTerminal {
-				var tb textbuf.Buffer
-				return "", "", nil, nil, tb.Str("filter after terminal: ").Str(keyword).String()
-			}
-			i++
-			if i >= len(args) {
-				var tb textbuf.Buffer
-				return "", "", nil, nil, tb.Str(keyword).Str(" requires a value").String()
-			}
-			if isPathStage(keyword) {
-				if errMsg := validatePathPattern(args[i]); errMsg != "" {
-					return "", "", nil, nil, errMsg
-				}
-			}
-			// first/last take a positive count. The client-side ValidatePipes
-			// check is bypassed when these are folded into the command for the
-			// server-side fast path, so validate here too: reject non-numeric
-			// and <= 0 rather than silently clamping (and never preallocate N).
-			if keyword == filterFirst || keyword == filterLast {
-				if n, err := strconv.Atoi(args[i]); err != nil || n <= 0 {
-					var tb textbuf.Buffer
-					return "", "", nil, nil, tb.Str(keyword).Str(" requires a positive number").String()
-				}
-			}
-			stages = append(stages, pipelineStage{kind: keyword, arg: args[i]})
-			i++
-			continue
-		}
-
-		if terminalKeywords[keyword] {
-			if sawTerminal {
-				return "", "", nil, nil, "multiple terminals not allowed"
-			}
-			sawTerminal = true
-			stages = append(stages, pipelineStage{kind: keyword, terminal: true})
-			i++
-			continue
-		}
-
-		var tb textbuf.Buffer
-		return "", "", nil, nil, tb.Str("unknown keyword: ").Str(keyword).String()
 	}
 
 	return scope, selector, walk, stages, ""
+}
+
+// isShowFilter reports whether keyword is a filter or a source selector of
+// `show bgp rib`: a word that takes a value and precedes the terminal.
+func isShowFilter(keyword string) bool {
+	if keyword == rowKeyPeer || keyword == filterCovering || keyword == filterExact {
+		return true
+	}
+	return filterKeywords[keyword]
+}
+
+// filterStage builds the stage of one value-taking filter operation, after
+// validating its value. Both parsers call it, so `show bgp rib` and
+// `show bgp rib best` refuse the same values the same way.
+//
+// first and last take a positive count. The engine validated the count kind
+// when it took the operation (command.ArgCount), and this check holds the
+// same contract for a caller that reaches the plugin by another route: a
+// non-numeric or non-positive N is refused rather than clamped, and N is
+// never preallocated.
+func filterStage(operation sdk.PipeOperation) (pipelineStage, string) {
+	keyword := operation.Name
+	var missing textbuf.Buffer
+	value, problem := operationValue(operation, missing.Str(keyword).Str(" requires a value").String())
+	if problem != "" {
+		return pipelineStage{}, problem
+	}
+	if isPathStage(keyword) {
+		if errMsg := validatePathPattern(value); errMsg != "" {
+			return pipelineStage{}, errMsg
+		}
+	}
+	if keyword == filterFirst || keyword == filterLast {
+		if n, err := strconv.Atoi(value); err != nil || n <= 0 {
+			var tb textbuf.Buffer
+			return pipelineStage{}, tb.Str(keyword).Str(" requires a positive number").String()
+		}
+	}
+	return pipelineStage{kind: keyword, arg: value}, ""
+}
+
+// operationValue answers the one value a filter operation carries, or the
+// refusal: missing when the operation holds no argument word, and a
+// one-value refusal when it holds more than one.
+//
+// `match` is the exception. It overrides the generic `| match`, which reads
+// every word after its name as one text, so its words are joined with one
+// space and the override keeps the generic's meaning.
+func operationValue(operation sdk.PipeOperation, missing string) (string, string) {
+	if len(operation.Args) == 0 {
+		return "", missing
+	}
+	if operation.Name == filterMatch {
+		return strings.Join(operation.Args, " "), ""
+	}
+	if len(operation.Args) == 1 {
+		return operation.Args[0], ""
+	}
+	var tb textbuf.Buffer
+	return "", tb.Str(operation.Name).Str(" takes one value: quote a value that holds a space, as in | ").
+		Str(operation.Name).Str(` "`).Str(strings.Join(operation.Args, " ")).Str(`"`).String()
+}
+
+// operationTakesNoValue refuses an argument word on an operation that takes
+// none: a scope or a terminal.
+func operationTakesNoValue(operation sdk.PipeOperation) string {
+	if len(operation.Args) == 0 {
+		return ""
+	}
+	var tb textbuf.Buffer
+	return tb.Str(operation.Name).Str(" takes no value, and was given ").Str(operation.Args[0]).String()
 }
 
 // hasTerminal returns true if any stage is a terminal.

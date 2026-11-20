@@ -28,18 +28,21 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// resetPipeOperationRegistries clears the pipe-filter and alias registries
-// before a test and again after it. The server package links no package that
-// registers either from init(), so an empty registry is the state every other
-// test of the package runs in. A test that calls it MUST NOT be parallel.
+// resetPipeOperationRegistries empties the pipe-filter and alias registries for
+// one test and puts back what they held when it ends. The test binary links
+// packages that declare both from init(): the external test files of this
+// package import the composition root (plugin/all), and a later test reads
+// those declarations (peer_rib_scope_test.go reads the RIB's). Clearing them
+// for good would leave that test reading none. A test that calls it MUST NOT
+// be parallel.
 func resetPipeOperationRegistries(t *testing.T) {
 	t.Helper()
-	reset := func() {
-		command.ResetAliasesForTest()
-		command.ResetPipeFiltersForTest()
-	}
-	reset()
-	t.Cleanup(reset)
+	restoreAliases := command.EmptyAliasesForTest()
+	restorePipeFilters := command.EmptyPipeFiltersForTest()
+	t.Cleanup(func() {
+		restorePipeFilters()
+		restoreAliases()
+	})
 }
 
 // rowsDocument is the answer of the rows target: three peers, one of them up.

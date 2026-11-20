@@ -33,7 +33,7 @@ func seedShowRows(t testing.TB, r *RIBManager, rows int) {
 // showRecords answers the walk `show bgp rib` produces.
 func showRecords(t testing.TB, r *RIBManager) sdk.Records {
 	t.Helper()
-	status, payload, err := r.handleCommand("show bgp rib", "*", []string{"received"})
+	status, payload, err := r.handleCommand("show bgp rib", "*", nil, ribPipe("received")...)
 	require.NoError(t, err)
 	require.Equal(t, statusDone, status)
 	records, ok := payload.(sdk.Records)
@@ -106,16 +106,19 @@ func TestShowPipelineNoLockAcrossWrite(t *testing.T) {
 	assert.Equal(t, rows+2, w.lines, "the walk must stream for this to have been tested")
 }
 
-// showTerminalRowKeys answers the row keys produced by the buffering JSON
-// terminal.
+// showTerminalRowKeys answers the row keys of the buffered document over the
+// whole selection (routesDocument), the form the removed `json` terminal
+// answered.
 func showTerminalRowKeys(t *testing.T, r *RIBManager) []string {
 	t.Helper()
 
 	var document map[string]any
-	require.NoError(t, json.Unmarshal(
-		mustMarshal(t, r.showPipeline("*", []string{"json"})), &document))
+	source, release := r.newShowSource("*", scopeSentReceived, wholeTableRead{})
+	buffered := newRoutesDocument(source).Meta().JSON
+	release()
+	require.NoError(t, json.Unmarshal([]byte(buffered), &document))
 	rows, ok := document["routes"].([]any)
-	require.True(t, ok, "the json terminal answers a routes list, got %v", document)
+	require.True(t, ok, "the buffered document answers a routes list, got %v", document)
 
 	keys := make([]string, 0, len(rows))
 	for _, raw := range rows {

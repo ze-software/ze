@@ -123,7 +123,9 @@ func TestUsageRendersTheDeclaredValues(t *testing.T) {
 				"[address-family <ipv6-unicast|ipv6-multicast|ipv4-unicast|ipv4-multicast>]",
 		},
 		{"show policy chain peer", "show policy chain peer <selector> [import|export]"},
-		{"show bgp peer rib", "show bgp peer <selector> rib [sent|advertised|received|sent-received]"},
+		// The direction is a pipe operation of the command, not a modifier
+		// group of the model, so the usage line stops at the subject (D-9).
+		{"show bgp peer rib", "show bgp peer <selector> rib"},
 		// Whole-form alternation: each output form is its own command, so the
 		// line an operator reads names the form rather than an alternation the
 		// parent's description used to spell. The algorithm is a closed set the
@@ -547,13 +549,6 @@ func TestModifierGroupsLeaveDispatchUntouched(t *testing.T) {
 			path:       "show policy chain peer",
 			input:      "show policy chain peer edge1 export",
 			args:       []string{"edge1", "export"},
-			ownArgDefs: 1,
-		},
-		{
-			path:       "show bgp peer rib",
-			input:      "show bgp peer edge1 rib received",
-			args:       []string{"received"},
-			selectors:  map[string]string{"selector": "edge1"},
 			ownArgDefs: 1,
 		},
 		{

@@ -65,7 +65,7 @@ func TestRIBShowSelectsASessionByItsName(t *testing.T) {
 		{[]string{"received", "peer", "192.0.2.1", "count"}, 1},
 	}
 	for _, tt := range tests {
-		got := r.showPipeline("*", tt.args)
+		got := r.showPipeline("*", ribPipe(tt.args...))
 		answer, ok := got.(map[string]any)
 		if !ok {
 			t.Fatalf("%v: answer = %#v, want a count", tt.args, got)
@@ -75,7 +75,7 @@ func TestRIBShowSelectsASessionByItsName(t *testing.T) {
 		}
 	}
 
-	best := r.bestPipeline("*", []string{"peer", "injector", "count"})
+	best := r.bestPipeline("*", ribPipe("peer", "injector", "count"))
 	answer, ok := best.(map[string]any)
 	if !ok {
 		t.Fatalf("best peer injector: answer = %#v, want a count", best)

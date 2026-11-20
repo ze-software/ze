@@ -2732,8 +2732,8 @@ peer
     └── group
 
 rib
-├── routes [sent|received|sent-received] [filters...] [count|json]
-├── best [filters...] [count|json]
+├── routes [| sent|advertised|received|sent-received] [| filter ...] [| count|first|last|histogram|graph]
+├── best [| filter ...] [| count|first|last|histogram|graph|reason]
 ├── status
 ├── clear [in|out]
 ├── inject <peer> <family> <prefix> [attrs...]
@@ -3705,8 +3705,25 @@ Runtime lookup reads the shared execution grammar and matches each registered
 path segment to one decoded word. Quoting one keyword preserves its identity;
 one quoted value containing spaces cannot stand for several path keywords.
 
+A command whose model declares a value inside its path is typed with that
+value between two keywords: the peer selector of `show bgp peer edge1 rib`.
+The positional match would never reach `show bgp peer rib`, so for a path the
+model gives definitions to, lookup matches the typed words the way the
+dispatcher matches the command (`MatchInvocationPath`, over the definitions
+the YANG package registers with `RegisterArgDefSource`). The selector is
+skipped exactly where dispatch binds it, so `show bgp peer edge1 rib | received`
+hands `received` to the handler and resolves the peer RIB's columns, on the
+dispatcher and on every surface's own partition. A word the model places
+nowhere inside the path still does not reach the declaration. The refusal of
+an operation typed as an argument names the registered path and writes its
+fix from the command as typed, the selector kept: `fix: show bgp peer edge1
+rib | received`.
+
 <!-- source: internal/component/command/answer_shape.go -- RegisterShape, ShapeForCommand, RegisterAddressFields, AddressFieldsForCommand -->
 <!-- source: internal/component/command/column_order.go -- commandRegistry, lookup -->
+<!-- source: internal/component/command/invocation_path.go -- invocationReachesCommandPath -->
+<!-- source: internal/component/command/argbind.go -- RefusePipeOperationWords -->
+<!-- source: internal/component/plugin/server/command.go -- typedCommandHead -->
 
 An owner can confine its shape, columns, address fields and aliases to a parent
 with `RegisterChildBoundary`. Lookup derives an empty floor from the first typed

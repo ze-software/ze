@@ -15,7 +15,8 @@ import (
 )
 
 // bestFactRows answers the received rows of `show bgp rib` as decoded maps,
-// through the streaming path or, with terminal set, the `json` terminal.
+// through the streaming path or, with terminal set, the buffered document
+// (routesDocument).
 func bestFactRows(t *testing.T, r *RIBManager, terminal bool) []map[string]any {
 	t.Helper()
 	rows, err := bestFactRowsDecoded(r, terminal)
@@ -27,13 +28,21 @@ func bestFactRows(t *testing.T, r *RIBManager, terminal bool) []map[string]any {
 // own: it answers the decode error, because FailNow MUST run on the test
 // goroutine.
 func bestFactRowsDecoded(r *RIBManager, terminal bool) ([]map[string]any, error) {
-	args := []string{"received"}
+	var answer []byte
 	if terminal {
-		args = append(args, "json")
-	}
-	answer, err := json.Marshal(r.showPipeline("*", args))
-	if err != nil {
-		return nil, err
+		// The buffered form: the one document a terminal-less read builds
+		// when it answers the whole selection at once (routesDocument, which
+		// `show bgp rib protocol` answers). The `json` word that reached it
+		// on `show bgp rib` is gone (D-7).
+		source, release := r.newShowSource("*", scopeReceived, wholeTableRead{})
+		answer = []byte(newRoutesDocument(source).Meta().JSON)
+		release()
+	} else {
+		streamed, err := json.Marshal(r.showPipeline("*", ribPipe("received")))
+		if err != nil {
+			return nil, err
+		}
+		answer = streamed
 	}
 	var result struct {
 		Routes []map[string]any `json:"routes"`
@@ -70,7 +79,7 @@ func bestFactRIB(t testing.TB) (*RIBManager, family.Family, []byte) {
 // on every other path of the prefix. The looking glass reads it as
 // birdwatcher's `primary`, which reported false on every row before rows
 // carried it. Method: two peers announce one prefix, the election runs, and
-// both the streaming answer and the `json` terminal are read.
+// both the streaming answer and the buffered document are read.
 //
 // VALIDATES: a received row carries `best`, true on the recorded winner only.
 // PREVENTS: the looking glass reporting `primary: false` on every path.

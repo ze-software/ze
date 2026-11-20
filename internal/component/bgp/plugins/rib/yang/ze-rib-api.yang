@@ -13,6 +13,13 @@ module ze-rib-api {
     // Neither rpc reached a RIB command: the table in rib_commands.go holds
     // help, commands and events, and no entry answers either name. The live
     // pair is declared in ze-plugin-api.yang and ze-system-api.yang.
+    revision 2026-11-20 {
+        description "show and best take no args leaf-list: the scope, the filters and the
+                     reductions are pipe operations the RIB command declares, handed to the
+                     plugin as its declared list. The json terminal word is gone: | json
+                     renders the bare answer.";
+    }
+
     revision 2026-09-13 {
         description "Removed command-help and command-complete.";
     }
@@ -85,16 +92,18 @@ given.";
     }
 
     rpc show {
-        description "The scope is sent, received, or sent-received, which is the default.
-                     A filter is path <pattern>, prefix <pattern>, community <value>,
-                     family <afi/safi>, or match <text>.
+        description "The scope, the filters and the reductions are pipe operations, typed after
+                     a pipe and handed to the RIB plugin as the command's declared list.
+                     The scope is | received, | sent (or | advertised), or | sent-received,
+                     which is the default.
+                     A filter is | path <pattern> (or | aspath), | prefix <pattern>,
+                     | community <value>, | family <afi/safi>, | peer <selector>,
+                     | covering <address>, | exact <prefix>, or | match <text>.
                      A path pattern is AS numbers joined by commas, matched as a run anywhere in the AS path.
                      A leading ^ ties the run to the start of the path, and a trailing $ ties it to the end.
-                     A terminal is one of four.
-                     count returns metadata only.
-                     json returns serialized output.
-                     histogram returns the per-family prefix-length distribution.
-                     graph returns the AS-path topology as box-drawing text.";
+                     | count returns metadata only, | first N and | last N keep N routes,
+                     | histogram returns the per-family prefix-length distribution, and
+                     | graph returns the AS-path topology as box-drawing text.";
         ze:help "Show routes with pipeline filters.";
         input {
             leaf peer {
@@ -103,33 +112,29 @@ given.";
                              matching peers are shown. Absent, every peer is shown.";
                 ze:help "Filter by peer";
             }
-            leaf-list args {
-                type string;
-                description "The words of the pipeline in order: an optional scope, then filters,
-                             then one terminal. A keyword that is none of them is refused.";
-                ze:help "Pipeline args: scope, filters, terminal";
-            }
         }
         output {
             leaf route-count {
                 type uint32;
                 description "The count of routes the filters matched. It is answered when the
-                             terminal is count, and the routes themselves are not.";
+                             chain holds | count, and the routes themselves are not.";
                 ze:help "Number of routes (count terminal)";
             }
         }
     }
 
     rpc best {
-        description "A filter is path <pattern>, prefix <pattern>, community <value>,
-                     family <afi/safi>, or match <text>.
+        description "The filters and the reductions are pipe operations, typed after a pipe and
+                     handed to the RIB plugin as the command's declared list. There is no
+                     scope, because a best path is always a received route.
+                     A filter is | path <pattern> (or | aspath), | prefix <pattern>,
+                     | community <value>, | family <afi/safi>, | peer <selector>, or | match <text>.
                      A path pattern is AS numbers joined by commas, matched as a run anywhere in the AS path.
                      A leading ^ ties the run to the start of the path, and a trailing $ ties it to the end.
-                     A terminal is one of four.
-                     count returns metadata only.
-                     json returns serialized output.
-                     histogram returns the per-family prefix-length distribution.
-                     graph returns the AS-path topology as box-drawing text.";
+                     | count returns metadata only, | first N and | last N keep N best paths,
+                     | histogram returns the per-family prefix-length distribution,
+                     | graph returns the AS-path topology as box-drawing text, and
+                     | reason explains why each path was selected.";
         ze:help "Show best-path per prefix (RFC 4271 §9.1.2).";
         input {
             leaf peer {
@@ -138,18 +143,12 @@ given.";
                              is shown. Absent, the best path of every prefix is shown.";
                 ze:help "Filter by peer";
             }
-            leaf-list args {
-                type string;
-                description "The words of the pipeline in order: filters, then one terminal. There
-                             is no scope word, because a best path is always a received route.";
-                ze:help "Pipeline args: filters, terminal";
-            }
         }
         output {
             leaf route-count {
                 type uint32;
                 description "The count of prefixes with a best path that the filters matched. It
-                             is answered when the terminal is count.";
+                             is answered when the chain holds | count.";
                 ze:help "Number of best paths";
             }
         }

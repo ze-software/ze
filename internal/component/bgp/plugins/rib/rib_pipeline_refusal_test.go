@@ -21,7 +21,7 @@ func TestPipelineParseErrorsReachCommandVerdict(t *testing.T) {
 				{[]string{"unrecognized-stage"}, "unknown keyword: unrecognized-stage"},
 				{[]string{"peer"}, "peer requires a value"},
 			} {
-				status, data, err := r.handleCommand(command, "*", bad.args)
+				status, data, err := r.handleCommand(command, "*", nil, ribPipe(bad.args...)...)
 				if status != statusError {
 					t.Errorf("%v: status = %q, want error", bad.args, status)
 				}
@@ -36,7 +36,7 @@ func TestPipelineParseErrorsReachCommandVerdict(t *testing.T) {
 					t.Errorf("%v: refusal carries successful data %#v", bad.args, data)
 				}
 			}
-			status, _, err := r.handleCommand(command, "*", []string{"count"})
+			status, _, err := r.handleCommand(command, "*", nil, ribPipe("count")...)
 			if status != statusDone || err != nil {
 				t.Errorf("valid count: status = %q, error = %v", status, err)
 			}

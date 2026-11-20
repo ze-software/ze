@@ -406,7 +406,7 @@ func TestRIBShowInStaleFlag(t *testing.T) {
 	ipv4Family := family.IPv4Unicast
 
 	// Before marking stale, show received should not have "stale" field.
-	_, data, err := r.handleCommand("show bgp rib", "192.0.2.1", []string{"received"})
+	_, data, err := r.handleCommand("show bgp rib", "192.0.2.1", nil, ribPipe("received")...)
 	require.NoError(t, err)
 	var before map[string]any
 	require.NoError(t, json.Unmarshal(mustMarshal(t, data), &before))
@@ -429,7 +429,7 @@ func TestRIBShowInStaleFlag(t *testing.T) {
 	r.bgpPeers[1].Insert(ipv4Family, attrBytes, []byte{24, 192, 168, 0}) // fresh 192.168.0.0/24
 
 	// Show received should have "stale": true on stale routes, no "stale" on fresh.
-	_, data, err = r.handleCommand("show bgp rib", "192.0.2.1", []string{"received"})
+	_, data, err = r.handleCommand("show bgp rib", "192.0.2.1", nil, ribPipe("received")...)
 	require.NoError(t, err)
 	var after map[string]any
 	require.NoError(t, json.Unmarshal(mustMarshal(t, data), &after))

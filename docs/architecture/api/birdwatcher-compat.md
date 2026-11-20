@@ -174,7 +174,7 @@ with `learnt_from` naming it, and counted as learned from it.
 <!-- source: internal/component/lg/handler_api.go -- serveRoutesForPeer, handleAPIRoutesExport, handleAPIRoutesCount -->
 <!-- source: internal/component/lg/handler_ui.go -- handleUIPeerRoutes, ribCount, handleUISearch, handleUIRouteDetail -->
 <!-- source: internal/component/lg/handler_graph.go -- handleGraph -->
-<!-- source: internal/component/bgp/plugins/rib/rib_pipeline.go -- parsePipelineArgs, scopeKeywords -->
+<!-- source: internal/component/bgp/plugins/rib/rib_pipeline.go -- parsePipelineOperations, scopeKeywords -->
 
 ### 3.3 The prefix lookup
 

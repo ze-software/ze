@@ -4,6 +4,7 @@ module ze-rib-cmd {
     import ze-extensions { prefix ze; }
     import ze-types { prefix zt; }
     description "BGP RIB operations: query routes, manage Adj-RIB, inject test routes";
+    revision 2026-11-20 { description "show bgp rib and show bgp rib protocol name their pipe operations: the scope, the filters and the reductions are typed after a pipe, and show bgp rib protocol takes no scope."; }
     revision 2026-10-17 { description "clear bgp rib in and clear bgp rib out declare their peer selector as a mandatory leaf, so the bare prefix is refused rather than reaching the plugin, and * is the explicit form for every peer. clear bgp rib out declares the optional family it already read from the second token."; }
     revision 2026-09-15 { description "show bgp rib protocol and request bgp rib fastpath are declared here, each stating its own argument. Both were reachable only through the plugin dispatch fallback, and each spelled its grammar in the summary sentence because the model declared no argument. The protocol leaf is a string the bgp-rib plugin checks against the protocol registry, which is the one list of the protocols this binary carries. The fastpath action is a closed set of three words, so it is an enumeration and the dispatcher refuses any other word by name."; }
     revision 2026-03-16 { description "Initial revision"; }
@@ -23,13 +24,14 @@ or l2vpn.";
                 ze:command "ze-bgp:rib-routes";
                 ze:rpc "ze-rib-api:show";
                 ze:task-support required;
-                description "Look at received or advertised routes with flexible filters: peer,
-family, prefix (a text match that can also list longer prefixes),
-AS path regex, community, match expression, covering, which lists
-the received routes whose prefix contains an IP address, and exact,
-which lists the received routes of one prefix. Pipe operators:
-| count, | histogram, | graph. This is the main route inspection
-command.";
+                description "Look at received or advertised routes, each choice a pipe operation
+typed after the command: the scope | received, | advertised (or | sent) or
+| sent-received; the filters | peer, | family, | prefix (a text match that
+can also list longer prefixes), | path (or | aspath), | community, | match,
+| covering, which lists the received routes whose prefix contains an IP
+address, and | exact, which lists the received routes of one prefix; then
+| count, | first, | last, | histogram or | graph. This is the main route
+inspection command.";
                 ze:help "Query routes in the BGP RIB.";
 
                 container best {
@@ -73,9 +75,10 @@ Use this to verify RPF checks would pass for a given source.";
                     ze:command "ze-bgp:rib-protocol";
                     description "Answers the same rows as show bgp rib, limited to the Adj-RIB-In
 tables one protocol feeds. bgp reads the BGP peers. Every other protocol, bmp for
-example, reads the tables its monitored peers fill. The pipeline words after the
-protocol are the ones show bgp rib takes: peer <selector> limits the answer to
-the matching peers, then filters, then one terminal.";
+example, reads the tables its monitored peers fill. The pipe operations are
+the ones show bgp rib takes, without a scope, because these tables hold
+received routes only: | peer <selector> limits the answer to the matching
+peers, and a scope such as | advertised is refused.";
                     ze:help "Query the routes one protocol feeds into the RIB.";
 
                     leaf protocol {

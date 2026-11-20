@@ -254,7 +254,7 @@ func newBestSource(r *RIBManager, selectorStr string, stashCandidates map[string
 // price of not holding a lock across the answer, and it is a state only a
 // concurrent withdrawal reaches.
 //
-// A best row carries no `age`, in the walk and under the `json` terminal alike.
+// A best row carries no `age`, in the walk and in a terminal's answer alike.
 // The RIB records when the winning route's attributes last changed and never
 // when that route became the best one, and a reader of a best row would take one
 // number for the second. So Next takes no reading of the route clock, and
@@ -305,8 +305,9 @@ func (s *bestSource) Meta() PipelineMeta {
 // (CollapseRecords, pkg/plugin/rpc/collapse.go).
 const bestPathEnvelopeKey = "best-path"
 
-// bestPipeline builds and executes a pipeline from best-path source.
-// Called by handleCommand for "show bgp rib best" with optional filter/terminal stages.
+// bestPipeline builds and executes a pipeline from best-path source, with the
+// filter and terminal stages the engine declared for the line
+// (parseBestPipelineOperations). Called by handleCommand for "show bgp rib best".
 //
 // With no terminal stage the answer is the WALK: the rows are handed over one at
 // a time, so a table of a million best paths reaches the operator without the
@@ -318,10 +319,10 @@ const bestPathEnvelopeKey = "best-path"
 // Either way the pool entry each row reads is retained by bestSource.Next and
 // given back by source.release, which the deferred call below owes on every way
 // out.
-func (r *RIBManager) bestPipeline(selector string, args []string) any {
-	pipeSelector, stages, errMsg := parseBestPipelineArgs(args)
+func (r *RIBManager) bestPipeline(selector string, operations []sdk.PipeOperation) any {
+	pipeSelector, stages, errMsg := parseBestPipelineOperations(operations)
 	if errMsg != "" {
-		return refusePipelineArgs(errMsg, "show bgp rib best count")
+		return refusePipeline(errMsg, "show bgp rib best | count")
 	}
 	if pipeSelector != "" {
 		selector = pipeSelector
@@ -466,34 +467,29 @@ func hasReasonTerminal(stages []pipelineStage) bool {
 	return false
 }
 
-// parseBestPipelineArgs parses args for show bgp rib best (no scope keyword, filters + terminals only).
+// parseBestPipelineOperations reads the operations the engine declared for
+// `show bgp rib best` (no scope: filters and a terminal only).
 // Returns (peerSelector, stages, errorMessage).
 // Validates ordering: filters must precede terminals, and at most one terminal is allowed.
 //
-// In addition to the generic terminalKeywords accepted across all pipelines,
-// this parser also accepts bestTerminalReason ("reason") which is specific to
-// the best-path pipeline -- it reports WHY a particular path won the per-
-// prefix decision process.
-func parseBestPipelineArgs(args []string) (string, []pipelineStage, string) {
+// Beside the terminals of terminalKeywords, this parser also takes
+// bestTerminalReason ("reason"), which is specific to the best-path pipeline:
+// it reports WHY a particular path won the per-prefix decision process.
+func parseBestPipelineOperations(operations []sdk.PipeOperation) (string, []pipelineStage, string) {
 	selector := ""
 	var stages []pipelineStage
-	i := 0
 	sawTerminal := false
-	for i < len(args) {
-		keyword := args[i]
-		if keyword == rowKeyPeer {
+	for _, operation := range operations {
+		keyword := operation.Name
+		if terminalKeywords[keyword] || keyword == bestTerminalReason {
+			if problem := operationTakesNoValue(operation); problem != "" {
+				return "", nil, problem
+			}
 			if sawTerminal {
-				return "", nil, "filter after terminal: peer"
+				return "", nil, "multiple terminals not allowed"
 			}
-			if selector != "" {
-				return "", nil, "duplicate peer filter"
-			}
-			i++
-			if i >= len(args) {
-				return "", nil, "peer requires a value"
-			}
-			selector = args[i]
-			i++
+			sawTerminal = true
+			stages = append(stages, pipelineStage{kind: keyword, terminal: true})
 			continue
 		}
 		if keyword == filterCovering {
@@ -502,39 +498,30 @@ func parseBestPipelineArgs(args []string) (string, []pipelineStage, string) {
 		if keyword == filterExact {
 			return "", nil, exactOnBestRefusal
 		}
-
-		if filterKeywords[keyword] {
-			if sawTerminal {
-				var tb textbuf.Buffer
-				return "", nil, tb.Str("filter after terminal: ").Str(keyword).String()
+		if keyword != rowKeyPeer && !filterKeywords[keyword] {
+			var tb textbuf.Buffer
+			return "", nil, tb.Str("unknown keyword: ").Str(keyword).String()
+		}
+		if sawTerminal {
+			var tb textbuf.Buffer
+			return "", nil, tb.Str("filter after terminal: ").Str(keyword).String()
+		}
+		if keyword == rowKeyPeer {
+			if selector != "" {
+				return "", nil, "duplicate peer filter"
 			}
-			i++
-			if i >= len(args) {
-				var tb2 textbuf.Buffer
-				return "", nil, tb2.Str(keyword).Str(" requires a value").String()
+			value, problem := operationValue(operation, "peer requires a value")
+			if problem != "" {
+				return "", nil, problem
 			}
-			if isPathStage(keyword) {
-				if errMsg := validatePathPattern(args[i]); errMsg != "" {
-					return "", nil, errMsg
-				}
-			}
-			stages = append(stages, pipelineStage{kind: keyword, arg: args[i]})
-			i++
+			selector = value
 			continue
 		}
-
-		if terminalKeywords[keyword] || keyword == bestTerminalReason {
-			if sawTerminal {
-				return "", nil, "multiple terminals not allowed"
-			}
-			sawTerminal = true
-			stages = append(stages, pipelineStage{kind: keyword, terminal: true})
-			i++
-			continue
+		stage, problem := filterStage(operation)
+		if problem != "" {
+			return "", nil, problem
 		}
-
-		var tb3 textbuf.Buffer
-		return "", nil, tb3.Str("unknown keyword: ").Str(keyword).String()
+		stages = append(stages, stage)
 	}
 	return selector, stages, ""
 }
@@ -719,7 +706,7 @@ func (w *bestRowWriter) record(item RouteItem) rpc.RowRecord {
 
 // bestResultFor is the value one best-path item renders to. It reads the item's
 // pool entry, so it MUST run while that entry is retained (bestSource.Next).
-// It writes no age, as the `json` terminal writes none for a best row
+// It writes no age: a best row carries none on any answer
 // (bestSource.Next says why).
 func bestResultFor(item RouteItem) bestResult {
 	br := bestResult{

@@ -782,7 +782,7 @@ func TestHandleCommand_RIBShowReceived(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			status, data, err := r.handleCommand("show bgp rib", tt.selector, []string{"received"})
+			status, data, err := r.handleCommand("show bgp rib", tt.selector, nil, ribPipe("received")...)
 			require.NoError(t, err)
 			assert.Equal(t, "done", status)
 			if tt.wantPeer1 {
@@ -866,7 +866,7 @@ func TestHandleCommand_RIBShowSent(t *testing.T) {
 		},
 	})
 
-	status, data, err := r.handleCommand("show bgp rib", "10.0.0.1", []string{"sent"})
+	status, data, err := r.handleCommand("show bgp rib", "10.0.0.1", nil, ribPipe("sent")...)
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, dataStr(t, data), "10.0.0.1")
@@ -973,22 +973,23 @@ func TestRIBPluginHandleCommandCanonicalNames(t *testing.T) {
 		name    string
 		command string
 		args    []string
+		pipe    []sdk.PipeOperation // the declared list: a route read's scope is typed after a pipe
 		wantOK  bool
 		wantIn  string // substring expected in data
 	}{
-		{"show bgp rib status", "show bgp rib status", nil, true, `"running":true`},
-		{"show bgp rib received", "show bgp rib", []string{"received"}, true, "10.0.0.1"},
-		{"clear bgp rib in", "clear bgp rib in", []string{"*"}, true, `"cleared"`},
+		{"show bgp rib status", "show bgp rib status", nil, nil, true, `"running":true`},
+		{"show bgp rib received", "show bgp rib", nil, ribPipe("received"), true, "10.0.0.1"},
+		{"clear bgp rib in", "clear bgp rib in", []string{"*"}, nil, true, `"cleared"`},
 		// The answer is flat rows now, so the direction is a FIELD rather than
 		// an envelope key: `"direction":"sent"` is what `adj-rib-out` used to
 		// be, and it says the same thing about the same route.
-		{"show bgp rib sent", "show bgp rib", []string{"sent"}, true, `"direction":"sent"`},
-		{"clear bgp rib out", "clear bgp rib out", []string{"*"}, true, `"resent"`},
+		{"show bgp rib sent", "show bgp rib", nil, ribPipe("sent"), true, `"direction":"sent"`},
+		{"clear bgp rib out", "clear bgp rib out", []string{"*"}, nil, true, `"resent"`},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			status, data, err := r.handleCommand(tt.command, "*", tt.args)
+			status, data, err := r.handleCommand(tt.command, "*", tt.args, tt.pipe...)
 			if tt.wantOK {
 				require.NoError(t, err, "command %q should succeed", tt.command)
 				assert.Equal(t, "done", status)
@@ -1428,7 +1429,7 @@ func TestHandleCommand_InboundShow_PoolStorage(t *testing.T) {
 	require.Equal(t, 1, r.bgpPeers[1].Len())
 
 	// Call show command via handleCommand (unified pipeline, received scope)
-	status, data, err := r.handleCommand("show bgp rib", "*", []string{"received"})
+	status, data, err := r.handleCommand("show bgp rib", "*", nil, ribPipe("received")...)
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, dataStr(t, data), "10.0.0.1", "should contain peer address")

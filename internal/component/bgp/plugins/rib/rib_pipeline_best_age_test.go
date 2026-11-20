@@ -18,7 +18,7 @@ import (
 func bestRowsUnder(t *testing.T, r *RIBManager, args []string, key string) []map[string]any {
 	t.Helper()
 	var answer map[string][]map[string]any
-	require.NoError(t, json.Unmarshal(mustMarshal(t, r.bestPipeline("*", args)), &answer))
+	require.NoError(t, json.Unmarshal(mustMarshal(t, r.bestPipeline("*", ribPipe(args...))), &answer))
 	rows, ok := answer[key]
 	require.True(t, ok, "expected rows under %q, got %v", key, answer)
 	require.Len(t, rows, 1, "one route was stored, so one best row is expected")
@@ -56,19 +56,4 @@ func TestBestWalkRowCarriesNoAge(t *testing.T) {
 	attributes, ok := row["attributes"].(map[string]any)
 	require.True(t, ok, "the best row carries the winning route's attributes, got %v", row)
 	assert.NotContains(t, attributes, rowKeyAge)
-}
-
-// TestBestJSONTerminalRowCarriesNoAge reads the row `show bgp rib best json`
-// writes for the same route.
-//
-// VALIDATES: the `json` terminal over a best source writes no `age` member, so
-// both forms of the best answer agree.
-// PREVENTS: bestSource.Next taking a reading of the route clock again, which
-// made this form answer an age the walk did not.
-func TestBestJSONTerminalRowCarriesNoAge(t *testing.T) {
-	r := seedAgedBestRoute(t)
-
-	row := bestRowsUnder(t, r, []string{terminalJSON}, "routes")[0]
-	require.Equal(t, "10.0.0.0/24", row[rowKeyPrefix])
-	assert.NotContains(t, row, rowKeyAge)
 }

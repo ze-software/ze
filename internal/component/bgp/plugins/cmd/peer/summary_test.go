@@ -1179,8 +1179,8 @@ func TestChildCommandsDoNotInheritTheSummaryOrder(t *testing.T) {
 	// Three kinds are here because each was missed once:
 	//
 	//   - the SELECTOR spellings. `show bgp peer detail` is not a prefix of
-	//     `show bgp peer 192.0.2.1 detail`, so a per-leaf registration leaves
-	//     the typed form resolving `show bgp`.
+	//     `show bgp peer 192.0.2.1 detail`, so a positional match leaves the
+	//     typed form resolving `show bgp`, or nothing at its floor.
 	//   - the plugin paths, which `./le cli list` does not report.
 	//   - `show bgp decode`, an offline handler the inventory does not report.
 	commands := []commandOrder{
@@ -1203,18 +1203,28 @@ func TestChildCommandsDoNotInheritTheSummaryOrder(t *testing.T) {
 			"rate-updates-received", "rate-updates-sent",
 			"rate-keepalives-received", "rate-keepalives-sent",
 		}}},
-		// The SELECTOR spellings resolve `show bgp peer`, which declares
-		// nothing, and NOT the leaf beside them: `show bgp peer detail` is not a
-		// prefix of `show bgp peer 192.0.2.1 detail`. So a leaf declaration
-		// reaches the bare spelling alone, and the selector spelling keeps
-		// inheriting nothing. That is the registry's string-prefix resolution
-		// meeting the dispatcher's selector folding, and it is why
-		// the parent boundary supplies a floor at the SHALLOWEST path.
-		{command: "show bgp peer 192.0.2.1 capabilities"},
-		{command: "show bgp peer 192.0.2.1 detail"},
-		{command: "show bgp peer 192.0.2.1 history"},
-		{command: "show bgp peer 192.0.2.1 rib"},
-		{command: "show bgp peer 192.0.2.1 statistics"},
+		// The SELECTOR spellings resolve the leaf the dispatcher routes them
+		// to, never `show bgp`: the lookup matches a path whose model declares
+		// a value inside it the way the dispatcher does
+		// (invocationReachesCommandPath, internal/component/command/
+		// invocation_path.go), so `show bgp peer 192.0.2.1 detail` reads what
+		// `show bgp peer detail` declares, exactly as the bare spelling does.
+		{command: "show bgp peer 192.0.2.1 capabilities", orders: []command.ColumnOrder{{"peer", "state", "negotiation-complete", "negotiated"}}},
+		{command: "show bgp peer 192.0.2.1 detail", orders: []command.ColumnOrder{{
+			"name", "group", "remote-as", "local-as", "peer-type", "router-id",
+			"state", "uptime", "last-notification",
+			"local-ip", "next-hop", "next-hop-address", "timer", "capabilities",
+		}}},
+		{command: "show bgp peer 192.0.2.1 history", orders: []command.ColumnOrder{{"timestamp", "from", "to", "reason"}}},
+		{command: "show bgp peer 192.0.2.1 rib", orders: []command.ColumnOrder{ribRoutes}},
+		{command: "show bgp peer 192.0.2.1 statistics", orders: []command.ColumnOrder{{
+			"address", "remote-as", "state", "uptime",
+			"updates-received", "updates-sent",
+			"keepalives-received", "keepalives-sent",
+			"eor-received", "eor-sent",
+			"rate-updates-received", "rate-updates-sent",
+			"rate-keepalives-received", "rate-keepalives-sent",
+		}}},
 		{command: "show bgp rib best", orders: []command.ColumnOrder{{"family", "prefix", "best-peer", "multipath-peers", "attributes"}}},
 		{command: "show bgp rib best status", orders: []command.ColumnOrder{{"running", "peers-with-rib", "total-routes"}}},
 		// `show bgp rib commands` is registered by the bgp-rib plugin PROCESS

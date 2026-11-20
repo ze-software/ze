@@ -7,6 +7,7 @@ module ze-peer-cmd {
     // and delete bgp peer command surface. Its show, create and delete subtrees
     // container-merge onto the show, create and delete verb roots.
     description "BGP peer operations: create, show, delete, and control peer sessions.";
+    revision 2026-11-20 { description "show bgp peer rib declares no scope leaf: the direction of the routes is a pipe operation the RIB command declares, typed after a pipe, and the argument form is refused with the pipe form as its fix."; }
     revision 2026-10-23 { description "The request peer selector states which commands act on every peer it matches and which refuse all but one, delete bgp peer refuses a selector that is not one peer, disable states the communication Ze sends when no message is given, and teardown names RFC 9003."; }
     revision 2026-10-21 { description "clear bgp rib advertised withdraws the Adj-RIB-Out of the selected peers; show bgp health points at bgp-health in ze-bgp-api, its owner. request peer disable and enable hold a peer administratively down and release it. request peer notify closes a session with a NOTIFICATION of any code and subcode, its Data field given as text or, after the keyword hex, as octets."; }
     revision 2026-10-18 { description "The peer selector summary names * for every peer, so the selector guard's refusal, which quotes it, names the explicit every-peer form."; }
@@ -154,26 +155,11 @@ whose transitions were never recorded answers 'no history for peer'.";
                     ze:command "ze-bgp:peer-rib";
                     description "The command forwards to the RIB plugin with the peer selector attached, so the
 RIB plugin MUST be loaded for it to answer. 'show bgp rib' reads the same plugin
-without a peer scope.";
+without a peer scope. The direction is a pipe operation: '| received' reads the
+routes the peer sent to Ze, '| sent' or '| advertised' the routes Ze sent to it,
+and '| sent-received', the default, both. The other pipe operations of
+'show bgp rib' apply too, such as '| prefix', '| count' and '| first'.";
                     ze:help "Show RIB data scoped to one peer.";
-
-                    container scope {
-                        config false;
-                        ze:modifier "choice";
-                        description "Without one, routes sent and received are both shown.";
-                        ze:help "Which direction of the peer's RIB to read.";
-                        leaf scope {
-                            type enumeration {
-                                enum sent { ze:help "Read the routes Ze sent to the peer."; }
-                                enum advertised { ze:help "Read the routes Ze sent to the peer, another spelling of sent."; }
-                                enum received { ze:help "Read the routes the peer sent to Ze."; }
-                                enum sent-received { ze:help "Read the routes of both directions, which is the default."; }
-                            }
-                            description "The word is typed first, before any pipe stage. The RIB plugin reads
-its outbound table for sent, its inbound table for received, and both for sent-received.";
-                            ze:help "Direction of the routes to read. 'advertised' is another spelling of 'sent'.";
-                        }
-                    }
                 }
             }
             // The command node lives HERE, in the -cmd module, and not beside the

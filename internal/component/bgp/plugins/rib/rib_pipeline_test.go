@@ -261,7 +261,7 @@ func TestTerminalJSON(t *testing.T) {
 	}
 
 	src := &sliceSource{items: items}
-	jt := newJSONTerminal(src)
+	jt := newRoutesDocument(src)
 
 	meta := jt.Meta()
 	assert.Equal(t, 2, meta.Count)
@@ -301,7 +301,7 @@ func TestBuildPipeline(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := r.showPipeline("*", tt.args)
+			result := r.showPipeline("*", ribPipe(tt.args...))
 			assert.NotEmpty(t, result)
 
 			var parsed map[string]any
@@ -321,7 +321,7 @@ func TestBuildPipeline(t *testing.T) {
 func TestBuildPipelineUnknownKeyword(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	result := r.showPipeline("*", []string{"bogus"})
+	result := r.showPipeline("*", ribPipe("bogus"))
 	status, data, err := commandAnswer(result)
 	assert.Equal(t, statusError, status)
 	assert.Empty(t, data)
@@ -349,7 +349,7 @@ func TestBuildPipelineFilterKeywordNoValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := r.showPipeline("*", tt.args)
+			result := r.showPipeline("*", ribPipe(tt.args...))
 			status, data, err := commandAnswer(result)
 			assert.Equal(t, statusError, status)
 			assert.Empty(t, data)
@@ -387,7 +387,7 @@ func TestShowPipelineBothDirections(t *testing.T) {
 		},
 	})
 
-	result := r.showPipeline("*", []string{"count"})
+	result := r.showPipeline("*", ribPipe("count"))
 	var parsed map[string]any
 	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	count, ok := parsed["count"]
@@ -420,7 +420,7 @@ func TestShowPipelineReceivedScope(t *testing.T) {
 		},
 	})
 
-	result := r.showPipeline("*", []string{"received", "count"})
+	result := r.showPipeline("*", ribPipe("received", "count"))
 	var parsed map[string]any
 	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	count := parsed["count"]
@@ -452,7 +452,7 @@ func TestShowPipelineSentScope(t *testing.T) {
 		},
 	})
 
-	result := r.showPipeline("*", []string{"sent", "count"})
+	result := r.showPipeline("*", ribPipe("sent", "count"))
 	var parsed map[string]any
 	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	count := parsed["count"]
@@ -479,7 +479,7 @@ func TestShowPipelineAdvertisedScope(t *testing.T) {
 		},
 	})
 
-	result := r.showPipeline("*", []string{"advertised", "count"})
+	result := r.showPipeline("*", ribPipe("advertised", "count"))
 	var parsed map[string]any
 	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	assert.Equal(t, float64(1), parsed["count"], "expected 1 advertised route")
@@ -492,7 +492,7 @@ func TestShowPipelineAdvertisedScope(t *testing.T) {
 func TestShowPipelineRejectsConflictingDirection(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	result := r.showPipeline("*", []string{"received", "advertised", "count"})
+	result := r.showPipeline("*", ribPipe("received", "advertised", "count"))
 	status, data, err := commandAnswer(result)
 	assert.Equal(t, statusError, status)
 	assert.Empty(t, data)
@@ -519,7 +519,7 @@ func TestShowPipelinePeerFilter(t *testing.T) {
 		r.bgpPeers[fixture.owner] = peerRIB
 	}
 
-	result := r.showPipeline("*", []string{"received", "peer", "192.0.2.2", "count"})
+	result := r.showPipeline("*", ribPipe("received", "peer", "192.0.2.2", "count"))
 	var parsed map[string]any
 	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	assert.Equal(t, float64(1), parsed["count"], "expected routes from one peer")
@@ -552,7 +552,7 @@ func TestShowPipelineComposed(t *testing.T) {
 	})
 
 	// path 64501 community 65000:100 count -> should match only first route
-	result := r.showPipeline("*", []string{"sent", "path", "64501", "community", "65000:100", "count"})
+	result := r.showPipeline("*", ribPipe("sent", "path", "64501", "community", "65000:100", "count"))
 	var parsed map[string]any
 	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	count := parsed["count"]
@@ -598,7 +598,7 @@ func TestHandleCommandRibShowCount(t *testing.T) {
 	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
 	r.bgpPeers[1] = peerRIB
 
-	status, data, err := r.handleCommand("show bgp rib", "*", []string{"count"})
+	status, data, err := r.handleCommand("show bgp rib", "*", nil, ribPipe("count")...)
 	assert.Equal(t, statusDone, status)
 	assert.NoError(t, err)
 
@@ -618,9 +618,9 @@ func TestHandleCommandOldCommandsError(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Pipeline-parsed old keywords: routed through "show bgp rib" with args,
-	// parsePipelineArgs returns an "unknown keyword" refusal.
+	// parsePipelineOperations returns an "unknown keyword" refusal.
 	for _, keyword := range []string{"in", "out", "best"} {
-		status, data, err := r.handleCommand("show bgp rib", "*", []string{keyword})
+		status, data, err := r.handleCommand("show bgp rib", "*", nil, ribPipe(keyword)...)
 		require.Error(t, err, "pipeline error for %q", keyword)
 		assert.Equal(t, statusError, status, "pipeline error status for %q", keyword)
 		assert.Empty(t, data)
@@ -718,15 +718,15 @@ func TestFilterMatchCrossField(t *testing.T) {
 
 // TestParsePipelineInvalidASN verifies invalid ASN in path filter is rejected at parse time.
 //
-// VALIDATES: path filter with non-numeric ASN returns error from parsePipelineArgs.
+// VALIDATES: path filter with non-numeric ASN returns error from parsePipelineOperations.
 // PREVENTS: invalid ASN silently passing through to matchASPath where it returns false.
 func TestParsePipelineInvalidASN(t *testing.T) {
-	_, _, _, _, errMsg := parsePipelineArgs([]string{"path", "abc"})
+	_, _, _, _, errMsg := parsePipelineOperations(ribPipe("path", "abc"))
 	assert.NotEmpty(t, errMsg, "expected error for invalid ASN")
 	assert.Contains(t, errMsg, "invalid ASN", "error should mention invalid ASN")
 
 	// Also verify via bestPipelineArgs
-	_, _, errMsg = parseBestPipelineArgs([]string{"path", "abc"})
+	_, _, errMsg = parseBestPipelineOperations(ribPipe("path", "abc"))
 	assert.NotEmpty(t, errMsg, "expected error for invalid ASN in best pipeline")
 	assert.Contains(t, errMsg, "invalid ASN", "error should mention invalid ASN")
 }
@@ -748,18 +748,18 @@ func TestFilterMatchCrossFieldInEntry(t *testing.T) {
 	r.bgpPeers[1] = peerRIB
 
 	// Match on AS-path value "65001"
-	result := r.showPipeline("*", []string{"received", "match", "65001", "count"})
+	result := r.showPipeline("*", ribPipe("received", "match", "65001", "count"))
 	var parsed map[string]any
 	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	assert.Equal(t, float64(1), parsed["count"], "expected match on AS-path 65001")
 
 	// Match on community "65000:100"
-	result = r.showPipeline("*", []string{"received", "match", "65000:100", "count"})
+	result = r.showPipeline("*", ribPipe("received", "match", "65000:100", "count"))
 	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	assert.Equal(t, float64(1), parsed["count"], "expected match on community 65000:100")
 
 	// Match on origin "igp"
-	result = r.showPipeline("*", []string{"received", "match", "igp", "count"})
+	result = r.showPipeline("*", ribPipe("received", "match", "igp", "count"))
 	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	assert.Equal(t, float64(1), parsed["count"], "expected match on origin igp")
 }
@@ -771,7 +771,7 @@ func TestFilterMatchCrossFieldInEntry(t *testing.T) {
 // VALIDATES: AC-10 — terminal before filter is invalid.
 // PREVENTS: Silently ignoring filters placed after a terminal stage.
 func TestParsePipelineTerminalBeforeFilter(t *testing.T) {
-	_, _, _, _, errMsg := parsePipelineArgs([]string{"count", "path", "64501"})
+	_, _, _, _, errMsg := parsePipelineOperations(ribPipe("count", "path", "64501"))
 	assert.Contains(t, errMsg, "filter after terminal")
 }
 
@@ -780,7 +780,7 @@ func TestParsePipelineTerminalBeforeFilter(t *testing.T) {
 // VALIDATES: AC-10 — multiple terminals not allowed.
 // PREVENTS: Ambiguous pipeline with two terminal stages.
 func TestParsePipelineTwoTerminals(t *testing.T) {
-	_, _, _, _, errMsg := parsePipelineArgs([]string{"count", "json"})
+	_, _, _, _, errMsg := parsePipelineOperations(ribPipe("count", "histogram"))
 	assert.Contains(t, errMsg, "multiple terminals not allowed")
 }
 
@@ -817,7 +817,7 @@ func TestShowPipelineCountZeroWithFilter(t *testing.T) {
 	r.bgpPeers[1] = peerRIB
 
 	// Path filter for ASN 99999 — no routes have this ASN
-	result := r.showPipeline("*", []string{"received", "path", "99999", "count"})
+	result := r.showPipeline("*", ribPipe("received", "path", "99999", "count"))
 	var parsed map[string]any
 	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	count, ok := parsed["count"]
@@ -852,7 +852,7 @@ func TestShowPipelineExplicitSentReceived(t *testing.T) {
 	})
 
 	// Explicit sent-received scope
-	result := r.showPipeline("*", []string{"sent-received", "count"})
+	result := r.showPipeline("*", ribPipe("sent-received", "count"))
 	var parsed map[string]any
 	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 	count, ok := parsed["count"]
@@ -890,7 +890,7 @@ func TestBestPipeline_WithFilter(t *testing.T) {
 	r.bgpPeers[2] = peerRIB2
 
 	// Best pipeline with community filter: should only return the route with 65000:100
-	result := r.bestPipeline("*", []string{"community", "65000:100"})
+	result := r.bestPipeline("*", ribPipe("community", "65000:100"))
 	var parsed map[string]any
 	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 
@@ -923,7 +923,7 @@ func TestBestPipeline_CountTerminal(t *testing.T) {
 	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
 	r.bgpPeers[1] = peerRIB
 
-	result := r.bestPipeline("*", []string{"count"})
+	result := r.bestPipeline("*", ribPipe("count"))
 	var parsed map[string]any
 	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
 
@@ -1088,12 +1088,12 @@ func TestShowRibLastRingWraps(t *testing.T) {
 // server-side validation a crafted `last 99999999999` would reach the filter.
 func TestParsePipelineArgsRejectsBadFirstLast(t *testing.T) {
 	for _, arg := range []string{"0", "-1", "abc", ""} {
-		_, _, _, _, errMsg := parsePipelineArgs([]string{"last", arg})
+		_, _, _, _, errMsg := parsePipelineOperations(ribPipe("last", arg))
 		assert.NotEmpty(t, errMsg, "last %q should be rejected", arg)
-		_, _, _, _, errMsg = parsePipelineArgs([]string{"first", arg})
+		_, _, _, _, errMsg = parsePipelineOperations(ribPipe("first", arg))
 		assert.NotEmpty(t, errMsg, "first %q should be rejected", arg)
 	}
-	if _, _, _, _, errMsg := parsePipelineArgs([]string{"last", "5"}); errMsg != "" {
+	if _, _, _, _, errMsg := parsePipelineOperations(ribPipe("last", "5")); errMsg != "" {
 		t.Errorf("last 5 should be accepted, got %q", errMsg)
 	}
 }
@@ -1392,7 +1392,7 @@ func TestShowPipesUnchanged(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := r.showPipeline("*", tt.args)
+			result := r.showPipeline("*", ribPipe(tt.args...))
 			require.NotEmpty(t, result)
 
 			if tt.checkJSON != nil {
@@ -1442,7 +1442,7 @@ func BenchmarkShowLargeTable(b *testing.B) {
 		b.ResetTimer()
 		b.ReportAllocs()
 		for b.Loop() {
-			_ = r.showPipeline("*", []string{"received", "count"})
+			_ = r.showPipeline("*", ribPipe("received", "count"))
 		}
 	})
 
@@ -1475,7 +1475,7 @@ func BenchmarkShowLargeTable(b *testing.B) {
 		b.ResetTimer()
 		b.ReportAllocs()
 		for b.Loop() {
-			_ = r.showPipeline("*", []string{"sent", "count"})
+			_ = r.showPipeline("*", ribPipe("sent", "count"))
 		}
 	})
 }
@@ -1517,9 +1517,9 @@ func TestShowPipelineConcurrentChurn(t *testing.T) {
 					return
 				default:
 				}
-				_ = r.showPipeline("*", []string{"received", "match", "65001", "count"})
-				_ = r.showPipeline("*", []string{"received", "community", "65000:100", "count"})
-				_ = r.bestPipeline("*", []string{"count"})
+				_ = r.showPipeline("*", ribPipe("received", "match", "65001", "count"))
+				_ = r.showPipeline("*", ribPipe("received", "community", "65000:100", "count"))
+				_ = r.bestPipeline("*", ribPipe("count"))
 			}
 		})
 	}
@@ -1740,18 +1740,18 @@ func TestValidatePathPatternEndAnchor(t *testing.T) {
 	assert.False(t, matchASPath([]uint32{65001}, "peer$"))
 
 	// The command parsers are where an operator meets the validator.
-	_, _, _, stages, problem := parsePipelineArgs([]string{"path", "^65010,65001$"})
+	_, _, _, stages, problem := parsePipelineOperations(ribPipe("path", "^65010,65001$"))
 	require.Empty(t, problem, "show bgp rib must accept an anchored pattern")
 	require.Len(t, stages, 1)
 	assert.Equal(t, "^65010,65001$", stages[0].arg)
-	_, bestStages, problem := parseBestPipelineArgs([]string{"path", "65001$"})
+	_, bestStages, problem := parseBestPipelineOperations(ribPipe("path", "65001$"))
 	require.Empty(t, problem, "show bgp rib best must accept an anchored pattern")
 	require.Len(t, bestStages, 1)
 	assert.Equal(t, "65001$", bestStages[0].arg)
 
-	_, _, _, _, problem = parsePipelineArgs([]string{"path", "65001$,65002"})
+	_, _, _, _, problem = parsePipelineOperations(ribPipe("path", "65001$,65002"))
 	assert.Contains(t, problem, "end anchor", "show bgp rib must refuse a misplaced anchor")
-	_, _, problem = parseBestPipelineArgs([]string{"path", "65001$,65002"})
+	_, _, problem = parseBestPipelineOperations(ribPipe("path", "65001$,65002"))
 	assert.Contains(t, problem, "end anchor", "show bgp rib best must refuse a misplaced anchor")
 }
 
@@ -1765,17 +1765,17 @@ func TestValidatePathPatternEndAnchor(t *testing.T) {
 // route, because the matcher refuses what the parser let through.
 func TestParsePipelineValidatesASPathAlias(t *testing.T) {
 	for _, keyword := range []string{filterPath, filterASPath} {
-		_, _, _, _, problem := parsePipelineArgs([]string{keyword, "peer"})
+		_, _, _, _, problem := parsePipelineOperations(ribPipe(keyword, "peer"))
 		assert.Contains(t, problem, "invalid ASN", "show bgp rib %s peer", keyword)
-		_, _, problem = parseBestPipelineArgs([]string{keyword, "peer"})
+		_, _, problem = parseBestPipelineOperations(ribPipe(keyword, "peer"))
 		assert.Contains(t, problem, "invalid ASN", "show bgp rib best %s peer", keyword)
 
-		_, _, _, _, problem = parsePipelineArgs([]string{keyword, "65001$$"})
+		_, _, _, _, problem = parsePipelineOperations(ribPipe(keyword, "65001$$"))
 		assert.Contains(t, problem, "end anchor", "show bgp rib %s 65001$$", keyword)
-		_, _, problem = parseBestPipelineArgs([]string{keyword, "65001$$"})
+		_, _, problem = parseBestPipelineOperations(ribPipe(keyword, "65001$$"))
 		assert.Contains(t, problem, "end anchor", "show bgp rib best %s 65001$$", keyword)
 
-		_, _, _, _, problem = parsePipelineArgs([]string{keyword, "65001$"})
+		_, _, _, _, problem = parsePipelineOperations(ribPipe(keyword, "65001$"))
 		assert.Empty(t, problem, "show bgp rib %s 65001$", keyword)
 	}
 }
@@ -1804,13 +1804,13 @@ func TestShowPipelinePathEndAnchor(t *testing.T) {
 		"^65001,65002$": 0,
 	}
 	for pattern, want := range counts {
-		result := r.showPipeline("*", []string{"received", "path", pattern, "count"})
+		result := r.showPipeline("*", ribPipe("received", "path", pattern, "count"))
 		var parsed map[string]any
 		require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed), "pattern %q", pattern)
 		assert.Equal(t, want, parsed["count"], "show bgp rib received path %s count", pattern)
 	}
 
-	refusal, refused := r.showPipeline("*", []string{"received", "path", "65001$$", "count"}).(pipelineRefusal)
+	refusal, refused := r.showPipeline("*", ribPipe("received", "path", "65001$$", "count")).(pipelineRefusal)
 	require.True(t, refused, "a misplaced end anchor must be refused, not answered")
 	require.Error(t, refusal.reason)
 	assert.Contains(t, refusal.reason.Error(), "end anchor")

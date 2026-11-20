@@ -900,6 +900,22 @@ func matchCommandTokens(tokens []string, key string, defs []command.ArgDef) ([]s
 	return command.MatchInvocationPath(tokens, key, defs)
 }
 
+// typedCommandHead writes the words of tokens before args, the tail the match
+// left as arguments: the command as the operator typed it, a selector value
+// inside the path included (`show bgp peer edge1 rib`), each word written in
+// the invocation grammar so a value holding a space stays one word. args MUST
+// be a tail of tokens, as matchCommandTokens answers it.
+func typedCommandHead(tokens, args []string) string {
+	var tb textbuf.Buffer
+	for i, word := range tokens[:len(tokens)-len(args)] {
+		if i > 0 {
+			tb.Byte(' ')
+		}
+		command.WriteInvocationValue(&tb, word)
+	}
+	return tb.String()
+}
+
 // implicitSelectorDef returns the one leaf a bare token sitting between two key
 // tokens fills, or nil when the model does not say which.
 //
@@ -1277,9 +1293,11 @@ func (d *Dispatcher) dispatchLine(ctx *CommandContext, line command.DispatchLine
 		// A word the command declares as a pipe operation is refused first,
 		// with the pipe form of the line as the fix: an operation is typed
 		// after a pipe and reaches the handler in its declared list, so no
-		// line carries one as an argument.
+		// line carries one as an argument. The fix starts with the command
+		// as typed, so a selector value inside the path stays where the
+		// operator put it.
 		var validated command.ValidatedArgs
-		argErr := command.RefusePipeOperationWords(matchedCmd.Name, args)
+		argErr := command.RefusePipeOperationWords(matchedCmd.Name, typedCommandHead(tokens, args), args)
 		if argErr == nil {
 			validated, argErr = command.ValidateArgs(args, matchedCmd.ArgDefs, selectors)
 		}

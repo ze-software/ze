@@ -1,4 +1,4 @@
-// Design: docs/architecture/plugin/rib-storage-design.md -- exact read for `show bgp rib received exact <prefix>`
+// Design: docs/architecture/plugin/rib-storage-design.md -- exact read for `show bgp rib | received | exact <prefix>`
 // Related: rib_pipeline_covering_test.go -- the covering tests whose fixtures these reuse
 package rib
 
@@ -25,7 +25,7 @@ import (
 // accepted, or a refusal that names neither the value nor what to type.
 func TestPipelineExactKeyword(t *testing.T) {
 	t.Run("parses", func(t *testing.T) {
-		scope, _, walk, stages, errMsg := parsePipelineArgs([]string{"received", "exact", "10.0.0.0/8", "count"})
+		scope, _, walk, stages, errMsg := parsePipelineOperations(ribPipe("received", "exact", "10.0.0.0/8", "count"))
 		require.Empty(t, errMsg)
 		assert.Equal(t, scopeReceived, scope)
 		exact, isExact := walk.(exactRead)
@@ -36,11 +36,11 @@ func TestPipelineExactKeyword(t *testing.T) {
 		require.Len(t, stages, 1, "exact is a source selector, not a stage")
 		assert.Equal(t, terminalCount, stages[0].kind)
 
-		_, _, v6, _, errMsg := parsePipelineArgs([]string{"received", "exact", "2001:db8::/32"})
+		_, _, v6, _, errMsg := parsePipelineOperations(ribPipe("received", "exact", "2001:db8::/32"))
 		require.Empty(t, errMsg)
 		assert.Equal(t, receivedWalk(exactRead{prefix: netip.MustParsePrefix("2001:db8::/32")}), v6)
 
-		_, _, whole, _, errMsg := parsePipelineArgs([]string{"received", "count"})
+		_, _, whole, _, errMsg := parsePipelineOperations(ribPipe("received", "count"))
 		require.Empty(t, errMsg)
 		assert.Equal(t, receivedWalk(wholeTableRead{}), whole, "no exact keyword is the whole-table walk")
 	})
@@ -48,7 +48,7 @@ func TestPipelineExactKeyword(t *testing.T) {
 	t.Run("answers through the handler with a terminal", func(t *testing.T) {
 		r := newTestRIBManager(t)
 		seedCoveringPeers(r)
-		status, payload, err := r.handleCommand("show bgp rib", "*", []string{"received", "exact", "10.0.0.0/8", "count"})
+		status, payload, err := r.handleCommand("show bgp rib", "*", nil, ribPipe("received", "exact", "10.0.0.0/8", "count")...)
 		require.NoError(t, err)
 		require.Equal(t, statusDone, status)
 		var parsed map[string]any
@@ -89,7 +89,7 @@ func TestPipelineExactKeyword(t *testing.T) {
 			[]string{"filter after terminal: exact"}},
 	} {
 		t.Run("refuses "+bad.name, func(t *testing.T) {
-			_, _, walk, stages, errMsg := parsePipelineArgs(bad.args)
+			_, _, walk, stages, errMsg := parsePipelineOperations(ribPipe(bad.args...))
 			require.NotEmpty(t, errMsg, "%v must be refused", bad.args)
 			assert.Nil(t, walk, "a refused parse carries no walk")
 			assert.Nil(t, stages)
@@ -98,7 +98,7 @@ func TestPipelineExactKeyword(t *testing.T) {
 			}
 
 			r := newTestRIBManager(t)
-			status, _, err := r.handleCommand("show bgp rib", "*", bad.args)
+			status, _, err := r.handleCommand("show bgp rib", "*", nil, ribPipe(bad.args...)...)
 			assert.Equal(t, statusError, status)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), errMsg, "the handler answers the parser's reason")
@@ -253,11 +253,11 @@ func TestExactRefusedOnSentScope(t *testing.T) {
 	} {
 		r := newTestRIBManager(t)
 		seedCoveringPeers(r)
-		status, data, err := r.handleCommand("show bgp rib", "*", args)
+		status, data, err := r.handleCommand("show bgp rib", "*", nil, ribPipe(args...)...)
 		assert.Equal(t, statusError, status, "%v", args)
 		require.Error(t, err, "%v", args)
 		assert.Contains(t, err.Error(), "exact reads received routes only", "%v", args)
-		assert.Contains(t, err.Error(), "show bgp rib received exact 10.0.0.0/8", "%v: the fix names the received form", args)
+		assert.Contains(t, err.Error(), "show bgp rib | received | exact 10.0.0.0/8", "%v: the fix names the received form", args)
 		assert.Equal(t, "", data, "%v: a refusal carries no rows", args)
 	}
 }
@@ -271,11 +271,11 @@ func TestExactRefusedOnSentScope(t *testing.T) {
 func TestExactRefusedOnBestScope(t *testing.T) {
 	r := newTestRIBManager(t)
 	seedCoveringPeers(r)
-	status, _, err := r.handleCommand("show bgp rib best", "*", []string{"exact", "10.0.0.0/8"})
+	status, _, err := r.handleCommand("show bgp rib best", "*", nil, ribPipe("exact", "10.0.0.0/8")...)
 	assert.Equal(t, statusError, status)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "exact is not available on show bgp rib best")
-	assert.Contains(t, err.Error(), "show bgp rib received exact")
+	assert.Contains(t, err.Error(), "show bgp rib | received | exact")
 }
 
 // TestExactAndCoveringTogetherRefused proves one command naming both exact and
@@ -290,7 +290,7 @@ func TestExactAndCoveringTogetherRefused(t *testing.T) {
 		{"received", "covering", "10.1.2.3", "exact", "10.0.0.0/8"},
 		{"received", "exact", "10.0.0.0/8", "covering", "10.1.2.3"},
 	} {
-		_, _, walk, stages, errMsg := parsePipelineArgs(args)
+		_, _, walk, stages, errMsg := parsePipelineOperations(ribPipe(args...))
 		require.NotEmpty(t, errMsg, "%v must be refused", args)
 		_, isCovering := walk.(coveringRead)
 		assert.False(t, isCovering, "%v: a refused parse carries no covering walk", args)
@@ -304,7 +304,7 @@ func TestExactAndCoveringTogetherRefused(t *testing.T) {
 
 		r := newTestRIBManager(t)
 		seedCoveringPeers(r)
-		status, _, err := r.handleCommand("show bgp rib", "*", args)
+		status, _, err := r.handleCommand("show bgp rib", "*", nil, ribPipe(args...)...)
 		assert.Equal(t, statusError, status, "%v", args)
 		require.Error(t, err, "%v", args)
 		assert.Contains(t, err.Error(), errMsg, "%v: the handler answers the parser's reason", args)
@@ -317,7 +317,7 @@ func TestExactAndCoveringTogetherRefused(t *testing.T) {
 // VALIDATES: `show bgp rib protocol <name> exact <prefix>` reaches
 // protocolInboundSource with the exact walk.
 // PREVENTS: the keyword parsed and then ignored on the one other caller of
-// parsePipelineArgs, answering every route of the protocol.
+// parsePipelineOperations, answering every route of the protocol.
 func TestExactOnProtocolPipeline(t *testing.T) {
 	r := newTestRIBManager(t)
 	fam := family.IPv4Unicast
@@ -326,7 +326,7 @@ func TestExactOnProtocolPipeline(t *testing.T) {
 	bmpPeers["router1:peer1"].Insert(fam, coveringTestAttrs(), []byte{8, 10})
 	bmpPeers["router1:peer1"].Insert(fam, coveringTestAttrs(), []byte{24, 10, 0, 0})
 
-	status, result, err := r.showProtocolPipeline("bmp", []string{"exact", "10.0.0.0/8", "count"})
+	status, result, err := r.showProtocolPipeline("bmp", ribPipe("exact", "10.0.0.0/8", "count"))
 	require.NoError(t, err)
 	require.Equal(t, statusDone, status)
 	var parsed map[string]any

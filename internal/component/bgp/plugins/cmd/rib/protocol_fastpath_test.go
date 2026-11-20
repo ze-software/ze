@@ -67,9 +67,12 @@ func TestProtocolAndFastpathStateTheirArguments(t *testing.T) {
 // definitions the model produces.
 //
 // The protocol value is bound to the leaf that repeats the keyword it follows,
-// so the handler receives it as a selector and the pipeline words as the tail.
-// The fastpath action is a closed set, so a word outside it is refused by name
-// before any handler runs.
+// so the handler receives it as a selector. The reader's own words are pipe
+// operations, which reach the handler in the declared list and leave no
+// argument (TestProtocolRibHandsItsOperationsToTheHandler pins the list); typed
+// as arguments they are refused before any handler runs (AC-8). The fastpath
+// action is a closed set, so a word outside it is refused by name before any
+// handler runs.
 func TestProtocolAndFastpathDispatchTheDeclaredValues(t *testing.T) {
 	argDefs := configyang.PathToArgDefs(ribLoader(t))
 
@@ -82,9 +85,14 @@ func TestProtocolAndFastpathDispatchTheDeclaredValues(t *testing.T) {
 	}{
 		{
 			path:      "show bgp rib protocol",
-			input:     "show bgp rib protocol bmp peer 192.0.2.1 count",
-			args:      []string{"peer", "192.0.2.1", "count"},
+			input:     "show bgp rib protocol bmp | peer 192.0.2.1",
+			args:      []string{},
 			selectors: map[string]string{"protocol": "bmp"},
+		},
+		{
+			path:    "show bgp rib protocol",
+			input:   "show bgp rib protocol bmp peer 192.0.2.1 count",
+			wantErr: "peer is a pipe operation of show bgp rib protocol, not an argument",
 		},
 		{
 			path:    "show bgp rib protocol",
