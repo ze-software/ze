@@ -1,8 +1,8 @@
 {
   "code": {
     "internal/component/ike/dataplane/vpp_policy.go::vppPolicyInterface": "00554018ad645f31",
-    "internal/component/ike/engine/apply.go::applyConfig": "e553c8860ebdb1c1",
-    "internal/component/ike/engine/apply.go::releaseSPD": "9af1232bcd690bb9",
+    "internal/component/ike/engine/apply.go::applyConfig": "6128c267ff0d67d6",
+    "internal/component/ike/engine/apply.go::releaseSPD": "2f7bd5bea26ee88c",
     "internal/component/ike/engine/apply.go::shutdown": "159a230bf190c6cc",
     "internal/component/ike/engine/spd_left.go::warnSPDLeft": "6ab3bbc52a6f0410",
     "internal/component/ike/engine/unmatched.go::installUnmatched": "6dda4022517a1d7f",
@@ -10,7 +10,7 @@
     "internal/component/ike/engine/unmatched_xfrm_interface.go::installXFRMInterfaceEntries": "e277cda09fcd1d1e",
     "internal/plugins/ospf/ipsec_install.go::defaultDataplaneSource": "f1afcc7c5c0fb959"
   },
-  "note": "Re-judged 2026-11-19 after D-4 (e700fb7392), ce5c276457, 50b89fb51b, 072ef5bf1f and 516671704b changed the cited producers. RFC 4301 Section 5.2: \"(No SAs are created in response to receipt of a packet that requires IPsec protection; only BYPASS or DISCARD cache entries can be created this way.) If there is no match, discard the traffic.\" The same producers and the same two uncovered paths as RFC4301-5.2-1: on XFRM under the IKE engine the catch-all is installed first and removed last (applyConfig, releaseSPD, warnSPDLeft), and Ze's IKE is exempt per socket; on VPP no catch-all can be installed (CatchAllSupported answers ErrNoNodeWideSPD), and the OSPF RFC 4552 manual-key entries have no final DISCARD entry outside the IKE engine's window, the OSPF change adding removal reporting only. The gap stands.",
+  "note": "Re-judged 2026-11-20 by an independent agent after df3221e7b8, 40cf3cfaec, a29420771d, 4663a5e15e and 1dc1323b86. RFC 4301 Section 5.2: \"(No SAs are created in response to receipt of a packet that requires IPsec protection; only BYPASS or DISCARD cache entries can be created this way.) If there is no match, discard the traffic.\" Same producers and paths as RFC4301-5.2-1: applyConfig dropped the ICMP error return entries (now kernel-mapped) and added a start-time log of port-scoped forward bypasses that installs nothing; the catch-all is still first on the first apply and last in releaseSPD, kept when warnSPDLeft reports an entry left. VPP still holds no catch-all and the OSPF manual-key entries still lack a final DISCARD outside the engine's window. The gap stands.",
   "requirement_sha": "85de5f441399996b",
   "verdict": "unimplemented"
 }

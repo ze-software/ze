@@ -1,8 +1,8 @@
 {
   "code": {
     "internal/component/ike/dataplane/vpp_policy.go::vppPolicyInterface": "00554018ad645f31",
-    "internal/component/ike/engine/apply.go::applyConfig": "e553c8860ebdb1c1",
-    "internal/component/ike/engine/apply.go::releaseSPD": "9af1232bcd690bb9",
+    "internal/component/ike/engine/apply.go::applyConfig": "6128c267ff0d67d6",
+    "internal/component/ike/engine/apply.go::releaseSPD": "2f7bd5bea26ee88c",
     "internal/component/ike/engine/apply.go::shutdown": "159a230bf190c6cc",
     "internal/component/ike/engine/spd_left.go::warnSPDLeft": "6ab3bbc52a6f0410",
     "internal/component/ike/engine/unmatched.go::installUnmatched": "6dda4022517a1d7f",
@@ -10,7 +10,7 @@
     "internal/component/ike/engine/unmatched_xfrm_interface.go::installXFRMInterfaceEntries": "e277cda09fcd1d1e",
     "internal/plugins/ospf/ipsec_install.go::defaultDataplaneSource": "f1afcc7c5c0fb959"
   },
-  "note": "Re-judged 2026-11-19 after D-4 (e700fb7392), ce5c276457, 50b89fb51b, 072ef5bf1f and 516671704b changed the cited producers. RFC 4301 Section 4.4.1: \"Since the SPD-I is just a part of the SPD, if a packet that is looked up in the SPD-I cannot be matched to an entry there, then the packet MUST be discarded.\" applyConfig still installs the catch-all first on the first apply, and releaseSPD still removes it last and keeps it when warnSPDLeft reports another entry left; Ze's IKE is exempt per socket (bypassIKESocket), not by an SPD entry, as the annotation already says. The two uncovered paths are unchanged: vppBackend.CatchAllSupported still answers ErrNoNodeWideSPD (vppPolicyInterface refuses an unbound entry), and the OSPF installer change adds removal reporting only, so the RFC 4552 manual-key entries still have no final DISCARD entry with no vpn ipsec block, after releaseSPD, under unmatched bypass, or on VPP. The gap stands.",
+  "note": "Re-judged 2026-11-20 by an independent agent after df3221e7b8, 40cf3cfaec, a29420771d, 4663a5e15e and 1dc1323b86. RFC 4301 Section 4.4.1: \"Since the SPD-I is just a part of the SPD, if a packet that is looked up in the SPD-I cannot be matched to an entry there, then the packet MUST be discarded.\" Producer changes read: applyConfig no longer installs the ICMP error return entries after the catch-all (the kernel maps forwarded ICMP errors, K1 bit 6) and gains warnForwardBypassAtStart, which only logs spdForwardBypassRefusals at Error and installs nothing; releaseSPD lost the matching icmpReturns.release. On the first apply installUnmatched still runs before any operator, interface or Child entry, and releaseSPD still removes the catch-all last and keeps it when warnSPDLeft reports an entry left. The two uncovered paths are unchanged (VPP CatchAllSupported answers ErrNoNodeWideSPD; the OSPF RFC 4552 manual-key entries have no final DISCARD outside the engine's window), so the gap stands.",
   "requirement_sha": "627457a03bb75173",
   "verdict": "unimplemented"
 }

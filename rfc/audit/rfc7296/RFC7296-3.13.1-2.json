@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/ike/engine/rfc7296_protocol_selector_test.go::TestTSWireAnyPortsForEveryProtocol": "87247232d998a505",
     "internal/component/ike/engine/rfc7296_protocol_selector_test.go::TestTSWireRefusesUndefinedPortValues": "87247232d998a505",
-    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "042ef3718a420858",
-    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "042ef3718a420858"
+    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "7a2ef4cde370eb4b",
+    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "7a2ef4cde370eb4b"
   },
   "units": {
     "internal/component/ike/engine/rfc7296_protocol_selector_test.go::TestTSWireAnyPortsForEveryProtocol": "d53527639a4e8c0d",
