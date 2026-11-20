@@ -103,8 +103,9 @@ Ze does not apply that cut to the baseline or to Ze's live product source.
 
 This Phase 0 image builds only `af_packet`, `linux-cp` and `pppoe`, using
 upstream's `VPP_PLUGINS` CMake option. `VPP_BUILD_NATIVE_ONLY=ON` compiles only
-for the build host's CPU, avoiding unused multiarch variants. It uses one
-compile worker to fit the lab's two-core, two-GiB Docker host. Rebuild this
+for the build host's CPU, avoiding unused multiarch variants. It runs one
+compile job per core of the Docker host, capped at one per 1.5 GiB of available
+memory, so a two-GiB host builds serially and a larger lab guest uses its cores. Rebuild this
 CPU-specific image inside the target Ze-kernel guest before that guest's lab
 run; an image built on another CPU is not a portable artifact.
 It is **not** an appliance or DPDK

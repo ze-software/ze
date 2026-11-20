@@ -68,8 +68,9 @@ func imageRecipe(context interoplab.ImageContext) interoplab.ImageBuild {
 		Dockerfile: filepath.Join(directory, "Dockerfile"), Context: directory,
 		// Suite callers need the compiler diagnostics the build action retains.
 		Progress: os.Stderr,
-		// The two-core, two-GiB Docker host builds one translation unit at a
-		// time. Bound the whole build rather than increasing concurrency.
+		// The recipe sizes its compile jobs to the Docker host's cores and
+		// memory, so a two-GiB host still builds serially. Bound the whole
+		// build so a serial cold build on a small host stays finite.
 		Timeout: 45 * time.Minute, Required: true,
 	}
 }
