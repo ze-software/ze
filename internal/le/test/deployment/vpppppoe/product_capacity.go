@@ -24,23 +24,25 @@ func productHostUniq(index int) string { return fmt.Sprintf("%08x", index+1) }
 // Only this owned process writes the capacity artifact, and its join precedes
 // parsing. The fixed stem and bounded filter never accept a caller path.
 func startProductCapacity(ctx context.Context, lab interoplab.CheckerLab) error {
-	command := `rm -f /evidence/product-capacity.done /evidence/product-capacity.log /tmp/product-capacity.pcap; timeout --signal=INT 120s tcpdump -U -n -s 512 -i eth0 -c 128 -w /tmp/product-capacity.pcap 'ether proto 0x8863 or (vlan 100 and ether proto 0x8863)' > /evidence/product-capacity.log 2>&1 & child=$!; echo "$child" > /evidence/product-capacity.pid; wait "$child"; status=$?; echo "$status" > /evidence/product-capacity.done`
-	if err := lab.ExecDetached(ctx, vppPeer, []string{"sh", "-c", command}, nil); err != nil {
+	// On the client's side of the link, as the discovery capture is
+	// (startProductDiscovery says why).
+	command := `cd /tmp; rm -f product-capacity.done product-capacity.log product-capacity.pcap; timeout -s INT 120 tcpdump -U -n -s 512 -i eth0 -c 128 -w product-capacity.pcap 'ether proto 0x8863 or (vlan 100 and ether proto 0x8863)' > product-capacity.log 2>&1 & child=$!; echo "$child" > product-capacity.pid; wait "$child"; status=$?; echo "$status" > product-capacity.done`
+	if err := lab.ExecDetached(ctx, clientPeer, []string{"sh", "-c", command}, nil); err != nil {
 		return err
 	}
-	_, err := waitText(ctx, lab, []string{readFileCommand, "/evidence/product-capacity.log"}, "listening on eth0")
+	_, err := waitTextOn(ctx, lab, clientPeer, []string{readFileCommand, "/tmp/product-capacity.log"}, "listening on eth0")
 	return err
 }
 
 func finishProductCapacity(ctx context.Context, lab interoplab.CheckerLab) error {
-	log, err := joinProductCapture(ctx, lab, "product-capacity")
+	log, err := joinProductCapture(ctx, lab, clientPeer, "/tmp", "product-capacity")
 	if err != nil {
 		return err
 	}
 	if err := productCaptureNoDrops(log); err != nil {
 		return err
 	}
-	encoded, err := query(ctx, lab, vppPeer, "base64", "/tmp/product-capacity.pcap")
+	encoded, err := query(ctx, lab, clientPeer, "base64", "/tmp/product-capacity.pcap")
 	if err != nil {
 		return err
 	}

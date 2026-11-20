@@ -18,27 +18,32 @@ import (
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
-// The capture file lives in the container's own /tmp: tcpdump drops to its
-// own user and chowns the savefile, which the 9p /evidence share refuses
-// ("Couldn't change ownership of savefile"). It is read back in place.
+// The physical discovery capture runs on the client's side of the access
+// link. VPP's AF_PACKET interface transmits with PACKET_QDISC_BYPASS
+// (src/plugins/af_packet/af_packet.c), so a tap on the VPP container's eth0
+// never sees VPP's own PADO and PADS; the client's eth0 carries both
+// directions. The capture and its pid, done and log files live in the
+// client's own /tmp: tcpdump chowns the savefile, which the 9p /evidence
+// share refuses. The client image is BusyBox, whose timeout takes
+// "-s INT 600".
 func startProductDiscovery(ctx context.Context, lab interoplab.CheckerLab) error {
-	command := `rm -f /evidence/product-discovery.done /evidence/product-discovery.log /tmp/product-discovery.pcap; timeout --signal=INT 600s tcpdump -U -n -s 512 -i eth0 -c 2048 -w /tmp/product-discovery.pcap 'ether proto 0x8863 or (vlan 100 and ether proto 0x8863)' > /evidence/product-discovery.log 2>&1 & child=$!; echo "$child" > /evidence/product-discovery.pid; wait "$child"; status=$?; echo "$status" > /evidence/product-discovery.done`
-	if err := lab.ExecDetached(ctx, vppPeer, []string{"sh", "-c", command}, nil); err != nil {
+	command := `cd /tmp; rm -f product-discovery.done product-discovery.log product-discovery.pcap; timeout -s INT 600 tcpdump -U -n -s 512 -i eth0 -c 2048 -w product-discovery.pcap 'ether proto 0x8863 or (vlan 100 and ether proto 0x8863)' > product-discovery.log 2>&1 & child=$!; echo "$child" > product-discovery.pid; wait "$child"; status=$?; echo "$status" > product-discovery.done`
+	if err := lab.ExecDetached(ctx, clientPeer, []string{"sh", "-c", command}, nil); err != nil {
 		return err
 	}
-	_, err := waitText(ctx, lab, []string{readFileCommand, "/evidence/product-discovery.log"}, "listening on eth0")
+	_, err := waitTextOn(ctx, lab, clientPeer, []string{readFileCommand, "/tmp/product-discovery.log"}, "listening on eth0")
 	return err
 }
 
 func finishProductDiscovery(ctx context.Context, lab interoplab.CheckerLab, sessions []productSession) error {
-	log, err := joinProductCapture(ctx, lab, "product-discovery")
+	log, err := joinProductCapture(ctx, lab, clientPeer, "/tmp", "product-discovery")
 	if err != nil {
 		return err
 	}
 	if err := productCaptureNoDrops(log); err != nil {
 		return err
 	}
-	encoded, err := query(ctx, lab, vppPeer, "base64", "/tmp/product-discovery.pcap")
+	encoded, err := query(ctx, lab, clientPeer, "base64", "/tmp/product-discovery.pcap")
 	if err != nil {
 		return err
 	}
@@ -56,14 +61,15 @@ func finishProductDiscovery(ctx context.Context, lab interoplab.CheckerLab, sess
 	return productDiscovery(wire, mac, sessions)
 }
 
-// joinProductCapture joins only the capture PID published by its owned peer.
-// The stem is internal, never a user-provided path or a process-name selector.
-func joinProductCapture(ctx context.Context, lab interoplab.CheckerLab, stem string) (string, error) {
+// joinProductCapture joins only the capture PID published by its owned peer,
+// in the directory that peer writes it to. The stem is internal, never a
+// user-provided path or a process-name selector.
+func joinProductCapture(ctx context.Context, lab interoplab.CheckerLab, peer, dir, stem string) (string, error) {
 	if stem != "product-cp" && stem != "product-discovery" && stem != "product-capacity" {
 		return "", errors.New("unknown product capture")
 	}
-	prefix := "/evidence/" + stem
-	text, err := query(ctx, lab, vppPeer, readFileCommand, prefix+".pid")
+	prefix := dir + "/" + stem
+	text, err := query(ctx, lab, peer, readFileCommand, prefix+".pid")
 	if err != nil {
 		return "", err
 	}
@@ -71,11 +77,12 @@ func joinProductCapture(ctx context.Context, lab interoplab.CheckerLab, stem str
 	if err != nil || pid < 2 {
 		return "", fmt.Errorf("owned capture has invalid PID %q", text)
 	}
-	if _, err := query(ctx, lab, vppPeer, "kill", "-INT", strconv.FormatUint(pid, 10)); err != nil {
+	// The PID text has just parsed as a decimal process ID, so it is sent as read.
+	if _, err := query(ctx, lab, peer, "kill", "-INT", strings.TrimSpace(text)); err != nil {
 		return "", err
 	}
 	status, _, err := interoplab.Wait(ctx, productWait(stem+" join"), func(ctx context.Context) (string, error) {
-		return query(ctx, lab, vppPeer, readFileCommand, prefix+".done")
+		return query(ctx, lab, peer, readFileCommand, prefix+".done")
 	}, func(text string) bool { return strings.TrimSpace(text) != "" })
 	if err != nil {
 		return "", err
@@ -83,7 +90,7 @@ func joinProductCapture(ctx context.Context, lab interoplab.CheckerLab, stem str
 	if strings.TrimSpace(status) != "0" && strings.TrimSpace(status) != "130" {
 		return "", fmt.Errorf("owned capture exited unsuccessfully: %q", status)
 	}
-	return query(ctx, lab, vppPeer, readFileCommand, prefix+".log")
+	return query(ctx, lab, peer, readFileCommand, prefix+".log")
 }
 
 func productDiscovery(wire []byte, local string, sessions []productSession) error {

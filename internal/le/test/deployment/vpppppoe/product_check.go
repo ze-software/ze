@@ -602,7 +602,7 @@ func startProductCapture(ctx context.Context, lab interoplab.CheckerLab, device,
 }
 
 func finishProductCapture(ctx context.Context, lab interoplab.CheckerLab) error {
-	log, err := joinProductCapture(ctx, lab, "product-cp")
+	log, err := joinProductCapture(ctx, lab, vppPeer, "/evidence", "product-cp")
 	if err != nil {
 		return err
 	}

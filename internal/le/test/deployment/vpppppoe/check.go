@@ -478,7 +478,12 @@ func cli(ctx context.Context, lab interoplab.CheckerLab, args ...string) (string
 }
 
 func waitText(ctx context.Context, lab interoplab.CheckerLab, args []string, wanted string) (string, error) {
-	text, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: controlCommandBudget, Interval: 250 * time.Millisecond, Description: "mechanism readiness " + wanted}, func(ctx context.Context) (string, error) { return query(ctx, lab, vppPeer, args...) }, func(text string) bool { return strings.Contains(text, wanted) })
+	return waitTextOn(ctx, lab, vppPeer, args, wanted)
+}
+
+// waitTextOn waits for wanted in the output of args run in peer.
+func waitTextOn(ctx context.Context, lab interoplab.CheckerLab, peer string, args []string, wanted string) (string, error) {
+	text, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: controlCommandBudget, Interval: 250 * time.Millisecond, Description: "mechanism readiness " + wanted}, func(ctx context.Context) (string, error) { return query(ctx, lab, peer, args...) }, func(text string) bool { return strings.Contains(text, wanted) })
 	return text, err
 }
 
