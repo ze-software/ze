@@ -52,13 +52,16 @@ func validatingEditorFactory() contract.EditorFactory {
 	}
 }
 
-// installPeerValidator fills the two infra seams the BGP engine fills at init,
-// so ValidateContent reaches the peer pipeline in a binary that links no engine.
-// The tree resolver is stubbed because ResolveBGPTree fails closed on a bgp{}
-// block with no resolver registered, which would refuse every config here
-// before the peer validator was ever asked.
+// installPeerValidator fills the infra seams ValidateContent reads on a bgp{}
+// block, the ones the BGP engine fills at init, so ValidateContent reaches the
+// peer pipeline in a binary that links no engine. The tree resolver and the
+// peer summarizer are stubbed because ResolveBGPTree and SummarizeBGPPeers each
+// fail closed on a bgp{} block with nothing registered: the resolver would
+// refuse every config here before the peer validator was ever asked, and the
+// summarizer every config the peer validator accepted. The policy seam stays
+// unset: ValidateBGPPeersWithPolicy then runs the peer validator alone.
 //
-// Both seams are restored to nil, which is their starting value in this test
+// Every seam is restored to nil, which is its starting value in this test
 // binary: it does not link internal/component/bgp/config, so nothing else
 // fills them.
 func installPeerValidator(t *testing.T, validate infra.BGPPeerValidator) {
@@ -67,9 +70,13 @@ func installPeerValidator(t *testing.T, validate infra.BGPPeerValidator) {
 		return map[string]any{}, nil
 	})
 	infra.SetBGPPeerValidator(validate)
+	infra.SetBGPPeerSummarizer(func(*config.Tree) (infra.BGPPeerSummaries, error) {
+		return infra.BGPPeerSummaries{}, nil
+	})
 	t.Cleanup(func() {
 		infra.SetBGPTreeResolver(nil)
 		infra.SetBGPPeerValidator(nil)
+		infra.SetBGPPeerSummarizer(nil)
 	})
 }
 
