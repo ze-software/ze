@@ -342,7 +342,7 @@ func TestProtocolRejectAfterSessionUpWithdrawsFamily(t *testing.T) {
 
 	td := newProtocolRejectDriver(t, driverUnit)
 	peerDone := make(chan struct{})
-	go runParallelNCPPeer(t, td.peer, true, true, peerDone)
+	go runParallelNCPPeer(t, td.peer, peerDone)
 	assigned := awaitDualStackSessionUp(t, td)
 	<-peerDone
 	removalsBefore := len(td.backend.AddrRemoveCalls())

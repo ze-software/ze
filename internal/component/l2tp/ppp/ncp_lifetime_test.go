@@ -41,7 +41,7 @@ func TestNCPTerminateAfterSessionUpOnUnitFD(t *testing.T) {
 
 			td := newNCPTestDriverUnit(t, &StartSession{}, autoAcceptIP, discardLogger(), driverUnit)
 			peerDone := make(chan struct{})
-			go runParallelNCPPeer(t, td.peer, true, true, peerDone)
+			go runParallelNCPPeer(t, td.peer, peerDone)
 			assigned := awaitDualStackSessionUp(t, td)
 			<-peerDone
 

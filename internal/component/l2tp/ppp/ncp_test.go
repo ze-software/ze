@@ -506,7 +506,7 @@ func TestBothNCPsComplete(t *testing.T) {
 	defer td.cleanup()
 
 	peerDone := make(chan struct{})
-	go runParallelNCPPeer(t, td.peer, true, true, peerDone)
+	go runParallelNCPPeer(t, td.peer, peerDone)
 	t.Cleanup(func() { <-peerDone })
 
 	if _, ok := waitForEventOfType[EventSessionUp](t, td.driver.EventsOut(), 3*time.Second); !ok {
@@ -646,7 +646,7 @@ func TestParallelNCPsNetPipe(t *testing.T) {
 	defer td.cleanup()
 
 	peerDone := make(chan struct{})
-	go runParallelNCPPeer(t, td.peer, true, true, peerDone)
+	go runParallelNCPPeer(t, td.peer, peerDone)
 	t.Cleanup(func() { <-peerDone })
 
 	if _, ok := waitForEventOfType[EventSessionUp](t, td.driver.EventsOut(), 3*time.Second); !ok {

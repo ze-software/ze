@@ -364,11 +364,11 @@ func (td *ncpTestDriver) completeIPv6CPMissingOption(t *testing.T) {
 //
 // Exits when both families observe a Configure-Ack from the driver or
 // the 3-second deadline fires. Signals completion by closing done.
-func runParallelNCPPeer(t *testing.T, conn net.Conn, expectIPCP, expectIPv6CP bool, done chan<- struct{}) {
+func runParallelNCPPeer(t *testing.T, conn net.Conn, done chan<- struct{}) {
 	t.Helper()
 	defer close(done)
-	ipcpDone := !expectIPCP
-	ipv6cpDone := !expectIPv6CP
+	ipcpDone := false
+	ipv6cpDone := false
 	ipcpSentCR := false
 	ipv6cpSentCR := false
 	buf := make([]byte, MaxFrameLen)

@@ -3,7 +3,7 @@
     "rid": "RFC1661-5.7-2",
     "polarity": "positive",
     "unit": "internal/component/l2tp/ppp/rfc1661_ncp_protocol_reject_test.go::TestProtocolRejectAfterSessionUpWithdrawsFamily",
-    "unit-sha": "c1a34968a61b68ed",
+    "unit-sha": "6f9b2afd41e95fae",
     "claim-sha": "471e7919874a6ad6",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/ncp.go::stopRejectedNCP",

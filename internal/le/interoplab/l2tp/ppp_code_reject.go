@@ -170,7 +170,7 @@ func checkPPPCodeReject(ctx context.Context, lab labOperations, _ time.Duration)
 		frames, parseErr := armedPPPFrames(result.Text)
 		if parseErr != nil {
 			if _, framing := errors.AsType[*pppFramingError](parseErr); framing {
-				return nil, fail(7, parseErr)
+				return nil, pppCodeRejectFailure(name, 7, parseErr)
 			}
 		}
 		return frames, parseErr
@@ -255,7 +255,7 @@ func checkPPPCodeReject(ctx context.Context, lab labOperations, _ time.Duration)
 		}
 		frames, parseErr := framingPPPFrames(logs.Text)
 		if parseErr != nil {
-			return "", fail(7, parseErr)
+			return "", pppCodeRejectFailure(name, 7, parseErr)
 		}
 		return logs.Text, requireCompressedPPPEcho(frames)
 	}, func(string) bool { return true })
@@ -306,7 +306,7 @@ func checkPPPCodeReject(ctx context.Context, lab labOperations, _ time.Duration)
 		frames, parseErr := armedPPPFrames(logs.Text)
 		if parseErr != nil {
 			if _, framing := errors.AsType[*pppFramingError](parseErr); framing {
-				return nil, fail(7, parseErr)
+				return nil, pppCodeRejectFailure(name, 7, parseErr)
 			}
 		}
 		return frames, parseErr
@@ -336,7 +336,7 @@ func checkPPPCodeReject(ctx context.Context, lab labOperations, _ time.Duration)
 		frames, parseErr := armedPPPFrames(logs.Text)
 		if parseErr != nil {
 			if _, framing := errors.AsType[*pppFramingError](parseErr); framing {
-				return nil, fail(7, parseErr)
+				return nil, pppCodeRejectFailure(name, 7, parseErr)
 			}
 		}
 		return frames, parseErr
