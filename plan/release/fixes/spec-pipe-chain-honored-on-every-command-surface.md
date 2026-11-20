@@ -8,7 +8,7 @@
 | Release reason | Shipped daemon behaviour. A plugin's `dispatch-command`, MCP, REST and gRPC refuse a piped command that SSH and `ze cli` answer. Every rendering surface splits a quoted pipe value as a chain. `foldFilters` rewrites the operator's line into a different command. All three are wrong answers on shipped operator surfaces (`plan/README.md`, `release/fixes/`), not tooling |
 | RFC gaps | - |
 | Depends | - (spec-plugin-dispatch-pipe-chain-reaches-the-handler, closed in `2616478e64` and `9321d263aa`, landed the refusal this spec replaces; the quote-aware scan this spec extends to the chain is `ScanInvocation` and `ScanExecution` in `internal/component/command/invocation_scan.go`). `plan/release/fixes/spec-fixit-selector-narrows-through-a-pipe.md` depends on this spec |
-| Phase | 7/8 |
+| Phase | 8/8 |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -93,6 +93,28 @@ widens the spec):
    validator bound nothing and `ribClearOutExcludingOwnerArgs` refused every
    replay `bgp-gr` dispatches (`owner N family F`). The container now declares
    both leaves. Fixed in 34cc4767ac (AC-42).
+7. **The OpenAPI document published routes no handler served.** It listed a
+   `/api/v1/execute/<command path>` operation per command, while
+   `registerRoutes` serves only `POST /api/v1/execute` and
+   `GET /api/v1/execute/stream`, so a client following it got 405 or 404. It
+   now publishes the served routes only and describes each command as a
+   request-body schema. Fixed in 6537dc0f86 (AC-43).
+8. **The RIB `match` never read large or extended communities.** The match
+   filter (`rib_pipeline.go` `matchOutRoute`, `matchInEntry`) skipped both, so
+   no RIB selection could find a large community; a status-only fixture check
+   hid it. Fixed in 4faad7bbe7 (AC-44).
+9. **A stream's `| match` refused every one-document event.** Each event was
+   refused with "match needs rows ... it holds one document", so
+   `monitor event | match x`, which `docs/guide/monitoring.md` documents,
+   never worked. Each streamed event is now one row of the stream: a JSON
+   event is kept or dropped whole by its values, a text event is matched line
+   by line (`applyStreamEventPipes`, `applyEventMatch`, `pipe.go`). Fixed in
+   72502f3950 (AC-45).
+10. **A `ze cli -c` monitor lost its `| save` on a signal.** The monitor ends
+    only by signal, and the signal killed the client, so the save never
+    committed and left a `.ze-save` temporary behind. `StreamMonitor` now
+    catches SIGINT and SIGTERM, the SSH stream closes on its context, and the
+    saves commit with exit 0. Fixed in 72502f3950 (AC-46).
 
 Three routes answer a piped line without ever reaching `Dispatch`, so a fix
 placed in `Dispatch` alone leaves them rewriting:
@@ -868,6 +890,10 @@ above. Two things stay open, each with its reason:
 | AC-40 | A web package test that commits a config holding a bgp block (`TestWebTerminalChangesDisplaysInactiveCandidateUntilCommit`, `TestBrowserCommandCommitAudit`, `TestWebRollbackStagesBeforeTheCommitHook`) | The engine stand-in `installPeerValidator` also registers a BGP peer summarizer and resets it in cleanup, so the commit is judged and not refused with "this binary was built without the BGP engine"; the fail-closed guard in `infra.SummarizeBGPPeers` is unchanged for a product binary | none |
 | AC-41 | A dispatched line that is missing its selector (`TestSelectorRefusalPlacesTheSelectorWhereDispatchReadsIt`, `TestDispatchImplicitSelectorMissingValue`) | Refused with `missingSelectorError`'s text, naming where the selector goes, not the generic missing-argument text b5a7d0dfe7 let through | none |
 | AC-42 | `bgp-gr` re-advertises a peer's stale routes by dispatching `clear bgp rib out-excluding-owner owner N family F` (`TestClearOutProxyPreservesCapturedOwnerExclusion`) | The command's container declares `owner` (uint64 1..max, mandatory, keyword-only) and `family` (address family, keyword-only), so both bind and the replay runs; it is not refused as "The original-owner replay exclusion is incomplete or has an unbound argument" | none |
+| AC-43 | Every path the published OpenAPI document names (`TestOpenAPIPublishesNoPerCommandPath`, `TestRESTEveryPublishedPathIsServed`) | Each published route is one `registerRoutes` serves; no `/api/v1/execute/<command path>` operation is published, and each command is described as a request-body schema | none |
+| AC-44 | `show bgp rib \| received \| match <community>` for a route carrying that large or extended community (`TestFilterMatchCrossField`, `TestMatchPoolCommunities`, `community-relation-tag.ci`) | The route is selected: `match` searches large and extended communities on the text the route row shows | none |
+| AC-45 | `monitor ... \| match x` over a stream whose events are one document each (`TestStreamLineMatchKeepsWholeEvents`, `TestStreamLineMatchNeverSplitsAnEvent`, `monitor-pipe-chain-ssh.ci`) | A JSON event is kept whole when one of its values holds the text and dropped whole otherwise, never split or emptied; a text event is matched line by line | none |
+| AC-46 | A `ze cli -c` monitor with `\| save f` stopped by SIGINT or SIGTERM (`TestStreamMonitorTerminateCommitsSaves`, `cli-monitor-pipe-typed-line.ci`) | The save commits the file, no `.ze-save` temporary is left, and the client exits 0 | none |
 
 ## End-to-End User Stories
 
@@ -1029,6 +1055,20 @@ Tests added in phases 5 to 7a (5a and 5b in 3242d2dfb3; 5c, 5d, B1 and B2 in 615
 | `TestEveryDataOperatorIsOverridable`, `TestDataOperatorOverrideAnswerShapeChecked`, `TestDisplayOverrideRecordedWithItsArgumentContract` | `internal/component/command/pipe_partition_test.go` | AC-17 under the D-5 ruling | lands with the D-5 widening |
 | `TestPluginDataOperatorOverrideAccepted` | `internal/component/command/pipe_filter_plugin_test.go` | AC-17, AC-30 for a plugin: `display` and `resolve` accepted, `no-more` refused and nothing recorded | lands with the D-5 widening |
 
+The four D-5 rows above landed in 6537dc0f86. Tests added from 6537dc0f86 to 72502f3950:
+
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| `TestDecodePipeListReadsStrictly`, `TestWritePipeListRefusesBeforeWriting` | `internal/component/command/pipe_list_test.go` | the one pipe-list declaration (T-5 C) | landed 6537dc0f86 |
+| `TestPipeListWrittenAfterParamsInOrder`, `TestPipeListElementCannotOpenAChain`, `TestPipeListRefusedWithNoCommandMatched`, `TestOpenAPIExecutePublishesThePipeList`, `TestOpenAPIPublishesNoPerCommandPath` | `internal/component/api/invocation_pipe_list_test.go` and the api package | AC-15, AC-39, AC-43 | landed 6537dc0f86 |
+| `TestDerivedToolPipeList`, `TestDerivedToolPipeListElementCannotOpenAChain`, `TestDerivedToolPublishesThePipeList` | `internal/component/mcp/tools_pipe_list_test.go` | AC-15, AC-39 on MCP | landed 6537dc0f86 |
+| `TestRESTExecutePipeList`, `TestRESTEveryPublishedPathIsServed` | `internal/component/api/rest/` | AC-15, AC-43 | landed 6537dc0f86 |
+| `TestGRPCExecutePipeList` | `internal/component/api/grpc/execute_pipe_list_test.go` | AC-15 on gRPC `Execute` | landed 6537dc0f86 |
+| `TestFilterMatchCrossField` (two cases), `TestMatchPoolCommunities` | `internal/component/bgp/plugins/rib/` | AC-44 | landed 4faad7bbe7 |
+| `TestSendWildcardSelectorReachesTheUpdateHandler` | `internal/component/plugin/server/send_test.go` | the dispatcher hands `send bgp * update` its selector | landed 5ebf3c1c8e |
+| `TestStreamLineMatchKeepsWholeEvents`, `TestStreamLineMatchNeverSplitsAnEvent` | `internal/component/command/stream_line_test.go` | AC-45 | landed 72502f3950 |
+| `TestStreamMonitorTerminateCommitsSaves` | `internal/component/cli/client/main_test.go` | AC-46 | landed 72502f3950; its unit run was blocked by another session's build break in `internal/component/l2tp/pppoe/dataplane/vpp/factory.go`, and the functional `cli-monitor-pipe-typed-line` covers the signal path |
+
 The `plugin/server` tests of `pipeChainRefusal`,
 `internal/component/command/pipe_fold_test.go` (`FoldPipeChain`), and the
 fixtures, `.ci` and catalog tests that read the old help and catalog keys
@@ -1069,6 +1109,19 @@ change only the line they send.
 | `pipe-chain-unauthorized-refused` | `test/plugin/pipe-chain-unauthorized-refused.ci` | AC-27, AC-28: a denied piped line and a read-only caller's piped write are refused over SSH and REST, and the denied command's handler leaves no trace | |
 | `pipe-chain-accounting-masks-secret` | `test/plugin/pipe-chain-accounting-masks-secret.ci` | AC-29, against the TACACS+ accounting fixture | |
 | `rib-declared-order-refused` | `test/plugin/rib-declared-order-refused.ci` | AC-25: `\| table \| peer` is refused with the reordered line, `\| resolve \| count` counts after resolving | |
+
+Functional test status on 2026-11-20:
+
+| Test | Where it lives | Status |
+|------|----------------|--------|
+| `dispatch-pipe-chain-applied` (replaces `dispatch-pipe-chain-refused`, deleted with its fixture in 4faad7bbe7), `rest-pipe-chain-applied`, `rest-pipe-list`, `mcp-pipe-chain-applied`, `mcp-derived-tool-pipe-list` | `test/plugin/` | promoted in 5ebf3c1c8e after an 80-iteration stress run each |
+| `command-help-pipe-operations`, `pipe-chain-unauthorized-refused`, `pipe-chain-backslash-authorized`, `plugin-pipe-operation`, `rib-argument-form-refused`, `rib-declared-order-refused`, `rib-peer-pipe-scope`, `rib-pipe-received-count-accounted` (the accounting half of the `rib-pipe-filter` wiring row) | `test/plugin/` | promoted in adfaec2d77 after an 80-iteration stress run each |
+| `bgp-dynamic-filter-swap-live`, `bgp-filter-aspath-reload`, `bgp-filter-prefix-definition-reload` | `test/reload/` | converted to the pipe form, promoted in 5ebf3c1c8e |
+| `test-pipe-first-last`, `rib-pipe-filter` and the other converted RIB `.ci` (11 named in 4faad7bbe7) | `test/plugin/` | green with their converted fixtures in 4faad7bbe7 |
+| `monitor-pipe-chain-ssh`, `monitor-rendering-key-keeps-selection`, `pipe-chain-accounting-masks-secret` | `test/draft/plugin/` | pass as drafts (72502f3950); NOT yet promoted |
+| `cli-monitor-pipe-typed-line`, `pipe-quoted-value-is-an-argument` | `test/draft/ui/` | `cli-monitor-pipe-typed-line` passes as a draft (72502f3950); `pipe-quoted-value-is-an-argument` has no recorded pass since its fix; neither is promoted |
+| `local-data-pipe-operation` | not written | decided: AC-24 is proven by unit tests (Key Design Decisions) |
+| `rib-advertised-user-path` | `test/plugin/` (live, red) and `test/draft/plugin/` | KNOWN OPEN, not this spec: the user update is refused "no peers match selector" in the route-origin path (reactor origin intake, `bgp-rib` `originBarrier`, a27a951239, another session); `TestSendWildcardSelectorReachesTheUpdateHandler` proves the dispatcher hands the selector; the live copy was red before this work |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -1198,7 +1251,12 @@ Progress:
 - 615753f1c6, phases 5c and 5d, with B1 and B2: the RIB's three readers build their stages from the declared list and refuse the argument form; the `json` terminal is gone; the RIB declares every word it accepted, `show bgp rib protocol` its own set and `show bgp peer rib` its own set; `leaf scope` and both `leaf-list args` gone. B1: a path that carries a selector value (`show bgp peer edge1 rib`) reaches its declarations (`invocationReachesCommandPath`). B2: the argument-form refusal's fix line keeps the selector.
 - 3c642127ca, phase 6 and 7a: every in-tree RIB user in pipe form; one `pipe-operations` list from `PipeOperationsForCommand`, read by `show command help`, `ze help command --json`, the `internal/le` catalogs and completion; `operatorsFor` and its copy gone.
 - D-5 widened by Thomas on 2026-11-20: every data operator is overridable, keeping its generic's answer shape; formats, paging, `save` and `log` are not. The site catalog change in `internal/le/site` (the `pipe-operations` keys and the operator guide's "A command may replace it with its own.") is approved by Thomas and lands with that widening.
-- Next: phase 7b (T-5 C), then phase 8.
+- 6537dc0f86: the D-5 widening (every data operator overridable), the site catalog reader with Thomas's approved sentence, phase 7b (the ordered `pipe` list on every derived MCP tool, REST execute and gRPC `Execute` and `Stream`, one declaration `PipeListSchema`), and the OpenAPI unserved-routes defect (Task item 7, AC-43).
+- 4faad7bbe7: the rest of phase 6 (the fixtures and `help_ai` the first census missed), phase 8 (the pages, 13 `// Design:` headers, the record notes, the D-4 rule point file), and the RIB `match` communities defect (Task item 8, AC-44).
+- 5ebf3c1c8e: functional tests on every surface (`dispatch-pipe-chain-applied` replacing `dispatch-pipe-chain-refused`, the REST and MCP pipe-list and pipe-chain tests) and three reload tests in the pipe form.
+- adfaec2d77: eight functional wiring tests (help, AAA, plugin operation, the RIB refusals and scope, the accounted RIB count).
+- 72502f3950: the stream `| match` defect (Task item 9, AC-45) and the `ze cli -c` monitor save on signal (Task item 10, AC-46).
+- Open before `/ze-close`: promote the five drafts named in the functional status table; `test/plugin/rib-advertised-user-path.ci` is red for a cause outside this spec (the route-origin path of a27a951239). Owed by phase 8's report: `./le ai rules update condensed` after the D-4 point-file edit.
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- failing tests at every entry point
    - Tests: the Wiring Test rows
@@ -1352,6 +1410,21 @@ goal, so no goal reaches closure without a named proof.
 | Defect 3: a quoted value is one argument everywhere on the line | `test/ui/pipe-quoted-value-is-an-argument.ci`, red today on `match "error\|warn"` |
 | Security: a chain never widens what a caller may run | the negative tests `test/plugin/pipe-chain-unauthorized-refused.ci` and `TestPipedWriteRefusedForReadOnlyCallerOnEverySurface`, each failing with the surface's permission-denied answer; `test/plugin/pipe-chain-accounting-masks-secret.ci`; `test/plugin/monitor-rendering-key-keeps-selection.ci`, where a client that sets the key still receives only matching events; `TestPipeListElementCannotOpenAChain` |
 | The converted RIB users still answer | the interop checks of phase 6b against FRR and BIRD, and the converted fixtures and `.ci` with their expected answers unchanged |
+
+Evidence recorded on 2026-11-20, per goal:
+
+| Goal | Evidence in the tree |
+|------|----------------------|
+| The path names the subject; scope, presentation and format are pipe operations | `test/plugin/rib-argument-form-refused.ci`, `rib-peer-pipe-scope.ci` (adfaec2d77); `TestValidateArgsRefusesPipeOperationWord`, `TestRouteReadRefusesArgumentForm`, `TestPeerRibRefusesScopeArgument` |
+| A generic operation applies to every command's answer from every caller | `TestPipedLineParityAcrossSurfaces` (SSH side, MCP, REST, gRPC, `dispatch-command`, formats included); `dispatch-pipe-chain-applied.ci`, `rest-pipe-chain-applied.ci`, `mcp-pipe-chain-applied.ci` (5ebf3c1c8e) |
+| Declared operations reach the handler from every caller; the line is never rewritten | `TestPartitionDeclaredOperations`, `TestDispatchHandsDeclaredOperationsToHandler`, `TestForkedRIBReceivesTheDeclaredList`, `TestStreamingLookupPartitions`, `TestLocalDataDeclaredOperationsSameOnBothRoutes`; `rib-pipe-received-count-accounted.ci` (the typed line accounted); `TestEveryPipeSplitGoesThroughThePartition` (both halves); `foldFilters` and `FoldPipeChain` are gone |
+| An override keeps its generic's meaning and shape; another meaning takes its own name | `TestOverrideAnswerShapeRefused`, `TestEveryDataOperatorIsOverridable`, `TestDataOperatorOverrideAnswerShapeChecked`, `TestOverridableComesFromTheCatalog` |
+| A third-party plugin declares its own operation | `test/plugin/plugin-pipe-operation.ci` (adfaec2d77); `TestPluginOperationCollisionsRefused`, `TestPluginOperationWithdrawnOnStop`, `TestExecuteCommandHandlerReceivesPipeFromTheWire` |
+| Every surface answers the same as the local `ze` command | `TestPipedLineParityAcrossSurfaces`; the per-surface tests `TestZeExecuteAppliesPipeChain`, `TestRESTExecuteAppliesPipeChain`, `TestGRPCExecuteAppliesPipeChain`, `TestExecOneShotSendsTheTypedLine`, `TestWebSurfacesSendTheTypedLine`; the structured list `rest-pipe-list.ci`, `mcp-derived-tool-pipe-list.ci`, `TestGRPCExecutePipeList` |
+| Help lists every operation a command answers to | `test/plugin/command-help-pipe-operations.ci` (adfaec2d77); `TestPipeOperationsAgreeWithValidator`, `TestCommandHelpPipeOperations`, `TestCatalogPipeOperations`, `TestCompletionMatchesPipeOperations` |
+| Defect 3: a quoted value is one argument everywhere | `TestChainGrammar`, `TestDispatchQuotedPipeArgumentWithChain`, `TestCompletionStageKeepsQuotedBar`; `test/draft/ui/pipe-quoted-value-is-an-argument.ci` still a draft |
+| Security: a chain never widens what a caller may run | `pipe-chain-unauthorized-refused.ci`, `pipe-chain-backslash-authorized.ci` (TACACS+, adfaec2d77); `TestTypedWrappersPassChainTokens`, `TestTacacsFallbackArgsPassesChainTokens`, `TestExecutePipedReadOnlyCaller`, `TestPipeRefusalsMaskSecrets`, `TestPipeListElementCannotOpenAChain`, `TestRenderingKeyNeverSkipsSelection`; `pipe-chain-accounting-masks-secret.ci` and `monitor-rendering-key-keeps-selection.ci` pass as drafts, not promoted |
+| The converted RIB users still answer | the converted fixtures and `.ci` green in 4faad7bbe7 and 5ebf3c1c8e with their expected answers unchanged; the interop checks of phase 6b against FRR and BIRD are not recorded here |
 
 ## Checklist
 
