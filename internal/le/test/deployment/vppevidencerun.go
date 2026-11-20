@@ -65,8 +65,8 @@ func parseIPsecProbe(output string) (ipsecProbeIDs, error) {
 	return ids, nil
 }
 
-func (v *VPP) runIPsec(container, _ string) (VPPScenarioReport, error) {
-	checks := make([]VPPCheck, 0, 5)
+func (v *VPP) runIPsec(container, work string) (VPPScenarioReport, error) {
+	checks := make([]VPPCheck, 0, 5+1+len(vppCleartextProbeFrames))
 	interfaces, err := v.query(container, "show interface")
 	if err != nil {
 		return VPPScenarioReport{}, err
@@ -211,6 +211,15 @@ func (v *VPP) runIPsec(container, _ string) (VPPScenarioReport, error) {
 	checks = append(checks, passVPPCheck("spd-policies",
 		tb.Reset().Str("real VPP holds SPD ").Str(ids.SPD).Str(" bound to ").Str(iface).
 			Str(", with both policies").String(), tailLines(spd)...))
+
+	// The cleartext probe measures VPP's inbound processing on a second interface
+	// (vppevidencecleartext.go). It runs last, so the checks above read only what
+	// TestVPPRealDataplaneInstalls left.
+	cleartext, err := v.runCleartextProbe(container, work)
+	if err != nil {
+		return VPPScenarioReport{}, err
+	}
+	checks = append(checks, cleartext...)
 	return finishVPPScenario(VPPScenarioIPsec, checks), nil
 }
 

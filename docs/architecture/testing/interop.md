@@ -855,6 +855,52 @@ rerunning `./le test deployment vpp` is enough to show it.
 <!-- source: internal/le/test/deployment/vppevidencempls.go -- runMPLSLabelPop, singlePoppedLabel, traceMPLSFrame, vppMPLSInputEnabled -->
 <!-- source: internal/le/test/deployment/vppevidencescenarios.go -- vppMPLSLabelPopConfig -->
 
+## Real VPP cleartext probe (part of `ipsec`)
+
+The `ipsec` scenario of `./le test deployment vpp` ends with a probe that
+measures what VPP does with an unprotected packet on an interface whose SPD
+holds inbound entries. RFC 4301 Section 5.2 step 3b: "If there is a match and
+the packet is to be discarded or bypassed, do so." and "If there is no match,
+discard the traffic." A cleartext packet whose selectors match a PROTECT entry
+has no SPD-I match, so it is owed a discard too.
+
+VPP's source predicts the answer. In `ipsec4-input-feature`
+(`src/vnet/ipsec/ipsec_input.c`, identical in FDio/vpp v26.06 and master) the
+IPv4 loop looks a packet up in the SPD only when it is ESP, AH, or UDP to port
+500 or 4500. Every other packet takes `counters.unprocessed += 1` and keeps the
+feature arc's next node, so it is forwarded. The IPv6 loop does the same.
+
+The probe is a measurement, not a proof, and it carries no RFC tag. The harness
+creates `pg1` with `100.64.45.1/24`. `TestVPPRealCleartextProbe`
+(`internal/component/ike/dataplane/vpp_real_cleartext_integration_test.go`)
+installs through the VPP backend one inbound tunnel-mode SA and three inbound
+entries toward `100.64.45.0/24`: PROTECT from `100.64.46.0/24`, DISCARD from
+`100.64.47.0/24` and BYPASS from `100.64.48.0/24`. The harness then sends one
+frame per check through the packet generator and reads `show errors` and
+`show trace`:
+
+| Check | Frame | What RFC 4301 requires |
+|-------|-------|------------------------|
+| `probe-install` | none: `show ipsec all` holds the SPD bound to `pg1` with all three entries | |
+| `probe-cleartext-protect` | ICMP echo from `100.64.46.10` | discard |
+| `probe-cleartext-discard` | ICMP echo from `100.64.47.10` | discard |
+| `probe-cleartext-bypass` | ICMP echo from `100.64.48.10` | pass |
+| `probe-esp-discard` | ESP with an unknown SPI from `100.64.47.10` to `100.64.45.1` | the DISCARD entry matches |
+| `probe-esp-discard-reversed` | the same ESP with source and destination exchanged | the DISCARD entry does not match |
+
+A frame check fails only when the measurement did not happen: the generator
+sent no frame, `ipsec4-input-feature` did not count exactly one `IPSec pkts
+received`, or the trace shows neither `ip4-lookup` nor `error-drop` after
+`ip4-input`. Otherwise it passes, and its detail says whether VPP forwarded or
+dropped the frame, what the node counted under `IPSec policy match`, `bypass`,
+`discard` and `not matched`, and what the RFC requires. `IPSec policy not
+matched` alone settles nothing: the IPv4 loop counts the cleartext it forwards
+there too. The two ESP checks show which address pair VPP compares against an
+inbound entry, because the backend writes `SPParams.Src` into the local range
+for both directions, and VPP's inbound lookup compares the packet's destination
+with the local range.
+<!-- source: internal/le/test/deployment/vppevidencecleartext.go -- runCleartextProbe, judgeCleartextFrame, traceFate, vppErrorCount -->
+
 ## Live Interop Tests (`test/interop/`)
 
 Each scenario runs Ze and one or more peer daemons in Docker containers on a shared
