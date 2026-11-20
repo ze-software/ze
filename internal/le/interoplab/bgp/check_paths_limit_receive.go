@@ -129,11 +129,8 @@ func decodePathsLimitReceive(routesJSON, metricsJSON, birdAddress string) (paths
 		Prefix    string `json:"prefix"`
 		Family    string `json:"family"`
 	}
-	if err := json.Unmarshal([]byte(routesJSON), &routes); err != nil {
+	if err := decodeZePipedRows(routesJSON, zeRIBRowsKey, zePipeReceived, &routes); err != nil {
 		return pathsLimitReceiveObservation{}, fmt.Errorf("decode received routes: %w", err)
-	}
-	if routes == nil {
-		return pathsLimitReceiveObservation{}, errors.New("ze received RIB query omitted routes")
 	}
 	var observation pathsLimitReceiveObservation
 	observation.rows = routesJSON[:min(len(routesJSON), rowsShownMax)]

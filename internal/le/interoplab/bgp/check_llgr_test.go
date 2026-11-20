@@ -280,16 +280,22 @@ func llgrFRRSessionGeneration(t *testing.T) {
 }
 
 func llgrFRRReceivedOrigin(t *testing.T) {
-	const received = `[{"peer":"10.254.7.3","direction":"received","family":"ipv4/unicast","prefix":"10.20.0.0/24","next-hop":"10.254.7.3"}]`
+	const rows = `[{"peer":"10.254.7.3","direction":"received","family":"ipv4/unicast","prefix":"10.20.0.0/24","next-hop":"10.254.7.3"}]`
+	// The document `show bgp rib | received | json` prints: the rows under
+	// their envelope beside the chain that shaped them (decodeZePipedRows).
+	received := zePipedRowsDocument(zeRIBRowsKey, zePipeReceived, rows)
 	for _, test := range []struct {
 		name, output   string
 		present, valid bool
 	}{
 		{"FRR-origin", received, true, true},
-		{"empty", `[]`, false, true},
+		{"empty", zePipedRowsDocument(zeRIBRowsKey, zePipeReceived, `[]`), false, true},
 		{"missing", `{}`, false, false},
 		{"null", `null`, false, false},
 		{"RPC-envelope", `{"routes":[]}`, false, false},
+		// The removed argument form (`show bgp rib received`) printed this.
+		{"argument-form-array", rows, false, false},
+		{"unscoped-chain", zePipedRowsDocument(zeRIBRowsKey, zePipeSent, rows), false, false},
 		{"native-first-source", strings.Replace(received, `"peer":"10.254.7.3"`, `"peer":"10.254.7.10"`, 1), false, true},
 		{"native-second-source", strings.Replace(received, `"peer":"10.254.7.3"`, `"peer":"10.254.7.11"`, 1), false, true},
 		{"outbound", strings.Replace(received, `"received"`, `"sent"`, 1), false, true},
@@ -313,8 +319,10 @@ func llgrFRRReceivedOrigin(t *testing.T) {
 // the last exec consumes the remaining deadline. An observation failure must
 // remain a failure, but its earlier CLI or parser evidence must not disappear.
 func TestLLGRReceivedFenceRetainsEvidence(t *testing.T) {
-	const received = `[{"peer":"10.254.7.3","direction":"received","family":"ipv4/unicast","prefix":"10.20.0.0/24","next-hop":"10.254.7.3"}]`
-	const empty = `[]`
+	// The documents `show bgp rib | received | json` prints (decodeZePipedRows).
+	received := zePipedRowsDocument(zeRIBRowsKey, zePipeReceived,
+		`[{"peer":"10.254.7.3","direction":"received","family":"ipv4/unicast","prefix":"10.20.0.0/24","next-hop":"10.254.7.3"}]`)
+	empty := zePipedRowsDocument(zeRIBRowsKey, zePipeReceived, `[]`)
 	const missing = `null`
 	for _, test := range []struct {
 		name    string
@@ -330,7 +338,7 @@ func TestLLGRReceivedFenceRetainsEvidence(t *testing.T) {
 		{
 			name:    "parser-error-before-deadline",
 			replies: []llgrReceivedProbeReply{{result: interoplab.CommandResult{Stdout: missing}}},
-			want:    []string{"never measured peer state", "context deadline exceeded", "available=true", fmt.Sprintf("stdout=%q", missing), "ze received RIB query omitted routes"},
+			want:    []string{"never measured peer state", "context deadline exceeded", "available=true", fmt.Sprintf("stdout=%q", missing), "ze piped row answer is null"},
 		},
 		{
 			name: "failed-cli-payload-before-deadline",

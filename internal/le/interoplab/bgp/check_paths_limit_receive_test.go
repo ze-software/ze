@@ -33,7 +33,9 @@ func TestPathsLimitReceivePredicates(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		return string(data)
+		// The document `show bgp rib | received | json` prints: the rows
+		// under their envelope beside the chain (decodeZePipedRows).
+		return zePipedRowsDocument(zeRIBRowsKey, zePipeReceived, string(data))
 	}
 	metrics := func(series ...string) string {
 		text := "# TYPE ze_bgp_paths_limit_refused_total counter\n" + strings.Join(series, "")

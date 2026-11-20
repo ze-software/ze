@@ -465,10 +465,19 @@ func TestSpecialCheckerParsers(t *testing.T) {
 	if err != nil || count != 256 {
 		t.Fatalf("RIB count = %d, %v", count, err)
 	}
-	recorder.output = `{"adj-rib-in":{"peer":[{"prefix":"10.0.0.0/24"},{"prefix":"10.0.1.0/24"}]}}`
+	// A chainless `show bgp rib | json` prints its rows as a bare array.
+	recorder.output = `[{"peer":"172.30.0.3","direction":"received","prefix":"10.0.0.0/24"},{"peer":"172.30.0.3","direction":"received","prefix":"10.0.1.0/24"}]`
 	count, err = zeRIBDocumentCount(t.Context(), recorder)
 	if err != nil || count != 2 {
 		t.Fatalf("RIB document count = %d, %v", count, err)
+	}
+	// The per-peer document this reader once took, the handler's envelope and
+	// null are each refused: none of them is counted as an empty RIB.
+	for _, refused := range []string{`{"adj-rib-in":{"peer":[{"prefix":"10.0.0.0/24"}]}}`, `{"routes":[]}`, `null`} {
+		recorder.output = refused
+		if count, err = zeRIBDocumentCount(t.Context(), recorder); err == nil {
+			t.Fatalf("RIB document count read %s as %d rows", refused, count)
+		}
 	}
 	rows := make([]map[string]string, 50)
 	for index := range rows {
@@ -478,10 +487,16 @@ func TestSpecialCheckerParsers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	recorder.output = string(data)
+	recorder.output = zePipedRowsDocument(zeBestPathRowsKey, zePipeFirst, string(data))
 	count, err = zeRIBBestRows(t.Context(), recorder)
 	if err != nil || count != 50 {
 		t.Fatalf("best rows = %d, %v", count, err)
+	}
+	// The bare rows the removed argument form (`show bgp rib best first 50`)
+	// printed carry no chain, so nothing shows `first` reached the daemon.
+	recorder.output = string(data)
+	if count, err = zeRIBBestRows(t.Context(), recorder); err == nil {
+		t.Fatalf("best rows read a chainless array as %d rows", count)
 	}
 	logs := "established: yes\nresult: PASS\nnote: update-hex: 0000000000000007180a6300\n"
 	update, err := speakerRouteUpdate(logs, "speaker")

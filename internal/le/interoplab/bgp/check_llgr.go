@@ -314,11 +314,8 @@ func llgrReceivedRoutesPresent(output, peer string, want []llgrReceivedExpectati
 		Family    string `json:"family"`
 		NextHop   string `json:"next-hop"`
 	}
-	if err := json.Unmarshal([]byte(output), &routes); err != nil {
+	if err := decodeZePipedRows(output, zeRIBRowsKey, zePipeReceived, &routes); err != nil {
 		return false, err
-	}
-	if routes == nil {
-		return false, errors.New("ze received RIB query omitted routes")
 	}
 	for _, expected := range want {
 		found := false

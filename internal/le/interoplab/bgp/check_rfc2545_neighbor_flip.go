@@ -315,8 +315,9 @@ func requireNeighborFlipRoute(output, prefix string, global, linkLocal netip.Add
 }
 
 func requireNeighborFlipRetained(output, peer string, global netip.Addr) error {
-	// zeCommand's --format json lowers to | json, whose final CLI renderer
-	// unwraps the RIB producer's single routes envelope into a bare array.
+	// zeCommand's --format json lowers to | json. The line carries | sent, so
+	// the CLI prints the routes envelope beside the chain that shaped it
+	// (decodeZePipedRows), and not the bare array a chainless line unwraps to.
 	var rows []struct {
 		Peer      string `json:"peer"`
 		Direction string `json:"direction"`
@@ -324,7 +325,7 @@ func requireNeighborFlipRetained(output, peer string, global netip.Addr) error {
 		Prefix    string `json:"prefix"`
 		NextHop   string `json:"next-hop"`
 	}
-	if err := json.Unmarshal([]byte(output), &rows); err != nil {
+	if err := decodeZePipedRows(output, zeRIBRowsKey, zePipeSent, &rows); err != nil {
 		return err
 	}
 	count := 0

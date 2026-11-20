@@ -118,16 +118,23 @@ func TestBestRouteTransitSourcePopulationRequiresBothOriginals(t *testing.T) {
 // real export exclusion from missing input or selection of another route.
 func TestBestRouteTransitExcludedRouteRequiresItsSelectedSource(t *testing.T) {
 	source := netip.MustParseAddr("172.30.0.3")
-	good := `[{"family":"ipv4/unicast","prefix":"10.245.2.0/24","best-peer":"172.30.0.3"}]`
+	const rows = `[{"family":"ipv4/unicast","prefix":"10.245.2.0/24","best-peer":"172.30.0.3"}]`
+	// The document `show bgp rib best | prefix <p> | json` prints: the rows
+	// under their envelope beside the chain (decodeZePipedRows).
+	selected := func(rows string) string { return zePipedRowsDocument(zeBestPathRowsKey, zePipePrefix, rows) }
+	good := selected(rows)
 	for _, question := range []struct {
 		output string
 		valid  bool
 	}{
 		{good, true}, {"{}", false}, {strings.Replace(good, "10.245.2.0/24", "10.245.0.0/24", 1), false}, {strings.Replace(good, "172.30.0.3", "172.30.0.14", 1), false},
-		{"[]", false}, {"null", false}, {"[", false}, {"[null]", false},
-		{strings.TrimSuffix(good, "]") + "," + strings.TrimPrefix(good, "["), false},
-		{`{"best-path":` + good + `}`, false},
-		{`[{"best-peer":"172.30.0.3"}]`, false}, {`[{"prefix":"10.245.2.0/24"}]`, false},
+		{selected("[]"), false}, {"null", false}, {"[", false}, {selected("[null]"), false},
+		{selected(strings.TrimSuffix(rows, "]") + "," + strings.TrimPrefix(rows, "[")), false},
+		// The handler's envelope with no chain, and the bare rows the removed
+		// argument form (`show bgp rib best prefix <p>`) printed.
+		{`{"best-path":` + rows + `}`, false}, {rows, false},
+		{zePipedRowsDocument(zeBestPathRowsKey, zePipeFirst, rows), false},
+		{selected(`[{"best-peer":"172.30.0.3"}]`), false}, {selected(`[{"prefix":"10.245.2.0/24"}]`), false},
 		{strings.Replace(good, "172.30.0.3", "not-an-address", 1), false},
 	} {
 		if err := requireBestRouteTransitSelected(question.output, source); (err == nil) != question.valid {

@@ -139,34 +139,42 @@ func TestRFC2545NeighborFlipRetentionPrerequisite(t *testing.T) {
 	// Exact subject row captured by ed3f0b43's first native sent-RIB query.
 	// The other two native rows differ only in prefix.
 	const route = `{"as-path":{"optional":false,"partial":false,"transitive":true,"value":[65001]},"direction":"sent","family":"ipv6/unicast","next-hop":"fd00:1e::f","origin":{"optional":false,"partial":false,"transitive":true,"value":"igp"},"peer":"fd00:1e::3","prefix":"2001:db8:5642::/48"}`
-	answer := `[` + route + `]`
+	// The document `show bgp rib | sent | json` prints: the rows under their
+	// envelope beside the chain that shaped them (decodeZePipedRows). The row
+	// was captured under the argument form, which printed the rows alone.
+	sent := func(rows string) string { return zePipedRowsDocument(zeRIBRowsKey, zePipeSent, rows) }
+	answer := sent(`[` + route + `]`)
 	if err := requireNeighborFlipRetained(answer, peer, global); err != nil {
 		t.Fatal(err)
 	}
 	controls := strings.Replace(route, neighborFlipSubject, neighborFlipUniqueControl, 1) + `,` +
 		strings.Replace(route, neighborFlipSubject, neighborFlipAmbigControl, 1)
-	if err := requireNeighborFlipRetained(`[`+controls+`,`+route+`]`, peer, global); err != nil {
+	if err := requireNeighborFlipRetained(sent(`[`+controls+`,`+route+`]`), peer, global); err != nil {
 		t.Fatalf("the native three-row census must retain exactly one subject: %v", err)
 	}
 	for name, output := range map[string]string{
 		"empty":             "",
 		"null":              "null",
-		"null row":          `[null]`,
-		"malformed":         strings.TrimSuffix(answer, "]"),
-		"no retained route": `[]`,
-		"only controls":     `[` + controls + `]`,
-		"wrong owner":       strings.Replace(answer, peer, "fd00:1e::4", 1),
-		"received only":     strings.Replace(answer, `"sent"`, `"received"`, 1),
-		"wrong family":      strings.Replace(answer, `ipv6/unicast`, `ipv4/unicast`, 1),
-		"wrong prefix":      strings.Replace(answer, neighborFlipSubject, neighborFlipUniqueControl, 1),
-		"wrong next hop":    strings.Replace(answer, `"next-hop":"fd00:1e::f"`, `"next-hop":"fd00:1e::99"`, 1),
-		"missing owner":     strings.Replace(answer, `"peer":"fd00:1e::3",`, "", 1),
-		"missing next hop":  strings.Replace(answer, `"next-hop":"fd00:1e::f",`, "", 1),
-		"unparseable hop":   strings.Replace(answer, `fd00:1e::f`, `not-an-address`, 1),
-		"duplicate":         `[` + route + `,` + route + `]`,
-		"RPC envelope":      `{"routes":` + answer + `}`,
-		"wrong row type":    `[42]`,
-		"unrelated":         `{}`,
+		"null row":          sent(`[null]`),
+		"malformed":         strings.TrimSuffix(answer, "}"),
+		"no retained route": sent(`[]`),
+		"only controls":     sent(`[` + controls + `]`),
+		// The removed argument form (`show bgp rib sent`) printed this.
+		"argument form":    `[` + route + `]`,
+		"received chain":   zePipedRowsDocument(zeRIBRowsKey, zePipeReceived, `[`+route+`]`),
+		"best-path rows":   zePipedRowsDocument(zeBestPathRowsKey, zePipeSent, `[`+route+`]`),
+		"wrong owner":      strings.Replace(answer, peer, "fd00:1e::4", 1),
+		"received only":    strings.Replace(answer, `"sent"`, `"received"`, 1),
+		"wrong family":     strings.Replace(answer, `ipv6/unicast`, `ipv4/unicast`, 1),
+		"wrong prefix":     strings.Replace(answer, neighborFlipSubject, neighborFlipUniqueControl, 1),
+		"wrong next hop":   strings.Replace(answer, `"next-hop":"fd00:1e::f"`, `"next-hop":"fd00:1e::99"`, 1),
+		"missing owner":    strings.Replace(answer, `"peer":"fd00:1e::3",`, "", 1),
+		"missing next hop": strings.Replace(answer, `"next-hop":"fd00:1e::f",`, "", 1),
+		"unparseable hop":  strings.Replace(answer, `fd00:1e::f`, `not-an-address`, 1),
+		"duplicate":        sent(`[` + route + `,` + route + `]`),
+		"RPC envelope":     `{"routes":[` + route + `]}`,
+		"wrong row type":   sent(`[42]`),
+		"unrelated":        `{}`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			if requireNeighborFlipRetained(output, peer, global) == nil {

@@ -203,8 +203,17 @@ func readRPKIReloadPhase(ctx context.Context, check *interoplab.CheckContext, ac
 		Prefix string `json:"prefix"`
 		Peer   string `json:"best-peer"`
 	}
-	if err := queryRPKIReloadJSON(ctx, check.Lab, "show bgp rib best | first 10", &best); err != nil {
+	// The line carries | first, so its answer is the best-path envelope beside
+	// the chain, which queryRPKIReloadJSON's whole-document decode cannot read
+	// into rows.
+	const rpkiReloadBestCommand = "show bgp rib best | first 10"
+	bestArgv := zeCommand(rpkiReloadBestCommand)
+	bestOutput, err := check.Lab.Query(ctx, "ze", bestArgv, queryEnvironment("ze", bestArgv))
+	if err != nil {
 		return nil, err
+	}
+	if err := decodeZePipedRows(bestOutput, zeBestPathRowsKey, zePipeFirst, &best); err != nil {
+		return nil, fmt.Errorf("%s: %w; output: %s", rpkiReloadBestCommand, err, bestOutput)
 	}
 	selected := make(map[string]string, len(best))
 	for _, route := range best {

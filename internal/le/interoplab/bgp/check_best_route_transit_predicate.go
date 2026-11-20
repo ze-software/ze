@@ -39,7 +39,7 @@ func requireBestRouteTransitSelected(output string, source netip.Addr) error {
 		Prefix string `json:"prefix"`
 		Peer   string `json:"best-peer"`
 	}
-	if err := json.Unmarshal([]byte(output), &paths); err != nil {
+	if err := decodeZePipedRows(output, zeBestPathRowsKey, zePipePrefix, &paths); err != nil {
 		return err
 	}
 	if len(paths) != 1 {

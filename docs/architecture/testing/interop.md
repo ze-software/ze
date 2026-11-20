@@ -4595,6 +4595,25 @@ Two properties of that line are load-bearing and neither is obvious.
 `ze cli -c` rather than the verb form `ze show bgp rib status`: `--user` and
 `--format` are flags of `ze cli`, and the verb form has no slot for either.
 
+`--format json` lowers to `| json`, and a row command then prints one of two
+shapes, decided by the line the checker typed
+(`docs/architecture/api/json-format.md`, "the chain's row-shaping steps under
+`pipe`"):
+
+| Line | Printed document |
+|------|------------------|
+| no row-shaping pipe operation: `show bgp rib`, `show bgp rib best` | a bare array of rows, because `\| json` unwraps a document of one key |
+| a row-shaping operation, generic or the command's own: `show bgp rib \| received`, `show bgp rib best \| prefix <p>`, `show bgp rib best \| first 10` | `{"routes":[...],"pipe":[{"op":"received"}]}`: the rows under the command's envelope key (`routes`, `best-path`) beside the chain that shaped them |
+
+A checker reads the second shape through `decodeZePipedRows`, which names the
+operation it relies on and refuses a document whose chain lacks it. The bare
+array is what the removed argument form (`show bgp rib received`) printed for
+the same rows; a reader that still accepts it for a piped line would pass
+without proof that the scope reached the daemon. `| count` answers
+`{"count":N,"pipe":[{"op":"count"}]}`.
+<!-- source: internal/le/interoplab/bgp/ze_piped_rows.go -- decodeZePipedRows -->
+<!-- source: internal/component/command/pipe.go -- collectPipeMeta, injectPipeMeta, unwrapSingleKeyArray -->
+
 The daemon starts an SSH listener only when its config asks for one
 (`infraSetup`, `cmd/ze/hub/infra_setup.go`), and `ze cli` reaches the daemon over
 SSH. No scenario `ze.conf` asks. The harness appends `ZE_CLI_CONFIG` -- the
@@ -5067,10 +5086,11 @@ An explicit FRR-origin received-route check preserves the original reverse
 direction proof despite the added native sources. This does not cover
 NOTIFICATION, reconnect F-bit or received-stale-policy behavior.
 
-The receipt query is `show bgp rib | received | json`; its CLI output is a
-top-level array of route rows, not an object containing a `routes` field.
-An empty array is a measured RIB with no matching route; null or an object
-is not a valid CLI observation.
+The receipt query is `show bgp rib | received | json`; its CLI output is the
+piped row document of "Querying Ze": the route rows under `routes` beside
+`"pipe":[{"op":"received"}]`. An empty `routes` array is a measured RIB with
+no matching route; null, a bare array and an object with no `received` step
+in its chain are not valid CLI observations.
 
 The received-route fence retains the last completed CLI result (stdout, stderr,
 exit status and parse error), the last successfully measured RIB, and probe

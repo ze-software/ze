@@ -1239,17 +1239,17 @@ func zeRIBDocumentCount(ctx context.Context, lab interoplab.CheckerLab) (int, er
 	if err != nil {
 		return 0, err
 	}
-	var document struct {
-		RIB map[string][]json.RawMessage `json:"adj-rib-in"`
+	// The line carries no pipe operation, so | json unwraps bgp-rib's one-key
+	// routes envelope and prints the rows as a bare array: one row per route,
+	// from every peer (showRows, internal/component/bgp/plugins/rib).
+	var rows []json.RawMessage
+	if err := json.Unmarshal([]byte(output), &rows); err != nil {
+		return 0, fmt.Errorf("show bgp rib did not answer its rows: %w", err)
 	}
-	if err := json.Unmarshal([]byte(output), &document); err != nil {
-		return 0, fmt.Errorf("show bgp rib did not answer a document: %w", err)
+	if rows == nil {
+		return 0, errors.New("show bgp rib answered null where its rows belong")
 	}
-	count := 0
-	for _, routes := range document.RIB {
-		count += len(routes)
-	}
-	return count, nil
+	return len(rows), nil
 }
 
 func zeRIBBestRows(ctx context.Context, lab interoplab.CheckerLab) (int, error) {
@@ -1261,8 +1261,8 @@ func zeRIBBestRows(ctx context.Context, lab interoplab.CheckerLab) (int, error) 
 	var rows []struct {
 		Prefix string `json:"prefix"`
 	}
-	if err := json.Unmarshal([]byte(output), &rows); err != nil {
-		return 0, fmt.Errorf("show bgp rib best did not answer rows: %w", err)
+	if err := decodeZePipedRows(output, zeBestPathRowsKey, zePipeFirst, &rows); err != nil {
+		return 0, fmt.Errorf("show bgp rib best | first 50 did not answer rows: %w", err)
 	}
 	for _, row := range rows {
 		if row.Prefix == "" {
