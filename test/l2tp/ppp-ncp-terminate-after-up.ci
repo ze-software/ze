@@ -1,0 +1,146 @@
+# Test: a subscriber closes IPCP after session-up, and only IPv4 goes and comes back.
+# QUESTION:  when a subscriber's IPCP is closed by a Terminate-Request after the
+#            session came up, does ze answer it, withdraw the IPv4 family from the
+#            session's pppN and from the subscriber registry while the session
+#            stays up, and install it again when IPCP reopens, with no idle close
+#            at the no-NCP bound?
+# VALIDATES: spec-ppp-ncp-independent-lifetime AC-4 (IPv4 form: the frame is read
+#            from the unit fd, the Terminate-Ack carries the request's
+#            Identifier, the address leaves pppN, `show subscriber id <id>
+#            detail` stops printing ipv4), AC-6 (b) (the no-NCP bound armed when
+#            IPCP left Opened is cancelled by the reopen: LCP echo still
+#            answered and no CDN past the bound) and AC-8 (IPCP renegotiates
+#            on the held address, the address and ipv4 return). User story 3,
+#            on ze's IPv4-only pool, the only pool ze ships.
+# PREVENTS:  an IPCP close after up that leaves the registry announcing an
+#            address the subscriber no longer holds (the release event never
+#            reaching the transport), an IPCP close that kills the whole
+#            session, and a reopen that leaves the idle bound running.
+#
+# Why not a unit test: TestNCPTerminateAfterSessionUpOnUnitFD drives the PPP
+# session over a fake unit fd and a test bus. Only the daemon joins the kernel's
+# ppp_generic, which delivers an NCP frame after session-up to the unit fd and
+# not the channel, ze's unit reader, the PPP release event, the L2TP reactor,
+# the subscriber bridge and the CLI. So only a .ci shows an operator the
+# registry following one family.
+#
+# Every assertion is on state, never on elapsed time, but one. The peer waits
+# until `show subscriber` lists the session active with its address, `show
+# subscriber id <id> detail` prints ipv4, and pppN holds an IPv4 address: those
+# are the positive controls, so an empty field after the Terminate-Request is
+# not a broken command. Each later wait polls the same reads. The one horizon
+# is the no-NCP bound itself: an idle close is an event that does NOT happen,
+# so the peer keeps the session up until 3 seconds past `ncp timeout` measured
+# from ze's Terminate-Ack (the bound was armed before that Ack left ze), fails
+# on any LCP Terminate-Request, CDN or StopCCN in that span, and then requires
+# an answer to an LCP Echo-Request.
+#
+# The two short timers are the test's, set below. `lcp restart-timer 500` is
+# the Restart time IPCP spends in Stopping after the Terminate-Ack, before a
+# Configure-Request can reopen it, so the reopen falls well inside the bound.
+# `ncp timeout 15` is that bound. The peer's second argument repeats 15: the
+# peer cannot read ze's config, and a mismatch shortens or lengthens only the
+# hold, which a red would show.
+#
+# Revert walk: remove the `s.publishNCPRelease(family)` call in the LCPActTLD
+# case of performNCPAction (internal/component/l2tp/ppp/ncp.go). The address
+# still leaves pppN (withdrawNCPFamily runs either way), but no release reaches
+# the subscriber bridge, so the wait for `show subscriber id <id> detail` to
+# print no ipv4 fails.
+#
+# A session that reaches an assigned IPv4 needs kernel PPPoL2TP, which needs
+# CAP_NET_ADMIN, so this test is needs-linux and runs in QEMU as root. It SKIPS
+# on an unprivileged dev host. ze.l2tp.skip-kernel-probe is deliberately NOT
+# set, as in test/l2tp/radius-acct-wire.ci, whose LAC half and RADIUS mock this
+# test reuses (internal/test/fixture/tunnel_fixture_l2tp_ppp.go,
+# tunnel_fixture_l2tp_radius.go). The peer runs in ze's network namespace, so
+# it reads pppN's addresses from the kernel directly.
+#
+# Ports: $PORT is the L2TP listener, $PORT2 the RADIUS mock (auth and
+# accounting), $PORT3 the daemon's SSH server, which the peer's `ze cli`
+# reaches through the three ze.ssh.* variables below.
+
+stdin=config:terminator=EOF_CONF
+system {
+    authentication {
+        # bcrypt cost-4 hash of "testpass".
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+l2tp {
+    enabled true
+    shared-secret s3cr3t
+    auth-method chap-md5
+    lcp {
+        restart-timer 500
+    }
+    ncp {
+        timeout 15
+    }
+    auth {
+        radius {
+            nas-identifier lns1
+            timeout 5
+            retries 2
+            server mock {
+                address 127.0.0.1
+                port $PORT2
+                accounting-port $PORT2
+                shared-key testing123
+            }
+        }
+    }
+    pool {
+        ipv4 {
+            gateway 10.99.31.1
+            start 10.99.31.10
+            end 10.99.31.10
+        }
+    }
+}
+environment {
+    l2tp {
+        server main {
+            ip 127.0.0.1
+            port $PORT
+        }
+    }
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1
+            port $PORT3
+        }
+    }
+}
+EOF_CONF
+
+option=needs-linux:caps=net-admin
+option=env:var=ze.log.l2tp:value=debug
+option=env:var=TEST_SECRET:value=s3cr3t
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT3
+
+cmd=background:seq=1:exec=le test fixture l2tp/ppp-ncp-terminate-after-up/radius $PORT2 testing123
+cmd=background:seq=2:exec=ze -:stdin=config
+expect=stderr:contains=l2tp: PPP session up
+# 120s bounds the peer's waits, each a tenth of this budget, and its hold of
+# about 18s past the Terminate-Ack, so a stall ends with the peer naming the
+# state that never came. The happy path takes about 25s.
+cmd=foreground:seq=3:exec=le test fixture l2tp/ppp-ncp-terminate-after-up $PORT 15:timeout=120s:exit=0
+expect=exit:code=0
+expect=stdout:contains=OK: CHAP Success received
+expect=stdout:contains=OK: IPCP opened, ze assigned 10.99.31.10
+expect=stdout:pattern=OK: show subscriber lists an active l2tp subscriber with address 10\.99\.31\.10 on ppp[0-9]+
+expect=stdout:contains=OK: show subscriber id detail prints ipv4 10.99.31.10 before the IPCP Terminate-Request
+expect=stdout:pattern=OK: ppp[0-9]+ holds IPv4 address [0-9.]+ before the IPCP Terminate-Request
+expect=stdout:contains=OK: ze answered the IPCP Terminate-Request with a Terminate-Ack carrying Identifier 90
+expect=stdout:pattern=OK: ppp[0-9]+ holds no IPv4 address after the IPCP Terminate-Request
+expect=stdout:contains=OK: show subscriber id detail prints no ipv4 after the IPCP Terminate-Request, the subscriber still active
+expect=stdout:contains=OK: IPCP opened again, ze assigned 10.99.31.10
+expect=stdout:pattern=OK: ppp[0-9]+ holds IPv4 address [0-9.]+ again after IPCP reopened
+expect=stdout:contains=OK: show subscriber id detail prints ipv4 10.99.31.10 again after IPCP reopened
+expect=stdout:contains=OK: ze answered an LCP Echo-Request 18s after the IPCP Terminate-Ack, past the 15s no-NCP bound, with no LCP Terminate-Request and no CDN

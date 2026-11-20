@@ -1,0 +1,125 @@
+# Test: a subscriber that runs no IPv4 Protocol-Rejects IPCP, and ze stops sending it.
+# QUESTION:  when the peer answers ze's IPCP Configure-Request with an LCP
+#            Protocol-Reject naming 0x8021, on ze's IPv4-only pool where IPCP is
+#            the only NCP ze runs, does ze stop sending IPCP, never bring the
+#            session up, and end it at the no-NCP bound through the NAS Error
+#            path, with no LCP Terminate-Request?
+# VALIDATES: spec-ppp-ncp-independent-lifetime AC-2 in its IPCP form (the
+#            rejected NCP takes the Down event and ze sends no further IPCP
+#            packet) and AC-12 (no NCP Opened when the NCP phase settles: no
+#            session-up, and at the no-NCP bound the session ends through
+#            ze's fail path with NAS Error and no LCP Terminate-Request). User
+#            story 2. RFC 1661 Section 5.7: "Upon reception of a
+#            Protocol-Reject, the implementation MUST stop sending packets of
+#            the indicated protocol at the earliest opportunity."
+# PREVENTS:  a Protocol-Reject naming an NCP being read only as the LCP
+#            automaton's RXJ+, which leaves IPCP retransmitting until its
+#            Max-Configure is spent; a session with no NCP brought up; and a
+#            session with no NCP held for ever.
+#
+# Why not a unit test: TestProtocolRejectIPv6CPKeepsIPv4Session and its IPCP
+# sibling drive the PPP session over a fake channel. Only the daemon joins a
+# real proxy-LCP call, kernel PPPoL2TP, the configured `lcp restart-timer` and
+# `ncp timeout`, and the CDN on the L2TP wire, so only a .ci shows the
+# subscriber's side of the exchange.
+#
+# The peer answers the FIRST IPCP packet ze sends with the Protocol-Reject and
+# fails on any IPCP packet after it, naming its Code and Identifier. It ends
+# when ze's CDN arrives, which must name the session, carry Result Code 2 and
+# follow no LCP Terminate-Request: the Idle Timeout end that follows session-up
+# sends one, the NCP-phase fail does not.
+#
+# The one horizon is the window between the Protocol-Reject and the CDN. An IPCP
+# packet that does NOT come proves something only over a span in which an
+# unfixed ze would have sent one, so the peer refuses a CDN that came within one
+# Restart time of the Protocol-Reject. `lcp restart-timer 2000` is that Restart
+# time, which IPCP retransmits at, and `ncp timeout 6` the bound, three Restart
+# times after the NCP phase began: a ze that ignored the Protocol-Reject sends
+# its second IPCP Configure-Request about 2s in, well before the CDN. The peer's
+# second argument repeats 2000, because the peer cannot read ze's config.
+#
+# The NAS Error cause is not on the L2TP wire: the CDN Result Code is 2 for
+# every PPP failure. It is read from ze's log instead, under the daemon: the
+# NCP-phase bound fails the session with "ncp: timeout after 6s with no NCP
+# opened", and that fail path is the one whose session-down carries NAS Error
+# (pppSession.fail, internal/component/l2tp/ppp/session_run.go). The reject of
+# "l2tp: PPP session up" under the daemon reads the daemon's whole span, so no
+# session-up was logged at any point of the run. That line's positive control
+# is test/l2tp/ppp-ncp-terminate-after-up.ci, which expects it under the same
+# logging.
+#
+# Revert walk: remove the `if s.receiveProtocolReject(pkt) { return true }`
+# dispatch in handleLCPPacket (internal/component/l2tp/ppp/session_run.go).
+# The Protocol-Reject then reaches only the LCP automaton as RXJ+, IPCP keeps
+# retransmitting each Restart time, and the peer fails on ze's next IPCP
+# Configure-Request about 2s after the Protocol-Reject.
+#
+# The session negotiates no IPv4, so it needs no address, but the call still
+# runs kernel PPPoL2TP, which needs CAP_NET_ADMIN: this test is needs-linux and
+# runs in QEMU as root. It SKIPS on an unprivileged dev host.
+# ze.l2tp.skip-kernel-probe is deliberately NOT set, as in
+# test/l2tp/radius-acct-wire.ci, whose LAC half and RADIUS mock this test
+# reuses.
+#
+# Ports: $PORT is the L2TP listener, $PORT2 the RADIUS mock that accepts the
+# call's CHAP credential.
+
+stdin=config:terminator=EOF_CONF
+l2tp {
+    enabled true
+    shared-secret s3cr3t
+    auth-method chap-md5
+    lcp {
+        restart-timer 2000
+    }
+    ncp {
+        timeout 6
+    }
+    auth {
+        radius {
+            nas-identifier lns1
+            timeout 5
+            retries 2
+            server mock {
+                address 127.0.0.1
+                port $PORT2
+                accounting-port $PORT2
+                shared-key testing123
+            }
+        }
+    }
+    pool {
+        ipv4 {
+            gateway 10.99.32.1
+            start 10.99.32.10
+            end 10.99.32.10
+        }
+    }
+}
+environment {
+    l2tp {
+        server main {
+            ip 127.0.0.1
+            port $PORT
+        }
+    }
+}
+EOF_CONF
+
+option=needs-linux:caps=net-admin
+option=env:var=ze.log.l2tp:value=debug
+option=env:var=TEST_SECRET:value=s3cr3t
+
+cmd=background:seq=1:exec=le test fixture l2tp/ppp-ncp-protocol-reject-ipcp/radius $PORT2 testing123
+cmd=background:seq=2:exec=ze -:stdin=config
+expect=stderr:pattern=ppp: session failed.*ncp: timeout after 6s with no NCP opened
+reject=stderr:contains=l2tp: PPP session up
+# 90s bounds the peer's wait for the CDN, 70% of this budget, well past the
+# 6s bound, so a stall ends with the peer's own message. The happy path takes
+# about 8s.
+cmd=foreground:seq=3:exec=le test fixture l2tp/ppp-ncp-protocol-reject-ipcp $PORT 2000:timeout=90s:exit=0
+expect=exit:code=0
+expect=stdout:contains=OK: CHAP Success received
+expect=stdout:pattern=OK: LCP Protocol-Reject naming 0x8021 sent for ze's IPCP Code 1, Identifier [0-9]+
+expect=stdout:pattern=OK: ze sent no IPCP packet in the [0-9.]+m?s between the Protocol-Reject and its CDN, longer than one Restart time of 2s
+expect=stdout:pattern=OK: ze ended session [0-9]+ with a CDN carrying Result Code 2, and sent no LCP Terminate-Request
