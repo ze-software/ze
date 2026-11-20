@@ -26,16 +26,17 @@ the three linux-only full-chain tests (`TestL2TPFamilyRelease*`,
 with a host-cross-compiled `go test -c` binary (the guest has no Go);
 `ppp-code-reject-xl2tpd` interop PASS.
 
-## In flight when this session stopped
+## Phase 2b landed too
 
-Phase 2b (an agent was writing it, uncommitted): close RFC1661-4.3-3's
-Code-Reject half (a Code-Rejected Echo-Request stops echoes; Code-Reject of
-Configure-Request and Protocol-Reject of LCP are RXJ-, ending the session).
-Its handoff, mutants (`scratch/phase2b-mutants/`) and conversions
-(`scratch/phase2b-conversions.md`) are under
-`tmp/session/2026-11-20-040327/`. Check `git status internal/component/l2tp/ppp/`
-for its uncommitted edits; run the package, judge any conversions, take the
-records, commit.
+438bb234e4 closes RFC1661-4.3-3's Code-Reject half: a Code-Rejected
+Echo-Request stops the echo probes (for the session, not only the LCP
+lifetime: a choice Thomas may want to confirm), a Code-Rejected Echo-Reply
+stops Ze answering, and a Code-Reject of codes 1-8 (LCP) / 1-7 (an NCP) or a
+Protocol-Reject of LCP is RXJ- with NAS Error. Where pppd 2.5.5
+`fsm_rcoderej` treats every Code-Reject as RXJ+, Ze follows RFC 1661
+Section 4.3. `ppp` package green; three 4.3-3 records taken. Not yet
+re-checked: `./le rfc check` for audit verdicts this change staled (run it
+first and re-judge any RFC 1661 row it names).
 
 ## Waiting on Thomas: the interop proof, (a) or (b)
 
