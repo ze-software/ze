@@ -197,6 +197,7 @@ const (
 	sourceConfig            = "config"  // The origin recorded for a config node.
 	sourceGroup             = "group"   // The origin recorded for a config node.
 	sourcePeer              = "peer"    // The origin recorded for a config node.
+	stateActive             = "active"  // The BGP peer state while it waits to accept or open its connection.
 	stateEstablished        = "established"
 	stateNotSynchronized    = "not-synchronized"
 	statusCommitted         = "committed"
