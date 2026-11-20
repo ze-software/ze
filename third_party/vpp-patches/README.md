@@ -26,6 +26,7 @@ the image at `/usr/share/doc/vpp/LICENSE`.
 | ze/0101 (Ze) | Validate control binding software indices and refuse deletion unless both mappings identify the exact pair |
 | ze/0102 (Ze) | Exercise the three receive lanes and control dispatch through the native graph |
 | ze/0103 (Ze) | Add native process/resource tokens and guard session, CP, interface, route, gate and policer mutations |
+| ze/0104 (Ze) | Number `pppoe_session_dump` replies from the plugin's message ID base, which upstream omits, so a client can decode them |
 
 The Dockerfile verifies and extracts the pinned source, then applies the five
 original patches, `0098` and `0099` in lexical order with zero fuzz. It compiles
