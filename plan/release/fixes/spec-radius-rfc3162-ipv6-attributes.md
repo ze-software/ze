@@ -117,6 +117,7 @@ Each tagged unit carries a discrimination record. Scoped evidence:
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `rfc-extension-not-implemented.md` | 2026-10-26 | RADIUS NAS: Framed-Interface-Id, Framed-IPv6-Prefix, zero-length secret over ESP |
+| `unwired-feature.md` | 2026-11-20 | `subscriber.Session.IPv6Prefix` never written; `ipv6-prefix` never printed |
 
 ## Acceptance Criteria
 

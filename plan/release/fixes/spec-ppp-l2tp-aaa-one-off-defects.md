@@ -180,11 +180,13 @@ The subscriber auth registry, the metrics registry, session teardown events.
 | `silent-fall-through` | 2026-10-05 | `LCPDoTransition` |
 | `silent-fall-through` | 2026-09-20 | `EncodeVSA` |
 | `transient-failure-treated-as-fatal` | 2026-08-31 | PPP NCP Configure-Reject |
+| `transient-failure-treated-as-fatal` | 2026-11-20 | PPPoE client `ncpsRemaining` ends the link on the last NCP's close |
 | `validate-accepts-what-start-refuses` | 2026-10-17 | `l2tp.ExtractParameters` |
 | `premature-closure` | 2026-10-10 | interop scenario `pppoe-padr-replay` |
 | `reference-checked-claim-unchecked` | 2026-08-10 | l2tp ppp `IfaceBackend` AddRoute comment |
 | `test-against-broken-path` | 2026-09-22 | `TestTacacsInvalidRequestCannotFallBack` |
 | `unwired-feature` | 2026-09-03 | `activateRadiusConfig` accounting needs authentication |
+| `unwired-feature` | 2026-11-20 | `ze.l2tp.ncp.*` env keys documented and set by the labs and tooling, read by no product code |
 | `validated-value-discarded-by-its-caller` | 2026-09-05 | l2tp `parseSCCRQ` Protocol Version |
 | `declared-format-contradicts-payload` | 2026-08-30 | MS-CHAPv2 Authenticator-Response raw vs `S=` hex from RADIUS |
 | `reply-copies-a-field-the-sender-must-choose` | 2026-10-30 | LCP and NCP Code-Reject Identifier |
