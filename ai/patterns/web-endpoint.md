@@ -216,8 +216,9 @@ Everything else uses HTMX attributes. No inline JS in templates.
 var assetsFS embed.FS
 ```
 
-Third-party assets synced from `third_party/web/` (htmx.min.js v4.0.0, hx-sse.min.js, ze.svg)
-via `internal/le/web/vendor/actions.go` (run `./le web vendor update`). Never write custom JS shims.
+Third-party assets synced from `third_party/web/` (htmx.min.js v4.0.0, hx-sse.min.js, ze.svg, and
+each package's licence file) by the tables in `internal/le/web/vendor/sync.go` (run `./le web vendor
+update`). Never write custom JS shims.
 
 ## Route Registration
 

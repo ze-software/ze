@@ -38,11 +38,17 @@ var assets = []asset{
 	// always loaded; the extension is named as htmx 4 publishes it. htmx 2's
 	// core and its separately published sse.js are gone from the tree:
 	// see third_party/web/MANIFEST.md.
+	//
+	// Each third-party package's licence file is a row like its assets: a
+	// consumer that serves a package holds every file of it, and the check
+	// refuses a package that holds no licence file (check.go, licenceCheck).
 	{"third_party/web/htmx", "htmx.min.js"},
 	{"third_party/web/htmx", "hx-sse.min.js"},
+	{"third_party/web/htmx", "htmx.LICENSE"},
 	{"third_party/web/ze", "ze.svg"},
 	{"third_party/web/uplot", "uPlot.min.js"},
 	{"third_party/web/uplot", "uPlot.min.css"},
+	{"third_party/web/uplot", "uPlot.LICENSE"},
 }
 
 // consumers are the asset directories that embed the common vendored set
@@ -79,6 +85,9 @@ type targetedAsset struct {
 var targetedAssets = []targetedAsset{
 	{"third_party/web/swagger-ui", "swagger-ui.css", "internal/component/api/rest/assets"},
 	{"third_party/web/swagger-ui", "swagger-ui-bundle.js", "internal/component/api/rest/assets"},
+	{"third_party/web/swagger-ui", "swagger-ui.LICENSE", "internal/component/api/rest/assets"},
+	{"third_party/web/swagger-ui", "swagger-ui.NOTICE", "internal/component/api/rest/assets"},
+	{"third_party/web/swagger-ui", "swagger-ui-bundle.js.LICENSE.txt", "internal/component/api/rest/assets"},
 }
 
 // Sync copies every vendored asset into every consumer that embeds it and

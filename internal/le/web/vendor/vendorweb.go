@@ -53,6 +53,37 @@ const gitTimeout = 30 * time.Second
 // rather than a bare path.
 const ignoredReason = "git ignores it, so it is not vendored content"
 
+// licenceSuffixes are the endings that make a vendored file a licence file. A
+// licence file carries its asset's name ahead of the suffix (htmx.LICENSE),
+// because vendorPackages refuses one file name in two directories, so a bare
+// LICENSE could be vendored once. The second ending is the name webpack gives
+// the companion file of a bundle (swagger-ui-bundle.js.LICENSE.txt), which the
+// bundle's first line names, so that file keeps it.
+var licenceSuffixes = []string{".LICENSE", ".LICENSE.txt"}
+
+// licenceExempt names the directories under third_party/web/ that carry no
+// third-party licence file, each with the reason. It is a declaration, so a
+// directory passes the licence check because this table says why, never
+// because nothing looked.
+var licenceExempt = map[string]string{
+	"ze": "Ze's own logo, covered by Ze's own licence rather than a third party's",
+}
+
+// isLicenceFile says whether a vendored file name is a licence file.
+func isLicenceFile(name string) bool {
+	for _, suffix := range licenceSuffixes {
+		if strings.HasSuffix(name, suffix) {
+			return true
+		}
+	}
+	return false
+}
+
+// holdsLicence says whether a vendored package holds a licence file.
+func (pkg vendorPackage) holdsLicence() bool {
+	return slices.ContainsFunc(pkg.files, isLicenceFile)
+}
+
 // vendorPackage is one directory under third_party/web/ and the file names it
 // holds. The directory is the unit a consumer subscribes to, so an asset that
 // belongs to one consumer alone gets its own directory (swagger-ui/ is that

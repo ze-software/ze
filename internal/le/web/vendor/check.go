@@ -1,7 +1,8 @@
 // Design: docs/architecture/core-design.md -- the vendored-web drift gate, as a command
 //
 // check.go is the read-only half. It compares every consumer copy of a vendored
-// web asset against its third_party/web/ source and answers what it found.
+// web asset against its third_party/web/ source, refuses a vendored directory
+// that holds no licence file, and answers what it found.
 //
 // The comparison needs NO network, which is what lets it gate a commit in an
 // airgapped checkout. The registry query is a separate ACTION over the same
@@ -269,11 +270,51 @@ func driftCheck(root string, report *CheckReport) error {
 		}
 	}
 
+	licenceCheck(pkgs, report)
+
 	return nil
 }
 
-// Check compares every consumer copy against its third_party/web/ source and
-// answers what it found. updates adds the npm registry query, which is the one
+// licenceCheck records one ProblemUnlicensed per vendored package that holds
+// no licence file and that licenceExempt does not name. A consumer copies every
+// file of a package it serves, so a licence file in the source directory is
+// what puts the licence beside the asset in every consumer.
+func licenceCheck(pkgs []vendorPackage, report *CheckReport) {
+	for _, pkg := range pkgs {
+		if pkg.holdsLicence() {
+			continue
+		}
+		if _, exempt := licenceExempt[pkg.dir]; exempt {
+			continue
+		}
+		report.Problems = append(report.Problems, Problem{
+			Kind: ProblemUnlicensed, File: filepath.Join(vendorDir, pkg.dir),
+		})
+	}
+}
+
+// unlicensedError is the refusal of a run that found a vendored package with no
+// licence file. It names every such directory and the file to add, because the
+// fix is a download the update action cannot make: it copies the licence only
+// once the source directory holds it.
+func unlicensedError(report CheckReport) error {
+	var dirs []string
+	for _, problem := range report.Problems {
+		if problem.Kind == ProblemUnlicensed {
+			dirs = append(dirs, problem.File)
+		}
+	}
+	if len(dirs) == 0 {
+		return nil
+	}
+	return fmt.Errorf("no licence file in %s, so every consumer would serve the asset with no licence beside it; "+
+		"fetch the licence of the vendored version from its upstream into <directory>/<asset>.LICENSE, then run `./le web vendor update`",
+		strings.Join(dirs, ", "))
+}
+
+// Check compares every consumer copy against its third_party/web/ source,
+// refuses a vendored package that holds no licence file, and answers what it
+// found. updates adds the npm registry query, which is the one
 // part of this that uses the network.
 //
 // The report is answered whether or not the error is nil: a run that failed
@@ -300,6 +341,12 @@ func Check(root string, updates bool) (CheckReport, error) {
 	// report what a run that read every copy reports.
 	if report.Compared == 0 && len(report.Problems) == 0 {
 		return report, fmt.Errorf("no consumer copy of a vendored asset was found under %s/, so this check proved nothing", consumerRoot)
+	}
+
+	// A missing licence is refused on its own line, because its fix starts with
+	// a download that `./le web vendor update` cannot make.
+	if err := unlicensedError(report); err != nil {
+		return report, err
 	}
 
 	if len(report.Problems) > 0 {

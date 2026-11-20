@@ -5,15 +5,42 @@ Source of truth: files in this directory. Consumer copies are synced by `interna
 
 ## Assets
 
-| Asset | Version | Source | Vendored |
-|-------|---------|--------|----------|
-| htmx.min.js | 4.0.0 | https://unpkg.com/htmx.org@4.0.0/dist/htmx.min.js | 2026-09-02 |
-| hx-sse.min.js | 4.0.0 (htmx ext) | https://unpkg.com/htmx.org@4.0.0/dist/ext/hx-sse.min.js | 2026-09-02 |
-| ze.svg | - | `docs/logo/ze.svg` (project logo with Exa gradient) | 2026-03-31 |
-| swagger-ui/swagger-ui.css | 5.32.2 | https://unpkg.com/swagger-ui-dist@5.32.2/swagger-ui.css | 2026-04-11 |
-| swagger-ui/swagger-ui-bundle.js | 5.32.2 | https://unpkg.com/swagger-ui-dist@5.32.2/swagger-ui-bundle.js | 2026-04-11 |
-| uplot/uPlot.min.js | 1.6.32 | https://unpkg.com/uplot@1.6.32/dist/uPlot.iife.min.js | 2026-04-22 |
-| uplot/uPlot.min.css | 1.6.32 | https://unpkg.com/uplot@1.6.32/dist/uPlot.min.css | 2026-04-22 |
+| Asset | Version | Licence | Source | Vendored |
+|-------|---------|---------|--------|----------|
+| htmx.min.js | 4.0.0 | Zero-Clause BSD (`htmx/htmx.LICENSE`) | https://unpkg.com/htmx.org@4.0.0/dist/htmx.min.js | 2026-09-02 |
+| hx-sse.min.js | 4.0.0 (htmx ext) | Zero-Clause BSD (`htmx/htmx.LICENSE`) | https://unpkg.com/htmx.org@4.0.0/dist/ext/hx-sse.min.js | 2026-09-02 |
+| ze.svg | - | Ze's own, no third-party licence | `docs/logo/ze.svg` (project logo with Exa gradient) | 2026-03-31 |
+| swagger-ui/swagger-ui.css | 5.32.2 | Apache License (Version 2.0, January 2004) (`swagger-ui/swagger-ui.LICENSE`, `swagger-ui/swagger-ui.NOTICE`); embeds normalize.css v7.0.0, whose banner reads "MIT License" | https://unpkg.com/swagger-ui-dist@5.32.2/swagger-ui.css | 2026-04-11 |
+| swagger-ui/swagger-ui-bundle.js | 5.32.2 | Apache License (Version 2.0, January 2004) (`swagger-ui/swagger-ui.LICENSE`, `swagger-ui/swagger-ui.NOTICE`); the libraries it bundles are in `swagger-ui/swagger-ui-bundle.js.LICENSE.txt` | https://unpkg.com/swagger-ui-dist@5.32.2/swagger-ui-bundle.js | 2026-04-11 |
+| uplot/uPlot.min.js | 1.6.32 | The MIT License (MIT) (`uplot/uPlot.LICENSE`) | https://unpkg.com/uplot@1.6.32/dist/uPlot.iife.min.js | 2026-04-22 |
+| uplot/uPlot.min.css | 1.6.32 | The MIT License (MIT) (`uplot/uPlot.LICENSE`) | https://unpkg.com/uplot@1.6.32/dist/uPlot.min.css | 2026-04-22 |
+
+Each licence names the licence as the licence file's own title states it.
+
+## Licence files
+
+Each third-party directory carries its package's licence as published at the
+vendored version, byte for byte. The name carries the asset's name, because
+one file name cannot be vendored in two directories (`./le web vendor check`
+refuses it).
+
+| File | Read from | Fetched |
+|------|-----------|---------|
+| htmx/htmx.LICENSE | https://unpkg.com/htmx.org@4.0.0/LICENSE | 2026-11-20 |
+| uplot/uPlot.LICENSE | https://unpkg.com/uplot@1.6.32/LICENSE | 2026-11-20 |
+| swagger-ui/swagger-ui.LICENSE | https://unpkg.com/swagger-ui-dist@5.32.2/LICENSE | 2026-11-20 |
+| swagger-ui/swagger-ui.NOTICE | https://unpkg.com/swagger-ui-dist@5.32.2/NOTICE | 2026-11-20 |
+| swagger-ui/swagger-ui-bundle.js.LICENSE.txt | https://unpkg.com/swagger-ui-dist@5.32.2/swagger-ui-bundle.js.LICENSE.txt | 2026-11-20 |
+
+The bundle's companion file keeps its upstream name: the bundle's first line
+reads "For license information please see swagger-ui-bundle.js.LICENSE.txt".
+A licence file is recognised by its name ending in `.LICENSE` or
+`.LICENSE.txt` (`internal/le/web/vendor/vendorweb.go`, `licenceSuffixes`).
+<!-- source: internal/le/web/vendor/vendorweb.go -- licenceSuffixes, licenceExempt -->
+<!-- source: internal/le/web/vendor/check.go -- licenceCheck -->
+
+When a package is upgraded, its licence files are fetched again from the new
+version and this table is updated.
 
 Both htmx files come from one npm package, `htmx.org@4.0.0`: htmx 4 holds
 its extensions in the core package, where htmx 2 published `htmx-ext-sse`
@@ -35,6 +62,12 @@ directory, and `./le web vendor check` reads the two trees that way. An
 asset for one consumer only gets its own directory, as `swagger-ui/` does. A
 directory that reaches no consumer is a problem too: it says the sync was never
 told to copy it.
+
+A directory also holds its package's licence file, so every consumer that
+serves the package serves its licence beside it. `./le web vendor check`
+refuses a directory with no licence file, naming it (`UNLICENSED`).
+`ze/` is the one exception, declared in the code with its reason: it holds
+Ze's own logo, which carries no third-party licence.
 
 ## Upgrade scanner provenance
 
@@ -76,7 +109,7 @@ holds, so a build that runs no generator must find them.
 
 `./le web vendor check` is a stage of `./le verify current` and a
 prerequisite of `./le repo check generated`. It exits non-zero when a copy
-differs or is absent. It queries no registry, so it runs with no network.
+differs or is absent, and when a vendored directory holds no licence file. It queries no registry, so it runs with no network.
 
 `./le web vendor report` reads EVERY npm dist-tag and answers the newest
 release among them, prereleases excluded. htmx is why: 4.0.0 shipped under the

@@ -9,21 +9,23 @@
 // rendering is the default and nothing more: the data is the same either way
 // (internal/le/le/root, Prose).
 //
-// The renderings here are BYTE-IDENTICAL to what the scripts print. No color is
-// involved on either side, so unlike the consistency port there is no palette
-// to trade away, and internal/le/web/vendor/vendorweb_test.go compares the two streams
-// exactly.
+// The renderings started byte-identical to what the scripts printed, and no
+// color is involved. Two lines have since left that text: the UNSYNCED line
+// names sync.go, where the tables live, and the UNLICENSED line has no script
+// counterpart, because the licence check came after the scripts were retired.
 
 package webvendor
 
 import (
+	"path/filepath"
 	"slices"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// The four verdicts the drift comparison can reach about one file. They are the
-// first word of the line a reader sees, and they are what `| match` selects on.
+// The five verdicts the check can reach about one file or one vendored
+// package. They are the first word of the line a reader sees, and they are
+// what `| match` selects on.
 const (
 	// ProblemUnreadable is a source file under third_party/web/ that could not
 	// be read. Nothing can be compared against it.
@@ -35,6 +37,10 @@ const (
 	ProblemDrift = "DRIFT"
 	// ProblemUnsynced is a vendored package that reaches no consumer at all.
 	ProblemUnsynced = "UNSYNCED"
+	// ProblemUnlicensed is a vendored package that holds no licence file and
+	// that licenceExempt does not name. Every consumer that serves the package
+	// would serve it with no licence beside it.
+	ProblemUnlicensed = "UNLICENSED"
 )
 
 // Problem is one thing the drift comparison found, and it is one ROW of the
@@ -43,8 +49,8 @@ type Problem struct {
 	// Kind is one of the four constants above.
 	Kind string `json:"kind"`
 	// File is the consumer copy the problem is about, relative to the tree. For
-	// ProblemUnsynced it is the vendored package directory instead, because
-	// that verdict is about a package no consumer copied.
+	// ProblemUnsynced and ProblemUnlicensed it is the vendored package
+	// directory instead, because those verdicts are about a whole package.
 	File string `json:"file"`
 	// Source is the third_party/web/ file the copy is compared against. It is
 	// absent for ProblemUnsynced, which names no single file.
@@ -157,7 +163,11 @@ func (r CheckReport) Text() string {
 			tb.Str("  DRIFT: ").Str(problem.File).Str(" differs from ").Str(problem.Source).Byte('\n')
 		case ProblemUnsynced:
 			tb.Str("  UNSYNCED: ").Str(problem.File).
-				Str(" reaches no consumer; add it to internal/le/web/vendor/actions.go\n")
+				Str(" reaches no consumer; add it to the assets or targetedAssets table in internal/le/web/vendor/sync.go\n")
+		case ProblemUnlicensed:
+			tb.Str("  UNLICENSED: ").Str(problem.File).
+				Str(" holds no licence file; fetch the licence of the vendored version from its upstream into ").
+				Str(problem.File).Byte('/').Str(filepath.Base(problem.File)).Str(".LICENSE\n")
 		}
 	}
 

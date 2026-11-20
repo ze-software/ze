@@ -29,17 +29,25 @@ import (
 // fixture gives it. A fixture carrying all of them syncs with no warning, which
 // is what makes a warning in a test mean something.
 var vendorFiles = map[string]string{
-	"third_party/web/htmx/htmx.min.js":                "// htmx core\n",
-	"third_party/web/htmx/hx-sse.min.js":              "// htmx sse\n",
-	"third_party/web/ze/ze.svg":                       "<svg/>\n",
-	"third_party/web/uplot/uPlot.min.js":              "// uplot\n",
-	"third_party/web/uplot/uPlot.min.css":             ".uplot{}\n",
-	"third_party/web/swagger-ui/swagger-ui.css":       ".swagger{}\n",
-	"third_party/web/swagger-ui/swagger-ui-bundle.js": "// swagger\n",
+	"third_party/web/htmx/htmx.min.js":                            "// htmx core\n",
+	"third_party/web/htmx/hx-sse.min.js":                          "// htmx sse\n",
+	"third_party/web/htmx/htmx.LICENSE":                           "htmx licence\n",
+	"third_party/web/ze/ze.svg":                                   "<svg/>\n",
+	"third_party/web/uplot/uPlot.min.js":                          "// uplot\n",
+	"third_party/web/uplot/uPlot.min.css":                         ".uplot{}\n",
+	"third_party/web/uplot/uPlot.LICENSE":                         "uPlot licence\n",
+	"third_party/web/swagger-ui/swagger-ui.css":                   ".swagger{}\n",
+	"third_party/web/swagger-ui/swagger-ui-bundle.js":             "// swagger\n",
+	"third_party/web/swagger-ui/swagger-ui.LICENSE":               "swagger-ui licence\n",
+	"third_party/web/swagger-ui/swagger-ui.NOTICE":                "swagger-ui notice\n",
+	"third_party/web/swagger-ui/swagger-ui-bundle.js.LICENSE.txt": "bundle companion\n",
 }
 
 // broadAssets are the files every consumer in consumers holds a copy of.
-var broadAssets = []string{"htmx.min.js", "hx-sse.min.js", "ze.svg", "uPlot.min.js", "uPlot.min.css"}
+var broadAssets = []string{
+	"htmx.min.js", "hx-sse.min.js", "htmx.LICENSE", "ze.svg",
+	"uPlot.min.js", "uPlot.min.css", "uPlot.LICENSE",
+}
 
 // targetedConsumer is the one consumer the swagger-ui package reaches.
 const targetedConsumer = "internal/component/api/rest/assets"
