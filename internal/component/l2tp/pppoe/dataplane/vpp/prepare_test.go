@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"runtime"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -68,7 +69,7 @@ func TestVPPPreparePublishesActualControlAndDataIdentities(t *testing.T) {
 // A malformed resolved pairing or mismatched Linux readback cannot install
 // a map. A constructor refusal after an add must release the confirmed owner.
 func TestVPPPrepareRefusalsLeaveNoOwnedMapping(t *testing.T) {
-	for _, stage := range []string{"resolve", "index", "same-pair", "control-name", "control-index", "control-mac", "data-mac", "mtu", "namespace-path"} {
+	for _, stage := range []string{"resolve", "index", "same-pair", "control-name", "control-index", "control-mac", "data-mac", "mtu", "data-mtu", "namespace-path"} {
 		t.Run(stage, func(t *testing.T) {
 			fixture := newAccessPreparationFixture()
 			want := errors.New("actual LCP lookup failed")
@@ -89,6 +90,8 @@ func TestVPPPrepareRefusalsLeaveNoOwnedMapping(t *testing.T) {
 				fixture.binding.OperMAC = "malformed"
 			case "mtu":
 				fixture.control.mtu = 0
+			case "data-mtu":
+				fixture.binding.MTU = 0
 			case "namespace-path":
 				fixture.pair.Namespace = "../foreign"
 			}
@@ -111,6 +114,22 @@ func TestVPPPrepareRefusalsLeaveNoOwnedMapping(t *testing.T) {
 				t.Fatal("refusal leaked prepared access")
 			}
 		})
+	}
+}
+
+// TestVPPPrepareNamesTheSideWithoutAnMTU proves a zero MTU is refused naming
+// the side and device that reported it, VPP's data-plane interface or
+// Linux's LCP control device, so the operator knows which to repair.
+func TestVPPPrepareNamesTheSideWithoutAnMTU(t *testing.T) {
+	data := newAccessPreparationFixture()
+	data.binding.MTU = 0
+	if _, err := data.prepare(t.Context()); err == nil || !strings.Contains(err.Error(), `VPP reports MTU 0 for data-plane interface "Ethernet0.100"`) {
+		t.Fatalf("data-plane MTU refusal = %v", err)
+	}
+	control := newAccessPreparationFixture()
+	control.control.mtu = 0
+	if _, err := control.prepare(t.Context()); err == nil || !strings.Contains(err.Error(), `Linux reports MTU 0 for LCP control device "cp0.100"`) {
+		t.Fatalf("control MTU refusal = %v", err)
 	}
 }
 

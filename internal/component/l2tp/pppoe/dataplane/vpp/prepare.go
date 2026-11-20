@@ -117,6 +117,14 @@ func prepareAccess(ctx context.Context, name string, ops accessPreparationOps,
 	if control.mac != dataMAC {
 		return nil, errors.New("the Linux LCP control MAC differs from the VPP access MAC")
 	}
+	// The access carries the smaller of the two MTUs, so each must be known:
+	// a zero on either side would leave the access no MTU at all.
+	if binding.MTU <= 0 {
+		return nil, fmt.Errorf("VPP reports MTU %d for data-plane interface %q", binding.MTU, binding.OsName)
+	}
+	if control.mtu <= 0 {
+		return nil, fmt.Errorf("Linux reports MTU %d for LCP control device %q", control.mtu, control.name)
+	}
 	lease, err := maps.acquire(ctx, connection, indices)
 	if err != nil {
 		return nil, err
