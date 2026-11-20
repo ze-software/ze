@@ -20,17 +20,20 @@ full status and evidence; this page is the short form. Nothing is pushed.
 
 ## Remaining, in order
 
-1. **`mobike-initiator` interop red (Mac, docker-host lab, K1 kernel):** "MOBIKE
-   replaced an IKE or Child SA instead of migrating it" (new IKE and ESP SPIs
-   after the move). The 40 MOBIKE engine tests pass in the guest. Find whether
-   today's work caused it: run the same scenario at `6cf8d9289d` (before D-4)
-   and at `e700fb7392`, `ce5c276457` with
-   `./le test qemu docker-lab lab "test integration interop-ipsec" env "IPSEC_INTEROP_SCENARIO=mobike-initiator" timeout 1800s`
-   (run from a detached worktree only on a machine where the lab socket path
-   fits; on the Mac the main checkout's path fits). Suspects: the per-socket
-   bypass on the shared wildcard NAT-T socket MOBIKE uses, and the new Child FWD
-   and delivery allows MOBIKE does not migrate. Log:
-   `tmp/session/2026-11-19-205719/scratch/interop-mobike-initiator.log`.
+1. **`mobike-initiator` interop red: not caused by this spec's work, owned by
+   `plan/release/fixes/spec-ipsec-strongswan-interop-reds.md`**, which records
+   the same failure from evidence-nightly 43586166002 on 2026-11-14. Cause, read
+   at the producer: in `vpn ipsec interface` mode the address worker
+   (`followAddress`, engine/dynamic_wan.go, since 67700fd37e) rebinds the
+   listeners, and `rebindListeners` stops every session on the old address
+   (`stopSessionsOn`, engine/apply.go), so a fresh IKE_SA_INIT from the new
+   address replaces the SA before `serviceMobike` can send UPDATE_SA_ADDRESSES.
+   Only route-chosen mode exempts an SA with `mobikeUp`. The strongSwan log shows
+   no UPDATE_SA_ADDRESSES and an INITIAL_CONTACT replacement. Waiting on Thomas:
+   (A) a MOBIKE SA survives an interface-address move (re-point the session's
+   socket pair, skip the restart, change the design page's rebind paragraph in
+   ipsec-7-ikev2-engine.md), or (B) keep the restart and move the scenario to
+   route-chosen mode. Recommendation (A).
 2. **K1 extension for forwarded ICMP errors (owner decision 2026-11-20, (c)):**
    extend `gokrazy/kernel/patches/0003-xfrm-state-scope.patch` so the forwarded
    path, `__xfrm_route_forward` included, tries `xfrm_out_fwd_icmp` when the OUT
