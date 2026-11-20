@@ -460,8 +460,44 @@ allowance. See [dependency approval](dependency-approval.md) for the refusal
 and the owner-only approval command.
 <!-- source: internal/le/commit/dependencies.go -- dependencyRefusal -->
 
+`handoverRefusal` (`internal/le/commit/handover.go`) runs right after the
+dependency gate. A commit that removes a handover under `plan/handover/` is
+refused when the handover is tied to a spec set that `DeriveSets`
+(`internal/le/spec/status/setstate.go`) answers live, stalled or cannot tell,
+or to an open spec, set member or not: the handover is the committed record of
+where that work stands. The tie is one rule over the handover's file name
+split at hyphens. A set is tied when the name holds the set's prefix as
+contiguous tokens, a one-token prefix included, because a set prefix names a
+family of numbered specs (`42-container-support.md` belongs to set
+`container`): this is the set view's own `handovers` list. An open spec, in
+a set or outside every set, is tied when the name holds its whole stem as
+contiguous tokens and that stem has two tokens or more (`HandoverNamesSpec`):
+a one-token stem such as `vrf` or `cgnat` names a topic rather than one piece
+of work, so `2026-11-20-vrf-leak.md` is no handover of spec `vrf`, and
+`agent-economy` never ties `agent-econ`. So a handover named for an open
+child of an idea set (`2026-11-14-agent-economy-2-second.md`) is refused,
+while the idea set's own prefix-only handover passes. The one spec the stem
+rule skips is a number-less umbrella (`spec-<prefix>.md`): its stem is the
+prefix, so the set's state decides it. The state is derived over the tree the commit produces,
+so a spec the same commit removes counts as closed; the gate extends the
+record of closed specs to HEAD and reads the claims with the reaper's
+verdict, only when the commit removes a handover. A record the gate cannot
+extend is not computed, never the record as the file holds it, which may
+predate a closure. The refusal names the set, its state and each open child
+with its Status, or the open spec, and ends with the `remove` keyword to
+drop. A cannot tell carries its reason and what settles it: `./le spec
+status set list` for a record not computed, the repair of the named error
+for claims that could not be read, waiting on the holder for a claim whose
+holder cannot be judged. The handover of an idea set, of a set whose children
+all closed, of a closed spec, or of the last open child the same commit
+closes is removed freely. `plan/handover/README.md` is no handover and is
+never judged (`IsHandover`). A spec the gate cannot read answers exit 3,
+never a pass.
+<!-- source: internal/le/commit/handover.go -- handoverRefusal, handoverProblem -->
+<!-- source: internal/le/spec/status/setstate.go -- HandoverNamesSpec, IsHandover, setHandovers -->
+
 `changeCheckRefusal` (`internal/le/commit/changechecks.go`) runs right after
-the dependency gate and runs every change-set check registered in the
+the handover gate and runs every change-set check registered in the
 `changecheck` seam (`internal/le/commit/changecheck`). The commit code names
 no check: a check package calls `changecheck.Register` from its own `init()`
 with its command name and a `Judge` over a `changecheck.Change`, and the

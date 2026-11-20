@@ -10,6 +10,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
+	lesession "github.com/ze-software/ze/internal/le/session"
 )
 
 type closureAction uint8
@@ -31,6 +32,8 @@ const (
 	keywordCheck   = "check"
 	keywordSpec    = "spec"
 	closureGrammar = "spec status closure takes list, or check spec <name>"
+	verbSet        = "set"
+	setGrammar     = "spec status set takes list"
 )
 
 // table declares the whole command surface. It is built on each call because
@@ -59,7 +62,44 @@ func table() leaction.Area {
 			},
 			AnswerArgs: answerClosure,
 		},
+		leaction.Action{
+			Verb:    verbSet,
+			Does:    "list",
+			Summary: "list every spec set with its derived state",
+			Why:     "the set view: each spec set as idea, live, stalled or children closed, with its next child and the claims held on it",
+			Parameters: []leaction.Parameter{
+				{Keyword: keywordList, Kind: leaction.KindSwitch, Help: "list every spec set"},
+			},
+			AnswerArgs: answerSet,
+		},
 	)
+}
+
+// listSetClaims is the claims reader of the set view: every claim with the
+// reaper's verdict on its holder. Tests replace it, so they never read the
+// host's process table.
+var listSetClaims = func(root string) ([]lesession.Claim, error) { return lesession.ListClaims(root, "") }
+
+// answerSet is the set view. It extends the shared record of closed specs to
+// HEAD and judges every claim through the session reaper, so it costs a
+// history walk of the commits the record does not cover and one process-table
+// scan. A line without `list` is refused with the usage and 2; a checkout it
+// cannot read answers 3.
+func answerSet(args leaction.Arguments) (any, int) {
+	if !args.Has(keywordList) {
+		return nil, table().Refuse(verbSet, errors.New(setGrammar))
+	}
+	root, err := lepath.Root()
+	if err != nil {
+		reportError(err)
+		return nil, 3
+	}
+	report, err := setList(context.Background(), root, listSetClaims, warnToStderr)
+	if err != nil {
+		reportError(err)
+		return nil, 3
+	}
+	return report, 0
 }
 
 // Answer is the command. Its bare form is the inventory, which hooks and

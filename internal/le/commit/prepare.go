@@ -319,6 +319,11 @@ func Create(root string, options *Options) (Prepared, error) {
 		if err := dependencyRefusal(root, paths, removed, selection, content.before); err != nil {
 			return result, err
 		}
+		// A handover of a set with an open child, or of an open spec, stays
+		// until the work it records closes (handover.go).
+		if err := handoverRefusal(root, paths, removed, selection, content.before); err != nil {
+			return result, err
+		}
 		// Every registered change-set check judges what the commit adds
 		// (changechecks.go, changecheck.Register). Thomas's words, admitted
 		// from his terminal above, reach the checks on the change.

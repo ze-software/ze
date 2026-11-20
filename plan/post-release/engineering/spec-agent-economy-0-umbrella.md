@@ -111,29 +111,28 @@ Forced reads: the Go style guide (49KB) 858 times, the system door (11KB)
 | 1 | spec-agent-economy-1-call-shape (closed) | The Bash hook's command rewrite, quote-blind guards, the budget's counting, refusal messages that teach a forbidden form, what a subagent is told at start | - |
 | 2 | spec-agent-economy-2-scoped-test (closed) | A short action that tests, vets or compiles named packages; persisted queue wait; nearest-name answer for an unknown command; commit-create ergonomics | 1 (the hook messages name this action) |
 | 3 | spec-agent-economy-3-preamble (closed) | D-1, D-2, D-3; the skill listing served to phase agents; main-only `.claude/rules/` files | - |
-| 4 | `plan/post-release/engineering/spec-agent-economy-4-supervision.md` | Context-size nudge at agent spawn; a warning on a second spec claim; the agent's call count reported to the main thread; skill bodies shed branch-only reference text; test-judge batching; the kept measure; the spec-set safeguards: a set's state derived from its children and reported as live or stalled, a refused stop that would leave a claimed spec half done, and the one WIP cap replaced by an open limit and an active limit | 1 (same hook file) |
+| 4 | spec-agent-economy-4-supervision (closed) | Context-size nudge at agent spawn; a warning on a second spec claim; the agent's call count reported to the main thread; skill bodies shed branch-only reference text; test-judge batching; the kept measure; the spec-set safeguards: a set's state derived from its children and reported as live or stalled, a refused stop that would leave a claimed spec half done, and the one WIP cap replaced by an open limit and an active limit | 1 (same hook file) |
 | 5 | `plan/post-release/engineering/spec-agent-economy-5-scoped-gates.md` | A cheaper post-commit compile gate and a changed-only RFC check, CI keeping the whole-corpus runs | 2 |
 | 6 | spec-agent-economy-6-shell-parser (closed) | The pre-tool Bash hook reads a command line with one bash parser (`mvdan.cc/sh/v3/syntax`) in place of the hand splitter and the byte allow-list; a reader line through loops, conditionals, groups and substitutions; a heavy job refused wherever the line runs it; the after-line walk's wrapper options, base-name match and `set`; the raw-job refusal's quiet form | 1 (the hook it replaces) |
 
-### Where the set stands (2026-11-14)
+### Where the set stands (2026-11-20)
 
-Children 1, 2 and 6 closed on 2026-11-11. The session that ran them ended and
-left a committed handover naming the next child. No later session was shown
-it, and a cleanup of closed handovers removed it on 2026-11-14 (935398f8df):
-nothing reports a set that has started and not finished, which is the defect
-child 4 now owns. Until child 4 lands, this table is the only record, and it
-is kept by hand.
+Children 1, 2 and 6 closed on 2026-11-11. Child 3 closed on 2026-11-20 (its
+commit A is 588464afb8, and its removal follows). Child 4 closes on 2026-11-20
+under the owner's scope cut of that day, and with it the set's state is
+derived: `./le spec status set list` prints it, with the next child and the
+handover, and the session-start summary names a stalled set. On the real tree
+on 2026-11-20 that command reported this set live, with its closed and open
+children, its next child and its handover. This table is no longer the only
+record.
 
 | Order | Child | Status | To pick it up |
 |-------|-------|--------|---------------|
-| 1 | 3 preamble | in-progress | Updated 2026-11-15: every phase and the per-definition payload report are committed. What remains is one probe in a fresh session (does removing `Skill` remove the skill listing) and two figures the owner sets. `plan/handover/2026-11-14-agent-economy.md` has the steps |
-| 2 | 4 supervision | in-progress | Updated 2026-11-15: packages 1, 2, 3, 10 and 11 and half of 9 are committed; its "Where the packages stand" table is current. Next is package 4, the derived set state and its two views. Its kept measure (AC-7) is landed: `./le ai tokens report from <date> days <n>` prints this umbrella's criteria |
-| 3 | 5 scoped gates | skeleton | Last, by owner decision D-5: it waits for the queue-wait record child 2 landed to show whether it is worth its risk |
-| 4 | this umbrella | skeleton | Its criteria are measured over the two weeks after the last child closes |
+| 1 | 5 scoped gates | skeleton | Last, by owner decision D-5: it waits for the queue-wait record child 2 landed to show whether it is worth its risk |
+| 2 | this umbrella | skeleton | Its criteria are measured over the two weeks after the last child closes: `./le ai tokens report from <date> days 14` |
 
-The umbrella's Status is still `skeleton` although three children ran under
-it. No Status says "children are running" today, so none would be true; child
-4's AC-8 makes the set's state derived, and this row is not corrected by hand.
+The umbrella's Status is still `skeleton`; the set's state is derived by child
+4's `DeriveSets`, never declared here.
 
 ### Model tier per child (owner, 2026-11-11)
 

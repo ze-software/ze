@@ -12,10 +12,13 @@ import (
 )
 
 // handoffContextTokens is the main thread's handoff threshold: "A main thread
-// past 600k context MUST write its per-spec state file and hand off"
+// past 400k context MUST write its per-spec state file and hand off"
 // (ai/rules/planning.md, the main thread supervises and verifies what comes
 // back). The figure is decimal thousands, as the token report prints it.
-const handoffContextTokens = 600_000
+// Thomas lowered it from 600k on 2026-11-20: over 2026-11-15..20 main threads
+// averaged 315k per call, and 42% of their context was fed in calls at
+// 400k to 600k.
+const handoffContextTokens = 400_000
 
 // hookNotice is text a hook that lets the call through gives the model as
 // additional context, under the hook event that carries it. The zero value

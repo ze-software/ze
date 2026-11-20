@@ -14,20 +14,17 @@ work."; "keeping what is built"; "1 yes, 2 measured, 3 ok 6"; and on
 his order.
 
 Read first: `plan/post-release/engineering/spec-agent-economy-0-umbrella.md`,
-"Where the set stands", then the "Where the packages stand" table of
-`spec-agent-economy-4-supervision.md`. Everything this session wrote is
-committed.
+"Where the set stands", then run `./le spec status set list`, which derives
+the set's state, its next child and its handover. Everything this session
+wrote is committed.
 
 ## Start here
 
 | # | Work | State | First action |
 |---|------|-------|--------------|
 | 1 | Children 1, 2, 6 | Closed 2026-11-11 | None |
-| 2 | Child 3, `spec-agent-economy-3-preamble.md` | `in-progress`. Every phase and the per-definition payload report are committed | The one probe below, then the two figures in "Open with Thomas", then `/ze-close` |
-| 3 | Child 3, the last probe (A-3) | Not run. It needs a session started after a temporary agent definition with no `Skill` in its tools is synced, because definitions load at session start | Copy `ai/agents/ze-read.md` to a temporary name, remove `Skill` from its tools, `./le ai sync update`, start a fresh session, spawn it with the brief below, then remove the temporary definition and sync again |
-| 4 | Child 4, `spec-agent-economy-4-supervision.md` | `in-progress`. Packages 1, 2, 3, 10, 11 and the first half of 9 are committed | Package 4: the derived set state (idea, live, stalled, children closed) and its two views, the status report and the session-start summary. It wires `LoadClosedSpecs`, `ReadClosedSpecs` and `ListClaims`, which nothing calls yet |
-| 5 | Child 4, packages 5 to 8 | Not started | In order after package 4: the two limits; the release answer and the second-claim warning; umbrella closure, the stop hook and the two rules; the handover removal refusal |
-| 6 | Child 4, the rest of package 9 | AC-2 and the agent half of AC-19 need the SubagentStop event | Record one SubagentStop payload into scratch first, then design |
+| 2 | Child 3, spec-agent-economy-3-preamble | Closed 2026-11-20 (commit A 588464afb8) | None |
+| 3 | Child 4, spec-agent-economy-4-supervision | Closed 2026-11-20 under the owner's scope cut: packages 1 to 4, 8, 10, 11 and AC-1 landed; packages 5 to 7 and the rest of 9 were dropped | None. `./le spec status set list` now prints where this set stands |
 | 7 | Child 5, `spec-agent-economy-5-scoped-gates.md` | `skeleton` | Last, by owner decision D-5. Strongest-tier design |
 | 8 | The umbrella's criteria | Measured over the two weeks after the last child closes | `./le ai tokens report from <date> days 14` prints them |
 

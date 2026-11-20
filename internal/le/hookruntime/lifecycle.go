@@ -112,6 +112,7 @@ var sessionStartBudget = 3500 * time.Millisecond
 var sessionStartSteps = []sessionStartStep{
 	{name: "tree", run: reportTree},
 	{name: "specs", run: reportSpecs},
+	{name: "spec sets", run: reportSpecSets},
 	{name: "push debt", run: reportDerivedDebt},
 	{name: "session state", run: reportSessionState},
 	{name: "journal", run: reportDueJournal},
@@ -322,6 +323,95 @@ func reportSpecs(_ stdcontext.Context, state *sessionStart, report *sessionStart
 	if phrases, err := specstatus.StatusPhrases(root); err == nil && len(phrases) != 0 {
 		fmt.Fprintf(&report.out, "   (%s)\n", strings.Join(phrases, ", ")) //nolint:errcheck // hook protocol
 	}
+}
+
+// sessionStartClaimsBudget is how long the spec sets step waits for the
+// claims. session.ListClaims costs a process-table scan and the reaper's walk
+// of every idle session directory, which grows with that tree on the host and
+// takes no deadline of its own, so the step bounds the wait rather than the
+// walk. One second is under a third of sessionStartBudget, leaving the steps
+// after it their time on a loaded machine. Tests shorten it to prove the cut.
+var sessionStartClaimsBudget = time.Second
+
+// sessionStartListClaims reads every claim with the reaper's verdict on its
+// holder. Tests replace it with a fast or a slow fixture.
+var sessionStartListClaims = func(root string) ([]session.Claim, error) { return session.ListClaims(root, "") }
+
+// claimsUnreadAtSessionStart is the reason a set's claims carry when the read
+// did not finish within sessionStartClaimsBudget.
+const claimsUnreadAtSessionStart = "claims not read within the session-start budget"
+
+// reportSpecSets prints the spec sets a session may need to pick up: each
+// stalled set with its next child, its claim command and its handover, each
+// set whose children all closed, and each started set whose state cannot be
+// told, from specstatus.SessionStartSets. It reads the spec files, the git
+// index and the shared record of closed specs, and runs no git. The claims are
+// read under sessionStartClaimsBudget; past it, or when they cannot be read,
+// they pass as not read with the reason, and every started set with an open
+// child is named beside `./le spec status set list`, never called stalled or
+// idea. It is a step of its own, so a budget cut names it and leaves the specs
+// line standing.
+func reportSpecSets(deadline stdcontext.Context, state *sessionStart, report *sessionStartReport) {
+	if len(state.specs) == 0 {
+		return
+	}
+	claims := sessionStartClaims(deadline, state.ctx.root)
+	lines, err := specstatus.SessionStartSets(state.ctx.root, claims)
+	if err != nil {
+		report.note.WriteString("session-start: the spec sets were not derived, so none was reported: " + err.Error() +
+			"; `./le spec status set list` derives them\n")
+		return
+	}
+	for _, line := range lines {
+		report.out.WriteString(line + "\n")
+	}
+}
+
+// sessionStartClaims reads the claims within sessionStartClaimsBudget, or the
+// hook's own deadline when that comes first. A read that has not answered by
+// then passes as not read, with claimsUnreadAtSessionStart; a read that failed
+// passes as not read with its error. Neither fix is set, so both name
+// `./le spec status set list`, which reads every claim and judges its holder.
+func sessionStartClaims(deadline stdcontext.Context, root string) specstatus.SetClaims {
+	bounded, cancel := stdcontext.WithTimeout(deadline, sessionStartClaimsBudget)
+	defer cancel()
+	answers := make(chan listedClaims, 1)
+	// The reader is copied here, so the goroutine never reads the package
+	// variable a test restores while the read may still run.
+	list := sessionStartListClaims
+	go readSessionStartClaims(list, root, answers)
+	var answer listedClaims
+	select {
+	case answer = <-answers:
+	case <-bounded.Done():
+		// An answer that is ready wins over a deadline that is also ready:
+		// select picks between two ready cases at random.
+		select {
+		case answer = <-answers:
+		default:
+			return specstatus.ClaimsUnread(claimsUnreadAtSessionStart, "")
+		}
+	}
+	if answer.err != nil {
+		return specstatus.ClaimsUnread("the claims could not be read: "+answer.err.Error(), "")
+	}
+	return specstatus.ClaimsRead(answer.claims)
+}
+
+// listedClaims is one answer of sessionStartListClaims.
+type listedClaims struct {
+	claims []session.Claim
+	err    error
+}
+
+// readSessionStartClaims is the goroutine sessionStartClaims starts: one
+// lifecycle step of one hook run, which makes one read and sends one answer.
+// answers MUST hold one slot, so the send never blocks after
+// sessionStartClaims returned at its deadline; a read still running then ends
+// with the hook's process. list is the caller's copy of sessionStartListClaims.
+func readSessionStartClaims(list func(string) ([]session.Claim, error), root string, answers chan<- listedClaims) {
+	claims, err := list(root)
+	answers <- listedClaims{claims: claims, err: err}
 }
 
 // reportSessionState names the claimed spec's session state file.

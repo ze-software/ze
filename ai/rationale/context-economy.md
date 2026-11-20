@@ -31,9 +31,12 @@ The main thread is the same arithmetic on a smaller share: 19% of the spend,
 one session averaging 375k over 335 calls, because a 1M window never compacts.
 The answer is a habit in `.claude/rules/session-start.md`: one spec per
 session, and the next spec in a fresh one. Since 2026-11-15 a hook backs it:
-when the main thread spawns an agent with its last recorded context past 600k,
+when the main thread spawns an agent with its last recorded context past 400k,
 the after-hook of the Agent call tells it the size and to hand off
-(`mark-agent-spawned`, `.claude/hooks/README.md`). The spawn is the moment
+(`mark-agent-spawned`, `.claude/hooks/README.md`). The threshold was 600k
+until 2026-11-20, when Thomas lowered it: over 2026-11-15 to 20 main threads
+averaged 315k per call, 42% of their context was fed in calls at 400k to 600k,
+and 8% above 600k. The spawn is the moment
 chosen, because a session whose owner is away gets few prompts and spawns many
 agents.
 

@@ -2,7 +2,7 @@
 //
 // VALIDATES: the after-hook of the main thread's Agent call tells it its last
 // recorded context size, and to write the state file and hand off, once that
-// size is past the 600k threshold, and writes the spawn marker either way.
+// size is past the 400k threshold, and writes the spawn marker either way.
 // PREVENTS: a notice on every spawn, a zero printed for a transcript the hook
 // could not read, a spawn refused because of the transcript, a notice to an
 // agent for its own spawn, and a whole read of a transcript of any size.
@@ -82,7 +82,7 @@ func TestAgentSpawnReportsContextPastTheHandoffThreshold(t *testing.T) {
 	notice := runSpawn(t, spawnPayload(transcript))
 	for _, want := range []string{
 		"last recorded context is 713k tokens",
-		"past the 600k handoff threshold",
+		"past the 400k handoff threshold",
 		"ai/rules/planning.md",
 		"./le spec state current",
 		"One spec per session: the next spec starts in a fresh session.",
@@ -101,8 +101,19 @@ func TestAgentSpawnIsSilentAtOrBelowTheHandoffThreshold(t *testing.T) {
 		}
 	}
 	transcript := spawnTranscript(t, usageLine(0, 0, handoffContextTokens+1))
-	if notice := runSpawn(t, spawnPayload(transcript)); !strings.Contains(notice, "600k tokens, past") {
+	if notice := runSpawn(t, spawnPayload(transcript)); !strings.Contains(notice, "400k tokens, past") {
 		t.Errorf("context %d: notice %q, want the handoff notice", handoffContextTokens+1, notice)
+	}
+}
+
+// TestAgentSpawnReportsContextBetween400kAnd600k pins the threshold Thomas set
+// on 2026-11-20: a main thread at 450k, which the earlier 600k threshold let
+// pass in silence, is told to hand off.
+func TestAgentSpawnReportsContextBetween400kAnd600k(t *testing.T) {
+	transcript := spawnTranscript(t, usageLine(0, 0, 450000))
+	notice := runSpawn(t, spawnPayload(transcript))
+	if !strings.Contains(notice, "last recorded context is 450k tokens, past the 400k handoff threshold") {
+		t.Fatalf("context 450000: notice %q, want the handoff notice at the 400k threshold", notice)
 	}
 }
 

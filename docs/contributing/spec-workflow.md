@@ -385,7 +385,9 @@ take their answer from it, so they cannot disagree about a set.
   given the zero record, which is the record not read, it answers not read.
   The inventory, the roadmap and the closure detector pass the zero record
   today; the roadmap always will, because its snapshot is derived from what
-  git tracks.
+  git tracks. The set view below passes the record `LoadClosedSpecs`
+  extends to HEAD, and the session-start lines the one `ReadClosedSpecs`
+  reads.
 
 The closure detector never raises an umbrella to a high-confidence closure
 candidate, because an umbrella's stem matches its children's closure records.
@@ -435,6 +437,43 @@ spec whose name holds one closes like any other.
 | `ReadClosedSpecs` | Answers what the file holds and the commit it was computed at, and runs no git, for the session-start summary. An absent or corrupt record answers "not computed" with the reason, never an empty list |
 <!-- source: internal/le/spec/status/closed.go -- LoadClosedSpecs, ReadClosedSpecs, closedInHistory -->
 <!-- source: internal/le/spec/path/closure.go -- ClosedStems -->
+
+### The state of a set
+
+A set's state is derived, never declared: the umbrella's own Status does not
+decide it. `DeriveSets` reads it from the sets `GroupSets` forms, the record of
+closed specs, and every claim marker with the session reaper's verdict on its
+holder (`ListClaims`, `internal/le/session/claims.go`).
+
+| State | When |
+|-------|------|
+| idea | No child closed, no member is claimed, and no open child is past `ready` |
+| live | The set was started (a child closed, a member is claimed, or an open child is `in-progress`, `verification`, `done` or `blocked`), a child is open, and a live session holds a claim on a member |
+| stalled | Started, a child is open, and no live session or running agent holds a claim on any member. A claim whose holder the reaper proved dead holds nothing |
+| children closed | No child is open and the record names at least one closed child: the umbrella owes its own criteria and its closure |
+| cannot tell | An input could not be judged: the record of closed specs is not computed and nothing else shows the set started, the claims could not be read, a holder's liveness cannot be told (an agent's marker carries no signal of its own), or a claim marker could not be read and may hold the set. The view says which, and what settles it: `./le spec status set list` computes the record and reads the claims, a holder that cannot be judged is waited on, an unreadable marker of a gone session is removed by `./le session clean` |
+
+With the claims not read, a set started only by a claim reads as not started,
+so a set whose open children are all `ready` or earlier is an idea. That holds
+because a claim moves its spec to `in-progress`; a claim that left a spec
+`ready` would break it.
+
+Each set also names the child to run next: the lowest-numbered open child that
+no live claim runs and whose `Depends` cell names no open spec. A spec named
+there that the population no longer holds has closed, so it is met, and so is
+the set's own umbrella, which waits on its children. When every such child
+waits and one of them waits on an open spec outside the set, the view names
+that spec instead of a child: there is nothing in the set to pick up. A set's
+handovers are the tracked files under `plan/handover/` whose name holds the
+set's prefix as whole tokens (`2026-11-14-agent-economy.md` for
+`agent-economy`), read from the git index.
+
+| Reader | What it reads | What it prints |
+|--------|---------------|----------------|
+| `./le spec status set list` | `LoadClosedSpecs`, so the record is extended to HEAD, and `ListClaims`, one process-table scan and the reaper's walk of idle session directories | Every set: its state and why, its umbrella, closed and open children, holders with their verdicts, the next child with the `./le spec claim` line that takes it or the spec it waits on, and its handovers |
+| `SessionStartSets`, the session-start summary's set lines (`reportSpecSets`, `internal/le/hookruntime/lifecycle.go`) | `ReadClosedSpecs`, the spec files and the git index, and the claims its caller read; it runs no git process. The session-start hook reads the claims with `ListClaims` under a deadline of its own, `sessionStartClaimsBudget` (1 s of the hook's 3.5 s budget), because that scan's cost depends on the host and on the idle session directories | A stalled set with its next child, its claim command and its handover, a set whose children all closed, and a started set whose state cannot be told with what settles it. Claims not read within the deadline, or that could not be read, name every started set with an open child on one line with the reason and `./le spec status set list`, which reads them: such a set is never called stalled or idea. An idea and a live set print nothing there. A record not computed prints "not computed" beside `./le spec status set list`, the command that computes it; otherwise the lines name the commit the record holds |
+<!-- source: internal/le/spec/status/setstate.go -- DeriveSets, setState, setNext, SessionStartSets -->
+<!-- source: internal/le/spec/status/answer.go -- answerSet -->
 
 ## What each closure gate reads
 
@@ -729,6 +768,9 @@ THEN: [test command with a timeout]
 
 A handoff that has to survive the chat, for multi-session work or work picked up
 days later, is written to `plan/handover/NN-<slug>.md` with the same template.
+Name it for the spec's stem or its set's prefix: `./le commit create` then
+refuses to remove it while that spec, or a child of that set, is still open
+(`docs/contributing/committing.md`, `handoverRefusal`).
 
 ## Journal rows
 

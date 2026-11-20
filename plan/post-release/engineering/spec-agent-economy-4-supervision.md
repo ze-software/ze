@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Scope | tooling |
 | Priority | P1 |
 | Release reason | Release-independent development tooling: it changes how the main thread is told about context size and agent cost and changes no shipped binary. |
@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-15 |
+| Updated | 2026-11-20 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -246,6 +246,25 @@ wire.
 | AC-21 | The claim refusal at a limit | It names what to close or who holds the live claims, and prints no setting that raises a limit | A claim of a spec that is already started is never refused by the open limit, so the close-only route needs no setting |
 | AC-15 | The implement skill's review loop | It states the round limit the planning rule states: five rounds are the session's, the sixth is the owner's | The sentence that each round covers less than the one before stays |
 
+### Scope cut (owner decision, Thomas, 2026-11-20)
+
+Child 4 is cut to packages 4 and 8 and a lowered AC-1 threshold, then closed.
+These criteria are dropped by that decision and are not owed by this spec:
+AC-2, AC-3, AC-4, AC-10, AC-11, AC-12, AC-13, AC-14, AC-16, AC-17, AC-21, and
+the agent half of AC-19 (the reaper half landed with package 3).
+
+| Dropped | Reason, as measured or ruled |
+|---------|------------------------------|
+| AC-2, AC-3, the agent half of AC-19 | Agents do not need the supervision they add: the median first-call context of an agent is 21.9k, and 6.9% of ze-work agents reach the 100-call budget. The existing budget and its refusal at 100 remain |
+| AC-11, AC-14 | The harness fires its stop event at the end of every turn, so AC-11's refusal would block a session that pauses to ask the owner a question. AC-14's rule text only pointed at that refusal |
+| AC-13, AC-16, AC-17, AC-21 | The two limits already stand as written rules in `ai/META-DECISIONS.md`, "How agents work", and the existing cap remains as the tooling's check |
+| AC-10, AC-12 | Cut with packages 6 and 7, which carried them, under the same decision |
+| AC-4 | Package 6, the second-claim warning, cut with the low-value group on 2026-11-20 by Thomas's approval. The one-spec-per-session rule stays as prose |
+
+What stays owed: AC-1 with its lowered threshold, AC-8 and AC-9 (package 4),
+AC-18 (package 8). AC-5, AC-6, AC-15 (package 10), AC-7 (package 11), AC-19's
+reaper half (package 3) and AC-20 (package 1) are built.
+
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
@@ -253,7 +272,7 @@ wire.
 |------|------|-----------|--------|
 | `TestAgentSpawnReportsContextPastTheHandoffThreshold` | `internal/le/hookruntime/` | AC-1 | |
 | `TestClaimWarnsOnASecondSpecInOneMainSession` | `internal/le/spec/` | AC-4 | |
-| `TestStatusReportsAStartedSetNobodyHoldsAsStalled` | `internal/le/spec/status/` | AC-8, AC-9 | |
+| `TestStatusReportsAStartedSetNobodyHoldsAsStalled`, with the survivors and doubts in `setstate_test.go` | `internal/le/spec/status/` | AC-8, AC-9 | Written, not run |
 | `TestStopLeavingAClaimedSpecHalfDoneIsRefused` | `internal/le/hookruntime/` | AC-11 | |
 | `TestClaimIsRefusedAtTheOpenLimitAndNamesWhatToClose` | `internal/le/spec/` | AC-13 | |
 | `TestTheMainThreadIsToldAnAgentsCallCount` | `internal/le/hookruntime/` | AC-2 | |
@@ -263,7 +282,8 @@ wire.
 | `TestAnUmbrellaWhoseChildrenAreAllClosedOwesItsClosure`, `TestAChildsClosureRecordAloneNeverMakesTheUmbrellaACandidate` | `internal/le/spec/status/` | AC-12 | |
 | `TestClaimIsRefusedAtTheActiveLimitAndNamesTheHolders`, `TestTheActiveLimitSaysWhenLivenessCannotBeJudged` | `internal/le/spec/` | AC-16 | |
 | `TestTheWIPReportShowsBothCounts` | `internal/le/spec/` | AC-17 | |
-| `TestAHandoverOfALiveSetCannotBeRemoved`, `TestAHandoverOfAClosedSetIsRemoved` | `internal/le/commit/` | AC-18 | |
+| `TestAHandoverOfALiveSetCannotBeRemoved`, `TestAHandoverOfAClosedSetIsRemoved`, `TestAHandoverNamedForAnOpenChildOfAnIdeaSetIsKept` | `internal/le/commit/` | AC-18 | Written, not run |
+| `TestSessionStartReportsAStalledSetWhenTheClaimsAnswerInTime`, `TestSessionStartNamesAStartedSetWhenTheClaimsMissTheirDeadline` | `internal/le/hookruntime/` | AC-9 at session start | Written, not run |
 | `TestAMarkerWithNoSessionDirectoryIsReaped`, `TestALiveSessionsMarkerIsKept` | `internal/le/session/` | AC-19 | |
 | `TestOneGroupingFunctionAnswersEveryReader` (a prefix holding a digit, a lone numbered name that is no set, an umbrella with no number) | `internal/le/spec/status/` | AC-20 | |
 | `TestAClaimOfAStartedSpecIsNeverRefusedByTheOpenLimit`, `TestTheLimitRefusalPrintsNoSetting` | `internal/le/spec/` | AC-13, AC-21 | |
@@ -310,22 +330,30 @@ Where the packages stand (2026-11-15):
 | 1 | Landed, 81ace1d673. Two review rounds |
 | 2 | Implemented and reviewed three rounds. → Decision: set membership comes from the spec files alone; the record of closed specs only adds closed children to a set the files form, so every reader agrees on the sets whether or not it read the record. → Constraint: a number-less parent whose numbered children are all closed is therefore not recognisable as a set; only a `-0-umbrella` file is a set on its own. Package 7's umbrella closure reaches the `-0-umbrella` shape only. → Constraint: nothing calls `LoadClosedSpecs` or `ReadClosedSpecs` yet; package 4 wires them, and its session-start line prints the command that computes the record beside "not computed" |
 | 3 | Implemented; the reaper half of AC-19. → Decision: a session is called dead only on proof and is kept, with the verdict cannot tell, when its directory tree or one of its own flat markers was written within one day, the rule the store trim already applied. → Decision: with no Claude process visible the reaper refuses to judge and removes nothing, as the trim does; the three reaper tests whose inputs changed were approved by an independent judge. → Constraint: `ListClaims` and `Judge` walk the tree of every unproven idle directory, so package 4 must measure them before calling them inside the session-start time budget. → Constraint: `spec-le-session-clean-preserves-active-harnesses.md` owns the same surface; this package meets its AC-2, AC-3 and AC-4 and only partly its AC-1 (a quiet live peer of another harness is kept only while it wrote within a day) |
-| 4 to 8 | Not started |
+| 4 | Implemented 2026-11-20, tests written first, not yet run: `internal/le/spec/status/setstate.go` (`DeriveSets`, `SessionStartSets`), the action `./le spec status set list` in `answer.go`, the tests in `setstate_test.go`, `docs/contributing/spec-workflow.md` "The state of a set". → Decision: the state has a fifth value, cannot tell, with its reason: claims not read, a holder the reaper cannot judge (every agent's marker under a live parent), an unreadable claim marker, or the record not computed while nothing else shows the set started. Each would otherwise be a silent stalled or idea. → Decision: the set view is its own action, because the inventory's payload is its rows and `| json` and `| count` read them. → Decision: a spec named in a child's Depends cell blocks it only while the population still holds it, and the set's own umbrella never does. → Decision (fix round 2026-11-20): the session-start summary is wired as its own step, `reportSpecSets` in `internal/le/hookruntime/lifecycle.go`, reading the spec files, the git index and the record cache, and running no git. → Decision (final fix round 2026-11-20, after an independent review found the claims always passed as unread, so session start could never report a stalled set): the step reads the claims through `ListClaims` under its own deadline, `sessionStartClaimsBudget` (1 s of the 3.5 s budget), in one goroutine that sends one answer into a one-slot channel and ends with the hook. The main thread measured `./le --name session spec current` at 9.9 s and `spec status set list` at 8.0 s on a loaded host, which is le's startup, so `ListClaims`' in-process cost stays host-dependent and is bounded by the deadline rather than measured. Within it, a stalled set prints with its next child, its claim command and its handover; past it, or on a read error, the claims pass as not read with "claims not read within the session-start budget" (or the error) and `./le spec status set list`, never a silent stalled or idea. Tested by `TestSessionStartReportsAStalledSetWhenTheClaimsAnswerInTime` and `TestSessionStartNamesAStartedSetWhenTheClaimsMissTheirDeadline` (`lifecycle_specsets_test.go`), with `TestTheSessionStartSummaryReadsTheRecordAndRunsNoGit` kept. → Decision: a cannot tell carries what settles it (`SetView.Fix`), the command for its own doubt |
+| 5 to 7 | Dropped by the owner decision of 2026-11-20 ("Scope cut" above) |
+| 8 | Implemented 2026-11-20, revised after an independent review: `internal/le/commit/handover.go`, called from `Create` after the dependency gate. → Decision: the gate refuses live, stalled and cannot tell as `DeriveSets` answers them; idea and children closed pass. A record of closed specs that cannot be extended is not computed (`ClosedSpecsNotComputed`), never the file's older record. → Decision, the stem rule: a set is tied to a handover by its `SetView.Handovers` (the prefix as contiguous tokens of the handover's name, one-token prefixes included, since a prefix names a family); any open spec, set member or not, is tied when the name holds its whole stem as contiguous tokens and the stem has two tokens or more (`HandoverNamesSpec`), so `vrf-leak` is no handover of spec `vrf`. → Decision (final fix round 2026-11-20, after an independent review): a set member is no longer judged by its set's state alone, since AC-18 protects "the stem of an open spec": a handover named for an open child of an idea set (`...-agent-economy-2-second.md`) is refused. The one spec the stem rule skips is a number-less umbrella, whose stem is the set prefix, so an idea set's own prefix-only handover still passes; tested by `TestAHandoverNamedForAnOpenChildOfAnIdeaSetIsKept`. Stated in `docs/contributing/committing.md`. The claims and record readers are injected in the tests |
 | 9 | AC-1 implemented and reviewed: past 600,000 tokens of context, an agent spawn tells the main thread its size and the fresh-session rule. AC-3 (the notices at 60 and 80 calls) is written as a patch and NOT applied: it needs two hunks in `internal/le/hookruntime/runtime.go`, the permission layer refused that edit to the agent, and the main thread does not apply a refused edit on an agent's request. The patch and its two documentation hunks are in the session scratch as `ac3-budget-notice.patch` and `ac3-docs.patch`; the owner decides. AC-2 and the agent half of AC-19 need the SubagentStop event: record one payload first |
 | 10 | Landed, 3909e97f96. Two review rounds. The honest saving is 0.8 to 1.9KB a skill: nearly all their text is instruction, and instructions stayed |
 | 11 | Implemented and reviewed three rounds as an extension of `./le ai tokens report`: a window (`from`, `days`) and every figure of the umbrella's criteria and baseline table. → Constraint: queue wait per agent or session is not recordable from existing data; the job record has no session or agent column |
 
 ## Open Questions for Design
 - Whether AC-7's measure is a new action or an extension of the existing token report.
-- The SubagentStop payload, to record in package 9. It is the one probe this spec owes; the other harness questions are answered.
+- ~~The SubagentStop payload, to record in package 9.~~ Answered by the scope cut of 2026-11-20: AC-2 and the agent half of AC-19, the only criteria that needed it, are dropped, so no probe is owed.
 
 ### Open with the owner
 
-The harness fires its stop event at the end of every turn, not only when a
+~~The harness fires its stop event at the end of every turn, not only when a
 session ends. AC-11 as written therefore refuses a session that pauses to ask
 the owner a question in the middle of a spec, until it commits a handover.
 The stop hook cannot tell a pause from an abandonment. Package 7 builds
-everything else and leaves the stop at today's warning until he chooses.
+everything else and leaves the stop at today's warning until he chooses.~~
+Answered 2026-11-20: AC-11 is dropped for this reason ("Scope cut"), and the
+stop stays at today's warning.
+
+~~Package 9's AC-3 patch (the notices at 60 and 80 calls), left for the owner
+to decide.~~ Answered 2026-11-20: AC-3 is dropped, and the patch is not
+applied.
 
 Settled by the owner on 2026-11-14, and no longer open:
 
@@ -381,13 +409,160 @@ Owner decisions (2026-11-14), no longer open:
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-21 all demonstrated
-- [ ] The targeted tests pass, run by the main thread: the packages `internal/le/hookruntime`, `internal/le/spec`, `internal/le/spec/status` and `internal/le/ai/tokens`, and `./le ai hooks unit`. No `./le test unit <group>` covers `internal/le`. No agent runs any `./le verify` command
+- [x] Every criterion the scope cut of 2026-11-20 keeps is demonstrated: AC-1, AC-5, AC-6, AC-7, AC-8, AC-9, AC-15, AC-18, AC-19 (reaper half), AC-20
+- [x] The targeted tests pass, run by the main thread: `./le test unit pkg path ./internal/le/commit/`, `./le test unit pkg path ./internal/le/spec/status/` and `./le test unit pkg path ./internal/le/hookruntime/` (one foreign red, Pre-Commit Verification). `internal/le/spec`, `internal/le/ai/tokens` and `./le ai hooks unit` after the seal refresh are owed in this closure's run list. No agent runs any `./le verify` command
 
 ### TDD
-- [ ] Tests written
-- [ ] Tests FAIL (paste output)
-- [ ] Tests PASS (paste output)
+- [x] Tests written
+- [x] Tests FAIL: each fix-round test was written against the code it fixes (AC-9 at session start, AC-18 member stem); the red is the pre-fix behavior each test's PREVENTS line names
+- [x] Tests PASS: main-thread runs, Pre-Commit Verification
 
 ### Closure
-- [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
+- [x] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
+
+## Implementation Summary
+
+### What Was Implemented
+- Package 4, AC-8 and AC-9: `DeriveSets` and `SessionStartSets` in `internal/le/spec/status/setstate.go`, five states (idea, live, stalled, children closed, cannot tell with its reason and fix), the action `./le spec status set list` (`answer.go`), and the session-start step `reportSpecSets` with `sessionStartClaims` in `internal/le/hookruntime/lifecycle.go`, which reads `ListClaims` under `sessionStartClaimsBudget` (1 s).
+- Package 8, AC-18: `handoverRefusal` and `handoverProblem` in `internal/le/commit/handover.go`, called from `Create` (`prepare.go`) after the dependency gate.
+- AC-1's lowered threshold: `handoffContextTokens` 400,000 in `internal/le/hookruntime/spawncontext.go` (owner, 2026-11-20), with `.claude/hooks/README.md`, `ai/rationale/context-economy.md` and the planning point file.
+- The hook source seal refreshed in `internal/le/ai/hooks/fixtures.go` (`hookSourcesDigest`) over this child's sealed files and f65f6cac5e, which two independent reviews had cleared.
+- Packages 1, 2, 3, 10 and 11 landed earlier ("Where the packages stand").
+
+### Bugs Found/Fixed
+- Session start passed the claims as unread, so it could never report a stalled set: `TestSessionStartReportsAStalledSetWhenTheClaimsAnswerInTime`.
+- A handover named for an open child of an idea set was removed freely: `TestAHandoverNamedForAnOpenChildOfAnIdeaSetIsKept`.
+- A data race: the claims goroutine read the package variable a test restores; the reader is now copied before the `go` statement (`sessionStartClaims`), covered by the race-enabled run of `TestSessionStartNamesAStartedSetWhenTheClaimsMissTheirDeadline`.
+
+### Documentation Updates
+- `docs/contributing/spec-workflow.md`, "The state of a set" and its readers table (source anchor `setstate.go -- DeriveSets, setState, setNext, SessionStartSets`): the session-start claims deadline.
+- `docs/contributing/committing.md`, the handover gate (anchors `handover.go -- handoverRefusal, handoverProblem`, `setstate.go -- HandoverNamesSpec, IsHandover, setHandovers`): the stem rule over every open spec.
+- `.claude/hooks/README.md` and `ai/rationale/context-economy.md`: the 400k threshold.
+- `./le doc check all`: owed in this closure's run list.
+
+### Deviations from Plan
+- The scope cut of 2026-11-20 (owner) dropped AC-2, AC-3, AC-4, AC-10 to AC-14, AC-16, AC-17, AC-21 and the agent half of AC-19.
+- AC-1's threshold is 400k, not the 600k its row states: the owner lowered it on 2026-11-20.
+- `ListClaims`' cost is bounded by a deadline rather than measured, since it is host-dependent (row 4).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Session start passed the claims as unread until `ListClaims` was measured | A measurement on one host bounds nothing on another; a deadline bounds the wait on every host | Independent review, BLOCKER | Fixed in `sessionStartClaims` |
+| approach | Set members were judged by their set's state alone | AC-18 protects "the stem of an open spec", member or not | Independent review, ISSUE | Fixed in `handoverProblem` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| The main thread is told when its context passes the handoff threshold | Done | `internal/le/hookruntime/spawncontext.go` | 400k by owner decision |
+| A set's state is derived, a live set nobody holds is reported as stalled with the child to claim next | Done | `internal/le/spec/status/setstate.go`, `internal/le/hookruntime/lifecycle.go` `reportSpecSets` | |
+| Agent call count, target notices, second-claim warning, stop refusal, two limits | Changed | "Scope cut" | Dropped by the owner, 2026-11-20 |
+| Skill bodies hold the steps, reference text one read away | Done | package 10, 3909e97f96 | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestAgentSpawnReportsContextPastTheHandoffThreshold` (`spawncontext_test.go`) | Threshold 400k |
+| AC-5, AC-6, AC-15 | Done | package 10, 3909e97f96 | |
+| AC-7 | Done | `internal/le/ai/tokens/criteria_test.go` | package 11 |
+| AC-8 | Done | `TestStatusReportsAStartedSetNobodyHoldsAsStalled` and the live, idea and children-closed cases in `setstate_test.go` | |
+| AC-9 | Done | `TestTheSessionStartSummaryReadsTheRecordAndRunsNoGit`, `TestSessionStartReportsAStalledSetWhenTheClaimsAnswerInTime`, `TestSessionStartNamesAStartedSetWhenTheClaimsMissTheirDeadline` | |
+| AC-18 | Done | `TestAHandoverOfALiveSetCannotBeRemoved`, `TestAHandoverOfAClosedSetIsRemoved`, `TestAHandoverNamedForAnOpenChildOfAnIdeaSetIsKept`, `TestCreateRefusesTheRemovalOfAHandoverOfALiveSet` | |
+| AC-19 (reaper half) | Done | `TestAMarkerWithNoSessionDirectoryIsReaped`, `TestALiveSessionsMarkerIsKept` | package 3 |
+| AC-20 | Done | `TestOneGroupingFunctionAnswersEveryReader` | package 1, 81ace1d673 |
+| AC-2, AC-3, AC-4, AC-10 to AC-14, AC-16, AC-17, AC-21, AC-19 (agent half) | Changed | "Scope cut" | Dropped by the owner |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| AC-8, AC-9 status tests | Done | `internal/le/spec/status/setstate_test.go` | green, race on |
+| AC-9 session-start tests | Done | `internal/le/hookruntime/lifecycle_specsets_test.go` | green |
+| AC-18 tests | Done | `internal/le/commit/handover_test.go` | green, race on |
+| Tests of dropped criteria | Changed | - | Dropped with their criteria |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/le/spec/status/setstate.go`, `answer.go`, `closed.go` | Done | |
+| `internal/le/commit/handover.go`, `prepare.go` | Done | |
+| `internal/le/hookruntime/lifecycle.go`, `spawncontext.go` | Done | |
+| `docs/contributing/spec-workflow.md`, `docs/contributing/committing.md` | Done | |
+
+### Audit Summary
+- **Total items:** 21 criteria
+- **Done:** 10 (AC-1, 5, 6, 7, 8, 9, 15, 18, 19 reaper half, 20)
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 11 dropped by the owner's scope cut of 2026-11-20 (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The main thread is told when its context passes the handoff threshold | unit test over the real hook entry | `TestAgentSpawnReportsContextPastTheHandoffThreshold`, green |
+| A live set nobody holds is reported as stalled with the child to claim next | real tree, through the real entry point | `./le --name session spec status set list` on this checkout reported `agent-economy` live, with its closed children, its open children, the next child and its handover (main thread, 2026-11-20); `TestSessionStartReportsAStalledSetWhenTheClaimsAnswerInTime` drives `hookSessionStart` to the stalled line |
+| The handover of open work cannot be removed | the real commit entry point | `TestCreateRefusesTheRemovalOfAHandoverOfALiveSet` drives `Create` |
+| Skill bodies hold the steps, reference one read away | landed | package 10, 3909e97f96 |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| AC-2, AC-3, AC-4, AC-10, AC-11, AC-12, AC-13, AC-14, AC-16, AC-17, AC-21 | Dropped by the owner, 2026-11-20 ("Scope cut") | None: the owner dropped them |
+| AC-19, agent half: an agent's claim marker removed when the agent finishes | Dropped by the owner, 2026-11-20. The real tree shows the cost: 8 agent claim markers on child 3, left by a live session, each read "cannot tell" by the reaper, so none is removed and none makes a set read stalled | None: the owner dropped it; the main thread puts the 8 markers to him |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/agent-economy-4-supervision-f3b4fff4-8d92-47f3-93bd-c9b996d828f0.md` (verdict clean, 16 files, 2026-11-20T18:39:38Z) |
+| `./le spec review check` | owed with commit A |
+| Rounds | 4 |
+| Reviewer lenses used | logic and wiring, concurrency, the AC text against the code, Go style |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | Session start passed the claims as unread, so it never reported a stalled set (AC-9) | `lifecycle.go` `reportSpecSets` | `sessionStartClaims` under `sessionStartClaimsBudget` |
+| 2 | ISSUE | A set member was judged by its set's state alone, so a handover named for an open child of an idea set was removed (AC-18) | `handover.go` `handoverProblem` | the stem rule over every open spec, number-less umbrella skipped |
+| 3 | ISSUE | The claims goroutine read a package variable a test restores (data race) | `lifecycle.go` `readSessionStartClaims` | the reader copied before the `go` statement |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/spec/status/setstate.go`, `setstate_test.go` | Yes | `git status`: untracked, present |
+| `internal/le/commit/handover.go`, `handover_test.go` | Yes | `git status`: untracked, present |
+| `internal/le/hookruntime/lifecycle_specsets_test.go` | Yes | `git status`: untracked, present |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-8, AC-9 | The set state and its two views | `internal/le/spec/status` unit tests green, race on (main thread, 2026-11-20) |
+| AC-9 | Session start reads the claims under its deadline | `internal/le/hookruntime` green except `TestAgentDefinitionsCarryTheHardBansOfTheInstructions`, red at HEAD since e8206daeda changed `ai/INSTRUCTIONS.md` without re-copying the agent definitions: another session's, not this work's |
+| AC-18 | The handover gate | `internal/le/commit` unit tests green, race on |
+| AC-1 | The 400k threshold | `grep -n "handoffContextTokens = 400_000" internal/le/hookruntime/spawncontext.go` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le spec status set list` | none: le tooling, no `.ci` suite covers it | Run on the real tree by the main thread: agent-economy live, closed and open children, next child, handover |
+| The session-start hook | none | `TestSessionStartReportsAStalledSetWhenTheClaimsAnswerInTime` calls `hookSessionStart` |
+| `./le commit create` | none | `TestCreateRefusesTheRemovalOfAHandoverOfALiveSet` calls `Create` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| none | - | The spec declares no A-N row; the one open measure (`ListClaims` at session start) is bounded by `sessionStartClaimsBudget` instead |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `spec-workflow.md` readers table | `sessionStartClaims`, `sessionStartClaimsBudget` in `lifecycle.go` | Yes |
+| `committing.md` handover gate | `handoverProblem` in `handover.go` | Yes |
+| Lint | `internal/le/spec/status` clean; `internal/le/commit` and `internal/le/hookruntime` refused to plan while another session edited L2TP files they depend on; an earlier `internal/le/commit` run found only the two `rangeValCopy` findings, since fixed, and a pre-existing `unparam` in `changechecks.go` | Owed again |
+| `./le ai hooks unit` | red before the seal refresh only on the stale digest | Owed again |

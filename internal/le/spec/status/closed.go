@@ -96,6 +96,14 @@ func (closed ClosedSpecs) Unknown() string {
 	return closed.reason
 }
 
+// ClosedSpecsNotComputed answers a record that could not be computed, and
+// why: a caller whose LoadClosedSpecs failed passes this on rather than the
+// record as the file holds it, whose commit may predate a closure that the
+// failed walk would have added.
+func ClosedSpecsNotComputed(why string) ClosedSpecs {
+	return ClosedSpecs{reason: notComputed + ": " + why}
+}
+
 // closedRecordPath answers the one shared record file of a checkout.
 func closedRecordPath(root string) string {
 	return filepath.Join(root, "tmp", "session", closedRecordName)
