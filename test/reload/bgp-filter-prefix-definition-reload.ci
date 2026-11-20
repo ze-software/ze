@@ -35,7 +35,7 @@
 # (p.dynImportPolicy) instead of next.ImportPolicy, the stale chain; and
 # writing next.ImportPolicy unresolved, so ALLOW-$remote_as names no match.
 # With the peer's announcement removed (the action=send line), the first
-# `show bgp rib received` stage answers no 10.1.0.0/24 and fails.
+# `show bgp rib | received` stage answers no 10.1.0.0/24 and fails.
 option=timeout:value=60s
 option=env:var=ze.log.bgp.reactor:value=info
 
@@ -49,7 +49,7 @@ option=established-file:path=established
 # 10.1.0.0/24, origin IGP, empty AS_PATH (iBGP), next-hop 10.0.0.1,
 # LOCAL_PREF 100: announced once the OPEN exchange is done. ALLOW-65533 accepts it.
 # Sent once. The dynamic session is held until every plugin finished startup (Reactor.peersStarted), so this one copy meets a
-# connected filter plugin; the stage's `show bgp rib received` reads it.
+# connected filter plugin; the stage's `show bgp rib | received` reads it.
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00000140050400000064180A0100
 # EOR from ze
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
@@ -206,14 +206,14 @@ tmpfs=stages.script:terminator=EOF_SCRIPT
 await-file established
 has show policy test peer 127.0.0.1 import update FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000 => "action":"accept"
 has show policy test peer 127.0.0.1 import update FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE94003040101010118140000 => "action":"reject"
-has show bgp rib received => 10.1.0.0/24
+has show bgp rib | received => 10.1.0.0/24
 reload config2.conf
 # After it: the same chain's match names the edited list. Its new entry
 # accepts 20.0.0.0/24, its edited one rejects 10.0.0.0/24, and the route
 # accepted before stays.
 has show policy test peer 127.0.0.1 import update FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE94003040101010118140000 => "action":"accept"
 has show policy test peer 127.0.0.1 import update FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000 => "action":"reject"
-has show bgp rib received => 10.1.0.0/24
+has show bgp rib | received => 10.1.0.0/24
 say PREFIX-LIST-RELOAD: the edited prefix-list rejects, the route accepted before stays
 EOF_SCRIPT
 

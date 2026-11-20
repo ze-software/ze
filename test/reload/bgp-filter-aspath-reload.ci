@@ -43,7 +43,7 @@ option=established-file:path=established
 # LOCAL_PREF 100: announced once the OPEN exchange is done. ALLOW-65533 does not match its empty AS_PATH, so it only keeps the session busy.
 # Sent once. The dynamic session is held until every plugin, bgp-filter-prefix
 # included, finished startup (Reactor.peersStarted), so this one copy meets a
-# connected filter plugin; the stage's `show bgp rib received` reads it.
+# connected filter plugin. No stage reads the RIB: each judges the chain through `show policy test`.
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00000140050400000064180A0100
 # EOR from ze
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000

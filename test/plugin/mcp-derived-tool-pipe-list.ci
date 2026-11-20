@@ -1,0 +1,168 @@
+# Test: a derived MCP tool's ordered pipe list answers what the typed chain answers
+#
+# The one question: does the derived tool of `show bgp rib` (ze_show_bgp,
+# action rib) with the `pipe` list `received` then `count` answer the count
+# ze_execute answers for `show bgp rib | received | count`, through the real
+# bgp-rib, and is a name the command does not take refused naming the valid
+# ones? TestDerivedToolPipeList holds the tool over a fixture command; only a
+# daemon proves the list is judged against the started RIB's declared
+# operations and reaches bgp-rib as its declared list.
+#
+# VALIDATES: spec-pipe-chain-honored-on-every-command-surface AC-15 (the
+#   derived MCP tool of show bgp rib).
+# PREVENTS: a derived tool that ignores `pipe` (every route, no count) or
+#   accepts any name.
+#
+# Red before 7b: `pipe` is forwarded as a typed parameter `pipe <value>`, so
+#   the call is refused by the argument validator and no count is printed.
+#
+# Method: mcp-pipe-chain-applied.ci's daemon, peer and MCP client, the routes
+# awaited on STATE by wait-routes.sh (bare `show bgp rib` over SSH).
+
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=80s
+option=linger:value=true
+option=update:value=send-route:prefix=10.1.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.2.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.3.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.4.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.5.0.0/24:next-hop=10.0.0.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Polls state, never time: each attempt is a full `ze cli -c` round trip; the
+# 0.2s pause is only the poll interval of a loop that exits on the condition.
+tmpfs=wait-routes.sh:terminator=EOF_WAIT
+i=0
+while [ $i -lt 100 ]; do
+	out=$(ze cli -c "show bgp rib" 2>/dev/null)
+	n=0
+	for p in 10.1.0.0/24 10.2.0.0/24 10.3.0.0/24 10.4.0.0/24 10.5.0.0/24; do
+		case "$out" in *"$p"*) n=$((n+1)) ;; esac
+	done
+	if [ $n -eq 5 ]; then
+		echo "wait-routes: five received routes listed"
+		exit 0
+	fi
+	i=$((i+1))
+	sleep 0.2
+done
+echo "wait-routes: the RIB never listed the five routes; last answer: $out" >&2
+exit 1
+EOF_WAIT
+
+stdin=mcp:terminator=EOF_MCP
+wait-established
+@ze_show_bgp {"action":"rib","pipe":[{"name":"received"},{"name":"count"}]}
+show bgp rib | received | count
+EOF_MCP
+
+stdin=mcp-bogus:terminator=EOF_MCP_BOGUS
+@ze_show_bgp {"action":"rib","pipe":[{"name":"bogus"}]}
+EOF_MCP_BOGUS
+
+tmpfs=pipe.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+	mcp {
+		enabled true;
+		auth-mode none;
+		server main {
+			ip 127.0.0.1;
+			port $PORT3;
+		}
+	}
+}
+plugin {
+	internal bgp-rib {
+		use bgp-rib
+	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 1; remote 1; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=3:exec=ze start pipe.conf:name=daemon:ready=Ze running.
+cmd=foreground:seq=4:exec=sh wait-routes.sh:timeout=40s:exit=0
+expect=stdout:contains=wait-routes: five received routes listed
+
+cmd=foreground:seq=5:exec=le test mcp --port $PORT3:stdin=mcp:timeout=30s
+expect=exit:code=0
+# AC-15: the derived tool's list and ze_execute's typed line both answer the
+# received count, five. The client prints each call's text content on a line
+# of its own (cmd_mcp.go directive, cmd_mcp_calls.go extractText), and that
+# text is the dispatcher's JSON document unescaped: the answer is RawJSON
+# (plugin/server applyAnswerStep, subsystem.go), so ResponseJSON writes it
+# as a document, not a string. Its keys are sorted, so count leads the pipe
+# metadata: {"count":5,"pipe":[...]}. Each of the two lines must open on a
+# count of exactly five (5 then , or }, so 50 does not pass). Neither call is
+# refused.
+expect=stdout:pattern=(?m)^\{"count": ?5[,}].*\n\{"count": ?5[,}]
+reject=stdout:contains="isError":true
+
+# AC-15: a name show bgp rib does not take is refused, naming the valid ones
+# (`received` is the RIB's own operation). The client prints a tool error as
+# `error: command error: ...` on stderr and exits 1 (internal/test/cli/cmd_mcp.go
+# mcpFail, cmd_mcp_calls.go), as mcp-execute-missing-command.ci asserts. The
+# exit code sits on the cmd line: a file-level expect=exit judges only the last
+# helper (runner_exec.go), and this one is followed by the daemon's stop.
+cmd=foreground:seq=6:exec=le test mcp --port $PORT3:stdin=mcp-bogus:timeout=30s:exit=1
+expect=stderr:contains=command error
+expect=stderr:contains=is not a pipe operation of
+expect=stderr:pattern=operations: [^\n]*received
+
+cmd=stop:seq=7:name=daemon:signal=term

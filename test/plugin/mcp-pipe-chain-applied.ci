@@ -1,0 +1,161 @@
+# Test: an MCP client's piped ze_execute answers with the chain applied
+#
+# The one question: does a piped line sent as MCP `ze_execute` reach
+# Dispatcher.Dispatch whole, have its declared operations handed to the RIB and
+# its residual chain applied by the engine, so the tool result holds the value
+# `ze cli -c` prints for the same line with `| json`? A unit test
+# (TestZeExecuteAppliesPipeChain) holds the MCP server over a stub dispatcher;
+# only a daemon proves the line crosses serverDispatcher, the partition, the
+# execute-command pipe list and the forked-or-internal bgp-rib.
+#
+# VALIDATES: spec-pipe-chain-honored-on-every-command-surface AC-3 (declared
+#   chain on MCP), AC-4 (a generic chain on a command that declares none),
+#   AC-16 (a generic row operation from a data caller). User story 3.
+# PREVENTS: the dispatcher refusal (pipeChainRefusal) answering an MCP client
+#   a piped line SSH answers, and its fix line teaching the folded spelling.
+#
+# Red today: Dispatch refuses any pipe outside quotes, so every probe below
+#   answers the refusal ("carries the pipe chain") with isError true.
+#
+# Method: test/plugin/mcp-local-commands.ci's MCP client and
+# test/plugin/external-yang-command-api-parameters.ci's daemon (ze init, ze
+# start, SSH on $PORT2, MCP on $PORT3), with dispatch-pipe-chain-refused.ci's
+# peer, which injects five routes into the Adj-RIB-In. The routes are awaited
+# on STATE: wait-routes.sh polls the bare `show bgp rib` (no chain, so the
+# change under test cannot alter it, AC-10) over SSH until all five prefixes
+# are listed, bounded at 100 attempts.
+
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=80s
+option=linger:value=true
+option=update:value=send-route:prefix=10.1.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.2.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.3.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.4.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.5.0.0/24:next-hop=10.0.0.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Polls state, never time: each attempt is a full `ze cli -c` round trip; the
+# 0.2s pause is only the poll interval of a loop that exits on the condition.
+tmpfs=wait-routes.sh:terminator=EOF_WAIT
+i=0
+while [ $i -lt 100 ]; do
+	out=$(ze cli -c "show bgp rib" 2>/dev/null)
+	n=0
+	for p in 10.1.0.0/24 10.2.0.0/24 10.3.0.0/24 10.4.0.0/24 10.5.0.0/24; do
+		case "$out" in *"$p"*) n=$((n+1)) ;; esac
+	done
+	if [ $n -eq 5 ]; then
+		echo "wait-routes: five received routes listed"
+		exit 0
+	fi
+	i=$((i+1))
+	sleep 0.2
+done
+echo "wait-routes: the RIB never listed the five routes; last answer: $out" >&2
+exit 1
+EOF_WAIT
+
+stdin=mcp:terminator=EOF_MCP
+wait-established
+show bgp rib | received | count
+show bgp | peers | count
+EOF_MCP
+
+tmpfs=pipe.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+	mcp {
+		enabled true;
+		auth-mode none;
+		server main {
+			ip 127.0.0.1;
+			port $PORT3;
+		}
+	}
+}
+plugin {
+	internal bgp-rib {
+		use bgp-rib
+	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 1; remote 1; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=3:exec=ze start pipe.conf:name=daemon:ready=Ze running.
+cmd=foreground:seq=4:exec=sh wait-routes.sh:timeout=40s:exit=0
+expect=stdout:contains=wait-routes: five received routes listed
+
+cmd=foreground:seq=5:exec=le test mcp --port $PORT3:stdin=mcp:timeout=30s
+expect=exit:code=0
+# The client prints each call's text content on a line of its own (cmd_mcp.go
+# directive, cmd_mcp_calls.go extractText), and that text is the dispatcher's
+# JSON document unescaped: the answer is RawJSON (plugin/server
+# applyAnswerStep, subsystem.go), so ResponseJSON writes it as a document, not
+# a string. Its keys are sorted, so count leads the pipe metadata:
+# {"count":5,"pipe":[...]}. 5 or 1 followed by , or } keeps each count exact.
+# AC-3: the declared chain, applied: the first line opens on five routes.
+# AC-4 and AC-16: `peers` is an alias of `show bgp` and `count` the generic;
+# nothing is declared, and the engine applies both: the next line opens on
+# one configured peer.
+expect=stdout:pattern=(?m)^\{"count": ?5[,}].*\n\{"count": ?1[,}]
+reject=stdout:contains=carries the pipe chain
+reject=stdout:contains="isError":true
+
+cmd=stop:seq=6:name=daemon:signal=term

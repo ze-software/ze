@@ -463,3 +463,32 @@ func TestEverySendFormReachesItsHandler(t *testing.T) {
 		})
 	}
 }
+
+// TestSendWildcardSelectorReachesTheUpdateHandler asserts the wildcard typed
+// after `bgp` is the selector the update handler reads, for the exact line the
+// rib-advertised-user-path fixture sends.
+//
+// The handler resolves its peers from ctx.PeerSelector(), and the reactor
+// answers "no peers match selector" for a selector naming no configured peer.
+// The method: dispatch the line on a server with no reactor, so the handler
+// fails on the reactor after the dispatcher bound the selector, then read what
+// the dispatcher left in the context. A dispatcher that bound another word, or
+// dropped `*` and let a later word take the slot, fails here.
+//
+// VALIDATES: `send bgp * update text ...` hands the handler the selector `*`,
+// both as the typed selector leaf and as the peer selector.
+// PREVENTS: the pipe partition or the path match changing which word of a send
+// line becomes its destination.
+func TestSendWildcardSelectorReachesTheUpdateHandler(t *testing.T) {
+	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
+	require.NoError(t, err)
+
+	const line = "send bgp * update text origin igp local-preference 100 nhop 101.1.101.1 nlri add 1.1.0.0/24"
+	ctx := &pluginserver.CommandContext{Server: server}
+	_, dispatchErr := server.Dispatcher().Dispatch(ctx, line)
+	require.Error(t, dispatchErr, "no reactor is configured, so the send cannot succeed")
+	assert.Contains(t, dispatchErr.Error(), "reactor",
+		"the line must fail inside the update handler; any other error means it never reached one")
+	assert.Equal(t, "*", ctx.Selector("selector"), "the typed selector leaf must hold the wildcard as typed")
+	assert.Equal(t, "*", ctx.PeerSelector(), "the peer selector the handler resolves must be the wildcard")
+}

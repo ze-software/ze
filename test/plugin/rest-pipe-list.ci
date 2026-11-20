@@ -1,0 +1,122 @@
+# Test: REST execute's ordered pipe list answers what the typed chain answers
+#
+# The one question: does POST /api/v1/execute with `show bgp rib` and the
+# `pipe` list `received` then `count` answer the count the typed line
+# `show bgp rib | received | count` answers, through the real bgp-rib, and is
+# a name `show bgp rib` does not take refused naming the valid ones?
+# TestRESTExecutePipeList holds the REST server over a fixture command; only a
+# daemon proves the list is judged against the RIB's own declared operations
+# (PipeOperationsForCommand over the started plugin's registration) and that
+# the written chain reaches bgp-rib as its declared list.
+#
+# VALIDATES: spec-pipe-chain-honored-on-every-command-surface AC-15 (REST
+#   route of show bgp rib), AC-39 (a list argument word holding a pipe stays
+#   one word).
+# PREVENTS: a route that drops the list (the bare rows answer), and one that
+#   splices list words as text (`a|b` opening a stage).
+#
+# Red before 7b: the body's `pipe` key is ignored, so seq 6 answers every
+#   route with no count, and seq 8 answers done.
+#
+# Method: rest-pipe-chain-applied.ci's `ze -` daemon with a REST token and its
+# five-route peer, awaited on STATE (one http=wait per prefix on the family RIB
+# route, which carries no list).
+
+option=timeout:value=60s
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=55s
+option=linger:value=true
+option=update:value=send-route:prefix=10.1.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.2.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.3.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.4.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.5.0.0/24:next-hop=10.0.0.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=listed.json:terminator=EOF_LISTED
+{"command":"show bgp rib","pipe":[{"name":"received"},{"name":"count"}]}
+EOF_LISTED
+
+tmpfs=typed.json:terminator=EOF_TYPED
+{"command":"show bgp rib | received | count"}
+EOF_TYPED
+
+tmpfs=bogus.json:terminator=EOF_BOGUS
+{"command":"show bgp rib","pipe":[{"name":"bogus"}]}
+EOF_BOGUS
+
+tmpfs=word.json:terminator=EOF_WORD
+{"command":"show bgp rib","pipe":[{"name":"received"},{"name":"match","args":["nomatch|nothing"]},{"name":"count"}]}
+EOF_WORD
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	api-server {
+		token "pipe-chain-token";
+		rest {
+			enabled true;
+			server main {
+				ip 127.0.0.1;
+				port $PORT2;
+			}
+		}
+	}
+}
+plugin {
+	internal bgp-rib {
+		use bgp-rib
+	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 1; remote 1; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=ze -:stdin=ze-bgp:timeout=55s
+
+http=wait:seq=1:url=http://127.0.0.1:$PORT2/api/v1/rib/ipv4/unicast:status=200:contains=10.1.0.0/24:header=Authorization: Bearer pipe-chain-token:timeout=30s
+http=wait:seq=2:url=http://127.0.0.1:$PORT2/api/v1/rib/ipv4/unicast:status=200:contains=10.2.0.0/24:header=Authorization: Bearer pipe-chain-token:timeout=30s
+http=wait:seq=3:url=http://127.0.0.1:$PORT2/api/v1/rib/ipv4/unicast:status=200:contains=10.3.0.0/24:header=Authorization: Bearer pipe-chain-token:timeout=30s
+http=wait:seq=4:url=http://127.0.0.1:$PORT2/api/v1/rib/ipv4/unicast:status=200:contains=10.4.0.0/24:header=Authorization: Bearer pipe-chain-token:timeout=30s
+http=wait:seq=5:url=http://127.0.0.1:$PORT2/api/v1/rib/ipv4/unicast:status=200:contains=10.5.0.0/24:header=Authorization: Bearer pipe-chain-token:timeout=30s
+# AC-15: the list `received` then `count` answers the received count, five.
+http=post:seq=6:url=http://127.0.0.1:$PORT2/api/v1/execute:status=200:sendfile=listed.json:contains="count":5:header=Authorization: Bearer pipe-chain-token
+# The typed line answers the same count over the same route.
+http=post:seq=7:url=http://127.0.0.1:$PORT2/api/v1/execute:status=200:sendfile=typed.json:contains="count":5:header=Authorization: Bearer pipe-chain-token
+# AC-15: a name show bgp rib does not take is refused, naming the valid ones
+# (`received` is the RIB's own; the error envelope travels with status 200).
+http=post:seq=8:url=http://127.0.0.1:$PORT2/api/v1/execute:status=200:sendfile=bogus.json:contains=is not a pipe operation of:header=Authorization: Bearer pipe-chain-token
+http=post:seq=9:url=http://127.0.0.1:$PORT2/api/v1/execute:status=200:sendfile=bogus.json:contains=received:header=Authorization: Bearer pipe-chain-token
+# AC-39: the match word holds a pipe; it stays one word, which no route row
+# matches (as a literal or as an alternation), so the count is zero. Split
+# into two stages, `nothing` would be an unknown operation and the answer an
+# error.
+http=post:seq=10:url=http://127.0.0.1:$PORT2/api/v1/execute:status=200:sendfile=word.json:contains="count":0:header=Authorization: Bearer pipe-chain-token

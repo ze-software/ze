@@ -1,0 +1,121 @@
+# Test: a forked plugin's dispatch-command that carries a pipe chain is answered with it applied
+# VALIDATES: spec-pipe-chain-honored-on-every-command-surface AC-2 (the declared
+#   chain `show bgp rib | received | count` answers done with {"count": 5}),
+#   AC-4 (`show bgp | peers | count`, an alias and the generic count on a
+#   command that declares none) and AC-5 (`| text` on a data caller answers
+#   done, its data the rendered text). User story 2.
+# PREVENTS: the dispatcher refusal (pipeChainRefusal) answering a plugin a line
+#   SSH answers, with the folded command as its fix line.
+# REPLACES: test/plugin/dispatch-pipe-chain-refused.ci, which asserts that
+#   refusal. Its removal at promotion is a test change for ze-test-judge (the
+#   spec's census row "Dispatcher refusal of a chain", reader).
+#
+# The one question: does a plugin in another process, through the real engine,
+# receive the chain applied: the RIB's declared operations in its
+# execute-command pipe list, the residual generic chain and a format applied by
+# the engine? A unit test holds the dispatcher in process with a test command
+# and no RIB; it cannot show the partition, the wire pipe list and bgp-rib's
+# stages agree over the socket.
+#
+# Red before the fix: every piped dispatch was refused ("carries the pipe chain"), so
+#   plugin16ExpectCount failed on the first line and the fixture exited non-zero.
+#
+# Not here: AC-9 (bgp-rib forked). This file runs bgp-rib internal; the forked
+# half is a second draft beside it, owed by the package that changes
+# routeToProcess (5a), which runs the same fixture with bgp-rib external.
+#
+# The fixture (plugin/dispatch-pipe-chain-applied, internal/test/fixture
+# plugin_fixture_16_pipe_chain.go plugin16DispatchPipeChainApplied) returns an
+# error, and so a non-zero exit, on every assertion it makes. It waits on STATE:
+# plugin16WaitRIBRoutes polls the bare `show bgp rib` (no chain, AC-10) until
+# it lists the five routes.
+#
+# Routes are injected by ze-peer (option=update:value=send-route), as in
+# dispatch-pipe-chain-refused.ci, which this file is modelled on.
+# iBGP (local asn 1 == remote asn 1), so the routes carry an empty AS_PATH.
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+# A check-mode peer closes as soon as its expectations are met, and a peer-down
+# with graceful-restart disabled deletes the peer's Adj-RIB-In, so every
+# `show bgp rib | received` below would read an empty table. linger holds the
+# session open until teardown.
+option=linger:value=true
+option=update:value=send-route:prefix=10.1.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.2.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.3.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.4.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.5.0.0/24:next-hop=10.0.0.1
+# ze has nothing to announce, so the one message it owes the peer is its
+# End-of-RIB for ipv4/unicast: an UPDATE with no withdrawn routes and no path
+# attributes (RFC 4724 section 2), length 23 = 19 + 2 + 2.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external dispatch-pipe-chain-applied-test {
+		run "le test fixture plugin/dispatch-pipe-chain-applied"
+		encoder json
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+# The fixture's stderr reaches the daemon's log through the plugin relay, a
+# logfmt msg="..." value, so the quotes the fixture prints arrive escaped
+# (msg="OK: \"show bgp rib | received | count\" counts 5"). The patterns take
+# the backslash as optional, so they hold for the raw line and the relayed one.
+expect=stderr:pattern=OK: \\?"show bgp rib \| received \| count\\?" counts 5
+expect=stderr:pattern=OK: \\?"show bgp \| peers \| count\\?" counts 1
+expect=stderr:pattern=OK: \\?"show bgp rib \| received \| count \| text\\?" answers its rendered text
+reject=stderr:pattern=ZE-OBSERVER-FAIL

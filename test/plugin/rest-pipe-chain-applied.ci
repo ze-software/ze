@@ -1,0 +1,119 @@
+# Test: a REST piped execute answers with the chain applied
+#
+# The one question: does POST /api/v1/execute with a piped command reach
+# APIEngine.Execute and Dispatcher.Dispatch whole, hand the declared operations
+# to the RIB and apply the residual chain, so the REST envelope carries the
+# value `ze cli -c` prints for the line with `| json`? TestRESTExecuteAppliesPipeChain
+# holds the REST server over a stub engine; only a daemon proves prepareCommand,
+# serverDispatcher, the partition and bgp-rib agree over HTTP.
+#
+# VALIDATES: spec-pipe-chain-honored-on-every-command-surface AC-3 (REST),
+#   AC-4 (a generic chain on a command that declares none), AC-5 (a format on a
+#   data caller answers done, its data the rendered text). User story 9.
+# PREVENTS: REST refusing a piped line SSH answers (pipeChainRefusal).
+#
+# Red today: Dispatch refuses the chain, so the REST answer is an error status
+#   holding the refusal, never status 200 with the count.
+#
+# Not here: AC-32 (parameters written before the chain), whose only in-tree
+# command with both a declared parameter and a row answer is chosen by
+# TestBuildInvocationWritesParamsBeforePipe (internal/component/api).
+#
+# Method: test/plugin/api-peer-create-delete-rib.ci's `ze -` daemon with a REST
+# token (Bearer <token>, as command-outcome-rest-failed.ci), and
+# dispatch-pipe-chain-refused.ci's five-route peer. The routes are awaited on
+# STATE: one http=wait per prefix polls the family RIB route (GET
+# /api/v1/rib/ipv4/unicast runs `show bgp rib | family ipv4/unicast`) until it
+# lists it.
+
+option=timeout:value=60s
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=55s
+option=linger:value=true
+option=update:value=send-route:prefix=10.1.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.2.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.3.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.4.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.5.0.0/24:next-hop=10.0.0.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=declared.json:terminator=EOF_DECLARED
+{"command":"show bgp rib | received | count"}
+EOF_DECLARED
+
+tmpfs=generic.json:terminator=EOF_GENERIC
+{"command":"show bgp | peers | count"}
+EOF_GENERIC
+
+tmpfs=format.json:terminator=EOF_FORMAT
+{"command":"show bgp rib | received | count | text"}
+EOF_FORMAT
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	api-server {
+		token "pipe-chain-token";
+		rest {
+			enabled true;
+			server main {
+				ip 127.0.0.1;
+				port $PORT2;
+			}
+		}
+	}
+}
+plugin {
+	internal bgp-rib {
+		use bgp-rib
+	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 1; remote 1; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=ze -:stdin=ze-bgp:timeout=55s
+
+http=wait:seq=1:url=http://127.0.0.1:$PORT2/api/v1/rib/ipv4/unicast:status=200:contains=10.1.0.0/24:header=Authorization: Bearer pipe-chain-token:timeout=30s
+http=wait:seq=2:url=http://127.0.0.1:$PORT2/api/v1/rib/ipv4/unicast:status=200:contains=10.2.0.0/24:header=Authorization: Bearer pipe-chain-token:timeout=30s
+http=wait:seq=3:url=http://127.0.0.1:$PORT2/api/v1/rib/ipv4/unicast:status=200:contains=10.3.0.0/24:header=Authorization: Bearer pipe-chain-token:timeout=30s
+http=wait:seq=4:url=http://127.0.0.1:$PORT2/api/v1/rib/ipv4/unicast:status=200:contains=10.4.0.0/24:header=Authorization: Bearer pipe-chain-token:timeout=30s
+http=wait:seq=5:url=http://127.0.0.1:$PORT2/api/v1/rib/ipv4/unicast:status=200:contains=10.5.0.0/24:header=Authorization: Bearer pipe-chain-token:timeout=30s
+# AC-3: the declared chain, applied by the RIB and the engine.
+http=post:seq=6:url=http://127.0.0.1:$PORT2/api/v1/execute:status=200:sendfile=declared.json:contains="count":5:header=Authorization: Bearer pipe-chain-token
+# AC-4: an alias and the generic count, nothing declared; one configured peer.
+http=post:seq=7:url=http://127.0.0.1:$PORT2/api/v1/execute:status=200:sendfile=generic.json:contains="count":1:header=Authorization: Bearer pipe-chain-token
+# AC-5: a text format on a data caller. The answer is done and its data is the
+# rendered text, a JSON string ("5", what `ze cli -c` prints), never the
+# answer object. `| json` is not a text format: the engine answers it as a
+# JSON document (applyAnswerStep, internal/component/plugin/server/command.go),
+# which is why this line uses `| text`, as dispatch-pipe-chain-applied does.
+http=post:seq=8:url=http://127.0.0.1:$PORT2/api/v1/execute:status=200:sendfile=format.json:contains="data":"5:header=Authorization: Bearer pipe-chain-token
