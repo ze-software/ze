@@ -16,7 +16,15 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/credits"
 )
+
+// The embedded XML is IANA's special-purpose registries, so every build that
+// links this package credits the IANA registries.
+func init() {
+	credits.DeclarePresent("IANA protocol registries")
+}
 
 // SizeMax bounds ingestion of either canonical XML document to one MiB.
 const SizeMax = 1 << 20

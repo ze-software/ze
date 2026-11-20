@@ -7,6 +7,8 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -557,6 +559,33 @@ func TestGraphEndpointMissingPrefix(t *testing.T) {
 
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("status = %d, want 400", resp.StatusCode)
+	}
+}
+
+// TestAssetsServeTheHtmxLicence asks whether the looking glass, on its own
+// listener, serves htmx's licence beside htmx, byte for byte as the vendored
+// copy holds it (spec thanks-third-party-credits AC-15). Method: GET
+// /lg/assets/htmx.LICENSE and compare the body with
+// third_party/web/htmx/htmx.LICENSE.
+func TestAssetsServeTheHtmxLicence(t *testing.T) {
+	want, err := os.ReadFile(filepath.Join("..", "..", "..", "third_party", "web", "htmx", "htmx.LICENSE"))
+	if err != nil {
+		t.Fatalf("read the vendored licence: %v", err)
+	}
+	srv, base, client := startTestServer(t)
+	defer func() { _ = srv.Shutdown(context.Background()) }()
+
+	resp := doGet(t, client, base+"/lg/assets/htmx.LICENSE")
+	body, err := io.ReadAll(resp.Body)
+	resp.Body.Close() //nolint:errcheck // test cleanup
+	if err != nil {
+		t.Fatalf("read the answer: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	if string(body) != string(want) {
+		t.Errorf("served %d bytes that differ from the vendored %d", len(body), len(want))
 	}
 }
 

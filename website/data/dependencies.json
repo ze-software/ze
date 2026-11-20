@@ -5,47 +5,80 @@
             "modules": [
                 {
                     "module": "charm.land/bubbletea/v2",
-                    "why": "The Elm-style TUI framework driving Ze's interactive CLI: config editor, dashboard, monitor, ping and traceroute views, run per SSH session."
+                    "why": "The Elm-style TUI framework driving Ze's interactive CLI: config editor, dashboard, monitor, ping and traceroute views, run per SSH session.",
+                    "licence": "MIT",
+                    "copyright": "Charmbracelet, Inc.",
+                    "source": "https://github.com/charmbracelet/bubbletea"
                 },
                 {
                     "module": "charm.land/bubbles/v2",
-                    "why": "Pre-built TUI widgets (text input, viewport) for the CLI's interactive screens."
+                    "why": "Pre-built TUI widgets (text input, viewport) for the CLI's interactive screens.",
+                    "licence": "MIT",
+                    "copyright": "Charmbracelet, Inc.",
+                    "source": "https://pkg.go.dev/charm.land/bubbles/v2"
                 },
                 {
                     "module": "charm.land/lipgloss/v2",
-                    "why": "Styling and layout for the CLI's colors, borders, and widths."
+                    "why": "Styling and layout for the CLI's colors, borders, and widths.",
+                    "licence": "MIT",
+                    "copyright": "Charmbracelet, Inc.",
+                    "source": "https://github.com/charmbracelet/lipgloss"
                 },
                 {
                     "module": "charm.land/wish/v2",
-                    "why": "SSH server middleware that wires each incoming session to run the CLI's Bubbletea program."
+                    "why": "SSH server middleware that wires each incoming session to run the CLI's Bubbletea program.",
+                    "licence": "MIT",
+                    "copyright": "Charmbracelet, Inc",
+                    "source": "https://github.com/charmbracelet/wish"
                 },
                 {
                     "module": "charm.land/ssh",
-                    "why": "SSH session and public-key types that the wish server and the CLI's key-based auth build on."
+                    "why": "SSH session and public-key types that the wish server and the CLI's key-based auth build on.",
+                    "licence": "BSD-3-Clause",
+                    "copyright": "Glider Labs",
+                    "source": "https://github.com/charmbracelet/ssh"
                 },
                 {
                     "module": "github.com/a-h/templ",
-                    "why": "Compiles the typed server-rendered components used by Ze's web configuration interface and BGP looking glass into Go."
+                    "why": "Compiles the typed server-rendered components used by Ze's web configuration interface and BGP looking glass into Go.",
+                    "licence": "MIT",
+                    "copyright": "Adrian Hesketh",
+                    "source": "https://github.com/a-h/templ"
                 },
                 {
                     "module": "github.com/charmbracelet/colorprofile",
-                    "why": "Forces a deterministic color profile in render tests, so CLI screenshot/layout tests don't depend on the terminal running them."
+                    "why": "Forces a deterministic color profile in render tests, so CLI screenshot/layout tests don't depend on the terminal running them.",
+                    "licence": "MIT",
+                    "copyright": "Charmbracelet, Inc",
+                    "source": "https://github.com/charmbracelet/colorprofile"
                 },
                 {
                     "module": "github.com/charmbracelet/x/ansi",
-                    "why": "Strips terminal escape codes in the CLI editor tests, so a pattern matches the text the operator sees rather than its color codes."
+                    "why": "Strips terminal escape codes in the CLI editor tests, so a pattern matches the text the operator sees rather than its color codes.",
+                    "licence": "MIT",
+                    "copyright": "Charmbracelet, Inc.",
+                    "source": "https://github.com/charmbracelet/x/ansi"
                 },
                 {
                     "module": "github.com/muesli/reflow",
-                    "why": "ANSI-aware text width calculation, so the CLI's prompt and status bar line up correctly despite embedded color codes."
+                    "why": "ANSI-aware text width calculation, so the CLI's prompt and status bar line up correctly despite embedded color codes.",
+                    "licence": "MIT",
+                    "copyright": "Christian Muehlhaeuser",
+                    "source": "https://github.com/muesli/reflow"
                 },
                 {
                     "module": "github.com/creack/pty",
-                    "why": "Opens a pseudo-terminal in a Linux integration test that exercises serial console handling."
+                    "why": "Opens a pseudo-terminal in a Linux integration test that exercises serial console handling.",
+                    "licence": "MIT",
+                    "copyright": "Keith Rarick",
+                    "source": "https://github.com/creack/pty"
                 },
                 {
                     "module": "github.com/chromedp/chromedp",
-                    "why": "Drives headless Chrome in a test that proves the website fills its published figures from the facts snapshot."
+                    "why": "Drives headless Chrome in a test that proves the website fills its published figures from the facts snapshot.",
+                    "licence": "MIT",
+                    "copyright": "Kenneth Shaw",
+                    "source": "https://github.com/chromedp/chromedp"
                 }
             ]
         },
@@ -54,31 +87,53 @@
             "modules": [
                 {
                     "module": "github.com/miekg/dns",
-                    "why": "DNS message parsing and serving underneath Ze's DNS server engine, the AS112 blackhole plugin, and GeoDNS. It's the library underpinning CoreDNS."
+                    "why": "DNS message parsing and serving underneath Ze's DNS server engine, the AS112 blackhole plugin, and GeoDNS. It's the library underpinning CoreDNS.",
+                    "licence": "BSD-3-Clause",
+                    "copyright": "The Go Authors, Miek Gieben",
+                    "source": "https://github.com/miekg/dns"
                 },
                 {
                     "module": "github.com/insomniacslk/dhcp",
-                    "why": "DHCPv4/DHCPv6 client used for interface lease handling and the installer's disk-provisioning DHCP client."
+                    "why": "DHCPv4/DHCPv6 client used for interface lease handling and the installer's disk-provisioning DHCP client.",
+                    "licence": "BSD-3-Clause",
+                    "copyright": "Andrea Barberio",
+                    "source": "https://github.com/insomniacslk/dhcp"
                 },
                 {
                     "module": "github.com/beevik/ntp",
-                    "why": "NTP client queries used by the ntp plugin."
+                    "why": "NTP client queries used by the ntp plugin.",
+                    "licence": "BSD-2-Clause",
+                    "copyright": "Brett Vickers",
+                    "source": "https://github.com/beevik/ntp"
                 },
                 {
                     "module": "golang.zx2c4.com/wireguard/wgctrl",
-                    "why": "Creates and configures WireGuard interfaces and peers from the interface netlink backend."
+                    "why": "Creates and configures WireGuard interfaces and peers from the interface netlink backend.",
+                    "licence": "MIT",
+                    "copyright": "Matt Layher",
+                    "source": "https://github.com/WireGuard/wgctrl-go"
                 },
                 {
                     "module": "github.com/mdlayher/packet",
-                    "why": "Raw AF_PACKET sockets behind the `diag capture` CLI command."
+                    "why": "Raw AF_PACKET sockets behind the `diag capture` CLI command.",
+                    "licence": "MIT",
+                    "copyright": "Matt Layher",
+                    "source": "https://github.com/mdlayher/packet"
                 },
                 {
                     "module": "github.com/packetcap/go-pcap",
-                    "why": "Only its filter subpackage: parses tcpdump/BPF-style filter expressions for `diag capture`. Packet capture itself goes through mdlayher/packet instead."
+                    "why": "Only its filter subpackage: parses tcpdump/BPF-style filter expressions for `diag capture`. Packet capture itself goes through mdlayher/packet instead.",
+                    "licence": "Apache-2.0",
+                    "copyright": "",
+                    "copyright-unstated": true,
+                    "source": "https://github.com/packetcap/go-pcap"
                 },
                 {
                     "module": "github.com/cloudflare/circl",
-                    "why": "Only its Ed448 package: Ed448 signatures for IKEv2 authentication (RFC 8420)."
+                    "why": "Only its Ed448 package: Ed448 signatures for IKEv2 authentication (RFC 8420).",
+                    "licence": "BSD-3-Clause",
+                    "copyright": "Cloudflare, The Go Authors",
+                    "source": "https://github.com/cloudflare/circl"
                 }
             ]
         },
@@ -87,51 +142,93 @@
             "modules": [
                 {
                     "module": "github.com/vishvananda/netlink",
-                    "why": "The main library for configuring the Linux network stack: links, addresses, routes, neighbors, bridges, VLANs, tunnels, IPsec, QoS. Used across interfaces, traffic, FIB, OSPF, ISIS, and MPLS."
+                    "why": "The main library for configuring the Linux network stack: links, addresses, routes, neighbors, bridges, VLANs, tunnels, IPsec, QoS. Used across interfaces, traffic, FIB, OSPF, ISIS, and MPLS.",
+                    "licence": "Apache-2.0",
+                    "copyright": "Vishvananda Ishaya, Docker, Inc.",
+                    "source": "https://github.com/vishvananda/netlink"
                 },
                 {
                     "module": "github.com/vishvananda/netns",
-                    "why": "Linux network-namespace handles, used alongside netlink for namespace-scoped route watching."
+                    "why": "Linux network-namespace handles, used alongside netlink for namespace-scoped route watching.",
+                    "licence": "Apache-2.0",
+                    "copyright": "Vishvananda Ishaya, Docker, Inc.",
+                    "source": "https://github.com/vishvananda/netns"
                 },
                 {
                     "module": "github.com/google/nftables",
-                    "why": "Programs the kernel's nftables firewall (tables, chains, rules, sets) over netlink."
+                    "why": "Programs the kernel's nftables firewall (tables, chains, rules, sets) over netlink.",
+                    "licence": "Apache-2.0",
+                    "copyright": "Google LLC",
+                    "copyright-file": "vendor/github.com/google/nftables/chain.go",
+                    "source": "https://github.com/google/nftables"
                 },
                 {
                     "module": "github.com/mdlayher/netlink",
-                    "why": "Low-level generic netlink sockets, used to flush conntrack flow entries for flow export."
+                    "why": "Low-level generic netlink sockets, used to flush conntrack flow entries for flow export.",
+                    "licence": "MIT",
+                    "copyright": "Matt Layher",
+                    "source": "https://github.com/mdlayher/netlink"
                 },
                 {
                     "module": "github.com/mdlayher/genetlink",
-                    "why": "Generic netlink family dialing, used to attach to the kernel's psample subsystem for sampled flow export."
+                    "why": "Generic netlink family dialing, used to attach to the kernel's psample subsystem for sampled flow export.",
+                    "licence": "MIT",
+                    "copyright": "Matt Layher",
+                    "source": "https://github.com/mdlayher/genetlink"
                 },
                 {
                     "module": "github.com/cilium/ebpf",
-                    "why": "Assembles and attaches eBPF programs in pure Go, no clang or libbpf needed, to count traffic for the trafficusage plugin."
+                    "why": "Assembles and attaches eBPF programs in pure Go, no clang or libbpf needed, to count traffic for the trafficusage plugin.",
+                    "licence": "MIT",
+                    "copyright": "Nathan Sweet, Cloudflare, Authors of Cilium",
+                    "source": "https://github.com/cilium/ebpf"
                 },
                 {
                     "module": "filippo.io/mlockexe",
-                    "why": "Locks the running ze executable's own file-backed pages in memory with mlock2(2) and MLOCK_ONFAULT, so the kernel cannot evict the daemon's text under memory pressure. A router short of memory reclaims page cache, and the running daemon IS page cache: without the lock it waits on the disk holding its own binary at the moment it must keep sessions alive."
+                    "why": "Locks the running ze executable's own file-backed pages in memory with mlock2(2) and MLOCK_ONFAULT, so the kernel cannot evict the daemon's text under memory pressure. A router short of memory reclaims page cache, and the running daemon IS page cache: without the lock it waits on the disk holding its own binary at the moment it must keep sessions alive.",
+                    "licence": "CC0-1.0 OR 0BSD",
+                    "copyright": "",
+                    "copyright-unstated": true,
+                    "source": "https://pkg.go.dev/filippo.io/mlockexe",
+                    "licence-files": [
+                        "vendor/filippo.io/mlockexe/README.md"
+                    ]
                 },
                 {
                     "module": "github.com/opencontainers/runc",
-                    "why": "Provides the libcontainer runtime library used by the Linux container plugin, including its container init sequence."
+                    "why": "Provides the libcontainer runtime library used by the Linux container plugin, including its container init sequence.",
+                    "licence": "Apache-2.0",
+                    "copyright": "Docker, Inc.",
+                    "source": "https://github.com/opencontainers/runc"
                 },
                 {
                     "module": "github.com/opencontainers/cgroups",
-                    "why": "Describes and manages the Linux control groups used by the container plugin for resource limits and cleanup."
+                    "why": "Describes and manages the Linux control groups used by the container plugin for resource limits and cleanup.",
+                    "licence": "Apache-2.0",
+                    "copyright": "The containerd Authors",
+                    "copyright-file": "vendor/github.com/opencontainers/cgroups/fs2/defaultpath.go",
+                    "source": "https://github.com/opencontainers/cgroups"
                 },
                 {
                     "module": "github.com/opencontainers/runtime-spec",
-                    "why": "Provides OCI seccomp action definitions used by the container plugin's system-call filter tests."
+                    "why": "Provides OCI seccomp action definitions used by the container plugin's system-call filter tests.",
+                    "licence": "Apache-2.0",
+                    "copyright": "The Linux Foundation",
+                    "source": "https://github.com/opencontainers/runtime-spec"
                 },
                 {
                     "module": "github.com/cyphar/filepath-securejoin",
-                    "why": "Resolves each path inside a container image layer without letting a symbolic link or '..' escape the image's root, when the container image store unpacks a layer on Linux."
+                    "why": "Resolves each path inside a container image layer without letting a symbolic link or '..' escape the image's root, when the container image store unpacks a layer on Linux.",
+                    "licence": "BSD-3-Clause AND MPL-2.0",
+                    "copyright": "Docker Inc & Go Authors, SUSE LLC",
+                    "source": "https://github.com/cyphar/filepath-securejoin"
                 },
                 {
                     "module": "github.com/klauspost/compress",
-                    "why": "Decodes zstd-compressed container image layers in the container image store, with one decoder thread and a bounded window."
+                    "why": "Decodes zstd-compressed container image layers in the container image store, with one decoder thread and a bounded window.",
+                    "licence": "BSD-3-Clause AND Apache-2.0 AND MIT",
+                    "copyright": "The Go Authors, Klaus Post, The New York Times Company, The Snappy-Go Authors, The filepathx Authors",
+                    "source": "https://github.com/klauspost/compress"
                 }
             ]
         },
@@ -140,11 +237,18 @@
             "modules": [
                 {
                     "module": "github.com/gaissmai/bart",
-                    "why": "Balanced Routing Table, built on Knuth's Allotment Routing Table (ART): the longest-prefix-match structure underneath Ze's RIB store."
+                    "why": "Balanced Routing Table, built on Knuth's Allotment Routing Table (ART): the longest-prefix-match structure underneath Ze's RIB store.",
+                    "licence": "MIT",
+                    "copyright": "Karl Gaissmaier",
+                    "source": "https://github.com/gaissmai/bart"
                 },
                 {
                     "module": "go.fd.io/govpp",
-                    "why": "Binary-API client for FD.io VPP, used by the optional VPP dataplane backends for interfaces, firewall, traffic, FIB, and IKE."
+                    "why": "Binary-API client for FD.io VPP, used by the optional VPP dataplane backends for interfaces, firewall, traffic, FIB, and IKE.",
+                    "licence": "Apache-2.0",
+                    "copyright": "Cisco and/or its affiliates",
+                    "copyright-file": "vendor/go.fd.io/govpp/core/channel.go",
+                    "source": "https://pkg.go.dev/go.fd.io/govpp"
                 }
             ]
         },
@@ -153,23 +257,41 @@
             "modules": [
                 {
                     "module": "github.com/openconfig/goyang",
-                    "why": "Parses and validates the YANG module definitions behind Ze's config schema, CLI completion, and validation engine."
+                    "why": "Parses and validates the YANG module definitions behind Ze's config schema, CLI completion, and validation engine.",
+                    "licence": "Apache-2.0",
+                    "copyright": "Google Inc.",
+                    "copyright-file": "vendor/github.com/openconfig/goyang/AUTHORS",
+                    "source": "https://github.com/openconfig/goyang"
                 },
                 {
                     "module": "github.com/openconfig/gnmi",
-                    "why": "Generated gNMI protobuf/gRPC types that Ze's gNMI server implements for Get/Set/Subscribe/Capabilities."
+                    "why": "Generated gNMI protobuf/gRPC types that Ze's gNMI server implements for Get/Set/Subscribe/Capabilities.",
+                    "licence": "Apache-2.0",
+                    "copyright": "Google Inc.",
+                    "source": "https://github.com/openconfig/gnmi",
+                    "copyright-file": "vendor/github.com/openconfig/gnmi/proto/gnmi/gnmi.proto"
                 },
                 {
                     "module": "google.golang.org/grpc",
-                    "why": "Backs Ze's gRPC servers: gNMI and Ze's own management API."
+                    "why": "Backs Ze's gRPC servers: gNMI and Ze's own management API.",
+                    "licence": "Apache-2.0",
+                    "copyright": "gRPC authors",
+                    "source": "https://google.golang.org/grpc"
                 },
                 {
                     "module": "google.golang.org/protobuf",
-                    "why": "Runtime support for the generated protobuf message types behind Ze's gRPC API."
+                    "why": "Runtime support for the generated protobuf message types behind Ze's gRPC API.",
+                    "licence": "BSD-3-Clause",
+                    "copyright": "The Go Authors",
+                    "source": "https://google.golang.org/protobuf"
                 },
                 {
                     "module": "google.golang.org/grpc/cmd/protoc-gen-go-grpc",
-                    "why": "Build-time only: the protoc plugin used to regenerate the gRPC API's Go bindings from ze.proto."
+                    "why": "Build-time only: the protoc plugin used to regenerate the gRPC API's Go bindings from ze.proto.",
+                    "licence": "Apache-2.0",
+                    "copyright": "gRPC authors",
+                    "copyright-file": "vendor/google.golang.org/grpc/cmd/protoc-gen-go-grpc/grpc.go",
+                    "source": "https://google.golang.org/grpc/cmd/protoc-gen-go-grpc"
                 }
             ]
         },
@@ -178,23 +300,38 @@
             "modules": [
                 {
                     "module": "github.com/prometheus/client_golang",
-                    "why": "Ze's internal metrics backend: counters, gauges, and histograms against a private registry."
+                    "why": "Ze's internal metrics backend: counters, gauges, and histograms against a private registry.",
+                    "licence": "Apache-2.0",
+                    "copyright": "The Prometheus Authors",
+                    "source": "https://github.com/prometheus/client_golang"
                 },
                 {
                     "module": "github.com/prometheus/client_model",
-                    "why": "The metric sample types the L2TP subscriber tests and the BGP interop lab read a gauge's current value through."
+                    "why": "The metric sample types the L2TP subscriber tests and the BGP interop lab read a gauge's current value through.",
+                    "licence": "Apache-2.0",
+                    "copyright": "The Prometheus Authors",
+                    "source": "https://github.com/prometheus/client_model"
                 },
                 {
                     "module": "github.com/prometheus/common",
-                    "why": "Reads the Prometheus text exposition format back: the IPsec interop test parses Ze's own metrics answer and compares the gauges against the kernel."
+                    "why": "Reads the Prometheus text exposition format back: the IPsec interop test parses Ze's own metrics answer and compares the gauges against the kernel.",
+                    "licence": "Apache-2.0",
+                    "copyright": "The Prometheus Authors",
+                    "source": "https://github.com/prometheus/common"
                 },
                 {
                     "module": "github.com/prometheus/procfs",
-                    "why": "Parses Linux /proc for the telemetry collector: CPU, memory, network device and socket stats, conntrack, softnet."
+                    "why": "Parses Linux /proc for the telemetry collector: CPU, memory, network device and socket stats, conntrack, softnet.",
+                    "licence": "Apache-2.0",
+                    "copyright": "The Prometheus Authors",
+                    "source": "https://github.com/prometheus/procfs"
                 },
                 {
                     "module": "github.com/sirupsen/logrus",
-                    "why": "Only to satisfy GoVPP's logging interface, bridged into Ze's own slog logger via a hook. Not used as Ze's own logger."
+                    "why": "Only to satisfy GoVPP's logging interface, bridged into Ze's own slog logger via a hook. Not used as Ze's own logger.",
+                    "licence": "MIT",
+                    "copyright": "Simon Eskildsen",
+                    "source": "https://github.com/sirupsen/logrus"
                 }
             ]
         },
@@ -203,39 +340,66 @@
             "modules": [
                 {
                     "module": "golang.org/x/crypto",
-                    "why": "SSH protocol primitives and certificate signing for the SSH server, plus password hashing."
+                    "why": "SSH protocol primitives and certificate signing for the SSH server, plus password hashing.",
+                    "licence": "BSD-3-Clause",
+                    "copyright": "The Go Authors",
+                    "source": "https://golang.org/x/crypto"
                 },
                 {
                     "module": "golang.org/x/mod",
-                    "why": "Parses and rewrites go.mod files when the appliance build prepares an isolated instance of the tree, so an image is never built from the tracked working copy."
+                    "why": "Parses and rewrites go.mod files when the appliance build prepares an isolated instance of the tree, so an image is never built from the tracked working copy.",
+                    "licence": "BSD-3-Clause",
+                    "copyright": "The Go Authors",
+                    "source": "https://golang.org/x/mod"
                 },
                 {
                     "module": "golang.org/x/net",
-                    "why": "Raw ICMP packet connections for the traceroute plugin, and hostname normalization for MCP's auth."
+                    "why": "Raw ICMP packet connections for the traceroute plugin, and hostname normalization for MCP's auth.",
+                    "licence": "BSD-3-Clause",
+                    "copyright": "The Go Authors",
+                    "source": "https://golang.org/x/net"
                 },
                 {
                     "module": "golang.org/x/sync",
-                    "why": "errgroup, which the plugin manager uses to drain every plugin's event queue concurrently and return the first failure."
+                    "why": "errgroup, which the plugin manager uses to drain every plugin's event queue concurrently and return the first failure.",
+                    "licence": "BSD-3-Clause",
+                    "copyright": "The Go Authors",
+                    "source": "https://golang.org/x/sync"
                 },
                 {
                     "module": "golang.org/x/sys",
-                    "why": "Low-level Linux syscalls: disk sync and reboot in the installer, used throughout the Linux-specific components."
+                    "why": "Low-level Linux syscalls: disk sync and reboot in the installer, used throughout the Linux-specific components.",
+                    "licence": "BSD-3-Clause",
+                    "copyright": "The Go Authors",
+                    "source": "https://golang.org/x/sys"
                 },
                 {
                     "module": "golang.org/x/term",
-                    "why": "Reads passwords without echo and detects an interactive terminal during CLI login."
+                    "why": "Reads passwords without echo and detects an interactive terminal during CLI login.",
+                    "licence": "BSD-3-Clause",
+                    "copyright": "The Go Authors",
+                    "source": "https://golang.org/x/term"
                 },
                 {
                     "module": "golang.org/x/text",
-                    "why": "Prepares TACACS+ usernames with the PRECIS UsernameCasePreserved profile that RFC 8907 Section 3.7 requires."
+                    "why": "Prepares TACACS+ usernames with the PRECIS UsernameCasePreserved profile that RFC 8907 Section 3.7 requires.",
+                    "licence": "BSD-3-Clause",
+                    "copyright": "The Go Authors",
+                    "source": "https://golang.org/x/text"
                 },
                 {
                     "module": "golang.org/x/tools",
-                    "why": "Build-time only: goimports, pinned via a tools.go tracking file, never compiled into Ze's binaries."
+                    "why": "Build-time only: goimports, pinned via a tools.go tracking file, never compiled into Ze's binaries.",
+                    "licence": "BSD-3-Clause",
+                    "copyright": "The Go Authors",
+                    "source": "https://golang.org/x/tools"
                 },
                 {
                     "module": "golang.org/x/vuln",
-                    "why": "Build-time only: govulncheck, pinned through the tools.go tracking file, which reports known vulnerabilities in the modules Ze vendors."
+                    "why": "Build-time only: govulncheck, pinned through the tools.go tracking file, which reports known vulnerabilities in the modules Ze vendors.",
+                    "licence": "BSD-3-Clause",
+                    "copyright": "The Go Authors",
+                    "source": "https://golang.org/x/vuln"
                 }
             ]
         },
@@ -244,64 +408,745 @@
             "modules": [
                 {
                     "module": "github.com/gofrs/flock",
-                    "why": "Locks pending RFC approval records while development tools update them, so concurrent writers preserve each other's approvals."
+                    "why": "Locks pending RFC approval records while development tools update them, so concurrent writers preserve each other's approvals.",
+                    "licence": "BSD-3-Clause",
+                    "copyright": "The Gofrs, Tim Heckman",
+                    "source": "https://github.com/gofrs/flock"
                 },
                 {
                     "module": "github.com/moby/sys/user",
-                    "why": "Parses container account files through the runtime library; regression tests check valid groups and rejection of oversized group lines."
+                    "why": "Parses container account files through the runtime library; regression tests check valid groups and rejection of oversized group lines.",
+                    "licence": "Apache-2.0",
+                    "copyright": "",
+                    "copyright-unstated": true,
+                    "source": "https://github.com/moby/sys/user"
                 },
                 {
                     "module": "github.com/moby/patternmatcher",
-                    "why": "Applies .dockerignore patterns when preparing the files sent to Docker for lab image builds."
+                    "why": "Applies .dockerignore patterns when preparing the files sent to Docker for lab image builds.",
+                    "licence": "Apache-2.0",
+                    "copyright": "Docker, Inc.",
+                    "source": "https://github.com/moby/patternmatcher"
                 },
                 {
                     "module": "mvdan.cc/sh/v3",
-                    "why": "Parses Bash commands so the agent safety checks can inspect the commands a session is about to run."
+                    "why": "Parses Bash commands so the agent safety checks can inspect the commands a session is about to run.",
+                    "licence": "BSD-3-Clause",
+                    "copyright": "Daniel Martí",
+                    "source": "https://github.com/mvdan/sh"
                 },
                 {
                     "module": "github.com/stretchr/testify",
-                    "why": "Assertion and require helpers used across the Go unit test suite."
+                    "why": "Assertion and require helpers used across the Go unit test suite.",
+                    "licence": "MIT",
+                    "copyright": "Mat Ryer, Tyler Bunnell and contributors",
+                    "source": "https://github.com/stretchr/testify"
                 },
                 {
                     "module": "github.com/pelletier/go-toml/v2",
-                    "why": "Parses kl2tpd TOML configuration in the L2TP scale-input tests."
+                    "why": "Parses kl2tpd TOML configuration in the L2TP scale-input tests.",
+                    "licence": "MIT",
+                    "copyright": "Thomas Pelletier",
+                    "source": "https://github.com/pelletier/go-toml/v2"
                 },
                 {
                     "module": "github.com/gokrazy/gokapi",
-                    "why": "Exercises the gokrazy on-device API's remote connection setup in appliance updater tests, proving reserved password bytes survive URL construction and invalid-port errors omit credentials."
+                    "why": "Exercises the gokrazy on-device API's remote connection setup in appliance updater tests, proving reserved password bytes survive URL construction and invalid-port errors omit credentials.",
+                    "licence": "BSD-3-Clause",
+                    "copyright": "the gokrazy authors",
+                    "source": "https://github.com/gokrazy/gokapi"
                 },
                 {
                     "module": "github.com/gokrazy/tools",
-                    "why": "Drives gokrazy appliance image builds from Ze's appliance build tooling."
+                    "why": "Drives gokrazy appliance image builds from Ze's appliance build tooling.",
+                    "licence": "BSD-3-Clause",
+                    "copyright": "the gokrazy authors",
+                    "source": "https://github.com/gokrazy/tools"
                 },
                 {
                     "module": "github.com/gokrazy/updater",
-                    "why": "Referenced only in a regression test against Ze's own vendored update-push logic, written locally after a bug was found upstream. Not used in production."
+                    "why": "Referenced only in a regression test against Ze's own vendored update-push logic, written locally after a bug was found upstream. Not used in production.",
+                    "licence": "BSD-3-Clause",
+                    "copyright": "the gokrazy authors",
+                    "source": "https://github.com/gokrazy/updater"
                 },
                 {
                     "module": "github.com/sivchari/gomu",
-                    "why": "Mutation-testing tool, run as a native Go command to advisory-score how well the test suite exercises the code. Not a build or CI gate."
+                    "why": "Mutation-testing tool, run as a native Go command to advisory-score how well the test suite exercises the code. Not a build or CI gate.",
+                    "licence": "MIT",
+                    "copyright": "sivchari",
+                    "source": "https://github.com/sivchari/gomu"
                 },
                 {
                     "module": "gopkg.in/yaml.v3",
-                    "why": "Parses GitHub Actions workflow YAML in verification tests so aliases, duplicate keys, and malformed trigger structures fail closed."
+                    "why": "Parses GitHub Actions workflow YAML in verification tests so aliases, duplicate keys, and malformed trigger structures fail closed.",
+                    "licence": "MIT AND Apache-2.0",
+                    "copyright": "Kirill Simonov, Canonical Ltd",
+                    "source": "https://gopkg.in/yaml.v3"
                 },
                 {
                     "module": "github.com/golangci/golangci-lint/v2",
-                    "why": "The linter behind `./le go lint run`, pinned through the tools.go tracking file so every machine and every CI job lints with one version."
+                    "why": "The linter behind `./le go lint run`, pinned through the tools.go tracking file so every machine and every CI job lints with one version.",
+                    "licence": "GPL-3.0",
+                    "copyright": "",
+                    "copyright-unstated": true,
+                    "source": "https://github.com/golangci/golangci-lint/v2",
+                    "licence-note": "upstream ships the bare GNU GPL version 3 text and states neither only nor or-later; GPL-3.0 is the SPDX identifier for that unstated variant"
                 },
                 {
                     "module": "honnef.co/go/tools",
-                    "why": "Staticcheck, run beside golangci-lint from the same tools.go pin, for the analyses golangci-lint does not carry."
+                    "why": "Staticcheck, run beside golangci-lint from the same tools.go pin, for the analyses golangci-lint does not carry.",
+                    "licence": "MIT",
+                    "copyright": "Dominik Honnef",
+                    "source": "https://github.com/dominikh/go-tools"
                 },
                 {
                     "module": "github.com/yuin/goldmark",
-                    "why": "Renders the Markdown of `docs/` and the website into the published HTML pages, in the Go site build that replaced the retired Python renderers."
+                    "why": "Renders the Markdown of `docs/` and the website into the published HTML pages, in the Go site build that replaced the retired Python renderers.",
+                    "licence": "MIT",
+                    "copyright": "Yusuke Inuzuka",
+                    "source": "https://github.com/yuin/goldmark"
                 },
                 {
                     "module": "github.com/anmitsu/go-shlex",
-                    "why": "Splits an operator-typed command line into words for the stress-reproduction runner, so a quoted argument survives."
+                    "why": "Splits an operator-typed command line into words for the stress-reproduction runner, so a quoted argument survives.",
+                    "licence": "MIT",
+                    "copyright": "anmitsu <anmitsu.s@gmail.com>",
+                    "source": "https://github.com/anmitsu/go-shlex"
                 }
+            ]
+        }
+    ],
+    "linked": [
+        {
+            "module": "charm.land/log/v2",
+            "licence": "MIT",
+            "copyright": "Charmbracelet, Inc",
+            "source": "https://github.com/charmbracelet/log"
+        },
+        {
+            "module": "github.com/antihax/optional",
+            "licence": "MIT",
+            "copyright": "Adam Hintz",
+            "source": "https://github.com/antihax/optional"
+        },
+        {
+            "module": "github.com/atotto/clipboard",
+            "licence": "BSD-3-Clause",
+            "copyright": "Ato Araki",
+            "source": "https://github.com/atotto/clipboard"
+        },
+        {
+            "module": "github.com/beorn7/perks",
+            "licence": "MIT",
+            "copyright": "Blake Mizerany",
+            "source": "https://github.com/beorn7/perks"
+        },
+        {
+            "module": "github.com/cespare/xxhash/v2",
+            "licence": "MIT",
+            "copyright": "Caleb Spare",
+            "source": "https://github.com/cespare/xxhash/v2"
+        },
+        {
+            "module": "github.com/charmbracelet/keygen",
+            "licence": "MIT",
+            "copyright": "Charmbracelet, Inc",
+            "source": "https://github.com/charmbracelet/keygen"
+        },
+        {
+            "module": "github.com/charmbracelet/ultraviolet",
+            "licence": "MIT",
+            "copyright": "Charmbracelet, Inc",
+            "source": "https://github.com/charmbracelet/ultraviolet"
+        },
+        {
+            "module": "github.com/charmbracelet/x/term",
+            "licence": "MIT",
+            "copyright": "Charmbracelet, Inc.",
+            "source": "https://github.com/charmbracelet/x/term"
+        },
+        {
+            "module": "github.com/charmbracelet/x/termios",
+            "licence": "MIT",
+            "copyright": "Charmbracelet, Inc.",
+            "source": "https://github.com/charmbracelet/x/termios"
+        },
+        {
+            "module": "github.com/charmbracelet/x/windows",
+            "licence": "MIT",
+            "copyright": "Charmbracelet, Inc.",
+            "source": "https://github.com/charmbracelet/x/windows"
+        },
+        {
+            "module": "github.com/clipperhouse/displaywidth",
+            "licence": "MIT",
+            "copyright": "Matt Sherman",
+            "source": "https://github.com/clipperhouse/displaywidth"
+        },
+        {
+            "module": "github.com/clipperhouse/uax29/v2",
+            "licence": "MIT",
+            "copyright": "Matt Sherman",
+            "source": "https://github.com/clipperhouse/uax29/v2"
+        },
+        {
+            "module": "github.com/containerd/console",
+            "licence": "Apache-2.0",
+            "copyright": "The containerd Authors",
+            "copyright-file": "vendor/github.com/containerd/console/console.go",
+            "source": "https://github.com/containerd/console"
+        },
+        {
+            "module": "github.com/coreos/go-systemd/v22",
+            "licence": "Apache-2.0",
+            "copyright": "CoreOS, Inc",
+            "source": "https://github.com/coreos/go-systemd/v22"
+        },
+        {
+            "module": "github.com/donovanhide/eventsource",
+            "licence": "Apache-2.0",
+            "copyright": "eventsource authors",
+            "source": "https://github.com/donovanhide/eventsource"
+        },
+        {
+            "module": "github.com/fsnotify/fsnotify",
+            "licence": "BSD-3-Clause",
+            "copyright": "The Go Authors, fsnotify Authors",
+            "source": "https://github.com/fsnotify/fsnotify"
+        },
+        {
+            "module": "github.com/ftrvxmtrx/fd",
+            "licence": "MIT",
+            "copyright": "Serge Zirukin",
+            "source": "https://github.com/ftrvxmtrx/fd"
+        },
+        {
+            "module": "github.com/go-logfmt/logfmt",
+            "licence": "MIT",
+            "copyright": "go-logfmt",
+            "source": "https://github.com/go-logfmt/logfmt"
+        },
+        {
+            "module": "github.com/godbus/dbus/v5",
+            "licence": "BSD-2-Clause",
+            "copyright": "Georg Reinke (<guelfey at gmail dot com>), Google",
+            "source": "https://github.com/godbus/dbus/v5"
+        },
+        {
+            "module": "github.com/gokrazy/internal",
+            "licence": "BSD-3-Clause",
+            "copyright": "the gokrazy authors",
+            "source": "https://github.com/gokrazy/internal"
+        },
+        {
+            "module": "github.com/google/go-cmp",
+            "licence": "BSD-3-Clause",
+            "copyright": "The Go Authors",
+            "source": "https://github.com/google/go-cmp"
+        },
+        {
+            "module": "github.com/google/renameio/v2",
+            "licence": "Apache-2.0",
+            "copyright": "Google Inc.",
+            "copyright-file": "vendor/github.com/google/renameio/v2/doc.go",
+            "source": "https://github.com/google/renameio/v2"
+        },
+        {
+            "module": "github.com/lucasb-eyer/go-colorful",
+            "licence": "MIT",
+            "copyright": "Lucas Beyer",
+            "source": "https://github.com/lucasb-eyer/go-colorful"
+        },
+        {
+            "module": "github.com/lunixbochs/struc",
+            "licence": "MIT",
+            "copyright": "Ryan Hileman",
+            "source": "https://github.com/lunixbochs/struc"
+        },
+        {
+            "module": "github.com/mattn/go-isatty",
+            "licence": "MIT",
+            "copyright": "Yasuhiro MATSUMOTO <mattn.jp@gmail.com>",
+            "source": "https://github.com/mattn/go-isatty"
+        },
+        {
+            "module": "github.com/mattn/go-runewidth",
+            "licence": "MIT",
+            "copyright": "Yasuhiro Matsumoto",
+            "source": "https://github.com/mattn/go-runewidth"
+        },
+        {
+            "module": "github.com/mdlayher/socket",
+            "licence": "MIT",
+            "copyright": "Matt Layher",
+            "source": "https://github.com/mdlayher/socket"
+        },
+        {
+            "module": "github.com/moby/sys/capability",
+            "licence": "BSD-2-Clause",
+            "copyright": "The Capability Authors, Suryandaru Triandana <syndtr@gmail.com>",
+            "source": "https://github.com/moby/sys/capability"
+        },
+        {
+            "module": "github.com/moby/sys/mountinfo",
+            "licence": "Apache-2.0",
+            "copyright": "",
+            "copyright-unstated": true,
+            "source": "https://github.com/moby/sys/mountinfo"
+        },
+        {
+            "module": "github.com/moby/sys/userns",
+            "licence": "Apache-2.0",
+            "copyright": "",
+            "copyright-unstated": true,
+            "source": "https://github.com/moby/sys/userns"
+        },
+        {
+            "module": "github.com/mrunalp/fileutils",
+            "licence": "Apache-2.0",
+            "copyright": "Docker, Inc.",
+            "source": "https://github.com/mrunalp/fileutils"
+        },
+        {
+            "module": "github.com/muesli/cancelreader",
+            "licence": "MIT",
+            "copyright": "Erik Geiser and Christian Muehlhaeuser",
+            "source": "https://github.com/muesli/cancelreader"
+        },
+        {
+            "module": "github.com/munnerz/goautoneg",
+            "licence": "BSD-3-Clause",
+            "copyright": "Open Knowledge Foundation Ltd",
+            "source": "https://github.com/munnerz/goautoneg"
+        },
+        {
+            "module": "github.com/opencontainers/selinux",
+            "licence": "Apache-2.0",
+            "copyright": "",
+            "copyright-unstated": true,
+            "source": "https://github.com/opencontainers/selinux"
+        },
+        {
+            "module": "github.com/pandatix/go-abnf",
+            "licence": "MIT",
+            "copyright": "Lucas TESSON - PandatiX <lucastesson@protonmail.com>",
+            "source": "https://github.com/pandatix/go-abnf"
+        },
+        {
+            "module": "github.com/pierrec/lz4/v4",
+            "licence": "BSD-3-Clause",
+            "copyright": "Pierre Curto",
+            "source": "https://github.com/pierrec/lz4/v4"
+        },
+        {
+            "module": "github.com/pires/go-proxyproto",
+            "licence": "Apache-2.0",
+            "copyright": "Paulo Pires",
+            "source": "https://github.com/pires/go-proxyproto"
+        },
+        {
+            "module": "github.com/rivo/uniseg",
+            "licence": "MIT",
+            "copyright": "Oliver Kuederle",
+            "source": "https://github.com/rivo/uniseg"
+        },
+        {
+            "module": "github.com/spf13/cobra",
+            "licence": "Apache-2.0",
+            "copyright": "The Cobra Authors",
+            "copyright-file": "vendor/github.com/spf13/cobra/active_help.go",
+            "source": "https://github.com/spf13/cobra"
+        },
+        {
+            "module": "github.com/spf13/pflag",
+            "licence": "BSD-3-Clause",
+            "copyright": "Alex Ogier, The Go Authors",
+            "source": "https://github.com/spf13/pflag"
+        },
+        {
+            "module": "github.com/u-root/uio",
+            "licence": "BSD-3-Clause",
+            "copyright": "u-root Authors",
+            "source": "https://github.com/u-root/uio"
+        },
+        {
+            "module": "github.com/xo/terminfo",
+            "licence": "MIT",
+            "copyright": "Anmol Sethi",
+            "source": "https://github.com/xo/terminfo"
+        },
+        {
+            "module": "golang.org/x/crypto/x509roots/fallback",
+            "licence": "BSD-3-Clause",
+            "copyright": "The Go Authors",
+            "source": "https://golang.org/x/crypto/x509roots/fallback"
+        },
+        {
+            "module": "golang.org/x/oauth2",
+            "licence": "BSD-3-Clause",
+            "copyright": "The Go Authors",
+            "source": "https://golang.org/x/oauth2"
+        },
+        {
+            "module": "google.golang.org/genproto/googleapis/rpc",
+            "licence": "Apache-2.0",
+            "copyright": "Google LLC",
+            "copyright-file": "vendor/google.golang.org/genproto/googleapis/rpc/status/status.pb.go",
+            "source": "https://google.golang.org/genproto/googleapis/rpc"
+        }
+    ],
+    "works": [
+        {
+            "name": "Go standard library and runtime",
+            "version": "",
+            "toolchain": true,
+            "licence": "BSD-3-Clause",
+            "copyright": "The Go Authors",
+            "source": "https://github.com/golang/go",
+            "why": "The language runtime and standard library that every Ze binary is compiled with and links.",
+            "group": "Go Toolchain",
+            "files": [
+                "third_party/go/LICENSE",
+                "third_party/go/PATENTS"
+            ]
+        },
+        {
+            "name": "htmx",
+            "version": "4.0.0",
+            "licence": "0BSD",
+            "copyright": "",
+            "copyright-unstated": true,
+            "source": "https://unpkg.com/htmx.org@4.0.0/",
+            "why": "Drives the partial page updates of the web interface and the looking glass, including the live views fed by server-sent events.",
+            "group": "Web Interface Assets",
+            "files": [
+                "third_party/web/htmx/htmx.LICENSE"
+            ],
+            "carried-by": [
+                "github.com/ze-software/ze/internal/component/web",
+                "github.com/ze-software/ze/internal/component/lg"
+            ]
+        },
+        {
+            "name": "uPlot",
+            "version": "1.6.32",
+            "licence": "MIT",
+            "copyright": "Leon Sorokin",
+            "source": "https://unpkg.com/uplot@1.6.32/",
+            "why": "Draws the time-series charts of the web interface and the looking glass.",
+            "group": "Web Interface Assets",
+            "files": [
+                "third_party/web/uplot/uPlot.LICENSE"
+            ],
+            "carried-by": [
+                "github.com/ze-software/ze/internal/component/web",
+                "github.com/ze-software/ze/internal/component/lg"
+            ]
+        },
+        {
+            "name": "swagger-ui",
+            "version": "5.32.2",
+            "licence": "Apache-2.0",
+            "copyright": "SmartBear Software Inc.",
+            "source": "https://unpkg.com/swagger-ui-dist@5.32.2/",
+            "why": "Renders the interactive explorer the REST API serves for its OpenAPI description.",
+            "group": "REST API Explorer",
+            "files": [
+                "third_party/web/swagger-ui/swagger-ui.LICENSE",
+                "third_party/web/swagger-ui/swagger-ui.NOTICE"
+            ],
+            "carried-by": [
+                "github.com/ze-software/ze/internal/component/api/rest"
+            ]
+        },
+        {
+            "name": "normalize.css",
+            "version": "7.0.0",
+            "licence": "MIT",
+            "copyright": "Nicolas Gallagher and Jonathan Neal",
+            "source": "https://github.com/necolas/normalize.css",
+            "why": "Evens out browser default styles inside the swagger-ui stylesheet the REST API explorer loads.",
+            "group": "REST API Explorer",
+            "files": [
+                "third_party/swagger-ui-bundled/normalize.css.LICENSE"
+            ],
+            "carried-by": [
+                "github.com/ze-software/ze/internal/component/api/rest"
+            ]
+        },
+        {
+            "name": "classnames",
+            "version": "2.5.1",
+            "licence": "MIT",
+            "copyright": "Jed Watson",
+            "source": "https://github.com/JedWatson/classnames",
+            "why": "Builds CSS class lists inside the swagger-ui script the REST API explorer loads.",
+            "group": "REST API Explorer",
+            "files": [
+                "third_party/swagger-ui-bundled/classnames.LICENSE",
+                "third_party/web/swagger-ui/swagger-ui-bundle.js.LICENSE.txt"
+            ],
+            "carried-by": [
+                "github.com/ze-software/ze/internal/component/api/rest"
+            ]
+        },
+        {
+            "name": "deep-extend",
+            "version": "0.6.0",
+            "licence": "MIT",
+            "copyright": "Viacheslav Lotsmanov",
+            "source": "https://github.com/unclechu/node-deep-extend",
+            "why": "Merges nested objects inside the swagger-ui script the REST API explorer loads.",
+            "group": "REST API Explorer",
+            "files": [
+                "third_party/swagger-ui-bundled/deep-extend.LICENSE",
+                "third_party/web/swagger-ui/swagger-ui-bundle.js.LICENSE.txt"
+            ],
+            "carried-by": [
+                "github.com/ze-software/ze/internal/component/api/rest"
+            ],
+            "banner": "Recursive object extending"
+        },
+        {
+            "name": "buffer",
+            "version": "6.0.3",
+            "licence": "MIT",
+            "copyright": "Feross Aboukhadijeh",
+            "source": "https://github.com/feross/buffer",
+            "why": "The buffer module from node.js for the browser, bundled inside the swagger-ui script the REST API explorer loads.",
+            "group": "REST API Explorer",
+            "files": [
+                "third_party/swagger-ui-bundled/buffer.LICENSE",
+                "third_party/web/swagger-ui/swagger-ui-bundle.js.LICENSE.txt"
+            ],
+            "carried-by": [
+                "github.com/ze-software/ze/internal/component/api/rest"
+            ]
+        },
+        {
+            "name": "fast-json-patch",
+            "version": "3.1.1",
+            "licence": "MIT",
+            "copyright": "Joachim Wester",
+            "source": "https://github.com/Starcounter-Jack/JSON-Patch",
+            "why": "Applies JSON patches inside the swagger-ui script the REST API explorer loads.",
+            "group": "REST API Explorer",
+            "files": [
+                "third_party/swagger-ui-bundled/fast-json-patch.LICENSE",
+                "third_party/web/swagger-ui/swagger-ui-bundle.js.LICENSE.txt"
+            ],
+            "carried-by": [
+                "github.com/ze-software/ze/internal/component/api/rest"
+            ],
+            "banner": "JSON-Patch"
+        },
+        {
+            "name": "repeat-string",
+            "version": "1.6.1",
+            "licence": "MIT",
+            "copyright": "Jon Schlinkert",
+            "source": "https://github.com/jonschlinkert/repeat-string",
+            "why": "Repeats strings inside the swagger-ui script the REST API explorer loads.",
+            "group": "REST API Explorer",
+            "files": [
+                "third_party/swagger-ui-bundled/repeat-string.LICENSE",
+                "third_party/web/swagger-ui/swagger-ui-bundle.js.LICENSE.txt"
+            ],
+            "carried-by": [
+                "github.com/ze-software/ze/internal/component/api/rest"
+            ]
+        },
+        {
+            "name": "dompurify",
+            "version": "3.3.2",
+            "licence": "Apache-2.0 OR MPL-2.0",
+            "copyright": "Dr.-Ing. Mario Heiderich, Cure53",
+            "source": "https://github.com/cure53/DOMPurify",
+            "why": "Sanitises the HTML that the swagger-ui script of the REST API explorer renders from API descriptions.",
+            "group": "REST API Explorer",
+            "files": [
+                "third_party/swagger-ui-bundled/dompurify.LICENSE",
+                "third_party/web/swagger-ui/swagger-ui-bundle.js.LICENSE.txt"
+            ],
+            "carried-by": [
+                "github.com/ze-software/ze/internal/component/api/rest"
+            ]
+        },
+        {
+            "name": "ieee754",
+            "version": "1.2.1",
+            "licence": "BSD-3-Clause",
+            "copyright": "Fair Oaks Labs, Inc.",
+            "source": "https://github.com/feross/ieee754",
+            "why": "Reads and writes IEEE 754 numbers in binary buffers inside the swagger-ui script the REST API explorer loads.",
+            "group": "REST API Explorer",
+            "files": [
+                "third_party/swagger-ui-bundled/ieee754.LICENSE",
+                "third_party/web/swagger-ui/swagger-ui-bundle.js.LICENSE.txt"
+            ],
+            "carried-by": [
+                "github.com/ze-software/ze/internal/component/api/rest"
+            ]
+        },
+        {
+            "name": "js-yaml",
+            "version": "4.1.1",
+            "licence": "MIT",
+            "copyright": "Vitaly Puzrin",
+            "source": "https://github.com/nodeca/js-yaml",
+            "why": "Parses YAML API descriptions inside the swagger-ui script the REST API explorer loads.",
+            "group": "REST API Explorer",
+            "files": [
+                "third_party/swagger-ui-bundled/js-yaml.LICENSE",
+                "third_party/web/swagger-ui/swagger-ui-bundle.js.LICENSE.txt"
+            ],
+            "carried-by": [
+                "github.com/ze-software/ze/internal/component/api/rest"
+            ]
+        },
+        {
+            "name": "safe-buffer",
+            "version": "5.2.1",
+            "licence": "MIT",
+            "copyright": "Feross Aboukhadijeh",
+            "source": "https://github.com/feross/safe-buffer",
+            "why": "Provides a safe buffer interface inside the swagger-ui script the REST API explorer loads.",
+            "group": "REST API Explorer",
+            "files": [
+                "third_party/swagger-ui-bundled/safe-buffer.LICENSE",
+                "third_party/web/swagger-ui/swagger-ui-bundle.js.LICENSE.txt"
+            ],
+            "carried-by": [
+                "github.com/ze-software/ze/internal/component/api/rest"
+            ]
+        },
+        {
+            "name": "react",
+            "version": "18.3.1",
+            "licence": "MIT",
+            "copyright": "Facebook, Inc. and its affiliates",
+            "source": "https://github.com/facebook/react",
+            "why": "The component library the swagger-ui script of the REST API explorer is built with.",
+            "group": "REST API Explorer",
+            "files": [
+                "third_party/swagger-ui-bundled/react.LICENSE",
+                "third_party/web/swagger-ui/swagger-ui-bundle.js.LICENSE.txt"
+            ],
+            "carried-by": [
+                "github.com/ze-software/ze/internal/component/api/rest"
+            ]
+        },
+        {
+            "name": "react-dom",
+            "version": "18.3.1",
+            "licence": "MIT",
+            "copyright": "Facebook, Inc. and its affiliates",
+            "source": "https://github.com/facebook/react",
+            "why": "Renders the React components of the swagger-ui script the REST API explorer loads into the page.",
+            "group": "REST API Explorer",
+            "files": [
+                "third_party/swagger-ui-bundled/react-dom.LICENSE",
+                "third_party/web/swagger-ui/swagger-ui-bundle.js.LICENSE.txt"
+            ],
+            "carried-by": [
+                "github.com/ze-software/ze/internal/component/api/rest"
+            ]
+        },
+        {
+            "name": "scheduler",
+            "version": "0.23.2",
+            "licence": "MIT",
+            "copyright": "Facebook, Inc. and its affiliates",
+            "source": "https://github.com/facebook/react",
+            "why": "Schedules React's rendering work inside the swagger-ui script the REST API explorer loads.",
+            "group": "REST API Explorer",
+            "files": [
+                "third_party/swagger-ui-bundled/scheduler.LICENSE",
+                "third_party/web/swagger-ui/swagger-ui-bundle.js.LICENSE.txt"
+            ],
+            "carried-by": [
+                "github.com/ze-software/ze/internal/component/api/rest"
+            ]
+        },
+        {
+            "name": "use-sync-external-store",
+            "version": "1.4.0",
+            "licence": "MIT",
+            "copyright": "Meta Platforms, Inc. and affiliates",
+            "source": "https://github.com/facebook/react",
+            "why": "Connects React components to shared state inside the swagger-ui script the REST API explorer loads.",
+            "group": "REST API Explorer",
+            "files": [
+                "third_party/swagger-ui-bundled/use-sync-external-store.LICENSE",
+                "third_party/web/swagger-ui/swagger-ui-bundle.js.LICENSE.txt"
+            ],
+            "carried-by": [
+                "github.com/ze-software/ze/internal/component/api/rest"
+            ],
+            "banner": "use-sync-external-store-with-selector"
+        },
+        {
+            "name": "gokrazy FAT writer",
+            "version": "",
+            "licence": "BSD-3-Clause",
+            "copyright": "the gokrazy authors",
+            "source": "https://github.com/gokrazy/internal",
+            "why": "Writes the FAT16B file system images of the appliance ISO installer, copied from gokrazy's internal package because Go does not allow importing it.",
+            "group": "Copied and Ported Source",
+            "files": [
+                "internal/thirdparty/fat/LICENSE"
+            ],
+            "carried-by": [
+                "github.com/ze-software/ze/internal/thirdparty/fat"
+            ]
+        },
+        {
+            "name": "ExaBGP",
+            "version": "f9bfb853b924e97deba646b0bd50693ab07c4f3e",
+            "licence": "BSD-3-Clause",
+            "copyright": "Exa Networks Limited, Thomas Mangin, Nikita Shirokov, Orange, Alcatel-Lucent, Job Snijders, Evelio Vila, Hiroki Shirokura",
+            "source": "https://github.com/Exa-Networks/exabgp",
+            "why": "The source of the API text and JSON formats and the tables the ExaBGP bridge ports, so scripts written for ExaBGP run against Ze.",
+            "group": "Copied and Ported Source",
+            "files": [
+                "third_party/exabgp/LICENSE"
+            ],
+            "carried-by": [
+                "github.com/ze-software/ze/internal/exabgp/bridge"
+            ]
+        },
+        {
+            "name": "Moby default seccomp profile",
+            "version": "f862455628f78f84c937e967e4a03902fb1dee11",
+            "licence": "Apache-2.0",
+            "copyright": "",
+            "copyright-unstated": true,
+            "source": "https://github.com/moby/profiles",
+            "why": "The default system-call filter of a container, which Ze's container runtime derives its own seccomp profile from.",
+            "group": "Registry and Profile Data",
+            "files": [
+                "third_party/moby-seccomp-profile/LICENSE"
+            ],
+            "carried-by": [
+                "github.com/ze-software/ze/internal/plugins/container/seccomp"
+            ]
+        },
+        {
+            "name": "IANA protocol registries",
+            "version": "2025-10-09",
+            "licence": "CC0-1.0",
+            "copyright": "",
+            "copyright-unstated": true,
+            "source": "https://www.iana.org/protocols",
+            "why": "The IPv4 and IPv6 special-purpose address registries Ze embeds to recognise special-purpose addresses.",
+            "group": "Registry and Profile Data",
+            "files": [
+                "third_party/iana/README.md"
+            ],
+            "carried-by": [
+                "github.com/ze-software/ze/internal/core/ipregistry",
+                "github.com/ze-software/ze/internal/core/portname"
             ]
         }
     ]

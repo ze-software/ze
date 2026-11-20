@@ -16,9 +16,16 @@ import (
 
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/credits"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
+
+// The event encoders here are ported from ExaBGP's source, so a build that
+// carries the bridge credits ExaBGP.
+func init() {
+	credits.DeclarePresent("ExaBGP")
+}
 
 // bridgeLog is the bridge's logger for what an encoder leaves out of a
 // script's line, under the subsystem the bridge plugin logs as.

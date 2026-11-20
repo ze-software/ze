@@ -417,6 +417,11 @@ func (s *RESTServer) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/docs", s.withAuth(s.handleDocs))
 	mux.HandleFunc("GET /api/v1/docs/swagger-ui.css", s.withAuth(s.handleSwaggerCSS))
 	mux.HandleFunc("GET /api/v1/docs/swagger-ui-bundle.js", s.withAuth(s.handleSwaggerJS))
+	// swagger-ui's licence travels with it, and the bundle's first line names
+	// its companion file, which resolves beside the bundle.
+	mux.HandleFunc("GET /api/v1/docs/swagger-ui.LICENSE", s.withAuth(licenceHandler(swaggerUILicence)))
+	mux.HandleFunc("GET /api/v1/docs/swagger-ui.NOTICE", s.withAuth(licenceHandler(swaggerUINotice)))
+	mux.HandleFunc("GET /api/v1/docs/swagger-ui-bundle.js.LICENSE.txt", s.withAuth(licenceHandler(swaggerUIBundleLicence)))
 
 	// CORS preflight (no auth required).
 	mux.HandleFunc("OPTIONS /api/", s.handlePreflight)
@@ -859,6 +864,19 @@ func (s *RESTServer) handleSwaggerJS(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 	if _, err := w.Write(swaggerUIBundle); err != nil {
 		return
+	}
+}
+
+// licenceHandler serves one of swagger-ui's licence files as plain text. The
+// files are static and versioned with the assets they cover, so they cache as
+// the assets do.
+func licenceHandler(content []byte) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		if _, err := w.Write(content); err != nil {
+			return
+		}
 	}
 }
 

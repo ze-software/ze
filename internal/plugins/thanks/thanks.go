@@ -40,6 +40,13 @@ const operationName = "name"
 // work's name offers as the way to see the names.
 const commandList = "show thanks list"
 
+// commandLicence is the daemon form of `ze thanks licence`, and
+// pathLicence its local path.
+const (
+	commandLicence = "show thanks licence"
+	pathLicence    = "thanks licence"
+)
+
 // creditsSource is the credits record the two handlers answer from.
 // compiledCredits is the one production implementation.
 type creditsSource interface {
@@ -76,7 +83,10 @@ type workRow struct {
 func listHandler(source creditsSource) command.LocalDataHandler {
 	return func(command.ValidatedArgs) command.LocalAnswer {
 		works, err := source.Works()
-		if err != nil {
+		// A module with no record is still a row; the list is answered in
+		// full and the command exits non-zero naming each such module.
+		var unrecorded *credits.UnrecordedError
+		if err != nil && !errors.As(err, &unrecorded) {
 			return creditsRefusal("ze thanks", err)
 		}
 		// Every binary links Go's own library, so a record that answers no
@@ -99,7 +109,8 @@ func listHandler(source creditsSource) command.LocalDataHandler {
 				Source:    work.Source,
 			})
 		}
-		return command.LocalAnswer{Payload: map[string]any{keyWorks: rows}}
+		answer := command.LocalAnswer{Payload: map[string]any{keyWorks: rows}}
+		return withUnrecorded(answer, unrecorded)
 	}
 }
 
@@ -112,17 +123,18 @@ func licenceHandler(source creditsSource) command.LocalDataHandler {
 		operations := args.PipeOperations()
 		if len(operations) == 0 {
 			document, err := source.LicenceDocument()
-			if err != nil {
+			var unrecorded *credits.UnrecordedError
+			if err != nil && !errors.As(err, &unrecorded) {
 				return creditsRefusal("ze thanks licence", err)
 			}
-			return command.LocalAnswer{Payload: command.Blob(document)}
+			return withUnrecorded(command.LocalAnswer{Payload: command.Blob(document)}, unrecorded)
 		}
 		if len(operations) > 1 {
 			first := strings.Join(operations[0].Args, " ")
 			return command.LocalRefusal(1, command.LocalErrorLine(opererr.New(
 				"the name operation is given more than once",
 				"the licence document narrows to one work at a time",
-				"show thanks licence | name "+first)))
+				commandLicence+" | "+operationName+" "+first)))
 		}
 		if len(operations[0].Args) == 0 {
 			return command.LocalRefusal(1, command.LocalErrorLine(opererr.New(
@@ -140,6 +152,13 @@ func licenceHandler(source creditsSource) command.LocalDataHandler {
 				"the name operation selects one work by its exact name, as the list prints it",
 				commandList)))
 		}
+		if errors.Is(err, credits.ErrNotRecorded) {
+			return command.LocalRefusal(1, command.LocalErrorLine(opererr.Wrap(err,
+				"no licence text of "+name+" is compiled into this binary",
+				"the binary links the module and the declaration it was built from has no entry for it, "+
+					"so it must be declared in website/data/dependencies.json and the binary rebuilt",
+				"./le deps credits update")))
+		}
 		if err != nil {
 			return creditsRefusal("ze thanks licence", err)
 		}
@@ -147,13 +166,40 @@ func licenceHandler(source creditsSource) command.LocalDataHandler {
 	}
 }
 
+// withUnrecorded makes answer exit non-zero, naming every module this binary
+// links that has no credits record, when there is one. The answer keeps its
+// payload: the list still holds a row for each module, and the document says
+// which texts it lacks.
+func withUnrecorded(answer command.LocalAnswer, unrecorded *credits.UnrecordedError) command.LocalAnswer {
+	if unrecorded == nil {
+		return answer
+	}
+	answer.Code = 1
+	answer.Diagnostic = command.LocalErrorLine(opererr.Wrap(unrecorded,
+		"this binary links "+strings.Join(unrecorded.Modules, ", ")+" with no licence or copyright recorded",
+		"each module the binary carries must be credited with its licence, so each needs an entry in "+
+			"website/data/dependencies.json and the binary rebuilt",
+		"./le deps credits update"))
+	return answer
+}
+
 // creditsRefusal answers the refusal of a command whose credits record cannot
 // answer. No operator action on the box repairs it: the record is compiled in
 // at build time, so the binary came from a build that skipped generating it,
 // and whoever builds Ze fixes it by generating the record and building again.
 func creditsRefusal(invocation string, cause error) command.LocalAnswer {
+	// Without build information the binary cannot tell which modules it
+	// links. The Go toolchain records it in every module-mode build, which is
+	// what the ./ze launcher of the Ze repository makes.
+	if errors.Is(cause, credits.ErrNoBuildInfo) {
+		return command.LocalRefusal(1, command.LocalErrorLine(opererr.Wrap(cause,
+			invocation+" cannot list the third-party works this binary carries",
+			"the list is read from the build information a module-mode build records, "+
+				"so this binary must be rebuilt from the Ze repository with the ./ze launcher",
+			"./ze thanks")))
+	}
 	return command.LocalRefusal(1, command.LocalErrorLine(opererr.Wrap(cause,
 		invocation+" cannot list the third-party works this binary carries",
-		"this binary was built without its credits record, so it must be rebuilt from the Ze repository after the record is generated",
+		"the credits record compiled into this binary cannot be read, so it must be regenerated and the binary rebuilt from the Ze repository",
 		"./le deps credits update")))
 }

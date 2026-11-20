@@ -10,6 +10,7 @@
 | Decision | It forbids | Source | Date |
 |----------|------------|--------|------|
 | The pipe wins: a command path names the subject and stops; scope, presentation and format are pipe operations after it, selector words included | Rewriting the command line to carry a pipe as an argument; refusing a pipe a command declares; a subcommand for scope or presentation | plan/records/audit-command-pipe-vs-subcommand.md, plan/records/audit-presentation-pipes.md | 2026-08-21 |
+| A command may override any generic pipe operation that acts on its data, as long as the answer keeps the generic's data format: every data operator of the catalog is overridable, each held to its generic's answer shape; a format, paging, `save` and `log` are the data format or its display, and stay the generic's. In Thomas's words: "I believe it should be possible to overwrite more command as long as their data format is not changed." | Limiting overrides to a fixed list of names (`count`, `first`, `last`, `match`); an override that answers another shape than its generic; a command declaring a format's, paging's, `save`'s or `log`'s name | plan/release/fixes/spec-pipe-chain-honored-on-every-command-surface.md, 69944ce197 | 2026-11-20 |
 
 ---
 
@@ -2852,6 +2853,30 @@ part, before the first pipe outside quotes, so they reach the handler as
 arguments and the chain stays the one the caller typed (`buildInvocation`).
 `WriteInvocation` quotes a value holding a pipe or a double quote, so a
 parameter never opens an operation.
+
+Every route that takes structured parameters also takes one optional, ordered
+`pipe` list: a derived MCP tool, REST `POST /api/v1/execute` and gRPC
+`Execute` and `Stream`. Each element is an operation name and its argument
+words (`{"name": "match", "args": ["established"]}`). The adapter judges each
+name against the command's `pipe-operations` (`PipeOperationsForCommand`, the
+list `show command help` answers) and refuses any other name, naming the
+valid ones, before anything runs. It then writes the list after the
+parameters, and after any chain the caller typed in the line, one
+`| name args` stage per element, in order; each argument word goes through
+`WriteInvocationValue`, so a word holding a pipe or a quote stays one word and
+opens no stage. The dispatcher partitions the result as it partitions a typed
+line, so the list answers what `<command> | name args` answers, and the order
+is the chain's: a declared operation after a generic one is refused as it is
+when typed. The list's JSON Schema is declared once (`PipeListSchema`) and the
+MCP tool schema and the OpenAPI document both publish it; its JSON form is
+read strictly (`DecodePipeList`), so a misspelt element key is refused rather
+than dropped.
+<!-- source: internal/component/command/pipe_list.go -- WritePipeList -->
+<!-- source: internal/component/command/pipe_list.go -- PipeListSchema -->
+<!-- source: internal/component/api/invocation.go -- appendPipeList -->
+<!-- source: internal/component/mcp/tools.go -- dispatchGenerated -->
+<!-- test: internal/component/api/invocation_pipe_list_test.go TestPipeListElementCannotOpenAChain -->
+<!-- test: internal/component/mcp/tools_pipe_list_test.go TestDerivedToolPipeList -->
 <!-- source: internal/component/api/invocation.go -- buildInvocation -->
 <!-- source: internal/component/command/arguments.go -- WriteInvocation -->
 <!-- source: internal/component/api/engine.go -- APIEngine.Execute -->
@@ -3640,7 +3665,7 @@ surfaces.
 | The web completion dropdown | `HandleCLICompleteWithCommandCompleter` | `ShortHelp`, in the JSON `description` key |
 | An MCP tool's action enum | `buildToolDef` | `ShortHelp`, one line for each action |
 | An MCP tool's own description | `buildToolDef`, `commandText` | `ShortHelp`, then a blank line, then `Description` |
-| The OpenAPI operation | `OpenAPISchema` | `ShortHelp` as `summary`, `Description` as `description` |
+| The OpenAPI command schema, the `POST /api/v1/execute` body that runs the command | `OpenAPISchema`, `commandRequestSchema` | `ShortHelp` as `title`, `Description` as `description` |
 | The published wiki catalog | `clicatalog.Render` | `ShortHelp` in the summary table column, `Description` in the `###` detail block |
 | The published CLI reference row | `internal/le/site` `writeCommandRow`, `commandMirrorDescription` | `ShortHelp` |
 | The published per-command detail page | `internal/le/site` `equivalentZeCard`, `equivalentDetailMirror` | `ShortHelp` as the lede, `Description` as the Description body |
@@ -3650,8 +3675,8 @@ surfaces.
 The machine surfaces carry the same pair. `commandMeta`
 (`cmd/ze/hub/command_meta.go`) holds both halves for the API and MCP listers.
 Its merge decides each half on its own, so a command with a YANG summary and a
-plugin explanation keeps both. OpenAPI 3.1 already names the two roles, so the
-mapping is one to one: `summary` is short and `description` is long. A command
+plugin explanation keeps both. JSON Schema already names the two roles, so the
+mapping is one to one: `title` is short and `description` is long. A command
 that declares no explanation carries NO `description` key, never an empty one.
 
 The shell-completion record is `name`, tab, `description`, newline. A summary
@@ -3678,7 +3703,7 @@ name alone. The selected candidate's summary is on message line 2, whole
 <!-- source: internal/component/web/handler_admin.go -- buildAdminFragmentData, CommandFormData -->
 <!-- source: internal/component/web/cli.go -- HandleCLICompleteWithCommandCompleter -->
 <!-- source: internal/component/mcp/tools.go -- CommandInfo, buildToolDef, commandText -->
-<!-- source: internal/component/api/schema.go -- OpenAPISchema -->
+<!-- source: internal/component/api/schema.go -- OpenAPISchema, commandRequestSchema -->
 <!-- source: cmd/ze/hub/command_meta.go -- commandMeta, buildCommandMeta -->
 
 <!-- source: internal/component/config/yang/command.go -- mergeYANGEntry, mergeHelpText, GetHelpExtension, PathToHelp -->
@@ -3700,7 +3725,7 @@ answers, and that is the trap all five registries exist in.
 | `RegisterShape` | whether the answer holds rows (`tab`, `map`) or one document (`doc`) | `validateDeclaredShape`, before the command runs, and `ze help command --json` |
 | `RegisterColumns` | the order the table and text renderers put this command's columns in | `tableStyle.orderKeys`, through the four `ProcessPipes*` wrappers, and the four catalog readers as `column-orders` |
 | `RegisterAddressFields` | that a field of the answer holds an IP address | `validateDeclaredShape`, which admits `\| resolve` and `\| origin` only where a field is declared |
-| `RegisterPipeFilters` | the pipe operations this command runs in its own handler, each with its argument kind (`PipeFilter.Argument`: none, optional, text, count, fields or path). A generic's name is an override, allowed only where the catalog entry says so (`count`, `first`, `last`, `match`) and held to the generic's argument kind when recorded and to its answer shape when it answers | `partitionPipeChain`, which hands them to the handler in `ValidatedArgs.PipeOperations`; `RefusePipeOperationWords`, which refuses one typed as an argument with the pipe form as its fix; `CheckOverrideAnswer`; the completer |
+| `RegisterPipeFilters` | the pipe operations this command runs in its own handler, each with its argument kind (`PipeFilter.Argument`: none, optional, text, count, fields or path). A generic's name is an override, allowed only where the catalog entry says so (every data operator: `match`, `count`, `first`, `last`, `display`, `fill`, `resolve`, `origin`; never a format, `no-more`, `save` or `log`) and held to the generic's argument kind when recorded and to its answer shape when it answers: one object holding an integer `count` for `count`, the command's rows and at most N of them for `first N` and `last N`, the command's rows for every other data operator | `partitionPipeChain`, which hands them to the handler in `ValidatedArgs.PipeOperations`; `RefusePipeOperationWords`, which refuses one typed as an argument with the pipe form as its fix; `CheckOverrideAnswer`; the completer |
 | `RegisterAliases` | a name an operator types in the operator slot, standing for a chain (see "Pipe aliases" below) | `lookupAlias` |
 
 One implementation resolves all five: `commandRegistry[T]` in `column_order.go`.
@@ -4069,7 +4094,7 @@ refuses the whole list, recording nothing, on any of these:
 
 | Collision | Refusal names |
 |-----------|---------------|
-| a generic operator's name the catalog does not let a command override (every generic but `count`, `first`, `last`, `match`), or an override stating another argument kind than the generic's | the operation and the generic |
+| a generic operator's name the catalog does not let a command override (a format, `no-more`, `save` or `log`: every generic that is not a data operator), or an override stating another argument kind than the generic's | the operation and the generic |
 | a name an alias carries on an overlapping command path, in-tree or another plugin's | the operation and the alias's path |
 | a global alias's name | the operation and the global alias |
 | a command path that already holds a non-empty operation set, in-tree or another plugin's | the path, its operations and their owner |

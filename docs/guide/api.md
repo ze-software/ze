@@ -158,6 +158,22 @@ POST `/api/v1/execute` body:
   "params": {"family": "ipv4/unicast"}
 }
 ```
+
+The optional `pipe` list applies pipe operations to the answer, in order, as
+if typed after the command. This body answers what
+`show bgp rib | received | count` answers:
+```json
+{
+  "command": "show bgp rib",
+  "pipe": [{"name": "received"}, {"name": "count"}]
+}
+```
+Each element holds a `name` and an optional `args` array, one word per
+element (`{"name": "match", "args": ["link down"]}` matches the two words as
+one). A name that is not one of the command's pipe operations is refused, and
+the refusal lists the valid ones; `show command help "<command>"` lists them
+too. An element key other than `name` and `args` is refused.
+<!-- source: internal/component/command/pipe_list.go -- WritePipeList -->
 <!-- source: internal/component/bgp/plugins/cmd/rib/yang/ze-rib-cmd.yang -- module ze-rib-cmd -->
 
 Response:
@@ -250,11 +266,18 @@ The OpenAPI spec is generated lazily on first request so it captures all
 plugin commands registered during startup. Documentation routes use the same
 Bearer authentication policy as the API when auth is configured.
 
-Each command operation carries the two help texts the command declares. The
-`summary` is the one-line summary from the YANG `ze:help` statement, and
+Every path the document publishes is a route the server answers. A command
+has no path of its own: every command runs through `POST /api/v1/execute`, so
+the document publishes each command as a schema under `components.schemas`,
+keyed by its camel-case name (`show bgp rib` is `showBgpRib`). That schema is
+the request body that runs the command: `command` fixed to the command's
+name, its parameters under `params`, and the optional `pipe` list.
+
+Each command schema carries the two help texts the command declares. The
+`title` is the one-line summary from the YANG `ze:help` statement, and
 the `description` is the long explanation from the YANG `description`. A command that
 declares no explanation carries no `description` key. Each parameter property
-in the operation's request schema carries the same pair from its YANG leaf:
+under the schema's `params` carries the same pair from its YANG leaf:
 `title` is the leaf's `ze:help` and `description` is the leaf's `description`,
 and a text the leaf does not declare writes no key. The gRPC `CommandInfo` and
 `ParamInfo` messages carry both texts as `short_help` and `description`.
@@ -317,6 +340,16 @@ the `authorization` metadata key:
 metadata = [('authorization', 'Bearer alice:password123')]
 stub.Execute(CommandRequest(command='show bgp'), metadata=metadata)
 ```
+
+`CommandRequest` carries the same optional pipe list as REST execute, as
+`repeated PipeOperation pipe`, each with a `name` and `repeated string args`;
+`Execute` and `Stream` both apply it:
+
+```python
+stub.Execute(CommandRequest(command='show bgp rib',
+    pipe=[PipeOperation(name='received'), PipeOperation(name='count')]), metadata=metadata)
+```
+<!-- source: api/proto/ze.proto -- CommandRequest, PipeOperation -->
 
 ### gRPC reflection
 
@@ -389,6 +422,9 @@ Both transports validate command input against shell injection:
 
 - URL path segments (peer name, RIB family) reject whitespace and control chars
 - Execute `params` map keys and values reject whitespace
+- Each `pipe` list name must be one of the command's pipe operations, and
+  each argument word is written quoted when it holds a space, a pipe or a
+  quote, so no element opens a stage of its own
 - Config session IDs must match the hex format from `EnterSession`
 
 These checks prevent command tokenizer confusion when user input flows into

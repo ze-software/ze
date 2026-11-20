@@ -1530,8 +1530,44 @@ The list's columns, and its JSON keys, are `group`, `name`, `version`,
 `licence`, `copyright`, `why` and `source`. A name no carried work has is
 refused, and the refusal names `show thanks list` as the way to see the names.
 
+What a binary lists is what it carries. A Go module is listed when the
+binary's build information links it, at the version that information states,
+and Go itself at the Go version the binary was built with. A work that is not
+a module (htmx, swagger-ui, ExaBGP's ported encoders) is listed only by a
+build that compiles in the feature carrying it, so a build without the
+looking glass, the web interface and the REST server lists no web asset.
+
+```
+group         name                             version   licence       copyright        why  source
+Go Toolchain  Go standard library and runtime  go1.27.4  BSD-3-Clause  The Go Authors   ...  https://github.com/golang/go
+...
+```
+
+A linked module the build's credits record lacks is still listed, with its
+version and the licence `not recorded`. The command then prints the whole list
+and exits 1, naming each such module and `./le deps credits update`: the
+binary was built from a declaration that does not credit it, which is a defect
+of the build, not of the box. A binary built without build information refuses
+both commands, because it cannot tell what it links, and names `./ze thanks`,
+which builds `bin/ze` from the Ze repository with that information.
+
+Each text of the licence document is headed by the works that ship it:
+
+```
+================================================================================
+github.com/miekg/dns v1.1.73, LICENSE
+  Copyright: The Go Authors, Miek Gieben
+  Source: https://github.com/miekg/dns
+--------------------------------------------------------------------------------
+<the text, byte for byte>
+```
+
+A work whose files state no copyright holder reads
+`Copyright: no copyright holder stated`.
+
 <!-- source: internal/plugins/thanks/register.go -- the two registrations, their daemon paths and the name operation -->
-<!-- source: internal/plugins/thanks/thanks.go -- listHandler, licenceHandler, creditsRefusal -->
+<!-- source: internal/plugins/thanks/thanks.go -- listHandler, licenceHandler, withUnrecorded, creditsRefusal -->
+<!-- source: internal/core/credits/credits.go -- carried, document, writeWorkHeader -->
 
 ### ze interface
 

@@ -32,31 +32,31 @@ func init() {
 		Description: "Each row names one work Ze is built on, the version this binary carries, its licence, " +
 			"its copyright holder and why Ze uses it.",
 		Mode:       modeOffline,
-		DaemonPath: "show thanks list",
+		DaemonPath: commandList,
 	}, command.RenderLocalAnswer)
-	command.MustRegisterLocalData("thanks licence", licenceHandler(source), registry.Meta{
+	command.MustRegisterLocalData(pathLicence, licenceHandler(source), registry.Meta{
 		ShortHelp: "Print the licence texts of the third-party works this binary carries.",
 		Description: "The document holds each licence text as its work ships it, after the works it covers " +
 			"and their copyright lines. The name pipe operation narrows it to one work.",
 		Mode:       modeOffline,
-		DaemonPath: "show thanks licence",
+		DaemonPath: commandLicence,
 	}, command.RenderLocalAnswer)
 
 	// The shape and the column order belong to the answer, so each is declared
 	// on both paths that return it: the local root and the daemon path.
-	command.RegisterShape([]string{"thanks", "show thanks list"}, command.ShapeTab)
-	command.RegisterColumns([]string{"thanks", "show thanks list"}, command.ColumnOrder{
+	command.RegisterShape([]string{"thanks", commandList}, command.ShapeTab)
+	command.RegisterColumns([]string{"thanks", commandList}, command.ColumnOrder{
 		keyGroup, keyName, keyVersion, keyLicence, keyCopyright, keyWhy, keySource,
 	})
-	command.RegisterShape([]string{"thanks licence", "show thanks licence"}, command.ShapeBlob)
+	command.RegisterShape([]string{pathLicence, commandLicence}, command.ShapeBlob)
 	// Column lookup takes the longest registered prefix, so without this empty
 	// declaration the document at `thanks licence` would inherit the list's
 	// columns from `thanks`. The daemon paths are siblings and need none.
-	command.RegisterColumns([]string{"thanks licence"})
+	command.RegisterColumns([]string{pathLicence})
 	// One work is a selector, and a selector is a pipe operation after the path
 	// (docs/architecture/api/commands.md, "Design decisions"): the engine hands
 	// it to licenceHandler in the declared list on every route.
-	command.RegisterPipeFilters([]string{"thanks licence", "show thanks licence"}, command.PipeFilter{
+	command.RegisterPipeFilters([]string{pathLicence, commandLicence}, command.PipeFilter{
 		Name:        operationName,
 		Description: "Print the licence of the one work with this exact name.",
 		Argument:    command.ArgText,

@@ -485,6 +485,40 @@ func blobContent(command, evidence string, output io.Writer) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	return blobText(payload, document, evidence)
+}
+
+// pipedBlobContent runs a command whose answer is a command.Blob narrowed by
+// one operation the command declares, through `| json compact`, and answers
+// the text. The engine records a command-owned operation as a chain step
+// (collectPipeMeta, internal/component/command/pipe.go), so the envelope holds
+// exactly the blob and a pipe of that one step, op and argument as given.
+func pipedBlobContent(command, evidence, op, argument string, output io.Writer) (string, error) {
+	payload, err := localJSON(command, evidence, output)
+	if err != nil {
+		return "", err
+	}
+	document, err := exactObject(payload, evidence, "blob", "pipe")
+	if err != nil {
+		return "", err
+	}
+	pipe, isList := document["pipe"].([]any)
+	if !isList || len(pipe) != 1 {
+		return "", fmt.Errorf("%s pipe is not a one-step array: %#v", evidence, document["pipe"])
+	}
+	step, err := exactObject(pipe[0], evidence+" pipe step", "op", "arg")
+	if err != nil {
+		return "", err
+	}
+	if step["op"] != op || step["arg"] != argument {
+		return "", fmt.Errorf("%s pipe step = %#v, want op %q with arg %q", evidence, step, op, argument)
+	}
+	return blobText(payload, document, evidence)
+}
+
+// blobText answers the utf-8 text of the blob in document, the envelope of
+// payload.
+func blobText(payload any, document map[string]any, evidence string) (string, error) {
 	wire, err := exactObject(document["blob"], evidence+" blob", "content", "encoding")
 	if err != nil {
 		return "", err
@@ -1161,7 +1195,8 @@ func runThanksCommands(output io.Writer) error {
 	}, "thanks lost the row of github.com/miekg/dns or its licence: %#v", values); err != nil {
 		return err
 	}
-	content, err := blobContent("thanks licence | name github.com/miekg/dns | json compact", "thanks licence", output)
+	content, err := pipedBlobContent("thanks licence | name github.com/miekg/dns | json compact", "thanks licence",
+		"name", "github.com/miekg/dns", output)
 	if err != nil {
 		return err
 	}

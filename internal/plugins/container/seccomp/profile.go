@@ -12,7 +12,16 @@ import (
 
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/core/credits"
 )
+
+// The profile's rules are Moby's, so a build that carries this package
+// credits Moby's profile. The declaration sits under the same build tag as
+// the rules: a build without them credits nothing of Moby's.
+func init() {
+	credits.DeclarePresent("Moby default seccomp profile")
+}
 
 // DefaultProfile is the system-call profile of a container whose bounding
 // capability set is bounding, on the architecture this binary runs on: every

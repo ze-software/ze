@@ -8,6 +8,8 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -707,6 +709,38 @@ func TestRESTDocsRequireAuthWhenConfigured(t *testing.T) {
 
 			authorized := doWithHeader(t, srv, "GET", path, "", map[string]string{"Authorization": "Bearer secret"})
 			assert.Equal(t, http.StatusOK, authorized.Status)
+		})
+	}
+}
+
+// TestDocsServeTheSwaggerLicenceFiles asks whether the documentation page
+// carries swagger-ui's licence, its notice and the companion file the bundle's
+// first line points at, behind the page's own authentication (spec
+// thanks-third-party-credits AC-15, AC-20). Method: with REST auth configured,
+// request each file without credentials and require a refusal, then with the
+// bearer token and require 200 and the bytes of the file the assets directory
+// holds.
+func TestDocsServeTheSwaggerLicenceFiles(t *testing.T) {
+	engine := testEngine()
+	openAPI, _ := api.OpenAPISchema(nil)
+	srv, err := NewRESTServer(RESTConfig{ListenAddrs: []string{"127.0.0.1:0"}, Authentication: testAuthentication("secret", nil, nil)}, engine, nil, func() []byte { return openAPI })
+	require.NoError(t, err)
+
+	for _, name := range []string{"swagger-ui.LICENSE", "swagger-ui.NOTICE", "swagger-ui-bundle.js.LICENSE.txt"} {
+		t.Run(name, func(t *testing.T) {
+			want, err := os.ReadFile(filepath.Join("assets", name))
+			require.NoError(t, err)
+			require.NotEmpty(t, want)
+			route := "/api/v1/docs/" + name
+
+			unauthorized := do(t, srv, "GET", route, "")
+			assert.Equal(t, http.StatusUnauthorized, unauthorized.Status)
+			assert.NotContains(t, unauthorized.Body, string(want))
+
+			authorized := doWithHeader(t, srv, "GET", route, "", map[string]string{"Authorization": "Bearer secret"})
+			assert.Equal(t, http.StatusOK, authorized.Status)
+			assert.Contains(t, authorized.Header.Get("Content-Type"), "text/plain")
+			assert.Equal(t, string(want), authorized.Body)
 		})
 	}
 }

@@ -150,6 +150,79 @@ func TestLicenceNameSelectsOneWork(t *testing.T) {
 	}
 }
 
+// TestLicenceDocumentStaysUnderTheRemoteCap asks whether the whole licence
+// document of the REAL embedded record fits the size a daemon surface
+// answers (spec R-4), so `show thanks licence` is never cut on SSH, REST or
+// MCP. Method: build the document this test binary answers and compare its
+// length with command.BlobRemoteOctetsMax.
+func TestLicenceDocumentStaysUnderTheRemoteCap(t *testing.T) {
+	document, err := credits.LicenceDocument()
+	if err != nil {
+		t.Fatalf("LicenceDocument() error = %v", err)
+	}
+	if len(document) == 0 {
+		t.Fatal("the licence document is empty")
+	}
+	if len(document) >= command.BlobRemoteOctetsMax {
+		t.Fatalf("the licence document is %d bytes, at or over the remote cap of %d", len(document), command.BlobRemoteOctetsMax)
+	}
+}
+
+// TestListMarksAModuleWithNoRecordAndExitsNonZero asks whether `ze thanks`
+// still lists a linked module the record lacks, with its licence cell
+// "not recorded", and exits non-zero naming it (AC-5). Method: a fixture
+// whose Works answers the full list beside an *UnrecordedError.
+func TestListMarksAModuleWithNoRecordAndExitsNonZero(t *testing.T) {
+	const missing = "example.com/missing"
+	source := fixtureCredits{
+		works: []credits.Work{
+			{Name: "github.com/miekg/dns", Version: "v1.1.73", Group: "DNS", Licence: "BSD-3-Clause"},
+			{Name: missing, Version: "v9.0.0", Group: credits.NotRecorded, Licence: credits.NotRecorded, Unrecorded: true},
+		},
+		err: &credits.UnrecordedError{Modules: []string{missing}},
+	}
+	answer := listHandler(source)(command.ValidatedArgs{})
+	if answer.Code == 0 {
+		t.Fatalf("the list exited 0 with a module unrecorded: %#v", answer)
+	}
+	if !strings.Contains(answer.Diagnostic, missing) ||
+		!strings.HasSuffix(strings.TrimSuffix(answer.Diagnostic, "\n"), "./le deps credits update") {
+		t.Fatalf("diagnostic = %q, want the module and the fix on its last line", answer.Diagnostic)
+	}
+	payload, isMap := answer.Payload.(map[string]any)
+	if !isMap {
+		t.Fatalf("payload = %#v, want the rows", answer.Payload)
+	}
+	rows, isRows := payload[keyWorks].([]workRow)
+	if !isRows || len(rows) != 2 {
+		t.Fatalf("rows = %#v, want both works", payload[keyWorks])
+	}
+	if rows[1].Name != missing || rows[1].Version != "v9.0.0" || rows[1].Licence != "not recorded" {
+		t.Fatalf("unrecorded row = %+v, want %s v9.0.0 with licence %q", rows[1], missing, "not recorded")
+	}
+}
+
+// TestThanksRefusesWithoutBuildInformation asks whether a binary with no
+// build information refuses both commands, naming the launcher that builds
+// it with that information (AC-6). Method: a fixture answering
+// credits.ErrNoBuildInfo.
+func TestThanksRefusesWithoutBuildInformation(t *testing.T) {
+	source := fixtureCredits{err: credits.ErrNoBuildInfo}
+	for name, answer := range map[string]command.LocalAnswer{
+		"list":     listHandler(source)(command.ValidatedArgs{}),
+		"document": licenceHandler(source)(command.ValidatedArgs{}),
+	} {
+		if answer.Code == 0 || answer.Payload != nil {
+			t.Errorf("%s answered without build information: %#v", name, answer)
+			continue
+		}
+		if !strings.Contains(answer.Diagnostic, "no build information") ||
+			!strings.HasSuffix(strings.TrimSuffix(answer.Diagnostic, "\n"), "./ze thanks") {
+			t.Errorf("%s refusal = %q, want the cause and ./ze thanks on the last line", name, answer.Diagnostic)
+		}
+	}
+}
+
 // TestThanksRefusesWithoutCredits: when the record cannot answer, both
 // commands refuse with an operator error and print no list and no document.
 // Method: a fixture whose every reader answers credits.ErrNoData.

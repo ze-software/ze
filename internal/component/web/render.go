@@ -18,10 +18,20 @@ import (
 	"net/http"
 
 	"github.com/a-h/templ"
+
+	"github.com/ze-software/ze/internal/core/credits"
 )
 
 //go:embed assets
 var assetsFS embed.FS
+
+// The asset directory carries htmx and uPlot with their licence files, so a
+// build with the web interface credits both. The names are the works of
+// website/data/dependencies.json whose carried-by lists this package.
+func init() {
+	credits.DeclarePresent("htmx")
+	credits.DeclarePresent("uPlot")
+}
 
 // BreadcrumbSegment represents one segment in the breadcrumb navigation.
 type BreadcrumbSegment struct {

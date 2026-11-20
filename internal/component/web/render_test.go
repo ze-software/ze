@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -576,6 +577,30 @@ func TestDecorationHTMLEscaped(t *testing.T) {
 	}
 	if !strings.Contains(body, "&lt;script&gt;") {
 		t.Error("decoration should contain escaped &lt;script&gt;")
+	}
+}
+
+// TestAssetHandlerServesTheHtmxLicence asks whether the web interface serves
+// htmx's licence beside htmx itself, byte for byte as the vendored copy holds
+// it (spec thanks-third-party-credits AC-15). Method: GET /htmx.LICENSE from
+// the asset handler and compare the body with third_party/web/htmx/htmx.LICENSE.
+func TestAssetHandlerServesTheHtmxLicence(t *testing.T) {
+	want, err := os.ReadFile(filepath.Join("..", "..", "..", "third_party", "web", "htmx", "htmx.LICENSE"))
+	if err != nil {
+		t.Fatalf("read the vendored licence: %v", err)
+	}
+	r, err := NewRenderer()
+	if err != nil {
+		t.Fatalf("NewRenderer() error: %v", err)
+	}
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/htmx.LICENSE", http.NoBody)
+	rec := httptest.NewRecorder()
+	r.AssetHandler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /htmx.LICENSE status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if rec.Body.String() != string(want) {
+		t.Errorf("GET /htmx.LICENSE served %d bytes that differ from the vendored %d", rec.Body.Len(), len(want))
 	}
 }
 

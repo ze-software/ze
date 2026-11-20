@@ -2,6 +2,14 @@
 
 package portname
 
+import "github.com/ze-software/ze/internal/core/credits"
+
+// The table below carries IANA's service names, so every build that links
+// this package credits the IANA registries.
+func init() {
+	credits.DeclarePresent("IANA protocol registries")
+}
+
 // serviceKey is a (port, protocol) pair.
 type serviceKey struct {
 	port  uint16
