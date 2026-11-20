@@ -312,8 +312,11 @@ when it has no routable trigger, or when no past task description in `plan/`
 would surface it. `./le ai rules report router` prints that last set and the corpus
 it read, and `./le ai rules report payload` measures what a session loads against a
 40,000-token budget. Beside it, the same report measures the agent rule set
-against a 12,000-token budget: the `Hard Bans` section of `ai/INSTRUCTIONS.md`
-(up to the next heading of the same or a higher level), the part of
+against its own budget, `agentTokenBudget`: the set's size on the day the
+budget was set, rounded up to the next thousand tokens, and a set that reaches
+the budget reports EXCEEDED. The set is the `Hard Bans` section of
+`ai/INSTRUCTIONS.md` (up to the next heading of the same or a higher level),
+the part of
 `ai/META-DECISIONS.md` from its `Rules for every agent` heading to the line
 before its `Rules for the main session` heading, `TRIGGERS.md` and `CORE.md`.
 Headings match by their text at any level, and a heading inside a code fence

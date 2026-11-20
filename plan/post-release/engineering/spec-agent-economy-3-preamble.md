@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-14 |
+| Updated | 2026-11-20 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -94,7 +94,7 @@ Pages and files, read whole or by structure:
 - `ai/META-DECISIONS.md` is ordered into two parts (D-1).
 - The core shows a member's points unless a point declares the situation it applies in (D-2).
 - The gated Go style page keeps each rule's statement and moves detail to sibling pages (D-3).
-- The skill listing a phase agent carries, if the probe confirms the lever.
+- The skill listing a phase agent carries, if the probe confirms the lever. Dropped by the owner on 2026-11-20 with A-3: the listing stays.
 
 ## Existing Mechanisms (MANDATORY)
 
@@ -167,10 +167,10 @@ writer and readers in the repository.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | A subagent definition can start without the project instruction files, rules files included | Harness documentation for subagents, quoted in Design Insights. Key name confirmed 2026-11-14: `omitClaudeMd: true` in the frontmatter, "Requires Claude Code v2.1.271 or later" (the local harness is 2.1.325) | D-1 falls back to shrinking the files themselves, which D-2 and the two-part file still deliver for every agent | Phase 1 probe: a fresh session spawns the agent and its first-turn context is measured | validated (2026-11-15): a `ze-read` agent reported, before any tool call, that neither "Ze - Agent Instructions" nor "Owner Meta Decisions" was in its context, that the "Agent rule set" section was, and quoted its last line naming `ai/META-DECISIONS.md` lines 19-650. Its three reads succeeded and the range began at "Rules for every agent". Its whole run, three reads and a report, cost 58,144 tokens as the harness counted it. Its own estimate of its start, not a measurement: about 12,500 tokens, of which the skill listing (about 70 entries) is the largest block at about 6,500 |
 | A-2 | The start hook's additional context can carry the agent rule set (about 30KB) | The same documentation gives no size limit | The hook passes the hard bans and names three files; the agent reads them in one turn | Phase 1 probe: the agent reports the last line of the set | broken (2026-11-14): the hooks reference says "A hook's `additionalContext`, `systemMessage`, and `initialUserMessage` strings, and its plain stdout, are capped at 10,000 characters", and over the cap "Claude Code saves the output to a file in the session directory. It replaces the output with the file path and a preview of up to the first 2,000 characters". The "If wrong" route is built |
-| A-3 | Removing `Skill` from a phase agent's tools removes the skill listing from its start | Not documented either way | The listing stays; the saving is lost, nothing breaks | Phase 1 probe: first-turn context with and without it | unvalidated |
+| A-3 | Removing `Skill` from a phase agent's tools removes the skill listing from its start | Not documented either way | The listing stays; the saving is lost, nothing breaks | Phase 1 probe: first-turn context with and without it | dropped by owner decision (Thomas, 2026-11-20), not run: a subagent's first-call context is already a median 21.9k and a maximum 25.6k tokens (AC-13), so the listing's saving is marginal. `Skill` stays in both definitions |
 | A-4 | An agent can follow a skill by reading its file | Skills are plain files under `ai/skills/`, and briefs already say "read that skill" | Phase agents keep `Skill` | The probe agent runs one skill from its file | validated (2026-11-15): a `ze-read` agent told to read `ai/skills/ze-audit.md` and follow it produced the audit of `spec-agent-economy-4-supervision.md`, a verdict per criterion with the producer read for each, without the `Skill` tool being named in its brief |
-| A-5 | The owner's global instruction file holds nothing a phase agent must have | Read: prose rules for text sent under a person's name, the question tool, agent counts, dictation | A phase agent writing prose for the owner misses a rule | The brief for such an agent names the writing skill, which carries those rules | unvalidated |
-| A-6 | Every rule in the every-agent part can be broken by an agent's own action, and no rule in the main part can | The classification test in Key Design Decisions | An agent breaks a rule it never saw | Review of the move by the strongest tier, bullet by bullet, against the test | unvalidated |
+| A-5 | The owner's global instruction file holds nothing a phase agent must have | Read: prose rules for text sent under a person's name, the question tool, agent counts, dictation | A phase agent writing prose for the owner misses a rule | The brief for such an agent names the writing skill, which carries those rules | broken in part (2026-11-20): `~/.claude/CLAUDE.md` read whole. Its rules on rule placement, GitHub posts, dictation and licences bind the main thread; worktree cleanup binds only a worktree agent; but "No em dashes in English" binds any English an agent writes, a doc or a comment included. No file under `ai/rules/` carries it: `ai/skills/ze-author.md` line 94 does. The "If wrong" route is what holds: an agent that writes prose for the owner is briefed with the writing skill |
+| A-6 | Every rule in the every-agent part can be broken by an agent's own action, and no rule in the main part can | The classification test in Key Design Decisions | An agent breaks a rule it never saw | Review of the move by the strongest tier, bullet by bullet, against the test | validated: phase 2 review round 1 confirmed all eleven main-session placements against the placement test, and the phase 6 review went bullet by bullet over the 28 situational bullets, widening six situation lines and returning none to the every-agent part (Review Gate, and phase 6 in Implementation Steps) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -213,8 +213,8 @@ writer and readers in the repository.
 | AC-9 | The trigger index header | Says an always-on rule's core block may name situations whose points are in the rule file | None |
 | AC-10 | `docs/contributing/ze-go-style.md` | At most 16KB; every heading of the old page present with its rule stated; each moved body linked as a sibling page under `docs/contributing/go-style/` | None dropped: every sentence is in the core page or one sibling |
 | AC-11 | A Go edit by an agent that read the shortened page whole | Passes the style gate, with no change to the gate's code | An agent that read nothing is still refused |
-| AC-12 | `./le ai rules report payload` | Reports the main payload and the agent rule set, each against its own budget. Met in form; the agent budget's number is not yet meaningful (Known Limitations) | None |
-| AC-13 | A phase agent's context after its first read turn (the reads the start text names), measured | A figure measured by the probe, against a target the owner decides then (the 35k-token figure was set before the 10,000-character cap and the placement count were known, and is owed from the probe); a subdirectory instruction file or path-scoped rule can still load when the agent works with files there, and the measurement names any that did | The system prompt and tool schemas, which the repository does not control |
+| AC-12 | `./le ai rules report payload` | Reports the main payload and the agent rule set, each against its own budget. The agent budget, `agentTokenBudget`, is 25,000 tokens: the set's size measured on 2026-11-20 by `./le ai rules report payload`, 24,048 tokens, rounded up to the next thousand; reaching the budget (the measured size rounded up to the next thousand) reports EXCEEDED (owner rule, 2026-11-20) | None |
+| AC-13 | A phase agent's context after its first read turn (the reads the start text names), measured | Target 35k tokens (owner, 2026-11-20). Measured by `./le ai tokens report from 2026-11-15 days 5`, over 2026-11-15 to 2026-11-20: 279 subagents, first-call context median 21.9k and maximum 25.6k, none above 35k (`ze-read` median 20.7k, `ze-work` 22.2k). Met, on the measure the owner judged it by. That measure is the agent's first call, which precedes the read turn this row's condition names: the reads add the agent rule set, 24,048 tokens on 2026-11-20 (AC-12), less the hard bans the start text already carries (about 0.7k), so the context after that turn is about 45k at the median. The owner's decision closes AC-13 on the first-call figure. A subdirectory instruction file or path-scoped rule can still load when the agent works with files there: the tracked ones are under `vendor/` and `internal/le/site/wiki/testdata/`, and `.claude/rules/agent-browser.md` is path-scoped; the report does not split them out, and the 25.6k maximum bounds any that loaded | The system prompt and tool schemas, which the repository does not control |
 | AC-14 | A harness that reads `AGENTS.md` alone | Loads the same files as before, the decisions file whole | None |
 | AC-15 | The sections `Website design`, `Test systems and labs`, `ExaBGP compatibility` and `Developer tooling` of `ai/META-DECISIONS.md` | Sit outside the range the start hook hands every agent; each states its situation once directly under its heading; the start hook lists each with its line range and its situation; the payload measure counts them apart from the every-agent part; a main session still loads the whole file; every bullet's wording is unchanged | Implemented 2026-11-15. The four sections sit in a third part, "Rules for one kind of work", at the end of the file: 28 bullets, with 96 left for every agent and 11 for the main session, 135 as before and byte-identical (`TestTheDecisionsFileKeepsEveryBulletAcrossItsTwoParts`, and the reviewer's own sorted comparison against HEAD). `TestTheSituationalSectionsAreTheFourTheOwnerApproved` pins the four. `./le ai rules report payload`: the agent rule set is 21,335 tokens (was 23,772), and the situational sections are 2,713 tokens counted apart |
 
@@ -232,7 +232,7 @@ writer and readers in the repository.
 | `TestThePayloadMeasuresTheAgentRuleSet` | `internal/le/ai/rules/digest_test.go` | AC-12 | |
 | `TestTheDecisionsFileKeepsEveryBulletAcrossItsTwoParts` | `internal/le/ai/rules/digest_test.go` | AC-4: both headings present and the hook's extract of the first part ends at the second heading | |
 | `TestTheStyleCoreKeepsEveryHeadingOfTheSplitPage` | `internal/le/doc/` (the doc-check package that owns page structure, named in phase 5) | AC-10: each sibling page is linked from the core | |
-| A test pinning which sections are situational (named in phase 6) | `internal/le/ai/rules/ruleset/` | AC-15: exactly the four sections, found by heading | not started |
+| `TestTheSituationalSectionsAreTheFourTheOwnerApproved` | `internal/le/ai/rules/ruleset/ruleset_test.go` | AC-15: exactly the four sections, found by heading | written |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -252,7 +252,7 @@ writer and readers in the repository.
 - `internal/le/ai/rules/artifacts.go` - `ruleBlock`, `buildCore`, `triggersHeader`, `coreHeader`, the agent payload measure
 
 Rule, instruction and page files, each in the phase whose code needs it:
-- `ai/agents/ze-read.md`, `ai/agents/ze-work.md` - the omit line, the fallback paragraph with the hard bans, and `Skill` if A-3 holds
+- `ai/agents/ze-read.md`, `ai/agents/ze-work.md` - the omit line, the fallback paragraph with the hard bans; `Skill` stays, A-3 being dropped
 - `ai/META-DECISIONS.md` - reordered into two parts, wording unchanged
 - `ai/INSTRUCTIONS.md` - the sentence introducing the decisions file names its two parts
 - point files under `ai/rules/points/rfc-compliance/`, `ai/rules/points/git-safety/`, `ai/rules/points/rule-precedence/` - `applies` on the procedure points
@@ -346,8 +346,10 @@ every test and every generator.
    - → Constraint: this departs from the two-part design the owner approved on 2026-11-11 (D-1), and he approved the departure on 2026-11-14. The four were chosen because an agent cannot mistake whether it is editing the website, a lab, the ExaBGP bridge or `le`.
 
 ### Remaining before closure
-- The probe: A-3 only. A-1 and A-4 are validated. A-3 needs a session started after a temporary definition with no `Skill` in its tools is synced, because definitions load at session start
-- The agent rule set's budget value (AC-12) and the AC-13 figure, both the owner's with the measurements now in hand: an agent's rule set is 21,329 tokens against a budget of 12,000 set without a basis (`agentTokenBudget` in `internal/le/ai/rules/artifacts.go`), and over 2026-11-01 to 2026-11-15 a subagent's first call carried a median 56.9k tokens of context against AC-13's 35k (`./le ai tokens report from 2026-11-01 days 14`). Those two weeks are almost all before the lean start landed, so the figure to judge AC-13 on is the same report over the weeks after 2026-11-15
+Nothing. The owner settled the three open items on 2026-11-20, approving "close child 3 now with the targets set to the measured figures, drop the A-3 probe":
+- A-3 is dropped, not run, and `Skill` stays in both definitions (Risks & Assumptions).
+- AC-12: `agentTokenBudget` in `internal/le/ai/rules/artifacts.go` is 25,000 tokens, the measured set rounded up to the next thousand. The owner's rule was stated against the 21,329 measured on 2026-11-15; the set measured 24,048 on 2026-11-20, after commits to the decisions file and the core, so the rule gives 25,000 (Deviations from Plan).
+- AC-13: target 35k, met by the first-call figure over 2026-11-15 to 2026-11-20.
 
 Built 2026-11-15: R-6. `./le ai sync check` prints one row per agent definition: whether it omits the instruction files and the rule payload it therefore starts with, each figure taken from the one payload measure (`ze-read` and `ze-work`: the agent rule set, 21,329 tokens; `lsp-probe`: the always-loaded payload, 27,246). A definition that loads the files is a reported fact; the check fails only when a payload a row needs cannot be measured. The predicate that reads a definition's frontmatter moved to `ruleset.ReadAgentStart`, so the check and the start hook use one. Reviewed by an independent strongest-tier agent: the move answers the same for every input; an independent judge approved the three test units that moved with it
 
@@ -421,7 +423,6 @@ agent; phase 1 probes each before the design relies on it):
 - The trigger-index and per-stage views of `plan/post-release/engineering/spec-rules-situation-index.md` are not built here.
 - R-6 says `./le ai sync check` reports the agent payload per definition. That report was built on 2026-11-15 (see "Remaining before closure").
 - The 24KB core target of AC-8 was set before the points were read: most points hold a prohibition and a procedure in one paragraph, so the target could not be met without hiding a prohibition. The owner withdrew it on 2026-11-14.
-- `./le ai rules report payload` reports the agent rule set at 23,772 tokens against a budget of 12,000, so it says EXCEEDED. The implementing agent chose 12,000 without a basis. The budget is owed a value with a basis, set when phase 6 lands and the probe has measured an agent's real first turn; until then AC-12's "each against its own budget" is met in form and its number is not meaningful.
 
 ## Review Gate
 
@@ -508,3 +509,138 @@ Its scope is written before the round runs.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/post-release/engineering/spec-agent-economy-3-preamble.md` only, in the same `./le commit create` script
+
+## Implementation Summary
+
+### What Was Implemented
+- Phases 1 to 6 and R-6, committed before closure (`dccb8730d9`, `143da2e5c3`, `18600e8905` and the commits before them): the lean start for `ze-read` and `ze-work` (`omitClaudeMd: true`, the fallback paragraph, `hookSubagentContext` appending the hard bans and the reading list), the decisions file in three parts, `applies` on a point and the core that leaves such a point out, the agent payload measure, the 16KB style core with fourteen sibling pages, and the per-definition payload row of `./le ai sync check`.
+- At closure (2026-11-20, uncommitted): `agentTokenBudget` in `internal/le/ai/rules/artifacts.go` set from 12,000 to 25,000 with its derivation in the comment; the budget sentence of `docs/contributing/rule-authoring.md`; the umbrella's child 3 row restated as the bare stem.
+
+### Bugs Found/Fixed
+- The agent budget of 12,000 had no basis and made `./le ai rules report payload` print EXCEEDED for the real set. Now 25,000 from the measurement. `TestThePayloadMeasuresTheAgentRuleSet` reads the constant at its boundary (budget minus one MET, budget EXCEEDED), so it covers the new value with no edit.
+
+### Documentation Updates
+- `docs/contributing/rule-authoring.md`, the payload paragraph: the agent budget is the set's size on the day the budget was set, rounded up to the next thousand. Its anchor `<!-- source: internal/le/ai/rules/artifacts.go -- Payload, readAgentRuleSet, agentRuleSetParts, agentTokenBudget -->` already names the constant.
+- `./le doc check all` (2026-11-20): FAILED on two findings outside this diff: `registry.Meta.DaemonPath must be a string literal` and `rules-points: planning.md is stale`, the second from another session's uncommitted edit of a planning point. No finding names a file this closure changed.
+
+### Deviations from Plan
+- AC-12's budget is 25,000, not the 22,000 of the owner's example: the owner's rule (reaching the budget, the measured size rounded up to the next thousand, reports EXCEEDED) was stated against 21,329 tokens of 2026-11-15, and on 2026-11-20 the payload report measured 24,048 after the decisions file grew to 10,325 tokens and the core to 11,539. 22,000 would report EXCEEDED on the day it landed.
+- A-3 dropped by the owner, so the skill listing a phase agent carries is unchanged.
+- AC-13 is judged on the first-call figure, which precedes the read turn the AC's condition names (AC-13 row).
+
+## Mistake Log
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-5: the owner's global file holds nothing a phase agent must have | Its em dash ban binds any English an agent writes; only `ai/skills/ze-author.md` carries it in the repository | Read `~/.claude/CLAUDE.md` whole at closure | The "If wrong" route holds; whether the ban joins `ai/rules/writing.md` is the main session's to put to the owner |
+| approach | The agent budget was set at 12,000 from a target core size, before any measurement | The measured set is twice that | Payload report | Set from the measurement at closure |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| A phase agent starts with the rules it can break and the index | Done | `internal/le/hookruntime/lifecycle.go` `hookSubagentContext`; `ai/agents/ze-read.md`, `ai/agents/ze-work.md` | A-1 validated |
+| The gated style page holds what a writer applies, detail one read away | Done | `docs/contributing/ze-go-style.md`, `docs/contributing/go-style/` | 16,262 bytes |
+| Nothing deleted, no rule's wording changed | Done | `TestTheDecisionsFileKeepsEveryBulletAcrossItsTwoParts`, `TestTheStyleCoreKeepsEveryHeadingOfTheSplitPage` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestSubagentStartAddsTheAgentRuleSetForAnAgentThatOmitsTheInstructions`; A-1 probe | |
+| AC-2 | Done | `TestAgentDefinitionsCarryTheHardBansOfTheInstructions` | |
+| AC-3 | Done | `TestSubagentStartAddsNoRuleSetForAnAgentThatLoadsTheInstructions` | |
+| AC-4 | Done | `TestTheDecisionsFileKeepsEveryBulletAcrossItsTwoParts` | three parts since phase 6 |
+| AC-5 | Done | `TestTheCoreShowsAPointWithNoSituation` | |
+| AC-6 | Done | `TestTheCoreLeavesOutAPointThatDeclaresItsSituation` | |
+| AC-7 | Done | `TestAppliesIsRefusedOnAProhibitionAndOutsideTheCore`, `TestAppliesIsRefusedOnEveryProhibitionForm`, `TestRenderRefusesAppliesOnARoutedRule` | |
+| AC-8 | Done | `./le ai rules check condensed` (owed) | 24KB target withdrawn by the owner |
+| AC-9 | Done | `triggersHeader`; `ai/rules/TRIGGERS.md` lines 8-10 | |
+| AC-10 | Done | `wc -c`: 16,262 bytes; `TestTheStyleCoreKeepsEveryHeadingOfTheSplitPage` | 16KB read as 16,384 bytes |
+| AC-11 | Done | `writeStyleGuideRead` unchanged; this agent's Go edit passed after a whole read | |
+| AC-12 | Done | `agentTokenBudget` 25,000; `TestThePayloadMeasuresTheAgentRuleSet` | Deviations |
+| AC-13 | Done | `./le ai tokens report from 2026-11-15 days 5` | first-call measure |
+| AC-14 | Done | `ai/INSTRUCTIONS.md` keeps its three `@` lines | |
+| AC-15 | Done | `TestTheSituationalSectionsAreTheFourTheOwnerApproved` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| The ten unit tests of the TDD table | Done | the files named there, each found by `grep "func <name>("` on 2026-11-20 | |
+| `./le ai hooks unit` | Done | `internal/le/ai/hooks/subagent_rule_set_sites_test.go` `TestSubagentRuleSetSitesMatchTheHook` | owed rerun |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `lifecycle.go`, `points.go`, `artifacts.go` | Done | |
+| `ai/agents/ze-read.md`, `ai/agents/ze-work.md` | Done | `Skill` stays |
+| `ai/META-DECISIONS.md`, `ai/INSTRUCTIONS.md` | Done | |
+| `docs/contributing/rule-authoring.md`, `docs/contributing/ze-go-style.md`, `.claude/hooks/README.md` | Done | |
+| `plan/post-release/engineering/spec-rules-situation-index.md`, `spec-docs-read-before-authoring.md` | Done | in the phase commits |
+
+### Audit Summary
+- **Total items:** 15 AC, 3 requirements
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** AC-12 value, AC-13 measure, A-3 dropped (Deviations)
+
+## Goal Validation (BLOCKING)
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A phase agent starts with the rules it can break and the index to the rest | Measured probe and functional hook test | A-1 probe of 2026-11-15; `./le ai tokens report from 2026-11-15 days 5`: first-call context median 21.9k, max 25.6k over 279 subagents, against 53k at the umbrella baseline |
+| The gated style page holds what a writer applies | File size and structure test | 16,262 bytes; `TestTheStyleCoreKeepsEveryHeadingOfTheSplitPage` |
+| The main session still loads everything | Payload report | `./le ai rules report payload` 2026-11-20: always-loaded payload 30,903 tokens, MET against 40,000 |
+
+## Work Not Done
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| The trigger-index and per-stage views of `applies` | Out of this spec's scope from the start | `plan/post-release/engineering/spec-rules-situation-index.md` |
+
+## Review Gate (closure)
+
+The closure diff (`agentTokenBudget` and its comment, the `rule-authoring.md` sentence, the umbrella row) is this closing agent's own edit, so this agent does not review or record it: an author never reviews its own work. Its review is owed to an independent reader, who records the artifact.
+
+| Field | Value |
+|-------|-------|
+| Artifact | not recorded: owed to the independent reviewer of the closure diff |
+| `./le spec review check` | not run |
+| Rounds | phases: 5 rounds, then 1 for phase 2, then 2 for phase 6, all independent; closure diff: 0 so far |
+| Reviewer lenses used | the closing agent's own pre-checks only: `./le test weakened check` (5 findings, all in another session's credits test file), `./le repo check` (no finding names a closure file) |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `docs/contributing/go-style/*.md` | Yes | `ls docs/contributing/go-style/`: fourteen pages, `assertions.md` to `zero-values.md` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-12 | The agent set is measured against its own budget | `./le ai rules report payload` (HEAD le, 2026-11-20): agent rule set 24,048 tokens against 12,000, EXCEEDED, before the change. After it, run by the main thread on 2026-11-20 with `./le --name session ai rules report payload`: agent rule set 24,048 tokens, budget 25,000, MET, headroom 3.8% |
+| Rules package tests | `TestThePayloadMeasuresTheAgentRuleSet` and the package | `./le --name session test unit pkg path ./internal/le/ai/rules/`, run by the main thread on 2026-11-20: green except the known HEAD red below |
+| Hook fixtures | `./le ai hooks unit` not run | Child 3's closure touches no sealed hook source and no hook fixture: `artifacts.go` is outside `hookSourcePackages`, which lists only `internal/le/ai/rules/ruleset` under `internal/le/ai/rules` |
+| AC-13 | First-call context under 35k | `./le ai tokens report from 2026-11-15 days 5`: "279 agents, median 21.9k, max 25.6k, 0 above 35k" |
+| AC-10 | Style core at most 16KB | `wc -c docs/contributing/ze-go-style.md`: 16262 |
+| Known red, not this work's | `TestTheDecisionsFileKeepsEveryBulletAcrossItsTwoParts` | `./le --name session test unit pkg path ./internal/le/ai/rules/` (main thread, 2026-11-20): red only on this test, 160 bullets against 146 pinned. It is red at HEAD, from other sessions' commits to `ai/META-DECISIONS.md`; this closure does not touch that file |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `le ai hooks subagent-context` | none: the hook fixture sites of `TestSubagentRuleSetSitesMatchTheHook` | this agent's own start text carried the "Agent rule set" section and the three reads |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | probe 2026-11-15 |
+| A-2 | broken | the 10,000-character cap; the read-three-files route is built |
+| A-3 | dropped by owner | 2026-11-20 decision |
+| A-4 | confirmed | probe 2026-11-15 |
+| A-5 | broken in part | the em dash ban (Mistake Log) |
+| A-6 | confirmed | phase 2 and phase 6 reviews |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `rule-authoring.md` budget sentence | `artifacts.go` `agentTokenBudget`, `measure` (`Met = Tokens < budget`) | Yes |
+| Pages mentioning the spec's code (`./le spec citation anchors`) | `claude-code-cheatsheet.md` anchors `Payload` for the per-definition rows, no budget figure; `running-commands.md`, `spec-workflow.md`, `navigating-the-code.md`, `verify-freshness-scope.md` mention `lifecycle.go`, untouched at closure | Yes |

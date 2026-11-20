@@ -702,10 +702,10 @@ var agentRuleSetParts = [...]ruleset.Reader{
 	ruleset.WholeFile(ruleset.TriggersFile), ruleset.WholeFile(ruleset.CoreFile),
 }
 
-// agentTokenBudget is what the agent rule set must come in under: the core at
-// its 24KB ceiling (6,000 tokens), the trigger index (about 1,400), the hard
-// bans (about 650), and about 3,950 tokens for the every-agent decisions.
-const agentTokenBudget = 12000
+// agentTokenBudget is what the agent rule set must come in under: the set's
+// measured size rounded up to the next thousand tokens (24,048 on 2026-11-20,
+// so 25,000). A set that reaches the budget reports EXCEEDED.
+const agentTokenBudget = 25000
 
 // readAgentRuleSet reads the agent rule set from the checkout at tree, part by
 // part. A part whose file or heading is absent is answered Missing with no
