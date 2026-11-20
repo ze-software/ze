@@ -1,4 +1,4 @@
-# Spec: agent-economy-5-scoped-gates
+# Spec: scoped-gates
 
 | Field | Value |
 |-------|-------|

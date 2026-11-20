@@ -25,7 +25,7 @@ wrote is committed.
 | 1 | Children 1, 2, 6 | Closed 2026-11-11 | None |
 | 2 | Child 3, spec-agent-economy-3-preamble | Closed 2026-11-20 (commit A 588464afb8) | None |
 | 3 | Child 4, spec-agent-economy-4-supervision | Closed 2026-11-20 under the owner's scope cut: packages 1 to 4, 8, 10, 11 and AC-1 landed; packages 5 to 7 and the rest of 9 were dropped | None. `./le spec status set list` now prints where this set stands |
-| 7 | Child 5, `spec-agent-economy-5-scoped-gates.md` | `skeleton` | Last, by owner decision D-5. Strongest-tier design |
+| 7 | Child 5, `plan/post-release/engineering/spec-scoped-gates.md` | `skeleton` | Last, by owner decision D-5. Strongest-tier design |
 | 8 | The umbrella's criteria | Measured over the two weeks after the last child closes | `./le ai tokens report from <date> days 14` prints them |
 
 The probe brief for item 3, for the temporary agent in a fresh session:
