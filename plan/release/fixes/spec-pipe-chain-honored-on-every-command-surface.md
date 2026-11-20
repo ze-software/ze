@@ -8,7 +8,7 @@
 | Release reason | Shipped daemon behaviour. A plugin's `dispatch-command`, MCP, REST and gRPC refuse a piped command that SSH and `ze cli` answer. Every rendering surface splits a quoted pipe value as a chain. `foldFilters` rewrites the operator's line into a different command. All three are wrong answers on shipped operator surfaces (`plan/README.md`, `release/fixes/`), not tooling |
 | RFC gaps | - |
 | Depends | - (spec-plugin-dispatch-pipe-chain-reaches-the-handler, closed in `2616478e64` and `9321d263aa`, landed the refusal this spec replaces; the quote-aware scan this spec extends to the chain is `ScanInvocation` and `ScanExecution` in `internal/component/command/invocation_scan.go`). `plan/release/fixes/spec-fixit-selector-narrows-through-a-pipe.md` depends on this spec |
-| Phase | 1/8 |
+| Phase | 4/8 |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -69,6 +69,24 @@ Three defects stand between the code and that design:
    `warn"`. The separate chain grammar is deliberate today (`splitPipeAt`:
    "the existing filter grammar owns the chain after the first operator"); this
    spec overturns it, see "The chain grammar".
+
+Two small defects met during implementation are fixed in this work, each in a
+commit of its own (`ai/META-DECISIONS.md`, a small problem found while working
+widens the spec):
+
+4. **The web test binary refused every bgp commit.** f08db299d4 added a peer
+   summary check to `configcli.ValidateContent`, and `infra.SummarizeBGPPeers`
+   fails closed (`errNoBGPEngine`) when no summarizer is registered. The web
+   package's engine stand-in, `installPeerValidator`, registered the tree
+   resolver and the peer validator but no summarizer, so each web test that
+   commits a bgp config was refused with "this binary was built without the
+   BGP engine". Fixed in 67c4ea9356 (AC-40).
+5. **The selector refusal lost its text.** After b5a7d0dfe7 a dispatched line
+   missing its selector is refused with the generic missing-argument text
+   instead of `missingSelectorError`'s, so
+   `TestSelectorRefusalPlacesTheSelectorWhereDispatchReadsIt` and
+   `TestDispatchImplicitSelectorMissingValue` are red. Being fixed as a
+   separate small commit (AC-41).
 
 Three routes answer a piped line without ever reaching `Dispatch`, so a fix
 placed in `Dispatch` alone leaves them rewriting:
@@ -736,11 +754,11 @@ above. Two things stay open, each with its reason:
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `APIEngine.Execute` and `Stream` judge read-only on the command part of a piped line | `internal/component/api/invocation.go` `prepareCommand`: `ScanExecution` stops at the first unquoted pipe, `invocationCommandMeta` matches the words before it, and the read-only flag is the matched declaration's | a chain changes the verdict, or a piped write passes a read-only caller | `TestExecutePipedReadOnlyCaller`, `TestStreamPipedReadOnlyCaller` | confirmed by reading on 2026-11-20: `APIEngine.Execute` and `APIEngine.Stream` (`internal/component/api/engine.go`) both call `prepareCommand`, which takes `meta.ReadOnly` from `invocationCommandMeta` over the words `ScanExecution` answers before the first unquoted pipe; the two tests still owe their run |
+| A-1 | `APIEngine.Execute` and `Stream` judge read-only on the command part of a piped line | `internal/component/api/invocation.go` `prepareCommand`: `ScanExecution` stops at the first unquoted pipe, `invocationCommandMeta` matches the words before it, and the read-only flag is the matched declaration's | a chain changes the verdict, or a piped write passes a read-only caller | `TestExecutePipedReadOnlyCaller`, `TestStreamPipedReadOnlyCaller` | confirmed by reading on 2026-11-20: `APIEngine.Execute` and `APIEngine.Stream` (`internal/component/api/engine.go`) both call `prepareCommand`, which takes `meta.ReadOnly` from `invocationCommandMeta` over the words `ScanExecution` answers before the first unquoted pipe. `TestExecutePipedReadOnlyCaller` (`internal/component/api/engine_test.go`) green in d30af7c2f1; `TestStreamPipedReadOnlyCaller` still owes its run |
 | A-2 | Every `OnExecuteCommand` handler can take the request with a pipe list without behaviour change | the non-test registrations read args and peer only. Recounted on 2026-11-20: 53 non-test files and 19 test files call `OnExecuteCommand(` (72 in all), not 46 and 8 | a handler that reads args positionally misreads | the scoped package tests of each plugin touched | unvalidated (needs the runs) |
 | A-3 | REFUTED as first written (three commands), by the second review. Four commands reach the RIB argument grammar: `show bgp rib`, `show bgp rib best`, `show bgp rib protocol` (inherits the set by prefix) and `show bgp peer <selector> rib <scope>`, which `forwardRibRoutes` forwards to `cmdRibShow` and which holds no pipe set. The assumption now is that there is no fifth | `RegisterPipeFilters` call sites in `cmd/rib/rib.go` (read 2026-11-19); `cmdRibProtocol` is in no declaration; `rib_inject.go` `showProtocolPipeline` | another handler below `show bgp rib` reads folded words and breaks | grep of `RegisterPipeFilters` and of every command path under `show bgp rib` at phase 1 | confirmed on 2026-11-20: the four `RegisterPipeFilters` calls are all in `cmd/rib/rib.go` `registerPipeFilters`; the paths under `show bgp rib` (`cmd/rib/rib.go` constants) are `status`, `best`, `best status`, `rpf`, `protocol`, `help`, `commands`, `events`, all barred but `best` and `protocol`; the three argument readers have one caller each (`rib_pipeline.go` line 1369, `rib_pipeline_best.go` line 322, `rib_inject.go` line 236), and `forwardRibRoutes` serves both `ze-bgp:rib-routes` and `ze-bgp:peer-rib`. No fifth command |
-| A-4 | The rendering surfaces and `Dispatch` produce the same partition from the same line | one function, deterministic, the same registry | SSH and the dispatcher disagree | `TestPartitionSameOnSurfaceAndDispatch` | unvalidated |
-| A-5 | Applying a residual chain inside `Dispatch` can reuse `ApplyPipes` over the flattened answer | `CommandDispatcher.JSON` flattens with `ResponseJSON` | a streamed `sdk.Records` answer needs its own path | `TestDispatchAppliesResidualChainToStreamedRows` | unvalidated |
+| A-4 | The rendering surfaces and `Dispatch` produce the same partition from the same line | one function, deterministic, the same registry | SSH and the dispatcher disagree | `TestPartitionSameOnSurfaceAndDispatch` | confirmed on 2026-11-20: `TestPartitionSameOnSurfaceAndDispatch` (`internal/component/command/dispatch_line_test.go`) green; the surfaces and `Dispatch` read one `ReadDispatchLine` |
+| A-5 | Applying a residual chain inside `Dispatch` can reuse `ApplyPipes` over the flattened answer | `CommandDispatcher.JSON` flattens with `ResponseJSON` | a streamed `sdk.Records` answer needs its own path | `TestDispatchAppliesResidualChainToStreamedRows` | confirmed on 2026-11-20: the dispatcher tests of `internal/component/plugin/server/dispatch_pipe_chain_test.go` are green; `Dispatch` applies the residual chain through the answer step of `ReadDispatchLine` (`ApplyAnswerStep`) |
 | A-6 | `pipeFilterRegistry` can take an owner-scoped, error-returning declaration and its withdrawal as the plugin alias registry does | `declarationRegistry.declare` panics on a conflict today; `RegisterPluginAliases` checks before it writes and records what each owner created; `UnregisterPluginAliases` | a plugin's operations outlive the plugin, or a bad declaration panics the daemon | `TestPluginOperationWithdrawnOnStop`, `TestPluginOperationCollisionsRefused` | confirmed by reading on 2026-11-20 that the shape exists to copy: `RegisterPluginAliases` (`alias.go`) checks the batch under its lock and returns an error before it writes, and the three withdrawal sites are `startup.go` lines 960 and 969 and `restart.go` line 232; the tests still owe their run |
 | A-9 | `command.ValidatedArgs` can carry the declared list to a streaming handler and a local-data handler without changing either signature | `internal/component/command/argbind.go` `ValidatedArgs` is a struct the command package builds and both handler kinds receive | the two handler signatures change, with every registration | reading `ValidatedArgs` and its constructors at phase 1 | confirmed on 2026-11-20: `ValidatedArgs` (`argbind.go`) is a struct of unexported fields the command package builds, and `StreamingHandler` (`plugin/server/handler.go`) takes it by value, so one more field reaches both handler kinds with no signature change |
 | A-10 | The SSH exec channel can read a session environment key | `parseSessionRequest` reads `sess.Environ()` for the interactive session; `execMiddleware` holds the same session value | the rendering statement needs another carrier for the `ze cli` monitor | `TestExecSessionRendersStatement` | confirmed by reading on 2026-11-20: `execMiddleware` (`ssh.go`) holds the same `ssh.Session` whose environment `parseSessionRequest` (`session.go`) reads for the interactive session; the exec channel reads no key today, which is the work. The test still owes its run |
@@ -838,6 +856,8 @@ above. Two things stay open, each with its reason:
 | AC-38 | A chain argument holding a backslash outside quotes (`\| match a\b`), authorized and accounted | The authorizer and the accountant receive tokens from the partition's scan, so the line is judged and recorded with the backslash intact, and an allowed line runs | a backslash outside quotes in the command part stays refused |
 | AC-39 | (T-5 = C) a `pipe` list element whose name or argument word holds a pipe character or a quote | A name holding one is refused naming the valid list; an argument word holding one is written quoted and reaches the operation as one word; the chain gains no operation | none |
 | AC-33 | The same piped lines sent on SSH, the web terminal, `ze cli -c`, MCP, REST, gRPC and `dispatch-command` | Each surface's answer holds the same data as the local `ze` command's for that line, for a declared chain, a generic chain, a format, a quoted value and a refused line | each surface keeps its own envelope |
+| AC-40 | A web package test that commits a config holding a bgp block (`TestWebTerminalChangesDisplaysInactiveCandidateUntilCommit`, `TestBrowserCommandCommitAudit`, `TestWebRollbackStagesBeforeTheCommitHook`) | The engine stand-in `installPeerValidator` also registers a BGP peer summarizer and resets it in cleanup, so the commit is judged and not refused with "this binary was built without the BGP engine"; the fail-closed guard in `infra.SummarizeBGPPeers` is unchanged for a product binary | none |
+| AC-41 | A dispatched line that is missing its selector (`TestSelectorRefusalPlacesTheSelectorWhereDispatchReadsIt`, `TestDispatchImplicitSelectorMissingValue`) | Refused with `missingSelectorError`'s text, naming where the selector goes, not the generic missing-argument text b5a7d0dfe7 let through | none |
 
 ## End-to-End User Stories
 
@@ -935,7 +955,31 @@ above. Two things stay open, each with its reason:
 | `TestRIBRefusesArgumentForm` | `internal/component/plugin/server/command_test.go` | AC-8: each argument form is refused by the dispatcher and the RIB handler is not called | |
 | `TestRIBOverridesKeepGenericMeaning` | same | AC-17, `direction` included | |
 | `TestExecutePipedReadOnlyCaller` | `internal/component/api/engine_test.go` | A-1, AC-28 | |
-| `TestZeExecuteAppliesPipeChain`, `TestRESTExecuteAppliesPipeChain`, `TestGRPCExecuteAppliesPipeChain` | the mcp, rest and grpc packages | AC-3 | |
+| `TestZeExecuteAppliesPipeChain`, `TestRESTExecuteAppliesPipeChain`, `TestGRPCExecuteAppliesPipeChain` | the mcp, rest and grpc packages | AC-3 | landed d30af7c2f1 |
+
+Tests added during phases 3a to 3c and their fix rounds (all landed in d30af7c2f1):
+
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| `TestPartitionDeclaredOperations` (was `TestFoldFilters`, judge-approved) | `internal/component/command/pipe_test.go` | the declared list in chain order, the residual kinds, the whole-chain meta; the command part as typed | landed |
+| `TestPartitionTakesDeclaredOnlyAsAPrefix`, `TestPartitionValidatesBeforeTaking`, `TestPartitionTakesParsedOverridesAndAliases` | `internal/component/command/pipe_partition_test.go` | AC-25; validation before taking; an alias and a parsed override reach the declared list | landed |
+| `TestDeclaredArgumentContractValidatedByPartition`, `TestOverridableComesFromTheCatalog`, `TestOverrideArgContractRefusedAtRegistration`, `TestOverrideAnswerShapeRefused`, `TestOverrideShapeCheckScope`, `TestCatalogStatesPresentationOperators`, `TestHasFormatPipeReadsThePartition`, `TestValidateArgsRefusesPipeOperationWord` | same | AC-17, AC-30 (in-tree half), AC-8; the catalog's override and presentation facts | landed |
+| `TestPartitionSameOnSurfaceAndDispatch`, `TestDispatchLineTypedTokens`, `TestDispatchLineHasNoAnswerStepWithoutChain` | `internal/component/command/dispatch_line_test.go` | A-4; the typed tokens the authorizer and the accountant read | landed |
+| `TestDeclaredLineCarriesOnlyDeclaredOperations` | `internal/component/command/dispatch_line_declared_test.go` | what a cross-process renderer sends | landed |
+| `TestDispatchCommandAppliesPipeChain` (with its socket arm), `TestDispatchReadsJoinedPipeAsChain`, `TestDispatchRefusesChainWithNoCommand`, `TestDispatchTrailingPipeAnswersTheCommand`, `TestDispatchQuotedPipeArgumentWithChain`, `TestDispatchPluginCommandReceivesCommandPartOnly`, `TestDispatchAccountsRefusedChain`, `TestPipeRefusalsMaskSecrets`, `TestDispatchCommandSocketRefusesPipeOperationWord`, `TestDispatchCommandAnswerRefusesPipeOperationWord`, `TestDispatchKeepsQuotedPipeArgument` (moved) | `internal/component/plugin/server/dispatch_pipe_chain_test.go` | AC-2 (bridge half), AC-4, AC-6, AC-8, AC-29 (refusal masking), RFC 8907 Section 8.3 accounting of a refused chain | landed |
+| `TestRenderedAnswerMarshalsAsJSONString`, `TestDispatchJSONFormatAnswersTheDocument`, `TestDispatchCommandCarriesRenderedText` | `internal/component/plugin/server/dispatch_rendered_answer_test.go` | AC-5: a text format answers its rendered text, `\| json` the document | landed |
+| `TestRESTExecuteAnswersRenderedText`, `TestGRPCExecuteAnswersRenderedText`, `TestZeExecuteAnswersRenderedText` | the rest, grpc and mcp packages | AC-5 on each data surface | landed |
+| `TestTacacsFallbackArgsPassesChainTokens` | `internal/component/tacacs/authorizer_chain_test.go` | AC-27 under T-6 A | landed |
+| `TestTypedWrappersPassChainTokens` | `cmd/ze/hub/aaa_lifecycle_test.go` | AC-27 under T-6 A | landed |
+| `TestExecOneShotSendsTheTypedLine` | `internal/component/ssh/exec_typed_line_test.go` | AC-1, AC-33 rendering half | landed |
+| `TestOperationalCommandSendsTheTypedLine` | `internal/component/cli/model_mode_typed_line_test.go` | same, the CLI model | landed |
+| `TestWebSurfacesSendTheTypedLine` | `internal/component/web/typed_line_test.go` | same, the web terminal and tool page | landed |
+| `TestEditorExecutorSendsTheDeclaredOperations` | `internal/component/config/cli/cmd_edit_declared_test.go` | the editor sends the declared line | landed |
+| `TestPipedEngineDispatchSendsTheDeclaredOperations` | `internal/test/cli/cmd_engine_steps_declared_test.go` | the functional-test engine step | landed |
+| `TestSSHDaemonExecutorRendersResidualChain`, `TestSSHStandaloneExecutorRendersResidualChain`, `TestAttachedCLIExecutorRendersResidualChain` | `cmd/ze/hub/executor_renders_chain_ssh_test.go`, `attached_cli_executor_test.go` | each rendering executor states that it renders | landed |
+| `TestInvocationKeepsPipeAndQuoteInValue`, `TestBuildInvocationWritesParamsBeforePipe` | `internal/component/api/invocation_test.go` | AC-11, AC-32 | landed |
+| `TestExecutePipedReadOnlyCaller` | `internal/component/api/engine_test.go` | A-1, AC-28 engine half | landed |
+| `TestPipedLineParityAcrossSurfaces` (data surfaces, formats included) | `cmd/ze/hub/pipe_parity_test.go` | AC-33, data-surface half | landed |
 
 The `plugin/server` tests of `pipeChainRefusal`,
 `internal/component/command/pipe_fold_test.go` (`FoldPipeChain`), and the
@@ -1091,7 +1135,13 @@ surface with no protocol peer).
 Each phase is sized for one agent of about 60 tool calls.
 
 Progress:
-- Phase 1 wiring tests committed in b6f2383371, red by design: `TestServeLocalHandsDeclaredOperations`, `TestModelMonitorHandsDeclaredOperations`, `TestZeExecuteAppliesPipeChain`, `TestRESTExecuteAppliesPipeChain`, `TestGRPCExecuteAppliesPipeChain`, `TestBuildInvocationWritesParamsBeforePipe`. The `cmd/ze/hub` wiring tests and the plugin16 fixture are held back, because another session's uncommitted IKE edit breaks the hub and fixture build.
+- b6f2383371, phase 1: the unit wiring tests, red by design (`TestServeLocalHandsDeclaredOperations`, `TestModelMonitorHandsDeclaredOperations`, `TestZeExecuteAppliesPipeChain`, `TestRESTExecuteAppliesPipeChain`, `TestGRPCExecuteAppliesPipeChain`, `TestBuildInvocationWritesParamsBeforePipe`). The `cmd/ze/hub` wiring tests and the plugin16 fixture were held back while another session's IKE edit broke the hub and fixture build.
+- 83dfe9c2e6: the TACACS+ mock prints the accounted command, so a `.ci` can assert the accounting record.
+- 3d7157b2be, phase 2: one grammar for the command part and the chain (AC-6, AC-7).
+- 67c4ea9356: the web engine stand-in registers the BGP peer summarizer (Task item 4, AC-40).
+- d30af7c2f1, phases 3a to 3c (95 files): the one partition replaces the fold; the dispatcher accepts a piped line, accounts it as typed, authorizes its chain tokens and applies the residual chain for a data caller; rendering surfaces send the typed line; REST parameters before the chain; `BuildCommand` deleted. It also carries the phase 1 hub tests and fixtures held back earlier. The six phase 1 wiring tests above except `TestModelMonitorHandsDeclaredOperations` now pass.
+- Known reds named in d30af7c2f1's body, none caused by this work except the last, which is phase 4's: plugin/server `TestSelectorRefusalPlacesTheSelectorWhereDispatchReadsIt` and `TestDispatchImplicitSelectorMissingValue` (argument-fault text from b5a7d0dfe7, Task item 5, AC-41, being fixed as a separate small commit); cmd/ze/hub configured-plugin conformance tests (c9fbf8964c tests a command no code declares yet); `TestBuildTag_Container_PresentBinaryLinksNoUnusedRuntime` (Linux-only symbols on a macOS host); internal/component/plugin (another session's L2TP build break); config/cli `TestRepositoryConfigsValidate` (other sessions' BGP configs); cli `TestModelMonitorHandsDeclaredOperations` (phase 4).
+- Next: phase 4 (4a stream route, 4b local data and the remaining readers).
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- failing tests at every entry point
    - Tests: the Wiring Test rows
@@ -1213,6 +1263,11 @@ Progress:
 | An override's answer shape is checked at answer time by one function of the command package, run by `Dispatch`, `ServeLocal` and the stream sites; its argument contract is checked when recorded | the check inside `Dispatch` alone (the first amendment); a declared answer shape (`RegisterShape`); a test every override must pass, alone | `RegisterShape` states the command's shape, not one operation's; a test cannot be required of a third-party plugin |
 | The RIB's argument words are refused, not accepted beside the pipe | keep both forms | no-layering, and no compatibility path for a form no release shipped |
 | One spec for the three defects | three specs | they share the parse |
+| A declared operation with no argument carries nil words (`argumentWords`, `pipe_partition.go`), on the argument branch and the parsed-words branch alike (implementation, 2026-11-20) | an empty non-nil list on one branch | one answer for one fact; nil round-trips JSON the same whether the phase 5 wire field is written null or omitted |
+| A data caller's `\| json` answer carries the `pipe` metadata, the same document `ze cli -c` prints (implementation, 2026-11-20) | strip the metadata for a data caller | AC-3 asks for the bytes the local command prints, and `ApplyPipes` injects the metadata at the format operation on every rendering surface |
+| An already-rendered text answer travels in an engine-only form (`renderedAnswer`, `plugin/server/command.go`) that marshals as a JSON string; `\| json` and `\| raw` answer the document (implementation, 2026-11-20) | wrap the text as `plugin.RawJSON` | `RawJSON` refuses a top-level scalar, so every marshal of the answer failed; only the engine builds the form, and it reaches only callers that do not render |
+| `RefusePipeOperationWords` refuses only the command's own declared operations (overrides and own names), never a generic name or an alias (implementation, 2026-11-20) | refuse every name in the command's `pipe-operations` | a generic name is a valid argument value: a peer named `count` stays an argument on every command |
+| A renderer in another process sends `DeclaredLine` (the command part and its declared operations), not the typed line (implementation, 2026-11-20) | send the typed line | the cross-process renderer applies the residual chain itself, so sending it too would render it twice |
 
 ## Known Limitations
 - An interactive `ze cli` session is a shell on the daemon (`runInteractiveSession` calls `sshclient.RunInteractive`; `ai/doors/commands-cli.md`, "Where it sits"), so its lines are parsed by the daemon's model with the daemon's registries, a plugin's alias and declared operation included. The earlier sentence here, that interactive `ze cli` parses the chain in the client, was wrong against today's code.
