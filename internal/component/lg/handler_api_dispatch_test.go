@@ -55,11 +55,11 @@ var dispatchEndpoints = []struct {
 	{"/api/looking-glass/protocols/bgp", cmdBGPOverview, "protocols", false},
 	{"/api/looking-glass/protocols/short", cmdBGPOverview, "protocols", false},
 	{"/api/looking-glass/protocols/bmp", cmdShowBMPPeers, "protocols", false},
-	{"/api/looking-glass/routes/prefix?prefix=10.0.0.0/24", "show bgp rib received exact 10.0.0.0/24", "routes", false},
+	{"/api/looking-glass/routes/prefix?prefix=10.0.0.0/24", "show bgp rib | received | exact 10.0.0.0/24", "routes", false},
 	{"/api/looking-glass/routes/protocol/peer1", cmdBGPOverview, "routes", true},
-	{"/api/looking-glass/routes/peer/192.0.2.1", "show bgp rib received peer 192.0.2.1", "routes", true},
+	{"/api/looking-glass/routes/peer/192.0.2.1", "show bgp rib | received | peer 192.0.2.1", "routes", true},
 	{"/api/looking-glass/routes/export/peer1", cmdBGPOverview, "routes", true},
-	{"/api/looking-glass/routes/bmp/peer1", "show bgp rib protocol bmp peer peer1", "routes", true},
+	{"/api/looking-glass/routes/bmp/peer1", "show bgp rib protocol bmp | peer peer1", "routes", true},
 }
 
 // errorBody decodes a refusal and returns its message, failing the test when
@@ -237,7 +237,7 @@ func TestAPIDispatchSuccessAnswers(t *testing.T) {
 //
 // VALIDATES: protocols/bmp names each peer by the rib-peer key `show bmp peers`
 // reports, and routes/bmp/{name} dispatches exactly
-// `show bgp rib protocol bmp peer <name>`, for an IPv4 router, a bracketed
+// `show bgp rib protocol bmp | peer <name>`, for an IPv4 router, a bracketed
 // IPv6 router and a Loc-RIB instance.
 // PREVENTS: the name being rebuilt from the router and BGP ID, which the RIB
 // never stores routes under, and the command spelling the retired
@@ -261,7 +261,7 @@ func TestAPIBMPRoutesNameIsTheRIBKey(t *testing.T) {
 				switch cmd {
 				case cmdShowBMPPeers:
 					out = `{"peers":[{"router":"r","rib-peer":"` + key + `","peer-as":65001,"up":true}]}`
-				case "show bgp rib protocol bmp peer " + key:
+				case "show bgp rib protocol bmp | peer " + key:
 					out = fakeRouteRowsAnswer
 				default:
 					return nil, errUnknownCommand
@@ -294,7 +294,7 @@ func TestAPIBMPRoutesNameIsTheRIBKey(t *testing.T) {
 			if rec.Code != http.StatusOK {
 				t.Fatalf("routes/bmp status = %d; body %s; asked %q", rec.Code, rec.Body.String(), asked)
 			}
-			if got, want := asked[len(asked)-1], "show bgp rib protocol bmp peer "+key; got != want {
+			if got, want := asked[len(asked)-1], "show bgp rib protocol bmp | peer "+key; got != want {
 				t.Errorf("dispatched %q, want %q", got, want)
 			}
 			var routes struct {
@@ -428,14 +428,14 @@ func TestAPIProtocolNameSelectsItsSession(t *testing.T) {
 		target string
 		want   string
 	}{
-		{"/api/looking-glass/routes/protocol/peer1", "show bgp rib received peer 10.0.0.1"},
-		{"/api/looking-glass/routes/export/peer1", "show bgp rib sent peer 10.0.0.1"},
-		{"/api/looking-glass/routes/count/protocol/peer1", "show bgp rib received peer 10.0.0.1 count"},
+		{"/api/looking-glass/routes/protocol/peer1", "show bgp rib | received | peer 10.0.0.1"},
+		{"/api/looking-glass/routes/export/peer1", "show bgp rib | sent | peer 10.0.0.1"},
+		{"/api/looking-glass/routes/count/protocol/peer1", "show bgp rib | received | peer 10.0.0.1 | count"},
 		// The session address names the same session: it is unique to one
 		// session, and the endpoints answered it before names were listed.
-		{"/api/looking-glass/routes/protocol/10.0.0.1", "show bgp rib received peer 10.0.0.1"},
-		{"/api/looking-glass/routes/export/10.0.0.1", "show bgp rib sent peer 10.0.0.1"},
-		{"/api/looking-glass/routes/count/protocol/10.0.0.1", "show bgp rib received peer 10.0.0.1 count"},
+		{"/api/looking-glass/routes/protocol/10.0.0.1", "show bgp rib | received | peer 10.0.0.1"},
+		{"/api/looking-glass/routes/export/10.0.0.1", "show bgp rib | sent | peer 10.0.0.1"},
+		{"/api/looking-glass/routes/count/protocol/10.0.0.1", "show bgp rib | received | peer 10.0.0.1 | count"},
 	}
 	for _, session := range sessions {
 		t.Run(session.target, func(t *testing.T) {
@@ -517,7 +517,7 @@ func TestAPIProtocolNameWinsOverAnotherSessionsAddress(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200; body %s", rec.Code, rec.Body.String())
 	}
-	if got, want := asked[len(asked)-1], "show bgp rib received peer 10.0.0.1"; got != want {
+	if got, want := asked[len(asked)-1], "show bgp rib | received | peer 10.0.0.1"; got != want {
 		t.Errorf("rib command = %q, want %q (asked %q)", got, want, asked)
 	}
 }

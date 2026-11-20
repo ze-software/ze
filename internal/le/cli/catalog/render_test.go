@@ -1,6 +1,8 @@
 package clicatalog
 
 import (
+	"github.com/ze-software/ze/internal/component/command"
+
 	"bytes"
 	"os"
 	"path/filepath"
@@ -34,17 +36,13 @@ func TestRenderGoldenCatalogs(t *testing.T) {
 							ShortHelp: "The color to show", Description: "Rows of the other color\nare left out.",
 						},
 					},
-					Pipes: []Pipe{
-						{Name: "detail", Description: "show detail", TakesArg: true},
-					},
-					Operators: []Operator{
-						{Name: "json", Available: "always"},
-						{Name: "match", Available: "with-rows"},
-						{Name: "log", Available: "when-streaming"},
-						{Name: "save", Available: "always", LocalOnly: true},
-					},
-					Aliases: []Alias{
-						{Name: "quick", Description: "short view", Expansion: "match up | count"},
+					PipeOperations: []command.PipeOperationEntry{
+						{Name: "json", Source: command.PipeSourceGeneric, Available: "always"},
+						{Name: "match", Source: command.PipeSourceGeneric, Available: "with-rows"},
+						{Name: "log", Source: command.PipeSourceGeneric, Available: "when-streaming"},
+						{Name: "save", Source: command.PipeSourceGeneric, Available: "always", LocalOnly: true},
+						{Name: "detail", Source: command.PipeSourceCommand, Argument: "text", Available: "always", Description: "show detail"},
+						{Name: "quick", Source: command.PipeSourceAlias, Argument: "none", Available: "always", Description: "short view", Expansion: "match up | count"},
 					},
 					Subcommands: []string{"brief", "detail"},
 				},
@@ -86,7 +84,7 @@ func TestRenderGoldenCatalogs(t *testing.T) {
 func TestRenderRejectsUnknownOperatorAvailability(t *testing.T) {
 	_, err := Render([]Entry{{
 		Path: "show bad", Mode: "daemon",
-		Operators: []Operator{{Name: "mystery", Available: "sometimes"}},
+		PipeOperations: []command.PipeOperationEntry{{Name: "mystery", Source: command.PipeSourceGeneric, Available: "sometimes"}},
 	}})
 	if err == nil || err.Error() != "unknown operator availability for mystery" {
 		t.Fatalf("unexpected error: %v", err)
@@ -102,7 +100,9 @@ func TestRenderLiteralProseAndDynamicCodeSpans(t *testing.T) {
 		WireMethod:    "`wire`",
 		AnswerShape:   "`shape`",
 		AddressFields: []string{"`address`"},
-		Aliases: []Alias{{
+		PipeOperations: []command.PipeOperationEntry{{
+			Source:      command.PipeSourceAlias,
+			Available:   command.PipeAvailableAlways,
 			Name:        "`quick`",
 			Description: "**literal**",
 			Expansion:   "match `` value",
@@ -168,8 +168,7 @@ func TestRenderCurrentCatalogAnswersPipeSupportForEveryCommand(t *testing.T) {
 	}
 	zeroSupport := 0
 	for _, entry := range entries {
-		if len(entry.Operators) == 0 && len(entry.Pipes) == 0 &&
-			len(entry.Aliases) == 0 {
+		if len(entry.PipeOperations) == 0 {
 			zeroSupport++
 		}
 	}
@@ -189,7 +188,9 @@ func TestRenderAliasOnlyEntryIncludesDetail(t *testing.T) {
 		Path:      "show alias",
 		Mode:      "read-only",
 		ShortHelp: "Alias command",
-		Aliases: []Alias{{
+		PipeOperations: []command.PipeOperationEntry{{
+			Source:      command.PipeSourceAlias,
+			Available:   command.PipeAvailableAlways,
 			Name:        "summary",
 			Description: "Show a summary",
 			Expansion:   "display address",

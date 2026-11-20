@@ -3,6 +3,7 @@ package help_test
 import (
 	"bytes"
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 
@@ -422,4 +423,97 @@ func TestHelpCommandPublishesAPluginArgumentAsAPlaceholder(t *testing.T) {
 		require.True(t, found, "the catalog names no %q", path)
 		assert.Equal(t, want, line, "%q publishes an invocation form it does not answer to", path)
 	}
+}
+
+// VALIDATES: AC-19 on `ze help command --json`. Each catalog row publishes one
+// `pipe-operations` list, the same list `show command help` answers for that
+// command (command.PipeOperationsForCommand, read by commandHelp in
+// internal/plugins/meta/cmd/help.go), and none of the retired keys.
+// PREVENTS: the offline catalog and the daemon's help each joining the
+// registries their own way, which is how `count` came to appear twice on the
+// RIB's catalog row, once as a generic and once as a command pipe.
+//
+// Method: the rows come from the real renderer. A row for which a compiled-in
+// plugin registration declares a shape, address fields, an operation or an
+// alias the registries do not hold is not compared (registriesHold): the offline
+// catalog reads that registration (command.DeclaredForCommand) where a daemon
+// reads the plugin's Stage 1 declaration, which this process never receives.
+// Every other row must be equal, and the RIB's row is pinned on its own so an
+// empty pair cannot pass.
+func TestCatalogPipeOperations(t *testing.T) {
+	var out bytes.Buffer
+	require.Equal(t, 0, help.RenderHelpCommand(&out, []string{help.FlagJSON}))
+
+	var raw []map[string]any
+	require.NoError(t, json.Unmarshal(out.Bytes(), &raw))
+	for _, row := range raw {
+		for _, retired := range []string{"operators", "pipes", "pipe-aliases", "pipe-filters"} {
+			_, present := row[retired]
+			assert.False(t, present, "catalog row %v publishes the retired key %q", row["path"], retired)
+		}
+	}
+
+	var entries []help.CommandEntry
+	require.NoError(t, json.Unmarshal(out.Bytes(), &entries))
+	compared := 0
+	for _, entry := range entries {
+		if len(entry.PipeOperations) == 0 {
+			continue
+		}
+		if !registriesHold(entry.Path, command.DeclaredForCommand(entry.Path)) {
+			continue
+		}
+		compared++
+		assert.Equal(t, command.PipeOperationsForCommand(entry.Path), entry.PipeOperations,
+			"%q: the catalog row and `show command help` answer different pipe-operations lists", entry.Path)
+	}
+	require.Greater(t, compared, 10, "too few catalog rows were compared with `show command help`")
+
+	byPath := make(map[string]help.CommandEntry, len(entries))
+	for _, entry := range entries {
+		byPath[entry.Path] = entry
+	}
+	rib, found := byPath["show bgp rib"]
+	require.True(t, found, "the catalog names no show bgp rib")
+	counts := 0
+	for _, operation := range rib.PipeOperations {
+		if operation.Name != "count" {
+			continue
+		}
+		counts++
+		assert.Equal(t, command.PipeSourceOverride, operation.Source, "show bgp rib publishes count as %q", operation.Source)
+	}
+	assert.Equal(t, 1, counts, "show bgp rib publishes count %d times, want once, as its override", counts)
+}
+
+// registriesHold answers whether this process's registries hold every input
+// command.PipeOperations reads from the declaration the catalog resolved for
+// path: the answer shape, the address fields, the operations and the aliases.
+// A compiled-in plugin's own declaration (a shape, an operation, an alias)
+// reaches the registries only at a daemon's Stage 1, so this process's
+// `show command help` cannot answer it yet, and its row is not comparable.
+func registriesHold(path string, declared command.Declared) bool {
+	shape, shapeDeclared := command.ShapeForCommand(path)
+	if shapeDeclared != declared.ShapeDeclared {
+		return false
+	}
+	if shapeDeclared && shape != declared.Shape {
+		return false
+	}
+	if !slices.Equal(command.AddressFieldsForCommand(path), declared.AddressFields) {
+		return false
+	}
+	if !slices.Equal(names(declared.Operations), names(command.PipeFiltersForCommand(path))) {
+		return false
+	}
+	return len(declared.Aliases) == len(command.AliasesForCommand(path))
+}
+
+// names answers the names of declared pipe operations, in order.
+func names(filters []command.PipeFilter) []string {
+	out := make([]string, 0, len(filters))
+	for _, filter := range filters {
+		out = append(out, filter.Name)
+	}
+	return out
 }

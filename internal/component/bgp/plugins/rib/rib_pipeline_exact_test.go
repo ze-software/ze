@@ -241,7 +241,7 @@ func TestExactIPv6(t *testing.T) {
 // rather than answered from the whole Adj-RIB-Out or from the received half.
 //
 // VALIDATES: the scope decision: exact reads the received trie only.
-// PREVENTS: `show bgp rib exact <prefix>` (both directions by default)
+// PREVENTS: `show bgp rib | exact <prefix>` (both directions by default)
 // silently answering received routes alone, or every sent route.
 func TestExactRefusedOnSentScope(t *testing.T) {
 	for _, args := range [][]string{

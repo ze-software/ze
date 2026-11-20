@@ -132,7 +132,7 @@ func insertGraphRoute(r *RIBManager) {
 	r.peerMeta[1] = &peerMetadata{Address: netip.MustParseAddr("192.0.2.1")}
 }
 
-// TestGraphTerminalViaPipeline: `show bgp rib received graph` answers the
+// TestGraphTerminalViaPipeline: `show bgp rib | received | graph` answers the
 // structured document through the show pipeline.
 func TestGraphTerminalViaPipeline(t *testing.T) {
 	r := newTestRIBManager(t)
@@ -145,7 +145,7 @@ func TestGraphTerminalViaPipeline(t *testing.T) {
 	assert.Equal(t, uint32(65001), answer.Nodes[0].ASN)
 }
 
-// TestGraphTerminalViaBestPipeline: `show bgp rib best graph` answers the same
+// TestGraphTerminalViaBestPipeline: `show bgp rib best | graph` answers the same
 // structured document from the best-path pipeline.
 func TestGraphTerminalViaBestPipeline(t *testing.T) {
 	r := newTestRIBManager(t)
@@ -187,7 +187,7 @@ func TestGraphTextRendererNamesEmptyGraph(t *testing.T) {
 }
 
 // TestOperatorSeesGraphBox: the operator's default text rendering of
-// `show bgp rib received graph` is the box diagram, and `| json` is the
+// `show bgp rib | received | graph` is the box diagram, and `| json` is the
 // structure.
 //
 // Method: the daemon's answer from showPipeline goes through the same pipe
@@ -199,13 +199,13 @@ func TestOperatorSeesGraphBox(t *testing.T) {
 	raw, ok := r.showPipeline("*", ribPipe("received", "graph")).(json.RawMessage)
 	require.True(t, ok)
 
-	_, format, msg := command.ProcessPipesDefaultFormatChecked("show bgp rib received graph", "text")
+	_, format, msg := command.ProcessPipesDefaultFormatChecked("show bgp rib | received | graph", "text")
 	require.Empty(t, msg)
 	text := format(string(raw))
 	assert.Contains(t, text, "AS65001")
 	assert.Contains(t, text, "┌")
 
-	_, format, msg = command.ProcessPipesDefaultFormatChecked("show bgp rib received graph | json", "")
+	_, format, msg = command.ProcessPipesDefaultFormatChecked("show bgp rib | received | graph | json", "")
 	require.Empty(t, msg)
 	structured := format(string(raw))
 	assert.NotContains(t, structured, "┌")

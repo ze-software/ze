@@ -1050,13 +1050,13 @@ func TestAPIPrefixSendsCoveringForBareAddress(t *testing.T) {
 		name, query, command string
 		networks             []any
 	}{
-		{"bare address", "10.0.0.1", "show bgp rib received covering 10.0.0.1", []any{"10.0.0.0/24"}},
+		{"bare address", "10.0.0.1", "show bgp rib | received | covering 10.0.0.1", []any{"10.0.0.0/24"}},
 		// 192.0.2.0/24 is a route Ze SENT; the received scope has no route
 		// containing the address.
-		{"address no received route contains", "192.0.2.1", "show bgp rib received covering 192.0.2.1", []any{}},
-		{"prefix with its length", "10.0.0.0/24", "show bgp rib received exact 10.0.0.0/24", []any{"10.0.0.0/24"}},
-		{"prefix whose text starts the held one", "10.0.0.0/2", "show bgp rib received exact 0.0.0.0/2", []any{}},
-		{"ipv6 last valid length", "2001:db8::1/128", "show bgp rib received exact 2001:db8::1/128", []any{}},
+		{"address no received route contains", "192.0.2.1", "show bgp rib | received | covering 192.0.2.1", []any{}},
+		{"prefix with its length", "10.0.0.0/24", "show bgp rib | received | exact 10.0.0.0/24", []any{"10.0.0.0/24"}},
+		{"prefix whose text starts the held one", "10.0.0.0/2", "show bgp rib | received | exact 0.0.0.0/2", []any{}},
+		{"ipv6 last valid length", "2001:db8::1/128", "show bgp rib | received | exact 2001:db8::1/128", []any{}},
 	}
 	for _, endpoint := range []string{"routes/prefix", "routes/search"} {
 		for _, tc := range cases {

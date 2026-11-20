@@ -408,7 +408,7 @@ var scenarioOperations = map[string][]operation{
 		// about it, so an empty best table is never judged.
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp ipv6 vpn"}, contains: []string{srv6IneligiblePrefix}, timeout: 60 * time.Second},
 		{kind: opWaitContains, peer: "ze", command: zeCommand("show bgp rib best"), contains: []string{srv6IneligibleFRRAddress}, timeout: 90 * time.Second},
-		{kind: opWaitContains, peer: "ze", command: zeCommand("show bgp rib received"), contains: []string{srv6IneligibleInjectorAddress}, timeout: 60 * time.Second},
+		{kind: opWaitContains, peer: "ze", command: zeCommand("show bgp rib | received"), contains: []string{srv6IneligibleInjectorAddress}, timeout: 60 * time.Second},
 		{
 			kind:    opRequireAbsent,
 			peer:    "ze",

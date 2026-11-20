@@ -103,7 +103,7 @@ func pendingRefusalRun(ctx context.Context, address string, filtered bool) (resu
 	if err := pendingRefusalEstablished(ctx, 1); err != nil {
 		return err
 	}
-	if err := pendingRefusalPoll(ctx, "show bgp rib received", pendingRefusalReceived); err != nil {
+	if err := pendingRefusalPoll(ctx, "show bgp rib | received", pendingRefusalReceived); err != nil {
 		return err
 	}
 	if _, err := pendingRefusalCommand(ctx, "request quiesce"); err != nil {

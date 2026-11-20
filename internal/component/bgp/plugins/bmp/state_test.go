@@ -217,7 +217,7 @@ func TestStateLocRIBIdentityChangeKeepsReportsSeparate(t *testing.T) {
 // VALIDATES: the rib-peer field equals bmpCompositeKey for a monitored peer on
 // an IPv4 router, a monitored peer on an IPv6 router, and a Loc-RIB instance.
 // PREVENTS: a client (the looking glass) naming a BMP peer by a string that
-// `show bgp rib protocol bmp peer <key>` never matches, because the only
+// `show bgp rib protocol bmp | peer <key>` never matches, because the only
 // identity it could read was the router and the peer's BGP ID.
 // Method: record each Peer Up in the state and read the command's answer back.
 func TestShowBMPPeersNamesTheRIBKey(t *testing.T) {

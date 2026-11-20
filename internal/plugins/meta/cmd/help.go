@@ -21,7 +21,7 @@ const (
 	// keyShortHelp is the response payload key carrying a command's one-line summary.
 	keyShortHelp = "short-help"
 	// keyDescription is the response payload key carrying the long explanation of
-	// one command, and the one-line text of a pipe filter or a pipe alias.
+	// one command.
 	// keyShortHelp carries a command's summary beside it, and neither is derived
 	// from the other.
 	keyDescription = "description"
@@ -32,6 +32,9 @@ const (
 	keyAnswerShape   = "answer-shape"
 	keyColumnOrders  = "column-orders"
 	keyAddressFields = "address-fields"
+	// keyPipeOperations is the key of the one list of what may follow a pipe,
+	// spelled as `ze help command --json` spells it.
+	keyPipeOperations = "pipe-operations"
 )
 
 func init() {
@@ -153,10 +156,10 @@ type commandHelpText struct {
 }
 
 // commandHelp answers for one command: what it is, what its answer holds, and
-// the pipe names it answers to beside the built-in operators.
+// everything it answers to after a pipe.
 //
 // A running daemon is the only place every one of those lists exists. A pipe
-// filter, a pipe alias, an answer shape, a column order and an address-field
+// operation, a pipe alias, an answer shape, a column order and an address-field
 // list are each registered at startup, by an in-tree package or by a plugin's
 // Stage 1 message, so a tool reading the compiled command tree in its own
 // process reports only the half its own binary declared.
@@ -185,51 +188,17 @@ func commandHelp(cmd commandHelpText) *plugin.Response {
 	if fields := command.AddressFieldsForCommand(cmd.Name); len(fields) > 0 {
 		data[keyAddressFields] = fields
 	}
-	if filters := pipeFilterHelp(command.PipeFiltersForCommand(cmd.Name)); len(filters) > 0 {
-		data["pipe-filters"] = filters
-	}
-	if aliases := pipeAliasHelp(command.AliasesForCommand(cmd.Name)); len(aliases) > 0 {
-		data["pipe-aliases"] = aliases
+	// One list answers what may follow a pipe: the generics the chain admits
+	// for this command, its overrides, its own operations and its aliases
+	// (command.PipeOperationsForCommand), the list the completer offers and
+	// `ze help command --json` publishes.
+	if operations := command.PipeOperationsForCommand(cmd.Name); len(operations) > 0 {
+		data[keyPipeOperations] = operations
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data:   plugin.Map(data),
 	}
-}
-
-// pipeAliasHelp renders the pipe aliases a command answers to.
-//
-// The expansion is reported beside the description because an alias takes no
-// argument and names no other alias, so the chain it stands for is fixed at
-// registration and is the whole of what the name does.
-func pipeAliasHelp(aliases []command.Alias) []map[string]any {
-	if len(aliases) == 0 {
-		return nil
-	}
-	items := make([]map[string]any, 0, len(aliases))
-	for _, alias := range aliases {
-		items = append(items, map[string]any{
-			"name":         alias.Name,
-			keyDescription: alias.Description,
-			"expansion":    alias.Expansion,
-		})
-	}
-	return items
-}
-
-func pipeFilterHelp(filters []command.PipeFilter) []map[string]any {
-	if len(filters) == 0 {
-		return nil
-	}
-	items := make([]map[string]any, 0, len(filters))
-	for _, filter := range filters {
-		items = append(items, map[string]any{
-			"name":         filter.Name,
-			keyDescription: filter.Description,
-			"takes-arg":    filter.Argument != command.ArgNone,
-		})
-	}
-	return items
 }
 
 func handleBgpCommandComplete(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {

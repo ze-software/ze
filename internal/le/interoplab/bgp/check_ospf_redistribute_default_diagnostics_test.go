@@ -37,7 +37,7 @@ func TestOSPFRedistributeDiagnosticsAfterCancellation(t *testing.T) {
 	for _, command := range []string{
 		"show log recent component bgp.redistribute count 100",
 		"show log recent component redistribute.orchestrator count 100",
-		"show bgp peer 172.30.44.3 rib advertised",
+		"show bgp peer 172.30.44.3 rib | advertised",
 		"show ospf route",
 		"show rib candidates prefix " + ospfRedistributeDefaultPrefix,
 	} {

@@ -86,7 +86,7 @@ func policyFinalPreferred(ctx context.Context, plugin *sdk.Plugin) error {
 	if !Poll(ctx, 60, liveStagesPollDelay, func() bool {
 		var status string
 		best.Paths = nil
-		status, lastErr = Dispatch(ctx, plugin, "show bgp rib best prefix "+policyFinalAlternatePrefix, &best)
+		status, lastErr = Dispatch(ctx, plugin, "show bgp rib best | prefix "+policyFinalAlternatePrefix, &best)
 		if lastErr != nil {
 			return false
 		}
@@ -162,7 +162,7 @@ func (state *policyFinalWireState) receive(event string) error {
 		return nil
 	}
 	for fam, operations := range bgp.Update.NLRI {
-		if fam != "ipv4/unicast" {
+		if fam != familyIPv4Unicast {
 			state.failure = fmt.Errorf("unexpected echoed family %s", fam)
 			return nil
 		}
@@ -175,13 +175,13 @@ func (state *policyFinalWireState) receive(event string) error {
 					return nil
 				}
 				switch operation.Action {
-				case "del":
+				case eventActionDel:
 					if state.protectAlternate && prefix == policyFinalAlternatePrefix {
 						state.failure = fmt.Errorf("preferred rejection withdrew installed alternate %s", prefix)
 						return nil
 					}
 					delete(state.routes, prefix)
-				case "add":
+				case eventActionAdd:
 					if err := policyFinalWireAttributes(prefix, attrs); err != nil {
 						state.failure = err
 						return nil

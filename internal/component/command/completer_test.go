@@ -150,13 +150,60 @@ func TestCommandModePipeCompletion(t *testing.T) {
 	cc := NewTreeCompleter(testCommandTree())
 
 	comps := cc.Complete("peer list | ")
-	if len(comps) != len(PipeOperators) {
-		t.Fatalf("expected %d pipe completions, got %d", len(PipeOperators), len(comps))
+	want := make([]string, 0, len(comps))
+	for _, operation := range PipeOperationsForCommand("peer list") {
+		want = append(want, operation.Name)
+	}
+	// The completer reads PipeOperationsForCommand itself, so the comparison
+	// alone would pass if both answered nothing. Pin the list independently:
+	// `peer list` declares no shape and no address field, so the row and the
+	// output operators apply and the address operators do not, as
+	// PipeOperations(Declared{}) answers in pipe_operations_test.go.
+	if len(want) == 0 {
+		t.Fatal("PipeOperationsForCommand(\"peer list\") answered no operation")
+	}
+	for _, name := range []string{"match", "table"} {
+		if !slices.Contains(want, name) {
+			t.Errorf("the pipe operations of peer list %v lack %q", want, name)
+		}
+	}
+	for _, name := range []string{"resolve", "origin"} {
+		if slices.Contains(want, name) {
+			t.Errorf("the pipe operations of peer list %v hold %q, which needs a declared address field", want, name)
+		}
+	}
+	if got := suggestionTexts(comps); !slices.Equal(got, want) {
+		t.Fatalf("pipe completions = %v, want the command's pipe operations %v", got, want)
 	}
 	for _, c := range comps {
 		if c.Type != "pipe" {
 			t.Errorf("pipe completion %q should have type 'pipe', got %q", c.Text, c.Type)
 		}
+	}
+}
+
+// VALIDATES: the pipe stage being typed is cut by the chain grammar, so a bar
+// inside a quoted value does not start a new stage.
+// PREVENTS: `| match "x|t` completing `table` and `text` as though the operator
+// had typed `| t`, which a cut at the last bar in the text answered.
+//
+// Method: the same line with the bar outside the quotes is the control: there
+// `t` IS a new stage, and the operations starting with it are offered.
+func TestCompletionStageKeepsQuotedBar(t *testing.T) {
+	cc := NewTreeCompleter(testCommandTree())
+
+	control := suggestionTexts(cc.Complete(`peer list | match "x" | t`))
+	if !slices.Contains(control, "table") {
+		t.Fatalf("control: a bar outside quotes starts a stage, completions = %v, want table among them", control)
+	}
+
+	for _, comp := range cc.Complete(`peer list | match "x|t`) {
+		if comp.Type == SuggestionPipe {
+			t.Errorf("a quoted bar started a stage: offered pipe operation %q", comp.Text)
+		}
+	}
+	if ghost := cc.GhostText(`peer list | match "x|t`); ghost == "able" || ghost == "ext" {
+		t.Errorf("ghost text %q completes an operation from inside a quoted value", ghost)
 	}
 }
 
@@ -762,6 +809,49 @@ func TestCommandModePipeCompletion_WithAliases(t *testing.T) {
 	// An alias takes no argument, so nothing follows its name.
 	if args := cc.Complete("peer list | peers "); len(args) != 0 {
 		t.Errorf("an alias offered an argument: %v", args)
+	}
+}
+
+// TestCompletionMatchesPipeOperations proves AC-20: `|` then Tab offers exactly
+// the command's pipe-operations list, names and descriptions, an override's
+// own description included, and none of the generics the command's declared
+// shape refuses.
+//
+// Method: one command declares a document shape, an override of count, an own
+// operation and an alias; its completion is compared with the list entry by
+// entry.
+func TestCompletionMatchesPipeOperations(t *testing.T) {
+	const path = "show completion rib"
+	resetAliasTables(t)
+	ResetPipeFiltersForTest()
+	t.Cleanup(ResetPipeFiltersForTest)
+	t.Cleanup(ResetShapesForTest)
+	RegisterShape([]string{path}, ShapeDoc)
+	RegisterPipeFilters([]string{path},
+		PipeFilter{Name: "count", Description: "Count matching routes", Argument: ArgNone},
+		PipeFilter{Name: "histogram", Description: "Routes per prefix length", Argument: ArgText})
+	RegisterAliases([]string{path}, Alias{Name: "brief", Description: "The short view", Expansion: "display state"})
+
+	offered := NewTreeCompleter(nil).Complete(path + " | ")
+	list := PipeOperationsForCommand(path)
+	if len(offered) != len(list) {
+		t.Fatalf("completion offers %v, want the %d pipe operations %+v", suggestionTexts(offered), len(list), list)
+	}
+	for i, operation := range list {
+		if offered[i].Text != operation.Name || offered[i].Description != operation.Description {
+			t.Errorf("completion %d = %+v, want %s (%s)", i, offered[i], operation.Name, operation.Description)
+		}
+	}
+	got := suggestionTexts(offered)
+	for _, refused := range []string{"match", "first", "display"} {
+		if slices.Contains(got, refused) {
+			t.Errorf("completion offers %s, which a document refuses", refused)
+		}
+	}
+	for _, s := range offered {
+		if s.Text == "count" && s.Description != "Count matching routes" {
+			t.Errorf("count offered as %q, want the override's own description", s.Description)
+		}
 	}
 }
 

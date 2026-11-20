@@ -37,6 +37,7 @@ var chainReadersWithoutPartition = map[string]string{
 	"checkAlias":                    "an alias expansion is a chain with no command",
 	"ProcessStandalonePipesChecked": "`ze pipe` runs operators over stdin with no command",
 	"PresentStreamSuffix":           "the client presents the catalog's presentation suffix alone; the daemon partitions (R-10)",
+	"typedPipeStage":                "completion cuts out the text of the stage being typed; its candidates come from PipeOperationsForCommand, which already joins the command's declared operations",
 }
 
 // TestEveryPipeSplitGoesThroughThePartition asks R-11's question of the

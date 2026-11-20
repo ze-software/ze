@@ -114,7 +114,7 @@ func checkRFC2545NeighborConditionFlip(ctx context.Context, check *interoplab.Ch
 		return fail(6, fmt.Errorf("initial global-only subject: %w", err))
 	}
 	if _, err := untilDecoded(ctx, func() (struct{}, error) {
-		command := zeCommand("show bgp rib sent")
+		command := zeCommand("show bgp rib | sent")
 		answer, err := check.Lab.Query(ctx, "ze", command, queryEnvironment("ze", command))
 		if err != nil {
 			return struct{}{}, err

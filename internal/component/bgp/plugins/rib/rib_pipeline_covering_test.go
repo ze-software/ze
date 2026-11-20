@@ -81,7 +81,7 @@ func drainSource(src pipelineIterator) []RouteItem {
 // composes with a terminal, and refuses every value that is not a bare
 // address with a message naming the value and a form that works.
 //
-// VALIDATES: AC-12, and the wiring row `show bgp rib received covering` from
+// VALIDATES: AC-12, and the wiring row `show bgp rib | received | covering` from
 // the CLI to parsePipelineOperations.
 // PREVENTS: the keyword answered `unknown keyword`, a mask silently dropped so
 // `covering 10.0.0.0/8` answers a different question, or a refusal that names
@@ -168,7 +168,7 @@ func TestPipelineCoveringKeyword(t *testing.T) {
 // address, rather than answered from the whole Adj-RIB-Out.
 //
 // VALIDATES: the scope decision: covering reads the received trie only.
-// PREVENTS: `show bgp rib covering <address>` (both directions by default)
+// PREVENTS: `show bgp rib | covering <address>` (both directions by default)
 // silently answering received routes alone, or scanning every sent route.
 func TestCoveringRefusedOnSentScope(t *testing.T) {
 	for _, args := range [][]string{
@@ -395,7 +395,7 @@ func TestCoveringOnProtocolPipeline(t *testing.T) {
 // TestPrefixTextFilterUnchanged proves the `prefix` filter keeps its text
 // meaning, partial form included, on both scopes.
 //
-// VALIDATES: AC-11, `show bgp rib sent prefix 10.0 count` and its received
+// VALIDATES: AC-11, `show bgp rib | sent | prefix 10.0 | count` and its received
 // twin count what a text prefix match counts.
 // PREVENTS: the covering work changing `prefix` into a containment test,
 // which would count 10.10.0.0/16 and drop the documented partial form.

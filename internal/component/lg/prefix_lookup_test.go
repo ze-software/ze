@@ -92,9 +92,9 @@ func TestParsePrefixLookup(t *testing.T) {
 // send: the received scope, then the one filter the field became.
 func TestPrefixLookupReceivedCommand(t *testing.T) {
 	for input, want := range map[string]string{
-		"10.1.2.3":   "show bgp rib received covering 10.1.2.3",
-		"10.0.0.0/8": "show bgp rib received exact 10.0.0.0/8",
-		"10.0.0.1/8": "show bgp rib received exact 10.0.0.0/8",
+		"10.1.2.3":   "show bgp rib | received | covering 10.1.2.3",
+		"10.0.0.0/8": "show bgp rib | received | exact 10.0.0.0/8",
+		"10.0.0.1/8": "show bgp rib | received | exact 10.0.0.0/8",
 	} {
 		lookup, err := parsePrefixLookup(input)
 		if err != nil {

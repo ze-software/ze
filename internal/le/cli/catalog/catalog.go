@@ -59,29 +59,6 @@ type Argument struct {
 	Description string   `json:"description,omitempty"`
 }
 
-// Pipe describes one command-specific pipe filter.
-type Pipe struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	TakesArg    bool   `json:"takes-arg,omitempty"`
-}
-
-// Operator describes one shared pipe operator as it applies to one command.
-type Operator struct {
-	Name        string `json:"name"`
-	Class       string `json:"class"`
-	Available   string `json:"available"`
-	LocalOnly   bool   `json:"local-only,omitempty"`
-	Description string `json:"description"`
-}
-
-// Alias describes one named pipe chain.
-type Alias struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Expansion   string `json:"expansion"`
-}
-
 // Entry is one command in the product catalog.
 type Entry struct {
 	Path      string `json:"path"`
@@ -90,22 +67,22 @@ type Entry struct {
 	// Description is the one-line summary from the ze:help beside it: two
 	// declarations, never one authored
 	// string cut in two, so each surface reads the half it renders.
-	Description   string     `json:"description,omitempty"`
-	Mode          string     `json:"mode"`
-	WireMethod    string     `json:"wire-method,omitempty"`
-	Backend       []string   `json:"backend,omitempty"`
-	TaskSupport   string     `json:"task-support,omitempty"`
-	Args          []Argument `json:"args,omitempty"`
-	Pipes         []Pipe     `json:"pipes,omitempty"`
-	Operators     []Operator `json:"operators,omitempty"`
-	AnswerShape   string     `json:"answer-shape,omitempty"`
-	AddressFields []string   `json:"address-fields,omitempty"`
+	Description string     `json:"description,omitempty"`
+	Mode        string     `json:"mode"`
+	WireMethod  string     `json:"wire-method,omitempty"`
+	Backend     []string   `json:"backend,omitempty"`
+	TaskSupport string     `json:"task-support,omitempty"`
+	Args        []Argument `json:"args,omitempty"`
+	// PipeOperations is everything the command answers to after a pipe, the
+	// list `ze help command --json` publishes (command.PipeOperations).
+	PipeOperations []command.PipeOperationEntry `json:"pipe-operations,omitempty"`
+	AnswerShape    string                       `json:"answer-shape,omitempty"`
+	AddressFields  []string                     `json:"address-fields,omitempty"`
 	// ColumnOrders are the JSON keys of the answer's records, in the order a
 	// person reads them, one list per record shape the command renders. A
 	// command that renders an outer record and a list of rows declares two
 	// orders, so a flat list could state neither.
 	ColumnOrders [][]string `json:"column-orders,omitempty"`
-	Aliases      []Alias    `json:"pipe-aliases,omitempty"`
 	// Usage is the invocation form generated from the command model, and
 	// Grammar is the same form as an ordered token list. Both come from one
 	// producer (internal/component/command, Usage), so the two cannot disagree.
@@ -160,11 +137,9 @@ func Collect() ([]Entry, error) {
 				entry.TaskSupport = node.TaskSupport
 			}
 			declared := command.DeclaredForCommand(cliPath)
-			entry.Operators, entry.AnswerShape = operatorsFor(cliPath, declared, wireToPaths)
+			entry.PipeOperations, entry.AnswerShape = pipeOperationsFor(cliPath, declared, wireToPaths)
 			entry.AddressFields = declared.AddressFields
 			entry.ColumnOrders = command.ColumnNames(declared.Columns)
-			entry.Aliases = aliasesFor(declared)
-			entry.Pipes = pipesFor(cliPath)
 			entries = append(entries, entry)
 			seen[cliPath] = true
 		}
@@ -312,11 +287,9 @@ func appendPluginCommands(entries []Entry, seen map[string]bool, tree *command.N
 				}
 			}
 			declared := command.DeclaredForCommand(decl.Name)
-			entry.Operators, entry.AnswerShape = operatorsFor(decl.Name, declared, wireToPaths)
+			entry.PipeOperations, entry.AnswerShape = pipeOperationsFor(decl.Name, declared, wireToPaths)
 			entry.AddressFields = declared.AddressFields
 			entry.ColumnOrders = command.ColumnNames(declared.Columns)
-			entry.Aliases = aliasesFor(declared)
-			entry.Pipes = pipesFor(decl.Name)
 			entries = append(entries, entry)
 			seen[decl.Name] = true
 		}
@@ -386,102 +359,33 @@ func argumentKind(kind command.ArgKind) string {
 	}
 }
 
-// operatorsFor answers what one command supports, derived from the operator
-// catalog and the declaration the command carries.
-//
-// The declaration is passed in rather than looked up, so one lookup answers the
-// operators, the answer shape, the column orders and the address fields. That
-// lookup reads a plugin's registration for a command no process here ever ran
-// (internal/component/command, DeclaredForCommand), and `ze help command
-// --json` reads the same function, so the two catalogs agree by derivation
-// rather than by comparison.
-func operatorsFor(path string, declared command.Declared, wireToPaths map[string][]string) ([]Operator, string) {
-	if plainLocalOnly(path, wireToPaths) {
+// pipeOperationsFor answers the `pipe-operations` list and the declared answer
+// shape of one command, from the declaration the catalog already resolved for
+// it. The join is command.PipeOperations, which `ze help command --json` and
+// `show command help` read too, so the catalogs agree by derivation rather
+// than by comparison. A command no surface pipes publishes neither
+// (command.PipeLayerReached). wireToPaths is cli.WireToPaths, fetched once by
+// Collect.
+func pipeOperationsFor(path string, declared command.Declared, wireToPaths map[string][]string) ([]command.PipeOperationEntry, string) {
+	daemonServes := func(candidate string) bool {
+		for _, registration := range pluginserver.AllBuiltinRPCs() {
+			if registration.Handler != nil && slices.Contains(wireToPaths[registration.WireMethod], candidate) {
+				return true
+			}
+		}
+		return false
+	}
+	if !command.PipeLayerReached(path, daemonServes) {
 		return nil, ""
 	}
-	shape := declared.Shape
-	hasAddress := len(declared.AddressFields) > 0
-	operators := make([]Operator, 0, 16)
-	for _, catalog := range command.PipeOperatorCatalog() {
-		if catalog.NeedsAddressField && !hasAddress {
-			continue
-		}
-		operator := Operator{
-			Name:        catalog.Name,
-			Class:       catalog.Class.String(),
-			LocalOnly:   catalog.LocalOnly,
-			Description: catalog.Description,
-		}
-		switch {
-		case catalog.Class == command.ClassStream:
-			operator.Available = "when-streaming"
-		case catalog.Class == command.ClassGlobal:
-			operator.Available = modeAlways
-		case declared.ShapeDeclared && catalog.Applies(shape):
-			operator.Available = modeAlways
-		case declared.ShapeDeclared:
-			continue
-		default:
-			operator.Available = "with-rows"
-		}
-		operators = append(operators, operator)
-	}
+	operations := command.PipeOperations(declared)
 	if !declared.ShapeDeclared {
-		return operators, ""
+		return operations, ""
 	}
-	return operators, shape.String()
-}
-
-// plainLocalOnly reports whether path has only a plain local handler and no
-// daemon handler. wireToPaths is cli.WireToPaths, fetched once by Collect.
-func plainLocalOnly(path string, wireToPaths map[string][]string) bool {
-	if !command.HasLocal(path) {
-		return false
-	}
-	if command.HasLocalData(path) {
-		return false
-	}
-	for _, registration := range pluginserver.AllBuiltinRPCs() {
-		if registration.Handler != nil && slices.Contains(wireToPaths[registration.WireMethod], path) {
-			return false
-		}
-	}
-	return true
-}
-
-// aliasesFor answers the chains a command names, from the declaration the
-// catalog already resolved for it. The declaration carries a registered
-// plugin's aliases beside the alias registry's, because this process starts no
-// plugin and so receives no Stage 1 message.
-func aliasesFor(declared command.Declared) []Alias {
-	if len(declared.Aliases) == 0 {
-		return nil
-	}
-	aliases := make([]Alias, 0, len(declared.Aliases))
-	for _, alias := range declared.Aliases {
-		aliases = append(aliases, Alias{
-			Name: alias.Name, Description: alias.Description, Expansion: alias.Expansion,
-		})
-	}
-	return aliases
-}
-
-func pipesFor(path string) []Pipe {
-	filters := command.PipeFiltersForCommand(path)
-	if len(filters) == 0 {
-		return nil
-	}
-	pipes := make([]Pipe, 0, len(filters))
-	for _, filter := range filters {
-		pipes = append(pipes, Pipe{
-			Name: filter.Name, Description: filter.Description, TakesArg: filter.Argument != command.ArgNone,
-		})
-	}
-	return pipes
+	return operations, declared.Shape.String()
 }
 
 // The command availability modes this catalog publishes.
 const (
 	modeOffline = "offline"
-	modeAlways  = "always"
 )

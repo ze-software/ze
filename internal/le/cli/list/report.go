@@ -10,7 +10,10 @@
 
 package clilist
 
-import "github.com/ze-software/ze/internal/core/textbuf"
+import (
+	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/core/textbuf"
+)
 
 // Command is one registered command, and it is one ROW of the answer.
 type Command struct {
@@ -43,19 +46,10 @@ type Command struct {
 	// AddressFields names the record keys whose value holds an IP address or a
 	// prefix. Their presence is what admits `| resolve` and `| origin`.
 	AddressFields []string `json:"address-fields,omitempty"`
-	// Aliases are the pipe chains the command answers to by name.
-	Aliases []Alias `json:"pipe-aliases,omitempty"`
-}
-
-// Alias is one pipe chain a command answers to by name.
-//
-// The expansion sits beside the description because an alias takes no argument
-// and names no other alias, so the chain it stands for is the whole of what the
-// name does (internal/component/command/alias.go).
-type Alias struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Expansion   string `json:"expansion"`
+	// PipeOperations is everything the command answers to after a pipe, its
+	// aliases included: the list `ze help command --json` publishes
+	// (command.PipeOperations).
+	PipeOperations []command.PipeOperationEntry `json:"pipe-operations,omitempty"`
 }
 
 // Commands is the whole answer of one run: every registered command, sorted by
@@ -82,7 +76,7 @@ func (c Commands) Text() string {
 			Str(cell(entry.Shape)).Str(" | ").
 			Str(cell(joinOrders(entry.ColumnOrders))).Str(" | ").
 			Str(cell(joinNames(entry.AddressFields))).Str(" | ").
-			Str(cell(joinAliases(entry.Aliases))).Str(" |\n")
+			Str(cell(joinAliases(entry.PipeOperations))).Str(" |\n")
 	}
 	tb.Str("\nTotal: ").Int(int64(len(c))).Str(" commands\n")
 	return tb.String()
@@ -128,16 +122,16 @@ func joinNames(names []string) string {
 // joinAliases renders the alias NAMES alone. The expansion each name stands for
 // is in the structured answer, which is where a reader who needs it looks: a
 // chain in a table cell wraps the row past reading.
-func joinAliases(aliases []Alias) string {
-	if len(aliases) == 0 {
-		return ""
-	}
+func joinAliases(operations []command.PipeOperationEntry) string {
 	var tb textbuf.Buffer
-	for index := range aliases {
-		if index > 0 {
+	for index := range operations {
+		if operations[index].Source != command.PipeSourceAlias {
+			continue
+		}
+		if tb.Len() > 0 {
 			tb.Str(", ")
 		}
-		tb.Str(aliases[index].Name)
+		tb.Str(operations[index].Name)
 	}
 	return tb.String()
 }

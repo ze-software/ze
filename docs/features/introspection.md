@@ -38,9 +38,13 @@ An in-tree plugin's declarations are in reach of both catalogs. `ze help command
 --json` and `./le cli list` read the compiled command tree in their own
 process and start no plugin, but a registered plugin puts the same declarations
 on its `registry.Registration`: `Commands` for what each answer holds and
-`Pipes` for the aliases it puts on its commands. So both catalogs name every
-plugin command and publish its `answer-shape`, `column-orders`,
-`address-fields` and `pipe-aliases`. A command the plugin marks hidden is left
+`Pipes` for the aliases and the operations it puts on its commands. So both
+catalogs name every plugin command and publish its `answer-shape`,
+`column-orders`, `address-fields` and `pipe-operations`: one list of what the
+command takes after a pipe, each entry naming its `source` (`generic`,
+`override`, `command` or `alias`), its `argument`, its `available` and its
+`description`, the same list `show command help` answers and Tab completion
+offers. A command the plugin marks hidden is left
 out of both, the way the daemon leaves it out of completion.
 
 One registration is still out of their reach: an EXTERNAL plugin's. It registers

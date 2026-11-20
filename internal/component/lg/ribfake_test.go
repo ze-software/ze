@@ -23,7 +23,7 @@ import (
 // and green in every test. `test/plugin/lg-best-table.ci` drives the real plugin
 // and is the check that these copies still match it.
 
-// fakeBestPathAnswer is what `show bgp rib best family ipv4/unicast` answers:
+// fakeBestPathAnswer is what `show bgp rib best | family ipv4/unicast` answers:
 // rows under bestPathEnvelopeKey, each one bestResult
 // (internal/component/bgp/plugins/rib/rib_pipeline_best.go), its attributes
 // rendered by enrichRouteMapFromEntry.
@@ -55,7 +55,8 @@ const fakeRouteRowsAnswer = `{"routes":[` + fakeReceivedRow + `]}`
 const fakeSentRowsAnswer = `{"routes":[` + fakeSentRow + `]}`
 
 // fakeBothRowsAnswer is the default scope, `sent-received`, which
-// parsePipelineArgs applies when no scope keyword leads: both directions.
+// parsePipelineOperations applies when no scope operation is given: both
+// directions.
 const fakeBothRowsAnswer = `{"routes":[` + fakeReceivedRow + `,` + fakeSentRow + `]}`
 
 // The `count` terminal per scope: showPipeline answers jsonKeyCount, counting
@@ -79,16 +80,25 @@ var fakeScopeAnswers = map[string]map[string]string{
 	"":              {"": fakeBothRowsAnswer, "count": fakeBothCountAnswer, "histogram": fakeBothHistogramAnswer},
 }
 
-// The pipeline vocabulary parsePipelineArgs and parseBestPipelineArgs accept
-// (rib_pipeline.go: scopeKeywords, filterKeywords, terminalKeywords, and
-// bestTerminalReason in rib_pipeline_best.go). The three source selectors,
-// `peer`, `covering` and `exact`, are not in filterKeywords: the plugin reads
-// each one by name, and so does fakeRIBPipeline.
+// The pipe operations parsePipelineOperations and parseBestPipelineOperations
+// accept (rib_pipeline.go: scopeKeywords, filterKeywords, terminalKeywords,
+// and bestTerminalReason in rib_pipeline_best.go). The three source
+// selectors, `peer`, `covering` and `exact`, are not in filterKeywords: the
+// plugin reads each one by name, and so does fakeRIBPipeline. The `json` word
+// is not a RIB terminal: `| json` is the engine's format.
 var (
 	fakeRIBScopes    = map[string]bool{"advertised": true, "sent": true, "received": true, "sent-received": true}
 	fakeRIBFilters   = map[string]bool{"path": true, "aspath": true, "prefix": true, "community": true, "family": true, "match": true, "first": true, "last": true}
-	fakeRIBTerminals = map[string]bool{"count": true, "json": true, "histogram": true, "graph": true}
+	fakeRIBTerminals = map[string]bool{"count": true, "histogram": true, "graph": true}
 )
+
+// fakeRIBOperation is one pipe operation of a `show bgp rib` line: its name
+// and its argument words, as the engine's partition hands them to the plugin
+// (sdk.PipeOperation).
+type fakeRIBOperation struct {
+	name string
+	args []string
+}
 
 // The selectors and filters the fake applies rather than only parses, each
 // with the meaning the plugin gives it. Every other filter is parsed and
@@ -129,19 +139,15 @@ func (q fakeRIBQuery) selects() bool {
 	return len(q.prefixes) > 0 || len(q.paths) > 0
 }
 
-// fakeRIBAnswer answers one `show bgp rib ...` command as bgp-rib would.
+// fakeRIBAnswer answers one `show bgp rib ...` line as bgp-rib would.
 //
-// It refuses what the plugin's parser refuses, with the plugin's error envelope:
-// a keyword it does not know, and anything after a terminal. A fake that answers
-// every spelling cannot catch a caller that sends the wrong one.
+// It refuses what the plugin refuses, with the plugin's error envelope: a word
+// on the command path after `show bgp rib` or `show bgp rib best` (the
+// argument form, refuseRouteReadArguments in rib_commands.go), an operation it
+// does not know, and anything after a terminal. A fake that answers every
+// spelling cannot catch a caller that sends the wrong one.
 func fakeRIBAnswer(cmd string) string {
-	args := strings.Fields(strings.TrimPrefix(cmd, "show bgp rib"))
-	best := len(args) > 0 && args[0] == "best"
-	if best {
-		args = args[1:]
-	}
-
-	query, refusal := fakeRIBPipeline(args, best)
+	query, best, refusal := fakeRIBRead(cmd)
 	if refusal != "" {
 		return `{"error":` + strconv.Quote(refusal) + `}`
 	}
@@ -166,110 +172,140 @@ func fakeRIBAnswer(cmd string) string {
 	switch terminal {
 	case "count", "histogram":
 	default:
-		// The fake has no shape of its own for `json` or `graph`, so they
-		// answer the route rows, as they did before scopes were told apart.
+		// The fake has no shape of its own for `graph`, so it answers the
+		// route rows, as it did before scopes were told apart.
 		terminal = ""
 	}
 	return fakeScopeAnswers[scope][terminal]
 }
 
-// fakeRIBPipeline walks args the way the plugin's parser does and answers the
-// scope, the terminal it ends in and the rows it selects, or the reason it
-// refuses them. The best-path walk takes no scope keyword and accepts the
-// `reason` terminal. The plugin accepts one scope keyword anywhere before the
-// terminal and refuses a second.
+// fakeRIBRead splits one `show bgp rib` line the way the engine's partition
+// and the plugin's command lookup do: the command part before the first `|`
+// names `show bgp rib` or `show bgp rib best`, and each `|` after it starts one
+// pipe operation, its first word the name and the rest its argument words.
+// It answers what fakeRIBPipeline reads from those operations, whether the
+// line is the best-path read, or the reason the plugin refuses it. A word on
+// the command path past the reader's own is the argument form, refused as
+// refuseRouteReadArguments refuses it: the fake carries the problem alone.
+func fakeRIBRead(cmd string) (fakeRIBQuery, bool, string) {
+	segments := strings.Split(cmd, "|")
+	path := strings.Fields(strings.TrimPrefix(strings.TrimSpace(segments[0]), "show bgp rib"))
+	best := len(path) > 0 && path[0] == "best"
+	reader := "show bgp rib"
+	if best {
+		path = path[1:]
+		reader = "show bgp rib best"
+	}
+	if len(path) > 0 {
+		return fakeRIBQuery{}, best, reader + " takes its selection after a pipe, and was given the argument " + path[0]
+	}
+
+	operations := make([]fakeRIBOperation, 0, len(segments)-1)
+	for _, segment := range segments[1:] {
+		words := strings.Fields(segment)
+		if len(words) == 0 {
+			return fakeRIBQuery{}, best, "empty pipe operation"
+		}
+		operations = append(operations, fakeRIBOperation{name: words[0], args: words[1:]})
+	}
+	query, refusal := fakeRIBPipeline(operations, best)
+	return query, best, refusal
+}
+
+// fakeRIBValue reads the one value of a value-taking operation as
+// operationValue does: `match` joins its words with one space, every other
+// operation takes exactly one word.
+func fakeRIBValue(operation fakeRIBOperation, missing string) (string, string) {
+	if len(operation.args) == 0 {
+		return "", missing
+	}
+	if operation.name == "match" {
+		return strings.Join(operation.args, " "), ""
+	}
+	if len(operation.args) == 1 {
+		return operation.args[0], ""
+	}
+	return "", operation.name + " takes one value: quote a value that holds a space, as in | " +
+		operation.name + ` "` + strings.Join(operation.args, " ") + `"`
+}
+
+// fakeRIBNoValue refuses an argument word on a scope or a terminal, as
+// operationTakesNoValue does.
+func fakeRIBNoValue(operation fakeRIBOperation) string {
+	if len(operation.args) == 0 {
+		return ""
+	}
+	return operation.name + " takes no value, and was given " + operation.args[0]
+}
+
+// fakeRIBPipeline walks the operations the way the plugin's parser does and
+// answers the scope, the terminal it ends in and the rows it selects, or the
+// reason it refuses them. The best-path walk takes no scope operation and
+// accepts the `reason` terminal. The plugin accepts one scope operation
+// anywhere before the terminal and refuses a second.
 //
 // `covering` and `exact` are refused where the plugin refuses them, in the
 // plugin's words (rib_pipeline_covering.go): by name on `show bgp rib best`,
-// before anything else of the keyword is read (coveringOnBestRefusal,
-// exactOnBestRefusal in parseBestPipelineArgs); a second one of the same
-// keyword, a missing value, and a value that is not the address or the
-// prefix each takes (parsePipelineArgs, parseCoveringAddress,
+// before anything else of the operation is read (coveringOnBestRefusal,
+// exactOnBestRefusal in parseBestPipelineOperations); a second one of the same
+// operation, a missing value, and a value that is not the address or the
+// prefix each takes (parsePipelineOperations, parseCoveringAddress,
 // parseExactPrefix); both together, at the second one once its value parsed
 // (walkConflictRefusal); and on any scope but `received`, after the parse
 // (refuseCoveringScope, refuseExactScope, checked by showPipeline). The fake
-// carries the reason alone: refusePipelineArgs wraps it in an operator error
+// carries the reason alone: refusePipeline wraps it in an operator error
 // whose second and third lines are its why and its fix.
-func fakeRIBPipeline(args []string, best bool) (fakeRIBQuery, string) {
+func fakeRIBPipeline(operations []fakeRIBOperation, best bool) (fakeRIBQuery, string) {
 	var query fakeRIBQuery
-	for i := 0; i < len(args); i++ {
-		keyword := args[i]
-		if best {
-			if keyword == fakeRIBCovering {
-				return fakeRIBQuery{}, "covering is not available on show bgp rib best: " +
-					"it reads received routes, so use show bgp rib received covering <address>"
+	peerSelected := false
+	for _, operation := range operations {
+		keyword := operation.name
+		if !best && fakeRIBScopes[keyword] {
+			if refusal := fakeRIBNoValue(operation); refusal != "" {
+				return fakeRIBQuery{}, refusal
 			}
-			if keyword == fakeRIBExact {
-				return fakeRIBQuery{}, "exact is not available on show bgp rib best: " +
-					"it reads received routes, so use show bgp rib received exact <prefix>"
+			if query.terminal != "" {
+				return fakeRIBQuery{}, "filter after terminal: " + keyword
 			}
-		}
-		if query.terminal != "" {
-			return fakeRIBQuery{}, "filter after terminal: " + keyword
-		}
-		switch {
-		case !best && fakeRIBScopes[keyword]:
 			if query.scope != "" {
 				return fakeRIBQuery{}, "multiple route direction filters: " + query.scope + " and " + keyword
 			}
 			query.scope = keyword
-		case keyword == fakeRIBPeer:
-			i++
-			if i >= len(args) {
-				return fakeRIBQuery{}, "peer requires a value"
-			}
-		case keyword == fakeRIBCovering:
-			if query.covering.IsValid() {
-				return fakeRIBQuery{}, "duplicate covering filter: one address per lookup"
-			}
-			i++
-			if i >= len(args) {
-				return fakeRIBQuery{}, "covering requires a value: an IP address such as 192.0.2.1"
-			}
-			addr, refusal := fakeCoveringAddress(args[i])
-			if refusal != "" {
+			continue
+		}
+		if fakeRIBTerminals[keyword] || (best && keyword == "reason") {
+			if refusal := fakeRIBNoValue(operation); refusal != "" {
 				return fakeRIBQuery{}, refusal
 			}
-			if query.exact.IsValid() {
-				return fakeRIBQuery{}, fakeWalkConflictRefusal(addr, query.exact)
+			if query.terminal != "" {
+				return fakeRIBQuery{}, "multiple terminals not allowed"
 			}
-			query.covering = addr
-		case keyword == fakeRIBExact:
-			if query.exact.IsValid() {
-				return fakeRIBQuery{}, "duplicate exact filter: one prefix per lookup"
-			}
-			i++
-			if i >= len(args) {
-				return fakeRIBQuery{}, "exact requires a value: a prefix with its mask such as 10.0.0.0/8"
-			}
-			prefix, refusal := fakeExactPrefix(args[i])
-			if refusal != "" {
-				return fakeRIBQuery{}, refusal
-			}
-			if query.covering.IsValid() {
-				return fakeRIBQuery{}, fakeWalkConflictRefusal(query.covering, prefix)
-			}
-			query.exact = prefix
-		case fakeRIBFilters[keyword]:
-			i++
-			if i >= len(args) {
-				return fakeRIBQuery{}, keyword + " requires a value"
-			}
-			switch keyword {
-			case fakeRIBPrefix:
-				query.prefixes = append(query.prefixes, args[i])
-			case fakeRIBPath:
-				if refusal := fakePathPatternRefusal(args[i]); refusal != "" {
-					return fakeRIBQuery{}, refusal
-				}
-				query.paths = append(query.paths, args[i])
-			case fakeRIBASPath:
-				query.paths = append(query.paths, args[i])
-			}
-		case fakeRIBTerminals[keyword], best && keyword == "reason":
 			query.terminal = keyword
-		default:
+			continue
+		}
+		if best {
+			if keyword == fakeRIBCovering {
+				return fakeRIBQuery{}, "covering is not available on show bgp rib best: " +
+					"it reads received routes, so use show bgp rib | received | covering <address>"
+			}
+			if keyword == fakeRIBExact {
+				return fakeRIBQuery{}, "exact is not available on show bgp rib best: " +
+					"it reads received routes, so use show bgp rib | received | exact <prefix>"
+			}
+		}
+		known := keyword == fakeRIBPeer || fakeRIBFilters[keyword]
+		if !best {
+			known = known || keyword == fakeRIBCovering || keyword == fakeRIBExact
+		}
+		if !known {
 			return fakeRIBQuery{}, "unknown keyword: " + keyword
+		}
+		if query.terminal != "" {
+			return fakeRIBQuery{}, "filter after terminal: " + keyword
+		}
+		refusal := fakeRIBFilter(&query, operation, &peerSelected)
+		if refusal != "" {
+			return fakeRIBQuery{}, refusal
 		}
 	}
 	if query.covering.IsValid() && query.scope != "received" {
@@ -279,6 +315,72 @@ func fakeRIBPipeline(args []string, best bool) (fakeRIBQuery, string) {
 		return fakeRIBQuery{}, "exact reads received routes only, not sent routes"
 	}
 	return query, ""
+}
+
+// fakeRIBFilter reads one value-taking operation into query: a source
+// selector (`peer`, `covering`, `exact`) or a filter, refusing a second
+// selector of one kind and a value its producer refuses.
+func fakeRIBFilter(query *fakeRIBQuery, operation fakeRIBOperation, peerSelected *bool) string {
+	keyword := operation.name
+	switch keyword {
+	case fakeRIBPeer:
+		if *peerSelected {
+			return "duplicate peer filter"
+		}
+		if _, refusal := fakeRIBValue(operation, "peer requires a value"); refusal != "" {
+			return refusal
+		}
+		*peerSelected = true
+	case fakeRIBCovering:
+		if query.covering.IsValid() {
+			return "duplicate covering filter: one address per lookup"
+		}
+		value, refusal := fakeRIBValue(operation, "covering requires a value: an IP address such as 192.0.2.1")
+		if refusal != "" {
+			return refusal
+		}
+		addr, refusal := fakeCoveringAddress(value)
+		if refusal != "" {
+			return refusal
+		}
+		if query.exact.IsValid() {
+			return fakeWalkConflictRefusal(addr, query.exact)
+		}
+		query.covering = addr
+	case fakeRIBExact:
+		if query.exact.IsValid() {
+			return "duplicate exact filter: one prefix per lookup"
+		}
+		value, refusal := fakeRIBValue(operation, "exact requires a value: a prefix with its mask such as 10.0.0.0/8")
+		if refusal != "" {
+			return refusal
+		}
+		prefix, refusal := fakeExactPrefix(value)
+		if refusal != "" {
+			return refusal
+		}
+		if query.covering.IsValid() {
+			return fakeWalkConflictRefusal(query.covering, prefix)
+		}
+		query.exact = prefix
+	default:
+		value, refusal := fakeRIBValue(operation, keyword+" requires a value")
+		if refusal != "" {
+			return refusal
+		}
+		switch keyword {
+		case fakeRIBPrefix:
+			query.prefixes = append(query.prefixes, value)
+		case fakeRIBPath:
+			if refusal := fakePathPatternRefusal(value); refusal != "" {
+				return refusal
+			}
+			query.paths = append(query.paths, value)
+		case fakeRIBASPath:
+			query.paths = append(query.paths, value)
+		}
+	}
+	return ""
 }
 
 // fakeWalkConflictRefusal words the refusal of a command naming both covering

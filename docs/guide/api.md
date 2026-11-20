@@ -179,8 +179,8 @@ refresh row gives the required generic Execute command instead.
 | `GET` | `/api/v1/peers/{name}` | `show bgp peer {name} detail` |
 | `DELETE` | `/api/v1/peers/{name}` | `request peer {name} teardown` |
 | `POST` | `/api/v1/peers/{name}/refresh` | Use `/api/v1/execute` with `request peer {name} refresh {family}` |
-| `GET` | `/api/v1/rib/{family}` | `show bgp rib family {family}` |
-| `GET` | `/api/v1/rib/{family}/best` | `show bgp rib best family {family}` |
+| `GET` | `/api/v1/rib/{family}` | `show bgp rib \| family {family}` |
+| `GET` | `/api/v1/rib/{family}/best` | `show bgp rib best \| family {family}` |
 | `GET` | `/api/v1/system/version` | `show version` |
 | `GET` | `/api/v1/system/status` | `show status` |
 | `POST` | `/api/v1/system/reload` | `request reload` |
@@ -239,6 +239,12 @@ follows [Value refusals](../architecture/config/yang-config-design.md#value-refu
 |------|-------------|
 | `/api/v1/openapi.json` | OpenAPI 3.1 specification (auto-generated from YANG) |
 | `/api/v1/docs` | Interactive Swagger UI (assets vendored, offline-capable) |
+| `/api/v1/docs/swagger-ui.LICENSE`, `/api/v1/docs/swagger-ui.NOTICE` | swagger-ui's licence and notice, as plain text |
+| `/api/v1/docs/swagger-ui-bundle.js.LICENSE.txt` | The licence banners of the libraries in the bundle, which the bundle's first line points at |
+
+Every documentation path, the licence files included, sits behind the same
+authentication as the API it describes.
+<!-- source: internal/component/api/rest/server.go -- the documentation routes, licenceHandler -->
 
 The OpenAPI spec is generated lazily on first request so it captures all
 plugin commands registered during startup. Documentation routes use the same

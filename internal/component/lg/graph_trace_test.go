@@ -19,7 +19,7 @@ import (
 //     The top-level `local-as` is the GLOBAL local AS, which is 0 when the
 //     configuration states the local AS on each peer, as the simulated
 //     network's does (internal/chaos/scenario/config.go, writeFullPeerBlock);
-//   - the rows of `show bgp rib received`, one serializeRouteItem each
+//   - the rows of `show bgp rib | received`, one serializeRouteItem each
 //     (internal/component/bgp/plugins/rib/rib_pipeline.go): `peer`,
 //     `direction`, `family`, `prefix`, a bare `next-hop`, and `as-path`
 //     wrapped with its attribute flags, absent when the path is empty.
@@ -105,7 +105,7 @@ func traceTestRowOf(prefix, peer, nextHop string, asPath ...uint32) string {
 	return sb.String()
 }
 
-// traceTestRoutes decodes a `show bgp rib received` answer holding the rows.
+// traceTestRoutes decodes a `show bgp rib | received` answer holding the rows.
 func traceTestRoutes(t *testing.T, rows ...string) []any {
 	t.Helper()
 	routes := extractRoutes(parseJSON(`{"routes":[` + strings.Join(rows, ",") + `]}`))

@@ -1,14 +1,13 @@
-// VALIDATES: the meta command's pure help helpers — pipeFilterHelp renders a
-// filter list into name/description/takes-arg maps (nil for empty),
-// pipeAliasHelp renders an alias list into name/description/expansion maps (nil
-// for empty), and bgpEventTypes never surfaces the internal DirectionSent
-// pseudo-event.
-// PREVENTS: a malformed pipe-filter or pipe-alias help payload, or the
-// sent/received direction marker leaking into the advertised BGP event types.
+// VALIDATES: the meta command's help answers -- the one pipe-operations list
+// commandHelp answers, what a command's answer holds -- and that bgpEventTypes
+// never surfaces the internal DirectionSent pseudo-event.
+// PREVENTS: help holding its own pipe list, or the sent/received direction
+// marker leaking into the advertised BGP event types.
 
 package cmd
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/command"
@@ -16,52 +15,50 @@ import (
 	"github.com/ze-software/ze/internal/core/events"
 )
 
-func TestPipeFilterHelp(t *testing.T) {
-	if got := pipeFilterHelp(nil); got != nil {
-		t.Errorf("empty filters = %v, want nil", got)
-	}
+// VALIDATES: AC-19 on `show command help`. The answer carries one
+// `pipe-operations` list, the one command.PipeOperationsForCommand derives,
+// with an override, an own operation and an alias each in it, and the
+// `pipe-filters` and `pipe-aliases` keys are gone.
+// PREVENTS: help holding a list of its own beside the completer's and the
+// catalog's.
+func TestCommandHelpPipeOperations(t *testing.T) {
+	// A path no package declares, so no in-tree declaration is disturbed.
+	const path = "show meta help operations"
+	command.RegisterShape([]string{path}, command.ShapeTab)
+	command.RegisterPipeFilters([]string{path},
+		command.PipeFilter{Name: "count", Description: "Count matching routes", Argument: command.ArgNone},
+		command.PipeFilter{Name: "histogram", Description: "Routes per prefix length", Argument: command.ArgText})
+	command.RegisterAliases([]string{path},
+		command.Alias{Name: "brief", Description: "The short view", Expansion: "display state"})
 
-	items := pipeFilterHelp([]command.PipeFilter{
-		{Name: "grep", Description: "match lines", Argument: command.ArgText},
-		{Name: "count", Description: "count lines"},
-	})
-	if len(items) != 2 {
-		t.Fatalf("len = %d, want 2", len(items))
+	response := commandHelp(commandHelpText{Name: path, ShortHelp: "a fixture"})
+	data, ok := response.Data.(plugin.Map)
+	if !ok {
+		t.Fatalf("the answer payload is %T, want plugin.Map", response.Data)
 	}
-	if items[0]["name"] != "grep" || items[0]["description"] != "match lines" || items[0]["takes-arg"] != true {
-		t.Errorf("item0 = %v, want grep/match lines/true", items[0])
+	for _, gone := range []string{"pipe-filters", "pipe-aliases"} {
+		if _, present := data[gone]; present {
+			t.Errorf("the answer still carries %s", gone)
+		}
 	}
-	if items[1]["takes-arg"] != false {
-		t.Errorf("item1 takes-arg = %v, want false", items[1]["takes-arg"])
+	operations, isList := data[keyPipeOperations].([]command.PipeOperationEntry)
+	if !isList {
+		t.Fatalf("pipe-operations = %T, want []command.PipeOperationEntry", data[keyPipeOperations])
 	}
-}
-
-// VALIDATES: AC-11 at the renderer. Every alias a command answers to is
-// reported with the name an operator types, the line beside it, and the chain
-// it stands for.
-// PREVENTS: an alias reported by name alone. An alias takes no argument, so the
-// expansion is the whole of what the name does, and a reader who cannot see it
-// has to run the command to find out.
-func TestPipeAliasHelp(t *testing.T) {
-	if got := pipeAliasHelp(nil); got != nil {
-		t.Errorf("empty aliases = %v, want nil", got)
+	if want := command.PipeOperationsForCommand(path); !slices.Equal(operations, want) {
+		t.Errorf("pipe-operations = %+v, want the introspection list %+v", operations, want)
 	}
-
-	items := pipeAliasHelp([]command.Alias{
-		{Name: "summary", Description: "The aggregate half", Expansion: "display router-id local-as"},
-		{Name: "peers", Description: "The peer rows", Expansion: "display peers"},
-	})
-	if len(items) != 2 {
-		t.Fatalf("len = %d, want 2", len(items))
+	sources := make(map[string]string, len(operations))
+	for _, operation := range operations {
+		sources[operation.Name] = operation.Source
 	}
-	if items[0]["name"] != "summary" || items[0]["description"] != "The aggregate half" {
-		t.Errorf("item0 = %v, want summary/The aggregate half", items[0])
-	}
-	if items[0]["expansion"] != "display router-id local-as" {
-		t.Errorf("item0 expansion = %v, want the chain the name stands for", items[0]["expansion"])
-	}
-	if items[1]["name"] != "peers" || items[1]["expansion"] != "display peers" {
-		t.Errorf("item1 = %v, want peers/display peers", items[1])
+	for name, source := range map[string]string{
+		"count": command.PipeSourceOverride, "histogram": command.PipeSourceCommand,
+		"brief": command.PipeSourceAlias, "match": command.PipeSourceGeneric,
+	} {
+		if sources[name] != source {
+			t.Errorf("%s has source %q, want %q", name, sources[name], source)
+		}
 	}
 }
 

@@ -26,7 +26,7 @@ type traceModeEngine struct {
 	failing string
 }
 
-const traceModeRIBCommand = "show bgp rib received exact " + traceTestPrefix
+const traceModeRIBCommand = "show bgp rib | received | exact " + traceTestPrefix
 
 // traceModeFourRouters is the network of TestTraceGraphTextIsOrdered: .4 is
 // the client of .3, which points at the exit .1, and .2 leaves toward an

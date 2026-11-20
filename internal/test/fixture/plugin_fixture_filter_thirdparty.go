@@ -49,10 +49,10 @@ func filterWireThirdpartyCompiledIn(ctx context.Context, args []string) error {
 		var count int
 		var readable bool
 		if !Poll(ctx, 40, 250*time.Millisecond, func() bool {
-			count, readable = routeCount(ctx, p, "show bgp rib received count")
+			count, readable = routeCount(ctx, p, "show bgp rib | received | count")
 			return readable
 		}) {
-			return errors.New("show bgp rib received count never answered")
+			return errors.New("show bgp rib | received | count never answered")
 		}
 		if count != filterThirdpartyRoutesWant {
 			return fmt.Errorf("the RIB holds %d routes, want %d: a fakefilter verdict was not applied on one transport",
@@ -78,16 +78,16 @@ func filterWireThirdpartyCompiledIn(ctx context.Context, args []string) error {
 // ribReceivedText answers the received RIB as JSON text, for a search by
 // prefix.
 func ribReceivedText(ctx context.Context, p *sdk.Plugin) (string, error) {
-	status, value, err := dispatchValue(ctx, p, "show bgp rib received")
+	status, value, err := dispatchValue(ctx, p, "show bgp rib | received")
 	if err != nil {
-		return "", fmt.Errorf("show bgp rib received: %w", err)
+		return "", fmt.Errorf("show bgp rib | received: %w", err)
 	}
 	if status != statusDone {
-		return "", fmt.Errorf("show bgp rib received answered status %s", status)
+		return "", fmt.Errorf("show bgp rib | received answered status %s", status)
 	}
 	text, err := json.Marshal(value)
 	if err != nil {
-		return "", fmt.Errorf("show bgp rib received: encode the answer: %w", err)
+		return "", fmt.Errorf("show bgp rib | received: encode the answer: %w", err)
 	}
 	return string(text), nil
 }

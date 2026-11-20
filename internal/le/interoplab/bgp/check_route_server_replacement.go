@@ -124,7 +124,7 @@ func checkRouteServerReplacement(ctx context.Context, check *interoplab.CheckCon
 	if err := routeServerReplacementGoBGPAnnounce(ctx, check.Lab, gobgpNext, routeServerReplacementSecondCommunity); err != nil {
 		return fail(10, err)
 	}
-	received := zeCommand("show bgp rib received community " + routeServerReplacementSecondCommunity)
+	received := zeCommand("show bgp rib | received | community " + routeServerReplacementSecondCommunity)
 	if err := waitContains(ctx, check.Lab, "ze", received, routeServerReplacementTimeout, routeServerReplacementPrefix); err != nil {
 		return fail(11, err)
 	}

@@ -49,10 +49,11 @@ func mockDispatch() CommandDispatcher {
 			// monitors no peer. Without this arm the protocols/bmp golden
 			// captured a refusal of a command the daemon serves.
 			out = `{"peers":[]}`
-		case strings.HasPrefix(cmd, "show bgp rib protocol bmp peer "):
+		case strings.HasPrefix(cmd, "show bgp rib protocol bmp | peer "):
 			// The rows showProtocolPipeline (bgp/plugins/rib/rib_inject.go)
 			// answers for one BMP-monitored peer. Ahead of the generic arm
-			// below, which refuses this spelling.
+			// below, which refuses this spelling, as it refuses the argument
+			// form `show bgp rib protocol bmp peer <key>`.
 			out = fakeRouteRowsAnswer
 		case cmd == "show bgp rib", strings.HasPrefix(cmd, "show bgp rib "):
 			// The answers bgp-rib produces, and the spellings it refuses

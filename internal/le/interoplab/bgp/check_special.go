@@ -1090,7 +1090,7 @@ func checkShowRIBUnderFRRLoad(ctx context.Context, check *interoplab.CheckContex
 		return err
 	}
 	if rows != 50 {
-		return fmt.Errorf("show bgp rib best first 50 carried %d rows, expected 50", rows)
+		return fmt.Errorf("show bgp rib best | first 50 carried %d rows, expected 50", rows)
 	}
 
 	counts, walks, err := runRIBLoad(ctx, check.Lab)
@@ -1213,7 +1213,7 @@ func setFRRRedistribution(ctx context.Context, lab interoplab.CheckerLab, enable
 }
 
 func zeRIBCount(ctx context.Context, lab interoplab.CheckerLab) (int, error) {
-	output, err := lab.Query(ctx, "ze", zeCommand("show bgp rib count"), queryEnvironment("ze", zeCommand("show bgp rib count")))
+	output, err := lab.Query(ctx, "ze", zeCommand("show bgp rib | count"), queryEnvironment("ze", zeCommand("show bgp rib | count")))
 	if err != nil {
 		return 0, err
 	}
@@ -1221,14 +1221,14 @@ func zeRIBCount(ctx context.Context, lab interoplab.CheckerLab) (int, error) {
 		Count json.Number `json:"count"`
 	}
 	if err := json.Unmarshal([]byte(output), &answer); err != nil {
-		return 0, fmt.Errorf("show bgp rib count did not answer JSON: %w", err)
+		return 0, fmt.Errorf("show bgp rib | count did not answer JSON: %w", err)
 	}
 	if answer.Count == "" {
-		return 0, errors.New("show bgp rib count answered without a count field")
+		return 0, errors.New("show bgp rib | count answered without a count field")
 	}
 	count, err := strconv.Atoi(answer.Count.String())
 	if err != nil {
-		return 0, fmt.Errorf("show bgp rib count is not an integer: %w", err)
+		return 0, fmt.Errorf("show bgp rib | count is not an integer: %w", err)
 	}
 	return count, nil
 }
@@ -1253,7 +1253,7 @@ func zeRIBDocumentCount(ctx context.Context, lab interoplab.CheckerLab) (int, er
 }
 
 func zeRIBBestRows(ctx context.Context, lab interoplab.CheckerLab) (int, error) {
-	command := zeCommand("show bgp rib best first 50")
+	command := zeCommand("show bgp rib best | first 50")
 	output, err := lab.Query(ctx, "ze", command, queryEnvironment("ze", command))
 	if err != nil {
 		return 0, err

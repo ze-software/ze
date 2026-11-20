@@ -107,7 +107,7 @@ func checkPathsLimitReceive(ctx context.Context, check *interoplab.CheckContext)
 
 // observePathsLimitReceive reads Ze's Adj-RIB-In and its refusal counter once.
 func observePathsLimitReceive(ctx context.Context, lab interoplab.CheckerLab, birdAddress string) (pathsLimitReceiveObservation, error) {
-	command := zeCommand("show bgp rib received")
+	command := zeCommand("show bgp rib | received")
 	routes, err := lab.Query(ctx, "ze", command, queryEnvironment("ze", command))
 	if err != nil {
 		return pathsLimitReceiveObservation{}, fmt.Errorf("query received routes: %w", err)

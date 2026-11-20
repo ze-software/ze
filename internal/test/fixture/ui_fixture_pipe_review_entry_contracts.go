@@ -91,7 +91,7 @@ func pipeReviewEntryContracts(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	operators, ok := objectSlice(version["operators"])
+	operators, ok := catalogOperatorRows(version)
 	if err := uiPipeReviewEntryContractsRequire(ok, "show version published no operator list: %#v", version); err != nil {
 		return err
 	}
@@ -162,7 +162,7 @@ func pipeReviewEntryContracts(ctx context.Context) error {
 		"monitor ping address-fields changed: %#v", monitorPing["address-fields"]); err != nil {
 		return err
 	}
-	monitorOperators, _ := objectSlice(monitorPing["operators"])
+	monitorOperators, _ := catalogOperatorRows(monitorPing)
 	monitorByName, err := operatorsByName(monitorOperators, "monitor ping")
 	if err != nil {
 		return err
@@ -434,7 +434,7 @@ func renderCLICatalog(destination string, commands []map[string]any) error {
 			}
 			page.Str("<div class=\"cli-contract-field\"><span>Address fields</span><code>").Str(html.EscapeString(strings.Join(fields, ", "))).Str("</code></div>")
 		}
-		if operators, ok := objectSlice(command["operators"]); ok {
+		if operators, ok := catalogOperatorRows(command); ok {
 			page.Str("<ul class=\"cli-operators\">")
 			for _, operator := range operators {
 				operatorName, _ := operator["name"].(string)
@@ -449,4 +449,24 @@ func renderCLICatalog(destination string, commands []map[string]any) error {
 		return fmt.Errorf("write rendered primary CLI page: %w", err)
 	}
 	return nil
+}
+
+// catalogOperatorRows answers the catalog operators one published entry lists:
+// the `pipe-operations` entries whose source is a generic or an override, in
+// list order, and whether the entry published the list at all.
+func catalogOperatorRows(entry map[string]any) ([]map[string]any, bool) {
+	operations, ok := objectSlice(entry["pipe-operations"])
+	if !ok {
+		return nil, false
+	}
+	operators := make([]map[string]any, 0, len(operations))
+	for _, operation := range operations {
+		switch operation["source"] {
+		case "generic", "override":
+			operators = append(operators, operation)
+		default:
+			// A command operation and an alias are no catalog operator.
+		}
+	}
+	return operators, true
 }

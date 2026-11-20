@@ -1025,7 +1025,7 @@ Selector patterns: `*` (all), `<ip>` (specific), `!<ip>` (all except)
 | `rib command help "<cmd>"` | Command details |
 | `rib command complete "<partial>"` | Completion |
 | `rib event list` | List available RIB event types |
-| `show bgp rib received [peer]` | Show Adj-RIB-In |
+| `show bgp rib \| received [\| peer <selector>]` | Show Adj-RIB-In |
 | `clear bgp rib in <selector>` | Clear Adj-RIB-In (`*` for all peers) |
 
 **Future (BGP cache in bgp subsystem):**

@@ -190,7 +190,7 @@ func TestScanCommandReportsUnquotedPipe(t *testing.T) {
 		wantPipeAt int
 		wantTokens []string
 	}{
-		{name: "no pipe", input: "show bgp rib received", wantPipeAt: noPipe, wantTokens: []string{"show", "bgp", "rib", "received"}},
+		{name: "no pipe", input: "show bgp rib best", wantPipeAt: noPipe, wantTokens: []string{"show", "bgp", "rib", "best"}},
 		{name: "empty", input: "  ", wantPipeAt: noPipe, wantTokens: nil},
 		{name: "spaced pipe", input: "show x | count", wantPipeAt: 7, wantTokens: []string{"show", "x", "|", "count"}},
 		{name: "leading space counted", input: "  show x | count", wantPipeAt: 9, wantTokens: []string{"show", "x", "|", "count"}},

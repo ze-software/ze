@@ -237,7 +237,7 @@ func redistChainLateConsumer(ctx context.Context, plugin *sdk.Plugin) error {
 // rib_pipeline.go), which is the answer during the window before the peer's
 // UPDATE arrives.
 func redistChainReceivedPrefixes(ctx context.Context, plugin *sdk.Plugin) ([]string, error) {
-	data, err := plugin01RequireDone(ctx, plugin, "show bgp rib received")
+	data, err := plugin01RequireDone(ctx, plugin, "show bgp rib | received")
 	if err != nil {
 		return nil, err
 	}
@@ -247,7 +247,7 @@ func redistChainReceivedPrefixes(ctx context.Context, plugin *sdk.Plugin) ([]str
 	}
 	rows, ok := raw.([]any)
 	if !ok {
-		return nil, errors.New("`show bgp rib received` answered a `routes` field that is not a list of rows")
+		return nil, errors.New("`show bgp rib | received` answered a `routes` field that is not a list of rows")
 	}
 	out := make([]string, 0, len(rows))
 	for _, entry := range rows {
@@ -300,7 +300,7 @@ func redistChainPeerRouteReachesAdjRIBIn(ctx context.Context, plugin *sdk.Plugin
 		return p12WaitPeersEOR(ctx, plugin, peerNameOne)
 	}
 	var tb textbuf.Buffer
-	tb.Str("the peer announced ").Str(prefix).Str(" and the Adj-RIB-In never held it; `show bgp rib received` holds [")
+	tb.Str("the peer announced ").Str(prefix).Str(" and the Adj-RIB-In never held it; `show bgp rib | received` holds [")
 	tb.Join(held, " ").Byte(']')
 	return errors.New(tb.String())
 }

@@ -51,18 +51,6 @@ func (c *TreeCompleter) SetActiveBackends(backends map[string]string) {
 	c.activeBackends = backends
 }
 
-// PipeOperators lists the available pipe operators for completion, derived
-// from the catalog so completion and the parser cannot drift apart. The list
-// used to be hand-written here, and completer_test.go compared it against
-// itself, so a name added to the parser was silently absent from completion.
-var PipeOperators = func() []Suggestion {
-	out := make([]Suggestion, 0, len(pipeCatalog))
-	for _, op := range pipeCatalog {
-		out = append(out, Suggestion{Text: op.Name, Description: op.Description, Type: SuggestionPipe})
-	}
-	return out
-}()
-
 // pipeSubArgs maps pipe operators to their sub-argument completions.
 var pipeSubArgs = map[string][]Suggestion{
 	"json": {
@@ -75,35 +63,20 @@ var pipeSubArgs = map[string][]Suggestion{
 	},
 }
 
-// CompletePipe returns global pipe operator completions matching the partial input.
-// When a pipe operator is fully matched (e.g., "json "), returns sub-argument
-// completions instead of repeating the operator.
-func CompletePipe(partial string) []Suggestion {
-	return completePipe("", partial, pipeExtras(""))
-}
-
-// completePipeForCommand returns global pipe completions plus the names the
-// resolved command adds to them.
-func completePipeForCommand(command, partial string) []Suggestion {
-	return completePipe(command, partial, pipeExtras(command))
-}
-
-// pipeExtras returns the names a command answers to beside the global
-// operators: its aliases first, then the filters it owns. A name is never in
-// both, because RegisterAliases and RegisterPipeFilters each refuse the
-// collision.
-func pipeExtras(command string) []Suggestion {
-	return append(aliasSuggestions(command), filterSuggestions(command)...)
-}
-
-// completePipe completes one pipe segment: its operator name, or the argument
-// of an operator already named.
+// completePipeForCommand completes one pipe segment of command: its operation
+// name, or the argument of an operation already named.
+//
+// The names offered are exactly the command's pipe operations
+// (PipeOperationsForCommand), the list `show command help` answers, each with
+// the description that list carries: an override shows the command's own
+// description, not the generic's. A name the chain would refuse on this
+// command is not offered.
 //
 // An argument is matched on the LAST token typed, not on everything after the
 // operator name. `| display address st` asks about "st". Matching the whole
 // tail "address st" against a field name answers nothing after the first
 // field.
-func completePipe(command, partial string, extras []Suggestion) []Suggestion {
+func completePipeForCommand(command, partial string) []Suggestion {
 	trimmed := strings.TrimSpace(partial)
 	fields := strings.Fields(trimmed)
 	naming := len(fields) > 1 || (len(fields) == 1 && strings.HasSuffix(partial, " "))
@@ -118,20 +91,14 @@ func completePipe(command, partial string, extras []Suggestion) []Suggestion {
 		return completePipeArg(command, fields[0], typed, last)
 	}
 
-	// Prefix matching against operators.
 	var completions []Suggestion
-	for _, op := range PipeOperators {
-		if trimmed == "" || strings.HasPrefix(op.Text, trimmed) {
-			completions = append(completions, op)
-		}
-	}
-	for _, op := range extras {
-		if pipeSuggestionExists(completions, op.Text) {
+	for _, operation := range PipeOperationsForCommand(command) {
+		if trimmed != "" && !strings.HasPrefix(operation.Name, trimmed) {
 			continue
 		}
-		if trimmed == "" || strings.HasPrefix(op.Text, trimmed) {
-			completions = append(completions, op)
-		}
+		completions = append(completions, Suggestion{
+			Text: operation.Name, Description: operation.Description, Type: SuggestionPipe,
+		})
 	}
 	return completions
 }
@@ -192,15 +159,6 @@ func completeDisplayFields(command string, typed []string, last string) []Sugges
 		}
 	}
 	return completions
-}
-
-func pipeSuggestionExists(items []Suggestion, text string) bool {
-	for _, item := range items {
-		if item.Text == text {
-			return true
-		}
-	}
-	return false
 }
 
 // resolve walks the words from the root and returns the node they name. It
@@ -268,8 +226,16 @@ func (c *TreeCompleter) CompleteChecked(input string) ([]Suggestion, error) {
 	// After a pipe character, complete pipe operators.
 	words, pipeAt, quoteOpen, err := ScanInvocation(input)
 	if pipeAt >= 0 {
-		pipeIdx := strings.LastIndex(input[pipeAt:], "|") + pipeAt
-		return completePipeForCommand(input[:pipeAt], input[pipeIdx+1:]), nil
+		// The command part is read under the one grammar (ReadCommandPart), so
+		// the operations offered are the ones of the command the line names.
+		// The stage being typed is cut by the same grammar, so a quoted bar
+		// inside a value stays in its stage.
+		commandPart, _ := ReadCommandPart(input)
+		stage, stageErr := typedPipeStage(input, pipeAt)
+		if stageErr != nil {
+			return nil, stageErr
+		}
+		return completePipeForCommand(commandPart, stage), nil
 	}
 	if err != nil {
 		return nil, err
@@ -398,7 +364,11 @@ func GhostTextFrom(input string, completions []Suggestion) string {
 		return ""
 	}
 	if pipeAt >= 0 {
-		afterPipe := input[strings.LastIndex(input[pipeAt:], "|")+pipeAt+1:]
+		afterPipe, stageErr := typedPipeStage(input, pipeAt)
+		// refuse-by-default: a chain the grammar refuses has no stage to extend
+		if stageErr != nil {
+			return ""
+		}
 		fields := strings.Fields(strings.TrimSpace(afterPipe))
 		if len(fields) > 0 {
 			lastWord = fields[len(fields)-1]
@@ -634,4 +604,19 @@ func commonPrefix(a, b string) string {
 		}
 	}
 	return a[:minLen]
+}
+
+// typedPipeStage answers the text of the pipe stage the operator is typing:
+// what follows the last pipe the chain grammar (scanChain) reads as a
+// separator. pipeAt is the offset of the first unquoted pipe in input, as
+// ScanInvocation answers it. A bar inside a quoted value is no separator, so
+// `| match "a|b` is still the `match` stage. A chain the grammar refuses (an
+// undefined quoted escape) has no stage, and the error says why.
+func typedPipeStage(input string, pipeAt int) (string, error) {
+	chain := input[pipeAt+1:]
+	scanned, err := scanChain(chain)
+	if err != nil {
+		return "", err
+	}
+	return chain[scanned.lastStageAt:], nil
 }

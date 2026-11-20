@@ -12,8 +12,8 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// TestRIBShowSelectsASessionByItsName proves `show bgp rib received peer
-// <name>` and `show bgp rib best peer <name>` answer the routes of the session
+// TestRIBShowSelectsASessionByItsName proves `show bgp rib | received | peer
+// <name>` and `show bgp rib best | peer <name>` answer the routes of the session
 // configured under that name.
 //
 // Method: two sessions, each holding one route, report their names on the
@@ -22,7 +22,7 @@ import (
 // VALIDATES: a name selects exactly its own session's routes, a negated name
 // every other session's, and a name no session carries none.
 // PREVENTS: a name selector reaching bgp-rib without its recorded peer name
-// and matching nothing, so `show bgp rib received peer injector`
+// and matching nothing, so `show bgp rib | received | peer injector`
 // answered 0 routes for a session holding 1000.
 func TestRIBShowSelectsASessionByItsName(t *testing.T) {
 	r := newTestRIBManager(t)

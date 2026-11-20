@@ -39,10 +39,10 @@ func stageFilterInserted(ctx context.Context, args []string) error {
 		var count int
 		var readable bool
 		if !Poll(ctx, 40, 250*time.Millisecond, func() bool {
-			count, readable = routeCount(ctx, p, "show bgp rib received count")
+			count, readable = routeCount(ctx, p, "show bgp rib | received | count")
 			return readable
 		}) {
-			return errors.New("show bgp rib received count never answered")
+			return errors.New("show bgp rib | received | count never answered")
 		}
 		rib, err := ribReceivedText(ctx, p)
 		if err != nil {

@@ -205,7 +205,7 @@ func vpnWithdrawalPairError(args []string) error {
 func vpnWithdrawalWaitHeld(ctx context.Context, plugin *sdk.Plugin, address string) bool {
 	quoted := strconv.Quote(address)
 	return Poll(ctx, 100, 250*time.Millisecond, func() bool {
-		result := command13(ctx, plugin, "show bgp rib received")
+		result := command13(ctx, plugin, "show bgp rib | received")
 		return done13(result) && strings.Contains(result.text(), quoted)
 	})
 }

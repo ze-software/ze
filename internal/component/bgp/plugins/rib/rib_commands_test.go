@@ -189,9 +189,9 @@ func requireFirstRoute(t *testing.T, jsonStr, topKey, peerAddr string) map[strin
 	return nil
 }
 
-// TestInboundShowWithAttributes verifies enriched show bgp rib received returns attributes.
+// TestInboundShowWithAttributes verifies enriched show bgp rib | received returns attributes.
 //
-// VALIDATES: AC-6 — show bgp rib received returns origin, as-path, med, local-pref, communities.
+// VALIDATES: AC-6 — show bgp rib | received returns origin, as-path, med, local-pref, communities.
 // PREVENTS: Show command returning only family/prefix/next-hop without path attributes.
 func TestInboundShowWithAttributes(t *testing.T) {
 	r := newTestRIBManager(t)
@@ -264,9 +264,9 @@ func TestInboundShowMinimalAttributes(t *testing.T) {
 	assert.False(t, hasCom, "communities should be absent when not in route")
 }
 
-// TestOutboundShowWithAttributes verifies enriched show bgp rib sent returns attributes.
+// TestOutboundShowWithAttributes verifies enriched show bgp rib | sent returns attributes.
 //
-// VALIDATES: AC-7 — show bgp rib sent returns origin, as-path, med, local-pref, communities.
+// VALIDATES: AC-7 — show bgp rib | sent returns origin, as-path, med, local-pref, communities.
 // PREVENTS: Outbound show missing path attributes for route replay verification.
 func TestOutboundShowWithAttributes(t *testing.T) {
 	r := newTestRIBManager(t)
@@ -422,7 +422,7 @@ func TestRibStatusFamilyScopedRouteCounts(t *testing.T) {
 
 // TestInboundShowFamilyFilter verifies family filter restricts results.
 //
-// VALIDATES: AC-6 — show bgp rib received with family filter returns only matching family.
+// VALIDATES: AC-6 — show bgp rib | received with family filter returns only matching family.
 // PREVENTS: Family filter being ignored, all families returned.
 func TestInboundShowFamilyFilter(t *testing.T) {
 	r := newTestRIBManager(t)
@@ -456,7 +456,7 @@ func TestInboundShowFamilyFilter(t *testing.T) {
 
 // TestInboundShowPrefixFilter verifies prefix filter restricts results.
 //
-// VALIDATES: AC-7 — show bgp rib received with prefix filter returns only matching prefix.
+// VALIDATES: AC-7 — show bgp rib | received with prefix filter returns only matching prefix.
 // PREVENTS: Prefix filter being ignored, all prefixes returned.
 func TestInboundShowPrefixFilter(t *testing.T) {
 	r := newTestRIBManager(t)
@@ -680,11 +680,11 @@ func TestBestShowRendersLegacyNextHop(t *testing.T) {
 
 // TestReceivedShowRendersExtendedNextHop covers the second caller of
 // enrichRouteMapFromEntry: the general show pipeline behind
-// `show bgp rib received` (rib_pipeline.go), not just the best-path terminal.
+// `show bgp rib | received` (rib_pipeline.go), not just the best-path terminal.
 //
 // VALIDATES: the received view renders an MP_REACH next-hop too.
 // PREVENTS: fixing only the best-path terminal, which docs/guide/route-injection.md
-// documented as the split ("show bgp rib received currently renders only the
+// documented as the split ("show bgp rib | received currently renders only the
 // legacy IPv4 NEXT_HOP attribute, so it omits MP next hops").
 func TestReceivedShowRendersExtendedNextHop(t *testing.T) {
 	r := newTestRIBManager(t)

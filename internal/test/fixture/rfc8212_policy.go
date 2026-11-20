@@ -351,7 +351,7 @@ func rfc8212PolicyBest(ctx context.Context, plugin *sdk.Plugin, prefix string, p
 			Prefix string `json:"prefix"`
 		} `json:"best-path"`
 	}
-	status, err := Dispatch(ctx, plugin, "show bgp rib best prefix "+prefix, &result)
+	status, err := Dispatch(ctx, plugin, "show bgp rib best | prefix "+prefix, &result)
 	if err != nil {
 		return err
 	}

@@ -308,10 +308,10 @@ func TestGraphSendsCoveringForBareAddress(t *testing.T) {
 	cases := []struct {
 		name, prefix, command, body string
 	}{
-		{"bare address", "10.0.0.1", "show bgp rib received covering 10.0.0.1", "edge AS65001 -> AS65002"},
-		{"address no received route contains", "192.0.2.1", "show bgp rib received covering 192.0.2.1", "No routes found"},
-		{"prefix with its length", "10.0.0.0/24", "show bgp rib received exact 10.0.0.0/24", "edge AS65001 -> AS65002"},
-		{"prefix whose text starts the held one", "10.0.0.0/2", "show bgp rib received exact 0.0.0.0/2", "No routes found"},
+		{"bare address", "10.0.0.1", "show bgp rib | received | covering 10.0.0.1", "edge AS65001 -> AS65002"},
+		{"address no received route contains", "192.0.2.1", "show bgp rib | received | covering 192.0.2.1", "No routes found"},
+		{"prefix with its length", "10.0.0.0/24", "show bgp rib | received | exact 10.0.0.0/24", "edge AS65001 -> AS65002"},
+		{"prefix whose text starts the held one", "10.0.0.0/2", "show bgp rib | received | exact 0.0.0.0/2", "No routes found"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

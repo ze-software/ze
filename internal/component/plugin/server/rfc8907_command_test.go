@@ -93,9 +93,9 @@ func TestDispatcherDispatch(t *testing.T) {
 // exit 0, with no hint that `--user alice` and `tunnels` were both discarded.
 //
 // A flag-shaped token can never be legitimate here: ArgKind has no signed
-// numeric kind (internal/component/command/node.go:17-20), and the pipe folding
-// that rewrites `| peer X` into trailing args (internal/component/command/
-// pipe.go:181) only ever emits bare filter names and their values.
+// numeric kind (internal/component/command/node.go:17-20), and a declared pipe
+// operation such as `| peer X` never reaches the args at all: the partition
+// hands it to the handler as the command's pipe list.
 //
 // VALIDATES: a flag-shaped leftover is rejected with a non-nil error and the
 // handler never runs.
@@ -140,15 +140,16 @@ func TestDispatchRejectsFlagShapedArgs(t *testing.T) {
 // LEAF children only (internal/component/config/yang/command.go), so the ~60%
 // of command nodes whose children are containers get nil ArgDefs while their
 // handlers still read positional args (all of OSPF, the L2TP diag verbs,
-// `clear l2tp tunnel id 42`). Folded pipe filters arrive the same way:
-// `show bgp rib | peer X | family ipv4` is sent as `show bgp rib peer X family
-// ipv4`.
+// `clear l2tp tunnel id 42`). A run of several positional words, shaped as
+// filter names and their values, arrives the same way. Pipe operations do not:
+// the engine no longer folds `| peer X | family ipv4` into args, and hands the
+// declared ones to the handler as its pipe list.
 //
-// VALIDATES: ordinary positional args, folded pipe-filter args, a bare "-",
-// the "--" end-of-options marker, and negative-looking values all still reach
-// the handler untouched.
+// VALIDATES: ordinary positional args, a run of several positional words, a
+// bare "-", the "--" end-of-options marker, and negative-looking values all
+// still reach the handler untouched.
 // PREVENTS: a flag check that overreaches into "reject any leftover", which
-// would disable RIB filters, OSPF, and L2TP teardown.
+// would disable OSPF and L2TP teardown.
 func TestDispatchAllowsNonFlagArgs(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -374,7 +375,7 @@ func TestDispatcherListCommands(t *testing.T) {
 	if err := d.Register("alpha show", nil, "Show alpha"); err != nil {
 		t.Fatal(err)
 	}
-	if err := d.Register("show bgp rib received", nil, "Show Adj-RIB-In"); err != nil {
+	if err := d.Register("show bgp rib", nil, "Show the RIB"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -388,7 +389,7 @@ func TestDispatcherListCommands(t *testing.T) {
 	}
 	assert.True(t, names["daemon shutdown"])
 	assert.True(t, names["alpha show"])
-	assert.True(t, names["show bgp rib received"])
+	assert.True(t, names["show bgp rib"])
 }
 
 // TestCommandContextNilServer verifies accessor methods return nil safely when Server is nil.

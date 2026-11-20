@@ -26,8 +26,6 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-const pipeAvailabilityAlways = "always"
-
 // commandArg describes a typed argument for a command. ShortHelp is the
 // leaf's ze:help summary and Description its long explanation; each key is
 // written when the leaf declares that text, and neither is derived from the
@@ -41,126 +39,25 @@ type commandArg struct {
 	Description string   `json:"description,omitempty"`
 }
 
-// commandPipe describes a command-specific pipe filter.
-type commandPipe struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	TakesArg    bool   `json:"takes-arg,omitempty"`
-}
-
-// commandOperator is one pipe operator as it applies to ONE command.
-type commandOperator struct {
-	Name  string `json:"name"`
-	Class string `json:"class"`
-	// Available is "always" when the operator applies whatever the answer
-	// holds, "with-rows" when it applies only to an answer that carries rows,
-	// and "when-streaming" when it acts on a sequence of answers. A command
-	// that has declared its shape reports "always" for every operator that
-	// shape supports, because then it is known before the command runs. An
-	// undeclared command reports "with-rows" for the row operators: they are
-	// applied to the answer in hand and refused by name when it has none.
-	Available string `json:"available"`
-	// LocalOnly means the operator MUST be expanded by the process the operator
-	// started. Daemon-expanded SSH and web chains refuse it.
-	LocalOnly   bool   `json:"local-only,omitempty"`
-	Description string `json:"description"`
-}
-
-// commandAlias is a chain this command names.
-type commandAlias struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Expansion   string `json:"expansion"`
-}
-
-// operatorsFor answers what one command supports, derived from the operator
-// catalog and the declaration the command carries.
+// pipeOperationsFor answers the `pipe-operations` list and the declared answer
+// shape a catalog row publishes, from the declaration the catalog already
+// resolved for the command (command.DeclaredForCommand), so a compiled-in
+// plugin's operations and aliases reach this offline catalog as its commands
+// do. The join is command.PipeOperations, the one `show command help` reads.
 //
-// Nothing here enumerates commands: the catalog states each operator's
-// contract, the command states its own shape, and this is the join.
-//
-// The declaration is passed in rather than looked up, so one lookup answers the
-// operators, the answer shape, the column orders and the address fields. That
-// lookup reads a plugin's registration for a command this process never ran
-// (internal/component/command, DeclaredForCommand), which is what lets this
-// catalog and the wiki producer agree by derivation rather than by comparison.
-//
+// A command no surface pipes publishes neither (command.PipeLayerReached).
 // wireToPaths is cli.WireToPaths, fetched once by the caller, which reports its
 // error: it is what tells a daemon handler from a plain local shortcut.
-func operatorsFor(cliPath string, declared command.Declared, wireToPaths map[string][]string) ([]commandOperator, string) {
-	// A command the CLIENT serves in its own process reaches the pipe layer
-	// only if it answers with DATA. A plain local handler suppresses operators
-	// only when the path has no daemon handler: a daemon surface reaches that
-	// registered handler independently of the local shortcut.
-	//
-	// A local-data command (`show data cat`, which answers a stored file as a
-	// blob) answers DATA on every route, so it publishes operators. `show
-	// version` keeps a printing local shortcut, while its separately
-	// registered daemon handler pipes.
-	if pathHasOnlyPlainLocalHandler(cliPath, wireToPaths) {
+func pipeOperationsFor(cliPath string, declared command.Declared, wireToPaths map[string][]string) ([]command.PipeOperationEntry, string) {
+	daemonServes := func(path string) bool { return daemonHandlesPath(path, wireToPaths) }
+	if !command.PipeLayerReached(cliPath, daemonServes) {
 		return nil, ""
 	}
-
-	shape := declared.Shape
-	hasAddress := len(declared.AddressFields) > 0
-	out := make([]commandOperator, 0, 16)
-	for _, op := range command.PipeOperatorCatalog() {
-		// `| resolve` and `| origin` act on a field holding an IP address, and
-		// no shape says a field does. Publishing them for a command that has
-		// declared none would assert support nothing can honor, which is the
-		// failure this whole surface exists to end.
-		if op.NeedsAddressField && !hasAddress {
-			continue
-		}
-		switch {
-		case op.Class == command.ClassStream:
-			// `log` acts on a SEQUENCE of answers, so it means something only
-			// where the command keeps answering. Publishing it as always
-			// available asserted support a command that answers once cannot
-			// have: there is no second update to append.
-			out = append(out, commandOperator{
-				Name: op.Name, Class: op.Class.String(), Available: "when-streaming",
-				LocalOnly: op.LocalOnly, Description: op.Description,
-			})
-		case op.Class == command.ClassGlobal:
-			out = append(out, commandOperator{
-				Name: op.Name, Class: op.Class.String(), Available: pipeAvailabilityAlways,
-				LocalOnly: op.LocalOnly, Description: op.Description,
-			})
-		case declared.ShapeDeclared && op.Applies(shape):
-			out = append(out, commandOperator{
-				Name: op.Name, Class: op.Class.String(), Available: pipeAvailabilityAlways,
-				LocalOnly: op.LocalOnly, Description: op.Description,
-			})
-		case declared.ShapeDeclared:
-			// The declared shape cannot support it, so it is refused before the
-			// command runs and is not published as supported at all.
-		default:
-			out = append(out, commandOperator{
-				Name: op.Name, Class: op.Class.String(), Available: "with-rows",
-				LocalOnly: op.LocalOnly, Description: op.Description,
-			})
-		}
-	}
+	operations := command.PipeOperations(declared)
 	if !declared.ShapeDeclared {
-		return out, ""
+		return operations, ""
 	}
-	return out, shape.String()
-}
-
-// pathHasOnlyPlainLocalHandler answers whether no surface for the path reaches
-// the pipe layer.
-func pathHasOnlyPlainLocalHandler(cliPath string, wireToPaths map[string][]string) bool {
-	if !command.HasLocal(cliPath) {
-		return false
-	}
-	if command.HasLocalData(cliPath) {
-		return false
-	}
-	if daemonHandlesPath(cliPath, wireToPaths) {
-		return false
-	}
-	return true
+	return operations, declared.Shape.String()
 }
 
 // daemonHandlesPath answers whether the daemon registers a non-nil handler for
@@ -179,60 +76,31 @@ func daemonHandlesPath(cliPath string, wireToPaths map[string][]string) bool {
 	return false
 }
 
-// aliasesFor answers the chains a command names, from the declaration the
-// catalog already resolved for it.
-//
-// The declaration carries a registered plugin's aliases beside the alias
-// registry's, because an alias reaches a short-lived client on
-// registry.Registration.Pipes alone: a client starts no plugin, so no Stage 1
-// message ever arrives (internal/component/command, DeclaredForCommand).
-func aliasesFor(declared command.Declared) []commandAlias {
-	if len(declared.Aliases) == 0 {
-		return nil
-	}
-	out := make([]commandAlias, 0, len(declared.Aliases))
-	for _, a := range declared.Aliases {
-		out = append(out, commandAlias{Name: a.Name, Description: a.Description, Expansion: a.Expansion})
-	}
-	return out
-}
-
-// splitOperators separates the answer-availability dimensions. An operator
-// with a surface restriction remains in its availability group and is also
-// reported by localOperators.
-func splitOperators(ops []commandOperator) (always, withRows []string) {
-	for _, op := range ops {
-		switch op.Available {
-		case pipeAvailabilityAlways:
-			always = append(always, op.Name)
-		case "with-rows":
-			withRows = append(withRows, op.Name)
+// operationNames answers the names of the generics and overrides available as
+// available says, or of the local-only ones when localOnly is set. Answer,
+// stream and surface qualifiers stay separate dimensions: flattening any one of
+// them tells a caller an operator is unconditional when it is not.
+func operationNames(operations []command.PipeOperationEntry, available string, localOnly bool) []string {
+	var names []string
+	for _, operation := range operations {
+		switch operation.Source {
+		case command.PipeSourceGeneric, command.PipeSourceOverride:
+		default:
+			// A command operation and an alias carry no catalog qualifier;
+			// they are printed one per line beside these.
+			continue
+		}
+		if localOnly {
+			if operation.LocalOnly {
+				names = append(names, operation.Name)
+			}
+			continue
+		}
+		if operation.Available == available {
+			names = append(names, operation.Name)
 		}
 	}
-	return always, withRows
-}
-
-// localOperators answers operators restricted to the process the operator
-// started, independent of answer-shape availability.
-func localOperators(ops []commandOperator) []string {
-	var out []string
-	for _, op := range ops {
-		if op.LocalOnly {
-			out = append(out, op.Name)
-		}
-	}
-	return out
-}
-
-// streamingOperators answers the operators that act on a sequence of answers.
-func streamingOperators(ops []commandOperator) []string {
-	var out []string
-	for _, op := range ops {
-		if op.Available == "when-streaming" {
-			out = append(out, op.Name)
-		}
-	}
-	return out
+	return names
 }
 
 // commandEntry is a single command in the catalog.
@@ -257,12 +125,11 @@ type commandEntry struct {
 	// cannot disagree. Args stays beside them: it is the type dictionary, and
 	// it carries no position.
 	Grammar []command.UsageToken `json:"grammar,omitempty"`
-	Pipes   []commandPipe        `json:"pipes,omitempty"`
-	// Operators is what this command supports, per operator, replacing the
-	// `global-pipes` boolean. A boolean said only "this command reaches the
-	// pipe layer"; it named no operator, and a tool author reading it had to
-	// guess the set from prose that named ten of sixteen.
-	Operators []commandOperator `json:"operators,omitempty"`
+	// PipeOperations is everything the command answers to after a pipe: the
+	// generics the chain admits for it, its overrides, its own operations and
+	// its aliases, each with its source, argument and availability. It is the
+	// list `show command help` answers (command.PipeOperations).
+	PipeOperations []command.PipeOperationEntry `json:"pipe-operations,omitempty"`
 	// AnswerShape is the shape the command DECLARED, absent when it declared
 	// none. It decides which operators are always available.
 	AnswerShape string `json:"answer-shape,omitempty"`
@@ -279,10 +146,7 @@ type commandEntry struct {
 	// this says: a program reads them and column order carries no meaning for a
 	// program (internal/component/command/column_order.go, RegisterColumns).
 	ColumnOrders [][]string `json:"column-orders,omitempty"`
-	// Aliases are the chains this command names. `ze help command --json` never
-	// read them before, so they published on `show command help` alone.
-	Aliases     []commandAlias `json:"pipe-aliases,omitempty"`
-	Subcommands []string       `json:"subcommands,omitempty"`
+	Subcommands  []string   `json:"subcommands,omitempty"`
 }
 
 // catalogAnswer is the answer of `help command`: the catalog rows the filter
@@ -414,10 +278,9 @@ func collectCommands() ([]commandEntry, error) {
 				WireMethod:  wireMethod,
 			}
 			declared := command.DeclaredForCommand(cliPath)
-			e.Operators, e.AnswerShape = operatorsFor(cliPath, declared, wireToPaths)
+			e.PipeOperations, e.AnswerShape = pipeOperationsFor(cliPath, declared, wireToPaths)
 			e.AddressFields = declared.AddressFields
 			e.ColumnOrders = command.ColumnNames(declared.Columns)
-			e.Aliases = aliasesFor(declared)
 			if node != nil {
 				e.Args = extractArgs(node)
 				e.Grammar = command.Usage(strings.Fields(cliPath), node)
@@ -428,7 +291,6 @@ func collectCommands() ([]commandEntry, error) {
 					e.TaskSupport = node.TaskSupport
 				}
 			}
-			e.Pipes = extractPipes(cliPath)
 			entries = append(entries, e)
 			seen[cliPath] = true
 		}
@@ -525,11 +387,9 @@ func appendPluginCommands(entries []commandEntry, seen map[string]bool, tree *co
 				}
 			}
 			declared := command.DeclaredForCommand(decl.Name)
-			e.Operators, e.AnswerShape = operatorsFor(decl.Name, declared, wireToPaths)
+			e.PipeOperations, e.AnswerShape = pipeOperationsFor(decl.Name, declared, wireToPaths)
 			e.AddressFields = declared.AddressFields
 			e.ColumnOrders = command.ColumnNames(declared.Columns)
-			e.Aliases = aliasesFor(declared)
-			e.Pipes = extractPipes(decl.Name)
 			entries = append(entries, e)
 			seen[decl.Name] = true
 		}
@@ -602,23 +462,6 @@ func argKindString(k command.ArgKind) string {
 	default:
 		panic("BUG: unknown command argument kind")
 	}
-}
-
-// extractPipes returns command-specific pipe filters registered for a CLI path.
-func extractPipes(cliPath string) []commandPipe {
-	filters := command.PipeFiltersForCommand(cliPath)
-	if len(filters) == 0 {
-		return nil
-	}
-	pipes := make([]commandPipe, 0, len(filters))
-	for _, f := range filters {
-		pipes = append(pipes, commandPipe{
-			Name:        f.Name,
-			Description: f.Description,
-			TakesArg:    f.Argument != command.ArgNone,
-		})
-	}
-	return pipes
 }
 
 // filterCommands returns entries whose path or description contains
@@ -725,13 +568,11 @@ func printCommandVerbose(rw *helpfmt.RenderWriter, diag io.Writer, entries []com
 		}
 
 		// Pipes
-		if len(e.Operators) > 0 || len(e.Pipes) > 0 || len(e.Aliases) > 0 {
+		if len(e.PipeOperations) > 0 {
 			tb.Reset().Str("  ").Colored(c.BrightYellow).Str("pipes:").Colored(c.Reset)
 			rw.Line(tb.Slice())
-			// Keep answer, stream, and surface qualifiers separate. Flattening
-			// any one of them tells a caller an operator is unconditional when
-			// it is not.
-			always, withRows := splitOperators(e.Operators)
+			always := operationNames(e.PipeOperations, command.PipeAvailableAlways, false)
+			withRows := operationNames(e.PipeOperations, command.PipeAvailableWithRows, false)
 			if len(always) > 0 {
 				tb.Reset().Str("    always: ").Colored(c.Dim).Join(always, ", ").Colored(c.Reset)
 				rw.Line(tb.Slice())
@@ -744,29 +585,17 @@ func printCommandVerbose(rw *helpfmt.RenderWriter, diag io.Writer, entries []com
 				tb.Reset().Str(label).Colored(c.Dim).Join(withRows, ", ").Colored(c.Reset)
 				rw.Line(tb.Slice())
 			}
-			if streaming := streamingOperators(e.Operators); len(streaming) > 0 {
+			if streaming := operationNames(e.PipeOperations, command.PipeAvailableWhenStreaming, false); len(streaming) > 0 {
 				tb.Reset().Str("    while the command keeps answering: ").Colored(c.Dim).
 					Join(streaming, ", ").Colored(c.Reset)
 				rw.Line(tb.Slice())
 			}
-			if local := localOperators(e.Operators); len(local) > 0 {
+			if local := operationNames(e.PipeOperations, "", true); len(local) > 0 {
 				tb.Reset().Str("    local process only: ").Colored(c.Dim).
 					Join(local, ", ").Colored(c.Reset)
 				rw.Line(tb.Slice())
 			}
-			for _, a := range e.Aliases {
-				tb.Reset().Str("    ").Str(a.Name).Str("  ").Colored(c.Dim).
-					Str(a.Description).Str(" (= ").Str(a.Expansion).Str(")").Colored(c.Reset)
-				rw.Line(tb.Slice())
-			}
-			for _, p := range e.Pipes {
-				tb.Reset().Str("    ").Str(p.Name)
-				if p.TakesArg {
-					tb.Str(" <value>")
-				}
-				tb.Str("  ").Colored(c.Dim).Str(p.Description).Colored(c.Reset)
-				rw.Line(tb.Slice())
-			}
+			printOwnOperations(rw, &tb, e.PipeOperations)
 		}
 
 		// Subcommands
@@ -778,6 +607,30 @@ func printCommandVerbose(rw *helpfmt.RenderWriter, diag io.Writer, entries []com
 	rw.Line("")
 	tb.Reset().Int(int64(len(entries))).Str(" commands")
 	rw.Line(tb.Slice())
+}
+
+// printOwnOperations writes one line per alias, override and own operation of
+// a command: each has a description of its own, which the grouped generic
+// lines do not repeat.
+func printOwnOperations(rw *helpfmt.RenderWriter, tb *textbuf.Buffer, operations []command.PipeOperationEntry) {
+	c := textbuf.C
+	for _, operation := range operations {
+		switch operation.Source {
+		case command.PipeSourceAlias:
+			tb.Reset().Str("    ").Str(operation.Name).Str("  ").Colored(c.Dim).
+				Str(operation.Description).Str(" (= ").Str(operation.Expansion).Str(")").Colored(c.Reset)
+		case command.PipeSourceOverride, command.PipeSourceCommand:
+			tb.Reset().Str("    ").Str(operation.Name)
+			if operation.Argument != command.ArgNone.String() {
+				tb.Str(" <value>")
+			}
+			tb.Str("  ").Colored(c.Dim).Str(operation.Description).Colored(c.Reset)
+		default:
+			// A generic is printed in the grouped lines.
+			continue
+		}
+		rw.Line(tb.Slice())
+	}
 }
 
 // printCommandTable writes entries as a human-readable table through rw.

@@ -110,6 +110,74 @@ type publishedCommandArg struct {
 	Description string   `json:"description,omitempty"`
 }
 
+// publishedPipeOperation mirrors one entry of a catalog row's
+// `pipe-operations` list (internal/component/command, PipeOperationEntry).
+type publishedPipeOperation struct {
+	Name        string `json:"name"`
+	Source      string `json:"source"`
+	Argument    string `json:"argument"`
+	Available   string `json:"available"`
+	Class       string `json:"class,omitempty"`
+	Overridable bool   `json:"overridable,omitempty"`
+	LocalOnly   bool   `json:"local-only,omitempty"`
+	Description string `json:"description"`
+	Expansion   string `json:"expansion,omitempty"`
+}
+
+// The sources a published pipe operation names.
+const (
+	pipeSourceGeneric  = "generic"
+	pipeSourceOverride = "override"
+	pipeSourceCommand  = "command"
+	pipeSourceAlias    = "alias"
+)
+
+// Operators answers the catalog operators the command answers to: its
+// generics and its overrides, in list order.
+func (c publishedCommand) Operators() []publishedCommandOperator {
+	var out []publishedCommandOperator
+	for _, op := range c.PipeOperations {
+		switch op.Source {
+		case pipeSourceGeneric, pipeSourceOverride:
+			out = append(out, publishedCommandOperator{
+				Name: op.Name, Class: op.Class, Available: op.Available,
+				LocalOnly: op.LocalOnly, Description: op.Description,
+			})
+		default:
+			// A command operation and an alias are no catalog operator.
+		}
+	}
+	return out
+}
+
+// Pipes answers the operations the command runs itself: its overrides and its
+// own names, in list order.
+func (c publishedCommand) Pipes() []publishedCommandPipe {
+	var out []publishedCommandPipe
+	for _, op := range c.PipeOperations {
+		switch op.Source {
+		case pipeSourceOverride, pipeSourceCommand:
+			out = append(out, publishedCommandPipe{
+				Name: op.Name, Description: op.Description, TakesArg: op.Argument != "none",
+			})
+		default:
+			// A generic and an alias run nothing in the command's handler.
+		}
+	}
+	return out
+}
+
+// Aliases answers the named chains the command answers to, in list order.
+func (c publishedCommand) Aliases() []publishedCommandAlias {
+	var out []publishedCommandAlias
+	for _, op := range c.PipeOperations {
+		if op.Source == pipeSourceAlias {
+			out = append(out, publishedCommandAlias{Name: op.Name, Description: op.Description, Expansion: op.Expansion})
+		}
+	}
+	return out
+}
+
 type publishedCommandPipe struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
@@ -157,15 +225,16 @@ type publishedCommand struct {
 	Backend       []string                   `json:"backend,omitempty"`
 	TaskSupport   string                     `json:"task-support,omitempty"`
 	Args          []publishedCommandArg      `json:"args,omitempty"`
-	Pipes         []publishedCommandPipe     `json:"pipes,omitempty"`
-	Operators     []publishedCommandOperator `json:"operators,omitempty"`
+	// PipeOperations is everything the command answers to after a pipe, the
+	// one list `ze help command --json` publishes. Operators, Pipes and
+	// Aliases read it by source.
+	PipeOperations []publishedPipeOperation `json:"pipe-operations,omitempty"`
 	AnswerShape   string                     `json:"answer-shape,omitempty"`
 	AddressFields []string                   `json:"address-fields,omitempty"`
 	// ColumnOrders are the answer's record keys in reading order, one list per
 	// record shape. The parser rejects an unknown field, so a catalog carrying
 	// a column order is unreadable without it.
 	ColumnOrders [][]string              `json:"column-orders,omitempty"`
-	Aliases      []publishedCommandAlias `json:"pipe-aliases,omitempty"`
 	Usage        string                  `json:"usage,omitempty"`
 	Grammar      []publishedCommandToken `json:"grammar,omitempty"`
 	Syntax       string                  `json:"syntax,omitempty"`
@@ -560,19 +629,6 @@ func validatePublishedCommand(source string, entry *publishedCommand, seen map[s
 			return fmt.Errorf("parse %s: command %q argument %q has no kind", source, entry.Path, arg.Name)
 		}
 	}
-	seenPipes := make(map[string]bool, len(entry.Pipes))
-	for _, pipe := range entry.Pipes {
-		if pipe.Name == "" {
-			return fmt.Errorf("parse %s: command %q has a filter without a name", source, entry.Path)
-		}
-		if seenPipes[pipe.Name] {
-			return duplicatePublishedCommandIdentity(source, entry.Path, "pipes", pipe.Name)
-		}
-		seenPipes[pipe.Name] = true
-		if pipe.Description == "" {
-			return fmt.Errorf("parse %s: command %q filter %q has no description", source, entry.Path, pipe.Name)
-		}
-	}
 	seenAddressFields := make(map[string]bool, len(entry.AddressFields))
 	for _, field := range entry.AddressFields {
 		if field == "" {
@@ -585,46 +641,37 @@ func validatePublishedCommand(source string, entry *publishedCommand, seen map[s
 		}
 		seenAddressFields[field] = true
 	}
-	seenOperators := make(map[string]bool, len(entry.Operators))
-	for _, op := range entry.Operators {
+	seenOperations := make(map[string]bool, len(entry.PipeOperations))
+	for _, op := range entry.PipeOperations {
 		if op.Name == "" {
-			return fmt.Errorf("parse %s: command %q has an operator without a name", source, entry.Path)
+			return fmt.Errorf("parse %s: command %q has a pipe operation without a name", source, entry.Path)
 		}
-		if seenOperators[op.Name] {
-			return duplicatePublishedCommandIdentity(
-				source, entry.Path, "operators", op.Name,
-			)
+		if seenOperations[op.Name] {
+			return duplicatePublishedCommandIdentity(source, entry.Path, "pipe-operations", op.Name)
 		}
-		seenOperators[op.Name] = true
-		if op.Class == "" {
-			return fmt.Errorf("parse %s: command %q operator %q has no class", source, entry.Path, op.Name)
-		}
+		seenOperations[op.Name] = true
 		if op.Description == "" {
-			return fmt.Errorf("parse %s: command %q operator %q has no description", source, entry.Path, op.Name)
+			return fmt.Errorf("parse %s: command %q pipe operation %q has no description", source, entry.Path, op.Name)
 		}
 		switch op.Available {
 		case availabilityAlways, availabilityWithRows, availabilityWhenStreaming:
 		default:
-			return fmt.Errorf("parse %s: command %q operator %q has unknown availability %q",
+			return fmt.Errorf("parse %s: command %q pipe operation %q has unknown availability %q",
 				source, entry.Path, op.Name, op.Available)
 		}
-	}
-	seenAliases := make(map[string]bool, len(entry.Aliases))
-	for _, alias := range entry.Aliases {
-		if alias.Name == "" {
-			return fmt.Errorf("parse %s: command %q has an alias without a name", source, entry.Path)
-		}
-		if seenAliases[alias.Name] {
-			return duplicatePublishedCommandIdentity(
-				source, entry.Path, "pipe-aliases", alias.Name,
-			)
-		}
-		seenAliases[alias.Name] = true
-		if alias.Description == "" {
-			return fmt.Errorf("parse %s: command %q alias %q has no description", source, entry.Path, alias.Name)
-		}
-		if alias.Expansion == "" {
-			return fmt.Errorf("parse %s: command %q alias %q has no expansion", source, entry.Path, alias.Name)
+		switch op.Source {
+		case pipeSourceGeneric, pipeSourceOverride:
+			if op.Class == "" {
+				return fmt.Errorf("parse %s: command %q operator %q has no class", source, entry.Path, op.Name)
+			}
+		case pipeSourceAlias:
+			if op.Expansion == "" {
+				return fmt.Errorf("parse %s: command %q alias %q has no expansion", source, entry.Path, op.Name)
+			}
+		case pipeSourceCommand:
+		default:
+			return fmt.Errorf("parse %s: command %q pipe operation %q has unknown source %q",
+				source, entry.Path, op.Name, op.Source)
 		}
 	}
 	seenSubcommands := make(map[string]bool, len(entry.Subcommands))
@@ -929,8 +976,8 @@ func validateGeneratedWikiCommandSurface(
 		pipeScan := scanWikiPipeGroups(detail)
 		issues = append(issues, validateWikiPipeSupport(
 			surface, command.Path, pipeScan,
-			len(command.Operators) != 0 || len(command.Pipes) != 0 ||
-				len(command.Aliases) != 0,
+			len(command.Operators()) != 0 || len(command.Pipes()) != 0 ||
+				len(command.Aliases()) != 0,
 		)...)
 		for _, availability := range commandOperatorAvailabilities {
 			issues = append(issues, compareCommandOperatorGroups(
@@ -939,8 +986,8 @@ func validateGeneratedWikiCommandSurface(
 				pipeScan.groups[availability],
 			)...)
 		}
-		expectedAliases := make([]string, 0, len(command.Aliases))
-		for _, alias := range command.Aliases {
+		expectedAliases := make([]string, 0, len(command.Aliases()))
+		for _, alias := range command.Aliases() {
 			rendered.Reset().Str("- ").Str(markdownCodeLiteral(alias.Name)).Str(" -- ").
 				Str(markdownLiteralProse(alias.Description)).Str(" (").
 				Str(markdownCodeLiteral(alias.Expansion)).Byte(')')
@@ -950,8 +997,8 @@ func validateGeneratedWikiCommandSurface(
 			surface, command.Path, "wiki pipe alias", expectedAliases,
 			wikiBulletGroups(detail, "Named chains:"),
 		)...)
-		expectedFilters := make([]string, 0, len(command.Pipes))
-		for _, filter := range command.Pipes {
+		expectedFilters := make([]string, 0, len(command.Pipes()))
+		for _, filter := range command.Pipes() {
 			rendered.Reset().Str("- ").Str(markdownCodeLiteral(filter.Name))
 			if filter.TakesArg {
 				rendered.Byte(' ').Str(markdownCodeLiteral("<value>"))
@@ -2953,8 +3000,8 @@ func namedCommandDimension(kind, name string) string {
 }
 
 func commandOperatorNames(command *publishedCommand, availability string) []string {
-	names := make([]string, 0, len(command.Operators))
-	for _, operator := range command.Operators {
+	names := make([]string, 0, len(command.Operators()))
+	for _, operator := range command.Operators() {
 		if availability == availabilityLocalOnly {
 			if operator.LocalOnly {
 				names = append(names, operator.Name)
@@ -3233,7 +3280,7 @@ func validatePrimaryOperatorCatalog(
 	expected := make(map[string]renderedOperatorMetadata)
 	for index := range live {
 		command := &live[index]
-		for _, operator := range command.Operators {
+		for _, operator := range command.Operators() {
 			meta, exists := expected[operator.Name]
 			if !exists {
 				meta.class = primaryOperatorClassLabel(operator.Class)
@@ -3681,8 +3728,8 @@ func validatePrimaryCommandContract(
 		)...)
 	}
 
-	expectedFilters := make([]renderedCommandFilterDetail, 0, len(command.Pipes))
-	for _, filter := range command.Pipes {
+	expectedFilters := make([]renderedCommandFilterDetail, 0, len(command.Pipes()))
+	for _, filter := range command.Pipes() {
 		marker.Reset().Str(filter.Name)
 		if filter.TakesArg {
 			marker.Str(" <value>")
@@ -3706,8 +3753,8 @@ func validatePrimaryCommandContract(
 		expectedFilterGroups, filterGroups, filtersValid,
 	)...)
 
-	expectedAliases := make([]renderedCommandAliasDetail, 0, len(command.Aliases))
-	for _, alias := range command.Aliases {
+	expectedAliases := make([]renderedCommandAliasDetail, 0, len(command.Aliases()))
+	for _, alias := range command.Aliases() {
 		expectedAliases = append(expectedAliases, renderedCommandAliasDetail{
 			identity:    normalizeRenderedHTMLText(alias.Name),
 			description: normalizeRenderedHTMLText(alias.Description),
@@ -4052,8 +4099,8 @@ func validatePrimaryMarkdownContract(
 	}
 	// The two lists are the detail mirror's own (internal/le/site/commands.go,
 	// commandMirrorPipes), so they are read with the detail mirror's parsers.
-	expectedFilters := make([]renderedCommandFilterDetail, 0, len(command.Pipes))
-	for _, filter := range command.Pipes {
+	expectedFilters := make([]renderedCommandFilterDetail, 0, len(command.Pipes()))
+	for _, filter := range command.Pipes() {
 		marker.Reset().Str(filter.Name)
 		if filter.TakesArg {
 			marker.Str(" <value>")
@@ -4076,8 +4123,8 @@ func validatePrimaryMarkdownContract(
 		renderedFilterDetailValues(actualFilters),
 		expectedFilterGroups, filterGroups, filtersValid,
 	)...)
-	expectedAliases := make([]renderedCommandAliasDetail, 0, len(command.Aliases))
-	for _, alias := range command.Aliases {
+	expectedAliases := make([]renderedCommandAliasDetail, 0, len(command.Aliases()))
+	for _, alias := range command.Aliases() {
 		expectedAliases = append(expectedAliases, renderedCommandAliasDetail{
 			identity:    normalizeMarkdownCodeSpan(alias.Name),
 			description: normalizedCommandMarkdownDetailValue(alias.Description),
@@ -5038,8 +5085,8 @@ func validateEquivalentHTMLPipeTerms(
 // layer's absence under the bare "Pipes" term: no operator, no command pipe
 // and no alias (internal/le/site/equivalentdetail.go, equivalentZeCard).
 func commandReachesNoPipeLayer(command *publishedCommand) bool {
-	return len(command.Operators) == 0 && len(command.Pipes) == 0 &&
-		len(command.Aliases) == 0
+	return len(command.Operators()) == 0 && len(command.Pipes()) == 0 &&
+		len(command.Aliases()) == 0
 }
 
 func htmlEquivalentFilterDetails(
@@ -5262,8 +5309,8 @@ func validateEquivalentCommandContract(
 			commandOperatorNames(command, availability), scan,
 		)...)
 	}
-	expectedFilters := make([]renderedCommandFilterDetail, 0, len(command.Pipes))
-	for _, filter := range command.Pipes {
+	expectedFilters := make([]renderedCommandFilterDetail, 0, len(command.Pipes()))
+	for _, filter := range command.Pipes() {
 		marker.Reset().Str(filter.Name)
 		if filter.TakesArg {
 			marker.Str(" <value>")
@@ -5286,8 +5333,8 @@ func validateEquivalentCommandContract(
 		renderedFilterDetailValues(actualFilters),
 		expectedFilterGroups, filterGroups, filtersValid,
 	)...)
-	expectedAliases := make([]renderedCommandAliasDetail, 0, len(command.Aliases))
-	for _, alias := range command.Aliases {
+	expectedAliases := make([]renderedCommandAliasDetail, 0, len(command.Aliases()))
+	for _, alias := range command.Aliases() {
 		expectedAliases = append(expectedAliases, renderedCommandAliasDetail{
 			identity:    normalizeRenderedHTMLText(alias.Name),
 			description: normalizeRenderedHTMLText(alias.Description),
@@ -5613,8 +5660,8 @@ func validateEquivalentMarkdownContract(
 			),
 		)...)
 	}
-	expectedFilters := make([]renderedCommandFilterDetail, 0, len(command.Pipes))
-	for _, filter := range command.Pipes {
+	expectedFilters := make([]renderedCommandFilterDetail, 0, len(command.Pipes()))
+	for _, filter := range command.Pipes() {
 		marker.Reset().Str(filter.Name)
 		if filter.TakesArg {
 			marker.Str(" <value>")
@@ -5633,8 +5680,8 @@ func validateEquivalentMarkdownContract(
 		renderedFilterDetailValues(actualFilters),
 		1, filterGroups, filtersValid,
 	)...)
-	expectedAliases := make([]renderedCommandAliasDetail, 0, len(command.Aliases))
-	for _, alias := range command.Aliases {
+	expectedAliases := make([]renderedCommandAliasDetail, 0, len(command.Aliases()))
+	for _, alias := range command.Aliases() {
 		expectedAliases = append(expectedAliases, renderedCommandAliasDetail{
 			identity:    normalizeMarkdownCodeSpan(alias.Name),
 			description: normalizedCommandMarkdownDetailValue(alias.Description),
@@ -6021,16 +6068,16 @@ func validateLLMSCommandContract(
 		path, command.Path, "address field", command.AddressFields,
 		commandMetaGroups(meta, "address-fields", strings.Fields),
 	)...)
-	expectedFilters := make([]string, 0, len(command.Pipes))
-	for _, filter := range command.Pipes {
+	expectedFilters := make([]string, 0, len(command.Pipes()))
+	for _, filter := range command.Pipes() {
 		expectedFilters = append(expectedFilters, filter.Name)
 	}
 	issues = append(issues, compareCommandNamedGroups(
 		path, command.Path, "command filter", expectedFilters,
 		commandMetaGroups(meta, "filters", parseLLMSCodeValues),
 	)...)
-	expectedAliases := make([]string, 0, len(command.Aliases))
-	for _, alias := range command.Aliases {
+	expectedAliases := make([]string, 0, len(command.Aliases()))
+	for _, alias := range command.Aliases() {
 		expectedAliases = append(expectedAliases,
 			rendered.Reset().Str(alias.Name).Byte('=').Str(alias.Expansion).String())
 	}

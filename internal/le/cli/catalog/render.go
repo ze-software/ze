@@ -9,6 +9,8 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/ze-software/ze/internal/component/command"
+
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -188,7 +190,7 @@ func renderDetail(out *bytes.Buffer, entry *Entry) error {
 		}
 	}
 
-	if len(entry.Operators) > 0 || len(entry.Pipes) > 0 || len(entry.Aliases) > 0 {
+	if len(entry.PipeOperations) > 0 {
 		if err := renderPipes(out, entry); err != nil {
 			return err
 		}
@@ -212,9 +214,9 @@ func renderDetail(out *bytes.Buffer, entry *Entry) error {
 
 func renderPipes(out *bytes.Buffer, entry *Entry) error {
 	var unknown []string
-	for _, operator := range entry.Operators {
+	for _, operator := range entry.PipeOperations {
 		switch operator.Available {
-		case modeAlways, "with-rows", "when-streaming":
+		case command.PipeAvailableAlways, command.PipeAvailableWithRows, command.PipeAvailableWhenStreaming:
 		default:
 			unknown = append(unknown, operatorName(operator.Name))
 		}
@@ -225,10 +227,10 @@ func renderPipes(out *bytes.Buffer, entry *Entry) error {
 
 	line(out, "")
 	line(out, "**Pipes:**")
-	always := operatorNames(entry.Operators, modeAlways, false)
-	withRows := operatorNames(entry.Operators, "with-rows", false)
-	streaming := operatorNames(entry.Operators, "when-streaming", false)
-	localOnly := operatorNames(entry.Operators, "", true)
+	always := operatorNames(entry.PipeOperations, command.PipeAvailableAlways, false)
+	withRows := operatorNames(entry.PipeOperations, command.PipeAvailableWithRows, false)
+	streaming := operatorNames(entry.PipeOperations, command.PipeAvailableWhenStreaming, false)
+	localOnly := operatorNames(entry.PipeOperations, "", true)
 	if len(always) > 0 {
 		out.WriteString("Always: ")
 		writeCodeList(out, always)
@@ -252,10 +254,10 @@ func renderPipes(out *bytes.Buffer, entry *Entry) error {
 		writeCodeList(out, localOnly)
 		line(out, " -- daemon-expanded SSH and web chains refuse these operators.")
 	}
-	if len(entry.Aliases) > 0 {
+	if aliases := operationsFrom(entry.PipeOperations, command.PipeSourceAlias); len(aliases) > 0 {
 		line(out, "")
 		line(out, "Named chains:")
-		for _, alias := range entry.Aliases {
+		for _, alias := range aliases {
 			out.WriteString("- ")
 			writeCodeSpan(out, alias.Name)
 			out.WriteString(" -- ")
@@ -265,13 +267,13 @@ func renderPipes(out *bytes.Buffer, entry *Entry) error {
 			line(out, ")")
 		}
 	}
-	if len(entry.Pipes) > 0 {
+	if own := operationsFrom(entry.PipeOperations, command.PipeSourceOverride, command.PipeSourceCommand); len(own) > 0 {
 		line(out, "")
 		line(out, "Command-specific:")
-		for _, pipe := range entry.Pipes {
+		for _, pipe := range own {
 			out.WriteString("- ")
 			writeCodeSpan(out, pipe.Name)
-			if pipe.TakesArg {
+			if pipe.Argument != command.ArgNone.String() {
 				out.WriteByte(' ')
 				writeCodeSpan(out, "<value>")
 			}
@@ -282,7 +284,22 @@ func renderPipes(out *bytes.Buffer, entry *Entry) error {
 	return nil
 }
 
-func operatorNames(operators []Operator, availability string, localOnly bool) []string {
+// operationsFrom answers the operations whose source is one of sources, in
+// list order.
+func operationsFrom(operations []command.PipeOperationEntry, sources ...string) []command.PipeOperationEntry {
+	var out []command.PipeOperationEntry
+	for _, operation := range operations {
+		if slices.Contains(sources, operation.Source) {
+			out = append(out, operation)
+		}
+	}
+	return out
+}
+
+// operatorNames answers the generics and overrides available as availability
+// says, or the local-only ones when localOnly is set.
+func operatorNames(operations []command.PipeOperationEntry, availability string, localOnly bool) []string {
+	operators := operationsFrom(operations, command.PipeSourceGeneric, command.PipeSourceOverride)
 	names := make([]string, 0, len(operators))
 	for _, operator := range operators {
 		if localOnly {

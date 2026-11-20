@@ -330,8 +330,8 @@ read the value the same way:
 
 | You type | The looking glass lists | Sent to `bgp-rib` |
 |----------|------------------------|-------------------|
-| A prefix with its length, such as `10.0.0.0/8` | The routes of exactly that prefix, never a longer prefix inside it. Host bits are cleared first, so `10.0.0.1/8` asks for `10.0.0.0/8` | `show bgp rib received exact 10.0.0.0/8` |
-| A bare address, such as `10.1.2.3` or `2001:db8::1` | Every route whose prefix contains the address, the most specific prefix first for each peer, so a default route comes last | `show bgp rib received covering 10.1.2.3` |
+| A prefix with its length, such as `10.0.0.0/8` | The routes of exactly that prefix, never a longer prefix inside it. Host bits are cleared first, so `10.0.0.1/8` asks for `10.0.0.0/8` | `show bgp rib \| received \| exact 10.0.0.0/8` |
+| A bare address, such as `10.1.2.3` or `2001:db8::1` | Every route whose prefix contains the address, the most specific prefix first for each peer, so a default route comes last | `show bgp rib \| received \| covering 10.1.2.3` |
 | Anything else, or a length past 32 (IPv4) or 128 (IPv6) | Nothing: the page shows the value, why it is refused, and a valid form | Nothing |
 
 An address finds IPv4 and IPv6 routes only. Routes keyed by a route

@@ -102,11 +102,11 @@ refusal rather than an empty field.
 
 `routes/table/{family}` and `routes/count/protocol/{name}` hold the same
 requirement. Before 2026-10-08 both answered 200 over an engine error. The table
-asked for `show bgp rib best <family>`, which `bgp-rib` refuses because the
-family is a filter (`show bgp rib best family <family>`), and rendered the
+asked for `show bgp rib best <family>`, which `bgp-rib` refused because the
+family is a filter (`show bgp rib best | family <family>`), and rendered the
 refusal as an empty table. The count asked for `show bgp rib count peer <name>`,
-which `bgp-rib` refuses because nothing may follow a terminal, and rendered the
-refusal as a count of 0. A count answer that carries no `count` is refused the
+which `bgp-rib` refused because nothing could follow a terminal, and rendered
+the refusal as a count of 0. A count answer that carries no `count` is refused the
 same way, and is never reported as 0.
 
 `protocols/bgp`, `protocols/short`, `protocols/bmp` and `routes/prefix` hold
@@ -139,16 +139,16 @@ scope and MUST NOT rely on the default.
 
 | Surface | Scope | Command |
 |---------|-------|---------|
-| `routes/protocol/{name}`, `routes/peer/{peer}` | `received` | `show bgp rib received peer <address>` |
-| `routes/count/protocol/{name}` | `received` | `show bgp rib received peer <address> count` |
-| `routes/export/{name}` | `sent` | `show bgp rib sent peer <address>` |
-| `routes/prefix`, `routes/search`, given a prefix with its length | `received` | `show bgp rib received exact <prefix>` |
-| `routes/prefix`, `routes/search`, given a bare address | `received` | `show bgp rib received covering <address>` |
+| `routes/protocol/{name}`, `routes/peer/{peer}` | `received` | `show bgp rib \| received \| peer <address>` |
+| `routes/count/protocol/{name}` | `received` | `show bgp rib \| received \| peer <address> \| count` |
+| `routes/export/{name}` | `sent` | `show bgp rib \| sent \| peer <address>` |
+| `routes/prefix`, `routes/search`, given a prefix with its length | `received` | `show bgp rib \| received \| exact <prefix>` |
+| `routes/prefix`, `routes/search`, given a bare address | `received` | `show bgp rib \| received \| covering <address>` |
 | `routes_received`, `routes_imported` (Section 5) | `received` | `route-counts.in` of `show bgp rib status` |
 | `routes_exported` (Section 5) | `sent` | `route-counts.out` of `show bgp rib status` |
-| UI peer page, its route rows, histogram and CSV download | `received` | `show bgp rib received peer <address>` |
-| UI peer page, sent count | `sent` | `show bgp rib sent peer <address> count` |
-| UI search, its route detail (`/lg/route/detail`), `/lg/graph` | `received` | `show bgp rib received ...` |
+| UI peer page, its route rows, histogram and CSV download | `received` | `show bgp rib \| received \| peer <address>` |
+| UI peer page, sent count | `sent` | `show bgp rib \| sent \| peer <address> \| count` |
+| UI search, its route detail (`/lg/route/detail`), `/lg/graph` | `received` | `show bgp rib \| received \| ...` |
 
 The UI peer page shows the received count and the sent count side by side. A
 count the engine does not answer renders as an empty cell, never as `0`.
@@ -241,7 +241,7 @@ name, whose values are protocol objects.
 `protocols/bmp` keys each BMP-monitored peer by the `rib-peer` that
 `show bmp peers` reports, the key the RIB stores that peer's routes under.
 `routes/bmp/{name}` passes the name unchanged to
-`show bgp rib protocol bmp peer <name>`, so every name `protocols/bmp` lists
+`show bgp rib protocol bmp | peer <name>`, so every name `protocols/bmp` lists
 is one `routes/bmp/{name}` answers for. The BMP plugin gives each monitored
 peer its own key, so two peers never share a name (`bmpCompositeKey`). A peer
 row is left out of `protocols/bmp` when it has no `rib-peer`, when an earlier

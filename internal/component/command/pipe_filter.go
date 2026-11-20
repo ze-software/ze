@@ -121,7 +121,12 @@ func PipeFiltersForCommand(command string) []PipeFilter {
 	if !ok || len(set.filters) == 0 {
 		return nil
 	}
-	filters := append([]PipeFilter(nil), set.filters...)
+	return sortedPipeFilters(append([]PipeFilter(nil), set.filters...))
+}
+
+// sortedPipeFilters sorts filters by name in place and answers them, the
+// order every published list of a command's operations takes.
+func sortedPipeFilters(filters []PipeFilter) []PipeFilter {
 	sort.SliceStable(filters, func(i, j int) bool { return filters[i].Name < filters[j].Name })
 	return filters
 }
@@ -142,20 +147,6 @@ func (set pipeFilterSet) filterNames() string {
 	}
 	slices.Sort(names)
 	return textbuf.Join(names, ", ")
-}
-
-func filterSuggestions(command string) []Suggestion {
-	set, ok := lookupPipeFilters(command)
-	if !ok || len(set.filters) == 0 {
-		return nil
-	}
-	items := append([]PipeFilter(nil), set.filters...)
-	sort.SliceStable(items, func(i, j int) bool { return items[i].Name < items[j].Name })
-	suggestions := make([]Suggestion, 0, len(items))
-	for _, filter := range items {
-		suggestions = append(suggestions, Suggestion{Text: filter.Name, Description: filter.Description, Type: SuggestionPipe})
-	}
-	return suggestions
 }
 
 func ResetPipeFiltersForTest() {

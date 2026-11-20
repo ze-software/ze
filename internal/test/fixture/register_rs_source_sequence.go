@@ -192,7 +192,7 @@ func rsSourceSequenceWaitSent(ctx context.Context, plugin *sdk.Plugin, client st
 func rsSourceSequenceWaitReceived(ctx context.Context, plugin *sdk.Plugin, address string, want bool) bool {
 	quoted := strconv.Quote(address)
 	return Poll(ctx, 100, 250*time.Millisecond, func() bool {
-		result := command13(ctx, plugin, "show bgp rib received")
+		result := command13(ctx, plugin, "show bgp rib | received")
 		if !done13(result) {
 			return false
 		}

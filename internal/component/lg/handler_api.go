@@ -24,6 +24,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/bgp/asn"
 
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -51,6 +52,36 @@ const (
 	cmdShowReloadStatus = "show reload-status"
 	// cmdShowBMPPeers answers the peers the BMP plugin monitors.
 	cmdShowBMPPeers = "show bmp peers"
+)
+
+// The route reads the looking glass sends bgp-rib. A route read takes its
+// selection as the pipe operations the plugin declares (a scope, `peer`, the
+// filters, one terminal), never as words on the command path: the plugin
+// refuses a word there (refuseRouteReadArguments,
+// internal/component/bgp/plugins/rib/rib_commands.go). With no scope
+// operation the plugin answers `sent-received`, its Adj-RIB-In and Adj-RIB-Out
+// together (parsePipelineOperations, rib_pipeline.go), and a route Ze sent a
+// peer would read as learned from it, so a read of the routes learned from
+// peers names `received`. Every value written after one of these is checked
+// first to hold no space, quote or '|', so it stays one operation's value.
+const (
+	// cmdRIBReceived reads the routes learned from peers.
+	cmdRIBReceived = "show bgp rib | received"
+	// cmdRIBSent reads the routes Ze sent its peers.
+	cmdRIBSent = "show bgp rib | sent"
+	// cmdRIBBestFamily reads the best path of each prefix of one family: the
+	// best-path walk takes the family as its filter operation, the family
+	// written after this.
+	cmdRIBBestFamily = "show bgp rib best | family "
+	// cmdRIBBMPPeer reads the routes one BMP-monitored peer holds, its key
+	// written after this (monitoredPeer.RIBPeer, bgp/plugins/bmp/state.go).
+	cmdRIBBMPPeer = "show bgp rib protocol bmp | peer "
+	// pipePeer selects the peer whose address is written after it.
+	pipePeer = " | peer "
+	// pipeCount and pipeHistogram are the terminals: each ends the line,
+	// because the plugin refuses an operation after a terminal.
+	pipeCount     = " | count"
+	pipeHistogram = " | histogram"
 )
 
 // handleAPIStatus returns router status in birdwatcher format (GET /api/looking-glass/status).
@@ -171,16 +202,15 @@ func (s *LGServer) handleAPIProtocolsShort(w http.ResponseWriter, _ *http.Reques
 	writeJSON(w, transformProtocolsShort(zeData))
 }
 
-// serveRoutesForPeer runs "show bgp rib received peer <peer>" and writes the
+// serveRoutesForPeer runs "show bgp rib | received | peer <peer>" and writes the
 // birdwatcher routes envelope, applying pagination when the client requested
 // it. Shared by the protocol/{name} and peer/{peer} endpoints: peer/{peer}
 // passes its address through, protocol/{name} passes the address
 // protocolSession resolved its name to.
 //
 // Both endpoints answer the routes learned from the session, so the query names
-// bgp-rib's `received` scope. With no scope keyword the plugin answers
-// `sent-received` (parsePipelineArgs), and the routes Ze sent the peer were
-// listed as learned from it. routes/export/{name} answers the `sent` scope.
+// bgp-rib's `received` scope (cmdRIBReceived). routes/export/{name} answers
+// the `sent` scope.
 func (s *LGServer) serveRoutesForPeer(w http.ResponseWriter, r *http.Request, peer string) {
 	limit, offset, present, ok := parsePagination(w, r)
 	if !ok {
@@ -188,7 +218,7 @@ func (s *LGServer) serveRoutesForPeer(w http.ResponseWriter, r *http.Request, pe
 	}
 
 	var tb textbuf.Buffer
-	zeData, ok := s.peerRoutesAnswer(w, tb.Str("show bgp rib received peer ").Str(peer).String())
+	zeData, ok := s.peerRoutesAnswer(w, tb.Str(cmdRIBReceived).Str(pipePeer).Str(peer).String())
 	if !ok {
 		return
 	}
@@ -313,10 +343,11 @@ func (s *LGServer) handleAPIRoutesTable(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// bgp-rib's best-path walk takes the family as a filter: a bare family
-	// after `best` is an unknown keyword (parseBestPipelineArgs).
+	// bgp-rib's best-path walk takes the family as its `family` filter
+	// operation (parseBestPipelineOperations): a word after `best` on the
+	// command path is refused.
 	var tb textbuf.Buffer
-	zeData, ok := s.engineAnswer(w, tb.Str("show bgp rib best family ").Str(fam).String())
+	zeData, ok := s.engineAnswer(w, tb.Str(cmdRIBBestFamily).Str(fam).String())
 	if !ok {
 		return
 	}
@@ -379,7 +410,7 @@ func (s *LGServer) handleAPIBMPRoutes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var tb textbuf.Buffer
-	zeData, ok := s.peerRoutesAnswer(w, tb.Str("show bgp rib protocol bmp peer ").Str(name).String())
+	zeData, ok := s.peerRoutesAnswer(w, tb.Str(cmdRIBBMPPeer).Str(name).String())
 	if !ok {
 		return
 	}
@@ -477,7 +508,7 @@ func (s *LGServer) handleAPIRoutesExport(w http.ResponseWriter, r *http.Request)
 	}
 
 	var tb textbuf.Buffer
-	zeData, ok := s.peerRoutesAnswer(w, tb.Str("show bgp rib sent peer ").Str(address).String())
+	zeData, ok := s.peerRoutesAnswer(w, tb.Str(cmdRIBSent).Str(pipePeer).Str(address).String())
 	if !ok {
 		return
 	}
@@ -514,10 +545,10 @@ func (s *LGServer) handleAPIRoutesCount(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// `count` is a terminal, and bgp-rib refuses anything after a terminal
-	// (parsePipelineArgs), so the scope and the peer selector come first.
+	// `count` is a terminal, and bgp-rib refuses an operation after a terminal
+	// (parsePipelineOperations), so the scope and the peer selector come first.
 	var tb textbuf.Buffer
-	command := tb.Str("show bgp rib received peer ").Str(address).Str(" count").String()
+	command := tb.Str(cmdRIBReceived).Str(pipePeer).Str(address).Str(pipeCount).String()
 	zeData, ok := s.engineAnswer(w, command)
 	if !ok {
 		return
@@ -526,10 +557,23 @@ func (s *LGServer) handleAPIRoutesCount(w http.ResponseWriter, r *http.Request) 
 	// An answer with no count is not a count of zero.
 	count, ok := numValue(zeData, "count")
 	if !ok {
-		writeJSONError(w, http.StatusBadGateway, command+": answer carries no count")
+		writeJSONError(w, http.StatusBadGateway, noCountRefusal(command).Error())
 		return
 	}
 	writeJSON(w, apiEnvelope("routes", int(count)))
+}
+
+// noCountRefusal is the operator error routes/count answers when bgp-rib's
+// answer to command holds no `count` field. Its first line is the command
+// and what its answer lacks; the fix runs the same command, so the operator
+// sees the answer the looking glass could not read.
+func noCountRefusal(command string) *opererr.Error {
+	return opererr.New(
+		command+": answer carries no count",
+		"the RIB answered without a count field, and a missing count is not a count of zero, "+
+			"so the looking glass has no route count to show",
+		"ze "+command,
+	)
 }
 
 // handleAPIRoutesPrefix searches routes by prefix (birdwatcher: /routes/prefix?prefix=...).

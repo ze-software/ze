@@ -20,7 +20,7 @@ func init() {
 		{kind: opFRRRoute, argument: "10.77.4.0/24", timeout: 60 * time.Second},
 		{kind: opFRRRoute, argument: injectPrefixFirst, timeout: 60 * time.Second},
 		{kind: opBIRDRoute, argument: roleExportExcludedPrefix, timeout: 30 * time.Second},
-		{kind: opWaitContains, peer: "ze", command: zeCommand("show bgp rib received"), contains: []string{injectPrefixFirst, roleExportExcludedPrefix}, timeout: 60 * time.Second},
+		{kind: opWaitContains, peer: "ze", command: zeCommand("show bgp rib | received"), contains: []string{injectPrefixFirst, roleExportExcludedPrefix}, timeout: 60 * time.Second},
 		// recordDrop runs before the export-set rejection returns. FRR is the
 		// only send-granted target, and BIRD the only excluded source. This is
 		// a completed export decision, not the asynchronous received-RIB fence.

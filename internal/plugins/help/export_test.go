@@ -28,7 +28,7 @@ var (
 	FilterCommands       = filterCommands
 	FindNode             = findNode
 	HasSection           = hasSection
-	OperatorsFor         = operatorsFor
+	OperatorsFor         = pipeOperationsFor
 	PluginUsage          = pluginUsage
 	RenderTo             = renderTo
 	DrawCatalog          = drawCatalog
@@ -63,4 +63,16 @@ func renderAnswer(w io.Writer, path string, answer command.LocalAnswer) int {
 		return answer.Code
 	}
 	return renderTo(w, io.Discard, path, answer.Payload)
+}
+
+// Aliases answers the alias entries of a catalog row's pipe-operations list,
+// the entries the row used to publish under its own `pipe-aliases` key.
+func Aliases(entry commandEntry) []command.PipeOperationEntry {
+	var aliases []command.PipeOperationEntry
+	for _, operation := range entry.PipeOperations {
+		if operation.Source == command.PipeSourceAlias {
+			aliases = append(aliases, operation)
+		}
+	}
+	return aliases
 }

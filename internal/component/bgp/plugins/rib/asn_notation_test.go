@@ -3,7 +3,7 @@ package rib
 
 import "testing"
 
-// TestPathPatternReadsEveryNotation proves the `show bgp rib path <pattern>`
+// TestPathPatternReadsEveryNotation proves the `show bgp rib | path <pattern>`
 // filter takes the AS numbers in any RFC 5396 spelling. It also proves its
 // validator and its matcher agree about which patterns are legal.
 //

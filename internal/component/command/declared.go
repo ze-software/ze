@@ -38,6 +38,11 @@ type Declared struct {
 	// name: the global ones, the ones an in-tree package registered on this
 	// path, and the ones a registered plugin puts on it.
 	Aliases []Alias
+	// Operations are the pipe operations the command runs in its own handler,
+	// sorted by name: an override of a generic or a name of its own, declared
+	// by an in-tree package (RegisterPipeFilters) or by a registered plugin's
+	// `Pipes` entry that states an argument.
+	Operations []PipeFilter
 }
 
 // DeclaredForCommand answers what a command states about its answer, reading
@@ -77,6 +82,7 @@ func DeclaredForCommand(name string) Declared {
 		Shape:         ShapeDoc,
 		ShapeDeclared: shapeFound && len(shapes) > 0,
 		Aliases:       aliasesIncludingPlugins(name),
+		Operations:    operationsIncludingPlugins(name),
 	}
 	if declared.ShapeDeclared {
 		declared.Shape = shapes[0]
@@ -221,15 +227,107 @@ func aliasesIncludingPlugins(name string) []Alias {
 // The walk is bounded by the registered plugin count and each plugin's
 // declaration lists, both fixed once init() has run.
 func aliasesByPlugin(name string) ([]Alias, string, bool) {
+	decls, path, found := pipeDeclsByPlugin(name, pipeDeclAlias)
+	aliases := make([]Alias, 0, len(decls))
+	for _, decl := range decls {
+		aliases = append(aliases, Alias{
+			Name:        decl.Name,
+			Description: decl.Description,
+			Expansion:   decl.Expansion,
+		})
+	}
+	return aliases, path, found
+}
+
+// operationsIncludingPlugins answers the pipe operations a command runs
+// itself, resolved the way a RUNNING daemon resolves them: over the operation
+// registry this process holds, and over the registrations of the plugins it
+// compiled in, sorted by name.
+//
+// A daemon writes a plugin's operations into the registry at the plugin's own
+// path (registerPluginPipes, internal/component/plugin/server/startup.go), and
+// PipeFiltersForCommand reads the LONGEST declared path that is a prefix of the
+// command. The two channels are weighed by that length; at one path the
+// registry's set wins unless it is a barrier, because RegisterPluginPipeFilters
+// refuses a plugin set on a path that already holds one (declarationSite).
+func operationsIncludingPlugins(name string) []PipeFilter {
+	registered, registryPath, registryFound := pipeFilterRegistry.lookupPath(name)
+	decls, pluginPath, pluginFound := pipeDeclsByPlugin(name, pipeDeclOperation)
+
+	plugin := declarationSite{path: pluginPath, declared: pluginFound, empty: len(decls) == 0}
+	registry := declarationSite{path: registryPath, declared: registryFound, empty: len(registered.filters) == 0}
+	if !plugin.winsOver(registry) {
+		return PipeFiltersForCommand(name)
+	}
+	operations := make([]PipeFilter, 0, len(decls))
+	for _, decl := range decls {
+		// An argument outside the vocabulary fails the plugin's whole Stage 1
+		// registration (registerPluginPipes), so a daemon answers no
+		// operation for it, and neither does this reader.
+		argument, known := PipeArgKindNamed(decl.Argument)
+		if !known {
+			continue
+		}
+		operations = append(operations, PipeFilter{
+			Name: normalizeCommand(decl.Name), Description: decl.Description, Argument: argument,
+		})
+	}
+	return sortedPipeFilters(operations)
+}
+
+// pipeDeclKind selects which of a plugin's `Pipes` entries a walk reads. An
+// entry carries exactly one of an expansion and an argument (validatePipeDecls
+// refuses both and neither), so the two kinds partition the list.
+type pipeDeclKind uint8
+
+const (
+	pipeDeclUnspecified pipeDeclKind = iota
+	// pipeDeclAlias is an entry with an expansion: a named chain.
+	pipeDeclAlias
+	// pipeDeclOperation is an entry with an argument: an operation the
+	// plugin's handler runs.
+	pipeDeclOperation
+)
+
+// holds reports whether decl is an entry of this kind.
+func (kind pipeDeclKind) holds(decl *rpc.PipeDecl) bool {
+	switch kind {
+	case pipeDeclAlias:
+		return decl.Argument == ""
+	case pipeDeclOperation:
+		return decl.Argument != ""
+	case pipeDeclUnspecified:
+		panic("BUG: pipe declaration walk without a kind")
+	default:
+		panic("BUG: unknown pipe declaration kind")
+	}
+}
+
+// pipeDeclsByPlugin answers the `Pipes` entries of one kind a registered
+// plugin puts on this command, the path they are declared on, and whether any
+// plugin declares for it at all.
+//
+// The longest declared path that is a prefix of the command wins, and several
+// plugins declaring on ONE path merge, which is how the daemon's registry
+// holds them. A command the SAME plugin declares BELOW that path answers
+// nothing, and the path reported for it is then the command itself: the read
+// side of the barrier the daemon writes (inheritanceBarriers, alias.go).
+//
+// The walk is bounded by the registered plugin count and each plugin's
+// declaration lists, both fixed once init() has run.
+func pipeDeclsByPlugin(name string, kind pipeDeclKind) ([]*rpc.PipeDecl, string, bool) {
 	name = normalizeCommand(name)
 
-	var aliases []Alias
+	var decls []*rpc.PipeDecl
 	bestPath := ""
 	bestLen := -1
 	for _, registration := range pluginregistry.All() {
 		barrier := false
 		for index := range registration.Pipes {
 			decl := &registration.Pipes[index]
+			if !kind.holds(decl) {
+				continue
+			}
 			path := normalizeCommand(decl.Command)
 			if path == "" || decl.Name == "" || !commandMatchesPrefix(name, path) {
 				continue
@@ -242,23 +340,19 @@ func aliasesByPlugin(name string) ([]Alias, string, bool) {
 				continue
 			}
 			if len(path) > bestLen {
-				aliases = aliases[:0]
+				decls = decls[:0]
 				bestPath = path
 				bestLen = len(path)
 			}
-			aliases = append(aliases, Alias{
-				Name:        decl.Name,
-				Description: decl.Description,
-				Expansion:   decl.Expansion,
-			})
+			decls = append(decls, decl)
 		}
 		if barrier && len(name) > bestLen {
-			aliases = aliases[:0]
+			decls = decls[:0]
 			bestPath = name
 			bestLen = len(name)
 		}
 	}
-	return aliases, bestPath, bestLen >= 0
+	return decls, bestPath, bestLen >= 0
 }
 
 // declaresCommand reports whether the plugin names this exact command path.

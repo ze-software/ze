@@ -22,15 +22,15 @@ func llgrLifecycle(scenario string) Driver {
 		return runPlugin13(ctx, "observer", nil, func(ctx context.Context, p *sdk.Plugin) (scenarioErr error) {
 			defer func() { ReportFailure(scenarioErr) }()
 			count := func(filter string, want int) bool {
-				r := command13(ctx, p, "show bgp rib received "+filter+" count")
+				r := command13(ctx, p, "show bgp rib | received | "+filter+" | count")
 				got, ok := countFrom13(r)
 				return done13(r) && ok && got == want
 			}
 			wait := func(phase string, predicate func() bool) error {
 				fmt.Fprintln(os.Stderr, "observing LLGR: "+phase)
 				if !Poll(ctx, 150, 100*time.Millisecond, predicate) {
-					fmt.Fprintln(os.Stderr, "failed LLGR observation: "+phase+": "+command13(ctx, p, "show bgp rib received").text())
-					return fmt.Errorf("%s: %s", phase, command13(ctx, p, "show bgp rib received").text())
+					fmt.Fprintln(os.Stderr, "failed LLGR observation: "+phase+": "+command13(ctx, p, "show bgp rib | received").text())
+					return fmt.Errorf("%s: %s", phase, command13(ctx, p, "show bgp rib | received").text())
 				}
 				return nil
 			}
@@ -73,7 +73,7 @@ func llgrLifecycle(scenario string) Driver {
 					// Each LLGR entry replays the whole destination family; this
 					// ordering makes both replay populations deterministic.
 					if err := wait("long LLST control is stale and acknowledged on wire", func() bool {
-						return count("prefix 10.0.3.0/24 community 65535:6", 1) &&
+						return count("prefix 10.0.3.0/24 | community 65535:6", 1) &&
 							llgrRouteLevel(ctx, p, "10.0.3.0/24", 2) &&
 							count("prefix 203.0.111.0/24", 1)
 					}); err != nil {
@@ -86,7 +86,7 @@ func llgrLifecycle(scenario string) Driver {
 				}
 			}
 			if err := wait("initial received routes", func() bool {
-				return count("prefix 10.0.0.0/24", 1) && count("prefix 10.0.1.0/24 community 65535:7", 1) && count("prefix 10.0.2.0/24", 1)
+				return count("prefix 10.0.0.0/24", 1) && count("prefix 10.0.1.0/24 | community 65535:7", 1) && count("prefix 10.0.2.0/24", 1)
 			}); err != nil {
 				return err
 			}
@@ -99,12 +99,12 @@ func llgrLifecycle(scenario string) Driver {
 				return err
 			}
 			if err := wait("GR retains received NO_LLGR and plain routes before LLGR", func() bool {
-				return llgrRouteLevel(ctx, p, "10.0.0.0/24", 1) && count("prefix 10.0.1.0/24 community 65535:7", 1)
+				return llgrRouteLevel(ctx, p, "10.0.0.0/24", 1) && count("prefix 10.0.1.0/24 | community 65535:7", 1)
 			}); err != nil {
 				return err
 			}
 			if err := wait("LLGR deletes NO_LLGR and marks retained routes", func() bool {
-				return count("prefix 10.0.1.0/24", 0) && count("prefix 10.0.0.0/24 community 65535:6", 1) && llgrRouteLevel(ctx, p, "10.0.0.0/24", 2) && llgrRouteLevel(ctx, p, "10.0.2.0/24", 2)
+				return count("prefix 10.0.1.0/24", 0) && count("prefix 10.0.0.0/24 | community 65535:6", 1) && llgrRouteLevel(ctx, p, "10.0.0.0/24", 2) && llgrRouteLevel(ctx, p, "10.0.2.0/24", 2)
 			}); err != nil {
 				return err
 			}
@@ -116,7 +116,7 @@ func llgrLifecycle(scenario string) Driver {
 			switch scenario {
 			case llgrScenarioTimer:
 				if err := wait("remote short LLST expires while long LLST control survives", func() bool {
-					return count("prefix 10.0.0.0/24", 0) && count("prefix 10.0.2.0/24", 0) && count("prefix 10.0.3.0/24 community 65535:6", 1) && llgrRouteLevel(ctx, p, "10.0.3.0/24", 2)
+					return count("prefix 10.0.0.0/24", 0) && count("prefix 10.0.2.0/24", 0) && count("prefix 10.0.3.0/24 | community 65535:6", 1) && llgrRouteLevel(ctx, p, "10.0.3.0/24", 2)
 				}); err != nil {
 					return err
 				}
@@ -125,7 +125,7 @@ func llgrLifecycle(scenario string) Driver {
 				}
 			case "eor":
 				if err := wait("reconnect refresh before EOR retains the unrefreshed route", func() bool {
-					return llgrRouteLevel(ctx, p, "10.0.0.0/24", 0) && count("prefix 10.0.0.0/24 community 65535:6", 0) && llgrRouteLevel(ctx, p, "10.0.2.0/24", 2)
+					return llgrRouteLevel(ctx, p, "10.0.0.0/24", 0) && count("prefix 10.0.0.0/24 | community 65535:6", 0) && llgrRouteLevel(ctx, p, "10.0.2.0/24", 2)
 				}); err != nil {
 					return err
 				}
@@ -158,7 +158,7 @@ func llgrLifecycle(scenario string) Driver {
 }
 
 func llgrRouteLevel(ctx context.Context, p *sdk.Plugin, prefix string, want int) bool {
-	r := command13(ctx, p, "show bgp rib received prefix "+prefix)
+	r := command13(ctx, p, "show bgp rib | received | prefix "+prefix)
 	if !done13(r) {
 		return false
 	}

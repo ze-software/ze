@@ -44,9 +44,9 @@ func TestUIPagesRefuseAFailedCommand(t *testing.T) {
 		command string
 	}{
 		{"/lg/peer/192.0.2.1", cmdBGPOverview},
-		{"/lg/peer/192.0.2.1/download", "show bgp rib received peer 192.0.2.1"},
-		{"/lg/route/detail?prefix=10.0.0.0/24&peer=192.0.2.1", "show bgp rib received exact 10.0.0.0/24"},
-		{"/lg/graph?prefix=10.0.0.0/24", "show bgp rib received exact 10.0.0.0/24"},
+		{"/lg/peer/192.0.2.1/download", "show bgp rib | received | peer 192.0.2.1"},
+		{"/lg/route/detail?prefix=10.0.0.0/24&peer=192.0.2.1", "show bgp rib | received | exact 10.0.0.0/24"},
+		{"/lg/graph?prefix=10.0.0.0/24", "show bgp rib | received | exact 10.0.0.0/24"},
 	}
 	failures := []struct {
 		name     string
@@ -104,7 +104,7 @@ func TestUISearchBannerNamesTheFailure(t *testing.T) {
 	if !strings.Contains(body, `class="error-banner"`) {
 		t.Fatalf("no error banner; status %d, body %s", rec.Code, body)
 	}
-	if want := "show bgp rib received exact 10.0.0.0/24: " + failureEngineError; !strings.Contains(body, want) {
+	if want := "show bgp rib | received | exact 10.0.0.0/24: " + failureEngineError; !strings.Contains(body, want) {
 		t.Errorf("banner does not carry %q: %s", want, body)
 	}
 	if strings.Contains(body, errTestEngineDown.Error()) {

@@ -131,7 +131,7 @@ func Collect() (Commands, error) {
 		}
 		entry.ColumnOrders = command.ColumnNames(declared.Columns)
 		entry.AddressFields = declared.AddressFields
-		entry.Aliases = aliasesFor(declared)
+		entry.PipeOperations = command.PipeOperations(declared)
 	}
 
 	sort.Slice(commands, func(i, j int) bool {
@@ -141,27 +141,6 @@ func Collect() (Commands, error) {
 		return commands[i].Path < commands[j].Path
 	})
 	return commands, nil
-}
-
-// aliasesFor answers the pipe chains a command names, from the declaration the
-// inventory already resolved for it.
-//
-// It carries a registered plugin's aliases beside the alias registry's, because
-// this process starts no plugin and so receives no Stage 1 message. An alias
-// declared by a plugin that is not in this composition root, an EXTERNAL plugin,
-// stays a running daemon's answer (internal/plugins/meta/cmd/help.go,
-// commandHelp).
-func aliasesFor(declared command.Declared) []Alias {
-	if len(declared.Aliases) == 0 {
-		return nil
-	}
-	aliases := make([]Alias, 0, len(declared.Aliases))
-	for _, alias := range declared.Aliases {
-		aliases = append(aliases, Alias{
-			Name: alias.Name, Description: alias.Description, Expansion: alias.Expansion,
-		})
-	}
-	return aliases
 }
 
 // hasPath reports whether any collected command already carries path, compared

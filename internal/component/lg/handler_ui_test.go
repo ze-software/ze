@@ -869,11 +869,11 @@ func TestSearchSendsCoveringForBareAddress(t *testing.T) {
 	cases := []struct {
 		name, form, command string
 	}{
-		{"bare address", "prefix=10.0.0.1", "show bgp rib received covering 10.0.0.1"},
-		{"bare address with a path filter", "prefix=10.0.0.1&aspath=65001", "show bgp rib received covering 10.0.0.1 path 65001"},
-		{"prefix with its length", "prefix=10.0.0.0/24", "show bgp rib received exact 10.0.0.0/24"},
-		{"prefix with host bits set", "prefix=10.0.0.1/24", "show bgp rib received exact 10.0.0.0/24"},
-		{"ipv4 last valid length", "prefix=10.0.0.0/32", "show bgp rib received exact 10.0.0.0/32"},
+		{"bare address", "prefix=10.0.0.1", "show bgp rib | received | covering 10.0.0.1"},
+		{"bare address with a path filter", "prefix=10.0.0.1&aspath=65001", "show bgp rib | received | covering 10.0.0.1 | path 65001"},
+		{"prefix with its length", "prefix=10.0.0.0/24", "show bgp rib | received | exact 10.0.0.0/24"},
+		{"prefix with host bits set", "prefix=10.0.0.1/24", "show bgp rib | received | exact 10.0.0.0/24"},
+		{"ipv4 last valid length", "prefix=10.0.0.0/32", "show bgp rib | received | exact 10.0.0.0/32"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -944,13 +944,13 @@ func TestSearchSendsEnginePathGrammar(t *testing.T) {
 		name, aspath, command string
 		listed                bool
 	}{
-		{"two AS numbers with a space", "65001 65002", "show bgp rib received path 65001,65002", true},
-		{"anchored run", "^65001 65002", "show bgp rib received path ^65001,65002", true},
-		{"anchored first AS", "^65001", "show bgp rib received path ^65001", true},
-		{"commas and spaces", "65001 , 65002", "show bgp rib received path 65001,65002", true},
-		{"reverse order", "65002 65001", "show bgp rib received path 65002,65001", false},
-		{"anchored at a later AS", "^65002", "show bgp rib received path ^65002", false},
-		{"last valid as number", "4294967295", "show bgp rib received path 4294967295", false},
+		{"two AS numbers with a space", "65001 65002", "show bgp rib | received | path 65001,65002", true},
+		{"anchored run", "^65001 65002", "show bgp rib | received | path ^65001,65002", true},
+		{"anchored first AS", "^65001", "show bgp rib | received | path ^65001", true},
+		{"commas and spaces", "65001 , 65002", "show bgp rib | received | path 65001,65002", true},
+		{"reverse order", "65002 65001", "show bgp rib | received | path 65002,65001", false},
+		{"anchored at a later AS", "^65002", "show bgp rib | received | path ^65002", false},
+		{"last valid as number", "4294967295", "show bgp rib | received | path 4294967295", false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -989,11 +989,11 @@ func TestSearchSendsTheEndAnchor(t *testing.T) {
 		name, aspath, command string
 		listed                bool
 	}{
-		{"origin", "65002$", "show bgp rib received path 65002$", true},
-		{"crossed, not originated", "65001$", "show bgp rib received path 65001$", false},
-		{"exact path", "^65001 65002$", "show bgp rib received path ^65001,65002$", true},
-		{"exact path, one AS short", "^65001$", "show bgp rib received path ^65001$", false},
-		{"run at the end", "65001,65002$", "show bgp rib received path 65001,65002$", true},
+		{"origin", "65002$", "show bgp rib | received | path 65002$", true},
+		{"crossed, not originated", "65001$", "show bgp rib | received | path 65001$", false},
+		{"exact path", "^65001 65002$", "show bgp rib | received | path ^65001,65002$", true},
+		{"exact path, one AS short", "^65001$", "show bgp rib | received | path ^65001$", false},
+		{"run at the end", "65001,65002$", "show bgp rib | received | path 65001,65002$", true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1070,7 +1070,7 @@ func TestRouteDetailAsksForExactlyThePrefix(t *testing.T) {
 	var commands []string
 	dispatch := func(_ context.Context, _ plugin.CallerIdentity, cmd string) (*plugin.Response, error) {
 		commands = append(commands, cmd)
-		query, refusal := fakeRIBPipeline(strings.Fields(strings.TrimPrefix(cmd, "show bgp rib")), false)
+		query, _, refusal := fakeRIBRead(cmd)
 		if refusal != "" {
 			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`{"error":`+strconv.Quote(refusal)+`}`)), nil
 		}
@@ -1089,8 +1089,8 @@ func TestRouteDetailAsksForExactlyThePrefix(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200; body %s", rec.Code, rec.Body.String())
 	}
-	if len(commands) != 1 || commands[0] != "show bgp rib received exact 192.0.0.0/2" {
-		t.Fatalf("commands = %q, want [show bgp rib received exact 192.0.0.0/2]", commands)
+	if len(commands) != 1 || commands[0] != "show bgp rib | received | exact 192.0.0.0/2" {
+		t.Fatalf("commands = %q, want [show bgp rib | received | exact 192.0.0.0/2]", commands)
 	}
 	body := rec.Body.String()
 	if !strings.Contains(body, "<dt>Prefix</dt><dd>192.0.0.0/2</dd>") {

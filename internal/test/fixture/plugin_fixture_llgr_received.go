@@ -44,7 +44,7 @@ func llgrStaleReceived02(ctx context.Context, plugin *sdk.Plugin) error {
 	}
 	entries := make(map[string]map[string]any, len(verdicts))
 	if !Poll(ctx, 40, 250*time.Millisecond, func() bool {
-		raw, err := requireDone02(ctx, plugin, "show bgp rib best reason")
+		raw, err := requireDone02(ctx, plugin, "show bgp rib best | reason")
 		if err != nil {
 			return false
 		}

@@ -20,7 +20,7 @@ func plugin01AdjRIBInQuery(ctx context.Context, plugin *sdk.Plugin) error {
 	if err := plugin01WaitEORAndQuiesce(ctx, plugin); err != nil {
 		return err
 	}
-	if _, err := plugin01RequireDone(ctx, plugin, "show bgp rib received"); err != nil {
+	if _, err := plugin01RequireDone(ctx, plugin, "show bgp rib | received"); err != nil {
 		return err
 	}
 	fmt.Fprintln(os.Stderr, "OK: adj-rib-in query returned done")

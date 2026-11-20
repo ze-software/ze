@@ -33,7 +33,7 @@ const (
 	// BestStep.String reports it (internal/component/bgp/plugins/rib/bestpath.go).
 	clusterListDecidingStep = "cluster-list-length"
 
-	// The two fields of ze's `show bgp rib best ... reason` answer this checker
+	// The two fields of ze's `show bgp rib best | ... | reason` answer this checker
 	// reads (bestReasonTerminal, rib_pipeline_best.go).
 	clusterListWinnerField = "winner-peer"
 	clusterListStepField   = "step"
@@ -158,7 +158,7 @@ func checkClusterListLengthTieBreak(ctx context.Context, check *interoplab.Check
 		Interval:    2 * time.Second,
 		Description: "ze best-path decision for " + clusterListPrefix,
 	}, func(probeCtx context.Context) (string, error) {
-		command := zeCommand("show bgp rib best prefix " + clusterListPrefix + " reason")
+		command := zeCommand("show bgp rib best | prefix " + clusterListPrefix + " | reason")
 		return check.Lab.Query(probeCtx, "ze", command, queryEnvironment("ze", command))
 	}, func(output string) bool {
 		winner, step, decodeErr := clusterListDecision(output)
@@ -241,7 +241,7 @@ func birdPrimaryProtocol(output string) (string, error) {
 }
 
 // clusterListDecision reads the winning peer and the deciding step out of ze's
-// `show bgp rib best ... reason` answer.
+// `show bgp rib best | ... | reason` answer.
 //
 // An answer that carries neither field is not an empty decision, so both
 // lookups are required. Ze narrates one step per pairwise comparison, and this

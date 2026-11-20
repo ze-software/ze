@@ -317,10 +317,9 @@ system {
 		}
 		shape, _ := entry["answer-shape"].(string)
 		always := make(map[string]struct{})
-		if operators, ok := entry["operators"].([]any); ok {
-			for _, rawOperator := range operators {
-				operator, ok := rawOperator.(map[string]any)
-				if !ok || operator["available"] != valueAlways {
+		if operators, ok := catalogOperatorRows(entry); ok {
+			for _, operator := range operators {
+				if operator["available"] != valueAlways {
 					continue
 				}
 				if name, ok := operator["name"].(string); ok {

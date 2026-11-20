@@ -140,8 +140,9 @@ func TestRenderEquivalentHTMLWrapsTermGroupsInDefinitionList(t *testing.T) {
 		Path:          "show test",
 		AnswerShape:   "tab",
 		AddressFields: []string{"address"},
-		Operators: []publishedCommandOperator{{
-			Name: "json", Available: "always", Description: "JSON output",
+		PipeOperations: []publishedPipeOperation{{
+			Name: "json", Source: pipeSourceGeneric, Argument: "optional",
+			Available: "always", Description: "JSON output",
 		}},
 	}
 	document := parseRenderedHTML(string(renderEquivalentHTML(&command)))
@@ -161,21 +162,21 @@ func TestRenderEquivalentHTMLWrapsTermGroupsInDefinitionList(t *testing.T) {
 func TestRenderEquivalentMarkdownEscapesAndRoundTripsDetails(t *testing.T) {
 	command := publishedCommand{
 		Path: "show test",
-		Pipes: []publishedCommandPipe{
+		PipeOperations: []publishedPipeOperation{
 			{
-				Name:        "family",
+				Name: "family", Source: pipeSourceCommand, Argument: "text",
 				Description: `Filter; preserve \ path and \; literal \! punctuation`,
-				TakesArg:    true,
 			},
-			{Name: "active", Description: "Keep active rows"},
-		},
-		Aliases: []publishedCommandAlias{
+			{Name: "active", Source: pipeSourceCommand, Argument: "none", Description: "Keep active rows"},
 			{
-				Name:        "summary",
+				Name: "summary", Source: pipeSourceAlias, Argument: "none",
 				Description: `Summarize; keep \ markers and \; literal \? punctuation`,
 				Expansion:   `display address; match \ value and \; literal \! punctuation`,
 			},
-			{Name: "brief", Description: "Brief rows", Expansion: "display address"},
+			{
+				Name: "brief", Source: pipeSourceAlias, Argument: "none",
+				Description: "Brief rows", Expansion: "display address",
+			},
 		},
 	}
 
@@ -251,16 +252,17 @@ func TestRenderMarkdownLiteralValuesRoundTripAcrossSurfaces(t *testing.T) {
 		Mode: "read-only",
 		ShortHelp: "Always: literal | *emphasis* [link](target) <tag> \\ path\r\n" +
 			"Aliases: prose",
-		Pipes: []publishedCommandPipe{{
-			Name:        "tick`filter",
-			Description: "semi; comma, space | _emphasis_ [link](target) <tag> \\ path\nnext",
-			TakesArg:    true,
-		}},
-		Aliases: []publishedCommandAlias{{
-			Name:        "tick``alias",
-			Description: "detail; | **strong** <node> \\ tail",
-			Expansion:   "display `one`, next; when): done \\ path",
-		}},
+		PipeOperations: []publishedPipeOperation{
+			{
+				Name: "tick`filter", Source: pipeSourceCommand, Argument: "text",
+				Description: "semi; comma, space | _emphasis_ [link](target) <tag> \\ path\nnext",
+			},
+			{
+				Name: "tick``alias", Source: pipeSourceAlias, Argument: "none",
+				Description: "detail; | **strong** <node> \\ tail",
+				Expansion:   "display `one`, next; when): done \\ path",
+			},
+		},
 	}
 
 	primaryMarkdown := string(renderPrimaryCommandMarkdown([]publishedCommand{command}))
@@ -403,21 +405,17 @@ func TestRenderPrimaryMarkdownEscapesAliasExpansionTablePipe(t *testing.T) {
 		ShortHelp:     "Show aliases",
 		AnswerShape:   "tab|map",
 		AddressFields: []string{`peer\|address`},
-		Pipes: []publishedCommandPipe{{
-			Name:        "match|up",
-			Description: "Match rows",
-		}},
-		Operators: []publishedCommandOperator{{
-			Name:        "json|lines",
-			Class:       "global",
-			Available:   "always",
-			Description: "JSON lines",
-		}},
-		Aliases: []publishedCommandAlias{{
-			Name:        "quick",
-			Description: "Quick view",
-			Expansion:   "match up | count",
-		}},
+		PipeOperations: []publishedPipeOperation{
+			{
+				Name: "json|lines", Source: pipeSourceGeneric, Argument: "none",
+				Class: "global", Available: "always", Description: "JSON lines",
+			},
+			{Name: "match|up", Source: pipeSourceCommand, Argument: "none", Description: "Match rows"},
+			{
+				Name: "quick", Source: pipeSourceAlias, Argument: "none",
+				Description: "Quick view", Expansion: "match up | count",
+			},
+		},
 	}
 	rendered := string(renderPrimaryCommandMarkdown([]publishedCommand{command}))
 	const encoded = "Aliases: `quick`: Quick view (`match up \\| count`)"

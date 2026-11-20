@@ -434,18 +434,23 @@ func runAliasHelp(ctx context.Context, cli func(string) (string, error)) error {
 	if err != nil {
 		return err
 	}
-	if _, exists := bare["pipe-aliases"]; exists {
+	if aliases := aliasMap(bare); len(aliases) != 0 {
 		return fmt.Errorf("bare command reports aliases: %v", bare)
 	}
 	fmt.Println("OK")
 	return nil
 }
 
+// aliasMap answers the alias entries of a `show command help` answer by name:
+// its `pipe-operations` entries whose source is `alias`.
 func aliasMap(doc map[string]any) map[string]map[string]any {
 	result := make(map[string]map[string]any)
-	rows, _ := doc["pipe-aliases"].([]any)
+	rows, _ := doc["pipe-operations"].([]any)
 	for _, raw := range rows {
 		row, _ := raw.(map[string]any)
+		if source, _ := row["source"].(string); source != "alias" {
+			continue
+		}
 		name, _ := row["name"].(string)
 		result[name] = row
 	}

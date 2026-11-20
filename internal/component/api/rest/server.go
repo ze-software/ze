@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/api"
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -554,23 +555,25 @@ func (s *RESTServer) handleRIB(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "address family required")
 		return
 	}
-	var command string
+	// The RIB takes its selection as pipe operations, never as argument words:
+	// the family is a `| family <family>` filter after the reader.
+	var tb textbuf.Buffer
 	if family, isBest := strings.CutSuffix(path, "/best"); isBest {
 		if err := validatePathSegment("family", family); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		var tb textbuf.Buffer
-		command = tb.Str("show bgp rib best family ").Str(family).String()
+		tb.Str("show bgp rib best | family ")
+		command.WriteInvocationValue(&tb, family)
 	} else {
 		if err := validatePathSegment("family", path); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		var tb textbuf.Buffer
-		command = tb.Str("show bgp rib family ").Str(path).String()
+		tb.Str("show bgp rib | family ")
+		command.WriteInvocationValue(&tb, path)
 	}
-	result, execErr := s.engine.Execute(r.Context(), &api.ExecuteRequest{Caller: s.callerIdentity(r), Command: command})
+	result, execErr := s.engine.Execute(r.Context(), &api.ExecuteRequest{Caller: s.callerIdentity(r), Command: tb.String()})
 	if errors.Is(execErr, api.ErrUnauthorized) {
 		writeError(w, http.StatusForbidden, result.Error)
 		return

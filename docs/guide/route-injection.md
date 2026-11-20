@@ -19,7 +19,7 @@ origin or redistribution path.
 
 ```bash
 ze cli -c "request bgp rib inject 192.0.2.10 ipv4/unicast 198.51.100.0/24 origin igp nexthop 127.0.0.1 med 42"
-ze cli -c "show bgp rib best prefix 198.51.100.0/24"
+ze cli -c "show bgp rib best | prefix 198.51.100.0/24"
 ze cli -c "show rib"
 ```
 
@@ -44,12 +44,12 @@ RFC 5549.
 
 ```bash
 ze cli -c "request bgp rib inject 192.0.2.10 ipv4/unicast 198.51.100.0/24 origin igp nexthop 2001:db8::1"
-ze cli -c "show bgp rib best prefix 198.51.100.0/24"
+ze cli -c "show bgp rib best | prefix 198.51.100.0/24"
 ```
 
 Ze stores the MP_REACH attribute with the synthetic candidate and recovers the
 next hop when selecting and forwarding it. `show bgp rib best` and
-`show bgp rib received` both display the recovered next hop: the attribute
+`show bgp rib | received` both display the recovered next hop: the attribute
 renderer falls back to the stored MP_REACH_NLRI whenever the legacy IPv4-only
 NEXT_HOP attribute (type 3) is absent, which is the case for every IPv6 next
 hop, native or extended.

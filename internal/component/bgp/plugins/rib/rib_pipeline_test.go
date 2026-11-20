@@ -397,7 +397,7 @@ func TestShowPipelineBothDirections(t *testing.T) {
 
 // TestShowPipelineReceivedScope verifies received scope returns only inbound.
 //
-// VALIDATES: show bgp rib received returns only adj-rib-in routes.
+// VALIDATES: show bgp rib | received returns only adj-rib-in routes.
 // PREVENTS: Outbound routes leaking into received scope.
 func TestShowPipelineReceivedScope(t *testing.T) {
 	r := newTestRIBManager(t)
@@ -429,7 +429,7 @@ func TestShowPipelineReceivedScope(t *testing.T) {
 
 // TestShowPipelineSentScope verifies sent scope returns only outbound.
 //
-// VALIDATES: show bgp rib sent returns only adj-rib-out routes.
+// VALIDATES: show bgp rib | sent returns only adj-rib-out routes.
 // PREVENTS: Inbound routes leaking into sent scope.
 func TestShowPipelineSentScope(t *testing.T) {
 	r := newTestRIBManager(t)
@@ -1761,7 +1761,7 @@ func TestValidatePathPatternEndAnchor(t *testing.T) {
 //
 // VALIDATES: `aspath <value>` is refused at parse time when the value is not
 // a path pattern, as `path <value>` is.
-// PREVENTS: `show bgp rib aspath peer` being accepted and answering no
+// PREVENTS: `show bgp rib | aspath peer` being accepted and answering no
 // route, because the matcher refuses what the parser let through.
 func TestParsePipelineValidatesASPathAlias(t *testing.T) {
 	for _, keyword := range []string{filterPath, filterASPath} {
@@ -1784,7 +1784,7 @@ func TestParsePipelineValidatesASPathAlias(t *testing.T) {
 // reaches the routes of a stored RIB, by counting one stored route whose AS
 // path is [65001] under anchored patterns that name its origin and another.
 //
-// VALIDATES: `show bgp rib received path 65001$ count` counts the route AS
+// VALIDATES: `show bgp rib | received | path 65001$ | count` counts the route AS
 // 65001 originates, and a misplaced anchor is refused as a pipeline refusal.
 // PREVENTS: the anchor being accepted by the parser and then ignored, or
 // dropped, by the filter stage that runs over the stored routes.
@@ -1807,7 +1807,7 @@ func TestShowPipelinePathEndAnchor(t *testing.T) {
 		result := r.showPipeline("*", ribPipe("received", "path", pattern, "count"))
 		var parsed map[string]any
 		require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed), "pattern %q", pattern)
-		assert.Equal(t, want, parsed["count"], "show bgp rib received path %s count", pattern)
+		assert.Equal(t, want, parsed["count"], "show bgp rib | received | path %s | count", pattern)
 	}
 
 	refusal, refused := r.showPipeline("*", ribPipe("received", "path", "65001$$", "count")).(pipelineRefusal)

@@ -101,19 +101,18 @@ func parseExactPrefixLookup(text string) (prefixLookup, *opererr.Error) {
 		host.String())
 }
 
-// appendTo writes the lookup as one source selector, " <keyword> <value>",
-// after the scope the caller already wrote.
+// appendTo writes the lookup as one source selector pipe operation,
+// " | <keyword> <value>", after the scope operation the caller already wrote.
 func (l prefixLookup) appendTo(tb *textbuf.Buffer) {
-	tb.Byte(' ').Str(l.keyword).Byte(' ').Str(l.value)
+	tb.Str(" | ").Str(l.keyword).Byte(' ').Str(l.value)
 }
 
 // receivedCommand is the command that asks bgp-rib for the routes learned
-// from peers that answer the lookup: the `received` scope. With no scope
-// keyword the plugin answers `sent-received` (parsePipelineArgs), and a route
-// Ze sent a peer would read as learned from that peer.
+// from peers that answer the lookup: the `received` scope (cmdRIBReceived),
+// the only scope the plugin reads a source selector on.
 func (l prefixLookup) receivedCommand() string {
 	var tb textbuf.Buffer
-	tb.Str("show bgp rib received")
+	tb.Str(cmdRIBReceived)
 	l.appendTo(&tb)
 	return tb.String()
 }

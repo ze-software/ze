@@ -863,6 +863,36 @@ func TestRESTRIBFamilyWhitespace(t *testing.T) {
 	assert.Contains(t, r.Body, "whitespace")
 }
 
+// TestRESTRIBRouteSendsThePipeForm checks the line each RIB convenience route
+// hands the engine.
+//
+// Method: the test engine's executor answers an unknown command with the line
+// it received as its message, so the body shows what the route sent. The RIB
+// takes its selection as pipe operations and the dispatcher refuses the
+// argument form (`show bgp rib family <family>`), so each route writes
+// `| family <family>` after its reader.
+//
+// VALIDATES: GET /api/v1/rib/<family> and /api/v1/rib/<family>/best send the
+// pipe form.
+// PREVENTS: a convenience route spelling a RIB read the dispatcher refuses.
+func TestRESTRIBRouteSendsThePipeForm(t *testing.T) {
+	cases := []struct {
+		url  string
+		want string
+	}{
+		{url: "/api/v1/rib/ipv4%2Funicast", want: "show bgp rib | family ipv4/unicast"},
+		{url: "/api/v1/rib/ipv4%2Funicast/best", want: "show bgp rib best | family ipv4/unicast"},
+	}
+	for _, c := range cases {
+		t.Run(c.url, func(t *testing.T) {
+			srv := testServer(t)
+			r := do(t, srv, "GET", c.url, "")
+			require.Equal(t, http.StatusOK, r.Status, r.Body)
+			assert.Contains(t, r.Body, c.want)
+		})
+	}
+}
+
 // VALIDATES: per-user authenticator passes username to engine.
 // PREVENTS: all requests using the reserved shared API identity.
 func TestRESTAuthenticator(t *testing.T) {

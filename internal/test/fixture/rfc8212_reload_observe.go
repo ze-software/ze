@@ -386,7 +386,7 @@ func rfc8212ReloadBest(ctx context.Context, p *sdk.Plugin, prefix, owner string)
 			} `json:"best-path"`
 		}
 		var status string
-		status, queryErr = Dispatch(ctx, p, "show bgp rib best prefix "+prefix, &answer)
+		status, queryErr = Dispatch(ctx, p, "show bgp rib best | prefix "+prefix, &answer)
 		last = answer
 		if queryErr != nil {
 			return false

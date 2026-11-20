@@ -617,21 +617,6 @@ func sortedAliases(byName map[string]Alias) []Alias {
 	return aliases
 }
 
-// aliasSuggestions offers the alias names a command answers to, for the
-// operator slot of a pipe segment. An alias takes no argument, so it has no
-// sub-argument completion.
-func aliasSuggestions(command string) []Suggestion {
-	aliases := AliasesForCommand(command)
-	if len(aliases) == 0 {
-		return nil
-	}
-	suggestions := make([]Suggestion, 0, len(aliases))
-	for _, alias := range aliases {
-		suggestions = append(suggestions, Suggestion{Text: alias.Name, Description: alias.Description, Type: SuggestionPipe})
-	}
-	return suggestions
-}
-
 // ResetAliasesForTest clears every registered alias, the global table and the
 // record of what each owner declared included. A record that survived the
 // registry it describes would remove another test's entries.

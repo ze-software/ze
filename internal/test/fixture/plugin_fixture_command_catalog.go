@@ -35,13 +35,14 @@ const (
 	catalogKeyShape   = "answer-shape"
 	catalogKeyColumns = "column-orders"
 	catalogKeyAddress = "address-fields"
-	catalogKeyAliases = "pipe-aliases"
-	// The two surfaces spell the pipe-filter list differently: the daemon
-	// answers `pipe-filters` (commandHelp, internal/plugins/meta/cmd/help.go)
-	// and the published catalog `pipes` (commandEntry, cmd/ze/help_command.go).
-	// A command declaring none carries neither key.
-	catalogKeyFilters      = "pipe-filters"
-	catalogKeyFiltersAlias = "pipes"
+	// Both surfaces answer one `pipe-operations` list (commandHelp,
+	// internal/plugins/meta/cmd/help.go; commandEntry,
+	// internal/plugins/help/help_command.go), each entry naming its source.
+	catalogKeyOperations = "pipe-operations"
+	catalogSourceAlias   = "alias"
+	// An override and a command operation are what the command runs itself.
+	catalogSourceOverride = "override"
+	catalogSourceCommand  = "command"
 )
 
 // catalogROAColumns is the column ORDER `show bgp rpki roa` declares
@@ -303,11 +304,9 @@ func catalogCheckExactPathWins(parent, child map[string]any, surface string) err
 	// list, so the barrier is an in-tree RegisterPipeFilters
 	// (internal/component/bgp/plugins/cmd/rib/rib.go). Without it a list of
 	// subcommand names published `| peer`, `| prefix` and `| community`.
-	for _, key := range []string{catalogKeyFilters, catalogKeyFiltersAlias} {
-		if filters, present := child[key]; present {
-			return fmt.Errorf("%s gives %q the route pipe filters of %q under %q, and its answer has no route to filter: %v",
-				surface, catalogCommandRibHelp, catalogCommandRib, key, filters)
-		}
+	if filters := catalogOperations(child, catalogSourceOverride, catalogSourceCommand); len(filters) != 0 {
+		return fmt.Errorf("%s gives %q the route pipe operations of %q, and its answer has no route to filter: %v",
+			surface, catalogCommandRibHelp, catalogCommandRib, filters)
 	}
 	return nil
 }
@@ -412,7 +411,7 @@ func catalogPublished(ctx context.Context, filter string) (map[string]map[string
 // nil when the entry answers to no such name. It is the one alias bgp-rpki
 // declares, and both surfaces spell the list the same way.
 func catalogSummaryAlias(entry map[string]any) map[string]any {
-	rows, _ := entry[catalogKeyAliases].([]any)
+	rows := catalogOperations(entry, catalogSourceAlias)
 	for _, raw := range rows {
 		row, ok := raw.(map[string]any)
 		if !ok {
@@ -428,7 +427,7 @@ func catalogSummaryAlias(entry map[string]any) map[string]any {
 // catalogAliasNames names every pipe alias one catalog entry answers to, for
 // the report of an alias it does not carry or one it should not.
 func catalogAliasNames(entry map[string]any) []string {
-	rows, _ := entry[catalogKeyAliases].([]any)
+	rows := catalogOperations(entry, catalogSourceAlias)
 	names := make([]string, 0, len(rows))
 	for _, raw := range rows {
 		row, ok := raw.(map[string]any)
@@ -499,4 +498,21 @@ func catalogPaths(entries map[string]map[string]any) []string {
 	}
 	slices.Sort(paths)
 	return paths
+}
+
+// catalogOperations answers the `pipe-operations` entries of one catalog or
+// help entry whose source is one of sources, in list order.
+func catalogOperations(entry map[string]any, sources ...string) []any {
+	rows, _ := entry[catalogKeyOperations].([]any)
+	var matched []any
+	for _, raw := range rows {
+		row, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		if source, _ := row["source"].(string); slices.Contains(sources, source) {
+			matched = append(matched, row)
+		}
+	}
+	return matched
 }

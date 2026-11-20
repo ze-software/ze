@@ -130,7 +130,7 @@ func lifecycleCreate(ctx context.Context, plugin *sdk.Plugin) error {
 // is in its own RIB view, in the RIB, and its best path names that peer.
 func lifecycleRoutesReachTheRIB(ctx context.Context, plugin *sdk.Plugin) error {
 	for _, command := range []string{
-		"show bgp peer " + lifecycleCreatedPeer + " rib received",
+		"show bgp peer " + lifecycleCreatedPeer + " rib | received",
 		"show bgp rib",
 	} {
 		if !lifecycleWaitText(ctx, plugin, command, func(text string) bool { return strings.Contains(text, lifecyclePrefix) }) {
@@ -223,7 +223,7 @@ func lifecycleCreatedPeerKept(ctx context.Context, plugin *sdk.Plugin, after str
 		}
 		time.Sleep(plugin01PollDelay)
 	}
-	data, err := plugin01RequireDone(ctx, plugin, "show bgp peer "+lifecycleCreatedPeer+" rib received")
+	data, err := plugin01RequireDone(ctx, plugin, "show bgp peer "+lifecycleCreatedPeer+" rib | received")
 	if err != nil {
 		return err
 	}

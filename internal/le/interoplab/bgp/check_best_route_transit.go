@@ -146,7 +146,7 @@ func bestRouteTransitWaitZe(ctx context.Context, check *interoplab.CheckContext,
 }
 
 func bestRouteTransitWaitDenied(ctx context.Context, check *interoplab.CheckContext, source netip.Addr) error {
-	command := zeCommand("show bgp rib best prefix " + bestRouteTransitDenied)
+	command := zeCommand("show bgp rib best | prefix " + bestRouteTransitDenied)
 	last, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: 60 * time.Second, Interval: time.Second, Description: "export-excluded transit route remains elected at its original source"},
 		func(probe context.Context) (string, error) {
 			return check.Lab.Query(probe, "ze", command, queryEnvironment("ze", command))

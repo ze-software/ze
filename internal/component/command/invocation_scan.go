@@ -179,9 +179,12 @@ func quotedEscape(text string, i int) (decoded byte, ok bool) {
 // operation's decoded words, its name first; a segment with no word (`| |`)
 // is no operation. quoteAt is the byte offset in the scanned text of a double
 // quote that never closes, or -1.
+// lastStageAt is the byte offset just past the last pipe the grammar reads as a
+// separator, or 0 when it reads none: where the stage being typed starts.
 type chainScan struct {
-	operations [][]string
-	quoteAt    int
+	operations  [][]string
+	quoteAt     int
+	lastStageAt int
 }
 
 // scanChain reads the pipe chain after the first unquoted pipe under the
@@ -243,6 +246,7 @@ func scanChain(chain string) (chainScan, error) {
 		case '|':
 			endOperation()
 			i++
+			result.lastStageAt = i
 		default:
 			r, size := utf8.DecodeRuneInString(chain[i:])
 			if unicode.IsSpace(r) {

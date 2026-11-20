@@ -152,7 +152,10 @@ func TestTextRendersTheMarkdownTable(t *testing.T) {
 			Shape:         "tab",
 			ColumnOrders:  [][]string{{"peer", "state"}, {"up"}},
 			AddressFields: []string{"peer"},
-			Aliases:       []Alias{{Name: "summary", Description: "the aggregate half", Expansion: "display router-id"}},
+			PipeOperations: []command.PipeOperationEntry{
+				{Name: "json", Source: command.PipeSourceGeneric, Available: command.PipeAvailableAlways},
+				{Name: "summary", Source: command.PipeSourceAlias, Description: "the aggregate half", Expansion: "display router-id"},
+			},
 		},
 		{Verb: "-", Path: "raw-thing", Source: "streaming"},
 	}

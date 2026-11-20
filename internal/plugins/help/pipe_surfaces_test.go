@@ -24,7 +24,7 @@ func TestVerboseHelpNamesTheGlobalOperators(t *testing.T) {
 		Path:        "show test",
 		Description: "a command that reaches the pipe layer",
 	}
-	entry.Operators, entry.AnswerShape = help.OperatorsFor(entry.Path, command.DeclaredForCommand(entry.Path), wireToPathsForTest(t))
+	entry.PipeOperations, entry.AnswerShape = help.OperatorsFor(entry.Path, command.DeclaredForCommand(entry.Path), wireToPathsForTest(t))
 
 	var buf bytes.Buffer
 	rw := helpfmt.NewRenderWriter(&buf)

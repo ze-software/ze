@@ -127,6 +127,16 @@ Completion remains on `ScanInvocation`: incomplete values are expected while
 typing, so this execution check does not remove partial tokens from Tab or `?`.
 <!-- source: internal/component/command/invocation_scan.go -- ScanInvocation, ScanExecution -->
 
+After a pipe, Tab offers exactly the command's `pipe-operations` list, the one
+`show command help` answers (`PipeOperationsForCommand`), each name with the
+description that list carries: the RIB's `count` shows the RIB's own
+description, and an operation the chain would refuse on that command is not
+offered. The command part is read by `ReadCommandPart`, and the stage being
+typed starts after the last pipe the chain grammar (`scanChain`) reads as a
+separator, so a bar inside a quoted value (`| match "a|b`) stays in its stage
+rather than starting a new one.
+<!-- source: internal/component/command/completer.go -- completePipeForCommand, typedPipeStage -->
+
 The local `set cli format` preference is offered only in the session's current
 operational mode. Browser completion preserves that distinction even when an
 operational prefix selects schema completion. An explicit config-mode `set`

@@ -25,13 +25,25 @@ func TestCatalogIsTheParser(t *testing.T) {
 	}
 }
 
-// TestCompletionDerivesFromCatalog replaces the self-comparison in
-// completer_test.go, which asserted CompletePipe returned len(PipeOperators)
-// suggestions and so could never see the two lists drift apart.
+// TestCompletionDerivesFromCatalog compares pipe completion with the catalog
+// itself rather than with a count the completer could share, so the two lists
+// cannot drift apart unseen.
+//
+// Method: a command that declares row data and an address field is one every
+// catalog operator applies to (log included, offered for a streaming route),
+// so its pipe completion is the whole catalog, each with the catalog's own
+// description.
 func TestCompletionDerivesFromCatalog(t *testing.T) {
-	got := make([]string, 0, len(PipeOperators))
-	byName := make(map[string]string, len(PipeOperators))
-	for _, s := range PipeOperators {
+	const path = "show catalog derivation"
+	RegisterShape([]string{path}, ShapeTab)
+	RegisterAddressFields([]string{path}, "address")
+	t.Cleanup(ResetShapesForTest)
+	t.Cleanup(ResetAddressFieldsForTest)
+
+	offered := NewTreeCompleter(nil).Complete(path + " | ")
+	got := make([]string, 0, len(offered))
+	byName := make(map[string]string, len(offered))
+	for _, s := range offered {
 		got = append(got, s.Text)
 		byName[s.Text] = s.Description
 		if s.Type != "pipe" {

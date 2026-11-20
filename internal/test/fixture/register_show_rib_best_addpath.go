@@ -40,7 +40,7 @@ func showRIBBestAddPath02(ctx context.Context, plugin *sdk.Plugin) error {
 	}
 	var received int
 	if !Poll(ctx, 40, 250*time.Millisecond, func() bool {
-		raw, err := requireDone02(ctx, plugin, "show bgp rib received")
+		raw, err := requireDone02(ctx, plugin, "show bgp rib | received")
 		if err != nil {
 			return false
 		}

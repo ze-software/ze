@@ -43,10 +43,10 @@ func filterWirePluginUnavailable(ctx context.Context, args []string) error {
 		var count int
 		var readable bool
 		if !Poll(ctx, 40, 250*time.Millisecond, func() bool {
-			count, readable = routeCount(ctx, p, "show bgp rib received count")
+			count, readable = routeCount(ctx, p, "show bgp rib | received | count")
 			return readable
 		}) {
-			return errors.New("show bgp rib received count never answered")
+			return errors.New("show bgp rib | received | count never answered")
 		}
 		if count != filterUnavailableRoutesWant {
 			return fmt.Errorf("the RIB holds %d routes, want %d: the route judged while fakefilter was stopped did not take on-error reject",

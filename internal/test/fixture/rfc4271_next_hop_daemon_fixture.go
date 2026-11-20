@@ -254,7 +254,7 @@ func rfc4271NextHopUpdate(conn net.Conn, prefix, nextHop string, preference uint
 func rfc4271NextHopReceived(ctx context.Context, plugin *sdk.Plugin) error {
 	var last string
 	if Poll(ctx, importPollAttempts, importPollDelay, func() bool {
-		data, err := requireDone02(ctx, plugin, "show bgp rib received")
+		data, err := requireDone02(ctx, plugin, "show bgp rib | received")
 		if err != nil {
 			last = err.Error()
 			return false
@@ -289,7 +289,7 @@ func rfc4271NextHopReceived(ctx context.Context, plugin *sdk.Plugin) error {
 	}) {
 		return nil
 	}
-	return fmt.Errorf("show bgp rib received did not retain all three real wire inputs: %s", last)
+	return fmt.Errorf("show bgp rib | received did not retain all three real wire inputs: %s", last)
 }
 
 // An empty peer requests absence of a best path, never a fallback identity.

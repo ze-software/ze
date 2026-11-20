@@ -211,7 +211,7 @@ var scenarioExtras = map[string][]operation{
 	"bgp-srv6-frr": {
 		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowZeNeighborJSON}, contains: []string{"ipv6Vpn", frrCapabilityNegotiated}},
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp ipv6 vpn"}, contains: []string{"2001:db8:customer::/48"}, timeout: 30 * time.Second},
-		{kind: opWaitJSONFields, peer: "ze", command: zeCommand("show bgp rib count"), minimum: map[string]int{"count": 1}, timeout: 30 * time.Second},
+		{kind: opWaitJSONFields, peer: "ze", command: zeCommand("show bgp rib | count"), minimum: map[string]int{"count": 1}, timeout: 30 * time.Second},
 		{kind: opFRRSession, argument: zeLabAddress},
 	},
 	// GoBGP 3.31 was recorded keeping one Multiprotocol capability per AFI, so

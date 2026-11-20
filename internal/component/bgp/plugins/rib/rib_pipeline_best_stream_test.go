@@ -340,7 +340,7 @@ func TestBestPathRowsReleaseWhenTheWalkStops(t *testing.T) {
 // one stage that breaks the source's "at most one held at a time" contract.
 //
 // VALIDATES: AC-12 of spec-record-answers-3-zero-alloc -- the pool-handle
-// dereference is safe outside the lock, for `show bgp rib best last N` as well
+// dereference is safe outside the lock, for `show bgp rib best | last N` as well
 // as for the bare walk.
 // PREVENTS: the row reading attributes the RIB has already released. In a
 // release build a released slot returns to its shard's free list and is
@@ -383,7 +383,7 @@ func TestBestPathRowsHandleSafeUnderLastFilter(t *testing.T) {
 //
 // VALIDATES: R-1 -- every acquisition has a paired release, including the ones
 // `last N` takes for the rows it keeps.
-// PREVENTS: `show bgp rib best last N` leaking N pool references per run.
+// PREVENTS: `show bgp rib best | last N` leaking N pool references per run.
 func TestBestPathRowsLastFilterReleasesItsRing(t *testing.T) {
 	r := newTestRIBManager(t)
 	peerRIB := seedBestPathRows(t, r, 3)

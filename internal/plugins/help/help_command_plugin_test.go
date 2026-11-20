@@ -49,7 +49,7 @@ func TestHelpCommandNamesAPluginCommand(t *testing.T) {
 	assert.Equal(t, [][]string{{"prefix", "max-length", "asn"}}, entry.ColumnOrders)
 	assert.Equal(t, []string{"prefix"}, entry.AddressFields)
 	assert.NotEmpty(t, entry.ShortHelp, "%q publishes no summary", path)
-	assert.NotEmpty(t, entry.Operators, "%q publishes no operator", path)
+	assert.NotEmpty(t, entry.PipeOperations, "%q publishes no operator", path)
 
 	// A hidden declaration stays out. The daemon keeps it out of
 	// VisibleCommandEntries and out of completion, so a catalog an operator
@@ -81,10 +81,10 @@ func TestHelpCommandReportsAPluginDeclaredAlias(t *testing.T) {
 	const path = "show bgp rpki"
 	entry, found := byPath[path]
 	require.True(t, found, "the catalog names no %q", path)
-	require.Len(t, entry.Aliases, 1, "%q publishes %d aliases", path, len(entry.Aliases))
-	assert.Equal(t, "summary", entry.Aliases[0].Name)
-	assert.NotEmpty(t, entry.Aliases[0].Description, "the alias publishes no summary")
-	assert.NotEmpty(t, entry.Aliases[0].Expansion,
+	require.Len(t, help.Aliases(entry), 1, "%q publishes %d aliases", path, len(help.Aliases(entry)))
+	assert.Equal(t, "summary", help.Aliases(entry)[0].Name)
+	assert.NotEmpty(t, help.Aliases(entry)[0].Description, "the alias publishes no summary")
+	assert.NotEmpty(t, help.Aliases(entry)[0].Expansion,
 		"the alias publishes no expansion, which is the whole of what the name does")
 
 	// The barrier holds. An alias sits on ONE command path, and the plugin's
@@ -93,7 +93,7 @@ func TestHelpCommandReportsAPluginDeclaredAlias(t *testing.T) {
 	for _, below := range []string{"show bgp rpki roa", "show bgp rpki summary"} {
 		child, named := byPath[below]
 		require.True(t, named, "the catalog names no %q", below)
-		assert.Empty(t, child.Aliases, "%q inherited an alias that sits on %q", below, path)
+		assert.Empty(t, help.Aliases(child), "%q inherited an alias that sits on %q", below, path)
 	}
 }
 

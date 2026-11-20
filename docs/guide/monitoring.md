@@ -724,7 +724,7 @@ For scripting, use `-c` to execute a single command and exit:
 
 ```
 ze cli -c "show bgp"
-ze cli -c "show bgp rib received"
+ze cli -c "show bgp rib | received"
 ze cli -c "show bgp rpki status"
 ```
 <!-- source: internal/component/cli/client/main.go -- Run, Execute, StreamMonitor -->

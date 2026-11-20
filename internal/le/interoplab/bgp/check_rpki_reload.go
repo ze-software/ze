@@ -203,7 +203,7 @@ func readRPKIReloadPhase(ctx context.Context, check *interoplab.CheckContext, ac
 		Prefix string `json:"prefix"`
 		Peer   string `json:"best-peer"`
 	}
-	if err := queryRPKIReloadJSON(ctx, check.Lab, "show bgp rib best first 10", &best); err != nil {
+	if err := queryRPKIReloadJSON(ctx, check.Lab, "show bgp rib best | first 10", &best); err != nil {
 		return nil, err
 	}
 	selected := make(map[string]string, len(best))

@@ -35,7 +35,7 @@ type monitoredRouter struct {
 // family." Empty when the OPEN advertised none, never defaulted.
 //
 // RIBPeer is the key the peer's routes are stored under in the RIB, the one
-// `show bgp rib protocol bmp peer <key>` matches. It is bmpCompositeKey's
+// `show bgp rib protocol bmp | peer <key>` matches. It is bmpCompositeKey's
 // answer, recorded at Peer Up, so a client names the peer by the RIB's own key
 // rather than rebuilding it from Router and an address this struct omits.
 type monitoredPeer struct {

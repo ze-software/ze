@@ -7,9 +7,11 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/command"
 	clicatalog "github.com/ze-software/ze/internal/le/cli/catalog"
 )
 
@@ -19,16 +21,22 @@ const renderedCommandCatalogFixture = `[{
   "mode": "read-only",
   "wire-method": "ze-show:test",
   "args": [{"name": "family", "type": "enum", "values": ["ipv4"], "mandatory": true}],
-  "pipes": [{"name": "family", "description": "Filter by family", "takes-arg": true}],
-  "operators": [
-    {"name": "json", "class": "global", "available": "always", "description": "JSON output"},
-    {"name": "save", "class": "global", "available": "always", "local-only": true, "description": "Save output"},
-    {"name": "match", "class": "data", "available": "with-rows", "description": "Keep matching rows"},
-    {"name": "log", "class": "stream", "available": "when-streaming", "description": "Append updates"}
+  "pipe-operations": [
+    {"name": "json", "source": "generic", "argument": "optional", "class": "global", "available": "always",
+     "description": "JSON output"},
+    {"name": "save", "source": "generic", "argument": "path", "class": "global", "available": "always",
+     "local-only": true, "description": "Save output"},
+    {"name": "match", "source": "generic", "argument": "text", "class": "data", "available": "with-rows",
+     "overridable": true, "description": "Keep matching rows"},
+    {"name": "log", "source": "generic", "argument": "none", "class": "stream", "available": "when-streaming",
+     "description": "Append updates"},
+    {"name": "family", "source": "command", "argument": "text", "available": "always",
+     "description": "Filter by family"},
+    {"name": "summary", "source": "alias", "argument": "none", "available": "always",
+     "description": "Show a summary", "expansion": "display address"}
   ],
   "answer-shape": "tab",
   "address-fields": ["address"],
-  "pipe-aliases": [{"name": "summary", "description": "Show a summary", "expansion": "display address"}],
   "usage": "show test <family>"
 }]`
 
@@ -338,13 +346,15 @@ func TestDocDriftRejectsWikiCatalogProducerFieldLossBeforeRendering(t *testing.T
 		{
 			name: "operators",
 			mutate: func(entry *clicatalog.Entry) {
-				entry.Operators = nil
+				entry.PipeOperations = slices.DeleteFunc(entry.PipeOperations,
+					func(op command.PipeOperationEntry) bool { return op.Source == command.PipeSourceGeneric })
 			},
 		},
 		{
 			name: "aliases",
 			mutate: func(entry *clicatalog.Entry) {
-				entry.Aliases = nil
+				entry.PipeOperations = slices.DeleteFunc(entry.PipeOperations,
+					func(op command.PipeOperationEntry) bool { return op.Source == command.PipeSourceAlias })
 			},
 		},
 	}
@@ -3074,58 +3084,56 @@ func TestParseCommandCatalogRejectsDuplicateOwnedIdentities(t *testing.T) {
   "short-help": "show unique values",
   "mode": "read-only",
   "args": [{"name": "family", "type": "enum"}],
-  "pipes": [{"name": "family", "description": "family filter"}],
-  "operators": [{"name": "json", "class": "global", "available": "always", "description": "JSON"}],
+  "pipe-operations": [
+    {"name": "json", "source": "generic", "argument": "optional", "class": "global", "available": "always", "description": "JSON"},
+    {"name": "family", "source": "command", "argument": "none", "available": "always", "description": "family filter"},
+    {"name": "quick", "source": "alias", "argument": "none", "available": "always", "description": "quick view", "expansion": "family ipv4"}
+  ],
   "address-fields": ["address"],
-  "pipe-aliases": [{"name": "quick", "description": "quick view", "expansion": "family ipv4"}],
   "subcommands": ["brief"]
 }]`
+	// The pipe operations are one list, so each source is duplicated in a
+	// case of its own: a duplicate of any one is refused as that list's.
 	tests := []struct {
-		list, old, replacement string
+		name, list, old, replacement string
 	}{
 		{
-			list: "args",
-			old:  `{"name": "family", "type": "enum"}`,
+			name: "args", list: "args",
+			old: `{"name": "family", "type": "enum"}`,
 			replacement: `{"name": "family", "type": "enum"}, ` +
 				`{"name": "family", "type": "enum"}`,
 		},
 		{
-			list: "pipes",
-			old:  `{"name": "family", "description": "family filter"}`,
-			replacement: `{"name": "family", "description": "family filter"}, ` +
-				`{"name": "family", "description": "family filter"}`,
+			name: "command operation", list: "pipe-operations",
+			old: `{"name": "family", "source": "command", "argument": "none", "available": "always", "description": "family filter"}`,
+			replacement: `{"name": "family", "source": "command", "argument": "none", "available": "always", "description": "family filter"}, ` +
+				`{"name": "family", "source": "command", "argument": "none", "available": "always", "description": "family filter"}`,
 		},
 		{
-			list: "operators",
-			old: `{"name": "json", "class": "global", ` +
-				`"available": "always", "description": "JSON"}`,
-			replacement: `{"name": "json", "class": "global", ` +
-				`"available": "always", "description": "JSON"}, ` +
-				`{"name": "json", "class": "global", ` +
-				`"available": "always", "description": "JSON"}`,
+			name: "generic operator", list: "pipe-operations",
+			old: `{"name": "json", "source": "generic", "argument": "optional", "class": "global", "available": "always", "description": "JSON"}`,
+			replacement: `{"name": "json", "source": "generic", "argument": "optional", "class": "global", "available": "always", "description": "JSON"}, ` +
+				`{"name": "json", "source": "generic", "argument": "optional", "class": "global", "available": "always", "description": "JSON"}`,
 		},
 		{
-			list:        "address-fields",
+			name: "address-fields", list: "address-fields",
 			old:         `"address-fields": ["address"]`,
 			replacement: `"address-fields": ["address", "address"]`,
 		},
 		{
-			list: "pipe-aliases",
-			old: `{"name": "quick", "description": "quick view", ` +
-				`"expansion": "family ipv4"}`,
-			replacement: `{"name": "quick", "description": "quick view", ` +
-				`"expansion": "family ipv4"}, ` +
-				`{"name": "quick", "description": "quick view", ` +
-				`"expansion": "family ipv4"}`,
+			name: "alias", list: "pipe-operations",
+			old: `{"name": "quick", "source": "alias", "argument": "none", "available": "always", "description": "quick view", "expansion": "family ipv4"}`,
+			replacement: `{"name": "quick", "source": "alias", "argument": "none", "available": "always", "description": "quick view", "expansion": "family ipv4"}, ` +
+				`{"name": "quick", "source": "alias", "argument": "none", "available": "always", "description": "quick view", "expansion": "family ipv4"}`,
 		},
 		{
-			list:        "subcommands",
+			name: "subcommands", list: "subcommands",
 			old:         `"subcommands": ["brief"]`,
 			replacement: `"subcommands": ["brief", "brief"]`,
 		},
 	}
 	for _, test := range tests {
-		t.Run(test.list, func(t *testing.T) {
+		t.Run(test.name, func(t *testing.T) {
 			mutated := strings.Replace(catalog, test.old, test.replacement, 1)
 			if mutated == catalog {
 				t.Fatalf("%s mutation did not apply", test.list)
@@ -3193,8 +3201,9 @@ func TestWikiValidatorRoundTripsCanonicalEmptyPipeSupport(t *testing.T) {
 			Path:      "show supported",
 			Mode:      "read-only",
 			ShortHelp: "Supported command",
-			Operators: []publishedCommandOperator{{
-				Name: "json", Available: "always", Description: "JSON output",
+			PipeOperations: []publishedPipeOperation{{
+				Name: "json", Source: pipeSourceGeneric, Argument: "optional",
+				Available: "always", Description: "JSON output",
 			}},
 		},
 	}

@@ -30,7 +30,7 @@ func rfc4271ProspectiveInitialReceived() map[string]rfc4271ProspectiveReceivedPa
 func rfc4271ProspectiveReceived(ctx context.Context, plugin *sdk.Plugin, expected map[string]rfc4271ProspectiveReceivedPath) error {
 	var last string
 	if Poll(ctx, importPollAttempts, importPollDelay, func() bool {
-		data, err := requireDone02(ctx, plugin, "show bgp rib received")
+		data, err := requireDone02(ctx, plugin, "show bgp rib | received")
 		if err != nil {
 			last = err.Error()
 			return false

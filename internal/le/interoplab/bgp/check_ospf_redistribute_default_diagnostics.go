@@ -43,7 +43,7 @@ func ospfRedistributeDefaultDiagnostics(ctx context.Context, lab interoplab.Chec
 		"show log recent component redistribute.orchestrator count 100",
 		"show bgp peer " + frrHop + " detail",
 		"show bgp peer " + frrHop + " statistics",
-		"show bgp peer " + frrHop + " rib advertised",
+		"show bgp peer " + frrHop + " rib | advertised",
 		"show bgp rib status",
 		"show ospf route",
 		"show rib candidates prefix " + ospfRedistributeDefaultPrefix,
