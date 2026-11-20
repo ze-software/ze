@@ -325,6 +325,30 @@ Stage 4 is the defect: the branch knows mitigation is exempt and is the only pla
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `value-computed-once-never-refreshed.md` | 2026-11-13 | ddos-detect grades severity once at trigger, so a growing attack never reaches `blackhole-fallback` |
+| `exit-cleanup-runs-after-its-transport-closed.md` | 2026-11-13 | an in-process plugin's exit withdrawal is refused after `Run` stops dispatch, so ddos-flowspec ending while the daemon runs leaves its rule at the peers until its next start |
+
+Scope added 2026-11-19, with the second row, moved from
+`plan/release/fixes/spec-single-owner-lifecycle-1-plugin-process.md`, whose
+design pass found it needs a design of its own. It is one more path on which
+this responder cannot let go of a route. Read at the producers on 2026-11-19:
+`sdk.Plugin.Run` (`pkg/plugin/sdk/sdk.go`) defers `CloseCallbacks` when the
+plugin holds a bridge, and `stopResponder`
+(`internal/plugins/ddos/flowspec/register.go`) logs, for a withdrawal that
+meets a closed connection, that "the rule stays recorded" and "the next start
+of the plugin withdraws the rule". So a plugin run in the daemon that ends
+while the daemon runs leaves its rule at the peers until that next start. The
+journal row names two fixes, and this spec's design chooses between them: the
+SDK runs a plugin's exit cleanup before dispatch stops, which changes
+`pkg/plugin/sdk` for every plugin, or the engine withdraws what a generation
+announced when it ends. The design adds the acceptance criterion and its test
+in both modes.
+
+A finding for this spec's design pass, not a verdict: on the same day
+`onCharacterized` (`internal/plugins/ddos/flowspec/responder.go`) was read
+withdrawing an active announce when `SuppressMitigation` is set, which the
+Task table above records as a bare return, and the line numbers of that table
+no longer match the file. The pass starts by re-reading the Task against the
+code.
 
 ## Known Limitations
 - Scoping this spec to the `SuppressMitigation` branch alone would leave the responder with exactly one working withdraw path and no others (A-4, A-5). That may still be the right first step, but it should be a decision rather than an accident.

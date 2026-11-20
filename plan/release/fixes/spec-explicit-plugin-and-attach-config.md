@@ -443,6 +443,24 @@ process` block or line, read a flow on the peer's flow list; where it says a
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `guard-keyed-on-a-field-its-consumer-ignores.md` | 2026-11-14 | the plugin state-key grant and the doctor snapshot are keyed on the process name, so a block that runs `ddos-flowspec` under another name cannot reach its record |
+
+Scope added 2026-11-19, with that row, moved from
+`plan/release/fixes/spec-single-owner-lifecycle-1-plugin-process.md`: it is a
+question of which name identifies a plugin block, not of a process's
+lifecycle. Under the bus model above an endpoint has a name the operator
+chooses and an `internal` field that holds the registry name it runs, the two
+names the `use` leaf of the `plugin { internal }` list separates today. The
+row is the case where they differ: by the journal row, the state-key grant is
+registered under the registry name and judged against the process name, and
+the doctor snapshot reports by process name, so the block loads and its plugin
+can neither read nor write its record. The design owed for the endpoint states
+which of the two names keys a grant, a state record and a doctor row, and adds
+the acceptance criterion and a test with a block whose name differs from the
+registry name it runs. The pass that moved the row did not read the grant
+check: the row places `statestore.PluginKeyAllowed` in the plugin server's
+state dispatch file, and a search of that file on 2026-11-19 did not find the
+name, so this spec's design pass starts by locating the check at its producer.
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
