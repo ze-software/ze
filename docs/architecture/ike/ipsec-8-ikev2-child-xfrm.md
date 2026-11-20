@@ -1533,6 +1533,22 @@ Linux tells the orientation of a forwarded packet only by its addresses, so an
 entry whose local and remote prefixes overlap also decides the overlapping part
 of the other orientation.
 
+A FWD gate can also match a forwarded ICMP error that arrived on a Child SA, by
+the error's own headers. Stock `__xfrm_policy_check` then never takes
+`xfrm_in_fwd_icmp`'s payload policy, and it rejects a consistent error
+(`XfrmInTmplMismatch`), which RFC 4301 Section 5.2 step 4 forbids: the payload
+is what must match. Thomas decided on 2026-11-20 that the kernel repairs it. A
+new K1 capability bit 7, "forwarded ICMP error past a gate", changes the FWD
+check: an ICMP error that arrived with a secpath, and whose own-header policy is
+a template-free ALLOW carrying `XFRM_POLICY_ICMP`, takes `xfrm_in_fwd_icmp`'s
+payload policy instead. Ze sets `XFRM_POLICY_ICMP` on every transit gate and
+requires bit 7 as it requires bits 5 and 6. Two routes were set aside: not
+projecting a bypass into a FWD gate where it would cover Child SA traffic (it
+narrows what an operator entry decides), and a template on the gate (the
+kernel's `xfrm_state_ok` needs an exact tunnel destination, which a gate does not
+have). Until the bit 7 hunk lands, a transit gate at if_id 0 still stops such an
+error.
+
 The readback reads DISCARD from the kernel action rather than from an empty
 template list. The kernel accepts a template beside a `block` policy and ignores
 it, so a discard another daemon installed with one would otherwise be reported

@@ -47,20 +47,32 @@ full status and evidence; this page is the short form. Nothing is pushed.
    an operator out DISCARD covers a forwarded mappable error and it is mapped
    into the return SA, with the negative that a non-mappable error under the
    same discard is dropped.
-3. AC-8 red proofs on `tunnel-df-treatment` (it passes): break `xfrmDFFlag`
+3. **K1 bit 7, forwarded ICMP error past a gate (owner decision 2026-11-20, (a)):**
+   a BYPASS's FWD transit gate (`spdTransitPolicies`) matches a forwarded ICMP
+   error that arrived on a Child SA, so stock `__xfrm_policy_check` rejects the
+   consistent error (`XfrmInTmplMismatch`; `TestRFC4301ForwardedICMPUsesPayloadPolicy`
+   red at if_id 0 on `qemu-c860ed8b`). Write the K1 hunk: in the FWD check, an ICMP
+   error with a secpath whose own-header policy is a template-free ALLOW carrying
+   `XFRM_POLICY_ICMP` takes `xfrm_in_fwd_icmp`'s payload policy. Set
+   `XFRM_POLICY_ICMP` on every transit gate, require bit 7 like bits 5 and 6, move
+   the scope tests' complete receipt to 255 (or as the bit list says), run in the
+   guest. The `40cf3cfaec` patch is not defective (fixture shared a kernel
+   selector; the test now runs `verifySPDOrder`). Open: why the spec records the
+   test passing at `516671704b`, which already held D-3.
+4. AC-8 red proofs on `tunnel-df-treatment` (it passes): break `xfrmDFFlag`
    for `DFClear` (expect assertions 1 and 3 red), then for `DFCopy` (4 and 6).
-4. Red proofs for `spd-discard-entry` (break `spdPolicyHasDirection` out, then
+5. Red proofs for `spd-discard-entry` (break `spdPolicyHasDirection` out, then
    in: assertions 4, 5) and `pad-subtree-identity` (`textIdentityMatches`
    always true, then false: assertions 7, 1). Both pass clean.
-5. `.ci` drafts: the two parse drafts pass; stress with
+6. `.ci` drafts: the two parse drafts pass; stress with
    `./le test stress-repro run suite "parse --draft" test <name> any-failure iterations 40`
    (the first try ended exit 1 unread: read its log first), promote. The two
    `test/draft/ipsec/` drafts need `./le test qemu ci test test/draft/ipsec/<name>.ci`.
-6. AC-13 records: RFC7296-3.13.1-1 and -2, positive on
+7. AC-13 records: RFC7296-3.13.1-1 and -2, positive on
    `TestTSWireAnyPortsForEveryProtocol` (break `ipsec/traffic_selector.go::Wire`),
    negative on `TestTSWireRefusesUndefinedPortValues` (break
    `engine/ts_narrow.go::selectorsToWire`).
-7. AC-4 remainder and the owner decisions below; then the five disagreeing
+8. AC-4 remainder and the owner decisions below; then the five disagreeing
    summary rows, the independent review, and closure.
 
 ## Decisions for Thomas (no RFC, design or rule answers them)
@@ -72,6 +84,7 @@ full status and evidence; this page is the short form. Nothing is pushed.
 | 3 | The 13 phase-4 Mobility Header walks: their list was lost; 15 untagged candidates exist | rebuild as one surviving-mutant check per producer guard |
 | 4 | `bypass-fragment-forgery`: its target (the node-wide IKE bypass) is gone | retarget to an operator port-scoped BYPASS, in a K1/K3 lab |
 | 5 | Carried: VPP SPD entry interface binding; RFC 4301 sign-off scope in rfcgate-6; decision 3 at a boot catch-all failure | as in handover 50 |
+| 6 | A BYPASS's FWD transit gate rejects a consistent forwarded ICMP error from a Child SA: (a) K1 bit 7, the FWD check takes `xfrm_in_fwd_icmp`'s payload policy past a template-free ALLOW carrying `XFRM_POLICY_ICMP`, Ze sets that flag on every gate; (b) no FWD gate where a BYPASS would cover Child SA traffic; (c) a template on the gate | Decided 2026-11-20: (a) |
 
 ## Environment notes
 
