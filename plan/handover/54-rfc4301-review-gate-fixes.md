@@ -145,6 +145,46 @@ Written, nothing run.
   (script-edited). The spec needs an acceptance criterion for this fix. No RFC tags
   were added.
 
+## Item 10 result (engine test findings, the last agent to report)
+
+Partly done, nothing run. The agent's own handoff is the last section of
+`tmp/session/2026-11-20-215415/state/session-state-rfc4301-architecture-gaps-c12916cd-1099-4d46-8984-c5eeae8c89d3.md`.
+
+- **Written:** S1, S2, E1, E2 (new seam `ikeSocketBypassFailuresRead` and test
+  `TestIKESocketBypassRefusedEverywhereIsReportedOncePerSocket`), E4 (exact MH
+  branch removed from `childPairPolicy`), E5, E6, E7, E9 (via
+  `reconcileSPDPolicies`), E12, and part of E13.
+- **One finding was wrong:** `TestSPDEntriesReachTheDataplaneInOrder` uses
+  disjoint /26 prefixes, which the commit door accepts. Its doc now says so.
+- **Refused by the RFC-tag edit hook, not applied:** each needs a ze-test-judge
+  verdict, then `./le rfc approve unit engine.<Test> reason "<verdict>"`, before
+  the edit.
+  - E3: rename `TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy`
+    to `...EnforcedByTheStateSelector`. No unit-rename tool exists, so the six
+    records of RFC4301-4.4.2-1, 5.2-2 and 5.2-11 are re-taken; also update
+    `rfc/corrections/rfc4301.md` and the 5.2-2 audit stamp.
+  - E8: exact counters for the fragmented DISCARD and PROTECT rows.
+  - E10: `<` becomes `!=` (unverified if `lifecycleDP` adds forward
+    projections).
+  - E11: exact bypass set.
+  - E13: rename the helper `installSPDPolicies` to `reconcileForTest`, 19 call
+    sites, one inside the E8 unit.
+- **Untagged tests to put to the judge:** `TestChildMHSelectorProjectsTypeOnce`
+  and `TestChildMHAnySideProjectsAny` (they asserted a projection no production
+  path reaches), and the doc edit in the tagged
+  `TestRFC4301OutboundPacketTakesTheDispositionOfTheEntryItMatches`.
+- **Not started:** E14 (an `installChildSA` transport-mode test for RFC 4301
+  Section 4.1), and four E13 notes: the doc for
+  `TestRFC4301LocalGeneratedICMPWithoutMappingFlagDoesNotUseReturnSA`, moving the
+  `XFRM_STATE_ICMP` paragraph, the set comparison in
+  `TestMHChildPoliciesSelectIncomingIPv6Packets`, and `removeChildSA` in the
+  `fragmentChildrenWithDataplane` cleanup.
+- **E6 assumption:** the fragmented row expects stateMismatch +1, on the reading
+  that the kernel reassembles before the policy check. A red means that reading
+  was wrong.
+
+All agents of this session have now reported; none is running.
+
 ## Known reds outside this spec
 
 `./le doc check all` (BGP rib filter order, ze-cos cleanup with no handler),
