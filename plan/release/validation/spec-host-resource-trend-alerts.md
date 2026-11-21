@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | plugin |
 | Priority | P2 |
 | Release reason | `ai/META-DECISIONS.md`, "Goal and scope": `ze doctor` reports every problem an operator can hit, each with its cause and the command that fixes it, and a problem class doctor does not report is a gap owed a doctor check. A resource that runs out slowly (kernel memory, file descriptors, the conntrack table, a disk) is such a class, and today nothing in Ze reports it before the box fails |
@@ -10,11 +10,11 @@
 | Depends | `plan/release/validation/spec-doctor-coverage-15-system.md` AC-16 (the host monitor starts from the hub's system start beside the SMART manager, and the `ze_host_*` gauges register whenever a registry is published). Whichever spec lands first makes that move; the other builds on it |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-20 |
+| Updated | 2026-11-21 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-The design below is not approved yet. Thomas approves it before the status moves to `ready` (`ai/META-DECISIONS.md`, "How agents work"). His answers to the open questions are in "Design presentation", "Choices for Thomas". The first version he ordered is in "First version".
+Thomas approved the design below on 2026-11-21, after the independent design judge approved it, so the status is `ready` (`ai/META-DECISIONS.md`, "How agents work"). His answers to the open questions are in "Design presentation", "Choices for Thomas". The first version he ordered is in "First version".
 
 ## Task
 
