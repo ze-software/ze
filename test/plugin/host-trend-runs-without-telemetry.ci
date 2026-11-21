@@ -1,0 +1,62 @@
+# Test: a daemon with no telemetry block and no bgp block runs the host trend
+#       monitor, and `show host trend` lists the kernel-memory rule with a
+#       state and how long it has been observed, not an error.
+# Spec: spec-host-resource-trend-alerts AC-6 (operator half), wiring row 1
+# VALIDATES: runYANGConfig (cmd/ze/hub/main.go) calls startTrendMonitor
+#   (cmd/ze/hub/main_system.go) on every config, which publishes the monitor
+#   that trend.Rules reads; handleShowTrend
+#   (internal/plugins/host-cmd/cmd/show_trend.go) answers it through the
+#   daemon's dispatcher.
+# PREVENTS: the monitor starting only beside telemetry or BGP, so a box that
+#   runs neither has no trend watch and `show host trend` answers the
+#   not-running refusal.
+# Why not a unit test: only the daemon's own start proves the hub starts the
+#   monitor with no telemetry and no bgp block, and that the command reaches
+#   it over a command surface.
+#
+# The state is asserted as the closed set the monitor publishes, never as one
+# value: on a host whose /proc lacks the rule's figures the rule is
+# unreadable, which is still a state. No live number is asserted.
+#
+# No `ze init`, as test/plugin/doctor-plugin-stopped.ci explains: the daemon
+# starts from the file on the runner's in-memory store and authenticates the
+# config's own user; the client takes its credentials from ze.ssh.username,
+# ze.ssh.password and ze.ssh.port, and 127.0.0.1 needs no host-key check.
+
+option=timeout:value=60s
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+EOF_CONF
+
+# "Ze running." holds both states the step needs. With no bgp block,
+# runYANGConfig starts SSH through sshBuildStandalone, whose Server.Start
+# returns once the listener reaches Accept, and it prints the line after that.
+# startTrendMonitor runs earlier in runYANGConfig, and trend.Start publishes
+# the monitor only after its first sample, so the published monitor already
+# lists every rule with a state when the line appears.
+cmd=background:seq=1:exec=ze start running.conf:name=daemon:ready=Ze running.
+
+cmd=foreground:seq=2:exec=ze cli -c "show host trend | json":exit=0
+expect=stdout:pattern="name":\s*"kernel-memory"
+expect=stdout:pattern="state":\s*"(not-present|warming-up|quiet|confirming|active|unreadable)"
+expect=stdout:pattern="observed-seconds":\s*[0-9]+
+reject=stdout:contains=the host trend monitor is not running

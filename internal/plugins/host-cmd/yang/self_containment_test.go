@@ -48,6 +48,23 @@ func TestHostCmdSchemaDeclaresBareShowHost(t *testing.T) {
 	}
 }
 
+// TestHostCmdSchemaOwnsShowHostTrend pins `show host trend` in the host
+// command plugin's own schema.
+//
+// VALIDATES: ze-host-cmd.yang declares `show host trend` under the wire
+// method the plugin's handler registers (show_trend.go).
+// PREVENTS: a handler with no YANG node, which no command surface can reach.
+func TestHostCmdSchemaOwnsShowHostTrend(t *testing.T) {
+	for _, want := range []string{
+		`ze:command "ze-host:show-trend"`,
+		"container trend",
+	} {
+		if !strings.Contains(ZeHostCmdYANG, want) {
+			t.Errorf("ze-host-cmd.yang must declare %q so removing host removes the surface", want)
+		}
+	}
+}
+
 func TestHostCmdSchemaOwnsSystemKernelLog(t *testing.T) {
 	for _, want := range []string{
 		`ze:command "ze-host:show-system-kernel-log"`,

@@ -4,6 +4,7 @@ package cmd
 
 func init() {
 	registerShowHost()
+	registerShowTrend()
 	registerShowKernelLog()
 	registerSetFD()
 	registerStorageGrow()

@@ -15,7 +15,8 @@ module ze-host-cmd {
             ze:command "ze-host:show-all";
             description "Sections: cpu, nic, dmi, memory, thermal, storage, kernel, platform. Use a
 subcommand for one section, or 'show host all' for everything. The bare 'show
-host' is an alias of 'show host all'.";
+host' is an alias of 'show host all'. 'show host trend' lists the host
+resources the daemon watches for growth that ends in exhaustion.";
             ze:help "Hardware inventory for this box.";
 
             container cpu {
@@ -84,6 +85,19 @@ socket, reboot-allowed flag, persistent-storage writability, and fd limits.
 Helps you understand what operations are possible on this particular
 deployment.";
                 ze:help "Show platform capabilities and constraints.";
+            }
+
+            container trend {
+                config false;
+                ze:command "ze-host:show-trend";
+                description "Lists every host resource rule the daemon's trend monitor runs, such as
+kernel-memory. Each entry gives the rule's state (not-present, warming-up,
+quiet, confirming, active or unreadable), its level and limit with their unit,
+how long it has been observed, the growth over the window it judged, and the
+projected time to exhaustion when one exists. An active rule also carries the
+warning it raised. The trend monitor runs only inside the daemon, so this
+command needs a running daemon. It is not part of 'show host all'.";
+                ze:help "Show host resources heading for exhaustion.";
             }
 
             container all {

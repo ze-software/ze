@@ -1,0 +1,81 @@
+# Test: `show host trend` answers the declared shape for the kernel-memory
+#       rule from the host's real /proc, as structured data the generic pipes
+#       render.
+# Spec: spec-host-resource-trend-alerts AC-21 (kernel-memory, without the
+#   cache names), wiring row 2
+# VALIDATES: handleShowTrend and trendRuleOf
+#   (internal/plugins/host-cmd/cmd/show_trend.go) turn the rule's published
+#   state into kebab-case keys: name, state, unit, level and limit as numbers,
+#   observed-seconds; and the kernel-memory reader
+#   (host.Detector.DetectKernelMemory, internal/component/host/memory_linux.go)
+#   reads the real /proc/meminfo, so the rule has a reading.
+# PREVENTS: an answer of finished text that `| yaml` cannot render, a figure
+#   reported as 0 when the rule has none, and a reader that cannot read the
+#   real /proc/meminfo while the fixture tests pass.
+# Why not a unit test: the unit tests read a fixture /proc; only a daemon on a
+#   real host proves the reader parses the kernel's own meminfo and the answer
+#   reaches a command surface.
+#
+# The figures are live, so no number is asserted, only that each is a number.
+# The state is asserted as the closed set the monitor publishes. A monitor the
+# daemon started seconds ago has closed no hourly bucket, so no growth was
+# judged: the projection and the warning are absent, and that absence is
+# asserted (a rule warming up shows its observed duration and no projection).
+# Linux only: off Linux the reader answers unsupported and the rule is
+# unreadable, with no level or limit.
+#
+# The daemon setup is test/plugin/doctor-plugin-stopped.ci's, without the
+# plugin: no `ze init`, the config's own user, credentials from the
+# environment.
+
+option=needs-linux
+option=timeout:value=60s
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+EOF_CONF
+
+# "Ze running." is printed after the SSH listener accepts and after
+# startTrendMonitor published the monitor with its first sample
+# (test/plugin/host-trend-runs-without-telemetry.ci says why).
+cmd=background:seq=1:exec=ze start running.conf:name=daemon:ready=Ze running.
+
+# The handler answers {"rules": [...]}. The JSON pipe prints a one-key answer
+# as its value, so the rules arrive as a top-level array of objects; the YAML
+# pipe below keeps the key.
+cmd=foreground:seq=2:exec=ze cli -c "show host trend | json":exit=0
+expect=stdout:pattern=\[\s*\{\s*"
+expect=stdout:pattern="name":\s*"kernel-memory"
+expect=stdout:pattern="state":\s*"(not-present|warming-up|quiet|confirming|active|unreadable)"
+expect=stdout:pattern="unit":\s*"bytes"
+expect=stdout:pattern="level":\s*[0-9]
+expect=stdout:pattern="limit":\s*[0-9]
+expect=stdout:pattern="observed-seconds":\s*[0-9]+
+reject=stdout:contains="exhaustion-seconds"
+reject=stdout:contains="warning"
+reject=stdout:contains="failure-source"
+
+# The same payload through another generic pipe: a handler that answered
+# finished text would come back unchanged instead of as YAML keys.
+cmd=foreground:seq=3:exec=ze cli -c "show host trend | yaml":exit=0
+expect=stdout:contains=rules:
+expect=stdout:contains=name: kernel-memory
+expect=stdout:contains=unit: bytes

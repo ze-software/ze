@@ -1432,6 +1432,45 @@ new virtual drivers (wireguard, ipvlan, etc.) are filtered uniformly.
 `ErrUnsupported` per section; `ze show host` reports "unsupported on this
 platform" so scripts can probe gracefully.
 
+### show host trend
+
+Lists the host resources the daemon watches for growth that ends in
+exhaustion. The daemon's trend monitor samples each resource with a built-in
+rule and warns on the report bus when one is heading for exhaustion; this
+command shows every rule, whether or not it warns. Read-only, and served by the
+daemon on every command surface. The first version has one rule,
+`kernel-memory`: the kernel memory that cannot be reclaimed (`SUnreclaim`),
+against a limit of that level plus `MemAvailable`.
+
+```
+ze show host trend                 # Every rule, JSON
+ze show host trend | yaml          # The same answer as YAML
+```
+
+The answer is one object per rule under `rules`:
+
+| Key | Present | Meaning |
+|-----|---------|---------|
+| `name` | always | The rule, for example `kernel-memory` |
+| `state` | always | `not-present` (the resource does not exist on this box), `warming-up` (not observed long enough to judge), `quiet`, `confirming` (growth seen, not yet confirmed), `active` (the warning stands) or `unreadable` |
+| `unit` | always | What `level`, `limit` and `growth` count: `bytes` |
+| `observed-seconds` | always | How long the rule has watched the resource without a gap, counted in closed buckets (hours, for `kernel-memory`) |
+| `level`, `limit` | when the latest sample read the resource | The current level and the level at which the resource runs out |
+| `growth`, `growth-window-seconds` | when the latest judgment measured a rise | How much the level rose, and over which window |
+| `exhaustion-seconds` | when a projection exists | How long until the growth reaches the limit at its current rate |
+| `warning` | when `state` is `active` | The warning's message, the one `show warnings` shows |
+| `failure-source`, `failure-cause` | when `state` is `unreadable` | What could not be read, and why |
+
+A figure the rule does not have is absent, never `0`: a rule still warming up
+shows its observed duration and no projection. When the trend monitor is not
+running the command refuses, says why that matters, and names the fix,
+`ze signal restart`; it never answers an empty list. With no daemon reachable
+it says the daemon is needed, because the history lives in the daemon.
+
+<!-- source: internal/plugins/host-cmd/cmd/show_trend.go -- handleShowTrend, trendRuleOf -->
+<!-- source: internal/plugins/host/trend_offline.go -- runShowTrendOffline -->
+<!-- source: internal/component/host/trend/trend.go -- Rules, RuleStatus, State -->
+
 ### show storage smart
 
 Online RPC (requires running daemon with `storage { smart { enabled true } }` config):

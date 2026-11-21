@@ -16,4 +16,7 @@ func init() {
 	// so it never shadows the daemon `show host` command. RunShow takes the
 	// section as its first arg, matching the tokens after `show host`.
 	command.MustRegisterOfflineFallback("show host", RunShow)
+	// show host trend is not an inventory section: its state lives only in
+	// the daemon, so its fallback says the daemon is needed (trend_offline.go).
+	command.MustRegisterOfflineFallback("show host trend", runShowTrendOffline)
 }

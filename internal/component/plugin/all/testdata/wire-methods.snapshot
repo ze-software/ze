@@ -213,6 +213,7 @@ ze-host:show-platform
 ze-host:show-storage
 ze-host:show-system-kernel-log
 ze-host:show-thermal
+ze-host:show-trend
 ze-iface:clear-interface-counters
 ze-iface:interface-addr-add
 ze-iface:interface-addr-del

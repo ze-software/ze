@@ -97,6 +97,25 @@ state reads active: the warning is still on the bus until the clear, and a row
 that said otherwise would disagree with `show warnings` and `show doctor`.
 <!-- source: internal/component/host/trend/trend.go -- Rules, RuleStatus, State -->
 
+**`show host trend`.** The host command plugin answers it from `trend.Rules`,
+one object per rule under `rules`: `name`, `state`, `unit`, `observed-seconds`,
+and, only when the rule has them, `level` and `limit` (numbers in the unit),
+`growth` and `growth-window-seconds` (the rise the latest judgment measured
+and the window it compared), `exhaustion-seconds` (the projection), `warning`
+(the standing warning's message) and `failure-source` and `failure-cause` (what
+the latest sample could not read). A figure the rule lacks is absent, never
+zero, so a rule still warming up shows its observed duration and no
+projection. The read is a plain call: host-cmd's handlers are builtin RPCs
+that the daemon's own dispatcher serves (`pluginserver.RegisterRPCs`, loaded by
+`NewServer` through `LoadBuiltins`), so they run in the process that holds the
+monitor, as `show storage smart` reads the SMART manager. With no monitor
+running the command refuses with an operator error whose fix is
+`ze signal restart`, and with no daemon reachable the offline fallback of
+`show host trend` says the daemon is needed, rather than reading `trend` as an
+unknown inventory section.
+<!-- source: internal/plugins/host-cmd/cmd/show_trend.go -- handleShowTrend, trendRuleOf, trendReadRefusal -->
+<!-- source: internal/plugins/host/trend_offline.go -- runShowTrendOffline, trendOfflineRefusal -->
+
 **The kernel-memory rule.** It watches `SUnreclaim`, the kernel memory that
 cannot be reclaimed, against a limit of that level plus `MemAvailable`. It
 samples every 60 seconds into hourly buckets, keeps 168 of them, and warns

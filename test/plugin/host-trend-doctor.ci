@@ -1,0 +1,70 @@
+# Test: on a healthy box, `show doctor` runs the host trend monitor check and
+#       the kernel-memory rule's check and reports neither as a problem.
+# Spec: spec-host-resource-trend-alerts AC-18, AC-19 (healthy side), wiring
+#   row 3
+# VALIDATES: checkMonitor (internal/component/host/trend/register.go,
+#   check host-trend-monitor) finds the published monitor and a readable
+#   rule, and the kernel-memory check (ruleCheck,
+#   internal/component/host/trend/register_kernel_memory.go, check
+#   host-trend-kernel-memory) finds no standing warning, so the daemon's
+#   doctor answer (answerDaemonDoctor, internal/component/doctor/cmd/show.go)
+#   carries none of their codes.
+# PREVENTS: a running monitor reported as not running, a readable /proc
+#   reported as unreadable, and a rule that warns on a box that just started.
+# Why not a unit test: only the daemon's own doctor route runs the registered
+#   runtime checks against the monitor the hub started over the real /proc.
+#
+# What this test cannot see: the doctor answer lists problems, not the checks
+# that ran, so a check that never ran would also leave no row here. The
+# positive side is the unit tests: TestTrendMonitorNotRunningIsReported
+# (internal/component/host/trend/trend_doctor_test.go) proves the monitor
+# check reports doctor-host-trend-not-running when no monitor runs, and
+# TestTrendDoctorCheckRowFollowsRuleState proves the rule check reports its
+# warning. Step 2 below proves the monitor runs in this daemon, so the absence
+# of doctor-host-trend-not-running is the monitor check's answer, not silence.
+# Linux only: off Linux the kernel-memory reader answers unsupported, and the
+# monitor check reports the rule unreadable, which is correct there.
+#
+# The daemon setup is test/plugin/doctor-plugin-stopped.ci's, without the
+# plugin: no `ze init`, the config's own user, credentials from the
+# environment.
+
+option=needs-linux
+option=timeout:value=60s
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+EOF_CONF
+
+# "Ze running." is printed after the SSH listener accepts and after
+# startTrendMonitor published the monitor with its first sample
+# (test/plugin/host-trend-runs-without-telemetry.ci says why).
+cmd=background:seq=1:exec=ze start running.conf:name=daemon:ready=Ze running.
+
+cmd=foreground:seq=2:exec=ze cli -c "show host trend | json":exit=0
+expect=stdout:pattern="name":\s*"kernel-memory"
+reject=stdout:contains=the host trend monitor is not running
+
+cmd=foreground:seq=3:exec=ze cli -c "show doctor | json":exit=0
+expect=stdout:pattern="diagnostics":\s*\[
+reject=stdout:contains=doctor-host-trend-not-running
+reject=stdout:contains=doctor-host-trend-unreadable
+reject=stdout:contains=doctor-host-kernel-memory-growth
