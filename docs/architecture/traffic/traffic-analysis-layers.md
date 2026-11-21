@@ -12,7 +12,7 @@ RESPONSE.**
 
 | Part | Owns |
 |------|------|
-| `internal/core/stats` | the math primitives: `Window`, `Mean`, `StdDev`, `Quantile`, `Entropy`, `EWMA`, `IntervalRegularity`, and the `Hysteresis` confirm-and-clear state machine |
+| `internal/core/stats` | the math primitives: `Window`, `Mean`, `StdDev`, `Quantile`, `Entropy`, `EWMA`, `IntervalRegularity`, the `Hysteresis` confirm-and-clear state machine, and the `LevelHistory` of a sampled level with its growth pattern |
 | `internal/component/trafficstat` | per-key rolling aggregation built on `stats.Window` |
 | `internal/component/trafficfeature` | neutral features on three entity axes -- the sending address, the receiving address, and the destination service port: fan-out or fan-in, out/in ratio, destination-port or per-source entropy, new-peer, rare port and protocol, coarse beaconing, plus the entity's origin AS when a publisher supplies it |
 
@@ -84,6 +84,43 @@ ddos-detect's own state machine and moved here to be shared. ddos-detect drives
 it from `applyTick`: `OnConfirmed` starts the attack and `OnCleared` ends it.
 <!-- source: internal/core/stats/hysteresis.go -- Hysteresis, NewHysteresis, Tick -->
 <!-- source: internal/plugins/ddos/detect/detector.go -- newDetector wires the callbacks, applyTick feeds Tick -->
+
+## The level history and the growth pattern
+
+`stats.LevelHistory` keeps the history of a **level**, how much of a resource
+is used, which is not a rate: a level legitimately falls, so it is kept as it
+falls where `Window` clamps a decrease. The caller passes each sample with its
+time, and the history never reads the clock. Samples are bucketed by period
+from the first sample on; a closed bucket holds the minimum and the last sample
+of its period, the newest `BucketCount` buckets are kept, and a period with no
+sample is recorded as missing. `Add` says when a sample closed a bucket, which
+is when the caller judges.
+
+A clock step closes nothing early or twice. A sample dated before the open
+bucket's start joins the open bucket. A sample a period or more past it closes
+the open bucket and records the skipped periods as missing, at most
+`BucketCount` of them however far the clock jumped.
+
+`Growth` judges the pattern of a leak. The newest `GrowthRises`+1 closed
+buckets must all be observed, each minimum must exceed the one before, the
+minimum must rise by at least the amount the caller passes, and a least-squares
+line fitted to those minimums must reach the limit the caller passes within
+`GrowthHorizon`. The minimum is the floor of a period: a leak raises it, and a
+burst raises only the peak. The fitted line keeps growth that settles from
+holding. The minimum rise and the limit are levels passed at each judgment,
+because both can move and the package stays domain-neutral.
+
+A missing bucket ends a run, so growth is never bridged across a period nobody
+observed. The answer is a `GrowthOutcome`, so "not enough observed history"
+(`GrowthWarmingUp`) never reads as "no growth" (`GrowthNotRising`,
+`GrowthRiseTooSmall`, `GrowthBeyondHorizon`), and a limit already reached
+(`GrowthLimitReached`) never reads as a zero time to exhaustion. `GrowthHolds`
+reports the rise, the span and the projected time to exhaustion. Figures the
+history cannot work with are refused at `NewLevelHistory`, and a limit that is
+not positive, or a minimum rise that is negative, is refused at `Growth`.
+`ObservedRun` says how many consecutive observed buckets end at the newest,
+which is how long the level has been watched.
+<!-- source: internal/core/stats/level.go -- LevelParams, LevelHistory, NewLevelHistory, Add, ObservedRun, Growth, GrowthOutcome -->
 
 ## The limit a reader must know
 
