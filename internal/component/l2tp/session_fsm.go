@@ -86,7 +86,7 @@ func (t *L2TPTunnel) dispatchToSession(msgType MessageType, sessionID uint16, pa
 	if sess == nil {
 		// AC-16: unknown session ID in header -> drop with debug log.
 		logger.Debug("l2tp: session-scoped message for unknown SID; dropped",
-			"type", uint16(msgType), "session-id", sessionID)
+			"type", uint16(msgType), reportFieldSessionID, sessionID)
 		return nil
 	}
 
@@ -386,7 +386,7 @@ func (t *L2TPTunnel) handleCDN(sessionID uint16, payload []byte, logger *slog.Lo
 
 	sess := t.lookupSession(sessionID)
 	if sess == nil {
-		logger.Debug("l2tp: CDN for unknown session; dropped", "session-id", sessionID)
+		logger.Debug("l2tp: CDN for unknown session; dropped", reportFieldSessionID, sessionID)
 		return nil
 	}
 
@@ -421,7 +421,7 @@ func (t *L2TPTunnel) handleCDN(sessionID uint16, payload []byte, logger *slog.Lo
 func (t *L2TPTunnel) handleWEN(sessionID uint16, payload []byte, now time.Time, logger *slog.Logger) []sendRequest {
 	sess := t.lookupSession(sessionID)
 	if sess == nil {
-		logger.Debug("l2tp: WEN for unknown session; dropped", "session-id", sessionID)
+		logger.Debug("l2tp: WEN for unknown session; dropped", reportFieldSessionID, sessionID)
 		return nil
 	}
 	if sess.state != L2TPSessionEstablished {
@@ -460,7 +460,7 @@ func (t *L2TPTunnel) handleWEN(sessionID uint16, payload []byte, now time.Time, 
 func (t *L2TPTunnel) handleSLI(sessionID uint16, payload []byte, now time.Time, logger *slog.Logger) []sendRequest {
 	sess := t.lookupSession(sessionID)
 	if sess == nil {
-		logger.Debug("l2tp: SLI for unknown session; dropped", "session-id", sessionID)
+		logger.Debug("l2tp: SLI for unknown session; dropped", reportFieldSessionID, sessionID)
 		return nil
 	}
 	if sess.state != L2TPSessionEstablished {

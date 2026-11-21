@@ -138,7 +138,7 @@ func (t *L2TPTunnel) handleMessage(entry RecvEntry, now time.Time, defaults Tunn
 		// field values was out of range or reserved field was non-zero"
 		// (Section 4.4.2).
 		t.logger.Warn("l2tp: malformed control message; clearing the control connection",
-			"reason", detailNoMessageType, "ns", entry.Ns, "session-id", entry.SessionID)
+			"reason", detailNoMessageType, "ns", entry.Ns, reportFieldSessionID, entry.SessionID)
 		return t.teardownStopCCN(now, ResultCodeValue{
 			Result:         resultProtocolError,
 			ErrorPresent:   true,
@@ -187,7 +187,7 @@ func (t *L2TPTunnel) handleMessage(entry RecvEntry, now time.Time, defaults Tunn
 	// unknown AVP with the M-bit set".
 	if entry.MessageTypeMandatory {
 		t.logger.Warn("l2tp: unknown mandatory message type; clearing the control connection",
-			"type", uint16(msgType), "ns", entry.Ns, "session-id", entry.SessionID)
+			"type", uint16(msgType), "ns", entry.Ns, reportFieldSessionID, entry.SessionID)
 		return t.teardownStopCCN(now, ResultCodeValue{
 			Result:         resultProtocolError,
 			ErrorPresent:   true,

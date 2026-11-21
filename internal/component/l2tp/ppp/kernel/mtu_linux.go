@@ -8,8 +8,6 @@ package kernel
 import (
 	"syscall"
 	"unsafe"
-
-	"golang.org/x/sys/unix"
 )
 
 // pppiocSMRU is the ioctl number for PPPIOCSMRU on Linux.
@@ -50,21 +48,6 @@ func realConnect(chanFD, unitNum int) error {
 		uintptr(chanFD),
 		uintptr(pppiocConnect),
 		uintptr(unsafe.Pointer(&val)),
-	)
-	if errno != 0 {
-		return errno
-	}
-	return nil
-}
-
-// realDisconnect detaches the channel from its unit. Linux UAPI
-// linux/ppp-ioctl.h defines PPPIOCDISCONN as _IO('t', 57), with no argument.
-// unix.PPPIOCDISCONN carries the architecture's ioctl encoding.
-func realDisconnect(chanFD int) error {
-	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL,
-		uintptr(chanFD),
-		uintptr(unix.PPPIOCDISCONN),
-		0,
 	)
 	if errno != 0 {
 		return errno

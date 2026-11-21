@@ -47,7 +47,10 @@ func TestRealmPreparationRetainsInjectedReleaseFailure(t *testing.T) {
 	harness := newRealmHarness(t)
 	want := errors.New("original native release is pending")
 	harness.relay.released = func(_ ppp.EventAuthRequest) error { return want }
-	preparation := harness.handoff().(callsink.BridgePreparation)
+	preparation, ok := harness.handoff().(callsink.BridgePreparation)
+	if !ok {
+		t.Fatal("realm handoff has no bridge preparation")
+	}
 	if err := preparation.PrepareBridge(); !errors.Is(err, want) {
 		t.Fatalf("prepare=%v", err)
 	}

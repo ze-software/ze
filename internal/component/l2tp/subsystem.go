@@ -339,8 +339,7 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 			var workerErr error
 			worker, workerErr = newSubsystemKernelWorkerFn(errCh, successCh, s.logger, s.prepareKernelWorkerBackend)
 			if workerErr != nil {
-				var preparation *kernelBackendPreparationFailure
-				if errors.As(workerErr, &preparation) {
+				if _, isPreparation := errors.AsType[*kernelBackendPreparationFailure](workerErr); isPreparation {
 					closeErr := ln.Stop()
 					s.unwindLocked()
 					return errors.Join(workerErr, closeErr)

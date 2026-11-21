@@ -124,8 +124,8 @@ func TestPoolVerifyRefusalKeepsItsFix(t *testing.T) {
 	if err == nil {
 		t.Fatal("oversized range accepted")
 	}
-	var refusal *opererr.Error
-	if !errors.As(err, &refusal) {
+	refusal, isOperator := errors.AsType[*opererr.Error](err)
+	if !isOperator {
 		t.Fatalf("refusal has no operator correction: %v", err)
 	}
 	if got := refusal.Fix(); got != "set l2tp pool ipv4 end 10.15.255.255" {

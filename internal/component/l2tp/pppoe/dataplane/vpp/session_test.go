@@ -122,7 +122,11 @@ func TestVPPSessionPeerRouteUsesCreatedIndexAndTable(t *testing.T) {
 	if err := s.RemoveAddress(netip.MustParsePrefix("192.0.2.1/32")); err != nil {
 		t.Fatal(err)
 	}
-	if r.requests[len(r.requests)-1].(*ip.IPRouteAddDelV2).IsAdd {
+	removal, ok := r.requests[len(r.requests)-1].(*ip.IPRouteAddDelV2)
+	if !ok {
+		t.Fatalf("remove request %T", r.requests[len(r.requests)-1])
+	}
+	if removal.IsAdd {
 		t.Fatal("remove sent an add")
 	}
 }

@@ -420,7 +420,7 @@ func (u *UDPListener) tunnelReadLoop(tid uint16, conn *net.UDPConn) {
 			if !stillAdopted || closed {
 				return
 			}
-			u.logger.Debug("l2tp: tunnel socket read error", "tunnel-id", tid, "error", err.Error())
+			u.logger.Debug("l2tp: tunnel socket read error", reportFieldTunnelID, tid, "error", err.Error())
 			return
 		}
 

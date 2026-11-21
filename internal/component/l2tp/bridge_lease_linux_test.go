@@ -55,7 +55,7 @@ func TestMaybeBridgePPPoECaptureFailureModel(t *testing.T) {
 		},
 		func(*pppkernel.CreatedChannel, *pppkernel.CreatedChannel) (kernelPPPBridge, error) {
 			t.Fatal("capture failure reached constructor")
-			return nil, nil
+			return nil, errors.New("capture failure reached constructor")
 		})
 	require.True(t, bridged)
 	require.ErrorIs(t, err, unix.EBADF)

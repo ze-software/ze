@@ -94,7 +94,7 @@ func inspectOriginalAttachmentWith(required uint32, ops originalAttachmentProbeO
 	if closeErr := ops.close(file); closeErr != nil {
 		return originalAttachmentResult{status: originalAttachmentUnknown, cause: errors.Join(inspectionErr, missingErr, closeErr)}
 	}
-	if queryErr == unix.ENOTTY {
+	if queryErr == unix.ENOTTY { //nolint:errorlint // Only the bare ioctl errno proves unavailable; ENOTTY joined with a control or other errno is Unknown.
 		return originalAttachmentResult{status: originalAttachmentUnavailable, cause: queryErr}
 	}
 	if inspectionErr != nil {

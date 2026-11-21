@@ -23,7 +23,7 @@ func cqmAPIRoot(t *testing.T, addresses []netip.AddrPort) *Subsystem {
 	previousProbe, previousWorker := probeKernelModulesFn, newSubsystemKernelWorkerFn
 	probeKernelModulesFn = func() error { return nil }
 	newSubsystemKernelWorkerFn = func(chan<- kernelSetupFailed, chan<- kernelSetupSucceeded, *slog.Logger, kernelBackendPreparation) (*kernelWorker, error) {
-		return nil, nil
+		return nil, nil //nolint:nilnil // an inert root: Start runs with no native worker, the state it keeps after a worker error, without faking one
 	}
 	t.Cleanup(func() { probeKernelModulesFn, newSubsystemKernelWorkerFn = previousProbe, previousWorker })
 	previousRegistry, previousBinding := registry.GetMetricsRegistry(), l2tpMetricsPtr.Load()
@@ -111,7 +111,7 @@ func (bus *cqmAPIUnwindBus) Subscribe(namespace, event string, handler func(any)
 // MUTATION: leaving the observer or its subscriptions open during partial
 // listener-start unwind lets a copied callback publish into an unstarted root.
 func TestObserverPartialRootStartUnwindClosesOriginalSubscriptions(t *testing.T) {
-	blocker, err := net.ListenPacket("udp4", "127.0.0.1:0")
+	blocker, err := (&net.ListenConfig{}).ListenPacket(t.Context(), "udp4", "127.0.0.1:0")
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, blocker.Close()) })
 	occupied := netip.MustParseAddrPort(blocker.LocalAddr().String())

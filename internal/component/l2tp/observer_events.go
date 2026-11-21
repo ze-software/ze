@@ -4,6 +4,7 @@
 package l2tp
 
 import (
+	"errors"
 	"time"
 
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
@@ -113,11 +114,11 @@ func (o *Observer) observeEvent(generation l2tpevents.ObservationGeneration, ev 
 		} else {
 			var err error
 			entry, err = o.touchLogin(login, ev.Timestamp, ev.Birth)
+			if errors.Is(err, errLoginUntracked) {
+				return nil
+			}
 			if err != nil {
 				return err
-			}
-			if entry == nil {
-				return nil
 			}
 		}
 		entry.downConsumed = true
@@ -134,11 +135,11 @@ func (o *Observer) observeEvent(generation l2tpevents.ObservationGeneration, ev 
 	switch ev.Type {
 	case ObserverEventSessionIPAssigned:
 		entry, err := o.touchLogin(login, ev.Timestamp, ev.Birth)
+		if errors.Is(err, errLoginUntracked) {
+			return nil
+		}
 		if err != nil {
 			return err
-		}
-		if entry == nil {
-			return nil
 		}
 		entry.contributor = ev.Birth
 		entry.downConsumed = false
@@ -146,11 +147,11 @@ func (o *Observer) observeEvent(generation l2tpevents.ObservationGeneration, ev 
 		entry.current.State = BucketStateEstablished
 	case ObserverEventEchoRTT:
 		entry, err := o.touchLogin(login, ev.Timestamp, ev.Birth)
+		if errors.Is(err, errLoginUntracked) {
+			return nil
+		}
 		if err != nil {
 			return err
-		}
-		if entry == nil {
-			return nil
 		}
 		o.maybeCloseBucket(entry, ev.Timestamp)
 		entry.current.addEcho(ev.RTT)

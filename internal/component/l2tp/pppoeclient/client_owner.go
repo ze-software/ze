@@ -32,7 +32,7 @@ var _ clientProtocol = (*pppkernel.ClientSession)(nil)
 // readAttempt MUST perform only one pair attempt. Retry belongs to readPacket,
 // after this method returns and releases mu. The sole frameReader calls it;
 // pair.ReadPacket owns the bounded original-file lease, never the caller lock.
-func (s *sessionLink) readAttempt(buffer []byte) (int, error) {
+func (s *sessionLink) readAttempt(buffer []byte) (int, error) { //nolint:unparam // readPacket in receive_linux.go returns the count; only non-Linux builds leave it unread.
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.closed {

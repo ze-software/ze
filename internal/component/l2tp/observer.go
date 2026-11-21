@@ -5,6 +5,7 @@
 package l2tp
 
 import (
+	"errors"
 	"slices"
 	"sync"
 	"time"
@@ -440,13 +441,21 @@ func (o *Observer) Stop() {
 	}
 }
 
+// errLoginUntracked is touchLogin's answer when no sample ring is free and no
+// tracked login can be evicted for one. The event then carries no quality
+// history for that login. It is a bound reached, not a failure: callers MUST
+// drop the event and return nil for it.
+var errLoginUntracked = errors.New("l2tp observer: no sample ring for the login")
+
+// touchLogin answers the tracked entry for login, creating it when a ring is
+// available. It answers errLoginUntracked when none is.
 func (o *Observer) touchLogin(login string, now time.Time, birth subscriberid.L2TPBirth) (*lruEntry, error) {
 	if entry := o.logins[login]; entry != nil {
 		o.promoteEntry(entry)
 		return entry, nil
 	}
 	if len(o.samplePool.free) == 0 && o.lruTail == nil {
-		return nil, nil
+		return nil, errLoginUntracked
 	}
 	// Retain every original physical series before evicting useful history.
 	// A refusal MUST leave that history intact; partial custody MUST be released.
@@ -461,7 +470,7 @@ func (o *Observer) touchLogin(login string, now time.Time, birth subscriberid.L2
 	}
 	if ring == nil {
 		series.Release()
-		return nil, nil
+		return nil, errLoginUntracked
 	}
 	entry := &lruEntry{
 		login: login, ring: ring, state: BucketStateNegotiating,

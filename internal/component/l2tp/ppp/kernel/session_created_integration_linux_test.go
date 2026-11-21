@@ -26,7 +26,7 @@ func createdSessionChannel(t *testing.T, name string, sid uint16) *pppkernel.Cre
 	if err != nil {
 		t.Fatal(err)
 	}
-	link := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: name}}
+	link := &netlink.Dummy{Name: name}
 	var owned bool
 	t.Cleanup(func() {
 		defer cleanup.Close()
@@ -131,10 +131,10 @@ func TestCreatedSessionOriginalCounterOwnerSurvivesRename(t *testing.T) {
 	if err := netlink.LinkSetName(link, "zc-renamed"); err != nil {
 		t.Fatal(err)
 	}
-	createdUnitTraffic(t, "zc-native", 0)
+	createdUnitTraffic(t, 0)
 	createdSessionZero(t, owner)
 	createdUnitForeignNamespace(t, func() {
-		createdUnitTraffic(t, "zc-native", link.Attrs().Index)
+		createdUnitTraffic(t, link.Attrs().Index)
 		createdSessionZero(t, owner)
 	})
 }

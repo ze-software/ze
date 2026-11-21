@@ -200,11 +200,14 @@ func newIPv6ChildFixture(t *testing.T, number uint16, birth string, carrierFailu
 	worker.peerInterfaceID = [8]byte{2, 0, 0, 0, 0, 0, 0, 2}
 	worker.peerInterfaceIDNegotiated = true
 	request.Control.worker.mu.Unlock()
-	worker.afterLCPOpenIPv6Service()
+	startErr := worker.afterLCPOpenIPv6Service()
 	request.Control.worker.mu.Lock()
 	fixture.service = worker.ipv6Svc
 	request.Control.worker.mu.Unlock()
 	request.Control.worker.nativeReleaseMu.Unlock()
+	if startErr != nil {
+		t.Fatalf("actual startup failed the session: %v", startErr)
+	}
 	if fixture.service == nil {
 		t.Fatal("actual startup lost its live/partial child cleanup owner")
 	}

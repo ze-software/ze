@@ -9,8 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	feature "github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/feature"
 	"go.fd.io/govpp/api"
+
+	feature "github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/feature"
 )
 
 // A two-direction cleanup must confirm all four patched input arcs, the

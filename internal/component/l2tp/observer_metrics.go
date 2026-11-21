@@ -94,9 +94,9 @@ func reportObserverMetricRefusal(birth subscriberid.L2TPBirth, login string, cau
 	refusal := opererr.Wrap(cause, problem, why, fix)
 	id := birth.String()
 	slogutil.Logger(SubsystemName).Warn(refusal.Error(), "code", report.CodeInternalDefect,
-		"subscriber-id", id, "username", login)
+		reportFieldSubscriberID, id, "username", login)
 	report.RaiseWarningFix(SubsystemName, report.CodeInternalDefect, "quality metrics", problem+": "+why, fix,
-		map[string]any{"subscriber-id": id, "username": login, "cause": cause.Error()})
+		map[string]any{reportFieldSubscriberID: id, "username": login, reportFieldCause: cause.Error()})
 }
 
 // reportObserverStartFailure MUST run after Subsystem.mu is released; startup
@@ -108,5 +108,5 @@ func reportObserverStartFailure(logger *slog.Logger, cause error) {
 	refusal := opererr.Wrap(cause, problem, why, fix)
 	logger.Warn(refusal.Error(), "code", report.CodeInternalDefect)
 	report.RaiseWarningFix(SubsystemName, report.CodeInternalDefect, "session monitoring", problem+": "+why, fix,
-		map[string]any{"cause": cause.Error()})
+		map[string]any{reportFieldCause: cause.Error()})
 }

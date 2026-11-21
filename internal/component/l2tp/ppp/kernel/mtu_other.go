@@ -14,7 +14,3 @@ func realSetMRU(unitFD int, mru uint16) error {
 func realConnect(chanFD, unitNum int) error {
 	return errNotLinux
 }
-
-func realDisconnect(chanFD int) error {
-	return errNotLinux
-}

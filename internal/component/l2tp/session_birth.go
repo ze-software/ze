@@ -29,7 +29,7 @@ func newSessionBirth(logger *slog.Logger) (subscriberid.L2TPBirth, error) {
 	refusal := opererr.Wrap(err, problem, why, fix)
 	logger.Warn(refusal.Error(), "code", report.CodeInternalDefect)
 	report.RaiseWarningFix("l2tp", report.CodeInternalDefect, sessionBirthReportSubject, problem+": "+why, fix,
-		map[string]any{"cause": err.Error()})
+		map[string]any{reportFieldCause: err.Error()})
 	return subscriberid.L2TPBirth{}, refusal
 }
 
@@ -43,8 +43,8 @@ func reportSessionBirthRefusal(logger *slog.Logger, operation string, tunnelID, 
 	const fix = "ze doctor"
 	refusal := opererr.New(problem, why, fix)
 	logger.Warn(refusal.Error(), "code", report.CodeInternalDefect,
-		"operation", operation, "tunnel-id", tunnelID, "session-id", sessionID, "fix", fix)
+		"operation", operation, reportFieldTunnelID, tunnelID, reportFieldSessionID, sessionID, "fix", fix)
 	report.RaiseWarningFix(SubsystemName, report.CodeInternalDefect, sessionBirthRefusalReportSubject,
 		problem+": "+why, fix,
-		map[string]any{"operation": operation, "tunnel-id": tunnelID, "session-id": sessionID})
+		map[string]any{"operation": operation, reportFieldTunnelID: tunnelID, reportFieldSessionID: sessionID})
 }

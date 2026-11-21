@@ -6,13 +6,15 @@
 package vpp
 
 import (
+	"bytes"
 	"errors"
 	"os"
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 )
 
 func nativeSocketFixture(t *testing.T) (*controlSocket, *os.File) {
@@ -85,7 +87,7 @@ func TestVPPNativeSocketRejectsTruncationThenReadsNextFrame(t *testing.T) {
 	if err != nil || n != len(frame) {
 		t.Fatalf("next frame n=%d, err=%v", n, err)
 	}
-	if string(buf[:n]) != string(frame) {
+	if !bytes.Equal(buf[:n], frame) {
 		t.Fatalf("next frame %x", buf[:n])
 	}
 }

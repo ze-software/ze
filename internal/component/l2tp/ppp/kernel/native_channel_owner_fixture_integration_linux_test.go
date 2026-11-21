@@ -70,7 +70,7 @@ func nativeChannelFixtureNew(t *testing.T, slot int) *nativeChannelFixture {
 	peer := net.HardwareAddr{2, 0, 0, 0, byte(slot), 2}
 	name := fmt.Sprintf("nc%da", slot)
 	peerName := fmt.Sprintf("nc%db", slot)
-	link := &netlink.Veth{LinkAttrs: netlink.LinkAttrs{Name: name, HardwareAddr: local}, PeerName: peerName, PeerHardwareAddr: peer}
+	link := &netlink.Veth{Name: name, HardwareAddr: local, PeerName: peerName, PeerHardwareAddr: peer}
 	if err := netlink.LinkAdd(link); err != nil {
 		t.Fatal(err)
 	}

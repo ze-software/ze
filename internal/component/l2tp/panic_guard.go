@@ -121,7 +121,7 @@ func (r *l2tpReactor) clearTunnelAfterPanic(dispatch *controlDispatch) func(*tas
 		err := r.teardownTunnel(dispatch.localTID, ResultCodeValue{Result: resultGeneralError}, l2tpevents.TerminateCauseNASError)
 		if err != nil {
 			r.logger.Warn("l2tp: the tunnel a contained panic reached could not be cleared",
-				"tunnel-id", dispatch.localTID, "error", err.Error())
+				reportFieldTunnelID, dispatch.localTID, "error", err.Error())
 		}
 	}
 }

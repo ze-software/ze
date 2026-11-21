@@ -100,8 +100,7 @@ func TestKernelOriginalCleanupClosesGenuineOwners(t *testing.T) {
 		t.Fatalf("original transport closes=%d", transportCloses)
 	}
 	_, linkErr := netlink.LinkByIndex(int(identity.NativeIndex))
-	var missing netlink.LinkNotFoundError
-	if !errors.As(linkErr, &missing) {
+	if _, isMissing := errors.AsType[netlink.LinkNotFoundError](linkErr); !isMissing {
 		t.Fatalf("production cleanup did not confirm original PPP unit absence: %v", linkErr)
 	}
 	if _, err := unit.Counters(); !errors.Is(err, os.ErrClosed) {

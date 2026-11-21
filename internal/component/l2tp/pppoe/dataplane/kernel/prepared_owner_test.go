@@ -21,7 +21,7 @@ func TestPreparedKernelAccessRejectsMissingBackendOwner(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			for _, failure := range []error{nil, want} {
 				acquisitions, resolutions := 0, 0
-				access, err := prepareModelWithResolver(t.Context(), "logical", func() (iface.Backend, error) {
+				access, err := prepareModelWithResolver(t.Context(), func() (iface.Backend, error) {
 					acquisitions++
 					return backend, failure
 				}, func(string) (iface.Binding, error) {
@@ -57,7 +57,7 @@ func TestPreparedKernelAccessConsumesPartialBackendFailure(t *testing.T) {
 	wantClose := errors.New("partial backend close failed")
 	backend := &preparedOwnerBackend{closeFailure: wantClose}
 	resolutions := 0
-	access, err := prepareModelWithResolver(t.Context(), "logical", func() (iface.Backend, error) {
+	access, err := prepareModelWithResolver(t.Context(), func() (iface.Backend, error) {
 		return backend, wantAcquire
 	}, func(string) (iface.Binding, error) {
 		resolutions++
@@ -86,7 +86,7 @@ func TestPreparedKernelAccessClosesBackendOnResolutionFailure(t *testing.T) {
 	wantResolve := errors.New("logical access resolution failed")
 	wantClose := errors.New("unpublished backend close failed")
 	backend := &preparedOwnerBackend{closeFailure: wantClose}
-	access, err := prepareModelWithResolver(t.Context(), "logical", func() (iface.Backend, error) {
+	access, err := prepareModelWithResolver(t.Context(), func() (iface.Backend, error) {
 		return backend, nil
 	}, func(name string) (iface.Binding, error) {
 		if name != "logical" {
@@ -113,7 +113,7 @@ func TestPreparedKernelAccessClosesBackendOnResolutionFailure(t *testing.T) {
 func TestPreparedKernelAccessClosesBackendOnSnapshotRefusal(t *testing.T) {
 	wantClose := errors.New("invalid snapshot backend close failed")
 	backend := &preparedOwnerBackend{closeFailure: wantClose}
-	access, err := prepareModelWithResolver(t.Context(), "logical", func() (iface.Backend, error) {
+	access, err := prepareModelWithResolver(t.Context(), func() (iface.Backend, error) {
 		return backend, nil
 	}, func(string) (iface.Binding, error) {
 		binding := preparedOwnerBinding()
@@ -139,7 +139,7 @@ func TestPreparedKernelAccessClosesBackendOnSnapshotRefusal(t *testing.T) {
 func TestPreparedKernelAccessRetainsBackendUntilParentClose(t *testing.T) {
 	backend := &preparedOwnerBackend{}
 	acquisitions, resolutions := 0, 0
-	access, err := prepareModelWithResolver(t.Context(), "logical", func() (iface.Backend, error) {
+	access, err := prepareModelWithResolver(t.Context(), func() (iface.Backend, error) {
 		acquisitions++
 		return backend, nil
 	}, func(string) (iface.Binding, error) {

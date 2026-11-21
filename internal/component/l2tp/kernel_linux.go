@@ -460,7 +460,7 @@ func (w *kernelWorker) setupSession(ev kernelSetupEvent) {
 	}
 	if err := w.ops.sessionCreate(params); err != nil {
 		w.logger.Error("l2tp: kernel session create failed",
-			"tunnel-id", ev.localTID, "session-id", ev.localSID, "error", err.Error())
+			reportFieldTunnelID, ev.localTID, reportFieldSessionID, ev.localSID, "error", err.Error())
 		w.cleanupTunnelIfNew(ev.localTID, tunnelExisted)
 		setupError = err
 		return
@@ -479,7 +479,7 @@ func (w *kernelWorker) setupSession(ev kernelSetupEvent) {
 	owned.ppp, owned.retiredPPP = fds.ppp, fds.retiredPPP
 	if err != nil {
 		w.logger.Error("l2tp: ppp setup failed",
-			"tunnel-id", ev.localTID, "session-id", ev.localSID, "error", err.Error())
+			reportFieldTunnelID, ev.localTID, reportFieldSessionID, ev.localSID, "error", err.Error())
 		owned.closeErr = pppkernel.SetupCleanupFailure(err)
 		// A pending bridge has not consumed its transport or channel files. Its
 		// retryable cleanup cause belongs to that exact handle, not closeErr.
@@ -493,8 +493,8 @@ func (w *kernelWorker) setupSession(ev kernelSetupEvent) {
 	}
 
 	w.logger.Info("l2tp: kernel session established",
-		"tunnel-id", ev.localTID, "session-id", ev.localSID,
-		"ppp-unit", fds.unitNum)
+		reportFieldTunnelID, ev.localTID, reportFieldSessionID, ev.localSID,
+		reportFieldPPPUnit, fds.unitNum)
 
 	ready = owned
 }
@@ -819,7 +819,7 @@ func (w *kernelWorker) deleteTunnelLocked(tid uint16) {
 		ts.deleted = true
 		// Confirmed original deletion MUST clear only its own delete warning.
 		clearKernelTunnelDeleteWarning(ts)
-		w.logger.Info("l2tp: kernel tunnel deleted", "tunnel-id", tid)
+		w.logger.Info("l2tp: kernel tunnel deleted", reportFieldTunnelID, tid)
 		// Stop the original listener reader before consuming its descriptor.
 		if w.releaseSocket != nil {
 			w.releaseSocket(tid)

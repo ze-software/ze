@@ -4,6 +4,8 @@
 package l2tp
 
 import (
+	"context"
+	"net/http"
 	"net/http/httptest"
 	"sync"
 	"testing"
@@ -244,6 +246,6 @@ func emitObserverCQMEstablished(t *testing.T, bus *testBus, birth subscriberid.L
 
 func observerCQMMetrics(registry *metrics.PrometheusRegistry) string {
 	response := httptest.NewRecorder()
-	registry.Handler().ServeHTTP(response, httptest.NewRequest("GET", "/metrics", nil))
+	registry.Handler().ServeHTTP(response, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", http.NoBody))
 	return response.Body.String()
 }

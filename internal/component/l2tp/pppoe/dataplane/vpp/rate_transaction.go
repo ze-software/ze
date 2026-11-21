@@ -52,7 +52,9 @@ func (o *policerRates) Prepare(ctx context.Context, download, upload, downloadBu
 	}
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	if err := ctx.Err(); err != nil { return nil, err }
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if o.closed {
 		return nil, errors.New("pppoe-vpp: session policer owner is closed")
 	}
@@ -151,7 +153,10 @@ func (o *policerRates) apply(ctx context.Context, change *policerRateTransaction
 		object.wanted = plan
 	}
 	for direction, ownership := range o.objects {
-		object := ownership.(*ownedPolicer) // Both fixed slots validated above.
+		object, ok := ownership.(*ownedPolicer) // Both fixed slots validated above.
+		if !ok {
+			return errors.New("pppoe-vpp: policer bind found no owned valid index")
+		}
 		if object.binding == policerBound {
 			continue
 		}

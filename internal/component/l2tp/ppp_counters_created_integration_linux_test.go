@@ -41,10 +41,10 @@ func (backend *kernelMeasurementBackend) CreateLinkCounterReader(request *nl.Net
 		return link, original, attempted, err
 	}
 	if link == nil {
-		return link, original, attempted, errors.New("native measurement creation returned no link")
+		return nil, original, attempted, errors.New("native measurement creation returned no link")
 	}
 	if original == nil {
-		return link, original, attempted, errors.New("native measurement creation returned no original reader")
+		return link, nil, attempted, errors.New("native measurement creation returned no original reader")
 	}
 	attrs := link.Attrs()
 	if attrs == nil {

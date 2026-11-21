@@ -226,9 +226,9 @@ func newPreparedNativeAccess(t *testing.T) *preparedNativeAccess {
 	if err := unix.Close(probe); err != nil {
 		t.Fatal(err)
 	}
-	device := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{
+	device := &netlink.Dummy{
 		Name: "ze-pa-access", HardwareAddr: net.HardwareAddr{2, 0, 0, 0, 0, 1}, MTU: 1500,
-	}}
+	}
 	if err := netlink.LinkAdd(device); err != nil {
 		if errors.Is(err, unix.EPERM) {
 			t.Skip("CAP_NET_ADMIN is required for the private native access device")
@@ -406,8 +406,7 @@ func preparedNativeUnitAbsent(t *testing.T, identity ppp.SessionIdentity) {
 	if err == nil {
 		t.Fatalf("released original PPP unit remains: %+v", link.Attrs())
 	}
-	var absent netlink.LinkNotFoundError
-	if !errors.As(err, &absent) {
+	if _, absent := errors.AsType[netlink.LinkNotFoundError](err); !absent {
 		t.Fatalf("native unit absence was not confirmed: %v", err)
 	}
 }

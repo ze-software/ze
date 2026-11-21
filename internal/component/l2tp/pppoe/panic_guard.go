@@ -36,7 +36,7 @@ type pppoePanicTasks struct {
 
 // newPPPoEPanicTasks declares the PPPoE tasks on a guard that logs to log.
 func newPPPoEPanicTasks(log *slog.Logger) *pppoePanicTasks {
-	guard := taskguard.New("pppoe", log)
+	guard := taskguard.New(SubsystemName, log)
 	return &pppoePanicTasks{
 		guard:     guard,
 		discovery: guard.Task("discovery", "the session this frame was admitting ends; the host starts discovery again, and other hosts and sessions are unaffected"),

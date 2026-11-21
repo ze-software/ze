@@ -133,7 +133,11 @@ func TestObserverMetricPartialRefusalKeepsHistoryAndReleasesAcquisitions(t *test
 			if failedVector == "state" {
 				failed = originalState
 			}
-			wrapper := &cqmAPIRefusingGauge{GaugeVec: failed, retainer: failed.(metrics.SeriesRetainer), refused: "bob", err: refusal}
+			retainer, retains := failed.(metrics.SeriesRetainer)
+			if !retains {
+				t.Fatalf("%s gauge %T does not implement metrics.SeriesRetainer", failedVector, failed)
+			}
+			wrapper := &cqmAPIRefusingGauge{GaugeVec: failed, retainer: retainer, refused: "bob", err: refusal}
 			if failedVector == "loss" {
 				binding.lcpEchoLossRatio = wrapper
 			} else {

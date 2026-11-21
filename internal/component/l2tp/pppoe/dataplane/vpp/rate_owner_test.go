@@ -355,7 +355,7 @@ func (w *rateWireFixture) readPolicer(_ context.Context, index uint32, name stri
 	w.calls = append(w.calls, fmt.Sprintf("read/%d", index))
 	plan := w.objects[index]
 	if plan == nil {
-		return nil, nil
+		return nil, nil //nolint:nilnil // Mirrors binaryAPI.readPolicer: nil details with no error means a completed indexed dump proved absence.
 	}
 	if plan.name != name {
 		return nil, errors.New("indexed owner changed")
@@ -381,7 +381,7 @@ func (w *rateWireFixture) verifyPolicer(ctx context.Context, index uint32, plan 
 	return nil
 }
 
-func (w *rateWireFixture) bindPolicerInput(_ context.Context, _ uint32, index uint32, apply bool) (policerReceipt, error) {
+func (w *rateWireFixture) bindPolicerInput(_ context.Context, _, index uint32, apply bool) (policerReceipt, error) {
 	if apply {
 		w.calls = append(w.calls, fmt.Sprintf("bind/0/%d", index))
 		if w.unknownInputBind {
@@ -398,7 +398,7 @@ func (w *rateWireFixture) bindPolicerInput(_ context.Context, _ uint32, index ui
 	return policerConfirmed, nil
 }
 
-func (w *rateWireFixture) bindPolicerOutput(_ context.Context, _ uint32, index uint32, apply bool) (policerReceipt, error) {
+func (w *rateWireFixture) bindPolicerOutput(_ context.Context, _, index uint32, apply bool) (policerReceipt, error) {
 	if apply {
 		w.calls = append(w.calls, fmt.Sprintf("bind/1/%d", index))
 		w.bound[1] = index

@@ -10,10 +10,11 @@ import (
 	"net/netip"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/feature"
 	"go.fd.io/govpp/api"
 	interfaces "go.fd.io/govpp/binapi/interface"
 	"go.fd.io/govpp/binapi/ip"
+
+	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/feature"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	pppoeapi "github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/pppoe"

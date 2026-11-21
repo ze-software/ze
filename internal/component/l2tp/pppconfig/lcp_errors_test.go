@@ -28,8 +28,8 @@ func TestLCPProviderRefusalNamesAWorkingRepair(t *testing.T) {
 		} {
 			t.Run(transport+"/"+tc.name, func(t *testing.T) {
 				_, err := ParseLCP(transport, tc.raw)
-				var operatorError *opererr.Error
-				if !errors.As(err, &operatorError) {
+				operatorError, isOperator := errors.AsType[*opererr.Error](err)
+				if !isOperator {
 					t.Fatalf("refusal = %v, want opererr.Error", err)
 				}
 				if operatorError.Fix() != tc.fix {
@@ -50,8 +50,8 @@ func TestLCPMissingSchemaDoesNotSuggestEditingASetting(t *testing.T) {
 	lcpDefaults = func() ([4]int, error) { return [4]int{}, errors.New("shared PPP LCP schema is not registered") }
 	t.Cleanup(func() { lcpDefaults = defaults })
 	_, err := ParseLCP("pppoe", nil)
-	var operatorError *opererr.Error
-	if !errors.As(err, &operatorError) {
+	operatorError, isOperator := errors.AsType[*opererr.Error](err)
+	if !isOperator {
 		t.Fatalf("refusal = %v, want opererr.Error", err)
 	}
 	if strings.HasPrefix(operatorError.Fix(), "set ") {

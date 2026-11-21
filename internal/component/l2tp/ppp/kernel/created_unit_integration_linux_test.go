@@ -33,7 +33,7 @@ func TestCreatedUnitNamedRenameKeepsOriginal(t *testing.T) {
 	if err := netlink.LinkSetName(original, "zc-renamed"); err != nil {
 		t.Fatal(err)
 	}
-	createdUnitTraffic(t, "zc-native", 0)
+	createdUnitTraffic(t, 0)
 	createdUnitZero(t, unit)
 }
 
@@ -57,7 +57,7 @@ func TestCreatedUnitForeignCallerKeepsOriginal(t *testing.T) {
 	}
 	unit, _, original := createdUnitNative(t, "zc-native")
 	createdUnitForeignNamespace(t, func() {
-		createdUnitTraffic(t, "zc-native", original.Attrs().Index)
+		createdUnitTraffic(t, original.Attrs().Index)
 		createdUnitZero(t, unit)
 	})
 	createdUnitZero(t, unit)
@@ -89,7 +89,7 @@ func TestCreatedUnitDeleteReuseRefusesReplacement(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	createdUnitTraffic(t, "zc-native", original.Attrs().Index)
+	createdUnitTraffic(t, original.Attrs().Index)
 	if got, err := unit.Counters(); err == nil {
 		t.Fatalf("dead original read replacement counters %+v", got)
 	}
@@ -122,12 +122,11 @@ func TestCreatedUnitMoveReuseRefusesReplacement(t *testing.T) {
 	if _, err := creatorLinks.LinkByName("zc-native"); err == nil {
 		t.Fatal("original PPP unit is still visible in creator namespace")
 	} else {
-		var absent netlink.LinkNotFoundError
-		if !errors.As(err, &absent) {
+		if _, absent := errors.AsType[netlink.LinkNotFoundError](err); !absent {
 			t.Fatalf("creator absence was not confirmed: %v", err)
 		}
 	}
-	createdUnitTraffic(t, "zc-native", original.Attrs().Index)
+	createdUnitTraffic(t, original.Attrs().Index)
 	if got, err := unit.Counters(); err == nil {
 		t.Fatalf("moved original read creator replacement counters %+v", got)
 	}
@@ -255,8 +254,7 @@ func createdUnitFailedReply(t *testing.T, loseEcho, panicAfter bool) {
 	if _, err := netlink.LinkByIndex(original.Attrs().Index); err == nil {
 		t.Fatal("closing uncertain original file did not release its actual unit")
 	} else {
-		var absent netlink.LinkNotFoundError
-		if !errors.As(err, &absent) {
+		if _, absent := errors.AsType[netlink.LinkNotFoundError](err); !absent {
 			t.Fatalf("original absence was not confirmed after file close: %v", err)
 		}
 	}
@@ -346,8 +344,10 @@ func createdUnitZero(t *testing.T, unit *pppkernel.CreatedUnit) {
 	}
 }
 
-func createdUnitTraffic(t *testing.T, name string, index int) {
+func createdUnitTraffic(t *testing.T, index int) {
 	t.Helper()
+	// The replacement takes the name every caller gave its created unit.
+	const name = "zc-native"
 	cleanup, err := netlink.NewHandle(unix.NETLINK_ROUTE)
 	if err != nil {
 		t.Fatal(err)
@@ -361,7 +361,7 @@ func createdUnitTraffic(t *testing.T, name string, index int) {
 			}
 		}
 	})
-	dummy := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: name, Index: index}}
+	dummy := &netlink.Dummy{Name: name, Index: index}
 	if err := netlink.LinkAdd(dummy); err != nil {
 		t.Fatal(err)
 	}

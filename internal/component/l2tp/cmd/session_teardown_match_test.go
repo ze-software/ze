@@ -50,10 +50,10 @@ func matchTestSessions(t *testing.T, aliceTwice bool) (l2tp.Snapshot, []subscrib
 func publishMatchTestService(t *testing.T, snapshot l2tp.Snapshot) (*sessionTeardownServiceSpy, *sessionTeardownCaptureSpy) {
 	t.Helper()
 	capture := &sessionTeardownCaptureSpy{}
-	service := &sessionTeardownServiceSpy{cqmCommandService: cqmCommandService{
+	service := &sessionTeardownServiceSpy{
 		fakeService: &fakeService{snapshot: snapshot},
 		captured:    capture,
-	}}
+	}
 	publishFake(t, service)
 	return service, capture
 }

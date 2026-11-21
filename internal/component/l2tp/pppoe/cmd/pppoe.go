@@ -135,15 +135,15 @@ func sessionJSON(s *pppoe.SessionSnapshot) map[string]any {
 		panic("BUG: unknown PPPoE session state")
 	}
 	return map[string]any{
-		"sid":          s.SID,
-		"mac":          s.MAC.String(),
-		"interface":    s.IfName,
-		"service-name": s.ServiceName,
-		"state":        state,
-		"unit":         s.UnitNum,
-		"ppp-interface": s.Identity.InterfaceName,
+		"sid":             s.SID,
+		"mac":             s.MAC.String(),
+		"interface":       s.IfName,
+		"service-name":    s.ServiceName,
+		"state":           state,
+		"unit":            s.UnitNum,
+		"ppp-interface":   s.Identity.InterfaceName,
 		"interface-index": s.Identity.NativeIndex,
-		"created-at":   s.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
+		"created-at":      s.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
 	}
 }
 

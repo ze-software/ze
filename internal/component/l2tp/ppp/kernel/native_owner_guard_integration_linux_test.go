@@ -203,7 +203,10 @@ func TestNativeOwnerGuardLinkSetters(t *testing.T) {
 	nativeOwnerRequireMTU(t, fixture.link, 1406)
 	for _, up := range []bool{true, false} {
 		request := nativeOwnerLinkRequest(unix.RTM_SETLINK, unix.AF_UNSPEC, fixture.fd, fixture.link.Attrs().Index)
-		message := request.Data[0].(*nl.IfInfomsg)
+		message, ok := request.Data[0].(*nl.IfInfomsg)
+		if !ok {
+			t.Fatalf("link request header = %T, want *nl.IfInfomsg", request.Data[0])
+		}
 		message.Change = unix.IFF_UP
 		if up {
 			message.Flags = unix.IFF_UP
@@ -651,7 +654,7 @@ func nativeOwnerRequireMTU(t *testing.T, link netlink.Link, mtu int) {
 
 func nativeOwnerDummy(t *testing.T, name string, index int) netlink.Link {
 	t.Helper()
-	link := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: name, Index: index}}
+	link := &netlink.Dummy{Name: name, Index: index}
 	if err := netlink.LinkAdd(link); err != nil {
 		t.Fatalf("create owned native victim: %v", err)
 	}
@@ -751,7 +754,7 @@ func nativeOwnerAddressRequest(command, family, fd, index int, address *netlink.
 	}
 	request := nl.NewNetlinkRequest(command, flags)
 	prefix, _ := address.Mask.Size()
-	message := &nl.IfAddrmsg{IfAddrmsg: unix.IfAddrmsg{Family: uint8(family), Prefixlen: uint8(prefix), Index: uint32(index)}}
+	message := &nl.IfAddrmsg{Family: uint8(family), Prefixlen: uint8(prefix), Index: uint32(index)}
 	local := address.IP.To4()
 	peer := address.Peer.IP.To4()
 	if family == unix.AF_INET6 {
@@ -769,7 +772,7 @@ func nativeOwnerAddressRequest(command, family, fd, index int, address *netlink.
 func nativeOwnerBridgeCase(t *testing.T, command int) {
 	t.Helper()
 	fixture := nativeOwnerFixtureNew(t)
-	bridge := &netlink.Bridge{LinkAttrs: netlink.LinkAttrs{Name: "zg-bridge"}}
+	bridge := &netlink.Bridge{Name: "zg-bridge"}
 	if err := netlink.LinkAdd(bridge); err != nil {
 		t.Fatal(err)
 	}

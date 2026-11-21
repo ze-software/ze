@@ -64,14 +64,14 @@ func TestHandleSessionTeardownRefusesAmbiguousSelector(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			capture := &sessionTeardownCaptureSpy{}
-			service := &sessionTeardownServiceSpy{cqmCommandService: cqmCommandService{
+			service := &sessionTeardownServiceSpy{
 				fakeService: &fakeService{snapshot: l2tp.Snapshot{Tunnels: []l2tp.TunnelSnapshot{
 					{Sessions: []l2tp.SessionSnapshot{{LocalSID: 7, TunnelLocalTID: 17, Listener: bound}}},
 					{Sessions: []l2tp.SessionSnapshot{{LocalSID: 7, TunnelLocalTID: 18, Listener: bound}}},
 				}}},
 				captured:   capture,
 				captureErr: fmt.Errorf("capture original: %w", test.captureErr),
-			}}
+			}
 			publishFake(t, service)
 			ctx := &pluginserver.CommandContext{RequestContext: t.Context()}
 			arguments := append([]string{"7", "reason", "maintenance"}, test.guard...)

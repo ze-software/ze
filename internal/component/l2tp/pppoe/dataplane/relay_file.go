@@ -63,7 +63,11 @@ func (lease *relayFileLease) WithOriginalFile(use func(*os.File) error) error {
 	if s.transportClosing {
 		return errors.New("PPPoE relay transport is departing")
 	}
-	owner := s.transport.(OriginalRelayTransport) //nolint:forcetypeassert // RetainOriginalFile validated the immutable owner.
+	// RetainOriginalFile validated the immutable owner; a miss is a Ze defect.
+	owner, supported := s.transport.(OriginalRelayTransport)
+	if !supported {
+		return errors.New("PPPoE relay lease outlived its original-file transport capability")
+	}
 	return owner.WithOriginalFile(func(original *os.File) error {
 		if original == nil {
 			return errors.New("PPPoE relay transport returned no original file")

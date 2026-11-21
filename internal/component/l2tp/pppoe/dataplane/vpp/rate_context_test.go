@@ -17,11 +17,21 @@ func TestVPPPolicerCanceledPreparationRetainsNoTransaction(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 	change, err := owner.Prepare(ctx, 8000, 16000, 1500, 1500)
-	if !errors.Is(err, context.Canceled) { t.Fatalf("canceled preparation = %v", err) }
-	if change != nil { t.Fatal("canceled request received a prepared capability") }
-	if owner.pending != nil { t.Fatal("canceled request reserved the pending slot") }
-	if len(wire.calls) != 0 { t.Fatalf("canceled preparation reached native state: %v", wire.calls) }
-	if _, err := owner.Prepare(t.Context(), 8000, 16000, 1500, 1500); err != nil { t.Fatalf("later live preparation failed: %v", err) }
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled preparation = %v", err)
+	}
+	if change != nil {
+		t.Fatal("canceled request received a prepared capability")
+	}
+	if owner.pending != nil {
+		t.Fatal("canceled request reserved the pending slot")
+	}
+	if len(wire.calls) != 0 {
+		t.Fatalf("canceled preparation reached native state: %v", wire.calls)
+	}
+	if _, err := owner.Prepare(t.Context(), 8000, 16000, 1500, 1500); err != nil {
+		t.Fatalf("later live preparation failed: %v", err)
+	}
 }
 
 // Cancellation and stream-open failures happen before SendMsg can run. They
@@ -38,19 +48,33 @@ func TestVPPPolicerBeforeSendFailureRetainsNoNativeOwnership(t *testing.T) {
 				want = context.Canceled
 			}
 			client := &binaryAPI{open: func(context.Context) (api.Stream, error) {
-				if failure == "canceled" { t.Fatal("canceled request opened a stream") }
-				if failure == "nil-stream" { return nil, nil }
+				if failure == "canceled" {
+					t.Fatal("canceled request opened a stream")
+				}
+				if failure == "nil-stream" {
+					return nil, nil //nolint:nilnil // Deliberately invalid opener result; the test proves a nil stream without an error is refused.
+				}
 				return nil, want
 			}}
 			plan, err := newPolicerPlan("ze-pppoe/test/rx", 8000, 1500)
-			if err != nil { t.Fatal(err) }
-			receipt, err := client.createPolicer(ctx, plan)
-			if err == nil { t.Fatal("failed preparation was accepted") }
-			if failure != "nil-stream" {
-				if !errors.Is(err, want) { t.Fatalf("failure identity = %v", err) }
+			if err != nil {
+				t.Fatal(err)
 			}
-			if receipt.confirmed { t.Fatal("unsubmitted request was confirmed") }
-			if receipt.uncertain { t.Fatal("unsubmitted request reserved an uncertain native allocation") }
+			receipt, err := client.createPolicer(ctx, plan)
+			if err == nil {
+				t.Fatal("failed preparation was accepted")
+			}
+			if failure != "nil-stream" {
+				if !errors.Is(err, want) {
+					t.Fatalf("failure identity = %v", err)
+				}
+			}
+			if receipt.confirmed {
+				t.Fatal("unsubmitted request was confirmed")
+			}
+			if receipt.uncertain {
+				t.Fatal("unsubmitted request reserved an uncertain native allocation")
+			}
 		})
 	}
 }
@@ -65,13 +89,25 @@ func TestVPPPolicerSendFailureStillRetainsUnknownOwnership(t *testing.T) {
 		return stream, nil
 	}}
 	plan, err := newPolicerPlan("ze-pppoe/test/rx", 8000, 1500)
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 	receipt, err := client.createPolicer(t.Context(), plan)
-	if !errors.Is(err, want) { t.Fatalf("send error = %v", err) }
-	if !receipt.uncertain { t.Fatal("partially sent request lost its native ownership obligation") }
-	if receipt.confirmed { t.Fatal("unacknowledged request was confirmed") }
-	if len(stream.sent) != 1 { t.Fatalf("send attempts = %d", len(stream.sent)) }
-	if stream.closed != 1 { t.Fatalf("stream closes = %d", stream.closed) }
+	if !errors.Is(err, want) {
+		t.Fatalf("send error = %v", err)
+	}
+	if !receipt.uncertain {
+		t.Fatal("partially sent request lost its native ownership obligation")
+	}
+	if receipt.confirmed {
+		t.Fatal("unacknowledged request was confirmed")
+	}
+	if len(stream.sent) != 1 {
+		t.Fatalf("send attempts = %d", len(stream.sent))
+	}
+	if stream.closed != 1 {
+		t.Fatalf("stream closes = %d", stream.closed)
+	}
 }
 
 type rateSendFailureStream struct {

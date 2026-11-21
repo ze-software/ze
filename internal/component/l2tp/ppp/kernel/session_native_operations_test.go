@@ -29,7 +29,10 @@ func (model *sessionNativeMutationModel) RemoveAddressP2P(ctx context.Context, l
 
 func TestSessionNativeMutationRequiresSeparateAuthority(t *testing.T) {
 	_, handle, backend, _ := newSessionTest(t)
-	owner := handle.(*session)
+	owner, ok := handle.(*session)
+	if !ok {
+		t.Fatalf("session handle = %T, want *session", handle)
+	}
 	owner.mutations = nil
 	if err := owner.SetMTU(1492); err == nil {
 		t.Fatal("unbound handle mutated original backend by name")
@@ -41,7 +44,10 @@ func TestSessionNativeMutationRequiresSeparateAuthority(t *testing.T) {
 
 func TestSessionNativePartialPairRetainsFullWithdrawalIntent(t *testing.T) {
 	_, handle, backend, _ := newSessionTest(t)
-	owner := handle.(*session)
+	owner, ok := handle.(*session)
+	if !ok {
+		t.Fatalf("session handle = %T, want *session", handle)
+	}
 	local := netip.MustParsePrefix("192.0.2.1/32")
 	peer := netip.MustParsePrefix("192.0.2.2/30")
 	cause := errors.New("settled partial address add")
@@ -80,7 +86,10 @@ func TestSessionNativePartialPairRetainsFullWithdrawalIntent(t *testing.T) {
 
 func TestSessionNativeACKCannotBlockPhysicalClose(t *testing.T) {
 	_, handle, _, _ := newSessionTest(t)
-	owner := handle.(*session)
+	owner, ok := handle.(*session)
+	if !ok {
+		t.Fatalf("session handle = %T, want *session", handle)
+	}
 	entered, release := make(chan struct{}), make(chan struct{})
 	owner.mutations = &sessionNativeMutationModel{setMTU: func(ctx context.Context, _ int) error {
 		close(entered)

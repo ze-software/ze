@@ -11,8 +11,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
 )
 
 type socketOps struct {

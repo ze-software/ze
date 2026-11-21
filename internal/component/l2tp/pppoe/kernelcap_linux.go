@@ -22,9 +22,9 @@ import (
 func pppoeKernelCapability() kernelcap.Capability {
 	return kernelcap.Capability{
 		Subsystem:   SubsystemName,
-		Component:   "pppoe",
+		Component:   SubsystemName,
 		Kernel:      "CONFIG_PPPOE",
-		ConfigLeaf:  "pppoe",
+		ConfigLeaf:  configRoot,
 		CodeAbsent:  diagnostic.CodeDoctorPPPoEUnavailable,
 		CodeUnknown: diagnostic.CodeDoctorPPPoEUnknown,
 		Order:       749,
@@ -40,7 +40,7 @@ func PPPoEInUse(tree *config.Tree) bool {
 	if tree == nil {
 		return false
 	}
-	block := tree.GetContainer("pppoe")
+	block := tree.GetContainer(configRoot)
 	if block == nil {
 		return false
 	}

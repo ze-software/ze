@@ -99,7 +99,7 @@ func TestL2TPRouteSourceRefusalCarriesDoctorCode(t *testing.T) {
 	var logs bytes.Buffer
 	logger := slog.New(slog.NewJSONHandler(&logs, &slog.HandlerOptions{Level: slog.LevelWarn}))
 	observer := newSubscriberRouteObserver(logger, nil)
-	observer.reportSourceRefusal(subscriber.Session{ID: birth.String(), L2TPBirth: birth, AccessType: subscriber.AccessL2TP,
+	observer.reportSourceRefusal(&subscriber.Session{ID: birth.String(), L2TPBirth: birth, AccessType: subscriber.AccessL2TP,
 		TunnelID: tunnelID, SessionID: sessionID}, errRouteSourceExhausted)
 	var warning map[string]any
 	require.NoError(t, json.Unmarshal(bytes.TrimSpace(logs.Bytes()), &warning))

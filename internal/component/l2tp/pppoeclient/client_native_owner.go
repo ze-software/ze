@@ -95,7 +95,11 @@ func (owner *clientNativeOwner) bindOriginalPair() (clientProtocol, error) {
 	defer cancel()
 	operations, err := owner.unit.BindNativeOperations(ctx, owner.backend,
 		func(unit *pppkernel.CreatedUnit, index int, number int32) (pppkernel.NativeUnitOperations, error) {
-			return owner.backend.(iface.NativePPPBackend).BindNativePPPUnit(unit, index, number)
+			native, ok := owner.backend.(iface.NativePPPBackend)
+			if !ok {
+				return nil, errors.New("pppoe-client: original backend cannot bind native PPP writes")
+			}
+			return native.BindNativePPPUnit(unit, index, number)
 		})
 	// BindNativeOperations retains this exact partial facet independently of
 	// the consuming session constructor, including namespace-restore failure.

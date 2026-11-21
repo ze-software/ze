@@ -309,7 +309,8 @@ func nativeOwnerRouteForeignReplace(t *testing.T, family int) {
 func nativeOwnerRequireLegs(t *testing.T, routes []netlink.Route, first, second int) {
 	t.Helper()
 	var indices []int
-	for _, route := range routes {
+	for index := range routes {
+		route := &routes[index]
 		if len(route.MultiPath) == 0 {
 			indices = append(indices, route.LinkIndex)
 		}

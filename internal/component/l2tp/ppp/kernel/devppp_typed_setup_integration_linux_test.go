@@ -210,7 +210,7 @@ func typedSetupNative(t *testing.T, wrap func(iface.Backend) iface.Backend) (*pp
 	if err != nil {
 		t.Fatal(err)
 	}
-	link := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "zc-setup-access"}}
+	link := &netlink.Dummy{Name: "zc-setup-access"}
 	if err := netlink.LinkAdd(link); err != nil {
 		t.Fatal(err)
 	}

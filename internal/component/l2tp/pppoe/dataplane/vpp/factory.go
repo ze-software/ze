@@ -126,22 +126,22 @@ func openWithOps(ctx context.Context, request dataplane.Request, ops factoryOps)
 	// Both receive arcs of each family must be closed before PADS, including
 	// a recycled native interface. Rollback uses the same quarantine fence.
 	for family := range 2 {
-		if err = access.api.setIP(ctx, receipt.index, family == 1, false); err != nil {
+		if err := access.api.setIP(ctx, receipt.index, family == 1, false); err != nil {
 			return nil, err
 		}
 	}
-	if err = access.api.verifySession(ctx, receipt.index, access.dpIndex, table, request.SessionID, request.PeerMAC, access.localMAC); err != nil {
+	if err := access.api.verifySession(ctx, receipt.index, access.dpIndex, table, request.SessionID, request.PeerMAC, access.localMAC); err != nil {
 		return nil, err
 	}
 	name, err := access.api.interfaceName(ctx, receipt.index)
 	if err != nil {
 		return nil, err
 	}
-	if err = access.api.setAdmin(ctx, receipt.index, false); err != nil {
+	if err := access.api.setAdmin(ctx, receipt.index, false); err != nil {
 		return nil, err
 	}
 	for family, selected := range tables {
-		if err = access.api.setTable(ctx, receipt.index, selected, family == 1); err != nil {
+		if err := access.api.setTable(ctx, receipt.index, selected, family == 1); err != nil {
 			return nil, err
 		}
 	}
@@ -149,10 +149,10 @@ func openWithOps(ctx context.Context, request dataplane.Request, ops factoryOps)
 	if mtu < ppp.MinMRU {
 		return nil, errors.New("pppoe-vpp: access MTU cannot carry the minimum PPP payload")
 	}
-	if err = access.api.setMTU(ctx, receipt.index, mtu); err != nil {
+	if err := access.api.setMTU(ctx, receipt.index, mtu); err != nil {
 		return nil, err
 	}
-	if err = ctx.Err(); err != nil {
+	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	owner.identity.InterfaceName = name

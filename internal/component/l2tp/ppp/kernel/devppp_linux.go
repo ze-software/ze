@@ -20,7 +20,6 @@ import (
 
 const (
 	pppiocGChan   = 0x80047437 // PPPIOCGCHAN: _IOR('t', 55, int)
-	pppiocAttChan = 0x40047438 // PPPIOCATTCHAN: _IOW('t', 56, int)
 	pppiocNewUnit = 0xc004743e // PPPIOCNEWUNIT: used by native release tests
 	pppiocGUnit   = 0x80047456 // PPPIOCGUNIT: _IOR('t', 86, int)
 	pppiocSNPMODE = 0x4008744b // PPPIOCSNPMODE: _IOW('t', 75, struct npioctl)
@@ -230,15 +229,6 @@ func ioctlGetInt(fd int, req uint) (int, error) {
 		return 0, errno
 	}
 	return int(val), nil
-}
-
-func ioctlSetInt(fd int, req uint, val int) error {
-	v := int32(val)
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(unsafe.Pointer(&v))) //nolint:gosec // ioctl pointer arg
-	if errno != 0 {
-		return errno
-	}
-	return nil
 }
 
 func ioctlGetSetInt(fd int, req uint, val int) (int, error) {

@@ -42,10 +42,10 @@ func (backend *factoryCounterBackend) CreateLinkCounterReader(request *nl.Netlin
 		return link, original, attempted, err
 	}
 	if link == nil {
-		return link, original, attempted, errors.New("native fixture creation returned no link")
+		return nil, original, attempted, errors.New("native fixture creation returned no link")
 	}
 	if original == nil {
-		return link, original, attempted, errors.New("native fixture creation returned no original reader")
+		return link, nil, attempted, errors.New("native fixture creation returned no original reader")
 	}
 	backend.statsName = link.Attrs().Name
 	return link, func() (*netlink.LinkStatistics, error) {

@@ -35,11 +35,11 @@ func (w *kernelWorker) reportKernelCleanupFailure(operation string, tid, sid uin
 	failure := opererr.Wrap(cause, "L2TP "+operation+" is unconfirmed", kernelCleanupWhy, kernelCleanupFix)
 	w.logger.LogAttrs(context.Background(), slog.LevelWarn, failure.Problem(),
 		failure.LogAttrs(slog.String("code", diagnostic.CodeDoctorPPPCleanup),
-			slog.Uint64(reportFieldTunnelID, uint64(tid)), slog.Uint64("session-id", uint64(sid)),
+			slog.Uint64(reportFieldTunnelID, uint64(tid)), slog.Uint64(reportFieldSessionID, uint64(sid)),
 			slog.Int("fd", fd), slog.String("birth", birth.String()))...)
 	detail := map[string]any{reportFieldTunnelID: tid, "operation": operation, "error": cause.Error()}
 	if sid != 0 {
-		detail["session-id"] = sid
+		detail[reportFieldSessionID] = sid
 	}
 	if fd >= 0 {
 		detail["fd"] = fd

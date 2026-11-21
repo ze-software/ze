@@ -96,7 +96,7 @@ func ExtractParameters(tree map[string]any) (Parameters, error) {
 		AuthAllow:         []ppp.AuthMethod{DefaultAuthMethod},
 	}
 
-	pppoe, ok := tree["pppoe"].(map[string]any)
+	pppoe, ok := tree[configRoot].(map[string]any)
 	if !ok {
 		return p, nil
 	}

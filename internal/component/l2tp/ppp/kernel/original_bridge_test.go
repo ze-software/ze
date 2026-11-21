@@ -72,7 +72,7 @@ func TestOriginalBridgeClaimPanicConsumesIndependentSibling(t *testing.T) {
 		close:  func() error { closed = append(closed, 33); return nil },
 	}}
 	defer func() {
-		if failure := recover(); failure != primary {
+		if failure := recover(); failure != primary { //nolint:errorlint // A recovered panic value: the original claim panic must propagate unchanged.
 			t.Fatalf("lost original claim panic: %v", failure)
 		}
 		if !reflect.DeepEqual(claims, []string{"channel", "channel"}) {

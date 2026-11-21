@@ -51,7 +51,7 @@ func nativePPPoXCaptureNew(t *testing.T, slot int) *nativePPPoXCaptureFixture {
 	peer := net.HardwareAddr{2, 0, 1, 0, byte(slot), 2}
 	name := fmt.Sprintf("pc%da", slot)
 	peerName := fmt.Sprintf("pc%db", slot)
-	link := &netlink.Veth{LinkAttrs: netlink.LinkAttrs{Name: name, HardwareAddr: local}, PeerName: peerName, PeerHardwareAddr: peer}
+	link := &netlink.Veth{Name: name, HardwareAddr: local, PeerName: peerName, PeerHardwareAddr: peer}
 	cleanup, err := netlink.NewHandle(unix.NETLINK_ROUTE)
 	if err != nil {
 		t.Fatal(err)
@@ -133,7 +133,7 @@ func nativePPPoXCaptureInto(transport, destination int) error {
 	return nativePPPoXCaptureRequest(transport, &request)
 }
 
-func nativePPPoXCaptureProbe(t *testing.T, transport int, expectedUnit int) nativePPPoXCaptureReply {
+func nativePPPoXCaptureProbe(t *testing.T, transport, expectedUnit int) nativePPPoXCaptureReply {
 	t.Helper()
 	reply := nativePPPoXCaptureReply{abi: nativeOwnerABI}
 	if err := nativePPPoXCaptureRead(transport, &reply); err != nil {

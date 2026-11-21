@@ -44,14 +44,17 @@ func TestSessionGuardedMutationsUseRenamedOriginal(t *testing.T) {
 		t.Fatal(err)
 	}
 	owner := createdSessionOpen(t, cfg)
-	release := owner.(ppp.NativeReleaseHandle)
+	release, ok := owner.(ppp.NativeReleaseHandle)
+	if !ok {
+		t.Fatalf("session owner = %T, want ppp.NativeReleaseHandle", owner)
+	}
 	if err := release.BindNativeReleaseSeal(guardedSessionNativeSeal{}); err != nil {
 		t.Fatal(err)
 	}
 	if err := netlink.LinkSetName(original, "zsg-renamed"); err != nil {
 		t.Fatal(err)
 	}
-	survivor := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "zsg-original", MTU: 1701}}
+	survivor := &netlink.Dummy{Name: "zsg-original", MTU: 1701}
 	if err := netlink.LinkAdd(survivor); err != nil {
 		t.Fatal(err)
 	}
@@ -178,7 +181,8 @@ func requireGuardedSessionRoute(t *testing.T, link netlink.Link, destination net
 		t.Fatal(err)
 	}
 	found := false
-	for _, route := range routes {
+	for index := range routes {
+		route := &routes[index]
 		if route.Dst == nil || route.Dst.String() != destination.String() || route.LinkIndex != link.Attrs().Index {
 			continue
 		}

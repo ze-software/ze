@@ -89,12 +89,12 @@ func (r *l2tpReactor) runSessionTimeout(tunnel *L2TPTunnel, sess *L2TPSession, t
 	select {
 	case <-time.After(timeout):
 		r.logger.Info("l2tp: session-timeout expired; tearing down session",
-			"tunnel-id", tid, "session-id", sid, "timeout", timeout)
+			reportFieldTunnelID, tid, reportFieldSessionID, sid, "timeout", timeout)
 		// RFC 2866 Section 5.10 value 5: "Maximum session length timer
 		// expired."
 		if !r.teardownCapturedSession(tunnel, sess, ctx, cdnResultAdministrative, l2tpevents.TerminateCauseSessionTimeout) {
 			r.logger.Debug("l2tp: session-timeout teardown (session may already be gone)",
-				"session-id", sid)
+				reportFieldSessionID, sid)
 		}
 	case <-ctx.Done():
 	}
@@ -123,11 +123,11 @@ func (r *l2tpReactor) runIdleTimeout(tunnel *L2TPTunnel, sess *L2TPSession, idle
 				continue
 			}
 			r.logger.Info("l2tp: idle-timeout expired; tearing down session",
-				"tunnel-id", tid, "session-id", sid, "idle-timeout", idleTimeout, "interface", iface)
+				reportFieldTunnelID, tid, reportFieldSessionID, sid, "idle-timeout", idleTimeout, "interface", iface)
 			// RFC 2866 Section 5.10 value 4: "Idle timer expired."
 			if !r.teardownCapturedSession(tunnel, sess, ctx, cdnResultAdministrative, l2tpevents.TerminateCauseIdleTimeout) {
 				r.logger.Debug("l2tp: idle-timeout teardown (session may already be gone)",
-					"session-id", sid)
+					reportFieldSessionID, sid)
 			}
 			return
 		case <-ctx.Done():

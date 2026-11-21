@@ -24,7 +24,9 @@ func TestTransportCloseAndRelayBorrow(t *testing.T) {
 	var workers sync.WaitGroup
 	for range 8 {
 		workers.Go(func() {
-			if err := owner.Close(); !errors.Is(err, want) { t.Errorf("close result: %v", err) }
+			if err := owner.Close(); !errors.Is(err, want) {
+				t.Errorf("close result: %v", err)
+			}
 		})
 	}
 	workers.Wait()

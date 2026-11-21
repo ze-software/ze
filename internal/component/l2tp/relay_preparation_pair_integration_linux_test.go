@@ -6,6 +6,7 @@
 package l2tp
 
 import (
+	"errors"
 	"os"
 	"testing"
 
@@ -122,7 +123,7 @@ func TestBridgeRollbackClosesOriginalPair(t *testing.T) {
 	owners := &kernelPPPOwners{channel: channel, unit: unit}
 	closeTransport := func(*os.File) error {
 		t.Error("rollback closed a transport it did not own")
-		return nil
+		return errors.New("rollback closed a transport it did not own")
 	}
 	t.Cleanup(func() {
 		failures := closeOriginalKernelPPP(owners, nil, closeTransport)

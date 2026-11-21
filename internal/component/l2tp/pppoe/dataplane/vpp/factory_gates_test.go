@@ -6,8 +6,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/feature"
 	"go.fd.io/govpp/api"
+
+	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/feature"
 
 	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
 	pppoeapi "github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/pppoe"

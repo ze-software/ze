@@ -91,7 +91,9 @@ func TestIPv6ServiceStartFailureRetainedUntilNCPReset(t *testing.T) {
 	session.localInterfaceID = [8]byte{2, 0, 0, 0, 0, 0, 0, 1}
 	session.peerInterfaceID = [8]byte{2, 0, 0, 0, 0, 0, 0, 2}
 	session.peerInterfaceIDNegotiated = true
-	session.afterLCPOpenIPv6Service()
+	if err := session.afterLCPOpenIPv6Service(); err != nil {
+		t.Fatalf("nonfatal carrier refusal failed the session: %v", err)
+	}
 	if session.ipv6Svc == nil {
 		t.Fatal("session discarded the failed IPv6 cleanup owner")
 	}

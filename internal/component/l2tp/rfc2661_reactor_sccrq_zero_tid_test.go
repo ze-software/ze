@@ -42,16 +42,11 @@ func recvControl(t *testing.T, c *testClient, d time.Duration) ([]byte, bool) {
 	return buf[:n], true
 }
 
-// asNetError is errors.As specialised to net.Error, kept local so the
+// asNetError is errors.AsType specialised to net.Error, kept local so the
 // helper above reads as one line. A read deadline expiring is how this
 // file spells "no datagram arrived"; any other error is a test bug.
 func asNetError(err error) (net.Error, bool) {
-	var ne net.Error
-	ok := errors.As(err, &ne)
-	if ok {
-		return ne, true
-	}
-	return nil, false
+	return errors.AsType[net.Error](err)
 }
 
 // mustSilence asserts that no datagram reaches this client within

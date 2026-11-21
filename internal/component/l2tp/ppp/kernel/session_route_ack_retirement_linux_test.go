@@ -62,12 +62,11 @@ func (port *sessionRouteACKPort) RemoveRoute(ctx context.Context, destination ne
 
 func sessionRouteACKOwner(t *testing.T) (*session, *CreatedUnit, *routeOwnershipBackend, *sessionRouteACKPort) {
 	t.Helper()
-	unit, channel, cfg := capturedModelOwners(t)
+	unit, channel, _ := capturedModelOwners(t)
 	backend := &routeOwnershipBackend{routes: make(map[routeOwnershipTuple]bool)}
 	unit.backend = backend
 	unit.identity.InterfaceName = "created-ppp"
-	var err error
-	cfg, err = unit.SessionConfig(channel)
+	cfg, err := unit.SessionConfig(channel)
 	if err != nil {
 		t.Fatal(err)
 	}

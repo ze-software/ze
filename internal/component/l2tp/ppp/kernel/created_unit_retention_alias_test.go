@@ -47,7 +47,7 @@ func testCreatedUnitRetentionAliasCause(t *testing.T, originalAlias bool) {
 		channelFD := int(channelDescriptor)
 		cause := errors.New("private duplicate operation failed with an original alias")
 		var closed []int
-		closeDuplicate := func(fd int) error {
+		closeDuplicate := func(fd int) error { //nolint:unparam // retainNativeUnit's close callback type fixes the error result; this model close always succeeds.
 			closed = append(closed, fd)
 			return nil
 		}

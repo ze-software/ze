@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/vishvananda/netns"
+
 	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
 	"github.com/ze-software/ze/internal/core/report"
 )

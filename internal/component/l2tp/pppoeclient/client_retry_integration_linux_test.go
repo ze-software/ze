@@ -6,6 +6,7 @@
 package pppoeclient
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"syscall"
@@ -47,7 +48,7 @@ func TestClientReadPacketRetriesOnlyTransientAttempts(t *testing.T) {
 			t.Fatalf("read attempts = %d", calls)
 		}
 		if terminal == nil {
-			if string(buffer[:n]) != string([]byte{0x80, 0x21, 1, 7, 0, 4}) {
+			if !bytes.Equal(buffer[:n], []byte{0x80, 0x21, 1, 7, 0, 4}) {
 				t.Fatalf("packet changed: %x", buffer[:n])
 			}
 		}

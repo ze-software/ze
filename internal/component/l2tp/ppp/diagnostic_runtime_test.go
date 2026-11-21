@@ -221,7 +221,9 @@ func TestRetainedIPv6ServiceReplacementReported(t *testing.T) {
 	handle := newTestSessionHandle(&fakeBackend{}, "created-ppp")
 	service := newIPv6Service(iPv6ServiceConfig{Dataplane: handle})
 	session := &pppSession{dataplane: handle, ipv6Svc: service, logger: slog.New(slog.DiscardHandler)}
-	session.afterLCPOpenIPv6Service()
+	if err := session.afterLCPOpenIPv6Service(); err != nil {
+		t.Fatalf("retained service refusal failed the session: %v", err)
+	}
 	entries := report.Errors(0)
 	if len(entries) != 1 || entries[0].Code != "doctor-ppp-ipv6-service" || session.ipv6Svc != service {
 		t.Fatalf("retained service refusal disappeared or replaced its owner: %+v", entries)

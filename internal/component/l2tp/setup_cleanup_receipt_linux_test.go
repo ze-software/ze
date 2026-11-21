@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
 	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 )
 
@@ -17,7 +18,7 @@ func TestPPPoXSetupRollbackRetainsCloseFailure(t *testing.T) {
 	connectFailure := errors.New("controlled connect refusal")
 	closeFailure := errors.New("original socket close unconfirmed")
 	closes := 0
-	_, err := pppoxCreateWith(7, netip.MustParseAddrPort("192.0.2.1:1701"), 1, 2, 3, 4,
+	err := pppoxCreateWith(7, netip.MustParseAddrPort("192.0.2.1:1701"), 1, 2, 3, 4,
 		func() (int, error) { return 10, nil },
 		func(int, []byte) error { return connectFailure },
 		func(fd int) error { require.Equal(t, 10, fd); closes++; return closeFailure })

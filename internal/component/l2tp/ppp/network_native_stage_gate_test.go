@@ -92,7 +92,7 @@ func TestSessionDownProviderPanicReleasesNativeStageGate(t *testing.T) {
 	fault := errors.New("controlled original carrier close panic")
 	closer := &raCarrierClose{carrier: &nativeStageCarrier{close: func() error { panic(fault) }}}
 	session.ipv6Svc = &IPv6Service{stop: closer.Close}
-	if got := recoverNativeStage(func() { session.sendEvent(EventSessionDown{}) }); got != fault {
+	if got := recoverNativeStage(func() { session.sendEvent(EventSessionDown{}) }); got != fault { //nolint:errorlint // A recovered panic value: the original panic must propagate unchanged.
 		t.Fatalf("actual carrier panic = %v, want original %v", got, fault)
 	}
 	requireNativeStageGateFree(t, session)
@@ -128,7 +128,7 @@ func TestReconcileNCPProviderPanicReleasesNativeStageGate(t *testing.T) {
 			if test.family == AddressFamilyIPv6 {
 				owner.open = func(context.Context) (IPv6Carrier, error) { panic(fault) }
 			}
-			if got := recoverNativeStage(func() { session.reconcileOpenedNCP(test.family) }); got != fault {
+			if got := recoverNativeStage(func() { session.reconcileOpenedNCP(test.family) }); got != fault { //nolint:errorlint // A recovered panic value: the original panic must propagate unchanged.
 				t.Fatalf("native reconciliation panic = %v, want original %v", got, fault)
 			}
 			requireNativeStageGateFree(t, session)
@@ -240,8 +240,8 @@ func TestDownPublicationDoesNotHoldNativeStageGate(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				owner := newNativeStageOwner()
-				session, events := newNativeStageSession(owner)
-				events = make(chan Event)
+				session, _ := newNativeStageSession(owner)
+				events := make(chan Event)
 				session.eventsOut = events
 				stop := make(chan struct{})
 				session.stopCh = stop

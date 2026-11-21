@@ -90,7 +90,11 @@ func TestOriginalRelayLeaseBlocksDepartureUntilChannelsClose(t *testing.T) {
 	_, err = reader.Stat()
 	require.NoError(t, err, "pending bridge must retain the original transport")
 	require.Error(t, lease.WithOriginalFile(func(*os.File) error { t.Fatal("capture after departure"); return nil }))
-	copy := *lease.(*relayFileLease)
+	retained, ok := lease.(*relayFileLease)
+	if !ok {
+		t.Fatalf("relay file lease type %T", lease)
+	}
+	copy := *retained
 	require.Error(t, copy.Close())
 	require.Error(t, session.CloseTransport(), "copy cannot release original token")
 	require.NoError(t, lease.Close())

@@ -232,7 +232,11 @@ func startAuthAdmissionDriver(t *testing.T, configure ...func(*StartSession)) (*
 		t.Fatal(err)
 	}
 	start.DisableIPCP = false
-	owner.SessionHandle.(*testSessionHandle).readCounters = func() (SessionCounters, error) {
+	handle, ok := owner.SessionHandle.(*testSessionHandle)
+	if !ok {
+		t.Fatalf("session handle = %T, want *testSessionHandle", owner.SessionHandle)
+	}
+	handle.readCounters = func() (SessionCounters, error) {
 		return SessionCounters{RxBytes: 13, TxBytes: 27, RxPackets: 3, TxPackets: 5}, nil
 	}
 	frameLeaseProxy(&start)

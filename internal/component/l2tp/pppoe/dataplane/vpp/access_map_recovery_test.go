@@ -112,10 +112,10 @@ func TestVPPAccessMapLostDeleteReplyReadsBackAbsence(t *testing.T) {
 
 type lostDeleteReplyStream struct {
 	api.Stream
-	fixture *accessMapFixture
+	fixture   *accessMapFixture
 	readbacks *int
-	failure error
-	deleting bool
+	failure   error
+	deleting  bool
 }
 
 func (s *lostDeleteReplyStream) SendMsg(message api.Message) error {
@@ -134,7 +134,7 @@ func (s *lostDeleteReplyStream) RecvMsg() (api.Message, error) {
 	return s.Stream.RecvMsg()
 }
 
-func recoverableAccessMapAPI(fixture *accessMapFixture, deleteFailure *error) *binaryAPI {
+func recoverableAccessMapAPI(fixture *accessMapFixture, deleteFailure *error) *binaryAPI { //nolint:gocritic // ptrToRefParam: the caller clears its failure after construction to let the delete recover.
 	base := fixture.api()
 	return &binaryAPI{open: func(ctx context.Context) (api.Stream, error) {
 		stream, err := base.open(ctx)

@@ -6,6 +6,7 @@
 package kernel
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"testing"
@@ -63,14 +64,14 @@ func TestClientPairOrderedReadAndDelayedIPCP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(buffer[:n]) != string(channelPacket) {
+	if !bytes.Equal(buffer[:n], channelPacket) {
 		t.Fatalf("unit overtook channel: %x", buffer[:n])
 	}
 	n, err = rawOrderedClientAttempt(channel[0], unit[0], true, buffer)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(buffer[:n]) != string(unitPacket) {
+	if !bytes.Equal(buffer[:n], unitPacket) {
 		t.Fatalf("IPCP was lost: %x", buffer[:n])
 	}
 }

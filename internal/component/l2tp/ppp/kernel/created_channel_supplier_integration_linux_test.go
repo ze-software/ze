@@ -103,7 +103,7 @@ func TestOriginalPPPChannelSupplierNativeUnregisterRefuses(t *testing.T) {
 		return
 	}
 	creator, _ := typedSetupNative(t, nil)
-	link := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "zc-unregister"}}
+	link := &netlink.Dummy{Name: "zc-unregister"}
 	if err := netlink.LinkAdd(link); err != nil {
 		t.Fatal(err)
 	}

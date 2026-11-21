@@ -6,6 +6,7 @@
 package kernel
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"testing"
@@ -30,7 +31,7 @@ func TestNativeSocketBindsResolvedDevice(t *testing.T) {
 			if !ok {
 				t.Fatalf("unexpected address type: %T", address)
 			}
-			if fd != 41 || peer.Dev != request.Device || peer.SID != request.SessionID || string(peer.Remote) != string(request.PeerMAC[:]) {
+			if fd != 41 || peer.Dev != request.Device || peer.SID != request.SessionID || !bytes.Equal(peer.Remote, request.PeerMAC[:]) {
 				t.Fatalf("binding fd=%d address=%+v", fd, peer)
 			}
 			return nil
@@ -63,13 +64,21 @@ func TestNativeSocketFailuresPreserveCleanup(t *testing.T) {
 			cleanup := errors.New("native close")
 			owner, err := openTransportWithOps(ctx, factoryRequest(), socketOps{
 				socket: func(int, int, int) (int, error) {
-					if stage == "socket" { return -1, failure }
-					if stage == "cancel-socket" { cancel() }
+					if stage == "socket" {
+						return -1, failure
+					}
+					if stage == "cancel-socket" {
+						cancel()
+					}
 					return 41, nil
 				},
 				connect: func(int, unix.Sockaddr) error {
-					if stage == "connect" { return failure }
-					if stage == "cancel-connect" { cancel() }
+					if stage == "connect" {
+						return failure
+					}
+					if stage == "cancel-connect" {
+						cancel()
+					}
 					return nil
 				},
 				close: func(int) error { closes++; return cleanup },
@@ -78,15 +87,23 @@ func TestNativeSocketFailuresPreserveCleanup(t *testing.T) {
 				t.Fatalf("failed native open: owner=%v error=%v", owner, err)
 			}
 			if stage == "socket" {
-				if !errors.Is(err, failure) || closes != 0 { t.Fatalf("socket failure: closes=%d error=%v", closes, err) }
+				if !errors.Is(err, failure) || closes != 0 {
+					t.Fatalf("socket failure: closes=%d error=%v", closes, err)
+				}
 				return
 			}
-			if closes != 1 || !errors.Is(err, cleanup) { t.Fatalf("cleanup: closes=%d error=%v", closes, err) }
+			if closes != 1 || !errors.Is(err, cleanup) {
+				t.Fatalf("cleanup: closes=%d error=%v", closes, err)
+			}
 			if stage == "connect" {
-				if !errors.Is(err, failure) { t.Fatalf("connect failure lost: %v", err) }
+				if !errors.Is(err, failure) {
+					t.Fatalf("connect failure lost: %v", err)
+				}
 				return
 			}
-			if !errors.Is(err, context.Canceled) { t.Fatalf("cancellation lost: %v", err) }
+			if !errors.Is(err, context.Canceled) {
+				t.Fatalf("cancellation lost: %v", err)
+			}
 		})
 	}
 }

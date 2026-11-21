@@ -111,7 +111,7 @@ func nativeV6Veth(t *testing.T, route *netlink.Handle, name, peerName string, in
 	t.Helper()
 	localMAC := net.HardwareAddr{2, 0, 6, 0, byte(slot), 1}
 	peerMAC := net.HardwareAddr{2, 0, 6, 0, byte(slot), 2}
-	link := &netlink.Veth{LinkAttrs: netlink.LinkAttrs{Name: name, Index: index, HardwareAddr: localMAC}, PeerName: peerName, PeerHardwareAddr: peerMAC}
+	link := &netlink.Veth{Name: name, Index: index, HardwareAddr: localMAC, PeerName: peerName, PeerHardwareAddr: peerMAC}
 	if err := route.LinkAdd(link); err != nil {
 		t.Fatalf("create owned IPv6 wire %s: %v", name, err)
 	}
@@ -363,7 +363,8 @@ func (f *nativeV6Fixture) requireAdmission(t *testing.T, link netlink.Link) {
 		if err != nil {
 			t.Fatalf("read original PPP multicast admission: %v", err)
 		}
-		for _, route := range routes {
+		for i := range routes {
+			route := &routes[i]
 			if route.Dst == nil {
 				continue
 			}
@@ -562,7 +563,14 @@ func (e *nativeV6Endpoint) receive(t *testing.T, deadline time.Time) nativeV6Obs
 			continue
 		}
 		offset := 14
-		if e.sid != 0 {
+		if e.sid == 0 {
+			if binary.BigEndian.Uint16(frame[12:14]) != 0x86dd {
+				continue
+			}
+			if !bytes.Equal(frame[6:12], e.localMAC) {
+				t.Fatal("replacement control used another original device")
+			}
+		} else {
 			if binary.BigEndian.Uint16(frame[12:14]) != 0x8864 {
 				continue
 			}
@@ -593,13 +601,6 @@ func (e *nativeV6Endpoint) receive(t *testing.T, deadline time.Time) nativeV6Obs
 				continue
 			}
 			offset = 22
-		} else {
-			if binary.BigEndian.Uint16(frame[12:14]) != 0x86dd {
-				continue
-			}
-			if !bytes.Equal(frame[6:12], e.localMAC) {
-				t.Fatal("replacement control used another original device")
-			}
 		}
 		packet := frame[offset:]
 		if len(packet) < 40 {
@@ -648,7 +649,7 @@ func nativeV6MatchDHCP(packet nativeV6Observed, marker byte) bool {
 	return packet.body[11] == marker
 }
 
-func (e *nativeV6Endpoint) requireOutput(t *testing.T, next byte, marker byte, forbidden byte) {
+func (e *nativeV6Endpoint) requireOutput(t *testing.T, next, marker, forbidden byte) {
 	t.Helper()
 	deadline := time.Now().Add(nativeV6Wait)
 	for {
@@ -989,7 +990,7 @@ func nativeV6GroupUsers(t *testing.T, index int) map[string]int {
 		t.Fatal(err)
 	}
 	groups := map[string]int{}
-	for _, line := range strings.Split(string(data), "\n") {
+	for line := range strings.SplitSeq(string(data), "\n") {
 		fields := strings.Fields(line)
 		if len(fields) < 4 {
 			continue

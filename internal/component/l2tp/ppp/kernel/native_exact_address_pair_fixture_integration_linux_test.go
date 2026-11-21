@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"net"
 	"reflect"
-	"sort"
+	"slices"
 	"testing"
 	"time"
 	"unsafe"
@@ -104,7 +104,7 @@ func nativeExactAddrRequest(command, fd, index int, tuple nativeExactAddrTuple, 
 		flags |= unix.NLM_F_CREATE | unix.NLM_F_EXCL
 	}
 	request := nl.NewNetlinkRequest(command, flags)
-	message := &nl.IfAddrmsg{IfAddrmsg: unix.IfAddrmsg{Family: uint8(tuple.family), Prefixlen: uint8(tuple.prefix), Index: uint32(index)}}
+	message := &nl.IfAddrmsg{Family: uint8(tuple.family), Prefixlen: uint8(tuple.prefix), Index: uint32(index)}
 	if tuple.family == unix.AF_INET6 {
 		message.Flags = unix.IFA_F_NODAD
 	}
@@ -178,10 +178,11 @@ func nativeExactAddrRoutes(t *testing.T, fixture *nativeOwnerFixture, family int
 		t.Fatal(err)
 	}
 	result := make([]string, 0, len(routes))
-	for _, route := range routes {
+	for index := range routes {
+		route := &routes[index]
 		result = append(result, fmt.Sprintf("%d|%d|%d|%d|%d|%s|%s|%s", route.Table, route.Type, route.Scope, route.Priority, route.LinkIndex, route.Dst, route.Src, route.Gw))
 	}
-	sort.Strings(result)
+	slices.Sort(result)
 	return result
 }
 
@@ -297,7 +298,8 @@ func nativeExactAddrRequireRoute(t *testing.T, fixture *nativeOwnerFixture, tabl
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, route := range routes {
+	for index := range routes {
+		route := &routes[index]
 		if route.Dst == nil || route.Type != kind {
 			continue
 		}
@@ -321,7 +323,7 @@ func nativeExactAddrWaitIPv6Routes(t *testing.T, fixture *nativeOwnerFixture, tu
 	t.Helper()
 	deadline := time.Now().Add(3 * time.Second)
 	var last []netlink.Route
-	for attempt := 0; attempt < 300; attempt++ {
+	for range 300 {
 		last = nativeExactAddrIPv6RouteList(t, fixture)
 		if nativeExactAddrIPv6RoutesReady(last, tuple) {
 			return
@@ -343,7 +345,7 @@ func nativeExactAddrIPv6RouteList(t *testing.T, fixture *nativeOwnerFixture) []n
 	return routes
 }
 
-func nativeExactAddrIPv6RouteMatches(route netlink.Route, table, kind int, address net.IP, prefix int) bool {
+func nativeExactAddrIPv6RouteMatches(route *netlink.Route, table, kind int, address net.IP, prefix int) bool {
 	if route.Table != table || route.Type != kind {
 		return false
 	}
@@ -360,7 +362,8 @@ func nativeExactAddrIPv6RoutesReady(routes []netlink.Route, tuple nativeExactAdd
 	// connected routes are still required, including a /128 connected route.
 	peer := tuple.local.Equal(tuple.peer)
 	network := tuple.local.Mask(net.CIDRMask(tuple.prefix, 128))
-	for _, route := range routes {
+	for index := range routes {
+		route := &routes[index]
 		if nativeExactAddrIPv6RouteMatches(route, unix.RT_TABLE_LOCAL, unix.RTN_LOCAL, tuple.local, 128) {
 			local = true
 		}

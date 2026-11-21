@@ -9,11 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/feature"
 	"go.fd.io/govpp/api"
 	"go.fd.io/govpp/binapi/memclnt"
 	"go.fd.io/govpp/binapi/policer"
 	"go.fd.io/govpp/binapi/policer_types"
+
+	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/feature"
 )
 
 // The API takes whole kilobits per second and a 32-bit physical burst. Reject

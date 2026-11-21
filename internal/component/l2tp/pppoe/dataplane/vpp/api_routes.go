@@ -105,7 +105,9 @@ func (a *binaryAPI) route(ctx context.Context, add bool, index, table uint32, so
 	message, err := a.exchange(ctx, &ip.IPRouteAddDelV2{IsAdd: add, IsMultipath: true, Route: ip.IPRouteV2{
 		TableID: table, Src: source, Prefix: ip_types.Prefix{Address: vppAddress(destination.Addr()), Len: uint8(destination.Bits())}, NPaths: 1, Paths: []fib_types.FibPath{path},
 	}})
-	if requestWasNotSent(err) { return routeRefused, err }
+	if requestWasNotSent(err) {
+		return routeRefused, err
+	}
 	reply, ok := message.(*ip.IPRouteAddDelV2Reply)
 	if !ok {
 		return routeUnknown, errors.Join(err, fmt.Errorf("pppoe-vpp: route reply %T", message))

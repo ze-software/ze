@@ -36,7 +36,10 @@ type controlMapLeaseState struct {
 
 func (*controlMapLeaseState) controlMapEntry() {}
 
-type controlMapUnconfirmed struct{ api *binaryAPI; failure error }
+type controlMapUnconfirmed struct {
+	api     *binaryAPI
+	failure error
+}
 
 func (*controlMapUnconfirmed) controlMapEntry() {}
 
@@ -128,7 +131,9 @@ func (o *controlMapOwners) refuseOverlap(key controlMapKey) error {
 		if !controlPairsOverlap(existing.pair, key.pair) {
 			continue
 		}
-		if o.processExited(existing) { continue }
+		if o.processExited(existing) {
+			continue
+		}
 		if existing.connector != key.connector {
 			return errors.New("pppoe-vpp: overlapping control mapping belongs to an unretired API owner")
 		}
@@ -211,14 +216,15 @@ func (o *controlMapOwners) remove(ctx context.Context, key controlMapKey) error 
 		return nil
 	}
 	absent, err := entry.api.removeControlPairContext(ctx, key.pair)
-	if absent {
+	switch {
+	case absent:
 		delete(o.entries, key)
 		clearMapReconciliation(key)
-	} else if entry.api.processExited() {
+	case entry.api.processExited():
 		delete(o.entries, key)
 		clearMapReconciliation(key)
 		return nil
-	} else {
+	default:
 		reportMapReconciliation(key, err)
 	}
 	return err
@@ -320,7 +326,9 @@ func (a *binaryAPI) changeControlPair(ctx context.Context, pair controlPair, add
 	}
 	message, err := a.exchange(ctx, &pppoeapi.PppoeAddDelCp{DpSwIfIndex: interface_types.InterfaceIndex(pair.dataplane),
 		CpSwIfIndex: interface_types.InterfaceIndex(pair.control), IsAdd: isAdd})
-	if requestWasNotSent(err) { return controlMutationRefused, err }
+	if requestWasNotSent(err) {
+		return controlMutationRefused, err
+	}
 	reply, ok := message.(*pppoeapi.PppoeAddDelCpReply)
 	if !ok {
 		return controlMutationUnknown, errors.Join(err, fmt.Errorf("pppoe-vpp: unconfirmed control mapping mutation, reply %T", message))

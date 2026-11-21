@@ -7,11 +7,12 @@ import (
 	"errors"
 	"fmt"
 
+	"go.fd.io/govpp/api"
+	"go.fd.io/govpp/binapi/interface_types"
+
 	pppoeapi "github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/pppoe"
 	vppcomp "github.com/ze-software/ze/internal/component/vpp"
 	"github.com/ze-software/ze/internal/core/opererr"
-	"go.fd.io/govpp/api"
-	"go.fd.io/govpp/binapi/interface_types"
 )
 
 // Reconciliation is a value snapshot, including reservations still unresolved.

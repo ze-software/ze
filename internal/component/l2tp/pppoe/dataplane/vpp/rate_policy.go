@@ -16,20 +16,26 @@ import (
 func newPolicerRatePolicy(command subscriber.RateOwnerCommand, index uint32, prefix string,
 	client policerRateAPI) (policy subscriber.LocalRatePolicy, native *policerRates, err error) {
 	native, err = newPolicerRates(index, prefix, client)
-	if err != nil { return nil, nil, err }
+	if err != nil {
+		return nil, nil, err
+	}
 	policy, err = subscriber.NewLocalRatePolicy(command, &sessionRateController{native: native})
-	if err != nil { return nil, nil, err }
+	if err != nil {
+		return nil, nil, err
+	}
 	return policy, native, nil
 }
 
 // sessionRateController is private so only the constructed LocalRatePolicy can
 // invoke it. That policy validates the sealed Rates before calling Prepare.
 // Its actual native owner serializes every operation and owns all cleanup.
-type sessionRateController struct { native *policerRates }
+type sessionRateController struct{ native *policerRates }
 
 func (c *sessionRateController) Prepare(ctx context.Context, rates subscriber.Rates) (subscriber.RateTransaction, error) {
 	change, err := c.native.Prepare(ctx, rates.Download(), rates.Upload(),
 		traffic.PolicerBurstBytes(rates.Download()), traffic.PolicerBurstBytes(rates.Upload()))
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	return change, nil
 }

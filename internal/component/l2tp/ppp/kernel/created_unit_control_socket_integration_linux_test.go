@@ -54,7 +54,7 @@ func TestCreatedUnitControlSocketNativeRename(t *testing.T) {
 	if err := netlink.LinkSetName(original, "zcctrlorig"); err != nil {
 		t.Fatal(err)
 	}
-	survivor := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: oldName, MTU: 1707}}
+	survivor := &netlink.Dummy{Name: oldName, MTU: 1707}
 	if err := netlink.LinkAdd(survivor); err != nil {
 		t.Fatal(err)
 	}
@@ -87,8 +87,8 @@ func TestCreatedUnitControlSocketNativeReplacement(t *testing.T) {
 	if err := netlink.LinkDel(original); err != nil {
 		t.Fatal(err)
 	}
-	survivor := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{
-		Name: original.Attrs().Name, Index: int(unit.Identity().NativeIndex), MTU: 1708}}
+	survivor := &netlink.Dummy{
+		Name: original.Attrs().Name, Index: int(unit.Identity().NativeIndex), MTU: 1708}
 	if err := netlink.LinkAdd(survivor); err != nil {
 		t.Fatal(err)
 	}

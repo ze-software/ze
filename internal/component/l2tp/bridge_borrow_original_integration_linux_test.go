@@ -8,8 +8,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/ze-software/ze/internal/test/userns"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // The production capture is invoked inside the SAME original-file borrow. A

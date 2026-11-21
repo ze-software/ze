@@ -7,6 +7,7 @@ package vpp
 import (
 	"context"
 	"errors"
+
 	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
 )
 

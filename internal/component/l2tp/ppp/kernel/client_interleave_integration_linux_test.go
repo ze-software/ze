@@ -56,7 +56,7 @@ func clientNativeInterleaveInputs(t *testing.T, name string, sid uint16) (*Clien
 	if err != nil {
 		t.Fatal(err)
 	}
-	access := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: name + "a"}}
+	access := &netlink.Dummy{Name: name + "a"}
 	if err := netlink.LinkAdd(access); err != nil {
 		t.Fatal(err)
 	}
@@ -309,7 +309,7 @@ func TestOriginalPairNativeFreshQueryEntryIsNonallocating(t *testing.T) {
 		}
 		return queryErr
 	}
-	if err := queryChannel(); err != unix.EBADF {
+	if err := queryChannel(); err != unix.EBADF { //nolint:errorlint // The bare kernel errno is the contract; a joined control error is a different failure.
 		t.Fatalf("fresh query46 entry: %v", err)
 	}
 	var queryErr error
@@ -319,10 +319,10 @@ func TestOriginalPairNativeFreshQueryEntryIsNonallocating(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if queryErr != unix.ESTALE {
+	if queryErr != unix.ESTALE { //nolint:errorlint // The bare kernel errno from the unit-owner ioctl is the contract.
 		t.Fatalf("fresh query51 kind guard: %v", queryErr)
 	}
-	if err := queryChannel(); err != unix.EBADF {
+	if err := queryChannel(); err != unix.EBADF { //nolint:errorlint // The bare kernel errno is the contract; a joined control error is a different failure.
 		t.Fatalf("query bound the fresh file: %v", err)
 	}
 }

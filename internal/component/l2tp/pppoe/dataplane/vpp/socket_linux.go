@@ -18,10 +18,11 @@ import (
 	"time"
 
 	"github.com/vishvananda/netns"
+	"golang.org/x/sys/unix"
+
 	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
-	"golang.org/x/sys/unix"
 )
 
 type socketFile struct {
@@ -124,7 +125,7 @@ func startControlSocketThread(ctx context.Context, request dataplane.Request,
 					subject := fmt.Sprintf("socket/%p/%d", socket, time.Now().UnixNano())
 					report.RaiseWarningFix(reconciliationSource, diagnostic.CodeDoctorPPPoEVPPReconcile, subject,
 						"Canceled PPPoE VPP control socket cleanup failed", reconciliationFix,
-						map[string]any{"error": err.Error(), "access": request.AccessName, "namespace": request.Namespace})
+						map[string]any{reconciliationErrorKey: err.Error(), "access": request.AccessName, "namespace": request.Namespace})
 					slog.Default().Warn("pppoe-vpp: canceled control socket cleanup failed",
 						"code", diagnostic.CodeDoctorPPPoEVPPReconcile, "fix", reconciliationFix, "error", err)
 				}
@@ -211,7 +212,7 @@ func openSocketHere(ctx context.Context, request dataplane.Request) (socket *con
 	if err = unix.Connect(fd, &unix.SockaddrPPPoE{SID: request.SessionID, Remote: request.PeerMAC[:], Dev: request.ControlDevice}); err != nil {
 		return nil, fmt.Errorf("pppoe-vpp: connect control socket on %q: %w", request.ControlDevice, err)
 	}
-	if err = ctx.Err(); err != nil {
+	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	file := os.NewFile(uintptr(fd), "pppoe-vpp-control")

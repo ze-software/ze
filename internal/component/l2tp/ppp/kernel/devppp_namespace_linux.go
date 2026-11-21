@@ -63,7 +63,7 @@ func runOriginalPPPNamespace(target *capturedSessionNamespace, operation func() 
 // A test-only instance observer can arrange a genuine worker starting namespace
 // before its real capture. Such a worker MUST always retire its locked thread,
 // including early refusal or panic. It never returns that namespace to the pool.
-func runOriginalPPPNamespaceWithStart(target *capturedSessionNamespace, start func() error, operation func() error) originalPPPNamespaceResult {
+func runOriginalPPPNamespaceWithStart(target *capturedSessionNamespace, start, operation func() error) originalPPPNamespaceResult {
 	if target == nil {
 		return originalPPPNamespaceResult{namespaceErr: errors.New("ppp: original namespace is unknown")}
 	}

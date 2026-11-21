@@ -10,11 +10,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/feature"
 	"go.fd.io/govpp/api"
 	"go.fd.io/govpp/binapi/interface_types"
 	"go.fd.io/govpp/binapi/policer"
 	"go.fd.io/govpp/binapi/policer_types"
+
+	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/feature"
 )
 
 // policerPlan is immutable after validation. Its nil and zero values are not
@@ -69,7 +70,9 @@ func newPolicerPlan(name string, bitsPerSecond, burstBytes uint64) (*policerPlan
 // receipt even on error until rollback or reconciliation proves removal.
 func (a *binaryAPI) createPolicer(ctx context.Context, plan *policerPlan) (creation, error) {
 	message, err := a.exchange(ctx, &policer.PolicerAdd{Name: plan.name, Infos: plan.config})
-	if requestWasNotSent(err) { return creation{}, err }
+	if requestWasNotSent(err) {
+		return creation{}, err
+	}
 	reply, ok := message.(*policer.PolicerAddReply)
 	if !ok {
 		return creation{uncertain: true}, errors.Join(err, fmt.Errorf("pppoe-vpp: policer create reply %T", message))
@@ -160,11 +163,12 @@ func (a *binaryAPI) setPolicerInputFeature(ctx context.Context, index uint32, ar
 	}
 	message, mutationErr := a.exchange(ctx, &feature.FeatureEnableDisable{SwIfIndex: interface_types.InterfaceIndex(index), ArcName: arc, FeatureName: "policer-input", Enable: enable})
 	reply, ok := message.(*feature.FeatureEnableDisableReply)
-	if !ok {
+	switch {
+	case !ok:
 		mutationErr = errors.Join(mutationErr, fmt.Errorf("pppoe-vpp: policer feature reply %T", message))
-	} else if reply == nil {
+	case reply == nil:
 		mutationErr = errors.Join(mutationErr, errors.New("pppoe-vpp: nil policer feature reply"))
-	} else {
+	default:
 		mutationErr = errors.Join(mutationErr, api.RetvalToVPPApiError(reply.Retval))
 	}
 	current, readErr := a.ipGate(ctx, index, arc, "policer-input")
@@ -193,7 +197,9 @@ const (
 // succeeded on all four arcs. This primitive never deletes a policer.
 func (a *binaryAPI) bindPolicerInput(ctx context.Context, index, policerIndex uint32, apply bool) (policerReceipt, error) {
 	message, err := a.exchange(ctx, &policer.PolicerInputV2{SwIfIndex: interface_types.InterfaceIndex(index), PolicerIndex: policerIndex, Apply: apply})
-	if requestWasNotSent(err) { return policerRefused, err }
+	if requestWasNotSent(err) {
+		return policerRefused, err
+	}
 	reply, ok := message.(*policer.PolicerInputV2Reply)
 	if !ok {
 		return policerUnknown, errors.Join(err, fmt.Errorf("pppoe-vpp: input binding reply %T", message))
@@ -209,7 +215,9 @@ func (a *binaryAPI) bindPolicerInput(ctx context.Context, index, policerIndex ui
 // instead of repeating an enable. VPP has one TX slot on this interface.
 func (a *binaryAPI) bindPolicerOutput(ctx context.Context, index, policerIndex uint32, apply bool) (policerReceipt, error) {
 	message, err := a.exchange(ctx, &policer.PolicerOutputV2{SwIfIndex: interface_types.InterfaceIndex(index), PolicerIndex: policerIndex, Apply: apply})
-	if requestWasNotSent(err) { return policerRefused, err }
+	if requestWasNotSent(err) {
+		return policerRefused, err
+	}
 	// The pinned policer_api.c v2 handler replies using the old
 	// VL_API_POLICER_OUTPUT_REPLY ID, not POLICER_OUTPUT_V2_REPLY.
 	reply, ok := message.(*policer.PolicerOutputReply)
@@ -227,7 +235,9 @@ func (a *binaryAPI) bindPolicerOutput(ctx context.Context, index, policerIndex u
 // the requested logical configuration with verifyPolicer after the mutation.
 func (a *binaryAPI) updatePolicer(ctx context.Context, index uint32, plan *policerPlan) (policerReceipt, error) {
 	message, err := a.exchange(ctx, &policer.PolicerUpdate{PolicerIndex: index, Infos: plan.config})
-	if requestWasNotSent(err) { return policerRefused, err }
+	if requestWasNotSent(err) {
+		return policerRefused, err
+	}
 	reply, ok := message.(*policer.PolicerUpdateReply)
 	if !ok {
 		return policerUnknown, errors.Join(err, fmt.Errorf("pppoe-vpp: policer update reply %T", message))
@@ -244,7 +254,9 @@ func (a *binaryAPI) updatePolicer(ctx context.Context, index uint32, plan *polic
 // unknown deletion until an indexed readback proves absence or ownership.
 func (a *binaryAPI) deletePolicer(ctx context.Context, index uint32) (policerReceipt, error) {
 	message, err := a.exchange(ctx, &policer.PolicerDel{PolicerIndex: index})
-	if requestWasNotSent(err) { return policerRefused, err }
+	if requestWasNotSent(err) {
+		return policerRefused, err
+	}
 	reply, ok := message.(*policer.PolicerDelReply)
 	if !ok {
 		return policerUnknown, errors.Join(err, fmt.Errorf("pppoe-vpp: policer delete reply %T", message))

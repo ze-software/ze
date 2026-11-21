@@ -27,7 +27,7 @@ func TestAccessOpenRefusesCompletedClose(t *testing.T) {
 				t.Fatal(err)
 			}
 			t.Cleanup(func() {
-				if got := access.Close(); got != any(closeFailure) {
+				if got := access.Close(); got != any(closeFailure) { //nolint:errorlint // Exact identity: Close must return the owner's own error object; errors.Is would also accept a wrap.
 					t.Errorf("cleanup close=%v, want exact %v", got, closeFailure)
 				}
 			})
@@ -44,7 +44,7 @@ func TestAccessOpenRefusesCompletedClose(t *testing.T) {
 			if owner.closes != 0 {
 				t.Fatal("failed child closed its parent")
 			}
-			if got := access.Close(); got != any(closeFailure) {
+			if got := access.Close(); got != any(closeFailure) { //nolint:errorlint // Exact identity: Close must return the owner's own error object; errors.Is would also accept a wrap.
 				t.Fatalf("first close=%v, want exact %v", got, closeFailure)
 			}
 			for range 2 {
@@ -58,7 +58,7 @@ func TestAccessOpenRefusesCompletedClose(t *testing.T) {
 				if !strings.Contains(err.Error(), "closed") {
 					t.Fatalf("closed access returned another refusal: %v", err)
 				}
-				if got := access.Close(); got != any(closeFailure) {
+				if got := access.Close(); got != any(closeFailure) { //nolint:errorlint // Exact identity: Close must return the owner's own error object; errors.Is would also accept a wrap.
 					t.Fatalf("repeated close=%v, want exact %v", got, closeFailure)
 				}
 			}

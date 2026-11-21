@@ -12,9 +12,10 @@ import (
 	"testing"
 
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
+
 	"github.com/ze-software/ze/internal/component/iface"
 	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
-	"golang.org/x/sys/unix"
 )
 
 // TestNativeFactoryOwnsRealPPPoXAndPPP exercises real Linux PPPoX connection,
@@ -28,7 +29,7 @@ func TestNativeFactoryOwnsRealPPPoXAndPPP(t *testing.T) {
 		t.Fatal(err)
 	}
 	name := "zepppoe" + strconv.Itoa(os.Getpid())
-	link := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: name}}
+	link := &netlink.Dummy{Name: name}
 	if err := netlink.LinkAdd(link); err != nil {
 		if errors.Is(err, unix.EPERM) {
 			t.Skip("CAP_NET_ADMIN is required for the virtual access device")

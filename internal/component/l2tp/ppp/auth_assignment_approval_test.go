@@ -24,7 +24,7 @@ func TestAuthAssignmentApprovalWaitsForOwnerAndTransport(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			session, request := startAuthAdmissionDriver(t)
 			receipt := request.AccountingAdmission()
-			connects := authApprovalConnects(session)
+			connects := authApprovalConnects(t, session)
 			approval, err := request.ClaimAccountingAssignment()
 			if err != nil {
 				t.Fatal(err)
@@ -74,7 +74,7 @@ func TestAuthAssignmentApprovalWaitsForOwnerAndTransport(t *testing.T) {
 func TestAuthAssignmentApprovalMissingOwnerEndsBeforeForwarding(t *testing.T) {
 	session, request := startAuthAdmissionDriver(t, func(start *StartSession) { start.IPTimeout = 2 * time.Second })
 	receipt := request.AccountingAdmission()
-	connects := authApprovalConnects(session)
+	connects := authApprovalConnects(t, session)
 	approval, err := request.ClaimAccountingAssignment()
 	if err != nil {
 		t.Fatal(err)
@@ -247,7 +247,7 @@ func TestAuthAssignmentApprovalPPPoERemainsUnclaimed(t *testing.T) {
 func TestAuthAssignmentApprovalExpiredBindingCannotCommitReadySignals(t *testing.T) {
 	session, request := startAuthAdmissionDriver(t)
 	receipt := request.AccountingAdmission()
-	connects := authApprovalConnects(session)
+	connects := authApprovalConnects(t, session)
 	approval, err := request.ClaimAccountingAssignment()
 	if err != nil {
 		t.Fatal(err)
@@ -276,8 +276,16 @@ func TestAuthAssignmentApprovalExpiredBindingCannotCommitReadySignals(t *testing
 
 // Install while actual auth is pending, before native Connect is permitted.
 // The existing fake handle's connection mutex protects both hook and use.
-func authApprovalConnects(session *l2tpBirthProducerSession) *atomic.Int32 {
-	handle := session.control.worker.dataplane.(*sessionLeaseCounter).SessionHandle.(*testSessionHandle)
+func authApprovalConnects(t *testing.T, session *l2tpBirthProducerSession) *atomic.Int32 {
+	t.Helper()
+	counter, ok := session.control.worker.dataplane.(*sessionLeaseCounter)
+	if !ok {
+		t.Fatalf("session dataplane = %T, want *sessionLeaseCounter", session.control.worker.dataplane)
+	}
+	handle, ok := counter.SessionHandle.(*testSessionHandle)
+	if !ok {
+		t.Fatalf("session handle = %T, want *testSessionHandle", counter.SessionHandle)
+	}
 	connects := &atomic.Int32{}
 	handle.connectionMu.Lock()
 	connect := handle.ops.connect

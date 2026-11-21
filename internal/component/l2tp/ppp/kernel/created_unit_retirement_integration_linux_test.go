@@ -105,8 +105,7 @@ func TestCreatedUnitNativeRetirementJoinsOriginalBorrow(t *testing.T) {
 	defer stop()
 	require.NoError(t, unit.WaitNativePPPUnitRetired(wait))
 	_, err := netlink.LinkByIndex(link.Attrs().Index)
-	var absent netlink.LinkNotFoundError
-	if !errors.As(err, &absent) {
+	if _, absent := errors.AsType[netlink.LinkNotFoundError](err); !absent {
 		t.Fatalf("actual original was not unregistered after borrow and Close: %v", err)
 	}
 }
@@ -160,8 +159,7 @@ func TestCreatedUnitNativeRetirementJoinsRetainedOriginalDuplicate(t *testing.T)
 	defer stop()
 	require.NoError(t, unit.WaitNativePPPUnitRetired(wait))
 	_, err = netlink.LinkByIndex(link.Attrs().Index)
-	var absent netlink.LinkNotFoundError
-	if !errors.As(err, &absent) {
+	if _, absent := errors.AsType[netlink.LinkNotFoundError](err); !absent {
 		t.Fatalf("confirmed duplicate release did not unregister original: %v", err)
 	}
 	successor, _, _ := createdUnitNative(t, "zret-original")

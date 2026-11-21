@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"path/filepath"
 	"runtime"
 	"strconv"
 	"testing"
@@ -41,7 +40,7 @@ func TestNativeVPPAccessControlReadbackKeepsCallerNamespace(t *testing.T) {
 		t.Fatal(err)
 	}
 	name := "ze-pppoe-access-" + strconv.Itoa(os.Getpid()) + "-" + strconv.FormatInt(time.Now().UnixNano(), 10)
-	path := filepath.Join("/run/netns", name)
+	path := "/run/netns/" + name
 	file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_RDONLY, 0o600)
 	if err != nil {
 		t.Fatal(err)
@@ -79,8 +78,8 @@ func TestNativeVPPAccessControlReadbackKeepsCallerNamespace(t *testing.T) {
 			created <- createdNamespace{handle: handle, err: err}
 			return
 		}
-		link := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "cp-proof", MTU: 1500,
-			HardwareAddr: net.HardwareAddr{2, 3, 4, 5, 6, 7}}}
+		link := &netlink.Dummy{Name: "cp-proof", MTU: 1500,
+			HardwareAddr: net.HardwareAddr{2, 3, 4, 5, 6, 7}}
 		if err := netlink.LinkAdd(link); err != nil {
 			created <- createdNamespace{handle: handle, mounted: true, err: err}
 			return

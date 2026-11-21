@@ -236,7 +236,7 @@ func TestDevPPPSetupTypedUnitClosePanicStillClosesChannel(t *testing.T) {
 // A nil successful result cannot be admitted or trigger the next allocation.
 func TestDevPPPSetupTypedMissingChannelRefusesBeforeUnit(t *testing.T) {
 	fixture := newTypedSetupFixture()
-	fixture.ops.channel = func(*os.File) (*CreatedChannel, error) { return nil, nil }
+	fixture.ops.channel = func(*os.File) (*CreatedChannel, error) { return nil, nil } //nolint:nilnil // Deliberately malformed attach result exercises setup refusal.
 	channel, unit, err := devPPPSetup(fixture.creator, fixture.transport, "zc-setup", fixture.ops)
 	if err == nil {
 		t.Fatal("nil attached channel was admitted")
@@ -255,7 +255,7 @@ func TestDevPPPSetupTypedMissingChannelRefusesBeforeUnit(t *testing.T) {
 // A missing unit result refuses and releases the already attached channel.
 func TestDevPPPSetupTypedMissingUnitClosesChannel(t *testing.T) {
 	fixture := newTypedSetupFixture()
-	fixture.creator.create = func(string) (*CreatedUnit, error) { return nil, nil }
+	fixture.creator.create = func(string) (*CreatedUnit, error) { return nil, nil } //nolint:nilnil // Deliberately malformed create result exercises setup refusal and channel rollback.
 	channel, unit, err := devPPPSetup(fixture.creator, fixture.transport, "zc-setup", fixture.ops)
 	if err == nil {
 		t.Fatal("nil created unit was admitted")

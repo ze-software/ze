@@ -91,7 +91,7 @@ func nativePPPGlobalSupportRequire(t *testing.T, fd int) nativePPPGlobalSupportR
 
 func nativePPPGlobalSupportErrno(t *testing.T, err error, want unix.Errno) {
 	t.Helper()
-	if err != want {
+	if err != want { //nolint:errorlint // The query must answer the bare kernel errno; a joined or wrapped error is a different failure.
 		t.Fatalf("native global query error=%v, want %v", err, want)
 	}
 }

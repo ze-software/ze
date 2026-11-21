@@ -68,7 +68,7 @@ func TestCreatedUnitRetirementRejectsUnmintedOwners(t *testing.T) {
 			t.Fatal("unminted owner supplied retirement")
 		}
 	}
-	if err := unit.WaitNativePPPUnitRetired(nil); err == nil {
+	if err := unit.WaitNativePPPUnitRetired(nil); err == nil { //nolint:staticcheck // SA1012: the nil Context is the refused input this test proves.
 		t.Fatal("nil context supplied a wait")
 	}
 	if err := copy.WithDescriptor(func(int) error { return nil }); err == nil {

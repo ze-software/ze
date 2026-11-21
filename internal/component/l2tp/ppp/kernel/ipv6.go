@@ -55,7 +55,7 @@ func newIPv6Carrier(ra raSocket, dhcp dhcpSocket, ifname string, ifindex int) *i
 // to acquire DHCPv6 closes RA and preserves both the setup and close failures.
 // Failed cleanup returns a non-usable carrier with the error. The caller MUST
 // retain that owner until its exact cleanup is confirmed.
-func acquireIPv6Carrier(ctx context.Context, ifname string, ifindex int, openRA func(context.Context) (raSocket, error), openDHCP func(context.Context) (dhcpSocket, error)) (ppp.IPv6Carrier, error) {
+func acquireIPv6Carrier(ctx context.Context, ifname string, ifindex int, openRA func(context.Context) (raSocket, error), openDHCP func(context.Context) (dhcpSocket, error)) (ppp.IPv6Carrier, error) { //nolint:unparam // ipv6_linux.go passes the real interface name; only the tests, linted alone off Linux, pass "ppp7".
 	ra, err := openRA(ctx)
 	if err != nil {
 		return failedIPv6Acquisition(ra, nil, err)

@@ -4,6 +4,7 @@ package vpp
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"go.fd.io/govpp/api"
@@ -54,7 +55,7 @@ func TestVPPReconcileRetiresActiveReservationBeforePendingTransfer(t *testing.T)
 func TestVPPReconcileRetiredAPIRefusesNativeSelection(t *testing.T) {
 	client := &binaryAPI{open: func(context.Context) (api.Stream, error) {
 		t.Error("retired API selected a native stream")
-		return nil, nil
+		return nil, errors.New("retired API selected a native stream")
 	}}
 	client.retired.Store(true)
 	if _, err := client.exchange(t.Context(), &memclnt.ControlPing{}); err == nil {

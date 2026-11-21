@@ -130,13 +130,13 @@ func (d *setupFaultDialer) setup(transport *os.File, name string) (client client
 		// Only this genuine original channel close syscall is denied. Unit
 		// Close remains able to advance, so no artificial dependency cycle is
 		// inserted between original retirement and writer settlement.
-		err = d.owner.channel.WithDescriptor(func(fd int) error { return pppcpefault.DenyOriginalClose(fd) })
+		err = d.owner.channel.WithDescriptor(pppcpefault.DenyOriginalClose)
 		return client, err
 	}
 	// Install the all-thread close fault before the disposable namespace worker
 	// acquires its private restore filter. Synchronizing filters after a failed
 	// restore would race that worker's real locked-thread retirement.
-	if err := d.owner.channel.WithDescriptor(func(fd int) error { return pppcpefault.DenyOriginalClose(fd) }); err != nil {
+	if err := d.owner.channel.WithDescriptor(pppcpefault.DenyOriginalClose); err != nil {
 		return nil, err
 	}
 	if err := pppkernel.SetNativePPPWorkerStartForTest(d.owner.unit, func() error {
@@ -266,10 +266,8 @@ func newSetupFaultFixtureWith(t *testing.T, restore, denyChannel bool) *setupFau
 			if !errors.Is(err, unix.EPERM) {
 				t.Errorf("actual syscall refusal lost: %v", err)
 			}
-		} else {
-			if err != nil {
-				t.Error(err)
-			}
+		} else if err != nil {
+			t.Error(err)
 		}
 		cancel()
 		if err := <-h.peerDone; err != nil {

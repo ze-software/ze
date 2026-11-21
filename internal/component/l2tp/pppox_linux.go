@@ -102,7 +102,7 @@ func pppoxCreate(
 	localTID, localSID, remoteTID, remoteSID uint16,
 ) (*os.File, error) {
 	var original *os.File
-	_, err := pppoxCreateWith(socketFD, peerAddr, localTID, localSID, remoteTID, remoteSID,
+	err := pppoxCreateWith(socketFD, peerAddr, localTID, localSID, remoteTID, remoteSID,
 		func() (int, error) {
 			fd, err := unix.Socket(afPPPOX, unix.SOCK_DGRAM, pxProtoOL2TP)
 			if err != nil {
@@ -118,23 +118,26 @@ func pppoxCreate(
 	return original, nil
 }
 
+// pppoxCreateWith opens a socket through open and connects it to the kernel
+// session. The opened descriptor stays with open's owner: on a refusal it is
+// closed through closeFD, whose failure the returned error carries.
 func pppoxCreateWith(socketFD int, peerAddr netip.AddrPort, localTID, localSID, remoteTID, remoteSID uint16,
 	open func() (int, error), connect func(int, []byte) error, closeFD func(int) error,
-) (int, error) {
+) error {
 	fd, err := open()
 	if err != nil {
-		return -1, fmt.Errorf("l2tp: pppox socket: %w", err)
+		return fmt.Errorf("l2tp: pppox socket: %w", err)
 	}
 
 	sa, err := buildSockaddrPPPoL2TP(socketFD, peerAddr, localTID, localSID, remoteTID, remoteSID)
 	if err != nil {
-		return -1, pppkernel.RecordSetupCleanup(err, closeFD(fd))
+		return pppkernel.RecordSetupCleanup(err, closeFD(fd))
 	}
 
 	if err := connect(fd, sa); err != nil {
-		return -1, pppkernel.RecordSetupCleanup(fmt.Errorf("l2tp: pppox connect: %w", err), closeFD(fd))
+		return pppkernel.RecordSetupCleanup(fmt.Errorf("l2tp: pppox connect: %w", err), closeFD(fd))
 	}
-	return fd, nil
+	return nil
 }
 
 func connectPPPoL2TP(fd int, sa []byte) error {

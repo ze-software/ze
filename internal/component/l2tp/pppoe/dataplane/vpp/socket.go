@@ -23,13 +23,13 @@ type controlEndpoint interface {
 // native descriptor, and MUST unblock all I/O. A session uses the same Close
 // through both ownership roles, never a second wrapper of the descriptor.
 type controlSocket struct {
-	file       controlEndpoint
-	receiveMRU atomic.Int32
-	once       sync.Once
-	closeErr   error
-	carrierMu sync.RWMutex
-	carrier *ipv6Carrier
-	closed bool
+	file         controlEndpoint
+	receiveMRU   atomic.Int32
+	once         sync.Once
+	closeErr     error
+	carrierMu    sync.RWMutex
+	carrier      *ipv6Carrier
+	closed       bool
 	ipv6Discards atomic.Uint64
 }
 
@@ -55,7 +55,9 @@ func (s *controlSocket) Read(buf []byte) (int, error) {
 			if binary.BigEndian.Uint16(buf[:2]) == ppp.ProtoIPv6 {
 				// RFC 8200 Section 3; RFC 4861 Section 6.1.1.
 				s.dispatchIPv6(buf[2:n])
-				if err != nil { return 0, err }
+				if err != nil {
+					return 0, err
+				}
 				continue
 			}
 		}
@@ -89,7 +91,9 @@ func (s *controlSocket) Close() error {
 		// Interrupt an in-flight write before joining carrier serialization;
 		// otherwise a full datagram send buffer could hold Close forever.
 		s.closeErr = s.file.Close()
-		if carrier != nil { s.closeErr = errors.Join(s.closeErr, carrier.Close()) }
+		if carrier != nil {
+			s.closeErr = errors.Join(s.closeErr, carrier.Close())
+		}
 	})
 	return s.closeErr
 }

@@ -278,7 +278,7 @@ func TestClientPairIndependentClaimsAfterRefusal(t *testing.T) {
 					t.Fatal("claim refusal published owner")
 				}
 				if panics {
-					if failure != primary {
+					if failure != primary { //nolint:errorlint // A recovered panic value is not a returned error: the original panic must propagate unchanged.
 						t.Fatalf("original panic changed: %v", failure)
 					}
 				} else {

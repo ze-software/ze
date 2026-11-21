@@ -238,7 +238,8 @@ func waitFinalCPEInitialRoute(t *testing.T, ctx context.Context, index int, peer
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, route := range routes {
+		for i := range routes {
+			route := &routes[i]
 			if route.Dst == nil {
 				if route.Gw.String() == peer {
 					if route.Priority == 73 {

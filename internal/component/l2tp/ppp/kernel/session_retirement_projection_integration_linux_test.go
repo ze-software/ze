@@ -80,8 +80,7 @@ func TestSessionNativeReleaseProjectionConfirmedOriginalClose(t *testing.T) {
 		t.Fatalf("successful original close left its descriptor live: %v", err)
 	}
 	_, err := netlink.LinkByIndex(int(h.unit.Identity().NativeIndex))
-	var missing netlink.LinkNotFoundError
-	if !errors.As(err, &missing) {
+	if _, missing := errors.AsType[netlink.LinkNotFoundError](err); !missing {
 		t.Fatalf("confirmed original unit remained registered: %v", err)
 	}
 	if h.release.NativeReleasePending() {

@@ -73,20 +73,20 @@ func readControlLinkThread(ctx context.Context, pair iface.LCPPair) (link contro
 		return controlLink{}, fmt.Errorf("read Linux LCP device %q: %w", pair.ControlDevice, err)
 	}
 	if device == nil {
-		return controlLink{}, errors.New("Linux LCP readback returned no device")
+		return controlLink{}, errors.New("the Linux LCP readback returned no device")
 	}
 	attributes := device.Attrs()
 	if attributes == nil {
-		return controlLink{}, errors.New("Linux LCP readback returned no attributes")
+		return controlLink{}, errors.New("the Linux LCP readback returned no attributes")
 	}
 	if attributes.Name != pair.ControlDevice {
-		return controlLink{}, errors.New("Linux LCP readback names another device")
+		return controlLink{}, errors.New("the Linux LCP readback names another device")
 	}
 	if attributes.Index != pair.LinuxIndex {
-		return controlLink{}, errors.New("Linux LCP readback has another interface index")
+		return controlLink{}, errors.New("the Linux LCP readback has another interface index")
 	}
 	if len(attributes.HardwareAddr) != 6 {
-		return controlLink{}, errors.New("Linux LCP device has no Ethernet MAC address")
+		return controlLink{}, errors.New("the Linux LCP device has no Ethernet MAC address")
 	}
 	if err := ctx.Err(); err != nil {
 		return controlLink{}, err

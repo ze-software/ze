@@ -86,7 +86,10 @@ func TestAssignmentWithoutOriginalCounterReceiptRefusesAndReports(t *testing.T) 
 			// time-only assertion that Up has not happened yet.
 			event := wire.event(t)
 			require.IsType(t, ppp.EventSessionDown{}, event, "the refused assignment must not enable SessionUp")
-			down := event.(ppp.EventSessionDown)
+			down, isDown := event.(ppp.EventSessionDown)
+			if !isDown {
+				t.Fatalf("next lifecycle event = %T, want ppp.EventSessionDown", event)
+			}
 			require.Equal(t, assignment.Control, down.Control)
 			require.False(t, assignment.Control.Active())
 			require.Zero(t, publications)

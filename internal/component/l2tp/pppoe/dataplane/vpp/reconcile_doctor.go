@@ -13,6 +13,9 @@ import (
 const reconciliationSource = "pppoe-vpp"
 const reconciliationFix = "show warnings"
 
+// reconciliationErrorKey is the issue detail key that carries the native cause.
+const reconciliationErrorKey = "error"
+
 func init() {
 	if err := diagnostic.RegisterDoctorCheck(diagnostic.DoctorCheck{
 		Name: "pppoe-vpp-reconciliation", Phase: diagnostic.DoctorPhaseRuntime, Order: 755,
@@ -40,7 +43,7 @@ func reportSessionReconciliation(p *pendingMutation, err error) {
 	}
 	report.RaiseWarningFix(reconciliationSource, diagnostic.CodeDoctorPPPoEVPPReconcile, sessionReconciliationSubject(p),
 		"PPPoE VPP session cleanup remains unconfirmed; its subscriber key stays reserved", reconciliationFix,
-		map[string]any{"access": p.request.AccessName, "session-id": p.request.SessionID, "client-mac": fmt.Sprintf("%x", p.request.PeerMAC), "error": err.Error()})
+		map[string]any{"access": p.request.AccessName, "session-id": p.request.SessionID, "client-mac": fmt.Sprintf("%x", p.request.PeerMAC), reconciliationErrorKey: err.Error()})
 }
 func clearSessionReconciliation(p *pendingMutation) {
 	report.ClearWarning(reconciliationSource, diagnostic.CodeDoctorPPPoEVPPReconcile, sessionReconciliationSubject(p))
@@ -51,7 +54,7 @@ func reportMapReconciliation(key controlMapKey, err error) {
 	}
 	report.RaiseWarningFix(reconciliationSource, diagnostic.CodeDoctorPPPoEVPPReconcile, mapReconciliationSubject(key),
 		"PPPoE VPP control mapping cleanup remains unconfirmed; its native indices stay reserved", reconciliationFix,
-		map[string]any{"data-index": key.pair.dataplane, "control-index": key.pair.control, "error": err.Error()})
+		map[string]any{"data-index": key.pair.dataplane, "control-index": key.pair.control, reconciliationErrorKey: err.Error()})
 }
 func clearMapReconciliation(key controlMapKey) {
 	report.ClearWarning(reconciliationSource, diagnostic.CodeDoctorPPPoEVPPReconcile, mapReconciliationSubject(key))
@@ -67,7 +70,7 @@ func checkReconciliation(diagnostic.DoctorCheckContext) []diagnostic.Diagnostic 
 			continue
 		}
 		message := issue.Message
-		if cause, ok := issue.Detail["error"].(string); ok {
+		if cause, ok := issue.Detail[reconciliationErrorKey].(string); ok {
 			message += ": " + cause
 		}
 		findings = append(findings, diagnostic.Diagnostic{Code: diagnostic.CodeDoctorPPPoEVPPReconcile,

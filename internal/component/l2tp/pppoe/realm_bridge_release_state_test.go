@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
 	"github.com/ze-software/ze/internal/core/callsink"
@@ -132,8 +133,12 @@ func TestRealmPreparationChecksActualRetiredReleaseState(t *testing.T) {
 			t.Cleanup(relay.stopAll)
 			require.True(t, relay.decide(&request))
 			sink.mu.Lock()
-			handoff := sink.handoff.(*realmHandoff)
+			recorded := sink.handoff
 			sink.mu.Unlock()
+			handoff, ok := recorded.(*realmHandoff)
+			if !ok {
+				t.Fatalf("realm sink handoff %T", recorded)
+			}
 			freshAttachments := 0
 			prepareCapture := func() error {
 				if err := handoff.PrepareBridge(); err != nil {

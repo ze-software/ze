@@ -311,18 +311,29 @@ func (binding *authAdmissionBinding) finish(assigned bool) bool {
 	return assigned
 }
 
+// authAdmissionEligible reports whether this authentication round owes an
+// original admission binding: only the initial round of an L2TP-born session.
+func (session *pppSession) authAdmissionEligible() bool {
+	if session.pppoe {
+		return false
+	}
+	if !session.l2tpBirth.IsValid() {
+		return false
+	}
+	if session.ncpStarted {
+		return false
+	}
+	return true
+}
+
 // The worker alone opens a new round. The small metadata mutex also fences
 // canceled-owner Close against inserting a late round. No native I/O, answer,
 // callback or goroutine join occurs under either admission mutex.
 func (session *pppSession) beginAuthAdmission() (*authAdmissionBinding, error) {
-	if session.pppoe {
-		return nil, nil
-	}
-	if !session.l2tpBirth.IsValid() {
-		return nil, nil
-	}
-	if session.ncpStarted {
-		return nil, nil
+	if !session.authAdmissionEligible() {
+		// A nil binding is the "no admission round" outcome every caller
+		// branches on (admission != nil in auth.go), not a missing answer.
+		return nil, nil //nolint:nilnil // nil binding names "no admission round": PPPoE, no L2TP birth, or reauth on an existing network.
 	}
 	session.authAdmissionMu.Lock()
 	defer session.authAdmissionMu.Unlock()

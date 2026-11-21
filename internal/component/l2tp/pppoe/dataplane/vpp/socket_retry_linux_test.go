@@ -6,6 +6,7 @@
 package vpp
 
 import (
+	"bytes"
 	"errors"
 	"testing"
 
@@ -33,7 +34,7 @@ func TestVPPNativeSocketRetriesInterruptedReceiveBeforePolling(t *testing.T) {
 	socket := &socketFile{raw: raw}
 	var buf [32]byte
 	n, err := socket.Read(buf[:])
-	if err != nil || n != len(frame) || string(buf[:n]) != string(frame) {
+	if err != nil || n != len(frame) || !bytes.Equal(buf[:n], frame) {
 		t.Fatalf("interrupted receive n=%d, frame=%x, err=%v", n, buf[:n], err)
 	}
 	if calls != 2 || raw.polls != 0 {

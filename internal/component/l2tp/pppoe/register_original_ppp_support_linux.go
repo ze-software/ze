@@ -20,7 +20,7 @@ func init() {
 	check.Check = func(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 		rows := probe(ctx)
 		for index := range rows {
-			rows[index].Path = "pppoe"
+			rows[index].Path = configRoot
 		}
 		return rows
 	}
@@ -40,7 +40,7 @@ func pppoeOriginalPPPSupportScope(ctx diagnostic.DoctorCheckContext) (uint32, er
 	if !PPPoEInUse(tree) {
 		return 0, nil
 	}
-	if len(tree.GetContainer("pppoe").GetListOrdered("interface")) == 0 {
+	if len(tree.GetContainer(configRoot).GetListOrdered("interface")) == 0 {
 		return 0, nil
 	}
 	backend, err := ConfiguredSessionBackendName(tree)

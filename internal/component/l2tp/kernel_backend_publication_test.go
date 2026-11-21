@@ -72,7 +72,7 @@ func TestKernelBackendStartupPreparationRefusalIsFatal(t *testing.T) {
 				acquisitions++
 				switch outcome {
 				case "nil":
-					return nil, nil
+					return nil, nil //nolint:nilnil // the case under test: a factory answering neither a backend nor an error must be refused
 				case "typed nil":
 					var missing *kernelBackendProbe
 					return missing, nil
@@ -80,7 +80,7 @@ func TestKernelBackendStartupPreparationRefusalIsFatal(t *testing.T) {
 					return nil, factoryFailure
 				default:
 					t.Fatal("unknown backend preparation outcome")
-					return nil, nil
+					return nil, errors.New("unknown backend preparation outcome")
 				}
 			}
 			t.Cleanup(func() {

@@ -7,9 +7,10 @@ import (
 	"errors"
 	"fmt"
 
-	feature "github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/feature"
 	"go.fd.io/govpp/api"
 	"go.fd.io/govpp/binapi/interface_types"
+
+	feature "github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane/vpp/binapi/feature"
 )
 
 // quarantinePolicers closes every arc a possibly bound directional slot can
@@ -44,11 +45,12 @@ func (a *binaryAPI) closePolicerOutputFeature(ctx context.Context, index uint32,
 		FeatureName: "policer-output", Enable: false,
 	})
 	reply, ok := message.(*feature.FeatureEnableDisableReply)
-	if !ok {
+	switch {
+	case !ok:
 		mutationErr = errors.Join(mutationErr, fmt.Errorf("pppoe-vpp: output feature reply %T", message))
-	} else if reply == nil {
+	case reply == nil:
 		mutationErr = errors.Join(mutationErr, errors.New("pppoe-vpp: nil output feature reply"))
-	} else {
+	default:
 		mutationErr = errors.Join(mutationErr, api.RetvalToVPPApiError(reply.Retval))
 	}
 	current, readErr := a.ipGate(ctx, index, arc, "policer-output")

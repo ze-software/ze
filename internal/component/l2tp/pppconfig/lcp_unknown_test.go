@@ -18,8 +18,8 @@ func TestLCPProviderRejectsUnknownSetting(t *testing.T) {
 	for _, transport := range []string{"l2tp", "pppoe"} {
 		t.Run(transport, func(t *testing.T) {
 			_, err := ParseLCP(transport, map[string]any{"restart-timre": "500"})
-			var operatorError *opererr.Error
-			if !errors.As(err, &operatorError) {
+			operatorError, isOperator := errors.AsType[*opererr.Error](err)
+			if !isOperator {
 				t.Fatalf("unknown setting refusal = %v, want opererr.Error", err)
 			}
 			if !strings.Contains(err.Error(), "restart-timre") {
@@ -45,8 +45,8 @@ func TestLCPProviderRejectsUnrelatedSetting(t *testing.T) {
 	for _, transport := range []string{"l2tp", "pppoe"} {
 		t.Run(transport, func(t *testing.T) {
 			_, err := ParseLCP(transport, map[string]any{"xyz": "500"})
-			var operatorError *opererr.Error
-			if !errors.As(err, &operatorError) {
+			operatorError, isOperator := errors.AsType[*opererr.Error](err)
+			if !isOperator {
 				t.Fatalf("unknown setting refusal = %v, want opererr.Error", err)
 			}
 			for _, text := range []string{"xyz", "restart-timer", "max-terminate", "max-configure", "max-failure"} {

@@ -21,7 +21,7 @@ func validateBackendGate(tree *config.Tree) error {
 	if tree == nil {
 		return nil
 	}
-	access := tree.GetContainer(SubsystemName)
+	access := tree.GetContainer(configRoot)
 	if access == nil {
 		return nil
 	}

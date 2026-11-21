@@ -13,7 +13,7 @@ import (
 
 const (
 	codeL2TPHiddenAVPUnrevealed = "doctor-l2tp-hidden-avp-unrevealed"
-	hiddenAVPWhy                = "Ze could not reveal a hidden AVP the peer sent, so a mandatory one refuses the message and an optional one is ignored."
+	hiddenAVPWhy                = "Ze could not reveal a hidden AVP the peer sent, so a mandatory one refuses the message and an optional one is ignored." //nolint:gosec // G101 false positive: diagnostic prose about hidden AVPs, not a credential
 	// hiddenEventWindow bounds the events one peer raises. The TunnelID=0
 	// SCCRQ path is rate-limited before the line is written, but a message on
 	// an open tunnel is not, so a peer that hides every AVP under a secret Ze

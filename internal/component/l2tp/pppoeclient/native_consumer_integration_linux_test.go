@@ -102,7 +102,7 @@ func TestNativeCPEConsumerKeepsOriginalAcrossNameReplacement(t *testing.T) {
 	if err := netlink.LinkSetName(original, "heldwan0"); err != nil {
 		t.Fatal(err)
 	}
-	replacement := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "wan0", MTU: 9000}}
+	replacement := &netlink.Dummy{Name: "wan0", MTU: 9000}
 	if err := netlink.LinkAdd(replacement); err != nil {
 		t.Fatal(err)
 	}
@@ -149,7 +149,8 @@ func waitNativeCPERoute(t *testing.T, ctx context.Context, original netlink.Link
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, route := range routes {
+		for i := range routes {
+			route := &routes[i]
 			if route.Dst == nil && route.Gw.String() == "198.51.100.1" && route.Priority == 73 && int(route.Protocol) == int(rtproto.Iface) {
 				return
 			}
