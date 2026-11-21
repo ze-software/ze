@@ -16,7 +16,126 @@ import (
 	docindex "github.com/ze-software/ze/internal/le/doc/index"
 )
 
-var specBulletPattern = regexp.MustCompile(`^\s*-\s+\x60([^\x60]+)\x60`)
+// bulletStart is a list item's dash, with its indentation and the blanks
+// after it.
+var bulletStart = regexp.MustCompile(`^\s*-\s+`)
+
+// descriptionSeparators end the path list of a file bullet when they stand
+// between two back-quoted spans, outside every parenthesis: the template
+// writes ` - ` before the description, and specs also write ` -- ` and an em
+// dash with a blank on each side. A colon straight after a span ends it too
+// (descriptionColon).
+var descriptionSeparators = [...]string{" - ", " -- ", " \u2014 "}
+
+// descriptionColon starts a description when it follows a span at once
+// (- `x.go`: `symbol`), unlike a colon in the path list's own prose (one file
+// per rule: `a.go`, `b.go`).
+const descriptionColon = ":"
+
+// BulletPaths answers every path of line's path list, in order, when line is
+// a list item that opens with a back-quoted span. The path list is the spans
+// before the description, which starts at a descriptionSeparators entry or at
+// a colon right after a span (- `a.go`, `b.go` - calls `c.go`). Two kinds of
+// span name no file of the spec and are not answered: one of the description,
+// and one inside a parenthesis (- `x.md` (declared by `y.go`)), each naming
+// what the file uses or why it is listed. A span with no slash after a span
+// with one is a file beside it, the way the plan abbreviates a bullet's later
+// files (- `a/b/c.go`, `d.go` names a/b/d.go), and is answered resolved. A
+// slashless span with no path before it is answered as written: it names a
+// file at the checkout root (`README.md`, `Makefile`), never a file to drop.
+// A span is answered whatever it holds; the caller keeps the paths it wants.
+// The loop consumes line, so it ends.
+func BulletPaths(line string) []string {
+	item := bulletStart.FindStringIndex(line)
+	if item == nil {
+		return nil
+	}
+	rest := line[item[1]:]
+	if !strings.HasPrefix(rest, "`") {
+		return nil
+	}
+	var paths []string
+	directory := ""
+	depth := 0
+	for {
+		opened := strings.IndexByte(rest, '`')
+		if opened < 0 {
+			return paths
+		}
+		var describing bool
+		depth, describing = readProse(rest[:opened], depth)
+		if describing {
+			return paths
+		}
+		closed := strings.IndexByte(rest[opened+1:], '`')
+		if closed < 0 {
+			return paths
+		}
+		span := rest[opened+1 : opened+1+closed]
+		rest = rest[opened+1+closed+1:]
+		if depth != 0 {
+			continue
+		}
+		if span == "" {
+			continue
+		}
+		if strings.Contains(span, "/") {
+			paths = append(paths, span)
+			directory = bulletDirectory(span)
+		} else {
+			paths = append(paths, besideDirectory(directory, span))
+		}
+		if strings.HasPrefix(rest, descriptionColon) {
+			return paths
+		}
+	}
+}
+
+// readProse reads prose, the text between two spans of a bullet, from
+// parenthesis depth depth. It answers the depth the prose leaves, and whether
+// a description separator stands in it outside every parenthesis. A closing
+// parenthesis with none open is prose. The loop is bounded by the prose's
+// length.
+func readProse(prose string, depth int) (int, bool) {
+	for index := range len(prose) {
+		if prose[index] == '(' {
+			depth++
+			continue
+		}
+		if prose[index] == ')' {
+			depth = max(0, depth-1)
+			continue
+		}
+		if depth != 0 {
+			continue
+		}
+		for _, separator := range descriptionSeparators {
+			if strings.HasPrefix(prose[index:], separator) {
+				return depth, true
+			}
+		}
+	}
+	return depth, false
+}
+
+// bulletDirectory answers the directory a later slashless span of the bullet
+// lies in: full itself when it names a directory (a trailing slash), else the
+// directory holding it. MUST be called with a span holding a slash.
+func bulletDirectory(full string) string {
+	if trimmed, isDirectory := strings.CutSuffix(full, "/"); isDirectory {
+		return trimmed
+	}
+	return full[:strings.LastIndexByte(full, '/')]
+}
+
+// besideDirectory answers name, a slashless span, in directory: as written
+// when no path came before it in the bullet ("", the checkout root).
+func besideDirectory(directory, name string) string {
+	if directory == "" {
+		return name
+	}
+	return directory + "/" + name
+}
 
 var sourcePrefixes = [...]string{
 	"internal/", "cmd/", "pkg/", "test/", "rfc/", "tools/", "demos/",
@@ -106,8 +225,9 @@ func DeclaredDesignDocuments(root, relative string) ([]string, error) {
 }
 
 // SpecSourceFiles answers the source files a spec's Files to Modify and Files
-// to Create bullets name, in the spec's order: the files whose headers link
-// the design pages the spec owes.
+// to Create bullets name, every source path of each bullet's path list
+// (BulletPaths), in the spec's order: the files whose headers link the design
+// pages the spec owes.
 func SpecSourceFiles(text string) []string { return specSourceFiles(text) }
 
 // loadDocumentIndex answers which documents anchor each code path.
@@ -142,14 +262,11 @@ func specSourceFiles(text string) []string {
 		if !inFiles {
 			continue
 		}
-		match := specBulletPattern.FindStringSubmatch(line)
-		if match == nil {
-			continue
+		for _, path := range BulletPaths(line) {
+			if isSourcePath(path) {
+				files = append(files, path)
+			}
 		}
-		if !isSourcePath(match[1]) {
-			continue
-		}
-		files = append(files, match[1])
 	}
 	return files
 }

@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/le/doc/readrecord"
+	speccitation "github.com/ze-software/ze/internal/le/spec/citation"
 )
 
 // The headings of the two sections a spec carries for its design.
@@ -124,11 +125,10 @@ func (s specFile) subsections(parent readrecord.Section) []readrecord.Section {
 	return inside
 }
 
-// bulletPath is the first back-quoted path of a list item.
-var bulletPath = regexp.MustCompile("^\\s*-\\s+`([^`]+)`")
-
 // modifiedPages answers the markdown pages the spec's Files to Modify bullets
-// name: the pages the spec itself changes.
+// name, every page of each bullet's path list (speccitation.BulletPaths, the
+// reading SpecSourceFiles gives the same bullets): the pages the spec itself
+// changes.
 func (s specFile) modifiedPages() []string {
 	section, found := s.section("Files to Modify")
 	if !found {
@@ -136,12 +136,10 @@ func (s specFile) modifiedPages() []string {
 	}
 	var pages []string
 	for line := range strings.SplitSeq(section.Text, "\n") {
-		match := bulletPath.FindStringSubmatch(line)
-		if match == nil {
-			continue
-		}
-		if strings.HasSuffix(match[1], ".md") {
-			pages = append(pages, match[1])
+		for _, named := range speccitation.BulletPaths(line) {
+			if strings.HasSuffix(named, ".md") {
+				pages = append(pages, named)
+			}
 		}
 	}
 	return pages

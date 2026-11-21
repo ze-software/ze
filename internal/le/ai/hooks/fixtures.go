@@ -651,11 +651,25 @@ var (
 	// Recomputed 2026-11-21 when this seal was rebased onto e1cfe24443 (the
 	// derived spec-set state seal): the digest covers both changes, neither
 	// of which altered the other's hook sources.
+	//
+	// Re-sealed 2026-11-21 for spec-host-resource-trend-alerts, on the worktree
+	// branch worktree-host-trend-alerts. A judge in a worktree finds its read
+	// records: the checkout label and key moved into one resolver
+	// (readrecord.CheckoutLabel, CheckoutKey, Store, Stores) that the read hook
+	// and spec/design's judge both call, and worktreeMainCheckout moved to
+	// lepath.WorktreeMainCheckout; main-checkout marker names are unchanged.
+	// A spec bullet's every path is read (speccitation.BulletPaths): a span in
+	// a parenthesis is skipped, a bare name resolves beside the path before it.
+	// Sealed after two rounds of independent review; round 1 found two ISSUES
+	// in the bullet reader, fixed before sealing.
+	// Recomputed 2026-11-21 when that branch was cherry-picked onto main over
+	// the panic-check seal: the digest covers both changes, neither of which
+	// altered the other's hook sources.
 	hookSourcesDigest = [sha256.Size]byte{
-		0x92, 0x84, 0x5f, 0xa8, 0x0d, 0x6d, 0x97, 0xd8,
-		0x5f, 0x96, 0xb2, 0x7c, 0x5a, 0x3b, 0x12, 0x72,
-		0xaa, 0x60, 0x97, 0x31, 0x13, 0xe2, 0x8d, 0x3e,
-		0x52, 0x7e, 0x49, 0xb4, 0x35, 0xb6, 0x17, 0x12,
+		0x8c, 0x3b, 0xbc, 0x82, 0xfa, 0xb1, 0x83, 0x51,
+		0x16, 0xaf, 0xac, 0xdc, 0x24, 0x33, 0xc5, 0xb1,
+		0xa8, 0xd0, 0x34, 0x54, 0x1a, 0xf3, 0x03, 0x87,
+		0x96, 0x6d, 0x5e, 0x58, 0xb7, 0x32, 0x77, 0x02,
 	}
 )
 

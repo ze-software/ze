@@ -25,6 +25,41 @@ func TestDesignDocumentsDerivation(t *testing.T) {
 	requireContains(t, "the derivation", answerText(t, answer), widgetPage, widgetDecision, widgetDoor, widgetCode)
 }
 
+// TestDesignDocumentsTakeEveryPageOfABullet is the defect the design judge
+// met: a Files to Modify bullet naming several pages derived only the first.
+// Method: the widget spec gains a bullet naming two design pages whose
+// description cites another, and a bullet naming a third page whose
+// parenthesis cites it too; the derivation lists the three named pages as
+// pages the spec modifies, and never the cited one.
+func TestDesignDocumentsTakeEveryPageOfABullet(t *testing.T) {
+	const (
+		firstPage  = "docs/architecture/first.md"
+		secondPage = "docs/architecture/second.md"
+		thirdPage  = "docs/architecture/third.md"
+		citedPage  = "docs/architecture/cited.md"
+	)
+	root := widgetRoot(t)
+	codeBullet := "- `" + widgetCode + "` - render in the surface\n"
+	pagesBullet := "- `" + firstPage + "`, `" + secondPage + "` - as `" + citedPage + "` says\n" +
+		"- `" + thirdPage + "` (Design: `" + citedPage + "`) - the third\n"
+	writeTree(t, root, map[string]string{
+		firstPage:  "# First\n",
+		secondPage: "# Second\n",
+		thirdPage:  "# Third\n",
+		citedPage:  "# Cited\n",
+		widgetSpec: strings.Replace(widgetSpecText, codeBullet, codeBullet+pagesBullet, 1),
+	})
+	answer, code := specdesign.Answer([]string{"documents", "spec", widgetSpec})
+	if code != 0 {
+		t.Fatalf("documents answered (%#v, %d), want exit 0", answer, code)
+	}
+	text := answerText(t, answer)
+	requireContains(t, "the derivation", text, firstPage, secondPage, thirdPage, "a page this spec modifies")
+	if strings.Contains(text, citedPage) {
+		t.Errorf("the derivation lists %s, which only a bullet's description or parenthesis cites:\n%s", citedPage, text)
+	}
+}
+
 // TestDesignDocumentsReadTheWholeHeader pins that the derivation reads the
 // whole header, as `./le doc consistency` does, and not a fixed count of
 // lines. Method: the code file's `// Design:` line is line 27, after a 26-line

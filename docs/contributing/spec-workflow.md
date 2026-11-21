@@ -89,6 +89,8 @@ it on return.
 `plan/templates/TEMPLATE.md` carries both sections.
 
 <!-- source: internal/le/spec/design/documents.go -- derive, designPage, addDecisions -->
+<!-- source: internal/le/spec/citation/anchors.go -- BulletPaths, SpecSourceFiles -->
+<!-- source: internal/le/spec/design/specfile.go -- modifiedPages -->
 `./le spec design documents spec <path>` derives the rows the table owes:
 `ai/doors/system.md`; for each source file of Files to Modify and Files to
 Create, every page its `// Design:` header names, every page under
@@ -99,6 +101,20 @@ modifies, except the guides (`docs/guide/`) and the feature pages
 of those pages. Each row prints what derived it. A page a header names that
 the checkout does not hold is listed as missing, so the header gets corrected
 rather than the row dropped.
+
+A file bullet names every back-quoted path of its path list, the text before
+its description, so a bullet listing two files separated by a comma owes the
+pages of both. The description starts at ` - `, ` -- ` or an em dash with a
+blank on each side, standing between two back-quoted spans outside every
+parenthesis, or at a colon right after a span, and its back-quoted spans (a
+symbol, a command, a file the change mirrors) name no file of the spec.
+Prose and a parenthesis between two paths do not end the list, and a span
+inside a parenthesis (why the file is listed, the file that declares it) names
+no file either. A span with no slash after one with a slash is a file in the
+same directory, the way a bullet abbreviates its later files, and one with no
+path before it is a file at the checkout root. Both readers of the bullets,
+the source files and the modified pages, take the list this way
+(`speccitation.BulletPaths`).
 
 <!-- source: internal/le/spec/design/check.go -- checkSpec, missingRows, judgeRow, quoteProblems, silentProblems, presentationProblems -->
 <!-- source: internal/le/spec/design/answers.go -- answerCheck -->
