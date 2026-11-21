@@ -230,6 +230,9 @@ func (p logPalette) valueStyle(key, value string, level slog.Level) string {
 			return p.success
 		}
 	}
+	if strings.HasPrefix(value, "\"") {
+		return p.quoted
+	}
 	return ""
 }
 

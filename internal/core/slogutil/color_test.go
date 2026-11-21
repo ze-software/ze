@@ -67,7 +67,7 @@ func TestColorizeLinePreservesValues(t *testing.T) {
 	result := ansiLogPalette.colorizeLine(line, slog.LevelInfo)
 
 	assert.Contains(t, result, ansiLogPalette.date+"2025-01-18"+ansiReset+"T"+ansiLogPalette.clock+"12:00:00.123"+ansiReset+"+05:30")
-	assert.Contains(t, result, ansiLogPalette.key+"msg="+ansiReset+`"hello world"`)
+	assert.Contains(t, result, ansiLogPalette.key+"msg="+ansiReset+ansiLogPalette.quoted+`"hello world"`+ansiReset)
 	assert.Contains(t, result, ansiLogPalette.key+"subsystem="+ansiReset+ansiLogPalette.identity+"bgp"+ansiReset)
 	assert.Equal(t, line, ansi.Strip(result))
 }
@@ -75,9 +75,10 @@ func TestColorizeLinePreservesValues(t *testing.T) {
 func TestColorizeLineStylesStateAndQuotedKeys(t *testing.T) {
 	line := `level=WARN msg="status=down" status=down "a=b"=42` + "\n"
 	result := ansiLogPalette.colorizeLine(line, slog.LevelWarn)
-	assert.Contains(t, result, ansiLogPalette.key+"msg="+ansiReset+`"status=down"`)
+	assert.Contains(t, result, ansiLogPalette.key+"msg="+ansiReset+ansiLogPalette.quoted+`"status=down"`+ansiReset)
 	assert.Contains(t, result, ansiLogPalette.failure+"down"+ansiReset)
 	assert.Contains(t, result, ansiLogPalette.key+`"a=b"=`+ansiReset+"42")
+	assert.Equal(t, line, ansi.Strip(result))
 }
 
 // VALIDATES: Plugin stderr relays recover the severity and data of a colored record.
@@ -96,10 +97,13 @@ func TestLogPaletteFollowsTerminalProfile(t *testing.T) {
 	light := logPaletteFor("0;15", colorprofile.TrueColor)
 	assert.Equal(t, "\x1b[38;2;197;181;244m", dark.date)
 	assert.Equal(t, "\x1b[38;2;98;217;244m", dark.clock)
+	assert.Equal(t, "\x1b[38;2;255;184;154m", dark.quoted)
 	assert.Equal(t, "\x1b[38;2;89;66;140m", light.date)
 	assert.Equal(t, "\x1b[38;2;0;97;116m", light.clock)
+	assert.Equal(t, "\x1b[38;2;138;69;47m", light.quoted)
 	assert.True(t, strings.HasPrefix(logPaletteFor("15;0", colorprofile.ANSI256).clock, "\x1b[38;5;"))
-	assert.Equal(t, ansiLogPalette, logPaletteFor("", colorprofile.TrueColor))
+	assert.Equal(t, "\x1b[38;5;216m", logPaletteFor("", colorprofile.TrueColor).quoted)
+	assert.Equal(t, ansiLogPalette, logPaletteFor("", colorprofile.ANSI))
 }
 
 // VALIDATES: A mid-tone background can fall back to the terminal foreground.
@@ -127,8 +131,8 @@ func TestColorizeLineQuotedValueWithEquals(t *testing.T) {
 	line := `time=2025-01-18T12:00:00Z level=ERROR msg="failed" error="key=value inside"` + "\n"
 	result := ansiLogPalette.colorizeLine(line, slog.LevelError)
 
-	assert.Contains(t, result, `"key=value inside"`)
-	assert.Contains(t, result, ansiLogPalette.key+"error="+ansiReset)
+	assert.Contains(t, result, ansiLogPalette.key+"error="+ansiReset+ansiLogPalette.quoted+`"key=value inside"`+ansiReset)
+	assert.Equal(t, line, ansi.Strip(result))
 }
 
 // TestColorizeLineEmptyLine verifies empty input returns empty output.

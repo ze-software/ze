@@ -166,15 +166,19 @@ plain text record. The RFC 3339 timestamp keeps its original format.
 | `WARN` and `degraded` | Needs attention | Bold amber `#FFCB6B` | Bold amber `#805000` | Bold bright yellow |
 | `ERROR`, `failed`, and `down` | Failure | Bold coral `#FF8D9A` | Bold crimson `#A42139` | Bold bright red |
 | `up`, `healthy`, and `success` | Positive state | Green `#9BDB8B` | Deep green `#326622` | Bright green |
-| Timestamp separator and timezone, routine severity, messages, and ordinary values | Record content | Terminal foreground | Terminal foreground | Terminal foreground |
+| Quoted values, including quotation marks | String content | Peach `#FFB89A` | Copper `#8A452F` | Palette color 216 or ANSI yellow |
+| Timestamp separator and timezone, routine severity, and unquoted ordinary values | Record content | Terminal foreground | Terminal foreground | Terminal foreground |
 
-The status words apply to `state` and `status` fields. Ze uses the background
+The status words apply to `state` and `status` fields. Component and status
+colors take precedence over quoted-value styling. Ze uses the background
 index from `COLORFGBG` as a hint and interprets it using standard ANSI palette
 values. On RGB and 256-color terminals, it checks for 4.5:1 contrast against
 that estimate after converting the foreground to the supported palette.
 When a swatch falls below that threshold, Ze uses the terminal foreground and
 keeps the bold weight for warnings and errors. If the hint is unavailable
-or the terminal only supports basic colors, Ze uses the terminal's ANSI palette.
+or the terminal only supports basic colors, Ze uses the terminal's ANSI
+palette. With no background hint and at least 256 colors, quoted values use
+peach palette color 216.
 
 Ze selects color per stdout or stderr destination. Use `--color` to force
 color for those streams and `--no-color` for plain text. Syslog and kernel

@@ -14,8 +14,8 @@ import (
 )
 
 type logPalette struct {
-	key, date, clock, identity string
-	warning, failure, success  string
+	key, date, clock, identity        string
+	warning, failure, success, quoted string
 }
 
 var ansiLogPalette = logPalette{
@@ -26,25 +26,27 @@ var ansiLogPalette = logPalette{
 	warning:  "\x1b[1;93m",
 	failure:  "\x1b[1;91m",
 	success:  "\x1b[92m",
+	quoted:   "\x1b[33m",
 }
 
 func consoleLogPalette() logPalette {
-	background := os.Getenv("COLORFGBG")
-	if background == "" {
-		return ansiLogPalette
-	}
-	return logPaletteFor(background, colorprofile.Env(os.Environ()))
+	return logPaletteFor(os.Getenv("COLORFGBG"), colorprofile.Env(os.Environ()))
 }
 
 func logPaletteFor(colorfgbg string, profile colorprofile.Profile) logPalette {
 	// COLORFGBG conventionally ends with the terminal's background index.
 	separator := strings.LastIndexByte(colorfgbg, ';')
-	if separator < 0 || profile < colorprofile.ANSI256 {
+	if profile < colorprofile.ANSI256 {
 		return ansiLogPalette
+	}
+	fallback := ansiLogPalette
+	fallback.quoted = "\x1b[38;5;216m"
+	if separator < 0 {
+		return fallback
 	}
 	backgroundIndex, err := strconv.ParseUint(colorfgbg[separator+1:], 10, 8)
 	if err != nil {
-		return ansiLogPalette
+		return fallback
 	}
 	background := logLuminance(ansi.IndexedColor(backgroundIndex))
 	style := func(dark, light uint32, bold bool) string {
@@ -74,6 +76,7 @@ func logPaletteFor(colorfgbg string, profile colorprofile.Profile) logPalette {
 		warning:  style(0xffcb6b, 0x805000, true),
 		failure:  style(0xff8d9a, 0xa42139, true),
 		success:  style(0x9bdb8b, 0x326622, false),
+		quoted:   style(0xffb89a, 0x8a452f, false),
 	}
 }
 
