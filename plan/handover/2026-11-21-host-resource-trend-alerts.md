@@ -29,8 +29,8 @@ evidence, and what stays owed), then this table.
 | 4 | `show host trend` and the three wiring `.ci` tests (AC-21 for kernel-memory) | Committed cfe98a9853 | None |
 | 5 | Tooling: a design judge in a worktree finds its read records (AC-30) | Committed a2ee440e05 | None |
 | 6 | Tooling: every path of a spec bullet owes its design pages, hook seal re-taken (AC-31) | Committed baf7b18b8c | None |
-| 7 | Design approval | Judged approve (digest 1632cd34d203); `./le spec design check` says ready to present | Thomas runs, from his own terminal in the worktree: `./le spec design approve spec plan/release/validation/spec-host-resource-trend-alerts.md words "<what he said>"` |
-| 8 | Claim and status | Not claimed: the WIP cap is 12 and 18 specs are in progress | Thomas decides: close specs first, or authorise this claim above the cap. Then the session sets Status `ready`, runs `./le spec claim`, and the commit carrying the spec takes the `Design-approved:` trailer from the local record |
+| 7 | Design approval | Approved by Thomas on 2026-11-21 (digest 1632cd34d203, 57 rows: 28 agrees, 1 departs, 28 silent). The record is local to this worktree, `tmp/spec-design/approved/spec-host-resource-trend-alerts.md` | None |
+| 8 | Status `ready` and the claim | Status still `design`: the spec-edit gate owes the editing session reads of every cited source and door, and a subagent may never move a spec to ready. The claim waits on the WIP cap (12, with 18 in progress) | A main session IN THIS WORKTREE ON THE SERVER, before the branch is carried to the laptop (the approval record reaches no other checkout; only the `Design-approved:` trailer of the commit that carries the spec does): read what the gate names, set Status `ready`, commit the spec through `./le commit create` (it writes the trailer), then claim once Thomas settles the cap |
 | 9 | The rest of the spec | Owed, listed in `## First version`, "Owed after the first version" | A fresh session, after 7 and 8 |
 
 The strongest-tier model was rate-limited until 2026-11-22 06:00 Europe/London,
