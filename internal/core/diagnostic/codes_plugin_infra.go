@@ -52,7 +52,7 @@ const (
 	CodeDoctorHubClientMissing              = "doctor-hub-client-missing"
 	CodeDoctorManagedDiverged               = "doctor-managed-diverged"
 	CodeDoctorManagedClientDiverged         = "doctor-managed-client-diverged"
-	CodeDoctorPluginRemovalUnrecovered     = "doctor-plugin-removal-unrecovered"
+	CodeDoctorPluginRemovalUnrecovered      = "doctor-plugin-removal-unrecovered"
 	CodeDoctorPluginCapabilitiesNotRestored = "doctor-plugin-capabilities-not-restored"
 	CodeDoctorCommandEnsureRollbackFailed   = "doctor-command-ensure-rollback-failed"
 	CodeDoctorCommandDeprecatedUsed         = "doctor-command-deprecated-used"
