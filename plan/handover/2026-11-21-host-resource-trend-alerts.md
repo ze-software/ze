@@ -2,9 +2,10 @@
 
 Written 2026-11-21 by the session that built the first version on the server
 (`claude`), in the worktree `.claude/worktrees/host-trend-alerts`, branch
-`worktree-host-trend-alerts`, based on upstream `0178ed7e22`. Thomas lands the
-branch on `main` from his laptop with `git rebase worktree-host-trend-alerts`.
-Nothing is pushed; a push needs his order.
+`worktree-host-trend-alerts`, based on upstream `0178ed7e22`. On 2026-11-21
+Thomas cherry-picked the branch's commits onto `main` on the server; the
+commits this handover names are those on `main`. Nothing is pushed; a push
+needs his order.
 
 Thomas's order: build a first simple version of
 `plan/release/validation/spec-host-resource-trend-alerts.md`, one rule
@@ -23,14 +24,14 @@ evidence, and what stays owed), then this table.
 
 | # | Work | State | First action |
 |---|------|-------|--------------|
-| 1 | Level history and growth pattern (AC-1 to AC-3) | Committed 6cf4b12c26 | None |
-| 2 | Shared confirm-and-clear machine, ddos-detect converted (AC-5 half) | Committed 2829eaf0da | None |
-| 3 | Trend monitor, kernel-memory rule, doctor checks, hub start (AC-6 to AC-8, AC-12, AC-17 to AC-19) | Committed d2376b7e29 | None |
-| 4 | `show host trend` and the three wiring `.ci` tests (AC-21 for kernel-memory) | Committed cfe98a9853 | None |
-| 5 | Tooling: a design judge in a worktree finds its read records (AC-30) | Committed a2ee440e05 | None |
-| 6 | Tooling: every path of a spec bullet owes its design pages, hook seal re-taken (AC-31) | Committed baf7b18b8c | None |
+| 1 | Level history and growth pattern (AC-1 to AC-3) | Committed 4d5177f028 | None |
+| 2 | Shared confirm-and-clear machine, ddos-detect converted (AC-5 half) | Committed 068e65a274 | None |
+| 3 | Trend monitor, kernel-memory rule, doctor checks, hub start (AC-6 to AC-8, AC-12, AC-17 to AC-19) | Committed 6f9b32018e | None |
+| 4 | `show host trend` and the three wiring `.ci` tests (AC-21 for kernel-memory) | Committed fa71668d95 | None |
+| 5 | Tooling: a design judge in a worktree finds its read records (AC-30) | Committed 8452f3a80e | None |
+| 6 | Tooling: every path of a spec bullet owes its design pages, hook seal re-taken (AC-31) | Committed 513ae092e0 | None |
 | 7 | Design approval | Approved by Thomas on 2026-11-21 (digest 1632cd34d203, 57 rows: 28 agrees, 1 departs, 28 silent). The record is local to this worktree, `tmp/spec-design/approved/spec-host-resource-trend-alerts.md` | None |
-| 8 | Status `ready` and the claim | Status `ready`, committed in this worktree on the server with its `Design-approved:` trailer. The claim waits on the WIP cap (12, with 17 in progress on 2026-11-21) | Claim once Thomas settles the cap: `./le spec claim spec-host-resource-trend-alerts.md` |
+| 8 | Status `ready` and the claim | Status `ready`, committed on `main` as aa08974581 with its `Design-approved:` trailer. The claim waits on the WIP cap (12, with 17 in progress on 2026-11-21) | Claim once Thomas settles the cap: `./le spec claim spec-host-resource-trend-alerts.md` |
 | 9 | The rest of the spec | Owed, listed in `## First version`, "Owed after the first version" | A fresh session, after 7 and 8 |
 
 The strongest-tier model was rate-limited until 2026-11-22 06:00 Europe/London,
