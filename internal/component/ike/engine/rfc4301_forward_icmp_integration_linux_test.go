@@ -331,10 +331,6 @@ func runICMPForwarding(t *testing.T, ifID uint32, check, decision bool) {
 	}
 }
 
-// XFRM_STATE_ICMP gates the immutable state-selector fallback before the FWD policy
-// lookup. With checking disabled, this UDP Child SA refuses the error's own ICMP
-// headers, regardless of its quote. No explicit receive entry authorizes those headers.
-
 // TestRFC4301ForwardedICMPUsesPayloadPolicy checks that a forwarded ICMP error that
 // arrives on a tunnel-mode Child SA whose state carries XFRM_STATE_ICMP, and whose own
 // headers the SA's UDP selectors do not cover, is judged by its quoted header. Method:
@@ -375,11 +371,23 @@ func TestRFC4301ForwardedICMPUsesPayloadPolicyOnXFRMInterface(t *testing.T) {
 	runICMPForwarding(t, icmpForwardIfID, true, false)
 }
 
+// TestRFC4301ForwardedICMPWithoutStateCheckRequiresOwnHeadersToMatch is the check=false
+// half of TestRFC4301ForwardedICMPUsesPayloadPolicy. XFRM_STATE_ICMP gates the immutable
+// state-selector fallback before the FWD policy lookup. With checking disabled, this UDP
+// Child SA refuses the error's own ICMP headers, regardless of its quote: no explicit
+// receive entry authorizes those headers. Method: runICMPForwarding with checking off at
+// if_id 0, so both the consistent and the inconsistent error raise the kernel's reject
+// counter by one and neither reaches the protected host.
+//
 //ze:guest-root
 func TestRFC4301ForwardedICMPWithoutStateCheckRequiresOwnHeadersToMatch(t *testing.T) {
 	runICMPForwarding(t, 0, false, false)
 }
 
+// TestRFC4301ForwardedICMPWithoutStateCheckRequiresOwnHeadersToMatchOnXFRMInterface is
+// the same check=false half on an XFRM interface (if_id icmpForwardIfID): without
+// XFRM_STATE_ICMP the error's own ICMP headers are refused whatever its quote.
+//
 //ze:guest-root
 func TestRFC4301ForwardedICMPWithoutStateCheckRequiresOwnHeadersToMatchOnXFRMInterface(t *testing.T) {
 	runICMPForwarding(t, icmpForwardIfID, false, false)

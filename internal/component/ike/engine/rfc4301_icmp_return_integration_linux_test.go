@@ -589,6 +589,17 @@ func TestRFC4301LocalGeneratedICMPUsesReturnSA(t *testing.T) {
 	localICMPReturn(t, true)
 }
 
+// TestRFC4301LocalGeneratedICMPWithoutMappingFlagDoesNotUseReturnSA is the control of
+// TestRFC4301LocalGeneratedICMPUsesReturnSA: it shows that the positive's error leaves on
+// the return SA because the Child SA carries the mapping flag, and not on any Child SA.
+// Method: the same authenticated trigger to a closed port arrives on a Child SA whose
+// peer configuration skips the ICMP error check (PeerCfg.SkipICMPErrorCheck), so its
+// inbound state carries no XFRM_STATE_ICMP. The namespace's UDP NoPorts counter still
+// rises by one, and the tagged UDP control still leaves through the same SA, so the SA
+// is live; the outside peer's capture must then see the generated error neither decrypted
+// from that SA nor in clear within the observation window.
+// It carries no RFC tag: it bounds the positive, and proves no clause on its own.
+//
 //ze:guest-root
 func TestRFC4301LocalGeneratedICMPWithoutMappingFlagDoesNotUseReturnSA(t *testing.T) {
 	localICMPReturn(t, false)

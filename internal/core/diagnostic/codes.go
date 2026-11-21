@@ -123,6 +123,7 @@ const (
 	CodeDoctorIPsecXFRMUnknown                     = "doctor-ipsec-xfrm-unknown"
 	CodeDoctorIPsecMOBIKEUnavailable               = "doctor-ipsec-mobike-unavailable"
 	CodeDoctorIPsecMOBIKEUnknown                   = "doctor-ipsec-mobike-unknown"
+	CodeDoctorIPsecMOBIKESocketNotShared           = "doctor-ipsec-mobike-socket-not-shared"
 	CodeDoctorIPsecESPUnavailable                  = "doctor-ipsec-esp-unavailable"
 	CodeDoctorIPsecESPUnknown                      = "doctor-ipsec-esp-unknown"
 	CodeDoctorIPsecTransformUnavailable            = "doctor-ipsec-transform-unavailable"
@@ -1655,6 +1656,20 @@ var builtinCodes = append([]CodeMeta{
 			"nor rules out the handler. Ze does not offer MOBIKE until the answer is present. This " +
 			"is a WARNING and it does not refuse a start. Remedy: run `ze doctor` as root.",
 		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-mobike-unknown"},
+		RelatedCodes: []string{CodeDoctorIPsecMOBIKEUnavailable},
+	},
+	{
+		Code:  CodeDoctorIPsecMOBIKESocketNotShared,
+		Title: "IPsec MOBIKE peer restarted: the reopened sockets lack the shared NAT-T socket",
+		Description: "The interface address a MOBIKE peer uses moved, and the socket pair Ze reopened at the new " +
+			"address did not take the one port-4500 socket Ze shares between addresses. The peer's IKE SA sends " +
+			"from that shared socket alone, so MOBIKE cannot move it, and Ze restarts the peer from the new " +
+			"address instead: its tunnel carries no traffic until it renegotiates. Ze shares the socket only while " +
+			"the dataplane can migrate a tunnel and the ze.test.ike.port test override is unset, and that answer " +
+			"changed after the peer's session opened. This is an ERROR event, raised once per peer and move. " +
+			"Remedy: unset ze.test.ike.port if it is set, then restart Ze with `ze signal restart` so every " +
+			"socket follows one decision.",
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-mobike-socket-not-shared"},
 		RelatedCodes: []string{CodeDoctorIPsecMOBIKEUnavailable},
 	},
 	{

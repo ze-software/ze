@@ -5,9 +5,12 @@
 package engine
 
 import (
+	"bytes"
 	"errors"
+	"log/slog"
 	"net"
 	"runtime"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -15,7 +18,9 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/transport"
 	"github.com/ze-software/ze/internal/component/ike/wire"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // imFixture is an engine running one `vpn ipsec interface` peer on its primary pair at
@@ -169,6 +174,49 @@ func TestInterfaceMoveKeepsMOBIKESession(t *testing.T) {
 	mbRequireNotify(t, inner, wire.NotifyCookie2)
 	if pending := f.sa.mobike.pending; pending == nil || !pending.update || !pending.local.IP.Equal(wantLocal.IP) {
 		t.Fatalf("no address update is outstanding from 127.0.0.2: %+v", pending)
+	}
+}
+
+// VALIDATES: a MOBIKE session whose reopened pair does not take the shared NAT-T socket
+// is stopped, and the restart is logged at Error and raised once on the report bus
+// under doctor-ipsec-mobike-socket-not-shared, naming the peer, the cause (the socket
+// sharing decision changed) and the restart that fixes it, never the kernel's
+// migration support, which the session already had.
+// METHOD: the fixture of TestInterfaceMoveKeepsMOBIKESession with SA.mobikeUp set, its
+// socket sharing then turned off (shareNATTFn) before the real address worker step
+// moves the interface; read the session, the log and the recorded issues.
+// PREVENTS: the restart reported under doctor-ipsec-mobike-unavailable with a
+// CONFIG_XFRM_MIGRATE fix, which sends the operator to rebuild a kernel that is fine.
+func TestInterfaceMoveWithoutTheSharedSocketReportsTheCause(t *testing.T) {
+	f := imInterfaceSession(t, true)
+	var logged bytes.Buffer
+	f.state.log = slog.New(slog.NewTextHandler(&logged, nil))
+	raiser := &espFormRecordedIssues{}
+	f.state.issueRaiser = raiser
+	shareNATTFn = func() bool { return false }
+
+	f.wan.set("127.0.0.2")
+	f.state.followAddress()
+
+	if !f.ps.stopped() {
+		t.Fatal("a MOBIKE session survived a move whose reopened pair lacks the shared NAT-T socket")
+	}
+	out := logged.String()
+	code := diagnostic.CodeDoctorIPsecMOBIKESocketNotShared
+	if !strings.Contains(out, "level=ERROR") || !strings.Contains(out, "code="+code) ||
+		!strings.Contains(out, "test-peer") || !strings.Contains(out, "ze.test.ike.port") {
+		t.Fatalf("the restart is not logged at Error with its code, peer and cause:\n%s", out)
+	}
+	if strings.Contains(out, diagnostic.CodeDoctorIPsecMOBIKEUnavailable) || strings.Contains(out, "CONFIG_XFRM_MIGRATE") {
+		t.Fatalf("the restart is reported as missing kernel migration support:\n%s", out)
+	}
+	if len(raiser.issues) != 1 {
+		t.Fatalf("the restart raised %d report-bus issues, want 1: %+v", len(raiser.issues), raiser.issues)
+	}
+	issue := raiser.issues[0]
+	if issue.Code != code || issue.Severity != rpc.ReportError || issue.Fix != spdInstallFixRestart {
+		t.Fatalf("the raised issue is %s/%s with fix %q, want %s/%s with fix %q",
+			issue.Severity, issue.Code, issue.Fix, rpc.ReportError, code, spdInstallFixRestart)
 	}
 }
 

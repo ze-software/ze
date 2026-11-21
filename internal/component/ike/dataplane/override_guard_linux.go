@@ -93,7 +93,7 @@ func (b *xfrmBackend) OverrideGuardState() (OverrideGuardState, error) {
 // program refuses that setsockopt (do_sock_setsockopt runs it before the protocol
 // handler) to every process in Ze's network namespace except this one, which
 // sets the ESP form reader's policy and the bypass on each of its IKE sockets
-// (transport.bypassIKESocket). The exemption names this process
+// (BypassIKESocket). The exemption names this process
 // by its tgid in its own PID namespace, read through that namespace's device and
 // inode: in a container the tgid the initial namespace sees is another number.
 func (g *overrideGuard) attach() error {

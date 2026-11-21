@@ -9,8 +9,10 @@ import (
 )
 
 // bypassDP records both halves of the policy traffic, which mockDP (child_test.go)
-// does not: it drops removals on the floor, and this file has to assert that what
-// shutdown releases is exactly what start installed.
+// does not: mockDP drops removals on the floor, and the package's catch-all, SPD
+// lifecycle and Child SA teardown tests assert that what is released is exactly what
+// was installed. installErr refuses every policy install with that error, for the
+// tests of a refused install (create_child_fix_test.go).
 type bypassDP struct {
 	installed  []dataplane.SPParams
 	removed    []dataplane.SPParams
@@ -122,6 +124,11 @@ func keyOf(p dataplane.SPParams) spKey {
 // explicit non-zero rank an operator order can be placed on either side of.
 // PREVENTS: a Child SA policy at the implicit 0, which no operator order can beat.
 func TestChildSAPoliciesCarryChildPriority(t *testing.T) {
+	// Compared with the constant below, a PriorityChildSA of 0 would pass the sweep
+	// while every Child SA policy sat at the implicit 0 no operator order can beat.
+	if dataplane.PriorityChildSA <= 0 {
+		t.Fatalf("PriorityChildSA = %d, want an explicit positive rank", dataplane.PriorityChildSA)
+	}
 	sa := testSA()
 	dp := &mockDP{}
 	log := slogutil.DiscardLogger()

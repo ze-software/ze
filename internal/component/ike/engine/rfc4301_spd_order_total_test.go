@@ -174,3 +174,43 @@ func TestSPDPolicySameSelectorRefused(t *testing.T) {
 		t.Fatalf("an out entry and an in entry over the same prefixes were refused: %v", err)
 	}
 }
+
+// VALIDATES: two operator entries that share a selector only through a bypass's transit
+// gate are refused with a message naming that gate and its entry, and saying why a
+// different order does not separate them; two that share a half are refused without
+// naming a gate.
+// METHOD: verifySPDOrder over a both-direction bypass and its mirror (local and remote
+// swapped) at distinct orders, then over the out and both entries of
+// TestSPDPolicySameSelectorRefused.
+// PREVENTS: a refusal that tells the operator the two entries name the same selector
+// when neither names it as written, which sends them looking for a duplicate entry.
+func TestSPDPolicyGateCollisionNamesTheGate(t *testing.T) {
+	forward := orderTotalEntry(t, "a-net", "10.1.0.0/16", "192.0.2.0/24", 1000)
+	mirror := orderTotalEntry(t, "b-mirror", "192.0.2.0/24", "10.1.0.0/16", 2000)
+	err := verifySPDOrder(&ipsec.IPsecConfig{Policies: map[string]ipsec.SPDPolicy{"a-net": forward, "b-mirror": mirror}})
+	refusal, ok := errors.AsType[*opererr.Error](err)
+	if !ok {
+		t.Fatalf("a bypass and its mirror answered %v, want an operator error", err)
+	}
+	if !strings.Contains(refusal.Problem(), "through the forwarding gate of vpn ipsec policy a-net") {
+		t.Fatalf("the refusal does not name the gate and its entry: %q", refusal.Problem())
+	}
+	if !strings.Contains(refusal.Why(), "a different order does not separate them") {
+		t.Fatalf("the refusal does not say why an order change cannot fix it: %q", refusal.Why())
+	}
+	if refusal.Fix() != "delete vpn ipsec policy b-mirror" {
+		t.Fatalf("the refusal's fix is %q", refusal.Fix())
+	}
+
+	out := orderTotalEntry(t, "out", "10.1.0.0/16", "192.0.2.0/24", 1000)
+	out.Direction = ipsec.SPDDirOut
+	both := orderTotalEntry(t, "both", "10.1.0.0/16", "192.0.2.0/24", 1500)
+	err = verifySPDOrder(&ipsec.IPsecConfig{Policies: map[string]ipsec.SPDPolicy{"out": out, "both": both}})
+	refusal, ok = errors.AsType[*opererr.Error](err)
+	if !ok {
+		t.Fatalf("two entries with one outbound selector answered %v, want an operator error", err)
+	}
+	if strings.Contains(refusal.Problem(), "forwarding gate") {
+		t.Fatalf("a collision of two halves names a gate: %q", refusal.Problem())
+	}
+}

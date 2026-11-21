@@ -5,7 +5,10 @@
 package engine
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"strings"
 	"sync/atomic"
@@ -18,6 +21,13 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
+// VALIDATES: the engine declares ipsec-forward-default as a runtime doctor check with an
+// answer, under the one code doctor-ipsec-forward-default, and that code has an operator
+// description.
+// METHOD: find the check in engineDoctorChecks and read its declaration and the code's
+// registered description.
+// PREVENTS: a namespace FWD-default dependency `ze doctor` never asks about, or reports
+// under a code with no description.
 func TestDoctorIPsecForwardDefaultRegistered(t *testing.T) {
 	// zeSetup populates the diagnostic descriptions after package init.
 	diagnostic.RegisterBuiltinCodes()
@@ -48,6 +58,13 @@ type forwardDefaultDoctorDP struct {
 
 func (d *forwardDefaultDoctorDP) CheckForwardDefault() error { d.checks++; return d.failure }
 
+// VALIDATES: the check reads the loaded backend's live forwarding default once when the
+// backend uses one, and never when it does not; a healthy read answers nothing, and a
+// failed read answers one error that keeps the backend's problem, reason and fix.
+// METHOD: answer the registered check over a backend that is healthy, one whose live
+// check fails, and one that does not use the forwarding default, counting the reads.
+// PREVENTS: a check that answers from a cached or assumed state, one that invents a
+// finding for a backend without the strategy, and a finding that drops the fix.
 func TestDoctorIPsecForwardDefaultReadsTheLiveChecker(t *testing.T) {
 	var answer func(*ikeEngineState) []rpc.DoctorCheckDiagnostic
 	for _, check := range engineDoctorChecks {
@@ -81,7 +98,7 @@ func TestDoctorIPsecForwardDefaultReadsTheLiveChecker(t *testing.T) {
 				return
 			}
 			if len(findings) != 1 || findings[0].Code != diagnostic.CodeDoctorIPsecForwardDefault ||
-				findings[0].Severity != severityWarning || findings[0].Fix != "test-inspect-forward-default" ||
+				findings[0].Severity != severityError || findings[0].Fix != "test-inspect-forward-default" ||
 				!strings.Contains(findings[0].Message, "namespace cannot be read") || !strings.Contains(findings[0].Message, "disposition is unknown") {
 				t.Fatalf("live failure lost its operator problem/why/fix: %+v", findings)
 			}
@@ -89,6 +106,55 @@ func TestDoctorIPsecForwardDefaultReadsTheLiveChecker(t *testing.T) {
 	}
 }
 
+// VALIDATES: one forwarding-default failure carries one severity on every surface: the
+// doctor finding for a backend error that is not an operator error is an error whose fix
+// is the restart that reads and claims the default again, and the coded log line of a
+// failed removal is at Error, as its report-bus event is (rpc.ReportError).
+// METHOD: answer the check over a backend whose live check fails with a plain error;
+// then fail a final-entry removal and read the log.
+// PREVENTS: a doctor warning, a log warning and a report-bus error for one failure, and a
+// fallback fix (dmesg) that only diagnoses.
+func TestForwardDefaultFailureIsAnErrorOnEverySurface(t *testing.T) {
+	var answer func(*ikeEngineState) []rpc.DoctorCheckDiagnostic
+	for _, check := range engineDoctorChecks {
+		if check.decl.Name == "ipsec-forward-default" {
+			answer = check.answer
+		}
+	}
+	if answer == nil {
+		t.Fatal("the live forwarding-default check is not registered")
+	}
+	dp := &forwardDefaultDoctorDP{spdDP: newSPDDP(), enabled: true, failure: errors.New("test: netlink dump refused")}
+	loadESPFormBackend(t, dp)
+	findings := answer(nil)
+	if len(findings) != 1 || findings[0].Severity != severityError || findings[0].Fix != spdInstallFixRestart ||
+		!strings.Contains(findings[0].Message, "netlink dump refused") {
+		t.Fatalf("a plain backend failure is not an error finding with the restart fix: %+v", findings)
+	}
+
+	removal := &forwardDefaultTestDP{spdDP: newSPDDP(), enabled: true}
+	if err := installUnmatched(removal, dataplane.SPActionDiscard, slogutil.DiscardLogger()); err != nil {
+		t.Fatal(err)
+	}
+	removal.removeErr = fmt.Errorf("test: final entry is busy")
+	var logged bytes.Buffer
+	removeUnmatched(removal, slog.New(slog.NewTextHandler(&logged, nil)), nil)
+	out := logged.String()
+	if !strings.Contains(out, "level=ERROR") || !strings.Contains(out, "code="+diagnostic.CodeDoctorIPsecForwardDefault) {
+		t.Fatalf("the failed removal is not logged at Error under its doctor code:\n%s", out)
+	}
+	if strings.Contains(out, "level=WARN") {
+		t.Fatalf("the failed removal is logged at Warn as well:\n%s", out)
+	}
+}
+
+// VALIDATES: a final-entry removal that fails keeps the namespace FWD default claimed,
+// raises one report-bus error naming the subject, the cause and a sudo fix, and the next
+// removal that succeeds releases the default without raising another.
+// METHOD: install the discard catch-all, fail its removal once and read the raised
+// issues and the release count, then remove it again with the failure cleared.
+// PREVENTS: a default released while the catch-all still stands, a failure raised once
+// per retry, and a removal never retried after a failure.
 func TestForwardDefaultRemovalFailureRaisesOneEventAndRetries(t *testing.T) {
 	dp := &forwardDefaultTestDP{spdDP: newSPDDP(), enabled: true}
 	if err := installUnmatched(dp, dataplane.SPActionDiscard, slogutil.DiscardLogger()); err != nil {
@@ -127,9 +193,13 @@ type forwardDefaultCloseDP struct {
 
 func (d *forwardDefaultCloseDP) Close() error { return d.close() }
 
-// The actual runEngine error exit must release dataplane state before explicitly
-// closing its SDK. A broken peer cannot receive a report, but must not change this
+// VALIDATES: the actual runEngine error exit releases dataplane state before it closes
+// its SDK connection. A broken peer cannot receive a report, but must not change this
 // ownership order; the connected clean exit then retains its reporting opportunity.
+// METHOD: run the engine over a registered backend whose Close records whether the SDK
+// connection was already closed, with the SDK's far end closed so the run exits.
+// PREVENTS: an SDK closed before the dataplane release, so a release failure can no
+// longer be reported.
 func TestForwardDefaultEngineCleanupKeepsSDKUntilDataplaneRelease(t *testing.T) {
 	ours, theirs := net.Pipe()
 	if err := theirs.Close(); err != nil {

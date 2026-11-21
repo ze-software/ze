@@ -133,6 +133,11 @@ func TestVPPRealDataplaneInstalls(t *testing.T) {
 	// so the order `show ipsec spd` prints them in is what the SPD sort order IS. This
 	// run is the measurement vppPriority (vpp_policy.go) cites: the chain is DESCENDING,
 	// which is what its negation assumes.
+	//
+	// The PROTECT policy also brings the backend's own IKE BYPASS entries for its
+	// tunnel source, realVPPLocal (ensureIKEBypass), and the run asserts VPP lists the
+	// two outbound ones ahead of both policies (outboundSPDFault,
+	// internal/le/test/deployment/vppevidencerun.go).
 	_, protectSrc, err := net.ParseCIDR("192.0.2.0/24")
 	if err != nil {
 		t.Fatalf("ParseCIDR: %v", err)
@@ -172,7 +177,7 @@ func TestVPPRealDataplaneInstalls(t *testing.T) {
 		Dir:        SADirOut,
 		IfIndex:    swIfIndex,
 		Action:     SPActionBypass,
-		Priority:   testBypassPriority,
+		Priority:   testOperatorOrder,
 		UpperProto: 17, // UDP
 		DstPort:    ExactPortMatch(500),
 	}

@@ -1,5 +1,5 @@
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- SPD dispositions
-// Related: spd_policy.go -- installSPDPolicies and installSPDPoliciesAtStart, the reconcilers under test
+// Related: spd_policy.go -- reconcileSPDPolicies and installSPDPoliciesAtStart, the reconcilers under test
 // Related: doctor_spd_install.go -- the ipsec-spd-install check the start-time refusal feeds
 // RFC: rfc/short/rfc4301.md -- the SPD management interface (Section 4.4.1)
 
@@ -238,9 +238,12 @@ func TestSPDInstallRefusedAtStartIsReportedByDoctor(t *testing.T) {
 
 // VALIDATES: AC-15, "the dataplane receives the entries in order, never in map order".
 // METHOD: reconcile entries whose orders are not their name order onto a recording
-// backend, many times, and read the order of the operator writes.
-// PREVENTS: installSPDPolicies ranging over the map, which handed the backend a new
-// sequence on every apply.
+// backend, many times, and read the order of the operator writes. c-middle and
+// d-middle share order 2000 on disjoint local prefixes, a tie the commit door accepts
+// because the two cannot match one packet (spdOrderRefusals refuses only an
+// overlapping tie), so the name decides their sequence.
+// PREVENTS: the SPD reconciler (reconcileSPDPolicies) ranging over the map, which
+// handed the backend a new sequence on every apply.
 func TestSPDEntriesReachTheDataplaneInOrder(t *testing.T) {
 	entries := map[string]ipsec.SPDPolicy{}
 	for name, spec := range map[string]struct {

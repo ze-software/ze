@@ -93,7 +93,7 @@ func TestMOBIKERouteSourceUnderTheCatchAllDiscard(t *testing.T) {
 	if err := installUnmatched(dp, dataplane.SPActionDiscard, log); err != nil {
 		t.Fatalf("install the catch-all: %v", err)
 	}
-	t.Cleanup(func() { removeUnmatched(dp, log) })
+	t.Cleanup(func() { removeUnmatched(dp, log, nil) })
 
 	// Positive control: the catch-all is in force for a socket that carries no IKE socket bypass, so
 	// the assertion below discriminates a lookup that crosses the SPD from one that

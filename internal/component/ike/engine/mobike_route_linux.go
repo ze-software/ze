@@ -19,7 +19,7 @@ import (
 // It asks the routing table itself (RTM_GETROUTE), as strongSwan's kernel-netlink
 // get_source_addr does, and never connects a socket. A UDP connect is an output
 // route lookup the kernel runs through the XFRM SPD, and an ephemeral socket carries
-// none of the per-socket bypass Ze's IKE sockets do (transport.bypassIKESocket), so under Ze's SPD catch-all DISCARD (the default,
+// none of the per-socket bypass Ze's IKE sockets do (dataplane.BypassIKESocket), so under Ze's SPD catch-all DISCARD (the default,
 // RFC 4301 Section 4.4.1) the connect fails with EPERM and the new source of a
 // moved address would never be found (RFC 4555 Section 3.5).
 func routeSourceTo(remote net.IP) (net.IP, error) {

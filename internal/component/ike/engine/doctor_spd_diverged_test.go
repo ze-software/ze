@@ -16,8 +16,10 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// installSPDPolicies reconciles entries onto dp the way a reload does and answers only
-// the refusal. It serves the tests that judge what the reconcile writes, which read the
+// installSPDPolicies is a test helper, not production code: no production function of
+// this name exists since the reconciler became reconcileSPDPolicies. It reconciles
+// entries onto dp the way a reload does and answers only the refusal. It serves the
+// tests that judge what the reconcile writes, which read the
 // dataplane itself; the divergence the reconcile also answers is judged here, through
 // applyConfig and answerSPDInstall.
 func installSPDPolicies(dp dataplane.Dataplane, previous, next map[string]ipsec.SPDPolicy, log *slog.Logger) error {

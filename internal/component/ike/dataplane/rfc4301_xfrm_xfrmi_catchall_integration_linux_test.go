@@ -140,7 +140,7 @@ func installForTest(t *testing.T, b *xfrmBackend, p SPParams) {
 // TestXFRMInterfaceExemptionPassesTheCatchAllInKernel measures the four flows.
 //
 // The exemption shapes are written out here rather than imported, for the reason
-// ikeBypassOut gives: the engine imports this package. TestXFRMInterfaceExemptionSelectors
+// operatorBypassOut gives: the engine imports this package. TestXFRMInterfaceExemptionSelectors
 // (engine) pins the engine-side shape; this pins what the kernel does with it.
 func TestXFRMInterfaceExemptionPassesTheCatchAllInKernel(t *testing.T) {
 	if !userns.Enter(t) {

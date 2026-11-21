@@ -4,6 +4,9 @@
 package engine
 
 import (
+	"cmp"
+	"errors"
+	"slices"
 	"strings"
 	"testing"
 
@@ -76,5 +79,47 @@ func TestIKESocketBypassReadsEverySocketOnce(t *testing.T) {
 	}
 	if !failures[0].natT || failures[0].address != natt.LocalAddr().String() || failures[0].cause != refused.Error() {
 		t.Fatalf("the check read %+v, want the NAT-T socket at %s refused with %q", failures[0], natt.LocalAddr(), refused)
+	}
+}
+
+// VALIDATES: every socket the engine holds is read once and reported once, whatever
+// the host: a shared NAT-T socket a pair also holds is one finding, and the primary
+// IKE socket is a finding of its own.
+// METHOD: hold one NAT-T socket as the primary pair's member and as the shared socket,
+// beside a primary IKE socket, and read them through a record that refuses every
+// socket, counting each read. TestIKESocketBypassReadsEverySocketOnce reads the real
+// record, which refuses nothing on a privileged host, where the dedupe goes unjudged.
+// PREVENTS: a shared socket reported twice, or one the engine holds never read.
+func TestIKESocketBypassRefusedEverywhereIsReportedOncePerSocket(t *testing.T) {
+	ike, err := transport.NewUDPTransport("127.0.0.1:0", slogutil.DiscardLogger())
+	if err != nil {
+		t.Fatalf("open the IKE socket: %v", err)
+	}
+	natt, err := transport.NewNATTTransport("127.0.0.1:0", slogutil.DiscardLogger())
+	if err != nil {
+		t.Fatalf("open the NAT-T socket: %v", err)
+	}
+	state := applyTestState(t) // its cleanup closes both sockets (closeAllListeners)
+	state.listeners.ike = ike
+	state.listeners.natt = natt
+	state.listeners.nattShared = true
+	state.sharedNATT = natt
+
+	reads := make(map[*transport.UDPTransport]int)
+	refusal := "setsockopt IP_XFRM_POLICY: operation not permitted"
+	failures := state.ikeSocketBypassFailuresRead(func(socket *transport.UDPTransport) error {
+		reads[socket]++
+		return errors.New(refusal)
+	})
+	if len(reads) != 2 || reads[ike] != 1 || reads[natt] != 1 {
+		t.Fatalf("the check read the sockets %v, want the IKE and the NAT-T socket once each", reads)
+	}
+	want := []ikeSocketBypassFailure{
+		{address: ike.LocalAddr().String(), cause: refusal},
+		{address: natt.LocalAddr().String(), natT: true, cause: refusal},
+	}
+	slices.SortFunc(want, func(a, b ikeSocketBypassFailure) int { return cmp.Compare(a.address, b.address) })
+	if !slices.Equal(failures, want) {
+		t.Fatalf("the check found %+v, want each held socket once %+v", failures, want)
 	}
 }

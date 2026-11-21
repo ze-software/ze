@@ -197,7 +197,9 @@ func TestPolicySelectorsOverlapExported(t *testing.T) {
 // The kernel tells policies apart by selector, never by action, so another peer's
 // forward PROTECT policy on the same selector must neither replace the allow nor be
 // deleted with it, and the allow must not replace that peer's PROTECT policy either.
-// A node-wide template-free entry on the same selector stays unowned. Method: claim,
+// A node-wide template-free entry on the same selector is refused too, since the kernel
+// would replace the peer's entry with it whatever its priority
+// (TestPolicyOwnersRefuseANodeWideEntryOnAnOwnedSelector). Method: claim,
 // release and deleteThenRelease, the three calls InstallPolicy and RemovePolicyParams
 // make, with a delete that records whether it ran.
 func TestPolicyOwnersOwnAChildSAForwardAllow(t *testing.T) {
@@ -220,8 +222,9 @@ func TestPolicyOwnersOwnAChildSAForwardAllow(t *testing.T) {
 	if _, err := o.claim(protect); !errors.As(err, &owned) {
 		t.Fatalf("claim(peer-b forward protect on peer-a's selector) = %v, want PolicyOwnedError", err)
 	}
-	if _, err := o.claim(operator); err != nil {
-		t.Fatalf("claim(node-wide operator bypass) = %v, want it untracked", err)
+	if _, err := o.claim(operator); !errors.As(err, &owned) || owned.HeldBy != "peer-a" || owned.WantedRole != PolicyRoleOperator {
+		t.Fatalf("claim(node-wide operator bypass on peer-a's selector) = %v, want a PolicyOwnedError "+
+			"held by peer-a and wanted by the operator role: the kernel would replace peer-a's allow with it", err)
 	}
 	ran := false
 	foreign := allow

@@ -4,8 +4,8 @@
 // backend and asserts nothing about VPP's verdict; the deployment run
 // (internal/le/test/deployment/vppevidencecleartext.go, `./le test deployment vpp`)
 // then injects the packets with VPP's packet generator, reads VPP's own counters
-// and trace, and holds them to RFC 4301 Section 5.2. The SA's SPI, tunnel ends and
-// key are twins of the vppDecrypt constants there: change both together.
+// and trace, and holds them to RFC 4301 Section 5.2. Both read the SA and the
+// selectors from internal/test/vppcleartext, so neither holds a copy.
 // PREVENTS: an RFC 4301 Section 5.2 claim about VPP inbound processing that rests on
 // a reading of VPP's source alone.
 
@@ -23,35 +23,23 @@ import (
 	"time"
 
 	vppcomp "github.com/ze-software/ze/internal/component/vpp"
-)
-
-// The selectors of the cleartext probe. Their twins, which the deployment run builds
-// its frames from, are the vppCleartext constants in
-// internal/le/test/deployment/vppevidencecleartext.go: change both together.
-//
-// 100.64.45.0/24 is the probe interface's own subnet (the local side). Each inbound
-// entry names a different remote /24, so no frame matches two entries and the
-// priorities decide nothing.
-const (
-	realVPPCleartextSPI     = uint32(0x45450001)
-	realVPPCleartextLocal   = "100.64.45.0/24"
-	realVPPCleartextProtect = "100.64.46.0/24"
-	realVPPCleartextDiscard = "100.64.47.0/24"
-	realVPPCleartextBypass  = "100.64.48.0/24"
-	realVPPCleartextPrefix  = "ze-vpp-cleartext:"
-)
-
-var (
-	realVPPCleartextTunnelLocal  = net.ParseIP("100.64.45.1")
-	realVPPCleartextTunnelRemote = net.ParseIP("100.64.46.1")
+	"github.com/ze-software/ze/internal/test/vppcleartext"
 )
 
 // TestVPPRealCleartextProbe installs, on the interface ZE_VPP_IPSEC_SW_IF_INDEX
 // names, one inbound tunnel-mode SA and three inbound SPD entries: PROTECT for
 // 100.64.46.0/24, DISCARD for 100.64.47.0/24 and BYPASS for 100.64.48.0/24, each
-// toward 100.64.45.0/24. The selectors are written the way the IKE engine writes an
-// inbound policy (childPolicy, ike/engine/child.go): Src is the packet's source, the
-// remote side.
+// toward 100.64.45.0/24 (internal/test/vppcleartext). The selectors are written the
+// way the IKE engine writes an inbound policy (childPolicy, ike/engine/child.go): Src
+// is the packet's source, the remote side. DISCARD and BYPASS take testOperatorOrder,
+// as an operator entry ranked ahead of the Child SA's would; their remote ranges are
+// disjoint, so the rank decides nothing between them.
+//
+// The PROTECT entry also brings the backend's four IKE BYPASS entries for its local
+// tunnel end, 100.64.45.1, UDP 500 and 4500 (ensureIKEBypass). VPP's inbound ESP
+// lookup tries BYPASS before DISCARD and compares addresses alone, so the deployment
+// run aims the ESP frame the DISCARD entry is owed at another host of
+// 100.64.45.0/24.
 //
 // It leaves everything installed and prints the SPD id, because the measurement runs
 // against VPP after this process exits. It builds the backend directly, as
@@ -80,29 +68,27 @@ func TestVPPRealCleartextProbe(t *testing.T) {
 	// Close is deliberately not called: it would delete the SPD the measurement reads.
 	b := &vppBackend{conn: conn, ch: ch}
 
-	encKey := make([]byte, 36)
-	for i := range encKey {
-		encKey[i] = byte(0x40 + i)
-	}
+	encKey := vppcleartext.Key()
+	tunnelRemote, tunnelLocal := net.ParseIP(vppcleartext.TunnelRemote), net.ParseIP(vppcleartext.Host)
 	sa := SAParams{
-		SPI:       realVPPCleartextSPI,
-		Src:       realVPPCleartextTunnelRemote,
-		Dst:       realVPPCleartextTunnelLocal,
+		SPI:       vppcleartext.SPI,
+		Src:       tunnelRemote,
+		Dst:       tunnelLocal,
 		Dir:       SADirIn,
 		Proto:     ProtoESP,
 		Mode:      ModeTunnel,
 		ReplayWin: 32,
 		EncAlgo:   algoAES256GCM,
-		EncKey:    encKey,
+		EncKey:    encKey[:],
 		IsAEAD:    true,
 	}
 	if err := b.InstallSA(sa); err != nil {
 		t.Fatalf("InstallSA inbound against a real VPP: %v", err)
 	}
 
-	local := realVPPCleartextNet(t, realVPPCleartextLocal)
+	local := realVPPCleartextNet(t, vppcleartext.Local)
 	protect := SPParams{
-		Src:       realVPPCleartextNet(t, realVPPCleartextProtect),
+		Src:       realVPPCleartextNet(t, vppcleartext.Protect),
 		Dst:       local,
 		Dir:       SADirIn,
 		Proto:     ProtoESP,
@@ -110,36 +96,36 @@ func TestVPPRealCleartextProbe(t *testing.T) {
 		IfIndex:   swIfIndex,
 		Action:    SPActionProtect,
 		Priority:  PriorityChildSA,
-		TunnelSrc: realVPPCleartextTunnelRemote,
-		TunnelDst: realVPPCleartextTunnelLocal,
-		SAID:      realVPPCleartextSPI,
+		TunnelSrc: tunnelRemote,
+		TunnelDst: tunnelLocal,
+		SAID:      vppcleartext.SPI,
 	}
 	if err := b.InstallPolicy(protect); err != nil {
 		t.Fatalf("InstallPolicy inbound protect against a real VPP: %v", err)
 	}
 	discard := SPParams{
-		Src:      realVPPCleartextNet(t, realVPPCleartextDiscard),
+		Src:      realVPPCleartextNet(t, vppcleartext.Discard),
 		Dst:      local,
 		Dir:      SADirIn,
 		IfIndex:  swIfIndex,
 		Action:   SPActionDiscard,
-		Priority: testBypassPriority,
+		Priority: testOperatorOrder,
 	}
 	if err := b.InstallPolicy(discard); err != nil {
 		t.Fatalf("InstallPolicy inbound discard against a real VPP: %v", err)
 	}
 	bypass := SPParams{
-		Src:      realVPPCleartextNet(t, realVPPCleartextBypass),
+		Src:      realVPPCleartextNet(t, vppcleartext.Bypass),
 		Dst:      local,
 		Dir:      SADirIn,
 		IfIndex:  swIfIndex,
 		Action:   SPActionBypass,
-		Priority: testBypassPriority,
+		Priority: testOperatorOrder,
 	}
 	if err := b.InstallPolicy(bypass); err != nil {
 		t.Fatalf("InstallPolicy inbound bypass against a real VPP: %v", err)
 	}
-	fmt.Printf("%s spd-id=%d\n", realVPPCleartextPrefix, b.spdID)
+	fmt.Printf("%s spd-id=%d\n", vppcleartext.ReportPrefix, b.spdID)
 }
 
 func realVPPCleartextNet(t *testing.T, cidr string) *net.IPNet {

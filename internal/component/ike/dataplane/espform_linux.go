@@ -734,7 +734,7 @@ func (r *espFormRegistry) empty() bool {
 // socket, which reads the still-encrypted copy XFRM refused, and the cryptography is
 // untouched: XFRM still decrypts and still owns the replay window. It is the same bound
 // strongSwan takes for its own sockets, and Ze for its IKE sockets
-// (transport.bypassIKESocket).
+// (BypassIKESocket).
 //
 // RFC 4301 Section 4.4.1: BYPASS is an SPD disposition, and this is one, scoped to
 // a socket ze owns.

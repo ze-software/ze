@@ -228,6 +228,51 @@ func TestInterfaceSPDCatchAllInstallFailureAtStartIsReportedByDoctor(t *testing.
 	}
 }
 
+// VALIDATES: a start whose interface catch-all the backend refuses logs the interface at
+// Error exactly once, however many entries of its catch-all were refused, and its
+// finding cites the RFC 4301 obligation at its own level: the Section 5 MUST that an
+// unmatched packet be discarded, quoted, and the Section 4.4.1 final entry as a SHOULD.
+// METHOD: start the vti0-bound discard configuration of
+// TestInterfaceSPDCatchAllInstallFailureAtStartIsReportedByDoctor over a backend that
+// refuses every interface catch-all entry; count the Error lines naming vti0 and read
+// the finding.
+// PREVENTS: one failure logged once per refused entry and again for the interface, and a
+// finding that says Section 4.4.1 forbids what that section only recommends against.
+func TestInterfaceSPDCatchAllAtStartLogsOnceAndCitesTheMust(t *testing.T) {
+	dp := &failInterfaceCatchAllInstallDP{refuse: true}
+	loadFailClosedBackend(t, dp)
+	stub := stubXFRMInterfaceReads(t)
+	stub.facts["vti0"] = xfrmInterfaceFacts{device: "vti0", ifIndex: 7, ifID: vti0IfID, addresses: []netip.Addr{mustAddr(t, "2001:db8::1")}}
+	var logged bytes.Buffer
+	state := applyTestState(t)
+	state.log = slog.New(slog.NewTextHandler(&logged, nil))
+
+	if err := state.applyConfig(vtiBoundConfig(dataplane.SPActionDiscard), applyStartup); err != nil {
+		t.Fatalf("the start refused the IPsec block over an interface catch-all: %v", err)
+	}
+	errorLines := 0
+	for line := range strings.SplitSeq(logged.String(), "\n") {
+		if strings.Contains(line, "level=ERROR") && strings.Contains(line, "vti0") {
+			errorLines++
+		}
+	}
+	if errorLines != 1 {
+		t.Fatalf("the start logged vti0's missing catch-all on %d Error lines, want 1:\n%s", errorLines, logged.String())
+	}
+
+	findings := answerSPDInstall(state)
+	if len(findings) != 1 {
+		t.Fatalf("the doctor check answered %d findings, want 1 for vti0: %+v", len(findings), findings)
+	}
+	const must = `"If no policy is found in the SPD that matches a packet (for either inbound or outbound traffic), the packet MUST be discarded."`
+	if !strings.Contains(findings[0].Message, "RFC 4301 Section 5 requires it dropped: "+must) {
+		t.Fatalf("the finding does not quote the Section 5 MUST: %q", findings[0].Message)
+	}
+	if strings.Contains(findings[0].Message, "4.4.1 forbids") || !strings.Contains(findings[0].Message, "SHOULD (Section 4.4.1)") {
+		t.Fatalf("the finding does not cite Section 4.4.1 at its SHOULD level: %q", findings[0].Message)
+	}
+}
+
 // failInterfaceExemptionInstallDP refuses, while refuse is set, the install of any if_id
 // 0 exemption of a bound XFRM interface, and installs every other entry.
 type failInterfaceExemptionInstallDP struct {

@@ -1,5 +1,5 @@
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- SPD dispositions
-// Related: ../transport/bypass_linux.go -- the IKE bypass, on Ze's own IKE sockets ahead of every SPD entry
+// Related: ../dataplane/ike_socket_bypass_linux.go -- BypassIKESocket, the IKE bypass, on Ze's own IKE sockets ahead of every SPD entry
 // Related: spd_policy.go -- the operator's entries, searched between the two
 // RFC: rfc/short/rfc4301.md -- Section 5, the disposition of an unmatched packet
 
@@ -49,7 +49,7 @@ func anyNetFor(sample net.IP) *net.IPNet {
 // ForwardDefaultInstaller supplies FWD through its namespace default instead of
 // an explicit entry, preserving the ICMP payload lookup before the final verdict.
 // The IKE bypass is no entry here at all: it sits on Ze's own IKE sockets
-// (transport.bypassIKESocket), which a forwarded packet never reaches.
+// (dataplane.BypassIKESocket), which a forwarded packet never reaches.
 var unmatchedDirections = [...]dataplane.SADir{
 	dataplane.SADirIn, dataplane.SADirOut, dataplane.SADirFwd,
 }
@@ -117,6 +117,14 @@ func spdCatchAllEntries(family net.IP, action dataplane.SPAction, ifID uint32) [
 // It runs on every apply, ahead of the operator's entries (apply.go), and the backend
 // upserts a template-free policy (xfrmBackend.InstallPolicy), so a changed
 // disposition replaces the entry under the same selector rather than adding a second.
+//
+// Where a peer negotiated the wildcard of a family, its PROTECT policy has the kernel
+// identity of this entry, and the kernel holds one of the two. The XFRM backend then
+// answers success without writing the entry: the PROTECT policy is that lookup's final
+// entry while it is live, and the backend puts this entry back, with the disposition
+// last asked for here, in the kernel request that removes the PROTECT policy
+// (dataplane/policy_final.go). `show vpn ipsec dataplane policy` names it on the PROTECT
+// row (displaced-final-entry).
 //
 // A catch-all that is not installed is an error, whichever disposition it carries and
 // whatever stopped it: no dataplane loaded, a platform without XFRM, or an install that
@@ -217,9 +225,8 @@ func installUnmatchedEntries(dp dataplane.Dataplane, action dataplane.SPAction, 
 			if installErr == nil {
 				continue
 			}
-			refusal := fmt.Errorf("ike: install the SPD catch-all %s entry (dir %d): %w; "+
-				"the daemon needs CAP_NET_ADMIN and a kernel with XFRM (CONFIG_XFRM_USER) to hold it",
-				unmatchedActionName(action), p.Dir, installErr)
+			refusal := fmt.Errorf("ike: install the SPD catch-all %s entry (dir %d): %w; %s",
+				unmatchedActionName(action), p.Dir, installErr, catchAllInstallHint(installErr))
 			if phase == applyReload {
 				return refusal
 			}
@@ -227,6 +234,23 @@ func installUnmatchedEntries(dp dataplane.Dataplane, action dataplane.SPAction, 
 		}
 	}
 	return errors.Join(refused...)
+}
+
+// catchAllInstallHint is what the operator is told beside a catch-all entry the
+// dataplane refused, by who refused it.
+//
+// The kernel refuses for want of CAP_NET_ADMIN or of XFRM. The XFRM backend's ownership
+// ledger refuses without asking the kernel (dataplane.PolicyOwnedError), and a
+// capability changes nothing there. A peer's PROTECT policy on the catch-all's selector
+// is not such a refusal: the backend keeps it as the lookup's final entry and answers
+// success (dataplane policyOwners.yieldFinal). What is left is a peer's template-free
+// allow on the wildcard, which no Child SA builds and the ledger refuses to install.
+func catchAllInstallHint(cause error) string {
+	if _, owned := errors.AsType[*dataplane.PolicyOwnedError](cause); owned {
+		return "the kernel was not asked: Ze's own record names another entry on the catch-all's selector, one that passes traffic " +
+			"and so cannot stand in for the catch-all; this is a Ze defect to report, and `ze signal restart` rebuilds the SPD"
+	}
+	return "the daemon needs CAP_NET_ADMIN and a kernel with XFRM (CONFIG_XFRM_USER) to hold it"
 }
 
 // unmatchedStartRefusal is the operator error for a catch-all the start could not
@@ -243,7 +267,9 @@ func unmatchedStartRefusal(action dataplane.SPAction, cause error) *opererr.Erro
 	why := "Traffic that no SPD entry matches meets no final entry, so the kernel passes it in the clear"
 	if action == dataplane.SPActionDiscard {
 		problem = "The default discard is NOT in force: Ze could not install the SPD catch-all `vpn ipsec unmatched discard` when the daemon started"
-		why = "Traffic that no SPD entry matches is not discarded: the kernel passes it in the clear, which RFC 4301 Section 4.4.1 forbids"
+		why = "Traffic that no SPD entry matches is not discarded: the kernel passes it in the clear. RFC 4301 Section 5 " +
+			"requires it dropped: \"If no policy is found in the SPD that matches a packet (for either inbound or outbound " +
+			"traffic), the packet MUST be discarded.\" The final discard entry that ensures it is a SHOULD (Section 4.4.1)"
 	}
 	why += ". A start never refuses the IPsec block, so Ze installed the rest of the configuration and every catch-all entry the dataplane accepted. " +
 		"Remove the cause the dataplane names (the daemon needs CAP_NET_ADMIN and a kernel with XFRM), then restart Ze"
@@ -438,7 +464,8 @@ func countBypassEntries(cfg *ipsec.IPsecConfig) int {
 // policy by its selector alone, so the bypass form is built and its selector used.
 // A namespace FWD claim is restored only after every explicit final entry is gone;
 // releaseSPD already withheld this call while another Ze policy remained installed.
-func removeUnmatched(dp dataplane.Dataplane, log *slog.Logger, raisers ...espFormIssueRaiser) {
+// raiser reaches the daemon's report bus, and is nil where none exists (a test).
+func removeUnmatched(dp dataplane.Dataplane, log *slog.Logger, raiser espFormIssueRaiser) {
 	if dp == nil {
 		return
 	}
@@ -481,6 +508,6 @@ func removeUnmatched(dp dataplane.Dataplane, log *slog.Logger, raisers ...espFor
 		}
 	}
 	if refusal != nil {
-		raiseForwardDefaultRefusal(log, refusal, raisers)
+		raiseForwardDefaultRefusal(log, refusal, raiser)
 	}
 }

@@ -605,14 +605,15 @@ func walkCopyInto(src, dst string) error {
 
 // evictKeepN implements the explicitly requested --evict-cache action. It keeps
 // evictKeepDefault most-recently-modified entries for each architecture, grouped
-// by cacheEntryArch, plus recent entries and the entry containing current.
-// Empty current protects nothing extra. Builds never call this function.
+// by cacheEntryArch, plus recent entries and every entry containing a path of
+// current. An empty path protects nothing extra. Builds never call this
+// function.
 //
 // Age and rank do not establish ownership or non-use. The operator must confirm
 // entries are disposable before requesting eviction. This function does not
 // check active readers or retained comparisons. Errors are swallowed because
 // explicit eviction is a best-effort space bound, never a correctness gate.
-func evictKeepN(nsDir, current string) {
+func evictKeepN(nsDir string, current ...string) {
 	entries, err := os.ReadDir(nsDir)
 	if err != nil {
 		return
@@ -621,7 +622,12 @@ func evictKeepN(nsDir, current string) {
 		name  string
 		mtime time.Time
 	}
-	protected := cacheEntryName(nsDir, current)
+	protected := make(map[string]bool, len(current))
+	for _, path := range current {
+		if name := cacheEntryName(nsDir, path); name != "" {
+			protected[name] = true
+		}
+	}
 	cutoff := evictNow().Add(-evictGrace)
 	byArch := make(map[string][]ent)
 	for _, e := range entries {
@@ -650,8 +656,8 @@ func evictKeepN(nsDir, current string) {
 		}
 		sort.Slice(dirs, func(i, j int) bool { return dirs[i].mtime.After(dirs[j].mtime) })
 		for _, d := range dirs[evictKeepDefault:] {
-			if d.name == protected {
-				continue // the entry the current tree resolves to
+			if protected[d.name] {
+				continue // an entry the current tree may be served from
 			}
 			if d.mtime.After(cutoff) {
 				continue // retained by explicit eviction's grace window

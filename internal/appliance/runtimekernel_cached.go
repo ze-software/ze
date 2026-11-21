@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/ze-software/ze/internal/appliance/kernelbuilder"
 	"github.com/ze-software/ze/internal/core/opererr"
@@ -131,22 +132,40 @@ func publishedRuntimeKernel(entries []string, artifact string) (entry string, fo
 }
 
 // RuntimeKernelBuilder answers the backend that built the runtime kernel cache
-// entry at tree, from the provenance record its build wrote last
-// (kernelbuilder.ProvenanceName). A run report names it, because a default
-// resolution may boot either backend's kernel (runtimeKernelBackends).
-func RuntimeKernelBuilder(tree string) (string, error) {
+// entry at tree, a kernel for arch, from the provenance record its build wrote
+// last (kernelbuilder.ProvenanceName). A run report names it, because a default
+// resolution may boot either backend's kernel (runtimeKernelBackends). A record
+// that names no backend Ze has refuses, with kernelBuild(arch), which MUST
+// answer the one command that builds the kernel for arch, run on its own.
+func RuntimeKernelBuilder(tree, arch string, kernelBuild func(arch string) string) (string, error) {
 	fields, err := existingRuntimeProvenance(filepath.Join(tree, kernelbuilder.ProvenanceName))
 	if err != nil {
 		return "", fmt.Errorf("read which backend built the runtime kernel %s: %w", tree, err)
 	}
 	builder := fields["builder"]
+	// The record is a file on disk, so the set is open: anything but the two
+	// backends Ze has is refused.
 	switch builder {
 	case builderDocker, builderQEMU:
 		return builder, nil
 	default:
-		return "", fmt.Errorf("the runtime kernel %s records builder %q, which is neither %s nor %s. Fix: %s",
-			tree, builder, builderDocker, builderQEMU, "rebuild it with ze appliance kernel --target runtime")
+		return "", unknownRuntimeKernelBuilder(tree, builder, kernelBuild(arch))
 	}
+}
+
+// unknownRuntimeKernelBuilder answers the refusal for the runtime kernel entry
+// at tree whose provenance records builder, a backend Ze does not have. The
+// entry holds a kernel, so a build finds it and returns without building: the
+// fix removes the entry first, then build rebuilds it.
+func unknownRuntimeKernelBuilder(tree, builder, build string) error {
+	var tb textbuf.Buffer
+	problem := tb.Str("the runtime kernel cache entry ").Str(tree).Str(" records the builder ").
+		Str(strconv.Quote(builder)).Str(", which is neither ").Str(builderDocker).
+		Str(" nor ").Str(builderQEMU).String()
+	why := "the kernel build Ze runs today records docker or qemu, so this entry was written some other way, " +
+		"and nothing says how its kernel was built. " +
+		"A kernel build finds the entry and does not build again, so remove the entry first, then build the kernel once with the commands below"
+	return opererr.New(problem, why, "rm -rf "+shellArg(tree)+"\n"+build)
 }
 
 // coldRuntimeKernel answers the refusal for a runtime kernel the cache holds

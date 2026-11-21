@@ -189,7 +189,8 @@ func spdForwardBypassRefusal(p ipsec.SPDPolicy, gatherErr, heldErr error) *opere
 		why += ". Set " + other + " port any as well"
 	}
 	if gatherErr != nil {
-		why += ". Ze could not read whether this kernel reassembles forwarded fragments first"
+		why += ". Ze could not read whether this kernel reassembles forwarded fragments first. Once that read " +
+			"answers again, a commit that changes vpn ipsec, or a restart (ze signal restart), applies the answer"
 	}
 	if heldErr != nil {
 		why += ". Ze could not read this host's addresses, so it cannot tell whether the local prefix is one of them"
@@ -224,15 +225,20 @@ func warnForwardBypassAtStart(dp dataplane.Dataplane, cfg *ipsec.IPsecConfig, lo
 // answerSPDForwardBypass answers ipsec-spd-forward-bypass from the engine's process: one
 // error for each installed operator bypass with a port that forwarded traffic can
 // match, judged on the addresses this host holds now, so an address that left after
-// the commit is reported too.
+// the commit is reported too. The entries are judged on the fragment-gathering answer
+// they were installed with (ikeEngineState.spdForward), never on a fresh read: an entry
+// installed without its forward projection because the read failed stays reported
+// after the kernel's answer becomes readable, until a reload installs the projection
+// (moveSPDForwardAnswer).
 //
-// Safe for concurrent use: applyMu guards installedSPD, as it guards every member the
-// apply writes.
+// Safe for concurrent use: applyMu guards installedSPD and spdForward, as it guards
+// every member the apply writes.
 func answerSPDForwardBypass(s *ikeEngineState) []rpc.DoctorCheckDiagnostic {
 	s.applyMu.Lock()
 	installed := maps.Clone(s.installedSPD)
+	forward := s.spdForward
 	s.applyMu.Unlock()
-	refusals := spdForwardBypassRefusals(dataplane.Get(), installed)
+	refusals := spdForwardBypassRefusals(forward.pin(dataplane.Get()), installed)
 	out := make([]rpc.DoctorCheckDiagnostic, 0, len(refusals))
 	for _, refusal := range refusals {
 		message := refusal.Problem() + ". " + refusal.Why() + "."

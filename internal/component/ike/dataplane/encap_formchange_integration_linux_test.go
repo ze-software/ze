@@ -149,14 +149,18 @@ func encapFormChangeSA() SAParams {
 }
 
 // encapFormChangeNATTSocket binds the port-4500 socket in the state production runs it:
-// UDP_ENCAP_ESPINUDP set, so the kernel strips the header of both the peer's own
-// encapsulated datagrams and the ones espFormReceiver re-presents
-// (engine/register.go, transport.EnableESPInUDP).
+// exempt from IPsec on the socket itself (BypassIKESocket, which newTransport sets on
+// every IKE socket before it returns it), then UDP_ENCAP_ESPINUDP set, so the kernel
+// strips the header of both the peer's own encapsulated datagrams and the ones
+// espFormReceiver re-presents (engine/register.go, transport.EnableESPInUDP).
 func encapFormChangeNATTSocket(t *testing.T) *net.UDPConn {
 	t.Helper()
 	uc, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.ParseIP(encapRoutedLocalAddr), Port: encapNATTPortForTests})
 	if err != nil {
 		t.Fatalf("bind udp %d: %v", encapNATTPortForTests, err)
+	}
+	if err := BypassIKESocket(uc); err != nil {
+		t.Fatalf("set the per-socket IKE bypass on the port-%d socket: %v", encapNATTPortForTests, err)
 	}
 	rc, err := uc.SyscallConn()
 	if err != nil {
@@ -258,36 +262,24 @@ func TestEncapEstablishedSAServesAPeerFormChange(t *testing.T) {
 	// mechanism and the SA's identity across the change (ai/rules/evidence.md).
 	anyV4 := &net.IPNet{IP: net.IPv4zero.To4(), Mask: net.CIDRMask(0, 32)}
 
-	// The inbound IKE bypass for UDP to port 4500, installed first, as production installs
-	// it before any Child SA policy: the dir-in entry of engine/bypass.go
-	// ikeBypassPolicies, which installIKEBypass puts in place at the first configuration
-	// apply. The Child SA policy below then carries PriorityChildSA, as installChildSA
-	// gives every Child SA policy, so the bypass at testBypassPriority ranks ahead of it.
+	// The port-4500 socket above carries the per-socket IKE bypass, as every IKE socket
+	// does in production (encapFormChangeNATTSocket, BypassIKESocket). No SPD entry
+	// exempts UDP 4500: the Child SA policy below, at PriorityChildSA, is the only SPD
+	// entry that selects the datagram.
 	//
-	// WHY the probe needs it now. The re-presented datagram is plaintext UDP to port 4500,
-	// and it arrives on ze-espform, whose disable_policy is 0. Linux checks the inbound
-	// policy for a UDP datagram before the socket's encapsulation hook runs:
+	// WHY the probe needs the socket's bypass. The re-presented datagram is plaintext UDP
+	// to port 4500, and it arrives on ze-espform, whose disable_policy is 0. Linux checks
+	// the inbound policy for a UDP datagram before the socket's encapsulation hook runs:
 	// udp_queue_rcv_one_skb (net/ipv4/udp.c, v7.0) opens with
 	// `if (!xfrm4_policy_check(sk, XFRM_POLICY_IN, skb)) {` and
-	// `drop_reason = SKB_DROP_REASON_XFRM_POLICY;`, ahead of `encap_rcv(sk, skb)`. The
-	// any-to-any policy below demands ESP of that datagram, so without the bypass it is
-	// dropped there and never reaches XFRM. When the receiver re-presented over lo, lo's
-	// disable_policy skipped that check, so the probe never met it. Production always has
-	// the bypass, and it is what lets the peer's own ESP-in-UDP, and the datagram the
-	// receiver re-presents, reach the port-4500 socket.
-	if err := dp.InstallPolicy(SPParams{
-		Src:        anyV4,
-		Dst:        anyV4,
-		Dir:        SADirIn,
-		Action:     SPActionBypass,
-		Role:       PolicyRoleIKEBypass,
-		Priority:   testBypassPriority,
-		UpperProto: unix.IPPROTO_UDP,
-		SrcPort:    AnyPortMatch(),
-		DstPort:    ExactPortMatch(encapNATTPortForTests),
-	}); err != nil {
-		t.Fatalf("install the inbound IKE bypass for UDP port %d: %v", encapNATTPortForTests, err)
-	}
+	// `drop_reason = SKB_DROP_REASON_XFRM_POLICY;`, ahead of `encap_rcv(sk, skb)`. That
+	// check runs with the socket known, so __xfrm_policy_check takes the socket's own
+	// policy and never reaches the any-to-any policy below, which demands ESP of that
+	// datagram; without the socket's bypass it is dropped there and never reaches XFRM.
+	// When the receiver re-presented over lo, lo's disable_policy skipped that check, so
+	// the probe never met it. Production sets the bypass on every IKE socket, and it is
+	// what lets the peer's own ESP-in-UDP, and the datagram the receiver re-presents,
+	// reach the port-4500 socket.
 	if err := dp.InstallPolicy(SPParams{
 		Src:       anyV4,
 		Dst:       anyV4,

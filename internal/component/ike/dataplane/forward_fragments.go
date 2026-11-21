@@ -31,7 +31,8 @@ type ForwardFragmentGatherer interface {
 //
 // It keeps the exact native command contract of RuntimeKernelBuild in
 // internal/le/build/hostdriver/hostdriver.go. Shipped dataplane code MUST NOT import
-// le's build tooling to format the repair.
+// le's build tooling to format the repair, so this is a copy, and
+// TestRuntimeKernelBuildFixMatchesHostDriver compares it with that source.
 func RuntimeKernelBuildFix() string {
 	return "  ./le build host-driver\n  ./ze-host appliance kernel --target runtime --arch " + runtime.GOARCH
 }

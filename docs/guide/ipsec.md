@@ -1543,7 +1543,14 @@ entries both left at the default 1000 are such a pair. Entries that do not
 overlap may share an order, because no packet matches both. Two entries that
 name the same selector in the same direction are refused whatever their
 orders, because the kernel holds one policy per selector and the second would
-replace the first. A peer bound with `vti bind` is not compared: its policies
+replace the first. An entry and a site-to-site peer are refused for the same
+reason when a policy the entry installs, a forwarding one included, has the
+same selector and direction as a policy the peer installs: the entry would
+replace the policy that protects the peer's traffic. The refusal names both and
+`delete vpn ipsec policy <name>`. Where the peer negotiates a narrower selector
+than it configures, the kernel install is refused instead: the commit that adds
+the entry fails with the same fix, and `ze doctor` reports an entry or a tunnel
+refused at start. A peer bound with `vti bind` is not compared: its policies
 live in the XFRM interface's own SPD. The entries reach the kernel lowest order
 first, then by name.
 
@@ -1573,7 +1580,9 @@ operator meant to carry.
 - Both prefixes are required, and they must share an address family. One kernel
   policy selector carries one family.
 - A port other than `any` needs `protocol` to name a transport that has ports:
-  6 (TCP), 17 (UDP) or 132 (SCTP).
+  6 (TCP), 17 (UDP), 132 (SCTP) or 136 (UDP-Lite). DCCP (33) defines ports
+  too, but Linux XFRM does not select on them, so a specific DCCP port is
+  refused.
 - A port range is not accepted. An entry installs one selector, and the kernel
   selector carries a port and a mask, which expresses a block aligned on a
   power of two but not an arbitrary range; Ze does not split one entry into
@@ -1659,8 +1668,8 @@ XFRM policy manager must coordinate default-policy writes with Ze; an observed
 external change refuses a reload or restoration rather than being overwritten.
 The diagnostic code `doctor-ipsec-forward-default` reports a missing host
 permission, an unreadable default, a conflicting policy manager, or a restoration
-that has not completed. Its finding names the next command. A shutdown failure
-also remains in the warning log when the daemon connection has already closed.
+that has not completed, as an error. Its finding names the next command. A shutdown failure
+also remains in the error log when the daemon connection has already closed.
 
 So commit accepts a discard entry beside a peer with `icmp-error-check true`,
 in the default direction and protocol too, and the entry drops what it names.
@@ -3005,10 +3014,21 @@ sets on the outbound policy of a peer with `icmp-error-check true`. It also carr
 `icmp-error-yield`: `true` on the catch-all's inbound discard alone, whose `XFRM_POLICY_ICMP` flag
 lets Ze's kernel deliver an ICMP error whose reversed payload matches the SA it arrived on. An
 operator discard entry shows `false`, and drops the ICMP it covers. The row also carries
-`icmp-error-payload`: `true` on the forward transit gate of an operator bypass alone, whose
-`XFRM_POLICY_ICMP` flag lets Ze's kernel judge a forwarded ICMP error that arrived on an SA by
-the policy its quoted header selects rather than by the gate.
+`icmp-error-payload`: `true` on the forward policies of an operator bypass alone, its forward
+transit gate and the forward decision of an `in` or `both` bypass. Their `XFRM_POLICY_ICMP` flag
+lets Ze's kernel judge a forwarded ICMP error that arrived on an SA by the policy its quoted
+header selects rather than by the bypass it matched. Every other row shows `false`.
 
+A peer that negotiates all traffic (`0.0.0.0/0` to `0.0.0.0/0`, or `::/0` to `::/0`) installs
+policies with the same selector as the catch-all of `vpn ipsec unmatched`, and the kernel
+holds one policy per selector and direction. While that peer is up its `protect` row takes
+the catch-all's place, since it matches everything the catch-all would, and the listing shows
+no `catch-all` row for that direction and address family. The `protect` row says so:
+`displaced-final-entry` reads `catch-all` (or `interface-catch-all` for a peer with
+`vti bind`) and `displaced-final-action` reads the disposition, `discard` or `bypass`, that Ze
+puts back when the peer's policy is removed. Every other row shows `none` in both.
+
+<!-- source: internal/component/ike/engine/spd_policy.go -- spdTransitPolicies -->
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- saOptionsFromState, saDirFromKernel -->
 <!-- source: internal/component/ike/cmd/show_dataplane.go -- saInfoToMap, policyInfoToMap -->
 

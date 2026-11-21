@@ -100,10 +100,13 @@ type ChildSA struct {
 	// MEANS HIGHER PRECEDENCE. A rekey inherits it, because a rekey replaces states and
 	// keeps the entry, so the entry's rank must not move under the operator.
 	//
-	// The zero value is not a rank. childPolicies resolves it to
+	// The zero value is not a rank: a rank runs from 1 to 2147483647 (spdRankMin and
+	// spdRankMax, ipsec/validate.go). childPairPolicy resolves it to
 	// dataplane.PriorityChildSA, exactly as it resolves an unset Mode, so a Child SA
 	// built by a test that fills the struct literally installs at the documented default
-	// instead of at rank 0, which would outrank the IKE control-plane bypass.
+	// instead of at rank 0, which would outrank every operator entry and tie with every
+	// policy another tool installs without a priority. No rank is held for IKE: Ze's IKE
+	// exchange is exempt on its own sockets (dataplane.BypassIKESocket).
 	PolicyPriority uint32
 
 	// SkipICMPErrorCheck is the peer's `icmp-error-check false`
@@ -745,7 +748,7 @@ func installChildDataplane(child, previous *ChildSA, prop ipsec.ESPProposal, dp 
 	// selector covers the two addresses IKE runs between, which the ordinary
 	// 0.0.0.0/0 site-to-site selector always does. The exemption that stops it is the
 	// per-socket bypass each IKE socket carries from the moment it opens
-	// (transport.bypassIKESocket), which the kernel consults before any SPD entry, so
+	// (dataplane.BypassIKESocket), which the kernel consults before any SPD entry, so
 	// nothing is installed for it here.
 	//
 	// RFC 4301 Section 4.4.2: every negotiated pair protects with this SA.
@@ -1266,17 +1269,13 @@ func childPairPolicy(child *ChildSA, dir dataplane.SADir, pair policyPair) datap
 	// RFC 7296 Section 3.13.1: "MIPv6 MH Type values are treated as a single
 	// 16-bit integer port number, with Type in the most significant eight bits
 	// and the least significant eight bits set to zero."
-	// Linux xfrm_flowi_sport compares the bare Type and xfrm_flowi_dport returns zero
-	// for MH (include/net/xfrm.h), so only this installation boundary shifts it.
+	// Only an ANY MH Type reaches this point: childPolicyPair refuses an exact one
+	// (ipsec.PortSelector.ProgrammableForProtocol), because Linux decode_session6 does
+	// not fill the MH Type and a policy on an exact Type drops the matching packet. Both
+	// ports are written as the ANY the kernel holds for MH (xfrm_flowi_dport returns zero
+	// for it, include/net/xfrm.h), never as the IKE encoding's 0..65535 range.
 	if pair.upperProto == ipsec.MobilityHeaderProtocol {
-		side := pair.localPort
-		if dir != dataplane.SADirOut {
-			side = pair.remotePort
-		}
 		srcPort, dstPort = dataplane.AnyPortMatch(), dataplane.AnyPortMatch()
-		if !side.IsAny() {
-			srcPort = dataplane.ExactPortMatch(side.Port >> 8)
-		}
 	}
 
 	return dataplane.SPParams{

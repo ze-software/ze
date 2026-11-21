@@ -214,7 +214,7 @@ func TestRFC4301FinalEntryIsUnderEveryZeSPDEntry(t *testing.T) {
 	}
 	// The operator entry (in and out) and the Child SA's PROTECT entries must all have
 	// been written and released, or the replay above checked nothing but the catch-all.
-	// Ze's own IKE traffic is exempt on its sockets (bypassIKESocket), never through an
+	// Ze's own IKE traffic is exempt on its sockets (dataplane.BypassIKESocket), never through an
 	// SPD entry, so no bypass write is counted here.
 	if protectWrites != 2*len(protect) {
 		t.Fatalf("replayed %d writes of the Child SA's %d PROTECT entries, want each installed and removed", protectWrites, len(protect))

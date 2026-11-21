@@ -29,18 +29,23 @@ func answerForwardDefault(_ *ikeEngineState) []rpc.DoctorCheckDiagnostic {
 		failure, ok := errors.AsType[*opererr.Error](err)
 		if !ok {
 			failure = opererr.Wrap(err, "Ze cannot inspect the forwarding default its IPsec policies need",
-				"The current forwarding disposition is unknown; inspect the kernel warnings before retrying the IPsec configuration.", "sudo dmesg --level=err,warn")
+				"The current forwarding disposition is unknown, so forwarded traffic may meet weaker protection than "+
+					"the IPsec configuration states. A restart reads the namespace default again and claims it for the "+
+					"configuration, and names the cause if the read fails again.", spdInstallFixRestart)
 		}
 		return forwardDefaultFinding(failure)
 	}
 	return nil
 }
 
+// forwardDefaultFinding is the doctor finding for a forwarding-default failure, at the
+// severity its log line and report-bus event carry (logForwardDefaultRefusal): error,
+// because the namespace holds a forwarding disposition Ze did not decide.
 func forwardDefaultFinding(failure *opererr.Error) []rpc.DoctorCheckDiagnostic {
 	message := failure.Problem() + " " + failure.Why()
 	if cause := failure.Unwrap(); cause != nil {
 		message += " (" + cause.Error() + ")"
 	}
 	return []rpc.DoctorCheckDiagnostic{{Code: diagnostic.CodeDoctorIPsecForwardDefault,
-		Severity: severityWarning, Message: message, Fix: failure.Fix()}}
+		Severity: severityError, Message: message, Fix: failure.Fix()}}
 }

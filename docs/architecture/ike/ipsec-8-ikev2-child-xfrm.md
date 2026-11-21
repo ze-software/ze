@@ -205,7 +205,8 @@ catch-all under `unmatched discard`. The readback reports the flag as
 `ICMPErrorPayload` on a template-free forward allow (a transit gate, "Transit
 traffic" below).
 <!-- source: gokrazy/kernel/patches/0003-xfrm-state-scope.patch -- icmp_rcv, icmpv6_rcv, __xfrm_policy_check -->
-<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- catchAllYieldsToICMPErrorCheck, policyInfoFromKernel -->
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- policyInfoFromKernel -->
+<!-- source: internal/component/ike/dataplane/policy_role.go -- catchAllYieldsToICMPErrorCheck -->
 
 `GETDEFAULT` appends read-only `XFRMA_ZE_CAPS` (43): four native-endian `u32`
 values, `features`, `max_selectors`, `guard_refs` and `abi`. The ABI word must
@@ -1227,7 +1228,9 @@ consequence and next command as an operator error. A final-removal failure is
 also raised once per removal pass through SDK `RaiseIssue`; both process modes
 use that transport. The engine releases its dataplane before explicitly closing
 the SDK. A daemon disconnect may already have closed the connection, so a failed
-report attempt retains a coded warning with its own log command.
+report attempt retains a coded error line with its own log command. The log line,
+the report-bus event and the doctor finding all carry the failure as an error:
+the namespace then holds a forwarding disposition Ze did not decide.
 
 A forwarded error leaving towards a Child SA is mapped to the return SA by
 `xfrm_out_fwd_icmp`, which `__xfrm_route_forward` calls. Stock Linux calls it
@@ -1665,7 +1668,13 @@ operator entries, or an entry and a policy-based peer at its `policy-priority`
 (or, for a tunnel-mode peer, at the rank one below it, where its outbound forward
 and delivery entries sit), that overlap (`dataplane.PolicySelectorsOverlap` over
 the installed projections, the transit decisions below included) at one rank, and
-two entries that install one selector, transit gates included; the start logs the
+two entries that install one selector, transit gates included. It refuses the
+same way an operator entry and a policy-based peer that install one selector in
+one direction, whatever the order and the `policy-priority`
+(`spdSharedKernelPolicy`, `spdPeerSelectorRefusal`, judged by
+`dataplane.PolicySelectorsEqual`): the kernel would hold one of the two, so the
+entry's gate would replace the peer's PROTECT policy with an allow. The fix it
+names is `delete vpn ipsec policy <name>`. The start logs the
 same pairs at Error (`warnSPDOrderAtStart`). The verifier runs with no dataplane,
 so it judges the XFRM set on Ze's kernel, a port-scoped bypass's forward entries
 included (`spdJudgedPolicies`): on VPP, or for such a bypass on a kernel without
@@ -1692,8 +1701,22 @@ orientation. On a backend whose `RequiresForwardPolicy` answers true,
 | `both` | the `in` row | both rows |
 
 A gate is a template-free allow two ranks above the catch-all, beneath every
-Child SA policy and every operator order, so it never takes a packet from a
-PROTECT policy or from another entry's decision. It only keeps the catch-all of
+Child SA policy and every operator order, so a gate that only overlaps a
+PROTECT policy or another entry's decision never takes a packet from it. Rank
+does not keep apart two policies with one kernel identity (selector, direction
+and if_id): Linux replaces the policy it holds with the one installed second,
+whatever the priorities (`xfrm_policy_insert_list`), so a gate, a decision or a
+half on the selector of a peer's Child SA policy would replace it, a PROTECT
+policy with an allow, and the peer's traffic would leave in clear. Two refusals
+keep that out. The commit refuses an operator entry that installs a selector a
+configured policy-based peer also installs (`spdPeerSelectorRefusal`, above).
+The XFRM ownership ledger refuses the install where the selector a peer
+negotiated, narrower than it configured, is the same
+(`dataplane.PolicyOwnedError`, "Policy ownership" below): a reload is then
+refused, a start reports the entry through `ipsec-spd-install`, and both name
+`delete vpn ipsec policy <name>` (`spdInstallRefusal`); a Child SA that arrives
+on a selector an operator entry already holds is refused the same way and
+reported by the Child SA install check. A gate only keeps the catch-all of
 the other lookup (the OUT catch-all under `unmatched discard`, or the namespace
 FWD default) from refusing what the decision admitted. The gates are the
 operator counterparts of a Child SA's delivery and outbound forward entries
@@ -1702,8 +1725,8 @@ lower than those because an operator order may sit above every Child SA. A
 projected policy that would carry the kernel identity of one already in the set
 (selector, direction and if_id, never the priority) is left out, decisions before
 gates, so an entry whose local and remote sides are equal keeps its decision at
-its order. The projection is unowned like the halves (`ownedEntry` exempts every
-template-free entry but a Child SA's), and `show vpn ipsec dataplane policy` lists
+its order. The projection has no owner record, like the halves (`ownedEntry`
+names every template-free entry but a Child SA's as node-wide), and `show vpn ipsec dataplane policy` lists
 each policy with its direction, the `operator` role and its priority. VPP gets no
 forward entry, because its inbound SPD applies before routing.
 
@@ -2771,10 +2794,52 @@ the guard exists to refuse is admitted in silence. The test that covered it
 compared two empties, because its own fixture never set the field. Drive a guard
 from the entry point that PRODUCES its input, never from the guard's own helper.
 
-Ownership applies to PROTECT entries alone. `policyOwners` exempts every
-template-free policy, because ownership exists to stop one PEER's selector
-taking another peer's live tunnel over, and a bypass or a discard belongs to the
-node rather than to a peer.
+An owner record is kept for every template-carrying policy and for the
+template-free allows a Child SA installs (`ownedEntry`). A node-wide entry (a
+catch-all, an operator bypass or discard, an interface exemption) belongs to
+the node rather than to a peer and has no owner record, but it still meets an
+owned entry in the kernel, which replaces by selector, direction and if_id
+whatever the priority. `claim` and `deleteThenRelease` therefore refuse, with
+`PolicyOwnedError` naming the role of the node-wide side: a node-wide install or
+delete at a selector an owner holds, whatever its role, and an owned install or
+delete at a selector an operator entry holds (`operatorHeldLocked`, read from
+the label written once the kernel accepted the entry).
+
+An owned PROTECT install over a catch-all is not refused: a peer that negotiates
+the wildcard of a family (0.0.0.0/0 to 0.0.0.0/0, any protocol and port)
+installs its PROTECT policies on the selector of the final entry of its SPD, the
+node-wide catch-all at if_id 0 or the catch-all of the XFRM interface it is
+bound to, and the kernel holds one of the two. While the PROTECT policy is live
+it is that lookup's final entry. It matches every packet the catch-all would, so
+RFC 4301 Section 5 ("If no policy is found in the SPD that matches a packet (for
+either inbound or outbound traffic), the packet MUST be discarded.") has no
+packet left to speak of in that direction and family, and it passes none in
+clear. The value of `unmatched` does not change that: a bypass catch-all would
+pass only what no other entry matched. The ledger keeps the final entry it was
+asked for (`policyOwners.finals`, written by `label` and `yieldFinal`):
+
+| Event | What the backend does |
+|---|---|
+| The catch-all is installed again, on a reload or by the address worker, while the PROTECT policy is live | No kernel call, success. The entry kept is replaced, so a changed `unmatched` is what comes back (`yieldFinal`) |
+| The peer's PROTECT policy is removed | One `XFRM_MSG_UPDPOLICY` of the kept catch-all, which replaces the PROTECT policy; no delete is sent, so the lookup never holds neither (`reinstateFinal`). If the kernel refuses it, the PROTECT policy and its record stay and the removal is retried like any failed removal |
+| The catch-all is removed while the PROTECT policy is live | No kernel call; the kept entry is dropped, and the PROTECT policy's removal is then a plain delete (`deleteThenRelease`) |
+| A peer's delete arrives where the catch-all itself holds the selector (a rollback of a policy that was never installed) | No kernel call, `ENOENT`: a delete would remove the catch-all |
+| A peer's template-free allow is installed on a selector a final entry holds | Refused with `PolicyOwnedError`: an allow cannot stand in for a final entry. No Child SA builds one on the wildcard |
+
+`show vpn ipsec dataplane policy` lists no catch-all row for that direction and
+family then, so the PROTECT row carries `displaced-final-entry` (`catch-all` or
+`interface-catch-all`) and `displaced-final-action` (the disposition that comes
+back), from `PolicyInfo.Displaced`. The forward lookup is not part of this on
+XFRM: its final disposition is the namespace default (`ApplyForwardDefault`),
+not a policy, so a wildcard peer's FWD PROTECT policy shares an identity with
+nothing and the default is in force again the moment that policy is deleted.
+strongSwan reaches the same kernel state by keeping every policy requested for
+one selector and direction in a priority-ordered list, installing the first and
+installing the next when the first is deleted (`kernel_netlink_ipsec.c`,
+`add_policy`, `del_policy`).
+<!-- source: internal/component/ike/dataplane/policy_owner.go -- claim, deleteThenRelease, operatorHeldLocked, PolicyOwnedError -->
+<!-- source: internal/component/ike/dataplane/policy_final.go -- finalEntry, yieldFinal, reinstateFinal, DisplacedFinalEntry -->
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- InstallPolicy, RemovePolicyParams -->
 
 Installation and readback use the same ownership key. A nil selector becomes the
 wildcard for the family the netlink writer selects: the destination prefix's
@@ -2953,7 +3018,7 @@ node's address space (Section 2.23.1) and refuses more than one pair
 RFC 4301 Section 5.2: "(This implies that IKE traffic MUST have an explicit BYPASS
 entry in the SPD.)" Ze's entry is per socket, as strongSwan's is
 (`add_socket_bypass` in `kernel_netlink_ipsec.c`, which charon's socket-default
-plugin calls on every IKE socket). `newTransport` calls `bypassIKESocket` on every
+plugin calls on every IKE socket). `newTransport` calls `dataplane.BypassIKESocket` on every
 IKE socket before it returns it, the UDP 500 socket and the NAT-T socket alike, the
 shared wildcard NAT-T socket MOBIKE uses included: an `IP_XFRM_POLICY` allow policy
 with no template and a zero selector, once per direction. MOBIKE opens no socket of
@@ -2985,20 +3050,51 @@ equal-priority tie by insertion order.
 
 The policy lives and dies with its socket: nothing installs or removes it at apply
 or exit, and `ip xfrm policy flush` does not touch it. Its priority carries
-`transport.IKESocketPolicyPriority` as a mark the kernel never matches, so the
+`dataplane.PriorityIKESocket` as a mark the kernel never matches, so the
 listing names the row `ike-bypass` with SPD `socket`, and the application override
 doctor check does not report it. The guard admits the `setsockopt` because Ze's own
 process makes it. A failed `setsockopt` (no `CAP_NET_ADMIN`, no `CONFIG_XFRM`) is
 logged at Warn and the socket is kept, as strongSwan does; the transport keeps the
 refusal (`exemptFromIPsec`, `BypassError`), and the engine's `ipsec-ike-socket-bypass`
 doctor check reports each socket it holds that carries one, under
-`doctor-ipsec-ike-socket-bypass`. On VPP the kernel socket
-policy decides nothing: VPP's SPD lives in VPP and never held an IKE bypass, because
-the backend refuses every node-wide entry (`vppPolicyInterface`).
+`doctor-ipsec-ike-socket-bypass`.
 
-<!-- source: internal/component/ike/transport/bypass_linux.go -- bypassIKESocket, ikeSocketPolicy -->
+On VPP the kernel socket policy decides nothing: VPP's SPD lives in VPP and never
+reads it. The VPP backend carries the bypass in its own SPD instead
+(`ensureIKEBypass`). Each PROTECT entry it installs brings four BYPASS entries for
+its local tunnel end, the address Ze's IKE runs on for that tunnel
+(`vppIKEEndpoint`): UDP 500 and 4500, outbound and inbound, with that one address
+and port on the local side and every address and port of the family on the remote
+side, so a NAT rebinding or a MOBIKE move still matches (`vppIKEBypassEntries`).
+They rank at `vppIKEBypassPriority`, the largest priority VPP holds, and the backend
+refuses any entry whose rank would reach it, so no PROTECT, DISCARD or BYPASS entry
+ties with them or outranks them. The first PROTECT entry that names an endpoint
+installs its entries, and the removal of the last one that names it, or the
+backend's close, removes them. An SPD bound by a BYPASS or DISCARD entry before any
+PROTECT entry exists has no IKE bypass yet, because nothing has told the backend
+which address to exempt, and VPP drops the peer's IKE on that interface. No path
+reaches that state today: `vppPolicyInterface` refuses every policy the engine and
+the operator SPD produce.
+
+VPP's inbound matcher ignores protocol and ports. `ipsec_input_policy_match` and
+`ipsec6_input_policy_match` (`src/vnet/ipsec/ipsec_input.c`, v26.06) compare an
+inbound BYPASS or DISCARD entry by its addresses alone, and the ESP and AH lookup
+tries PROTECT, then BYPASS, then DISCARD. The inbound IKE BYPASS entries therefore
+pass out of the SPD every ESP and AH packet addressed to the tunnel end that no
+PROTECT entry matches: an SPI no SA holds, or a live SPI from the wrong source. No
+DISCARD entry sees it. RFC 4301 Section 5.2 owes a discard: "If there is no match,
+discard the traffic." The packet goes on to ip-local instead, where in SPD mode
+nothing registers IP protocol 50, so VPP punts it, to the Linux host under linux-cp.
+Its discard rests on that ip-local and punt path, and nothing proves it. The defect
+is latent while `vppPolicyInterface` refuses every policy, and its fix, a change to
+Ze's VPP patch so inbound BYPASS and DISCARD honour protocol and ports, is AC-10 of
+`plan/post-release/features/spec-ipsec-vpp-policy-interface.md`.
+
+<!-- source: internal/component/ike/dataplane/vpp_policy.go -- ensureIKEBypass, releaseIKEBypass, vppIKEBypassEntries, vppIKEBypassPriority, vppIKEEndpoint -->
+<!-- source: internal/component/ike/dataplane/ike_socket_bypass_linux.go -- BypassIKESocket, ikeSocketPolicy -->
 <!-- source: internal/component/ike/ipsec/validate.go -- spdRankMin, spdRankMax, ValidatePolicyOrder -->
-<!-- source: internal/component/ike/transport/udp.go -- newTransport, IKESocketPolicyPriority, exemptFromIPsec, BypassError -->
+<!-- source: internal/component/ike/transport/udp.go -- newTransport, exemptFromIPsec, BypassError -->
+<!-- source: internal/component/ike/dataplane/override_guard.go -- PriorityIKESocket, PriorityESPFormSocket -->
 <!-- source: internal/component/ike/engine/doctor_ike_socket_bypass.go -- answerIKESocketBypass -->
 <!-- source: internal/component/ike/dataplane/policy_role.go -- socketPolicyRole -->
 

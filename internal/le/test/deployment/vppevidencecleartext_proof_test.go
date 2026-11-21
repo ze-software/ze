@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/test/vppcleartext"
 )
 
 // The cleartext proof's verdicts. These tests feed judgeCleartextFrame the text
@@ -138,8 +140,8 @@ func TestDecryptedProbePacketIsESPTheProbeSADecrypts(t *testing.T) {
 	if got := int(binary.BigEndian.Uint16(ip[2:4])); got != vppDecryptedFrameLen-14 {
 		t.Fatalf("outer length %d, want %d", got, vppDecryptedFrameLen-14)
 	}
-	if got := net.IP(ip[12:16]).String(); got != vppDecryptTunnelSource {
-		t.Fatalf("outer source %s, want the tunnel's remote end %s", got, vppDecryptTunnelSource)
+	if got := net.IP(ip[12:16]).String(); got != vppcleartext.TunnelRemote {
+		t.Fatalf("outer source %s, want the tunnel's remote end %s", got, vppcleartext.TunnelRemote)
 	}
 	esp := packet[34:]
 	if got := binary.BigEndian.Uint32(esp[0:4]); got != 0x45450001 {

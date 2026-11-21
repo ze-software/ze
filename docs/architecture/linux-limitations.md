@@ -731,7 +731,7 @@ For a `library` entry, read the module in the module cache:
 <!-- source: gokrazy/kernel/patches/0003-xfrm-state-scope.patch -- XFRM_ZE_CAP_ICMP_REVERSE, XFRM_ZE_CAP_ICMP_FORWARD_MAP, XFRM_ZE_CAP_ICMP_FORWARD_GATE, xfrm_out_fwd_icmp_block, __xfrm_route_forward, __xfrm_policy_check, icmp_err_packet -->
 <!-- source: internal/component/ike/engine/spd_policy.go -- spdTransitPolicies -->
 <!-- source: internal/component/ike/dataplane/xfrm_state_scope_linux.go -- checkXFRMStateScopeCapabilities -->
-<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- catchAllYieldsToICMPErrorCheck -->
+<!-- source: internal/component/ike/dataplane/policy_role.go -- catchAllYieldsToICMPErrorCheck -->
 <!-- source: internal/component/ike/engine/icmp_overlap.go -- refuseICMPErrorBypass -->
 
 ### LL-MPLS-FORWARD-NO-PMTU

@@ -25,21 +25,22 @@ import (
 // or 4500, so a running ze on the same host cannot be mistaken for this test's work.
 const fragTestPort = 45500
 
-// fragBypassPair builds the outbound and inbound halves of one port-scoped bypass, in
-// exactly the shape ikeBypassPolicies builds them (engine/bypass.go): the local port
-// is pinned and the remote port is left free, in both directions.
+// fragBypassPair builds the outbound and inbound halves of one port-scoped bypass,
+// with the selectors spdPolicyDirection (engine/spd_policy.go) gives an operator
+// BYPASS of direction both and one local port: the local port is pinned and the
+// remote port is left free, in both directions.
 func fragBypassPair() []SPParams {
 	anyNet := &net.IPNet{IP: net.IPv4zero.To4(), Mask: net.CIDRMask(0, 32)}
 	return []SPParams{
 		{
 			Src: anyNet, Dst: anyNet,
-			Dir: SADirOut, Action: SPActionBypass, Priority: testBypassPriority,
+			Dir: SADirOut, Action: SPActionBypass, Priority: testOperatorOrder,
 			UpperProto: unix.IPPROTO_UDP,
 			SrcPort:    ExactPortMatch(fragTestPort), DstPort: AnyPortMatch(),
 		},
 		{
 			Src: anyNet, Dst: anyNet,
-			Dir: SADirIn, Action: SPActionBypass, Priority: testBypassPriority,
+			Dir: SADirIn, Action: SPActionBypass, Priority: testOperatorOrder,
 			UpperProto: unix.IPPROTO_UDP,
 			SrcPort:    AnyPortMatch(), DstPort: ExactPortMatch(fragTestPort),
 		},
@@ -93,9 +94,9 @@ func TestXFRMPortScopedBypassIsNeverStoredOnTheForwardPath(t *testing.T) {
 		t.Fatalf("list policies: %v", err)
 	}
 
-	// Read back only the policies THIS test installed, by the port it pinned. A host
-	// running ze carries its own bypass on 500 and 4500, and judging those would make
-	// the verdict depend on what else is running.
+	// Read back only the policies THIS test installed, by the port it pinned. Another
+	// UDP policy on the host, an operator entry of a running ze or another IPsec
+	// daemon's, would make the verdict depend on what else is running.
 	seen := 0
 	for i := range policies {
 		p := &policies[i]

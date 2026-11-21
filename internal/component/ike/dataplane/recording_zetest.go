@@ -214,7 +214,11 @@ func (d *recordingDataplane) ListPolicies() ([]PolicyInfo, error) {
 			Mode:       p.Mode,
 			ReqID:      p.ReqID,
 			// The recorded entry is what the kernel would hold, the flag included.
-			ICMPErrorReturn:  p.ICMPErrorReturn,
+			ICMPErrorReturn: p.ICMPErrorReturn,
+			// The Linux backend sets XFRM_POLICY_ICMP on the catch-all's inbound
+			// discard alone, and its readback reports that flag on a BLOCK policy as
+			// ICMPErrorYield, so the recorded entry answers the same predicate.
+			ICMPErrorYield:   catchAllYieldsToICMPErrorCheck(p),
 			ICMPErrorPayload: p.ICMPErrorPayload,
 			Owner:            p.Owner,
 			OwnerKnown:       true,

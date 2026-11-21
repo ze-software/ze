@@ -3,7 +3,7 @@
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- the IKE bypass on Ze's own IKE sockets
 // Related: rfc4301_fragment_forward_integration_linux_test.go -- the protected host, its raw sender and the outside capture
 // Related: rfc4301_fragment_boundary_integration_linux_test.go -- fragmentChildren, the production Child SA creator
-// Related: ../transport/bypass_linux.go -- bypassIKESocket, the producer
+// Related: ../dataplane/ike_socket_bypass_linux.go -- BypassIKESocket, the producer
 
 package engine
 

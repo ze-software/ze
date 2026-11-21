@@ -401,11 +401,12 @@ func (s *ikeEngineState) placeXFRMInterfaceEntries(dp dataplane.Dataplane, plan 
 				continue
 			}
 			if role == dataplane.PolicyRoleInterfaceCatchAll {
-				s.log.Error("ike: could not install the SPD catch-all of a bound XFRM interface, so that interface's SPD has no final entry: "+
-					"a commit is refused, and the daemon's start goes on without it and reports it in `ze doctor`; "+
-					"the daemon needs CAP_NET_ADMIN to install it, and the next commit or address change retries it",
-					"interface", entry.iface, "dir", entry.params.Dir, "error", err,
-					"code", diagnostic.CodeDoctorIPsecSPDCatchAllMissing)
+				// Answered, not reported here: each caller reports the interface once, the
+				// reload as its refusal (interfaceCatchAllRefused), the start at Error
+				// (recordInterfaceCatchAllAtStart) and the address worker at Error
+				// (followAddress). This line keeps the direction for a debug log.
+				s.log.Debug("ike: the backend refused an SPD catch-all entry of a bound XFRM interface",
+					"interface", entry.iface, "dir", entry.params.Dir, "error", err)
 				noFinalEntry[entry.iface] = err
 				continue
 			}
@@ -471,7 +472,9 @@ func interfaceCatchAllStartRefusal(name string, cause error) *opererr.Error {
 	return opererr.Wrap(cause,
 		"The default discard of XFRM interface "+name+" is NOT in force: Ze could not install that interface's SPD catch-all when the daemon started",
 		"Traffic that no entry of that interface's SPD matches meets no final entry, and the kernel accepts some of it "+
-			"(an inbound packet under a transport-mode or offloaded state), which RFC 4301 Section 4.4.1 forbids. "+
+			"(an inbound packet under a transport-mode or offloaded state). RFC 4301 Section 5 requires it dropped: "+
+			"\"If no policy is found in the SPD that matches a packet (for either inbound or outbound traffic), the packet MUST be discarded.\" "+
+			"The final discard entry that ensures it is a SHOULD (Section 4.4.1). "+
 			"A start never refuses the IPsec block, so Ze installed the rest of the configuration and no entry hands traffic on to that interface. "+
 			"Remove the cause the dataplane names (the daemon needs CAP_NET_ADMIN), then restart Ze",
 		spdInstallFixRestart)

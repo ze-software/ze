@@ -200,13 +200,15 @@ func TestRFC4301ForgedFragmentsTakeTheReassembledDatagramsDisposition(t *testing
 			forgerySendQueued(t, sender, forgeryFragment(t, piece, id))
 		}
 		// The barrier is a whole datagram on the bypass port: under unmatched DISCARD it
-		// crosses only through the forward entry the projection installed.
-		fragmentSend(t, sender, fragmentForwardPacket(t, fragmentBypassPort, id+1))
+		// crosses only through the forward entry the projection installed. Its payload
+		// differs from the legitimate one, so each read below names which datagram arrived.
+		barrier := fragmentForwardPacket(t, fragmentBypassPort, id+1)
+		copy(barrier[28:], bytes.Repeat([]byte{'b'}, len(barrier)-28))
+		fragmentSend(t, sender, barrier)
 		seen := forgeryObserve(t, capture, id, id+1)
 		if got := forgeryIPCounter(t, "netstat", "IpExt:", "ReasmOverlaps") - overlaps; got != tc.overlaps {
 			t.Errorf("%s: ReasmOverlaps moved by %d, want %d", tc.name, got, tc.overlaps)
 		}
-		forgeryWantLegitimate(t, tc.name, bypassed, legit)
 		if tc.bypass {
 			// K3 gathers with ip_defrag, whose ip_frag_reasm keeps the original fragments
 			// on the head's frag_list and records IPCB(skb)->frag_max_size; on egress
@@ -227,6 +229,7 @@ func TestRFC4301ForgedFragmentsTakeTheReassembledDatagramsDisposition(t *testing
 			// another port did not change which datagram arrived. The barrier follows,
 			// and nothing else.
 			forgeryWantLegitimate(t, tc.name, bypassed, legit)
+			forgeryWantLegitimate(t, tc.name+", the barrier after it", bypassed, barrier[20:])
 			if sadSelDelivered(t, bypassed) {
 				t.Errorf("%s: a datagram besides the legitimate one and the barrier reached the bypass port", tc.name)
 			}
@@ -235,6 +238,7 @@ func TestRFC4301ForgedFragmentsTakeTheReassembledDatagramsDisposition(t *testing
 		if seen.whole+seen.fragments != 0 {
 			t.Errorf("%s: a forged datagram's content reached the outside peer in the clear: %+v", tc.name, seen)
 		}
+		forgeryWantLegitimate(t, tc.name+", the barrier alone", bypassed, barrier[20:])
 		if sadSelDelivered(t, bypassed) {
 			t.Errorf("%s: a datagram besides the barrier reached the bypass port", tc.name)
 		}
@@ -368,7 +372,7 @@ func forgeryWantLegitimate(t *testing.T, name string, conn *net.UDPConn, legit [
 		t.Fatalf("read the bypass listener: %v", err)
 	}
 	if !bytes.Equal(buf[:n], legit[8:]) {
-		t.Errorf("%s: the bypass port received payload %q, want the legitimate %q", name, buf[:n], legit[8:])
+		t.Errorf("%s: the bypass port received payload %q, want %q", name, buf[:n], legit[8:])
 	}
 }
 

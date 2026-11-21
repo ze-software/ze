@@ -57,6 +57,15 @@ func answerIKESocketBypass(s *ikeEngineState) []rpc.DoctorCheckDiagnostic {
 // holds: the primary pair, each literal pair and the shared NAT-T socket, each socket
 // once, in address order. The caller holds applyMu.
 func (s *ikeEngineState) ikeSocketBypassFailures() []ikeSocketBypassFailure {
+	return s.ikeSocketBypassFailuresRead((*transport.UDPTransport).BypassError)
+}
+
+// ikeSocketBypassFailuresRead is ikeSocketBypassFailures with the record each socket is
+// read through named: production reads the transport's own (BypassError), and a test
+// hands a reader that refuses, so the dedupe is judged on a host where every socket
+// carries its bypass. It calls read once for each distinct socket. The caller holds
+// applyMu.
+func (s *ikeEngineState) ikeSocketBypassFailuresRead(read func(*transport.UDPTransport) error) []ikeSocketBypassFailure {
 	seen := make(map[*transport.UDPTransport]bool)
 	var out []ikeSocketBypassFailure
 	collect := func(t *transport.UDPTransport) {
@@ -64,7 +73,7 @@ func (s *ikeEngineState) ikeSocketBypassFailures() []ikeSocketBypassFailure {
 			return
 		}
 		seen[t] = true
-		err := t.BypassError()
+		err := read(t)
 		if err == nil {
 			return
 		}

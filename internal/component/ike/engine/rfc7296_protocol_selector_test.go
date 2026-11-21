@@ -25,12 +25,12 @@ func protocolSelectorPayloads(t *testing.T, proto uint8, port uint16) (*wire.Pay
 		local, remote = "2001:db8:1::/64", "2001:db8:2::/64"
 	}
 	return &wire.PayloadTS{
-		TSPayloadType:    wire.PayloadTypeTSi,
-		TrafficSelectors: []wire.TrafficSelector{wireSel(t, local, port, port, proto)},
-	}, &wire.PayloadTS{
-		TSPayloadType:    wire.PayloadTypeTSr,
-		TrafficSelectors: []wire.TrafficSelector{wireSel(t, remote, 0, 65535, proto)},
-	}
+			TSPayloadType:    wire.PayloadTypeTSi,
+			TrafficSelectors: []wire.TrafficSelector{wireSel(t, local, port, port, proto)},
+		}, &wire.PayloadTS{
+			TSPayloadType:    wire.PayloadTypeTSr,
+			TrafficSelectors: []wire.TrafficSelector{wireSel(t, remote, 0, 65535, proto)},
+		}
 }
 
 // TestTSProtocolRequestsRefuseUndefinedPorts drives the actual responder
@@ -204,28 +204,18 @@ func TestTSWireRefusesUndefinedPortValues(t *testing.T) {
 	}
 }
 
-// TestChildMHSelectorProjectsTypeOnce calibrates the raw projection and wire
-// value only. Negotiation and Child installation refuse this unprogrammable
-// exact selector; this lower-boundary check claims no packet-delivery support.
+// TestChildMHSelectorProjectsTypeOnce calibrates the wire value of an exact MH
+// Type, and that the Child policy builder refuses that pair rather than project it:
+// Linux cannot select an exact MH Type (ipsec.PortSelector.ProgrammableForProtocol),
+// so no exact-Type policy is ever built. It claims no packet-delivery support.
 func TestChildMHSelectorProjectsTypeOnce(t *testing.T) {
 	pair := tsPair{
 		I: selPort(t, "2001:db8:1::/64", ipsec.PortSelector{Form: ipsec.PortSingle, Port: 0x0500}, 135),
 		R: selPort(t, "2001:db8:2::/64", ipsec.PortSelector{Form: ipsec.PortSingle, Port: 0x0700}, 135),
 	}
 	child := rfc4301ChildWith(&pair)
-	projected := policyPair{local: pair.I.Net, remote: pair.R.Net, upperProto: 135,
-		localPort: dataplane.ExactPortMatch(0x0500), remotePort: dataplane.ExactPortMatch(0x0700)}
-	for _, tc := range []struct {
-		dir       dataplane.SADir
-		typeValue uint16
-	}{{dataplane.SADirOut, 5}, {dataplane.SADirIn, 7}, {dataplane.SADirFwd, 7}} {
-		got := childPairPolicy(child, tc.dir, projected)
-		if got.SrcPort != dataplane.ExactPortMatch(tc.typeValue) {
-			t.Errorf("direction %d: source selector %+v, want exact MH type %d", tc.dir, got.SrcPort, tc.typeValue)
-		}
-		if !got.DstPort.IsAny() {
-			t.Errorf("direction %d: destination selector %+v, want ANY (MH has no second field)", tc.dir, got.DstPort)
-		}
+	if pp, ok := childPolicyPair(child, pair); ok {
+		t.Errorf("an exact MH Type pair was projected to %+v, want it refused before any policy is built", pp)
 	}
 	tsi, tsr := pairsToWire([]tsPair{pair})
 	if tsi == nil || tsr == nil {
@@ -262,28 +252,31 @@ func TestTSWireMHTypeEncoding(t *testing.T) {
 	}
 }
 
-// TestChildMHAnySideProjectsAny checks the other branch of the MH projection
-// in childPairPolicy: a side whose MH Type is ANY installs an ANY source
-// selector, never an exact Type 0 (Binding Refresh Request), while the
-// constrained side of the same pair still projects its bare Type.
+// TestChildMHAnySideProjectsAny checks the MH projection in childPairPolicy: an
+// MH pair whose Types are ANY installs ANY source and destination selectors in
+// every direction, never an exact Type 0 (Binding Refresh Request), and a pair
+// with one exact Type side is refused before any policy is built.
 func TestChildMHAnySideProjectsAny(t *testing.T) {
 	pair := tsPair{
 		I: selPort(t, "2001:db8:1::/64", ipsec.AnyPort(), ipsec.MobilityHeaderProtocol),
-		R: selPort(t, "2001:db8:2::/64", ipsec.PortSelector{Form: ipsec.PortSingle, Port: 0x0700},
-			ipsec.MobilityHeaderProtocol),
+		R: selPort(t, "2001:db8:2::/64", ipsec.AnyPort(), ipsec.MobilityHeaderProtocol),
 	}
 	child := rfc4301ChildWith(&pair)
-	projected := policyPair{local: pair.I.Net, remote: pair.R.Net, upperProto: ipsec.MobilityHeaderProtocol,
-		localPort: dataplane.AnyPortMatch(), remotePort: dataplane.ExactPortMatch(0x0700)}
-	out := childPairPolicy(child, dataplane.SADirOut, projected)
-	if !out.SrcPort.IsAny() || !out.DstPort.IsAny() {
-		t.Errorf("OUT from the ANY side: source %+v destination %+v, want both ANY", out.SrcPort, out.DstPort)
+	projected, ok := childPolicyPair(child, pair)
+	if !ok {
+		t.Fatal("an ANY MH pair was refused, want it projected")
 	}
-	for _, dir := range []dataplane.SADir{dataplane.SADirIn, dataplane.SADirFwd} {
+	for _, dir := range []dataplane.SADir{dataplane.SADirOut, dataplane.SADirIn, dataplane.SADirFwd} {
 		got := childPairPolicy(child, dir, projected)
-		if got.SrcPort != dataplane.ExactPortMatch(7) {
-			t.Errorf("direction %d: source selector %+v, want exact MH type 7", dir, got.SrcPort)
+		if got.SrcPort != dataplane.AnyPortMatch() || got.DstPort != dataplane.AnyPortMatch() {
+			t.Errorf("direction %d: source %+v destination %+v, want both ANY", dir, got.SrcPort, got.DstPort)
 		}
+	}
+	exact := pair
+	exact.R = selPort(t, "2001:db8:2::/64", ipsec.PortSelector{Form: ipsec.PortSingle, Port: 0x0700},
+		ipsec.MobilityHeaderProtocol)
+	if pp, ok := childPolicyPair(rfc4301ChildWith(&exact), exact); ok {
+		t.Errorf("a pair with an exact MH Type side was projected to %+v, want it refused", pp)
 	}
 }
 

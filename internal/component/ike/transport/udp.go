@@ -14,6 +14,7 @@ import (
 
 	"golang.org/x/net/ipv4"
 
+	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/probe"
 )
@@ -22,15 +23,6 @@ const (
 	IKEPort    = 500
 	MaxMsgSize = 3000 // RFC 7296 Section 2.1: handle up to 3000 bytes
 )
-
-// IKESocketPolicyPriority is the priority Ze writes into the per-socket bypass of each
-// IKE socket (bypassIKESocket). The kernel copies a socket policy's priority and never
-// matches on it (xfrm_compile_policy, copy_from_user_policy; xfrm_sk_policy_lookup
-// reads no priority), so the value is a mark: the policy listing names the row
-// ike-bypass by it (dataplane.socketPolicyRole), and doctor does not report it as an
-// application override. It sits three below the largest u32, a value no SPD entry Ze
-// installs uses and distinct from the ESP form reader's mark two below it.
-const IKESocketPolicyPriority = 1<<32 - 1 - 3
 
 var (
 	ErrClosed      = errors.New("transport: closed")
@@ -121,7 +113,7 @@ type UDPTransport struct {
 	natT bool
 
 	// bypassErr is why the kernel refused this socket its per-socket IPsec bypass
-	// (bypassIKESocket), nil when the socket carries it or the platform needs none.
+	// (dataplane.BypassIKESocket), nil when the socket carries it or the platform needs none.
 	// Written by exemptFromIPsec, which newTransport calls before it returns the
 	// transport and nothing calls after, so every reader sees it without mu.
 	bypassErr error
@@ -179,7 +171,7 @@ func newTransport(localAddr string, natT bool, logger *slog.Logger) (*UDPTranspo
 		return nil, err
 	}
 	// RFC 4301 Section 5.2
-	t.exemptFromIPsec(localAddr, bypassIKESocket)
+	t.exemptFromIPsec(localAddr, dataplane.BypassIKESocket)
 	return t, nil
 }
 
@@ -205,7 +197,7 @@ func (t *UDPTransport) exemptFromIPsec(localAddr string, bypass func(*net.UDPCon
 
 // BypassError answers why the kernel refused this socket its per-socket IPsec bypass
 // (RFC 4301 Section 5.2), nil when the socket carries it or the platform has no kernel
-// SPD that could capture it (bypass_other.go). Safe for concurrent use: the outcome is
+// SPD that could capture it (dataplane/ike_socket_bypass_other.go). Safe for concurrent use: the outcome is
 // fixed before the transport is returned.
 func (t *UDPTransport) BypassError() error {
 	return t.bypassErr

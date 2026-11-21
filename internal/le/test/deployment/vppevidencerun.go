@@ -65,6 +65,92 @@ func parseIPsecProbe(output string) (ipsecProbeIDs, error) {
 	return ids, nil
 }
 
+// What the probe's outbound SPD chain is owed, as `show ipsec all` prints it.
+// vppIPsecLocalEndpoint is the tunnel source of the probe's outbound PROTECT policy
+// (realVPPLocal, internal/component/ike/dataplane/vpp_real_integration_test.go), the
+// address the backend's IKE BYPASS entries exempt, and vppIKEBypassHead holds the VPP
+// priority the backend gives those entries (vppIKEBypassPriority,
+// dataplane/vpp_policy.go). Each changes with its source.
+const (
+	vppIPsecLocalEndpoint = "192.0.2.1"
+	vppIKEBypassHead      = "priority 2147483647 action bypass"
+)
+
+// vppSPDEntry is one SPD entry of `show ipsec all`: the line that carries its priority,
+// action, type and protocol, and the line after it, which carries its local address and
+// port ranges (format_ipsec_policy, src/vnet/ipsec/ipsec_format.c).
+type vppSPDEntry struct {
+	head  string
+	local string
+}
+
+// outboundSPDEntries returns the ip4-outbound entries of `show ipsec all`, in the order
+// VPP stores and searches them.
+func outboundSPDEntries(all string) []vppSPDEntry {
+	lines := strings.Split(all, "\n")
+	entries := make([]vppSPDEntry, 0, 4)
+	for i, line := range lines {
+		if !strings.Contains(line, "type ip4-outbound") {
+			continue
+		}
+		entry := vppSPDEntry{head: strings.TrimSpace(line)}
+		if i+1 < len(lines) {
+			entry.local = strings.TrimSpace(lines[i+1])
+		}
+		entries = append(entries, entry)
+	}
+	return entries
+}
+
+// outboundSPDFault answers what the probe's outbound chain lacks, or "" when it is as
+// owed: the two IKE BYPASS entries the backend installs with the PROTECT policy (UDP
+// from the local tunnel endpoint, port 500 and port 4500) searched first, then the
+// probe's own bypass at Ze priority 100, then the PROTECT entry for every protocol.
+//
+// RFC 4301 Section 5.2: "(This implies that IKE traffic MUST have an explicit BYPASS entry in
+// the SPD.)"
+//
+// A PROTECT entry listed ahead of an IKE bypass is the fault this exists for: VPP takes
+// the first match, so that entry would hand Ze's own IKE to ESP.
+func outboundSPDFault(entries []vppSPDEntry) string {
+	if len(entries) != 4 {
+		return tbDetail("the outbound chain holds ", strconv.Itoa(len(entries)),
+			" entries, want 4: two IKE bypass entries, the probe's bypass and its protect entry")
+	}
+	ports := make(map[string]bool, 2)
+	for _, entry := range entries[:2] {
+		if !strings.Contains(entry.head, vppIKEBypassHead) {
+			return tbDetail("the first two outbound entries must be the IKE bypass entries, and one reads ", entry.head)
+		}
+		if !strings.Contains(entry.head, "protocol UDP") {
+			return tbDetail("an IKE bypass entry must match UDP alone, and it reads ", entry.head)
+		}
+		for _, port := range []string{"500", "4500"} {
+			owed := tbDetail("local addr range ", vppIPsecLocalEndpoint, " - ", vppIPsecLocalEndpoint,
+				" port range ", port, " - ", port)
+			if entry.local == owed {
+				ports[port] = true
+			}
+		}
+	}
+	if !ports["500"] {
+		return tbDetail("no IKE bypass entry for UDP port 500 at ", vppIPsecLocalEndpoint, " leads the outbound chain")
+	}
+	if !ports["4500"] {
+		return tbDetail("no IKE bypass entry for UDP port 4500 at ", vppIPsecLocalEndpoint, " leads the outbound chain")
+	}
+	if !strings.Contains(entries[2].head, "priority -100 action bypass") {
+		return tbDetail("the third outbound entry must be the probe's bypass at VPP priority -100, and it reads ", entries[2].head)
+	}
+	if !strings.Contains(entries[3].head, "priority -2000 action protect") {
+		return tbDetail("the last outbound entry must be the protect entry at VPP priority -2000, and it reads ", entries[3].head)
+	}
+	if !strings.Contains(entries[3].head, "protocol any") {
+		return tbDetail("the protect entry must match every protocol, and it reads ", entries[3].head)
+	}
+	return ""
+}
+
 func (v *VPP) runIPsec(container, work string) (VPPScenarioReport, error) {
 	checks := make([]VPPCheck, 0, 5+1+len(vppCleartextProbeFrames))
 	interfaces, err := v.query(container, "show interface")
@@ -188,29 +274,14 @@ func (v *VPP) runIPsec(container, work string) (VPPScenarioReport, error) {
 			tb.Reset().Str("SPD ").Str(ids.SPD).Str(" is not bound to ").Str(iface).String(), spd, nil))
 		return finishVPPScenario(VPPScenarioIPsec, checks), nil
 	}
-	outbound := make([]string, 0, 2)
-	for line := range strings.SplitSeq(spd, "\n") {
-		if strings.Contains(line, "type ip4-outbound") {
-			outbound = append(outbound, strings.TrimSpace(line))
-		}
-	}
-	validPolicies := len(outbound) == 2
-	if validPolicies {
-		validPolicies = strings.Contains(outbound[0], "priority -100 action bypass")
-	}
-	if validPolicies {
-		validPolicies = strings.Contains(outbound[1], "priority -2000 action protect")
-	}
-	if validPolicies {
-		validPolicies = strings.Contains(outbound[1], "protocol any")
-	}
-	if !validPolicies {
-		checks = append(checks, failVPPCheck("spd-policies", "the SPD policies have the wrong count, order, action, or protocol", spd, nil))
+	if fault := outboundSPDFault(outboundSPDEntries(spd)); fault != "" {
+		checks = append(checks, failVPPCheck("spd-policies", fault, spd, nil))
 		return finishVPPScenario(VPPScenarioIPsec, checks), nil
 	}
 	checks = append(checks, passVPPCheck("spd-policies",
 		tb.Reset().Str("real VPP holds SPD ").Str(ids.SPD).Str(" bound to ").Str(iface).
-			Str(", with both policies").String(), tailLines(spd)...))
+			Str(", with the IKE bypass for UDP 500 and 4500 at ").Str(vppIPsecLocalEndpoint).
+			Str(" ahead of both policies").String(), tailLines(spd)...))
 
 	// The cleartext probe measures VPP's inbound processing on a second interface
 	// (vppevidencecleartext.go). It runs last, so the checks above read only what

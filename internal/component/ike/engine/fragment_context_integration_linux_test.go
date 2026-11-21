@@ -98,6 +98,11 @@ func TestRFC4301FragmentReassemblyKeepsProtectionContextsSeparate(t *testing.T) 
 	clear := func(packet []byte) { fragmentSend(t, plain, packet) }
 	protected := func(packet []byte) { first.sendEncap(t, packet) }
 	second := func(packet []byte) { sibling.sendEncap(t, packet) }
+	// The whole-packet sender each listener's port is delivered through: its own SA for
+	// a PROTECT port, the clear path for the BYPASS port.
+	controlSenders := map[uint16]func([]byte){
+		sadSelPort: protected, fragmentDiscardPort: second, fragmentBypassPort: clear,
+	}
 	// Keep namespace-sensitive sends on the lab's locked thread, rather than t.Run.
 	for index, tc := range []struct {
 		name                string
@@ -135,6 +140,16 @@ func TestRFC4301FragmentReassemblyKeepsProtectionContextsSeparate(t *testing.T) 
 			t.Logf("%s nonInitialFirst=%v delivered=%v, want=%v", tc.name, nonInitialFirst, delivered, tc.want)
 			if delivered != tc.want {
 				t.Errorf("%s nonInitialFirst=%v delivered=%v, want=%v", tc.name, nonInitialFirst, delivered, tc.want)
+			}
+			// A control on the case's own listener follows every row: a refused datagram
+			// that arrived after the deadline is read here instead of the control's exact
+			// body and fails the row, so a false row is a refusal and not a slow delivery.
+			if tc.listener != inside {
+				sameListener := fragmentContextPacket(tc.port, identifier+0x1000)
+				controlSenders[tc.port](sameListener)
+				if !fragmentContextDelivered(t, tc.listener, sameListener[28:]) {
+					t.Fatalf("%s nonInitialFirst=%v lost the following whole-packet control on its own listener", tc.name, nonInitialFirst)
+				}
 			}
 			control := fragmentContextPacket(sadSelPort, identifier+1)
 			protected(control)

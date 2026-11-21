@@ -39,21 +39,18 @@ import (
 	"github.com/ze-software/ze/internal/core/pcap"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/interoplab"
+	"github.com/ze-software/ze/internal/test/vppcleartext"
 )
 
-// The probe interface and the frames' addresses. The selectors are twins of the
-// realVPPCleartext constants in
-// internal/component/ike/dataplane/vpp_real_cleartext_integration_test.go, which
-// installs them: change both together. pg0 is not used because mpls-label-pop
-// creates it later in the same container.
+// The probe interface. Its address, the SPD's selectors and the SA are
+// internal/test/vppcleartext's, which
+// internal/component/ike/dataplane/vpp_real_cleartext_integration_test.go installs
+// from too. pg0 is not used because mpls-label-pop creates it later in the same
+// container.
 const (
 	vppCleartextInterface    = "pg1"
 	vppCleartextInterfaceMAC = "02:fe:00:00:45:01"
-	vppCleartextAddress      = vppCleartextHost + "/24"
-	// vppCleartextHost is the probe interface's own address, the destination of
-	// every frame aimed at it.
-	vppCleartextHost         = "100.64.45.1"
-	vppCleartextReportPrefix = "ze-vpp-cleartext:"
+	vppCleartextAddress      = vppcleartext.Host + "/24"
 	vppCleartextProbeTest    = "^TestVPPRealCleartextProbe$"
 	// vppCleartextESPSPI is an SPI no installed SA holds, so an ESP frame carrying
 	// it can only be judged by the DISCARD and BYPASS entries.
@@ -79,18 +76,6 @@ const (
 	// The two reasons Ze's patch adds (0106-ipsec-judge-unprotected-inbound-traffic.patch).
 	vppIPsecInputCleartextProtect = "IPSec cleartext matched protect"
 	vppIPsecInputDecrypted        = "IPSec decrypted packet"
-)
-
-// The inbound SA TestVPPRealCleartextProbe installs, twins of its
-// realVPPCleartextSPI, realVPPCleartextTunnelRemote and encKey: change both
-// together. The key is 0x40, 0x41, ... 36 octets: the AES-256 key, then the
-// 4-octet salt RFC 4106 appends to it.
-const (
-	vppDecryptSPI          = 0x45450001
-	vppDecryptTunnelSource = "100.64.46.1"
-	vppDecryptKeyFirst     = 0x40
-	vppDecryptKeyLen       = 36
-	vppDecryptSaltLen      = 4
 )
 
 // vppCleartextCount is one ipsec4-input-feature count a frame is owed.
@@ -133,22 +118,29 @@ func (f vppCleartextProbeFrame) received() int64 {
 }
 
 var vppCleartextProbeFrames = []vppCleartextProbeFrame{
-	{check: "probe-cleartext-protect", stream: "ct-protect", source: "100.64.46.10", target: vppCleartextHost,
+	{check: "probe-cleartext-protect", stream: "ct-protect", source: "100.64.46.10", target: vppcleartext.Host,
 		entry: "the inbound PROTECT entry 100.64.46.0/24",
 		owed:  "RFC 4301 Section 5.2 step 3b requires it discarded: it has no SPD-I match",
 		fate:  vppTraceFateDropped, counts: []vppCleartextCount{{vppIPsecInputCleartextProtect, 1}}},
-	{check: "probe-cleartext-discard", stream: "ct-discard", source: "100.64.47.10", target: vppCleartextHost,
+	{check: "probe-cleartext-discard", stream: "ct-discard", source: "100.64.47.10", target: vppcleartext.Host,
 		entry: "the inbound DISCARD entry 100.64.47.0/24",
 		owed:  "RFC 4301 Section 5.2 step 3b requires it discarded",
 		fate:  vppTraceFateDropped, counts: []vppCleartextCount{{vppIPsecInputDiscard, 1}}},
-	{check: "probe-cleartext-bypass", stream: "ct-bypass", source: "100.64.48.10", target: vppCleartextHost,
+	{check: "probe-cleartext-bypass", stream: "ct-bypass", source: "100.64.48.10", target: vppcleartext.Host,
 		entry: "the inbound BYPASS entry 100.64.48.0/24",
 		owed:  "RFC 4301 Section 5.2 step 3b requires it passed",
 		fate:  vppTraceFateForwarded, counts: []vppCleartextCount{{vppIPsecInputBypass, 1}}},
 	// The two ESP frames tell which address pair VPP compares the DISCARD entry
 	// against: the first in the orientation the IKE engine writes an inbound
 	// selector (source in the remote range), the second with the pair exchanged.
-	{check: "probe-esp-discard", stream: "esp-discard", source: "100.64.47.10", target: vppCleartextHost, esp: true,
+	// The first targets the probe interface's own address, the SA's local tunnel end.
+	// RFC 4301 Section 5.2 step 3a owes ESP addressed to the device with an SPI no SA
+	// holds a discard. On VPP v26.06 the backend's IKE BYPASS entries for that address
+	// (ensureIKEBypass) match it first, because the inbound matcher compares addresses
+	// alone (ipsec_input_policy_match, src/vnet/ipsec/ipsec_input.c), so this check is
+	// red until plan/post-release/features/spec-ipsec-vpp-policy-interface.md AC-10
+	// makes BYPASS match on protocol and ports.
+	{check: "probe-esp-discard", stream: "esp-discard", source: "100.64.47.10", target: vppcleartext.Host, esp: true,
 		entry: "the inbound DISCARD entry 100.64.47.0/24, source in its remote range",
 		owed:  "the DISCARD entry is owed the match",
 		fate:  vppTraceFateDropped, counts: []vppCleartextCount{{vppIPsecInputDiscard, 1}}},
@@ -159,7 +151,7 @@ var vppCleartextProbeFrames = []vppCleartextProbeFrame{
 	// ESP from the tunnel's remote end that the inbound SA decrypts, carrying an
 	// echo from the PROTECT entry's remote range: the decrypted datagram re-enters
 	// ipsec4-input-feature on pg1 and must pass on the decrypt node's mark.
-	{check: "probe-esp-decrypted", stream: "esp-decrypt", source: "100.64.46.10", target: vppCleartextHost, decrypt: true,
+	{check: "probe-esp-decrypted", stream: "esp-decrypt", source: "100.64.46.10", target: vppcleartext.Host, decrypt: true,
 		entry: "the inbound PROTECT entry 100.64.46.0/24 and its SA",
 		owed:  "the traffic the SA decrypts is owed delivery",
 		fate:  vppTraceFateForwarded, counts: []vppCleartextCount{{vppIPsecInputMatch, 1}, {vppIPsecInputDecrypted, 1}}},
@@ -252,7 +244,7 @@ func parseCleartextProbe(output string) (string, error) {
 		return "", errors.New("the cleartext probe skipped; it must program VPP")
 	}
 	for line := range strings.SplitSeq(output, "\n") {
-		rest, found := strings.CutPrefix(strings.TrimSpace(line), vppCleartextReportPrefix)
+		rest, found := strings.CutPrefix(strings.TrimSpace(line), vppcleartext.ReportPrefix)
 		if !found {
 			continue
 		}
@@ -533,7 +525,7 @@ const (
 
 // decryptedProbePacket fills packet, vppDecryptedFrameLen octets, with ESP the
 // probe's inbound tunnel-mode SA decrypts: AES-256-GCM with a 16-octet ICV, from
-// the tunnel's remote end vppDecryptTunnelSource to pg1, sequence number 1. Its
+// the tunnel's remote end vppcleartext.TunnelRemote to pg1, sequence number 1. Its
 // payload is the echo datagram cleartextProbePacket builds for frame's inner
 // source and target.
 //
@@ -563,7 +555,7 @@ func decryptedProbePacket(packet []byte, frame vppCleartextProbeFrame) error {
 	}
 	// The outer header comes from the same builder, with the tunnel's ends.
 	if err := cleartextProbePacket(packet[:vppCleartextFrameLen],
-		vppCleartextProbeFrame{check: frame.check, source: vppDecryptTunnelSource, target: vppCleartextHost, esp: true}); err != nil {
+		vppCleartextProbeFrame{check: frame.check, source: vppcleartext.TunnelRemote, target: vppcleartext.Host, esp: true}); err != nil {
 		return err
 	}
 	ip := packet[14:34]
@@ -572,7 +564,7 @@ func decryptedProbePacket(packet []byte, frame vppCleartextProbeFrame) error {
 	binary.BigEndian.PutUint16(ip[10:12], ipv4HeaderChecksum(ip))
 
 	esp := packet[34:]
-	binary.BigEndian.PutUint32(esp[0:4], vppDecryptSPI)
+	binary.BigEndian.PutUint32(esp[0:4], vppcleartext.SPI)
 	binary.BigEndian.PutUint32(esp[4:8], 1)
 	iv := esp[8 : 8+vppDecryptIVLen]
 	clear(iv)
@@ -588,11 +580,8 @@ func decryptedProbePacket(packet []byte, frame vppCleartextProbeFrame) error {
 	plaintext[vppDecryptPlaintextLen-2] = vppDecryptPadLen
 	plaintext[vppDecryptPlaintextLen-1] = vppDecryptNextHeader
 
-	var key [vppDecryptKeyLen]byte
-	for i := range key {
-		key[i] = byte(vppDecryptKeyFirst + i)
-	}
-	block, err := aes.NewCipher(key[:vppDecryptKeyLen-vppDecryptSaltLen])
+	key := vppcleartext.Key()
+	block, err := aes.NewCipher(key[:vppcleartext.KeyLen-vppcleartext.SaltLen])
 	if err != nil {
 		return err
 	}
@@ -602,9 +591,9 @@ func decryptedProbePacket(packet []byte, frame vppCleartextProbeFrame) error {
 	}
 	// RFC 4106 Section 4: "The nonce passed to the GCM-AES encryption algorithm has the
 	// following layout:" the salt, then the IV.
-	var nonce [vppDecryptSaltLen + vppDecryptIVLen]byte
-	copy(nonce[:vppDecryptSaltLen], key[vppDecryptKeyLen-vppDecryptSaltLen:])
-	copy(nonce[vppDecryptSaltLen:], iv)
+	var nonce [vppcleartext.SaltLen + vppDecryptIVLen]byte
+	copy(nonce[:vppcleartext.SaltLen], key[vppcleartext.KeyLen-vppcleartext.SaltLen:])
+	copy(nonce[vppcleartext.SaltLen:], iv)
 	// RFC 4106 Section 5: "This is done by including those fields in the AES-GCM
 	// Additional Authenticated Data (AAD) field." The SPI and the 32-bit
 	// sequence number, the first 8 octets of the ESP header.

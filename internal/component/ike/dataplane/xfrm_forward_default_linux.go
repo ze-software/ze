@@ -73,8 +73,8 @@ func xfrmForwardDefaultRefusal(cause error, problem string) error {
 		why = "The IKE process cannot read or set the namespace forwarding policy without CAP_NET_ADMIN. The command below reinstalls the systemd service's capabilities and starts it; a container must also grant NET_ADMIN to that process."
 		fix = privilege.DaemonCapabilitiesFix
 	case errors.Is(cause, unix.EINVAL), errors.Is(cause, unix.EPROTONOSUPPORT), errors.Is(cause, unix.ENOPROTOOPT), errors.Is(cause, unix.EOPNOTSUPP):
-		why = "The running kernel does not provide the XFRM default-policy operation IPsec forwarding needs. Install or select Ze's supported runtime kernel with CONFIG_XFRM_USER before rebooting into it; the command below reboots the host."
-		fix = "sudo reboot"
+		why = "The running kernel does not provide the XFRM default-policy operation IPsec forwarding needs. Build Ze's native runtime kernel with the commands below, then install it and boot into it."
+		fix = RuntimeKernelBuildFix()
 	}
 	return opererr.Wrap(cause, problem, why, fix)
 }
@@ -137,10 +137,17 @@ func (b *xfrmBackend) UsesForwardDefault() bool { return true }
 // compare-and-swap default-policy message, so external writers MUST serialize their
 // changes with Ze; a value observed to have changed is never overwritten here.
 // Readback, rather than an ACK alone, decides whether the requested value landed.
+//
+// It answers the value Ze takes the namespace to hold afterwards, with any error. A
+// read that fails before the write, and a write the kernel refused whose readback
+// also failed, changed nothing, so the answer is before: a caller that kept the value
+// it attempted would then call its own unchanged value a foreign change, and refuse
+// every later apply. Only an acknowledged write whose readback failed answers
+// xfrmDefaultUnspecified, because that value may have landed.
 func changeForwardDefault(before, after xfrmDefaultAction) (xfrmDefaultAction, error) {
 	current, err := xfrmDefaultsRead()
 	if err != nil {
-		return xfrmDefaultUnspecified, err
+		return before, err
 	}
 	if current.fwd != before {
 		return current.fwd, fmt.Errorf("%w (expected %d, found %d)", errXFRMForwardDefaultChanged, before, current.fwd)
@@ -151,7 +158,10 @@ func changeForwardDefault(before, after xfrmDefaultAction) (xfrmDefaultAction, e
 	writeErr := xfrmDefaultWrite(after)
 	current, err = xfrmDefaultsRead()
 	if err != nil {
-		return xfrmDefaultUnspecified, errors.Join(writeErr, err)
+		if writeErr != nil {
+			return before, errors.Join(writeErr, err)
+		}
+		return xfrmDefaultUnspecified, err
 	}
 	if current.fwd == after {
 		return after, nil

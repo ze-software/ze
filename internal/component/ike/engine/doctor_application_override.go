@@ -116,7 +116,7 @@ func socketPolicyDiagnostics(dp dataplane.Dataplane) []rpc.DoctorCheckDiagnostic
 			continue
 		}
 		// Ze's own: the ESP form reader's policy and the bypass on each IKE socket
-		// (transport.bypassIKESocket). They are counted in total above all the same.
+		// (dataplane.BypassIKESocket). They are counted in total above all the same.
 		if p.Role == dataplane.PolicyRoleESPFormSocket {
 			continue
 		}

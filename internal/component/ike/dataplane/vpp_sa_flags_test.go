@@ -23,6 +23,9 @@ func TestVPPSAFlagsAntiReplayPerDirection(t *testing.T) {
 		want   bool
 	}{
 		{"outbound without a window", SADirOut, 0, false},
+		// The window, not the direction, decides: a direction test in its place
+		// would pass the three other cases and fail this one.
+		{"outbound with a window", SADirOut, 64, true},
 		{"inbound with a window", SADirIn, 64, true},
 		{"inbound without a window", SADirIn, 0, false},
 	}

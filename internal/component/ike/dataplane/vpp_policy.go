@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"net/netip"
+	"slices"
 
 	"go.fd.io/govpp/binapi/interface_types"
 	"go.fd.io/govpp/binapi/ip_types"
@@ -95,10 +97,33 @@ func vppICMPSelectorError(p SPParams) error {
 		return nil
 	}
 	if !IsICMPProto(p.UpperProto) {
-		return opererr.Wrap(ErrSAOptionRefused,
-			fmt.Sprintf("vpp: protocol %d has a constrained selector that this backend cannot match", p.UpperProto),
-			"VPP's SPD compares ports only for TCP, UDP and SCTP, so installing this selector would match every packet of that protocol",
-			"local { port any; } remote { port any; }")
+		// The entry carries its role and, for a Child SA, its peer, but not the policy
+		// name or the traffic-selector number, so those stay placeholders. Setting a
+		// side that is already any to any changes nothing, so both sides are named.
+		peer := "<peer>"
+		if p.Owner != "" {
+			peer = p.Owner
+		}
+		var fix textbuf.Buffer
+		// Only the two roles an operator writes ports for name their own command; any
+		// other role names both, since the entry does not say which config holds it.
+		//exhaustive:ignore
+		switch p.Role {
+		case PolicyRoleOperator:
+			fix.Str("set vpn ipsec policy <name> local port any; set vpn ipsec policy <name> remote port any")
+		case PolicyRoleChildSA:
+			fix.Str("set vpn ipsec site-to-site peer ").Str(peer).Str(" traffic-selector <n> local port any; ").
+				Str("set vpn ipsec site-to-site peer ").Str(peer).Str(" traffic-selector <n> remote port any")
+		default:
+			fix.Str("set vpn ipsec policy <name> local port any; set vpn ipsec policy <name> remote port any, or ").
+				Str("set vpn ipsec site-to-site peer ").Str(peer).Str(" traffic-selector <n> local port any; ").
+				Str("set vpn ipsec site-to-site peer ").Str(peer).Str(" traffic-selector <n> remote port any")
+		}
+		var problem textbuf.Buffer
+		problem.Str("vpp: protocol ").Uint8(p.UpperProto).Str(" has a constrained selector that this backend cannot match")
+		return opererr.Wrap(ErrSAOptionRefused, problem.String(),
+			"VPP's SPD compares ports only for TCP, UDP and SCTP, so installing this selector would match every packet of that protocol; set both ports of the entry to any",
+			fix.String())
 	}
 	return fmt.Errorf(
 		"%w: vpp: a policy for protocol %d names ICMP type %d mask %#04x and code %d mask %#04x, and VPP's SPD compares ports only for TCP, UDP and SCTP, so it would match every ICMP message; "+
@@ -163,6 +188,20 @@ func (b *vppBackend) InstallPolicy(p SPParams) error {
 	if err != nil {
 		return err
 	}
+	if entry.Policy != ipsec_types.IPSEC_API_SPD_ACTION_PROTECT {
+		return b.installSPDEntry(swIfIndex, entry)
+	}
+	// RFC 4301 Section 5.2
+	local, err := vppIKEEndpoint(p)
+	if err != nil {
+		return err
+	}
+	return b.installProtectEntry(swIfIndex, entry, local)
+}
+
+// installSPDEntry creates and binds the SPD when needed, sends one entry that is not a
+// PROTECT entry, and records it. b.mu is held.
+func (b *vppBackend) installSPDEntry(swIfIndex uint32, entry ipsec_types.IpsecSpdEntryV2) error {
 	spdID, made, err := b.ensureSPD(swIfIndex)
 	if err != nil {
 		return err
@@ -175,6 +214,238 @@ func (b *vppBackend) InstallPolicy(p SPParams) error {
 	// VPP matches an SPD entry by its whole content, so the entry that was sent IS
 	// the handle Close sends back (removeInstalled, vpp.go).
 	b.spdEntries = append(b.spdEntries, entry)
+	return nil
+}
+
+// installProtectEntry is installSPDEntry for a PROTECT entry: the IKE BYPASS entries of
+// its local endpoint are in VPP BEFORE the entry is sent (ensureIKEBypass), so no
+// PROTECT entry is ever in force without them, and a failure takes back the ones this
+// call added before it undoes the SPD. b.mu is held.
+func (b *vppBackend) installProtectEntry(swIfIndex uint32, entry ipsec_types.IpsecSpdEntryV2, local netip.Addr) error {
+	spdID, made, err := b.ensureSPD(swIfIndex)
+	if err != nil {
+		return err
+	}
+	entry.SpdID = spdID
+
+	// RFC 4301 Section 5.2
+	bypassed, err := b.ensureIKEBypass(local)
+	if err != nil {
+		return errors.Join(err, b.releaseIKEBypass(local, bypassed), b.undoSPD(swIfIndex, made))
+	}
+	if err := b.sendSPDEntry(true, entry); err != nil {
+		return errors.Join(err, b.releaseIKEBypass(local, bypassed), b.undoSPD(swIfIndex, made))
+	}
+	b.spdEntries = append(b.spdEntries, entry)
+	if b.protectLocal == nil {
+		b.protectLocal = make(map[ipsec_types.IpsecSpdEntryV2]netip.Addr)
+	}
+	b.protectLocal[entry] = local
+	return nil
+}
+
+// The UDP ports of the IKE exchange, the ports an IKE BYPASS entry names on its local
+// side.
+//
+// RFC 7296 Section 2: "IKE normally listens and sends on UDP port 500, though IKE messages
+// may also be received on UDP port 4500 with a slightly different format (see Section 2.23)."
+//
+// They are also the two ports VPP's own input node reads as IKE: ipsec4_input_node and
+// ipsec6_input_node hand a UDP datagram to the SPD lookup only when its destination port
+// is 500 or 4500 (src/vnet/ipsec/ipsec_input.c). transport.IKEPort and transport.NATTPort
+// hold the same numbers, and that package imports this one, so they are restated here.
+var vppIKEPorts = [...]uint16{500, 4500}
+
+// vppIKEBypassPriority ranks an IKE BYPASS entry ahead of every entry a caller can ask
+// for. VPP keeps a chain sorted by priority DESCENDING (vppPriority), this is the largest
+// value its i32 priority holds, and vppSPDSelector refuses a policy whose rank would
+// reach it, so no PROTECT, DISCARD or BYPASS entry of a caller ties with it or beats it.
+const vppIKEBypassPriority int32 = math.MaxInt32
+
+// vppIKEEndpoint returns this node's end of the tunnel a PROTECT policy protects, which
+// is the address Ze's IKE exchange for that tunnel runs on: an outbound policy's tunnel
+// source and an inbound policy's tunnel destination (childPolicies reverses the pair
+// with the direction, ike/engine/child.go).
+//
+// An absent endpoint is refused before anything is sent. With no address to exempt, the
+// PROTECT entry would be in force with no IKE BYPASS beside it.
+func vppIKEEndpoint(p SPParams) (netip.Addr, error) {
+	endpoint := p.TunnelSrc
+	if p.Dir == SADirIn {
+		endpoint = p.TunnelDst
+	}
+	if !validTunnelEndpoint(endpoint) {
+		return netip.Addr{}, fmt.Errorf(
+			"vpp: a protect policy needs its local tunnel endpoint, the address the IKE bypass entries exempt, and it is %v (tunnel src=%v dst=%v, direction %d)",
+			endpoint, p.TunnelSrc, p.TunnelDst, p.Dir)
+	}
+	local, ok := netip.AddrFromSlice(endpoint)
+	if !ok {
+		return netip.Addr{}, fmt.Errorf("vpp: the local tunnel endpoint %v of a protect policy is not an IP address", endpoint)
+	}
+	return local.Unmap(), nil
+}
+
+// vppIKEBypassEntries builds the four IKE BYPASS entries of one local IKE endpoint in
+// SPD spdID: outbound and inbound, for each port of vppIKEPorts.
+//
+// RFC 4301 Section 5.2: "(This implies that IKE traffic MUST have an explicit BYPASS entry in
+// the SPD.)"
+//
+// THE LOCAL SIDE is one address and one port, Ze's own. THE REMOTE SIDE is every address
+// and every port of the same family: a peer behind a NAT presents a rewritten source
+// port, a MOBIKE move changes its address, and a peer with no Child SA yet has to reach
+// the listener for its first exchange.
+//
+// THE LOCAL ADDRESS is what keeps this from being the node-wide entry removed in
+// e700fb7392. That entry named the port alone, so it also matched a protected host's
+// forwarded datagram from source port 500 or 4500 and let it out in clear. A forwarded
+// datagram carries the host's address, never Ze's tunnel endpoint.
+//
+// WHAT VPP MATCHES (v26.06, src/vnet/ipsec). Outbound, ipsec_output_policy_match
+// (ipsec_output.h) walks one chain in priority order and compares addresses, protocol
+// and, for UDP, both port ranges, so the outbound entries match Ze's IKE datagrams and
+// nothing else. Inbound, a datagram to UDP port 500 or 4500 goes to
+// ipsec_esp_packet_process (ipsec_input.c), which tries the PROTECT entries by SPI, then
+// the BYPASS entries, then the DISCARD entries, and DROPS what none matches ("Drop by
+// default if no match on PROTECT, BYPASS or DISCARD"). So once an SPD is bound to an
+// interface, the peer's IKE reaches Ze only through an inbound BYPASS entry.
+//
+// WHAT VPP IGNORES INBOUND. ipsec_input_policy_match and ipsec6_input_policy_match
+// (ipsec_input.c) compare an inbound BYPASS or DISCARD entry by its address ranges
+// alone: the entry's protocol and ports are never read. ESP and AH take the same path,
+// PROTECT then BYPASS then DISCARD. So the two inbound entries built here are not "UDP
+// 500 and 4500 only": they pass out of the SPD every ESP and AH packet addressed to the
+// local endpoint that no PROTECT entry matches, an SPI no SA holds or a live SPI from a
+// source its PROTECT entry does not name, and no DISCARD entry ever sees it.
+//
+// RFC 4301 Section 5.2: "If there is no match, discard the traffic."
+//
+// VPP does not discard it here. The packet goes on to ip-local, where in SPD mode
+// nothing registers IP protocol 50, so it is punted, to the Linux host under linux-cp.
+// Its discard therefore rests on the ip-local and punt path, and no test proves it.
+// Latent today, because vppPolicyInterface refuses every policy IKE produces. The fix,
+// Ze's VPP patch making inbound BYPASS and DISCARD honour protocol and ports, is owned
+// by plan/post-release/features/spec-ipsec-vpp-policy-interface.md (AC-10).
+func vppIKEBypassEntries(spdID uint32, local netip.Addr) []ipsec_types.IpsecSpdEntryV2 {
+	host := ip_types.NewAddress(local.AsSlice())
+	first := make(net.IP, local.BitLen()/8)
+	last := make(net.IP, len(first))
+	for i := range last {
+		last[i] = math.MaxUint8
+	}
+	entries := make([]ipsec_types.IpsecSpdEntryV2, 0, 2*len(vppIKEPorts))
+	for _, port := range vppIKEPorts {
+		for _, outbound := range [...]bool{true, false} {
+			entries = append(entries, ipsec_types.IpsecSpdEntryV2{
+				SpdID:              spdID,
+				Priority:           vppIKEBypassPriority,
+				IsOutbound:         outbound,
+				Policy:             ipsec_types.IPSEC_API_SPD_ACTION_BYPASS,
+				Protocol:           uint8(ip_types.IP_API_PROTO_UDP),
+				LocalAddressStart:  host,
+				LocalAddressStop:   host,
+				RemoteAddressStart: ip_types.NewAddress(first),
+				RemoteAddressStop:  ip_types.NewAddress(last),
+				LocalPortStart:     port,
+				LocalPortStop:      port,
+				RemotePortStart:    0,
+				RemotePortStop:     math.MaxUint16,
+			})
+		}
+	}
+	return entries
+}
+
+// ensureIKEBypass puts the IKE BYPASS entries of one local IKE endpoint in this
+// backend's SPD, and returns the ones THIS call added, so a caller whose own request
+// then fails takes back exactly those (releaseIKEBypass). b.mu is held, and the SPD
+// exists (ensureSPD).
+//
+// WHY THIS BACKEND OWNS THEM. On Linux Ze's IKE is exempt on its own sockets
+// (BypassIKESocket), and a socket policy reaches the kernel's XFRM alone:
+// VPP's SPD lives in VPP and never reads it (AttachOverrideGuard). On VPP the exemption
+// can only be an SPD entry, and an SPD entry applies to the interfaces its SPD is bound
+// to, which only this backend knows. So the engine asks for nothing and names no
+// backend: every PROTECT entry this backend installs brings the entries of its own
+// local endpoint with it.
+//
+// WHY PER PROTECT ENTRY. A PROTECT entry is what can capture the exchange: the ordinary
+// site-to-site selector 0.0.0.0/0 covers the two addresses IKE itself runs between, and
+// then the outbound entry hands Ze's own IKE to ESP, so the tunnel can be neither
+// rekeyed nor deleted. It is also the one request that tells this backend which address
+// Ze's IKE runs on (vppIKEEndpoint).
+//
+// NOT COVERED: an SPD bound by a BYPASS or DISCARD entry before any PROTECT entry
+// exists. VPP then drops the peer's IKE on that interface (vppIKEBypassEntries), and
+// this backend has been told no IKE address to exempt. Nothing reaches that state today,
+// because vppPolicyInterface refuses every policy the IKE engine and the operator SPD
+// produce. plan/post-release/features/spec-ipsec-vpp-policy-interface.md binds the SPD
+// from the WAN interface leaf, and owes the bypass at that bind.
+func (b *vppBackend) ensureIKEBypass(local netip.Addr) ([]ipsec_types.IpsecSpdEntryV2, error) {
+	var added []ipsec_types.IpsecSpdEntryV2
+	for _, entry := range vppIKEBypassEntries(b.spdID, local) {
+		if slices.Contains(b.ikeBypass[local], entry) {
+			continue
+		}
+		if err := b.sendSPDEntry(true, entry); err != nil {
+			return added, fmt.Errorf("vpp: IKE bypass of %s, without which the protect policy is not installed: %w", local, err)
+		}
+		if b.ikeBypass == nil {
+			b.ikeBypass = make(map[netip.Addr][]ipsec_types.IpsecSpdEntryV2)
+		}
+		b.ikeBypass[local] = append(b.ikeBypass[local], entry)
+		added = append(added, entry)
+	}
+	return added, nil
+}
+
+// releaseIKEBypass sends back the given IKE BYPASS entries of one local endpoint and
+// forgets each one VPP removed. An entry whose delete VPP refuses stays recorded, so
+// Close sends it again (removeInstalled, vpp.go) and a later PROTECT entry for the same
+// endpoint does not add a second copy. entries MUST NOT alias b.ikeBypass[local], which
+// this function edits. b.mu is held.
+func (b *vppBackend) releaseIKEBypass(local netip.Addr, entries []ipsec_types.IpsecSpdEntryV2) error {
+	var errs []error
+	for _, entry := range entries {
+		if err := b.sendSPDEntry(false, entry); err != nil {
+			errs = append(errs, fmt.Errorf("vpp: IKE bypass of %s: %w", local, err))
+			continue
+		}
+		held := b.ikeBypass[local]
+		if i := slices.Index(held, entry); i >= 0 {
+			b.ikeBypass[local] = slices.Delete(held, i, i+1)
+		}
+	}
+	if len(b.ikeBypass[local]) == 0 {
+		delete(b.ikeBypass, local)
+	}
+	return errors.Join(errs...)
+}
+
+// releaseProtectIKEBypass runs after a recorded entry was deleted from VPP and from
+// b.spdEntries: when it was the last PROTECT entry naming its local IKE endpoint, the
+// IKE BYPASS entries of that endpoint go with it. b.mu is held.
+func (b *vppBackend) releaseProtectIKEBypass(removed ipsec_types.IpsecSpdEntryV2) error {
+	local, protect := b.protectLocal[removed]
+	// refuse-by-default: guards RemovePolicyParams -- only a PROTECT entry is recorded with a local endpoint, so removing a bypass or discard entry releases no IKE bypass
+	if !protect {
+		return nil
+	}
+	// An idempotent re-install records the same entry twice, and VPP still holds the
+	// other copy.
+	if slices.Contains(b.spdEntries, removed) {
+		return nil
+	}
+	delete(b.protectLocal, removed)
+	for _, other := range b.protectLocal {
+		if other == local {
+			return nil
+		}
+	}
+	if err := b.releaseIKEBypass(local, slices.Clone(b.ikeBypass[local])); err != nil {
+		return fmt.Errorf("vpp: the policy is removed, and an IKE bypass entry it needed is not; Close sends it again: %w", err)
+	}
 	return nil
 }
 
@@ -327,7 +598,7 @@ func (b *vppBackend) RemovePolicyParams(p SPParams) error {
 		return err
 	}
 	b.forgetSPDEntry(entry)
-	return nil
+	return b.releaseProtectIKEBypass(entry)
 }
 
 // recordedEntry returns the SPD entry this backend recorded (spdEntries) for p, the
@@ -687,6 +958,15 @@ func vppSPDSelector(p SPParams) (ipsec_types.IpsecSpdEntryV2, error) {
 			ErrNotSupported, p.Dir, SADirIn, SADirOut)
 	}
 	action := vppSPDAction(p.Action)
+	priority := vppPriority(p.Priority)
+	// No entry a caller asks for ranks with or ahead of this backend's IKE BYPASS
+	// entries (vppIKEBypassPriority): VPP's order between two entries of one rank is not
+	// Ze's to choose.
+	if priority >= vppIKEBypassPriority {
+		return entry, fmt.Errorf(
+			"vpp: policy priority %d becomes VPP rank %d, which this backend keeps for its IKE bypass entries; a policy priority is 0 or above",
+			p.Priority, priority)
+	}
 	upperProto, err := vppUpperProto(p.UpperProto)
 	if err != nil {
 		return entry, err
@@ -737,7 +1017,7 @@ func vppSPDSelector(p SPParams) (ipsec_types.IpsecSpdEntryV2, error) {
 
 	return ipsec_types.IpsecSpdEntryV2{
 		// SpdID is set by the caller, from ensureSPD.
-		Priority:   vppPriority(p.Priority),
+		Priority:   priority,
 		IsOutbound: p.Dir == SADirOut,
 		Policy:     action,
 		// The SPD protocol is the UPPER-LAYER protocol of the matched traffic, never
@@ -820,8 +1100,14 @@ func vppSPDAction(a SPAction) ipsec_types.IpsecSpdAction {
 //
 // The hardcoded 100 that stood here gave every policy one rank.
 //
+// A priority of 0 or above becomes a rank of 0 or below, and this backend's own IKE
+// BYPASS entries sit above every one of them, at vppIKEBypassPriority (ensureIKEBypass).
+// The per-socket policy that exempts Ze's IKE on Linux (BypassIKESocket)
+// reaches the kernel's XFRM alone and does NOT exempt it from VPP's SPD, so on VPP that
+// rank is what keeps a Child SA policy from capturing the exchange that rekeys it.
+//
 // MEASURED on VPP v26.06 in the AC-7 deployment run
-// (internal/le/test/deployment/vppevidence.go, run_ipsec_evidence). Two outbound policies go
+// (internal/le/test/deployment/vppevidencerun.go, runIPsec). Two outbound policies go
 // into one chain and `show ipsec spd` prints it in stored order. The bypass at Ze 100
 // (VPP -100) is listed AHEAD of the Child SA policy (Ze 2000, VPP -2000), and two
 // policies added afterwards at VPP priority 7 and 8 sort ahead of both, highest first.

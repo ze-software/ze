@@ -320,21 +320,35 @@ toolchain floats under one key:
 | The packages `apt-get install` takes in the image, and `apk add` in the QEMU guest | No versions pinned: gcc, binutils and the rest move with the distribution |
 | The Alpine ISO | Its SHA-256 is fetched beside it (`fetchPublishedChecksum`), not pinned in the tree |
 
-The backend in the key is the one the lookup names. A build takes
-`--builder`, but the image build, `./le build gokrazy`, the ISO and the
-`ze doctor` check look the runtime kernel up with no builder, which keys the
-backend a build here would choose (`PreferredBackend`). A kernel built with the
-other `--builder`, for example `--builder qemu` on a host with Docker
-installed, sits under its own key and is not served to them: the image build
-compiles the preferred backend's kernel instead, the ISO finds no installer
-kernel in the cache, and the doctor check does not count it as cached.
+The backend in the key is the one the lookup names, so each backend's kernel
+has an entry of its own. A lookup with `--builder` is served only that
+backend's entry. The image build, `./le build gokrazy`, the `ze doctor` check
+and every test, record run and lab look the runtime kernel up with no builder:
+they try the entry of the backend a build here would choose
+(`PreferredBackend`, Docker when its client is on `PATH`), then the other
+backend's entry of the same two input hashes (`runtimeKernelBackends`). Both
+backends compile the same inputs, so a kernel built with the other
+`--builder`, for example `--builder qemu` on a Mac whose Colima VM cannot
+build the Docker one, is served rather than built a second time
+(`ai/META-DECISIONS.md`, "Test systems and labs"). The preferred entry wins when
+both exist, and a miss on both builds the preferred one. The installer kernel
+is not resolved this way: the ISO still finds no installer kernel that the
+other `--builder` built.
 
 `plan/journal/stale-artifact-reused.md` records each row. To rebuild against
 the current upstream, remove the cache entry that
-`ze appliance kernel --target <target> --print-cache-dir` prints.
+`ze appliance kernel --target <target> --print-cache-dir` prints. For the
+runtime kernel with no `--builder`, that is the entry the lookup is served
+from, the other backend's when only it holds a kernel, and the preferred
+backend's when neither does; `--evict-cache` keeps both backends' entries of
+the current inputs (`servedKernelCachePath`, `servableKernelCachePaths`).
 
 <!-- source: internal/appliance/runtimekernel.go -- RuntimeKernelTree -->
 <!-- source: internal/appliance/cmd_kernel.go -- resolveRuntimeKernel -->
+<!-- source: internal/appliance/cmd_kernel.go -- servedKernelCachePath, servableKernelCachePaths -->
+<!-- test: internal/appliance/runtimekernel_cli_backends_test.go TestKernelPrintCacheDirNamesTheServedEntry, TestKernelEvictCacheKeepsEveryServableEntry -->
+<!-- source: internal/appliance/runtimekernel_cached.go -- CachedRuntimeKernelTree, runtimeKernelBackends, publishedRuntimeKernel -->
+<!-- test: internal/appliance/runtimekernel_backends_test.go TestCachedRuntimeKernelTreeServesEitherBackend, TestRuntimeKernelTreeAdoptsTheOtherBackendsBuild -->
 <!-- source: internal/appliance/doctor_checks.go -- checkRuntimeKernel -->
 <!-- source: internal/appliance/kernelbuilder/driver.go -- SelectBuilder -->
 <!-- source: internal/appliance/cache.go -- kernelBuilderSources -->

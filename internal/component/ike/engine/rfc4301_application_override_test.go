@@ -71,7 +71,7 @@ func TestRFC4301OverrideLeafSelectsTheGuard(t *testing.T) {
 // TestApplyAttachesOverrideGuardUnderDeny is the wiring row: a first apply under deny
 // attaches the guard once, after the node catch-all is installed, and the apply
 // writes no IKE bypass into the SPD: Ze's own IKE is exempt on its sockets
-// (bypassIKESocket), which open after the apply, so the guard is in force first.
+// (dataplane.BypassIKESocket), which open after the apply, so the guard is in force first.
 //
 // VALIDATES: the order in applyConfig (catch-all, then guard), and that no node-wide
 // IKE bypass entry is installed.

@@ -278,11 +278,19 @@ func dockerLabKernelProvenance(root, goarch string) (kernel, builder string) {
 		unknown := "unknown: " + err.Error()
 		return unknown, unknown
 	}
-	builder, err = appliance.RuntimeKernelBuilder(kernel)
+	return kernel, dockerLabKernelBuilder(kernel, goarch)
+}
+
+// dockerLabKernelBuilder answers the backend that built the runtime kernel
+// entry kernel, a kernel for goarch, for the report: "unknown: " and the
+// reason when its provenance names none, which says so in place of the value
+// rather than failing a lab that booted.
+func dockerLabKernelBuilder(kernel, goarch string) string {
+	builder, err := appliance.RuntimeKernelBuilder(kernel, goarch, runtimeKernelBuildCommand)
 	if err != nil {
-		return kernel, "unknown: " + err.Error()
+		return "unknown: " + err.Error()
 	}
-	return kernel, builder
+	return builder
 }
 
 // runDockerLabHere runs the verb over this checkout under its signal root, so

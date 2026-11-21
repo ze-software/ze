@@ -200,8 +200,18 @@ template-free forward allow the same flag is read as `icmp-error-payload`: Ze
 sets it on the FWD policies of an operator bypass alone (its FWD transit gate,
 and the FWD decision of an `in` or `both` bypass), where Ze's kernel judges a forwarded ICMP error that arrived on an SA by the policy its payload
 selects (`spdTransitPolicies`, K1 bit 7). Every other row reads `false`.
+
+A policy row also carries `displaced-final-entry` and `displaced-final-action`.
+A peer that negotiated the wildcard of a family holds the kernel identity of its
+SPD's catch-all, so the kernel holds the peer's PROTECT policy and no catch-all
+row for that direction and family. That PROTECT row then reads `catch-all` or
+`interface-catch-all`, with the disposition Ze puts back when the policy is
+removed (`PolicyInfo.Displaced`, from the XFRM ownership ledger). Every other
+row reads `none` in both.
+<!-- source: internal/component/ike/dataplane/policy_final.go -- DisplacedFinalEntry, yieldFinal, reinstateFinal -->
 <!-- source: internal/component/ike/engine/spd_policy.go -- spdTransitPolicies -->
-<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- saOptionsFromState, saDirFromKernel, policyInfoFromKernel, catchAllYieldsToICMPErrorCheck -->
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- saOptionsFromState, saDirFromKernel, policyInfoFromKernel -->
+<!-- source: internal/component/ike/dataplane/policy_role.go -- catchAllYieldsToICMPErrorCheck -->
 <!-- source: internal/component/ike/cmd/show_dataplane.go -- saInfoToMap, policyInfoToMap -->
 
 ## Decision: a policy says whether ze owns it

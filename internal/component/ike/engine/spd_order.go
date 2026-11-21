@@ -2,6 +2,7 @@
 // Related: spd_policy.go -- spdPolicyParams, the projection whose selectors this compares
 // Related: config.go -- validateIPsecSections, which runs verifySPDOrder at every commit door
 // Related: icmp_overlap.go -- the other commit refusal that pairs an operator entry with a peer
+// Related: ../dataplane/policy_owner.go -- PolicySelectorsEqual, and the install-time refusal of the same collision
 // RFC: rfc/short/rfc4301.md -- SPD ordering (Section 4.4.1)
 
 package engine
@@ -49,6 +50,13 @@ import (
 // install when they would share one (dataplane.TransportSelectorConflictError and the
 // cross-peer tunnel check).
 //
+// An operator entry and a peer that install the same selector in one direction are
+// refused whatever their ranks too (spdPeerSelectorRefusal), every policy of the entry
+// judged, its gates included: the dataplane would hold one of the two, so a gate would
+// replace the peer's PROTECT policy with an allow. The selectors a peer negotiates
+// narrower than it configures are refused at install by the backend's ownership ledger
+// (dataplane.PolicyOwnedError).
+//
 // The forward projection of each side joins the comparison (spdJudgedPolicies): an
 // operator entry's transit decisions sit at its order, and a tunnel-mode peer's forward
 // entries at its policy-priority and one rank below it (peerConfiguredPolicies). The
@@ -65,7 +73,7 @@ func spdOrderRefusals(cfg *ipsec.IPsecConfig) []*opererr.Error {
 		for _, second := range names[i+1:] {
 			b := cfg.Policies[second]
 			if spdPoliciesShareASelector(spdJudgedPolicies(a, true), spdJudgedPolicies(b, true)) {
-				refusals = append(refusals, spdSameSelectorRefusal(first, second))
+				refusals = append(refusals, spdSameSelectorRefusal(first, second, spdCollidingGate(first, a, second, b)))
 				continue
 			}
 			if a.Order != b.Order {
@@ -86,6 +94,11 @@ func spdOrderRefusals(cfg *ipsec.IPsecConfig) []*opererr.Error {
 		peerPolicies := peerConfiguredPolicies(&peer)
 		for _, name := range names {
 			entry := cfg.Policies[name]
+			// RFC 4301 Section 4.4.1.
+			if shared, found := spdSharedKernelPolicy(spdJudgedPolicies(entry, true), peerPolicies); found {
+				refusals = append(refusals, spdPeerSelectorRefusal(name, peerName, &shared))
+				continue
+			}
 			rank, tied := spdRankTie(spdJudgedPolicies(entry, false), peerPolicies)
 			if !tied {
 				continue
@@ -116,6 +129,39 @@ func spdJudgedPolicies(p ipsec.SPDPolicy, gates bool) []dataplane.SPParams {
 		return out
 	}
 	return append(out, transit.gates...)
+}
+
+// spdSharedKernelPolicy answers the first policy of an operator entry that is, to the
+// dataplane, one policy with a policy of the peer, and whether there is one.
+//
+// RFC 4301 Section 4.4.1: "Thus, a user or administrator MUST be able to order the
+// entries to express a desired access control policy." Two policies with one selector,
+// direction and if_id cannot be ordered: the kernel holds one policy per such identity
+// whatever the priorities (xfrm_policy_insert_list replaces the one it holds), so the
+// one installed second would act alone. Identity is judged by the backend's own key
+// (dataplane.PolicySelectorsEqual), the one its ownership ledger refuses an install on.
+func spdSharedKernelPolicy(entry, peer []dataplane.SPParams) (dataplane.SPParams, bool) {
+	for i := range entry {
+		for j := range peer {
+			if dataplane.PolicySelectorsEqual(entry[i], peer[j]) {
+				return entry[i], true
+			}
+		}
+	}
+	return dataplane.SPParams{}, false
+}
+
+// spdPeerSelectorRefusal is the refusal of an operator entry that installs the selector
+// a peer's Child SA also installs, in one direction: both names, the shared policy, and
+// the command that removes the operator entry.
+func spdPeerSelectorRefusal(entry, peer string, shared *dataplane.SPParams) *opererr.Error {
+	return opererr.New(
+		"vpn ipsec policy "+entry+" and site-to-site peer "+peer+" install the same SPD selector "+
+			ipNetText(shared.Src)+" -> "+ipNetText(shared.Dst)+" ("+dirLabel(shared.Dir)+")",
+		"the dataplane holds one SPD entry per selector and direction, whatever the order and the "+
+			"policy-priority, so the operator entry would replace the policy that protects the peer's traffic, "+
+			"which would then leave unprotected, or the peer's teardown would remove the operator entry",
+		"delete vpn ipsec policy "+entry)
 }
 
 // spdRankTie answers the rank of the first pair, one policy of each set, that sits at
@@ -149,9 +195,42 @@ func spdOrderTieRefusal(pair, entry string, order uint32) *opererr.Error {
 		"set vpn ipsec policy "+entry+" order "+strconv.Itoa(separate))
 }
 
+// spdCollidingGate answers the name of the entry whose transit gate is the only policy
+// two operator entries share a selector through, or "" when they share one without a
+// gate (a half or a transit decision of each). Only a bypass has gates, and its gates
+// carry its own selectors in the other forwarding lookup, so a gate alone meets the
+// other entry only when that entry names the same traffic with local and remote
+// swapped.
+func spdCollidingGate(first string, a ipsec.SPDPolicy, second string, b ipsec.SPDPolicy) string {
+	if spdPoliciesShareASelector(spdJudgedPolicies(a, false), spdJudgedPolicies(b, false)) {
+		return ""
+	}
+	if spdPoliciesShareASelector(spdTransitPolicies(a, true).gates, spdJudgedPolicies(b, true)) {
+		return first
+	}
+	return second
+}
+
 // spdSameSelectorRefusal is the refusal of two operator entries that install the same
-// selector in one direction.
-func spdSameSelectorRefusal(first, second string) *opererr.Error {
+// selector in one direction. gate names the entry whose transit gate is the colliding
+// policy (spdCollidingGate), or is "" when the entries collide without one.
+//
+// An order does not separate the two: the dataplane identifies an SPD entry by its
+// selector, direction and if_id, never its priority (spdSelector), so whatever the
+// orders the second install replaces the first. The fix is therefore one entry fewer.
+func spdSameSelectorRefusal(first, second, gate string) *opererr.Error {
+	if gate != "" {
+		return opererr.New(
+			"vpn ipsec policy "+first+" and vpn ipsec policy "+second+" name the same selector in the same direction "+
+				"through the forwarding gate of vpn ipsec policy "+gate,
+			"vpn ipsec policy "+gate+" is a bypass, so Ze installs a gate for it: an allow beneath every entry, in the "+
+				"other forwarding lookup, that keeps that lookup's catch-all from dropping the forwarded traffic the "+
+				"bypass admits. The other entry names the same traffic with local and remote swapped and installs a "+
+				"policy at the gate's selector. The dataplane holds one SPD entry per selector whatever its order, so "+
+				"a different order does not separate them: the entry installed second replaces the first. Keep the "+
+				"traffic in one entry",
+			"delete vpn ipsec policy "+second)
+	}
 	return opererr.New(
 		"vpn ipsec policy "+first+" and vpn ipsec policy "+second+" name the same selector in the same direction",
 		"the dataplane holds one SPD entry per selector, so the entry installed second would replace the first "+
@@ -275,7 +354,7 @@ func peerSelectorSide(prefix *net.IPNet, family netip.Prefix) *net.IPNet {
 // verifySPDOrder is the verify half: it answers the first refusal. It is a step of
 // validateIPsecSections (config.go), the offline verifier, so `ze config validate`,
 // every commit door and the ike plugin's OnConfigVerify refuse the pair with both
-// names, the shared order and the command that separates them.
+// names, the shared order or selector and the command that separates them.
 func verifySPDOrder(cfg *ipsec.IPsecConfig) error {
 	refusals := spdOrderRefusals(cfg)
 	if len(refusals) == 0 {

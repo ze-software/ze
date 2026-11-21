@@ -30,6 +30,13 @@ import (
 // the entry point itself unproven (ai/rules/evidence.md).
 var xfrmPolicyDel = netlink.XfrmPolicyDel
 
+// xfrmPolicyUpdate is the kernel call InstallPolicy makes, and the one RemovePolicyParams
+// makes to put an SPD's final entry back in place of a PROTECT policy
+// (policyOwners.reinstateFinal). It is a variable for the reason xfrmPolicyDel is: a
+// test over the two entry points can then hold the kernel's one-policy-per-selector
+// rule in a map and read, after every call, what each selector holds.
+var xfrmPolicyUpdate = netlink.XfrmPolicyUpdate
+
 // xfrmStateList and xfrmPolicyList are the kernel dumps the read surface makes.
 //
 // They are variables for the same reason xfrmPolicyDel above is: the mapping
@@ -624,11 +631,29 @@ func (b *xfrmBackend) InstallPolicy(p SPParams) error {
 	// now: the kernel has no per-peer identity to tell the two apart, so ze keeps one
 	// (SPParams.Owner). Claimed BEFORE the netlink call, so a refused peer never
 	// reaches the kernel at all.
+	//
+	// The upsert is also what a node-wide entry must not get at a selector an owner
+	// holds, nor an owner at a selector an operator entry holds: the kernel replaces
+	// whatever the priorities, so an operator transit gate would replace a peer's
+	// PROTECT policy with an allow. The same claim refuses both (policyOwners).
+	//
+	// RFC 4301 Section 4.4.1: "Every SPD SHOULD have a nominal, final entry that matches
+	// anything that is otherwise unmatched, and discards it."
+	//
+	// One node-wide entry is neither written nor refused there: the final entry of an
+	// SPD, at a selector a peer's PROTECT policy holds because the peer negotiated the
+	// wildcard. That policy matches everything the final entry would and passes nothing
+	// in clear, so it is the lookup's final entry while it is live. The entry asked for
+	// is kept, and RemovePolicyParams puts it back when the PROTECT policy goes
+	// (policy_final.go).
+	if finalEntry(p) && b.policies.yieldFinal(p) {
+		return nil
+	}
 	created, err := b.policies.claim(p)
 	if err != nil {
 		return err
 	}
-	if err := netlink.XfrmPolicyUpdate(pol); err != nil {
+	if err := xfrmPolicyUpdate(pol); err != nil {
 		// Undo only a record this call CREATED. When the selector was already this
 		// owner's -- a Child SA rekey re-installing it -- the kernel still holds the
 		// earlier policy, so forgetting the record here would let the next foreign peer
@@ -689,6 +714,29 @@ func (b *xfrmBackend) RemovePolicyParams(p SPParams) error {
 	// never reaches the kernel, and it drops the record only once the kernel confirms the
 	// policy is gone. InstallPolicy above compensates for the mirror case with `if
 	// created`; this side needs no compensation because it never gets ahead of the kernel.
+	//
+	// RFC 4301 Section 5: "If no policy is found in the SPD that matches a packet (for
+	// either inbound or outbound traffic), the packet MUST be discarded."
+	//
+	// A PROTECT policy that stands in for an SPD's final entry is not deleted: the final
+	// entry is upserted over it, one kernel request that replaces the one with the other,
+	// so no packet meets that lookup with neither in it (policyOwners.reinstateFinal).
+	handled, err := b.policies.reinstateFinal(p, func(final SPParams) error {
+		finalPol, buildErr := xfrmPolicyFromParams(final)
+		if buildErr != nil {
+			return buildErr
+		}
+		return xfrmPolicyUpdate(finalPol)
+	})
+	if handled {
+		if err == nil {
+			return nil
+		}
+		if errors.Is(err, errFinalEntryHolds) {
+			return fmt.Errorf("xfrm: policy del: %w", err)
+		}
+		return fmt.Errorf("xfrm: policy del: put the SPD's final entry back in place of the policy: %w", err)
+	}
 	if err := b.policies.deleteThenRelease(p, func() error { return xfrmPolicyDel(pol) }); err != nil {
 		if _, ok := errors.AsType[*PolicyOwnedError](err); ok {
 			return err
@@ -853,37 +901,6 @@ func xfrmPolicyFromParams(p SPParams) (*netlink.XfrmPolicy, error) {
 		// -ENOENT to it unless the policy it finds carries XFRM_POLICY_ICMP.
 		ICMP: p.ICMPErrorReturn,
 	}, nil
-}
-
-// catchAllYieldsToICMPErrorCheck reports whether a template-free entry is the inbound
-// DISCARD of an SPD catch-all, the node-wide one or an XFRM interface's, which the
-// kernel's ICMP reverse check may pass. Such an entry carries XFRM_POLICY_ICMP.
-//
-// Ze's kernel (K1, gokrazy/kernel/patches/0003-xfrm-state-scope.patch,
-// __xfrm_policy_check) admits an ICMP error that arrived on a Child SA with the
-// XFRM_STATE_ICMP flag, and whose payload header reversed matches the SA, only past
-// the policy the message meets as received: an inbound BLOCK policy matching the
-// message's own headers drops it, unless that policy carries XFRM_POLICY_ICMP. So an
-// operator's discard entry, which never carries the flag, stops the error, and the
-// catch-all, which RFC 4301 Section 4.4.1 makes the entry for what is "otherwise
-// unmatched", does not: an error whose payload maps to an SA is matched by that SA.
-//
-// RFC 4301 Section 6.2: "If the packet fails this check, the IPsec implementation
-// MUST NOT forwarded the ICMP message to the destination."
-// RFC 4301 Section 6.1.2: "Thus, implementers MUST provide controls to allow local
-// administrators to constrain the processing of ICMP error messages received on the
-// protected side of the boundary, and directed to the IPsec implementation."
-//
-// The role decides, never the selector or the priority: an operator may write a
-// wildcard discard, and its entry is a control the reverse check must honor.
-func catchAllYieldsToICMPErrorCheck(p SPParams) bool {
-	if p.Action != SPActionDiscard {
-		return false
-	}
-	if p.Dir != SADirIn {
-		return false
-	}
-	return p.Role == PolicyRoleCatchAll || p.Role == PolicyRoleInterfaceCatchAll
 }
 
 // xfrmPolicyAction maps a template-free Ze disposition to the kernel policy action.

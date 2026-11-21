@@ -74,26 +74,50 @@ func cidrKey(n *net.IPNet, ipv6 bool) string {
 // either peer's teardown blackhole the survivor.
 //
 // A node-wide template-free entry (a catch-all, an operator BYPASS or DISCARD, an
-// interface exemption) is NOT tracked: it carries no per-peer identity to conflict
-// over. The template-free entries a peer installs are tracked (ownedEntry): a tunnel
-// Child SA's outbound forward allow and its delivery allow (engine/child.go
-// childOutboundForwardPolicy, appendChildDeliveryPolicy). The kernel tells policies
-// apart by selector, never by action, so another peer's PROTECT policy on the same
-// selector would otherwise be replaced by one on install, or deleted with it on
-// teardown.
+// interface exemption) has no owner record: it carries no per-peer identity, and two
+// node-wide installs of one selector are one installer re-asserting its entry. The
+// template-free entries a peer installs are owned (ownedEntry): a tunnel Child SA's
+// outbound forward allow and its delivery allow (engine/child.go
+// childOutboundForwardPolicy, appendChildDeliveryPolicy).
+//
+// A node-wide entry and an owned one still meet in the kernel, which tells policies
+// apart by selector, direction and if_id and never by action or priority
+// (xfrm_policy_insert_list). An operator entry's transit gate can name the selector of a
+// peer's OUT PROTECT policy, and its upsert would then replace the PROTECT with an
+// allow, so the peer's traffic would leave in clear. So claim and deleteThenRelease
+// refuse, in both directions:
+//
+//   - a node-wide install or delete at a selector an owner holds, whatever the node-wide
+//     entry's role (the backend asks yieldFinal first for an SPD's final entry, which
+//     yields to a PROTECT policy instead of replacing it);
+//   - an owned install or delete at a selector an operator entry holds
+//     (operatorHeldLocked).
+//
+// An owned PROTECT install over a catch-all is not refused: a peer that negotiates the
+// wildcard of a family in an SPD installs a PROTECT policy on the catch-all's own
+// selector, which matches every packet the catch-all would. The kernel then holds one of
+// the two, so the PROTECT policy stands in for the SPD's final entry while it is live,
+// and the final entry is kept here (finals) and put back, in the same kernel request
+// that takes the PROTECT policy out, when its owner removes it (policy_final.go).
 //
 // It also keeps, for EVERY entry Ze installed, template-free ones included, the role
 // and SPD name the installer gave it (labels), so a read can say which job and which
-// SPD each kernel row has. A label refuses nothing: ownership stays limited to the
-// entries ownedEntry names, and the label only follows the kernel's lifetime of the
-// entry, written once the kernel accepted the install and dropped once the kernel
-// confirmed the removal.
+// SPD each kernel row has. The label follows the kernel's lifetime of the entry, written
+// once the kernel accepted the install and dropped once the kernel confirmed the
+// removal, which is why it is also the record of the operator entries the kernel holds.
 //
-// Safe for concurrent use: one PeerSession goroutine per peer reaches it.
+// Safe for concurrent use: one PeerSession goroutine per peer reaches it, and the apply
+// goroutine for the node-wide entries. The backend's own lock (xfrmBackend.mu) spans
+// claim, the kernel call and label, so no claim runs between an install and its label.
 type policyOwners struct {
 	mu     sync.Mutex
 	owners map[policySelectorKey]policyHolder
 	labels map[policySelectorKey]policyLabel
+	// finals holds the final entry Ze was last asked to keep at each selector (the
+	// node-wide catch-all, an XFRM interface's catch-all), as it was asked for. The
+	// kernel holds that entry, or, where owners has the selector too, the PROTECT
+	// policy standing in for it (policy_final.go).
+	finals map[policySelectorKey]SPParams
 }
 
 // policyLabel is what an installer said about one entry: why it built it and which
@@ -116,6 +140,18 @@ func (o *policyOwners) label(p SPParams) {
 		o.labels = make(map[policySelectorKey]policyLabel)
 	}
 	o.labels[key] = policyLabel{role: p.Role, spd: p.SPD}
+	if finalEntry(p) {
+		if o.finals == nil {
+			o.finals = make(map[policySelectorKey]SPParams)
+		}
+		o.finals[key] = p
+		return
+	}
+	if !ownedEntry(p) {
+		// Another node-wide entry took the selector, so the kernel no longer holds the
+		// final entry there and nothing stands in for it.
+		delete(o.finals, key)
+	}
 }
 
 // annotate joins one kernel row back to what Ze recorded for its selector: the owner
@@ -142,14 +178,19 @@ func (o *policyOwners) annotate(info *PolicyInfo) {
 	if label, ok := o.labels[key]; ok {
 		info.Role, info.SPDInterface = label.role, label.spd
 	}
+	if final, kept := o.finals[key]; kept {
+		if _, standsIn := o.owners[key]; standsIn {
+			info.Displaced = DisplacedFinalEntry{Role: final.Role, Action: final.Action}
+		}
+	}
 }
 
 // ownedEntry reports whether the ledger records p's owner and refuses another owner's
 // install or delete of p's selector: every template-carrying policy, and a template-free
 // entry a Child SA installs (PolicyRoleChildSA, its outbound forward and delivery
-// allows), which
-// belongs to one peer as its PROTECT policies do. Every other template-free entry is
-// node-wide and unowned.
+// allows), which belongs to one peer as its PROTECT policies do. Every other
+// template-free entry is node-wide: it has no owner record, and claim and
+// deleteThenRelease refuse it at a selector an owner holds.
 func ownedEntry(p SPParams) bool {
 	if !p.Action.isTemplateFree() {
 		return true
@@ -157,11 +198,14 @@ func ownedEntry(p SPParams) bool {
 	return p.Role == PolicyRoleChildSA
 }
 
-// policyHolder is the record for one claimed selector: who installed it, and whether
-// it is a transport-mode policy, which claim compares for overlap as well as identity.
+// policyHolder is the record for one claimed selector: who installed it, whether it
+// is a transport-mode policy, which claim compares for overlap as well as identity, and
+// whether it protects, which is what lets it stand in for an SPD's final entry
+// (yieldFinal).
 type policyHolder struct {
 	owner     string
 	transport bool
+	protects  bool
 }
 
 // claim records p's owner against p's selector, and REFUSES when a different owner
@@ -172,22 +216,59 @@ type policyHolder struct {
 // does: newRekeyedChild (engine/rekey.go) inherits every selector field from the
 // retired pair, so the replacement's install is an upsert of the same policy.
 //
+// A node-wide entry (ownedEntry false) creates no record, and is REFUSED at a selector
+// an owner holds; an owned entry is refused at a selector an operator entry holds. Both
+// are the same collision seen from its two sides (policyOwners).
+//
 // The first result reports whether this call CREATED the record. A caller that must
 // undo a failed install may release only what it created: releasing a record that
 // already existed would forget a policy the kernel still holds, and the next foreign
 // peer would then be allowed to take that live selector over. Answered under the same
 // lock as the write, so it cannot disagree with it.
 func (o *policyOwners) claim(p SPParams) (created bool, err error) {
-	if !ownedEntry(p) {
-		return false, nil
-	}
 	key := policyKey(p)
 
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	held, existed := o.owners[key]
+	if !ownedEntry(p) {
+		// RFC 4301 Section 4.4.1: "An SPD must discriminate among traffic that is afforded
+		// IPsec protection and traffic that is allowed to bypass IPsec."
+		//
+		// The kernel replaces the policy that holds this selector whatever its priority,
+		// so a node-wide BYPASS or DISCARD written here would take the place of the
+		// owner's entry: its PROTECT policy, or the allow that hands its decrypted
+		// traffic on. The owner's entry stays, and the node-wide one is refused.
+		if existed {
+			return false, &PolicyOwnedError{Selector: key, HeldBy: held.owner, WantedRole: p.Role}
+		}
+		return false, nil
+	}
 	if existed && held.owner != p.Owner {
 		return false, &PolicyOwnedError{Selector: key, HeldBy: held.owner, Wanted: p.Owner}
+	}
+	if !existed {
+		// RFC 4301 Section 4.4.1: "Thus, a user or administrator MUST be able to order
+		// the entries to express a desired access control policy."
+		//
+		// The operator's entry and this one would be one kernel policy, so no order
+		// between them could be kept: this install would replace the operator's
+		// disposition, and this owner's teardown would delete it.
+		if o.operatorHeldLocked(key) {
+			return false, &PolicyOwnedError{Selector: key, HeldRole: PolicyRoleOperator, Wanted: p.Owner}
+		}
+		// RFC 4301 Section 5: "If no policy is found in the SPD that matches a packet
+		// (for either inbound or outbound traffic), the packet MUST be discarded."
+		//
+		// A PROTECT policy may take the place of the final entry, because it leaves no
+		// packet of that lookup unmatched and passes none in clear. A template-free
+		// allow of a peer may not: it would replace the final entry with a bypass of
+		// everything. No Child SA builds one on the wildcard (engine/child.go
+		// appendChildDeliveryPolicy, appendChildOutboundForwardPolicy), so this refuses
+		// only a Ze defect.
+		if final, kept := o.finals[key]; kept && p.Action.isTemplateFree() {
+			return false, &PolicyOwnedError{Selector: key, HeldRole: final.Role, Wanted: p.Owner}
+		}
 	}
 	transport := p.Mode == ModeTransport
 	if transport {
@@ -223,8 +304,27 @@ func (o *policyOwners) claim(p SPParams) (created bool, err error) {
 	if o.owners == nil {
 		o.owners = make(map[policySelectorKey]policyHolder)
 	}
-	o.owners[key] = policyHolder{owner: p.Owner, transport: transport}
+	o.owners[key] = policyHolder{owner: p.Owner, transport: transport, protects: !p.Action.isTemplateFree()}
 	return !existed, nil
+}
+
+// operatorHeldLocked reports whether the kernel holds an operator `vpn ipsec policy`
+// entry at key: a label with the operator role and no owner record. The caller holds
+// o.mu.
+//
+// Only the operator role is asked for. A catch-all on the same selector yields to an
+// owner's PROTECT policy (policyOwners), and no other node-wide role shares a selector
+// with a Child SA policy: an interface exemption names an interface index, which no
+// Child SA policy carries.
+func (o *policyOwners) operatorHeldLocked(key policySelectorKey) bool {
+	if _, owned := o.owners[key]; owned {
+		return false
+	}
+	label, labeled := o.labels[key]
+	if !labeled {
+		return false
+	}
+	return label.role == PolicyRoleOperator
 }
 
 // selectorsOverlap reports whether one packet can match both selectors: the same
@@ -254,6 +354,16 @@ func selectorsOverlap(a, b policySelectorKey) bool {
 		return false
 	}
 	return prefixesOverlap(a.dst, b.dst)
+}
+
+// PolicySelectorsEqual reports whether the two policies are ONE policy to the kernel:
+// the same selector, direction and if_id (policyKey), whatever their action, priority,
+// template and owner. The second of two such policies to be installed replaces the
+// first. It is the key claim refuses on, exported so the IKE engine's commit check
+// (engine/spd_order.go) and this backend cannot disagree on what one policy is. Pure,
+// and safe for concurrent use.
+func PolicySelectorsEqual(a, b SPParams) bool {
+	return policyKey(a) == policyKey(b)
 }
 
 // PolicySelectorsOverlap reports whether one packet can match the selectors of both
@@ -328,20 +438,13 @@ func (o *policyOwners) release(p SPParams) error {
 // dropped, because keeping it would refuse a later, legitimate install of that selector.
 //
 // del is not called at all for a selector a DIFFERENT owner holds: a refused delete must
-// not reach the kernel.
+// not reach the kernel. The same holds across the two kinds of entry, for the reason
+// claim gives: a node-wide delete at a selector an owner holds would remove the owner's
+// policy (an operator entry that leaves the configuration would take a peer's PROTECT
+// policy with it), and an owned delete at a selector an operator entry holds would
+// remove the operator's entry (the teardown of a Child SA whose install claim refused).
 func (o *policyOwners) deleteThenRelease(p SPParams, del func() error) error {
 	key := policyKey(p)
-	if !ownedEntry(p) {
-		delErr := del()
-		if delErr != nil && !errors.Is(delErr, syscall.ENOENT) {
-			// The kernel still holds the entry, so its label stays.
-			return delErr
-		}
-		o.mu.Lock()
-		delete(o.labels, key)
-		o.mu.Unlock()
-		return delErr
-	}
 
 	// The lock spans del, so check, delete and drop are one atomic step.
 	//
@@ -356,9 +459,35 @@ func (o *policyOwners) deleteThenRelease(p SPParams, del func() error) error {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
-	if held, ok := o.owners[key]; ok && held.owner != p.Owner {
+	held, existed := o.owners[key]
+	if !ownedEntry(p) {
+		if existed {
+			if _, displaced := o.finals[key]; displaced && finalEntry(p) {
+				// The kernel holds the owner's PROTECT policy here, not this final entry,
+				// so there is nothing to delete: the entry is forgotten, and the owner's
+				// removal then deletes its policy and puts no final entry back.
+				delete(o.finals, key)
+				return nil
+			}
+			// A refused delete must not reach the kernel.
+			return &PolicyOwnedError{Selector: key, HeldBy: held.owner, WantedRole: p.Role}
+		}
+		delErr := del()
+		if delErr != nil && !errors.Is(delErr, syscall.ENOENT) {
+			// The kernel still holds the entry, so its label stays.
+			return delErr
+		}
+		delete(o.labels, key)
+		delete(o.finals, key)
+		return delErr
+	}
+	if existed && held.owner != p.Owner {
 		// A refused delete must not reach the kernel.
 		return &PolicyOwnedError{Selector: key, HeldBy: held.owner, Wanted: p.Owner}
+	}
+	if o.operatorHeldLocked(key) {
+		// A refused delete must not reach the kernel.
+		return &PolicyOwnedError{Selector: key, HeldRole: PolicyRoleOperator, Wanted: p.Owner}
 	}
 	delErr := del()
 	if delErr != nil && !errors.Is(delErr, syscall.ENOENT) {
@@ -395,6 +524,11 @@ func (o *policyOwners) releaseBySelector(src, dst *net.IPNet, dir SADir) {
 			delete(o.labels, key)
 		}
 	}
+	for key := range o.finals {
+		if key.src == selector.src && key.dst == selector.dst && key.dir == selector.dir {
+			delete(o.finals, key)
+		}
+	}
 }
 
 // ownerOf reports the recorded owner of p's selector, and whether one exists.
@@ -410,21 +544,48 @@ func (o *policyOwners) ownerOf(p SPParams) (string, bool) {
 // PolicyOwnedError reports that a policy selector belongs to a different installer.
 //
 // It is a named type rather than a formatted string so a caller can tell this refusal
-// from a netlink failure: this one means the traffic is already protected by somebody
-// else's tunnel, and retrying will never help.
+// from a netlink failure: this one means the selector already carries somebody else's
+// entry, a peer's tunnel or an operator's disposition, and retrying will never help.
+//
+// Each side is an owner or a node-wide entry. HeldBy and Wanted name an owner. HeldRole
+// and WantedRole name a node-wide entry by its role, and stay PolicyRoleUnspecified for
+// a side that is an owner's, so at most one of the two roles is set: two node-wide
+// entries never refuse each other.
 type PolicyOwnedError struct {
-	Selector policySelectorKey
-	HeldBy   string
-	Wanted   string
+	Selector   policySelectorKey
+	HeldBy     string
+	Wanted     string
+	HeldRole   PolicyRole
+	WantedRole PolicyRole
 }
 
 func (e *PolicyOwnedError) Error() string {
 	var b textbuf.Buffer
 	b.Str("xfrm: policy selector ").Str(e.Selector.String())
-	b.Str(" is installed for ").Str(ownerLabel(e.HeldBy))
-	b.Str(", so it cannot also be installed for ").Str(ownerLabel(e.Wanted))
-	b.Str("; the kernel identifies a policy by its selector alone, so one selector carries one tunnel")
+	b.Str(" is installed for ").Str(installerLabel(e.HeldBy, e.HeldRole))
+	b.Str(", so it cannot also be installed for ").Str(installerLabel(e.Wanted, e.WantedRole))
+	if e.HeldRole == PolicyRoleUnspecified && e.WantedRole == PolicyRoleUnspecified {
+		b.Str("; the kernel identifies a policy by its selector alone, so one selector carries one tunnel")
+		return b.String()
+	}
+	b.Str("; the kernel identifies a policy by its selector, direction and if_id, whatever its priority, " +
+		"so the second entry would replace the first")
+	if e.HeldRole == PolicyRoleOperator || e.WantedRole == PolicyRoleOperator {
+		b.Str("; delete or narrow the `vpn ipsec policy` entry that names this selector")
+	}
 	return b.String()
+}
+
+// installerLabel names one side of a PolicyOwnedError: a node-wide entry by its role,
+// or an owner.
+func installerLabel(owner string, role PolicyRole) string {
+	if role == PolicyRoleOperator {
+		return "an operator `vpn ipsec policy` entry"
+	}
+	if role != PolicyRoleUnspecified {
+		return "Ze's node-wide " + role.String() + " entry"
+	}
+	return ownerLabel(owner)
 }
 
 // TransportSelectorConflictError reports a transport-mode policy whose selector

@@ -133,6 +133,14 @@ type ikeEngineState struct {
 	// install is absent from it, so the next reload installs that entry afresh.
 	installedSPD map[string]ipsec.SPDPolicy
 
+	// spdForward is the dataplane's fragment-gathering answer installedSPD was derived
+	// with (spdForwardAnswer). Every install, replacement, removal and doctor answer over
+	// installedSPD pins this answer, and a reload that reads a different one moves the
+	// installed entries to it first (moveSPDForwardAnswer), so a read that failed at the
+	// start never leaves a port-scoped bypass without the forward entries a later answer
+	// owes it.
+	spdForward spdForwardAnswer
+
 	// spdRefused is each operator SPD entry of the running configuration that the
 	// dataplane refused at the start, by entry name, with the refusal; nil when there is
 	// none (installSPDPoliciesAtStart). A refused reload never adds one, because it is
@@ -425,7 +433,7 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 	// (owner decision 2026-10-20, Q6 B; docs/guide/ipsec.md, "Traffic no entry
 	// matches"). Ze's own IKE traffic is exempt through its sockets, not through an SPD
 	// entry: every IKE socket carries a per-socket BYPASS policy in and out from the
-	// moment it opens (bypassIKESocket, transport/bypass_linux.go), which the kernel
+	// moment it opens (dataplane.BypassIKESocket), which the kernel
 	// consults before any SPD entry, so a DISCARD catch-all drops no IKE exchange and no
 	// node-wide port 500 or 4500 entry exempts a protected host's transit datagram (RFC
 	// 4301 Section 5.2).
@@ -463,6 +471,9 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 	// were. Their place against the catch-all decides nothing a packet meets, since every
 	// operator entry outranks it. On the first apply they follow the catch-all, below.
 	interfaceEntries := s.planXFRMInterfaceEntries(cfg)
+	// One read of the fragment-gathering answer for this whole apply: the entries, the
+	// start log and the record all derive from it (spdForwardAnswer).
+	forward := readSPDForwardAnswer(dataplane.Get())
 	if s.spdApplied {
 		if err := applyApplicationOverride(dataplane.Get(), cfg.ApplicationOverride); err != nil {
 			return err
@@ -470,8 +481,13 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 		if err := s.installXFRMInterfaceEntries(dataplane.Get(), interfaceEntries); err != nil {
 			return err
 		}
+		// RFC 4301 Section 7.4: the running entries follow the answer read now before any
+		// of them is reconciled, so the reconcile below reads one answer for both sides.
+		if err := s.moveSPDForwardAnswer(dataplane.Get(), forward); err != nil {
+			return err
+		}
 		// RFC 4301 Section 4.4.1
-		outcome, err := reconcileSPDPolicies(dataplane.Get(), s.installedSPD, cfg.Policies, s.log)
+		outcome, err := reconcileSPDPolicies(forward.pin(dataplane.Get()), s.installedSPD, cfg.Policies, s.log)
 		s.recordSPDReconcile(outcome)
 		if err != nil {
 			return err
@@ -519,7 +535,7 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 		warnICMPOverlapAtStart(cfg, s.log)
 		warnSPDOrderAtStart(cfg, s.log)
 		// RFC 4301 Section 7.4
-		warnForwardBypassAtStart(dataplane.Get(), cfg, s.log)
+		warnForwardBypassAtStart(forward.pin(dataplane.Get()), cfg, s.log)
 	}
 	// RFC 4301 Section 4.4.1. The start installs every entry the dataplane holds and
 	// reports the rest (owner decision 2026-11-19, "Install, log, doctor"); a first apply
@@ -530,15 +546,17 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 		// Reconciled above, before the catch-all was re-asserted.
 	case phase == applyStartup:
 		var outcome spdReconcile
-		s.installedSPD, s.spdRefused, outcome = installSPDPoliciesAtStart(dataplane.Get(), cfg.Policies, s.log)
+		s.installedSPD, s.spdRefused, outcome = installSPDPoliciesAtStart(forward.pin(dataplane.Get()), cfg.Policies, s.log)
+		s.spdForward = forward
 		s.recordSPDReconcile(outcome)
 	default:
-		outcome, err := reconcileSPDPolicies(dataplane.Get(), nil, cfg.Policies, s.log)
+		outcome, err := reconcileSPDPolicies(forward.pin(dataplane.Get()), nil, cfg.Policies, s.log)
 		s.recordSPDReconcile(outcome)
 		if err != nil {
 			return err
 		}
 		s.installedSPD = cfg.Policies
+		s.spdForward = forward
 	}
 
 	// RFC 7296 Section 2.6. Published before any peer is reconciled, so an initiation
@@ -910,10 +928,7 @@ func (s *ikeEngineState) repointSessions(kept map[string]*PeerSession, pair *ike
 	for name, ps := range kept {
 		placed := ps.currentSockets()
 		if pair.natt == nil || pair.natt != placed.natt {
-			s.log.Warn("ike: the reopened socket pair does not hold the shared NAT-T socket, restarting the MOBIKE peer instead of moving its SA",
-				"peer", name, "address", pair.host,
-				"code", diagnostic.CodeDoctorIPsecMOBIKEUnavailable,
-				"fix", "ze show doctor names whether the kernel can migrate a tunnel (CONFIG_XFRM_MIGRATE); the peer renegotiates from the new address meanwhile")
+			reportMobikeSocketNotShared(s.log, mobikeSocketNotSharedFailure(name, pair.host), s.issueRaiser, name)
 			stopPeerSession(name, ps, s.peers, s.table, dp, bus, s.log)
 			continue
 		}
@@ -1013,7 +1028,8 @@ func (s *ikeEngineState) releaseSPD(dp dataplane.Dataplane, log *slog.Logger) {
 	// entry could not be removed, the guard is detached here all the same: the engine
 	// is leaving, and the link would close with the process anyway.
 	defer releaseApplicationOverride(dp, log)
-	removeSPDPolicies(dp, s.installedSPD, log)
+	// The entries leave under the answer they were installed with (spdForward).
+	removeSPDPolicies(s.spdForward.pin(dp), s.installedSPD, log)
 	s.pruneXFRMInterfaceEntries(dp, xfrmInterfacePlan{})
 	if warnSPDLeft(dp, log) {
 		return

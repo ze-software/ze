@@ -214,8 +214,9 @@ func validateIPsecSections(sections []sdk.ConfigSection) error {
 		return err
 	}
 	// RFC 4301 Section 4.4.1: two entries a packet can match both of, operator entries
-	// or an operator entry and a peer, must not share an order, and two operator entries
-	// must not install one selector twice (verifySPDOrder, spd_order.go). After the
+	// or an operator entry and a peer, must not share an order, and neither two operator
+	// entries nor an operator entry and a peer may install one selector twice
+	// (verifySPDOrder, spd_order.go). After the
 	// entries and the selectors passed their own checks, so the overlap is judged on
 	// selectors the dataplane can program.
 	if err := verifySPDOrder(cfg); err != nil {

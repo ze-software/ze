@@ -76,11 +76,15 @@ func TestRFC4301ForwardDefaultFollowsAndReleasesUnmatched(t *testing.T) {
 		}
 	})
 	original := forwardDefaultRead(t)
-	seed := [3]byte{forwardDefaultBlock, forwardDefaultAccept, forwardDefaultAccept}
+	// FWD and OUT are seeded BLOCK, the opposite of the kernel default and of what a
+	// bypass writes to FWD, so a release that left Ze's value or wrote the kernel
+	// default instead of restoring the snapshot is seen, and an apply that touched OUT
+	// is seen too. IN is ACCEPT, so each of the three bytes is judged on its own value.
+	seed := [3]byte{forwardDefaultAccept, forwardDefaultBlock, forwardDefaultBlock}
 	forwardDefaultSeed(t, seed)
 	log := slogutil.DiscardLogger()
 	t.Cleanup(func() {
-		removeUnmatched(dataplane.Get(), log)
+		removeUnmatched(dataplane.Get(), log, nil)
 		forwardDefaultSeed(t, original)
 	})
 	for _, action := range []dataplane.SPAction{dataplane.SPActionDiscard, dataplane.SPActionBypass} {
@@ -88,6 +92,7 @@ func TestRFC4301ForwardDefaultFollowsAndReleasesUnmatched(t *testing.T) {
 			t.Fatalf("install unmatched %v: %v", action, err)
 		}
 		want := seed
+		want[1] = forwardDefaultAccept
 		if action == dataplane.SPActionDiscard {
 			want[1] = forwardDefaultBlock
 		}
@@ -104,7 +109,7 @@ func TestRFC4301ForwardDefaultFollowsAndReleasesUnmatched(t *testing.T) {
 			}
 		}
 	}
-	removeUnmatched(dataplane.Get(), log)
+	removeUnmatched(dataplane.Get(), log, nil)
 	if got := forwardDefaultRead(t); got != seed {
 		t.Errorf("release restored namespace defaults=%v, want the original snapshot %v", got, seed)
 	}

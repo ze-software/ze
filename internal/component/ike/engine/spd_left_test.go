@@ -104,14 +104,14 @@ func (d *vppLikeDP) RemovePolicyParams(p dataplane.SPParams) error {
 	return d.bypassDP.RemovePolicyParams(p)
 }
 
-// VALIDATES: on a backend that refuses the IKE bypass and the operator entries as
+// VALIDATES: on a backend that refuses the operator entries and the catch-all as
 // entries it cannot hold (VPP), an exit leaves the SPD ledger empty and logs no
 // warning that the catch-all stays.
 // METHOD: apply a configuration with an operator entry and `unmatched bypass` on a
 // VPP-like backend, run the shutdown, then read the ledger and the log.
-// PREVENTS: removeIKEBypass asking to remove bypass entries that were never installed,
-// the backend refusing them with ErrNotSupported, and the ledger recording each one, so
-// warnSPDLeft named eight nonexistent entries on every exit.
+// PREVENTS: the shutdown asking to remove SPD entries that were never installed, the
+// backend refusing them with ErrNotSupported, and the ledger recording each one, so
+// warnSPDLeft named nonexistent entries on every exit.
 func TestVPPExitLeavesNoFalseSPDLeftovers(t *testing.T) {
 	resetSPDLeft(t)
 	dp := &vppLikeDP{}
@@ -145,9 +145,9 @@ func TestVPPExitLeavesNoFalseSPDLeftovers(t *testing.T) {
 // METHOD: record failed removals of two UDP bypass entries (ports 500 and 4500) and of
 // one entry with no source prefix and an if_id, then compare describe and the warning
 // text with the commands written out by hand.
-// PREVENTS: describe printing only direction, prefixes and protocol, so the IKE bypass
-// on port 500 and the one on port 4500 printed the same line and the operator could
-// not tell which command removes which entry.
+// PREVENTS: describe printing only direction, prefixes and protocol, so two bypass
+// entries on ports 500 and 4500 printed the same line and the operator could not tell
+// which command removes which entry.
 func TestSPDLeftoverNamesTheExactRemovalCommand(t *testing.T) {
 	resetSPDLeft(t)
 	refused := errors.New("netlink: operation not permitted")

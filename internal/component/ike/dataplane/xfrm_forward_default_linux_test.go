@@ -7,6 +7,7 @@ package dataplane
 
 import (
 	"errors"
+	"slices"
 	"testing"
 
 	"golang.org/x/sys/unix"
@@ -24,6 +25,9 @@ type forwardDefaultFixture struct {
 	readErr, writeErr  error
 	loseNextRead       bool
 	loseReadAfterWrite bool
+	// loseReadAfterRefusedWrite fails the read that follows the next write the
+	// fixture refuses with writeErr.
+	loseReadAfterRefusedWrite bool
 }
 
 func newForwardDefaultFixture(t *testing.T) *forwardDefaultFixture {
@@ -43,6 +47,10 @@ func newForwardDefaultFixture(t *testing.T) *forwardDefaultFixture {
 	xfrmDefaultWrite = func(value xfrmDefaultAction) error {
 		fixture.writes = append(fixture.writes, value)
 		if fixture.writeErr != nil {
+			if fixture.loseReadAfterRefusedWrite {
+				fixture.loseReadAfterRefusedWrite = false
+				fixture.loseNextRead = true
+			}
 			return fixture.writeErr
 		}
 		fixture.current.fwd = value
@@ -55,6 +63,15 @@ func newForwardDefaultFixture(t *testing.T) *forwardDefaultFixture {
 	return fixture
 }
 
+// TestXFRMForwardDefaultKeepsOriginalAcrossReloadAndRollback checks a reload that
+// changes the forward default and is then rolled back.
+//
+// VALIDATES: the reload's bypass writes accept over the running block, the undo puts
+// the running block back, and the release restores the namespace's original value.
+// PREVENTS: an undo that "restores" a reload that never wrote, which would leave the
+// rollback assertions green with the reload's own change missing.
+// METHOD: apply discard, then bypass, reading the fixture's value and write log after
+// each step, then undo and release.
 func TestXFRMForwardDefaultKeepsOriginalAcrossReloadAndRollback(t *testing.T) {
 	fixture := newForwardDefaultFixture(t)
 	original := fixture.current
@@ -65,6 +82,11 @@ func TestXFRMForwardDefaultKeepsOriginalAcrossReloadAndRollback(t *testing.T) {
 	undo, err := backend.ApplyForwardDefault(SPActionBypass)
 	if err != nil {
 		t.Fatal(err)
+	}
+	wantWrites := []xfrmDefaultAction{xfrmDefaultBlock, xfrmDefaultAccept}
+	if fixture.current.fwd != xfrmDefaultAccept || !slices.Equal(fixture.writes, wantWrites) {
+		t.Fatalf("reload to bypass: fwd=%d writes=%v, want fwd=%d writes=%v",
+			fixture.current.fwd, fixture.writes, xfrmDefaultAccept, wantWrites)
 	}
 	if err := undo(); err != nil {
 		t.Fatal(err)
@@ -126,6 +148,61 @@ func TestXFRMForwardDefaultLostReadbackRollsBackTheLandedWrite(t *testing.T) {
 	}
 	if fixture.current != original || backend.forwardDefault != nil || len(fixture.writes) != 2 {
 		t.Fatalf("lost readback did not restore original: defaults=%+v lease=%+v writes=%v", fixture.current, backend.forwardDefault, fixture.writes)
+	}
+}
+
+// TestXFRMForwardDefaultRefusedWriteWithLostReadbackKeepsNoStaleClaim checks the
+// apply whose write the kernel refuses and whose readback then fails.
+//
+// VALIDATES: the refused write changed nothing, so the restore finds the value it
+// expects, releases the claim, and a later apply installs its disposition.
+// PREVENTS: the lease keeping the attempted value while the kernel still holds the
+// earlier one, which made the restore report a foreign change, kept the lease, and
+// refused every later apply until restart.
+func TestXFRMForwardDefaultRefusedWriteWithLostReadbackKeepsNoStaleClaim(t *testing.T) {
+	fixture := newForwardDefaultFixture(t)
+	original := fixture.current
+	fixture.writeErr = unix.EIO
+	fixture.loseReadAfterRefusedWrite = true
+	backend := &xfrmBackend{}
+	_, err := backend.ApplyForwardDefault(SPActionDiscard)
+	if !errors.Is(err, unix.EIO) {
+		t.Fatalf("apply error=%v, want the refused write's EIO", err)
+	}
+	if errors.Is(err, errXFRMForwardDefaultChanged) {
+		t.Fatalf("apply error=%v reports a foreign change; only Ze's own write failed", err)
+	}
+	if fixture.current != original || backend.forwardDefault != nil {
+		t.Fatalf("refused write left a claim or a change: defaults=%+v lease=%+v", fixture.current, backend.forwardDefault)
+	}
+	fixture.writeErr = nil
+	if _, err := backend.ApplyForwardDefault(SPActionDiscard); err != nil {
+		t.Fatalf("later apply refused after a refused write: %v", err)
+	}
+	if fixture.current.fwd != xfrmDefaultBlock {
+		t.Fatalf("later apply did not install block: defaults=%+v", fixture.current)
+	}
+}
+
+// TestXFRMForwardDefaultMissingKernelOperationNamesTheKernelBuild checks the refusal
+// for a kernel without the XFRM default-policy operation.
+//
+// VALIDATES: its fix is the runtime kernel build, the step the text sends the
+// operator to, for each errno that means the operation is absent.
+// PREVENTS: a reboot offered as the fix before any kernel that has the operation
+// was built or installed.
+func TestXFRMForwardDefaultMissingKernelOperationNamesTheKernelBuild(t *testing.T) {
+	for _, errno := range []unix.Errno{unix.EINVAL, unix.EPROTONOSUPPORT, unix.ENOPROTOOPT, unix.EOPNOTSUPP} {
+		fixture := newForwardDefaultFixture(t)
+		fixture.readErr = errno
+		_, err := (&xfrmBackend{}).ApplyForwardDefault(SPActionDiscard)
+		refusal, ok := errors.AsType[*opererr.Error](err)
+		if !ok || !errors.Is(err, errno) {
+			t.Fatalf("%v: refusal=%v, want an operator error preserving the errno", errno, err)
+		}
+		if refusal.Fix() != RuntimeKernelBuildFix() {
+			t.Errorf("%v: fix=%q, want the runtime kernel build %q", errno, refusal.Fix(), RuntimeKernelBuildFix())
+		}
 	}
 }
 

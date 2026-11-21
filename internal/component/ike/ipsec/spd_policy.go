@@ -402,16 +402,18 @@ func (p SPDPolicy) validate() error {
 	// header decode left in the flow key.
 	if !p.LocalPort.IsAny() || !p.RemotePort.IsAny() {
 		if !protocolCarriesPorts(p.Protocol) {
-			return fmt.Errorf(
-				"%w %q: a port selector needs a protocol that carries ports, and protocol is %d. "+
-					"Set protocol to 6 (TCP), 17 (UDP) or 132 (SCTP), or set both ports to any",
-				ErrSPDPolicy, p.Name, p.Protocol)
+			return opererr.Wrap(ErrSPDPolicy,
+				"policy "+strconv.Quote(p.Name)+": a port selector needs a protocol that carries ports, "+
+					"and protocol is "+textbuf.StringUint8(p.Protocol),
+				"only 6 (TCP), 17 (UDP), 132 (SCTP) and 136 (UDP-Lite) carry ports this policy can select, "+
+					"so the port would match a field the packet does not have; to match every port instead, set both ports to any",
+				"set vpn ipsec policy "+p.Name+" protocol <6|17|132|136>")
 		}
 		if p.Protocol == protoDCCP {
 			return opererr.Wrap(ErrSPDPolicy,
-				fmt.Sprintf("policy %q names a specific DCCP port", p.Name),
+				"policy "+strconv.Quote(p.Name)+" names a specific DCCP port",
 				"DCCP defines ports, but Linux XFRM does not copy DCCP ports into its flow selector, so this policy cannot select that port exactly",
-				fmt.Sprintf("set vpn ipsec policy %q local port any; set vpn ipsec policy %q remote port any", p.Name, p.Name))
+				"set vpn ipsec policy "+p.Name+" local port any; set vpn ipsec policy "+p.Name+" remote port any")
 		}
 	}
 

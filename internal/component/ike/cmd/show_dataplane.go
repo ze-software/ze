@@ -274,7 +274,36 @@ func policyInfoToMap(p *dataplane.PolicyInfo) map[string]any {
 	// error that arrived on an SA be judged by its payload (an operator bypass's FWD
 	// gate or FWD decision only).
 	row["icmp-error-payload"] = p.ICMPErrorPayload
+	// RFC 4301 Section 4.4.1: the final entry of the SPD. A peer that negotiated the
+	// wildcard holds the catch-all's own kernel identity, so the listing has no
+	// catch-all row there: the PROTECT row says which final entry it stands in for and
+	// with which disposition Ze puts it back (dataplane.PolicyInfo.Displaced). Every
+	// other row reads "none", never a blank cell.
+	row["displaced-final-entry"] = displacedFinalEntryName(p)
+	row["displaced-final-action"] = displacedFinalActionName(p)
 	return row
+}
+
+// noneValue is the word for a row that stands in for no final entry.
+const noneValue = "none"
+
+// displacedFinalEntryName renders the role of the final entry a PROTECT policy stands
+// in for, "catch-all" or "interface-catch-all", and "none" for a row that stands in
+// for none.
+func displacedFinalEntryName(p *dataplane.PolicyInfo) string {
+	if !p.Displaced.Held() {
+		return noneValue
+	}
+	return p.Displaced.Role.String()
+}
+
+// displacedFinalActionName renders the disposition of that final entry, the one Ze
+// puts back when the PROTECT policy is removed, and "none" beside a "none" entry.
+func displacedFinalActionName(p *dataplane.PolicyInfo) string {
+	if !p.Displaced.Held() {
+		return noneValue
+	}
+	return policyActionName(p.Displaced.Action)
 }
 
 // policyInfoRow renders the columns every policy row carries.

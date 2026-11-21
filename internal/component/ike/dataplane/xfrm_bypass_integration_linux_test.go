@@ -1,13 +1,13 @@
-// VALIDATES: that a real Linux XFRM stack accepts the IKE bypass beside a Child SA
-// policy whose selector covers the same flow, and RESOLVES the contest in the
-// bypass's favor. The unit tests assert the two priority NUMBERS; only the kernel
-// can say which policy it actually applies, and the ordering rule (lowest number
-// wins, ties broken by insertion order) is kernel behavior that no amount of
-// reading proves.
-// PREVENTS: shipping the priority pair on reasoning alone. If the kernel ranked the
-// other way, or ignored priority for a template-free policy, every one of the unit
-// tests would still be green and every tunnel with a wide selector would still be
-// broken.
+// VALIDATES: that a real Linux XFRM stack accepts an operator BYPASS entry beside a
+// Child SA policy whose selector covers the same flow, and RESOLVES the contest by the
+// operator's order: an entry ordered ahead of PriorityChildSA takes the flow. The unit
+// tests assert the two priority NUMBERS; only the kernel can say which policy it
+// actually applies, and the ordering rule (lowest number wins, ties broken by
+// insertion order) is kernel behavior that no amount of reading proves.
+// PREVENTS: shipping RFC 4301 Section 4.4.1's ordered SPD on reasoning alone. If the
+// kernel ranked the other way, or ignored priority for a template-free policy, every
+// unit test would still be green and an operator BYPASS ordered ahead of a wide Child
+// SA selector would hand its traffic to ESP.
 
 //go:build linux
 
@@ -29,12 +29,11 @@ import (
 // The test range. RFC 5737 TEST-NET-2, carried on a dummy link this test creates and
 // deletes, so the ESP policy below can never capture the host's real traffic.
 //
-// The ESP policy is deliberately scoped to this /24 rather than to 0.0.0.0/0. The
-// production defect involves a wildcard, but the MECHANISM under test is a selector
-// that covers the IKE endpoints, and a genuine 0.0.0.0/0 policy demanding a state
-// that does not exist would black-hole the whole VM, including the 9p mount this
-// test's source is read through. The BYPASS is left exactly as production builds it,
-// wildcard and all, because that is the half whose shape is being proven.
+// The ESP policy is deliberately scoped to this /24 rather than to 0.0.0.0/0. A
+// genuine 0.0.0.0/0 policy demanding a state that does not exist would black-hole the
+// whole VM, including the 9p mount this test's source is read through. The operator
+// BYPASS keeps the wildcard addresses an operator writes for a port-scoped exemption,
+// because its selector is the half whose shape is being proven.
 const (
 	bypassTestLink = "zebyp0"
 	bypassTestCIDR = "198.51.100.2/24"
@@ -63,19 +62,21 @@ func espPolicyCapturingTestRange() SPParams {
 	}
 }
 
-// ikeBypassOut is the outbound half of the production bypass for UDP 500. It is
-// written out here rather than imported, because internal/component/ike/engine
-// (which builds it) imports this package and the dependency cannot run backwards.
-// TestIKEBypassPoliciesSelectorAndPriority pins the engine-side shape; this pins what
-// the kernel does with it.
-func ikeBypassOut(port uint16) SPParams {
+// operatorBypassOut is the outbound half of an operator `vpn ipsec policy` BYPASS
+// entry of local port port, every address and every remote port, at order
+// testOperatorOrder. It is written out here rather than built by spdPolicyDirection,
+// because internal/component/ike/engine (which builds it) imports this package and
+// the dependency cannot run backwards. The engine's spd_policy tests pin the shape it
+// builds; this pins what the kernel does with it.
+func operatorBypassOut(port uint16) SPParams {
 	_, anyV4, _ := net.ParseCIDR("0.0.0.0/0")
 	return SPParams{
 		Src:        anyV4,
 		Dst:        anyV4,
 		Dir:        SADirOut,
 		Action:     SPActionBypass,
-		Priority:   testBypassPriority,
+		Role:       PolicyRoleOperator,
+		Priority:   testOperatorOrder,
 		UpperProto: unix.IPPROTO_UDP,
 		SrcPort:    ExactPortMatch(port),
 		DstPort:    AnyPortMatch(),
@@ -149,8 +150,10 @@ func setupBypassTestLink(t *testing.T) {
 	}
 }
 
-// TestXFRMIKEBypassOutranksChildSAPolicyInKernel measures the ordering contest.
-func TestXFRMIKEBypassOutranksChildSAPolicyInKernel(t *testing.T) {
+// TestXFRMOperatorBypassOutranksChildSAPolicyInKernel measures the ordering contest
+// between an operator BYPASS ordered ahead of a Child SA policy and that policy, on a
+// flow both select.
+func TestXFRMOperatorBypassOutranksChildSAPolicyInKernel(t *testing.T) {
 	if !userns.Enter(t) {
 		return
 	}
@@ -175,10 +178,10 @@ func TestXFRMIKEBypassOutranksChildSAPolicyInKernel(t *testing.T) {
 		t.Logf("control: captured flow from port 12345 moved XfrmOutNoStates by %d, as required", delta)
 	}
 
-	// Now the exemption, in the exact shape production installs.
-	bypass := ikeBypassOut(500)
+	// Now the operator's exemption, of local port 500.
+	bypass := operatorBypassOut(500)
 	if err := b.InstallPolicy(bypass); err != nil {
-		t.Fatalf("install the IKE bypass beside the Child SA policy: %v", err)
+		t.Fatalf("install the operator BYPASS beside the Child SA policy: %v", err)
 	}
 	t.Cleanup(func() { _ = b.RemovePolicyParams(bypass) })
 
@@ -186,32 +189,32 @@ func TestXFRMIKEBypassOutranksChildSAPolicyInKernel(t *testing.T) {
 	// priority number, so the kernel must apply it and leave the datagram alone.
 	if delta := sendFromPort(t, 500); delta != 0 {
 		t.Fatalf("a UDP write from local port 500 moved XfrmOutNoStates by %d; the Child SA "+
-			"policy outranked the IKE bypass, so ze's own IKE traffic is handed to ESP "+
-			"and the tunnel can never be rekeyed or torn down", delta)
+			"policy outranked the operator BYPASS ordered ahead of it, so the SPD's order "+
+			"is not the kernel's", delta)
 	}
-	t.Log("measured: the kernel applied the bypass to the port-500 flow and did not hand it to ESP")
+	t.Log("measured: the kernel applied the operator BYPASS to the port-500 flow and did not hand it to ESP")
 
 	// THE BYPASS DID NOT WIDEN. The captured flow on another port must still be
-	// dropped, or the exemption covers more than ze's own IKE sockets.
+	// dropped, or the exemption covers more than the port the operator named.
 	if delta := sendFromPort(t, 12345); delta == 0 {
-		t.Error("after installing the IKE bypass, a flow from port 12345 stopped being " +
-			"captured; the exemption is wider than ze's own IKE ports")
+		t.Error("after installing the operator BYPASS, a flow from port 12345 stopped being " +
+			"captured; the exemption is wider than the port it names")
 	}
 }
 
-// TestXFRMBypassIsStoredWithoutTemplate checks what the kernel actually recorded:
-// the bypass must be an ALLOW policy with NO template, and the two priorities must
-// survive the round trip. A bypass stored WITH a template is a protect policy, and
-// it would black-hole every flow it matched instead of exempting it.
+// TestXFRMBypassIsStoredWithoutTemplate checks what the kernel actually recorded for
+// an operator BYPASS: an ALLOW policy with NO template, its order surviving the round
+// trip, and the remote port left free. A bypass stored WITH a template is a protect
+// policy, and it would black-hole every flow it matched instead of exempting it.
 func TestXFRMBypassIsStoredWithoutTemplate(t *testing.T) {
 	if !userns.Enter(t) {
 		return
 	}
 	b := &xfrmBackend{}
 
-	bypass := ikeBypassOut(4500)
+	bypass := operatorBypassOut(4500)
 	if err := b.InstallPolicy(bypass); err != nil {
-		t.Fatalf("install the IKE bypass: %v", err)
+		t.Fatalf("install the operator BYPASS: %v", err)
 	}
 	t.Cleanup(func() { _ = b.RemovePolicyParams(bypass) })
 
@@ -228,32 +231,39 @@ func TestXFRMBypassIsStoredWithoutTemplate(t *testing.T) {
 		}
 	}
 	if found == nil {
-		t.Fatal("the installed bypass is not in the kernel's policy list")
+		t.Fatal("the installed operator BYPASS is not in the kernel's policy list")
 	}
 	if found.Action != netlink.XFRM_POLICY_ALLOW {
-		t.Errorf("bypass action = %s, want allow; a block policy would DROP ze's IKE instead of exempting it", found.Action)
+		t.Errorf("bypass action = %s, want allow; a block policy would DROP the traffic the operator exempted", found.Action)
 	}
 	if len(found.Tmpls) != 0 {
-		t.Errorf("bypass stored with %d template(s), want 0; a template makes it a protect policy and the kernel would demand a state for ze's own IKE", len(found.Tmpls))
+		t.Errorf("bypass stored with %d template(s), want 0; a template makes it a protect policy and the kernel would demand a state for the exempted traffic", len(found.Tmpls))
 	}
-	if found.Priority != testBypassPriority {
-		t.Errorf("bypass priority round-tripped as %d, want %d", found.Priority, testBypassPriority)
+	if found.Priority != testOperatorOrder {
+		t.Errorf("bypass priority round-tripped as %d, want the operator's order %d", found.Priority, testOperatorOrder)
 	}
 	if found.DstPort != 0 {
-		t.Errorf("bypass pinned remote port %d; a NAT rewrites it and the exemption would stop matching", found.DstPort)
+		t.Errorf("bypass pinned remote port %d; the entry names its local port alone", found.DstPort)
 	}
 }
 
-// TestXFRMBypassInstallIsIdempotent proves the peer-independence claim in
-// installIKEBypass: every peer installs the same set, so the second install must
-// succeed rather than answer EEXIST the way a Child SA policy does
-// (TestXFRMSecondInstallOfOneSelectorIsRefused measures that contrast).
-func TestXFRMBypassInstallIsIdempotent(t *testing.T) {
+// TestXFRMOperatorEntryReinstallReplacesInPlace proves that an operator entry the
+// kernel already holds is replaced, not refused with EEXIST the way an exclusive add
+// answers (TestPolicyOwnerRefusesASecondPeerOnOneSelector covers the refusal a
+// different owner's install gets). Two installs reach one selector in production: a
+// reload that edits an entry's order or action and keeps its selector installs the
+// new form over the old (reconcileSPDPolicies), and the undo of a refused reload puts
+// a running entry back over itself (undoSPDInstall).
+//
+// METHOD: install one operator BYPASS twice, then its edited form at another order,
+// and read the kernel's policy list: it must hold one policy at that selector, at the
+// edited order.
+func TestXFRMOperatorEntryReinstallReplacesInPlace(t *testing.T) {
 	if !userns.Enter(t) {
 		return
 	}
 	b := &xfrmBackend{}
-	bypass := ikeBypassOut(500)
+	bypass := operatorBypassOut(500)
 
 	if err := b.InstallPolicy(bypass); err != nil {
 		t.Fatalf("first install: %v", err)
@@ -261,7 +271,31 @@ func TestXFRMBypassInstallIsIdempotent(t *testing.T) {
 	t.Cleanup(func() { _ = b.RemovePolicyParams(bypass) })
 
 	if err := b.InstallPolicy(bypass); err != nil {
-		t.Fatalf("second install of the same bypass failed (%v); a second peer would "+
-			"fail to start because the first already installed the shared exemption", err)
+		t.Fatalf("second install of the same operator entry failed (%v); the undo of a "+
+			"refused reload could not put the running entry back", err)
+	}
+
+	edited := bypass
+	edited.Priority = testOperatorOrder + 1
+	if err := b.InstallPolicy(edited); err != nil {
+		t.Fatalf("install of the edited entry over its old form failed (%v); a reload "+
+			"that changes only an entry's order would be refused", err)
+	}
+
+	policies, err := netlink.XfrmPolicyList(netlink.FAMILY_ALL)
+	if err != nil {
+		t.Fatalf("list policies: %v", err)
+	}
+	var priorities []int
+	for i := range policies {
+		p := &policies[i]
+		if p.Dir == netlink.XFRM_DIR_OUT && p.SrcPort == 500 && p.Proto == unix.IPPROTO_UDP {
+			priorities = append(priorities, p.Priority)
+		}
+	}
+	if len(priorities) != 1 || priorities[0] != edited.Priority {
+		t.Fatalf("the kernel holds the entry's selector at priorities %v, want exactly [%d]: "+
+			"the edit added a policy beside the old form instead of replacing it",
+			priorities, edited.Priority)
 	}
 }

@@ -231,3 +231,48 @@ func TestSPDDefinedPortProtocols(t *testing.T) {
 		}
 	}
 }
+
+// TestSPDPortRefusalsAreOperatorErrors pins the shape of the two port refusals
+// SPDPolicy.validate answers: each is an operator error that keeps ErrSPDPolicy, the
+// port-needs-protocol refusal names every protocol whose ports Ze can select (UDP-Lite
+// included, as protocolCarriesPorts accepts it), and both fixes name the entry the
+// same way, unquoted, as the operator types it. Method: a port under ICMP (1) and a
+// port under DCCP (33) through validate, reading Problem, Why and Fix.
+func TestSPDPortRefusalsAreOperatorErrors(t *testing.T) {
+	refusal := func(proto uint8) *opererr.Error {
+		t.Helper()
+		p := SPDPolicy{
+			Name: "ports", Action: dataplane.SPActionDiscard, Direction: SPDDirOut,
+			Order: 1000, Protocol: proto,
+			LocalPrefix: cidr(t, "10.1.0.0/24"), RemotePrefix: cidr(t, "10.2.0.0/24"),
+			LocalPort: PortSelector{Form: PortSingle, Port: 443}, RemotePort: AnyPort(),
+		}
+		err := p.validate()
+		if !errors.Is(err, ErrSPDPolicy) {
+			t.Fatalf("protocol %d: error %v, want ErrSPDPolicy", proto, err)
+		}
+		var oe *opererr.Error
+		if !errors.As(err, &oe) {
+			t.Fatalf("protocol %d: error %v is not an operator error", proto, err)
+		}
+		return oe
+	}
+
+	icmp := refusal(1)
+	if !strings.Contains(icmp.Problem(), "a port selector needs a protocol that carries ports, and protocol is 1") {
+		t.Errorf("ICMP problem = %q, want the port-needs-protocol refusal", icmp.Problem())
+	}
+	for _, named := range []string{"6 (TCP)", "17 (UDP)", "132 (SCTP)", "136 (UDP-Lite)"} {
+		if !strings.Contains(icmp.Why(), named) {
+			t.Errorf("ICMP why = %q, want it to name %s", icmp.Why(), named)
+		}
+	}
+	if want := "set vpn ipsec policy ports protocol <6|17|132|136>"; icmp.Fix() != want {
+		t.Errorf("ICMP fix = %q, want %q", icmp.Fix(), want)
+	}
+
+	dccp := refusal(protoDCCP)
+	if want := "set vpn ipsec policy ports local port any; set vpn ipsec policy ports remote port any"; dccp.Fix() != want {
+		t.Errorf("DCCP fix = %q, want %q", dccp.Fix(), want)
+	}
+}

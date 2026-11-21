@@ -8,6 +8,7 @@ package dataplane
 import (
 	"bytes"
 	"encoding/binary"
+	"net"
 	"reflect"
 	"testing"
 
@@ -120,6 +121,12 @@ func TestXFRMStateScopeWirePreservesOrderedSelectors(t *testing.T) {
 // a canonical selector of each family case and writes it byte for byte, so a
 // transport selector equals its scope record. The cases are the selector family
 // cases of the vendored netlink library's TestXfrmSelectorFamilyFromMask.
+//
+// Each case also carries the Go prefixes the engine hands NewSAStateScope, and the
+// scope built from them must write the same record: "ipv4" gives four-byte IPv4
+// addresses and "ipv4-in-sixteen-bytes" the sixteen-byte form net.ParseIP answers,
+// which must still reach the kernel as AF_INET with the address in its first four
+// bytes, never as an IPv4-mapped IPv6 record.
 func TestXFRMStateScopeWritesSelectorFamilies(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -127,28 +134,40 @@ func TestXFRMStateScopeWritesSelectorFamilies(t *testing.T) {
 		family uint16
 		saddr  nl.XfrmAddress
 		daddr  nl.XfrmAddress
+		// source and target are the Go prefixes of the same selector.
+		source, target *net.IPNet
 	}{
 		{
 			name: "ipv4", prefix: 32, family: nl.FAMILY_V4,
 			saddr: nl.XfrmAddress{198, 51, 100, 9}, daddr: nl.XfrmAddress{192, 0, 2, 4},
+			source: &net.IPNet{IP: net.IP{198, 51, 100, 9}, Mask: net.CIDRMask(32, 32)},
+			target: &net.IPNet{IP: net.IP{192, 0, 2, 4}, Mask: net.CIDRMask(32, 32)},
 		},
 		{
 			name: "ipv4-in-sixteen-bytes", prefix: 32, family: nl.FAMILY_V4,
 			saddr: nl.XfrmAddress{198, 51, 100, 9}, daddr: nl.XfrmAddress{192, 0, 2, 4},
+			source: &net.IPNet{IP: net.ParseIP("198.51.100.9"), Mask: net.CIDRMask(32, 32)},
+			target: &net.IPNet{IP: net.ParseIP("192.0.2.4"), Mask: net.CIDRMask(32, 32)},
 		},
 		{
 			name: "native-ipv6", prefix: 64, family: nl.FAMILY_V6,
 			saddr: nl.XfrmAddress{0x20, 1, 0x0d, 0xb8, 0, 1}, daddr: nl.XfrmAddress{0x20, 1, 0x0d, 0xb8, 0, 2},
+			source: &net.IPNet{IP: net.ParseIP("2001:db8:1::"), Mask: net.CIDRMask(64, 128)},
+			target: &net.IPNet{IP: net.ParseIP("2001:db8:2::"), Mask: net.CIDRMask(64, 128)},
 		},
 		{
 			name: "mapped-ipv6-host", prefix: 128, family: nl.FAMILY_V6,
-			saddr: nl.XfrmAddress{10: 0xff, 11: 0xff, 12: 198, 13: 51, 14: 100, 15: 9},
-			daddr: nl.XfrmAddress{10: 0xff, 11: 0xff, 12: 192, 14: 2, 15: 4},
+			saddr:  nl.XfrmAddress{10: 0xff, 11: 0xff, 12: 198, 13: 51, 14: 100, 15: 9},
+			daddr:  nl.XfrmAddress{10: 0xff, 11: 0xff, 12: 192, 14: 2, 15: 4},
+			source: &net.IPNet{IP: net.ParseIP("::ffff:198.51.100.9"), Mask: net.CIDRMask(128, 128)},
+			target: &net.IPNet{IP: net.ParseIP("::ffff:192.0.2.4"), Mask: net.CIDRMask(128, 128)},
 		},
 		{
 			name: "mapped-ipv6-network", prefix: 120, family: nl.FAMILY_V6,
-			saddr: nl.XfrmAddress{10: 0xff, 11: 0xff, 12: 198, 13: 51, 14: 100},
-			daddr: nl.XfrmAddress{10: 0xff, 11: 0xff, 12: 192, 14: 2},
+			saddr:  nl.XfrmAddress{10: 0xff, 11: 0xff, 12: 198, 13: 51, 14: 100},
+			daddr:  nl.XfrmAddress{10: 0xff, 11: 0xff, 12: 192, 14: 2},
+			source: &net.IPNet{IP: net.ParseIP("::ffff:198.51.100.0"), Mask: net.CIDRMask(120, 128)},
+			target: &net.IPNet{IP: net.ParseIP("::ffff:192.0.2.0"), Mask: net.CIDRMask(120, 128)},
 		},
 	}
 	for _, tc := range cases {
@@ -165,6 +184,22 @@ func TestXFRMStateScopeWritesSelectorFamilies(t *testing.T) {
 			}
 			if !bytes.Equal(payload[8:], want.Serialize()) {
 				t.Fatalf("scope record: got %x, want %x", payload[8:], want.Serialize())
+			}
+
+			scope, err := NewSAStateScope([]SASelector{{
+				Src: tc.source, Dst: tc.target, UpperProto: 17,
+				SrcPort: PortMatch{Port: 0, Mask: 0xffff}, DstPort: PortMatch{Port: 0x1200, Mask: 0xff00},
+				IfIndex: 9,
+			}}, false)
+			if err != nil {
+				t.Fatalf("the Go selector was refused: %v", err)
+			}
+			attr, err := scope.xfrmStateScopeAttr()
+			if err != nil {
+				t.Fatalf("the scope built from the Go selector did not write: %v", err)
+			}
+			if !bytes.Equal(attr.Value[8:], want.Serialize()) {
+				t.Fatalf("scope record from the Go selector: got %x, want %x", attr.Value[8:], want.Serialize())
 			}
 		})
 	}
@@ -254,14 +289,30 @@ func TestXFRMStateScopeWireBounds(t *testing.T) {
 }
 
 // FuzzXFRMStateScopeReadback checks that arbitrary netlink scope payloads return
-// errors safely, including truncated selector records and attacker-controlled counts.
+// errors safely, including truncated selector records and attacker-controlled counts,
+// and that a payload the reader accepts round-trips: the scope it answers writes the
+// same bytes back, so the reader keeps every field and accepts no form the writer
+// would not produce.
 func FuzzXFRMStateScopeReadback(f *testing.F) {
 	f.Add([]byte{})
 	f.Add([]byte{1, 0, 0, 0, 255, 255, 255, 255})
+	selectors := scopeWireSelectors()
+	valid := make([]byte, 8+len(selectors)*nl.SizeofXfrmSelector)
+	if _, err := writeXFRMStateScope(valid, 0, xfrmStateScopeNonInitial, selectors); err != nil {
+		f.Fatalf("seed scope: %v", err)
+	}
+	f.Add(valid)
 	f.Fuzz(func(t *testing.T, payload []byte) {
-		_, err := parseXFRMStateScope(payload)
+		scope, err := parseXFRMStateScope(payload)
 		if err != nil {
 			return
+		}
+		attr, err := scope.xfrmStateScopeAttr()
+		if err != nil {
+			t.Fatalf("an accepted scope does not write back: %v", err)
+		}
+		if !bytes.Equal(attr.Value, payload) {
+			t.Fatalf("accepted %x, writes back %x", payload, attr.Value)
 		}
 	})
 }

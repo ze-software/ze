@@ -1,7 +1,8 @@
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- SA/SP installation
-// Related: bypass.go -- the IKE control-plane bypass these entries must never outrank
+// Related: ../dataplane/ike_socket_bypass_linux.go -- BypassIKESocket, the per-socket IKE bypass, which no entry's order can outrank
 // Related: child.go -- childPolicies, the producer of every NEGOTIATED SPD entry
-// Related: spd_order.go -- verifySPDOrder, the commit refusal of an order a tie decides
+// Related: spd_order.go -- verifySPDOrder, the commit refusal of an order a tie decides and of a selector a peer also installs
+// Related: ../dataplane/policy_owner.go -- the ledger that refuses an entry at a selector a Child SA policy holds
 // Related: doctor_spd_install.go -- the ipsec-spd-install check of an entry the start could not install
 // RFC: rfc/short/rfc4301.md -- SPD dispositions and ordering (Sections 4.4.1, 7.4), transit traffic (Section 6)
 
@@ -10,6 +11,7 @@ package engine
 import (
 	"cmp"
 	"context"
+	"errors"
 	"log/slog"
 	"maps"
 	"net"
@@ -79,8 +81,12 @@ func spdPolicyHasDirection(d ipsec.SPDDirection, dir dataplane.SADir) bool {
 // in halves (spdPolicyParams), then, on a dataplane whose forwarding path consults a
 // forward lookup, its transit projection (spdTransitPolicies), decisions before gates.
 // Install, undo, replacement and shutdown all read this one set, so they cannot
-// disagree on it: dp's answer on fragment gathering, which the set depends on, does not
-// change while dp is loaded (dataplane.ForwardFragmentGatherer). A dataplane that
+// disagree on it. The set depends on dp's answer on fragment gathering, and that answer
+// can change while dp is loaded: a backend keeps no answer from a read that failed
+// (dataplane.ForwardFragmentGatherer), so a later read can succeed. The engine
+// therefore hands this function a dataplane pinned to the answer it installed with
+// (spdForwardAnswer.pin), and moves the projection when a reload reads a different one
+// (moveSPDForwardAnswer). A dataplane that
 // applies its inbound SPD before routing (VPP) needs no forward entry, and is not
 // handed one: it would refuse the direction.
 func spdEntryPolicies(dp dataplane.Dataplane, p ipsec.SPDPolicy) []dataplane.SPParams {
@@ -133,12 +139,24 @@ type spdTransit struct {
 //     A bypass gets its selectors in FWD as a gate, as appendChildOutboundForwardPolicies
 //     does for a Child SA; a discard needs nothing more, since its OUT policy drops it.
 //
-// The gates rank beneath every Child SA policy and operator entry, so a gate never takes
-// a packet from a PROTECT policy or from another entry's decision, whatever prefixes the
-// entry names. A projected policy that would carry the kernel identity of one already in
-// the set (selector, direction and if_id, never the priority) is left out: the kernel
-// would replace the first with it. Decisions are taken before gates for that reason, so
-// an entry whose local and remote sides are equal keeps its decision at its order.
+// The gates rank beneath every Child SA policy and operator entry, so a gate whose
+// selector only OVERLAPS a PROTECT policy's, or another entry's decision, never takes a
+// packet from it: the kernel's ordered search meets the other policy first.
+//
+// Rank does not keep apart two policies with ONE kernel identity (selector, direction
+// and if_id, never the priority): the kernel replaces the policy it holds with the one
+// installed second (xfrm_policy_insert_list). A gate, a decision or a half that names
+// the selector of a peer's Child SA policy would therefore replace it, a PROTECT policy
+// with an allow, and the peer's traffic would leave in clear. Two refusals keep that out.
+// The commit refuses an entry whose policies share an identity with those a configured
+// peer installs (spdPeerSelectorRefusal, spd_order.go). The XFRM backend's ownership
+// ledger refuses the install itself where the selector a peer negotiated, which only it
+// knows, is the same (dataplane.PolicyOwnedError), so the reload is refused or the start
+// reports the entry (spdInstallRefusal), and the Child SA policy stays.
+//
+// Within one entry, a projected policy that would carry the kernel identity of one
+// already in the set is left out. Decisions are taken before gates for that reason, so an
+// entry whose local and remote sides are equal keeps its decision at its order.
 //
 // gathers is the dataplane's answer to whether its forward check sees whole datagrams
 // (spdForwardGathers), which decides whether a port-scoped bypass is projected
@@ -311,10 +329,10 @@ func spdICMPMatches(p ipsec.SPDPolicy) []spdICMPMatch {
 // at their zero values and the backend's template-free path builds the policy
 // (xfrmPolicyFromParams, xfrm_linux.go).
 //
-// Owner stays empty for the same reason. policyOwners exempts every template-free
-// policy (policy_owner.go, isTemplateFree), because ownership exists to stop one
-// PEER's selector taking another peer's live tunnel over, and an operator entry
-// belongs to the node rather than to a peer.
+// Owner stays empty for the same reason: an operator entry belongs to the node rather
+// than to a peer, so the ownership ledger keeps no owner record for it
+// (dataplane/policy_owner.go, ownedEntry). The ledger still refuses it at a selector a
+// peer's Child SA policy holds, and refuses a Child SA policy at a selector it holds.
 func spdPolicyDirection(p ipsec.SPDPolicy, dir dataplane.SADir) dataplane.SPParams {
 	src, dst := p.LocalPrefix, p.RemotePrefix
 	srcPort, dstPort := spdPortMatch(p.LocalPort), spdPortMatch(p.RemotePort)
@@ -330,8 +348,10 @@ func spdPolicyDirection(p ipsec.SPDPolicy, dir dataplane.SADir) dataplane.SPPara
 		Role:   dataplane.PolicyRoleOperator,
 		// RFC 4301 Section 4.4.1: the management interface "MUST support (total)
 		// ordering of these entries, as seen via this interface". The operator's
-		// order IS the kernel priority; ValidateSPDPolicies has already refused a
-		// rank that would outrank the IKE control-plane bypass.
+		// order IS the kernel priority; ValidateSPDPolicies has already refused an
+		// order outside 1 to 2147483647 (2^31-1), the ranks every dataplane carries.
+		// No rank is reserved for IKE: its bypass is on Ze's own IKE sockets
+		// (dataplane.BypassIKESocket), which the kernel consults before any SPD entry.
 		Priority:   int(p.Order),
 		UpperProto: p.Protocol,
 		SrcPort:    srcPort,
@@ -461,9 +481,9 @@ func (r *spdReconcile) add(step spdReconcile) {
 // The entries reach the dataplane in their order, lowest first, and in name order
 // within one order (spdInstallOrder), never in map order.
 //
-// A platform with no XFRM at all is no refusal: the control plane must run where no
-// dataplane exists to hold any entry, which is how installIKEBypass tolerates the same
-// case. A removal that finds nothing is silent.
+// A platform with no XFRM at all is no refusal (isXFRMUnsupported): no dataplane exists
+// there to hold any entry, and the catch-all, which the apply installs first, has already
+// answered for it (installUnmatched). A removal that finds nothing is silent.
 func reconcileSPDPolicies(dp dataplane.Dataplane, previous, next map[string]ipsec.SPDPolicy, log *slog.Logger) (spdReconcile, error) {
 	var outcome spdReconcile
 	if dp == nil {
@@ -552,8 +572,21 @@ func installSPDPoliciesAtStart(dp dataplane.Dataplane, next map[string]ipsec.SPD
 // spdInstallRefusal is the operator error for one entry the dataplane refused: the
 // entry, the half of it that failed, the dataplane's own answer as the cause, and the
 // command that retries.
+//
+// An entry refused because a peer's Child SA policy holds its selector
+// (dataplane.PolicyOwnedError) is not fixed by a retry, so its fix is the command that
+// removes the entry, whatever fix the caller named.
 func spdInstallRefusal(name string, p ipsec.SPDPolicy, sp *dataplane.SPParams, err error, fix string) *opererr.Error {
 	action := spdActionName(p.Action)
+	if _, owned := errors.AsType[*dataplane.PolicyOwnedError](err); owned {
+		return opererr.Wrap(err,
+			"Ze did not install operator SPD policy "+name+" ("+action+", direction "+dirLabel(sp.Dir)+")",
+			"A Child SA policy of a peer holds the same selector in that direction, and the dataplane holds one "+
+				"SPD entry per selector whatever its priority, so installing `vpn ipsec policy "+name+"` would "+
+				"replace the peer's policy and the traffic the peer protects would no longer be protected; "+
+				"the peer's policy and the entries in force before stay as they were",
+			"delete vpn ipsec policy "+name)
+	}
 	return opererr.Wrap(err,
 		"Ze could not install operator SPD policy "+name+" ("+action+", direction "+dirLabel(sp.Dir)+")",
 		"The dataplane refused the entry, so the traffic `vpn ipsec policy "+name+"` names would meet the next "+

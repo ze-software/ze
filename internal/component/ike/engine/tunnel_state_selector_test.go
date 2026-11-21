@@ -210,11 +210,15 @@ func TestTunnelParallelSinglePairStatesKeepEqualScope(t *testing.T) {
 
 // TestTunnelSinglePairMOBIKEKeepsItsInnerStateScope moves actual Child endpoints
 // through migrateMobikePair and requires its negotiated inner scope to stay fixed.
+// Method: the migration the dataplane receives is compared with the Child's policy set
+// derived before the move and again after it, and its inbound policy with the inbound
+// state selector createFirstChildSA installed. The installed mock is never handed to
+// the migration, so reading its state back would compare a value with its own copy.
 func TestTunnelSinglePairMOBIKEKeepsItsInnerStateScope(t *testing.T) {
 	pair := tunnelBindingPair(t, "10.2.0.0/16", "10.1.0.0/16")
 	child, installed := tunnelBindingChild(t, []tsPair{pair})
-	sel := tunnelBindingSelector(t, installed)
-	want := *sel
+	inbound := *tunnelBindingSelector(t, installed)
+	before := childInstalledPolicies(child)
 	sa := testSA()
 	sa.peerEndpoint = &net.UDPAddr{IP: net.ParseIP("192.0.2.4"), Port: 4500}
 	ps := &PeerSession{}
@@ -229,7 +233,35 @@ func TestTunnelSinglePairMOBIKEKeepsItsInnerStateScope(t *testing.T) {
 	if !child.LocalAddr.Equal(local.IP) || !child.RemoteAddr.Equal(sa.peerEndpoint.IP) {
 		t.Fatal("MOBIKE did not adopt the new outer endpoints")
 	}
-	if !reflect.DeepEqual(sel, &want) {
-		t.Fatal("MOBIKE changed the inbound state's negotiated inner selector")
+	moved := dp.migrations[0].Policies
+	if !reflect.DeepEqual(moved, before) {
+		t.Fatalf("migration carried policies %+v, want the Child's installed set %+v", moved, before)
+	}
+	// The move changes the outer tunnel endpoints and nothing else: every inner
+	// selector, port, SA binding and priority stays as negotiated, and each policy's
+	// tunnel ends follow the Child's new endpoints in its own direction.
+	want := make([]dataplane.SPParams, len(before))
+	copy(want, before)
+	for i := range want {
+		switch want[i].Dir {
+		case dataplane.SADirOut:
+			want[i].TunnelSrc, want[i].TunnelDst = local.IP, sa.peerEndpoint.IP
+		case dataplane.SADirIn, dataplane.SADirFwd:
+			want[i].TunnelSrc, want[i].TunnelDst = sa.peerEndpoint.IP, local.IP
+		}
+	}
+	if after := childInstalledPolicies(child); !reflect.DeepEqual(after, want) {
+		t.Fatalf("after MOBIKE the Child derives policies %+v, want its negotiated set on the new endpoints %+v",
+			after, want)
+	}
+	if len(moved) == 0 || moved[0].Dir != dataplane.SADirIn {
+		t.Fatalf("migration carried %+v, want the inbound policy first", moved)
+	}
+	got := dataplane.SASelector{
+		Src: moved[0].Src, Dst: moved[0].Dst, UpperProto: moved[0].UpperProto,
+		SrcPort: moved[0].SrcPort, DstPort: moved[0].DstPort,
+	}
+	if !reflect.DeepEqual(got, inbound) {
+		t.Fatalf("migrated inbound policy selects %+v, want the inbound state's negotiated selector %+v", got, inbound)
 	}
 }

@@ -12,6 +12,8 @@ import (
 	"crypto/cipher"
 	"encoding/binary"
 	"errors"
+	"fmt"
+	"maps"
 	"net"
 	"os"
 	"testing"
@@ -388,8 +390,39 @@ func TestMHChildPoliciesSelectIncomingIPv6Packets(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(statesAfter) != len(statesBefore) || len(policiesAfter) != len(policiesBefore) {
-			t.Fatalf("refused exact MH changed kernel states %d->%d or policies %d->%d", len(statesBefore), len(statesAfter), len(policiesBefore), len(policiesAfter))
+		// Compared as sets by identity, not by count: a refusal that removed one entry and
+		// installed another of the same kind would leave both counts unchanged.
+		if before, after := mhBoundaryStateKeys(statesBefore), mhBoundaryStateKeys(statesAfter); !maps.Equal(before, after) {
+			t.Fatalf("refused exact MH changed the kernel's states: before %v, after %v", before, after)
+		}
+		if before, after := mhBoundaryPolicyKeys(policiesBefore), mhBoundaryPolicyKeys(policiesAfter); !maps.Equal(before, after) {
+			t.Fatalf("refused exact MH changed the kernel's policies: before %v, after %v", before, after)
 		}
 	}
+}
+
+// mhBoundaryStateKeys is the multiset of states by the identity the kernel keys a state
+// on (SPI, destination, protocol), with the fields an install sets beside it. Traffic
+// counters are left out: they move with every packet and say nothing about the SAD.
+func mhBoundaryStateKeys(states []dataplane.SAInfo) map[string]int {
+	keys := make(map[string]int, len(states))
+	for i := range states {
+		s := &states[i]
+		keys[fmt.Sprintf("spi=%#x src=%s dst=%s proto=%d mode=%d reqid=%d if_id=%d",
+			s.SPI, s.Src, s.Dst, s.Proto, s.Mode, s.ReqID, s.IfID)]++
+	}
+	return keys
+}
+
+// mhBoundaryPolicyKeys is the multiset of policies by their selector, direction,
+// interface, priority, action and template.
+func mhBoundaryPolicyKeys(policies []dataplane.PolicyInfo) map[string]int {
+	keys := make(map[string]int, len(policies))
+	for i := range policies {
+		p := &policies[i]
+		keys[fmt.Sprintf("src=%s dst=%s sport=%+v dport=%+v proto=%d dir=%d prio=%d ifindex=%d if_id=%d action=%d tmpl=%s>%s/%d/%d",
+			p.Src, p.Dst, p.SrcPort, p.DstPort, p.UpperProto, p.Dir, p.Priority, p.IfIndex, p.IfID, p.Action,
+			p.TunnelSrc, p.TunnelDst, p.Mode, p.ReqID)]++
+	}
+	return keys
 }

@@ -41,6 +41,8 @@ import (
 // refuse makes VPP answer the named message with a non-zero retval, which is how a
 // real VPP declines a request it received and understood. A test uses it to drive the
 // paths where the backend has already recorded state for a request VPP then refuses.
+// refuseIf does the same for the one request it answers true for, where the name alone
+// would also refuse the requests around it.
 type capturingChannel struct {
 	sent  []api.Message
 	dumps []api.Message
@@ -48,13 +50,17 @@ type capturingChannel struct {
 	spds []uint32
 	sads []uint32
 
-	refuse map[string]int32
+	refuse   map[string]int32
+	refuseIf func(api.Message) bool
 }
 
 func (c *capturingChannel) SendRequest(msg api.Message) api.RequestCtx {
 	c.sent = append(c.sent, msg)
 	if add, ok := msg.(*ipsec.IpsecSpdAddDel); ok && add.IsAdd {
 		c.spds = append(c.spds, add.SpdID)
+	}
+	if c.refuseIf != nil && c.refuseIf(msg) {
+		return capturedRequest{retval: -1}
 	}
 	return capturedRequest{retval: c.refuse[msg.GetMessageName()]}
 }
@@ -247,9 +253,12 @@ func sentSAD(t *testing.T, ch *capturingChannel) *ipsec.IpsecSadEntryAddDelV3 {
 	return req
 }
 
-// sentSPD returns the one SPD ENTRY message in what the backend sent. The SPD
-// creation and the interface binding travel with the first policy, and
-// TestVPPInstallPolicyCreatesAndBindsSPD is what asserts that chain.
+// sentSPD returns the one SPD ENTRY message of the CALLER'S policy in what the backend
+// sent. The SPD creation and the interface binding travel with the first policy, and
+// TestVPPInstallPolicyCreatesAndBindsSPD is what asserts that chain. The IKE BYPASS
+// entries a PROTECT entry brings and takes with it are this backend's own, at a rank no
+// caller's policy reaches (vppIKEBypassPriority), so they are not the caller's policy:
+// vpp_ike_bypass_test.go asserts them.
 func sentSPD(t *testing.T, ch *capturingChannel) *ipsec.IpsecSpdEntryAddDelV2 {
 	t.Helper()
 	var found *ipsec.IpsecSpdEntryAddDelV2
@@ -257,6 +266,9 @@ func sentSPD(t *testing.T, ch *capturingChannel) *ipsec.IpsecSpdEntryAddDelV2 {
 		requireResolvable(t, msg)
 		req, ok := msg.(*ipsec.IpsecSpdEntryAddDelV2)
 		if !ok {
+			continue
+		}
+		if req.Entry.Priority == vppIKEBypassPriority {
 			continue
 		}
 		if found != nil {
@@ -652,13 +664,13 @@ func TestVPPInstallPolicy(t *testing.T) {
 			req.Entry.RemotePortStart, req.Entry.RemotePortStop)
 	}
 	// Ze ranks lower first and VPP ranks higher first, so PriorityChildSA (2000) must
-	// not outrank a bypass ranked ahead of it (testBypassPriority, 100) once translated.
+	// not outrank a bypass ranked ahead of it (testOperatorOrder, 100) once translated.
 	if req.Entry.Priority != -PriorityChildSA {
 		t.Errorf("Priority = %d, want %d", req.Entry.Priority, -PriorityChildSA)
 	}
-	if vppPriority(testBypassPriority) <= vppPriority(PriorityChildSA) {
+	if vppPriority(testOperatorOrder) <= vppPriority(PriorityChildSA) {
 		t.Errorf("vppPriority inverts the ranking: bypass %d, child SA %d",
-			vppPriority(testBypassPriority), vppPriority(PriorityChildSA))
+			vppPriority(testOperatorOrder), vppPriority(PriorityChildSA))
 	}
 }
 
@@ -683,7 +695,7 @@ func TestVPPInstallPolicyInboundSides(t *testing.T) {
 	discard := func(dir SADir) SPParams {
 		return SPParams{
 			Src: remote, Dst: local, Dir: dir, IfIndex: 3,
-			Action: SPActionDiscard, Priority: testBypassPriority, UpperProto: 17,
+			Action: SPActionDiscard, Priority: testOperatorOrder, UpperProto: 17,
 			SrcPort: ExactPortMatch(5000), DstPort: ExactPortMatch(53),
 		}
 	}
@@ -854,8 +866,13 @@ func TestVPPInstallPolicyCreatesAndBindsSPD(t *testing.T) {
 	if err := b.InstallPolicy(p); err != nil {
 		t.Fatalf("InstallPolicy: %v", err)
 	}
-	if len(ch.sent) != 3 {
-		t.Fatalf("sent %d messages, want 3 (spd add, interface bind, entry add)", len(ch.sent))
+	// The four IKE BYPASS entries of the policy's local endpoint travel between the
+	// bind and the PROTECT entry (ensureIKEBypass); vpp_ike_bypass_test.go reads them.
+	if len(ch.sent) != 7 {
+		t.Fatalf("sent %d messages, want 7 (spd add, interface bind, four IKE bypass entries, entry add)", len(ch.sent))
+	}
+	if last, ok := ch.sent[6].(*ipsec.IpsecSpdEntryAddDelV2); !ok || last.Entry.Policy != ipsec_types.IPSEC_API_SPD_ACTION_PROTECT {
+		t.Fatalf("the last message is %T, want the PROTECT entry add", ch.sent[6])
 	}
 
 	add, ok := ch.sent[0].(*ipsec.IpsecSpdAddDel)
@@ -910,9 +927,11 @@ func TestVPPInstallPolicyWithoutInterfaceRefused(t *testing.T) {
 // silently downgraded to a protect policy and black-holed the traffic it was meant
 // to let through.
 //
-// This is the IKE bypass in the shape engine/bypass.go installs it: no mode, no SA,
-// and one exact destination port. A bypass carries no template, so it needs no mode
-// (SPActionBypass, dataplane.go).
+// The policy is an operator BYPASS entry at an operator order, for UDP to one exact
+// destination port (500 here only as a sample port): no mode, no SA. Ze installs no SPD
+// bypass for its own IKE traffic any more; that traffic is exempt on its sockets
+// (BypassIKESocket). A bypass carries no template, so it needs no mode (SPActionBypass,
+// dataplane.go).
 func TestVPPInstallPolicyBypass(t *testing.T) {
 	b, ch := newCapturingBackend()
 	p := testSPParams()
@@ -920,7 +939,7 @@ func TestVPPInstallPolicyBypass(t *testing.T) {
 	p.Action = SPActionBypass
 	p.SAID = 0
 	p.Mode = 0
-	p.Priority = testBypassPriority
+	p.Priority = testOperatorOrder
 	p.UpperProto = 17 // UDP
 	p.SrcPort = AnyPortMatch()
 	p.DstPort = ExactPortMatch(500)
@@ -942,8 +961,8 @@ func TestVPPInstallPolicyBypass(t *testing.T) {
 		t.Errorf("local port range = %d..%d, want 0..65535",
 			req.Entry.LocalPortStart, req.Entry.LocalPortStop)
 	}
-	if req.Entry.Priority != -testBypassPriority {
-		t.Errorf("Priority = %d, want %d", req.Entry.Priority, -testBypassPriority)
+	if req.Entry.Priority != -testOperatorOrder {
+		t.Errorf("Priority = %d, want %d", req.Entry.Priority, -testOperatorOrder)
 	}
 }
 
@@ -1044,8 +1063,15 @@ func TestVPPRemovePolicyParams(t *testing.T) {
 	if !reflect.DeepEqual(req.Entry, added) {
 		t.Errorf("delete entry = %+v, want the entry the add sent %+v", req.Entry, added)
 	}
-	if len(ch.sent) != 1 {
-		t.Errorf("the delete sent %d messages, want 1: it must not create an SPD", len(ch.sent))
+	// The last PROTECT entry of a local endpoint takes that endpoint's four IKE BYPASS
+	// entries with it (releaseProtectIKEBypass), so the delete is five entry deletes.
+	if len(ch.sent) != 5 {
+		t.Errorf("the delete sent %d messages, want 5 (the entry and the four IKE bypass entries): it must not create an SPD", len(ch.sent))
+	}
+	for i, msg := range ch.sent {
+		if del, ok := msg.(*ipsec.IpsecSpdEntryAddDelV2); !ok || del.IsAdd {
+			t.Errorf("message %d of the delete is %T, want an SPD entry delete: it must not create an SPD", i, msg)
+		}
 	}
 }
 
@@ -1223,7 +1249,9 @@ func TestVPPInstallPolicyEntryRefusedRemovesTheSPDItCreated(t *testing.T) {
 		t.Errorf("the backend still holds %d interface bindings, want 0", len(b.spdBound))
 	}
 
-	// spd add, interface bind, entry add, interface unbind, spd del.
+	// spd add, interface bind, entry add, interface unbind, spd del. The refused entry
+	// add is the first one sent, an IKE BYPASS entry of the policy's local endpoint;
+	// TestVPPProtectRefusedTakesItsIKEBypassBack refuses the PROTECT entry alone.
 	unbind, ok := ch.sent[len(ch.sent)-2].(*ipsec.IpsecInterfaceAddDelSpd)
 	if !ok {
 		t.Fatalf("the fourth message is %T, want *ipsec.IpsecInterfaceAddDelSpd", ch.sent[len(ch.sent)-2])
@@ -1285,8 +1313,16 @@ func TestVPPCloseRemovesWhatItInstalled(t *testing.T) {
 	if err := b.Close(); err != nil {
 		t.Fatalf("Close: %v", err)
 	}
-	if len(ch.sent) != 4 {
-		t.Fatalf("Close sent %d messages, want 4 (interface unbind, spd entry del, spd del, sa del)", len(ch.sent))
+	if len(ch.sent) != 8 {
+		t.Fatalf("Close sent %d messages, want 8 (interface unbind, spd entry del, four IKE bypass entry dels, spd del, sa del)", len(ch.sent))
+	}
+	// The IKE BYPASS entries go back AFTER the PROTECT entry they exempt IKE from and
+	// before the SPD that holds them.
+	for i := 2; i < 6; i++ {
+		bypassDel, isEntry := ch.sent[i].(*ipsec.IpsecSpdEntryAddDelV2)
+		if !isEntry || bypassDel.IsAdd || bypassDel.Entry.Priority != vppIKEBypassPriority {
+			t.Fatalf("message %d is %T, want the delete of an IKE bypass entry", i, ch.sent[i])
+		}
 	}
 
 	unbind, ok := ch.sent[0].(*ipsec.IpsecInterfaceAddDelSpd)
@@ -1309,16 +1345,16 @@ func TestVPPCloseRemovesWhatItInstalled(t *testing.T) {
 		t.Errorf("spd entry del = {IsAdd:%v Entry:%+v}, want {false, the entry the add sent}",
 			entryDel.IsAdd, entryDel.Entry)
 	}
-	del, ok := ch.sent[2].(*ipsec.IpsecSpdAddDel)
+	del, ok := ch.sent[6].(*ipsec.IpsecSpdAddDel)
 	if !ok {
-		t.Fatalf("third message is %T, want *ipsec.IpsecSpdAddDel", ch.sent[2])
+		t.Fatalf("seventh message is %T, want *ipsec.IpsecSpdAddDel", ch.sent[6])
 	}
 	if del.IsAdd || del.SpdID != spdID {
 		t.Errorf("spd del = {IsAdd:%v SpdID:%d}, want {false %d}", del.IsAdd, del.SpdID, spdID)
 	}
-	saDel, ok := ch.sent[3].(*ipsec.IpsecSadEntryAddDelV3)
+	saDel, ok := ch.sent[7].(*ipsec.IpsecSadEntryAddDelV3)
 	if !ok {
-		t.Fatalf("fourth message is %T, want *ipsec.IpsecSadEntryAddDelV3", ch.sent[3])
+		t.Fatalf("eighth message is %T, want *ipsec.IpsecSadEntryAddDelV3", ch.sent[7])
 	}
 	requireResolvable(t, saDel)
 	if saDel.IsAdd || saDel.Entry.SadID == 0 {
@@ -1345,8 +1381,8 @@ func TestVPPCloseReportsARefusedRemovalAndContinues(t *testing.T) {
 	if err := b.Close(); err == nil {
 		t.Fatal("Close reported success while VPP refused the SA delete")
 	}
-	if len(ch.sent) != 4 {
-		t.Errorf("Close sent %d messages, want 4: the refusal must not stop the rest", len(ch.sent))
+	if len(ch.sent) != 8 {
+		t.Errorf("Close sent %d messages, want 8 (the four IKE bypass entry dels included): the refusal must not stop the rest", len(ch.sent))
 	}
 	if b.spdID != 0 || len(b.spdBound) != 0 {
 		t.Errorf("the SPD (%d) or its %d bindings survived a refusal on a different message",

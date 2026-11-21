@@ -102,12 +102,12 @@ func TestUnmatchedForwardDefaultStaysHeldWhileFinalRemovalFails(t *testing.T) {
 		}
 	}
 	dp.removeErr = errors.New("in final entry remains installed")
-	removeUnmatched(dp, log)
+	removeUnmatched(dp, log, nil)
 	if dp.releases != 0 {
 		t.Fatal("a failed final removal released the namespace's protective default")
 	}
 	dp.removeErr = nil
-	removeUnmatched(dp, log)
+	removeUnmatched(dp, log, nil)
 	if dp.releases != 1 || len(dp.policies) != 0 {
 		t.Fatalf("successful removal retry: releases=%d policies=%d", dp.releases, len(dp.policies))
 	}
@@ -122,7 +122,7 @@ func TestUnmatchedForwardDefaultStrategyQueryPreservesUnsupportedWrappers(t *tes
 	if len(dp.policies) != len(spdFamilies)*len(unmatchedDirections) {
 		t.Fatalf("unsupported wrapper lost existing final directions: %d policies", len(dp.policies))
 	}
-	removeUnmatched(dp, log)
+	removeUnmatched(dp, log, nil)
 	if dp.applies != 0 || dp.releases != 0 || dp.undos != 0 {
 		t.Fatalf("unsupported wrapper used namespace-default lifecycle: applies=%d releases=%d undos=%d", dp.applies, dp.releases, dp.undos)
 	}

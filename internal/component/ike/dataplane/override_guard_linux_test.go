@@ -11,8 +11,6 @@ import (
 	"testing"
 
 	"github.com/vishvananda/netlink"
-
-	"github.com/ze-software/ze/internal/component/ike/transport"
 )
 
 // TestPolicyInfoMapsSocketDirections proves the journal row in
@@ -34,8 +32,8 @@ func TestPolicyInfoMapsSocketDirections(t *testing.T) {
 		role     PolicyRole
 	}{
 		{netlink.XFRM_SOCKET_IN, PriorityESPFormSocket, SADirIn, spdNameSocket, PolicyRoleESPFormSocket},
-		{netlink.XFRM_SOCKET_IN, transport.IKESocketPolicyPriority, SADirIn, spdNameSocket, PolicyRoleIKEBypass},
-		{netlink.XFRM_SOCKET_OUT, transport.IKESocketPolicyPriority, SADirOut, spdNameSocket, PolicyRoleIKEBypass},
+		{netlink.XFRM_SOCKET_IN, PriorityIKESocket, SADirIn, spdNameSocket, PolicyRoleIKEBypass},
+		{netlink.XFRM_SOCKET_OUT, PriorityIKESocket, SADirOut, spdNameSocket, PolicyRoleIKEBypass},
 		{netlink.XFRM_SOCKET_OUT, 0, SADirOut, spdNameSocket, PolicyRoleSocketOverride},
 		{netlink.XFRM_SOCKET_FWD, 7, SADirFwd, spdNameSocket, PolicyRoleSocketOverride},
 		{netlink.XFRM_DIR_OUT, 0, SADirOut, spdNameNode, PolicyRoleUnspecified},

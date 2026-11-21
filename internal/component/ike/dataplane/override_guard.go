@@ -20,6 +20,16 @@ import (
 // installs uses, so it never collides with Ze's own SPD ranks.
 const PriorityESPFormSocket = PriorityUnmatched - 2
 
+// PriorityIKESocket is the priority Ze writes into the per-socket bypass of each IKE
+// socket (BypassIKESocket, ike_socket_bypass_linux.go). Like PriorityESPFormSocket it
+// is a mark the kernel copies and never matches on: the policy listing names the row
+// ike-bypass by it (socketPolicyRole), and doctor does not report it as an
+// application override. It sits three places above the catch-all, a value no SPD
+// entry Ze installs uses and distinct from the ESP form reader's mark. It is declared
+// here, in the ungated dataplane, so the listing reads it without importing the
+// ze_ike-gated transport package.
+const PriorityIKESocket = PriorityUnmatched - 3
+
 // ErrNoSocketPolicySPD is a backend's declaration that its SPD holds no per-socket
 // policies at all, so no application can override it and there is nothing to guard.
 // The VPP backend answers it: its SPD lives in VPP, not in the kernel's XFRM, and a

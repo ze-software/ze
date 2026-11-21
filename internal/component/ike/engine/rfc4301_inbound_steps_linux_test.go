@@ -108,7 +108,7 @@ func inStepSPDI(t *testing.T, unmatched dataplane.SPAction) {
 	if err := installUnmatched(dp, unmatched, log); err != nil {
 		t.Fatalf("install the catch-all: %v", err)
 	}
-	t.Cleanup(func() { removeUnmatched(dp, log) })
+	t.Cleanup(func() { removeUnmatched(dp, log, nil) })
 }
 
 // inStepSendClear sends one clear UDP datagram from the peer address to a local port.

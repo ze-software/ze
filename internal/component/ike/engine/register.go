@@ -472,8 +472,10 @@ func runEngine(conn net.Conn) int {
 	if err := dataplane.Load(ikeDataplaneName()); err != nil {
 		log.Warn("ike: dataplane load failed, SA installation disabled", "error", err)
 	}
-	// No SPD entry is installed here. Ze's SPD, the IKE bypass and the catch-all,
-	// appears on the first configuration apply (applyConfig, apply.go) and is released
+	// No SPD entry is installed here. Ze's SPD, the operator's entries and the
+	// catch-all, appears on the first configuration apply (applyConfig, apply.go). It
+	// holds no entry for IKE: each IKE socket carries its own bypass from the moment it
+	// opens (dataplane.BypassIKESocket). The SPD is released
 	// on EVERY exit of runEngine by the deferred releaseSPD below, catch-all last, so
 	// before the first apply and after exit Ze holds no SPD entry and no SA. The one
 	// exception is a removal that failed: the catch-all then stays beneath the entries
@@ -586,48 +588,7 @@ func runEngine(conn net.Conn) int {
 	// ["pki"] feed the offline verifier, which never stages anything. Making the two
 	// agree would arm both hazards at once.
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
-		if err := validateIPsecSections(sections); err != nil {
-			return fmt.Errorf("ike config: %w", err)
-		}
-		cfg, err := parseVPNSections(sections)
-		if err != nil {
-			return fmt.Errorf("ike config: %w", err)
-		}
-		// A discard catch-all the loaded dataplane cannot hold is refused here, at
-		// commit, rather than failing the apply (verifyUnmatchedEnforceable, unmatched.go).
-		if err := verifyUnmatchedEnforceable(dataplane.Get(), cfg.Unmatched); err != nil {
-			return fmt.Errorf("ike config: %w", err)
-		}
-		// A df-bit, dscp-map or icmp-error-check the loaded dataplane cannot apply is
-		// refused here too, at commit, rather than at install once IKE has negotiated
-		// the Child SA (verifyPeerSAOptions, sa_options.go). Its refusal is already an
-		// operator error naming the peer and the fix, so it passes through unwrapped.
-		dp, dpName := dataplane.GetNamed()
-		if err := verifyPeerSAOptions(dp, dpName, cfg); err != nil {
-			return err
-		}
-		// RFC 4301 Section 7.4: a bypass with a port that forwarded traffic can match is
-		// refused at commit on a dataplane with a forward lookup that runs before
-		// reassembly, because no such bypass reaches that lookup there; on Ze's kernel,
-		// which gathers fragments first, it is projected and accepted
-		// (verifyForwardBypass, spd_forward_bypass.go). Its refusal is
-		// an operator error naming the entry and the fix, so it passes through unwrapped.
-		if err := verifyForwardBypass(dp, cfg); err != nil {
-			return err
-		}
-		// RFC 4301 Section 4.4.1: a commit that turns the default discard catch-all on
-		// without the operator writing it is refused (refuseImplicitDiscard, unmatched.go).
-		if err := refuseImplicitDiscard(cfg, state.discardInForce.Load()); err != nil {
-			return fmt.Errorf("ike config: %w", err)
-		}
-		// AC-12 of spec-ipsec-spd-selection: an IKE local address that is a tunnel
-		// address would be steered into its own tunnel by the source guard
-		// (refuseTunnelAddressAsIKEEndpoint, source_guard.go).
-		if err := refuseTunnelAddressAsIKEEndpoint(cfg); err != nil {
-			return fmt.Errorf("ike config: %w", err)
-		}
-		staging.stage(cfg)
-		return nil
+		return verifyIPsecCommit(state, staging, sections)
 	})
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {

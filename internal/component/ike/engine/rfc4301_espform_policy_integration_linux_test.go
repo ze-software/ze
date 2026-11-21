@@ -258,7 +258,7 @@ func espPolAddr(t *testing.T, name, cidr string) {
 // espPolSPD loads the real XFRM backend in Ze's namespace and gives it the SPD a first
 // configuration apply builds before any IKE socket opens: the node-wide catch-all
 // `unmatched discard` through installUnmatched. The IKE bypass is no SPD entry: each IKE
-// socket the probe opens carries its own (transport.bypassIKESocket). The application
+// socket the probe opens carries its own (dataplane.BypassIKESocket). The application
 // override guard, which applyConfig attaches after the catch-all, is a cgroup program
 // and changes nothing a packet in this probe meets, so it is not attached. Cleanup
 // removes the catch-all before the backend closes.
@@ -276,7 +276,7 @@ func espPolSPD(t *testing.T) {
 	if err := installUnmatched(dataplane.Get(), dataplane.SPActionDiscard, log); err != nil {
 		t.Fatalf("install the SPD catch-all unmatched discard: %v", err)
 	}
-	t.Cleanup(func() { removeUnmatched(dataplane.Get(), log) })
+	t.Cleanup(func() { removeUnmatched(dataplane.Get(), log, nil) })
 }
 
 // espPolWantSPD fails the test unless the dataplane's policy listing holds what the probe
@@ -849,37 +849,48 @@ func espPolWantInsideDiscard(t *testing.T, discard dataplane.SPParams, want bool
 }
 
 // espPolInsideDiscard proves that the SPD still decides after the actual SA's
-// selector accepts a packet. The host-specific entry cannot replace the Child's
-// /16 require-policy: InstallPolicy upserts by selector, independent of priority.
-// Its lower numerical priority wins before PriorityChildSA. Removing this exact
-// entry must restore valid delivery through both receiver paths.
+// selector accepts a packet. The DISCARD is an operator entry installed through the
+// SPD reconciler (reconcileSPDPolicies) and read back as stored (fragmentWantOperatorPolicies).
+// Its host-specific selector cannot replace the Child's /16 require-policy, because the
+// kernel identifies a policy by its selector, independent of priority, and its order
+// below PriorityChildSA puts it before the Child's policy. Removing the entry through
+// the same reconciler must restore valid delivery through both receiver paths.
 func espPolInsideDiscard(t *testing.T, sender *espPolSender, inside *net.UDPConn, whole, large []byte) {
 	t.Helper()
-	discard := dataplane.SPParams{
-		Src:        mustCIDRNet(t, sadSelInnerRemote+"/32"),
-		Dst:        mustCIDRNet(t, sadSelInnerLocal+"/32"),
-		Dir:        dataplane.SADirIn,
-		UpperProto: sadSelProtoUDP,
-		DstPort:    dataplane.ExactPortMatch(sadSelPort),
-		Action:     dataplane.SPActionDiscard,
-		Role:       dataplane.PolicyRoleOperator,
-		Priority:   dataplane.PriorityChildSA - 1,
+	// The DISCARD is an operator entry, installed and removed through the SPD reconciler
+	// a commit runs, so the policy judged is the one Ze builds from the entry
+	// (spdPolicyParams), not a hand-written stand-in for it.
+	entries := map[string]ipsec.SPDPolicy{
+		"inside-discard": {
+			Name: "inside-discard", Action: dataplane.SPActionDiscard, Order: dataplane.PriorityChildSA - 1,
+			Direction: ipsec.SPDDirIn, Protocol: sadSelProtoUDP,
+			LocalPrefix:  mustCIDRNet(t, sadSelInnerLocal+"/32"),
+			LocalPort:    ipsec.PortSelector{Form: ipsec.PortSingle, Port: sadSelPort},
+			RemotePrefix: mustCIDRNet(t, sadSelInnerRemote+"/32"), RemotePort: ipsec.AnyPort(),
+		},
 	}
+	halves := spdPolicyParams(entries["inside-discard"])
+	if len(halves) != 1 || halves[0].Dir != dataplane.SADirIn {
+		t.Fatalf("the inbound DISCARD entry builds %+v, want its one inbound policy", halves)
+	}
+	discard := halves[0]
 	espPolWantInsideDiscard(t, discard, false)
-	if err := dataplane.Get().InstallPolicy(discard); err != nil {
-		t.Fatalf("install the temporary DISCARD inside the SA's scope: %v", err)
+	log := slogutil.DiscardLogger()
+	if _, err := reconcileSPDPolicies(dataplane.Get(), nil, entries, log); err != nil {
+		t.Fatalf("install the temporary DISCARD entry inside the SA's scope: %v", err)
 	}
 	installed := true
 	remove := func() {
 		if !installed {
 			return
 		}
-		if err := dataplane.Get().RemovePolicyParams(discard); err != nil {
-			t.Fatalf("remove the exact temporary DISCARD: %v", err)
+		if _, err := reconcileSPDPolicies(dataplane.Get(), entries, nil, log); err != nil {
+			t.Fatalf("remove the temporary DISCARD entry: %v", err)
 		}
 		installed = false
 	}
 	t.Cleanup(remove)
+	fragmentWantOperatorPolicies(t, entries)
 	espPolWantInsideDiscard(t, discard, true)
 
 	exercise := func(row string, packet []byte, fragmented, wantDelivered bool) {
@@ -901,8 +912,8 @@ func espPolInsideDiscard(t *testing.T, sender *espPolSender, inside *net.UDPConn
 		wantRewritten := uint64(1)
 		if fragmented {
 			wantRewritten = 0
-			if moved := espPolReassembled(t) - reassembled; moved < 1 {
-				t.Errorf("%s: ReasmOKs moved by %d; the datagram did not reach Ze in fragments", row, moved)
+			if moved := espPolReassembled(t) - reassembled; moved != 1 {
+				t.Errorf("%s: ReasmOKs moved by %d, want 1: the datagram reached Ze as one reassembly of its fragments", row, moved)
 			}
 		}
 		if moved := espPolFastPath(t).Rewritten4 - rewritten; moved != wantRewritten {

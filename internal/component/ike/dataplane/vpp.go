@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"net/netip"
+	"slices"
 	"sync"
 
 	"go.fd.io/govpp/api"
@@ -71,6 +73,15 @@ type vppBackend struct {
 	// while VPP keeps the SA is CORRECT: it released the reference this backend's add
 	// took, and the other one belongs to a policy this backend must remove itself.
 	spdEntries []ipsec_types.IpsecSpdEntryV2
+
+	// ikeBypass holds the IKE BYPASS entries this backend added and has not removed,
+	// by the local IKE endpoint they exempt, and protectLocal names that endpoint for
+	// each PROTECT entry in spdEntries. The entries are this backend's own, asked for
+	// by no caller, so they are kept apart from spdEntries, which recordedEntry matches
+	// a caller's selector against. An endpoint's entries stay while any PROTECT entry
+	// names it. See ensureIKEBypass (vpp_policy.go).
+	ikeBypass    map[netip.Addr][]ipsec_types.IpsecSpdEntryV2
+	protectLocal map[ipsec_types.IpsecSpdEntryV2]netip.Addr
 }
 
 func newVPPBackend() (Dataplane, error) {
@@ -521,8 +532,9 @@ func (b *vppBackend) Close() error {
 // removeInstalled deletes everything this backend put in VPP, POLICY FIRST.
 //
 // The order is the reverse of the order it was created in: unbind every interface,
-// send back every SPD entry, delete the SPD, then delete the SAs. An SPD entry names
-// the SAD id of the SA that protects its traffic (spdEntry, vpp_policy.go), so
+// send back every SPD entry, then the IKE BYPASS entries those policies needed
+// (ensureIKEBypass, vpp_policy.go), delete the SPD, then delete the SAs. An SPD entry
+// names the SAD id of the SA that protects its traffic (spdEntry, vpp_policy.go), so
 // deleting the SAs first would leave entries naming ids VPP no longer holds.
 // Unbinding first stops the SPD acting on traffic while it is emptied.
 //
@@ -541,9 +553,18 @@ func (b *vppBackend) removeInstalled() error {
 		if err := b.sendSPDEntry(false, entry); err != nil {
 			errs = append(errs, fmt.Errorf("vpp: close: %w", err))
 			kept = append(kept, entry)
+			continue
 		}
+		delete(b.protectLocal, entry)
 	}
 	b.spdEntries = kept
+	// An entry whose delete is refused stays in b.ikeBypass, as a refused policy
+	// entry stays in b.spdEntries.
+	for local, entries := range b.ikeBypass {
+		if err := b.releaseIKEBypass(local, slices.Clone(entries)); err != nil {
+			errs = append(errs, fmt.Errorf("vpp: close: %w", err))
+		}
+	}
 	if b.spdID != 0 {
 		if err := b.deleteSPD(); err != nil {
 			errs = append(errs, err)

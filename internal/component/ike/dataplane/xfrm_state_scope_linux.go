@@ -55,9 +55,8 @@ func checkXFRMStateScopeCapabilities() error {
 	const required = xfrmZECapStateScope | xfrmZECapICMPQuote |
 		xfrmZECapFragmentContext | xfrmZECapFragmentGuard | xfrmZECapICMPReverse |
 		xfrmZECapICMPForwardMap | xfrmZECapICMPForwardGate
-	const known = required | xfrmZECapICMPFinal
-	if caps.Features & ^known != 0 {
-		return xfrmStateScopeRefusal(fmt.Errorf("kernel scope capabilities contain unknown features %#x", caps.Features & ^known))
+	if caps.Features & ^xfrmZECapKnown != 0 {
+		return xfrmStateScopeRefusal(fmt.Errorf("kernel scope capabilities contain unknown features %#x", caps.Features & ^xfrmZECapKnown))
 	}
 	if !caps.Features.Has(required) {
 		return xfrmStateScopeRefusal(fmt.Errorf("kernel scope features %#x do not provide all required features %#x", caps.Features, required))
@@ -98,12 +97,14 @@ type xfrmForwardGather struct {
 // A read that fails, or a receipt that is not Ze's ABI, is no answer, and its error is
 // returned with false.
 //
-// The first answer is kept, so every later call repeats it. The bit cannot change while
+// The first answer is kept, so every later call repeats it: the bit cannot change while
 // the kernel runs (xfrm_fragment_ready is __ro_after_init, set once by
-// xfrm_fragment_init), and the engine derives one set of policies for an entry's
-// install, replacement and removal from this answer (engine/spd_policy.go,
-// spdEntryPolicies): a later read that failed would otherwise split them. A failure
-// keeps nothing, so the next call reads again.
+// xfrm_fragment_init). A read that failed is not cached, so the next call reads again,
+// and its answer can then differ from the error an earlier call returned. The engine
+// does not rely on this backend for one stable answer: it records the answer it
+// installed an entry's policies with and pins every later derivation of that entry to it
+// (engine/spd_forward_answer.go, spdForwardAnswer), moving the projection when a reload
+// reads a different one.
 func (b *xfrmBackend) GathersForwardFragments() (bool, error) {
 	b.forwardGather.mu.Lock()
 	defer b.forwardGather.mu.Unlock()

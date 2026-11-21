@@ -125,7 +125,7 @@ func outStepSPD(t *testing.T) *ChildSA {
 	if err := installUnmatched(dp, dataplane.SPActionDiscard, log); err != nil {
 		t.Fatalf("install the catch-all: %v", err)
 	}
-	t.Cleanup(func() { removeUnmatched(dp, log) })
+	t.Cleanup(func() { removeUnmatched(dp, log, nil) })
 	return child
 }
 
@@ -184,7 +184,7 @@ func outStepESPSPI(t *testing.T, conn *net.IPConn) (uint32, bool) {
 // BYPASS halves of RFC 4301 Section 5.1 steps 2, 3a and 3b on the SPD Ze installs. Method:
 // the SPD of outStepSPD; a datagram from port 5000 to 10.1.0.5 (the Child SA's PROTECT
 // entry) must reach the remote tunnel endpoint as ESP carrying the Child SA's outbound SPI,
-// with no state lookup failing, and must not be sent in the clear; a datagram to port 7001
+// with no state lookup failing; a datagram to port 7001
 // of 10.3.0.5 (the operator BYPASS entry, ranked ahead of the discarding catch-all) must be
 // delivered in the clear.
 func TestRFC4301OutboundPacketTakesTheDispositionOfTheEntryItMatches(t *testing.T) {

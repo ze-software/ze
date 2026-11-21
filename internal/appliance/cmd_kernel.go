@@ -184,7 +184,7 @@ func runKernel(args []string) int {
 	versionFlag := fs.String("version", defaultKernelVersion, "Linux kernel version")
 	jobsFlag := fs.Int("jobs", 0, "Parallel kernel build jobs (positive; default: builder CPU count)")
 	printCacheDirFlag := fs.Bool("print-cache-dir", false, "Print the durable cache path for this kernel (key = target+arch+config) and exit, without downloading or building.")
-	evictCacheFlag := fs.Bool("evict-cache", false, "Bound this kernel's cache namespace to the keep-N most recent entries of each architecture, keeping the current entry, and exit. Evicts, does not build.")
+	evictCacheFlag := fs.Bool("evict-cache", false, "Bound this kernel's cache namespace to the keep-N most recent entries of each architecture, keeping every entry this kernel may be served from, and exit. Evicts, does not build.")
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
@@ -299,7 +299,7 @@ func runKernel(args []string) int {
 	}
 
 	if *printCacheDirFlag {
-		dir, err := kernelCachePathFor(root, *versionFlag, arch, profile, builder, target)
+		dir, err := servedKernelCachePath(root, *versionFlag, arch, profile, builder, target)
 		if err != nil {
 			cliErrorf("%v", err)
 			return exitError
@@ -313,12 +313,12 @@ func runKernel(args []string) int {
 		if td.isTree {
 			ns = runtimeKernelCacheDir
 		}
-		current, err := kernelCachePathFor(root, *versionFlag, arch, profile, builder, target)
+		servable, err := servableKernelCachePaths(root, *versionFlag, arch, profile, builder, target)
 		if err != nil {
 			cliErrorf("%v", err)
 			return exitError
 		}
-		evictKeepN(filepath.Join(resolveCacheDir(), ns), current)
+		evictKeepN(filepath.Join(resolveCacheDir(), ns), servable...)
 		return exitOK
 	}
 
@@ -366,11 +366,71 @@ func resolveKernel(root, version, arch, profile, builder, target, jobs string) (
 	return resolveInstallerKernel(root, version, arch, profile, builder, td, resolved, variant, jobs)
 }
 
-// kernelCachePathFor returns the durable cache directory for the same identity
-// resolveKernel uses. It observes the cache namespace without downloading or
-// building. Runtime targets return the tree directory; installer targets return
-// the directory containing Image. builder is the --builder value, empty for the
-// backend a build here would choose (kernelbuilder.PreferredBackend).
+// servedKernelCachePath answers the cache directory --print-cache-dir prints:
+// the entry a resolution with the same flags uses, observed without
+// downloading or building. A runtime target with no --builder is served the
+// other backend's build of the same inputs when only that one exists
+// (runtimeKernelBackends), so it answers the entry publishedRuntimeKernel
+// serves, and the entry a build here publishes when none holds a kernel.
+// Every other request has one entry, kernelCachePathFor's.
+func servedKernelCachePath(root, version, arch, profile, builder, target string) (string, error) {
+	td, err := kernelTargetFor(target)
+	if err != nil {
+		return "", err
+	}
+	if !td.isTree {
+		return kernelCachePathFor(root, version, arch, profile, builder, target)
+	}
+	entries, err := runtimeKernelCacheEntries(root, version, arch, profile, builder, td)
+	if err != nil {
+		return "", err
+	}
+	entry, found, err := publishedRuntimeKernel(entries, td.artifact)
+	if err != nil {
+		return "", err
+	}
+	if found {
+		return entry, nil
+	}
+	return entries[0], nil
+}
+
+// servableKernelCachePaths answers every cache directory a resolution with the
+// same flags may be served from, the entries --evict-cache keeps whatever
+// their age: both backends' entries for a runtime target with no --builder
+// (runtimeKernelEntries), else the one entry kernelCachePathFor answers.
+func servableKernelCachePaths(root, version, arch, profile, builder, target string) ([]string, error) {
+	td, err := kernelTargetFor(target)
+	if err != nil {
+		return nil, err
+	}
+	if td.isTree {
+		return runtimeKernelCacheEntries(root, version, arch, profile, builder, td)
+	}
+	entry, err := kernelCachePathFor(root, version, arch, profile, builder, target)
+	if err != nil {
+		return nil, err
+	}
+	return []string{entry}, nil
+}
+
+// runtimeKernelCacheEntries answers runtimeKernelEntries for the runtime target
+// td under profile, the entries resolveRuntimeKernel tries in order.
+func runtimeKernelCacheEntries(root, version, arch, profile, builder string, td kernelTargetDesc) ([]string, error) {
+	resolved, err := resolveKernelProfile(root, td.configDir, profile)
+	if err != nil {
+		return nil, err
+	}
+	return runtimeKernelEntries(root, version, arch, builder, resolved)
+}
+
+// kernelCachePathFor returns the durable cache directory a build with the same
+// identity resolveKernel uses publishes. It observes the cache namespace
+// without downloading or building. Runtime targets return the tree directory;
+// installer targets return the directory containing Image. builder is the
+// --builder value, empty for the backend a build here would choose
+// (kernelbuilder.PreferredBackend). A runtime lookup with no builder may be
+// served another entry: servedKernelCachePath answers that one.
 func kernelCachePathFor(root, version, arch, profile, builder, target string) (string, error) {
 	td, err := kernelTargetFor(target)
 	if err != nil {

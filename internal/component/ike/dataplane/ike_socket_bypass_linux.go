@@ -1,11 +1,12 @@
 //go:build linux
 
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- the IKE bypass on Ze's own IKE sockets
-// Overview: udp.go -- newTransport, which sets it on every IKE socket before the first datagram
-// Related: bypass_other.go -- the platforms with no XFRM
+// Overview: ../transport/udp.go -- newTransport, which sets it on every IKE socket before the first datagram
+// Related: ike_socket_bypass_other.go -- the platforms with no XFRM
+// Related: override_guard.go -- PriorityIKESocket, the mark the policy carries
 // RFC: rfc/short/rfc4301.md -- RFC4301-5.2-4, the explicit BYPASS entry IKE traffic needs
 
-package transport
+package dataplane
 
 import (
 	"fmt"
@@ -15,19 +16,16 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// The struct xfrm_userpolicy_info values the socket policy carries
-// (include/uapi/linux/xfrm.h).
-const (
-	xfrmPolicyDirIn  = 0 // XFRM_POLICY_IN
-	xfrmPolicyDirOut = 1 // XFRM_POLICY_OUT
-	xfrmPolicyAllow  = 0 // XFRM_POLICY_ALLOW
-)
+// xfrmPolicyDirOut is the outbound struct xfrm_userpolicy_info direction
+// (include/uapi/linux/xfrm.h), beside xfrmPolicyDirIn and xfrmPolicyActionAllow
+// (espform_linux.go), which the ESP form reader's socket policy shares.
+const xfrmPolicyDirOut = 1 // XFRM_POLICY_OUT
 
 // ikeSocketPolicyDirections are the two directions the bypass is set in, outbound
 // first, the order strongSwan's add_socket_bypass uses.
 var ikeSocketPolicyDirections = [...]uint8{xfrmPolicyDirOut, xfrmPolicyDirIn}
 
-// bypassIKESocket exempts one IKE socket, and only that socket, from IPsec.
+// BypassIKESocket exempts one IKE socket, and only that socket, from IPsec.
 //
 // RFC 4301 Section 5.2: "(This implies that IKE traffic MUST have an explicit BYPASS
 // entry in the SPD.)"
@@ -49,16 +47,20 @@ var ikeSocketPolicyDirections = [...]uint8{xfrmPolicyDirOut, xfrmPolicyDirIn}
 // datagram from those ports, which then left in clear where the tunnel should have
 // carried it.
 //
+// WHY IT LIVES HERE. The IKE transport sets it on every socket it opens, and this
+// package's backend tests open IKE sockets of their own that must carry the same
+// policy; the transport imports this package, so the one producer sits here.
+//
 // The policy lives and dies with the socket, so nothing removes it at shutdown. It
-// carries IKESocketPolicyPriority as a mark: xfrm_sk_policy_lookup matches no
-// priority, and the policy listing names the row ike-bypass by that mark.
+// carries PriorityIKESocket as a mark: xfrm_sk_policy_lookup matches no priority,
+// and the policy listing names the row ike-bypass by that mark.
 //
 // The lifetime stays zero, as add_socket_bypass leaves it: xfrm_policy_timer expires a
 // policy only on its add and use seconds, and zero there means never.
 //
 // The transport listens on "udp4", so the option is the IPv4 one; xfrm_compile_policy
 // refuses IP_XFRM_POLICY on a socket of another family.
-func bypassIKESocket(conn *net.UDPConn) error {
+func BypassIKESocket(conn *net.UDPConn) error {
 	sc, err := conn.SyscallConn()
 	if err != nil {
 		return fmt.Errorf("transport: IKE socket bypass: %w", err)
@@ -78,13 +80,13 @@ func bypassIKESocket(conn *net.UDPConn) error {
 	return nil
 }
 
-// ikeSocketPolicy is the policy bypassIKESocket sets in one direction: allow, no
+// ikeSocketPolicy is the policy BypassIKESocket sets in one direction: allow, no
 // template, every address and port of family.
 func ikeSocketPolicy(family uint16, dir uint8) nl.XfrmUserpolicyInfo {
 	return nl.XfrmUserpolicyInfo{
 		Sel:      nl.XfrmSelector{Family: family},
-		Priority: IKESocketPolicyPriority,
+		Priority: PriorityIKESocket,
 		Dir:      dir,
-		Action:   xfrmPolicyAllow,
+		Action:   xfrmPolicyActionAllow,
 	}
 }

@@ -244,7 +244,7 @@ func validateIdentityLeaves(name string, local, remote identityLeaf, remoteIDTyp
 // TestSPDRankBoundsMatchTheYANGRanges holds the two declarations together.
 //
 // No rank is reserved for IKE: the IKE exchange is exempt on Ze's own IKE sockets
-// (transport.bypassIKESocket), which the kernel consults before any SPD entry.
+// (dataplane.BypassIKESocket), which the kernel consults before any SPD entry.
 //
 // Zero is refused for two reasons. The engine reads a zero PolicyPriority as "no rank
 // stated" and installs dataplane.PriorityChildSA instead (childPairPolicy,

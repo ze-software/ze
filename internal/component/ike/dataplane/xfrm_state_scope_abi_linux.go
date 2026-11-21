@@ -275,6 +275,13 @@ const (
 	xfrmZECapICMPForwardGate
 )
 
+// xfrmZECapKnown is every feature bit this dataplane decodes. A receipt carrying any
+// other bit is refused, by the parser and by the scope check alike, so a bit added
+// above MUST be added here too.
+const xfrmZECapKnown = xfrmZECapStateScope | xfrmZECapICMPQuote | xfrmZECapFragmentContext |
+	xfrmZECapFragmentGuard | xfrmZECapICMPFinal | xfrmZECapICMPReverse | xfrmZECapICMPForwardMap |
+	xfrmZECapICMPForwardGate
+
 // Has reports whether f carries every bit of required. No bits is never carried.
 func (f xfrmZEFeature) Has(required xfrmZEFeature) bool {
 	return required != 0 && f&required == required
@@ -336,10 +343,7 @@ func parseXFRMZECapabilities(payload []byte) (*xfrmZECapabilities, error) {
 		if caps.MaxSelectors != saStateScopeMaxSelectors {
 			return nil, fmt.Errorf("XFRM selector limit %d differs from %d", caps.MaxSelectors, saStateScopeMaxSelectors)
 		}
-		const known = xfrmZECapStateScope | xfrmZECapICMPQuote | xfrmZECapFragmentContext |
-			xfrmZECapFragmentGuard | xfrmZECapICMPFinal | xfrmZECapICMPReverse | xfrmZECapICMPForwardMap |
-			xfrmZECapICMPForwardGate
-		if caps.Features & ^known != 0 {
+		if caps.Features & ^xfrmZECapKnown != 0 {
 			return nil, errors.New("XFRM capability receipt contains unknown feature bits")
 		}
 	}

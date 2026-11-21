@@ -76,6 +76,10 @@ func fragmentChildrenWithDataplane(t *testing.T, dp dataplane.Dataplane, selecto
 			t.Fatalf("create Child SA %d: %v", index, err)
 		}
 		t.Cleanup(child.Clear)
+		// Cleanups run last-registered first, so the Child SA's states and policies leave
+		// the kernel through the production teardown, on the same dp, before its keys are
+		// cleared, rather than staying in force until the lab's namespace goes.
+		t.Cleanup(func() { removeChildSA(child, dp, slogutil.DiscardLogger()) })
 		if !child.ESPInstalled {
 			t.Fatalf("Child SA %d was not installed in the kernel", index)
 		}
@@ -282,7 +286,9 @@ func fragmentSiblingSender(t *testing.T, original *espPolSender, sibling *ChildS
 
 // TestRFC4301SiblingSAsKeepInboundSelectorsBound observes two independently created
 // Child SAs with equal endpoints and distinct exact local ports. Each own-SA control
-// must arrive; whole and fragmented UDP sent through the other SA must not arrive.
+// must arrive; whole and fragmented UDP sent through the other SA must not arrive, each
+// refused by that SA's state selector (XfrmInStateMismatch +1, XfrmInNoPols and
+// XfrmInPolBlock unchanged) and followed by an own-SA control that arrives.
 // RFC 4301 Section 5.2: "Then match the packet against the inbound selectors identified
 // by the SAD entry to verify that the received packet is appropriate for the SA via
 // which it was received."
@@ -310,24 +316,44 @@ func TestRFC4301SiblingSAsKeepInboundSelectorsBound(t *testing.T) {
 	if !sadSelDelivered(t, secondPort) {
 		t.Fatal("the sibling SA did not deliver its own selector control")
 	}
+	// Each refusal is the SA's own state selector, after reassembly for the split form:
+	// XfrmInStateMismatch moves by exactly one and no SPD counter moves, so a drop for
+	// any other reason, or a packet lost before ESP, is a red. The own-SA control after
+	// each refusal shows the SA still delivers, so the refusal was the selector's.
 	for _, tc := range []struct {
-		name     string
-		sender   *espPolSender
-		port     uint16
-		listener *net.UDPConn
+		name        string
+		sender      *espPolSender
+		port, own   uint16
+		listener    *net.UDPConn
+		ownListener *net.UDPConn
 	}{
-		{"first SA carrying the sibling port", first, fragmentBypassPort, secondPort},
-		{"sibling SA carrying the first port", second, sadSelPort, firstPort},
+		{"first SA carrying the sibling port", first, fragmentBypassPort, sadSelPort, secondPort, firstPort},
+		{"sibling SA carrying the first port", second, sadSelPort, fragmentBypassPort, firstPort, secondPort},
 	} {
+		before := sadSelReadDropCounters(t, sadSelStat)
 		tc.sender.sendEncap(t, packet(tc.port))
 		if sadSelDelivered(t, tc.listener) {
 			t.Errorf("%s: a whole packet outside that SA's selectors was delivered", tc.name)
 		}
+		sadSelWantDropCounters(t, tc.name+", whole", before, sadSelReadDropCounters(t, sadSelStat),
+			sadSelDropCounters{stateMismatch: 1})
+		tc.sender.sendEncap(t, packet(tc.own))
+		if !sadSelDelivered(t, tc.ownListener) {
+			t.Errorf("%s: the SA's own control after the whole refusal was not delivered", tc.name)
+		}
+
+		before = sadSelReadDropCounters(t, sadSelStat)
 		initial, nonInitial := fragSplit(packet(tc.port))
 		tc.sender.sendEncap(t, initial)
 		tc.sender.sendEncap(t, nonInitial)
 		if sadSelDelivered(t, tc.listener) {
 			t.Errorf("%s: a fragmented packet outside that SA's selectors was delivered", tc.name)
+		}
+		sadSelWantDropCounters(t, tc.name+", fragmented", before, sadSelReadDropCounters(t, sadSelStat),
+			sadSelDropCounters{stateMismatch: 1})
+		tc.sender.sendEncap(t, packet(tc.own))
+		if !sadSelDelivered(t, tc.ownListener) {
+			t.Errorf("%s: the SA's own control after the fragmented refusal was not delivered", tc.name)
 		}
 	}
 }

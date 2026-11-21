@@ -553,6 +553,35 @@ func TestShowDataplanePolicyRendersICMPErrorYield(t *testing.T) {
 	require.Equal(t, false, operator["icmp-error-return"], "a discard entry holds no return mapping")
 }
 
+// TestShowDataplanePolicyRendersICMPErrorPayload pins the icmp-error-payload key:
+// whether a forward bypass lets a forwarded ICMP error that arrived on an SA be judged
+// by the policy its payload selects (RFC 4301 Section 5.2, step 4), as the backend read
+// it back (PolicyInfo.ICMPErrorPayload), apart from icmp-error-yield and
+// icmp-error-return. Method: two forward bypasses through the handler, one with the
+// flag and one without, neither carrying yield or return, so a constant rendering, or
+// one that copies icmp-error-yield or icmp-error-return, is red.
+func TestShowDataplanePolicyRendersICMPErrorPayload(t *testing.T) {
+	useDataplane(t, &fakeDataplane{policies: []dataplane.PolicyInfo{
+		{Dir: dataplane.SADirFwd, Action: dataplane.SPActionBypass, Priority: 1000, ICMPErrorPayload: true},
+		{Dir: dataplane.SADirFwd, Action: dataplane.SPActionBypass, Priority: 2000},
+	}})
+
+	resp, err := handleShowVPNIPsecDataplanePolicy(nil, commandtest.Args())
+	require.NoError(t, err)
+	rows := rowsOf(t, resp, "policies")
+	require.Len(t, rows, 2)
+	byPriority := map[any]map[string]any{rows[0]["priority"]: rows[0], rows[1]["priority"]: rows[1]}
+	gate, plain := byPriority[1000], byPriority[2000]
+	require.NotNil(t, gate, "no row at the flagged bypass's priority: %v", rows)
+	require.NotNil(t, plain, "no row at the plain bypass's priority: %v", rows)
+	require.Equal(t, true, gate["icmp-error-payload"], "the flagged forward bypass lets the payload judge the error")
+	require.Equal(t, false, plain["icmp-error-payload"], "a forward bypass without the flag does not")
+	require.Equal(t, false, gate["icmp-error-yield"], "a bypass entry holds no discard yield")
+	require.Equal(t, false, plain["icmp-error-yield"], "a bypass entry holds no discard yield")
+	require.Equal(t, false, gate["icmp-error-return"], "a forward bypass holds no return mapping")
+	require.Equal(t, false, plain["icmp-error-return"], "a forward bypass holds no return mapping")
+}
+
 func TestShowDataplanePolicyBypassRendersAsBypass(t *testing.T) {
 	useDataplane(t, &fakeDataplane{policies: []dataplane.PolicyInfo{{
 		Dir:    dataplane.SADirOut,

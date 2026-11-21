@@ -7,7 +7,7 @@
 | Release reason | Retain remaining IPsec architecture obligations and fragment investigation without claiming an unproven vulnerability. |
 | Scope | protocol |
 | Depends | `plan/release/fixes/spec-ipsec-lifetime-volume.md` (owns the Section 4.4.2.1 byte-count SAD lifetime); `plan/release/validation/spec-rfcgate-6-supported-extraction-signoff.md` (owns the `rfc4301` extraction sign-off, `rfc/extraction/rfc4301.json`, and the ledger scope set; this spec supplies the implemented obligations and the 12 held sites' evidence the walk classifies). No dependency on `plan/post-release/features/spec-ipsec-vpp-policy-interface.md`: by Thomas's ruling of 2026-11-20 ("plan/release/fixes/spec-ipsec-vpp-policy-interface.md will be done after the release") that spec owns the VPP half of decision 5a and of AC-1 (operator SPD entries on the VPP backend) after the release, and no operator can reach the VPP backend before `plan/post-release/features/spec-ipsec-dataplane-selector.md` lands |
-| Phase | 2c -- D-1 to D-6 landed; AC-4 remainder, AC-8 red proofs, `.ci` promotion and interop proof in progress |
+| Phase | closure -- AC-1 to AC-22 met; closure review gate 2026-11-20 (Review Gate below) |
 | Handoff | - |
 | Updated | 2026-11-20 |
 
@@ -1556,6 +1556,7 @@ remaining requirements or its own final Review Gate.
 | AC-20 | Ze's kernel is built with the patch series and a multi-pair Child SA is installed (phase 2b) | the receipt reports the ABI number and the feature bits the series provides; the engine sets the SA's complete directional selector set as its state scope; a decrypted packet outside every pair of its own SA is dropped although a sibling SA's policy would admit it; `show vpn ipsec dataplane sa` reads the scope back. On a kernel without the receipt the install is refused with the kernel build command named. Tests: `TestRFC4301KernelAdvertisesExactStateScope`, `TestRFC4301ChildStateScopeReadback`, `TestRFC4301MultipairSAsRejectSiblingScope`, `TestRFC4301ParallelMultipairSAsKeepPermittedDelivery`, in the QEMU guest. Owed only under owner decision 1 (a) or (c). Status 2026-11-20: the packet tests are observed on Ze's kernel `docker-53c57c37` | A single-pair SA keeps its legacy state selector, byte-identical to its one scope record; a packet inside any pair of its own SA is delivered (`TestRFC4301ParallelMultipairSAsKeepPermittedDelivery`) |
 | AC-21 | A Child SA is installed on Linux 6.10 or later, and `show vpn ipsec dataplane sa` reads it back (owner decision 2 (a), 2026-11-19) | CLOSED 2026-11-19 by the owner; evidence in the AC-21 evidence paragraph of the current checkpoint. the inbound state reads back `in` and the outbound one `out`, each showing only its own options (the ICMP error check on `in`; DF and outer DSCP on `out`); the outbound state carries no anti-replay window and the inbound one keeps the negotiated 64 (RFC 4301 Section 4.4.2.1: the window is "used to determine whether an inbound AH or ESP packet is a replay"); an `SAParams` with `Dir` out and a nonzero window, or with `Dir` fwd, is refused before the kernel as a Ze defect; the OSPFv3 per-neighbor outbound state drops its window too. Tests: `TestXFRMStateCarriesTheSADirection`, `TestXFRMStateReplayWindowOnlyOnTheReceivingSA`, `TestXFRMStateRefusesADirectionNoStateCarries` (dataplane, linux), `TestXFRMReadbackReportsTheDirectionZeInstalled` (kernel readback, QEMU guest), `TestChildSAReplayWindowDefault` (engine), `TestIPsecSAReplayWindowOnlyOnTheReceivingSA` (ospf), `TestVPPSAFlagsAntiReplayPerDirection` (ze_vpp) | A zero-`Dir` state, the RFC 4552 OSPFv3 multicast SA serving both directions, is installed without a direction and keeps its window; a kernel older than 6.10 ignores the attribute and reads back `unknown`; the VPP outbound SA carries no window and so no `USE_ANTI_REPLAY`, and still refuses a cycled counter, because VPP v26.06 `esp_seq_advance` does so on every outbound SA (RFC 4303 Section 3.3.3) |
 | AC-22 | An operator commits a `vpn ipsec policy` BYPASS with a local or remote port on an XFRM dataplane whose kernel does not advertise K3's capability bit 3 (owner decision 2, "refusal until done", 2026-11-20) | the commit is refused with the entry named and the fix, unless the entry's local prefix is one address this host holds (traffic to and from Ze is reassembled before the IN check and classified before fragmentation); a host address list that cannot be read refuses rather than guesses. At start, by decision 3 (a), the entry is installed and logged at Error, and doctor check `ipsec-spd-forward-bypass` reports it with the fix. With bit 3 the refusal does not apply and the entry is projected onto FWD (AC-2, AC-16). Landed in `a29420771d`. Tests: `TestRFC4301PortScopedForwardBypassRefusedAtCommit`, `TestPortScopedForwardBypassRefusalCoversBothPortsAndUnreadableAddresses`, `TestPortScopedForwardBypassAtStartIsLoggedAndReportedByDoctor`, which its commit records passing on darwin; these unit tests are the proof of the refusal path. The old draft `ipsec-spd-forward-bypass-refused.ci` was deleted by owner decision (C) of 2026-11-20. Its replacement, the promoted `test/ipsec/ipsec-spd-forward-bypass-projected.ci`, proves the bit-3 side on Ze's kernel. It asserts that the bypass commits and that the kernel holds its FWD decision and gate with port 22; it passed 40 of 40 under load in the guest, and goes red at LIVE-STAGES line 4 with `spdForwardGathers` forced false. The bit-3 positive is `TestPortScopedBypassForwardPathFollowsFragmentGathering` (`1dc1323b86`). Status 2026-11-20: DONE | No dataplane, VPP (its inbound SPD runs before routing), a DISCARD with a port and an any-port BYPASS are not refused, because none of them leaves a forwarded fragment judged on ports the check could not read |
+| AC-23 | A wildcard peer (a Child SA negotiated for the whole of a family, any protocol, any port) is live while Ze installs, reloads or tears down the `unmatched` catch-all, or a `vti bind` wildcard peer is live beside its XFRM interface's catch-all (`interfaceSPDCatchAll`). The peer's PROTECT policy and the catch-all share one kernel identity (selector, direction, if_id), and the kernel holds one policy per identity whatever the priority, so the policy installed second replaced the other (Review Gate item 2, handover 54) | [ ] The XFRM ownership ledger (`dataplane/policy_final.go`) records a final entry asked for at a selector a peer's PROTECT policy holds in `policyOwners.finals` and makes no kernel call (`yieldFinal`), so the PROTECT policy stays and a reload neither replaces it nor fails. When the peer removes its PROTECT policy, the kept final entry is written over it in one kernel upsert with no delete (`reinstateFinal`), so at no instant does the identity hold neither. Only a PROTECT policy stands in for a final entry; a failed or foreign removal never loses the kept entry; a final entry removed while the peer is live is not put back. The same holds for the interface catch-all of a `vti bind` wildcard peer. [ ] `show vpn ipsec dataplane policy` shows the peer's policy row with `displaced-final-entry` and `displaced-final-action`, naming the final entry it stands in for (`PolicyInfo.Displaced`). [ ] Tests: the five tests of `dataplane/policy_final_test.go`; `TestReloadAndTeardownWithAWildcardPeerKeepAFinalEntry` and `TestWildcardPeerBeforeTheCatchAllKeepsAFinalEntry` (`dataplane/xfrm_final_entry_linux_test.go`, over a fake kernel map through the seam `xfrmPolicyUpdate`); `TestWildcardPeerStandsInForTheCatchAllAndGivesItBack` (`engine/spd_wildcard_peer_integration_linux_test.go`, guest root); `TestShowDataplanePolicyRendersDisplacedFinalEntry` (`cmd/show_dataplane_displaced_test.go`). [ ] Docs: `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` "Policy ownership", `docs/architecture/ike/ipsec-dataplane-inspection.md`, `docs/guide/ipsec.md`. Status 2026-11-20: written, nothing run | A final entry at a selector no peer's PROTECT policy holds is installed and removed directly, as before; a template-free allow on the same identity never stands in for it, because it would pass what the final entry discards. RFC 4301 Section 4.4.1: "Every SPD SHOULD have a nominal, final entry that matches anything that is otherwise unmatched, and discards it." While the wildcard PROTECT policy is live it matches every packet the catch-all would, so no packet of that direction and family is unmatched |
 
 Rows of Work Not Done that had no criterion: the forwarded `RFC4301-6.2-3` and
 `RFC4301-6.2-4` cases are AC-4 (its forwarded half, proven by
@@ -1934,6 +1935,8 @@ or change the remaining architecture requirements.
 | A port range or OPAQUE in an operator entry and in a traffic selector | moved 2026-11-19; every range is refused today | `plan/post-release/features/spec-ipsec-opaque-selector-port-mask.md` (AC-14) |
 | An exact Mobility Header type classifier | the release repair refuses an exact type; the classifier is kernel work | `plan/post-release/kernel/spec-xfrm-ipv6-mh-selector.md` |
 | Operator SPD entries on the VPP backend, bound to the `vpn ipsec interface` interface (decisions 5a and 7, item 13) | Thomas placed VPP IPsec after the release (`88d28a7fda`) | `plan/post-release/features/spec-ipsec-vpp-policy-interface.md` (AC-6, AC-8) |
+| The ICMPv6 case of `RFC4301-6-1`, `RFC4301-6.2-3`, `RFC4301-6.2-4` and `RFC4301-6.2-5` (RFC 4301 Section 6: "The discussion in this section applies to ICMPv6 as well as to ICMPv4."); each row is `{partial}` | every packet test of these rows builds an IPv4 lab and ICMPv4 messages; the 6-1 row was made `{partial}` at this closure's review gate | `plan/release/validation/spec-ipsec-fragment-receive-and-kernel-proof.md` (AC-8) |
+| A non-initial ICMP fragment, which Linux classifies as type 0 code 0 (RFC 4301 Section 5) | guarded by refusals proven only by untagged unit tests | `plan/release/validation/spec-ipsec-fragment-receive-and-kernel-proof.md` (AC-9) |
 
 ### Summary rows re-judged at closure, 2026-11-20
 
@@ -1955,6 +1958,13 @@ The 15 rows of `rfc/short/rfc4301.md` that named this spec, each read against
   and `RFC4301-8.1-2` `{partial}` to the DF/DSCP kernel spec; `RFC4301-5.2-2`,
   `RFC4301-5.2-11`, `RFC4301-4.4.1.1-3`, `RFC4301-7.3-4` and `RFC4301-7.3-5`
   `{partial}` to the fragment-receive spec (rows above).
+- Changed at the closure review gate: `RFC4301-6-1` gains `{partial}` (tested
+  "MUST be explicitly accounted for using SPD entries", gap the transit ICMPv6
+  non-error message), as the three 6.2 rows did, because Section 6 applies to
+  ICMPv6 and its two tests send ICMPv4 only; its home is AC-8 of
+  `plan/release/validation/spec-ipsec-fragment-receive-and-kernel-proof.md`.
+  The `RFC4301-4.4.1.1-1` gap reason now says `parsePortSelector` accepts ANY,
+  OPAQUE or one port, OPAQUE then refused at commit by `checkPortProgrammable`.
 
 ### Historical inventory, 2026-11-10 (superseded by the table above)
 
@@ -2062,3 +2072,195 @@ offsets, because each one parses a header an attacker controls.
 
 Committed in `0aa0f63d24`. `RFC4301-7.4-2` is under investigation, not a
 settled gap.
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Operator SPD entries (`vpn ipsec policy`) with BYPASS and DISCARD, a total
+  order from 1 to 2147483647, an ICMP type and code selector, and a forward
+  projection so an entry decides transit traffic (`ipsec/spd_policy.go`,
+  `engine/spd_policy.go::reconcileSPDPolicies`, `spdTransitPolicies`,
+  `engine/spd_order.go::verifySPDOrder`).
+- D-1 to D-6 (AC-14 to AC-19): a failed install refuses the apply, equal orders
+  on overlap are refused, the node-wide IKE bypass is gone (`e700fb7392`), a
+  non-error ICMP message outside an SA's selectors is dropped, and the default
+  discard beside a policy-based peer commits.
+- The kernel route for Section 6.2 and 7.4: K1 bits 6 and 7 (`40cf3cfaec`,
+  `4663a5e15e`, `42edf271d9`), K3 bit 3 projection (`1dc1323b86`), and the
+  "refusal until done" for a port-scoped BYPASS without bit 3 (`a29420771d`).
+- PAD sub-tree identity matching (`engine/remote_id.go::remoteIDMatches`), DF
+  treatment clear and copy, outer DSCP copy or 0, SA direction at install
+  (AC-21, `3977cef525`).
+- `25a3115a04`: the 15 summary rows naming this spec re-judged, new tags and
+  `./le rfc record` records for `RFC4301-4.4.2.1-14`, `-4.4.2.1-16`, `-6-1`,
+  `-6.2-3`, `-6.2-4`, `-6.2-5`, and citers repointed to their new homes.
+
+### Bugs Found/Fixed
+- A policy-based gateway forwarded nothing under `unmatched discard`
+  (`ce5c276457`, `TestRFC4301DecryptedTransitReachesProtectedHostUnderDiscard`).
+- A BYPASS's FWD gate hid the payload policy from a forwarded ICMP error
+  (`4663a5e15e`, `TestRFC4301ForwardedICMPPastBypassDecisionUsesPayloadPolicy`).
+- Forwarded UDP from source ports 500 and 4500 left in clear
+  (`e700fb7392`, `TestRFC4301TransitFromIKEPortIsNotBypassed`).
+
+### Documentation Updates
+- `docs/guide/ipsec.md` (`51799ad534`, `1dc1323b86`, `65fd742770`, `88d28a7fda`),
+  `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` (`25a3115a04` and earlier),
+  `docs/architecture/ike/ipsec-dataplane-inspection.md` (`4663a5e15e`,
+  `42edf271d9`), `docs/architecture/linux-limitations.md` (LL-XFRM-ICMP-TRANSIT
+  rewritten in `25a3115a04`), `docs/functional-tests.md` (`2c1ea96ed7`),
+  `docs/architecture/testing/interop.md` (`584dd88aa0`, `88d28a7fda`).
+- Closure: `rfc/short/rfc4301.md` (`RFC4301-6-1` `{partial}`, the
+  `RFC4301-4.4.1.1-1` gap reason corrected), then `./le rfc update`, which left
+  `docs/features/rfc-status.md` unchanged. `./le doc check all`: red only on the
+  two known findings outside this spec (Pre-Commit Verification).
+
+### Deviations from Plan
+- Phase 2b took the kernel route (owner decision 1 (c)), so no fragment state
+  lives in Ze; the planned `engine/fragment.go` and its scenario were not
+  written ("Names in this spec that the tree does not hold").
+- The reserved IKE band was removed by owner order (`50b89fb51b`).
+- VPP operator entries moved after the release (`88d28a7fda`).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | `25a3115a04` left `RFC4301-6-1` bare while making the three 6.2 rows `{partial}` for the same reason | Section 6 applies to ICMPv6 and both 6-1 tests send ICMPv4 only, so the row is partial like its siblings | closure review gate, from the audit note's residual | `{partial}` added; ICMPv6 case homed in fragment-receive AC-8; re-audit owed |
+| approach | the `RFC4301-4.4.1.1-1` gap reason said `parsePortSelector` accepts ANY or one port | it also accepts OPAQUE, which `checkPortProgrammable` then refuses at commit | closure review gate, reading `ipsec/traffic_selector.go` | reason corrected |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Public RFC 4301 row stays Partial with every unmet obligation disclosed | Done | `rfc/short/rfc4301.md`, `docs/features/rfc-status.md` | derived row; unmet rows homed (Work Not Done) |
+| Phase 3, Section 6 ICMP rows | Done for ICMPv4 | `engine/icmp_overlap.go`, `dataplane/xfrm_linux.go::xfrmPolicyFromParams`, `xfrmStateFromParams` | ICMPv6 is AC-8 of the fragment-receive spec |
+| Phase 4, Section 4.4.1.1 ICMP type and code | Done | `ipsec/spd_policy.go::parseICMPSelector` | |
+| Phase 7, Section 8 DF and PMTU | Done for clear and copy | `dataplane/xfrm_linux.go::xfrmStateFromParams` | DF set is the post-release kernel spec |
+| Phase 8, Section 5.1.2.1 outer DSCP | Partial, owner decision 2026-11-12 | `xfrmStateFromParams` | fixed 1 to 63 is the post-release kernel spec |
+| Fragment investigation | Done | K3 bit 3, `engine/spd_policy.go::spdEntryHasTransit` | AC-2, AC-22 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done on XFRM | `TestDiscardPolicyReachesTheBackend`, interop `spd-discard-entry` | VPP half post-release |
+| AC-2 | Done | `TestRFC4301ForwardedFragmentsRespectOperatorDisposition`, `TestRFC4301ForwardedIPv6FragmentsFollowAPortScopedBypass`, `TestRFC4301CleartextFragmentsRespectOperatorDisposition`, `TestRFC4301ForgedFragmentsTakeTheReassembledDatagramsDisposition` | Ze's kernel |
+| AC-3 | Done | `TestKernelICMPSelectorDropsOnlyTheNamedMessages`, `test/ipsec/ipsec-icmp-type-selector.ci` | |
+| AC-4 | Done | `TestRFC4301ForwardedICMPUsesPayloadPolicy`, `TestRFC4301ForwardedICMPErrorsMapUnderDiscard`, `TestRFC4301ForwardedICMPParameterProblemMapsUnderDiscard` | |
+| AC-5 | Done | `spdICMPMatches`, `TestSPDPolicyPortNeedsAProtocolThatCarriesPorts` | port range post-release |
+| AC-6 | Done | six `TestPad...` units, interop `pad-subtree-identity` | |
+| AC-7 | Done | `TestSpdOperatorOrdersOverlappingPeers`, `TestSPDRankBoundsMatchTheYANGRanges` | |
+| AC-8 | Done | interop `tunnel-df-treatment` with both red walks | |
+| AC-9 | Done | `TestXFRMTunnelPMTUAgesBackToTheLinkMTU` and its IPv6 sibling | |
+| AC-10 | Done for copy and 0 | `TestXFRMOuterHeaderCarriesTheOuterDSCP` | |
+| AC-11 | Done | `47f7ca7b55`, `88d7159e0e`, `25a3115a04` | |
+| AC-12 | Done | the derived row; `./le rfc check` (owed) | |
+| AC-13 | Done | `7234fdfecc` | |
+| AC-14 | Done | `TestRFC4301FailedOperatorEntryInstallRefusesTheApply`, `TestRFC4301DiscardHoldsAcrossAnEditedEntry`, `test/ipsec/ipsec-spd-discard-entry.ci` (`98dbb4f5b6`) | |
+| AC-15 | Done | `TestSPDPolicyEqualOrderOnOverlapRefused`, `test/parse/ipsec-spd-order-total.ci`, `test/ipsec/ipsec-spd-order-readback.ci` | |
+| AC-16 | Done | `TestRFC4301OperatorEntryDecidesTransitTraffic`, `TestRFC4301ForwardedICMPPastBypassDecisionUsesPayloadPolicy` | |
+| AC-17 | Done | `TestRFC4301TransitFromIKEPortIsNotBypassed`, `TestRFC4301IKESocketsCarryTheirOwnBypass` | |
+| AC-18 | Done | `TestRFC4301NonErrorICMPOutsideSelectorsIsDiscarded` | |
+| AC-19 | Done | `test/parse/ipsec-spd-discard-beside-default-peer.ci` | |
+| AC-20 | Done | `TestRFC4301MultipairSAsRejectSiblingScope` and siblings, `docker-53c57c37` | |
+| AC-21 | Done | closed by the owner 2026-11-19 | |
+| AC-22 | Done | `TestRFC4301PortScopedForwardBypassRefusedAtCommit`, `test/ipsec/ipsec-spd-forward-bypass-projected.ci` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Wiring Test table, 15 rows | Done | 14 named functions found under `internal/` by grep at closure | `TestStemFiguresListUnmetIDs` is the le row |
+| Planned names the tree does not hold | Changed | "Names in this spec that the tree does not hold" | each mapped to what exists |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `ipsec/spd_policy.go`, `engine/spd_policy.go`, `engine/spd_order.go`, `engine/unmatched.go`, `engine/icmp_overlap.go`, `dataplane/xfrm_linux.go`, YANG | Done | |
+| `engine/fragment.go`, `engine/icmp.go` | Changed | kernel route, see Deviations |
+
+### Audit Summary
+- **Total items:** 22 ACs, 6 Task requirements
+- **Done:** 22 ACs; 5 requirements
+- **Partial:** Phase 8 fixed DSCP, by owner decision of 2026-11-12, homed
+- **Skipped:** none
+- **Changed:** fragment and ICMP engine files (Deviations)
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/rfc4301-architecture-gaps-c12916cd-1099-4d46-8984-c5eeae8c89d3.md` (4 files, 0 code files) |
+| `./le spec review check` | clean |
+| Rounds | 2 |
+| Reviewer lenses used | logic and wiring, security and RFC claims, docs and ledger |
+
+Scope: the committed diff of `25a3115a04` (tests, summary rows, records,
+audits, docs, citers) and the closure edits. Earlier implementation commits were
+reviewed in their phases ("Owed next" item 10). Round 1: `./le test weakened
+check base 25a3115a04^` clean; `./le repo check` 9 findings, none under
+`internal/component/ike`; no product code in the diff; the new
+`TestRFC4301OperatorBypassForwardsTransitEchoInClear` reaches
+`reconcileSPDPolicies` through the test helper `installSPDPolicies` and
+recomputes the IPv4 checksum (`fragmentPacketID`). Round 2, over the closure
+edits: no finding.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|----------|----------|----------|
+| 1 | ISSUE | `RFC4301-6-1` published bare while its tests cover ICMPv4 only and Section 6 applies to ICMPv6 | `rfc/short/rfc4301.md` | `{partial}`; fragment-receive AC-8 amended |
+
+NOTEs: the `RFC4301-4.4.1.1-1` reason omitted OPAQUE (fixed); `RFC4301-6.2-5`
+names polarities oppositely in its two tests, each carrying both, and no rule
+fixes the convention, so the tags stay; several records break their producer
+with a panic body, which proves reach and not discrimination, accepted by
+`./le rfc check`; `plan/release/fixes/spec-rfc-proof-debt-outside-filter-wire.md`
+AC-33 names `spec-rfc4301-architecture-gaps.md` without a work-folder path, in
+another session's uncommitted file; the fragment-receive spec already failed
+spec validation (13 missing sections) before its amendment.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/ipsec/ipsec-spd-discard-entry.ci`, `ipsec-spd-order-readback.ci`, `ipsec-icmp-type-selector.ci`, `ipsec-spd-forward-bypass-projected.ci` | Yes | ls at closure |
+| `test/parse/ipsec-spd-order-total.ci`, `ipsec-spd-discard-beside-default-peer.ci`, `ipsec-df-bit-treatment.ci`, `ipsec-dscp-map.ci` | Yes | ls at closure |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | DISCARD is expressible | `SPActionDiscard`: 3 hits in `dataplane.go`, 3 in `xfrm_linux.go`, 1 in `vpp_policy.go` |
+| AC-11 | summary describes the native engine | `grep -in strongswan rfc/short/rfc4301.md` returns nothing |
+| AC-12 | RFC 4301 records fresh | `./le rfc check`: zero rfc4301 violations before the closure edits; re-run owed after the 6-1 re-audit |
+| AC-1 to AC-22 | tests named in the Audit exist | 14 Wiring Test functions found under `internal/` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `set vpn ipsec policy <name> action discard` | `test/ipsec/ipsec-spd-discard-entry.ci` | present, promoted `98dbb4f5b6` |
+| `set vpn ipsec policy <name> order <n>` | `test/parse/ipsec-spd-order-total.ci`, `test/ipsec/ipsec-spd-order-readback.ci` | present |
+| port-scoped bypass on Ze's kernel | `test/ipsec/ipsec-spd-forward-bypass-projected.ci` | present, 40 of 40 |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | phase 2a delivery |
+| A-2 | confirmed | no fragment state in Ze; K2/K3 hold it in the kernel |
+| A-3 | confirmed | the AC-2 packet tests observed on Ze's kernel |
+| A-4 | confirmed | the PMTU aging namespace tests, kernel-producer escapes |
+| A-5 | confirmed | no `{not-applicable}` remains; rows re-judged `47f7ca7b55` |
+| A-6 | confirmed | `vppSPDAction` maps DISCARD |
+| A-7 | confirmed | five scenarios PASS on `c88a4387bff259f1` |
+| A-8 | confirmed | red at `69fc643e50`, green at `e700fb7392` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Feature list | `features/ipsec-data-model.md` names operator SPD entries with BYPASS, DISCARD and order | Yes |
+| CLI reference | `docs/guide/command-reference.md` lists `show vpn ipsec dataplane policy` | Yes |
+| Config syntax | `docs/guide/configuration.md` section "IPsec VPN Configuration" points to `docs/guide/ipsec.md` | Yes |
+| Comparison | `grep -in 'spd\|discard' docs/comparison.md`: no IPsec SPD row to change | No update needed |
+| Prometheus counters | none built; owed by fragment-receive AC-6 | No |

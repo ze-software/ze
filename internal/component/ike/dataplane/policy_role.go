@@ -7,7 +7,6 @@ package dataplane
 import (
 	"strconv"
 
-	"github.com/ze-software/ze/internal/component/ike/transport"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -34,9 +33,9 @@ const (
 	// selection function (engine/unmatched_xfrm_interface.go).
 	PolicyRoleInterfaceExemption
 	// PolicyRoleIKEBypass is the IKE control-plane bypass: the per-socket policy each
-	// of Ze's IKE sockets carries (transport/bypass_linux.go, bypassIKESocket), told
-	// apart by transport.IKESocketPolicyPriority. A backend test may still install an
-	// SPD entry under this role to exercise a template-free install.
+	// of Ze's IKE sockets carries (BypassIKESocket, ike_socket_bypass_linux.go), told
+	// apart by PriorityIKESocket. On VPP, which reads no socket policy, the
+	// bypass is instead SPD entries the backend installs itself (ensureIKEBypass).
 	PolicyRoleIKEBypass
 	// PolicyRoleChildSA is a negotiated Child SA's policy.
 	PolicyRoleChildSA
@@ -76,17 +75,53 @@ var policyRoleNames = [...]string{
 
 // socketPolicyRole names a per-socket policy from its priority, the mark Ze writes
 // into each of its own: PriorityESPFormSocket on the ESP form reader, and
-// transport.IKESocketPolicyPriority on every IKE socket. A process that copies a mark
+// PriorityIKESocket on every IKE socket. A process that copies a mark
 // is listed as Ze's; doctor still counts every socket policy, so the copy is not
 // hidden there.
 func socketPolicyRole(priority int) PolicyRole { //nolint:unused // called only by the Linux backend (xfrm_linux.go policyInfoFromKernel); a non-Linux lint pass sees no caller
 	switch priority {
 	case PriorityESPFormSocket:
 		return PolicyRoleESPFormSocket
-	case transport.IKESocketPolicyPriority:
+	case PriorityIKESocket:
 		return PolicyRoleIKEBypass
 	}
 	return PolicyRoleSocketOverride
+}
+
+// catchAllYieldsToICMPErrorCheck reports whether a template-free entry is the inbound
+// DISCARD of an SPD catch-all, the node-wide one or an XFRM interface's, which the
+// kernel's ICMP reverse check may pass. Such an entry carries XFRM_POLICY_ICMP.
+//
+// Ze's kernel (K1, gokrazy/kernel/patches/0003-xfrm-state-scope.patch,
+// __xfrm_policy_check) admits an ICMP error that arrived on a Child SA with the
+// XFRM_STATE_ICMP flag, and whose payload header reversed matches the SA, only past
+// the policy the message meets as received: an inbound BLOCK policy matching the
+// message's own headers drops it, unless that policy carries XFRM_POLICY_ICMP. So an
+// operator's discard entry, which never carries the flag, stops the error, and the
+// catch-all, which RFC 4301 Section 4.4.1 makes the entry for what is "otherwise
+// unmatched", does not: an error whose payload maps to an SA is matched by that SA.
+//
+// RFC 4301 Section 6.2: "If the packet fails this check, the IPsec implementation
+// MUST NOT forwarded the ICMP message to the destination."
+// RFC 4301 Section 6.1.2: "Thus, implementers MUST provide controls to allow local
+// administrators to constrain the processing of ICMP error messages received on the
+// protected side of the boundary, and directed to the IPsec implementation."
+//
+// The role decides, never the selector or the priority: an operator may write a
+// wildcard discard, and its entry is a control the reverse check must honor.
+//
+// It is declared here, with no platform tag, because two backends answer from it: the
+// Linux backend sets the flag from it (xfrm_linux.go, xfrmPolicyFromParams), and the
+// zetest recording backend reports ICMPErrorYield from it, as the kernel's readback
+// does (recording_zetest.go, ListPolicies).
+func catchAllYieldsToICMPErrorCheck(p SPParams) bool { //nolint:unused // called only by the Linux backend and the zetest recording backend; a non-Linux shipped lint pass sees no caller
+	if p.Action != SPActionDiscard {
+		return false
+	}
+	if p.Dir != SADirIn {
+		return false
+	}
+	return p.Role == PolicyRoleCatchAll || p.Role == PolicyRoleInterfaceCatchAll
 }
 
 // spdNameSocket names where a per-socket policy sits: on a socket, ahead of every SPD.

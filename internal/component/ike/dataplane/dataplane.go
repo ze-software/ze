@@ -129,11 +129,15 @@ func (a SPAction) isTemplateFree() bool {
 // another tool installs with no priority lands at zero, and a tie with it would be
 // resolved by whichever was installed last.
 //
-// No SPD rank is reserved for IKE. Ze's IKE exchange is exempt on Ze's own IKE
-// sockets (transport.bypassIKESocket), and the kernel consults a socket's policy
-// before any SPD entry whatever its rank, so an operator order and a peer's
-// policy-priority take any rank from 1 to 2147483647 (ze-ipsec-conf.yang) without
-// capturing the exchange that builds and rekeys the SA.
+// No rank of this range is reserved for IKE. On the XFRM backend Ze's IKE exchange is
+// exempt on Ze's own IKE sockets (BypassIKESocket), and the kernel consults a
+// socket's policy before any SPD entry whatever its rank. A socket policy reaches the
+// kernel's XFRM alone, so on the VPP backend it decides nothing: there the backend
+// installs its own IKE BYPASS entries with every PROTECT entry, at a VPP rank above
+// every rank a priority of 0 or more becomes (ensureIKEBypass and vppIKEBypassPriority,
+// vpp_policy.go). On both, an operator order and a peer's policy-priority take any rank
+// from 1 to 2147483647 (ze-ipsec-conf.yang) without capturing the exchange that builds
+// and rekeys the SA.
 const (
 	// PriorityChildSA ranks a negotiated Child SA policy whose peer states no
 	// policy-priority. It is the YANG default of that leaf, and deliberately non-zero.
@@ -755,6 +759,14 @@ type PolicyInfo struct {
 	// one at this if_id. SPDName (policy_role.go) renders the SPD for a reader.
 	Role         PolicyRole
 	SPDInterface string
+
+	// Displaced names the final entry of the SPD this PROTECT policy stands in for
+	// (policy_final.go): a peer negotiated the wildcard, so its policy has the kernel
+	// identity of the catch-all, the kernel holds one of the two, and Ze puts the
+	// catch-all back when the policy is removed. A renderer MUST show it, because the
+	// listing then holds no catch-all row for that direction and family. It is the
+	// zero value, whose Held answers false, on every other row.
+	Displaced DisplacedFinalEntry
 
 	// PerSocket is true for a per-socket policy, which a process set on one of its
 	// sockets with IP_XFRM_POLICY or IPV6_XFRM_POLICY. It sits in no SPD: the kernel
