@@ -1,0 +1,54 @@
+# Test: `ze cli -c` against a daemon that runs and refuses the login reports
+#       the refused login, and never answers from a command's offline
+#       fallback as if no daemon ran.
+# VALIDATES: dialDaemon (internal/component/cli/sshclient/answer.go) types a
+#   login failure after an accepted host key as LoginRefused, and runBGP
+#   (internal/component/cli/client/main.go) prints LoginRefusal for it before
+#   it would consult runOfflineFallback.
+# PREVENTS: `show host trend` printing "show host trend needs the daemon, and
+#   no daemon answered" while a daemon answers on that port and refused the
+#   stored credentials, which sends the operator to `ze start`.
+# Why not a unit test: the unit test proves the dial is typed; only the real
+#   client against the real daemon's SSH server proves the operator meets the
+#   refusal, through the command that has an offline fallback.
+#
+# The daemon's configuration declares admin with the password "testpass"; the
+# client's environment carries another password, so the daemon refuses it.
+# show host trend has an offline fallback (internal/plugins/host/register.go),
+# so before the fix this command took it.
+#
+# The daemon setup is test/plugin/host-trend-show.ci's.
+
+option=needs-linux
+option=timeout:value=60s
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=not-the-password
+option=env:var=ze.ssh.port:value=$PORT
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+EOF_CONF
+
+# "Ze running." is printed after the SSH listener accepts.
+cmd=background:seq=1:exec=ze start running.conf:name=daemon:ready=Ze running.
+
+cmd=foreground:seq=2:exec=ze cli -c "show host trend":exit=1
+expect=stderr:contains=refused the login of admin
+expect=stderr:contains=fix: ze cli --user <name>
+reject=stdout:contains=no daemon answered
+reject=stdout:contains=fix: ze start

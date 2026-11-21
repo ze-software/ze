@@ -191,7 +191,11 @@ Some read-only `show` commands are useful when the daemon is unreachable:
 hardware inventory before startup. Their owner registers an in-process handler with
 `command.MustRegisterOfflineFallback(path, handler)` from its `init()`. The CLI serves the command from the
 daemon when it is reachable and calls the fallback **only after a connection failure**,
-so the fallback never shadows the daemon. `cmdutil.RunCommand` sends a path that has a
+so the fallback never shadows the daemon. A daemon that answers and refuses the login is
+not a connection failure: its SSH server presented a host key the client accepted, so the
+dial answers `sshclient.LoginRefused`, and `ze cli` prints that the daemon refused the
+login, with the login fix, and never calls the fallback, whose answer would claim no
+daemon ran. `cmdutil.RunCommand` sends a path that has a
 registered fallback down the daemon path even when the CLI binary's tree does not hold it,
 so the fallback is reachable with no daemon; any other path the tree does not hold takes
 the route of the next section. Output is identical to the daemon RPC (both read the same detection library
@@ -204,6 +208,8 @@ the answer cannot vary with the health of the box being diagnosed.
 <!-- source: internal/component/command/local.go -- RegisterOfflineFallback, MustRegisterOfflineFallback, LookupOfflineFallback -->
 <!-- source: cmd/ze/internal/cmdutil/cmdutil.go -- RunCommand offline-fallback routing -->
 <!-- source: internal/component/cli/client/main.go -- runOfflineFallback (invoked on daemon-unreachable) -->
+<!-- source: internal/component/cli/sshclient/answer.go -- dialDaemon, which answers LoginRefused after an accepted host key -->
+<!-- source: internal/component/cli/sshclient/refusal.go -- LoginRefused, LoginRefusal -->
 
 ### A path the `ze` binary does not hold (an external plugin's command)
 

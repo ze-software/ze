@@ -24,6 +24,7 @@ import (
 	"io"
 	"net"
 	"strings"
+	"sync/atomic"
 
 	"golang.org/x/crypto/ssh"
 
@@ -240,23 +241,43 @@ func answerMessage(answer Answer, text string) string {
 
 // dialDaemon opens the SSH connection every helper in this package works over.
 // The caller MUST close the returned client.
+//
+// A failure after the client accepted the server's host key is a
+// *LoginRefused: key exchange, and so the host key check, comes before the
+// login, so a daemon that presented an accepted key answered, and only the
+// login can have failed after it. Any earlier failure (nothing listening, a
+// timeout, a refused host key) is the wrapped dial error, as before. The SSH
+// library words a refused login as text alone, so the accepted key is the
+// typed fact the two are told apart by.
 func dialDaemon(creds Credentials) (*ssh.Client, error) {
 	addr := net.JoinHostPort(creds.Host, creds.Port)
 	hkCb, err := hostKeyCallback(addr)
 	if err != nil {
 		return nil, err
 	}
+	// The library runs the host key check on its key-exchange goroutine, so
+	// the flag it sets is read here only through the atomic.
+	var keyAccepted atomic.Bool
 	config := &ssh.ClientConfig{
 		User: creds.Username,
 		Auth: []ssh.AuthMethod{
 			ssh.Password(creds.Auth),
 		},
-		HostKeyCallback: hkCb,
-		Timeout:         dialTimeout,
+		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+			if err := hkCb(hostname, remote, key); err != nil {
+				return err
+			}
+			keyAccepted.Store(true)
+			return nil
+		},
+		Timeout: dialTimeout,
 	}
 
 	client, err := ssh.Dial("tcp", addr, config)
 	if err != nil {
+		if keyAccepted.Load() {
+			return nil, &LoginRefused{Address: addr, User: creds.Username, Cause: err}
+		}
 		return nil, fmt.Errorf("connect to %s: %w", addr, err)
 	}
 	return client, nil

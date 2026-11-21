@@ -385,6 +385,15 @@ func runBGP(args []string) int {
 	// version` must not send the operator to the offline fallback with
 	// "cannot reach the daemon".
 	if _, err := client.SendCommand("show version"); err != nil {
+		// A refused login proves the daemon runs too: it answered and refused
+		// these credentials. The offline fallback stands in only for a daemon
+		// that is not there, so it is not consulted, and the refusal names the
+		// login rather than a start.
+		if refused, ok := errors.AsType[*sshclient.LoginRefused](err); ok {
+			var tb textbuf.Buffer
+			tb.Str("error: ").Str(sshclient.LoginRefusal(refused).Error()).Byte('\n').StdErr() //nolint:errcheck // CLI error
+			return 1
+		}
 		if !strings.Contains(err.Error(), plugin.UnauthorizedMessage) {
 			// Daemon unreachable: try an in-process offline fallback before
 			// giving up. The fallback registry is consulted ONLY here, after a
