@@ -132,13 +132,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 5 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 5 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 5 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>75</strong><b>75 of 109 tests linked to requirements, 0 without a fault test and 33 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>108</strong><b>108 of 109 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>Partial test coverage</span><strong>2</strong><b>of 5 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>5</strong><b>of 5 mandatory requirements reviewed</b><p>2 weak, wrong or unimplemented, 5 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>5</strong><b>of 5 mandatory requirements reviewed</b><p>2 weak, wrong or unimplemented, 4 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -444,10 +444,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L60" title="internal/component/bgp/reactor/rfc2545_api_origination_test.go" target="_blank" rel="noopener"><code>TestNamedCommitRefusesUnusableIPv6NextHop</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L76" title="internal/component/bgp/reactor/rfc2545_api_origination_test.go" target="_blank" rel="noopener"><code>TestOriginatedIPv6NextHopAdmissionAfterExportPolicy</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L45" title="internal/component/bgp/reactor/rfc2545_api_origination_test.go" target="_blank" rel="noopener"><code>TestQueuedOriginateRefusesUnusableIPv6NextHop</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L712" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545EffectivePairPolicyAndMixedSibling</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L640" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedPairFirstAddressValidated</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L727" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545EffectivePairPolicyAndMixedSibling</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L655" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedPairFirstAddressValidated</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L230" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedPairSecondAddressValidated</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L940" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedSingleGlobalAddressValidated</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L955" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedSingleGlobalAddressValidated</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L130" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedUnusableGlobalRefused</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go#L20" title="internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go" target="_blank" rel="noopener"><code>TestSRPolicyConfigNextHopWire</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go#L62" title="internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go" target="_blank" rel="noopener"><code>TestSRPolicyEncodeNextHopWire</code></a></span></div>
@@ -465,10 +465,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L74" title="internal/component/bgp/reactor/rfc2545_api_origination_test.go" target="_blank" rel="noopener"><code>TestOriginatedIPv6NextHopAdmissionAfterExportPolicy</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_own_link_local_red_test.go#L33" title="internal/component/bgp/reactor/rfc2545_own_link_local_red_test.go" target="_blank" rel="noopener"><code>TestOwnLinkLocalNotPairedWithAnotherRoutersGlobalOnTheSharedLink</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L43" title="internal/component/bgp/reactor/rfc2545_api_origination_test.go" target="_blank" rel="noopener"><code>TestQueuedOriginateRefusesUnusableIPv6NextHop</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L711" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545EffectivePairPolicyAndMixedSibling</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L639" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedPairFirstAddressValidated</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L726" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545EffectivePairPolicyAndMixedSibling</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L654" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedPairFirstAddressValidated</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L229" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedPairSecondAddressValidated</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L939" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedSingleGlobalAddressValidated</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L954" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedSingleGlobalAddressValidated</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L129" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedUnusableGlobalRefused</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_link_local_peering_test.go#L41" title="internal/component/bgp/reactor/rfc4659_link_local_peering_test.go" target="_blank" rel="noopener"><code>TestRFC4659LinkLocalPeeringPreservesUnspecifiedGlobalPair</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go#L91" title="internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go" target="_blank" rel="noopener"><code>TestSRPolicyEncodeRejectsInvalidIPv6NextHop</code></a></span></div>
@@ -493,7 +493,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L63" title="internal/component/bgp/reactor/rfc2545_api_origination_test.go" target="_blank" rel="noopener"><code>TestNamedCommitRefusesUnusableIPv6NextHop</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L80" title="internal/component/bgp/reactor/rfc2545_api_origination_test.go" target="_blank" rel="noopener"><code>TestOriginatedIPv6NextHopAdmissionAfterExportPolicy</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L48" title="internal/component/bgp/reactor/rfc2545_api_origination_test.go" target="_blank" rel="noopener"><code>TestQueuedOriginateRefusesUnusableIPv6NextHop</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L714" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545EffectivePairPolicyAndMixedSibling</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L729" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545EffectivePairPolicyAndMixedSibling</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go#L22" title="internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go" target="_blank" rel="noopener"><code>TestSRPolicyConfigNextHopWire</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go#L64" title="internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go" target="_blank" rel="noopener"><code>TestSRPolicyEncodeNextHopWire</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_peer_send_test.go#L141" title="internal/component/bgp/reactor/rfc2545_peer_send_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceAppendsLinkLocalWhenSection3Holds</code></a></span></div>
@@ -505,7 +505,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L61" title="internal/component/bgp/reactor/rfc2545_api_origination_test.go" target="_blank" rel="noopener"><code>TestNamedCommitRefusesUnusableIPv6NextHop</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L78" title="internal/component/bgp/reactor/rfc2545_api_origination_test.go" target="_blank" rel="noopener"><code>TestOriginatedIPv6NextHopAdmissionAfterExportPolicy</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L46" title="internal/component/bgp/reactor/rfc2545_api_origination_test.go" target="_blank" rel="noopener"><code>TestQueuedOriginateRefusesUnusableIPv6NextHop</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L713" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545EffectivePairPolicyAndMixedSibling</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L728" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545EffectivePairPolicyAndMixedSibling</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go#L128" title="internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go" target="_blank" rel="noopener"><code>TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci#L28" title="test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci" target="_blank" rel="noopener"><code>adj-rib-in-replay-rfc2545-next-hop.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/exabgp-compat/encoding/conf-llnh-update.ci#L14" title="test/exabgp-compat/encoding/conf-llnh-update.ci" target="_blank" rel="noopener"><code>conf-llnh-update.ci</code></a></span></div>
@@ -630,17 +630,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/next_hop_family_admission_test.go#L185" title="internal/component/bgp/reactor/next_hop_family_admission_test.go" target="_blank" rel="noopener"><code>TestFamilyConfiguredBuilderAdmission</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/next_hop_family_admission_test.go#L221" title="internal/component/bgp/reactor/next_hop_family_admission_test.go" target="_blank" rel="noopener"><code>TestFamilyNextHopForwardAdmission</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/next_hop_family_admission_test.go#L31" title="internal/component/bgp/reactor/next_hop_family_admission_test.go" target="_blank" rel="noopener"><code>TestFamilyNextHopOriginationAdmission</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L698" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestDefaultOriginateRefusesUnusableIPv6NextHop</code></a></td>
@@ -678,29 +678,29 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L711" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545EffectivePairPolicyAndMixedSibling</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L726" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545EffectivePairPolicyAndMixedSibling</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L639" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedPairFirstAddressValidated</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L654" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedPairFirstAddressValidated</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L229" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedPairSecondAddressValidated</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L939" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedSingleGlobalAddressValidated</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L954" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedSingleGlobalAddressValidated</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L129" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedUnusableGlobalRefused</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_own_link_local_red_test.go#L33" title="internal/component/bgp/reactor/rfc2545_own_link_local_red_test.go" target="_blank" rel="noopener"><code>TestOwnLinkLocalNotPairedWithAnotherRoutersGlobalOnTheSharedLink</code></a></td>
@@ -720,7 +720,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_link_local_peering_test.go#L41" title="internal/component/bgp/reactor/rfc4659_link_local_peering_test.go" target="_blank" rel="noopener"><code>TestRFC4659LinkLocalPeeringPreservesUnspecifiedGlobalPair</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/encode/new-v6.ci#L1" title="test/encode/new-v6.ci" target="_blank" rel="noopener"><code>new-v6.ci</code></a></td>
@@ -740,17 +740,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/next_hop_family_admission_test.go#L183" title="internal/component/bgp/reactor/next_hop_family_admission_test.go" target="_blank" rel="noopener"><code>TestFamilyConfiguredBuilderAdmission</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/next_hop_family_admission_test.go#L218" title="internal/component/bgp/reactor/next_hop_family_admission_test.go" target="_blank" rel="noopener"><code>TestFamilyNextHopForwardAdmission</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/next_hop_family_admission_test.go#L28" title="internal/component/bgp/reactor/next_hop_family_admission_test.go" target="_blank" rel="noopener"><code>TestFamilyNextHopOriginationAdmission</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L636" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestDefaultOriginateAppendsLinkLocalWhenSection3Holds</code></a></td>
@@ -793,29 +793,29 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L712" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545EffectivePairPolicyAndMixedSibling</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L727" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545EffectivePairPolicyAndMixedSibling</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L640" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedPairFirstAddressValidated</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L655" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedPairFirstAddressValidated</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L230" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedPairSecondAddressValidated</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L940" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedSingleGlobalAddressValidated</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L955" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedSingleGlobalAddressValidated</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L130" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedUnusableGlobalRefused</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_peer_send_test.go#L137" title="internal/component/bgp/reactor/rfc2545_peer_send_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceAppendsLinkLocalWhenSection3Holds</code></a></td>
@@ -840,14 +840,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci#L24" title="test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci" target="_blank" rel="noopener"><code>adj-rib-in-replay-rfc2545-next-hop.ci</code></a></td>
 <td>functional/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc2545-3-2"><code>RFC2545-3-2</code></a></h3>
 <p>The value of the Length of Next Hop Network Address field on a MP_REACH_NLRI attribute shall be set to 16, when only a global address is present, or 32 if a link-local address is also included in the Next Hop field. (§3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545EffectivePairPolicyAndMixedSibling, internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545EffectivePairPolicyAndMixedSibling#2 moved. Snapshot qualification: this verdict judges the current working tree, not the committed HEAD alone. At comparison HEAD was 86b381c3b486c7eb79acef5e941411b8ab497282. Its RFC2545-3-2 tagged-unit bodies differ in TestStaticGroupedResolvedNextHopWire, TestSessionSendAnnounceAcceptsLinkLocalSecondAddress and TestSendAnnounceAppendsLinkLocalWhenSection3Holds by explicit negotiateForwardTestFamilies calls; newDefaultOriginatePeer adds the same publication for the unchanged default-originate unit. That helper was read: it negotiates and publishes the actual multiprotocol family intersection to Peer and Session, while leaving encoding contexts fixture-owned. Width inputs and byte assertions remain intact. Current link_scope.newLinkScopeWith strips a recipient comparison zone while settings/transport retain it; the plain IPv6 width fixtures are unzoned. Current forward_next_hop changes outside these width producers are explanatory peer-own comments, and the check_rfc.go delta is in the unrelated RFC4271 checkSelfNextHopWithheld unit. The shared profile, width validators, direct encoder and other named width producers match HEAD in this comparison. This working-tree audit must travel with the pending fixture/lifecycle publication; a later tagged-unit edit requires independent rejudgment, not resealing. Independent source rejudgment on 2026-11-16 after 52e4ae832a88c8c635bd1443d3af4f66450efb76; auditor authored none of the implementation or tagged tests. Read RFC 2545 in full, its short requirement and shell-materialized ledger, all 25 current tag entries and their enclosing bodies/helpers, and their width, scope and final-writer producers. Section 3 says: &#34;The value of the Length of Next Hop Network Address field on a MP_REACH_NLRI attribute shall be set to 16, when only a global address is present, or 32 if a link-local address is also included in the Next Hop field.&#34; The four audit questions were judged afresh, without inheriting the earlier verdict. Q1: the literal MP_REACH length/address/NLRI assertions implement this exact sentence. Native IPv4 controls legal under SR Policy, mapped fields and capability-77 standalone fields are separate contracts, not claimed as global-plus-link-local proof. Q2: wrong length, missing valid delivery, omitted/extra pair address, illegal width admission or failure to apply a valid repair contradict the exact asserted output; recorded producer-break evidence was read only for its named break, with no new observation or freshness claim. Q3: genuine global and global/link-local controls retain their negotiated family, distinct recipient and valid complete NLRI; native-four, VPN-shaped, empty/eight-byte and invalid-second cases change the selected field after policy, with native withdrawals and unaffected legacy siblings checked independently. Q4: the corpus collectively pins both 16 and 32, on origination, final post-policy writes, both forwarding rails and stored replay. Per-unit evidence: TestSRPolicyConfigNextHopWire and TestSRPolicyEncodeNextHopWire compare the literal sixteen-byte IPv6 global, length byte, reserved byte, complete NLRI and Tunnel Encapsulation under both policy AFIs. TestFamilyNextHopOriginationAdmission (positive/negative tags) exercises API, queue drain and named commit, before/after replacement: valid globals require exactly one delivered MP_REACH with a sixteen-byte field; native four-byte substitutes under native IPv6 multicast/labeled fields require zero announcements, including actual socket bytes and commit accounting. TestFamilyNextHopForwardAdmission (both tags) runs cached and RS/export forwarding, requiring one exact native announcement or family withdrawal and one unchanged legacy sibling; 4/24/48-byte replacements are refused where forbidden, while global and later legal repairs survive. TestDefaultOriginateAppendsLinkLocalWhenSection3Holds and TestSendAnnounceAppendsLinkLocalWhenSection3Holds use a speaker-owned non-loopback global, a distinct on-link peer and one explicit connected prefix, and require socket MP_REACH bytes containing 0x20 plus both literal addresses. TestStaticGroupedResolvedNextHopWire checks literal 0x10 global fields for explicit and connected-session Self cases, both prefixes, exact announcement/EOR framing and successful ownership. TestSessionSendAnnounceAcceptsLinkLocalSecondAddress requires the literal pair and 0x20 at the socket; TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress requires the specific encoding error and no bytes for a global second address. TestAPIBatchRefusesUnusableIPv6NextHop, TestQueuedOriginateRefusesUnusableIPv6NextHop and TestNamedCommitRefusesUnusableIPv6NextHop (two tags each) compare complete literal 0x10 global frames against zero announcement output for native IPv4 and unusable roles, retaining exact EOR, refusal and production accounting. TestOriginatedIPv6NextHopAdmissionAfterExportPolicy (two tags) applies the same oracle after raw export replacement on all three producers and checks an actual captured-owner queued writer with a surviving later IPv4 sibling. TestRFC2545EffectivePairPolicyAndMixedSibling (two tags) observes actual recipient socket output on cached and RS/export rails: selected 4/24/48, empty/eight-byte fields cannot announce; later valid 16/32 repairs supersede the obsolete raw field; pair scope controls preserve 32 on-link and trim to 16 off-link; independent legacy siblings remain. checkRFC2545NextHops requires the exact FRR global/link-local shape for the on-link prefix and sole global for a different off-link prefix on one session, plus the exact installed BGP/FIB link-local and surviving session. This complements the literal width assertions; it does not substitute receiver JSON for them. test/encode/new-v6.ci pins a complete 0x10 single-global frame. test/exabgp-compat/encoding/conf-llnh-update.ci pins a complete 0x20 pair frame with distinct configured owner and recipient. test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci has separate live-control and requested-replay sequence expectations, both requiring the same full 0x20 pair frame on a real common link. Current production agrees: NextHopProfile.SelectAddress chooses representation once; NextHopOctets/NextHopLen count those selected address octets and WriteNextHops writes them, including only a profile&#39;s declared RD framing. MPReachNLRI.WriteTo writes that computed count and the same profile&#39;s address bytes; buildMPReachPlugin uses the selected profile width and writer. The direct writeAnnounceUpdate emits 16 or 32 from admitted optional link-local presence. ValidateFamilyNextHop/ValidateMPNextHop, Session.writeUpdateGated and egressNextHopWithheld reject inappropriate effective widths, while applyEgressNextHopScope preserves wrong-width input for admission and applies scope only to legal forms. No code, tests, tag claims or discrimination records were edited by this audit. Existing proof records, including the unrecorded new-v6 carrier and any stale producer fingerprints, retain their independent status; main-thread rfc check and any required proof renewal remain owed. This verdict is fresh source judgment only, not a new clean, mutant, revert or interop execution.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Snapshot qualification: this verdict judges the current working tree, not the committed HEAD alone. At comparison HEAD was 86b381c3b486c7eb79acef5e941411b8ab497282. Its RFC2545-3-2 tagged-unit bodies differ in TestStaticGroupedResolvedNextHopWire, TestSessionSendAnnounceAcceptsLinkLocalSecondAddress and TestSendAnnounceAppendsLinkLocalWhenSection3Holds by explicit negotiateForwardTestFamilies calls; newDefaultOriginatePeer adds the same publication for the unchanged default-originate unit. That helper was read: it negotiates and publishes the actual multiprotocol family intersection to Peer and Session, while leaving encoding contexts fixture-owned. Width inputs and byte assertions remain intact. Current link_scope.newLinkScopeWith strips a recipient comparison zone while settings/transport retain it; the plain IPv6 width fixtures are unzoned. Current forward_next_hop changes outside these width producers are explanatory peer-own comments, and the check_rfc.go delta is in the unrelated RFC4271 checkSelfNextHopWithheld unit. The shared profile, width validators, direct encoder and other named width producers match HEAD in this comparison. This working-tree audit must travel with the pending fixture/lifecycle publication; a later tagged-unit edit requires independent rejudgment, not resealing. Independent source rejudgment on 2026-11-16 after 52e4ae832a88c8c635bd1443d3af4f66450efb76; auditor authored none of the implementation or tagged tests. Read RFC 2545 in full, its short requirement and shell-materialized ledger, all 25 current tag entries and their enclosing bodies/helpers, and their width, scope and final-writer producers. Section 3 says: &#34;The value of the Length of Next Hop Network Address field on a MP_REACH_NLRI attribute shall be set to 16, when only a global address is present, or 32 if a link-local address is also included in the Next Hop field.&#34; The four audit questions were judged afresh, without inheriting the earlier verdict. Q1: the literal MP_REACH length/address/NLRI assertions implement this exact sentence. Native IPv4 controls legal under SR Policy, mapped fields and capability-77 standalone fields are separate contracts, not claimed as global-plus-link-local proof. Q2: wrong length, missing valid delivery, omitted/extra pair address, illegal width admission or failure to apply a valid repair contradict the exact asserted output; recorded producer-break evidence was read only for its named break, with no new observation or freshness claim. Q3: genuine global and global/link-local controls retain their negotiated family, distinct recipient and valid complete NLRI; native-four, VPN-shaped, empty/eight-byte and invalid-second cases change the selected field after policy, with native withdrawals and unaffected legacy siblings checked independently. Q4: the corpus collectively pins both 16 and 32, on origination, final post-policy writes, both forwarding rails and stored replay. Per-unit evidence: TestSRPolicyConfigNextHopWire and TestSRPolicyEncodeNextHopWire compare the literal sixteen-byte IPv6 global, length byte, reserved byte, complete NLRI and Tunnel Encapsulation under both policy AFIs. TestFamilyNextHopOriginationAdmission (positive/negative tags) exercises API, queue drain and named commit, before/after replacement: valid globals require exactly one delivered MP_REACH with a sixteen-byte field; native four-byte substitutes under native IPv6 multicast/labeled fields require zero announcements, including actual socket bytes and commit accounting. TestFamilyNextHopForwardAdmission (both tags) runs cached and RS/export forwarding, requiring one exact native announcement or family withdrawal and one unchanged legacy sibling; 4/24/48-byte replacements are refused where forbidden, while global and later legal repairs survive. TestDefaultOriginateAppendsLinkLocalWhenSection3Holds and TestSendAnnounceAppendsLinkLocalWhenSection3Holds use a speaker-owned non-loopback global, a distinct on-link peer and one explicit connected prefix, and require socket MP_REACH bytes containing 0x20 plus both literal addresses. TestStaticGroupedResolvedNextHopWire checks literal 0x10 global fields for explicit and connected-session Self cases, both prefixes, exact announcement/EOR framing and successful ownership. TestSessionSendAnnounceAcceptsLinkLocalSecondAddress requires the literal pair and 0x20 at the socket; TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress requires the specific encoding error and no bytes for a global second address. TestAPIBatchRefusesUnusableIPv6NextHop, TestQueuedOriginateRefusesUnusableIPv6NextHop and TestNamedCommitRefusesUnusableIPv6NextHop (two tags each) compare complete literal 0x10 global frames against zero announcement output for native IPv4 and unusable roles, retaining exact EOR, refusal and production accounting. TestOriginatedIPv6NextHopAdmissionAfterExportPolicy (two tags) applies the same oracle after raw export replacement on all three producers and checks an actual captured-owner queued writer with a surviving later IPv4 sibling. TestRFC2545EffectivePairPolicyAndMixedSibling (two tags) observes actual recipient socket output on cached and RS/export rails: selected 4/24/48, empty/eight-byte fields cannot announce; later valid 16/32 repairs supersede the obsolete raw field; pair scope controls preserve 32 on-link and trim to 16 off-link; independent legacy siblings remain. checkRFC2545NextHops requires the exact FRR global/link-local shape for the on-link prefix and sole global for a different off-link prefix on one session, plus the exact installed BGP/FIB link-local and surviving session. This complements the literal width assertions; it does not substitute receiver JSON for them. test/encode/new-v6.ci pins a complete 0x10 single-global frame. test/exabgp-compat/encoding/conf-llnh-update.ci pins a complete 0x20 pair frame with distinct configured owner and recipient. test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci has separate live-control and requested-replay sequence expectations, both requiring the same full 0x20 pair frame on a real common link. Current production agrees: NextHopProfile.SelectAddress chooses representation once; NextHopOctets/NextHopLen count those selected address octets and WriteNextHops writes them, including only a profile&#39;s declared RD framing. MPReachNLRI.WriteTo writes that computed count and the same profile&#39;s address bytes; buildMPReachPlugin uses the selected profile width and writer. The direct writeAnnounceUpdate emits 16 or 32 from admitted optional link-local presence. ValidateFamilyNextHop/ValidateMPNextHop, Session.writeUpdateGated and egressNextHopWithheld reject inappropriate effective widths, while applyEgressNextHopScope preserves wrong-width input for admission and applies scope only to legal forms. No code, tests, tag claims or discrimination records were edited by this audit. Existing proof records, including the unrecorded new-v6 carrier and any stale producer fingerprints, retain their independent status; main-thread rfc check and any required proof renewal remain owed. This verdict is fresh source judgment only, not a new clean, mutant, revert or interop execution.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -855,7 +855,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/next_hop_family_admission_test.go#L225" title="internal/component/bgp/reactor/next_hop_family_admission_test.go" target="_blank" rel="noopener"><code>TestFamilyNextHopForwardAdmission</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/next_hop_family_admission_test.go#L35" title="internal/component/bgp/reactor/next_hop_family_admission_test.go" target="_blank" rel="noopener"><code>TestFamilyNextHopOriginationAdmission</code></a></td>
@@ -888,9 +888,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L713" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545EffectivePairPolicyAndMixedSibling</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L728" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545EffectivePairPolicyAndMixedSibling</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/encode/new-v6.ci#L6" title="test/encode/new-v6.ci" target="_blank" rel="noopener"><code>new-v6.ci</code></a></td>
@@ -910,7 +910,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/next_hop_family_admission_test.go#L223" title="internal/component/bgp/reactor/next_hop_family_admission_test.go" target="_blank" rel="noopener"><code>TestFamilyNextHopForwardAdmission</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/next_hop_family_admission_test.go#L33" title="internal/component/bgp/reactor/next_hop_family_admission_test.go" target="_blank" rel="noopener"><code>TestFamilyNextHopOriginationAdmission</code></a></td>
@@ -953,9 +953,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L714" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545EffectivePairPolicyAndMixedSibling</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L729" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545EffectivePairPolicyAndMixedSibling</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_peer_send_test.go#L141" title="internal/component/bgp/reactor/rfc2545_peer_send_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceAppendsLinkLocalWhenSection3Holds</code></a></td>
@@ -965,7 +965,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L561" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkRFC2545NextHops</code></a></td>
 <td>interop/nightly</td>
-<td>mutant, producer-changed (the paired producer internal/component/bgp/reactor/egress_inject_filter.go::normalizeOrdinaryNextHop&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/exabgp-compat/encoding/conf-llnh-update.ci#L14" title="test/exabgp-compat/encoding/conf-llnh-update.ci" target="_blank" rel="noopener"><code>conf-llnh-update.ci</code></a></td>
@@ -975,7 +975,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci#L28" title="test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci" target="_blank" rel="noopener"><code>adj-rib-in-replay-rfc2545-next-hop.ci</code></a></td>
 <td>functional/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -996,7 +996,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L32" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedPairSubnetConditions</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_joint_subnet_test.go#L20" title="internal/component/bgp/reactor/rfc2545_joint_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545JointSubnetWriter</code></a></td>
@@ -1006,7 +1006,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_ordinary_joint_subnet_test.go#L60" title="internal/component/bgp/reactor/rfc2545_ordinary_joint_subnet_test.go" target="_blank" rel="noopener"><code>TestOrdinaryIPv6PolicyPairJointSubnet</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_peer_send_test.go#L178" title="internal/component/bgp/reactor/rfc2545_peer_send_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceOmitsLinkLocalWhenPeerOffLink</code></a></td>
@@ -1051,12 +1051,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_owned_policy_test.go#L22" title="internal/component/bgp/reactor/rfc2545_forward_owned_policy_test.go" target="_blank" rel="noopener"><code>TestRFC2545ForwardPolicyOwnGlobalJointSubnet</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L31" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedPairSubnetConditions</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_joint_subnet_test.go#L19" title="internal/component/bgp/reactor/rfc2545_joint_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545JointSubnetWriter</code></a></td>
@@ -1066,7 +1066,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_ordinary_joint_subnet_test.go#L46" title="internal/component/bgp/reactor/rfc2545_ordinary_joint_subnet_test.go" target="_blank" rel="noopener"><code>TestOrdinaryIPv6OwnGlobalJointSubnet</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_peer_send_test.go#L144" title="internal/component/bgp/reactor/rfc2545_peer_send_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceAppendsLinkLocalWhenSection3Holds</code></a></td>
@@ -1157,7 +1157,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_owned_policy_test.go#L23" title="internal/component/bgp/reactor/rfc2545_forward_owned_policy_test.go" target="_blank" rel="noopener"><code>TestRFC2545ForwardPolicyOwnGlobalJointSubnet</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_joint_subnet_test.go#L22" title="internal/component/bgp/reactor/rfc2545_joint_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545JointSubnetWriter</code></a></td>
@@ -1167,7 +1167,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_ordinary_joint_subnet_test.go#L49" title="internal/component/bgp/reactor/rfc2545_ordinary_joint_subnet_test.go" target="_blank" rel="noopener"><code>TestOrdinaryIPv6OwnGlobalJointSubnet</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/exabgp-compat/encoding/conf-llnh-update.ci#L22" title="test/exabgp-compat/encoding/conf-llnh-update.ci" target="_blank" rel="noopener"><code>conf-llnh-update.ci</code></a></td>
@@ -1192,7 +1192,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_ordinary_joint_subnet_test.go#L62" title="internal/component/bgp/reactor/rfc2545_ordinary_joint_subnet_test.go" target="_blank" rel="noopener"><code>TestOrdinaryIPv6PolicyPairJointSubnet</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_peer_send_test.go#L182" title="internal/component/bgp/reactor/rfc2545_peer_send_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceOmitsLinkLocalWhenPeerOffLink</code></a></td>
@@ -1202,7 +1202,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/encode/new-v6.ci#L9" title="test/encode/new-v6.ci" target="_blank" rel="noopener"><code>new-v6.ci</code></a></td>
 <td>functional/verify</td>
-<td>mutant, producer-changed (the paired producer internal/component/bgp/reactor/egress_inject_filter.go::normalizeOrdinaryNextHop&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rfc2545-joint-subnet.ci#L4" title="test/plugin/rfc2545-joint-subnet.ci" target="_blank" rel="noopener"><code>rfc2545-joint-subnet.ci</code></a></td>
@@ -1392,7 +1392,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:27 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
                 </div>
             </div>
         </footer>

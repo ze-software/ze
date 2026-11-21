@@ -13,7 +13,7 @@ Whether this device follows a hub and matches its last configuration\.
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none
-- Column order: managed\, frozen\, hub\-declared\, hub\-name\, hub\-address\, baseline\-recorded\, baseline\-hash\, active\-recorded\, active\-hash\, diverged\, daemon\-answered\, client\, connection\, holding
+- Column order: managed\, frozen\, hub\-declared\, hub\-name\, hub\-address\, baseline\-recorded\, baseline\-hash\, active\-recorded\, active\-hash\, diverged\, daemon\-answered\, client\, connection\, holding\, held\-by\-hub\, revert\-offered
 - Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
 - Pipes, on its rows: none
 - Pipes, while streaming: log

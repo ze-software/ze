@@ -133,7 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 7 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 7 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 7 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>21</strong><b>21 of 26 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>26</strong><b>26 of 26 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 <article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>9</strong><b>of 7 mandatory requirements reviewed</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
@@ -256,7 +256,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>9</td>
 </tr>
 <tr><td>Fault test records</td>
-<td>21</td>
+<td>26</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc2759.md</code></td>
@@ -276,8 +276,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> MS-CHAPv2 (PPP and EAP inside IKEv2)</p>
-<p><strong>Test verification:</strong> 4 of 7 MUST proven</p>
-<p><strong>Evidence:</strong> unit 4</p>
+<p><strong>Test verification:</strong> 7 of 7 MUST proven</p>
+<p><strong>Evidence:</strong> unit 7</p>
 <p><strong>Unmet:</strong> -</p>
 
 </section>
@@ -323,9 +323,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc2759:must">Ze verified 4, Tests awaiting verification 3</div>
+<div data-ze-rfc-bar="rfc2759:must">Ze verified 7</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc2759:overview">Ze MUST verified 4, SHOULD verified 2, Tests awaiting verification 3, Not assessed 2</div>
+<div data-ze-rfc-bar="rfc2759:overview">Ze MUST verified 7, SHOULD verified 2, Not assessed 2</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -337,7 +337,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc2759:not-walked">0</span></td>
 </tr>
 <tr><td>Mandatory requirements complete</td>
-<td><span data-ze-rfc="rfc2759:register">not complete</span></td>
+<td><span data-ze-rfc="rfc2759:register">complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
 <td><span data-ze-rfc="rfc2759:must.total">7</span></td>
@@ -346,13 +346,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc2759:must.kept">7</span></td>
 </tr>
 <tr><td>Ze verified</td>
-<td><span data-ze-rfc="rfc2759:must.ze-proven">4</span></td>
+<td><span data-ze-rfc="rfc2759:must.ze-proven">7</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc2759:must.os-verified">0</span></td>
 </tr>
 <tr><td>Tests awaiting verification</td>
-<td><span data-ze-rfc="rfc2759:must.proof-pending">3</span></td>
+<td><span data-ze-rfc="rfc2759:must.proof-pending">0</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc2759:must.os-gap">0</span></td>
@@ -674,7 +674,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_eap_mschapv2_test.go#L108" title="internal/core/eap/rfc2759_eap_mschapv2_test.go" target="_blank" rel="noopener"><code>TestMSCHAPv2SuccessUppercaseHex</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -689,12 +689,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_failure_packet_test.go#L277" title="internal/core/eap/rfc2759_failure_packet_test.go" target="_blank" rel="noopener"><code>TestRFC2759PeerRefusesFailureWithoutConformantChallenge</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_failure_packet_test.go#L197" title="internal/core/eap/rfc2759_failure_packet_test.go" target="_blank" rel="noopener"><code>TestRFC2759FailureCarriesFreshChallenge</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -709,12 +709,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_authenticator_response_test.go#L122" title="internal/core/eap/rfc2759_authenticator_response_test.go" target="_blank" rel="noopener"><code>TestRFC2759PeerEndsSessionOnBadAuthenticatorResponse</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_authenticator_response_test.go#L93" title="internal/core/eap/rfc2759_authenticator_response_test.go" target="_blank" rel="noopener"><code>TestRFC2759PeerAcceptsCorrectAuthenticatorResponse</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1102,7 +1102,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
                 </div>
             </div>
         </footer>

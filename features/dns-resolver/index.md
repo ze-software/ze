@@ -28,15 +28,15 @@ The client side shares no configuration and no cache with any of them.
 | LRU cache | O(1) operations, configurable size and max TTL |
 | TTL-aware | Respects response TTL, caps at configured maximum, honors TTL=0 (do not cache) |
 | Concurrent safe | Mutex-protected cache, safe for multi-goroutine use |
-| Server failover | The internal resolver asks the router's servers in order. A server that gives no answer, or answers SERVFAIL, REFUSED or any RCODE other than NOERROR and NXDOMAIN, passes the query to the next one. When every server fails, the caller gets the last server failure, never an empty success |
+| Server failover | The internal resolver asks the router's servers in order. A server that gives no answer, or answers SERVFAIL, REFUSED or any RCODE other than NOERROR and NXDOMAIN, passes the query to the next one. A server that did not answer in time is asked once more after every other server was tried, so a lost query is retransmitted, and each server is asked at most twice per query. When every server fails, the caller gets the last server failure, never an empty success |
+| Timeout control | Per-resolver configurable timeout (1-60 seconds) for each attempt at a server |
 | Fail closed | With no server selected, queries fail with `no DNS server configured`. No public resolver is ever added |
-| Timeout control | Per-resolver configurable timeout (1-60 seconds) |
 | Cache management | List entries, inspect by name, and clear with `clear dns cache all/record/stats`: flush everything, delete by name/type, or reset the counters |
 | `\| resolve` pipe | Reverse DNS enrichment for IP addresses in any command's JSON output |
 | `\| origin` pipe | ASN/network enrichment for IP addresses via Team Cymru DNS queries |
 
 <!-- source: internal/component/config/system/resolv.go -- routerDefault, Resolvers.refresh -->
-<!-- source: internal/component/resolve/dns/resolver.go -- Resolver.query, unansweredError -->
+<!-- source: internal/component/resolve/dns/resolver.go -- Resolver.query, unansweredError, queryTries, timedOut -->
 
 ## Configuration
 

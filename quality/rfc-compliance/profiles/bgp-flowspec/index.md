@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-flowspec.json](..
 
 ## Figures
 
-- **MUST bar**: Ze verified 20, Tests awaiting verification 25, Not built 3
-- **Overview bar**: Ze MUST verified 20, SHOULD verified 6, Not owed 1, Tests awaiting verification 25, Not assessed 26, Not built 3
+- **MUST bar**: Ze verified 29, Tests awaiting verification 16, Not built 3
+- **Overview bar**: Ze MUST verified 29, SHOULD verified 6, Not owed 1, Tests awaiting verification 16, Not assessed 26, Not built 3
 
 | Figure | Rows |
 |---|---|
@@ -18,9 +18,9 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-flowspec.json](..
 | Mandatory requirements complete | not complete |
 | MUST rows | 49 |
 | MUST rows kept (the MUST bar) | 48 |
-| Ze verified | 20 |
+| Ze verified | 29 |
 | OS verified | 0 |
-| Tests awaiting verification | 25 |
+| Tests awaiting verification | 16 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -52,12 +52,12 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 8955](../../rfc8955/) | Dissemination of Flow Specification Rules | Ze verified 11, Tests awaiting verification 15, Not built 2 | Ze MUST verified 11, SHOULD verified 6, Not owed 1, Tests awaiting verification 15, Not assessed 14, Not built 2 |
+| [RFC 8955](../../rfc8955/) | Dissemination of Flow Specification Rules | Ze verified 14, Tests awaiting verification 12, Not built 2 | Ze MUST verified 14, SHOULD verified 6, Not owed 1, Tests awaiting verification 12, Not assessed 14, Not built 2 |
 
 ### Level 9
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 5575](../../rfc5575/) | Dissemination of Flow Specification Rules | Ze verified 3, Tests awaiting verification 5, Not built 1 | Ze MUST verified 3, Tests awaiting verification 5, Not assessed 4, Not built 1 |
-| [RFC 8956](../../rfc8956/) | Dissemination of Flow Specification Rules for IPv6 | Ze verified 6, Tests awaiting verification 3 | Ze MUST verified 6, Tests awaiting verification 3, Not assessed 5 |
-| [RFC 9117](../../rfc9117/) | Revised Validation Procedure for BGP Flow Specifications | Tests awaiting verification 2 | Tests awaiting verification 2, Not assessed 3 |
+| [RFC 5575](../../rfc5575/) | Dissemination of Flow Specification Rules | Ze verified 4, Tests awaiting verification 4, Not built 1 | Ze MUST verified 4, Tests awaiting verification 4, Not assessed 4, Not built 1 |
+| [RFC 8956](../../rfc8956/) | Dissemination of Flow Specification Rules for IPv6 | Ze verified 9 | Ze MUST verified 9, Not assessed 5 |
+| [RFC 9117](../../rfc9117/) | Revised Validation Procedure for BGP Flow Specifications | Ze verified 2 | Ze MUST verified 2, Not assessed 3 |

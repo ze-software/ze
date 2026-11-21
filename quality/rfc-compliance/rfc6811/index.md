@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 5 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 5 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 5 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 7 | 7 of 19 tests linked to requirements, 0 without a fault test and 12 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 19 | 19 of 19 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -94,9 +94,9 @@ Included in automatic checks: Ze implements RPKI origin validation and keeps the
 
 **Area:** RPKI origin validation
 
-**Test verification:** 3 of 5 MUST proven
+**Test verification:** 5 of 5 MUST proven
 
-**Evidence:** functional 1, unit 2
+**Evidence:** functional 1, unit 4
 
 **Unmet:** -
 
@@ -118,19 +118,19 @@ Included in automatic checks: Ze implements RPKI origin validation and keeps the
 
 ## Figures
 
-- **MUST bar**: Ze verified 3, Tests awaiting verification 2
-- **Overview bar**: Ze MUST verified 3, Tests awaiting verification 2, Not assessed 4
+- **MUST bar**: Ze verified 5
+- **Overview bar**: Ze MUST verified 5, Not assessed 4
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 5 |
 | MUST rows kept (the MUST bar) | 5 |
-| Ze verified | 3 |
+| Ze verified | 5 |
 | OS verified | 0 |
-| Tests awaiting verification | 2 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -186,11 +186,11 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRouteStateIsSetFromTheLookup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_state_test.go#L53) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRouteStateIsSetFromTheLookup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_state_test.go#L53) | unit/verify | revert, verified |
 | negative | [`TestRPKIOriginASFromASPathRFC6811`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_test.go#L218) | unit/verify | mutant, verified |
 | negative | [`TestValidateInvalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_test.go#L33) | unit/verify | mutant, verified |
-| positive | [`TestBatchValidateTypedMatchesString`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc6811_rib_batch_test.go#L394) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRouteStateIsSetFromTheLookup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_state_test.go#L31) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestBatchValidateTypedMatchesString`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc6811_rib_batch_test.go#L394) | unit/verify | mutant, verified |
+| positive | [`TestRouteStateIsSetFromTheLookup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_state_test.go#L31) | unit/verify | revert, verified |
 | positive | [`TestRPKIOriginASFromASPathRFC6811`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_test.go#L216) | unit/verify | mutant, verified |
 | positive | [`TestValidateValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_test.go#L18) | unit/verify | mutant, verified |
 
@@ -202,8 +202,8 @@ Audit verdict: weak (the tests pass over code that does not enforce the requirem
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestBuildDecisionsOriginInvalidAction`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L106) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestBuildDecisionsOriginInvalidAction`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L105) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestBuildDecisionsOriginInvalidAction`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L106) | unit/verify | mutant, verified |
+| positive | [`TestBuildDecisionsOriginInvalidAction`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L105) | unit/verify | mutant, verified |
 
 ### [`RFC6811-3-1`](#rfc6811-3-1)
 
@@ -213,8 +213,8 @@ Audit verdict: weak (the tests pass over code that does not enforce the requirem
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestBuildDecisionsOriginInvalidAction`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L108) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestBuildDecisionsOriginInvalidAction`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L107) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestBuildDecisionsOriginInvalidAction`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L108) | unit/verify | mutant, verified |
+| positive | [`TestBuildDecisionsOriginInvalidAction`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L107) | unit/verify | mutant, verified |
 
 ### [`RFC6811-3-2`](#rfc6811-3-2)
 
@@ -235,12 +235,12 @@ Audit verdict: weak (the tests pass over code that does not enforce the requirem
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestReValidationAppliesToInstalledRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc6811_rib_validation_test.go#L378) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestReValidationAppliesToInstalledRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc6811_rib_validation_test.go#L378) | unit/verify | mutant, verified |
 | negative | [`TestHandleROAChangeReValidates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_origin_tracker_test.go#L48) | unit/verify | mutant, verified |
-| positive | [`TestReValidationAppliesToInstalledRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc6811_rib_validation_test.go#L375) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestHandleROAChangeReValidates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_origin_tracker_test.go#L45) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`rpki-revalidate-late-sync.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rpki-revalidate-late-sync.ci#L3) | functional/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`rpki-revalidate-selected-route.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rpki-revalidate-selected-route.ci#L3) | functional/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestReValidationAppliesToInstalledRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc6811_rib_validation_test.go#L375) | unit/verify | mutant, verified |
+| positive | [`TestHandleROAChangeReValidates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_origin_tracker_test.go#L45) | unit/verify | mutant, verified |
+| positive | [`rpki-revalidate-late-sync.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rpki-revalidate-late-sync.ci#L3) | functional/verify | mutant, verified |
+| positive | [`rpki-revalidate-selected-route.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rpki-revalidate-selected-route.ci#L3) | functional/verify | mutant, verified |
 
 ## Requirement list review
 

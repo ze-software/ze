@@ -10,8 +10,8 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-session-ops.json]
 
 ## Figures
 
-- **MUST bar**: Ze verified 30, Tests awaiting verification 30, Not built 17
-- **Overview bar**: Ze MUST verified 30, SHOULD verified 4, Tests awaiting verification 36, Not assessed 112, Not built 17
+- **MUST bar**: Ze verified 39, Tests awaiting verification 21, Not built 17
+- **Overview bar**: Ze MUST verified 39, SHOULD verified 6, Tests awaiting verification 25, Not assessed 112, Not built 17
 
 | Figure | Rows |
 |---|---|
@@ -20,9 +20,9 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-session-ops.json]
 | Mandatory requirements complete | not complete |
 | MUST rows | 77 |
 | MUST rows kept (the MUST bar) | 77 |
-| Ze verified | 30 |
+| Ze verified | 39 |
 | OS verified | 0 |
-| Tests awaiting verification | 30 |
+| Tests awaiting verification | 21 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -32,14 +32,14 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-session-ops.json]
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 122 |
-| SHOULD verified | 4 |
+| SHOULD verified | 6 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD tests awaiting verification | 6 |
+| SHOULD tests awaiting verification | 4 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 112 |
 | SHOULD not built | 0 |
@@ -54,7 +54,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 4456](../../rfc4456/) | BGP Route Reflection: An Alternative to Full Mesh Internal BGP (IBGP) | Tests awaiting verification 4 | Tests awaiting verification 7, Not assessed 2 |
+| [RFC 4456](../../rfc4456/) | BGP Route Reflection: An Alternative to Full Mesh Internal BGP (IBGP) | Ze verified 1, Tests awaiting verification 3 | Ze MUST verified 1, Tests awaiting verification 6, Not assessed 2 |
 | [RFC 5065](../../rfc5065/) | Autonomous System Confederations for BGP | requirements not reviewed | requirements not reviewed |
 
 ### Level 5
@@ -68,8 +68,8 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 4724](../../rfc4724/) | Graceful Restart Mechanism for BGP | Ze verified 12, Tests awaiting verification 5, Not built 9 | Ze MUST verified 12, SHOULD verified 1, Tests awaiting verification 5, Not assessed 4, Not built 9 |
-| [RFC 7947](../../rfc7947/) | Internet Exchange BGP Route Server | Ze verified 2, Not built 1 | Ze MUST verified 2, SHOULD verified 2, Tests awaiting verification 3, Not built 1 |
+| [RFC 4724](../../rfc4724/) | Graceful Restart Mechanism for BGP | Ze verified 14, Tests awaiting verification 3, Not built 9 | Ze MUST verified 14, SHOULD verified 1, Tests awaiting verification 3, Not assessed 4, Not built 9 |
+| [RFC 7947](../../rfc7947/) | Internet Exchange BGP Route Server | Ze verified 2, Not built 1 | Ze MUST verified 2, SHOULD verified 4, Tests awaiting verification 1, Not built 1 |
 
 ### Level 7
 
@@ -91,4 +91,4 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 9494](../../rfc9494/) | Long-Lived Graceful Restart for BGP | Ze verified 2, Tests awaiting verification 16, Not built 7 | Ze MUST verified 2, SHOULD verified 1, Tests awaiting verification 16, Not assessed 10, Not built 7 |
+| [RFC 9494](../../rfc9494/) | Long-Lived Graceful Restart for BGP | Ze verified 8, Tests awaiting verification 10, Not built 7 | Ze MUST verified 8, SHOULD verified 1, Tests awaiting verification 10, Not assessed 10, Not built 7 |

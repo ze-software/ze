@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 2 | of 18 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 18 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 18 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 13 | 13 of 28 tests linked to requirements, 0 without a fault test and 8 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 20 | 20 of 28 tests linked to requirements, 0 without a fault test and 1 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -94,9 +94,9 @@ Included in automatic checks: BGP-MPLS IPv6 VPN / VPNv6 (RFC 4659): labeled VPNv
 
 **Area:** VPNv6
 
-**Test verification:** 3 of 18 MUST proven
+**Test verification:** 4 of 18 MUST proven
 
-**Evidence:** interop 1, unit 2
+**Evidence:** interop 1, unit 3
 
 **Unmet:** RFC4659-3.2.1.2-1, RFC4659-4-1, RFC4659-4-2, RFC4659-4-3, RFC4659-4-4, RFC4659-4-5, RFC4659-4-6, RFC4659-4-7, RFC4659-8-1, RFC4659-8-2, RFC4659-8-3, RFC4659-8-4, RFC4659-8-5
 
@@ -120,8 +120,8 @@ Included in automatic checks: BGP-MPLS IPv6 VPN / VPNv6 (RFC 4659): labeled VPNv
 
 ## Figures
 
-- **MUST bar**: Ze verified 3, Tests awaiting verification 2, Not built 13
-- **Overview bar**: Ze MUST verified 3, Tests awaiting verification 2, Not assessed 6, Not built 13
+- **MUST bar**: Ze verified 4, Tests awaiting verification 1, Not built 13
+- **Overview bar**: Ze MUST verified 4, Tests awaiting verification 1, Not assessed 6, Not built 13
 
 | Figure | Rows |
 |---|---|
@@ -130,9 +130,9 @@ Included in automatic checks: BGP-MPLS IPv6 VPN / VPNv6 (RFC 4659): labeled VPNv
 | Mandatory requirements complete | not complete |
 | MUST rows | 18 |
 | MUST rows kept (the MUST bar) | 18 |
-| Ze verified | 3 |
+| Ze verified | 4 |
 | OS verified | 0 |
-| Tests awaiting verification | 2 |
+| Tests awaiting verification | 1 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -339,7 +339,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 |---|---|---|---|
 | positive | [`TestUpdateBuilder_BuildVPN_IPv6_NextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_test.go#L656) | unit/verify | not verified |
 | positive | [`TestRFC4659ConfiguredIPv6TransportNextHopWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_configured_ipv6_transport_integration_linux_test.go#L54) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC4659LinkLocalPeeringPreservesUnspecifiedGlobalPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_link_local_peering_test.go#L40) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4659LinkLocalPeeringPreservesUnspecifiedGlobalPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_link_local_peering_test.go#L40) | unit/verify | revert, verified |
 
 ### [`RFC4659-3.2.1.2-1`](#rfc4659-3.2.1.2-1)
 
@@ -375,16 +375,16 @@ Audit verdict: weak (the tests pass over code that does not enforce the requirem
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC4659APIVPNv6LinkLocalCommonSubnet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_api_vpn_link_local_test.go#L79) | unit/verify | revert, producer-gone (the producer the break was applied to is no longer in the tree) |
+| negative | [`TestRFC4659APIVPNv6LinkLocalCommonSubnet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_api_vpn_link_local_test.go#L79) | unit/verify | revert, verified |
 | negative | [`TestRFC4659ForwardVPNv6LinkLocalCommonSubnet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go#L121) | unit/verify | revert, verified |
-| negative | [`TestRFC4659StaticVPNv6LinkLocalCommonSubnet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go#L84) | unit/verify | revert, producer-gone (the producer the break was applied to is no longer in the tree) |
-| negative | [`TestRFC4659ForwardVPNv6NextHopRewriteCarriesRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go#L88) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC4659StaticVPNv6LinkLocalCommonSubnet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go#L84) | unit/verify | revert, verified |
+| negative | [`TestRFC4659ForwardVPNv6NextHopRewriteCarriesRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go#L88) | unit/verify | revert, verified |
 | negative | [`checkVPNFRR`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L647) | interop/nightly | not verified |
-| positive | [`TestRFC4659APIVPNv6LinkLocalCommonSubnet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_api_vpn_link_local_test.go#L78) | unit/verify | revert, producer-gone (the producer the break was applied to is no longer in the tree) |
+| positive | [`TestRFC4659APIVPNv6LinkLocalCommonSubnet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_api_vpn_link_local_test.go#L78) | unit/verify | revert, verified |
 | positive | [`TestRFC4659VPNv6LinkLocalLoopbackGlobal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_link_local_loopback_test.go#L38) | unit/verify | revert, verified |
 | positive | [`TestRFC4659ForwardVPNv6LinkLocalCommonSubnet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go#L120) | unit/verify | revert, verified |
-| positive | [`TestRFC4659StaticVPNv6LinkLocalCommonSubnet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go#L83) | unit/verify | revert, producer-gone (the producer the break was applied to is no longer in the tree) |
-| positive | [`TestRFC4659ForwardVPNv6NextHopRewriteCarriesRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go#L87) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4659StaticVPNv6LinkLocalCommonSubnet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go#L83) | unit/verify | revert, verified |
+| positive | [`TestRFC4659ForwardVPNv6NextHopRewriteCarriesRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go#L87) | unit/verify | revert, verified |
 | positive | [`checkVPNFRR`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L646) | interop/nightly | not verified |
 | positive | [`rfc4659-vpnv6-link-local-off-subnet.ci`](https://github.com/ze-software/ze/blob/main/test/encode/rfc4659-vpnv6-link-local-off-subnet.ci#L5) | functional/verify | revert, verified |
 

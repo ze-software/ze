@@ -140,9 +140,9 @@ zero.
 
 Enable eBPF accounting on the running router, attribute an unexpected ICMP and HTTP burst to its source and port, stop the sender, and observe recovery.
 
-[Download the asciicast recording](../../assets/demos/traffic-anomaly.cast?v=e0f89040c5) · [Plain-text transcript](../../assets/demos/traffic-anomaly.txt?v=8c33b2924c)
+[Download the asciicast recording](../../assets/demos/traffic-anomaly.cast?v=03bee0a1e6) · [Plain-text transcript](../../assets/demos/traffic-anomaly.txt?v=5204b50e70)
 
-Recorded with Ze 26.10.28 in a Linux namespace lab using Ze recorder. Duration: 3 minutes 9 seconds.
+Recorded with Ze 26.11.20 in a Linux namespace lab using Ze recorder. Duration: 2 minutes 7 seconds.
 
 ```console
 Traffic usage live attribution walkthrough
@@ -154,8 +154,8 @@ $ ze cli -c 'show traffic usage | no-more'
 
 Load: bounded eBPF accounting and traffic0 attachment in one SSH candidate.
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/traffic/1-accounting.conf
-ze# load file absolute merge /src/demos/terminal/topics/traffic/2-interface.conf
+ze# load file absolute merge topics/traffic/1-accounting.conf
+ze# load file absolute merge topics/traffic/2-interface.conf
 ze# show | compare
 ze# commit now
 

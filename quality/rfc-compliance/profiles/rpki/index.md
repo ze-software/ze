@@ -10,8 +10,8 @@ Figures as of the last build, read from [data/rfc/profiles/rpki.json](../../../.
 
 ## Figures
 
-- **MUST bar**: Ze verified 15, Tests awaiting verification 19, Not assessed 16, Not built 87
-- **Overview bar**: Ze MUST verified 15, SHOULD verified 6, Not owed 5, Tests awaiting verification 19, Not assessed 88, Not built 89
+- **MUST bar**: Ze verified 17, Tests awaiting verification 17, Not built 103
+- **Overview bar**: Ze MUST verified 17, SHOULD verified 6, Not owed 5, Tests awaiting verification 17, Not assessed 72, Not built 105
 
 | Figure | Rows |
 |---|---|
@@ -20,13 +20,13 @@ Figures as of the last build, read from [data/rfc/profiles/rpki.json](../../../.
 | Mandatory requirements complete | not complete |
 | MUST rows | 142 |
 | MUST rows kept (the MUST bar) | 137 |
-| Ze verified | 15 |
+| Ze verified | 17 |
 | OS verified | 0 |
-| Tests awaiting verification | 19 |
+| Tests awaiting verification | 17 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
-| Not assessed | 16 |
-| Not built | 87 |
+| Not assessed | 0 |
+| Not built | 103 |
 | MUST rows not owed | 5 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -54,7 +54,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 9582](../../rfc9582/) | A Profile for Route Origin Authorizations (ROAs) | Not assessed 16 | Not assessed 22 |
+| [RFC 9582](../../rfc9582/) | A Profile for Route Origin Authorizations (ROAs) | Not built 16 | Not assessed 6, Not built 16 |
 
 ### Level 4
 
@@ -66,7 +66,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 6811](../../rfc6811/) | BGP Prefix Origin Validation | Ze verified 3, Tests awaiting verification 2 | Ze MUST verified 3, Tests awaiting verification 2, Not assessed 4 |
+| [RFC 6811](../../rfc6811/) | BGP Prefix Origin Validation | Ze verified 5 | Ze MUST verified 5, Not assessed 4 |
 
 ### Level 8
 

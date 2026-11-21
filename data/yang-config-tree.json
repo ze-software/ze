@@ -7506,7 +7506,7 @@
                 "source": "config"
               }
             ],
-            "description": "RFC 4271 Section 3.2 states that the Adj-RIBs-In \"contains unprocessed routing information that has\nbeen advertised to the local BGP speaker by its peers\". show bgp rib received reports those\nroutes, and clear bgp rib in \u003cpeer\u003e discards the routes of one peer. No code answers a read of\nthis subtree.",
+            "description": "RFC 4271 Section 3.2 states that the Adj-RIBs-In \"contains unprocessed routing information that has\nbeen advertised to the local BGP speaker by its peers\". show bgp rib | received reports those\nroutes, and clear bgp rib in \u003cpeer\u003e discards the routes of one peer. No code answers a read of\nthis subtree.",
             "kind": "container",
             "name": "adj-rib-in",
             "short-help": "Routes received from peers.",
@@ -7532,7 +7532,7 @@
                 "source": "config"
               }
             ],
-            "description": "RFC 4271 Section 3.2 states that the Adj-RIBs-Out \"stores information the local BGP speaker\nselected for advertisement to its peers\". show bgp rib sent reports those routes. No code\nanswers a read of this subtree.",
+            "description": "RFC 4271 Section 3.2 states that the Adj-RIBs-Out \"stores information the local BGP speaker\nselected for advertisement to its peers\". show bgp rib | sent reports those routes. No code\nanswers a read of this subtree.",
             "kind": "container",
             "name": "adj-rib-out",
             "short-help": "Routes sent to peers.",
@@ -8577,7 +8577,7 @@
                 "type": "string"
               },
               {
-                "description": "The path the mirror serves the registry protocol under. It\nstarts with a slash and is placed before the /v2/ path of\nevery request to the mirror.",
+                "description": "The path the mirror serves the registry protocol under. It\nstarts with one slash, never two, holds no backslash, and\nis placed before the /v2/ path of every request to the\nmirror.",
                 "kind": "leaf",
                 "name": "path",
                 "short-help": "Path prefix of the mirror, starting with a slash.",
@@ -9748,6 +9748,105 @@
             "short-help": "Plugin stderr relay level: disabled, debug, info, warn, or err (case-insensitive)",
             "source": "config",
             "type": "string"
+          },
+          {
+            "children": [
+              {
+                "description": "Every subsystem that no name in this container maps goes out on this\nfacility. daemon is the facility Ze uses while the leaf is absent. The environment\nvariable ze.log.syslog.facility overrides it.",
+                "kind": "leaf",
+                "name": "facility",
+                "short-help": "Syslog facility of every subsystem not named in this container (default: daemon)",
+                "source": "config",
+                "type": "enumeration",
+                "values": [
+                  {
+                    "name": "auth",
+                    "short-help": "Security and authorization messages"
+                  },
+                  {
+                    "name": "authpriv",
+                    "short-help": "Private security and authorization messages"
+                  },
+                  {
+                    "name": "cron",
+                    "short-help": "Clock daemon"
+                  },
+                  {
+                    "name": "daemon",
+                    "short-help": "System daemons"
+                  },
+                  {
+                    "name": "ftp",
+                    "short-help": "FTP daemon"
+                  },
+                  {
+                    "name": "kern",
+                    "short-help": "Kernel messages"
+                  },
+                  {
+                    "name": "local0",
+                    "short-help": "Local use 0"
+                  },
+                  {
+                    "name": "local1",
+                    "short-help": "Local use 1"
+                  },
+                  {
+                    "name": "local2",
+                    "short-help": "Local use 2"
+                  },
+                  {
+                    "name": "local3",
+                    "short-help": "Local use 3"
+                  },
+                  {
+                    "name": "local4",
+                    "short-help": "Local use 4"
+                  },
+                  {
+                    "name": "local5",
+                    "short-help": "Local use 5"
+                  },
+                  {
+                    "name": "local6",
+                    "short-help": "Local use 6"
+                  },
+                  {
+                    "name": "local7",
+                    "short-help": "Local use 7"
+                  },
+                  {
+                    "name": "lpr",
+                    "short-help": "Line printer subsystem"
+                  },
+                  {
+                    "name": "mail",
+                    "short-help": "Mail system"
+                  },
+                  {
+                    "name": "news",
+                    "short-help": "Network news subsystem"
+                  },
+                  {
+                    "name": "syslog",
+                    "short-help": "Messages the syslog daemon generates"
+                  },
+                  {
+                    "name": "user",
+                    "short-help": "User-level messages"
+                  },
+                  {
+                    "name": "uucp",
+                    "short-help": "UUCP subsystem"
+                  }
+                ]
+              }
+            ],
+            "description": "Read only while backend is syslog. A name this container does not declare is a\nsubsystem, and its value is the facility that subsystem and its children go out on:\nbgp local7 sends every bgp subsystem on local7. The name facility is the leaf, so a\nsubsystem with that name cannot be mapped. Ze reads the longest matching name\nfirst, as it does for levels. Each record carries the severity of its level, so a\ncollector can select by facility and severity. The level of a facility is the level\nof the subsystems it carries. The environment variable ze.log.syslog.\u003csubsystem\u003e\noverrides a name here.",
+            "kind": "container",
+            "name": "syslog",
+            "short-help": "Syslog facility of each subsystem: \u003csubsystem\u003e \u003cfacility\u003e, such as bgp local7",
+            "source": "config"
           }
         ],
         "description": "A name this container does not declare becomes a subsystem level: bgp.routes debug\nsets the level of the bgp.routes subsystem alone. Ze reads a subsystem level from the\nlongest matching name to the shortest, so bgp covers bgp.fsm until bgp.fsm is set too.",
@@ -20722,10 +20821,10 @@
             "type": "boolean"
           },
           {
-            "description": "NCP negotiation timeout in seconds. A session that does not complete NCP within this window is torn\ndown. The default is 30 seconds.",
+            "description": "How long, in seconds, a session may hold the link with no NCP open. It runs from the start of\nNCP negotiation, and again from the moment the last open NCP closes after the session came up.\nA session that opens no NCP within it is torn down: with NAS Error before it came up, with an\nLCP Terminate-Request and Idle Timeout after. The default is 30 seconds.",
             "kind": "leaf",
             "name": "timeout",
-            "short-help": "NCP negotiation timeout in seconds, 30 by default.",
+            "short-help": "Seconds a session may hold the link with no NCP open, 30 by default.",
             "source": "config",
             "type": "uint16"
           }
@@ -26418,7 +26517,7 @@
               {
                 "children": [
                   {
-                    "description": "A value that starts with @ names a firewall set, and\nZe matches the destination address of the packet\nagainst the elements of that set. Any other value\nMUST carry a prefix length, because Ze parses it as\na prefix. 10.0.0.1 is refused at commit, and\n10.0.0.1/32 matches one host.",
+                    "description": "A value that starts with @ names an ipv4 or ipv6 set\nthat exactly one firewall table declares. Ze copies\nthat set into the policy-routing table and matches\nthe destination address of the packet against its\nelements. Any other value\nMUST carry a prefix length, because Ze parses it as\na prefix. 10.0.0.1 is refused at commit, and\n10.0.0.1/32 matches one host.",
                     "kind": "leaf",
                     "name": "destination-address",
                     "short-help": "Destination IP prefix or @set reference.",
@@ -26426,10 +26525,10 @@
                     "type": "string"
                   },
                   {
-                    "description": "The syntax is the syntax of source-port: one port, a\nrange written with a hyphen, or a comma-separated\nlist of both, at most 128 entries. Ze reads the\ndestination port at offset 2 of the transport\nheader, so write the protocol leaf beside it.",
+                    "description": "The syntax is the syntax of source-port: @ and the\nname of an inet-service set that exactly one\nfirewall table declares, or one port, a range\nwritten with a hyphen, or a comma-separated list of\nboth, at most 128 entries. Ze reads the destination\nport at offset 2 of the transport header, so write\nthe protocol leaf beside it.",
                     "kind": "leaf",
                     "name": "destination-port",
-                    "short-help": "Destination port or port range.",
+                    "short-help": "Destination port, port range or @set reference.",
                     "source": "config",
                     "type": "string"
                   },
@@ -26484,7 +26583,7 @@
                     ]
                   },
                   {
-                    "description": "A value that starts with @ names a firewall set, and\nZe matches the source address of the packet against\nthe elements of that set. Any other value MUST carry\na prefix length, because Ze parses it as a prefix.\n10.0.0.1 is refused at commit, and 10.0.0.1/32\nmatches one host.",
+                    "description": "A value that starts with @ names an ipv4 or ipv6 set\nthat exactly one firewall table declares. Ze copies\nthat set into the policy-routing table and matches\nthe source address of the packet against its\nelements. Any other value MUST carry\na prefix length, because Ze parses it as a prefix.\n10.0.0.1 is refused at commit, and 10.0.0.1/32\nmatches one host.",
                     "kind": "leaf",
                     "name": "source-address",
                     "short-help": "Source IP prefix or @set reference.",
@@ -26492,10 +26591,10 @@
                     "type": "string"
                   },
                   {
-                    "description": "Ze accepts one port, a range written with a hyphen,\nor a comma-separated list of both, and it holds at\nmost 128 entries. Two entries that overlap or touch\nare refused at commit, and so is port 0. Ze compiles\nmore than one entry into an anonymous nftables\ninterval set.",
+                    "description": "A value that starts with @ names an inet-service set\nthat exactly one firewall table declares. Ze copies\nthat set into the policy-routing table and matches\nthe source port of the packet against its elements.\nOtherwise Ze accepts one port, a range written with\na hyphen, or a comma-separated list of both, and it\nholds at most 128 entries. Two entries that overlap\nor touch are refused at commit, and so is port 0. Ze\ncompiles more than one entry into an anonymous\nnftables interval set.",
                     "kind": "leaf",
                     "name": "source-port",
-                    "short-help": "Source port or port range (e.g. '80,443').",
+                    "short-help": "Source port, port range or @set reference.",
                     "source": "config",
                     "type": "string"
                   },
@@ -27515,7 +27614,7 @@
                 "type": "string"
               },
               {
-                "description": "The RFC 7858 well-known 'domain-s' port is 853.",
+                "description": "The RFC 7858 well-known 'domain-s' port is 853. A commit with the value 53 is\nrefused, because RFC 7858 Section 3.1 forbids DNS over TLS on the cleartext DNS\nport, which AS112 already serves.",
                 "kind": "leaf",
                 "name": "listen-port",
                 "short-help": "TCP port for the DoT listener.",
@@ -27904,7 +28003,7 @@
               {
                 "children": [
                   {
-                    "description": "The upstream resolver's port.",
+                    "description": "The upstream resolver's port. Port 853 is refused, because Ze forwards\ncleartext DNS and RFC 7858 Section 3.1 forbids sending cleartext DNS to the DNS over\nTLS port.",
                     "kind": "leaf",
                     "name": "port",
                     "short-help": "Upstream resolver port",
@@ -27969,7 +28068,7 @@
                 "type": "listener-port"
               }
             ],
-            "description": "UDP and TCP listen endpoints. Each named entry binds one LAN or loopback address and one\nport. A wildcard address (0.0.0.0 or ::) is refused, because it would also answer on the WAN\nside. The ze:listener marking enables config-time port-conflict detection across services.",
+            "description": "UDP and TCP listen endpoints. Each named entry binds one LAN or loopback address and one\nport. A wildcard address (0.0.0.0 or ::) is refused, because it would also answer on the WAN\nside. Port 853 is refused, because the resolver answers cleartext DNS and RFC 7858 Section 3.1\nreserves 853 for DNS over TLS. The ze:listener marking enables config-time port-conflict\ndetection across services.",
             "kind": "list[name]",
             "name": "listener",
             "short-help": "UDP and TCP listen endpoints for the resolver",
@@ -28007,7 +28106,7 @@
       {
         "children": [
           {
-            "description": "edns0-then-packet, the default, reads the address from the EDNS0 client-subnet option (RFC\n7871) and falls back to the packet source address. packet ignores the option and always reads the\npacket source. edns0 reads only the option. A query with no option then matches no `source`\nprefix, so a name the zone owns draws an empty NOERROR answer.",
+            "description": "edns0-then-packet, the default, reads the address from the EDNS0 client-subnet option (RFC\n7871) and falls back to the packet source address. packet ignores the option and always reads the\npacket source. edns0 reads only the option. A query with no option then matches no `source`\nprefix, so a name the zone owns draws an empty NOERROR answer. An option with SOURCE PREFIX-LENGTH\n0 carries no address, so it counts as no option for the selection. Under edns0 and\nedns0-then-packet Ze answers as an RFC 7871 authoritative server: a query whose option is wrongly\nformatted (an unknown FAMILY, a non-zero SCOPE PREFIX-LENGTH, ADDRESS bits past SOURCE\nPREFIX-LENGTH, two options) draws FORMERR, and the reply to a query that carries an option echoes\nits FAMILY, SOURCE PREFIX-LENGTH and ADDRESS. The echoed SCOPE PREFIX-LENGTH is the length of the\nnetwork the matched `source` prefix answers for, lengthened past any more specific `source`\nprefix inside it so no two scopes overlap, and 0 when the answer did not come from the option's\naddress. Under packet the option is ignored and never echoed.",
             "kind": "leaf",
             "name": "client-ip-source",
             "short-help": "Where the client IP used for source selection is read from",
@@ -28108,7 +28207,7 @@
                         "type": "uint16"
                       },
                       {
-                        "description": "The value is the hostname that runs the service. Ze adds the trailing dot when\nthe value has none. A commit is refused when the name breaks the length bounds RFC\n1035 sets. Ze adds no address record for the target, so a client resolves that name\nin a second query.",
+                        "description": "The value is the hostname that runs the service. Ze adds the trailing dot when\nthe value has none. A commit is refused when the name breaks the length bounds RFC\n1035 sets. Ze adds no address record for the target, so a client resolves that name\nin a second query. RFC 2782 states that 'There MUST be one or more address records for\nthis name'. A target inside a zone Ze serves must therefore be a host of the same\nhost-set with an address, or one of the synthesized ns1..nsN names of its zone, and a\ncommit that breaks this is refused. A target outside every served zone is not\nchecked.",
                         "kind": "leaf",
                         "name": "target",
                         "short-help": "SRV target hostname",
@@ -28193,7 +28292,7 @@
                 "type": "listener-port"
               }
             ],
-            "description": "UDP+TCP listen endpoints. Each named entry binds one IP (IPv4 or IPv6) and one port. Repeat the same\nport for a dual-stack pair. Ze defaults to 127.0.0.1:5300 and ::1:5300 when no entry is configured.\nThe ze:listener marking enables config-time port-conflict detection across services.",
+            "description": "UDP+TCP listen endpoints. Each named entry binds one IP (IPv4 or IPv6) and one port. Repeat the same\nport for a dual-stack pair. Ze defaults to 127.0.0.1:5300 and ::1:5300 when no entry is configured.\nA listener speaks cleartext DNS, so a commit that puts one on port 853, the DNS over TLS port, is\nrefused (RFC 7858 Section 3.1). The ze:listener marking enables config-time port-conflict\ndetection across services.",
             "kind": "list[name]",
             "name": "listener",
             "short-help": "UDP and TCP listen endpoints for geodns.",
@@ -28346,7 +28445,7 @@
                 "type": "string"
               },
               {
-                "description": "The DoT listener binds this TCP port on every `listener` IP, and it uses no UDP. A\ncommit with the value 0 is refused. Move the port off 853 only when a client can be told the\nnew one, because a DoT client uses 853 by default.",
+                "description": "The DoT listener binds this TCP port on every `listener` IP, and it uses no UDP. A\ncommit with the value 0 is refused. Move the port off 853 only when a client can be told the\nnew one, because a DoT client uses 853 by default. A commit with the value 53 is refused,\nbecause RFC 7858 Section 3.1 forbids DNS over TLS on the cleartext DNS port. While DoT is\nenabled, a commit that puts a `listener` on this port is refused, because that listener\nwould answer cleartext DNS on the DoT port.",
                 "kind": "leaf",
                 "name": "listen-port",
                 "short-help": "TCP port for the DoT listener; the RFC 7858 well-known\n'domain-s' port is 853.",
@@ -29219,10 +29318,10 @@
           {
             "children": [
               {
-                "description": "The canonical form carries a cost prefix, for\nexample $2a$10$ before the salt and the digest.\nWrite the plaintext password to plaintext-password.\nOn commit, ze hashes that value into this leaf and\nthen discards the plaintext.",
+                "description": "The stored password hash. Ze writes bcrypt, whose\ncanonical form carries a cost prefix, for example\n$2a$10$ before the salt and the digest. A SHA-crypt\nhash ($6$ for SHA-512 or $5$ for SHA-256, with an\noptional rounds=N$ field) copied from another\nsystem is also accepted and stored as given, so a\nmigrated account keeps its password. Write a new\nplaintext password to plaintext-password. On\ncommit, ze hashes that value with bcrypt into this\nleaf and then discards the plaintext.",
                 "kind": "leaf",
                 "name": "password",
-                "short-help": "Bcrypt-hashed password, in canonical form.",
+                "short-help": "Password hash: bcrypt, or a SHA-crypt $6$ or $5$ hash kept from another system",
                 "source": "config",
                 "type": "string"
               },
@@ -29290,7 +29389,7 @@
                 "source": "config"
               }
             ],
-            "description": "Authenticated user (local). Each entry is one local account. password carries the bcrypt hash\nthe login compares against, and profile names the authorization profiles the account carries.\nA commit rejects an entry whose name is reserved for a built-in identity.",
+            "description": "Authenticated user (local). Each entry is one local account. password carries the password hash\nthe login compares against, and profile names the authorization profiles the account carries.\nA commit rejects an entry whose name is reserved for a built-in identity.",
             "kind": "list[name]",
             "name": "user",
             "short-help": "Authenticated user (local)",
@@ -30122,7 +30221,7 @@
             "type": "string"
           },
           {
-            "description": "Ze waits this long for an answer before it gives up on a\nquery. The range is 1 to 60 seconds, and the default is 5.",
+            "description": "Ze waits this long for one server to answer before it asks the\nnext server, or asks a silent server once more. The range is 1 to 60\nseconds, and the default is 5.",
             "kind": "leaf",
             "name": "timeout",
             "short-help": "Query timeout in seconds.",
@@ -30517,10 +30616,10 @@
                 "type": "boolean"
               },
               {
-                "description": "Ze compares the password of each request with this hash, and it\ncompares the username in constant time. A value that is not a\nbcrypt hash stops the metrics server with an error, and the\nconfig check warns about it at commit. With basic-auth enabled,\na username and this password are both required.",
+                "description": "Ze compares the password of each request with this hash, and it\ncompares the username in constant time. The hash is bcrypt, or a\nSHA-crypt hash ($6$ or $5$) kept from another system. A value that\nis neither stops the metrics server with an error, and the config\ncheck warns about it at commit. With basic-auth enabled, a\nusername and this password are both required.",
                 "kind": "leaf",
                 "name": "password",
-                "short-help": "Bcrypt-hashed HTTP Basic Authentication password. Write plaintext via plaintext-password.",
+                "short-help": "Hashed Basic Auth password (bcrypt or SHA-crypt); write plaintext to plaintext-password",
                 "source": "config",
                 "type": "string"
               },
@@ -31396,7 +31495,7 @@
                 ]
               },
               {
-                "description": "The ICMP message type of RFC 4301 Section 4.4.1.1: 'If the Next Layer\nProtocol value is ICMP, then there is a 16-bit selector for the ICMP\nmessage type and code.' It needs protocol 1 (ICMP) or 58 (ICMPv6), and\ncommit refuses it under any other protocol or beside a port other\nthan any.\n\nAn ICMP message has one type whichever way it travels, so a both entry\ninstalls the same type in each direction. With action discard and\ndirection in, the entry rejects that type of ICMP arriving in the\nclear at this node from the remote prefix: the per-type control of\nRFC 4301 Sections 6.1.1 and 6.1.2.\n\nAn ICMP message arriving on a Child SA is decided by that SA's peer\non Linux. When its icmp-error-check is true (the default), the\nkernel delivers a message this entry refuses whenever the header the\nmessage carries after its ICMP header, with addresses and ports\nreversed, matches the SA it arrived on, whatever the ICMP type. So\ncommit refuses a discard entry, in or both, matching ICMP in a family\nsuch a peer's selectors carry, whatever its type and prefixes. In the\nother direction the kernel sends an ICMP error this router generates\ninto a Child SA of such a peer even where a bypass entry would carry\nit in clear, so commit refuses a bypass entry, out or both, with type\nany or an ICMP error type (IPv4 3, 4, 5, 11, 12; IPv6 1, 2, 3, 4:\nthe types Linux 7.3 sends through its return-SA lookup, listed in\nicmp_overlap.go) and a remote prefix overlapping that peer's remote\nselectors. With icmp-error-check false on that peer, this entry\ndecides. A peer with vti bind meets neither refusal: its Child SA\npolicies carry the xfrm interface's if_id, which neither kernel\npath compares with this entry.\n\nThe VPP dataplane compares no ICMP type or code, so it refuses an\nentry that names one rather than matching every ICMP message.\n\nLinux classifies every IP fragment as type 0 code 0, and it\nclassifies forwarded traffic before reassembling it, so commit\nrefuses type 0 with an icmp-code that includes 0 on an out or both\nentry: its outbound half would also take every forwarded ICMP\nfragment between the prefixes. Use direction in, or an icmp-code\nrange starting at 1.",
+                "description": "The ICMP message type of RFC 4301 Section 4.4.1.1: 'If the Next Layer\nProtocol value is ICMP, then there is a 16-bit selector for the ICMP\nmessage type and code.' It needs protocol 1 (ICMP) or 58 (ICMPv6), and\ncommit refuses it under any other protocol or beside a port other\nthan any.\n\nAn ICMP message has one type whichever way it travels, so a both entry\ninstalls the same type in each direction. With action discard and\ndirection in, the entry rejects that type of ICMP arriving in the\nclear at this node from the remote prefix: the per-type control of\nRFC 4301 Sections 6.1.1 and 6.1.2.\n\nAn ICMP message arriving on a Child SA is decided by that SA's peer\non Linux. When its icmp-error-check is true (the default), the\nkernel delivers a message this entry refuses whenever the header the\nmessage carries after its ICMP header, with addresses and ports\nreversed, matches the SA it arrived on, whatever the ICMP type. So\ncommit refuses a discard entry, in or both, matching ICMP in a family\nsuch a peer's selectors carry, whatever its type and prefixes. In the\nother direction the kernel sends an ICMP error this router generates\ninto a Child SA of such a peer even where a bypass entry would carry\nit in clear, so commit refuses a bypass entry, out or both, with type\nany or an ICMP error type (IPv4 3, 4, 5, 11, 12; IPv6 1, 2, 3, 4:\nthe types Linux 7.3 sends through its return-SA lookup, listed in\nicmp_overlap.go) and a remote prefix overlapping that peer's remote\nselectors. With icmp-error-check false on that peer, this entry\ndecides. A peer with vti bind meets neither refusal: its Child SA\npolicies carry the xfrm interface's if_id, which neither kernel\npath compares with this entry.\n\nThe VPP dataplane installs no operator SPD entry: an entry names\nno interface, and VPP has no node-wide policy database. It also\ncompares no ICMP type or code.\n\nLinux classifies every IP fragment as type 0 code 0, and it\nclassifies forwarded traffic before reassembling it, so commit\nrefuses type 0 with an icmp-code that includes 0 on an out or both\nentry: its outbound half would also take every forwarded ICMP\nfragment between the prefixes. Use direction in, or an icmp-code\nrange starting at 1.",
                 "kind": "leaf",
                 "name": "icmp-type",
                 "short-help": "ICMP message type the selector matches, or any.",
@@ -31441,7 +31540,7 @@
                 "source": "config"
               },
               {
-                "description": "Where this entry sits in the operator's ordering of the Security\nPolicy Database. A LOWER value is searched FIRST, in Ze and in the\nLinux kernel, and it carries the same meaning as policy-priority\nunder a site-to-site peer.\n\nRFC 4301 Section 4.4.1: the management interface 'MUST support\n(total) ordering of these entries, as seen via this interface'.\n\nThe default of 1000 sits between the IKE control-plane bypass at 100\nand a peer's default rank of 2000, so an entry written with no order\noutranks the tunnels and carves its hole out of them. Raise it above\n2000 to let a tunnel win instead.\n\nThe range starts above 100 for the reason policy-priority states: an\nentry at or above the IKE bypass captures the IKE exchange that\nbuilds and rekeys every tunnel on the node.",
+                "description": "Where this entry sits in the operator's ordering of the Security\nPolicy Database. A LOWER value is searched FIRST, in Ze and in the\nLinux kernel, and it carries the same meaning as policy-priority\nunder a site-to-site peer.\n\nRFC 4301 Section 4.4.1: the management interface 'MUST support\n(total) ordering of these entries, as seen via this interface'.\n\nThe default of 1000 sits between the lowest order accepted, 1,\nand a peer's default rank of 2000, so an entry written with no order\noutranks the tunnels and carves its hole out of them. Raise it above\n2000 to let a tunnel win instead. Two entries that overlap must not\nshare an order, so two overlapping entries both left at the default\nare refused at commit until one is given an order of its own.\n\nThe range is policy-priority's. No order is reserved for IKE: the\nIKE exchange is exempt on Ze's own IKE sockets, ahead of every\nentry whatever its order, so no order captures it.",
                 "kind": "leaf",
                 "name": "order",
                 "short-help": "Rank of this entry, lowest searched first.",
@@ -32161,7 +32260,7 @@
                     ]
                   },
                   {
-                    "description": "Where this peer's Security Policy Database entries sit in the\noperator's ordering of that database. A LOWER value is searched\nFIRST, in Ze and in the Linux kernel.\n\nRFC 4301 Section 4.4.1: 'The ordering requirement arises because\nentries often will overlap due to the presence of (non-trivial)\nranges as values for selectors. Thus, a user or administrator MUST\nbe able to order the entries to express a desired access control\npolicy.' The same section binds this interface: it 'MUST support\n(total) ordering of these entries, as seen via this interface'.\n\nTwo peers whose traffic selectors overlap, 0.0.0.0/0 on both for\nexample, describe the same traffic. Give the one that must win the\nlower value. Nothing orders two peers that share a value, so\nwhen their tunnels overlap the one that establishes second is\nanswered TS_UNACCEPTABLE and gets no Child SA: one packet could\notherwise be sent into either tunnel, which RFC 3948 Section 5.1\nforbids. The default 2000 is the rank every peer took before\nthis leaf existed.\n\nThe range starts above 100, which is where the IKE control-plane\nbypass sits. A peer entry at or above that rank captures the IKE\nexchange that builds and rekeys the very SA it protects, and the\ntunnel could then never renegotiate. It ends at 2147483647, the\nlargest rank Ze can carry to a dataplane.",
+                    "description": "Where this peer's Security Policy Database entries sit in the\noperator's ordering of that database. A LOWER value is searched\nFIRST, in Ze and in the Linux kernel.\n\nRFC 4301 Section 4.4.1: 'The ordering requirement arises because\nentries often will overlap due to the presence of (non-trivial)\nranges as values for selectors. Thus, a user or administrator MUST\nbe able to order the entries to express a desired access control\npolicy.' The same section binds this interface: it 'MUST support\n(total) ordering of these entries, as seen via this interface'.\n\nTwo peers whose traffic selectors overlap, 0.0.0.0/0 on both for\nexample, describe the same traffic. Give the one that must win the\nlower value. Nothing orders two peers that share a value, so\nwhen their tunnels overlap the one that establishes second is\nanswered TS_UNACCEPTABLE and gets no Child SA: one packet could\notherwise be sent into either tunnel, which RFC 3948 Section 5.1\nforbids. The default 2000 is the rank every peer took before\nthis leaf existed.\n\nNo rank is reserved for IKE: the IKE exchange is exempt on Ze's\nown IKE sockets, ahead of every entry whatever its rank, so no\nrank captures the exchange that builds and rekeys the SA. The\nrange starts at 1, because the kernel breaks a tie by insertion\norder and 0 is the rank of a policy installed with none. It ends\nat 2147483647, the largest rank Ze can carry to a dataplane.",
                     "kind": "leaf",
                     "name": "policy-priority",
                     "short-help": "Rank of this peer's Security Policy Database entries, lowest searched first.",
@@ -32303,7 +32402,7 @@
             "source": "config"
           },
           {
-            "description": "The disposition of the catch-all entry Ze installs last in the\nSecurity Policy Database, in every direction and for both address\nfamilies. RFC 4301 Section 5: 'If no policy is found in the SPD\nthat matches a packet (for either inbound or outbound traffic),\nthe packet MUST be discarded.' The catch-all is that policy, so\na packet no other entry names always meets one.\n\nThe default is discard, the entry RFC 4301 Section 4.4.1 asks\nfor: 'Every SPD SHOULD have a nominal, final entry that matches\nanything that is otherwise unmatched, and discards it.' It also\ndrops the router's own traffic where it crosses in the clear:\nBGP, SSH, DNS, NTP, ICMP (ping, traceroute, show mtu probes and\npath-MTU errors) and IPv6 neighbor discovery, which is ICMPv6\n(protocol 58). So write a bypass entry under\npolicy for every flow that must still cross in the clear, or set\nbypass to pass all of it. A commit that would turn the discard\non while this leaf is unset is refused until the leaf is\nwritten. The IKE control plane keeps its own bypass at order 100\neither way.\n\nbypass carries ICMP errors in clear, and Linux would still send\none about a tunnelled packet into the Child SA of a site-to-site\npeer whose icmp-error-check is true, so commit refuses bypass\nbeside such a peer; set icmp-error-check false on it. An ICMP\nbypass entry under policy meets the same refusal. A peer with\nvti bind is exempt: its Child SA policies carry the xfrm\ninterface's if_id, which the kernel's error mapping never\nlooks up.",
+            "description": "The disposition of the catch-all entry Ze installs last in the\nSecurity Policy Database, in every direction and for both address\nfamilies. RFC 4301 Section 5: 'If no policy is found in the SPD\nthat matches a packet (for either inbound or outbound traffic),\nthe packet MUST be discarded.' The catch-all is that policy, so\na packet no other entry names always meets one.\n\nThe default is discard, the entry RFC 4301 Section 4.4.1 asks\nfor: 'Every SPD SHOULD have a nominal, final entry that matches\nanything that is otherwise unmatched, and discards it.' It also\ndrops the router's own traffic where it crosses in the clear:\nBGP, SSH, DNS, NTP, ICMP (ping, traceroute, show mtu probes and\npath-MTU errors) and IPv6 neighbor discovery, which is ICMPv6\n(protocol 58). So write a bypass entry under\npolicy for every flow that must still cross in the clear, or set\nbypass to pass all of it. A commit that would turn the discard\non while this leaf is unset is refused until the leaf is\nwritten. Ze's own IKE sockets carry their own bypass, which the\nkernel consults before any SPD entry, so IKE crosses either way.\n\nbypass carries ICMP errors in clear, and Linux would still send\none about a tunnelled packet into the Child SA of a site-to-site\npeer whose icmp-error-check is true, so commit refuses bypass\nbeside such a peer; set icmp-error-check false on it. An ICMP\nbypass entry under policy meets the same refusal. A peer with\nvti bind is exempt: its Child SA policies carry the xfrm\ninterface's if_id, which the kernel's error mapping never\nlooks up.",
             "kind": "leaf",
             "name": "unmatched",
             "short-help": "Disposition of traffic no SPD entry matches: discard or bypass.",

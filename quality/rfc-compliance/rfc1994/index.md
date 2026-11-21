@@ -294,7 +294,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 The Identifier field MUST be changed each time a Challenge is sent. (Section 4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPIdentifierMonotonic, internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPIdentifierWraps moved. Forbidden: a Challenge sent with the previous Challenge's Identifier. TestCHAPIdentifierMonotonic seeds the counter with the Identifier the first Challenge carried and asserts the next Challenge's differs (and is +1); TestCHAPIdentifierWraps asserts 0xFF moves to 0x00. A runCHAPAuthPhase that did not advance the counter turns both red. Single-polarity marker.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a Challenge sent with the previous Challenge's Identifier. TestCHAPIdentifierMonotonic seeds the counter with the Identifier the first Challenge carried and asserts the next Challenge's differs (and is +1); TestCHAPIdentifierWraps asserts 0xFF moves to 0x00. A runCHAPAuthPhase that did not advance the counter turns both red. Single-polarity marker.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -315,7 +315,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 The Challenge Value MUST be changed each time a Challenge is sent. (Section 4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPChallengeRandom moved. Forbidden: a Challenge Value reused across Challenges. TestCHAPChallengeRandom runs runCHAPAuthPhase twice and asserts the two wire Values differ, red on a constant Value. Single-polarity marker.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a Challenge Value reused across Challenges. TestCHAPChallengeRandom runs runCHAPAuthPhase twice and asserts the two wire Values differ, red on a constant Value. Single-polarity marker.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -354,7 +354,7 @@ No test carries RFC1994-4.1-9, so there is no linked test.
 
 Any Response packets received during any other phase MUST be silently discarded. (Section 4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1994_chap_reauth_test.go::TestCHAPResponseOutsideAuthPhaseSilentlyDiscarded moved. Single-polarity accepted. TestCHAPResponseOutsideAuthPhaseSilentlyDiscarded hands handleFrame a well-formed CHAP Response in Req-Sent, Ack-Sent (Link Establishment) and Closing (Termination): red on any frame written, any auth or session event, an end, or a state change. The auth-phase unit TestCHAPIdentifierMismatchSilentDiscard no longer claims this row. The annotation still cites the auth-wait mismatch path (auth.go) as a second example; that clause is not this row's.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Single-polarity accepted. TestCHAPResponseOutsideAuthPhaseSilentlyDiscarded hands handleFrame a well-formed CHAP Response in Req-Sent, Ack-Sent (Link Establishment) and Closing (Termination): red on any frame written, any auth or session event, an end, or a state change. The auth-phase unit TestCHAPIdentifierMismatchSilentDiscard no longer claims this row. The annotation still cites the auth-wait mismatch path (auth.go) as a second example; that clause is not this row's.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -383,7 +383,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 If the values match, the authentication is acknowledged; otherwise the connection SHOULD be terminated. (§2)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go::TestRFC1994CHAPFailureTerminatesTheLink, internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go::TestRFC1994CHAPSuccessKeepsTheLink moved. Judge 2026-09-30 (access cont 11, independent). Same units and producer as RFC1994-4.2-5: values do not match (verifier rejects) -> Failure then EventSessionDown to the transport and the auth phase ends false (connection terminated); values match -> Success (acknowledged), true, no EventSessionDown. Both assertions would fail on the non-compliant behaviour (no teardown on reject; teardown on accept). Records: + fail, - runCHAPAuthPhase, observed red. The hash comparison is exercised under RFC1994-4.2-2.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (access cont 11, independent). Same units and producer as RFC1994-4.2-5: values do not match (verifier rejects) -> Failure then EventSessionDown to the transport and the auth phase ends false (connection terminated); values match -> Success (acknowledged), true, no EventSessionDown. Both assertions would fail on the non-compliant behaviour (no teardown on reject; teardown on accept). Records: + fail, - runCHAPAuthPhase, observed red. The hash comparison is exercised under RFC1994-4.2-2.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -394,7 +394,7 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 
 If the Value received in a Response is not equal to the expected value, then the implementation MUST transmit a CHAP packet with the Code field set to 4 (Failure), and SHOULD take action to terminate the link. (§4.2, the SHOULD clause: the authenticator takes action to terminate the link after a Failure; the MUST clause is RFC1994-4.2-2)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go::TestRFC1994CHAPFailureTerminatesTheLink, internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go::TestRFC1994CHAPSuccessKeepsTheLink moved. Judge 2026-09-30 (access cont 11, independent). Producer read: chap.go runCHAPAuthPhase on a reject writes the Failure, then s.fail sends EventSessionDown (Cause NAS-Error) to the transport and returns false, so no NCP phase: the SHOULD action is taken. + TestRFC1994CHAPFailureTerminatesTheLink: reply Code 4, false, EventSessionDown 55/66 'auth rejected' NAS-Error (Fatal if absent). - TestRFC1994CHAPSuccessKeepsTheLink: Code 3, true, no lifecycle event, so the teardown is owed to the Failure alone. The Value comparison is injected through authRespCh; the comparison itself is RFC1994-4.2-2's (real local verifier). Records: + break of session_run.go::fail, - break of runCHAPAuthPhase, both observed red (whole-body panic breaks, coarse but real). Row quotes the whole 4.2 sentence at SHOULD, MUST clause stays on 4.2-2; listed in 4.2 unsourced-ids because site 4.2:2 maps to 4.2-2.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (access cont 11, independent). Producer read: chap.go runCHAPAuthPhase on a reject writes the Failure, then s.fail sends EventSessionDown (Cause NAS-Error) to the transport and returns false, so no NCP phase: the SHOULD action is taken. + TestRFC1994CHAPFailureTerminatesTheLink: reply Code 4, false, EventSessionDown 55/66 'auth rejected' NAS-Error (Fatal if absent). - TestRFC1994CHAPSuccessKeepsTheLink: Code 3, true, no lifecycle event, so the teardown is owed to the Failure alone. The Value comparison is injected through authRespCh; the comparison itself is RFC1994-4.2-2's (real local verifier). Records: + break of session_run.go::fail, - break of runCHAPAuthPhase, both observed red (whole-body panic breaks, coarse but real). Row quotes the whole 4.2 sentence at SHOULD, MUST clause stays on 4.2-2; listed in 4.2 unsourced-ids because site 4.2:2 maps to 4.2-2.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|

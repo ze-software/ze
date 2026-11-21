@@ -65,6 +65,7 @@
 <li><a href="#04-radius-acct-attrs">04-radius-acct-attrs</a></li>
 <li><a href="#dns-resolver-l2tp-subscriber">dns-resolver-l2tp-subscriber</a></li>
 <li><a href="#ppp-code-reject-xl2tpd">ppp-code-reject-xl2tpd</a></li>
+<li><a href="#ncp-lifetime-on-the-ipv4-only-pool">NCP lifetime on the IPv4-only pool</a></li>
 <li><a href="#l2tp-lns-mru-xl2tpd">l2tp-lns-mru-xl2tpd</a></li>
 <li><a href="#l2tp-lns-omitted-mru-xl2tpd">l2tp-lns-omitted-mru-xl2tpd</a></li>
 <li><a href="#l2tp-lns-chap-only-xl2tpd">l2tp-lns-chap-only-xl2tpd</a></li>
@@ -103,6 +104,9 @@ route redistribution from a live PPP session.</p>
     l2tp-unknown-mandatory-avp-xl2tpd/   unknown AVP, M=0 then M=1, through the relay
     ppp-code-reject-xl2tpd/   unknown LCP and IPCP Codes injected through the relay
     lcp-restart-timer-pppd/   configured retry interval and request budget after live LCP restart
+    l2tp-lns-pppd-ipv6cp-rejected-by-lns/   stock pppd's IPv6CP and an injected CCP Protocol-Rejected, IPv4 kept
+    l2tp-lns-pppd-noip-rejects-ipcp/   pppd noip rejects IPCP, Ze stops IPCP and ends at the no-NCP bound
+    l2tp-lns-pppd-ipcp-terminate-redistribute/   relay and FRR: IPCP Terminate withdraws and reinstalls the /32
     l2tp-many-sessions-kl2tpd/   three LACs, sixteen PPP sessions per tunnel
     l2tp-lns-mru-xl2tpd/   configured MRU, CHAP, live daemon output, and traffic
     l2tp-lns-omitted-mru-xl2tpd/   default peer MRU and Ze-side transmit cap
@@ -116,6 +120,8 @@ internal/le/interoplab/l2tp/
   dns_resolver.go      The dns-resolver-l2tp-subscriber assertions
   mandatory_avp.go     The l2tp-unknown-mandatory-avp-xl2tpd assertions
   ppp_code_reject.go   The ppp-code-reject-xl2tpd assertions
+  ppp_ipcp_reopen.go   Its IPCP withdrawal and reopen after the Terminate-Request
+  ncp_lifetime.go      The three NCP lifetime scenarios' assertions
   lns_policy.go        MRU and CHAP-only typed assertions and daemon queries
   scale_overlay.go    guarded allocator candidate substitution for scale only
   scale.go            ordered launch, full-population proof and exact teardown
@@ -282,8 +288,13 @@ failing assertion and supplies no identity proof.</p>
 <p>The plans choose the Ze, xl2tpd, FRR, and RADIUS peers for each established
 scenario. The
 <code>dns-resolver-l2tp-subscriber</code> plan adds Knot DNS on <code>172.29.0.7</code>, and the
-<code>l2tp-unknown-mandatory-avp-xl2tpd</code> and <code>ppp-code-reject-xl2tpd</code> plans put the
-relay on <code>172.29.0.4</code>, the address their xl2tpd dials as its LNS.
+<code>l2tp-unknown-mandatory-avp-xl2tpd</code>, <code>ppp-code-reject-xl2tpd</code>,
+<code>lcp-restart-timer-pppd</code>, <code>l2tp-lns-pppd-ipv6cp-rejected-by-lns</code> and
+<code>l2tp-lns-pppd-noip-rejects-ipcp</code> plans put the relay on <code>172.29.0.4</code>, the
+address their xl2tpd dials as its LNS. The
+<code>l2tp-lns-pppd-ipcp-terminate-redistribute</code> plan is the one that starts both
+the relay and FRR: the relay keeps <code>172.29.0.4</code>, and FRR moves to <code>172.29.0.6</code>,
+where that scenario's <code>frr.conf</code> and <code>ze.conf</code> place it.
 The <code>l2tp-lns-*</code> plans also start the independent RADIUS backend on
 <code>172.29.0.5</code> before Ze and the LAC. The positive plan requires a credential
 request there; the refusal plan requires none. Both disable xl2tpd redial and
@@ -432,7 +443,11 @@ the 128-octet MRU with a copy of the start of the probe it rejects, and the
 session stays up. The IPCP answers come from the PPP unit descriptor, where
 Linux queues IPCP once the channel is connected. Last, the relay sends one
 IPCP Terminate-Request and Ze must answer with a Terminate-Ack carrying its
-Identifier. The full
+Identifier. Ze's IPv4 address must leave its <code>pppN</code>, polled inside the one
+Restart time Ze holds IPCP in Stopping. pppd never asked to terminate, so
+it renegotiates IPCP on that Terminate-Ack (pppd 2.5.5 <code>fsm_rtermack</code>,
+<code>case OPENED:</code>): IPCP must open again on both ends, the address return to
+the same <code>pppN</code>, and a ping cross the session. The full
 account is in <code>docs/architecture/testing/interop.md</code>, "L2TP and PPPoE
 lifecycle fault scenarios".</p>
 <p>The same scenario checks RFC 1661 Section 6.6 on the real L2TP wire.
@@ -470,6 +485,36 @@ from the transmit rule.
 <!-- source: internal/le/interoplab/l2tp/ppp_framing.go -- readPPPFramingLog, negotiatedPPPFraming, requireCompressedPPPEcho, requirePPPFullSessionFraming -->
 <!-- source: internal/le/interoplab/l2tp/avprelay/pppinject.go -- relayData -->
 <!-- source: internal/le/interoplab/l2tp/avprelay/pppframing.go -- observe, injectCompressed -->
+<h3 id="ncp-lifetime-on-the-ipv4-only-pool">NCP lifetime on the IPv4-only pool</h3>
+<p>Three scenarios run Ze's IPv4-only pool against pppd 2.5.5 through the relay,
+so Ze's own IPv6CP never starts. Each reads the relay's complete capture, whose
+normal data rows carry consecutive <code>data_ordinal</code> values from one; the reader
+refuses a gap, so an absence assertion never reads a truncated log. The relay's
+IPCP Terminate-Request marker (<code>/run/ipcp-terminate</code>) and CCP Configure-Request
+marker (<code>/run/ccp-configure-request</code>) each inject once on the next LAC datagram,
+with or without the Code-Reject marker. Each scenario's <code>README.md</code> lists its
+numbered assertions and the pppd functions they rest on.</p>
+<p><code>l2tp-lns-pppd-ipv6cp-rejected-by-lns</code> runs stock pppd, which offers IPv6CP.
+Ze Protocol-Rejects it, pppd sends no IPv6CP after (<code>ipv6cp_protrej</code>,
+<code>fsm_lowerdown</code>), and IPv4 carries a ping past <code>ncp timeout 8</code>. The relay then
+injects one CCP Configure-Request (0x80fd, Code 1, Identifier 0x3c), and Ze
+answers with an LCP Protocol-Reject naming 0x80fd that carries it. It is goal
+evidence and owes no revert walk.</p>
+<p><code>l2tp-lns-pppd-noip-rejects-ipcp</code> runs pppd <code>noip</code>, which Protocol-Rejects
+Ze's IPCP. Ze sends no IPCP after the reject, logs no <code>PPP session up</code>, and
+ends the call with a CDN at the no-NCP bound (<code>ncp timeout 8</code>, logged as
+<code>ncp: timeout after 8s with no NCP opened</code>). Its <code>lcp restart-timer 2000</code> keeps
+several Restart times inside the bound, so the revert of the Protocol-Reject
+dispatch shows Ze's IPCP retransmissions after the reject.</p>
+<p><code>l2tp-lns-pppd-ipcp-terminate-redistribute</code> runs pppd <code>noipv6</code> with FRR on
+<code>172.29.0.6</code>. After the injected IPCP Terminate-Request, Ze's address leaves
+<code>pppN</code> and FRR loses <code>10.100.0.2/32</code> within the 10 s Restart time Ze holds IPCP
+in Stopping, then pppd renegotiates, and the address, the <code>/32</code> and traffic
+return. Past <code>ncp timeout 20</code> from the trigger no CDN follows. The revert of the
+release event leaves the <code>/32</code> in FRR.</p>
+<!-- source: internal/le/interoplab/l2tp/ncp_lifetime.go -- checkIPv6CPRejectedByLNS, checkNoIPRejectsIPCP, checkIPCPTerminateRedistribute, sessionPPPFrames -->
+<!-- source: internal/le/interoplab/l2tp/avprelay/pppinject.go -- relayData, injectCCP, injectTerminate -->
+<p>Run each with <code>ZE_L2TP_INTEROP_SCENARIO=&lt;name&gt; ./le --name session test deployment docker-l2tp-ppp</code>.</p>
 <h3 id="l2tp-lns-mru-xl2tpd">l2tp-lns-mru-xl2tpd</h3>
 <p>Ze is the LNS with <code>mru 1492</code>, <code>auth-method chap-md5</code>, and
 <code>authentication { allow [ chap-md5 ]; }</code>. The checker requires pppd's decoded
@@ -771,7 +816,7 @@ specific to this protocol.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
                 </div>
             </div>
         </footer>

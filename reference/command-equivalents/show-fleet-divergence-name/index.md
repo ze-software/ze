@@ -1,34 +1,33 @@
-# `update fleet divergence adopt`
+# `show fleet divergence name`
 
-Make the configuration a client holds the hub\'s configuration for it\.
+What differs for a managed client that holds\.
 
 ## Ze command
 
-- Registry path: `update fleet divergence adopt`
-- Usage: `update fleet divergence adopt <name> <version>`
-- Mode: Daemon
-- Wire method: `ze-managed:fleet-divergence-adopt`
+- Registry path: `show fleet divergence name`
+- Usage: `show fleet divergence name <name>`
+- Mode: read\-only\, offline
+- Wire method: `ze-managed:fleet-divergence-show`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
-- Answer shape: not declared
+- Answer shape: doc
 - Address fields: none
 - Column order: none
 - Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
-- Pipes, when the answer has rows: match\, count\, first\, last\, display\, fill
+- Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Makes the configuration the client holds this hub\'s configuration for that client\, as a new version of client\-\<name\>\.conf\, and removes the held copy\. The client already runs it\, so its next fetch is answered current and its hold ends\. The hash given here must be the held copy\'s\.
+On a hub\: what differs between the configuration this hub serves a managed client and the one the client holds\, as a list of changes with every secret masked\, their count\, both hashes\, when the client\'s configuration became active and when the hub received it\, and any revert decision\. It answers no configuration text\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
 | `name` | string | yes | any value of this type | Managed client name | The name of a managed client\, as the client entry of a hub server block names it\. The hub keeps one held copy for each client\. |
-| `version` | string | yes | any value of this type | Device configuration hash | The version hash of the client\'s configuration\, as show fleet divergence name answers it\. A held copy with another hash is refused\, so a decision is made only on the copy the operator saw\. |
 
 ## Mapping intents
 

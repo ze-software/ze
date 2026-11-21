@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 2782 requirements and tests - Ze</title>
-        <meta name="description" content="RFC 2782: A DNS RR for specifying the location of services (DNS SRV). 7 mandatory requirements included in automatic checks, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 2782: A DNS RR for specifying the location of services (DNS SRV). 7 mandatory requirements included in automatic checks, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 2782 requirements and tests - Ze" />
-        <meta property="og:description" content="RFC 2782: A DNS RR for specifying the location of services (DNS SRV). 7 mandatory requirements included in automatic checks, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 2782: A DNS RR for specifying the location of services (DNS SRV). 7 mandatory requirements included in automatic checks, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 2782 requirements and tests - Ze" />
-        <meta name="twitter:description" content="RFC 2782: A DNS RR for specifying the location of services (DNS SRV). 7 mandatory requirements included in automatic checks, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 2782: A DNS RR for specifying the location of services (DNS SRV). 7 mandatory requirements included in automatic checks, 4 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -128,16 +128,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0</strong><b>of 7 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>1</strong><b>of 7 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 7 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 7 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 7 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>0</strong><b>0 of 0 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>2</strong><b>2 of 2 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>5</strong><b>of 7 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
+<article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>4</strong><b>of 7 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -238,7 +238,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>5</td>
+<td>4</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -250,16 +250,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>0</td>
+<td>2</td>
 </tr>
 <tr><td>Tests linked to requirements</td>
-<td>0</td>
+<td>2</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Fault test records</td>
-<td>0</td>
+<td>2</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc2782.md</code></td>
@@ -279,9 +279,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> DNS SRV records</p>
-<p><strong>Test verification:</strong> 0 of 7 MUST proven</p>
-<p><strong>Evidence:</strong> -</p>
-<p><strong>Unmet:</strong> RFC2782-Notes-2, RFC2782-Notes-3, RFC2782-Priority-1, RFC2782-Target-1, RFC2782-Target-2</p>
+<p><strong>Test verification:</strong> 1 of 7 MUST proven</p>
+<p><strong>Evidence:</strong> unit 1</p>
+<p><strong>Unmet:</strong> RFC2782-Notes-2, RFC2782-Notes-3, RFC2782-Priority-1, RFC2782-Target-2</p>
 
 </section>
 <section><h2>Coverage</h2>
@@ -290,11 +290,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>0</strong></td>
+<td><strong>1</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>7</strong></td>
+<td><strong>6</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Only a positive or negative test</td>
@@ -321,13 +321,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (7):</strong> <a href="#rfc2782-applicability-1"><code>RFC2782-Applicability-1</code></a>, <a href="#rfc2782-applicability-2"><code>RFC2782-Applicability-2</code></a>, <a href="#rfc2782-priority-1"><code>RFC2782-Priority-1</code></a>, <a href="#rfc2782-target-1"><code>RFC2782-Target-1</code></a>, <a href="#rfc2782-target-2"><code>RFC2782-Target-2</code></a>, <a href="#rfc2782-notes-2"><code>RFC2782-Notes-2</code></a>, <a href="#rfc2782-notes-3"><code>RFC2782-Notes-3</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (1):</strong> <a href="#rfc2782-target-1"><code>RFC2782-Target-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (6):</strong> <a href="#rfc2782-applicability-1"><code>RFC2782-Applicability-1</code></a>, <a href="#rfc2782-applicability-2"><code>RFC2782-Applicability-2</code></a>, <a href="#rfc2782-priority-1"><code>RFC2782-Priority-1</code></a>, <a href="#rfc2782-target-2"><code>RFC2782-Target-2</code></a>, <a href="#rfc2782-notes-2"><code>RFC2782-Notes-2</code></a>, <a href="#rfc2782-notes-3"><code>RFC2782-Notes-3</code></a></p>
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc2782:must">Not built 5</div>
+<div data-ze-rfc-bar="rfc2782:must">Ze verified 1, Not built 4</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc2782:overview">Not owed 2, Not assessed 7, Not built 5</div>
+<div data-ze-rfc-bar="rfc2782:overview">Ze MUST verified 1, Not owed 2, Not assessed 7, Not built 4</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -348,7 +349,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc2782:must.kept">5</span></td>
 </tr>
 <tr><td>Ze verified</td>
-<td><span data-ze-rfc="rfc2782:must.ze-proven">0</span></td>
+<td><span data-ze-rfc="rfc2782:must.ze-proven">1</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc2782:must.os-verified">0</span></td>
@@ -366,7 +367,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc2782:must.not-assessed">0</span></td>
 </tr>
 <tr><td>Not built</td>
-<td><span data-ze-rfc="rfc2782:must.not-built">5</span></td>
+<td><span data-ze-rfc="rfc2782:must.not-built">4</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="rfc2782:must.not-owed">2</span></td>
@@ -459,9 +460,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>Target</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2782-Target-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> the obligation falls on the zone that publishes the SRV record, and for a geodns zone that is ze: parseSRV (internal/plugins/geodns/config.go) checks only that the target is a valid name, so an operator can publish an SRV record whose in-zone target has no address record and nothing refuses it; a target outside geodns&#39;s zones is that zone&#39;s to answer, and no test is tagged to this row</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2782_srv_target_test.go#L45" title="internal/plugins/geodns/rfc2782_srv_target_test.go" target="_blank" rel="noopener"><code>TestRFC2782_SRVTargetNeedsAnAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2782_srv_target_test.go#L61" title="internal/plugins/geodns/rfc2782_srv_target_test.go" target="_blank" rel="noopener"><code>TestRFC2782_SRVTargetNeedsAnAddress</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2782-target-2">RFC2782-Target-2</code></td><td colspan="3"><span class="rfc-subject">There MUST be one or more address records for this name, the name MUST NOT be an alias (in the sense of RFC 1034 or RFC 2181). (§Target)</span></td></tr>
 <tr><td></td>
@@ -574,10 +575,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>{gap}, no test</td>
 <td>ze holds no SRV-cognizant client: no production code issues a TypeSRV query; geodns only answers SRV (internal/plugins/geodns/server.go), and the stub resolver flattens an SRV answer to a target:port string (internal/component/resolve/dns/resolver.go) but no caller asks it for SRV; no owner decision declines SRV use, so no ze client contacts a target by priority, and the row stays a gap with no test</td>
 </tr>
-<tr><td><a href="#rfc2782-target-1"><code>RFC2782-Target-1</code></a> There MUST be one or more address records for this name (§Target)</td>
-<td>{gap}, no test</td>
-<td>the obligation falls on the zone that publishes the SRV record, and for a geodns zone that is ze: parseSRV (internal/plugins/geodns/config.go) checks only that the target is a valid name, so an operator can publish an SRV record whose in-zone target has no address record and nothing refuses it; a target outside geodns&#39;s zones is that zone&#39;s to answer, and no test is tagged to this row</td>
-</tr>
 <tr><td><a href="#rfc2782-target-2"><code>RFC2782-Target-2</code></a> There MUST be one or more address records for this name, the name MUST NOT be an alias (in the sense of RFC 1034 or RFC 2181). (§Target)</td>
 <td>{gap}, no test</td>
 <td>geodns serves A, AAAA and SRV records from its configuration (the recordKind values in internal/plugins/geodns/record.go) and builds SOA and NS records for its zones (buildSOA and the NS answers in internal/plugins/geodns/server.go), and it serves no CNAME, so an in-zone SRV target is never an alias and the rule holds by construction there, but parseSRV accepts any out-of-zone target name and no test is tagged to this row</td>
@@ -611,7 +608,23 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3><a href="#rfc2782-target-1"><code>RFC2782-Target-1</code></a></h3>
 <p>There MUST be one or more address records for this name (§Target)</p>
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
-<p>No test carries RFC2782-Target-1, so there is no linked test.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2782_srv_target_test.go#L61" title="internal/plugins/geodns/rfc2782_srv_target_test.go" target="_blank" rel="noopener"><code>TestRFC2782_SRVTargetNeedsAnAddress</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2782_srv_target_test.go#L45" title="internal/plugins/geodns/rfc2782_srv_target_test.go" target="_blank" rel="noopener"><code>TestRFC2782_SRVTargetNeedsAnAddress</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc2782-target-2"><code>RFC2782-Target-2</code></a></h3>
 <p>There MUST be one or more address records for this name, the name MUST NOT be an alias (in the sense of RFC 1034 or RFC 2181). (§Target)</p>
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
@@ -755,7 +768,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
                 </div>
             </div>
         </footer>

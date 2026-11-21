@@ -10,13 +10,13 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 2 | of 3 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
-| One polarity plus reason | 1 | of 3 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
-| One polarity, unexcused | 0 | of 3 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial test coverage | 0 | of 3 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Declared gap or no test | 0 | of 3 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Tested both ways | 2 | of 2 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 2 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
+| One polarity, unexcused | 0 | of 2 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial test coverage | 0 | of 2 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Declared gap or no test | 0 | of 2 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 | Tests shown to detect a fault | 6 | 6 of 7 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
-| Audit verdicts | 3 | of 3 mandatory requirements reviewed | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Audit verdicts | 3 | of 2 mandatory requirements reviewed | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -24,11 +24,11 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Out of scope | 0 | of 3 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
-| Not applicable | 0 | of 3 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 3 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
-| Optional feature declined | 0 | of 3 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 3 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
+| Out of scope | 0 | of 2 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
+| Not applicable | 0 | of 2 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Met below Ze | 0 | of 2 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Optional feature declined | 0 | of 2 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Linux cannot do this | 0 | of 2 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -36,9 +36,9 @@ what the cards above are counted against
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Mandatory requirements (MUST level) | 3 | of 16 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
+| Mandatory requirements (MUST level) | 2 | of 16 requirements this summary lists, at all levels | The RFC's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements. |
 
-The 9 counts marked as a part above are the whole of the 3 mandatory requirements: they add up to 3. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
+The 9 counts marked as a part above are the whole of the 2 mandatory requirements: they add up to 2. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.
 
@@ -65,7 +65,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Public row | AS112 operations |
 | Automatic checks | Included |
 | Requirements | 16 |
-| Mandatory requirements (MUST level) | 3 |
+| Mandatory requirements (MUST level) | 2 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
@@ -81,13 +81,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Automatic checks
 
-Included in automatic checks: AS112 Nameserver Operations: three MUSTs over ze's authoritative AS112 DNS server (internal/plugins/as112, answerQuestions/zones.go). RFC7534-3.5-1 (answer authoritatively for each delegated zone) both polarities: a query at the apex of a Direct-Delegation reverse zone is answered from that zone (TestZoneAnswer_ReverseZoneNoData) while a name outside every served zone draws REFUSED with AA clear, so the node makes no authority claim over it (TestZoneAnswer_OutOfZoneRefused). RFC7534-3.5-2 (no records beyond SOA and NS) both polarities: a PTR query at the apex yields NODATA (TestZoneAnswer_ReverseZoneNoData) while the zone does contain its SOA + the two blackhole NS records (TestSOA_RFCMandatedParameters). RFC7534-3.5-3 (RFC 1918 records not hosted) is {single-polarity: positive}: the zones hold their records at the apex and nothing below it, so an RFC 1918 reverse PTR yields NXDOMAIN with no PTR in the reply and no such record is ever hosted (TestZoneAnswer_ResponseCodeByNamePosition). Ledger row unchanged (no gap).
+Included in automatic checks: AS112 Nameserver Operations: two MUSTs over ze's authoritative AS112 DNS server (internal/plugins/as112, answerQuestions/zones.go). RFC7534-3.5-1 (answer authoritatively for each delegated zone) both polarities: a query at the apex of a Direct-Delegation reverse zone is answered from that zone (TestZoneAnswer_ReverseZoneNoData) while a name outside every served zone draws REFUSED with AA clear, so the node makes no authority claim over it (TestZoneAnswer_OutOfZoneRefused). RFC7534-3.5-2 (no records beyond SOA and NS) both polarities: a PTR query at the apex yields NODATA (TestZoneAnswer_ReverseZoneNoData) while the zone does contain its SOA + the two blackhole NS records (TestSOA_RFCMandatedParameters). RFC7534-3.5-3 (RFC 1918 records not hosted) is a SHOULD NOT, since the RFC states it in a lowercase zone-file comment and has no RFC 2119 key-words section, and is {single-polarity: positive}: the zones hold their records at the apex and nothing below it, so an RFC 1918 reverse PTR yields NXDOMAIN with no PTR in the reply and no such record is ever hosted (TestZoneAnswer_ResponseCodeByNamePosition). Ledger row unchanged (no gap).
 
 ## Published support status
 
 **Area:** AS112 operations
 
-**Test verification:** 2 of 3 MUST proven
+**Test verification:** 2 of 2 MUST proven
 
 **Evidence:** unit 2
 
@@ -99,33 +99,31 @@ Included in automatic checks: AS112 Nameserver Operations: three MUSTs over ze's
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 2 | one part of the mandatory requirements |
-| Annotated (including scoped evidence) | 1 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 0 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
 | Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
-| **Mandatory requirements (MUST level)** | **3** | every mandatory requirement appears in exactly one group above |
+| **Mandatory requirements (MUST level)** | **2** | every mandatory requirement appears in exactly one group above |
 
 **Positive and negative tests (2):** [`RFC7534-3.5-1`](#rfc7534-3.5-1), [`RFC7534-3.5-2`](#rfc7534-3.5-2)
 
-**Annotated (including scoped evidence) (1):** [`RFC7534-3.5-3`](#rfc7534-3.5-3)
-
 ## Figures
 
-- **MUST bar**: Ze verified 2, Tests awaiting verification 1
+- **MUST bar**: Ze verified 2
 - **Overview bar**: Ze MUST verified 2, Tests awaiting verification 1, Not assessed 13
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
-| MUST rows | 3 |
-| MUST rows kept (the MUST bar) | 3 |
+| Mandatory requirements complete | complete |
+| MUST rows | 2 |
+| MUST rows kept (the MUST bar) | 2 |
 | Ze verified | 2 |
 | OS verified | 0 |
-| Tests awaiting verification | 1 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -134,7 +132,7 @@ Included in automatic checks: AS112 Nameserver Operations: three MUSTs over ze's
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
-| SHOULD / MAY rows | 13 |
+| SHOULD / MAY rows | 14 |
 | SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
@@ -142,7 +140,7 @@ Included in automatic checks: AS112 Nameserver Operations: three MUSTs over ze's
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD tests awaiting verification | 0 |
+| SHOULD tests awaiting verification | 1 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 13 |
 | SHOULD not built | 0 |
@@ -157,7 +155,6 @@ Source: [data/rfc/rfc7534.json](../../../data/rfc/rfc7534.json).
 |---|---|---|---|---|
 | `RFC7534-3.5-1` | Each nameserver functions as a single node in an AS112 anycast cloud [RFC4786] and is configured to answer authoritatively for a particular set of nominated zones. (§1) | MUST | 1 - Introduction | **positive:** `unit/verify` [`TestRFC7534EveryDirectDelegationZoneAuthoritativeAndBare`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/rfc7534_direct_delegation_test.go#L28). **positive:** `unit/verify` [`TestZoneAnswer_ReverseZoneNoData`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L85). **negative:** `unit/verify` [`TestZoneAnswer_OutOfZoneRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L169) |
 | `RFC7534-3.5-2` | There should be no other resource records included in this zone. (§3.5, db.dd-empty) | MUST | 3.5 - DNS Software | **positive:** `unit/verify` [`TestRFC7534EveryDirectDelegationZoneAuthoritativeAndBare`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/rfc7534_direct_delegation_test.go#L35). **positive:** `unit/verify` [`TestZoneAnswer_ReverseZoneNoData`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L88). **negative:** `unit/verify` [`TestSOA_RFCMandatedParameters`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L293) |
-| `RFC7534-3.5-3` | Records that relate to RFC 1918-numbered resources within the ; site hosting this AS112 node should not be hosted on this ; nameserver. (§3.5) | MUST | 3.5 - DNS Software | **positive:** `unit/verify` [`TestZoneAnswer_ResponseCodeByNamePosition`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L247). **negative:** no negative test. **{single-polarity}:** ze's AS112 nameserver serves only empty SOA/NS Direct-Delegation zones (internal/plugins/as112/zones.go), which hold their records at the apex and nothing below it, so every RFC 1918 reverse name draws a name error and no RFC 1918 record is ever hosted -- there is no "RFC 1918 record is hosted" case to assert as a negative. The positive (an RFC 1918 reverse PTR yields NXDOMAIN, with no PTR anywhere in the reply) is proven in TestZoneAnswer_ResponseCodeByNamePosition |
 | `RFC7534-3.3-1` | The chosen platform should include either support for cloned loopback interfaces or the capability to bind multiple addresses to a single loopback interface. (§3.3) | SHOULD | 3.3 - Operating System and Host Considerations | **positive:** no positive test. **negative:** no negative test |
 | `RFC7534-3.3-2` | A host that is configured to act as an AS112 anycast node should be dedicated to that purpose and should not be used to simultaneously provide other services. (§3.3) | SHOULD | 3.3 - Operating System and Host Considerations | **positive:** no positive test. **negative:** no negative test |
 | `RFC7534-3.3-3` | The order in which interfaces are configured and software components started should be arranged such that routing software startup follows DNS software startup, and DNS software startup follows loopback interface configuration. (§3.3) | SHOULD | 3.3 - Operating System and Host Considerations | **positive:** no positive test. **negative:** no negative test |
@@ -166,6 +163,7 @@ Source: [data/rfc/rfc7534.json](../../../data/rfc/rfc7534.json).
 | `RFC7534-3.4-2` | The configuration above includes two restrictions on what the AS112 should advertise to its BGP neighbours: a prefix filter that permits only the service prefixes, and an AS_PATH filter that matches only locally originated routes. (§3.4) | SHOULD | 3.4 - Routing Software | **positive:** no positive test. **negative:** no negative test |
 | `RFC7534-3.5-4` | Note that the nameserver is configured to act as an authoritative-only server (i.e., recursion is disabled). (§3.5) | SHOULD | 3.5 - DNS Software | **positive:** no positive test. **negative:** no negative test |
 | `RFC7534-3.5-5` | Note that the responses to the queries "HOSTNAME.AS112.NET IN TXT" and "HOSTNAME.AS112.ARPA IN TXT" should fit within a 512-octet DNS/ UDP datagram: i.e., it should be available over UDP transport without requiring EDNS0 support by the client. (§3.5) | SHOULD | 3.5 - DNS Software | **positive:** no positive test. **negative:** no negative test |
+| `RFC7534-3.5-3` | Records that relate to RFC 1918-numbered resources within the ; site hosting this AS112 node should not be hosted on this ; nameserver. (§3.5) | SHOULD NOT | 3.5 - DNS Software | **positive:** `unit/verify` [`TestZoneAnswer_ResponseCodeByNamePosition`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L247). **negative:** no negative test. **{single-polarity}:** ze's AS112 nameserver serves only empty SOA/NS Direct-Delegation zones (internal/plugins/as112/zones.go), which hold their records at the apex and nothing below it, so every RFC 1918 reverse name draws a name error and no RFC 1918 record is ever hosted -- there is no "RFC 1918 record is hosted" case to assert as a negative. The positive (an RFC 1918 reverse PTR yields NXDOMAIN, with no PTR anywhere in the reply) is proven in TestZoneAnswer_ResponseCodeByNamePosition |
 | `RFC7534-4.1-1` | AS112 nodes should be monitored to ensure that they are functioning correctly, just as with any other production service. (§4.1) | SHOULD | 4.1 - Monitoring | **positive:** no positive test. **negative:** no negative test |
 | `RFC7534-4.2-1` | An AS112 node that needs to go off-line (e.g., for planned maintenance or as part of the diagnosis of some problem) should stop advertising the AS112 service prefixes to its BGP peers. (§4.2) | SHOULD | 4.2 - Downtime | **positive:** no positive test. **negative:** no negative test |
 | `RFC7534-4.3-1` | Use of the AS112 node should be measured in order to track long-term trends, identify anomalous conditions, and ensure that the configuration of the AS112 node is sufficient to handle the query load. (§4.3) | SHOULD | 4.3 - Statistics and Measurement | **positive:** no positive test. **negative:** no negative test |

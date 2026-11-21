@@ -687,7 +687,7 @@ address. A session whose events named it nothing is selected by no name.
 | Plugin | Description |
 |--------|-------------|
 | `l2tp-auth-local` | Static user/password authentication for L2TP PPP sessions (PAP/CHAP-MD5/MS-CHAPv2) |
-| `l2tp-auth-radius` | RADIUS authentication (Access-Request), accounting (Start/Stop/Interim-Update), CoA/DM listener, and Access-Accept attribute extraction (Framed-IP-Address, Framed-Pool, Session-Timeout, Idle-Timeout, Filter-Id, Acct-Interim-Interval) |
+| `l2tp-auth-radius` | RADIUS authentication (Access-Request), accounting (Start/Stop/Interim-Update), CoA/DM listener, and Access-Accept attribute extraction (Framed-IP-Address, Framed-Pool, Framed-MTU, Session-Timeout, Idle-Timeout, Filter-Id, Acct-Interim-Interval) |
 | `l2tp-pool` | Bitmap-backed IPv4 address pool with default and named pools; Framed-IP-Address chooses an address and reserves any containing pool, Framed-Pool selects the gateway and DNS profile; IPCP DNS from the pool's `dns-source` list (default `source [ radius configured received ]`: the Access-Accept's MS-Primary-DNS-Server and MS-Secondary-DNS-Server, else `dns-primary`/`dns-secondary`, else the learned resolvers) |
 | `l2tp-shaper` | TC traffic shaping (TBF/HTB) on pppN interfaces with configured default rates, RADIUS CoA rate updates, and initial rate from Filter-Id at session establishment |
 
@@ -1460,7 +1460,7 @@ whole answer. A walk that ends inside those 256 rows collapses to the one
 document the command answered with before it produced rows at all.
 
 ```go
-p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+p.OnExecuteCommand(func(serial, command string, args []string, peer string, pipe []sdk.PipeOperation) (string, any, error) {
 	return "done", sdk.Records{
 		Key:  "sessions",
 		Rows: sessionRows(),

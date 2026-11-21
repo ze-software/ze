@@ -1,6 +1,6 @@
 # Command Equivalents
 
-617 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
+623 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
 
 ## Commands with vendor CLI
 
@@ -87,8 +87,10 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `clear irr cache as-set` | Daemon | - | - | - | - | [details](clear-irr-cache-as-set/) |
 | `clear isis adjacency all` | Daemon | - | - | - | - | [details](clear-isis-adjacency-all/) |
 | `clear isis counters` | Daemon | - | - | - | - | [details](clear-isis-counters/) |
+| `clear l2tp session address` | Daemon | - | - | - | - | [details](clear-l2tp-session-address/) |
 | `clear l2tp session all` | Daemon | - | - | - | - | [details](clear-l2tp-session-all/) |
 | `clear l2tp session id` | Daemon | - | - | - | - | [details](clear-l2tp-session-id/) |
+| `clear l2tp session user` | Daemon | - | - | - | - | [details](clear-l2tp-session-user/) |
 | `clear l2tp tunnel all` | Daemon | - | - | - | - | [details](clear-l2tp-tunnel-all/) |
 | `clear l2tp tunnel id` | Daemon | - | - | - | - | [details](clear-l2tp-tunnel-id/) |
 | `clear ospf counters` | Daemon | - | - | - | - | [details](clear-ospf-counters/) |
@@ -267,7 +269,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `request data repair` | Daemon | - | - | - | - | [details](request-data-repair/) |
 | `request data restore` | Daemon | - | - | - | - | [details](request-data-restore/) |
 | `request fleet disable` | daemon, offline | - | - | - | - | [details](request-fleet-disable/) |
-| `request fleet divergence revert` | Daemon | - | - | - | - | [details](request-fleet-divergence-revert/) |
+| `request fleet divergence name revert` | daemon, offline | - | - | - | - | [details](request-fleet-divergence-name-revert/) |
 | `request fleet enable` | daemon, offline | - | - | - | - | [details](request-fleet-enable/) |
 | `request halt` | Daemon | - | - | - | `poweroff`<br>`reboot` | [details](request-halt/) |
 | `request interface down` | Daemon | - | - | - | - | [details](request-interface-down/) |
@@ -494,8 +496,8 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show firewall irr` | Read-only | - | - | - | - | [details](show-firewall-irr/) |
 | `show firewall irr prefix` | Read-only | - | - | - | - | [details](show-firewall-irr-prefix/) |
 | `show firewall ruleset` | Read-only | - | - | - | - | [details](show-firewall-ruleset/) |
-| `show fleet divergence` | Read-only | - | - | - | - | [details](show-fleet-divergence/) |
-| `show fleet divergence list` | Read-only | - | - | - | - | [details](show-fleet-divergence-list/) |
+| `show fleet divergence list` | read-only, offline | - | - | - | - | [details](show-fleet-divergence-list/) |
+| `show fleet divergence name` | read-only, offline | - | - | - | - | [details](show-fleet-divergence-name/) |
 | `show fleet status` | read-only, offline | - | - | - | - | [details](show-fleet-status/) |
 | `show flow export` | Read-only | - | - | - | - | [details](show-flow-export/) |
 | `show flow recent` | Read-only | - | - | - | - | [details](show-flow-recent/) |
@@ -685,6 +687,8 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show system update` | Read-only | - | - | - | - | [details](show-system-update/) |
 | `show system update history` | Read-only | - | - | - | - | [details](show-system-update-history/) |
 | `show tcp-check` | Read-only | - | - | - | - | [details](show-tcp-check/) |
+| `show thanks licence` | Read-only | - | - | - | - | [details](show-thanks-licence/) |
+| `show thanks list` | Read-only | - | - | - | - | [details](show-thanks-list/) |
 | `show traceroute` | read-only, offline | - | - | `ping <target>` | `ping <target>`<br>`traceroute <target>` | [details](show-traceroute/) |
 | `show traffic control` | Read-only | - | - | - | - | [details](show-traffic-control/) |
 | `show traffic feature` | Read-only | - | - | - | - | [details](show-traffic-feature/) |
@@ -724,6 +728,13 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `system version api` | Read-only | - | - | - | - | [details](system-version-api/) |
 | `system version software` | Read-only | - | - | - | - | [details](system-version-software/) |
 
+### thanks
+
+| Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
+| --- | --- | --- | --- | --- | --- | --- |
+| `thanks` | Offline | - | - | - | - | [details](thanks/) |
+| `thanks licence` | Offline | - | - | - | - | [details](thanks-licence/) |
+
 ### update
 
 | Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
@@ -737,7 +748,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `update data config` | Daemon | - | - | - | - | [details](update-data-config/) |
 | `update data key` | Daemon | - | - | - | - | [details](update-data-key/) |
 | `update firewall domain-group` | Daemon | - | - | - | - | [details](update-firewall-domain-group/) |
-| `update fleet divergence adopt` | Daemon | - | - | - | - | [details](update-fleet-divergence-adopt/) |
+| `update fleet divergence name adopt` | daemon, offline | - | - | - | - | [details](update-fleet-divergence-name-adopt/) |
 | `update irr all` | Daemon | - | - | - | - | [details](update-irr-all/) |
 | `update irr as-set` | Daemon | - | - | - | - | [details](update-irr-as-set/) |
 | `update irr asn` | Daemon | - | - | - | - | [details](update-irr-asn/) |

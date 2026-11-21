@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 20 | of 138 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 138 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 138 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 38 | 38 of 49 tests linked to requirements, 0 without a fault test and 11 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 40 | 40 of 49 tests linked to requirements, 0 without a fault test and 9 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -93,9 +93,9 @@ Included in automatic checks: Ze is an IPv6 router that originates Router Advert
 
 **Area:** IPv6 Neighbor Discovery and Router Advertisement
 
-**Test verification:** 29 of 138 MUST proven
+**Test verification:** 30 of 138 MUST proven
 
-**Evidence:** unit 29
+**Evidence:** unit 30
 
 **Unmet:** RFC4861-11.2-1, RFC4861-11.2-2, RFC4861-2.3-1, RFC4861-4.4-3, RFC4861-4.6-1, RFC4861-6.1.1-1, RFC4861-6.1.1-2, RFC4861-6.2.1-1, RFC4861-6.2.1-8, RFC4861-6.2.4-1, RFC4861-6.2.5-1, RFC4861-6.2.5-2, RFC4861-6.2.6-1, RFC4861-7.2.6-1, RFC4861-7.2.8-1, RFC4861-7.2.8-2, RFC4861-9-7
 
@@ -119,8 +119,8 @@ Included in automatic checks: Ze is an IPv6 router that originates Router Advert
 
 ## Figures
 
-- **MUST bar**: Ze verified 29, Tests awaiting verification 1, OS testing gap 91, Not built 17
-- **Overview bar**: Ze MUST verified 29, Tests awaiting verification 1, OS testing gap 91, Not assessed 79, Not built 17
+- **MUST bar**: Ze verified 30, OS testing gap 91, Not built 17
+- **Overview bar**: Ze MUST verified 30, OS testing gap 91, Not assessed 79, Not built 17
 
 | Figure | Rows |
 |---|---|
@@ -129,9 +129,9 @@ Included in automatic checks: Ze is an IPv6 router that originates Router Advert
 | Mandatory requirements complete | not complete |
 | MUST rows | 138 |
 | MUST rows kept (the MUST bar) | 138 |
-| Ze verified | 29 |
+| Ze verified | 30 |
 | OS verified | 0 |
-| Tests awaiting verification | 1 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 91 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -961,8 +961,8 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC4861OnlyAnAdvertisingInterfaceSends`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc4861_router_configuration_test.go#L97) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC4861OnlyAnAdvertisingInterfaceSends`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc4861_router_configuration_test.go#L100) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC4861OnlyAnAdvertisingInterfaceSends`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc4861_router_configuration_test.go#L97) | unit/verify | revert, verified |
+| positive | [`TestRFC4861OnlyAnAdvertisingInterfaceSends`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc4861_router_configuration_test.go#L100) | unit/verify | revert, verified |
 
 ### [`RFC4861-6.2.2-2`](#rfc4861-6.2.2-2)
 

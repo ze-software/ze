@@ -244,6 +244,20 @@ and <code>params</code>. Each entry in <code>params</code> carries <code>name</c
   "params": {"family": "ipv4/unicast"}
 }
 </code></pre>
+<p>The optional <code>pipe</code> list applies pipe operations to the answer, in order, as
+if typed after the command. This body answers what
+<code>show bgp rib | received | count</code> answers:</p>
+<pre><code class="language-json">{
+  "command": "show bgp rib",
+  "pipe": [{"name": "received"}, {"name": "count"}]
+}
+</code></pre>
+<p>Each element holds a <code>name</code> and an optional <code>args</code> array, one word per
+element (<code>{"name": "match", "args": ["link down"]}</code> matches the two words as
+one). A name that is not one of the command's pipe operations is refused, and
+the refusal lists the valid ones; <code>show command help "&lt;command&gt;"</code> lists them
+too. An element key other than <code>name</code> and <code>args</code> is refused.</p>
+<!-- source: internal/component/command/pipe_list.go -- WritePipeList -->
 <!-- source: internal/component/bgp/plugins/cmd/rib/yang/ze-rib-cmd.yang -- module ze-rib-cmd -->
 <p>Response:</p>
 <pre><code class="language-json">{
@@ -286,12 +300,12 @@ refresh row gives the required generic Execute command instead.</p>
 <tr>
 <td><code>GET</code></td>
 <td><code>/api/v1/rib/{family}</code></td>
-<td><code>show bgp rib family {family}</code></td>
+<td><code>show bgp rib | family {family}</code></td>
 </tr>
 <tr>
 <td><code>GET</code></td>
 <td><code>/api/v1/rib/{family}/best</code></td>
-<td><code>show bgp rib best family {family}</code></td>
+<td><code>show bgp rib best | family {family}</code></td>
 </tr>
 <tr>
 <td><code>GET</code></td>
@@ -404,16 +418,33 @@ follows <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/c
 <td><code>/api/v1/docs</code></td>
 <td>Interactive Swagger UI (assets vendored, offline-capable)</td>
 </tr>
+<tr>
+<td><span class="ev-src"><span class="ev-ref"><code>/api/v1/docs/swagger-ui.LICENSE</code></span><span class="ev-ref"><code>/api/v1/docs/swagger-ui.NOTICE</code></span></span></td>
+<td>swagger-ui's licence and notice, as plain text</td>
+</tr>
+<tr>
+<td><span class="ev-src"><span class="ev-ref"><code>/api/v1/docs/swagger-ui-bundle.js.LICENSE.txt</code></span></span></td>
+<td>The licence banners of the libraries in the bundle, which the bundle's first line points at</td>
+</tr>
 </tbody>
 </table>
+<p>Every documentation path, the licence files included, sits behind the same
+authentication as the API it describes.</p>
+<!-- source: internal/component/api/rest/server.go -- the documentation routes, licenceHandler -->
 <p>The OpenAPI spec is generated lazily on first request so it captures all
 plugin commands registered during startup. Documentation routes use the same
 Bearer authentication policy as the API when auth is configured.</p>
-<p>Each command operation carries the two help texts the command declares. The
-<code>summary</code> is the one-line summary from the YANG <code>ze:help</code> statement, and
+<p>Every path the document publishes is a route the server answers. A command
+has no path of its own: every command runs through <code>POST /api/v1/execute</code>, so
+the document publishes each command as a schema under <code>components.schemas</code>,
+keyed by its camel-case name (<code>show bgp rib</code> is <code>showBgpRib</code>). That schema is
+the request body that runs the command: <code>command</code> fixed to the command's
+name, its parameters under <code>params</code>, and the optional <code>pipe</code> list.</p>
+<p>Each command schema carries the two help texts the command declares. The
+<code>title</code> is the one-line summary from the YANG <code>ze:help</code> statement, and
 the <code>description</code> is the long explanation from the YANG <code>description</code>. A command that
 declares no explanation carries no <code>description</code> key. Each parameter property
-in the operation's request schema carries the same pair from its YANG leaf:
+under the schema's <code>params</code> carries the same pair from its YANG leaf:
 <code>title</code> is the leaf's <code>ze:help</code> and <code>description</code> is the leaf's <code>description</code>,
 and a text the leaf does not declare writes no key. The gRPC <code>CommandInfo</code> and
 <code>ParamInfo</code> messages carry both texts as <code>short_help</code> and <code>description</code>.</p>
@@ -514,6 +545,13 @@ the <code>authorization</code> metadata key:</p>
 <pre><code class="language-python">metadata = [('authorization', 'Bearer alice:password123')]
 stub.Execute(CommandRequest(command='show bgp'), metadata=metadata)
 </code></pre>
+<p><code>CommandRequest</code> carries the same optional pipe list as REST execute, as
+<code>repeated PipeOperation pipe</code>, each with a <code>name</code> and <code>repeated string args</code>;
+<code>Execute</code> and <code>Stream</code> both apply it:</p>
+<pre><code class="language-python">stub.Execute(CommandRequest(command='show bgp rib',
+    pipe=[PipeOperation(name='received'), PipeOperation(name='count')]), metadata=metadata)
+</code></pre>
+<!-- source: api/proto/ze.proto -- CommandRequest, PipeOperation -->
 <h3 id="grpc-reflection">gRPC reflection</h3>
 <p>Reflection is enabled by default. Discover the schema with <code>grpcurl</code> on a
 plaintext loopback listener:</p>
@@ -595,6 +633,9 @@ an authenticated non-loopback gRPC listener is configured without TLS.</p>
 <ul>
 <li>URL path segments (peer name, RIB family) reject whitespace and control chars</li>
 <li>Execute <code>params</code> map keys and values reject whitespace</li>
+<li>Each <code>pipe</code> list name must be one of the command's pipe operations, and
+each argument word is written quoted when it holds a space, a pipe or a
+quote, so no element opens a stage of its own</li>
 <li>Config session IDs must match the hex format from <code>EnterSession</code></li>
 </ul>
 <p>These checks prevent command tokenizer confusion when user input flows into
@@ -692,7 +733,7 @@ dispatcher command strings.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
                 </div>
             </div>
         </footer>

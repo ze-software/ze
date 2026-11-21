@@ -14,23 +14,23 @@ This file collects information for AI tools in one place. It describes the produ
 - Dataplane: Linux netlink, nftables, eBPF, AF_PACKET, psample, optional VPP integrations, and namespace-aware testing.
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
-- Current generated counts: 52 shipped or experimental feature cards, 617 CLI commands, 39 config sections, 98 plugin registrations, 66 direct Go dependencies, 46 update reports.
-- Test evidence counts: 52,000+ unit tests, 120 fuzz targets, 3,100+ end-to-end transcript steps, 410+ interop scenarios across 8 lab suites; the main recorded set has 13 test images, and other suites use additional images.
+- Current generated counts: 52 shipped or experimental feature cards, 623 CLI commands, 39 config sections, 98 plugin registrations, 66 direct Go dependencies, 46 update reports.
+- Test evidence counts: 52,900+ unit tests, 120+ fuzz targets, 3,100+ end-to-end transcript steps, 420+ interop scenarios across 8 lab suites; the main recorded set has 13 test images, and other suites use additional images.
 - Plans for the release and later improvements (a plan does not mean a feature is ready): [roadmap](https://ze-software.net/project/roadmap/index.md), [snapshot JSON](https://ze-software.net/data/release-roadmap.json).
-- Generated date: 2026-11-19.
+- Generated date: 2026-11-21.
 
 ## Quality and verification model
 
 Ze tests behavior at several levels because bugs appear at different boundaries.
 
-- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 52,000+ unit tests.
-- Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 120 fuzz targets.
+- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 52,900+ unit tests.
+- Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 120+ fuzz targets.
 - gomu mutation checks: mutate production Go code and rerun tests to find weak assertions. gomu is advisory, not the default CI gate.
 - Functional `.ci` transcripts: drive processes, CLI commands, files, HTTP, syslog, peers, daemons, exits, and BGP wire expectations. BGP failures are decoded structurally, not shown as raw hex only.
 - Browser `.wb` transcripts: drive the rendered web UI through real browser flows.
 - Editor `.et` transcripts: drive the headless interactive editor.
 - QEMU: runs Linux-only behavior from macOS or CI where netlink, nftables, eBPF, PPP, network namespaces, and kernel modules exist.
-- Interop: 415 scenarios across 8 lab suites. The main recorded set has 13 test images; other suites use additional images. Scenarios exchange messages with FRR, BIRD, GoBGP and other real daemons where applicable.
+- Interop: 422 scenarios across 8 lab suites. The main recorded set has 13 test images; other suites use additional images. Scenarios exchange messages with FRR, BIRD, GoBGP and other real daemons where applicable.
 - Verify workflow: `./le verify worktree` runs the whole native verification population against a fixed commit in a detached worktree, writes stage logs under `tmp/`, groups related failures, and prints narrow rerun commands. `./le repo` is the narrower handoff gate.
 - Rule for regressions: do not hide a failure with a skip or loose assertion. Test at the layer that can observe the behavior, add the narrow test, rerun it, then rerun the gate that should have caught it.
 
@@ -252,15 +252,15 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 
 ## CLI command surface
 
-The command catalog is generated from `ze help command --json`, not hand-written. Modes: 200 daemon, 14 daemon, offline, 3 offline, 332 read-only, 68 read-only, offline.
+The command catalog is generated from `ze help command --json`, not hand-written. Modes: 200 daemon, 16 daemon, offline, 5 offline, 332 read-only, 70 read-only, offline.
 `daemon` commands require a running Ze daemon. `read-only` commands query state. `offline` commands can run without daemon state. `pipes` groups operators as `always`, `with-rows`, `when-streaming`, or `local-only`; these qualifiers are part of the contract. An operator absent from those groups is refused by name.
 
-### `clear` commands (35)
+### `clear` commands (37)
 - `clear bgp healthcheck` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `clear bgp healthcheck`): Reset healthcheck probe to INIT
 - `clear bgp rib advertised` (daemon; wire ze-bgp:rib-clear-advertised; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string, family:string; usage `clear bgp rib advertised <selector> [family <family>]`): Withdraw every route advertised to a peer\.
 - `clear bgp rib in` (daemon; wire ze-bgp:rib-clear-in; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string; usage `clear bgp rib in <selector>`): Remove all routes received from a peer\.
 - `clear bgp rib out` (daemon; wire ze-bgp:rib-clear-out; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string, family:string; usage `clear bgp rib out <selector> [family <family>]`): Re\-advertise all routes to a peer\.
-- `clear bgp rib out-excluding-owner` (daemon; wire ze-bgp:rib-clear-out-excluding-owner; pipes always: json ndjson table text yaml raw no-more save match count first last display, when-streaming: log, local-only: save; shape map; usage `clear bgp rib out-excluding-owner`): Replay while excluding one original destination owner\.
+- `clear bgp rib out-excluding-owner` (daemon; wire ze-bgp:rib-clear-out-excluding-owner; pipes always: json ndjson table text yaml raw no-more save match count first last display, when-streaming: log, local-only: save; shape map; args owner:uint, family:string; usage `clear bgp rib out-excluding-owner owner <owner> [family <family>]`): Replay while excluding one original destination owner\.
 - `clear container layer` (daemon; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; usage `clear container layer name <container>`): Clear a writable layer\: name \<container\>\.
 - `clear container layer name` (daemon; wire ze-container:clear-layer; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; args value:string; usage `clear container layer name <value>`): Empty the named container\'s writable layer\.
 - `clear cymru cache address` (daemon; wire ze-resolve:clear-cymru-cache-address; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args ip-address:union; usage `clear cymru cache address <ip-address>`): Remove the cached Cymru origin of one IP address\.
@@ -279,8 +279,10 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `clear irr cache as-set` (daemon; wire ze-resolve:clear-irr-cache-as-set; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string; usage `clear irr cache as-set <name>`): Remove the cached IRR answers of one AS\-SET\.
 - `clear isis adjacency all` (daemon; wire ze-isis:clear-adjacency; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `clear isis adjacency all`): Tear down every IS\-IS adjacency so neighbors re\-form\.
 - `clear isis counters` (daemon; wire ze-isis:clear-counters; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `clear isis counters`): Reset IS\-IS observational counters and the SPF log\.
+- `clear l2tp session address` (daemon; wire ze-l2tp:session-teardown-address; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `clear l2tp session address`): Disconnect the subscriber session holding one IPv4 address\.
 - `clear l2tp session all` (daemon; wire ze-l2tp:session-teardown-all; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `clear l2tp session all`): Disconnect every L2TP session on this box\.
 - `clear l2tp session id` (daemon; wire ze-l2tp:session-teardown; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `clear l2tp session id`): Disconnect one subscriber session\.
+- `clear l2tp session user` (daemon; wire ze-l2tp:session-teardown-user; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `clear l2tp session user`): Disconnect the subscriber session of one user name\.
 - `clear l2tp tunnel all` (daemon; wire ze-l2tp:tunnel-teardown-all; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `clear l2tp tunnel all`): Tear down every L2TP tunnel on this box\.
 - `clear l2tp tunnel id` (daemon; wire ze-l2tp:tunnel-teardown; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `clear l2tp tunnel id`): Gracefully tear down one L2TP tunnel\.
 - `clear ospf counters` (daemon; wire ze-ospf:clear-counters; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `clear ospf counters`): Reset the OSPF SPF\-run history\.
@@ -435,7 +437,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `request data repair` (daemon; wire ze-config:data-repair; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args path:string; usage `request data repair <path>`): Write a salvage copy of the store to a new path on the daemon\'s host\.
 - `request data restore` (daemon; wire ze-config:data-restore; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args path:string, config:flag, full:flag, name:string, client:string; usage `request data restore <path> [config] [full] [name <name>] [client <client>]`): Restore a configuration now or accept full\-store recovery after shutdown\.
 - `request fleet disable` (daemon, offline; wire ze-managed:fleet-disable; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request fleet disable`): Leave the fleet\: end the hub connection and stop following the hub\.
-- `request fleet divergence revert` (daemon; wire ze-managed:fleet-divergence-revert; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string, version:string; usage `request fleet divergence revert <name> <version>`): Make a client that holds take the hub\'s configuration\.
+- `request fleet divergence name revert` (daemon, offline; wire ze-managed:fleet-divergence-revert; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string, version:string, hub-version:string; usage `request fleet divergence name <name> revert <version> <hub-version>`): Make a client that holds take the hub\'s configuration\.
 - `request fleet enable` (daemon, offline; wire ze-managed:fleet-enable; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request fleet enable`): Rejoin the fleet\: follow the hub again\.
 - `request halt` (daemon; wire ze-plugin:system-daemon-quit; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request halt`): Dump goroutine stacks to stderr\, then shut down as \'request shutdown\' does\.
 - `request interface down` (daemon; wire ze-iface:interface-down; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string; usage `request interface <name> down`): Shut down an interface\.
@@ -503,7 +505,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `set sysctl` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `set sysctl <key> <value>`): Set a transient sysctl value
 - `set system file-descriptors` (daemon; wire ze-host:set-system-file-descriptors; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args limit:union; usage `set system file-descriptors [limit <limit|max>]`): Raise the file descriptor limit for the daemon process\.
 
-### `show` commands (362)
+### `show` commands (364)
 - `show aaa accounting` (read-only; wire ze-aaa:show-accounting; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show aaa accounting`): Show AAA accounting counters and any dropped records\.
 - `show agent context` (read-only, offline; wire ze-skills:show-agent-context; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show agent context`): Show what an agent session is told about this Ze\.
 - `show agent skill` (read-only, offline; wire ze-skills:show-agent-skill; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args agent:enum; usage `show agent <claude|codex|opencode|pi> skill`): Show whether the ze skill is set up for each agent harness\.
@@ -532,18 +534,18 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `show bgp peer detail` (read-only; wire ze-bgp:peer-detail; pipes always: json ndjson table text yaml raw no-more save match count first last display fill resolve origin, when-streaming: log, local-only: save; shape tab; address-fields local-ip next-hop-address; args selector:string; usage `show bgp peer <selector> detail`): Show full detail for one or more peers\.
 - `show bgp peer history` (read-only; wire ze-bgp:peer-history; pipes always: json ndjson table text yaml raw no-more save match count first last display fill, when-streaming: log, local-only: save; shape tab; args selector:string; usage `show bgp peer <selector> history`): Show FSM state transitions for a peer over time\.
 - `show bgp peer list` (read-only; wire ze-bgp:peer-list; pipes always: json ndjson table text yaml raw no-more save match count first last display fill, when-streaming: log, local-only: save; shape tab; usage `show bgp peer list`): List your peers\, one line each\.
-- `show bgp peer rib` (read-only; wire ze-bgp:peer-rib; pipes always: json ndjson table text yaml raw no-more save match count first last display fill resolve origin, when-streaming: log, local-only: save; shape tab; address-fields peer next-hop; args selector:string; usage `show bgp peer <selector> rib [sent|advertised|received|sent-received]`): Show RIB data scoped to one peer\.
+- `show bgp peer rib` (read-only; wire ze-bgp:peer-rib; pipes always: json ndjson table text yaml raw no-more save match count first last display fill resolve origin, when-streaming: log, local-only: save; shape tab; address-fields peer next-hop; filters `advertised` `aspath` `community` `count` `covering` `exact` `family` `first` `graph` `histogram` `last` `match` `path` `peer` `prefix` `received` `sent` `sent-received`; args selector:string; usage `show bgp peer <selector> rib`): Show RIB data scoped to one peer\.
 - `show bgp peer statistics` (read-only; wire ze-bgp:peer-statistics; pipes always: json ndjson table text yaml raw no-more save match count first last display fill resolve origin, when-streaming: log, local-only: save; shape tab; address-fields address; args selector:string; usage `show bgp peer <selector> statistics`): Show UPDATE throughput for your peers\.
 - `show bgp reject-asn` (read-only; wire ze-bgp:show-reject-asn; pipes always: json ndjson table text yaml raw no-more save match count first last display fill, when-streaming: log, local-only: save; shape tab; usage `show bgp reject-asn`): Show every reject\-asn list\.
 - `show bgp reject-asn known transit-free` (read-only; wire ze-bgp:show-reject-asn-known-transit-free; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; usage `show bgp reject-asn known transit-free`): Print the curated transit\-free ASNs as a config block\.
 - `show bgp reject-asn name` (read-only; wire ze-bgp:show-reject-asn-name; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; args name:string; usage `show bgp reject-asn name <name>`): Show one reject\-asn list\.
-- `show bgp rib` (read-only; wire ze-bgp:rib-routes; pipes always: json ndjson table text yaml raw no-more save match count first last display fill resolve origin, when-streaming: log, local-only: save; shape tab; address-fields peer next-hop; filters `advertised` `community` `count` `covering` `exact` `family` `first` `graph` `histogram` `last` `match` `path` `peer` `prefix` `received`; usage `show bgp rib`): Query routes in the BGP RIB\.
-- `show bgp rib best` (read-only; wire ze-bgp:rib-best; pipes always: json ndjson table text yaml raw no-more save match count first last display fill resolve origin, when-streaming: log, local-only: save; shape tab; address-fields best-peer next-hop; filters `community` `count` `family` `first` `graph` `histogram` `last` `match` `path` `peer` `prefix` `reason`; usage `show bgp rib best`): Show the winning route for each prefix\.
+- `show bgp rib` (read-only; wire ze-bgp:rib-routes; pipes always: json ndjson table text yaml raw no-more save match count first last display fill resolve origin, when-streaming: log, local-only: save; shape tab; address-fields peer next-hop; filters `advertised` `aspath` `community` `count` `covering` `exact` `family` `first` `graph` `histogram` `last` `match` `path` `peer` `prefix` `received` `sent` `sent-received`; usage `show bgp rib`): Query routes in the BGP RIB\.
+- `show bgp rib best` (read-only; wire ze-bgp:rib-best; pipes always: json ndjson table text yaml raw no-more save match count first last display fill resolve origin, when-streaming: log, local-only: save; shape tab; address-fields best-peer next-hop; filters `aspath` `community` `count` `family` `first` `graph` `histogram` `last` `match` `path` `peer` `prefix` `reason`; usage `show bgp rib best`): Show the winning route for each prefix\.
 - `show bgp rib best status` (read-only; wire ze-bgp:rib-best-status; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; usage `show bgp rib best status`): Check whether best\-path computation is still running\.
 - `show bgp rib commands` (read-only; pipes always: json ndjson table text yaml raw no-more save match count first last display fill, when-streaming: log, local-only: save; shape tab; usage `show bgp rib commands`): List RIB commands
 - `show bgp rib events` (read-only; pipes always: json ndjson table text yaml raw no-more save match count first last display, when-streaming: log, local-only: save; shape map; usage `show bgp rib events`): List RIB event types
 - `show bgp rib help` (read-only; pipes always: json ndjson table text yaml raw no-more save match count first last display, when-streaming: log, local-only: save; shape map; usage `show bgp rib help`): Show RIB subcommands
-- `show bgp rib protocol` (read-only; wire ze-bgp:rib-protocol; pipes always: json ndjson table text yaml raw no-more save match count first last display fill resolve origin, when-streaming: log, local-only: save; shape tab; address-fields peer next-hop; filters `advertised` `community` `count` `covering` `exact` `family` `first` `graph` `histogram` `last` `match` `path` `peer` `prefix` `received`; args protocol:string; usage `show bgp rib protocol <protocol>`): Query the routes one protocol feeds into the RIB\.
+- `show bgp rib protocol` (read-only; wire ze-bgp:rib-protocol; pipes always: json ndjson table text yaml raw no-more save match count first last display fill resolve origin, when-streaming: log, local-only: save; shape tab; address-fields peer next-hop; filters `aspath` `community` `count` `covering` `exact` `family` `first` `graph` `histogram` `last` `match` `path` `peer` `prefix`; args protocol:string; usage `show bgp rib protocol <protocol>`): Query the routes one protocol feeds into the RIB\.
 - `show bgp rib rpf` (read-only; wire ze-bgp:rib-rpf; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; address-fields source next-hop; usage `show bgp rib rpf`): Reverse\-path forwarding lookup in the Loc\-RIB\.
 - `show bgp rib status` (read-only; wire ze-bgp:rib-status; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; usage `show bgp rib status`): Get a quick RIB overview without dumping routes\.
 - `show bgp rpki` (read-only; pipes always: json ndjson table text yaml raw no-more save match count first last display fill resolve origin, when-streaming: log, local-only: save; shape tab; address-fields address; aliases `summary`=`display vrp-count validation-enabled sessions-total sessions-established sessions-synced aspa-enabled aspa-records`; usage `show bgp rpki`): Show RPKI validation counters with one row for each cache server
@@ -650,8 +652,8 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `show firewall irr` (read-only; wire ze-firewall:show-irr-status; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show firewall irr`): Show the IRR lists the firewall enforces\.
 - `show firewall irr prefix` (read-only; wire ze-firewall:show-irr-prefix; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string; usage `show firewall irr prefix <name>`): Show the prefixes the firewall enforces for a reference\.
 - `show firewall ruleset` (read-only; wire ze-firewall:show-ruleset; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string; usage `show firewall ruleset <name>`): Show the live firewall ruleset with per\-term counters\.
-- `show fleet divergence` (read-only; wire ze-managed:fleet-divergence-show; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string; usage `show fleet divergence <name>`): What differs for a managed client that holds\.
-- `show fleet divergence list` (read-only; wire ze-managed:fleet-divergence-list; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show fleet divergence list`): The managed clients that hold\, and what the hub keeps for each\.
+- `show fleet divergence list` (read-only, offline; wire ze-managed:fleet-divergence-list; pipes always: json ndjson table text yaml raw no-more save match count first last display fill, when-streaming: log, local-only: save; shape tab; usage `show fleet divergence list`): The managed clients that hold\, and what the hub keeps for each\.
+- `show fleet divergence name` (read-only, offline; wire ze-managed:fleet-divergence-show; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; args name:string; usage `show fleet divergence name <name>`): What differs for a managed client that holds\.
 - `show fleet status` (read-only, offline; wire ze-managed:show-fleet-status; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; usage `show fleet status`): Whether this device follows a hub and matches its last configuration\.
 - `show flow export` (read-only; wire ze-flowexport:show-flow-export; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string; usage `show flow export [name <name>]`): Show flow export \(NetFlow\/IPFIX\) collector status\.
 - `show flow recent` (read-only; wire ze-flowexport:show-flow-recent; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args dst:string; usage `show flow recent [dst <dst>]`): Show recent conntrack flow records from the bounded recent\-flow ring\.
@@ -841,6 +843,8 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `show system update` (read-only; wire ze-update:show-system-update; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show system update`): Check if a firmware update is available\.
 - `show system update history` (read-only; wire ze-update:show-system-update-history; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show system update history`): Show recent firmware update activity\.
 - `show tcp-check` (read-only; wire ze-diag:show-tcp-check; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args host:string, port:uint, source:string, timeout:string; usage `show tcp-check <host> <port> [source <source>] [timeout <timeout>]`): Test TCP connectivity to a remote host and port\.
+- `show thanks licence` (read-only; wire ze-thanks:show-licence; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape blob; filters `name`; usage `show thanks licence`): Print the licence texts of the third\-party works this binary carries\.
+- `show thanks list` (read-only; wire ze-thanks:show-list; pipes always: json ndjson table text yaml raw no-more save match count first last display fill, when-streaming: log, local-only: save; shape tab; usage `show thanks list`): List the third\-party works this binary carries\, with version\, licence and copyright\.
 - `show traceroute` (read-only, offline; wire ze-traceroute:show-traceroute; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args dest:string, max-hops:uint, timeout:string, probes:uint, do-not-fragment:enum; usage `show traceroute [dest <dest>] [max-hops <max-hops>] [timeout <timeout>] [probes <probes>] [do-not-fragment <honor-cache|bypass-cache>]`): Trace the network path from this router to a target\.
 - `show traffic control` (read-only; wire ze-traffic:show-traffic; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show traffic control`): Show traffic control \(QoS\) configuration per interface\.
 - `show traffic feature` (read-only; wire ze-trafficfeature:show-traffic-feature; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string; usage `show traffic feature [name <name>]`): Show neutral per\-source traffic feature signals\.
@@ -877,6 +881,10 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `system version api` (read-only; wire ze-plugin:system-version-api; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `system version api`): Show the IPC protocol version\.
 - `system version software` (read-only; wire ze-plugin:system-version-software; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `system version software`): Show the ze software version\.
 
+### `thanks` commands (2)
+- `thanks` (offline): List the third\-party works this binary carries\, with version\, licence and copyright\.
+- `thanks licence` (offline): Print the licence texts of the third\-party works this binary carries\.
+
 ### `update` commands (23)
 - `update bgp config` (daemon; wire ze-bgp:peer-save; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; usage `update bgp config`): Write the running peer set to the configuration file\.
 - `update bgp peer prefix` (daemon; wire ze-bgp:update-peer-prefix; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string; usage `update bgp peer <selector> prefix`): Refresh max\-prefix limits from PeeringDB\.
@@ -887,7 +895,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `update data config` (daemon; wire ze-config:data-config-update; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string, content:string; usage `update data config <name> content <content>`): Import one config into the daemon\'s store as a new version\.
 - `update data key` (daemon; wire ze-config:data-key-update; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args key:string, content:string; usage `update data key <key> content <content>`): Write one runtime\-state key into the daemon\'s store\.
 - `update firewall domain-group` (daemon; wire ze-firewall:update-domain-group; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string; usage `update firewall domain-group <name>`): Resolve a domain group\'s DNS names now and program its set\.
-- `update fleet divergence adopt` (daemon; wire ze-managed:fleet-divergence-adopt; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string, version:string; usage `update fleet divergence adopt <name> <version>`): Make the configuration a client holds the hub\'s configuration for it\.
+- `update fleet divergence name adopt` (daemon, offline; wire ze-managed:fleet-divergence-adopt; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string, version:string; usage `update fleet divergence name <name> adopt <version>`): Make the configuration a client holds the hub\'s configuration for it\.
 - `update irr all` (daemon; wire ze-irr:update-irr-all; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `update irr all`): Fetch every referenced IRR dataset now\.
 - `update irr as-set` (daemon; wire ze-irr:update-irr-as-set; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args as-set:string; usage `update irr as-set <as-set>`): Fetch the IRR dataset of an AS\-SET now\.
 - `update irr asn` (daemon; wire ze-irr:update-irr-asn; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args asn:union; usage `update irr asn <asn>`): Fetch the IRR dataset of an AS number now\.
@@ -962,86 +970,86 @@ Vendors: Junos MX (object-rooted), IOS XR (family-rooted-for-routing), SR OS (in
 Direct Go modules are grouped by why Ze needs them. This is generated from go.mod plus curated rationale, not copied from package names alone.
 
 ### Terminal, Web & SSH Interfaces (11)
-- `charm.land/bubbletea/v2`: The Elm-style TUI framework driving Ze's interactive CLI: config editor, dashboard, monitor, ping and traceroute views, run per SSH session.
-- `charm.land/bubbles/v2`: Pre-built TUI widgets (text input, viewport) for the CLI's interactive screens.
-- `charm.land/lipgloss/v2`: Styling and layout for the CLI's colors, borders, and widths.
-- `charm.land/wish/v2`: SSH server middleware that wires each incoming session to run the CLI's Bubbletea program.
-- `charm.land/ssh`: SSH session and public-key types that the wish server and the CLI's key-based auth build on.
-- `github.com/a-h/templ`: Compiles the typed server-rendered components used by Ze's web configuration interface and BGP looking glass into Go.
-- `github.com/charmbracelet/colorprofile`: Forces a deterministic color profile in render tests, so CLI screenshot/layout tests don't depend on the terminal running them.
-- `github.com/charmbracelet/x/ansi`: Strips terminal escape codes in the CLI editor tests, so a pattern matches the text the operator sees rather than its color codes.
-- `github.com/muesli/reflow`: ANSI-aware text width calculation, so the CLI's prompt and status bar line up correctly despite embedded color codes.
-- `github.com/creack/pty`: Opens a pseudo-terminal in a Linux integration test that exercises serial console handling.
-- `github.com/chromedp/chromedp`: Drives headless Chrome in a test that proves the website fills its published figures from the facts snapshot.
+- `charm.land/bubbletea/v2`: The Elm-style TUI framework driving Ze's interactive CLI: config editor, dashboard, monitor, ping and traceroute views, run per SSH session. Licence: `MIT`.
+- `charm.land/bubbles/v2`: Pre-built TUI widgets (text input, viewport) for the CLI's interactive screens. Licence: `MIT`.
+- `charm.land/lipgloss/v2`: Styling and layout for the CLI's colors, borders, and widths. Licence: `MIT`.
+- `charm.land/wish/v2`: SSH server middleware that wires each incoming session to run the CLI's Bubbletea program. Licence: `MIT`.
+- `charm.land/ssh`: SSH session and public-key types that the wish server and the CLI's key-based auth build on. Licence: `BSD-3-Clause`.
+- `github.com/a-h/templ`: Compiles the typed server-rendered components used by Ze's web configuration interface and BGP looking glass into Go. Licence: `MIT`.
+- `github.com/charmbracelet/colorprofile`: Forces a deterministic color profile in render tests, so CLI screenshot/layout tests don't depend on the terminal running them. Licence: `MIT`.
+- `github.com/charmbracelet/x/ansi`: Strips terminal escape codes in the CLI editor tests, so a pattern matches the text the operator sees rather than its color codes. Licence: `MIT`.
+- `github.com/muesli/reflow`: ANSI-aware text width calculation, so the CLI's prompt and status bar line up correctly despite embedded color codes. Licence: `MIT`.
+- `github.com/creack/pty`: Opens a pseudo-terminal in a Linux integration test that exercises serial console handling. Licence: `MIT`.
+- `github.com/chromedp/chromedp`: Drives headless Chrome in a test that proves the website fills its published figures from the facts snapshot. Licence: `MIT`.
 
 ### Networking & Protocols (7)
-- `github.com/miekg/dns`: DNS message parsing and serving underneath Ze's DNS server engine, the AS112 blackhole plugin, and GeoDNS. It's the library underpinning CoreDNS.
-- `github.com/insomniacslk/dhcp`: DHCPv4/DHCPv6 client used for interface lease handling and the installer's disk-provisioning DHCP client.
-- `github.com/beevik/ntp`: NTP client queries used by the ntp plugin.
-- `golang.zx2c4.com/wireguard/wgctrl`: Creates and configures WireGuard interfaces and peers from the interface netlink backend.
-- `github.com/mdlayher/packet`: Raw AF_PACKET sockets behind the `diag capture` CLI command.
-- `github.com/packetcap/go-pcap`: Only its filter subpackage: parses tcpdump/BPF-style filter expressions for `diag capture`. Packet capture itself goes through mdlayher/packet instead.
-- `github.com/cloudflare/circl`: Only its Ed448 package: Ed448 signatures for IKEv2 authentication (RFC 8420).
+- `github.com/miekg/dns`: DNS message parsing and serving underneath Ze's DNS server engine, the AS112 blackhole plugin, and GeoDNS. It's the library underpinning CoreDNS. Licence: `BSD-3-Clause`.
+- `github.com/insomniacslk/dhcp`: DHCPv4/DHCPv6 client used for interface lease handling and the installer's disk-provisioning DHCP client. Licence: `BSD-3-Clause`.
+- `github.com/beevik/ntp`: NTP client queries used by the ntp plugin. Licence: `BSD-2-Clause`.
+- `golang.zx2c4.com/wireguard/wgctrl`: Creates and configures WireGuard interfaces and peers from the interface netlink backend. Licence: `MIT`.
+- `github.com/mdlayher/packet`: Raw AF_PACKET sockets behind the `diag capture` CLI command. Licence: `MIT`.
+- `github.com/packetcap/go-pcap`: Only its filter subpackage: parses tcpdump/BPF-style filter expressions for `diag capture`. Packet capture itself goes through mdlayher/packet instead. Licence: `Apache-2.0`.
+- `github.com/cloudflare/circl`: Only its Ed448 package: Ed448 signatures for IKEv2 authentication (RFC 8420). Licence: `BSD-3-Clause`.
 
 ### Linux Kernel Interfaces (12)
-- `github.com/vishvananda/netlink`: The main library for configuring the Linux network stack: links, addresses, routes, neighbors, bridges, VLANs, tunnels, IPsec, QoS. Used across interfaces, traffic, FIB, OSPF, ISIS, and MPLS.
-- `github.com/vishvananda/netns`: Linux network-namespace handles, used alongside netlink for namespace-scoped route watching.
-- `github.com/google/nftables`: Programs the kernel's nftables firewall (tables, chains, rules, sets) over netlink.
-- `github.com/mdlayher/netlink`: Low-level generic netlink sockets, used to flush conntrack flow entries for flow export.
-- `github.com/mdlayher/genetlink`: Generic netlink family dialing, used to attach to the kernel's psample subsystem for sampled flow export.
-- `github.com/cilium/ebpf`: Assembles and attaches eBPF programs in pure Go, no clang or libbpf needed, to count traffic for the trafficusage plugin.
-- `filippo.io/mlockexe`: Locks the running ze executable's own file-backed pages in memory with mlock2(2) and MLOCK_ONFAULT, so the kernel cannot evict the daemon's text under memory pressure. A router short of memory reclaims page cache, and the running daemon IS...
-- `github.com/opencontainers/runc`: Provides the libcontainer runtime library used by the Linux container plugin, including its container init sequence.
-- `github.com/opencontainers/cgroups`: Describes and manages the Linux control groups used by the container plugin for resource limits and cleanup.
-- `github.com/opencontainers/runtime-spec`: Provides OCI seccomp action definitions used by the container plugin's system-call filter tests.
-- `github.com/cyphar/filepath-securejoin`: Resolves each path inside a container image layer without letting a symbolic link or '..' escape the image's root, when the container image store unpacks a layer on Linux.
-- `github.com/klauspost/compress`: Decodes zstd-compressed container image layers in the container image store, with one decoder thread and a bounded window.
+- `github.com/vishvananda/netlink`: The main library for configuring the Linux network stack: links, addresses, routes, neighbors, bridges, VLANs, tunnels, IPsec, QoS. Used across interfaces, traffic, FIB, OSPF, ISIS, and MPLS. Licence: `Apache-2.0`.
+- `github.com/vishvananda/netns`: Linux network-namespace handles, used alongside netlink for namespace-scoped route watching. Licence: `Apache-2.0`.
+- `github.com/google/nftables`: Programs the kernel's nftables firewall (tables, chains, rules, sets) over netlink. Licence: `Apache-2.0`.
+- `github.com/mdlayher/netlink`: Low-level generic netlink sockets, used to flush conntrack flow entries for flow export. Licence: `MIT`.
+- `github.com/mdlayher/genetlink`: Generic netlink family dialing, used to attach to the kernel's psample subsystem for sampled flow export. Licence: `MIT`.
+- `github.com/cilium/ebpf`: Assembles and attaches eBPF programs in pure Go, no clang or libbpf needed, to count traffic for the trafficusage plugin. Licence: `MIT`.
+- `filippo.io/mlockexe`: Locks the running ze executable's own file-backed pages in memory with mlock2(2) and MLOCK_ONFAULT, so the kernel cannot evict the daemon's text under memory pressure. A router short of memory reclaims page cache, and the running daemon IS... Licence: `CC0-1.0 OR 0BSD`.
+- `github.com/opencontainers/runc`: Provides the libcontainer runtime library used by the Linux container plugin, including its container init sequence. Licence: `Apache-2.0`.
+- `github.com/opencontainers/cgroups`: Describes and manages the Linux control groups used by the container plugin for resource limits and cleanup. Licence: `Apache-2.0`.
+- `github.com/opencontainers/runtime-spec`: Provides OCI seccomp action definitions used by the container plugin's system-call filter tests. Licence: `Apache-2.0`.
+- `github.com/cyphar/filepath-securejoin`: Resolves each path inside a container image layer without letting a symbolic link or '..' escape the image's root, when the container image store unpacks a layer on Linux. Licence: `BSD-3-Clause AND MPL-2.0`.
+- `github.com/klauspost/compress`: Decodes zstd-compressed container image layers in the container image store, with one decoder thread and a bounded window. Licence: `BSD-3-Clause AND Apache-2.0 AND MIT`.
 
 ### Routing & Dataplane (2)
-- `github.com/gaissmai/bart`: Balanced Routing Table, built on Knuth's Allotment Routing Table (ART): the longest-prefix-match structure underneath Ze's RIB store.
-- `go.fd.io/govpp`: Binary-API client for FD.io VPP, used by the optional VPP dataplane backends for interfaces, firewall, traffic, FIB, and IKE.
+- `github.com/gaissmai/bart`: Balanced Routing Table, built on Knuth's Allotment Routing Table (ART): the longest-prefix-match structure underneath Ze's RIB store. Licence: `MIT`.
+- `go.fd.io/govpp`: Binary-API client for FD.io VPP, used by the optional VPP dataplane backends for interfaces, firewall, traffic, FIB, and IKE. Licence: `Apache-2.0`.
 
 ### Config, RPC & Telemetry (5)
-- `github.com/openconfig/goyang`: Parses and validates the YANG module definitions behind Ze's config schema, CLI completion, and validation engine.
-- `github.com/openconfig/gnmi`: Generated gNMI protobuf/gRPC types that Ze's gNMI server implements for Get/Set/Subscribe/Capabilities.
-- `google.golang.org/grpc`: Backs Ze's gRPC servers: gNMI and Ze's own management API.
-- `google.golang.org/protobuf`: Runtime support for the generated protobuf message types behind Ze's gRPC API.
-- `google.golang.org/grpc/cmd/protoc-gen-go-grpc`: Build-time only: the protoc plugin used to regenerate the gRPC API's Go bindings from ze.proto.
+- `github.com/openconfig/goyang`: Parses and validates the YANG module definitions behind Ze's config schema, CLI completion, and validation engine. Licence: `Apache-2.0`.
+- `github.com/openconfig/gnmi`: Generated gNMI protobuf/gRPC types that Ze's gNMI server implements for Get/Set/Subscribe/Capabilities. Licence: `Apache-2.0`.
+- `google.golang.org/grpc`: Backs Ze's gRPC servers: gNMI and Ze's own management API. Licence: `Apache-2.0`.
+- `google.golang.org/protobuf`: Runtime support for the generated protobuf message types behind Ze's gRPC API. Licence: `BSD-3-Clause`.
+- `google.golang.org/grpc/cmd/protoc-gen-go-grpc`: Build-time only: the protoc plugin used to regenerate the gRPC API's Go bindings from ze.proto. Licence: `Apache-2.0`.
 
 ### Observability (5)
-- `github.com/prometheus/client_golang`: Ze's internal metrics backend: counters, gauges, and histograms against a private registry.
-- `github.com/prometheus/client_model`: The metric sample types the L2TP subscriber tests and the BGP interop lab read a gauge's current value through.
-- `github.com/prometheus/common`: Reads the Prometheus text exposition format back: the IPsec interop test parses Ze's own metrics answer and compares the gauges against the kernel.
-- `github.com/prometheus/procfs`: Parses Linux /proc for the telemetry collector: CPU, memory, network device and socket stats, conntrack, softnet.
-- `github.com/sirupsen/logrus`: Only to satisfy GoVPP's logging interface, bridged into Ze's own slog logger via a hook. Not used as Ze's own logger.
+- `github.com/prometheus/client_golang`: Ze's internal metrics backend: counters, gauges, and histograms against a private registry. Licence: `Apache-2.0`.
+- `github.com/prometheus/client_model`: The metric sample types the L2TP subscriber tests and the BGP interop lab read a gauge's current value through. Licence: `Apache-2.0`.
+- `github.com/prometheus/common`: Reads the Prometheus text exposition format back: the IPsec interop test parses Ze's own metrics answer and compares the gauges against the kernel. Licence: `Apache-2.0`.
+- `github.com/prometheus/procfs`: Parses Linux /proc for the telemetry collector: CPU, memory, network device and socket stats, conntrack, softnet. Licence: `Apache-2.0`.
+- `github.com/sirupsen/logrus`: Only to satisfy GoVPP's logging interface, bridged into Ze's own slog logger via a hook. Not used as Ze's own logger. Licence: `MIT`.
 
 ### Standard Library Extensions (golang.org/x) (9)
-- `golang.org/x/crypto`: SSH protocol primitives and certificate signing for the SSH server, plus password hashing.
-- `golang.org/x/mod`: Parses and rewrites go.mod files when the appliance build prepares an isolated instance of the tree, so an image is never built from the tracked working copy.
-- `golang.org/x/net`: Raw ICMP packet connections for the traceroute plugin, and hostname normalization for MCP's auth.
-- `golang.org/x/sync`: errgroup, which the plugin manager uses to drain every plugin's event queue concurrently and return the first failure.
-- `golang.org/x/sys`: Low-level Linux syscalls: disk sync and reboot in the installer, used throughout the Linux-specific components.
-- `golang.org/x/term`: Reads passwords without echo and detects an interactive terminal during CLI login.
-- `golang.org/x/text`: Prepares TACACS+ usernames with the PRECIS UsernameCasePreserved profile that RFC 8907 Section 3.7 requires.
-- `golang.org/x/tools`: Build-time only: goimports, pinned via a tools.go tracking file, never compiled into Ze's binaries.
-- `golang.org/x/vuln`: Build-time only: govulncheck, pinned through the tools.go tracking file, which reports known vulnerabilities in the modules Ze vendors.
+- `golang.org/x/crypto`: SSH protocol primitives and certificate signing for the SSH server, plus password hashing. Licence: `BSD-3-Clause`.
+- `golang.org/x/mod`: Parses and rewrites go.mod files when the appliance build prepares an isolated instance of the tree, so an image is never built from the tracked working copy. Licence: `BSD-3-Clause`.
+- `golang.org/x/net`: Raw ICMP packet connections for the traceroute plugin, and hostname normalization for MCP's auth. Licence: `BSD-3-Clause`.
+- `golang.org/x/sync`: errgroup, which the plugin manager uses to drain every plugin's event queue concurrently and return the first failure. Licence: `BSD-3-Clause`.
+- `golang.org/x/sys`: Low-level Linux syscalls: disk sync and reboot in the installer, used throughout the Linux-specific components. Licence: `BSD-3-Clause`.
+- `golang.org/x/term`: Reads passwords without echo and detects an interactive terminal during CLI login. Licence: `BSD-3-Clause`.
+- `golang.org/x/text`: Prepares TACACS+ usernames with the PRECIS UsernameCasePreserved profile that RFC 8907 Section 3.7 requires. Licence: `BSD-3-Clause`.
+- `golang.org/x/tools`: Build-time only: goimports, pinned via a tools.go tracking file, never compiled into Ze's binaries. Licence: `BSD-3-Clause`.
+- `golang.org/x/vuln`: Build-time only: govulncheck, pinned through the tools.go tracking file, which reports known vulnerabilities in the modules Ze vendors. Licence: `BSD-3-Clause`.
 
 ### Testing & Build Tooling (15)
-- `github.com/gofrs/flock`: Locks pending RFC approval records while development tools update them, so concurrent writers preserve each other's approvals.
-- `github.com/moby/sys/user`: Parses container account files through the runtime library; regression tests check valid groups and rejection of oversized group lines.
-- `github.com/moby/patternmatcher`: Applies .dockerignore patterns when preparing the files sent to Docker for lab image builds.
-- `mvdan.cc/sh/v3`: Parses Bash commands so the agent safety checks can inspect the commands a session is about to run.
-- `github.com/stretchr/testify`: Assertion and require helpers used across the Go unit test suite.
-- `github.com/pelletier/go-toml/v2`: Parses kl2tpd TOML configuration in the L2TP scale-input tests.
-- `github.com/gokrazy/gokapi`: Exercises the gokrazy on-device API's remote connection setup in appliance updater tests, proving reserved password bytes survive URL construction and invalid-port errors omit credentials.
-- `github.com/gokrazy/tools`: Drives gokrazy appliance image builds from Ze's appliance build tooling.
-- `github.com/gokrazy/updater`: Referenced only in a regression test against Ze's own vendored update-push logic, written locally after a bug was found upstream. Not used in production.
-- `github.com/sivchari/gomu`: Mutation-testing tool, run as a native Go command to advisory-score how well the test suite exercises the code. Not a build or CI gate.
-- `gopkg.in/yaml.v3`: Parses GitHub Actions workflow YAML in verification tests so aliases, duplicate keys, and malformed trigger structures fail closed.
-- `github.com/golangci/golangci-lint/v2`: The linter behind `./le go lint run`, pinned through the tools.go tracking file so every machine and every CI job lints with one version.
-- `honnef.co/go/tools`: Staticcheck, run beside golangci-lint from the same tools.go pin, for the analyses golangci-lint does not carry.
-- `github.com/yuin/goldmark`: Renders the Markdown of `docs/` and the website into the published HTML pages, in the Go site build that replaced the retired Python renderers.
-- `github.com/anmitsu/go-shlex`: Splits an operator-typed command line into words for the stress-reproduction runner, so a quoted argument survives.
+- `github.com/gofrs/flock`: Locks pending RFC approval records while development tools update them, so concurrent writers preserve each other's approvals. Licence: `BSD-3-Clause`.
+- `github.com/moby/sys/user`: Parses container account files through the runtime library; regression tests check valid groups and rejection of oversized group lines. Licence: `Apache-2.0`.
+- `github.com/moby/patternmatcher`: Applies .dockerignore patterns when preparing the files sent to Docker for lab image builds. Licence: `Apache-2.0`.
+- `mvdan.cc/sh/v3`: Parses Bash commands so the agent safety checks can inspect the commands a session is about to run. Licence: `BSD-3-Clause`.
+- `github.com/stretchr/testify`: Assertion and require helpers used across the Go unit test suite. Licence: `MIT`.
+- `github.com/pelletier/go-toml/v2`: Parses kl2tpd TOML configuration in the L2TP scale-input tests. Licence: `MIT`.
+- `github.com/gokrazy/gokapi`: Exercises the gokrazy on-device API's remote connection setup in appliance updater tests, proving reserved password bytes survive URL construction and invalid-port errors omit credentials. Licence: `BSD-3-Clause`.
+- `github.com/gokrazy/tools`: Drives gokrazy appliance image builds from Ze's appliance build tooling. Licence: `BSD-3-Clause`.
+- `github.com/gokrazy/updater`: Referenced only in a regression test against Ze's own vendored update-push logic, written locally after a bug was found upstream. Not used in production. Licence: `BSD-3-Clause`.
+- `github.com/sivchari/gomu`: Mutation-testing tool, run as a native Go command to advisory-score how well the test suite exercises the code. Not a build or CI gate. Licence: `MIT`.
+- `gopkg.in/yaml.v3`: Parses GitHub Actions workflow YAML in verification tests so aliases, duplicate keys, and malformed trigger structures fail closed. Licence: `MIT AND Apache-2.0`.
+- `github.com/golangci/golangci-lint/v2`: The linter behind `./le go lint run`, pinned through the tools.go tracking file so every machine and every CI job lints with one version. Licence: `GPL-3.0`.
+- `honnef.co/go/tools`: Staticcheck, run beside golangci-lint from the same tools.go pin, for the analyses golangci-lint does not carry. Licence: `MIT`.
+- `github.com/yuin/goldmark`: Renders the Markdown of `docs/` and the website into the published HTML pages, in the Go site build that replaced the retired Python renderers. Licence: `MIT`.
+- `github.com/anmitsu/go-shlex`: Splits an operator-typed command line into words for the stress-reproduction runner, so a quoted argument survives. Licence: `MIT`.
 
 ## Complete documentation index
 
@@ -1243,7 +1251,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 
 ### Live system
 - [Reference index](https://ze-software.net/reference/index.md): Commands, configuration, plugins, standards, and feature status (web: https://ze-software.net/reference/)
-- [CLI reference](https://ze-software.net/reference/cli/index.md): 617 commands, generated from Ze's live binary (web: https://ze-software.net/reference/cli/)
+- [CLI reference](https://ze-software.net/reference/cli/index.md): 623 commands, generated from Ze's live binary (web: https://ze-software.net/reference/cli/)
 - [Configuration reference](https://ze-software.net/reference/configuration/index.md): 39 sections, generated from Ze's YANG schemas (web: https://ze-software.net/reference/configuration/)
 - [Plugin catalogue](https://ze-software.net/reference/plugins/index.md): Find runtime plugins by purpose, config, or dependency (web: https://ze-software.net/reference/plugins/)
 ### Standards and lookup

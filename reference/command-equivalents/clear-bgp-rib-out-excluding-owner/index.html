@@ -54,7 +54,7 @@
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
 <dl class="cmd-meta">
 <div><dt>Registry path</dt><dd><code>clear bgp rib out-excluding-owner</code></dd></div>
-<div><dt>Usage</dt><dd><code>clear bgp rib out-excluding-owner</code></dd></div>
+<div><dt>Usage</dt><dd><code>clear bgp rib out-excluding-owner owner &lt;owner&gt; [family &lt;family&gt;]</code></dd></div>
 <div><dt>Mode</dt><dd>Daemon</dd></div>
 <div><dt>Wire method</dt><dd><code>ze-bgp:rib-clear-out-excluding-owner</code></dd></div>
 <div><dt>Backends</dt><dd>any backend</dd></div>
@@ -67,7 +67,13 @@
 </dl>
 <h3>Description</h3><p>Re-advertise to current destinations except one captured original<br>peer owner. This narrows replay and grants no send permission. The ordinary out command<br>and its literal peer selectors keep their existing grammar.</p>
 <h3>Arguments</h3>
-<p>No command-specific arguments listed.</p>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>owner</code></td><td>uint</td><td>yes</td><td>any value of this type</td><td>Original destination owner to exclude</td><td>The configured Peer owner whose original destination is left out of
+the replay, typed after its keyword as owner 12. It narrows the replay and grants no send
+permission.</td></tr>
+<tr><td><code>family</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Address family to replay, such as ipv4/unicast</td><td>An address family such as ipv4/unicast, typed after its keyword.
+Absent, every family the session negotiated is replayed.</td></tr>
+</tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
 <article class="cmd-detail-card cmd-vendor-detail"><h2>Juniper Junos MX</h2>
@@ -132,7 +138,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
                 </div>
             </div>
         </footer>

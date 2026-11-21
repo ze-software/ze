@@ -745,9 +745,9 @@ the check waits for a strictly newer event.
 
 Commit the RTR cache and validation binding live, distinguish Valid, NotFound and ineligible Invalid routes, diagnose a stopped cache, and restore synchronization.
 
-[Download the asciicast recording](../../assets/demos/rpki.cast?v=c8eada776e) · [Plain-text transcript](../../assets/demos/rpki.txt?v=8853dceca8)
+[Download the asciicast recording](../../assets/demos/rpki.cast?v=b62e61c1ee) · [Plain-text transcript](../../assets/demos/rpki.txt?v=37b95d3e88)
 
-Recorded with Ze 26.10.28 in a Linux namespace lab using Ze recorder. Duration: 3 minutes 57 seconds.
+Recorded with Ze 26.11.20 in a Linux namespace lab using Ze recorder. Duration: 2 minutes 35 seconds.
 
 ```console
 RPKI: live policy, failure diagnosis and recovery
@@ -763,9 +763,9 @@ $ ze cli -c 'show bgp adj-rib-in | no-more'
 In the SSH editor, load the cache, validation policy and transit binding sections:
 $ ze-demo card topic-rpki overview
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/rpki/1-cache.conf
-ze# load file absolute merge /src/demos/terminal/topics/rpki/2-policy.conf
-ze# load file absolute merge /src/demos/terminal/topics/rpki/3-attach.conf
+ze# load file absolute merge topics/rpki/1-cache.conf
+ze# load file absolute merge topics/rpki/2-policy.conf
+ze# load file absolute merge topics/rpki/3-attach.conf
 ze# show | compare
 ze# commit now
 ze# exit

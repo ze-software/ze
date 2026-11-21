@@ -106,7 +106,7 @@ the same configuration and demonstration fragments as this continuous recording.
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/showcase.cast?v=a7426845c0"
+      data-cast-src="../../assets/demos/showcase.cast?v=f7b16356ea"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -114,13 +114,13 @@ the same configuration and demonstration fragments as this continuous recording.
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/showcase.cast?v=a7426845c0">Download the asciicast</a> or
-      <a href="../../assets/demos/showcase.txt?v=8bf911576a">read the transcript</a>.</p>
+      page's own player. <a href="../../assets/demos/showcase.cast?v=f7b16356ea">Download the asciicast</a> or
+      <a href="../../assets/demos/showcase.txt?v=0efc0de27d">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.10.28</span><span>32 minutes 57 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
-    <a href="../../assets/demos/showcase.txt?v=8bf911576a">Plain-text transcript</a>
+    <span>Ze 26.11.20</span><span>21 minutes 57 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
+    <a href="../../assets/demos/showcase.txt?v=0efc0de27d">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
@@ -175,9 +175,9 @@ ze&gt; exit
 
 RPKI live configuration, outage diagnosis and recovery:
 $ ze-demo card topic-rpki lab
-ze# load file absolute merge /src/demos/terminal/topics/rpki/1-cache.conf
-ze# load file absolute merge /src/demos/terminal/topics/rpki/2-policy.conf
-ze# load file absolute merge /src/demos/terminal/topics/rpki/3-attach.conf
+ze# load file absolute merge topics/rpki/1-cache.conf
+ze# load file absolute merge topics/rpki/2-policy.conf
+ze# load file absolute merge topics/rpki/3-attach.conf
 ze# show | compare
 ze# commit now
 $ ze cli -c &#39;show bgp rpki status | yaml | no-more&#39;
@@ -189,25 +189,25 @@ $ ze cli -c &#39;show bgp rpki status | yaml | no-more&#39;
 
 IRR live configuration, wrong AS-SET and repaired route decisions:
 $ ze-demo card topic-irr lab
-ze# load file absolute merge /src/demos/terminal/topics/irr/1-server.conf
-ze# load file absolute merge /src/demos/terminal/topics/irr/2-as-set.conf
-ze# load file absolute merge /src/demos/terminal/topics/irr/3-import.conf
+ze# load file absolute merge topics/irr/1-server.conf
+ze# load file absolute merge topics/irr/2-as-set.conf
+ze# load file absolute merge topics/irr/3-import.conf
 ze# show | compare
 ze# commit now
 $ ze cli -c &#39;show bgp irr check customer 10.0.0.0/24 | yaml | no-more&#39;
-ze# load file absolute merge /src/demos/terminal/topics/irr/4-wrong-as-set.conf
+ze# load file absolute merge topics/irr/4-wrong-as-set.conf
 ze# commit now
 $ ze cli -c &#39;show bgp irr prefix customer | yaml | no-more&#39;
-ze# load file absolute merge /src/demos/terminal/topics/irr/2-as-set.conf
+ze# load file absolute merge topics/irr/2-as-set.conf
 ze# commit now
-$ ze cli -c &#39;update bgp irr as-set AS-TEST | yaml | no-more&#39;
+$ ze cli -c &#39;update irr as-set AS-TEST | yaml | no-more&#39;
 $ ze-demo run showcase-lab control customer reannounce
 $ ze cli -c &#39;show bgp adj-rib-in | no-more&#39;
 
 BFD opt-in, link failure and session recovery:
 $ ze-demo card topic-bfd overview
-ze# load file absolute merge /src/demos/terminal/topics/bfd/1-profile.conf
-ze# load file absolute merge /src/demos/terminal/topics/bfd/2-peer.conf
+ze# load file absolute merge topics/bfd/1-profile.conf
+ze# load file absolute merge topics/bfd/2-peer.conf
 ze# show | compare
 ze# commit now
 $ ze cli -c &#39;show bfd session address 172.29.0.2 | no-more&#39;
@@ -218,37 +218,37 @@ $ ze cli -c &#39;show bfd session address 172.29.0.2 | no-more&#39;
 
 OSPF adjacency, Hello mismatch diagnosis and recovery:
 $ ze-demo card topic-ospf overview
-ze# load file absolute merge /src/demos/terminal/topics/ospf/1-area.conf
-ze# load file absolute merge /src/demos/terminal/topics/ospf/2-interface.conf
+ze# load file absolute merge topics/ospf/1-area.conf
+ze# load file absolute merge topics/ospf/2-interface.conf
 ze# show | compare
 ze# commit now
 $ ze cli -c &#39;show ospf neighbor detail | no-more&#39;
 $ ze cli -c &#39;show ospf route | no-more&#39;
-ze# load file absolute merge /src/demos/terminal/topics/ospf/3-mismatch.conf
+ze# load file absolute merge topics/ospf/3-mismatch.conf
 ze# commit now
 $ ze cli -c &#39;show metrics name ze_ospf_packets_dropped_total label interface frr0 label reason hello-interval | no-more&#39;
-ze# load file absolute merge /src/demos/terminal/topics/ospf/4-recovery.conf
+ze# load file absolute merge topics/ospf/4-recovery.conf
 ze# commit now
 $ ze cli -c &#39;show ospf neighbor detail | no-more&#39;
 $ ze cli -c &#39;show ospf route | no-more&#39;
 
 IPsec live tunnel, proposal mismatch and protected traffic recovery:
 $ ze-demo card topic-ipsec lab
-ze# load file absolute merge /src/demos/terminal/topics/ipsec/1-ike.conf
-ze# load file absolute merge /src/demos/terminal/topics/ipsec/2-esp.conf
-ze# load file absolute merge /src/demos/terminal/topics/ipsec/3-peer.conf
-ze# load file absolute merge /src/demos/terminal/topics/ipsec/4-xfrm.conf
+ze# load file absolute merge topics/ipsec/1-ike.conf
+ze# load file absolute merge topics/ipsec/2-esp.conf
+ze# load file absolute merge topics/ipsec/3-peer.conf
+ze# load file absolute merge topics/ipsec/4-xfrm.conf
 ze# show | compare
 ze# commit now
 $ ze cli -c &#39;show vpn ipsec dataplane sa | no-more&#39;
 $ ze-demo run showcase-lab control vpn ping
-ze# load file absolute merge /src/demos/terminal/topics/ipsec/5-mismatch.conf
+ze# load file absolute merge topics/ipsec/5-mismatch.conf
 ze# commit now
 $ ze cli -c &#39;show vpn ipsec peer name responder | no-more&#39;
 $ ze cli -c &#39;show log recent level warn | match NO_PROPOSAL_CHOSEN | last 1 | yaml | no-more&#39;
 $ ze cli -c &#39;show vpn ipsec dataplane sa | yaml | no-more&#39;
 $ ze cli -c &#39;show vpn ipsec dataplane drift | yaml | no-more&#39;
-ze# load file absolute merge /src/demos/terminal/topics/ipsec/2-esp.conf
+ze# load file absolute merge topics/ipsec/2-esp.conf
 ze# commit now
 $ ze cli -c &#39;clear vpn ipsec sa peer responder | no-more&#39;
 $ ze-demo run showcase-lab control vpn ping
@@ -256,8 +256,8 @@ $ ze cli -c &#39;show vpn ipsec dataplane sa | no-more&#39;
 
 VRRP tracked preference, reduced-priority takeover and recovery:
 $ ze-demo card topic-vrrp overview
-ze# load file absolute merge /src/demos/terminal/topics/vrrp/1-group.conf
-ze# load file absolute merge /src/demos/terminal/topics/vrrp/2-tracking.conf
+ze# load file absolute merge topics/vrrp/1-group.conf
+ze# load file absolute merge topics/vrrp/2-tracking.conf
 ze# show | compare
 ze# commit now
 $ ze cli -c &#39;show vrrp interface name zeptrk0 | no-more&#39;
@@ -271,8 +271,8 @@ $ ze cli -c &#39;show vrrp statistics | no-more&#39;
 
 Traffic accounting, heavier senders and settled counters:
 $ ze-demo card topic-traffic overview
-ze# load file absolute merge /src/demos/terminal/topics/traffic/1-accounting.conf
-ze# load file absolute merge /src/demos/terminal/topics/traffic/2-interface.conf
+ze# load file absolute merge topics/traffic/1-accounting.conf
+ze# load file absolute merge topics/traffic/2-interface.conf
 ze# show | compare
 ze# commit now
 $ ip netns exec traffic-peer ping -c 3 -W 2 10.77.0.1
@@ -284,14 +284,14 @@ $ ze cli -c &#39;show traffic usage name traffic0 | no-more&#39;
 
 Confirmed commit rollback and explicit acceptance:
 $ ze-demo card topic-commit-confirmed lab
-ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf
+ze# load file absolute merge topics/commit-confirmed/1-trial-host.conf
 ze# show | compare
-ze# commit confirmed 8
+ze# commit confirmed 15
 ze# show system host
 ze# show system host
 ze# show | compare
 ze# show | changes
-ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf
+ze# load file absolute merge topics/commit-confirmed/2-confirmed-host.conf
 ze# show | compare
 ze# commit confirmed 15
 ze# commit accept
@@ -322,7 +322,7 @@ $ ze-demo card showcase recap</code></pre>
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/launcher.cast?v=34f1e25629"
+      data-cast-src="../../assets/demos/launcher.cast?v=3e0679653a"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -330,12 +330,12 @@ $ ze-demo card showcase recap</code></pre>
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/launcher.cast?v=34f1e25629">Download the asciicast</a> or
+      page's own player. <a href="../../assets/demos/launcher.cast?v=3e0679653a">Download the asciicast</a> or
       <a href="../../assets/demos/launcher.txt?v=0399dbc59f">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.10.09</span><span>58 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
+    <span>Ze 26.11.20</span><span>1 minute 57 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
     <a href="../../assets/demos/launcher.txt?v=0399dbc59f">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -367,7 +367,7 @@ Press Escape to move back through the menu and return to the shell.</code></pre>
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/cli-dashboard.cast?v=daa8ddc3ec"
+      data-cast-src="../../assets/demos/cli-dashboard.cast?v=ded54531e5"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -375,12 +375,12 @@ Press Escape to move back through the menu and return to the shell.</code></pre>
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/cli-dashboard.cast?v=daa8ddc3ec">Download the asciicast</a> or
+      page's own player. <a href="../../assets/demos/cli-dashboard.cast?v=ded54531e5">Download the asciicast</a> or
       <a href="../../assets/demos/cli-dashboard.txt?v=86542601eb">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.10.09</span><span>45 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
+    <span>Ze 26.11.20</span><span>37 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
     <a href="../../assets/demos/cli-dashboard.txt?v=86542601eb">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -411,7 +411,7 @@ The dashboard polls three local BGP sessions. Press &#34;s&#34; to sort by the n
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/zefs-config.cast?v=bd9dbca818"
+      data-cast-src="../../assets/demos/zefs-config.cast?v=d5973a2454"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -419,13 +419,13 @@ The dashboard polls three local BGP sessions. Press &#34;s&#34; to sort by the n
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/zefs-config.cast?v=bd9dbca818">Download the asciicast</a> or
-      <a href="../../assets/demos/zefs-config.txt?v=586e5c6ada">read the transcript</a>.</p>
+      page's own player. <a href="../../assets/demos/zefs-config.cast?v=d5973a2454">Download the asciicast</a> or
+      <a href="../../assets/demos/zefs-config.txt?v=2674c1918e">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.10.09</span><span>3 minutes 7 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
-    <a href="../../assets/demos/zefs-config.txt?v=586e5c6ada">Plain-text transcript</a>
+    <span>Ze 26.11.20</span><span>2 minutes 16 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
+    <a href="../../assets/demos/zefs-config.txt?v=2674c1918e">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
@@ -446,7 +446,7 @@ $ ssh ze-demo show bgp
 $ ssh ze-demo
 ze# set environment cli format default table
 ze# show | compare
-ze# commit
+ze# commit now
 Session committed
 ze# exit
 ze&gt; exit
@@ -480,7 +480,7 @@ $ ze cli -c &#39;show bgp | raw&#39; | ze pipe text
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/rbac.cast?v=ad89e9aeef"
+      data-cast-src="../../assets/demos/rbac.cast?v=79bdeaa07a"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -488,13 +488,13 @@ $ ze cli -c &#39;show bgp | raw&#39; | ze pipe text
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/rbac.cast?v=ad89e9aeef">Download the asciicast</a> or
-      <a href="../../assets/demos/rbac.txt?v=939addc51a">read the transcript</a>.</p>
+      page's own player. <a href="../../assets/demos/rbac.cast?v=79bdeaa07a">Download the asciicast</a> or
+      <a href="../../assets/demos/rbac.txt?v=d2a17306f1">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.10.09</span><span>1 minute 13 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
-    <a href="../../assets/demos/rbac.txt?v=939addc51a">Plain-text transcript</a>
+    <span>Ze 26.11.20</span><span>1 minute 36 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
+    <a href="../../assets/demos/rbac.txt?v=d2a17306f1">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
@@ -511,7 +511,7 @@ profile read-only
 $ ze cli --user noc -c &#39;show version&#39;
 version: ze 26.07.18
 
-$ ze cli --user noc -c &#39;clear interface counters&#39;
+$ ze cli --user noc -c &#39;clear interface counters all&#39;
 error: command restricted by access control
 
 The recording displays the command restriction and the NOC user&#39;s profile binding before exercising both paths. The daemon allows `show version`, then rejects the matching `clear` command before execution.</code></pre>
@@ -536,7 +536,7 @@ The recording displays the command restriction and the NOC user&#39;s profile bi
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/traceroute.cast?v=60ee2d3f6b"
+      data-cast-src="../../assets/demos/traceroute.cast?v=62346c593a"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -544,12 +544,12 @@ The recording displays the command restriction and the NOC user&#39;s profile bi
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/traceroute.cast?v=60ee2d3f6b">Download the asciicast</a> or
+      page's own player. <a href="../../assets/demos/traceroute.cast?v=62346c593a">Download the asciicast</a> or
       <a href="../../assets/demos/traceroute.txt?v=2b9d95cc69">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.10.09</span><span>46 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
+    <span>Ze 26.11.20</span><span>33 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
     <a href="../../assets/demos/traceroute.txt?v=2b9d95cc69">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -618,7 +618,7 @@ Expected result: Ze commits the browser user&#39;s isolated draft and the active
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/commit-confirmed.cast?v=d61a5f86c6"
+      data-cast-src="../../assets/demos/commit-confirmed.cast?v=8a0a534d94"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -626,20 +626,20 @@ Expected result: Ze commits the browser user&#39;s isolated draft and the active
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/commit-confirmed.cast?v=d61a5f86c6">Download the asciicast</a> or
-      <a href="../../assets/demos/commit-confirmed.txt?v=bba89459a1">read the transcript</a>.</p>
+      page's own player. <a href="../../assets/demos/commit-confirmed.cast?v=8a0a534d94">Download the asciicast</a> or
+      <a href="../../assets/demos/commit-confirmed.txt?v=74b77a20fb">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.10.28</span><span>2 minutes 38 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
-    <a href="../../assets/demos/commit-confirmed.txt?v=bba89459a1">Plain-text transcript</a>
+    <span>Ze 26.11.20</span><span>1 minute 52 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
+    <a href="../../assets/demos/commit-confirmed.txt?v=74b77a20fb">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
     <pre><code>Commit confirmed: rollback and acceptance on the running router
 
 Connect with sshpass -e ssh ze-demo. The SSH editor starts from edge-original.
-Load /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf, review
+Load topics/commit-confirmed/1-trial-host.conf, review
 show | compare, then run commit confirmed 15. Ze&#39;s timeout is in seconds,
 unlike Junos commit confirmed, whose timeout is in minutes.
 
@@ -647,7 +647,7 @@ $ ze-demo card topic-commit-confirmed lab
 $ ze-demo card topic-commit-confirmed overview
 $ sshpass -e ssh ze-demo
 ze# show system host
-ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf
+ze# load file absolute merge topics/commit-confirmed/1-trial-host.conf
 ze# show | compare
 ze# commit confirmed 15
 
@@ -663,11 +663,11 @@ ze# show system host
 ze# show | compare
 ze# show | changes
 
-Load /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf,
+Load topics/commit-confirmed/2-confirmed-host.conf,
 compare, commit confirmed 15, then commit accept. Wait beyond the fifteen-second
 deadline and inspect edge-confirmed again. The accepted value must remain.
 
-ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf
+ze# load file absolute merge topics/commit-confirmed/2-confirmed-host.conf
 ze# show | compare
 ze# commit confirmed 15
 ze# commit accept
@@ -709,7 +709,7 @@ must succeed before this source is published as a recording.</code></pre>
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/rpki.cast?v=c8eada776e"
+      data-cast-src="../../assets/demos/rpki.cast?v=b62e61c1ee"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -717,13 +717,13 @@ must succeed before this source is published as a recording.</code></pre>
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/rpki.cast?v=c8eada776e">Download the asciicast</a> or
-      <a href="../../assets/demos/rpki.txt?v=8853dceca8">read the transcript</a>.</p>
+      page's own player. <a href="../../assets/demos/rpki.cast?v=b62e61c1ee">Download the asciicast</a> or
+      <a href="../../assets/demos/rpki.txt?v=37b95d3e88">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.10.28</span><span>3 minutes 57 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
-    <a href="../../assets/demos/rpki.txt?v=8853dceca8">Plain-text transcript</a>
+    <span>Ze 26.11.20</span><span>2 minutes 35 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
+    <a href="../../assets/demos/rpki.txt?v=37b95d3e88">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
@@ -740,9 +740,9 @@ $ ze cli -c &#39;show bgp adj-rib-in | no-more&#39;
 In the SSH editor, load the cache, validation policy and transit binding sections:
 $ ze-demo card topic-rpki overview
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/rpki/1-cache.conf
-ze# load file absolute merge /src/demos/terminal/topics/rpki/2-policy.conf
-ze# load file absolute merge /src/demos/terminal/topics/rpki/3-attach.conf
+ze# load file absolute merge topics/rpki/1-cache.conf
+ze# load file absolute merge topics/rpki/2-policy.conf
+ze# load file absolute merge topics/rpki/3-attach.conf
 ze# show | compare
 ze# commit now
 ze# exit
@@ -808,7 +808,7 @@ must succeed before this source is published as a recording.</code></pre>
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/irr-filter.cast?v=9312a6df11"
+      data-cast-src="../../assets/demos/irr-filter.cast?v=20eb104aee"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -816,13 +816,13 @@ must succeed before this source is published as a recording.</code></pre>
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/irr-filter.cast?v=9312a6df11">Download the asciicast</a> or
-      <a href="../../assets/demos/irr-filter.txt?v=46836a5e6e">read the transcript</a>.</p>
+      page's own player. <a href="../../assets/demos/irr-filter.cast?v=20eb104aee">Download the asciicast</a> or
+      <a href="../../assets/demos/irr-filter.txt?v=cc64033bb9">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.10.28</span><span>4 minutes 57 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
-    <a href="../../assets/demos/irr-filter.txt?v=46836a5e6e">Plain-text transcript</a>
+    <span>Ze 26.11.20</span><span>3 minutes 36 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
+    <a href="../../assets/demos/irr-filter.txt?v=cc64033bb9">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
@@ -838,9 +838,9 @@ $ ze cli -c &#39;show bgp irr | yaml | no-more&#39;
 Load three sections in one SSH candidate:
 $ ze-demo card topic-irr overview
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/irr/1-server.conf
-ze# load file absolute merge /src/demos/terminal/topics/irr/2-as-set.conf
-ze# load file absolute merge /src/demos/terminal/topics/irr/3-import.conf
+ze# load file absolute merge topics/irr/1-server.conf
+ze# load file absolute merge topics/irr/2-as-set.conf
+ze# load file absolute merge topics/irr/3-import.conf
 ze# show | compare
 ze# commit now
 ze# exit
@@ -866,7 +866,7 @@ control arrives can the absence of both 10.0 routes prove refusal, not delay.
 
 $ ze-demo card topic-irr failure
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/irr/4-wrong-as-set.conf
+ze# load file absolute merge topics/irr/4-wrong-as-set.conf
 ze# show | compare
 ze# commit now
 ze# exit
@@ -875,19 +875,19 @@ $ ze cli -c &#39;show bgp irr check customer 10.0.0.0/24 | yaml | no-more&#39;
 $ ze cli -c &#39;show bgp irr prefix customer | yaml | no-more&#39;
 $ ze cli -c &#39;show bgp adj-rib-in | no-more&#39;
 
-Load 2-as-set.conf again and commit the repair. Run update bgp irr as-set
+Load 2-as-set.conf again and commit the repair. Run update irr as-set
 AS-TEST, then ze-demo run showcase-lab control customer reannounce. Inspect
 the accepted decision, 10.0.0.0/24 and its final 10.0.1.0/24 control again.
 The wrong-set control and outside route must be absent. Ze stays running.
 
 $ ze-demo card topic-irr recovery
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/irr/2-as-set.conf
+ze# load file absolute merge topics/irr/2-as-set.conf
 ze# show | compare
 ze# commit now
 ze# exit
 ze&gt; exit
-$ ze cli -c &#39;update bgp irr as-set AS-TEST | yaml | no-more&#39;
+$ ze cli -c &#39;update irr as-set AS-TEST | yaml | no-more&#39;
 $ ze-demo run showcase-lab control customer reannounce
 $ ze cli -c &#39;show bgp irr check customer 10.0.0.0/24 | yaml | no-more&#39;
 $ ze cli -c &#39;show bgp adj-rib-in | no-more&#39;
@@ -915,7 +915,7 @@ must succeed before this source is published as a recording.</code></pre>
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/rib-fib.cast?v=01fa66b2f1"
+      data-cast-src="../../assets/demos/rib-fib.cast?v=8353460a42"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -923,18 +923,18 @@ must succeed before this source is published as a recording.</code></pre>
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/rib-fib.cast?v=01fa66b2f1">Download the asciicast</a> or
-      <a href="../../assets/demos/rib-fib.txt?v=ca05c09bc8">read the transcript</a>.</p>
+      page's own player. <a href="../../assets/demos/rib-fib.cast?v=8353460a42">Download the asciicast</a> or
+      <a href="../../assets/demos/rib-fib.txt?v=d00d6fdb7c">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.10.09</span><span>52 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
-    <a href="../../assets/demos/rib-fib.txt?v=ca05c09bc8">Plain-text transcript</a>
+    <span>Ze 26.11.20</span><span>1 minute 19 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
+    <a href="../../assets/demos/rib-fib.txt?v=d00d6fdb7c">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
     <pre><code>$ ze cli -c &#39;request bgp rib inject 192.0.2.10 ipv4/unicast 198.51.100.0/24 origin igp nexthop 127.0.0.1 med 42&#39;
-$ ze cli -c &#39;show bgp rib best prefix 198.51.100.0/24 | no-more&#39;
+$ ze cli -c &#39;show bgp rib best | prefix 198.51.100.0/24 | no-more&#39;
 198.51.100.0/24
 $ ip -details route show exact 198.51.100.0/24
 198.51.100.0/24 ... proto 250
@@ -969,7 +969,7 @@ The route enters Ze&#39;s BGP RIB, wins best-path selection, reaches the protoco
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/config-views.cast?v=74dca8e268"
+      data-cast-src="../../assets/demos/config-views.cast?v=d6617d0c82"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -977,12 +977,12 @@ The route enters Ze&#39;s BGP RIB, wins best-path selection, reaches the protoco
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/config-views.cast?v=74dca8e268">Download the asciicast</a> or
+      page's own player. <a href="../../assets/demos/config-views.cast?v=d6617d0c82">Download the asciicast</a> or
       <a href="../../assets/demos/config-views.txt?v=9f1109a1a7">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.10.09</span><span>1 minute 28 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
+    <span>Ze 26.11.20</span><span>1 minute 57 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
     <a href="../../assets/demos/config-views.txt?v=9f1109a1a7">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -1044,7 +1044,7 @@ Hierarchical and set syntax are alternate presentations of the same parsed confi
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/bfd-failover.cast?v=a134574836"
+      data-cast-src="../../assets/demos/bfd-failover.cast?v=041056d852"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -1052,13 +1052,13 @@ Hierarchical and set syntax are alternate presentations of the same parsed confi
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/bfd-failover.cast?v=a134574836">Download the asciicast</a> or
-      <a href="../../assets/demos/bfd-failover.txt?v=1d2f779b15">read the transcript</a>.</p>
+      page's own player. <a href="../../assets/demos/bfd-failover.cast?v=041056d852">Download the asciicast</a> or
+      <a href="../../assets/demos/bfd-failover.txt?v=7f978ea5b7">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.10.28</span><span>3 minutes 5 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
-    <a href="../../assets/demos/bfd-failover.txt?v=1d2f779b15">Plain-text transcript</a>
+    <span>Ze 26.11.20</span><span>2 minutes 2 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
+    <a href="../../assets/demos/bfd-failover.txt?v=7f978ea5b7">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
@@ -1072,8 +1072,8 @@ $ ip netns exec showcase-frr vtysh -c &#39;show bgp neighbor 172.29.0.1 json&#39
 
 Load: profile fast and peer frr BFD binding, section by section in one SSH candidate.
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/bfd/1-profile.conf
-ze# load file absolute merge /src/demos/terminal/topics/bfd/2-peer.conf
+ze# load file absolute merge topics/bfd/1-profile.conf
+ze# load file absolute merge topics/bfd/2-peer.conf
 ze# show | compare
 ze# commit now
 
@@ -1120,7 +1120,7 @@ $ ze-demo card topic-bfd recap</code></pre>
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/ospf-adjacency.cast?v=a6fe1973c6"
+      data-cast-src="../../assets/demos/ospf-adjacency.cast?v=9f6571a72e"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -1128,13 +1128,13 @@ $ ze-demo card topic-bfd recap</code></pre>
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/ospf-adjacency.cast?v=a6fe1973c6">Download the asciicast</a> or
-      <a href="../../assets/demos/ospf-adjacency.txt?v=fc63b795c8">read the transcript</a>.</p>
+      page's own player. <a href="../../assets/demos/ospf-adjacency.cast?v=9f6571a72e">Download the asciicast</a> or
+      <a href="../../assets/demos/ospf-adjacency.txt?v=47ced42968">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.10.28</span><span>4 minutes 24 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
-    <a href="../../assets/demos/ospf-adjacency.txt?v=fc63b795c8">Plain-text transcript</a>
+    <span>Ze 26.11.20</span><span>2 minutes 57 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
+    <a href="../../assets/demos/ospf-adjacency.txt?v=47ced42968">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
@@ -1147,8 +1147,8 @@ $ ze cli -c &#39;show ospf neighbor | no-more&#39;
 
 Load: area 0 and broadcast interface timers 10/40 in one SSH candidate.
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/ospf/1-area.conf
-ze# load file absolute merge /src/demos/terminal/topics/ospf/2-interface.conf
+ze# load file absolute merge topics/ospf/1-area.conf
+ze# load file absolute merge topics/ospf/2-interface.conf
 ze# show | compare
 ze# commit now
 
@@ -1162,7 +1162,7 @@ $ ze cli -c &#39;show ospf route | no-more&#39;
 Failure: commit Hello interval 20; inspect current interface timers, lost adjacency/route and the hello-interval packet-drop metric.
 $ ze-demo card topic-ospf failure
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/ospf/3-mismatch.conf
+ze# load file absolute merge topics/ospf/3-mismatch.conf
 ze# show | compare
 ze# commit now
 $ ze cli -c &#39;show ospf neighbor detail | no-more&#39;
@@ -1173,7 +1173,7 @@ $ ze cli -c &#39;show ospf route | no-more&#39;
 Fix: commit interval 10, require all three protocol observations again, and print the unchanged shown PID.
 $ ze-demo card topic-ospf fix
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/ospf/4-recovery.conf
+ze# load file absolute merge topics/ospf/4-recovery.conf
 ze# show | compare
 ze# commit now
 $ ze cli -c &#39;show ospf neighbor detail | no-more&#39;
@@ -1202,7 +1202,7 @@ $ ze-demo card topic-ospf recap</code></pre>
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/ipsec.cast?v=95f50fd1c5"
+      data-cast-src="../../assets/demos/ipsec.cast?v=55dd94b16e"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -1210,13 +1210,13 @@ $ ze-demo card topic-ospf recap</code></pre>
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/ipsec.cast?v=95f50fd1c5">Download the asciicast</a> or
-      <a href="../../assets/demos/ipsec.txt?v=f5fa147589">read the transcript</a>.</p>
+      page's own player. <a href="../../assets/demos/ipsec.cast?v=55dd94b16e">Download the asciicast</a> or
+      <a href="../../assets/demos/ipsec.txt?v=a76f3239ba">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.10.28</span><span>5 minutes 33 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
-    <a href="../../assets/demos/ipsec.txt?v=f5fa147589">Plain-text transcript</a>
+    <span>Ze 26.11.20</span><span>3 minutes 37 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
+    <a href="../../assets/demos/ipsec.txt?v=a76f3239ba">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
@@ -1235,10 +1235,10 @@ commit now. The sections define IKE, ESP, authenticated peer and selectors,
 and the route through vpn-xfrm (if-id 42).
 
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/ipsec/1-ike.conf
-ze# load file absolute merge /src/demos/terminal/topics/ipsec/2-esp.conf
-ze# load file absolute merge /src/demos/terminal/topics/ipsec/3-peer.conf
-ze# load file absolute merge /src/demos/terminal/topics/ipsec/4-xfrm.conf
+ze# load file absolute merge topics/ipsec/1-ike.conf
+ze# load file absolute merge topics/ipsec/2-esp.conf
+ze# load file absolute merge topics/ipsec/3-peer.conf
+ze# load file absolute merge topics/ipsec/4-xfrm.conf
 ze# show | compare
 ze# commit now
 ze# exit
@@ -1259,7 +1259,7 @@ the far end offers AES-256. IKE can stay established while no Child SA exists.
 
 $ ze-demo card topic-ipsec failure
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/ipsec/5-mismatch.conf
+ze# load file absolute merge topics/ipsec/5-mismatch.conf
 ze# show | compare
 ze# commit now
 ze# exit
@@ -1279,7 +1279,7 @@ Verify the new kernel SPIs, successful protected ping and increasing packets-in.
 The shown Ze process is never restarted.
 
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/ipsec/2-esp.conf
+ze# load file absolute merge topics/ipsec/2-esp.conf
 ze# show | compare
 ze# commit now
 ze# exit
@@ -1316,7 +1316,7 @@ https://www.juniper.net/documentation/us/en/software/junos/cli-reference/topics/
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/traffic-anomaly.cast?v=e0f89040c5"
+      data-cast-src="../../assets/demos/traffic-anomaly.cast?v=03bee0a1e6"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -1324,13 +1324,13 @@ https://www.juniper.net/documentation/us/en/software/junos/cli-reference/topics/
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/traffic-anomaly.cast?v=e0f89040c5">Download the asciicast</a> or
-      <a href="../../assets/demos/traffic-anomaly.txt?v=8c33b2924c">read the transcript</a>.</p>
+      page's own player. <a href="../../assets/demos/traffic-anomaly.cast?v=03bee0a1e6">Download the asciicast</a> or
+      <a href="../../assets/demos/traffic-anomaly.txt?v=5204b50e70">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.10.28</span><span>3 minutes 9 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
-    <a href="../../assets/demos/traffic-anomaly.txt?v=8c33b2924c">Plain-text transcript</a>
+    <span>Ze 26.11.20</span><span>2 minutes 7 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
+    <a href="../../assets/demos/traffic-anomaly.txt?v=5204b50e70">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
@@ -1343,8 +1343,8 @@ $ ze cli -c &#39;show traffic usage | no-more&#39;
 
 Load: bounded eBPF accounting and traffic0 attachment in one SSH candidate.
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/traffic/1-accounting.conf
-ze# load file absolute merge /src/demos/terminal/topics/traffic/2-interface.conf
+ze# load file absolute merge topics/traffic/1-accounting.conf
+ze# load file absolute merge topics/traffic/2-interface.conf
 ze# show | compare
 ze# commit now
 
@@ -1392,7 +1392,7 @@ $ ze-demo card topic-traffic recap</code></pre>
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/vrrp-tracking.cast?v=682f44f6d3"
+      data-cast-src="../../assets/demos/vrrp-tracking.cast?v=8f94901773"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -1400,13 +1400,13 @@ $ ze-demo card topic-traffic recap</code></pre>
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/vrrp-tracking.cast?v=682f44f6d3">Download the asciicast</a> or
-      <a href="../../assets/demos/vrrp-tracking.txt?v=d48d9109d5">read the transcript</a>.</p>
+      page's own player. <a href="../../assets/demos/vrrp-tracking.cast?v=8f94901773">Download the asciicast</a> or
+      <a href="../../assets/demos/vrrp-tracking.txt?v=c78f20a487">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.10.28</span><span>3 minutes 28 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
-    <a href="../../assets/demos/vrrp-tracking.txt?v=d48d9109d5">Plain-text transcript</a>
+    <span>Ze 26.11.20</span><span>2 minutes 28 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
+    <a href="../../assets/demos/vrrp-tracking.txt?v=c78f20a487">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
@@ -1419,8 +1419,8 @@ $ ze cli -c &#39;show vrrp | no-more&#39;
 
 Load: gateway group and tracked zetrk1 decrement 150 in one SSH candidate.
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/vrrp/1-group.conf
-ze# load file absolute merge /src/demos/terminal/topics/vrrp/2-tracking.conf
+ze# load file absolute merge topics/vrrp/1-group.conf
+ze# load file absolute merge topics/vrrp/2-tracking.conf
 ze# show | compare
 ze# commit now
 
@@ -1477,7 +1477,7 @@ $ ze-demo card topic-vrrp recap</code></pre>
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/host-inventory.cast?v=914610af44"
+      data-cast-src="../../assets/demos/host-inventory.cast?v=a255ffa316"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -1485,12 +1485,12 @@ $ ze-demo card topic-vrrp recap</code></pre>
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/host-inventory.cast?v=914610af44">Download the asciicast</a> or
+      page's own player. <a href="../../assets/demos/host-inventory.cast?v=a255ffa316">Download the asciicast</a> or
       <a href="../../assets/demos/host-inventory.txt?v=5b221c4c0f">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.10.09</span><span>39 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
+    <span>Ze 26.11.20</span><span>1 minute 13 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
     <a href="../../assets/demos/host-inventory.txt?v=5b221c4c0f">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -1528,7 +1528,7 @@ The commands work without a running Ze daemon. Every field returned by `ze show 
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/config-graph.cast?v=4c952f92ac"
+      data-cast-src="../../assets/demos/config-graph.cast?v=c0c287ab94"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -1536,12 +1536,12 @@ The commands work without a running Ze daemon. Every field returned by `ze show 
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/config-graph.cast?v=4c952f92ac">Download the asciicast</a> or
+      page's own player. <a href="../../assets/demos/config-graph.cast?v=c0c287ab94">Download the asciicast</a> or
       <a href="../../assets/demos/config-graph.txt?v=7a64ac5a0c">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.10.09</span><span>1 minute 13 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
+    <span>Ze 26.11.20</span><span>1 minute 34 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
     <a href="../../assets/demos/config-graph.txt?v=7a64ac5a0c">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -1575,7 +1575,7 @@ No reporting helper creates the displayed relationships. The command filters Ze&
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 22:34 UTC</span>
                 </div>
             </div>
         </footer>

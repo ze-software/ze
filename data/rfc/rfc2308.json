@@ -1,0 +1,44 @@
+{
+  "stem": "rfc2308",
+  "title": "Negative Caching of DNS Queries (DNS NCACHE)",
+  "walked": true,
+  "requirements": 18,
+  "implementer": "ze",
+  "implemented": true,
+  "must": {
+    "total": 12,
+    "kept": 12,
+    "ze-proven": 8,
+    "os-verified": 0,
+    "os-gap": 0,
+    "proof-pending": 0,
+    "exclusion-unchecked": 0,
+    "not-assessed": 0,
+    "not-built": 4,
+    "not-owed": 0,
+    "not-owed-by-kind": {}
+  },
+  "should": {
+    "total": 6,
+    "proven": 0,
+    "os-verified": 0,
+    "os-gap": 0,
+    "not-owed": 0,
+    "proof-pending": 0,
+    "exclusion-unchecked": 0,
+    "not-assessed": 4,
+    "not-built": 2,
+    "not-owed-by-kind": {}
+  },
+  "proven-by-kind": {
+    "unit": 8
+  },
+  "unmet": [
+    "RFC2308-3-2",
+    "RFC2308-5-2",
+    "RFC2308-5-3",
+    "RFC2308-6-2",
+    "RFC2308-6-3",
+    "RFC2308-6-4"
+  ]
+}

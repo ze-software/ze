@@ -511,6 +511,12 @@ shutdown. Delivery failures at the network or server are logged separately.</p>
 </tr>
 </tbody>
 </table>
+<p>These tests run against <code>le mock tacacs</code>, which prints one stderr line per
+packet it answers. An AUTHOR line names the command it judged
+(<code>AUTHOR cmd="show bgp" reply=PASS_ADD ...</code>), and an ACCT line names the
+command the record carries, its <code>cmd</code> and <code>cmd-arg</code> arguments joined by
+spaces (<code>ACCT START seq=1 total=3 cmd="show bgp rib | count"</code>), so a test
+asserts what Ze authorized and what it accounted.</p>
 <p>Strict fallback is covered by <code>TestExtractConfigStrictFallback</code> and
 <code>TestTacacsAuthorizerStrictFallbackDeniesUnreachable</code> in the TACACS+ unit tests.</p>
 <p>For ad-hoc verification, point the daemon at a real TACACS+ server and
@@ -594,7 +600,7 @@ Local summary: <code>rfc/short/rfc8907.md</code>.</li>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
                 </div>
             </div>
         </footer>

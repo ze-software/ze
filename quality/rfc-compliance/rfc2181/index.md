@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 9 | of 23 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| Tested both ways | 12 | of 23 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
 | One polarity plus reason | 9 | of 23 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 23 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 23 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 31 | 31 of 38 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 43 | 43 of 44 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -22,7 +22,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Declared gap or no test | 5 | of 23 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Declared gap or no test | 1 | of 23 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
 ### Neutral
 
@@ -31,7 +31,7 @@ measures that are neither good news nor bad
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Out of scope | 0 | of 23 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
-| Not applicable | 0 | of 23 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
+| Not applicable | 1 | of 23 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
 | Met below Ze | 0 | of 23 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 23 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
 | Linux cannot do this | 0 | of 23 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
@@ -73,39 +73,39 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 70 |
 | Mandatory requirements (MUST level) | 23 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 5 |
+| Declared gaps | 1 |
 | Declared gaps a test demonstrates | 0 |
 | Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 38 |
-| Tests linked to requirements | 38 |
+| Test tags | 44 |
+| Tests linked to requirements | 44 |
 | Recorded audit verdicts | 8 |
-| Fault test records | 31 |
+| Fault test records | 43 |
 | Summary | `rfc/short/rfc2181.md` |
 | Requirement table | `rfc/requirements/rfc2181.md` |
 | RFC text | `rfc/full/rfc2181.txt` |
 
 ## Automatic checks
 
-Included in automatic checks: Clarifications to the DNS Specification (RFC 2181): ze is authoritative (internal/plugins/geodns, internal/plugins/as112), a stub resolver+cache (internal/component/resolve/dns), and a caching forwarding resolver for customer LANs (internal/plugins/dnsresolver). Both polarities tagged: TC on a datagram reply whose RRSet does not fit 5.1-1, the whole RRSIG RRset 5.3.1-2, section RRSIG never taken as the RRSet 5.3.1-3, section RRSIG never cached for an RRSIG query 5.3.1-4, cache RRSet replacement 5.4-2, trust ranking 5.4.1-3 (alias target data from an authoritative reply ranks as non-authoritative), AA set by the authoritative harness and clear on resolver replies 5.4.1-9, the section 8 TTL bound 8-1, label/name limits 11-1. Single-polarity positive: UDP reply source-IP/port fidelity 4.1-1/4.2-1/4.2-2, RRSet equal TTLs 5.2-1, no merge 5.4-1, canonical NS targets with A glue 10.3-1/10.3-2, unrestricted labels 11-2/11-3. Five gaps: DNSSEC validation is post-release with no owner decision declining it (5.4.1-8), ze implements no zone transfer (5.5-4), and the CNAME and PTR rules hold because ze authors neither record, with no test (10.1-4, 10.1.1-1, 10.2-1)
+Included in automatic checks: Clarifications to the DNS Specification (RFC 2181): ze is authoritative (internal/plugins/geodns, internal/plugins/as112), a stub resolver+cache (internal/component/resolve/dns), and a caching forwarding resolver for customer LANs (internal/plugins/dnsresolver). Both polarities tagged: TC on a datagram reply whose RRSet does not fit 5.1-1, the whole RRSIG RRset 5.3.1-2, section RRSIG never taken as the RRSet 5.3.1-3, section RRSIG never cached for an RRSIG query 5.3.1-4, cache RRSet replacement 5.4-2, trust ranking 5.4.1-3 (alias target data from an authoritative reply ranks as non-authoritative), AA set by the authoritative harness and clear on resolver replies 5.4.1-9, the section 8 TTL bound 8-1, label/name limits 11-1, no CNAME beside other data at a served name 10.1-4 (geodns), the chain walk keeping a CNAME's label and value apart 10.1.1-1 (dnsresolver), no PTR served by the AS112 reverse zones and an alias followed on the way to a PTR 10.2-1. Single-polarity positive: UDP reply source-IP/port fidelity 4.1-1/4.2-1/4.2-2, RRSet equal TTLs 5.2-1, no merge 5.4-1, canonical NS targets with A glue 10.3-1/10.3-2, unrestricted labels 11-2/11-3. One gap: DNSSEC validation is post-release with no owner decision declining it (5.4.1-8). Not applicable: the AXFR SOA TTL rule (5.5-4) binds the AXFR response the zone-transfer primary server sends, a role which per the owner rule in ai/META-DECISIONS.md (DNS zone transfer is not required) no part of ze fills
 
 ## Published support status
 
 **Area:** DNS clarifications
 
-**Test verification:** 12 of 23 MUST proven
+**Test verification:** 21 of 23 MUST proven
 
-**Evidence:** unit 12
+**Evidence:** unit 21
 
-**Unmet:** RFC2181-10.1-4, RFC2181-10.1.1-1, RFC2181-10.2-1, RFC2181-5.4.1-8, RFC2181-5.5-4
+**Unmet:** RFC2181-5.4.1-8
 
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 9 | one part of the mandatory requirements |
-| Annotated (including scoped evidence) | 14 | one part of the mandatory requirements |
+| Positive and negative tests | 12 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 11 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
 | Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
@@ -113,14 +113,14 @@ Included in automatic checks: Clarifications to the DNS Specification (RFC 2181)
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **23** | every mandatory requirement appears in exactly one group above |
 
-**Positive and negative tests (9):** [`RFC2181-5.1-1`](#rfc2181-5.1-1), [`RFC2181-5.3.1-2`](#rfc2181-5.3.1-2), [`RFC2181-5.3.1-3`](#rfc2181-5.3.1-3), [`RFC2181-5.3.1-4`](#rfc2181-5.3.1-4), [`RFC2181-5.4-2`](#rfc2181-5.4-2), [`RFC2181-5.4.1-3`](#rfc2181-5.4.1-3), [`RFC2181-5.4.1-9`](#rfc2181-5.4.1-9), [`RFC2181-8-1`](#rfc2181-8-1), [`RFC2181-11-1`](#rfc2181-11-1)
+**Positive and negative tests (12):** [`RFC2181-5.1-1`](#rfc2181-5.1-1), [`RFC2181-5.3.1-2`](#rfc2181-5.3.1-2), [`RFC2181-5.3.1-3`](#rfc2181-5.3.1-3), [`RFC2181-5.3.1-4`](#rfc2181-5.3.1-4), [`RFC2181-5.4-2`](#rfc2181-5.4-2), [`RFC2181-5.4.1-3`](#rfc2181-5.4.1-3), [`RFC2181-5.4.1-9`](#rfc2181-5.4.1-9), [`RFC2181-8-1`](#rfc2181-8-1), [`RFC2181-10.1-4`](#rfc2181-10.1-4), [`RFC2181-10.1.1-1`](#rfc2181-10.1.1-1), [`RFC2181-10.2-1`](#rfc2181-10.2-1), [`RFC2181-11-1`](#rfc2181-11-1)
 
-**Annotated (including scoped evidence) (14):** [`RFC2181-4.1-1`](#rfc2181-4.1-1), [`RFC2181-4.2-1`](#rfc2181-4.2-1), [`RFC2181-4.2-2`](#rfc2181-4.2-2), [`RFC2181-5.2-1`](#rfc2181-5.2-1), [`RFC2181-5.4-1`](#rfc2181-5.4-1), [`RFC2181-5.4.1-8`](#rfc2181-5.4.1-8), [`RFC2181-5.5-4`](#rfc2181-5.5-4), [`RFC2181-10.1-4`](#rfc2181-10.1-4), [`RFC2181-10.1.1-1`](#rfc2181-10.1.1-1), [`RFC2181-10.2-1`](#rfc2181-10.2-1), [`RFC2181-10.3-1`](#rfc2181-10.3-1), [`RFC2181-10.3-2`](#rfc2181-10.3-2), [`RFC2181-11-2`](#rfc2181-11-2), [`RFC2181-11-3`](#rfc2181-11-3)
+**Annotated (including scoped evidence) (11):** [`RFC2181-4.1-1`](#rfc2181-4.1-1), [`RFC2181-4.2-1`](#rfc2181-4.2-1), [`RFC2181-4.2-2`](#rfc2181-4.2-2), [`RFC2181-5.2-1`](#rfc2181-5.2-1), [`RFC2181-5.4-1`](#rfc2181-5.4-1), [`RFC2181-5.4.1-8`](#rfc2181-5.4.1-8), [`RFC2181-5.5-4`](#rfc2181-5.5-4), [`RFC2181-10.3-1`](#rfc2181-10.3-1), [`RFC2181-10.3-2`](#rfc2181-10.3-2), [`RFC2181-11-2`](#rfc2181-11-2), [`RFC2181-11-3`](#rfc2181-11-3)
 
 ## Figures
 
-- **MUST bar**: Ze verified 12, Tests awaiting verification 6, Not built 5
-- **Overview bar**: Ze MUST verified 12, SHOULD verified 1, Tests awaiting verification 6, Not assessed 46, Not built 5
+- **MUST bar**: Ze verified 21, Not built 1
+- **Overview bar**: Ze MUST verified 21, SHOULD verified 1, Not owed 1, Not assessed 46, Not built 1
 
 | Figure | Rows |
 |---|---|
@@ -128,18 +128,18 @@ Included in automatic checks: Clarifications to the DNS Specification (RFC 2181)
 | Requirements not reviewed | 0 |
 | Mandatory requirements complete | not complete |
 | MUST rows | 23 |
-| MUST rows kept (the MUST bar) | 23 |
-| Ze verified | 12 |
+| MUST rows kept (the MUST bar) | 22 |
+| Ze verified | 21 |
 | OS verified | 0 |
-| Tests awaiting verification | 6 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 5 |
-| MUST rows not owed | 0 |
+| Not built | 1 |
+| MUST rows not owed | 1 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
-| MUST not owed: not-applicable | 0 |
+| MUST not owed: not-applicable | 1 |
 | SHOULD / MAY rows | 47 |
 | SHOULD verified | 1 |
 | SHOULD OS verified | 0 |
@@ -174,11 +174,11 @@ Source: [data/rfc/rfc2181.json](../../../data/rfc/rfc2181.json).
 | `RFC2181-5.4.1-3` | Trustworthiness shall be, in order from most to least: + Data from a primary zone file, other than glue data, + Data from a zone transfer, other than glue, + The authoritative data included in the answer section of an authoritative reply. + Data from the authority section of an authoritative answer, + Glue from a primary zone, or glue from a zone transfer, + Data from the answer section of a non-authoritative answer, and non-authoritative data from the answer section of authoritative answers, + Additional information from an authoritative answer, Data from the authority section of a non-authoritative answer, Additional information from non-authoritative answers. (§5.4.1) | SHALL | 5.4.1 | **positive:** `unit/verify` [`TestRFC2181AliasTargetNotAuthoritative`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L185). **positive:** `unit/verify` [`TestRFC2181LowerTrustNeverDisplacesHigher`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L100). **negative:** `unit/verify` [`TestRFC2181HigherTrustReplacesLower`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L147) |
 | `RFC2181-5.4.1-8` | When DNS security [RFC2065] is in use, and an authenticated reply has been received and verified, the data thus authenticated shall be considered more trustworthy than unauthenticated data of the same type. (§5.4.1) | SHALL | 5.4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze offers no DNSSEC validation, which is post-release work with no owner decision declining it, so no reply is ever authenticated and verified and authenticated data never outranks unauthenticated data: internal/plugins/dnsresolver/forward.go::upstreamQuery sends every upstream query with the EDNS0 DO bit clear, and the stub at internal/component/resolve/dns/resolver.go relies on a validating upstream |
 | `RFC2181-5.4.1-9` | However DNSSEC aware servers must still correctly set the AA bit in responses to enable correct operation with servers that are not security aware (almost all currently). (§5.4.1) | MUST | 5.4.1 | **positive:** `unit/verify` [`TestRFC2181AuthoritativeReplySetsAA`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc2181_aa_test.go#L29). **negative:** `unit/verify` [`TestRFC2181ReplyAAClear`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L361) |
-| `RFC2181-5.5-4` | Where duplicates are required this way, the TTL transmitted in each case must be the same. (§5.5) | MUST | 5.5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze implements no zone transfer, so the duplicated SOA of an AXFR is never sent and no ze path keeps its two TTLs equal; neither geodns (internal/plugins/geodns/server.go) nor as112 (internal/plugins/as112/server.go::answerQuery) answers an AXFR, and no owner decision declines it |
+| `RFC2181-5.5-4` | Where duplicates are required this way, the TTL transmitted in each case must be the same. (§5.5) | MUST | 5.5 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** "Where duplicates are required this way, the TTL transmitted in each case must be the same."; binds an AXFR response; §5.5 "For example, an AXFR response requires the SOA record (always an RRSet containing a single RR) be both the first and last record of the reply."; the only duplicate §5.5 names is the SOA an AXFR response repeats, and an AXFR response is what the zone-transfer primary server sends to a secondary; per the owner rule in ai/META-DECISIONS.md (DNS zone transfer is not required) no part of Ze fills the primary or secondary zone-transfer server role: internal/plugins/geodns/server.go::answerQuestions sends an AXFR or IXFR qtype to its default arm (SOA in Authority, NODATA) and internal/plugins/as112/zones.go::answerQuestions does the same, so neither sends a zone; internal/core/dnsserver/handler.go::Authoritative answers a non-QUERY opcode with NOTIMP; internal/plugins/dnsresolver (resolve.go::resolve) holds a cache, not a zone |
 | `RFC2181-8-1` | It is hereby specified that a TTL value is an unsigned number, with a minimum value of 0, and a maximum value of 2147483647. That is, a maximum of 2^31 - 1. When transmitted, this value shall be encoded in the less significant 31 bits of the 32 bit TTL field, with the most significant, or sign, bit set to zero. (§8) | SHALL | 8 | **positive:** `unit/verify` [`TestRFC2181TTLTransmittedWithSignBitClear`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L173). **positive:** `unit/verify` [`TestRFC2181_TTLSignBitBound`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L226). **negative:** `unit/verify` [`TestRFC2181ResolverTTLBounds`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go#L141). **negative:** `unit/verify` [`TestRFC2181_TTLSignBitBound`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L239) |
-| `RFC2181-10.1-4` | An alias name (label of a CNAME record) may, if DNSSEC is in use, have SIG, NXT, and KEY RRs, but may have no other data. (§10.1) | MUST NOT | 10.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** gap in proof: internal/plugins/geodns/record.go::recordKind meets it, since geodns authors only A, AAAA and SRV records and as112 only SOA, NS and TXT, so no CNAME owner carries other data; no test asserts it |
-| `RFC2181-10.1.1-1` | Care must therefore be taken to be very clear whether the label, or the value (the canonical name) of a CNAME resource record is intended. (§10.1.1) | MUST | 10.1.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** gap in proof: internal/plugins/geodns/record.go::recordKind meets it on the authoritative side, which authors no CNAME; no test shows the LAN resolver (internal/plugins/dnsresolver) and the stub (internal/component/resolve/dns) keep a CNAME's owner label and its canonical-name value apart when they follow an alias |
-| `RFC2181-10.2-1` | Note that while the value of a PTR record must not be an alias, there is no requirement that the process of resolving a PTR record not encounter any aliases. (§10.2) | MUST NOT | 10.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** gap in proof: internal/plugins/as112/server.go::answerQuery meets it, since the AS112 reverse zones answer NODATA with the SOA and never a PTR, and geodns authors no PTR record (internal/plugins/geodns/record.go::recordKind); no test asserts that ze serves no PTR whose value is an alias |
+| `RFC2181-10.1-4` | An alias name (label of a CNAME record) may, if DNSSEC is in use, have SIG, NXT, and KEY RRs, but may have no other data. (§10.1) | MUST NOT | 10.1 | **positive:** `unit/verify` [`TestRFC2181NoAliasBesideOtherData`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_alias_data_test.go#L39). **negative:** `unit/verify` [`TestRFC2181NoAliasBesideOtherData`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_alias_data_test.go#L57) |
+| `RFC2181-10.1.1-1` | Care must therefore be taken to be very clear whether the label, or the value (the canonical name) of a CNAME resource record is intended. (§10.1.1) | MUST | 10.1.1 | **positive:** `unit/verify` [`TestRFC2181AliasLabelAndValueKeptApart`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_alias_chain_test.go#L32). **negative:** `unit/verify` [`TestRFC2181AliasLabelAndValueKeptApart`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_alias_chain_test.go#L51) |
+| `RFC2181-10.2-1` | Note that while the value of a PTR record must not be an alias, there is no requirement that the process of resolving a PTR record not encounter any aliases. (§10.2) | MUST NOT | 10.2 | **positive:** `unit/verify` [`TestRFC2181ReverseZonesServeNoPTR`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/rfc2181_ptr_test.go#L35). **negative:** `unit/verify` [`TestRFC2181PTRLookupMayMeetAnAlias`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_alias_chain_test.go#L84) |
 | `RFC2181-10.3-1` | The domain name used as the value of a NS resource record, or part of the value of a MX resource record must not be an alias. (§10.3) | MUST NOT | 10.3 - MX and NS records | **positive:** `unit/verify` [`TestRFC2181NSTargetIsNotAnAlias`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L90). **positive:** `unit/verify` [`TestRFC2181_NSCanonicalWithGlue`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L439). **negative:** no negative test. **{single-polarity}:** geodns synthesizes NS targets as canonical ns<n>.<zone> names at internal/plugins/geodns/server.go:154 and as112 uses fixed canonical names, so ze never emits a CNAME as an NS or MX value and serves no MX at all |
 | `RFC2181-10.3-2` | This domain name must have as its value one or more address records. (§10.3) | MUST | 10.3 - MX and NS records | **positive:** `unit/verify` [`TestRFC2181_NSCanonicalWithGlue`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L456). **negative:** no negative test. **{single-polarity}:** geodns emits A glue for every synthesized NS target at internal/plugins/geodns/server.go:161, and as112 NS targets are canonical names whose address records are authoritative elsewhere, so the target name always has address records |
 | `RFC2181-11-1` | The length of any one label is limited to between 1 and 63 octets. A full domain name is limited to 255 octets (including the separators). (§11) | MUST | 11 | **positive:** `unit/verify` [`TestRFC2181NameLimitsBothSidesOfEachBound`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L133). **positive:** `unit/verify` [`TestRFC2181_WireNameLimits`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L483). **negative:** `unit/verify` [`TestRFC2181NameLimitsBothSidesOfEachBound`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L147) |
@@ -237,10 +237,7 @@ Source: [data/rfc/rfc2181.json](../../../data/rfc/rfc2181.json).
 | Requirement | State | Reason |
 |---|---|---|
 | [`RFC2181-5.4.1-8`](#rfc2181-5.4.1-8) When DNS security [RFC2065] is in use, and an authenticated reply has been received and verified, the data thus authenticated shall be considered more trustworthy than unauthenticated data of the same type. (§5.4.1) | {gap}, no test | ze offers no DNSSEC validation, which is post-release work with no owner decision declining it, so no reply is ever authenticated and verified and authenticated data never outranks unauthenticated data: internal/plugins/dnsresolver/forward.go::upstreamQuery sends every upstream query with the EDNS0 DO bit clear, and the stub at internal/component/resolve/dns/resolver.go relies on a validating upstream |
-| [`RFC2181-5.5-4`](#rfc2181-5.5-4) Where duplicates are required this way, the TTL transmitted in each case must be the same. (§5.5) | {gap}, no test | ze implements no zone transfer, so the duplicated SOA of an AXFR is never sent and no ze path keeps its two TTLs equal; neither geodns (internal/plugins/geodns/server.go) nor as112 (internal/plugins/as112/server.go::answerQuery) answers an AXFR, and no owner decision declines it |
-| [`RFC2181-10.1-4`](#rfc2181-10.1-4) An alias name (label of a CNAME record) may, if DNSSEC is in use, have SIG, NXT, and KEY RRs, but may have no other data. (§10.1) | {gap}, no test | gap in proof: internal/plugins/geodns/record.go::recordKind meets it, since geodns authors only A, AAAA and SRV records and as112 only SOA, NS and TXT, so no CNAME owner carries other data; no test asserts it |
-| [`RFC2181-10.1.1-1`](#rfc2181-10.1.1-1) Care must therefore be taken to be very clear whether the label, or the value (the canonical name) of a CNAME resource record is intended. (§10.1.1) | {gap}, no test | gap in proof: internal/plugins/geodns/record.go::recordKind meets it on the authoritative side, which authors no CNAME; no test shows the LAN resolver (internal/plugins/dnsresolver) and the stub (internal/component/resolve/dns) keep a CNAME's owner label and its canonical-name value apart when they follow an alias |
-| [`RFC2181-10.2-1`](#rfc2181-10.2-1) Note that while the value of a PTR record must not be an alias, there is no requirement that the process of resolving a PTR record not encounter any aliases. (§10.2) | {gap}, no test | gap in proof: internal/plugins/as112/server.go::answerQuery meets it, since the AS112 reverse zones answer NODATA with the SOA and never a PTR, and geodns authors no PTR record (internal/plugins/geodns/record.go::recordKind); no test asserts that ze serves no PTR whose value is an alias |
+| [`RFC2181-5.5-4`](#rfc2181-5.5-4) Where duplicates are required this way, the TTL transmitted in each case must be the same. (§5.5) | no test | no test carries this requirement id; annotated {not-applicable}: "Where duplicates are required this way, the TTL transmitted in each case must be the same."; binds an AXFR response; §5.5 "For example, an AXFR response requires the SOA record (always an RRSet containing a single RR) be both the first and last record of the reply."; the only duplicate §5.5 names is the SOA an AXFR response repeats, and an AXFR response is what the zone-transfer primary server sends to a secondary; per the owner rule in ai/META-DECISIONS.md (DNS zone transfer is not required) no part of Ze fills the primary or secondary zone-transfer server role: internal/plugins/geodns/server.go::answerQuestions sends an AXFR or IXFR qtype to its default arm (SOA in Authority, NODATA) and internal/plugins/as112/zones.go::answerQuestions does the same, so neither sends a zone; internal/core/dnsserver/handler.go::Authoritative answers a non-QUERY opcode with NOTIMP; internal/plugins/dnsresolver (resolve.go::resolve) holds a cache, not a zone |
 
 ## Test status
 
@@ -265,7 +262,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L352) | unit/verify | not verified |
+| positive | [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L352) | unit/verify | mutant, verified |
 
 ### [`RFC2181-4.2-2`](#rfc2181-4.2-2)
 
@@ -275,7 +272,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L357) | unit/verify | not verified |
+| positive | [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L357) | unit/verify | mutant, verified |
 
 ### [`RFC2181-5.1-1`](#rfc2181-5.1-1)
 
@@ -296,7 +293,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC2181_RRSetEqualTTL`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L399) | unit/verify | not verified |
+| positive | [`TestRFC2181_RRSetEqualTTL`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L399) | unit/verify | mutant, verified |
 
 ### [`RFC2181-5.3.1-2`](#rfc2181-5.3.1-2)
 
@@ -414,7 +411,10 @@ An alias name (label of a CNAME record) may, if DNSSEC is in use, have SIG, NXT,
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2181-10.1-4, so there is no linked test.
+| Polarity | Test | Kind and tier | Test status |
+|---|---|---|---|
+| negative | [`TestRFC2181NoAliasBesideOtherData`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_alias_data_test.go#L57) | unit/verify | mutant, verified |
+| positive | [`TestRFC2181NoAliasBesideOtherData`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_alias_data_test.go#L39) | unit/verify | mutant, verified |
 
 ### [`RFC2181-10.1.1-1`](#rfc2181-10.1.1-1)
 
@@ -422,7 +422,10 @@ Care must therefore be taken to be very clear whether the label, or the value (t
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2181-10.1.1-1, so there is no linked test.
+| Polarity | Test | Kind and tier | Test status |
+|---|---|---|---|
+| negative | [`TestRFC2181AliasLabelAndValueKeptApart`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_alias_chain_test.go#L51) | unit/verify | mutant, verified |
+| positive | [`TestRFC2181AliasLabelAndValueKeptApart`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_alias_chain_test.go#L32) | unit/verify | mutant, verified |
 
 ### [`RFC2181-10.2-1`](#rfc2181-10.2-1)
 
@@ -430,7 +433,10 @@ Note that while the value of a PTR record must not be an alias, there is no requ
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2181-10.2-1, so there is no linked test.
+| Polarity | Test | Kind and tier | Test status |
+|---|---|---|---|
+| negative | [`TestRFC2181PTRLookupMayMeetAnAlias`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_alias_chain_test.go#L84) | unit/verify | mutant, verified |
+| positive | [`TestRFC2181ReverseZonesServeNoPTR`](https://github.com/ze-software/ze/blob/main/internal/plugins/as112/rfc2181_ptr_test.go#L35) | unit/verify | mutant, verified |
 
 ### [`RFC2181-10.3-1`](#rfc2181-10.3-1)
 
@@ -451,7 +457,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC2181_NSCanonicalWithGlue`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L456) | unit/verify | not verified |
+| positive | [`TestRFC2181_NSCanonicalWithGlue`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L456) | unit/verify | mutant, verified |
 
 ### [`RFC2181-11-1`](#rfc2181-11-1)
 
@@ -473,7 +479,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC2181_LabelsUnrestricted`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L272) | unit/verify | not verified |
+| positive | [`TestRFC2181_LabelsUnrestricted`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L272) | unit/verify | mutant, verified |
 
 ### [`RFC2181-11-3`](#rfc2181-11-3)
 
@@ -483,7 +489,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC2181_LabelsUnrestricted`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L261) | unit/verify | not verified |
+| positive | [`TestRFC2181_LabelsUnrestricted`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L261) | unit/verify | mutant, verified |
 
 ### [`RFC2181-8-2`](#rfc2181-8-2)
 

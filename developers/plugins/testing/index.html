@@ -538,7 +538,7 @@ a serial, command name, args, and peer address, and returns status, data, and er
 <pre><code class="language-go">func TestCommandHandler(t *testing.T) {
     p, engineMux := newTestPair(t)
 
-    p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+    p.OnExecuteCommand(func(serial, command string, args []string, peer string, pipe []sdk.PipeOperation) (string, any, error) {
         if command == "show-status" {
             return "done", `{"status":"healthy"}`, nil
         }
@@ -661,7 +661,7 @@ the reload, and <code>TestConfigApplyWithoutHandlerIsRefused</code> in
         t.Run(tt.name, func(t *testing.T) {
             p, engineMux := newTestPair(t)
 
-            p.OnExecuteCommand(func(serial, cmd string, args []string, peer string) (string, any, error) {
+            p.OnExecuteCommand(func(serial, cmd string, args []string, peer string, pipe []sdk.PipeOperation) (string, any, error) {
                 if cmd == "show-routes" {
                     return "done", `{"count":42}`, nil
                 }
@@ -743,7 +743,7 @@ p.OnEvent(func(event string) error {
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 00:39 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
                 </div>
             </div>
         </footer>

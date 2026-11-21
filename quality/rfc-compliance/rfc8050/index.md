@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 1 | of 6 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 6 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Declared gap or no test | 0 | of 6 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 31 | 31 of 36 tests linked to requirements, 0 without a fault test and 1 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 32 | 32 of 36 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -264,7 +264,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | positive | [`TestRFC8050CommandsRequireMixedContext`](https://github.com/ze-software/ze/blob/main/internal/analyze/rfc8050_session_commands_test.go#L87) | unit/verify | revert, verified |
 | positive | [`TestMRTCollisionWinnerReservation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_collision_epoch_test.go#L54) | unit/verify | mutant, verified |
 | positive | [`TestMRTWinningCollisionPreservesOPEN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_collision_epoch_test.go#L36) | unit/verify | revert, verified |
-| positive | [`TestMRTMigrationEpochUsesActualLocalOPEN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_migration_epoch_test.go#L27) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestMRTMigrationEpochUsesActualLocalOPEN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_migration_epoch_test.go#L27) | unit/verify | revert, verified |
 | positive | [`TestRFC8050MessageCallbackPreservesEncodingAndFraming`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_mrt_observer_test.go#L22) | unit/verify | revert, verified |
 | positive | [`TestIsAddPathHelpers`](https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L665) | unit/verify | not verified |
 | positive | [`TestRFC8050AddPathBGP4MPUpdateNLRIReadBySubtype`](https://github.com/ze-software/ze/blob/main/internal/mrt/rfc8050_addpath_nlri_test.go#L22) | unit/verify | revert, verified |

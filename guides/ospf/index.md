@@ -817,9 +817,9 @@ Restoring interval 10 must restore the adjacency and route in the same process.
 
 Commit OSPF live, follow a Full neighbor through the router database to its loopback route, then diagnose and repair mismatched Hello timers.
 
-[Download the asciicast recording](../../assets/demos/ospf-adjacency.cast?v=a6fe1973c6) · [Plain-text transcript](../../assets/demos/ospf-adjacency.txt?v=fc63b795c8)
+[Download the asciicast recording](../../assets/demos/ospf-adjacency.cast?v=9f6571a72e) · [Plain-text transcript](../../assets/demos/ospf-adjacency.txt?v=47ced42968)
 
-Recorded with Ze 26.10.28 in a Linux namespace lab using Ze recorder. Duration: 4 minutes 24 seconds.
+Recorded with Ze 26.11.20 in a Linux namespace lab using Ze recorder. Duration: 2 minutes 57 seconds.
 
 ```console
 OSPF live adjacency and Hello-mismatch walkthrough
@@ -831,8 +831,8 @@ $ ze cli -c 'show ospf neighbor | no-more'
 
 Load: area 0 and broadcast interface timers 10/40 in one SSH candidate.
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/ospf/1-area.conf
-ze# load file absolute merge /src/demos/terminal/topics/ospf/2-interface.conf
+ze# load file absolute merge topics/ospf/1-area.conf
+ze# load file absolute merge topics/ospf/2-interface.conf
 ze# show | compare
 ze# commit now
 
@@ -846,7 +846,7 @@ $ ze cli -c 'show ospf route | no-more'
 Failure: commit Hello interval 20; inspect current interface timers, lost adjacency/route and the hello-interval packet-drop metric.
 $ ze-demo card topic-ospf failure
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/ospf/3-mismatch.conf
+ze# load file absolute merge topics/ospf/3-mismatch.conf
 ze# show | compare
 ze# commit now
 $ ze cli -c 'show ospf neighbor detail | no-more'
@@ -857,7 +857,7 @@ $ ze cli -c 'show ospf route | no-more'
 Fix: commit interval 10, require all three protocol observations again, and print the unchanged shown PID.
 $ ze-demo card topic-ospf fix
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/ospf/4-recovery.conf
+ze# load file absolute merge topics/ospf/4-recovery.conf
 ze# show | compare
 ze# commit now
 $ ze cli -c 'show ospf neighbor detail | no-more'

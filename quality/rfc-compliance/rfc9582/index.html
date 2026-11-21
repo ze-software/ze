@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 9582 requirements and tests - Ze</title>
-        <meta name="description" content="RFC 9582: A Profile for Route Origin Authorizations (ROAs). 16 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 16 with no test." />
+        <meta name="description" content="RFC 9582: A Profile for Route Origin Authorizations (ROAs). 16 mandatory requirements included in automatic checks, 16 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 9582 requirements and tests - Ze" />
-        <meta property="og:description" content="RFC 9582: A Profile for Route Origin Authorizations (ROAs). 16 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 16 with no test." />
+        <meta property="og:description" content="RFC 9582: A Profile for Route Origin Authorizations (ROAs). 16 mandatory requirements included in automatic checks, 16 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 9582 requirements and tests - Ze" />
-        <meta name="twitter:description" content="RFC 9582: A Profile for Route Origin Authorizations (ROAs). 16 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 16 with no test." />
+        <meta name="twitter:description" content="RFC 9582: A Profile for Route Origin Authorizations (ROAs). 16 mandatory requirements included in automatic checks, 16 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -47,7 +47,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">A Profile for Route Origin Authorizations (ROAs)</span>
     <h1 id="rfc-detail-title">RFC 9582 - A Profile for Route Origin Authorizations (ROAs)</h1>
-    <p>Every requirement listed for RFC 9582, the tests linked to it, and their recorded reviews. This summary is excluded from automatic compliance checks.</p>
+    <p>Every requirement listed for RFC 9582, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.</p>
 </div>
 <style>
 .rfc-table-wrap { overflow-x: auto; }
@@ -151,7 +151,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Totals</h3>
 <p>what the cards above are counted against</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-total-card"><span>Mandatory requirements (MUST level), not checked</span><strong>16</strong><b>of 22 requirements this summary lists, at all levels</b><p>The RFC&#39;s MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements listed in this summary. This RFC is excluded from automatic checks (third-party), so these requirements are not checked. The counts above show what the summary records.</p></article>
+<article class="rfc-card rfc-total-card"><span>Mandatory requirements (MUST level)</span><strong>16</strong><b>of 22 requirements this summary lists, at all levels</b><p>The RFC&#39;s MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements.</p></article>
 </div>
 <p>The 9 counts marked as a part above are the whole of the 16 mandatory requirements: they add up to 16. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -208,7 +208,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current</td>
 </tr>
-<tr><td>Mandatory requirements (MUST level), not checked</td>
+<tr><td>Mandatory requirements (MUST level)</td>
 <td><span class="rfc-swatch rfc-total-card"></span> outlined</td>
 <td>outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad</td>
 </tr>
@@ -226,25 +226,25 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>A Profile for Route Origin Authorizations (ROAs)</td>
 </tr>
 <tr><td>Automatic checks</td>
-<td>Excluded (third-party)</td>
+<td>Included</td>
 </tr>
 <tr><td>Requirements</td>
 <td>22</td>
 </tr>
-<tr><td>Mandatory requirements (MUST level), not checked</td>
+<tr><td>Mandatory requirements (MUST level)</td>
 <td>16</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>0</td>
+<td>16</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
 </tr>
 <tr><td>Mandatory requirements with no test and no annotation</td>
-<td>16</td>
+<td>0</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
@@ -275,13 +275,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Automatic checks</h2>
-<p>Excluded from automatic checks (third-party, a layer under or beside Ze performs the document and Ze holds no Go code for it, so the reason beside this kind names the component that does): The configured relying-party cache, such as Routinator or rpki-client, validates the CMS and X.509 ROA profile. Ze&#39;s RTR client consumes the resulting validated prefix payload through `internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU`.</p>
+<p>Included in automatic checks: The ROA-profile requirements below come from the cached RFC and its extraction record (rfc/extraction/rfc9582.json). Every MUST row is a gap: ROA validation is wanted after the first release (owner ruling 2026-11-20) and is not built today. The RTR rows an earlier extraction attributed to this RFC were retired on 2026-09-26 (rfc/corrections/rfc9582.md) because they state draft-ietf-sidrops-8210bis obligations, not RFC 9582 ones.</p>
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> A Profile for Route Origin Authorizations (ROAs)</p>
 <p><strong>Test verification:</strong> 0 of 16 MUST proven</p>
 <p><strong>Evidence:</strong> -</p>
-<p><strong>Unmet:</strong> -</p>
+<p><strong>Unmet:</strong> RFC9582-3-1, RFC9582-4.1-1, RFC9582-4.3.1-1, RFC9582-4.3.1-2, RFC9582-4.3.1-3, RFC9582-4.3.1-4, RFC9582-4.3.2.2-1, RFC9582-5-1, RFC9582-5-2, RFC9582-5-3, RFC9582-5-4, RFC9582-5-5, RFC9582-5-6, RFC9582-5-7, RFC9582-6-1, RFC9582-6-2</p>
 
 </section>
 <section><h2>Coverage</h2>
@@ -294,7 +294,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>0</strong></td>
+<td><strong>16</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Only a positive or negative test</td>
@@ -302,7 +302,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>16</strong></td>
+<td><strong>0</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Partial test coverage (subset of annotated; zero whole-requirement credit)</td>
@@ -317,17 +317,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>0</strong></td>
 <td>excluded from the total: each summarizes the status of other requirements, which are already counted above</td>
 </tr>
-<tr class="rfc-total"><td><strong>Mandatory requirements (MUST level), not checked</strong></td><td><strong>16</strong></td><td>every mandatory requirement appears in exactly one group above</td></tr>
+<tr class="rfc-total"><td><strong>Mandatory requirements (MUST level)</strong></td><td><strong>16</strong></td><td>every mandatory requirement appears in exactly one group above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>No test and no annotation (16):</strong> <a href="#rfc9582-3-1"><code>RFC9582-3-1</code></a>, <a href="#rfc9582-4.1-1"><code>RFC9582-4.1-1</code></a>, <a href="#rfc9582-4.3.1-1"><code>RFC9582-4.3.1-1</code></a>, <a href="#rfc9582-4.3.1-2"><code>RFC9582-4.3.1-2</code></a>, <a href="#rfc9582-4.3.1-3"><code>RFC9582-4.3.1-3</code></a>, <a href="#rfc9582-4.3.1-4"><code>RFC9582-4.3.1-4</code></a>, <a href="#rfc9582-4.3.2.2-1"><code>RFC9582-4.3.2.2-1</code></a>, <a href="#rfc9582-5-1"><code>RFC9582-5-1</code></a>, <a href="#rfc9582-5-2"><code>RFC9582-5-2</code></a>, <a href="#rfc9582-5-3"><code>RFC9582-5-3</code></a>, <a href="#rfc9582-5-4"><code>RFC9582-5-4</code></a>, <a href="#rfc9582-5-5"><code>RFC9582-5-5</code></a>, <a href="#rfc9582-5-6"><code>RFC9582-5-6</code></a>, <a href="#rfc9582-5-7"><code>RFC9582-5-7</code></a>, <a href="#rfc9582-6-1"><code>RFC9582-6-1</code></a>, <a href="#rfc9582-6-2"><code>RFC9582-6-2</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (16):</strong> <a href="#rfc9582-3-1"><code>RFC9582-3-1</code></a>, <a href="#rfc9582-4.1-1"><code>RFC9582-4.1-1</code></a>, <a href="#rfc9582-4.3.1-1"><code>RFC9582-4.3.1-1</code></a>, <a href="#rfc9582-4.3.1-2"><code>RFC9582-4.3.1-2</code></a>, <a href="#rfc9582-4.3.1-3"><code>RFC9582-4.3.1-3</code></a>, <a href="#rfc9582-4.3.1-4"><code>RFC9582-4.3.1-4</code></a>, <a href="#rfc9582-4.3.2.2-1"><code>RFC9582-4.3.2.2-1</code></a>, <a href="#rfc9582-5-1"><code>RFC9582-5-1</code></a>, <a href="#rfc9582-5-2"><code>RFC9582-5-2</code></a>, <a href="#rfc9582-5-3"><code>RFC9582-5-3</code></a>, <a href="#rfc9582-5-4"><code>RFC9582-5-4</code></a>, <a href="#rfc9582-5-5"><code>RFC9582-5-5</code></a>, <a href="#rfc9582-5-6"><code>RFC9582-5-6</code></a>, <a href="#rfc9582-5-7"><code>RFC9582-5-7</code></a>, <a href="#rfc9582-6-1"><code>RFC9582-6-1</code></a>, <a href="#rfc9582-6-2"><code>RFC9582-6-2</code></a></p>
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc9582:must">Not assessed 16</div>
+<div data-ze-rfc-bar="rfc9582:must">Not built 16</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc9582:overview">Not assessed 22</div>
+<div data-ze-rfc-bar="rfc9582:overview">Not assessed 6, Not built 16</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -363,10 +363,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc9582:must.exclusion-unchecked">0</span></td>
 </tr>
 <tr><td>Not assessed</td>
-<td><span data-ze-rfc="rfc9582:must.not-assessed">16</span></td>
+<td><span data-ze-rfc="rfc9582:must.not-assessed">0</span></td>
 </tr>
 <tr><td>Not built</td>
-<td><span data-ze-rfc="rfc9582:must.not-built">0</span></td>
+<td><span data-ze-rfc="rfc9582:must.not-built">16</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="rfc9582:must.not-owed">0</span></td>
@@ -434,7 +434,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ROA validation is wanted after the first release (owner ruling 2026-11-20) and is not built today: ze holds no ROA, CMS or X.509 parser, and its RPKI plugin consumes only validated prefix payloads received over RTR (internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU), so no ROA content type is checked; the obligation has no producer and no test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-4.1-1">RFC9582-4.1-1</code></td><td colspan="3"><span class="rfc-subject">The version number of the RouteOriginAttestation entry MUST be 0 (§4.1)</span></td></tr>
 <tr><td></td>
@@ -443,7 +443,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-4.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ROA validation is wanted after the first release (owner ruling 2026-11-20) and is not built today: ze holds no ROA, CMS or X.509 parser, and its RPKI plugin consumes only validated prefix payloads received over RTR (internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU), so no RouteOriginAttestation version is read; the obligation has no producer and no test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-4.3.1-1">RFC9582-4.3.1-1</code></td><td colspan="3"><span class="rfc-subject">addressFamily MUST be either 0001 or 0002 (§4.3.1)</span></td></tr>
 <tr><td></td>
@@ -452,7 +452,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-4.3.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ROA validation is wanted after the first release (owner ruling 2026-11-20) and is not built today: ze holds no ROA, CMS or X.509 parser, and its RPKI plugin consumes only validated prefix payloads received over RTR (internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU), so no ROA addressFamily is read; the obligation has no producer and no test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-4.3.1-2">RFC9582-4.3.1-2</code></td><td colspan="3"><span class="rfc-subject">IPv4 prefixes MUST NOT appear as IPv4-mapped IPv6 addresses (§4.3.1)</span></td></tr>
 <tr><td></td>
@@ -461,7 +461,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-4.3.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ROA validation is wanted after the first release (owner ruling 2026-11-20) and is not built today: ze holds no ROA, CMS or X.509 parser, and its RPKI plugin consumes only validated prefix payloads received over RTR (internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU), so no ROA prefix encoding is checked; the obligation has no producer and no test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-4.3.1-3">RFC9582-4.3.1-3</code></td><td colspan="3"><span class="rfc-subject">There MUST be only one instance of ROAIPAddressFamily per unique AFI in the ROA (§4.3.1)</span></td></tr>
 <tr><td></td>
@@ -470,7 +470,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-4.3.1-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ROA validation is wanted after the first release (owner ruling 2026-11-20) and is not built today: ze holds no ROA, CMS or X.509 parser, and its RPKI plugin consumes only validated prefix payloads received over RTR (internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU), so no count of ROAIPAddressFamily entries is checked; the obligation has no producer and no test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-4.3.1-4">RFC9582-4.3.1-4</code></td><td colspan="3"><span class="rfc-subject">Thus, the ROAIPAddressFamily structure MUST NOT appear more than twice. (§4.3.1)</span></td></tr>
 <tr><td></td>
@@ -479,7 +479,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-4.3.1-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ROA validation is wanted after the first release (owner ruling 2026-11-20) and is not built today: ze holds no ROA, CMS or X.509 parser, and its RPKI plugin consumes only validated prefix payloads received over RTR (internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU), so no count of ROAIPAddressFamily entries is checked; the obligation has no producer and no test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-4.3.2.2-1">RFC9582-4.3.2.2-1</code></td><td colspan="3"><span class="rfc-subject">If present, the maxLength element MUST be: * an integer greater than or equal to the length of the accompanying prefix, and * less than or equal to the maximum length (in bits) of an IP address in the applicable address family: 32 in the case of IPv4 and 128 in the case of IPv6. (§4.3.2.2)</span></td></tr>
 <tr><td></td>
@@ -488,7 +488,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-4.3.2.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ROA validation is wanted after the first release (owner ruling 2026-11-20) and is not built today: ze holds no ROA, CMS or X.509 parser, and its RPKI plugin consumes only validated prefix payloads received over RTR (internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU), so no ROA maxLength element is checked; the obligation has no producer and no test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-5-1">RFC9582-5-1</code></td><td colspan="3"><span class="rfc-subject">Before a Relying Party can use a ROA to validate a routing announcement, the Relying Party MUST first validate the ROA (§5)</span></td></tr>
 <tr><td></td>
@@ -497,7 +497,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-5-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ROA validation is wanted after the first release (owner ruling 2026-11-20) and is not built today: ze holds no ROA, CMS or X.509 parser, and its RPKI plugin consumes only validated prefix payloads received over RTR (internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU), so no ROA is validated before its payload is used; the obligation has no producer and no test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-5-2">RFC9582-5-2</code></td><td colspan="3"><span class="rfc-subject">To validate a ROA, the Relying Party MUST perform all the validation checks specified in [RFC6488] as well as the following additional ROA-specific validation steps: (§5)</span></td></tr>
 <tr><td></td>
@@ -506,7 +506,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-5-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ROA validation is wanted after the first release (owner ruling 2026-11-20) and is not built today: ze holds no ROA, CMS or X.509 parser, and its RPKI plugin consumes only validated prefix payloads received over RTR (internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU), so no ROA validation check is performed; the obligation has no producer and no test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-5-3">RFC9582-5-3</code></td><td colspan="3"><span class="rfc-subject">* The EE certificate&#39;s IP address delegation extension MUST NOT contain &#34;inherit&#34; elements as described in [RFC3779]. (§5)</span></td></tr>
 <tr><td></td>
@@ -515,7 +515,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-5-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ROA validation is wanted after the first release (owner ruling 2026-11-20) and is not built today: ze holds no ROA, CMS or X.509 parser, and its RPKI plugin consumes only validated prefix payloads received over RTR (internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU), so no EE certificate IP address delegation extension is examined; the obligation has no producer and no test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-5-4">RFC9582-5-4</code></td><td colspan="3"><span class="rfc-subject">* The Autonomous System identifier delegation extension described in [RFC3779] is not used in ROAs and MUST NOT be present in the EE certificate. (§5)</span></td></tr>
 <tr><td></td>
@@ -524,7 +524,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-5-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ROA validation is wanted after the first release (owner ruling 2026-11-20) and is not built today: ze holds no ROA, CMS or X.509 parser, and its RPKI plugin consumes only validated prefix payloads received over RTR (internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU), so no EE certificate AS identifier delegation extension is examined; the obligation has no producer and no test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-5-5">RFC9582-5-5</code></td><td colspan="3"><span class="rfc-subject">If any of the above checks fail, the ROA in its entirety MUST be considered invalid (§5)</span></td></tr>
 <tr><td></td>
@@ -533,7 +533,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-5-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ROA validation is wanted after the first release (owner ruling 2026-11-20) and is not built today: ze holds no ROA, CMS or X.509 parser, and its RPKI plugin consumes only validated prefix payloads received over RTR (internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU), so no ROA is judged invalid; the obligation has no producer and no test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-5-6">RFC9582-5-6</code></td><td colspan="3"><span class="rfc-subject">* The IP address delegation extension [RFC3779] is present in the end-entity (EE) certificate (contained within the ROA), and every IP address prefix in the ROA payload is contained within the set of IP addresses specified by the EE certificate&#39;s IP address delegation extension. (§5)</span></td></tr>
 <tr><td></td>
@@ -542,7 +542,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-5-6">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ROA validation is wanted after the first release (owner ruling 2026-11-20) and is not built today: ze holds no ROA, CMS or X.509 parser, and its RPKI plugin consumes only validated prefix payloads received over RTR (internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU), so no EE certificate IP address delegation extension is examined; the obligation has no producer and no test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-5-7">RFC9582-5-7</code></td><td colspan="3"><span class="rfc-subject">The ROA content fully conforms with all requirements specified in Sections 3 and 4 (§5)</span></td></tr>
 <tr><td></td>
@@ -551,7 +551,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-5-7">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ROA validation is wanted after the first release (owner ruling 2026-11-20) and is not built today: ze holds no ROA, CMS or X.509 parser, and its RPKI plugin consumes only validated prefix payloads received over RTR (internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU), so no ROA content is checked against Sections 3 and 4; the obligation has no producer and no test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-6-1">RFC9582-6-1</code></td><td colspan="3"><span class="rfc-subject">Thus, the integrity of a ROA MUST be established. (§6)</span></td></tr>
 <tr><td></td>
@@ -560,7 +560,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-6-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ROA validation is wanted after the first release (owner ruling 2026-11-20) and is not built today: ze holds no ROA, CMS or X.509 parser, and its RPKI plugin consumes only validated prefix payloads received over RTR (internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU), so no ROA integrity is established; the obligation has no producer and no test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-6-2">RFC9582-6-2</code></td><td colspan="3"><span class="rfc-subject">Specifically, one MUST verify the signature on the ROA using an X.509 certificate issued under this PKI and check that the prefix or prefixes in the ROA are contained within those in the certificate&#39;s IP address delegation extension. (§6)</span></td></tr>
 <tr><td></td>
@@ -569,7 +569,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-6-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ROA validation is wanted after the first release (owner ruling 2026-11-20) and is not built today: ze holds no ROA, CMS or X.509 parser, and its RPKI plugin consumes only validated prefix payloads received over RTR (internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU), so no ROA signature is verified; the obligation has no producer and no test</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-4.3.2.2-2">RFC9582-4.3.2.2-2</code></td><td colspan="3"><span class="rfc-subject">The maxLength element SHOULD NOT be encoded if the maximum length is equal to the prefix length (§4.3.2.2)</span></td></tr>
 <tr><td></td>
@@ -635,68 +635,68 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
 <tr><td><a href="#rfc9582-3-1"><code>RFC9582-3-1</code></a> The content-type for a ROA is defined as id-ct-routeOriginAuthz and has the numerical value 1.2.840.113549.1.9.16.1.24. This OID MUST appear within both the eContentType in the encapContentInfo object and the content-type signed attribute in the signerInfo object (see [RFC6488]). (§3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
+<td>{gap}, no test</td>
+<td>ROA validation is wanted after the first release (owner ruling 2026-11-20) and is not built today: ze holds no ROA, CMS or X.509 parser, and its RPKI plugin consumes only validated prefix payloads received over RTR (internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU), so no ROA content type is checked; the obligation has no producer and no test</td>
 </tr>
 <tr><td><a href="#rfc9582-4.1-1"><code>RFC9582-4.1-1</code></a> The version number of the RouteOriginAttestation entry MUST be 0 (§4.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
+<td>{gap}, no test</td>
+<td>ROA validation is wanted after the first release (owner ruling 2026-11-20) and is not built today: ze holds no ROA, CMS or X.509 parser, and its RPKI plugin consumes only validated prefix payloads received over RTR (internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU), so no RouteOriginAttestation version is read; the obligation has no producer and no test</td>
 </tr>
 <tr><td><a href="#rfc9582-4.3.1-1"><code>RFC9582-4.3.1-1</code></a> addressFamily MUST be either 0001 or 0002 (§4.3.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
+<td>{gap}, no test</td>
+<td>ROA validation is wanted after the first release (owner ruling 2026-11-20) and is not built today: ze holds no ROA, CMS or X.509 parser, and its RPKI plugin consumes only validated prefix payloads received over RTR (internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU), so no ROA addressFamily is read; the obligation has no producer and no test</td>
 </tr>
 <tr><td><a href="#rfc9582-4.3.1-2"><code>RFC9582-4.3.1-2</code></a> IPv4 prefixes MUST NOT appear as IPv4-mapped IPv6 addresses (§4.3.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
+<td>{gap}, no test</td>
+<td>ROA validation is wanted after the first release (owner ruling 2026-11-20) and is not built today: ze holds no ROA, CMS or X.509 parser, and its RPKI plugin consumes only validated prefix payloads received over RTR (internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU), so no ROA prefix encoding is checked; the obligation has no producer and no test</td>
 </tr>
 <tr><td><a href="#rfc9582-4.3.1-3"><code>RFC9582-4.3.1-3</code></a> There MUST be only one instance of ROAIPAddressFamily per unique AFI in the ROA (§4.3.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
+<td>{gap}, no test</td>
+<td>ROA validation is wanted after the first release (owner ruling 2026-11-20) and is not built today: ze holds no ROA, CMS or X.509 parser, and its RPKI plugin consumes only validated prefix payloads received over RTR (internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU), so no count of ROAIPAddressFamily entries is checked; the obligation has no producer and no test</td>
 </tr>
 <tr><td><a href="#rfc9582-4.3.1-4"><code>RFC9582-4.3.1-4</code></a> Thus, the ROAIPAddressFamily structure MUST NOT appear more than twice. (§4.3.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
+<td>{gap}, no test</td>
+<td>ROA validation is wanted after the first release (owner ruling 2026-11-20) and is not built today: ze holds no ROA, CMS or X.509 parser, and its RPKI plugin consumes only validated prefix payloads received over RTR (internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU), so no count of ROAIPAddressFamily entries is checked; the obligation has no producer and no test</td>
 </tr>
 <tr><td><a href="#rfc9582-4.3.2.2-1"><code>RFC9582-4.3.2.2-1</code></a> If present, the maxLength element MUST be: * an integer greater than or equal to the length of the accompanying prefix, and * less than or equal to the maximum length (in bits) of an IP address in the applicable address family: 32 in the case of IPv4 and 128 in the case of IPv6. (§4.3.2.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
+<td>{gap}, no test</td>
+<td>ROA validation is wanted after the first release (owner ruling 2026-11-20) and is not built today: ze holds no ROA, CMS or X.509 parser, and its RPKI plugin consumes only validated prefix payloads received over RTR (internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU), so no ROA maxLength element is checked; the obligation has no producer and no test</td>
 </tr>
 <tr><td><a href="#rfc9582-5-1"><code>RFC9582-5-1</code></a> Before a Relying Party can use a ROA to validate a routing announcement, the Relying Party MUST first validate the ROA (§5)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
+<td>{gap}, no test</td>
+<td>ROA validation is wanted after the first release (owner ruling 2026-11-20) and is not built today: ze holds no ROA, CMS or X.509 parser, and its RPKI plugin consumes only validated prefix payloads received over RTR (internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU), so no ROA is validated before its payload is used; the obligation has no producer and no test</td>
 </tr>
 <tr><td><a href="#rfc9582-5-2"><code>RFC9582-5-2</code></a> To validate a ROA, the Relying Party MUST perform all the validation checks specified in [RFC6488] as well as the following additional ROA-specific validation steps: (§5)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
+<td>{gap}, no test</td>
+<td>ROA validation is wanted after the first release (owner ruling 2026-11-20) and is not built today: ze holds no ROA, CMS or X.509 parser, and its RPKI plugin consumes only validated prefix payloads received over RTR (internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU), so no ROA validation check is performed; the obligation has no producer and no test</td>
 </tr>
 <tr><td><a href="#rfc9582-5-3"><code>RFC9582-5-3</code></a> * The EE certificate&#39;s IP address delegation extension MUST NOT contain &#34;inherit&#34; elements as described in [RFC3779]. (§5)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
+<td>{gap}, no test</td>
+<td>ROA validation is wanted after the first release (owner ruling 2026-11-20) and is not built today: ze holds no ROA, CMS or X.509 parser, and its RPKI plugin consumes only validated prefix payloads received over RTR (internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU), so no EE certificate IP address delegation extension is examined; the obligation has no producer and no test</td>
 </tr>
 <tr><td><a href="#rfc9582-5-4"><code>RFC9582-5-4</code></a> * The Autonomous System identifier delegation extension described in [RFC3779] is not used in ROAs and MUST NOT be present in the EE certificate. (§5)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
+<td>{gap}, no test</td>
+<td>ROA validation is wanted after the first release (owner ruling 2026-11-20) and is not built today: ze holds no ROA, CMS or X.509 parser, and its RPKI plugin consumes only validated prefix payloads received over RTR (internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU), so no EE certificate AS identifier delegation extension is examined; the obligation has no producer and no test</td>
 </tr>
 <tr><td><a href="#rfc9582-5-5"><code>RFC9582-5-5</code></a> If any of the above checks fail, the ROA in its entirety MUST be considered invalid (§5)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
+<td>{gap}, no test</td>
+<td>ROA validation is wanted after the first release (owner ruling 2026-11-20) and is not built today: ze holds no ROA, CMS or X.509 parser, and its RPKI plugin consumes only validated prefix payloads received over RTR (internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU), so no ROA is judged invalid; the obligation has no producer and no test</td>
 </tr>
 <tr><td><a href="#rfc9582-5-6"><code>RFC9582-5-6</code></a> * The IP address delegation extension [RFC3779] is present in the end-entity (EE) certificate (contained within the ROA), and every IP address prefix in the ROA payload is contained within the set of IP addresses specified by the EE certificate&#39;s IP address delegation extension. (§5)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
+<td>{gap}, no test</td>
+<td>ROA validation is wanted after the first release (owner ruling 2026-11-20) and is not built today: ze holds no ROA, CMS or X.509 parser, and its RPKI plugin consumes only validated prefix payloads received over RTR (internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU), so no EE certificate IP address delegation extension is examined; the obligation has no producer and no test</td>
 </tr>
 <tr><td><a href="#rfc9582-5-7"><code>RFC9582-5-7</code></a> The ROA content fully conforms with all requirements specified in Sections 3 and 4 (§5)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
+<td>{gap}, no test</td>
+<td>ROA validation is wanted after the first release (owner ruling 2026-11-20) and is not built today: ze holds no ROA, CMS or X.509 parser, and its RPKI plugin consumes only validated prefix payloads received over RTR (internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU), so no ROA content is checked against Sections 3 and 4; the obligation has no producer and no test</td>
 </tr>
 <tr><td><a href="#rfc9582-6-1"><code>RFC9582-6-1</code></a> Thus, the integrity of a ROA MUST be established. (§6)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
+<td>{gap}, no test</td>
+<td>ROA validation is wanted after the first release (owner ruling 2026-11-20) and is not built today: ze holds no ROA, CMS or X.509 parser, and its RPKI plugin consumes only validated prefix payloads received over RTR (internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU), so no ROA integrity is established; the obligation has no producer and no test</td>
 </tr>
 <tr><td><a href="#rfc9582-6-2"><code>RFC9582-6-2</code></a> Specifically, one MUST verify the signature on the ROA using an X.509 certificate issued under this PKI and check that the prefix or prefixes in the ROA are contained within those in the certificate&#39;s IP address delegation extension. (§6)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
+<td>{gap}, no test</td>
+<td>ROA validation is wanted after the first release (owner ruling 2026-11-20) and is not built today: ze holds no ROA, CMS or X.509 parser, and its RPKI plugin consumes only validated prefix payloads received over RTR (internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU), so no ROA signature is verified; the obligation has no producer and no test</td>
 </tr>
 </tbody>
 </table>
@@ -1058,7 +1058,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
                 </div>
             </div>
         </footer>

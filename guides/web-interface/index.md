@@ -343,7 +343,9 @@ The browser assets are vendored in `third_party/web/` and copied to each
 consumer by the same `./le repo update` run. htmx 4.0.0 and its
 `hx-sse.min.js` extension serve the web interface, the looking glass and the
 chaos dashboard. `internal/le/web/assets.Write` derives each page's asset set
-from its component graph, so a page loads only what it reaches.
+from its component graph, so a page loads only what it reaches. Each
+third-party package travels with its licence file, which the interface and the
+looking glass serve beside the asset.
 
 <!-- source: internal/component/web/markup_check_test.go -- webMarkupExempt, TestNoGoFileBuildsMarkup -->
 <!-- source: third_party/web/MANIFEST.md -- vendored versions, consumers, sync targets -->

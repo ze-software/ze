@@ -55,15 +55,16 @@
 <dl class="cmd-meta">
 <div><dt>Registry path</dt><dd><code>show fleet divergence list</code></dd></div>
 <div><dt>Usage</dt><dd><code>show fleet divergence list</code></dd></div>
-<div><dt>Mode</dt><dd>Read-only</dd></div>
+<div><dt>Mode</dt><dd>read-only, offline</dd></div>
 <div><dt>Wire method</dt><dd><code>ze-managed:fleet-divergence-list</code></dd></div>
 <div><dt>Backends</dt><dd>any backend</dd></div>
 <div><dt>Task support</dt><dd>optional: the MCP call is synchronous, which is the default</dd></div>
 <div><dt>Subcommands</dt><dd>none: this command takes no subcommand</dd></div>
-<div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save</dd></div>
-<div><dt>Pipes, when the answer has rows</dt><dd>match, count, first, last, display, fill</dd></div>
+<div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill</dd></div>
 <div><dt>Pipes, while streaming</dt><dd>log</dd></div>
 <div><dt>Pipes, local process only</dt><dd>save</dd></div>
+<div><dt>Answer shape</dt><dd>tab</dd></div>
+<div><dt>Column order</dt><dd>client, declared, device-version, hub-version, edited-at, received-at, revert, unreadable</dd></div>
 </dl>
 <h3>Description</h3><p>On a hub: every managed client whose held configuration this hub<br>keeps, with both hashes, the two times, the revert decision and<br>whether a server block still declares the client.</p>
 <h3>Arguments</h3>
@@ -132,7 +133,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
                 </div>
             </div>
         </footer>

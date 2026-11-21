@@ -31,7 +31,7 @@ checks needed for the current diff and is a stage of Thomas's release check, `./
 | `./le doc index check` | Documentation source paths and claimed symbols resolve |
 | `./le doc check links` | Tracked path citations resolve |
 | `./le ai digest` | Every `file:line` anchor in `ai/digests/*.md` resolves |
-| `./le doc consistency` | Design references, cross-references, JSON tags, and package citations agree |
+| `./le doc consistency` | Design references, cross-references, JSON tags, and package citations agree; every `.md` page a `// Design:` header names exists, and its `## Design decisions` section keeps the page format (`docs/architecture/README.md`, "Page format") |
 | `./le doc wiring` | Changed files trigger their documentation and inventory checks |
 | `./le doc ste check` | No ASD-STE100 habit grew against `HEAD` |
 
@@ -505,6 +505,22 @@ files, while the last records an earlier tree.
 `internal/le/doc/consistency` parses `// Design:`, `// Detail:`, `// Overview:`, and
 `// Related:` comments, checks their symmetry, and reports references to
 packages that no longer exist.
+
+The same package reads every `.md` page a header line before the `package`
+clause names (each word before the ` -- ` separator that ends in `.md`, in a
+Go file outside a `testdata` directory). A page that does not exist is a
+`design-refs` error on the file and its header line. On a page that exists,
+the `## Design decisions` section is judged by the page format: each row's
+four cells, its Date, every Source entry, the columns and a repeated heading
+are `design-decisions` errors naming the page and the row. A page with no
+section is reported as nothing. The judgment is also registered as a
+change-set check, so `./le commit create` refuses a malformed row the commit
+adds and a row present at its parent that it changes or removes without
+Thomas (`docs/contributing/committing.md`, "What the command refuses").
+<!-- source: internal/le/doc/consistency/consistency.go -- checkDesignRefs, designHeader -->
+<!-- source: internal/le/doc/consistency/decisions.go -- designTargets, ParseDecisions, JudgeDecisionRow, checkDesignDecisions -->
+<!-- source: internal/le/doc/consistency/decisionschange.go -- judgeDecisionRows -->
+
 
 ## Adding a new documentation check
 

@@ -6,10 +6,10 @@ The interactive graph is available on the [RFC map page](./).
 
 ## Recorded inputs
 
-RFC evidence revision and age are unknown where the recorded input supplies neither. Specification snapshot: `a66ab55e4fd24554fbb56e8cceb09edddc8d97be`. These inputs do not certify one release candidate.
+RFC evidence revision and age are unknown where the recorded input supplies neither. Specification snapshot: `006886540d1e95de1fa04b2258730f6a554eb627`. These inputs do not certify one release candidate.
 
-- RFC requirement ledger: `data/rfc-requirements.json`, SHA-256 `e0a009314691017734cf1dfb7a91516986d09838a551810f8fa867a4aad70739`
-- Committed spec roadmap: `data/release-roadmap.json`, SHA-256 `89a2872d2ab259ce9383c2826803192a5d1e15709ca2d2bd8c6bf7254d4c96fb`, revision `a66ab55e4fd24554fbb56e8cceb09edddc8d97be`
+- RFC requirement ledger: `data/rfc-requirements.json`, SHA-256 `2c6e6d77d7de467f8d36cc29ca7ce638d86a9bc7b056a80b0ec9a7f58fc860bc`
+- Committed spec roadmap: `data/release-roadmap.json`, SHA-256 `a5e43576f4978e2de4bf3504e6fba79e85cbfdc2c8e14374c8877bb22448dfe7`, revision `006886540d1e95de1fa04b2258730f6a554eb627`
 - Proposed release layers: `website/data/rfc-release-layers.json`, SHA-256 `4718bc1578afc15183efee2fcbadd9f52ed5434b4fb57eeb61b980dbd928ac68`
 
 ## Proposed release layers
@@ -48,8 +48,8 @@ RFC evidence revision and age are unknown where the recorded input supplies neit
 - [rfc4862](../rfc-compliance/rfc4862/) — IPv6 Stateless Address Autoconfiguration
 - [rfc5280](../rfc-compliance/rfc5280/) — Internet X.509 Public Key Infrastructure Certificate and Certificate Revocation List (CRL) Profile
 - [rfc5382](../rfc-compliance/rfc5382/) — NAT Behavioral Requirements for TCP
-- [rfc9582](../rfc-compliance/rfc9582/) — A Profile for Route Origin Authorizations (ROAs)
 - [rfc1997](../rfc-compliance/rfc1997/) — BGP Communities Attribute
+- [rfc2308](../rfc-compliance/rfc2308/) — Negative Caching of DNS Queries (DNS NCACHE)
 - [rfc2545](../rfc-compliance/rfc2545/) — Use of BGP-4 Multiprotocol Extensions for IPv6 Inter-Domain Routing
 - [rfc3948](../rfc-compliance/rfc3948/) — UDP Encapsulation of IPsec ESP Packets
 - [rfc4106](../rfc-compliance/rfc4106/) — The Use of Galois/Counter Mode (GCM) in IPsec Encapsulating Security Payload (ESP)
@@ -130,6 +130,7 @@ RFC evidence revision and age are unknown where the recorded input supplies neit
 - rfc952 (no recorded summary)
 - [rfc1570](../rfc-compliance/rfc1570/) — PPP LCP Extensions
 - rfc1662 (no recorded summary)
+- rfc1962 (no recorded summary)
 - rfc2961 (no recorded summary)
 - rfc2997 (no recorded summary)
 - [rfc5036](../rfc-compliance/rfc5036/) — LDP Specification
@@ -178,8 +179,8 @@ RFC evidence revision and age are unknown where the recorded input supplies neit
 - rfc7761 (no recorded summary)
 - rfc8899 (no recorded summary)
 - rfc8945 (no recorded summary)
+- [rfc9582](../rfc-compliance/rfc9582/) — A Profile for Route Origin Authorizations (ROAs)
 - [sflow-v5](../rfc-compliance/sflow-v5/) — sFlow: A Method for Monitoring Traffic in Switched and Routed Networks
-- rfc2308 (no recorded summary)
 - [rfc2328](../rfc-compliance/rfc2328/) — OSPF Version 2
 - [rfc2782](../rfc-compliance/rfc2782/) — A DNS RR for specifying the location of services (DNS SRV)
 - [rfc3101](../rfc-compliance/rfc3101/) — The OSPF Not-So-Stubby Area (NSSA) Option

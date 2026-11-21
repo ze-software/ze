@@ -173,9 +173,9 @@ explicit blob artifact for appliance builders.
 
 Create the ZeFS database, edit the active configuration through Ze's SSH management plane, and verify the committed setting.
 
-[Download the asciicast recording](../../assets/demos/zefs-config.cast?v=bd9dbca818) · [Plain-text transcript](../../assets/demos/zefs-config.txt?v=586e5c6ada)
+[Download the asciicast recording](../../assets/demos/zefs-config.cast?v=d5973a2454) · [Plain-text transcript](../../assets/demos/zefs-config.txt?v=2674c1918e)
 
-Recorded with Ze 26.10.09 on macOS and Linux using Ze recorder. Duration: 3 minutes 7 seconds.
+Recorded with Ze 26.11.20 on macOS and Linux using Ze recorder. Duration: 2 minutes 16 seconds.
 
 ```console
 $ ze init
@@ -195,7 +195,7 @@ $ ssh ze-demo show bgp
 $ ssh ze-demo
 ze# set environment cli format default table
 ze# show | compare
-ze# commit
+ze# commit now
 Session committed
 ze# exit
 ze> exit

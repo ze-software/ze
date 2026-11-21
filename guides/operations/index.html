@@ -661,6 +661,16 @@ ze env get ze.log              # details for one var
 <td>Syslog address (when backend=syslog)</td>
 </tr>
 <tr>
+<td><code>ze.log.syslog.facility</code></td>
+<td><code>daemon</code></td>
+<td>Syslog facility of every subsystem not mapped by the next key</td>
+</tr>
+<tr>
+<td><code>ze.log.syslog.&lt;subsystem&gt;</code></td>
+<td>--</td>
+<td>Syslog facility of one subsystem and its children</td>
+</tr>
+<tr>
 <td><code>ze.log.relay</code></td>
 <td><code>warn</code></td>
 <td>Plugin stderr relay threshold</td>
@@ -1146,7 +1156,7 @@ ze signal quit                 # goroutine dump (kills daemon!)
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
                 </div>
             </div>
         </footer>

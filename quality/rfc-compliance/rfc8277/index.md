@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 2 | of 35 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 35 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 35 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 31 | 31 of 69 tests linked to requirements, 0 without a fault test and 28 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 59 | 59 of 69 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -94,9 +94,9 @@ Included in automatic checks: Using BGP to Bind MPLS Labels to Address Prefixes
 
 **Area:** BGP Labeled Unicast
 
-**Test verification:** 7 of 35 MUST proven
+**Test verification:** 11 of 35 MUST proven
 
-**Evidence:** unit 7
+**Evidence:** unit 11
 
 **Unmet:** RFC8277-2-1, RFC8277-2-3, RFC8277-2.1-1, RFC8277-2.1-10, RFC8277-2.1-11, RFC8277-2.1-12, RFC8277-2.1-13, RFC8277-2.1-14, RFC8277-2.1-15, RFC8277-2.1-2, RFC8277-2.1-3, RFC8277-2.1-4, RFC8277-2.1-5, RFC8277-2.1-6, RFC8277-2.1-7, RFC8277-2.1-8, RFC8277-2.1-9, RFC8277-2.2-2, RFC8277-3.2.1-2, RFC8277-3.2.1-3, RFC8277-3.2.1-4, RFC8277-3.2.2-1, RFC8277-3.2.2-2, RFC8277-3.2.2-3
 
@@ -120,8 +120,8 @@ Included in automatic checks: Using BGP to Bind MPLS Labels to Address Prefixes
 
 ## Figures
 
-- **MUST bar**: Ze verified 7, Tests awaiting verification 4, Not built 24
-- **Overview bar**: Ze MUST verified 7, SHOULD verified 1, Tests awaiting verification 4, Not assessed 6, Not built 24
+- **MUST bar**: Ze verified 11, Not built 24
+- **Overview bar**: Ze MUST verified 11, SHOULD verified 1, Not assessed 6, Not built 24
 
 | Figure | Rows |
 |---|---|
@@ -130,9 +130,9 @@ Included in automatic checks: Using BGP to Bind MPLS Labels to Address Prefixes
 | Mandatory requirements complete | not complete |
 | MUST rows | 35 |
 | MUST rows kept (the MUST bar) | 35 |
-| Ze verified | 7 |
+| Ze verified | 11 |
 | OS verified | 0 |
-| Tests awaiting verification | 4 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -448,13 +448,13 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 |---|---|---|---|
 | negative | [`TestVPNWithdrawalJSONConsumersIgnoreCompatibility`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/format/rfc8277_vpn_consumer_test.go#L34) | unit/verify | revert, verified |
 | negative | [`TestLabeledWithdrawalEventIgnoresOtherCompatibilityValues`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/format/rfc8277_withdraw_event_test.go#L96) | unit/verify | revert, verified |
-| negative | [`TestRFC8277LabeledWithdrawAddPathIgnoresCompatibility`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go#L103) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| negative | [`TestRFC8277LabeledWithdrawIgnoresCompatibility`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go#L55) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| negative | [`TestVPNWithdrawIgnoresCompatibilityValue`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go#L121) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| negative | [`TestVPNWithdrawPromotesTheOtherPE`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_withdraw_best_test.go#L26) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| negative | [`TestVPNWithdrawalLeavesExactReflectorInventory`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go#L38) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| negative | [`TestLabeledWithdrawalLeavesTheWithdrawalMap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go#L63) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| negative | [`TestVPNWithdrawalLeavesExactRouteServerInventory`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go#L31) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC8277LabeledWithdrawAddPathIgnoresCompatibility`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go#L103) | unit/verify | revert, verified |
+| negative | [`TestRFC8277LabeledWithdrawIgnoresCompatibility`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go#L55) | unit/verify | revert, verified |
+| negative | [`TestVPNWithdrawIgnoresCompatibilityValue`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go#L121) | unit/verify | revert, verified |
+| negative | [`TestVPNWithdrawPromotesTheOtherPE`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_withdraw_best_test.go#L26) | unit/verify | revert, verified |
+| negative | [`TestVPNWithdrawalLeavesExactReflectorInventory`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go#L38) | unit/verify | mutant, verified |
+| negative | [`TestLabeledWithdrawalLeavesTheWithdrawalMap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go#L63) | unit/verify | mutant, verified |
+| negative | [`TestVPNWithdrawalLeavesExactRouteServerInventory`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go#L31) | unit/verify | revert, verified |
 | negative | [`TestLabeledWithdrawalLeavesTheRouteServerSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go#L77) | unit/verify | revert, verified |
 | negative | [`TestLabeledWithdrawalCodecConsumersIgnoreCompatibility`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/server/rfc8277_labeled_consumer_test.go#L28) | unit/verify | revert, verified |
 | negative | [`TestVPNWithdrawalCodecConsumersIgnoreCompatibility`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/server/rfc8277_vpn_consumer_test.go#L27) | unit/verify | revert, verified |
@@ -462,15 +462,15 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | positive | [`TestVPNWithdrawalJSONConsumersIgnoreCompatibility`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/format/rfc8277_vpn_consumer_test.go#L33) | unit/verify | revert, verified |
 | positive | [`TestLabeledWithdrawalEventNamesThePrefix`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/format/rfc8277_withdraw_event_test.go#L71) | unit/verify | revert, verified |
 | positive | [`TestLabeledWithdrawalEventNeverReachesTheLabelDecoder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/format/rfc8277_withdraw_event_test.go#L151) | unit/verify | revert, verified |
-| positive | [`TestRFC8277LabeledWithdrawAddPathIgnoresCompatibility`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go#L102) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC8277LabeledWithdrawIgnoresCompatibility`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go#L54) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestVPNWithdrawIgnoresCompatibilityValue`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go#L120) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestVPNWithdrawPromotesTheOtherPE`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_withdraw_best_test.go#L25) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestVPNReflectorPeerDownEmitsOnlyRetainedNativeRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go#L153) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestVPNWithdrawalLeavesExactReflectorInventory`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go#L37) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestLabeledWithdrawalLeavesTheWithdrawalMap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go#L62) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestVPNRouteServerPeerDownEmitsOnlyRetainedNativeRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go#L156) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestVPNWithdrawalLeavesExactRouteServerInventory`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go#L30) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC8277LabeledWithdrawAddPathIgnoresCompatibility`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go#L102) | unit/verify | revert, verified |
+| positive | [`TestRFC8277LabeledWithdrawIgnoresCompatibility`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go#L54) | unit/verify | revert, verified |
+| positive | [`TestVPNWithdrawIgnoresCompatibilityValue`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go#L120) | unit/verify | revert, verified |
+| positive | [`TestVPNWithdrawPromotesTheOtherPE`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_withdraw_best_test.go#L25) | unit/verify | revert, verified |
+| positive | [`TestVPNReflectorPeerDownEmitsOnlyRetainedNativeRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go#L153) | unit/verify | revert, verified |
+| positive | [`TestVPNWithdrawalLeavesExactReflectorInventory`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go#L37) | unit/verify | mutant, verified |
+| positive | [`TestLabeledWithdrawalLeavesTheWithdrawalMap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go#L62) | unit/verify | mutant, verified |
+| positive | [`TestVPNRouteServerPeerDownEmitsOnlyRetainedNativeRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go#L156) | unit/verify | revert, verified |
+| positive | [`TestVPNWithdrawalLeavesExactRouteServerInventory`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go#L30) | unit/verify | revert, verified |
 | positive | [`TestLabeledWithdrawalLeavesTheRouteServerSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go#L76) | unit/verify | revert, verified |
 | positive | [`TestLabeledWithdrawalCodecConsumersIgnoreCompatibility`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/server/rfc8277_labeled_consumer_test.go#L27) | unit/verify | revert, verified |
 | positive | [`TestVPNWithdrawalCodecConsumersIgnoreCompatibility`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/server/rfc8277_vpn_consumer_test.go#L26) | unit/verify | revert, verified |
@@ -494,7 +494,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 |---|---|---|---|
 | negative | [`TestLabeledImplicitWithdrawalNoAddPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L97) | unit/verify | not verified |
 | positive | [`TestLabeledImplicitWithdrawalNoAddPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L96) | unit/verify | not verified |
-| positive | [`TestRFC8277VPNRelabelReplacesTheRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go#L72) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC8277VPNRelabelReplacesTheRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go#L72) | unit/verify | revert, verified |
 
 ### [`RFC8277-2.5-2`](#rfc8277-2.5-2)
 
@@ -504,11 +504,11 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8277AddPathSameNextHopKeepsIndependentLabels`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_same_next_hop_test.go#L35) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC8277AddPathSameNextHopKeepsIndependentLabels`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_same_next_hop_test.go#L35) | unit/verify | revert, verified |
 | negative | [`TestLabeledImplicitWithdrawalAddPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L143) | unit/verify | not verified |
-| positive | [`TestRFC8277AddPathSameNextHopKeepsIndependentLabels`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_same_next_hop_test.go#L34) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC8277AddPathSameNextHopKeepsIndependentLabels`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_same_next_hop_test.go#L34) | unit/verify | revert, verified |
 | positive | [`TestLabeledImplicitWithdrawalAddPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L142) | unit/verify | not verified |
-| positive | [`TestRFC8277AddPathLabelsBoundPerPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L199) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC8277AddPathLabelsBoundPerPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L199) | unit/verify | revert, verified |
 
 ### [`RFC8277-2.5-3`](#rfc8277-2.5-3)
 
@@ -518,9 +518,9 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8277AddPathSameIdentifierRebinds`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L245) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC8277AddPathSameNextHopKeepsIndependentLabels`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_same_next_hop_test.go#L33) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC8277AddPathLabelsBoundPerPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L198) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC8277AddPathSameIdentifierRebinds`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L245) | unit/verify | revert, verified |
+| positive | [`TestRFC8277AddPathSameNextHopKeepsIndependentLabels`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_same_next_hop_test.go#L33) | unit/verify | revert, verified |
+| positive | [`TestRFC8277AddPathLabelsBoundPerPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L198) | unit/verify | revert, verified |
 
 ### [`RFC8277-3.1-1`](#rfc8277-3.1-1)
 
@@ -530,11 +530,11 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestLabeledRoutesWithDifferentLabelsAreComparable`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L284) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC8277AddPathRoutesOnOneSessionAreComparable`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_addpath_comparable_test.go#L47) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestAddPathOpaqueMixedModeMeetInOneElection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_addpath_opaque_best_per_route_test.go#L117) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestLabeledRoutesWithDifferentLabelsAreComparable`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L283) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC8277VPNAddPathLabelsAreOneElection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_addpath_test.go#L20) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestLabeledRoutesWithDifferentLabelsAreComparable`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L284) | unit/verify | mutant, verified |
+| positive | [`TestRFC8277AddPathRoutesOnOneSessionAreComparable`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_addpath_comparable_test.go#L47) | unit/verify | mutant, verified |
+| positive | [`TestAddPathOpaqueMixedModeMeetInOneElection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_addpath_opaque_best_per_route_test.go#L117) | unit/verify | mutant, verified |
+| positive | [`TestLabeledRoutesWithDifferentLabelsAreComparable`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L283) | unit/verify | mutant, verified |
+| positive | [`TestRFC8277VPNAddPathLabelsAreOneElection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_addpath_test.go#L20) | unit/verify | revert, verified |
 
 ### [`RFC8277-3.2.1-1`](#rfc8277-3.2.1-1)
 

@@ -6,6 +6,7 @@
   "required": [
     "rfc1035",
     "rfc2181",
+    "rfc2308",
     "rfc2782",
     "rfc4033",
     "rfc4034",

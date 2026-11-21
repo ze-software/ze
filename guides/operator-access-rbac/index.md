@@ -206,9 +206,9 @@ If you never want the bootstrap admin to authenticate, disable it explicitly wit
 
 Run an allowed NOC command, then show Ze explicitly refuse a known state-changing command.
 
-[Download the asciicast recording](../../assets/demos/rbac.cast?v=ad89e9aeef) · [Plain-text transcript](../../assets/demos/rbac.txt?v=939addc51a)
+[Download the asciicast recording](../../assets/demos/rbac.cast?v=79bdeaa07a) · [Plain-text transcript](../../assets/demos/rbac.txt?v=d2a17306f1)
 
-Recorded with Ze 26.10.09 on macOS and Linux using Ze recorder. Duration: 1 minute 13 seconds.
+Recorded with Ze 26.11.20 on macOS and Linux using Ze recorder. Duration: 1 minute 36 seconds.
 
 ```console
 $ ze config show rbac.conf system authorization profile read-only
@@ -224,7 +224,7 @@ profile read-only
 $ ze cli --user noc -c 'show version'
 version: ze 26.07.18
 
-$ ze cli --user noc -c 'clear interface counters'
+$ ze cli --user noc -c 'clear interface counters all'
 error: command restricted by access control
 
 The recording displays the command restriction and the NOC user's profile binding before exercising both paths. The daemon allows `show version`, then rejects the matching `clear` command before execution.

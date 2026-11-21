@@ -133,7 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 8 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 8 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 8 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>19</strong><b>19 of 21 tests linked to requirements, 0 without a fault test and 2 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>21</strong><b>21 of 21 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
@@ -620,7 +620,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc1332-2.1-1"><code>RFC1332-2.1-1</code></a></h3>
 <p>Before any IP packets may be communicated, PPP must reach the Network-Layer Protocol phase, and the IP Control Protocol must reach the Opened state. (§2.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Read RFC1332 Section2.1 in full: both Network-Layer Protocol phase and IPCP Opened are necessary before IP communication. Every tagged unit was read: TestIPResponseConfiguresInterface completes actual IPCP and pins exact ppp42 local/peer installation and EventSessionIPAssigned, then waits for SessionUp before observing admin-up; TestIPCPNoAddressBeforeOpened acknowledges only the original local request, holds AckRcvd short of Opened and forbids address, assigned event and admin-up. TestNCPHeldUntilNetworkPhase separately holds valid CHAP authentication pending with IPCP enabled, forbids address requests, installed addresses and non-CHAP wire traffic, then uses accepted authentication to prove the NCP path is live. afterLCPOpen runs authentication before runNCPPhase; onNCPOpened installs the address only on actual Opened transition, with interface activation after settlement. This covers both clauses at Ze&#39;s actual delegated kernel boundary; it does not claim observed kernel data forwarding. Rejudged independently after full old/current tagged-unit and B private lint-proposal reads. The address-taking caller edits and immediate helper-local copies preserve every old input, wire assertion, state transition, timeout and cleanup join; the changed helpers still construct genuine Driver/request/Attempt capabilities. All tagged units were included, including inline tags. Producer behavior for this requirement is unchanged by the scoped lint packet. This pending source verdict claims neither a fresh compiler/runtime result nor a native discrimination observation; MAIN owns final source stamping and recorded cuts.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/ncp_test.go::TestIPCPNoAddressBeforeOpened, internal/component/l2tp/ppp/ncp_test.go::TestIPResponseConfiguresInterface moved. Read RFC1332 Section2.1 in full: both Network-Layer Protocol phase and IPCP Opened are necessary before IP communication. Every tagged unit was read: TestIPResponseConfiguresInterface completes actual IPCP and pins exact ppp42 local/peer installation and EventSessionIPAssigned, then waits for SessionUp before observing admin-up; TestIPCPNoAddressBeforeOpened acknowledges only the original local request, holds AckRcvd short of Opened and forbids address, assigned event and admin-up. TestNCPHeldUntilNetworkPhase separately holds valid CHAP authentication pending with IPCP enabled, forbids address requests, installed addresses and non-CHAP wire traffic, then uses accepted authentication to prove the NCP path is live. afterLCPOpen runs authentication before runNCPPhase; onNCPOpened installs the address only on actual Opened transition, with interface activation after settlement. This covers both clauses at Ze&#39;s actual delegated kernel boundary; it does not claim observed kernel data forwarding. Rejudged independently after full old/current tagged-unit and B private lint-proposal reads. The address-taking caller edits and immediate helper-local copies preserve every old input, wire assertion, state transition, timeout and cleanup join; the changed helpers still construct genuine Driver/request/Attempt capabilities. All tagged units were included, including inline tags. Producer behavior for this requirement is unchanged by the scoped lint packet. This pending source verdict claims neither a fresh compiler/runtime result nor a native discrimination observation; MAIN owns final source stamping and recorded cuts.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -628,7 +628,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L167" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPCPNoAddressBeforeOpened</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L168" title="internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go" target="_blank" rel="noopener"><code>TestNCPHeldUntilNetworkPhase</code></a></td>
@@ -638,7 +638,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L106" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPResponseConfiguresInterface</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -710,7 +710,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc1332-3.3-2"><code>RFC1332-3.3-2</code></a></h3>
 <p>The value of the IP-address given must be acceptable as the remote IP-address, or indicate a request that the peer provide the information. (§3.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestIPCPNakCarriesTheAssignedRemoteAddress, internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestIPCPNakNeverCarriesAnUnacceptableAddress moved. Forbidden: a Configure-Nak IP-Address that is not acceptable as the remote address. TestIPCPNakCarriesTheAssignedRemoteAddress asserts the Nak carries the assigned 10.0.0.2 for a request of 10.9.9.9 and for a request with no address, red if another value is given. TestIPCPNakNeverCarriesAnUnacceptableAddress asserts the requested address is not echoed and that with nothing assigned the option is omitted rather than written invalid. The &#39;or indicate a request&#39; branch is a permitted alternative Ze does not use.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a Configure-Nak IP-Address that is not acceptable as the remote address. TestIPCPNakCarriesTheAssignedRemoteAddress asserts the Nak carries the assigned 10.0.0.2 for a request of 10.9.9.9 and for a request with no address, red if another value is given. TestIPCPNakNeverCarriesAnUnacceptableAddress asserts the requested address is not echoed and that with nothing assigned the option is omitted rather than written invalid. The &#39;or indicate a request&#39; branch is a permitted alternative Ze does not use.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -939,7 +939,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 19:29 UTC</span>
                 </div>
             </div>
         </footer>

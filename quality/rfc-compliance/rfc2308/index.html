@@ -1,0 +1,1008 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 2308 requirements and tests - Ze</title>
+        <meta name="description" content="RFC 2308: Negative Caching of DNS Queries (DNS NCACHE). 12 mandatory requirements included in automatic checks, 6 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:title" content="RFC 2308 requirements and tests - Ze" />
+        <meta property="og:description" content="RFC 2308: Negative Caching of DNS Queries (DNS NCACHE). 12 mandatory requirements included in automatic checks, 6 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 2308 requirements and tests - Ze" />
+        <meta name="twitter:description" content="RFC 2308: Negative Caching of DNS Queries (DNS NCACHE). 12 mandatory requirements included in automatic checks, 6 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc2308/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc2308/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">DNS negative caching</span>
+    <h1 id="rfc-detail-title">RFC 2308 - Negative Caching of DNS Queries (DNS NCACHE)</h1>
+    <p>Every requirement listed for RFC 2308, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: block; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: .5rem 0 0; color: var(--muted); font-size: .92rem; line-height: 1.6; }
+.rfc-card.rfc-total-card { grid-column: 1 / -1; display: grid; grid-template-columns: 15rem minmax(0, 1fr); column-gap: 1.5rem; align-items: start; }
+.rfc-card.rfc-total-card span, .rfc-card.rfc-total-card strong, .rfc-card.rfc-total-card b { grid-column: 1; }
+.rfc-card.rfc-total-card p { grid-column: 2; grid-row: 1 / span 3; margin: 0; }
+@media (max-width: 760px) {
+  .rfc-card-grid { grid-template-columns: minmax(0, 1fr); }
+  .rfc-card.rfc-total-card { display: block; }
+  .rfc-card.rfc-total-card p { margin: .5rem 0 0; }
+}
+.rfc-ok { border-left: 7px solid var(--green); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--amber); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-card.rfc-total-card { background: var(--bg-soft); border: 1px solid var(--line-strong); box-shadow: none; }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-feature_declined { background: var(--pink-chip); }
+.rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-linux_limit { background: var(--muted); }
+.rfc-tape-rollup { background: var(--tangerine-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
+.rfc-tape-one_polarity_unexcused { background: var(--amber); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--green); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--amber); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-swatch.rfc-total-card { background: var(--bg-soft); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--green); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>4</strong><b>of 12 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>4</strong><b>of 12 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 12 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 12 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>14</strong><b>14 of 14 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>4</strong><b>of 12 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 12 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 12 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 12 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 12 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 12 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit</p></article>
+</div>
+<h3>Totals</h3>
+<p>what the cards above are counted against</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-total-card"><span>Mandatory requirements (MUST level)</span><strong>12</strong><b>of 18 requirements this summary lists, at all levels</b><p>The RFC&#39;s MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED requirements included in the automatic checks: the compliance check (./le rfc check) holds Ze to each of them. This is the total being assessed; the counts above show the recorded status of those requirements.</p></article>
+</div>
+<p>The 9 counts marked as a part above are the whole of the 12 mandatory requirements: they add up to 12. Tests shown to detect a fault counts individual tests rather than requirements, so its count is separate.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got. An outlined card with no colored edge, under Totals, is a total the other cards are counted against, not a measure.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: one test direction is missing without a recorded reason</td>
+</tr>
+<tr><td>Partial test coverage</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: testing one clause does not verify the whole requirement</td>
+</tr>
+<tr><td>Declared gap or no test</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td>green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated</td>
+</tr>
+<tr><td>Not applicable</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Met below Ze</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze&#39;s own tests verify</td>
+</tr>
+<tr><td>Optional feature declined</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC&#39;s own status row, as an implementation gap a later scope decision can revisit</td>
+</tr>
+<tr><td>Linux cannot do this</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption</td>
+</tr>
+<tr><td>Tests shown to detect a fault</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current</td>
+</tr>
+<tr><td>Mandatory requirements (MUST level)</td>
+<td><span class="rfc-swatch rfc-total-card"></span> outlined</td>
+<td>outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public row</td>
+<td>DNS negative caching</td>
+</tr>
+<tr><td>Automatic checks</td>
+<td>Included</td>
+</tr>
+<tr><td>Requirements</td>
+<td>18</td>
+</tr>
+<tr><td>Mandatory requirements (MUST level)</td>
+<td>12</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>0</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>6</td>
+</tr>
+<tr><td>Declared gaps a test demonstrates</td>
+<td>0</td>
+</tr>
+<tr><td>Mandatory requirements with no test and no annotation</td>
+<td>0</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>14</td>
+</tr>
+<tr><td>Tests linked to requirements</td>
+<td>14</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Fault test records</td>
+<td>14</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc2308.md</code></td>
+</tr>
+<tr><td>Requirement table</td>
+<td><code>rfc/requirements/rfc2308.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc2308.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Automatic checks</h2>
+<p>Included in automatic checks: Negative Caching of DNS Queries, brought into scope by the owner for the fttx-edge use case: the home-connection resolver (internal/plugins/dnsresolver) caches negative answers, and the answering plugins (internal/plugins/geodns, internal/plugins/as112) are the authoritative servers Section 3 binds. Every MUST is classified. Met by a producer and owed its tags: the zone SOA in the authority section of an authoritative NXDOMAIN or NODATA (3-1), an expired negative entry never used again (5-1), the cached SOA returned with its TTL decremented (6-1), the authority-section SOA cached (8-1). Met because the resolver caches no server failure and no dead-server indication, so only the negative polarity is observable (7.1-1, 7.1-2, 7.2-1, 7.2-2). Gaps: the answering plugins serve unsigned zones only (3-2, 5-3), and the resolver caches the SOA alone, dropping any NXT and SIG record of a received negative answer (5-2, 6-2).</p>
+</section>
+<section><h2>Published support status</h2>
+<p><strong>Area:</strong> DNS negative caching</p>
+<p><strong>Test verification:</strong> 8 of 12 MUST proven</p>
+<p><strong>Evidence:</strong> unit 8</p>
+<p><strong>Unmet:</strong> RFC2308-3-2, RFC2308-5-2, RFC2308-5-3, RFC2308-6-2, RFC2308-6-3, RFC2308-6-4</p>
+
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>4</strong></td>
+<td>one part of the mandatory requirements</td>
+</tr>
+<tr><td>Annotated (including scoped evidence)</td>
+<td><strong>8</strong></td>
+<td>one part of the mandatory requirements</td>
+</tr>
+<tr><td>Only a positive or negative test</td>
+<td><strong>0</strong></td>
+<td>one part of the mandatory requirements</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>0</strong></td>
+<td>one part of the mandatory requirements</td>
+</tr>
+<tr><td>Partial test coverage (subset of annotated; zero whole-requirement credit)</td>
+<td><strong>0</strong></td>
+<td>also counted in one of the groups above</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>also counted in one of the groups above</td>
+</tr>
+<tr><td>Derived from other rows</td>
+<td><strong>0</strong></td>
+<td>excluded from the total: each summarizes the status of other requirements, which are already counted above</td>
+</tr>
+<tr class="rfc-total"><td><strong>Mandatory requirements (MUST level)</strong></td><td><strong>12</strong></td><td>every mandatory requirement appears in exactly one group above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Positive and negative tests (4):</strong> <a href="#rfc2308-3-1"><code>RFC2308-3-1</code></a>, <a href="#rfc2308-5-1"><code>RFC2308-5-1</code></a>, <a href="#rfc2308-6-1"><code>RFC2308-6-1</code></a>, <a href="#rfc2308-8-1"><code>RFC2308-8-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (8):</strong> <a href="#rfc2308-3-2"><code>RFC2308-3-2</code></a>, <a href="#rfc2308-5-2"><code>RFC2308-5-2</code></a>, <a href="#rfc2308-5-3"><code>RFC2308-5-3</code></a>, <a href="#rfc2308-6-2"><code>RFC2308-6-2</code></a>, <a href="#rfc2308-7.1-1"><code>RFC2308-7.1-1</code></a>, <a href="#rfc2308-7.1-2"><code>RFC2308-7.1-2</code></a>, <a href="#rfc2308-7.2-1"><code>RFC2308-7.2-1</code></a>, <a href="#rfc2308-7.2-2"><code>RFC2308-7.2-2</code></a></p>
+</section>
+<section><h2>Figures</h2>
+<p><strong>MUST bar</strong></p>
+<div data-ze-rfc-bar="rfc2308:must">Ze verified 8, Not built 4</div>
+<p><strong>Overview bar</strong></p>
+<div data-ze-rfc-bar="rfc2308:overview">Ze MUST verified 8, Not assessed 4, Not built 6</div>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Figure</th><th>Rows</th></tr></thead>
+<tbody>
+<tr><td>RFCs</td>
+<td><span data-ze-rfc="rfc2308:rfcs">1</span></td>
+</tr>
+<tr><td>Requirements not reviewed</td>
+<td><span data-ze-rfc="rfc2308:not-walked">0</span></td>
+</tr>
+<tr><td>Mandatory requirements complete</td>
+<td><span data-ze-rfc="rfc2308:register">not complete</span></td>
+</tr>
+<tr><td>MUST rows</td>
+<td><span data-ze-rfc="rfc2308:must.total">12</span></td>
+</tr>
+<tr><td>MUST rows kept (the MUST bar)</td>
+<td><span data-ze-rfc="rfc2308:must.kept">12</span></td>
+</tr>
+<tr><td>Ze verified</td>
+<td><span data-ze-rfc="rfc2308:must.ze-proven">8</span></td>
+</tr>
+<tr><td>OS verified</td>
+<td><span data-ze-rfc="rfc2308:must.os-verified">0</span></td>
+</tr>
+<tr><td>Tests awaiting verification</td>
+<td><span data-ze-rfc="rfc2308:must.proof-pending">0</span></td>
+</tr>
+<tr><td>OS testing gap</td>
+<td><span data-ze-rfc="rfc2308:must.os-gap">0</span></td>
+</tr>
+<tr><td>Exclusion unchecked</td>
+<td><span data-ze-rfc="rfc2308:must.exclusion-unchecked">0</span></td>
+</tr>
+<tr><td>Not assessed</td>
+<td><span data-ze-rfc="rfc2308:must.not-assessed">0</span></td>
+</tr>
+<tr><td>Not built</td>
+<td><span data-ze-rfc="rfc2308:must.not-built">4</span></td>
+</tr>
+<tr><td>MUST rows not owed</td>
+<td><span data-ze-rfc="rfc2308:must.not-owed">0</span></td>
+</tr>
+<tr><td>MUST not owed: feature-declined</td>
+<td><span data-ze-rfc="rfc2308:must.not-owed-by-kind.feature-declined">0</span></td>
+</tr>
+<tr><td>MUST not owed: linux-limit</td>
+<td><span data-ze-rfc="rfc2308:must.not-owed-by-kind.linux-limit">0</span></td>
+</tr>
+<tr><td>MUST not owed: not-applicable</td>
+<td><span data-ze-rfc="rfc2308:must.not-owed-by-kind.not-applicable">0</span></td>
+</tr>
+<tr><td>SHOULD / MAY rows</td>
+<td><span data-ze-rfc="rfc2308:should.total">6</span></td>
+</tr>
+<tr><td>SHOULD verified</td>
+<td><span data-ze-rfc="rfc2308:should.proven">0</span></td>
+</tr>
+<tr><td>SHOULD OS verified</td>
+<td><span data-ze-rfc="rfc2308:should.os-verified">0</span></td>
+</tr>
+<tr><td>SHOULD OS testing gap</td>
+<td><span data-ze-rfc="rfc2308:should.os-gap">0</span></td>
+</tr>
+<tr><td>SHOULD not owed</td>
+<td><span data-ze-rfc="rfc2308:should.not-owed">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: feature-declined</td>
+<td><span data-ze-rfc="rfc2308:should.not-owed-by-kind.feature-declined">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: linux-limit</td>
+<td><span data-ze-rfc="rfc2308:should.not-owed-by-kind.linux-limit">0</span></td>
+</tr>
+<tr><td>SHOULD not owed: not-applicable</td>
+<td><span data-ze-rfc="rfc2308:should.not-owed-by-kind.not-applicable">0</span></td>
+</tr>
+<tr><td>SHOULD tests awaiting verification</td>
+<td><span data-ze-rfc="rfc2308:should.proof-pending">0</span></td>
+</tr>
+<tr><td>SHOULD exclusion unchecked</td>
+<td><span data-ze-rfc="rfc2308:should.exclusion-unchecked">0</span></td>
+</tr>
+<tr><td>SHOULD not assessed</td>
+<td><span data-ze-rfc="rfc2308:should.not-assessed">4</span></td>
+</tr>
+<tr><td>SHOULD not built</td>
+<td><span data-ze-rfc="rfc2308:should.not-built">2</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
+
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2308-3-1">RFC2308-3-1</code></td><td colspan="3"><span class="rfc-subject">Name servers authoritative for a zone MUST include the SOA record of the zone in the authority section of the response when reporting an NXDOMAIN or indicating that no data of the requested type exists. (§3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3 - Negative Answers from Authoritative Servers</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2308-3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/rfc2308_negative_soa_test.go#L49" title="internal/plugins/as112/rfc2308_negative_soa_test.go" target="_blank" rel="noopener"><code>as112/TestRFC2308_NegativeAnswerCarriesZoneSOA</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2308_negative_soa_test.go#L50" title="internal/plugins/geodns/rfc2308_negative_soa_test.go" target="_blank" rel="noopener"><code>geodns/TestRFC2308_NegativeAnswerCarriesZoneSOA</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/rfc2308_negative_soa_test.go#L63" title="internal/plugins/as112/rfc2308_negative_soa_test.go" target="_blank" rel="noopener"><code>as112/TestRFC2308_NegativeAnswerCarriesZoneSOA</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2308_negative_soa_test.go#L64" title="internal/plugins/geodns/rfc2308_negative_soa_test.go" target="_blank" rel="noopener"><code>geodns/TestRFC2308_NegativeAnswerCarriesZoneSOA</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2308-3-2">RFC2308-3-2</code></td><td colspan="3"><span class="rfc-subject">If the containing zone is signed [RFC2065] the SOA and appropriate NXT and SIG records MUST be added. (§3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3 - Negative Answers from Authoritative Servers</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2308-3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> neither answering plugin signs a zone, so a signed zone&#39;s negative answer with its NXT (now NSEC) and SIG (now RRSIG) records is never produced; internal/plugins/geodns/server.go::answerQuestions and internal/plugins/as112/zones.go::answerQuestions add the SOA alone</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2308-5-1">RFC2308-5-1</code></td><td colspan="3"><span class="rfc-subject">This TTL decrements in a similar manner to a normal cached answer and upon reaching zero (0) indicates the cached negative answer MUST NOT be used again. (§5)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>5 - Caching Negative Answers</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2308-5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2308_resolver_test.go#L62" title="internal/plugins/dnsresolver/rfc2308_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC2308NegativeEntryExpires</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2308_resolver_test.go#L46" title="internal/plugins/dnsresolver/rfc2308_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC2308NegativeEntryExpires</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2308-5-2">RFC2308-5-2</code></td><td colspan="3"><span class="rfc-subject">The NXT record, if it exists in the authority section of a negative answer received, MUST be stored such that it can be be located and returned with SOA record in the authority section (§5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5 - Caching Negative Answers</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2308-5-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> storeNegative caches the SOA alone, so an NXT (or NSEC) record in a received negative answer is dropped and never returned; internal/plugins/dnsresolver/resolve.go::storeNegative</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2308-5-3">RFC2308-5-3</code></td><td colspan="3"><span class="rfc-subject">The NXT record MUST have the same owner name as the query name for NODATA responses. (§5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5 - Caching Negative Answers</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2308-5-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> no part of Ze produces a NODATA response carrying an NXT (or NSEC) record, because the answering plugins serve unsigned zones and the resolver caches none; internal/plugins/geodns/server.go::answerQuestions, internal/plugins/dnsresolver/resolve.go::storeNegative</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2308-6-1">RFC2308-6-1</code></td><td colspan="3"><span class="rfc-subject">When a server, in answering a query, encounters a cached negative response it MUST add the cached SOA record to the authority section of the response with the TTL decremented by the amount of time it was stored in the cache. (§6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6 - Negative answers from the cache</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2308-6-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2308_resolver_test.go#L109" title="internal/plugins/dnsresolver/rfc2308_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC2308CachedSOATTLDecremented</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2308_resolver_test.go#L86" title="internal/plugins/dnsresolver/rfc2308_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC2308CachedSOATTLDecremented</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2308-6-2">RFC2308-6-2</code></td><td colspan="3"><span class="rfc-subject">If a NXT record was cached along with SOA record it MUST be added to the authority section. (§6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6 - Negative answers from the cache</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2308-6-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the negative cache holds the SOA alone, so no NXT (or NSEC) record is cached with it or added from it; internal/plugins/dnsresolver/resolve.go::storeNegative, internal/plugins/dnsresolver/cache.go::lookup</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2308-7.1-1">RFC2308-7.1-1</code></td><td colspan="3"><span class="rfc-subject">If it does so it MUST NOT cache it for longer than five (5) minutes (§7.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>7.1 - Server Failure, headed OPTIONAL</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2308-7.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2308_resolver_test.go#L204" title="internal/plugins/dnsresolver/rfc2308_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC2308ServerFailureNotCached</code></a></span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the resolver caches no server failure at all (internal/plugins/dnsresolver/resolve.go::servfail is never stored), so the only observable is that a later identical query is forwarded again rather than answered from a cache</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2308-7.1-2">RFC2308-7.1-2</code></td><td colspan="3"><span class="rfc-subject">it MUST be cached against the specific query tuple &lt;query name, type, class, server IP address&gt;. (§7.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.1 - Server Failure, headed OPTIONAL</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2308-7.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2308_resolver_test.go#L231" title="internal/plugins/dnsresolver/rfc2308_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC2308ServerFailureHeldAgainstNoTuple</code></a></span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the resolver caches no server failure, so no cached failure can reach a query outside its tuple, and the observable is a later query for the same or another tuple being forwarded again</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2308-7.2-1">RFC2308-7.2-1</code></td><td colspan="3"><span class="rfc-subject">If it does so it MUST NOT be deemed dead for longer than five (5) minutes. (§7.2)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>7.2 - Dead / Unreachable Server, headed OPTIONAL</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2308-7.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2308_resolver_test.go#L271" title="internal/plugins/dnsresolver/rfc2308_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC2308SilentUpstreamAskedAgain</code></a></span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the resolver keeps no dead-server indication (internal/plugins/dnsresolver/resolve.go::forward asks every configured upstream again on each query), so the observable is a silent upstream being asked again on the next query</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2308-7.2-2">RFC2308-7.2-2</code></td><td colspan="3"><span class="rfc-subject">The indication MUST be stored against query tuple &lt;query name, type, class, server IP address&gt; unless there was a transport layer indication that the server does not exist, in which case it applies to all queries to that specific IP address. (§7.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.2 - Dead / Unreachable Server, headed OPTIONAL</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2308-7.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2308_resolver_test.go#L298" title="internal/plugins/dnsresolver/rfc2308_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC2308SilentUpstreamNotDeemedDeadBeyondTheTuple</code></a></span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the resolver stores no dead-server indication, so none can be applied beyond its tuple, and the observable is an upstream that failed one query being asked for the next</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2308-8-1">RFC2308-8-1</code></td><td colspan="3"><span class="rfc-subject">The SOA record from the authority section MUST be cached. (§8)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8 - Changes from RFC 1034</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2308-8-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2308_resolver_test.go#L142" title="internal/plugins/dnsresolver/rfc2308_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC2308AuthoritySOACached</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2308_resolver_test.go#L165" title="internal/plugins/dnsresolver/rfc2308_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC2308AuthoritySOACached</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2308-5-4">RFC2308-5-4</code></td><td colspan="3"><span class="rfc-subject">Negative responses without SOA records SHOULD NOT be cached as there is no way to prevent the negative responses looping forever between a pair of servers even with a short TTL. (§5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>5 - Caching Negative Answers</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2308-5-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2308-6-3">RFC2308-6-3</code></td><td colspan="3"><span class="rfc-subject">If a SIG record was cached along with a NXT record it SHOULD be added to the authority section. (§6)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>6 - Negative answers from the cache</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2308-6-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the negative cache holds the SOA alone, so no SIG (or RRSIG) record is cached with an NXT or added from it; internal/plugins/dnsresolver/resolve.go::storeNegative</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2308-6-4">RFC2308-6-4</code></td><td colspan="3"><span class="rfc-subject">As with all answers coming from the cache, negative answers SHOULD have an implicit referral built into the answer. (§6)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>6 - Negative answers from the cache</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2308-6-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> a negative answer from the cache carries the SOA alone in the authority section and no NS records referring the client to an authoritative source; internal/plugins/dnsresolver/cache.go::lookup</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2308-7.1-3">RFC2308-7.1-3</code></td><td colspan="3"><span class="rfc-subject">In either case a resolver MAY cache a server failure response. (§7.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>7.1 - Server Failure, headed OPTIONAL</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2308-7.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2308-7.2-3">RFC2308-7.2-3</code></td><td colspan="3"><span class="rfc-subject">A server MAY cache a dead server indication. (§7.2)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>7.2 - Dead / Unreachable Server, headed OPTIONAL</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2308-7.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2308-8-2">RFC2308-8-2</code></td><td colspan="3"><span class="rfc-subject">Non-authoritative negative answers MAY be cached. (§8)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>8 - Changes from RFC 1034</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2308-8-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc2308-3-2"><code>RFC2308-3-2</code></a> If the containing zone is signed [RFC2065] the SOA and appropriate NXT and SIG records MUST be added. (§3)</td>
+<td>{gap}, no test</td>
+<td>neither answering plugin signs a zone, so a signed zone&#39;s negative answer with its NXT (now NSEC) and SIG (now RRSIG) records is never produced; internal/plugins/geodns/server.go::answerQuestions and internal/plugins/as112/zones.go::answerQuestions add the SOA alone</td>
+</tr>
+<tr><td><a href="#rfc2308-5-2"><code>RFC2308-5-2</code></a> The NXT record, if it exists in the authority section of a negative answer received, MUST be stored such that it can be be located and returned with SOA record in the authority section (§5)</td>
+<td>{gap}, no test</td>
+<td>storeNegative caches the SOA alone, so an NXT (or NSEC) record in a received negative answer is dropped and never returned; internal/plugins/dnsresolver/resolve.go::storeNegative</td>
+</tr>
+<tr><td><a href="#rfc2308-5-3"><code>RFC2308-5-3</code></a> The NXT record MUST have the same owner name as the query name for NODATA responses. (§5)</td>
+<td>{gap}, no test</td>
+<td>no part of Ze produces a NODATA response carrying an NXT (or NSEC) record, because the answering plugins serve unsigned zones and the resolver caches none; internal/plugins/geodns/server.go::answerQuestions, internal/plugins/dnsresolver/resolve.go::storeNegative</td>
+</tr>
+<tr><td><a href="#rfc2308-6-2"><code>RFC2308-6-2</code></a> If a NXT record was cached along with SOA record it MUST be added to the authority section. (§6)</td>
+<td>{gap}, no test</td>
+<td>the negative cache holds the SOA alone, so no NXT (or NSEC) record is cached with it or added from it; internal/plugins/dnsresolver/resolve.go::storeNegative, internal/plugins/dnsresolver/cache.go::lookup</td>
+</tr>
+<tr><td><a href="#rfc2308-6-3"><code>RFC2308-6-3</code></a> If a SIG record was cached along with a NXT record it SHOULD be added to the authority section. (§6)</td>
+<td>{gap}</td>
+<td>the negative cache holds the SOA alone, so no SIG (or RRSIG) record is cached with an NXT or added from it; internal/plugins/dnsresolver/resolve.go::storeNegative</td>
+</tr>
+<tr><td><a href="#rfc2308-6-4"><code>RFC2308-6-4</code></a> As with all answers coming from the cache, negative answers SHOULD have an implicit referral built into the answer. (§6)</td>
+<td>{gap}</td>
+<td>a negative answer from the cache carries the SOA alone in the authority section and no NS records referring the client to an authoritative source; internal/plugins/dnsresolver/cache.go::lookup</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Test status</h2>
+<p>A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.</p>
+<h3><a href="#rfc2308-3-1"><code>RFC2308-3-1</code></a></h3>
+<p>Name servers authoritative for a zone MUST include the SOA record of the zone in the authority section of the response when reporting an NXDOMAIN or indicating that no data of the requested type exists. (§3)</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/rfc2308_negative_soa_test.go#L63" title="internal/plugins/as112/rfc2308_negative_soa_test.go" target="_blank" rel="noopener"><code>as112/TestRFC2308_NegativeAnswerCarriesZoneSOA</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2308_negative_soa_test.go#L64" title="internal/plugins/geodns/rfc2308_negative_soa_test.go" target="_blank" rel="noopener"><code>geodns/TestRFC2308_NegativeAnswerCarriesZoneSOA</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/rfc2308_negative_soa_test.go#L49" title="internal/plugins/as112/rfc2308_negative_soa_test.go" target="_blank" rel="noopener"><code>as112/TestRFC2308_NegativeAnswerCarriesZoneSOA</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2308_negative_soa_test.go#L50" title="internal/plugins/geodns/rfc2308_negative_soa_test.go" target="_blank" rel="noopener"><code>geodns/TestRFC2308_NegativeAnswerCarriesZoneSOA</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2308-3-2"><code>RFC2308-3-2</code></a></h3>
+<p>If the containing zone is signed [RFC2065] the SOA and appropriate NXT and SIG records MUST be added. (§3)</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC2308-3-2, so there is no linked test.</p>
+<h3><a href="#rfc2308-5-1"><code>RFC2308-5-1</code></a></h3>
+<p>This TTL decrements in a similar manner to a normal cached answer and upon reaching zero (0) indicates the cached negative answer MUST NOT be used again. (§5)</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2308_resolver_test.go#L46" title="internal/plugins/dnsresolver/rfc2308_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC2308NegativeEntryExpires</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2308_resolver_test.go#L62" title="internal/plugins/dnsresolver/rfc2308_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC2308NegativeEntryExpires</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2308-5-2"><code>RFC2308-5-2</code></a></h3>
+<p>The NXT record, if it exists in the authority section of a negative answer received, MUST be stored such that it can be be located and returned with SOA record in the authority section (§5)</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC2308-5-2, so there is no linked test.</p>
+<h3><a href="#rfc2308-5-3"><code>RFC2308-5-3</code></a></h3>
+<p>The NXT record MUST have the same owner name as the query name for NODATA responses. (§5)</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC2308-5-3, so there is no linked test.</p>
+<h3><a href="#rfc2308-6-1"><code>RFC2308-6-1</code></a></h3>
+<p>When a server, in answering a query, encounters a cached negative response it MUST add the cached SOA record to the authority section of the response with the TTL decremented by the amount of time it was stored in the cache. (§6)</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2308_resolver_test.go#L86" title="internal/plugins/dnsresolver/rfc2308_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC2308CachedSOATTLDecremented</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2308_resolver_test.go#L109" title="internal/plugins/dnsresolver/rfc2308_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC2308CachedSOATTLDecremented</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2308-6-2"><code>RFC2308-6-2</code></a></h3>
+<p>If a NXT record was cached along with SOA record it MUST be added to the authority section. (§6)</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p>No test carries RFC2308-6-2, so there is no linked test.</p>
+<h3><a href="#rfc2308-7.1-1"><code>RFC2308-7.1-1</code></a></h3>
+<p>If it does so it MUST NOT cache it for longer than five (5) minutes (§7.1)</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2308_resolver_test.go#L204" title="internal/plugins/dnsresolver/rfc2308_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC2308ServerFailureNotCached</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2308-7.1-2"><code>RFC2308-7.1-2</code></a></h3>
+<p>it MUST be cached against the specific query tuple &lt;query name, type, class, server IP address&gt;. (§7.1)</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2308_resolver_test.go#L231" title="internal/plugins/dnsresolver/rfc2308_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC2308ServerFailureHeldAgainstNoTuple</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2308-7.2-1"><code>RFC2308-7.2-1</code></a></h3>
+<p>If it does so it MUST NOT be deemed dead for longer than five (5) minutes. (§7.2)</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2308_resolver_test.go#L271" title="internal/plugins/dnsresolver/rfc2308_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC2308SilentUpstreamAskedAgain</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2308-7.2-2"><code>RFC2308-7.2-2</code></a></h3>
+<p>The indication MUST be stored against query tuple &lt;query name, type, class, server IP address&gt; unless there was a transport layer indication that the server does not exist, in which case it applies to all queries to that specific IP address. (§7.2)</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2308_resolver_test.go#L298" title="internal/plugins/dnsresolver/rfc2308_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC2308SilentUpstreamNotDeemedDeadBeyondTheTuple</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2308-8-1"><code>RFC2308-8-1</code></a></h3>
+<p>The SOA record from the authority section MUST be cached. (§8)</p>
+<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2308_resolver_test.go#L165" title="internal/plugins/dnsresolver/rfc2308_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC2308AuthoritySOACached</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2308_resolver_test.go#L142" title="internal/plugins/dnsresolver/rfc2308_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC2308AuthoritySOACached</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Requirement list review</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>claude</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-11-19</td>
+</tr>
+<tr><td>Register</td>
+<td>rfc2119</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc2308.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>0e2087c85f5f71a9</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc2308.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>11</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>0</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>Header, status, copyright and abstract</td>
+<td>0</td>
+<td>reviewed</td>
+<td>Header, status, copyright and abstract. The abstract states the document replaces RFC 1034 Section 4.3.4 and that negative caching should no longer be seen as optional; the lowercase should is not a BCP 14 keyword in this post-RFC 2119 document, and Section 8 restates it.</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>Terminology</td>
+<td>0</td>
+<td>reviewed</td>
+<td>Terminology. The RFC 2119 key-words paragraph and the definitions of negative caching, QNAME, NXDOMAIN, NODATA and FORWARDER. The lowercase should about ordering CNAME records states no capitalised obligation.</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>reviewed</td>
+<td>Negative Responses: introduction to the two kinds, with no normative sentence.</td>
+</tr>
+<tr><td><code>2.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>reviewed</td>
+<td>Name Error: defines NXDOMAIN and its four types by authority-section content, against a referral. Descriptive, no keyword.</td>
+</tr>
+<tr><td><code>2.1.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>reviewed</td>
+<td>Special Handling of Name Error: the lowercase recommendation that authoritative servers send only TYPE 2 NXDOMAIN, and the note on forcing the authority flag for forwarders. No capitalised keyword.</td>
+</tr>
+<tr><td><code>2.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>reviewed</td>
+<td>No Data: defines NODATA and its three types, and how it is told from a referral. Descriptive, no keyword.</td>
+</tr>
+<tr><td><code>2.2.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>reviewed</td>
+<td>Special Handling of No Data: the lowercase recommendation to send only TYPE 2 NODATA and the lowercase must to query again using the QNAME when a server fails to set NXDOMAIN beside CNAMEs. No capitalised keyword.</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>Negative Answers from Authoritative Servers</td>
+<td>2</td>
+<td>reviewed</td>
+<td>Negative Answers from Authoritative Servers. Two capitalised MUSTs, mapped to RFC2308-3-1 and RFC2308-3-2. The SOA TTL rule (minimum of MINIMUM and the SOA&#39;s TTL) and the lowercase should on trimming the SIG TTL carry no keyword.</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>SOA Minimum Field</td>
+<td>0</td>
+<td>reviewed</td>
+<td>SOA Minimum Field. Deprecates MINIMUM as the minimum TTL of every RR in a zone (the RFC 1035 Section 3.3.13 meaning), adds the $TTL master-file directive, and makes the negative-response TTL MINIMUM&#39;s one meaning. No capitalised keyword; the lowercase should on providing a default-TTL mechanism binds a primary server reading master files.</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>Caching Negative Answers</td>
+<td>3</td>
+<td>reviewed</td>
+<td>Caching Negative Answers. Three capitalised MUST-level sites, mapped to RFC2308-5-1, RFC2308-5-2 and RFC2308-5-3. The advisory SHOULD NOT on caching a negative response without an SOA carries no site and is RFC2308-5-4. The lowercase shoulds on the NXDOMAIN and NODATA cache keys, on SIG records, and on a negative cache limit carry no keyword.</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>Negative answers from the cache</td>
+<td>2</td>
+<td>reviewed</td>
+<td>Negative answers from the cache. Two capitalised MUSTs, mapped to RFC2308-6-1 and RFC2308-6-2. The two advisory SHOULDs carry no site: the SIG record cached with an NXT (RFC2308-6-3) and the implicit referral (RFC2308-6-4).</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>reviewed</td>
+<td>Other Negative Responses: introduction, no normative sentence.</td>
+</tr>
+<tr><td><code>7.1</code></td>
+<td>Server Failure, headed OPTIONAL</td>
+<td>1</td>
+<td>reviewed</td>
+<td>Server Failure, headed OPTIONAL. The MAY to cache a server failure response carries no site (RFC2308-7.1-3). Site 7.1:1 holds two obligations conditional on that MAY: the MUST NOT on the five-minute limit, mapped to RFC2308-7.1-1, and the MUST on the query tuple, which is its second clause and is listed here as RFC2308-7.1-2.</td>
+</tr>
+<tr><td><code>7.2</code></td>
+<td>Dead / Unreachable Server, headed OPTIONAL</td>
+<td>2</td>
+<td>reviewed</td>
+<td>Dead / Unreachable Server, headed OPTIONAL. The MAY to cache a dead server indication carries no site (RFC2308-7.2-3). Two capitalised MUST-level sites conditional on it, mapped to RFC2308-7.2-1 and RFC2308-7.2-2. The lowercase may on deeming a server dead after 120 seconds carries no keyword.</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>Changes from RFC 1034</td>
+<td>1</td>
+<td>reviewed</td>
+<td>Changes from RFC 1034. One capitalised MUST, mapped to RFC2308-8-1, and the MAY to cache non-authoritative negative answers (RFC2308-8-2). The lowercase musts restate Sections 5 and 6 and carry no keyword.</td>
+</tr>
+<tr><td><code>9</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>reviewed</td>
+<td>History of Negative Caching, which states it forms no part of the technical specification.</td>
+</tr>
+<tr><td><code>9.2</code></td>
+<td>BIND history, non-normative under Section 9</td>
+<td>0</td>
+<td>reviewed</td>
+<td>BIND history, non-normative under Section 9.</td>
+</tr>
+<tr><td><code>10</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>reviewed</td>
+<td>Example of a signed zone&#39;s initial and cached NXDOMAIN response. Illustrative, no keyword.</td>
+</tr>
+<tr><td><code>11</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>reviewed</td>
+<td>Security Considerations: the high-TTL NXDOMAIN denial of service and TTL sanity checking. No capitalised keyword.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<p>The review of RFC 2308 excluded no sentences: every sentence identified as an obligation is linked to a requirement.</p>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes RFC 2308, so its obligations are stated where they were written.</p>
+</section>
+<script src="../../../assets/rfc-figures.js" defer></script>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/rfc-map/">
+                        <span class="page-sidebar-link-label">RFC dependency map</span>
+                        <small>Explore standards, release layers, and associated specifications.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How to investigate failed checks using their logs.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <a href="../../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

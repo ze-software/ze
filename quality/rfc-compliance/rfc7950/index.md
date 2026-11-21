@@ -13,7 +13,7 @@ what Ze has
 | Tested both ways | 36 | of 91 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
 | One polarity plus reason | 1 | of 91 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 91 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Tests shown to detect a fault | 147 | 147 of 158 tests linked to requirements, 0 without a fault test and 5 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 152 | 152 of 158 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -23,7 +23,7 @@ what Ze owes
 |---|---:|---|---|
 | Partial test coverage | 4 | of 91 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 50 | of 91 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Audit verdicts | 40 | of 91 mandatory requirements reviewed | 12 weak, wrong or unimplemented, 2 no longer current. Each is named below under its own requirement id |
+| Audit verdicts | 40 | of 91 mandatory requirements reviewed | 12 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -94,9 +94,9 @@ Included in automatic checks: The YANG 1.1 Data Modeling Language (ze config val
 
 **Area:** YANG 1.1 data modeling
 
-**Test verification:** 36 of 91 MUST proven
+**Test verification:** 37 of 91 MUST proven
 
-**Evidence:** functional 1, unit 35
+**Evidence:** functional 1, unit 36
 
 **Unmet:** RFC7950-11-1, RFC7950-11-2, RFC7950-11-3, RFC7950-12-1, RFC7950-5.1-1, RFC7950-5.3-1, RFC7950-5.5-1, RFC7950-5.6.5-1, RFC7950-6.2.1-1, RFC7950-6.3.1-1, RFC7950-6.4-1, RFC7950-6.4-2, RFC7950-7.1.4-1, RFC7950-7.12-1, RFC7950-7.14.2-1, RFC7950-7.14.3-1, RFC7950-7.15-1, RFC7950-7.16-1, RFC7950-7.17-1, RFC7950-7.18.2-1, RFC7950-7.20.1-1, RFC7950-7.20.2-1, RFC7950-7.20.3-1, RFC7950-7.20.3.2-1, RFC7950-7.21.2-1, RFC7950-7.21.5-1, RFC7950-7.21.5-2, RFC7950-7.3-1, RFC7950-7.5.3-1, RFC7950-7.6.1-4, RFC7950-7.6.5-1, RFC7950-7.7-1, RFC7950-7.7.2-1, RFC7950-7.8.2-1, RFC7950-7.8.3-1, RFC7950-7.9.2-1, RFC7950-7.9.3-1, RFC7950-7.9.4-1, RFC7950-8.1-1, RFC7950-8.1-4, RFC7950-8.3.1-2, RFC7950-8.3.2-1, RFC7950-8.3.3-2, RFC7950-9.10.2-1, RFC7950-9.12-2, RFC7950-9.2.4-1, RFC7950-9.2.4-2, RFC7950-9.4.5-1, RFC7950-9.6.4-1, RFC7950-9.7-1, RFC7950-9.7.4-1, RFC7950-9.7.4.2-1, RFC7950-x-1, RFC7950-x-2
 
@@ -122,8 +122,8 @@ Included in automatic checks: The YANG 1.1 Data Modeling Language (ze config val
 
 ## Figures
 
-- **MUST bar**: Ze verified 36, Tests awaiting verification 1, Not built 54
-- **Overview bar**: Ze MUST verified 36, Tests awaiting verification 1, Not built 54
+- **MUST bar**: Ze verified 37, Not built 54
+- **Overview bar**: Ze MUST verified 37, Not built 54
 
 | Figure | Rows |
 |---|---|
@@ -132,9 +132,9 @@ Included in automatic checks: The YANG 1.1 Data Modeling Language (ze config val
 | Mandatory requirements complete | not complete |
 | MUST rows | 91 |
 | MUST rows kept (the MUST bar) | 91 |
-| Ze verified | 36 |
+| Ze verified | 37 |
 | OS verified | 0 |
-| Tests awaiting verification | 1 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -875,14 +875,14 @@ No test carries RFC7950-8.1-4, so there is no linked test.
 
 The running configuration datastore MUST always be valid. (Section 8.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: cmd/ze/hub/rfc7950_reload_validation_test.go::TestRFC7950ReloadInstallsAValidConfig, cmd/ze/hub/rfc7950_reload_validation_test.go::TestRFC7950ReloadRefusesAConstraintViolation moved. Re-judged 2026-10-18 (independent auditor, after 9d4a5e79e2). Section 8.1: "The running configuration datastore MUST always be valid." The earlier finding (only config.LoadConfig was driven; no install route) is answered for the reload route: TestRFC7950ReloadInstallsAValidConfig and TestRFC7950ReloadRefusesAConstraintViolation write the file and drive diskConfigLoaders and doReload, the path every SIGHUP and editor reload notifier reaches, and assert the refused reload returns ErrCustomValidation naming the value while the reactor keeps system/host reload-valid-host. TestRFC7950WebCommitRefusesAConstraintViolation shows the web editor commit writes nothing for the same violation. Startup stays covered by the LoadConfig units. Residual: the SSH session editor (session_editor.go) sets no pre-commit validator, so its commit relies on the reload refusal the reload units prove; no tagged unit drives that editor, and none drives the gNMI/API configValidationHook route.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after 9d4a5e79e2). Section 8.1: "The running configuration datastore MUST always be valid." The earlier finding (only config.LoadConfig was driven; no install route) is answered for the reload route: TestRFC7950ReloadInstallsAValidConfig and TestRFC7950ReloadRefusesAConstraintViolation write the file and drive diskConfigLoaders and doReload, the path every SIGHUP and editor reload notifier reaches, and assert the refused reload returns ErrCustomValidation naming the value while the reactor keeps system/host reload-valid-host. TestRFC7950WebCommitRefusesAConstraintViolation shows the web editor commit writes nothing for the same violation. Startup stays covered by the LoadConfig units. Residual: the SSH session editor (session_editor.go) sets no pre-commit validator, so its commit relies on the reload refusal the reload units prove; no tagged unit drives that editor, and none drives the gNMI/API configValidationHook route.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7950ReloadRefusesAConstraintViolation`](https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc7950_reload_validation_test.go#L94) | unit/verify | revert, verified |
 | negative | [`TestRFC7950WebCommitRefusesAConstraintViolation`](https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc7950_web_commit_validation_test.go#L82) | unit/verify | revert, verified |
 | negative | [`TestRFC7950RunningDatastoreRefusesAViolationAfterParse`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_datastore_test.go#L77) | unit/verify | revert, verified |
-| positive | [`TestRFC7950ReloadInstallsAValidConfig`](https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc7950_reload_validation_test.go#L76) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC7950ReloadInstallsAValidConfig`](https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc7950_reload_validation_test.go#L76) | unit/verify | revert, verified |
 | positive | [`TestRFC7950RunningDatastoreAcceptsAValidConfig`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_datastore_test.go#L33) | unit/verify | revert, verified |
 
 ### [`RFC7950-8.3-1`](#rfc7950-8.3-1)
@@ -1029,8 +1029,8 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7950EnumRestrictionKeepsTheBaseValue`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_structural_test.go#L13) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC7950EnumRestrictionKeepsTheBaseValue`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_structural_test.go#L14) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC7950EnumRestrictionKeepsTheBaseValue`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_structural_test.go#L13) | unit/verify | revert, verified |
+| positive | [`TestRFC7950EnumRestrictionKeepsTheBaseValue`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_structural_test.go#L14) | unit/verify | revert, verified |
 
 ### [`RFC7950-9.6.4.2-1`](#rfc7950-9.6.4.2-1)
 
@@ -1043,12 +1043,12 @@ Audit verdict: weak (the tests pass over code that does not enforce the requirem
 | negative | [`TestRFC7950EnumImplicitValueFollowsTheHighest`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_enum_value_test.go#L28) | unit/verify | revert, verified |
 | negative | [`TestRFC7950EnumValueRangeAndUniqueness`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_enum_value_test.go#L61) | unit/verify | revert, verified |
 | negative | [`TestRFC7950EnumValueWithinInt32`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_clauses_test.go#L106) | unit/verify | revert, verified |
-| negative | [`TestRFC7950EnumRestrictionKeepsTheBaseValue`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_structural_test.go#L11) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC7950EnumRestrictionKeepsTheBaseValue`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_structural_test.go#L11) | unit/verify | revert, verified |
 | negative | [`TestRFC7950ModuleLoadRefused`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_test.go#L94) | unit/verify | revert, verified |
 | positive | [`TestRFC7950EnumImplicitValueFollowsTheHighest`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_enum_value_test.go#L29) | unit/verify | revert, verified |
 | positive | [`TestRFC7950EnumValueRangeAndUniqueness`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_enum_value_test.go#L62) | unit/verify | revert, verified |
 | positive | [`TestRFC7950EnumValueWithinInt32`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_clauses_test.go#L107) | unit/verify | revert, verified |
-| positive | [`TestRFC7950EnumRestrictionKeepsTheBaseValue`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_structural_test.go#L12) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC7950EnumRestrictionKeepsTheBaseValue`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_structural_test.go#L12) | unit/verify | revert, verified |
 | positive | [`TestRFC7950ModuleLoadAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/config/yang/rfc7950_loader_test.go#L147) | unit/verify | revert, verified |
 
 ### [`RFC7950-9.7-1`](#rfc7950-9.7-1)

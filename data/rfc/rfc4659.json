@@ -8,10 +8,10 @@
   "must": {
     "total": 18,
     "kept": 18,
-    "ze-proven": 3,
+    "ze-proven": 4,
     "os-verified": 0,
     "os-gap": 0,
-    "proof-pending": 2,
+    "proof-pending": 1,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
     "not-built": 13,
@@ -32,7 +32,7 @@
   },
   "proven-by-kind": {
     "interop": 1,
-    "unit": 2
+    "unit": 3
   },
   "unmet": [
     "RFC4659-3.2.1.2-1",

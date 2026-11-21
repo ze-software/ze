@@ -266,9 +266,9 @@ The failure changes the peer to `AS-V4ONLY`, which lacks the customer prefix. Af
 
 Load the local test IRR server, AS-SET and import policy over SSH, prove route acceptance and refusal, then diagnose and repair a wrong AS-SET without restarting Ze.
 
-[Download the asciicast recording](../../assets/demos/irr-filter.cast?v=9312a6df11) · [Plain-text transcript](../../assets/demos/irr-filter.txt?v=46836a5e6e)
+[Download the asciicast recording](../../assets/demos/irr-filter.cast?v=20eb104aee) · [Plain-text transcript](../../assets/demos/irr-filter.txt?v=cc64033bb9)
 
-Recorded with Ze 26.10.28 in a Linux namespace lab using Ze recorder. Duration: 4 minutes 57 seconds.
+Recorded with Ze 26.11.20 in a Linux namespace lab using Ze recorder. Duration: 3 minutes 36 seconds.
 
 ```console
 IRR: live import filtering and repair
@@ -283,9 +283,9 @@ $ ze cli -c 'show bgp irr | yaml | no-more'
 Load three sections in one SSH candidate:
 $ ze-demo card topic-irr overview
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/irr/1-server.conf
-ze# load file absolute merge /src/demos/terminal/topics/irr/2-as-set.conf
-ze# load file absolute merge /src/demos/terminal/topics/irr/3-import.conf
+ze# load file absolute merge topics/irr/1-server.conf
+ze# load file absolute merge topics/irr/2-as-set.conf
+ze# load file absolute merge topics/irr/3-import.conf
 ze# show | compare
 ze# commit now
 ze# exit
@@ -311,7 +311,7 @@ control arrives can the absence of both 10.0 routes prove refusal, not delay.
 
 $ ze-demo card topic-irr failure
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/irr/4-wrong-as-set.conf
+ze# load file absolute merge topics/irr/4-wrong-as-set.conf
 ze# show | compare
 ze# commit now
 ze# exit
@@ -320,19 +320,19 @@ $ ze cli -c 'show bgp irr check customer 10.0.0.0/24 | yaml | no-more'
 $ ze cli -c 'show bgp irr prefix customer | yaml | no-more'
 $ ze cli -c 'show bgp adj-rib-in | no-more'
 
-Load 2-as-set.conf again and commit the repair. Run update bgp irr as-set
+Load 2-as-set.conf again and commit the repair. Run update irr as-set
 AS-TEST, then ze-demo run showcase-lab control customer reannounce. Inspect
 the accepted decision, 10.0.0.0/24 and its final 10.0.1.0/24 control again.
 The wrong-set control and outside route must be absent. Ze stays running.
 
 $ ze-demo card topic-irr recovery
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/irr/2-as-set.conf
+ze# load file absolute merge topics/irr/2-as-set.conf
 ze# show | compare
 ze# commit now
 ze# exit
 ze> exit
-$ ze cli -c 'update bgp irr as-set AS-TEST | yaml | no-more'
+$ ze cli -c 'update irr as-set AS-TEST | yaml | no-more'
 $ ze-demo run showcase-lab control customer reannounce
 $ ze cli -c 'show bgp irr check customer 10.0.0.0/24 | yaml | no-more'
 $ ze cli -c 'show bgp adj-rib-in | no-more'

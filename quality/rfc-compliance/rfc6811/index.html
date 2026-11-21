@@ -133,7 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 5 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 5 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 5 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>7</strong><b>7 of 19 tests linked to requirements, 0 without a fault test and 12 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>19</strong><b>19 of 19 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
@@ -280,8 +280,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> RPKI origin validation</p>
-<p><strong>Test verification:</strong> 3 of 5 MUST proven</p>
-<p><strong>Evidence:</strong> functional 1, unit 2</p>
+<p><strong>Test verification:</strong> 5 of 5 MUST proven</p>
+<p><strong>Evidence:</strong> functional 1, unit 4</p>
 <p><strong>Unmet:</strong> -</p>
 
 </section>
@@ -326,9 +326,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc6811:must">Ze verified 3, Tests awaiting verification 2</div>
+<div data-ze-rfc-bar="rfc6811:must">Ze verified 5</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc6811:overview">Ze MUST verified 3, Tests awaiting verification 2, Not assessed 4</div>
+<div data-ze-rfc-bar="rfc6811:overview">Ze MUST verified 5, Not assessed 4</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -340,7 +340,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc6811:not-walked">0</span></td>
 </tr>
 <tr><td>Mandatory requirements complete</td>
-<td><span data-ze-rfc="rfc6811:register">not complete</span></td>
+<td><span data-ze-rfc="rfc6811:register">complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
 <td><span data-ze-rfc="rfc6811:must.total">5</span></td>
@@ -349,13 +349,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc6811:must.kept">5</span></td>
 </tr>
 <tr><td>Ze verified</td>
-<td><span data-ze-rfc="rfc6811:must.ze-proven">3</span></td>
+<td><span data-ze-rfc="rfc6811:must.ze-proven">5</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc6811:must.os-verified">0</span></td>
 </tr>
 <tr><td>Tests awaiting verification</td>
-<td><span data-ze-rfc="rfc6811:must.proof-pending">2</span></td>
+<td><span data-ze-rfc="rfc6811:must.proof-pending">0</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc6811:must.os-gap">0</span></td>
@@ -537,7 +537,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_state_test.go#L53" title="internal/component/bgp/plugins/rpki/rfc6811_validate_state_test.go" target="_blank" rel="noopener"><code>TestRouteStateIsSetFromTheLookup</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_test.go#L218" title="internal/component/bgp/plugins/rpki/rfc6811_validate_test.go" target="_blank" rel="noopener"><code>TestRPKIOriginASFromASPathRFC6811</code></a></td>
@@ -552,12 +552,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc6811_rib_batch_test.go#L394" title="internal/component/bgp/plugins/adj_rib_in/rfc6811_rib_batch_test.go" target="_blank" rel="noopener"><code>TestBatchValidateTypedMatchesString</code></a></td>
 <td>unit/verify</td>
-<td>mutant, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_state_test.go#L31" title="internal/component/bgp/plugins/rpki/rfc6811_validate_state_test.go" target="_blank" rel="noopener"><code>TestRouteStateIsSetFromTheLookup</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_test.go#L216" title="internal/component/bgp/plugins/rpki/rfc6811_validate_test.go" target="_blank" rel="noopener"><code>TestRPKIOriginASFromASPathRFC6811</code></a></td>
@@ -582,12 +582,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L106" title="internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go" target="_blank" rel="noopener"><code>TestBuildDecisionsOriginInvalidAction</code></a></td>
 <td>unit/verify</td>
-<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L105" title="internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go" target="_blank" rel="noopener"><code>TestBuildDecisionsOriginInvalidAction</code></a></td>
 <td>unit/verify</td>
-<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -602,12 +602,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L108" title="internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go" target="_blank" rel="noopener"><code>TestBuildDecisionsOriginInvalidAction</code></a></td>
 <td>unit/verify</td>
-<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L107" title="internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go" target="_blank" rel="noopener"><code>TestBuildDecisionsOriginInvalidAction</code></a></td>
 <td>unit/verify</td>
-<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -642,7 +642,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc6811_rib_validation_test.go#L378" title="internal/component/bgp/plugins/adj_rib_in/rfc6811_rib_validation_test.go" target="_blank" rel="noopener"><code>TestReValidationAppliesToInstalledRoutes</code></a></td>
 <td>unit/verify</td>
-<td>mutant, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_origin_tracker_test.go#L48" title="internal/component/bgp/plugins/rpki/rfc6811_origin_tracker_test.go" target="_blank" rel="noopener"><code>TestHandleROAChangeReValidates</code></a></td>
@@ -652,22 +652,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc6811_rib_validation_test.go#L375" title="internal/component/bgp/plugins/adj_rib_in/rfc6811_rib_validation_test.go" target="_blank" rel="noopener"><code>TestReValidationAppliesToInstalledRoutes</code></a></td>
 <td>unit/verify</td>
-<td>mutant, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_origin_tracker_test.go#L45" title="internal/component/bgp/plugins/rpki/rfc6811_origin_tracker_test.go" target="_blank" rel="noopener"><code>TestHandleROAChangeReValidates</code></a></td>
 <td>unit/verify</td>
-<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rpki-revalidate-late-sync.ci#L3" title="test/plugin/rpki-revalidate-late-sync.ci" target="_blank" rel="noopener"><code>rpki-revalidate-late-sync.ci</code></a></td>
 <td>functional/verify</td>
-<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rpki-revalidate-selected-route.ci#L3" title="test/plugin/rpki-revalidate-selected-route.ci" target="_blank" rel="noopener"><code>rpki-revalidate-selected-route.ci</code></a></td>
 <td>functional/verify</td>
-<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -839,7 +839,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:27 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
                 </div>
             </div>
         </footer>

@@ -591,6 +591,13 @@ elicitation. The array is absent for a client that did declare it.</p>
 declares: the property's <code>title</code> is the leaf's <code>ze:help</code> summary and its
 <code>description</code> is the leaf's <code>description</code> explanation. A text the leaf does not
 declare writes no key, and neither is derived from the other.</p>
+<p>Every generated tool also takes an optional <code>pipe</code> argument: an ordered list
+of pipe operations applied to the answer, each <code>{"name": ..., "args": [...]}</code>.
+<code>{"action": "rib", "pipe": [{"name": "received"}, {"name": "count"}]}</code> on
+<code>ze_show_bgp</code> answers what <code>ze_execute</code> answers for
+<code>show bgp rib | received | count</code>. A name that is not one of the command's
+pipe operations is refused with the valid list.</p>
+<!-- source: internal/component/mcp/tools.go -- dispatchGenerated -->
 <p>Ze cannot advertise a single answer here, because the two clients get different
 behaviour. A schema-validating host would otherwise refuse to make the very call
 that reaches the prompt.</p>
@@ -932,7 +939,7 @@ keeps naming the taskId that <code>task-call</code> produced.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 03:14 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
                 </div>
             </div>
         </footer>

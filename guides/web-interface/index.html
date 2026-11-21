@@ -464,7 +464,9 @@ the checker. <code>./le repo update</code> has no templ stage. The complete work
 consumer by the same <code>./le repo update</code> run. htmx 4.0.0 and its
 <code>hx-sse.min.js</code> extension serve the web interface, the looking glass and the
 chaos dashboard. <code>internal/le/web/assets.Write</code> derives each page's asset set
-from its component graph, so a page loads only what it reaches.</p>
+from its component graph, so a page loads only what it reaches. Each
+third-party package travels with its licence file, which the interface and the
+looking glass serve beside the asset.</p>
 <!-- source: internal/component/web/markup_check_test.go -- webMarkupExempt, TestNoGoFileBuildsMarkup -->
 <!-- source: third_party/web/MANIFEST.md -- vendored versions, consumers, sync targets -->
 <h2 id="navigation">Navigation</h2>
@@ -1115,7 +1117,7 @@ other changes.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
                 </div>
             </div>
         </footer>

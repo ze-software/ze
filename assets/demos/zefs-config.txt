@@ -15,7 +15,7 @@ $ ssh ze-demo show bgp
 $ ssh ze-demo
 ze# set environment cli format default table
 ze# show | compare
-ze# commit
+ze# commit now
 Session committed
 ze# exit
 ze> exit

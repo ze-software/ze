@@ -419,6 +419,8 @@ ze env get ze.log              # details for one var
 | `ze.log.<subsystem>` | -- | Per-subsystem log level |
 | `ze.log.backend` | `stderr` | Log output: stderr, stdout, syslog, kmsg, or a comma-separated list of them |
 | `ze.log.destination` | -- | Syslog address (when backend=syslog) |
+| `ze.log.syslog.facility` | `daemon` | Syslog facility of every subsystem not mapped by the next key |
+| `ze.log.syslog.<subsystem>` | -- | Syslog facility of one subsystem and its children |
 | `ze.log.relay` | `warn` | Plugin stderr relay threshold |
 | `ze.ssh.host` | -- | Override SSH host for CLI commands |
 | `ze.ssh.port` | -- | Override SSH port for CLI commands |

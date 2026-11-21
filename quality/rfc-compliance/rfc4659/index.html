@@ -132,7 +132,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>2</strong><b>of 18 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 18 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 18 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>13</strong><b>13 of 28 tests linked to requirements, 0 without a fault test and 8 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>20</strong><b>20 of 28 tests linked to requirements, 0 without a fault test and 1 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
@@ -280,8 +280,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> VPNv6</p>
-<p><strong>Test verification:</strong> 3 of 18 MUST proven</p>
-<p><strong>Evidence:</strong> interop 1, unit 2</p>
+<p><strong>Test verification:</strong> 4 of 18 MUST proven</p>
+<p><strong>Evidence:</strong> interop 1, unit 3</p>
 <p><strong>Unmet:</strong> RFC4659-3.2.1.2-1, RFC4659-4-1, RFC4659-4-2, RFC4659-4-3, RFC4659-4-4, RFC4659-4-5, RFC4659-4-6, RFC4659-4-7, RFC4659-8-1, RFC4659-8-2, RFC4659-8-3, RFC4659-8-4, RFC4659-8-5</p>
 
 </section>
@@ -327,9 +327,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc4659:must">Ze verified 3, Tests awaiting verification 2, Not built 13</div>
+<div data-ze-rfc-bar="rfc4659:must">Ze verified 4, Tests awaiting verification 1, Not built 13</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc4659:overview">Ze MUST verified 3, Tests awaiting verification 2, Not assessed 6, Not built 13</div>
+<div data-ze-rfc-bar="rfc4659:overview">Ze MUST verified 4, Tests awaiting verification 1, Not assessed 6, Not built 13</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -350,13 +350,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc4659:must.kept">18</span></td>
 </tr>
 <tr><td>Ze verified</td>
-<td><span data-ze-rfc="rfc4659:must.ze-proven">3</span></td>
+<td><span data-ze-rfc="rfc4659:must.ze-proven">4</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc4659:must.os-verified">0</span></td>
 </tr>
 <tr><td>Tests awaiting verification</td>
-<td><span data-ze-rfc="rfc4659:must.proof-pending">2</span></td>
+<td><span data-ze-rfc="rfc4659:must.proof-pending">1</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc4659:must.os-gap">0</span></td>
@@ -887,7 +887,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_link_local_peering_test.go#L40" title="internal/component/bgp/reactor/rfc4659_link_local_peering_test.go" target="_blank" rel="noopener"><code>TestRFC4659LinkLocalPeeringPreservesUnspecifiedGlobalPair</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -916,7 +916,7 @@ Bounded source rejudgment on 2026-11-17 of the changed mpReachNextHopHandler bin
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_api_vpn_link_local_test.go#L79" title="internal/component/bgp/reactor/rfc4659_api_vpn_link_local_test.go" target="_blank" rel="noopener"><code>TestRFC4659APIVPNv6LinkLocalCommonSubnet</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-gone (the producer the break was applied to is no longer in the tree)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go#L121" title="internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go" target="_blank" rel="noopener"><code>TestRFC4659ForwardVPNv6LinkLocalCommonSubnet</code></a></td>
@@ -926,12 +926,12 @@ Bounded source rejudgment on 2026-11-17 of the changed mpReachNextHopHandler bin
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go#L84" title="internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go" target="_blank" rel="noopener"><code>TestRFC4659StaticVPNv6LinkLocalCommonSubnet</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-gone (the producer the break was applied to is no longer in the tree)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go#L88" title="internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go" target="_blank" rel="noopener"><code>TestRFC4659ForwardVPNv6NextHopRewriteCarriesRD</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L647" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkVPNFRR</code></a></td>
@@ -941,7 +941,7 @@ Bounded source rejudgment on 2026-11-17 of the changed mpReachNextHopHandler bin
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_api_vpn_link_local_test.go#L78" title="internal/component/bgp/reactor/rfc4659_api_vpn_link_local_test.go" target="_blank" rel="noopener"><code>TestRFC4659APIVPNv6LinkLocalCommonSubnet</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-gone (the producer the break was applied to is no longer in the tree)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_link_local_loopback_test.go#L38" title="internal/component/bgp/reactor/rfc4659_vpn_link_local_loopback_test.go" target="_blank" rel="noopener"><code>TestRFC4659VPNv6LinkLocalLoopbackGlobal</code></a></td>
@@ -956,12 +956,12 @@ Bounded source rejudgment on 2026-11-17 of the changed mpReachNextHopHandler bin
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go#L83" title="internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go" target="_blank" rel="noopener"><code>TestRFC4659StaticVPNv6LinkLocalCommonSubnet</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-gone (the producer the break was applied to is no longer in the tree)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go#L87" title="internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go" target="_blank" rel="noopener"><code>TestRFC4659ForwardVPNv6NextHopRewriteCarriesRD</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L646" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkVPNFRR</code></a></td>
@@ -1221,7 +1221,7 @@ Bounded source rejudgment on 2026-11-17 of the changed mpReachNextHopHandler bin
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:27 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
                 </div>
             </div>
         </footer>

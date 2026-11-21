@@ -131,7 +131,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>14</strong><b>of 25 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>5</strong><b>of 25 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 25 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>41</strong><b>41 of 64 tests linked to requirements, 0 without a fault test and 12 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>48</strong><b>48 of 64 tests linked to requirements, 0 without a fault test and 5 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
@@ -1083,7 +1083,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go#L340" title="internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDPropagationNextHop</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go#L32" title="internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go" target="_blank" rel="noopener"><code>TestRFC9252EffectiveNextHopControlsServiceTLVs</code></a></td>
@@ -1093,12 +1093,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go#L339" title="internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDPropagationNextHop</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9252_reserved_propagated_test.go#L55" title="internal/component/bgp/reactor/rfc9252_reserved_propagated_test.go" target="_blank" rel="noopener"><code>TestRFC9252ReservedFieldsPropagatedUnchanged</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1119,12 +1119,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go#L342" title="internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDPropagationNextHop</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go#L176" title="internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go" target="_blank" rel="noopener"><code>TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go#L34" title="internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go" target="_blank" rel="noopener"><code>TestRFC9252EffectiveNextHopControlsServiceTLVs</code></a></td>
@@ -1134,7 +1134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go#L341" title="internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go" target="_blank" rel="noopener"><code>TestPrefixSIDPropagationNextHop</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1219,7 +1219,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/srv6-service-export-control.ci#L3" title="test/plugin/srv6-service-export-control.ci" target="_blank" rel="noopener"><code>srv6-service-export-control.ci</code></a></td>
 <td>functional/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/srv6-service-export-control.ci#L2" title="test/plugin/srv6-service-export-control.ci" target="_blank" rel="noopener"><code>srv6-service-export-control.ci</code></a></td>
@@ -1708,7 +1708,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:27 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
                 </div>
             </div>
         </footer>

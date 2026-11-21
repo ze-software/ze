@@ -90,7 +90,7 @@ output. That output elects from admitted learned routes independently of the
 forwarding result. Export of a manual candidate requires an explicitly admitted
 origin or redistribution path.</p>
 <pre><code class="language-bash">ze cli -c "request bgp rib inject 192.0.2.10 ipv4/unicast 198.51.100.0/24 origin igp nexthop 127.0.0.1 med 42"
-ze cli -c "show bgp rib best prefix 198.51.100.0/24"
+ze cli -c "show bgp rib best | prefix 198.51.100.0/24"
 ze cli -c "show rib"
 </code></pre>
 <p>Withdraw the same candidate with the matching synthetic peer, family, and prefix:</p>
@@ -107,11 +107,11 @@ IPv4 unicast route can also use an IPv6 next hop when the destination peer
 negotiated Extended Next Hop, the RFC 8950 capability historically defined by
 RFC 5549.</p>
 <pre><code class="language-bash">ze cli -c "request bgp rib inject 192.0.2.10 ipv4/unicast 198.51.100.0/24 origin igp nexthop 2001:db8::1"
-ze cli -c "show bgp rib best prefix 198.51.100.0/24"
+ze cli -c "show bgp rib best | prefix 198.51.100.0/24"
 </code></pre>
 <p>Ze stores the MP_REACH attribute with the synthetic candidate and recovers the
 next hop when selecting and forwarding it. <code>show bgp rib best</code> and
-<code>show bgp rib received</code> both display the recovered next hop: the attribute
+<code>show bgp rib | received</code> both display the recovered next hop: the attribute
 renderer falls back to the stored MP_REACH_NLRI whenever the legacy IPv4-only
 NEXT_HOP attribute (type 3) is absent, which is the case for every IPv6 next
 hop, native or extended.</p>
@@ -137,7 +137,7 @@ hop, native or extended.</p>
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/rib-fib.cast?v=01fa66b2f1"
+      data-cast-src="../../assets/demos/rib-fib.cast?v=8353460a42"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -145,18 +145,18 @@ hop, native or extended.</p>
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/rib-fib.cast?v=01fa66b2f1">Download the asciicast</a> or
-      <a href="../../assets/demos/rib-fib.txt?v=ca05c09bc8">read the transcript</a>.</p>
+      page's own player. <a href="../../assets/demos/rib-fib.cast?v=8353460a42">Download the asciicast</a> or
+      <a href="../../assets/demos/rib-fib.txt?v=d00d6fdb7c">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.10.09</span><span>52 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
-    <a href="../../assets/demos/rib-fib.txt?v=ca05c09bc8">Plain-text transcript</a>
+    <span>Ze 26.11.20</span><span>1 minute 19 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
+    <a href="../../assets/demos/rib-fib.txt?v=d00d6fdb7c">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
     <pre><code>$ ze cli -c &#39;request bgp rib inject 192.0.2.10 ipv4/unicast 198.51.100.0/24 origin igp nexthop 127.0.0.1 med 42&#39;
-$ ze cli -c &#39;show bgp rib best prefix 198.51.100.0/24 | no-more&#39;
+$ ze cli -c &#39;show bgp rib best | prefix 198.51.100.0/24 | no-more&#39;
 198.51.100.0/24
 $ ip -details route show exact 198.51.100.0/24
 198.51.100.0/24 ... proto 250
@@ -595,7 +595,7 @@ ships a Python launcher or helper.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 22:34 UTC</span>
                 </div>
             </div>
         </footer>

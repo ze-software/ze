@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 1 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 1 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 1 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 7 | 7 of 8 tests linked to requirements, 0 without a fault test and 1 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 8 | 8 of 8 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -171,7 +171,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | positive | [`TestRFC6996RemovesPrivateUseASNsFromBothPathAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go#L40) | unit/verify | mutant, verified |
 | positive | [`TestRFC6996StripsPrivateUseASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_test.go#L50) | unit/verify | mutant, verified |
 | positive | [`TestRFC6996OldSpeakerReceivesStrippedASPathAndAS4Path`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6996_old_speaker_export_test.go#L23) | unit/verify | mutant, verified |
-| positive | [`TestRFC6996ExportRemovesPrivateUseASNsFromASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6996_remove_private_test.go#L80) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC6996ExportRemovesPrivateUseASNsFromASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6996_remove_private_test.go#L80) | unit/verify | revert, verified |
 | positive | [`TestRFC6996StripRemovesPrivateUseASNsFromAS4Path`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6996_remove_private_test.go#L40) | unit/verify | revert, verified |
 
 ## Requirement list review

@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 5 | of 13 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 13 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 13 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 12 | 12 of 19 tests linked to requirements, 0 without a fault test and 2 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 14 | 14 of 19 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -258,11 +258,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 All AS numbers in the AS_PATH attribute MUST be encoded as 4-byte AS numbers. (§4.3.4)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go::TestRFC6396FourByteSessionRouteDumpsASPathUnchanged, internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go::TestRFC6396TwoByteSessionRouteDumpsFourByteASPath moved. Judge 2026-09-30. rib TestRFC6396TwoByteSessionRouteDumpsFourByteASPath drives a 2-byte-session UPDATE (AS_SEQ 65001 65002, 2-octet) through wireu.CollapseAS4Family, the RIB received-UPDATE entry (context stays ASN4=false), dumpRIBForMRT, the internal/mrt RIB writers and DecodeRIBRecord: the entry AS_PATH is 4-octet. Negative TestRFC6396FourByteSessionRouteDumpsASPathUnchanged: a 4-byte session path with AS 200000 is written octet-equal (no second widening, no narrowing). mrt TestDumpV2RIBEntryASPathIs4Byte (claim reworded to what it asserts) proves writeTableDumpV2 keeps a 4-byte path. Records observed red on revert of CollapseAS4Family, reconstructWireAttrs and writeTableDumpV2. Limit: the rib test composes the record with the same internal/mrt writers the MRT plugin calls rather than the plugin itself; the plugin half is the mrt unit.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30. rib TestRFC6396TwoByteSessionRouteDumpsFourByteASPath drives a 2-byte-session UPDATE (AS_SEQ 65001 65002, 2-octet) through wireu.CollapseAS4Family, the RIB received-UPDATE entry (context stays ASN4=false), dumpRIBForMRT, the internal/mrt RIB writers and DecodeRIBRecord: the entry AS_PATH is 4-octet. Negative TestRFC6396FourByteSessionRouteDumpsASPathUnchanged: a 4-byte session path with AS 200000 is written octet-equal (no second widening, no narrowing). mrt TestDumpV2RIBEntryASPathIs4Byte (claim reworded to what it asserts) proves writeTableDumpV2 keeps a 4-byte path. Records observed red on revert of CollapseAS4Family, reconstructWireAttrs and writeTableDumpV2. Limit: the rib test composes the record with the same internal/mrt writers the MRT plugin calls rather than the plugin itself; the plugin half is the mrt unit.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC6396FourByteSessionRouteDumpsASPathUnchanged`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go#L115) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC6396FourByteSessionRouteDumpsASPathUnchanged`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go#L115) | unit/verify | revert, verified |
 | negative | [`TestRFC6396RIBEntryASPathFourByteSessionUnchanged`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L625) | unit/verify | not verified |
 | positive | [`TestRFC6396TwoByteSessionRouteDumpsFourByteASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go#L99) | unit/verify | revert, verified |
 | positive | [`TestRFC6396RIBEntryASPathStoredFourByte`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L597) | unit/verify | not verified |
@@ -292,7 +292,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC6396WireCaptureIgnoresSemanticSynthesis`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6396_wire_capture_test.go#L48) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC6396WireCaptureIgnoresSemanticSynthesis`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6396_wire_capture_test.go#L48) | unit/verify | revert, verified |
 | positive | [`TestRFC6396WireMessagesNeverCoalesce`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6396_wire_capture_test.go#L91) | unit/verify | revert, verified |
 | positive | [`TestOneBGPMessagePerBGP4MPRecord`](https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_component_test.go#L85) | unit/verify | revert, verified |
 

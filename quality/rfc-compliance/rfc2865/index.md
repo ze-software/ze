@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 31 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 31 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 31 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 80 | 80 of 107 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 86 | 86 of 107 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -73,7 +73,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 116 |
 | Tests linked to requirements | 107 |
 | Recorded audit verdicts | 22 |
-| Fault test records | 80 |
+| Fault test records | 86 |
 | Summary | `rfc/short/rfc2865.md` |
 | Requirement table | `rfc/requirements/rfc2865.md` |
 | RFC text | `rfc/full/rfc2865.txt` |
@@ -86,9 +86,9 @@ Included in automatic checks: Remote Authentication Dial In User Service (RADIUS
 
 **Area:** RADIUS authentication
 
-**Test verification:** 27 of 31 MUST proven
+**Test verification:** 31 of 31 MUST proven
 
-**Evidence:** unit 27
+**Evidence:** unit 31
 
 **Unmet:** -
 
@@ -112,19 +112,19 @@ Included in automatic checks: Remote Authentication Dial In User Service (RADIUS
 
 ## Figures
 
-- **MUST bar**: Ze verified 27, Tests awaiting verification 4
-- **Overview bar**: Ze MUST verified 27, Tests awaiting verification 4, Not assessed 1
+- **MUST bar**: Ze verified 31
+- **Overview bar**: Ze MUST verified 31, Not assessed 1
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 31 |
 | MUST rows kept (the MUST bar) | 31 |
-| Ze verified | 27 |
+| Ze verified | 31 |
 | OS verified | 0 |
-| Tests awaiting verification | 4 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -218,7 +218,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC2865RequestAuthenticatorRandom`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L40) | unit/verify | not verified |
+| positive | [`TestRFC2865RequestAuthenticatorRandom`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L40) | unit/verify | mutant, verified |
 
 ### [`RFC2865-3-3`](#rfc2865-3-3)
 
@@ -230,10 +230,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 |---|---|---|---|
 | negative | [`TestResponseAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L214) | unit/verify | not verified |
 | negative | [`TestVerifyResponseAuth`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L246) | unit/verify | not verified |
-| negative | [`TestRFC2865ResponseAuthenticatorCoversEveryNamedField`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_response_auth_test.go#L99) | unit/verify | not verified |
+| negative | [`TestRFC2865ResponseAuthenticatorCoversEveryNamedField`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_response_auth_test.go#L99) | unit/verify | mutant, verified |
 | positive | [`TestResponseAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L206) | unit/verify | not verified |
 | positive | [`TestVerifyResponseAuth`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L240) | unit/verify | not verified |
-| positive | [`TestRFC2865ResponseAuthenticatorMatchesTheFormula`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_response_auth_test.go#L58) | unit/verify | not verified |
+| positive | [`TestRFC2865ResponseAuthenticatorMatchesTheFormula`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_response_auth_test.go#L58) | unit/verify | mutant, verified |
 
 ### [`RFC2865-4.2-1`](#rfc2865-4.2-1)
 
@@ -277,9 +277,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC2865UserPasswordDependsOnSecret`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L156) | unit/verify | not verified |
+| negative | [`TestRFC2865UserPasswordDependsOnSecret`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L156) | unit/verify | mutant, verified |
 | positive | [`TestEncodeUserPassword`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_attr_test.go#L35) | unit/verify | not verified |
-| positive | [`TestEncodeUserPasswordMultiBlock`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_attr_test.go#L97) | unit/verify | not verified |
+| positive | [`TestEncodeUserPasswordMultiBlock`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_attr_test.go#L97) | unit/verify | mutant, verified |
 
 ### [`RFC2865-5.2-2`](#rfc2865-5.2-2)
 
@@ -289,7 +289,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestEncodeUserPassword`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_attr_test.go#L17) | unit/verify | not verified |
+| positive | [`TestEncodeUserPassword`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_attr_test.go#L17) | unit/verify | mutant, verified |
 | positive | [`TestEncodeUserPasswordEmpty`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_attr_test.go#L52) | unit/verify | not verified |
 | positive | [`TestEncodeUserPasswordMultiBlock`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_attr_test.go#L75) | unit/verify | not verified |
 | positive | [`TestRFC2865UserPasswordClamp`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L175) | unit/verify | not verified |
@@ -402,7 +402,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 It MUST contain either a NAS-IP-Address attribute or a NAS-Identifier attribute (or both). (§4.1, restated at §5.44 Note 2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent rejudgment after canonical subscriber-ID fixture migration. RFC 2865 Section 4.1: 'It MUST contain either a NAS-IP-Address attribute or a NAS-Identifier attribute (or both).' TestRADIUSAuthNASIPAddress reads Code 1 and the exact configured IPv4 address from the captured subscriber request. TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured sets neither identity leaf and still requires a nonempty NAS-Identifier with no invented address. The unchanged admin unit reads the wire and requires at least one NAS identity attribute. All requests retain usable PAP credentials, so failure to build a credential cannot substitute for the identity checks. The only subscriber fixture change is the canonical ID required before provider dispatch; packet and assertion inputs are unchanged. These cases retain the whole existing either/or identity obligation. Native discrimination refresh remains separate main-thread evidence.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go::TestRADIUSAuthNASIPAddress moved. Independent rejudgment after canonical subscriber-ID fixture migration. RFC 2865 Section 4.1: 'It MUST contain either a NAS-IP-Address attribute or a NAS-Identifier attribute (or both).' TestRADIUSAuthNASIPAddress reads Code 1 and the exact configured IPv4 address from the captured subscriber request. TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured sets neither identity leaf and still requires a nonempty NAS-Identifier with no invented address. The unchanged admin unit reads the wire and requires at least one NAS identity attribute. All requests retain usable PAP credentials, so failure to build a credential cannot substitute for the identity checks. The only subscriber fixture change is the canonical ID required before provider dispatch; packet and assertion inputs are unchanged. These cases retain the whole existing either/or identity obligation. Native discrimination refresh remains separate main-thread evidence.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|

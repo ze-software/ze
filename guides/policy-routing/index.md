@@ -19,18 +19,59 @@ See [BGP Policy](../bgp-policy/index.md) for the filters.
 <!-- source: internal/plugins/policyroute/yang/ze-policyroute-conf.yang -- augment /policy:policy -->
 <!-- source: internal/component/policy/registry.go -- BuildRegistry, ValidateName -->
 
-Set references (`@DstBypass`, `@SrcBypass`) must be defined in the
-`firewall` config section. See [Firewall Guide](../firewall/index.md) for set
-syntax.
+An address or port match can name a set with `@name` instead of a prefix or a
+port list. The set is declared in a `firewall` table, as any firewall set is
+(see [Firewall Guide](../firewall/index.md) for set syntax). `source-address` and
+`destination-address` take an `ipv4` or `ipv6` set; `source-port` and
+`destination-port` take an `inet-service` set. nftables resolves a set only
+inside its own table, so Ze copies the set, with its type, flags and elements,
+into the policy-routing table `ze_pr`, and `show firewall ruleset pr` lists
+that copy. A commit that changes the `firewall` or the `policy route` section
+takes the copy again from the firewall section, so a commit that changes a
+referenced set's elements updates the copy too.
+<!-- source: internal/plugins/policyroute/sets.go -- parsePolicySections, resolveSetReferences, checkSetType -->
+<!-- source: internal/plugins/policyroute/translate.go -- referencedSets -->
+<!-- source: internal/plugins/firewall/nft/lower_linux.go -- lowerMatchInSet -->
+
+A commit whose policies come out the same as the installed ones re-applies
+nothing: a commit that changes only a firewall set no policy route names, or
+leaves a referenced set as it was, leaves `ze_pr`, the ip rules and the routes
+alone. When the policies did change, Ze installs the new ip rules before it
+removes the old ones, and leaves a rule both hold in place, so traffic a rule
+steers before and after the commit stays steered throughout. If the install
+fails, the previous table and rules are put back.
+<!-- source: internal/plugins/policyroute/rules_diff.go -- policiesUnchanged, replaceRules -->
+
+The commit is refused, naming the set, when no firewall table declares the
+name, when two firewall tables each declare it (rename all but one), or when
+the set holds elements the leaf cannot read (an address leaf naming an
+`inet-service` set, a port leaf naming an address set). Elements Ze does not
+write from the configuration never reach the copy. A set another plugin fills
+at run time, such as an IRR set or a domain-group set, is declared in no
+firewall table, so naming it from a policy route is refused with the plugin
+that fills it and the firewall leaf that matches such a set: match that traffic
+in a firewall table term, or declare a set holding the elements and name that
+one. An element added to the firewall table's set with `nft` by hand is not
+copied.
 
 ```
+firewall {
+    table edge {
+        family inet;
+        set bypass {
+            type ipv4;
+            element 192.0.2.10 {}
+            element 192.0.2.20 {}
+        }
+    }
+}
 policy {
     route surfprotect {
-        interface "l2tp*";
+        interface "ppp*";
 
         rule bypass-dst {
             from {
-                destination-address @DstBypass;
+                destination-address @bypass;
                 destination-port 80,443;
                 protocol tcp;
             }
@@ -42,7 +83,7 @@ policy {
             from {
                 destination-port 80,443;
                 protocol tcp;
-                source-address @SrcBypass;
+                source-address 198.51.100.80/29;
             }
             then {
                 accept;
@@ -111,14 +152,15 @@ static {
 
 Each policy route binds to one or more ingress interfaces. The list is an
 OR: the policy matches a packet that arrives on any one of the named
-interfaces. A trailing `*` enables wildcard matching (e.g., `l2tp*`
-matches all L2TP interfaces), and each entry keeps its own wildcard
-state, so one list mixes `eth1` and `l2tp*`.
+interfaces. A trailing `*` enables wildcard matching (e.g., `ppp*`
+matches every PPP session interface, which is how the kernel names Ze's
+L2TP LNS sessions), and each entry keeps its own wildcard state, so one
+list mixes `eth1` and `ppp*`. A VyOS `l2tp*` match converts to `ppp*`.
 
 ```
 policy {
     route example {
-        interface "l2tp*";
+        interface "ppp*";
         interface eth1;
         ...
     }
@@ -156,10 +198,10 @@ listed.
 
 | Keyword | Description | Example |
 |---------|-------------|---------|
-| `source-address` | Source IP prefix or `@set` reference | `10.0.0.0/8`, `@AllowedSrc` |
-| `destination-address` | Destination IP prefix or `@set` reference | `0.0.0.0/0`, `@DstBypass` |
-| `source-port` | Source port or port range | `1024-65535` |
-| `destination-port` | Destination port, range, or list | `80,443` |
+| `source-address` | Source IP prefix, or `@set` naming an `ipv4` or `ipv6` set a firewall table declares | `10.0.0.0/8`, `@allowed-src` |
+| `destination-address` | Destination IP prefix, or `@set` naming an `ipv4` or `ipv6` set a firewall table declares | `0.0.0.0/0`, `@bypass` |
+| `source-port` | Source port or port range, or `@set` naming an `inet-service` set a firewall table declares | `1024-65535`, `@ephemeral` |
+| `destination-port` | Destination port, range, or list, or `@set` naming an `inet-service` set a firewall table declares | `80,443`, `@web` |
 | `protocol` | L4 protocol name | `tcp`, `udp`, `icmp`, `icmpv6`, `gre`, `esp`, `ah`, `ospf`, `vrrp`, `sctp` |
 | `tcp-flags` | Comma-separated TCP flags | `syn`, `syn,ack` |
 

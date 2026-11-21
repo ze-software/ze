@@ -133,7 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 6 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 6 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 6 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>12</strong><b>12 of 28 tests linked to requirements, 0 without a fault test and 4 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>16</strong><b>16 of 28 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -275,8 +275,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> Extended Next Hop</p>
-<p><strong>Test verification:</strong> 2 of 6 MUST proven</p>
-<p><strong>Evidence:</strong> unit 2</p>
+<p><strong>Test verification:</strong> 3 of 6 MUST proven</p>
+<p><strong>Evidence:</strong> unit 3</p>
 <p><strong>Unmet:</strong> -</p>
 
 </section>
@@ -322,9 +322,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc8950:must">Ze verified 2, Tests awaiting verification 4</div>
+<div data-ze-rfc-bar="rfc8950:must">Ze verified 3, Tests awaiting verification 3</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc8950:overview">Ze MUST verified 2, Tests awaiting verification 4, Not assessed 2</div>
+<div data-ze-rfc-bar="rfc8950:overview">Ze MUST verified 3, Tests awaiting verification 3, Not assessed 2</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -345,13 +345,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc8950:must.kept">6</span></td>
 </tr>
 <tr><td>Ze verified</td>
-<td><span data-ze-rfc="rfc8950:must.ze-proven">2</span></td>
+<td><span data-ze-rfc="rfc8950:must.ze-proven">3</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc8950:must.os-verified">0</span></td>
 </tr>
 <tr><td>Tests awaiting verification</td>
-<td><span data-ze-rfc="rfc8950:must.proof-pending">4</span></td>
+<td><span data-ze-rfc="rfc8950:must.proof-pending">3</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc8950:must.os-gap">0</span></td>
@@ -534,7 +534,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/default_next_hop_controls_test.go#L129" title="internal/component/bgp/reactor/default_next_hop_controls_test.go" target="_blank" rel="noopener"><code>TestDefaultNextHopIPv6RequiresExactExtendedPair</code></a></td>
 <td>unit/verify</td>
-<td>mutant, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/next_hop_family_admission_test.go#L39" title="internal/component/bgp/reactor/next_hop_family_admission_test.go" target="_blank" rel="noopener"><code>TestFamilyNextHopOriginationAdmission</code></a></td>
@@ -559,7 +559,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_default_link_local_test.go#L18" title="internal/component/bgp/reactor/rfc8950_default_link_local_test.go" target="_blank" rel="noopener"><code>TestDefaultNextHopLinkLocalCandidateUsesSessionPolicy</code></a></td>
 <td>unit/verify</td>
-<td>mutant, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L37" title="internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go" target="_blank" rel="noopener"><code>TestRFC8950IPv6NextHopFollowsTheNegotiatedPair</code></a></td>
@@ -574,7 +574,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/default_next_hop_controls_test.go#L126" title="internal/component/bgp/reactor/default_next_hop_controls_test.go" target="_blank" rel="noopener"><code>TestDefaultNextHopIPv6RequiresExactExtendedPair</code></a></td>
 <td>unit/verify</td>
-<td>mutant, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/next_hop_family_admission_test.go#L37" title="internal/component/bgp/reactor/next_hop_family_admission_test.go" target="_blank" rel="noopener"><code>TestFamilyNextHopOriginationAdmission</code></a></td>
@@ -719,7 +719,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc8950_vpn_nexthop_test.go#L27" title="internal/core/bgp/attribute/rfc8950_vpn_nexthop_test.go" target="_blank" rel="noopener"><code>TestRFC8950VPNIPv6NextHopCarriesZeroRD</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-gone (the producer the break was applied to is no longer in the tree)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -920,7 +920,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
                 </div>
             </div>
         </footer>

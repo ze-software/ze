@@ -275,7 +275,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Automatic checks</h2>
-<p>Excluded from automatic checks (out-of-scope, the requirements ARE extracted and the owner decided not to offer the feature for now, so the absence is a scope decision rather than a conformance gap): Decision taken 2026-10-26: the owner ruled that DNSSEC is not urgent and lists RFC 4033 and RFC 4034 as optional only, never required, for the fttx-edge use case (spec-rfc-profile-declared-membership), and moved DNSSEC validation to post-release the same day (commit 5ff4834b67). The extraction is done: every MUST-level sentence of the text is a row below and is mapped in rfc/extraction/rfc4034.json. The declined feature is DNSSEC record handling itself: ze signs no zone, holds and serves no DNSKEY, RRSIG, NSEC or DS record of its own, and validates no signature. Its resolver is a security-aware non-validating stub whose obligations are gated in rfc/short/rfc4035.md.</p>
+<p>Excluded from automatic checks (out-of-scope, the requirements ARE extracted and the owner decided not to offer the feature for now, so the absence is a scope decision rather than a conformance gap): Decision taken 2026-10-26: the owner ruled that DNSSEC is not urgent and lists RFC 4033 and RFC 4034 as optional only, never required, for the fttx-edge use case (spec-rfc-profile-declared-membership), and moved DNSSEC validation to post-release the same day (commit 5ff4834b67). The extraction is done: every MUST-level sentence of the text is a row below and is mapped in rfc/extraction/rfc4034.json. DNSSEC record handling is not declined: the owner made it optional and post-release, and DNSSEC validation is wanted later (plan/post-release/features/spec-dns-resolver-dnssec-validation.md), so these rows are owed after the release. Today ze signs no zone, holds and serves no DNSKEY, RRSIG, NSEC or DS record of its own, validates no signature, and reads no master file: ze resolve dns prints only A, AAAA, TXT and PTR answers (internal/component/resolve/dns/resolver.go::extractRecords renders no DNSSEC record in presentation format). Its resolver is a security-aware non-validating stub whose obligations are gated in rfc/short/rfc4035.md.</p>
 </section>
 <section><h2>Published support status</h2>
 <p>No entry in the public support list, so its summary declares `| Support | - |` and docs/features/rfc-status.md carries no row for RFC 4034.</p>
@@ -1878,7 +1878,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
                 </div>
             </div>
         </footer>

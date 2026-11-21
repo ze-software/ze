@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 8 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 8 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 8 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 15 | 15 of 20 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 19 | 19 of 22 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -70,10 +70,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 20 |
-| Tests linked to requirements | 20 |
+| Test tags | 22 |
+| Tests linked to requirements | 22 |
 | Recorded audit verdicts | 6 |
-| Fault test records | 15 |
+| Fault test records | 19 |
 | Summary | `rfc/short/rfc2869.md` |
 | Requirement table | `rfc/requirements/rfc2869.md` |
 | RFC text | `rfc/full/rfc2869.txt` |
@@ -86,9 +86,9 @@ Included in automatic checks: RADIUS Extensions (NAS/accounting-client obligatio
 
 **Area:** RADIUS extensions
 
-**Test verification:** 6 of 8 MUST proven
+**Test verification:** 8 of 8 MUST proven
 
-**Evidence:** unit 6
+**Evidence:** unit 8
 
 **Unmet:** -
 
@@ -110,19 +110,19 @@ Included in automatic checks: RADIUS Extensions (NAS/accounting-client obligatio
 
 ## Figures
 
-- **MUST bar**: Ze verified 6, Tests awaiting verification 2
-- **Overview bar**: Ze MUST verified 6, Tests awaiting verification 2, Not assessed 3
+- **MUST bar**: Ze verified 8
+- **Overview bar**: Ze MUST verified 8, Not assessed 3
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 8 |
 | MUST rows kept (the MUST bar) | 8 |
-| Ze verified | 6 |
+| Ze verified | 8 |
 | OS verified | 0 |
-| Tests awaiting verification | 2 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -152,9 +152,9 @@ Source: [data/rfc/rfc2869.json](../../../data/rfc/rfc2869.json).
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC2869-1.1-1` | A NAS that does not implement a given service MUST NOT implement the RADIUS attributes for that service (§1.1) | MUST NOT | 1.1 - Specification of Requirements | **positive:** `unit/verify` [`TestRFC2869DictionaryCoversTheServicesZeOffers`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L108). **negative:** `unit/verify` [`TestRFC2869DictionaryDeclaresNoAttributeForAnUnofferedService`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L144) |
+| `RFC2869-1.1-1` | A NAS that does not implement a given service MUST NOT implement the RADIUS attributes for that service (§1.1) | MUST NOT | 1.1 - Specification of Requirements | **positive:** `unit/verify` [`TestRFC2869DictionaryCoversTheServicesZeOffers`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L108). **positive:** `unit/verify` [`TestRFC2869SubscriberNASActsOnAnOfferedServiceRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_unoffered_service_refusal_test.go#L38). **negative:** `unit/verify` [`TestRFC2869DictionaryDeclaresNoAttributeForAnUnofferedService`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L144). **negative:** `unit/verify` [`TestRFC2869SubscriberNASRefusesARAPAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_unoffered_service_refusal_test.go#L80) |
 | `RFC2869-1.1-2` | A NAS MUST treat a RADIUS access-request requesting an unavailable service as an access-reject instead (§1.1) | MUST | 1.1 - Specification of Requirements | **positive:** `unit/verify` [`TestRFC2869AccessRequestNamesTheServiceZeOffers`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go#L62). **negative:** `unit/verify` [`TestRFC2869AccessRequestNeverRequestsAnUnavailableService`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go#L104) |
-| `RFC2869-2.1-1` | Since all the information is cumulative, a NAS MUST ensure that only a single generation of an interim Accounting message for a given session is present in the retransmission queue at any given time. (§2.1) | MUST | 2.1 - RADIUS support for Interim Accounting Updates | **positive:** `unit/verify` [`TestRFC2869InterimLoopSendsOnItsInterval`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go#L89). **negative:** `unit/verify` [`TestRFC2869InterimLoopKeepsOneGenerationOutstanding`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go#L117) |
+| `RFC2869-2.1-1` | Since all the information is cumulative, a NAS MUST ensure that only a single generation of an interim Accounting message for a given session is present in the retransmission queue at any given time. (§2.1) | MUST | 2.1 - RADIUS support for Interim Accounting Updates | **positive:** `unit/verify` [`TestRFC2869InterimLoopSendsOnItsInterval`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go#L91). **negative:** `unit/verify` [`TestRFC2869InterimLoopKeepsOneGenerationOutstanding`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go#L119) |
 | `RFC2869-2.1-2` | Note that a locally configured value on the NAS MUST override the value found in an Access-Accept. (§2.1) | MUST | 2.1 - RADIUS support for Interim Accounting Updates | **positive:** `unit/verify` [`TestRFC2869LocalAcctIntervalOverridesAccessAccept`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_interim_interval_precedence_test.go#L106). **negative:** `unit/verify` [`TestRFC2869AbsentAcctIntervalLeavesTheAccessAcceptInCharge`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_interim_interval_precedence_test.go#L130) |
 | `RFC2869-2.1-3` | It is also possible to statically configure an interim value on the NAS itself. (§2.1) | MAY | 2.1 - RADIUS support for Interim Accounting Updates | **positive:** no positive test. **negative:** no negative test |
 | `RFC2869-5.19-1` | An Access-Request that contains either a User-Password or CHAP-Password or ARAP-Password or one or more EAP-Message attributes MUST NOT contain more than one type of those four attributes. (§5.19 Note 1) | MUST NOT | 5.19 | **positive:** `unit/verify` [`TestRFC2869AccessRequestCarriesTheCredentialOfItsMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go#L142). **positive:** `unit/verify` [`TestRFC2869EAPOnlyAccessRequestIsSent`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_credential_types_test.go#L52). **negative:** `unit/verify` [`TestRFC2869AccessRequestCarriesOneKindOfCredential`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go#L174). **negative:** `unit/verify` [`TestRFC2869EAPBesideAnotherCredentialIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_credential_types_test.go#L69) |
@@ -180,7 +180,9 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
+| negative | [`TestRFC2869SubscriberNASRefusesARAPAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_unoffered_service_refusal_test.go#L80) | unit/verify | mutant, verified |
 | negative | [`TestRFC2869DictionaryDeclaresNoAttributeForAnUnofferedService`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L144) | unit/verify | not verified |
+| positive | [`TestRFC2869SubscriberNASActsOnAnOfferedServiceRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_unoffered_service_refusal_test.go#L38) | unit/verify | mutant, verified |
 | positive | [`TestRFC2869DictionaryCoversTheServicesZeOffers`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L108) | unit/verify | not verified |
 
 ### [`RFC2869-1.1-2`](#rfc2869-1.1-2)
@@ -202,14 +204,14 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC2869InterimLoopKeepsOneGenerationOutstanding`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go#L117) | unit/verify | not verified |
-| positive | [`TestRFC2869InterimLoopSendsOnItsInterval`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go#L89) | unit/verify | not verified |
+| negative | [`TestRFC2869InterimLoopKeepsOneGenerationOutstanding`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go#L119) | unit/verify | mutant, verified |
+| positive | [`TestRFC2869InterimLoopSendsOnItsInterval`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go#L91) | unit/verify | mutant, verified |
 
 ### [`RFC2869-2.1-2`](#rfc2869-2.1-2)
 
 Note that a locally configured value on the NAS MUST override the value found in an Access-Accept. (§2.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/plugins/authradius/rfc2869_interim_interval_precedence_test.go::TestRFC2869AbsentAcctIntervalLeavesTheAccessAcceptInCharge, internal/component/l2tp/plugins/authradius/rfc2869_interim_interval_precedence_test.go::TestRFC2869LocalAcctIntervalOverridesAccessAccept moved. Forbidden: the Access-Accept Acct-Interim-Interval winning over a locally configured value. TestRFC2869LocalAcctIntervalOverridesAccessAccept configures 40ms against an Access-Accept of 3600s and fatals if fewer than 3 interim records arrive in 2s; TestRFC2869AbsentAcctIntervalLeavesTheAccessAcceptInCharge fatals if any interim arrives with no local value, so a NAS that ignores the Access-Accept outright fails.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: the Access-Accept Acct-Interim-Interval winning over a locally configured value. TestRFC2869LocalAcctIntervalOverridesAccessAccept configures 40ms against an Access-Accept of 3600s and fatals if fewer than 3 interim records arrive in 2s; TestRFC2869AbsentAcctIntervalLeavesTheAccessAcceptInCharge fatals if any interim arrives with no local value, so a NAS that ignores the Access-Accept outright fails.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -233,7 +235,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 This attribute indicates how many times the Acct-Input-Octets counter has wrapped around 2^32 over the course of this service being provided, and can only be present in Accounting-Request records where the Acct-Status-Type is set to Stop or Interim- Update. (§5.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/plugins/authradius/rfc2869_acct_test.go::TestBuildAcctPacketGigawords moved. Re-judged 2026-09-30: only the tag comment on TestBuildAcctPacketGigawords changed (it absorbed the wrap-count wording of the retired RFC2869-x-5); the body is unchanged. Clause 1 forbidden: a Gigawords value other than the wrap count; TestBuildAcctPacketGigawords asserts Acct-Input-Gigawords 2 and Acct-Output-Gigawords 3 for 0x200000064 and 0x3000000C8 octets on a Stop, positive re-recorded against acct.go::splitGigawords and observed red. Clause 2 forbidden: Gigawords in a record other than Stop or Interim-Update; TestRFC2869GigawordsAbsentOnStart fails if an Accounting-Start built from >4GB counters carries either attribute. The NAS emits only Start, Interim-Update and Stop (authradius), so Start is the only other status it can send.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/plugins/authradius/rfc2869_acct_test.go::TestBuildAcctPacketGigawords moved. Re-judged 2026-09-30: only the tag comment on TestBuildAcctPacketGigawords changed (it absorbed the wrap-count wording of the retired RFC2869-x-5); the body is unchanged. Clause 1 forbidden: a Gigawords value other than the wrap count; TestBuildAcctPacketGigawords asserts Acct-Input-Gigawords 2 and Acct-Output-Gigawords 3 for 0x200000064 and 0x3000000C8 octets on a Stop, positive re-recorded against acct.go::splitGigawords and observed red. Clause 2 forbidden: Gigawords in a record other than Stop or Interim-Update; TestRFC2869GigawordsAbsentOnStart fails if an Accounting-Start built from >4GB counters carries either attribute. The NAS emits only Start, Interim-Update and Stop (authradius), so Start is the only other status it can send.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|

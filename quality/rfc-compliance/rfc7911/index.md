@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 9 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 9 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 9 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 16 | 16 of 61 tests linked to requirements, 0 without a fault test and 24 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 42 | 42 of 61 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -73,7 +73,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 61 |
 | Tests linked to requirements | 61 |
 | Recorded audit verdicts | 9 |
-| Fault test records | 40 |
+| Fault test records | 42 |
 | Summary | `rfc/short/rfc7911.md` |
 | Requirement table | `rfc/requirements/rfc7911.md` |
 | RFC text | `rfc/full/rfc7911.txt` |
@@ -86,9 +86,9 @@ Included in automatic checks: Advertisement of Multiple Paths in BGP (ADD-PATH):
 
 **Area:** ADD-PATH
 
-**Test verification:** 7 of 9 MUST proven
+**Test verification:** 9 of 9 MUST proven
 
-**Evidence:** interop 1, unit 6
+**Evidence:** interop 1, functional 1, unit 7
 
 **Unmet:** -
 
@@ -110,19 +110,19 @@ Included in automatic checks: Advertisement of Multiple Paths in BGP (ADD-PATH):
 
 ## Figures
 
-- **MUST bar**: Ze verified 7, Tests awaiting verification 2
-- **Overview bar**: Ze MUST verified 7, Tests awaiting verification 2, Not assessed 4
+- **MUST bar**: Ze verified 9
+- **Overview bar**: Ze MUST verified 9, Not assessed 4
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 9 |
 | MUST rows kept (the MUST bar) | 9 |
-| Ze verified | 7 |
+| Ze verified | 9 |
 | OS verified | 0 |
-| Tests awaiting verification | 2 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -182,8 +182,8 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestForwardPathIDsDifferForCollidingSources`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_test.go#L45) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestForwardPathIDStableAcrossUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_test.go#L96) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestForwardPathIDsDifferForCollidingSources`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_test.go#L45) | unit/verify | mutant, verified |
+| positive | [`TestForwardPathIDStableAcrossUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_test.go#L96) | unit/verify | mutant, verified |
 
 ### [`RFC7911-2-2`](#rfc7911-2-2)
 
@@ -193,25 +193,25 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestForwardPathIDFiniteNamespace`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L246) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| negative | [`TestForwardPathIDMPGeneration`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_mp_test.go#L26) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| negative | [`TestForwardPathIDStableAcrossUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_test.go#L90) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestForwardPathIDKeepsTheSourceOfARebuiltFrame`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go#L287) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestForwardPathIDKeptWhenOneUpdateWithdrawsAndAnnouncesIt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go#L329) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestForwardPathIDWithdrawCarriesTheAnnouncedValue`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go#L232) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestForwardPathIDsFreedOnRelayedWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go#L193) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestForwardPathIDBoundaryReceivedValues`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L166) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestForwardPathIDDiffersForTwoSourcePeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L48) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestForwardPathIDFiniteNamespace`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L244) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestForwardPathIDMatchesAnnounceAndWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L75) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestForwardPathIDSeparatesNonAddPathSources`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L137) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestForwardPathIDStableForEachDestination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L190) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestForwardPathIDSurvivesAttributeChange`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L108) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestForwardPathIDMPGeneration`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_mp_test.go#L25) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestForwardPathIDsDifferForCollidingSources`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_test.go#L33) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestPathIDKeyFollowsWhatTheSourceFramed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_zz_pathid_growth_probe_test.go#L22) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestForwardPathIDFiniteNamespace`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L246) | unit/verify | revert, verified |
+| negative | [`TestForwardPathIDMPGeneration`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_mp_test.go#L26) | unit/verify | revert, verified |
+| negative | [`TestForwardPathIDStableAcrossUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_test.go#L90) | unit/verify | revert, verified |
+| positive | [`TestForwardPathIDKeepsTheSourceOfARebuiltFrame`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go#L287) | unit/verify | revert, verified |
+| positive | [`TestForwardPathIDKeptWhenOneUpdateWithdrawsAndAnnouncesIt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go#L329) | unit/verify | revert, verified |
+| positive | [`TestForwardPathIDWithdrawCarriesTheAnnouncedValue`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go#L232) | unit/verify | revert, verified |
+| positive | [`TestForwardPathIDsFreedOnRelayedWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go#L193) | unit/verify | revert, verified |
+| positive | [`TestForwardPathIDBoundaryReceivedValues`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L166) | unit/verify | revert, verified |
+| positive | [`TestForwardPathIDDiffersForTwoSourcePeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L48) | unit/verify | revert, verified |
+| positive | [`TestForwardPathIDFiniteNamespace`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L244) | unit/verify | revert, verified |
+| positive | [`TestForwardPathIDMatchesAnnounceAndWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L75) | unit/verify | revert, verified |
+| positive | [`TestForwardPathIDSeparatesNonAddPathSources`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L137) | unit/verify | revert, verified |
+| positive | [`TestForwardPathIDStableForEachDestination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L190) | unit/verify | revert, verified |
+| positive | [`TestForwardPathIDSurvivesAttributeChange`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L108) | unit/verify | revert, verified |
+| positive | [`TestForwardPathIDMPGeneration`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_mp_test.go#L25) | unit/verify | revert, verified |
+| positive | [`TestForwardPathIDsDifferForCollidingSources`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_test.go#L33) | unit/verify | revert, verified |
+| positive | [`TestPathIDKeyFollowsWhatTheSourceFramed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_zz_pathid_growth_probe_test.go#L22) | unit/verify | revert, verified |
 | positive | [`checkAddPathReadvertiseCollision`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L17) | interop/nightly | mutant, verified |
-| positive | [`adj-rib-in-replay-addpath-source.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-addpath-source.ci#L28) | functional/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`adj-rib-in-replay-addpath-source.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-addpath-source.ci#L28) | functional/verify | mutant, verified |
 
 ### [`RFC7911-3-1`](#rfc7911-3-1)
 
@@ -222,13 +222,13 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestPathInformationIsNotWrittenWithoutTheNegotiation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/update/rfc7911_addpath_pathid_test.go#L84) | unit/verify | not verified |
-| negative | [`TestWriteNLRI_AddPath`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/rfc7911_base_len_test.go#L143) | unit/verify | not verified |
-| negative | [`adj-rib-in-replay-addpath-source.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-addpath-source.ci#L24) | functional/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestWithdrawOnlyUpdateKeepsPathIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/format/rfc7911_withdraw_only_test.go#L66) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestWriteNLRI_AddPath`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/rfc7911_base_len_test.go#L143) | unit/verify | mutant, verified |
+| negative | [`adj-rib-in-replay-addpath-source.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-addpath-source.ci#L24) | functional/verify | mutant, verified |
+| positive | [`TestWithdrawOnlyUpdateKeepsPathIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/format/rfc7911_withdraw_only_test.go#L66) | unit/verify | mutant, verified |
 | positive | [`TestPathInformationZeroIsAnIdentifierOnTheWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/update/rfc7911_addpath_pathid_test.go#L42) | unit/verify | not verified |
-| positive | [`TestWriteNLRI_WithStoredPathID`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/rfc7911_base_len_test.go#L182) | unit/verify | not verified |
+| positive | [`TestWriteNLRI_WithStoredPathID`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/rfc7911_base_len_test.go#L182) | unit/verify | mutant, verified |
 | positive | [`TestINETWithAddPath`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/rfc7911_inet_test.go#L112) | unit/verify | not verified |
-| positive | [`adj-rib-in-replay-addpath-source.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-addpath-source.ci#L21) | functional/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`adj-rib-in-replay-addpath-source.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-addpath-source.ci#L21) | functional/verify | mutant, verified |
 
 ### [`RFC7911-4-1`](#rfc7911-4-1)
 
@@ -283,13 +283,13 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | negative | [`TestForwardSplitConvertsAddPathContext`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_body_test.go#L24) | unit/verify | not verified |
 | negative | [`TestForwardPathIDLeavesNonAddPathDestinationAlone`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L221) | unit/verify | not verified |
 | positive | [`TestRFC7911GeneratedPathsAreScopedToTheNegotiatedFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_family_generation_test.go#L21) | unit/verify | revert, verified |
-| positive | [`TestForwardSplitSameContextKeepsRawSplit`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_body_test.go#L128) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestForwardSplitSameContextKeepsRawSplit`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_body_test.go#L128) | unit/verify | revert, verified |
 
 ### [`RFC7911-5-4`](#rfc7911-5-4)
 
 A BGP speaker MUST follow the procedures defined in [RFC4271] when generating an UPDATE message for a particular <AFI, SAFI> to a peer unless the BGP speaker advertises the ADD-PATH Capability to the peer indicating its ability to send multiple paths for the <AFI, SAFI>, and also receives the ADD-PATH Capability from the peer indicating its ability to receive multiple paths for the <AFI, SAFI>, in which case the speaker MUST generate a route update for the <AFI, SAFI> based on the combination of the address prefix and the Path Identifier, and use the extended NLRI encodings specified in this document. (Section 5)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/reactor_test.go::TestWriteAnnounceUpdateWithAddPath, internal/component/bgp/reactor/reactor_test.go::TestWriteAnnounceUpdateWithAddPath#2 moved. RFC 7911 Section 5: "A BGP speaker MUST follow the procedures defined in [RFC4271] when generating an UPDATE message for a particular <AFI, SAFI> to a peer unless the BGP speaker advertises the ADD-PATH Capability to the peer indicating its ability to send multiple paths for the <AFI, SAFI>, and also receives the ADD-PATH Capability from the peer indicating its ability to receive multiple paths for the <AFI, SAFI>, in which case the speaker MUST generate a route update for the <AFI, SAFI> based on the combination of the address prefix and the Path Identifier, and use the extended NLRI encodings specified in this document." All six tagged covers were read. The family-generation positive and negative tags require exact output for two identifiers 7 and 9 on the same prefix, with no extended framing leaking into the crossed family. Its existing actual capability.Negotiate result is now also published to Session; inputs and exact byte comparisons are unchanged. The producer uses each NLRI's stored identifier and the destination family's negotiated addPath fact, so prefix-only collapse, wrong identifiers, unconditional identifier fields or family leakage fail. TestWriteAnnounceUpdateWithAddPath is only a four-octet width/attribute-length control and is not treated as an exact content proof. TestSplitUpdateAddPathEndToEnd and TestSplitUpdateEndToEnd compare all concatenated extended/plain NLRI and retained attributes through the shared Splitter; despite their historical names/comments, collectSplit calls Splitter.Split directly, not a socket send path. The exact family-generation API test supplies the recipient-byte boundary. Retain enforced for pair-based generation and extended versus ordinary framing, without claiming all base-BGP decisions, socket integration or foreign interoperability. Native renewal of the four family-generation covers remains a main-thread prerequisite to stamping.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 7911 Section 5: "A BGP speaker MUST follow the procedures defined in [RFC4271] when generating an UPDATE message for a particular <AFI, SAFI> to a peer unless the BGP speaker advertises the ADD-PATH Capability to the peer indicating its ability to send multiple paths for the <AFI, SAFI>, and also receives the ADD-PATH Capability from the peer indicating its ability to receive multiple paths for the <AFI, SAFI>, in which case the speaker MUST generate a route update for the <AFI, SAFI> based on the combination of the address prefix and the Path Identifier, and use the extended NLRI encodings specified in this document." All six tagged covers were read. The family-generation positive and negative tags require exact output for two identifiers 7 and 9 on the same prefix, with no extended framing leaking into the crossed family. Its existing actual capability.Negotiate result is now also published to Session; inputs and exact byte comparisons are unchanged. The producer uses each NLRI's stored identifier and the destination family's negotiated addPath fact, so prefix-only collapse, wrong identifiers, unconditional identifier fields or family leakage fail. TestWriteAnnounceUpdateWithAddPath is only a four-octet width/attribute-length control and is not treated as an exact content proof. TestSplitUpdateAddPathEndToEnd and TestSplitUpdateEndToEnd compare all concatenated extended/plain NLRI and retained attributes through the shared Splitter; despite their historical names/comments, collectSplit calls Splitter.Split directly, not a socket send path. The exact family-generation API test supplies the recipient-byte boundary. Retain enforced for pair-based generation and extended versus ordinary framing, without claiming all base-BGP decisions, socket integration or foreign interoperability. Native renewal of the four family-generation covers remains a main-thread prerequisite to stamping.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|

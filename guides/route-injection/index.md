@@ -19,7 +19,7 @@ origin or redistribution path.
 
 ```bash
 ze cli -c "request bgp rib inject 192.0.2.10 ipv4/unicast 198.51.100.0/24 origin igp nexthop 127.0.0.1 med 42"
-ze cli -c "show bgp rib best prefix 198.51.100.0/24"
+ze cli -c "show bgp rib best | prefix 198.51.100.0/24"
 ze cli -c "show rib"
 ```
 
@@ -44,12 +44,12 @@ RFC 5549.
 
 ```bash
 ze cli -c "request bgp rib inject 192.0.2.10 ipv4/unicast 198.51.100.0/24 origin igp nexthop 2001:db8::1"
-ze cli -c "show bgp rib best prefix 198.51.100.0/24"
+ze cli -c "show bgp rib best | prefix 198.51.100.0/24"
 ```
 
 Ze stores the MP_REACH attribute with the synthetic candidate and recovers the
 next hop when selecting and forwarding it. `show bgp rib best` and
-`show bgp rib received` both display the recovered next hop: the attribute
+`show bgp rib | received` both display the recovered next hop: the attribute
 renderer falls back to the stored MP_REACH_NLRI whenever the legacy IPv4-only
 NEXT_HOP attribute (type 3) is absent, which is the case for every IPv6 next
 hop, native or extended.
@@ -64,13 +64,13 @@ hop, native or extended.
 
 Inject one route, inspect BGP best-path selection, and verify Linux installed it with Ze's route protocol ID. Validation also proves withdrawal removes it.
 
-[Download the asciicast recording](../../assets/demos/rib-fib.cast?v=01fa66b2f1) · [Plain-text transcript](../../assets/demos/rib-fib.txt?v=ca05c09bc8)
+[Download the asciicast recording](../../assets/demos/rib-fib.cast?v=8353460a42) · [Plain-text transcript](../../assets/demos/rib-fib.txt?v=d00d6fdb7c)
 
-Recorded with Ze 26.10.09 in a Linux namespace lab using Ze recorder. Duration: 52 seconds.
+Recorded with Ze 26.11.20 in a Linux namespace lab using Ze recorder. Duration: 1 minute 19 seconds.
 
 ```console
 $ ze cli -c 'request bgp rib inject 192.0.2.10 ipv4/unicast 198.51.100.0/24 origin igp nexthop 127.0.0.1 med 42'
-$ ze cli -c 'show bgp rib best prefix 198.51.100.0/24 | no-more'
+$ ze cli -c 'show bgp rib best | prefix 198.51.100.0/24 | no-more'
 198.51.100.0/24
 $ ip -details route show exact 198.51.100.0/24
 198.51.100.0/24 ... proto 250

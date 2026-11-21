@@ -23,7 +23,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Declared gap or no test | 5 | of 14 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Audit verdicts | 9 | of 14 mandatory requirements reviewed | 2 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id |
+| Audit verdicts | 9 | of 14 mandatory requirements reviewed | 2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -227,7 +227,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. §4 
 
 If a prefix is advertised from a higher level to a lower level (e.g., level 2 to level 1), the bit MUST be set to 1, indicating that the prefix has traveled down the hierarchy. Prefixes that have the up/down bit set to 1 may only be advertised down the hierarchy, i.e., to lower levels. These semantics apply even if IS-IS is extended in the future to have additional levels. By ensuring that prefixes follow only the IS-IS hierarchy, we have ensured that the information does not loop, thereby ensuring that there are no persistent forwarding loops. (§4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/plugins/isis/redistribute/rfc5305_consumer_test.go::TestISISRedistConsumerConnected moved. Re-judged 2026-09-30: TestISISEngineLeakOrigination and spf TestISISLeakOriginationL1L2 gained only RFC2966-2-4 tag comments; bodies byte-identical. Clause 1: l2Derived enters L2 with UpDown false and hasLeak(IntoL1, l2Derived, true) is required; the engine L1 LSP decodes it with the bit set. Clause 2: alreadyDown (UpDown true in L1) must be absent from IntoL2, isolated by l1Only from the same node leaking up. Recorded red on spf/leak.go leakInto.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30: TestISISEngineLeakOrigination and spf TestISISLeakOriginationL1L2 gained only RFC2966-2-4 tag comments; bodies byte-identical. Clause 1: l2Derived enters L2 with UpDown false and hasLeak(IntoL1, l2Derived, true) is required; the engine L1 LSP decodes it with the bit set. Clause 2: alreadyDown (UpDown true in L1) must be absent from IntoL2, isolated by l1Only from the same node leaking up. Recorded red on spf/leak.go leakInto.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|

@@ -133,7 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 8 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 8 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 8 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>15</strong><b>15 of 20 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>19</strong><b>19 of 22 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -246,16 +246,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>20</td>
+<td>22</td>
 </tr>
 <tr><td>Tests linked to requirements</td>
-<td>20</td>
+<td>22</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>6</td>
 </tr>
 <tr><td>Fault test records</td>
-<td>15</td>
+<td>19</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc2869.md</code></td>
@@ -275,8 +275,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> RADIUS extensions</p>
-<p><strong>Test verification:</strong> 6 of 8 MUST proven</p>
-<p><strong>Evidence:</strong> unit 6</p>
+<p><strong>Test verification:</strong> 8 of 8 MUST proven</p>
+<p><strong>Evidence:</strong> unit 8</p>
 <p><strong>Unmet:</strong> -</p>
 
 </section>
@@ -321,9 +321,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc2869:must">Ze verified 6, Tests awaiting verification 2</div>
+<div data-ze-rfc-bar="rfc2869:must">Ze verified 8</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc2869:overview">Ze MUST verified 6, Tests awaiting verification 2, Not assessed 3</div>
+<div data-ze-rfc-bar="rfc2869:overview">Ze MUST verified 8, Not assessed 3</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -335,7 +335,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc2869:not-walked">0</span></td>
 </tr>
 <tr><td>Mandatory requirements complete</td>
-<td><span data-ze-rfc="rfc2869:register">not complete</span></td>
+<td><span data-ze-rfc="rfc2869:register">complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
 <td><span data-ze-rfc="rfc2869:must.total">8</span></td>
@@ -344,13 +344,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc2869:must.kept">8</span></td>
 </tr>
 <tr><td>Ze verified</td>
-<td><span data-ze-rfc="rfc2869:must.ze-proven">6</span></td>
+<td><span data-ze-rfc="rfc2869:must.ze-proven">8</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc2869:must.os-verified">0</span></td>
 </tr>
 <tr><td>Tests awaiting verification</td>
-<td><span data-ze-rfc="rfc2869:must.proof-pending">2</span></td>
+<td><span data-ze-rfc="rfc2869:must.proof-pending">0</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc2869:must.os-gap">0</span></td>
@@ -429,7 +429,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>1.1 - Specification of Requirements</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2869-1.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L108" title="internal/component/radius/rfc2869_unoffered_service_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC2869DictionaryCoversTheServicesZeOffers</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_unoffered_service_refusal_test.go#L38" title="internal/component/l2tp/plugins/authradius/rfc2869_unoffered_service_refusal_test.go" target="_blank" rel="noopener"><code>TestRFC2869SubscriberNASActsOnAnOfferedServiceRequest</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L144" title="internal/component/radius/rfc2869_unoffered_service_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC2869DictionaryDeclaresNoAttributeForAnUnofferedService</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_unoffered_service_refusal_test.go#L80" title="internal/component/l2tp/plugins/authradius/rfc2869_unoffered_service_refusal_test.go" target="_blank" rel="noopener"><code>TestRFC2869SubscriberNASRefusesARAPAttributes</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2869-1.1-2">RFC2869-1.1-2</code></td><td colspan="3"><span class="rfc-subject">A NAS MUST treat a RADIUS access-request requesting an unavailable service as an access-reject instead (§1.1)</span></td></tr>
@@ -446,8 +448,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2.1 - RADIUS support for Interim Accounting Updates</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2869-2.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go#L89" title="internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go" target="_blank" rel="noopener"><code>TestRFC2869InterimLoopSendsOnItsInterval</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go#L117" title="internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go" target="_blank" rel="noopener"><code>TestRFC2869InterimLoopKeepsOneGenerationOutstanding</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go#L91" title="internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go" target="_blank" rel="noopener"><code>TestRFC2869InterimLoopSendsOnItsInterval</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go#L119" title="internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go" target="_blank" rel="noopener"><code>TestRFC2869InterimLoopKeepsOneGenerationOutstanding</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2869-2.1-2">RFC2869-2.1-2</code></td><td colspan="3"><span class="rfc-subject">Note that a locally configured value on the NAS MUST override the value found in an Access-Accept. (§2.1)</span></td></tr>
@@ -543,9 +545,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_unoffered_service_refusal_test.go#L80" title="internal/component/l2tp/plugins/authradius/rfc2869_unoffered_service_refusal_test.go" target="_blank" rel="noopener"><code>TestRFC2869SubscriberNASRefusesARAPAttributes</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L144" title="internal/component/radius/rfc2869_unoffered_service_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC2869DictionaryDeclaresNoAttributeForAnUnofferedService</code></a></td>
 <td>unit/verify</td>
 <td>not verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_unoffered_service_refusal_test.go#L38" title="internal/component/l2tp/plugins/authradius/rfc2869_unoffered_service_refusal_test.go" target="_blank" rel="noopener"><code>TestRFC2869SubscriberNASActsOnAnOfferedServiceRequest</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L108" title="internal/component/radius/rfc2869_unoffered_service_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC2869DictionaryCoversTheServicesZeOffers</code></a></td>
@@ -583,21 +595,21 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go#L117" title="internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go" target="_blank" rel="noopener"><code>TestRFC2869InterimLoopKeepsOneGenerationOutstanding</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go#L119" title="internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go" target="_blank" rel="noopener"><code>TestRFC2869InterimLoopKeepsOneGenerationOutstanding</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go#L89" title="internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go" target="_blank" rel="noopener"><code>TestRFC2869InterimLoopSendsOnItsInterval</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go#L91" title="internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go" target="_blank" rel="noopener"><code>TestRFC2869InterimLoopSendsOnItsInterval</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc2869-2.1-2"><code>RFC2869-2.1-2</code></a></h3>
 <p>Note that a locally configured value on the NAS MUST override the value found in an Access-Accept. (§2.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/plugins/authradius/rfc2869_interim_interval_precedence_test.go::TestRFC2869AbsentAcctIntervalLeavesTheAccessAcceptInCharge, internal/component/l2tp/plugins/authradius/rfc2869_interim_interval_precedence_test.go::TestRFC2869LocalAcctIntervalOverridesAccessAccept moved. Forbidden: the Access-Accept Acct-Interim-Interval winning over a locally configured value. TestRFC2869LocalAcctIntervalOverridesAccessAccept configures 40ms against an Access-Accept of 3600s and fatals if fewer than 3 interim records arrive in 2s; TestRFC2869AbsentAcctIntervalLeavesTheAccessAcceptInCharge fatals if any interim arrives with no local value, so a NAS that ignores the Access-Accept outright fails.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: the Access-Accept Acct-Interim-Interval winning over a locally configured value. TestRFC2869LocalAcctIntervalOverridesAccessAccept configures 40ms against an Access-Accept of 3600s and fatals if fewer than 3 interim records arrive in 2s; TestRFC2869AbsentAcctIntervalLeavesTheAccessAcceptInCharge fatals if any interim arrives with no local value, so a NAS that ignores the Access-Accept outright fails.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -647,7 +659,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc2869-x-2"><code>RFC2869-x-2</code></a></h3>
 <p>This attribute indicates how many times the Acct-Input-Octets counter has wrapped around 2^32 over the course of this service being provided, and can only be present in Accounting-Request records where the Acct-Status-Type is set to Stop or Interim- Update. (§5.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/plugins/authradius/rfc2869_acct_test.go::TestBuildAcctPacketGigawords moved. Re-judged 2026-09-30: only the tag comment on TestBuildAcctPacketGigawords changed (it absorbed the wrap-count wording of the retired RFC2869-x-5); the body is unchanged. Clause 1 forbidden: a Gigawords value other than the wrap count; TestBuildAcctPacketGigawords asserts Acct-Input-Gigawords 2 and Acct-Output-Gigawords 3 for 0x200000064 and 0x3000000C8 octets on a Stop, positive re-recorded against acct.go::splitGigawords and observed red. Clause 2 forbidden: Gigawords in a record other than Stop or Interim-Update; TestRFC2869GigawordsAbsentOnStart fails if an Accounting-Start built from &gt;4GB counters carries either attribute. The NAS emits only Start, Interim-Update and Stop (authradius), so Start is the only other status it can send.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/plugins/authradius/rfc2869_acct_test.go::TestBuildAcctPacketGigawords moved. Re-judged 2026-09-30: only the tag comment on TestBuildAcctPacketGigawords changed (it absorbed the wrap-count wording of the retired RFC2869-x-5); the body is unchanged. Clause 1 forbidden: a Gigawords value other than the wrap count; TestBuildAcctPacketGigawords asserts Acct-Input-Gigawords 2 and Acct-Output-Gigawords 3 for 0x200000064 and 0x3000000C8 octets on a Stop, positive re-recorded against acct.go::splitGigawords and observed red. Clause 2 forbidden: Gigawords in a record other than Stop or Interim-Update; TestRFC2869GigawordsAbsentOnStart fails if an Accounting-Start built from &gt;4GB counters carries either attribute. The NAS emits only Start, Interim-Update and Stop (authradius), so Start is the only other status it can send.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -1294,7 +1306,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:27 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
                 </div>
             </div>
         </footer>

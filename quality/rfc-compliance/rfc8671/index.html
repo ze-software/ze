@@ -585,7 +585,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8671-x-2"><code>RFC8671-x-2</code></a></h3>
 <p>The L flag MUST be set to 1 to indicate post-policy. (§5.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-read 2026-10-23 against section 5.1 &#39;The L flag MUST be set to 1 to indicate post-policy.&#39; after peerHeaderFromEvent became (PeerHeader, error) and refuses an unknown peer AS. Both units changed only to build the AS as rpc.RemoteASOf(65001) and read the header through mustPeerHeader, which fails the test on any error, so the new refusal branch cannot satisfy or mask either assertion. TestPeerHeaderFromEventAdjRIBOut still fails if the sent (Adj-RIB-Out, post-policy only in ze) header lacks PeerFlagL; TestPeerHeaderFromEventAdjRIBIn shows L is not set unconditionally.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/bmp/event_test.go::TestPeerHeaderFromEventAdjRIBIn, internal/component/bgp/plugins/bmp/event_test.go::TestPeerHeaderFromEventAdjRIBOut moved. Re-read 2026-10-23 against section 5.1 &#39;The L flag MUST be set to 1 to indicate post-policy.&#39; after peerHeaderFromEvent became (PeerHeader, error) and refuses an unknown peer AS. Both units changed only to build the AS as rpc.RemoteASOf(65001) and read the header through mustPeerHeader, which fails the test on any error, so the new refusal branch cannot satisfy or mask either assertion. TestPeerHeaderFromEventAdjRIBOut still fails if the sent (Adj-RIB-Out, post-policy only in ze) header lacks PeerFlagL; TestPeerHeaderFromEventAdjRIBIn shows L is not set unconditionally.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -993,7 +993,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
                 </div>
             </div>
         </footer>

@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 7 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 7 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 7 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 21 | 21 of 26 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 26 | 26 of 26 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 | Audit verdicts | 9 | of 7 mandatory requirements reviewed | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
@@ -74,7 +74,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 26 |
 | Tests linked to requirements | 26 |
 | Recorded audit verdicts | 9 |
-| Fault test records | 21 |
+| Fault test records | 26 |
 | Summary | `rfc/short/rfc2759.md` |
 | Requirement table | `rfc/requirements/rfc2759.md` |
 | RFC text | `rfc/full/rfc2759.txt` |
@@ -87,9 +87,9 @@ Included in automatic checks: MS-CHAPv2 (EAP inside IKEv2): 6 MET (Response fiel
 
 **Area:** MS-CHAPv2 (PPP and EAP inside IKEv2)
 
-**Test verification:** 4 of 7 MUST proven
+**Test verification:** 7 of 7 MUST proven
 
-**Evidence:** unit 4
+**Evidence:** unit 7
 
 **Unmet:** -
 
@@ -113,19 +113,19 @@ Included in automatic checks: MS-CHAPv2 (EAP inside IKEv2): 6 MET (Response fiel
 
 ## Figures
 
-- **MUST bar**: Ze verified 4, Tests awaiting verification 3
-- **Overview bar**: Ze MUST verified 4, SHOULD verified 2, Tests awaiting verification 3, Not assessed 2
+- **MUST bar**: Ze verified 7
+- **Overview bar**: Ze MUST verified 7, SHOULD verified 2, Not assessed 2
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 7 |
 | MUST rows kept (the MUST bar) | 7 |
-| Ze verified | 4 |
+| Ze verified | 7 |
 | OS verified | 0 |
-| Tests awaiting verification | 3 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -235,7 +235,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. {sin
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestMSCHAPv2SuccessUppercaseHex`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_eap_mschapv2_test.go#L108) | unit/verify | not verified |
+| positive | [`TestMSCHAPv2SuccessUppercaseHex`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_eap_mschapv2_test.go#L108) | unit/verify | mutant, verified |
 
 ### [`RFC2759-x-6`](#rfc2759-x-6)
 
@@ -245,8 +245,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Clau
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC2759PeerRefusesFailureWithoutConformantChallenge`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_failure_packet_test.go#L277) | unit/verify | not verified |
-| positive | [`TestRFC2759FailureCarriesFreshChallenge`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_failure_packet_test.go#L197) | unit/verify | not verified |
+| negative | [`TestRFC2759PeerRefusesFailureWithoutConformantChallenge`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_failure_packet_test.go#L277) | unit/verify | mutant, verified |
+| positive | [`TestRFC2759FailureCarriesFreshChallenge`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_failure_packet_test.go#L197) | unit/verify | mutant, verified |
 
 ### [`RFC2759-x-7`](#rfc2759-x-7)
 
@@ -256,8 +256,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC2759PeerEndsSessionOnBadAuthenticatorResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_authenticator_response_test.go#L122) | unit/verify | not verified |
-| positive | [`TestRFC2759PeerAcceptsCorrectAuthenticatorResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_authenticator_response_test.go#L93) | unit/verify | not verified |
+| negative | [`TestRFC2759PeerEndsSessionOnBadAuthenticatorResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_authenticator_response_test.go#L122) | unit/verify | mutant, verified |
+| positive | [`TestRFC2759PeerAcceptsCorrectAuthenticatorResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc2759_authenticator_response_test.go#L93) | unit/verify | mutant, verified |
 
 ### [`RFC2759-x-8`](#rfc2759-x-8)
 

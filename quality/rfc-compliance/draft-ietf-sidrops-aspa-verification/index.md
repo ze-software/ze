@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 0 | of 10 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 10 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 10 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 19 | 19 of 23 tests linked to requirements, 0 without a fault test and 2 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 21 | 21 of 23 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -93,9 +93,9 @@ Included in automatic checks: Router-verification requirements follow the cached
 
 **Area:** ASPA path verification
 
-**Test verification:** 8 of 10 MUST proven
+**Test verification:** 9 of 10 MUST proven
 
-**Evidence:** unit 8
+**Evidence:** unit 9
 
 **Unmet:** DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-2
 
@@ -119,8 +119,8 @@ Included in automatic checks: Router-verification requirements follow the cached
 
 ## Figures
 
-- **MUST bar**: Ze verified 8, Tests awaiting verification 1, Not built 1
-- **Overview bar**: Ze MUST verified 8, Tests awaiting verification 1, Not assessed 10, Not built 1
+- **MUST bar**: Ze verified 9, Not built 1
+- **Overview bar**: Ze MUST verified 9, Not assessed 10, Not built 1
 
 | Figure | Rows |
 |---|---|
@@ -129,9 +129,9 @@ Included in automatic checks: Router-verification requirements follow the cached
 | Mandatory requirements complete | not complete |
 | MUST rows | 10 |
 | MUST rows kept (the MUST bar) | 10 |
-| Ze verified | 8 |
+| Ze verified | 9 |
 | OS verified | 0 |
-| Tests awaiting verification | 1 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -278,9 +278,9 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestASPARetainedPathReplayRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L68) | unit/verify | not verified |
-| negative | [`TestASPARetentionReplacementWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L295) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestASPARetentionReplacementWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L295) | unit/verify | mutant, verified |
 | positive | [`TestASPARetainedPathReplayRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L65) | unit/verify | not verified |
-| positive | [`TestASPARetentionReceiveRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L248) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestASPARetentionReceiveRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L248) | unit/verify | mutant, verified |
 
 ### [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-1`](#draft-ietf-sidrops-aspa-verification-6.2-1)
 

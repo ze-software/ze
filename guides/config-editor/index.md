@@ -1118,15 +1118,15 @@ stored revisions after the automatic rollback, before testing acceptance.
 
 Load a risky hostname change over SSH, observe automatic rollback, then accept a second change and prove it persists on the same running router.
 
-[Download the asciicast recording](../../assets/demos/commit-confirmed.cast?v=d61a5f86c6) · [Plain-text transcript](../../assets/demos/commit-confirmed.txt?v=bba89459a1)
+[Download the asciicast recording](../../assets/demos/commit-confirmed.cast?v=8a0a534d94) · [Plain-text transcript](../../assets/demos/commit-confirmed.txt?v=74b77a20fb)
 
-Recorded with Ze 26.10.28 in a Linux namespace lab using Ze recorder. Duration: 2 minutes 38 seconds.
+Recorded with Ze 26.11.20 in a Linux namespace lab using Ze recorder. Duration: 1 minute 52 seconds.
 
 ```console
 Commit confirmed: rollback and acceptance on the running router
 
 Connect with sshpass -e ssh ze-demo. The SSH editor starts from edge-original.
-Load /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf, review
+Load topics/commit-confirmed/1-trial-host.conf, review
 show | compare, then run commit confirmed 15. Ze's timeout is in seconds,
 unlike Junos commit confirmed, whose timeout is in minutes.
 
@@ -1134,7 +1134,7 @@ $ ze-demo card topic-commit-confirmed lab
 $ ze-demo card topic-commit-confirmed overview
 $ sshpass -e ssh ze-demo
 ze# show system host
-ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf
+ze# load file absolute merge topics/commit-confirmed/1-trial-host.conf
 ze# show | compare
 ze# commit confirmed 15
 
@@ -1150,11 +1150,11 @@ ze# show system host
 ze# show | compare
 ze# show | changes
 
-Load /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf,
+Load topics/commit-confirmed/2-confirmed-host.conf,
 compare, commit confirmed 15, then commit accept. Wait beyond the fifteen-second
 deadline and inspect edge-confirmed again. The accepted value must remain.
 
-ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf
+ze# load file absolute merge topics/commit-confirmed/2-confirmed-host.conf
 ze# show | compare
 ze# commit confirmed 15
 ze# commit accept

@@ -325,6 +325,14 @@
       "gated": true
     },
     {
+      "stem": "rfc2308",
+      "file": "data/rfc/rfc2308.json",
+      "title": "Negative Caching of DNS Queries (DNS NCACHE)",
+      "walked": true,
+      "enrolment": "enrolled",
+      "gated": true
+    },
+    {
       "stem": "rfc2328",
       "file": "data/rfc/rfc2328.json",
       "title": "OSPF Version 2",
@@ -2018,7 +2026,7 @@
       "title": "A Profile for Route Origin Authorizations (ROAs)",
       "walked": true,
       "enrolment": "enrolled",
-      "gated": false
+      "gated": true
     },
     {
       "stem": "rfc9687",

@@ -52,6 +52,7 @@
 </div>
 <div class="doc-layout">
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
+<li><a href="#design-decisions">Design decisions</a></li>
 <li><a href="#overview">Overview</a>
 <ol>
 <li><a href="#transport-request-metadata">Transport Request Metadata</a></li>
@@ -93,6 +94,7 @@
 <ol>
 <li><a href="#one-shot-answer-of-a-streaming-command">One-shot answer of a streaming command</a></li>
 <li><a href="#where-a-monitor-command-streams">Where a monitor command streams</a></li>
+<li><a href="#the-stream-route-partitions-in-one-lookup">The stream route partitions in one lookup</a></li>
 <li><a href="#netlink-monitor">Netlink Monitor</a></li>
 </ol></li>
 <li><a href="#system-commands">System Commands</a>
@@ -170,7 +172,8 @@
 <ol>
 <li><a href="#command-dispatcher">Command Dispatcher</a>
 <ol>
-<li><a href="#the-surface-splits-the-pipe-chain-the-dispatcher-refuses-one">The surface splits the pipe chain; the dispatcher refuses one</a></li>
+<li><a href="#the-dispatcher-takes-the-line-with-its-pipe-chain">The dispatcher takes the line with its pipe chain</a></li>
+<li><a href="#the-pipe-chain-takes-the-invocations-quote-grammar">The pipe chain takes the invocation&#39;s quote grammar</a></li>
 </ol></li>
 <li><a href="#yang-typed-command-arguments">YANG-Typed Command Arguments</a>
 <ol>
@@ -192,7 +195,8 @@
 <li><a href="#display-and-fill-the-operators-own-answer">| display and | fill: the operator&#39;s own answer</a></li>
 <li><a href="#a-drawing-for-an-answer-the-registered-text-renderer">A drawing for an answer: the registered text renderer</a></li>
 <li><a href="#pipe-aliases-a-name-for-an-operator-chain">Pipe aliases: a name for an operator chain</a></li>
-<li><a href="#a-plugin-declares-a-pipe-alias-in-its-stage-1-message">A plugin declares a pipe alias in its Stage 1 message</a>
+<li><a href="#a-plugin-declares-a-pipe-alias-in-its-stage-1-message">A plugin declares a pipe alias in its Stage 1 message</a></li>
+<li><a href="#a-plugin-declares-a-pipe-operation-the-same-way">A plugin declares a pipe operation the same way</a>
 <ol>
 <li><a href="#collision-has-two-populations-because-there-are-two-resolution-rules">Collision has two populations, because there are two resolution rules</a></li>
 <li><a href="#a-declaration-adds-to-a-path-it-never-replaces-what-the-path-holds">A declaration ADDS to a path. It never replaces what the path holds</a></li>
@@ -210,6 +214,32 @@
 <li><a href="#mcp-resource-methods">MCP Resource Methods</a></li>
 <li><a href="#mcp-result-and-error-envelope">MCP Result and Error Envelope</a></li>
 </ol></details></nav><div class="doc-body">
+<hr>
+<h2 id="design-decisions">Design decisions</h2>
+<table>
+<thead>
+<tr>
+<th>Decision</th>
+<th>It forbids</th>
+<th>Source</th>
+<th>Date</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The pipe wins: a command path names the subject and stops; scope, presentation and format are pipe operations after it, selector words included</td>
+<td>Rewriting the command line to carry a pipe as an argument; refusing a pipe a command declares; a subcommand for scope or presentation</td>
+<td>plan/records/audit-command-pipe-vs-subcommand.md, plan/records/audit-presentation-pipes.md</td>
+<td>2026-08-21</td>
+</tr>
+<tr>
+<td>A command may override any generic pipe operation that acts on its data, as long as the answer keeps the generic's data format: every data operator of the catalog is overridable, each held to its generic's answer shape; a format, paging, <code>save</code> and <code>log</code> are the data format or its display, and stay the generic's. In Thomas's words: "I believe it should be possible to overwrite more command as long as their data format is not changed."</td>
+<td>Limiting overrides to a fixed list of names (<code>count</code>, <code>first</code>, <code>last</code>, <code>match</code>); an override that answers another shape than its generic; a command declaring a format's, paging's, <code>save</code>'s or <code>log</code>'s name</td>
+<td>plan/release/fixes/spec-pipe-chain-honored-on-every-command-surface.md, 69944ce197</td>
+<td>2026-11-20</td>
+</tr>
+</tbody>
+</table>
 <hr>
 <h2 id="overview">Overview</h2>
 <p>Ze uses verb-first command paths with JSON or text encoding.</p>
@@ -561,6 +591,17 @@ it got, which passes it to the data handler, so <code>ze show env get &lt;key&gt
 <code>ze cli -c "show env get &lt;key&gt;"</code> refuse the same values with the same message.</p>
 <!-- source: internal/component/command/local_data.go -- RegisterLocalData, plainLocalData, ValidateModelArgs -->
 <!-- source: internal/component/command/local.go -- InvokeLocal -->
+<p>A pipe chain reaches a local-data command on the routes that read a line:
+<code>ServeLocal</code> (<code>ze cli -c</code>) and, for every daemon surface, <code>Dispatch</code> through
+the handler <code>loadLocalData</code> registers. Both partition the line the same way, so
+an operation the command declares reaches its handler in the same declared
+list (<code>ValidatedArgs.PipeOperations</code>) and the two answers are equal. <code>ze &lt;verb&gt;</code> reads no chain: its argv holds the command and an output-format keyword
+at most, and <code>RenderLocalAnswer</code> is handed the command path, never a line, so
+it renders the default format alone. A declared operation therefore reaches a
+local-data handler through <code>ServeLocal</code> or <code>Dispatch</code>, never through <code>ze &lt;verb&gt;</code>. <code>le &lt;tool&gt;</code> reads its chain through <code>command.ReadLocalLine</code>, the same
+partition (<code>docs/architecture/core-design.md</code>).</p>
+<!-- source: internal/component/command/local_data.go -- ServeLocal, RenderLocalAnswer, ReadLocalLine -->
+<!-- test: internal/component/plugin/server/local_data_pipe_parity_test.go TestLocalDataDeclaredOperationsSameOnBothRoutes -->
 <p>An <code>le</code> tool registers through the same call (<code>leroot.Register</code>), and <code>le</code>'s
 own dispatcher (<code>leroot.Run</code>) is a route too: an <code>le</code> tool declares no
 argument definitions, since its words are its own grammar, so <code>Run</code> judges them
@@ -640,8 +681,19 @@ string literal.</p>
 <td><code>show command reference</code></td>
 <td>the same local-data handler, through the bridge</td>
 </tr>
+<tr>
+<td><code>thanks</code></td>
+<td><code>show thanks list</code></td>
+<td>the same local-data handler, through the bridge</td>
+</tr>
+<tr>
+<td><code>thanks licence</code></td>
+<td><code>show thanks licence</code></td>
+<td>the same local-data handler, through the bridge; the declared <code>name</code> operation reaches it in the declared list on both routes</td>
+</tr>
 </tbody>
 </table>
+<!-- source: internal/plugins/thanks/register.go -- show thanks list, show thanks licence -->
 <p><code>show command list</code> is not the daemon form of <code>help command</code>: it answers the
 commands the running daemon's dispatcher serves, a name and a summary each,
 while the catalog walks the YANG tree, the local registry and the plugin
@@ -880,13 +932,63 @@ gave. When no daemon answers, it reads the store and marks the answer
 <code>daemon-answered</code> false, with <code>no-daemon</code> in the client fields. On the daemon
 route the same handler reads the store, fills the client fields from the owner
 of the daemon's hub client (<code>managed.FleetTarget</code>, which the hub installs on a
-managed start; with none the client is <code>not-started</code>), marks the answer
+managed start; with none the client is <code>not-started</code>), among them <code>held-by-hub</code>
+and <code>revert-offered</code>, which the client reports from each fetch answer its hub
+gave (<code>managed.ClientConfig.OnHubAnswer</code>, <code>not-fetched</code> before the first), marks the answer
 <code>daemon-answered</code> true, and asks nobody. That mark is also how the local route recognizes a
 daemon's document: a reply of another shape, or one a store alone produced, is
 no answer. It registers no RPC, so it holds no <code>wire-methods.snapshot</code> row.</p>
 <!-- source: internal/component/managed/cmd_fleet.go -- answerFleetStatusWith, storeFleetStatus, askDaemonOverSSH, decodeDaemonFleetStatus, daemonClientReport, FleetTarget -->
 <!-- source: internal/component/managed/register.go -- show fleet status registration -->
 <!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container fleet -->
+<p><code>show fleet divergence list</code> and <code>show fleet divergence name &lt;client&gt;</code>
+(<code>internal/component/managed</code>) answer the same way, for the copies a hub keeps
+of the configurations its holding clients run
+(<code>meta/config/client-&lt;name&gt;.conf/held</code>, <code>pluginserver.ReadHeldRecord</code>). Every
+fact but one is in the store. The one is whether a server block declares the
+client, which the running managed server knows (<code>DivergenceTarget.ServesClient</code>).
+So the local route sends the line to the daemon over SSH and answers the
+daemon's document, decoded strictly; when none answers, it reads the store and
+the server blocks of the hub's stored configuration (<code>servedClientNames</code>, the
+rule the hub's <code>doctor-managed-client-diverged</code> check uses). The show of one
+client answers the whole-tree diff of <code>infra.DiffConfigs</code>, secret-masked, and
+no configuration text; a configuration the hub cannot parse leaves the diff
+unavailable with the reason, and the rest of the answer holds. The list is a
+plain local-data command and registers no RPC. The show is also registered as
+the builtin <code>ze-managed:fleet-divergence-show</code> over the same handler
+(<code>pluginserver.AnswerLocalData</code>), as <code>show doctor</code> is, so that it declares the
+completer of its client name (<code>completeDivergenceClients</code>); that RPC holds a
+<code>wire-methods.snapshot</code> row.</p>
+<!-- source: internal/component/managed/cmd_divergence_show.go -- answerDivergenceListWith, answerDivergenceShowWith, storeDivergence, storedServedClients, daemonServedClients, decodeDivergence, handleDivergenceShow, completeDivergenceClients -->
+<!-- source: internal/component/managed/register.go -- show fleet divergence list and show fleet divergence name registration -->
+<p><code>update fleet divergence name &lt;client&gt; adopt version &lt;hash&gt;</code> changes what the
+hub serves, so its daemon form is the RPC <code>ze-managed:fleet-divergence-adopt</code>
+with the audit action <code>fleet-divergence-adopt</code>. It acts on the store handle
+the daemon owns, reached through the <code>DivergenceTarget</code> the hub installs once
+its managed server serves; a daemon with none refuses. The local route opens
+the store as its writer: while a daemon owns it (<code>storage.ErrBusy</code>) the line
+goes to that daemon through <code>daemonroute</code>, and the answer is decoded and
+checked to name the client; with the store free it refuses with <code>ze start</code> as
+the fix, because the audit action is recorded only by the running hub's
+dispatcher. The daemon runs one producer, <code>adoptHeld</code>, which holds the writer lock of <code>client-&lt;name&gt;.conf</code> across the
+hash check, <code>storage.CommitConfigWithGuard</code> and the removal of the record.</p>
+<!-- source: internal/component/managed/cmd_divergence.go -- handleDivergenceAdopt, adoptLocal, adoptThroughDaemon, adoptDaemonRefusal, adoptHeld -->
+<!-- source: internal/component/managed/register.go -- ze-managed:fleet-divergence-adopt registration -->
+<p><code>request fleet divergence name &lt;client&gt; revert version &lt;hash&gt; hub-version &lt;hash&gt;</code> changes what the hub offers a holding client, so its daemon form is the RPC
+<code>ze-managed:fleet-divergence-revert</code> with the audit action
+<code>fleet-divergence-revert</code>, over the same <code>DivergenceTarget</code>. <code>revertHeld</code>
+holds the writer lock of <code>client-&lt;name&gt;.conf</code> across the device hash check,
+the check that the configuration the hub serves the client still hashes to
+the <code>hub-version</code> given, and the write of the record carrying the decision (<code>HeldRecord.WithRevert</code>,
+<code>WriteHeldRecordWithGuard</code>); the handler then calls
+<code>DivergenceTarget.NotifyConfigChanged</code>, because the decision writes no
+configuration the store's write observer would report. The local route sends
+the line to the daemon that owns the store as adopt does; with the store free
+it refuses with <code>ze start</code> as the fix, because the audit action is recorded
+only by the running hub's dispatcher.</p>
+<!-- source: internal/component/managed/cmd_divergence.go -- handleDivergenceRevert, revertLocal, revertThroughDaemon, revertDaemonRefusal, revertHeld -->
+<!-- source: internal/component/plugin/server/managed_held.go -- RevertDecision, WriteHeldRecordWithGuard -->
+<!-- source: internal/component/managed/register.go -- ze-managed:fleet-divergence-revert registration -->
 <h4 id="local-commands-already-served-by-the-daemon-under-the-same-path">Local commands already served by the daemon under the same path</h4>
 <p>A few local registrations share their path with a daemon RPC the owner
 registered itself. The two routes call one producer, so they cannot drift:</p>
@@ -1722,13 +1824,14 @@ omission; ordinary nonflag booleans remain values. REST and gRPC keep command
 and parameters separate until one engine metadata generation supplies typed
 placement and the original definitions for the shared invocation matcher.
 An already supplied raw invocation retains its text and selector values while
-extra parameters follow as keywords. Malformed flag values refuse before a
+extra parameters follow as keywords, written before the first pipe of a line
+that holds a chain. Malformed flag values refuse before a
 handler runs and name the command's help.</p>
 <!-- source: internal/component/api/invocation.go -- prepareCommand, buildInvocation -->
 <!-- source: internal/component/command/invocation_match.go -- MatchInvocationPath -->
 <!-- source: internal/component/command/invocation_flags.go -- NormalizeInvocationFlags -->
 <!-- source: internal/component/command/arguments.go -- WriteInvocation, WriteInvocationValue -->
-<!-- source: internal/component/api/requests.go -- BuildCommand -->
+<!-- source: internal/component/api/requests.go -- ValidateParams -->
 <!-- source: internal/component/mcp/tools.go -- dispatchGenerated -->
 <!-- source: internal/component/web/graphical_supplied.go -- suppliedInspectionCommand.invocation -->
 <!-- source: internal/component/web/handler_admin.go -- commandArguments -->
@@ -2047,11 +2150,11 @@ denied detail request.</p>
 <tbody>
 <tr>
 <td>SSH exec (<code>ssh router monitor ...</code>)</td>
-<td><code>pluginserver.IsStreamingCommand</code> sends the command to the streaming executor, which runs the registered streaming handler on the judged arguments. <span class="ev-src"><span class="ev-ref"><code>cmd/ze/hub/service_ssh.go</code></span></span></td>
+<td><code>pluginserver.IsStreamingCommand</code> judges the command part, and <code>execMiddleware</code> hands the streaming executor (<code>sshStreamingExecutorFactory</code>) the line as typed, chain included, with the session's rendering. The executor accounts and authorizes the typed line, then runs the handler the one lookup answers. <span class="ev-src"><span class="ev-ref"><code>cmd/ze/hub/service_ssh.go</code></span></span></td>
 </tr>
 <tr>
 <td><code>ze cli -c "monitor ..."</code></td>
-<td>The client streams when <code>pluginserver.IsStreamingCommand</code> holds. <span class="ev-src"><span class="ev-ref"><code>internal/component/cli/client/main.go</code></span></span></td>
+<td>The client streams when <code>pluginserver.IsStreamingCommand</code> holds: it sends the typed line with the rendering key set and presents only the presentation suffix (below). <span class="ev-src"><span class="ev-ref"><code>internal/component/cli/client/main.go</code></span></span></td>
 </tr>
 <tr>
 <td>SSH interactive and the <code>ze cli</code> TUI</td>
@@ -2067,16 +2170,150 @@ denied detail request.</p>
 </tr>
 </tbody>
 </table>
-<p>Browser admission validates stream pipes with <code>ProcessRemoteStreamPipes</code>,
-retaining the full original command for authorization, accounting and rich
-view owners. Raw handler lookup uses the stripped, validated subject. Piped
-raw browser streams and SSH exec share <code>RunStreamPipes</code>: each newline event
-is formatted once, a final unterminated event is flushed after producer success,
-and pending event bytes are limited to 4 MiB. A larger event is refused without
-truncation. Remote pathname saves remain refused before a producer starts.</p>
-<!-- source: cmd/ze/hub/server_stream.go -- serverStreamCommand -->
-<!-- source: internal/component/command/pipe.go -- ProcessRemoteStreamPipes -->
+<h4 id="the-stream-route-partitions-in-one-lookup">The stream route partitions in one lookup</h4>
+<p>Every caller of a streaming handler (the browser's <code>serverStreamCommand</code>, the
+REST and gRPC streams' <code>apiStreamSource</code>, the SSH exec executor and the
+daemon-hosted model's <code>extractMonitorCmdArgs</code>) hands the typed line, chain
+included, to <code>pluginserver.GetStreamingHandlerRendered</code>, which
+<code>GetStreamingHandlerForCommand</code> calls with the engine's rendering. It reads
+the line once (<code>command.ReadStreamLine</code>): one scan under the chain grammar,
+the alias expansion and the partition the one-shot route runs. The handler
+receives the operations the monitor declares in <code>ValidatedArgs</code>
+(<code>PipeOperations</code>), never a chain word among its arguments, and the handler
+it answers writes every event through the residual chain (<code>RunStreamPipes</code>):
+each newline event is formatted once, a final unterminated event is flushed
+after producer success, and pending event bytes are limited to 4 MiB. A
+larger event is refused without truncation. <code>| save</code> is refused before a
+producer starts, because the daemon never writes a caller's file. Each caller
+accounts and authorizes the typed line, chain tokens included.
+<code>TestEveryPipeSplitGoesThroughThePartition</code> refuses a reader of the streaming
+registry that goes around the lookup.</p>
+<p>The same handler holds a monitor's override to its generic's answer shape,
+event by event. When the last operation the monitor declares on the line is
+an override, each event the producer writes is judged before the residual
+chain runs. A stream's rows are its events, so one event is one row:</p>
+<table>
+<thead>
+<tr>
+<th>Override</th>
+<th>Each event is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>count</code></td>
+<td>one object holding an integer <code>count</code></td>
+</tr>
+<tr>
+<td>every other data operator</td>
+<td>one JSON document, which is the row</td>
+</tr>
+</tbody>
+</table>
+<p>The events of <code>first N</code> and <code>last N</code> are not counted, because the engine
+holds no stream whole. An event of another shape is not written: its refusal
+stops the stream, names the monitor and the operation, and ends in <code>show command help "&lt;the monitor&gt;"</code>. A blank line is no event and is not judged.
+An override followed by another declared operation, and a line that ends in
+the monitor's own operation, are not judged. The check runs inside
+<code>StreamLine.Run</code>, so no stream site carries a copy of it.</p>
+<!-- source: internal/component/command/stream_line.go -- StreamLine.Run -->
+<!-- source: internal/component/command/pipe_partition.go -- overrideEventJudge, checkCountEvent, checkRowEvent -->
+<table>
+<thead>
+<tr>
+<th>Rendering (<code>command.StreamRendering</code>)</th>
+<th>Stated by</th>
+<th>The daemon applies</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>StreamRenderingEngine</code></td>
+<td>the browser, REST, gRPC, the daemon-hosted model</td>
+<td>the whole residual chain, in the default format when the chain names none; a line with no chain passes the events unchanged</td>
+</tr>
+<tr>
+<td><code>StreamRenderingTerminal</code></td>
+<td>SSH exec without the rendering key</td>
+<td>as above, and a line with no chain is rendered in the default format too</td>
+</tr>
+<tr>
+<td><code>StreamRenderingClientPresentation</code></td>
+<td>SSH exec with the rendering key</td>
+<td>every operation before the presentation suffix; the events stay data for the client</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Each event is one row of the stream.</strong> The daemon runs the chain over one
+event at a time (<code>applyStreamEventPipes</code>), so <code>| match</code> keeps or removes a
+JSON event whole, by its values, as it judges one row, and never searches
+the event for rows of its own: a BGP OPEN event's body is a map of objects
+that the one-shot row finder would take for rows keyed by identity. The same
+document answered by a one-shot command is the whole answer, matched row by
+row, or refused by name when it holds no rows. A rendered event is matched
+line by line, as text (<code>applyEventMatch</code>).</p>
+<p><strong>The rendering key.</strong> A client in another process holds no
+<code>CallerIdentity</code>, so it states that it presents a stream through the SSH
+session environment: <code>ZE_CLI_RENDER=client</code> (<code>sshclient.EnvCLIRender</code>,
+<code>CLIRenderClient</code>), set by <code>sshclient.StreamPresentedCommand</code>, which the
+<code>ze cli</code> monitor uses. <code>parseSessionRequest</code> reads it beside
+<code>ZE_CONFIG_NAME</code> and <code>ZE_CLI_MODE</code>, on the exec channel and the interactive
+one, and refuses any other value by name before a command runs. It is
+honoured on the exec stream route only: a one-shot exec and the interactive
+session render as without it. The key is untrusted input and hands over
+presentation, never selection. The daemon applies every operation before the
+PRESENTATION SUFFIX, the longest trailing run of operators the catalog marks
+<code>Presentation</code> (the formats, <code>no-more</code>, <code>save</code>), found on the names as typed
+before any alias is expanded, so an alias ends the suffix and the daemon
+applies its whole expansion. The client applies the suffix alone
+(<code>command.PresentStreamSuffix</code>): its format, or the monitor event formatter
+when the chain names no format, and <code>| save</code>, which writes the operator's own
+file. Both sides find the suffix with one function
+(<code>presentationSuffixLength</code>), and the client reads the catalog alone, so it
+never refuses an operation it has not heard of.</p>
+<table>
+<thead>
+<tr>
+<th>Line, with the key set</th>
+<th>The daemon applies</th>
+<th>The client applies</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>monitor x | match up | save f</code></td>
+<td><code>match</code></td>
+<td>the default format, <code>save</code></td>
+</tr>
+<tr>
+<td><code>monitor x | match up | table | save f</code></td>
+<td><code>match</code></td>
+<td><code>table</code>, <code>save</code></td>
+</tr>
+<tr>
+<td><code>monitor x | json | match up</code></td>
+<td><code>json</code>, then <code>match</code></td>
+<td>nothing</td>
+</tr>
+<tr>
+<td><code>monitor x | top-talkers | save f</code> (the monitor's own operation)</td>
+<td><code>top-talkers</code>, in the handler</td>
+<td>the default format, <code>save</code></td>
+</tr>
+<tr>
+<td><code>monitor x | brief | save f</code> (<code>brief</code> an alias)</td>
+<td>the whole expansion of <code>brief</code></td>
+<td>the default format, <code>save</code></td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/plugin/server/handler.go -- GetStreamingHandlerRendered, GetStreamingHandlerForCommand, IsStreamingCommand -->
+<!-- source: internal/component/command/stream_line.go -- ReadStreamLine, StreamRendering, presentationSuffixLength, PresentStreamSuffix -->
 <!-- source: internal/component/command/pipe_stream.go -- RunStreamPipes, streamPipeWriter.Write -->
+<!-- source: internal/component/command/pipe.go -- applyStreamEventPipes, applyEventMatch -->
+<!-- source: internal/component/ssh/session.go -- parseSessionRequest -->
+<!-- source: internal/component/cli/sshclient/terminal.go -- EnvCLIRender, CLIRenderClient -->
+<!-- source: cmd/ze/hub/server_stream.go -- serverStreamCommand -->
 <p>Raw browser consumers can request
 <code>Accept: application/x-ze-cli-output+ndjson</code> on the same route and dispatch.
 Data frames carry base64 producer bytes in <code>data</code> with <code>done: false</code>; dispatch
@@ -2831,7 +3068,7 @@ to the daemon or relax this pipe refusal. Complete results are bounded at
 application error separately from its output, so a transport can preserve
 completion status without interpreting diagnostic-looking result bytes.</p>
 <!-- source: internal/component/command/local_data.go -- ServeLocal -->
-<!-- source: internal/plugins/help/help_command.go -- operatorsFor -->
+<!-- source: internal/component/command/pipe_operations.go -- PipeOperations, PipeLayerReached -->
 <!-- source: internal/component/ssh/ssh.go -- execMiddleware -->
 <!-- source: internal/component/cli/client/main.go -- Execute, commandWithFormat -->
 <!-- source: internal/component/cli/client/answer.go -- daemonOutput, newDaemonOutput -->
@@ -2844,7 +3081,7 @@ Both operations share the command deadline. A failed event, stopped owner or
 changed connection refuses the replay before the command is sent.</p>
 <!-- source: internal/component/bgp/plugins/cmd/rib/rib.go -- forwardRibClearOut -->
 <!-- source: internal/component/plugin/server/command.go -- ForwardToPluginAfterEvents, drainCommandEvents -->
-<p>RIB route filters such as <code>received</code>, <code>advertised</code>, <code>peer</code>, <code>family</code>, <code>prefix</code>, <code>path</code>, and <code>community</code> are command-specific filters registered by the RIB command and folded into the RIB iterator request before route output is generated.</p>
+<p>RIB route filters such as <code>received</code>, <code>advertised</code>, <code>peer</code>, <code>family</code>, <code>prefix</code>, <code>path</code>, and <code>community</code> are command-specific filters registered by the RIB command and handed to its handler as declared pipe operations (<code>ValidatedArgs.PipeOperations</code>), which it applies in the RIB iterator before route output is generated.</p>
 <p>Inject attributes: <code>origin &lt;igp|egp|incomplete&gt;</code>, <code>nhop|nexthop &lt;ip&gt;</code>, <code>aspath &lt;asn,asn,...&gt;</code>, <code>localpref &lt;n&gt;</code>, <code>med &lt;n&gt;</code>. Peer address is a label (valid IP, no session required). Only simple prefix families (IPv4/IPv6 unicast/multicast). IPv4-mapped IPv6 next-hops accepted.</p>
 <!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- injectRoute, withdrawRoute -->
 <!-- source: internal/component/bgp/plugins/rib/yang/ze-rib-api.yang -- RIB RPCs -->
@@ -3693,8 +3930,8 @@ peer
     └── group
 
 rib
-├── routes [sent|received|sent-received] [filters...] [count|json]
-├── best [filters...] [count|json]
+├── routes [| sent|advertised|received|sent-received] [| filter ...] [| count|first|last|histogram|graph]
+├── best [| filter ...] [| count|first|last|histogram|graph|reason]
 ├── status
 ├── clear [in|out]
 ├── inject &lt;peer&gt; &lt;family&gt; &lt;prefix&gt; [attrs...]
@@ -3721,48 +3958,148 @@ func Dispatch(tree DispatchTree, tokens *Tokenizer, reactor *Reactor) (Handler, 
 }
 </code></pre>
 <!-- source: internal/component/plugin/server/command.go -- Dispatcher, Handler -->
-<h4 id="the-surface-splits-the-pipe-chain-the-dispatcher-refuses-one">The surface splits the pipe chain; the dispatcher refuses one</h4>
-<p>The dispatcher answers data, and a pipe chain renders text, so the chain is
-applied by the surface that renders the answer. The SSH exec channel, the web
-CLI, <code>ze cli</code> and the functional-test engine steps split the chain off the line
-with <code>ProcessPipesDefaultFormatChecked</code> (or its <code>Local</code> form), dispatch the
-command part, and render the answer through the chain. Their line reaches
-<code>Dispatch</code> with no pipe.</p>
+<h4 id="the-dispatcher-takes-the-line-with-its-pipe-chain">The dispatcher takes the line with its pipe chain</h4>
+<p><code>Dispatch</code> accepts a line with a pipe chain from every caller. It reads the
+line once (<code>command.ReadDispatchLine</code>): the command part and the chain under
+the one grammar, the chain's aliases expanded, and the chain partitioned for
+the command (<code>partitionPipeChain</code>). An unfinished quote anywhere on the line is
+refused with its column before anything resolves.</p>
+<!-- source: internal/component/command/dispatch_line.go -- ReadDispatchLine, DispatchLine -->
+<!-- source: internal/component/command/pipe_partition.go -- partitionPipeChain -->
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>What <code>Dispatch</code> does with a piped line</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Accounting</td>
+<td>starts on the line as typed, chain included, masked by <code>config.DisplayCommand</code>; a typed accountant receives its tokens: the command's words, then a <code>|</code> token, the name and the argument words of each operation</td>
+</tr>
+<tr>
+<td>Arguments</td>
+<td>a word the command declares as a pipe operation is refused as an argument, with the pipe form of the line as the fix (<code>command.RefusePipeOperationWords</code>), before <code>ValidateArgs</code> binds anything</td>
+</tr>
+<tr>
+<td>Authorization</td>
+<td>a string authorizer receives the typed line; a typed one the command, its arguments, then the chain tokens, for authorization only. Read-only is the command path's flag, and a chain never changes it</td>
+</tr>
+<tr>
+<td>Handler</td>
+<td>receives the operations the command declares, in the order typed, in <code>CommandContext.PipeOperations</code> and <code>ValidatedArgs.PipeOperations</code>, and never as arguments. An override's answer is held to its generic's shape (<code>command.CheckOverrideAnswer</code>). An answer the handler delivers as a generator of rows is judged without being read: it is rows, which a <code>count</code> override never answers, and its rows are not counted</td>
+</tr>
+<tr>
+<td>Answer</td>
+<td>the residual chain runs over the answer through <code>ApplyPipes</code>, for every caller that does not render the chain itself. A format that prints text (<code>table</code>, <code>text</code>, <code>yaml</code>, <code>ndjson</code>) answers that text, carried as a JSON string: what <code>ze cli -c</code> prints for the line. <code>json</code> and <code>raw</code> answer the JSON document they print</td>
+</tr>
+</tbody>
+</table>
+<p>A caller inside the daemon that renders the chain itself states it with
+<code>plugin.CallerIdentity.RendersResidualChain</code>; the dispatcher then answers the
+handler's data and leaves the residual chain to it. The statement is false
+unless a surface sets it, so a plugin's <code>dispatch-command</code>, MCP <code>ze_execute</code>,
+REST execute and gRPC get the chain applied. For them the residual chain is
+validated before anything resolves, on the one-shot surface: <code>| save</code> is
+refused, because the daemon never writes a caller's file.</p>
+<!-- source: internal/component/plugin/server/command.go -- Dispatcher.Dispatch, applyAnswerStep, checkOverrideAnswer -->
+<!-- source: internal/component/plugin/dispatch.go -- CallerIdentity -->
+<p>A plugin process receives the declared list in the request itself:
+<code>routeToProcess</code> writes it into the <code>pipe</code> list of <code>rpc.ExecuteCommandInput</code>,
+beside the arguments and never inside them, over the forked TLS connection
+and over <code>DirectBridge</code> alike, and the SDK hands it to the <code>OnExecuteCommand</code>
+handler as its <code>pipe</code> parameter. A subsystem's command receives the same list
+in its request (<code>SubsystemHandler.Handle</code>).</p>
+<!-- source: internal/component/plugin/server/command.go -- routeToProcessWithEvents, pluginPipe, dispatchSubsystem -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- ExecuteCommandHandler, executeCommandAnswer -->
+<p>The rendering surfaces send the line as typed. The SSH exec channel, the
+interactive model (<code>cli.Model</code>, on SSH, in the web CLI's views and in <code>ze start --cli</code>), the web CLI terminal and the web tool pages dispatch the whole line
+with <code>RendersResidualChain</code> set, and build their formatter from the same
+partition with <code>ProcessPipesDefaultFormatChecked</code> (or its <code>Local</code> or <code>Result</code>
+form), which applies only the residual chain. A <code>zessh.CommandExecutor</code> and a
+<code>cli.CommandExecutor</code> are called only by such a renderer, so the daemon's
+factories for them set the statement.</p>
 <!-- source: internal/component/command/pipe.go -- ProcessPipesDefaultFormatChecked -->
-<!-- source: internal/component/ssh/ssh.go -- execMiddleware -->
+<!-- source: internal/component/ssh/ssh.go -- execMiddleware, CommandExecutor -->
+<!-- source: internal/component/cli/model_mode.go -- executeOperationalCommand -->
+<!-- source: internal/component/web/cli_terminal.go -- executeTerminalOperationalResult -->
+<p>A renderer in another process holds no <code>CallerIdentity</code>. The editor's model
+over SSH (<code>ze config edit</code>) and the functional-test engine steps (a plugin's
+<code>dispatch-command</code>) therefore send <code>DispatchLine.DeclaredLine</code>: the command
+part and only the operations the command declares, then <code>| raw</code>, so the
+daemon runs the declared operations in the handler and answers the handler's
+JSON with no pipe metadata, and the sender applies the residual chain once.
+<code>ze cli -c</code> sends the typed line over SSH exec, where the exec channel renders
+it.</p>
+<!-- source: internal/component/command/dispatch_line.go -- DeclaredLine -->
+<!-- source: internal/component/config/cli/cmd_edit.go -- sshCommandExecutor -->
 <!-- source: internal/test/cli/cmd_engine_steps.go -- pipedEngineDispatch -->
-<p>A caller that sends the line whole (a plugin's <code>dispatch-command</code>, MCP
-<code>ze_execute</code>, REST execute, gRPC, <code>Reactor.ExecuteCommand</code>) gets an error when
-the line holds a pipe outside double quotes, joined to a word or not. The check
-runs in <code>Dispatch</code> after accounting starts and before any builtin, subsystem or
-plugin command is resolved, so no handler and no plugin process sees the line.
-The error names the command part and the chain, says why the chain is not
-applied there, and gives the line to send instead. When every operator of the
-chain is a filter the command registered (<code>RegisterPipeFilters</code>), that line is
-the folded form <code>foldFilters</code> writes, which the command reads as its own
-arguments. Otherwise the fix is the command part alone, so the caller selects
-from its data, and the why names the <code>ze cli -c</code> form of the original line,
-which applies the chain for an operator. The fix line stays one exact command
-either way.</p>
-<!-- source: internal/component/plugin/server/command.go -- Dispatcher.Dispatch, scanCommand, pipeChainRefusal -->
-<!-- source: internal/component/command/pipe.go -- FoldPipeChain, foldFilters -->
+<p>No reader splits a piped line on its own. A caller that only asks which
+command a line names, or whether a chain follows it (the model's <code>monitor ping</code> and <code>monitor traceroute</code> detectors, the subject an explanation is about,
+the engine steps' choice of route), reads it with <code>command.ReadCommandPart</code>,
+under the one grammar, so a quoted <code>|</code> stays part of a word. Every reader that
+applies a chain goes through the partition. <code>TestEveryPipeSplitGoesThroughThePartition</code>
+judges both: in the command package, a function that reads a chain must also
+partition it, unless it holds no command (<code>ze pipe</code>, an alias expansion, the
+accounting tokens, a client's presentation suffix); in every file that imports
+the package, a <code>strings</code> call that cuts at a pipe literal, or a call of
+<code>ParsePipe</code>, fails it. Its twin in <code>plugin/server</code> judges the streaming-handler
+lookups.</p>
+<!-- source: internal/component/command/pipe.go -- ReadCommandPart -->
+<!-- test: internal/component/command/pipe_split_partition_test.go TestEveryPipeSplitGoesThroughThePartition -->
+<!-- test: internal/component/plugin/server/streaming_lookup_test.go TestEveryPipeSplitGoesThroughThePartition -->
+<p>A REST or gRPC request's structured parameters are written into the command
+part, before the first pipe outside quotes, so they reach the handler as
+arguments and the chain stays the one the caller typed (<code>buildInvocation</code>).
+<code>WriteInvocation</code> quotes a value holding a pipe or a double quote, so a
+parameter never opens an operation.</p>
+<p>Every route that takes structured parameters also takes one optional, ordered
+<code>pipe</code> list: a derived MCP tool, REST <code>POST /api/v1/execute</code> and gRPC
+<code>Execute</code> and <code>Stream</code>. Each element is an operation name and its argument
+words (<code>{"name": "match", "args": ["established"]}</code>). The adapter judges each
+name against the command's <code>pipe-operations</code> (<code>PipeOperationsForCommand</code>, the
+list <code>show command help</code> answers) and refuses any other name, naming the
+valid ones, before anything runs. It then writes the list after the
+parameters, and after any chain the caller typed in the line, one
+<code>| name args</code> stage per element, in order; each argument word goes through
+<code>WriteInvocationValue</code>, so a word holding a pipe or a quote stays one word and
+opens no stage. The dispatcher partitions the result as it partitions a typed
+line, so the list answers what <code>&lt;command&gt; | name args</code> answers, and the order
+is the chain's: a declared operation after a generic one is refused as it is
+when typed. The list's JSON Schema is declared once (<code>PipeListSchema</code>) and the
+MCP tool schema and the OpenAPI document both publish it; its JSON form is
+read strictly (<code>DecodePipeList</code>), so a misspelt element key is refused rather
+than dropped.</p>
+<!-- source: internal/component/command/pipe_list.go -- WritePipeList -->
+<!-- source: internal/component/command/pipe_list.go -- PipeListSchema -->
+<!-- source: internal/component/api/invocation.go -- appendPipeList -->
+<!-- source: internal/component/mcp/tools.go -- dispatchGenerated -->
+<!-- test: internal/component/api/invocation_pipe_list_test.go TestPipeListElementCannotOpenAChain -->
+<!-- test: internal/component/mcp/tools_pipe_list_test.go TestDerivedToolPipeList -->
+<!-- source: internal/component/api/invocation.go -- buildInvocation -->
+<!-- source: internal/component/command/arguments.go -- WriteInvocation -->
+<!-- source: internal/component/api/engine.go -- APIEngine.Execute -->
+<!-- source: cmd/ze/hub/service_ssh.go -- sshWireImpl -->
+<!-- source: cmd/ze/hub/view_web.go -- webViewBinding -->
 <p>A pipe inside double quotes is an argument value. <code>ScanInvocation</code> is shared by
 the dispatcher and the pipeline boundary, so neither mistakes that value for
 an operator. Inside double quotes, <code>\"</code>, <code>\\</code>, <code>\n</code>, <code>\r</code> and <code>\t</code> preserve a
-literal quote, backslash, newline, carriage return and tab. A backslash outside
-quotes, or an unknown quoted escape, is refused. <code>WriteInvocationValue</code> writes
+literal quote, backslash, newline, carriage return and tab. In the command
+part, a backslash outside quotes, or an unknown quoted escape, is refused; the
+chain after the first unquoted pipe keeps a backslash outside quotes (below).
+<code>WriteInvocationValue</code> writes
 this same grammar for client values and concrete enum corrections.
 An empty value is written as <code>""</code> and retained as one empty token. Spaces
 inside a quoted value remain part of that value, including its trailing spaces.
 The local-data route decodes these words before registry lookup and model
 validation, preserving the same quoted values as daemon dispatch.
 Execution requires the closing quote. <code>ScanExecution</code> refuses an unfinished
-value before any handler runs and names the opening quote's one-based character
-column in the original line. The refusal does not echo the value, which may
-contain a credential. Local command execution and one-shot or streaming
-pipeline preparation use that same strict reader before source work or file
-creation. The operator grammar after the first unquoted pipe remains the
-pipeline parser's responsibility.</p>
+value before any handler runs, in the command part or in the chain, and names
+the opening quote's one-based character column in the original line. The
+refusal does not echo the value, which may contain a credential. Local command
+execution and one-shot or streaming pipeline preparation use that same strict
+reader before source work or file creation.</p>
 <!-- source: internal/component/command/local_data.go -- ServeLocal -->
 <p>Completion keeps using the permissive <code>ScanInvocation</code> reader while the
 operator types an unfinished value. Both readers use one scanner, retaining
@@ -3776,9 +4113,76 @@ is data.</p>
 <!-- source: internal/component/command/pipe.go -- parseExecutionPipeChain -->
 <!-- source: internal/component/command/arguments.go -- WriteInvocationValue -->
 <!-- source: internal/component/plugin/server/dispatch.go -- dispatchCommandArgs -->
-<p>MCP, REST and gRPC are operator surfaces that do not yet split the chain at
-their edge, so they refuse a piped line rather than apply it. Applying the chain
-there is owned by <code>plan/release/fixes/spec-pipe-chain-honored-on-every-command-surface.md</code>.</p>
+<h4 id="the-pipe-chain-takes-the-invocations-quote-grammar">The pipe chain takes the invocation's quote grammar</h4>
+<p>The chain after the first unquoted pipe is read under the quote grammar of the
+command part, so a quoted value is one argument everywhere on the line
+(owner decision, 2026-11-20). The chain has no grammar of its own: <code>ScanExecution</code>,
+<code>ParsePipe</code>, the alias registry and <code>ze pipe</code> all read it through <code>scanChain</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Rule</th>
+<th>The chain reads it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Where an operation ends</td>
+<td>at a pipe outside double quotes, joined to a word or not</td>
+</tr>
+<tr>
+<td>Words of one operation</td>
+<td>split at whitespace outside double quotes; a quoted run is one word, its quotes removed</td>
+</tr>
+<tr>
+<td>Escapes inside quotes</td>
+<td>the invocation's own: <code>\"</code>, <code>\\</code>, <code>\n</code>, <code>\r</code>, <code>\t</code>; any other is refused</td>
+</tr>
+<tr>
+<td>A backslash outside quotes</td>
+<td>a literal character, because <code>match</code> patterns and paths rely on it. The one difference from the command part, which refuses it</td>
+</tr>
+<tr>
+<td>A backslash before a quote, outside quotes (<code>match a\"b c"</code>)</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>A quote inside a word (<code>match ab"c d"e</code>)</td>
+<td>the run belongs to that word: <code>abc de</code></td>
+</tr>
+<tr>
+<td>A single quote</td>
+<td>a literal character; only the double quote groups</td>
+</tr>
+<tr>
+<td>An unfinished quote</td>
+<td>refused with the column of its opening quote, as in the command part</td>
+</tr>
+<tr>
+<td>An operation's argument</td>
+<td>the decoded words; a generic operator that takes text reads them joined by one space</td>
+</tr>
+<tr>
+<td>An alias expansion, and the operators of <code>ze pipe</code></td>
+<td>read by the same grammar; an unfinished quote in an expansion refuses the alias when it is registered</td>
+</tr>
+</tbody>
+</table>
+<p><code>show log recent | match "error|warn"</code> therefore hands <code>match</code> the ten
+characters <code>error|warn</code> as one argument. <code>match</code> is a case-insensitive
+substring, so this is no alternation. A pattern that holds a literal double
+quote writes it escaped inside quotes: <code>| match "\"value\":\"x\""</code>.</p>
+<p>A command's own operation keeps the words the chain decoded: the partition
+hands them to the handler in its declared list, never rewritten into the
+command line, so <code>| path "a|b"</code> reaches it as the one argument word <code>a|b</code>,
+never re-split.</p>
+<!-- source: internal/component/command/invocation_scan.go -- scanChain, quotedEscape, scanExecution -->
+<!-- source: internal/component/command/pipe.go -- ParsePipe, parsePipeOps, chainPipeOps -->
+<!-- source: internal/component/command/pipe_partition.go -- partitionPipeChain, declaredOperation -->
+<!-- source: internal/component/command/alias.go -- checkAlias -->
+<p>MCP <code>ze_execute</code> and <code>run</code>, REST execute and gRPC <code>Execute</code> send the whole line
+as data callers: the dispatcher applies the residual chain and answers its
+result in their envelope.</p>
 <!-- source: cmd/ze/hub/main_servers.go -- serverDispatcher -->
 <h3 id="yang-typed-command-arguments">YANG-Typed Command Arguments</h3>
 <p>Operational commands declare their argument types as YANG leaves inside
@@ -3843,8 +4247,13 @@ holds only missing arguments binds a positional selector as a lone missing
 argument does, because each of them carries the same binding; a list with any
 other fault binds none. A sole missing selector keeps that same typed refusal
 and the selector's declared purpose, with the corrected command placing it
-where the dispatcher reads it. Several unbound positional words still receive
-the selector guard's explanation that no value could be chosen as the selector.
+where the dispatcher reads it; its problem line names the command
+(<code>request peer teardown requires a selector</code>), because the dispatcher restates
+the fault (<code>selectorMissing</code>) and a refusal of one fault reads as that fault's
+own <code>Problem</code> and <code>Why</code> (<code>command.StatedFault</code>), never as the cause it wraps.
+Several unbound positional words still receive the selector guard's
+explanation that no value could be chosen as the selector, as an operator
+error with the same problem line and the keyword form as its fix.
 That guard reads the validator's captured unplaced positional values, or the
 successful validation's positional tokens; named keyword/value pairs do not
 become ambiguous values merely because they occupy two words. The missing
@@ -4563,9 +4972,9 @@ surfaces.</p>
 <td><code>ShortHelp</code>, then a blank line, then <code>Description</code></td>
 </tr>
 <tr>
-<td>The OpenAPI operation</td>
-<td><code>OpenAPISchema</code></td>
-<td><code>ShortHelp</code> as <code>summary</code>, <code>Description</code> as <code>description</code></td>
+<td>The OpenAPI command schema, the <code>POST /api/v1/execute</code> body that runs the command</td>
+<td><code>OpenAPISchema</code>, <code>commandRequestSchema</code></td>
+<td><code>ShortHelp</code> as <code>title</code>, <code>Description</code> as <code>description</code></td>
 </tr>
 <tr>
 <td>The published wiki catalog</td>
@@ -4597,8 +5006,8 @@ surfaces.</p>
 <p>The machine surfaces carry the same pair. <code>commandMeta</code>
 (<code>cmd/ze/hub/command_meta.go</code>) holds both halves for the API and MCP listers.
 Its merge decides each half on its own, so a command with a YANG summary and a
-plugin explanation keeps both. OpenAPI 3.1 already names the two roles, so the
-mapping is one to one: <code>summary</code> is short and <code>description</code> is long. A command
+plugin explanation keeps both. JSON Schema already names the two roles, so the
+mapping is one to one: <code>title</code> is short and <code>description</code> is long. A command
 that declares no explanation carries NO <code>description</code> key, never an empty one.</p>
 <p>The shell-completion record is <code>name</code>, tab, <code>description</code>, newline. A summary
 carrying a tab or a newline is FOLDED to single spaces there, never cut.
@@ -4622,7 +5031,7 @@ name alone. The selected candidate's summary is on message line 2, whole
 <!-- source: internal/component/web/handler_admin.go -- buildAdminFragmentData, CommandFormData -->
 <!-- source: internal/component/web/cli.go -- HandleCLICompleteWithCommandCompleter -->
 <!-- source: internal/component/mcp/tools.go -- CommandInfo, buildToolDef, commandText -->
-<!-- source: internal/component/api/schema.go -- OpenAPISchema -->
+<!-- source: internal/component/api/schema.go -- OpenAPISchema, commandRequestSchema -->
 <!-- source: cmd/ze/hub/command_meta.go -- commandMeta, buildCommandMeta -->
 <!-- source: internal/component/config/yang/command.go -- mergeYANGEntry, mergeHelpText, GetHelpExtension, PathToHelp -->
 <!-- source: internal/component/command/node.go -- Node, CommandEntry -->
@@ -4661,8 +5070,8 @@ answers, and that is the trap all five registries exist in.</p>
 </tr>
 <tr>
 <td><code>RegisterPipeFilters</code></td>
-<td>the pipe segments this command accepts as its own, which <code>foldFilters</code> rewrites into server-side arguments</td>
-<td><code>foldFilters</code>, the completer, the pipe validator</td>
+<td>the pipe operations this command runs in its own handler, each with its argument kind (<code>PipeFilter.Argument</code>: none, optional, text, count, fields or path). A generic's name is an override, allowed only where the catalog entry says so (every data operator: <code>match</code>, <code>count</code>, <code>first</code>, <code>last</code>, <code>display</code>, <code>fill</code>, <code>resolve</code>, <code>origin</code>; never a format, <code>no-more</code>, <code>save</code> or <code>log</code>) and held to the generic's argument kind when recorded and to its answer shape when it answers: one object holding an integer <code>count</code> for <code>count</code>, the command's rows and at most N of them for <code>first N</code> and <code>last N</code>, the command's rows for every other data operator. On a monitor each event is held to it instead ("The stream route partitions in one lookup")</td>
+<td><code>partitionPipeChain</code>, which hands them to the handler in <code>ValidatedArgs.PipeOperations</code>; <code>RefusePipeOperationWords</code>, which refuses one typed as an argument with the pipe form as its fix; <code>CheckOverrideAnswer</code> and, on the stream route, <code>StreamLine.Run</code>; the completer</td>
 </tr>
 <tr>
 <td><code>RegisterAliases</code></td>
@@ -4675,8 +5084,43 @@ answers, and that is the trap all five registries exist in.</p>
 Runtime lookup reads the shared execution grammar and matches each registered
 path segment to one decoded word. Quoting one keyword preserves its identity;
 one quoted value containing spaces cannot stand for several path keywords.</p>
+<p>A command whose model declares a value inside its path is typed with that
+value between two keywords: the peer selector of <code>show bgp peer edge1 rib</code>.
+The positional match would never reach <code>show bgp peer rib</code>, so for a path the
+model gives definitions to, lookup matches the typed words the way the
+dispatcher matches the command (<code>MatchInvocationPath</code>, over the definitions
+the YANG package registers with <code>RegisterArgDefSource</code>). The selector is
+skipped exactly where dispatch binds it, so <code>show bgp peer edge1 rib | received</code>
+hands <code>received</code> to the handler and resolves the peer RIB's columns, on the
+dispatcher and on every surface's own partition. A word the model places
+nowhere inside the path still does not reach the declaration. The refusal of
+an operation typed as an argument names the registered path and writes its
+fix from the command as typed, the selector kept: <code>fix: show bgp peer edge1 rib | received</code>.</p>
+<p>An override keeps its generic's meaning as well as its answer shape, and the
+shape check cannot see meaning. For <code>match</code> the meaning has one definition,
+<code>rowHoldsText</code>: a row is kept when its values, lowercased and written one
+after the other in the sorted order of their field names, hold the pattern.
+The generic reads it over the rows of an answer (<code>matchRows</code>) and over one
+event of a stream (<code>applyEventMatch</code>). A command that overrides <code>match</code> to
+select its rows before its answer exists calls <code>command.RowHoldsText</code> over the
+row it would answer, so it keeps exactly the rows the generic keeps over the
+bare answer. The RIB does this for <code>show bgp rib</code>, <code>show bgp rib protocol</code>
+and <code>show bgp rib best</code>, each over its own row: a <code>show bgp rib</code> row shows the
+route's direction, a best-path row does not, and <code>| match received</code> keeps
+rows on the first and none on the second, as the generic does. An override
+that searched a field list of its own is a second definition, and it differs
+from the row the day a field is added to one of the two.
+<code>TestRIBOverridesKeepGenericMeaning</code> and
+<code>TestRIBBestOverridesKeepGenericMeaning</code> compare each RIB override with the
+generic over the same rows.</p>
+<!-- source: internal/component/command/pipe.go -- RowHoldsText, rowHoldsText, matchRows, applyEventMatch -->
+<!-- source: internal/component/bgp/plugins/rib/rib_pipeline.go -- matchFilter, showRowJSON -->
+<!-- source: internal/component/bgp/plugins/rib/rib_pipeline_best.go -- bestRowJSON -->
 <!-- source: internal/component/command/answer_shape.go -- RegisterShape, ShapeForCommand, RegisterAddressFields, AddressFieldsForCommand -->
 <!-- source: internal/component/command/column_order.go -- commandRegistry, lookup -->
+<!-- source: internal/component/command/invocation_path.go -- invocationReachesCommandPath -->
+<!-- source: internal/component/command/argbind.go -- RefusePipeOperationWords -->
+<!-- source: internal/component/plugin/server/command.go -- typedCommandHead -->
 <p>An owner can confine its shape, columns, address fields and aliases to a parent
 with <code>RegisterChildBoundary</code>. Lookup derives an empty floor from the first typed
 keyword after that parent. An equal or longer explicit declaration wins, and
@@ -4890,11 +5334,13 @@ answer.</p>
 every JSON-reading operator shares. It keeps each number as written and refuses
 a payload with trailing data. A uint64 wider than a float64 therefore reaches
 the rendering with its digits intact.</p>
-<p><strong>A kind the <code>foldFilters</code> switch does not name stays in the chain.</strong> The switch
-names the five kinds a command can own as a filter it resolves itself. Its
-<code>default:</code> arm carries every other kind to the chain <code>ApplyPipes</code> runs over the
-answer. Both sides run in the daemon. That arm is load-bearing. Without it a
-kind named nowhere reached neither side, for every command that registers
+<p><strong>An operation the command does not declare stays in the chain.</strong>
+<code>partitionPipeChain</code> takes out only the operations the command's set declares,
+and only while no residual operation precedes them: after the first one, a
+generic name the command also declares runs as the generic, and a name only
+the command declares is refused with the line reordered as its fix. Every
+other kind stays in the chain <code>ApplyPipes</code> runs over the answer. Both sides run
+in the daemon. Without that rule a kind named nowhere reached neither side, for every command that registers
 filters of its own, and nothing reported the loss.
 <code>TestColumnOpsSurviveFoldFiltersOnFilteredCommand</code>,
 <code>TestAliasSurvivesFoldFiltersOnFilteredCommand</code> and
@@ -4955,7 +5401,7 @@ they would otherwise retype. <code>show bgp | peers</code> says what
 path. <code>commandRegistry.register</code> skips an empty path, and
 <code>commandMatchesPrefix</code> refuses an empty prefix against every non-empty command,
 so such a registration would match nothing and report nothing.</p>
-<p><code>expandAliases</code> runs between <code>ParsePipe</code> and <code>foldFilters</code>, so classification
+<p><code>expandAliases</code> runs between <code>ParsePipe</code> and <code>partitionPipeChain</code>, so classification
 only ever sees operators the parser already knows. It is ONE pass, and four
 properties are what make one pass enough. <code>checkAlias</code> is the one reading of all
 four, so the two callers can never disagree about which declarations are sound:</p>
@@ -5011,7 +5457,7 @@ Stage 1 channel the next section describes.</p>
 <h3 id="a-plugin-declares-a-pipe-alias-in-its-stage-1-message">A plugin declares a pipe alias in its Stage 1 message</h3>
 <p><code>DeclareRegistrationInput.Pipes</code> is a list of <code>PipeDecl</code>, beside the lists that
 carry families, commands, filters, doctor checks and enrichers. The SDK
-re-exports the type, so an external author imports one package. Each entry
+re-exports the type, so an external author imports one package. An alias entry
 carries four strings, and the engine parses the expansion once, at registration.</p>
 <table>
 <thead>
@@ -5044,6 +5490,61 @@ Stage 1 already validates doctor checks and enrichers, before it converts
 anything. <code>registerPluginPipes</code> then writes the accepted set under
 <code>startupRegistrationMu</code>, between the registry row and the runtime families. Each
 later failure unwinds what the steps above it wrote.</p>
+<h3 id="a-plugin-declares-a-pipe-operation-the-same-way">A plugin declares a pipe operation the same way</h3>
+<p>An entry that states <code>argument</code> in place of <code>expansion</code> is a pipe OPERATION
+the plugin's handler runs, the plugin's counterpart of <code>RegisterPipeFilters</code>.
+The value is the catalog's closed argument vocabulary (<code>none</code>, <code>optional</code>,
+<code>text</code>, <code>count</code>, <code>fields</code>, <code>path</code>), the one a compiled-in <code>PipeFilter</code> states
+in its <code>Argument</code> field, so the partition validates a builtin's and a plugin's
+operation by one rule. An entry states exactly one of the two fields:
+<code>validatePipeDecls</code> refuses both, or neither ("expands to nothing"), by name.</p>
+<p><code>registerPluginPipes</code> hands the operations to <code>RegisterPluginPipeFilters</code>,
+which records them into <code>pipeFilterRegistry</code> under the plugin's name, before
+the aliases. It returns an error where <code>RegisterPipeFilters</code> panics, and it
+refuses the whole list, recording nothing, on any of these:</p>
+<table>
+<thead>
+<tr>
+<th>Collision</th>
+<th>Refusal names</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>a generic operator's name the catalog does not let a command override (a format, <code>no-more</code>, <code>save</code> or <code>log</code>: every generic that is not a data operator), or an override stating another argument kind than the generic's</td>
+<td>the operation and the generic</td>
+</tr>
+<tr>
+<td>a name an alias carries on an overlapping command path, in-tree or another plugin's</td>
+<td>the operation and the alias's path</td>
+</tr>
+<tr>
+<td>a global alias's name</td>
+<td>the operation and the global alias</td>
+</tr>
+<tr>
+<td>a command path that already holds a non-empty operation set, in-tree or another plugin's</td>
+<td>the path, its operations and their owner</td>
+</tr>
+<tr>
+<td>one name twice on one path in one message</td>
+<td>the path and the name</td>
+</tr>
+</tbody>
+</table>
+<p>The empty barrier that stops a declared set reaching the plugin's own command
+below it is derived from the plugin's command list, as for aliases
+(<code>inheritanceBarriers</code>). An alias of the same message refused after the
+operations were recorded withdraws them. <code>UnregisterPluginPipeFilters</code> takes
+the operations back on the three paths the aliases leave by (the two rollback
+arms of the Stage 1 write and <code>releasePluginRegistrations</code>), and each path
+returns to what it held before, an in-tree barrier included. At run time the
+partition hands the operations the line typed to <code>routeToProcess</code>, which sends
+them in the <code>pipe</code> list of <code>execute-command</code> (<code>process-protocol.md</code>,
+"Command Execution"); a subsystem's command receives the same list.</p>
+<!-- source: internal/component/command/pipe_filter_plugin.go -- RegisterPluginPipeFilters, UnregisterPluginPipeFilters, pluginPipeFilterCollision -->
+<!-- source: internal/component/command/pipe_catalog.go -- PipeArgKindNamed -->
+<!-- source: internal/component/plugin/server/command.go -- routeToProcessWithEvents, pluginPipe -->
 <p>A plugin names only a path it declared itself, and it reaches no global table.
 A path another PLUGIN declared is refused a step earlier: <code>PluginRegistry.Register</code>
 runs before the alias write and rejects a command name another plugin holds, so
@@ -5084,7 +5585,7 @@ is written.</p>
 <tr>
 <td>Alias against pipe filter</td>
 <td>their command paths OVERLAP</td>
-<td><code>foldFilters</code> resolves a command's own filter for the whole subtree the filter covers, so an overlapping filter makes the alias unreachable</td>
+<td><code>partitionPipeChain</code> resolves a command's own filter for the whole subtree the filter covers, so an overlapping filter makes the alias unreachable</td>
 </tr>
 <tr>
 <td>Alias against a built-in operator name</td>
@@ -5194,44 +5695,57 @@ in the daemon's registry alone.</p>
 <td class="cell-yes">✓</td>
 </tr>
 <tr>
-<td>The TUI a plain ssh client with a pty reaches</td>
+<td>The TUI a plain ssh client with a pty reaches, and <code>ze cli</code> with no command argument, which opens that pty</td>
 <td>the daemon, which hosts the Bubble Tea model</td>
 <td class="cell-yes">✓</td>
 </tr>
 <tr>
-<td><code>ze cli</code> with no command argument</td>
-<td>the CLIENT process, in <code>executeOperationalCommand</code></td>
+<td>An operational command typed in <code>ze config edit</code></td>
+<td>the CLIENT process: <code>sshCommandExecutor</code> reads the line with <code>ReadDispatchLine</code>, sends <code>DeclaredLine</code>, and the editor's model applies the residual chain</td>
 <td class="cell-no">✕</td>
 </tr>
 <tr>
 <td><code>cliClient.StreamMonitor</code>, for a streaming monitor command</td>
-<td>the CLIENT process</td>
-<td class="cell-no">✕</td>
+<td>the daemon; the client reads only the presentation suffix, where no alias is ever part of it</td>
+<td class="cell-yes">✓</td>
 </tr>
 </tbody>
 </table>
-<p>On the two client-side rows the operator reads
+<p>On the client-side row the operator reads
 <code>pipe error: unknown pipe operator: &lt;name&gt;</code>, and Tab offers the name nowhere.
 The aliases compiled into the client resolve there, which is what hid the gap.
-Tab after the pipe character on <code>show bgp</code> offers <code>summary</code> and <code>peers</code> in the
-same client. The repair is a wire surface that carries the daemon's alias table
-to the client at session start, and it is NOT built.</p>
+The repair is a wire surface that carries the daemon's alias table to the
+client at session start, and it is NOT built.</p>
 <!-- source: internal/component/ssh/ssh.go -- execMiddleware -->
+<!-- source: internal/component/cli/sshclient/terminal.go -- RunInteractive -->
+<!-- source: internal/component/config/cli/cmd_edit.go -- sshCommandExecutor -->
 <!-- source: internal/component/cli/model_mode.go -- executeOperationalCommand -->
-<p>A surface missing from the table parses no chain. A plugin's <code>dispatch-command</code>,
-MCP <code>ze_execute</code>, REST execute and gRPC hand the line to the dispatcher whole,
-and the dispatcher refuses a pipe outside quotes ("The surface splits the pipe
-chain; the dispatcher refuses one").</p>
+<p>A surface missing from the table parses no chain of its own. A plugin's
+<code>dispatch-command</code>, MCP <code>ze_execute</code>, REST execute and gRPC hand the line to the
+dispatcher whole, and <code>Dispatch</code> resolves its aliases from the daemon's
+registries, a plugin's included ("The dispatcher takes the line with its pipe
+chain").</p>
 <!-- source: internal/component/plugin/server/command.go -- Dispatcher.Dispatch -->
+<!-- source: internal/component/command/dispatch_line.go -- ReadDispatchLine -->
 <h4 id="discovery-what-each-catalog-reader-can-see">Discovery: what each catalog reader can see</h4>
 <p>A declaration a plugin makes travels TWO channels, and both carry the same
 slice. The Stage 1 registration message reaches a running daemon. The plugin's
 <code>registry.Registration</code> reaches anything that links the composition root, which
 is how a catalog generator reads a declaration without starting an engine.
 <code>Commands</code> carries the answer shape, the column order and the address fields;
-<code>Pipes</code> carries the aliases the plugin puts on its own commands. Until
-2026-09-07 the alias had no second channel, so no reader outside a daemon could
-report one.</p>
+<code>Pipes</code> carries the aliases the plugin puts on its own commands and the
+operations its handler runs (an entry with an <code>argument</code> and no expansion).
+Until 2026-09-07 the alias had no second channel, so no reader outside a daemon
+could report one.</p>
+<p>Every surface below answers what a command takes after a pipe as ONE list,
+<code>pipe-operations</code>, from one function (<code>command.PipeOperations</code>; the daemon view
+is <code>command.PipeOperationsForCommand</code>). Each entry carries <code>name</code>, <code>source</code>
+(<code>generic</code>, <code>override</code>, <code>command</code> or <code>alias</code>), <code>argument</code>, <code>available</code>
+(<code>always</code>, <code>with-rows</code> or <code>when-streaming</code>) and <code>description</code>; a generic and an
+override also carry <code>class</code>, a generic <code>overridable</code> and <code>local-only</code>, and an
+alias <code>expansion</code>. An override sits in its generic's place with the command's
+own description, so the RIB's <code>count</code> appears once. Tab completion after <code>|</code>
+offers exactly this list.</p>
 <table>
 <thead>
 <tr>
@@ -5369,10 +5883,10 @@ tokens verbatim and a bare identifier reads as a keyword an operator types.</li>
 <!-- source: internal/component/command/declared.go -- DeclaredForCommand -->
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.Commands -->
 <!-- source: internal/le/plugin/declarations/plugindeclarations.go -- Check -->
-<!-- source: internal/plugins/meta/cmd/help.go -- commandHelp, pipeAliasHelp, handleBgpCommandHelp -->
+<!-- source: internal/plugins/meta/cmd/help.go -- commandHelp, handleBgpCommandHelp -->
 <!-- source: internal/le/cli/list/commandlist.go -- Collect, Answer -->
-<!-- source: internal/le/cli/catalog/catalog.go -- Collect, operatorsFor -->
-<!-- source: internal/plugins/help/help_command.go -- collectCommands, extractPipes -->
+<!-- source: internal/le/cli/catalog/catalog.go -- Collect -->
+<!-- source: internal/plugins/help/help_command.go -- collectCommands, pipeOperationsFor -->
 <h4 id="a-plugin-declares-its-own-answer-shape">A plugin declares its own answer shape</h4>
 <p>Each <code>CommandDecl</code> in the Stage 1 message carries three optional fields:
 <code>shape</code>, <code>columns</code> and <code>address-fields</code>. An absent field is an undeclared field,
@@ -5776,7 +6290,7 @@ unconditionally, and the <code>ui://</code> asset it points at is readable by ev
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 22:34 UTC</span>
                 </div>
             </div>
         </footer>

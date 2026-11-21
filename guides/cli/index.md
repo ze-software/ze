@@ -76,23 +76,28 @@ what `show | blame` reports for the changes the console commits.
 |---------|-------------|
 | `send bgp <sel> update text <attrs> (nlri | mp <family>) <op> <prefix>` | Text-format UPDATE |
 | `send bgp <sel> update hex <hex>` | Hex-format UPDATE |
-| `show bgp rib received [peer <selector>] [family <family>]` | Show Adj-RIB-In |
-| `show bgp rib advertised [peer <selector>] [family <family>]` | Show Adj-RIB-Out |
-| `show bgp rib received covering <address>` | Show every received route whose prefix contains the address, most specific first within each peer (IPv4 and IPv6 prefix families) |
-| `show bgp rib received exact <prefix>` | Show the received routes of exactly that prefix, every ADD-PATH path of it, from every selected peer (IPv4 and IPv6 prefix families) |
-| `show bgp rib path <pattern>` | Show the routes whose AS path matches the pattern: AS numbers joined by commas, with `^` first to tie them to the start of the path and `$` last to tie them to its end |
+| `show bgp rib \| received [\| peer <selector>] [\| family <family>]` | Show Adj-RIB-In |
+| `show bgp rib \| advertised [\| peer <selector>] [\| family <family>]` | Show Adj-RIB-Out |
+| `show bgp rib \| received \| covering <address>` | Show every received route whose prefix contains the address, most specific first within each peer (IPv4 and IPv6 prefix families) |
+| `show bgp rib \| received \| exact <prefix>` | Show the received routes of exactly that prefix, every ADD-PATH path of it, from every selected peer (IPv4 and IPv6 prefix families) |
+| `show bgp rib \| path <pattern>` | Show the routes whose AS path matches the pattern: AS numbers joined by commas, with `^` first to tie them to the start of the path and `$` last to tie them to its end |
 | `clear bgp rib in <selector>` | Clear Adj-RIB-In (`*` for all peers) |
 | `clear bgp rib out <selector> [family <family>]` | Resend Adj-RIB-Out (`*` for all peers) |
 <!-- source: internal/component/bgp/plugins/cmd/rib/yang/ze-rib-cmd.yang -- show/bgp/rib, clear/bgp/rib; internal/component/bgp/plugins/cmd/rib/rib.go -- route filters -->
 <!-- source: internal/component/bgp/plugins/rib/rib_pipeline_covering.go -- receivedWalk, parseCoveringAddress, parseExactPrefix, walkConflictRefusal, refuseCoveringScope, refuseExactScope -->
 
-`covering` takes one address with no mask: `show bgp rib received covering
-192.0.2.1` lists `192.0.2.0/24`, then `192.0.0.0/22`, then `0.0.0.0/0` when a
+The scope, the filters and the reducers of a RIB read are pipe operations
+typed after the command, each behind its own `|`, never words of the command
+itself: `show bgp rib received` is refused, with `show bgp rib | received` as
+the line to type.
+
+`covering` takes one address with no mask:
+`show bgp rib | received | covering 192.0.2.1` lists `192.0.2.0/24`, then `192.0.0.0/22`, then `0.0.0.0/0` when a
 peer holds all three. It reads received routes only, so on `sent` or on the
 default scope it is refused with the received form to type.
 
-`exact` takes one prefix with its mask and answers that prefix alone: `show bgp
-rib received exact 192.0.0.0/2` lists the routes of `192.0.0.0/2` and not
+`exact` takes one prefix with its mask and answers that prefix alone:
+`show bgp rib | received | exact 192.0.0.0/2` lists the routes of `192.0.0.0/2` and not
 `192.0.0.0/24`. A bare address is refused with the `covering` form to type, and
 a prefix with host bits set is refused with its masked form (`10.0.0.1/8` names
 `10.0.0.0/8`). It reads received routes only, like `covering`, and one command
@@ -250,7 +255,7 @@ In `ze cli` interactive mode:
   `short-help` and its long explanation under `description`. Neither is derived
   from the other, and no row is cut at a sentence or a newline.
   <!-- source: internal/component/command/pipe.go -- applyMatch, applyMatchLines -->
-  <!-- source: internal/plugins/help/help_command.go -- operatorsFor, collectCommands -->
+  <!-- source: internal/plugins/help/help_command.go -- pipeOperationsFor, collectCommands -->
 - **History** is immediately browsable and published across sessions without
   blocking input. Graceful session close drains queued history; abrupt process
   death can lose commands still waiting for publication.

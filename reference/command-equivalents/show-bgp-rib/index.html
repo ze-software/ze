@@ -63,12 +63,12 @@
 <div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill, resolve, origin</dd></div>
 <div><dt>Pipes, while streaming</dt><dd>log</dd></div>
 <div><dt>Pipes, local process only</dt><dd>save</dd></div>
-<div><dt>Command pipes</dt><dd><code>advertised</code>: Select advertised routes<br><code>community &lt;value&gt;</code>: Filter by standard community<br><code>count</code>: Count matching routes without serializing rows<br><code>covering &lt;value&gt;</code>: Received routes whose prefix contains an IP address<br><code>exact &lt;value&gt;</code>: Received routes of exactly one prefix<br><code>family &lt;value&gt;</code>: Filter by AFI/SAFI<br><code>first &lt;value&gt;</code>: Take first N routes<br><code>graph</code>: Render AS-path topology graph<br><code>histogram</code>: Count routes by family and prefix length<br><code>last &lt;value&gt;</code>: Take last N routes<br><code>match &lt;value&gt;</code>: Cross-field structured match<br><code>path &lt;value&gt;</code>: Filter by AS path<br><code>peer &lt;value&gt;</code>: Filter by peer<br><code>prefix &lt;value&gt;</code>: Filter by prefix<br><code>received</code>: Select received routes</dd></div>
+<div><dt>Command pipes</dt><dd><code>advertised</code>: Select advertised routes<br><code>aspath &lt;value&gt;</code>: Filter by AS path, another spelling of path<br><code>community &lt;value&gt;</code>: Filter by standard community<br><code>count</code>: Count matching routes without serializing rows<br><code>covering &lt;value&gt;</code>: Received routes whose prefix contains an IP address<br><code>exact &lt;value&gt;</code>: Received routes of exactly one prefix<br><code>family &lt;value&gt;</code>: Filter by AFI/SAFI<br><code>first &lt;value&gt;</code>: Take first N routes<br><code>graph</code>: Render AS-path topology graph<br><code>histogram</code>: Count routes by family and prefix length<br><code>last &lt;value&gt;</code>: Take last N routes<br><code>match &lt;value&gt;</code>: Cross-field structured match<br><code>path &lt;value&gt;</code>: Filter by AS path<br><code>peer &lt;value&gt;</code>: Filter by peer<br><code>prefix &lt;value&gt;</code>: Filter by prefix<br><code>received</code>: Select received routes<br><code>sent</code>: Select advertised routes, another spelling of advertised<br><code>sent-received</code>: Select received and advertised routes, the default</dd></div>
 <div><dt>Answer shape</dt><dd>tab</dd></div>
 <div><dt>Address fields</dt><dd>peer, next-hop</dd></div>
 <div><dt>Column order</dt><dd>peer, direction, family, prefix, next-hop, path-id, as-path, origin, local-pref, med, communities</dd></div>
 </dl>
-<h3>Description</h3><p>Look at received or advertised routes with flexible filters: peer,<br>family, prefix (a text match that can also list longer prefixes),<br>AS path regex, community, match expression, covering, which lists<br>the received routes whose prefix contains an IP address, and exact,<br>which lists the received routes of one prefix. Pipe operators:<br>| count, | histogram, | graph. This is the main route inspection<br>command.</p>
+<h3>Description</h3><p>Look at received or advertised routes, each choice a pipe operation<br>typed after the command: the scope | received, | advertised (or | sent) or<br>| sent-received; the filters | peer, | family, | prefix (a text match that<br>can also list longer prefixes), | path (or | aspath), | community, | match,<br>| covering, which lists the received routes whose prefix contains an IP<br>address, and | exact, which lists the received routes of one prefix; then<br>| count, | first, | last, | histogram or | graph. This is the main route<br>inspection command.</p>
 <h3>Arguments</h3>
 <p>No command-specific arguments listed.</p>
 </article>
@@ -135,7 +135,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:27 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
                 </div>
             </div>
         </footer>

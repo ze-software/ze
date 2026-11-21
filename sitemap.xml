@@ -802,6 +802,9 @@
     <loc>https://ze-software.net/quality/rfc-compliance/rfc2205/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc2308/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc2328/</loc>
   </url>
   <url>
@@ -1543,10 +1546,16 @@
     <loc>https://ze-software.net/reference/command-equivalents/clear-isis-counters/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/clear-l2tp-session-address/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/clear-l2tp-session-all/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/clear-l2tp-session-id/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/clear-l2tp-session-user/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/clear-l2tp-tunnel-all/</loc>
@@ -1963,7 +1972,7 @@
     <loc>https://ze-software.net/reference/command-equivalents/request-fleet-disable/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/command-equivalents/request-fleet-divergence-revert/</loc>
+    <loc>https://ze-software.net/reference/command-equivalents/request-fleet-divergence-name-revert/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/request-fleet-enable/</loc>
@@ -2587,7 +2596,7 @@
     <loc>https://ze-software.net/reference/command-equivalents/show-fleet-divergence-list/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/command-equivalents/show-fleet-divergence/</loc>
+    <loc>https://ze-software.net/reference/command-equivalents/show-fleet-divergence-name/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-fleet-status/</loc>
@@ -3157,6 +3166,12 @@
     <loc>https://ze-software.net/reference/command-equivalents/show-tcp-check/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-thanks-licence/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-thanks-list/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-traceroute/</loc>
   </url>
   <url>
@@ -3256,6 +3271,12 @@
     <loc>https://ze-software.net/reference/command-equivalents/system-version-software/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/thanks-licence/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/thanks/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/update-bgp-config/</loc>
   </url>
   <url>
@@ -3283,7 +3304,7 @@
     <loc>https://ze-software.net/reference/command-equivalents/update-firewall-domain-group/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/command-equivalents/update-fleet-divergence-adopt/</loc>
+    <loc>https://ze-software.net/reference/command-equivalents/update-fleet-divergence-name-adopt/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/update-irr-all/</loc>

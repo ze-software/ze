@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 30 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 30 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 30 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 9 | 9 of 98 tests linked to requirements, 0 without a fault test and 73 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 92 | 92 of 98 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -73,7 +73,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 98 |
 | Tests linked to requirements | 98 |
 | Recorded audit verdicts | 29 |
-| Fault test records | 82 |
+| Fault test records | 92 |
 | Summary | `rfc/short/rfc5176.md` |
 | Requirement table | `rfc/requirements/rfc5176.md` |
 | RFC text | `rfc/full/rfc5176.txt` |
@@ -86,9 +86,9 @@ Included in automatic checks: RADIUS Dynamic Authorization Extensions (CoA/Disco
 
 **Area:** RADIUS CoA and Disconnect Message
 
-**Test verification:** 6 of 30 MUST proven
+**Test verification:** 30 of 30 MUST proven
 
-**Evidence:** unit 6
+**Evidence:** unit 30
 
 **Unmet:** -
 
@@ -112,19 +112,19 @@ Included in automatic checks: RADIUS Dynamic Authorization Extensions (CoA/Disco
 
 ## Figures
 
-- **MUST bar**: Ze verified 6, Tests awaiting verification 24
-- **Overview bar**: Ze MUST verified 6, SHOULD verified 1, Tests awaiting verification 24
+- **MUST bar**: Ze verified 30
+- **Overview bar**: Ze MUST verified 30, SHOULD verified 1
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 30 |
 | MUST rows kept (the MUST bar) | 30 |
-| Ze verified | 6 |
+| Ze verified | 30 |
 | OS verified | 0 |
-| Tests awaiting verification | 24 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -154,8 +154,8 @@ Source: [data/rfc/rfc5176.json](../../../data/rfc/rfc5176.json).
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC5176-3.5-1` | This value is used to authenticate packets between the Dynamic Authorization Client and the Dynamic Authorization Server. (§2.3) | MUST | 2.3 | **positive:** `unit/verify` [`TestCoAListenerUnknownSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L402). **negative:** `unit/verify` [`TestCoAListenerInvalidAuth`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L317) |
-| `RFC5176-3.3-1` | The combination of NAS and session identification attributes included in a CoA-Request or Disconnect-Request packet MUST match at least one session in order for a Request to be successful; otherwise a Disconnect-NAK or CoA-NAK MUST be sent. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestCoALiveAccountingOwnerIdentitySurvivesRegistryMiss`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go#L109). **positive:** `unit/verify` [`TestDisconnectReplayReturnsCachedResponse`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L465). **positive:** `unit/verify` [`TestRFC5176UnmatchedIdentificationIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L125). **negative:** `unit/verify` [`TestCoAOldAccountingIdentityCannotSelectNewIncarnation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go#L38). **negative:** `unit/verify` [`TestCoARegisteredSubscriberAllSelectorsMustMatch`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_owner_apply_test.go#L185). **negative:** `unit/verify` [`TestDisconnectOldAccountingIdentityCannotTerminateNewIncarnation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go#L62). **negative:** `unit/verify` [`TestRFC5176MatchedIdentificationSucceeds`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L148). **negative:** `unit/verify` [`TestRFC5176NoSessionIdNotActedOn`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go#L25) |
+| `RFC5176-3.5-1` | This value is used to authenticate packets between the Dynamic Authorization Client and the Dynamic Authorization Server. (§2.3) | MUST | 2.3 | **positive:** `unit/verify` [`TestCoAListenerUnknownSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L398). **negative:** `unit/verify` [`TestCoAListenerInvalidAuth`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L313) |
+| `RFC5176-3.3-1` | The combination of NAS and session identification attributes included in a CoA-Request or Disconnect-Request packet MUST match at least one session in order for a Request to be successful; otherwise a Disconnect-NAK or CoA-NAK MUST be sent. (§3) | MUST | 3 | **positive:** `unit/verify` [`TestCoALiveAccountingOwnerIdentitySurvivesRegistryMiss`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go#L109). **positive:** `unit/verify` [`TestDisconnectReplayReturnsCachedResponse`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L461). **positive:** `unit/verify` [`TestRFC5176UnmatchedIdentificationIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L125). **negative:** `unit/verify` [`TestCoAOldAccountingIdentityCannotSelectNewIncarnation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go#L38). **negative:** `unit/verify` [`TestCoARegisteredSubscriberAllSelectorsMustMatch`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_owner_apply_test.go#L185). **negative:** `unit/verify` [`TestDisconnectOldAccountingIdentityCannotTerminateNewIncarnation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go#L62). **negative:** `unit/verify` [`TestRFC5176MatchedIdentificationSucceeds`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L148). **negative:** `unit/verify` [`TestRFC5176NoSessionIdNotActedOn`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go#L25) |
 | `RFC5176-3.5-3` | The Authenticator field in a Response packet (e.g., Disconnect-ACK, Disconnect-NAK, CoA-ACK, or CoA-NAK) is called the Response Authenticator, and contains a one-way MD5 hash calculated over a stream of octets consisting of the Code, Identifier, Length, the Request Authenticator field from the packet being replied to, and the response attributes if any, followed by the shared secret. The resulting 16-octet MD5 hash value is stored in the Authenticator field of the Response packet. (§2.3) | MUST | 2.3 | **positive:** `unit/verify` [`TestRFC5176ResponseAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go#L68). **positive:** `unit/verify` [`TestRFC5176ResponseAuthenticatorMatchesAnIndependentMD5`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L211). **negative:** no negative test. **{single-polarity}:** the NAS only emits CoA/Disconnect responses and never receives one, so there is no inbound Response Authenticator to reject; correctness is proven by verifying the emitted authenticator against radius.ResponseAuthenticator (internal/component/radius/packet.go:145) |
 | `RFC5176-3.5-4` | The Authenticator field MUST be calculated in the same way as is specified for an Accounting-Request in [RFC2866]. (§2.3) | MUST | 2.3 | **positive:** `unit/verify` [`TestRFC5176CoARequestAuthenticatorMatchesTheFormula`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_response_auth_test.go#L183). **positive:** `unit/verify` [`TestVerifyCoARequestAuth`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L352). **negative:** `unit/verify` [`TestRFC5176CoARequestAuthenticatorCoversEveryNamedField`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_response_auth_test.go#L218). **negative:** `unit/verify` [`TestVerifyCoARequestAuth`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L358) |
 | `RFC5176-2.3-1` | Packets received with an invalid Code field MUST be silently discarded. (§2.3) | MUST | 2.3 | **positive:** `unit/verify` [`TestRFC5176InvalidCodeDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L145). **negative:** `unit/verify` [`TestRFC5176InvalidCodeDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L148) |
@@ -163,19 +163,19 @@ Source: [data/rfc/rfc5176.json](../../../data/rfc/rfc5176.json).
 | `RFC5176-2.3-3` | Octets outside the range of the Length field MUST be treated as padding and ignored on reception. If the packet is shorter than the Length field indicates, it MUST be silently discarded. (§2.3) | MUST | 2.3 | **positive:** `unit/verify` [`TestRFC5176LengthFieldGovernsTheOctetsRead`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L345). **negative:** `unit/verify` [`TestRFC5176LengthFieldGovernsTheOctetsRead`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L347) |
 | `RFC5176-2.3-4` | The Dynamic Authorization Server MUST use the source IP address of the RADIUS UDP packet to decide which shared secret to use (§2.3) | MUST | 2.3 | **positive:** `unit/verify` [`TestRFC5176SharedSecretChosenBySourceAddress`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L369). **negative:** `unit/verify` [`TestRFC5176SharedSecretChosenBySourceAddress`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L372) |
 | `RFC5176-2.3-5` | In CoA-Request and Disconnect-Request packets, all attributes MUST be treated as mandatory. If one or more authorization changes specified in a CoA-Request cannot be carried out, the NAS MUST send a CoA-NAK. A NAS MUST respond to a CoA-Request containing one or more unsupported attributes or Attribute values with a CoA-NAK; an Error-Cause Attribute with value 401 (Unsupported Attribute) or 407 (Invalid Attribute Value) MAY be included. A NAS MUST respond to a Disconnect-Request containing one or more unsupported attributes or Attribute values with a Disconnect-NAK; an Error-Cause Attribute with value 401 (Unsupported Attribute) or 407 (Invalid Attribute Value) MAY be included. (§2.3) | MUST | 2.3 | **positive:** `unit/verify` [`TestCoAImplementedIdentificationStillApplies`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_identification_test.go#L88). **positive:** `unit/verify` [`TestRFC5176CoAWithAnUnsupportedAttributeValueIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L311). **positive:** `unit/verify` [`TestRFC5176CoAWithOneUnsupportedValueBesideSupportedOnesIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go#L56). **positive:** `unit/verify` [`TestRFC5176DisconnectWithAnUnsupportedValueIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go#L90). **positive:** `unit/verify` [`TestRFC5176UnsupportedAttributeNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L409). **negative:** `unit/verify` [`TestDynamicAuthorizationRefusesUnimplementedIdentification`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_identification_test.go#L17). **negative:** `unit/verify` [`TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go#L117). **negative:** `unit/verify` [`TestRFC5176UnsupportedAttributeNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L413) |
-| `RFC5176-2.3-6` | State changes resulting from a CoA-Request MUST be atomic: if the CoA-Request is successful for all matching sessions, the NAS MUST send a CoA-ACK in reply, and all requested authorization changes MUST be made. If the CoA-Request is unsuccessful for any matching sessions, the NAS MUST send a CoA-NAK in reply, and the requested authorization changes MUST NOT be made for any of the matching sessions. Similarly, a state change MUST NOT occur as a result of a Disconnect-Request that is unsuccessful with respect to any of the matching sessions; a NAS MUST send a Disconnect-NAK in reply if any of the matching sessions cannot be successfully terminated. (§2.3) | MUST | 2.3 | **positive:** `unit/verify` [`TestCoAMixedOwnersApplyBeforeACK`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_atomic_owners_test.go#L90). **positive:** `unit/verify` [`TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L447). **positive:** `unit/verify` [`TestRFC5176CoANAKMakesNoPartialChange`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L251). **positive:** `unit/verify` [`TestRFC5176DisconnectThatCannotTerminateIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L271). **positive:** `unit/verify` [`TestRFC5176SubscriberCoAThatCannotBeCarriedOutWholeMakesNoChange`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go#L157). **negative:** `unit/verify` [`TestCoAMixedOwnerFailureRestoresBothControls`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_atomic_owners_test.go#L62). **negative:** `unit/verify` [`TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L449). **negative:** `unit/verify` [`TestRFC5176DisconnectThatTerminatesIsACKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L292). **negative:** `unit/verify` [`TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go#L121) |
-| `RFC5176-2.3-7` | A NAS that does not support dynamic authorization changes applying to multiple sessions MUST send a CoA-NAK or Disconnect-NAK in reply; an Error-Cause Attribute with value 508 (Multiple Session Selection Unsupported) SHOULD be included. (§2.3) | MUST | 2.3 | **positive:** `unit/verify` [`TestRFC5176CoAMatchingSeveralSessionsIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L89). **positive:** `unit/verify` [`TestRFC5176MultipleMatchingSessionsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L479). **negative:** `unit/verify` [`TestRFC5176CoAMatchingOneSessionIsACKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L105). **negative:** `unit/verify` [`TestRFC5176MultipleMatchingSessionsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L482) |
-| `RFC5176-3.1-1` | If there are any Proxy-State attributes in a Disconnect-Request or CoA-Request received from the Dynamic Authorization Client, the Dynamic Authorization Server MUST include those Proxy-State attributes in its response to the Dynamic Authorization Client. A forwarding proxy or NAS MUST NOT modify existing Proxy-State, State, or Class attributes present in the packet. The forwarding proxy or NAS MUST treat any Proxy-State attributes already in the packet as opaque data. Its operation MUST NOT depend on the content of Proxy-State attributes added by previous proxies. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRFC5176ProxyStateReturnedUnmodified`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L517). **positive:** `unit/verify` [`TestRFC5176StateAndClassUnmodifiedProxyStateOpaque`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go#L37). **negative:** `unit/verify` [`TestRFC5176ProxyStateContentIsNeverRead`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go#L144). **negative:** `unit/verify` [`TestRFC5176ProxyStateReturnedUnmodified`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L519) |
-| `RFC5176-3.2-1` | A NAS MUST respond to a CoA-Request including a Service-Type Attribute with value "Authorize Only" with a CoA-NAK; a CoA-ACK MUST NOT be sent. If the NAS does not support a Service-Type value of "Authorize Only", then it MUST respond with a CoA-NAK; an Error-Cause Attribute with a value of 405 (Unsupported Service) SHOULD be included. (§3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestRFC5176ServiceTypeNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L551). **negative:** `unit/verify` [`TestRFC5176ServiceTypeNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L554) |
-| `RFC5176-3.3-2` | The State Attribute is available to be sent by the Dynamic Authorization Client to the NAS in a CoA-Request packet and MUST be sent unmodified from the NAS to the Dynamic Authorization Client in a subsequent ACK or NAK packet. (§3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestRFC5176StateReturnedUnmodified`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L581). **positive:** `unit/verify` [`TestRFC5176StateReturnedUnmodifiedInANAK`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L172). **negative:** `unit/verify` [`TestRFC5176NAKForARequestWithoutStateCarriesNone`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L195). **negative:** `unit/verify` [`TestRFC5176StateReturnedUnmodified`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L583) |
-| `RFC5176-3.4-1` | When the HMAC-MD5 message integrity check is calculated the Request Authenticator field and Message-Authenticator Attribute MUST each be considered to be sixteen octets of zero. (§3.4) | MUST | 3.4 | **positive:** `unit/verify` [`authradius/TestRFC5176MessageAuthenticatorZeroesBothFields`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L610). **positive:** `unit/verify` [`radius/TestRFC5176MessageAuthenticatorZeroesBothFields`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L126). **negative:** `unit/verify` [`TestRFC5176MessageAuthenticatorRefusesEveryOtherStream`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L148). **negative:** `unit/verify` [`authradius/TestRFC5176MessageAuthenticatorZeroesBothFields`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L614) |
+| `RFC5176-2.3-6` | State changes resulting from a CoA-Request MUST be atomic: if the CoA-Request is successful for all matching sessions, the NAS MUST send a CoA-ACK in reply, and all requested authorization changes MUST be made. If the CoA-Request is unsuccessful for any matching sessions, the NAS MUST send a CoA-NAK in reply, and the requested authorization changes MUST NOT be made for any of the matching sessions. Similarly, a state change MUST NOT occur as a result of a Disconnect-Request that is unsuccessful with respect to any of the matching sessions; a NAS MUST send a Disconnect-NAK in reply if any of the matching sessions cannot be successfully terminated. (§2.3) | MUST | 2.3 | **positive:** `unit/verify` [`TestCoAMixedOwnersApplyBeforeACK`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_atomic_owners_test.go#L90). **positive:** `unit/verify` [`TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L447). **positive:** `unit/verify` [`TestRFC5176CoANAKMakesNoPartialChange`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L251). **positive:** `unit/verify` [`TestRFC5176DisconnectThatCannotTerminateIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L271). **positive:** `unit/verify` [`TestRFC5176SubscriberCoAThatCannotBeCarriedOutWholeMakesNoChange`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go#L157). **negative:** `unit/verify` [`TestCoAMixedOwnerFailureRestoresBothControls`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_atomic_owners_test.go#L62). **negative:** `unit/verify` [`TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L450). **negative:** `unit/verify` [`TestRFC5176DisconnectThatTerminatesIsACKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L292). **negative:** `unit/verify` [`TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go#L121) |
+| `RFC5176-2.3-7` | A NAS that does not support dynamic authorization changes applying to multiple sessions MUST send a CoA-NAK or Disconnect-NAK in reply; an Error-Cause Attribute with value 508 (Multiple Session Selection Unsupported) SHOULD be included. (§2.3) | MUST | 2.3 | **positive:** `unit/verify` [`TestRFC5176CoAMatchingSeveralSessionsIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L89). **positive:** `unit/verify` [`TestRFC5176MultipleMatchingSessionsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L480). **negative:** `unit/verify` [`TestRFC5176CoAMatchingOneSessionIsACKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L105). **negative:** `unit/verify` [`TestRFC5176MultipleMatchingSessionsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L483) |
+| `RFC5176-3.1-1` | If there are any Proxy-State attributes in a Disconnect-Request or CoA-Request received from the Dynamic Authorization Client, the Dynamic Authorization Server MUST include those Proxy-State attributes in its response to the Dynamic Authorization Client. A forwarding proxy or NAS MUST NOT modify existing Proxy-State, State, or Class attributes present in the packet. The forwarding proxy or NAS MUST treat any Proxy-State attributes already in the packet as opaque data. Its operation MUST NOT depend on the content of Proxy-State attributes added by previous proxies. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRFC5176ProxyStateReturnedUnmodified`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L518). **positive:** `unit/verify` [`TestRFC5176StateAndClassUnmodifiedProxyStateOpaque`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go#L37). **negative:** `unit/verify` [`TestRFC5176ProxyStateContentIsNeverRead`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go#L144). **negative:** `unit/verify` [`TestRFC5176ProxyStateReturnedUnmodified`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L520) |
+| `RFC5176-3.2-1` | A NAS MUST respond to a CoA-Request including a Service-Type Attribute with value "Authorize Only" with a CoA-NAK; a CoA-ACK MUST NOT be sent. If the NAS does not support a Service-Type value of "Authorize Only", then it MUST respond with a CoA-NAK; an Error-Cause Attribute with a value of 405 (Unsupported Service) SHOULD be included. (§3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestRFC5176ServiceTypeNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L552). **negative:** `unit/verify` [`TestRFC5176ServiceTypeNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L555) |
+| `RFC5176-3.3-2` | The State Attribute is available to be sent by the Dynamic Authorization Client to the NAS in a CoA-Request packet and MUST be sent unmodified from the NAS to the Dynamic Authorization Client in a subsequent ACK or NAK packet. (§3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestRFC5176StateReturnedUnmodified`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L582). **positive:** `unit/verify` [`TestRFC5176StateReturnedUnmodifiedInANAK`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L172). **negative:** `unit/verify` [`TestRFC5176NAKForARequestWithoutStateCarriesNone`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L195). **negative:** `unit/verify` [`TestRFC5176StateReturnedUnmodified`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L584) |
+| `RFC5176-3.4-1` | When the HMAC-MD5 message integrity check is calculated the Request Authenticator field and Message-Authenticator Attribute MUST each be considered to be sixteen octets of zero. (§3.4) | MUST | 3.4 | **positive:** `unit/verify` [`authradius/TestRFC5176MessageAuthenticatorZeroesBothFields`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L611). **positive:** `unit/verify` [`radius/TestRFC5176MessageAuthenticatorZeroesBothFields`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L126). **negative:** `unit/verify` [`TestRFC5176MessageAuthenticatorRefusesEveryOtherStream`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L148). **negative:** `unit/verify` [`authradius/TestRFC5176MessageAuthenticatorZeroesBothFields`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L615) |
 | `RFC5176-3.4-2` | The Message-Authenticator Attribute is calculated and inserted in the packet before the Request Authenticator is calculated. (§3.4) | MUST | 3.4 | **positive:** `unit/verify` [`TestRFC5176RequestAuthenticatorCoversTheSignedMessageAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L218). **negative:** `unit/verify` [`TestRFC5176RequestAuthenticatorRefusesTheInvertedOrder`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L239) |
 | `RFC5176-3.4-3` | A Dynamic Authorization Server receiving a CoA-Request or Disconnect-Request with a Message-Authenticator Attribute present MUST calculate the correct value of the Message-Authenticator and silently discard the packet if it does not match the value sent (§3.4) | MUST | 3.4 | **positive:** `unit/verify` [`TestRFC5176ListenerAcceptsConformantMessageAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_test.go#L26). **negative:** `unit/verify` [`TestRFC5176ListenerDiscardsWrongMessageAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_test.go#L52). **negative:** `unit/verify` [`TestRFC5176WrongMessageAuthenticatorDiscardedWhenNotRequired`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go#L74) |
-| `RFC5176-3.4-4` | The Message-Authenticator Attribute MAY be used to authenticate and integrity-protect CoA-Request, CoA-ACK, CoA-NAK, Disconnect-Request, Disconnect-ACK, and Disconnect-NAK packets in order to prevent spoofing. (§3.4) | MAY | 3.4 | **positive:** `unit/verify` [`TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go#L26). **negative:** `unit/verify` [`TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L372) |
-| `RFC5176-3.5-5` | Values 200-299 represent successful completion, so that these values may only be sent within CoA-ACK or Disconnect-ACK packets and MUST NOT be sent within a CoA-NAK or Disconnect-NAK packet. Values 400-499 represent fatal errors committed by the Dynamic Authorization Client, so that they MAY be sent within CoA-NAK or Disconnect-NAK packets, and MUST NOT be sent within CoA-ACK or Disconnect-ACK packets. Values 500-599 represent fatal errors occurring on a Dynamic Authorization Server, so that they MAY be sent within CoA-NAK and Disconnect-NAK packets, and MUST NOT be sent within CoA-ACK or Disconnect-ACK packets. (§3.5) | MUST | 3.5 | **positive:** `unit/verify` [`TestRFC5176ErrorCausePlacement`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L650). **negative:** `unit/verify` [`TestRFC5176ErrorCausePlacement`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L653) |
-| `RFC5176-3.6-1` | Where NAS or session identification attributes are included in Disconnect-Request or CoA-Request packets, they are used for identification purposes only. These attributes MUST NOT be used for purposes other than identification (e.g., within CoA-Request packets to request authorization changes). (§3.6) | MUST | 3.6 | **positive:** `unit/verify` [`TestRFC5176IdentificationAttributesIdentifyOnly`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L761). **negative:** `unit/verify` [`TestRFC5176IdentificationAttributesIdentifyOnly`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L764) |
-| `RFC5176-6.1-1` | A Dynamic Authorization Server MUST silently discard Disconnect- Request or CoA-Request packets from untrusted sources. (§6.1) | MUST | 6.1 | **positive:** `unit/verify` [`TestCoASourceFilterDiscardsWhenNoServerResolved`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go#L121). **positive:** `unit/verify` [`TestRFC5176UntrustedSourceDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L808). **negative:** `unit/verify` [`TestCoASourceFilterAnswersAConfiguredClient`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go#L175). **negative:** `unit/verify` [`TestRFC5176UntrustedSourceDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L811) |
-| `RFC5176-6.3-1` | When the Event-Timestamp Attribute is present, both the Dynamic Authorization Server and the Dynamic Authorization Client MUST check that the Event-Timestamp Attribute is current within an acceptable time window. If the Event-Timestamp Attribute is not current, then the packet MUST be silently discarded. (§6.3) | MUST | 6.3 | **positive:** `unit/verify` [`TestRFC5176StaleEventTimestampDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L867). **negative:** `unit/verify` [`TestRFC5176StaleEventTimestampDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L871) |
+| `RFC5176-3.4-4` | The Message-Authenticator Attribute MAY be used to authenticate and integrity-protect CoA-Request, CoA-ACK, CoA-NAK, Disconnect-Request, Disconnect-ACK, and Disconnect-NAK packets in order to prevent spoofing. (§3.4) | MAY | 3.4 | **positive:** `unit/verify` [`TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go#L26). **negative:** `unit/verify` [`TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L368) |
+| `RFC5176-3.5-5` | Values 200-299 represent successful completion, so that these values may only be sent within CoA-ACK or Disconnect-ACK packets and MUST NOT be sent within a CoA-NAK or Disconnect-NAK packet. Values 400-499 represent fatal errors committed by the Dynamic Authorization Client, so that they MAY be sent within CoA-NAK or Disconnect-NAK packets, and MUST NOT be sent within CoA-ACK or Disconnect-ACK packets. Values 500-599 represent fatal errors occurring on a Dynamic Authorization Server, so that they MAY be sent within CoA-NAK and Disconnect-NAK packets, and MUST NOT be sent within CoA-ACK or Disconnect-ACK packets. (§3.5) | MUST | 3.5 | **positive:** `unit/verify` [`TestRFC5176ErrorCausePlacement`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L651). **negative:** `unit/verify` [`TestRFC5176ErrorCausePlacement`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L655) |
+| `RFC5176-3.6-1` | Where NAS or session identification attributes are included in Disconnect-Request or CoA-Request packets, they are used for identification purposes only. These attributes MUST NOT be used for purposes other than identification (e.g., within CoA-Request packets to request authorization changes). (§3.6) | MUST | 3.6 | **positive:** `unit/verify` [`TestRFC5176IdentificationAttributesIdentifyOnly`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L790). **negative:** `unit/verify` [`TestRFC5176IdentificationAttributesIdentifyOnly`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L793) |
+| `RFC5176-6.1-1` | A Dynamic Authorization Server MUST silently discard Disconnect- Request or CoA-Request packets from untrusted sources. (§6.1) | MUST | 6.1 | **positive:** `unit/verify` [`TestCoASourceFilterDiscardsWhenNoServerResolved`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go#L121). **positive:** `unit/verify` [`TestRFC5176UntrustedSourceDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L837). **negative:** `unit/verify` [`TestCoASourceFilterAnswersAConfiguredClient`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go#L175). **negative:** `unit/verify` [`TestRFC5176UntrustedSourceDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L840) |
+| `RFC5176-6.3-1` | When the Event-Timestamp Attribute is present, both the Dynamic Authorization Server and the Dynamic Authorization Client MUST check that the Event-Timestamp Attribute is current within an acceptable time window. If the Event-Timestamp Attribute is not current, then the packet MUST be silently discarded. (§6.3) | MUST | 6.3 | **positive:** `unit/verify` [`TestRFC5176StaleEventTimestampDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L896). **negative:** `unit/verify` [`TestRFC5176StaleEventTimestampDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L900) |
 | `RFC5176-2.2-1` | A NAS MUST respond to a CoA-Request including a Service-Type Attribute with an unsupported value with a CoA-NAK; an Error-Cause Attribute with value "Unsupported Service" SHOULD be included. (§2.2) | MUST | 2.2 | **positive:** `unit/verify` [`TestRFC5176UnsupportedServiceTypeValueIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L191). **negative:** `unit/verify` [`TestRFC5176CoAWithoutServiceTypeIsACKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L218) |
 | `RFC5176-3-1` | If other attributes are included in a Disconnect- Request, implementations MUST send a Disconnect-NAK; an Error-Cause Attribute with value "Unsupported Attribute" MAY be included. (§3, "other attributes" are attributes other than NAS and session identification attributes; the §3.6 Disconnect table also admits Reply-Message, Class, Acct-Terminate-Cause and, per its Note 2, EAP-Message in a Disconnect-Request, so they are not "other attributes", and §3.6 Note 7 lets a Vendor-Specific Attribute identify a session) | MUST | 3 | **positive:** `unit/verify` [`TestRFC5176DisconnectWithANonIdentificationAttributeIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L241). **negative:** `unit/verify` [`TestRFC5176DisconnectAdmitsTheSection36TableAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L308). **negative:** `unit/verify` [`TestRFC5176DisconnectCarryingOnlyIdentificationIsACKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L286) |
 | `RFC5176-3.3-3` | In either usage, the Dynamic Authorization Server MUST NOT interpret the Attribute locally. (§3.3, "the Attribute" is the State Attribute, in a CoA-Request and in a Termination-Action re-authorization) | MUST NOT | 3.3 | **positive:** `unit/verify` [`TestRFC5176StateNeverChangesTheOutcome`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L352). **negative:** `unit/verify` [`TestRFC5176StateIsNeverReadAsAChangeOrAnIdentity`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L404) |
@@ -202,8 +202,8 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestCoAListenerInvalidAuth`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L317) | unit/verify | not verified |
-| positive | [`TestCoAListenerUnknownSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L402) | unit/verify | not verified |
+| negative | [`TestCoAListenerInvalidAuth`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L313) | unit/verify | mutant, verified |
+| positive | [`TestCoAListenerUnknownSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L398) | unit/verify | mutant, verified |
 
 ### [`RFC5176-3.3-1`](#rfc5176-3.3-1)
 
@@ -213,14 +213,14 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestCoAOldAccountingIdentityCannotSelectNewIncarnation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go#L38) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
-| negative | [`TestDisconnectOldAccountingIdentityCannotTerminateNewIncarnation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go#L62) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
-| negative | [`TestRFC5176MatchedIdentificationSucceeds`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L148) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| negative | [`TestRFC5176NoSessionIdNotActedOn`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go#L25) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestCoAOldAccountingIdentityCannotSelectNewIncarnation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go#L38) | unit/verify | mutant, verified |
+| negative | [`TestDisconnectOldAccountingIdentityCannotTerminateNewIncarnation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go#L62) | unit/verify | mutant, verified |
+| negative | [`TestRFC5176MatchedIdentificationSucceeds`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L148) | unit/verify | revert, verified |
+| negative | [`TestRFC5176NoSessionIdNotActedOn`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go#L25) | unit/verify | mutant, verified |
 | negative | [`TestCoARegisteredSubscriberAllSelectorsMustMatch`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_owner_apply_test.go#L185) | unit/verify | mutant, verified |
-| positive | [`TestCoALiveAccountingOwnerIdentitySurvivesRegistryMiss`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go#L109) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC5176UnmatchedIdentificationIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L125) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestDisconnectReplayReturnsCachedResponse`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L465) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestCoALiveAccountingOwnerIdentitySurvivesRegistryMiss`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go#L109) | unit/verify | revert, verified |
+| positive | [`TestRFC5176UnmatchedIdentificationIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L125) | unit/verify | revert, verified |
+| positive | [`TestDisconnectReplayReturnsCachedResponse`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L461) | unit/verify | revert, verified |
 
 ### [`RFC5176-3.5-3`](#rfc5176-3.5-3)
 
@@ -230,7 +230,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC5176ResponseAuthenticatorMatchesAnIndependentMD5`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L211) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC5176ResponseAuthenticatorMatchesAnIndependentMD5`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L211) | unit/verify | revert, verified |
 | positive | [`TestRFC5176ResponseAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go#L68) | unit/verify | revert, verified |
 
 ### [`RFC5176-3.5-4`](#rfc5176-3.5-4)
@@ -242,9 +242,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestVerifyCoARequestAuth`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L358) | unit/verify | not verified |
-| negative | [`TestRFC5176CoARequestAuthenticatorCoversEveryNamedField`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_response_auth_test.go#L218) | unit/verify | not verified |
+| negative | [`TestRFC5176CoARequestAuthenticatorCoversEveryNamedField`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_response_auth_test.go#L218) | unit/verify | mutant, verified |
 | positive | [`TestVerifyCoARequestAuth`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L352) | unit/verify | not verified |
-| positive | [`TestRFC5176CoARequestAuthenticatorMatchesTheFormula`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_response_auth_test.go#L183) | unit/verify | not verified |
+| positive | [`TestRFC5176CoARequestAuthenticatorMatchesTheFormula`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_response_auth_test.go#L183) | unit/verify | mutant, verified |
 
 ### [`RFC5176-2.3-1`](#rfc5176-2.3-1)
 
@@ -265,11 +265,11 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5176DifferentSourcePortIsNotADuplicate`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L251) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| negative | [`TestRFC5176DuplicateRequestAnsweredFromCache`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L171) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| negative | [`TestRFC5176SameTripleNewAuthenticatorIsProcessedAfresh`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L284) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC5176DuplicateIsSameSourcePortAndIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L220) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC5176DuplicateRequestAnsweredFromCache`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L167) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC5176DifferentSourcePortIsNotADuplicate`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L251) | unit/verify | mutant, verified |
+| negative | [`TestRFC5176DuplicateRequestAnsweredFromCache`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L171) | unit/verify | revert, verified |
+| negative | [`TestRFC5176SameTripleNewAuthenticatorIsProcessedAfresh`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L284) | unit/verify | revert, verified |
+| positive | [`TestRFC5176DuplicateIsSameSourcePortAndIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L220) | unit/verify | mutant, verified |
+| positive | [`TestRFC5176DuplicateRequestAnsweredFromCache`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L167) | unit/verify | revert, verified |
 
 ### [`RFC5176-2.3-3`](#rfc5176-2.3-3)
 
@@ -279,8 +279,8 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5176LengthFieldGovernsTheOctetsRead`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L347) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC5176LengthFieldGovernsTheOctetsRead`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L345) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC5176LengthFieldGovernsTheOctetsRead`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L347) | unit/verify | mutant, verified |
+| positive | [`TestRFC5176LengthFieldGovernsTheOctetsRead`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L345) | unit/verify | mutant, verified |
 
 ### [`RFC5176-2.3-4`](#rfc5176-2.3-4)
 
@@ -290,8 +290,8 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5176SharedSecretChosenBySourceAddress`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L372) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC5176SharedSecretChosenBySourceAddress`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L369) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC5176SharedSecretChosenBySourceAddress`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L372) | unit/verify | mutant, verified |
+| positive | [`TestRFC5176SharedSecretChosenBySourceAddress`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L369) | unit/verify | mutant, verified |
 
 ### [`RFC5176-2.3-5`](#rfc5176-2.3-5)
 
@@ -301,14 +301,14 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go#L117) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| negative | [`TestDynamicAuthorizationRefusesUnimplementedIdentification`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_identification_test.go#L17) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| negative | [`TestRFC5176UnsupportedAttributeNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L413) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC5176CoAWithAnUnsupportedAttributeValueIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L311) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC5176CoAWithOneUnsupportedValueBesideSupportedOnesIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go#L56) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC5176DisconnectWithAnUnsupportedValueIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go#L90) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestCoAImplementedIdentificationStillApplies`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_identification_test.go#L88) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC5176UnsupportedAttributeNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L409) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go#L117) | unit/verify | revert, verified |
+| negative | [`TestDynamicAuthorizationRefusesUnimplementedIdentification`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_identification_test.go#L17) | unit/verify | mutant, verified |
+| negative | [`TestRFC5176UnsupportedAttributeNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L413) | unit/verify | mutant, verified |
+| positive | [`TestRFC5176CoAWithAnUnsupportedAttributeValueIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L311) | unit/verify | mutant, verified |
+| positive | [`TestRFC5176CoAWithOneUnsupportedValueBesideSupportedOnesIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go#L56) | unit/verify | revert, verified |
+| positive | [`TestRFC5176DisconnectWithAnUnsupportedValueIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go#L90) | unit/verify | revert, verified |
+| positive | [`TestCoAImplementedIdentificationStillApplies`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_identification_test.go#L88) | unit/verify | revert, verified |
+| positive | [`TestRFC5176UnsupportedAttributeNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L409) | unit/verify | mutant, verified |
 
 ### [`RFC5176-2.3-6`](#rfc5176-2.3-6)
 
@@ -318,15 +318,15 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestCoAMixedOwnerFailureRestoresBothControls`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_atomic_owners_test.go#L62) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
-| negative | [`TestRFC5176DisconnectThatTerminatesIsACKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L292) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| negative | [`TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go#L121) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| negative | [`TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L449) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestCoAMixedOwnersApplyBeforeACK`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_atomic_owners_test.go#L90) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC5176CoANAKMakesNoPartialChange`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L251) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC5176DisconnectThatCannotTerminateIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L271) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC5176SubscriberCoAThatCannotBeCarriedOutWholeMakesNoChange`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go#L157) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L447) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestCoAMixedOwnerFailureRestoresBothControls`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_atomic_owners_test.go#L62) | unit/verify | mutant, verified |
+| negative | [`TestRFC5176DisconnectThatTerminatesIsACKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L292) | unit/verify | revert, verified |
+| negative | [`TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go#L121) | unit/verify | revert, verified |
+| negative | [`TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L450) | unit/verify | mutant, verified |
+| positive | [`TestCoAMixedOwnersApplyBeforeACK`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_atomic_owners_test.go#L90) | unit/verify | revert, verified |
+| positive | [`TestRFC5176CoANAKMakesNoPartialChange`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L251) | unit/verify | mutant, verified |
+| positive | [`TestRFC5176DisconnectThatCannotTerminateIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L271) | unit/verify | revert, verified |
+| positive | [`TestRFC5176SubscriberCoAThatCannotBeCarriedOutWholeMakesNoChange`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go#L157) | unit/verify | mutant, verified |
+| positive | [`TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L447) | unit/verify | mutant, verified |
 
 ### [`RFC5176-2.3-7`](#rfc5176-2.3-7)
 
@@ -336,10 +336,10 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5176CoAMatchingOneSessionIsACKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L105) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| negative | [`TestRFC5176MultipleMatchingSessionsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L482) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC5176CoAMatchingSeveralSessionsIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L89) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC5176MultipleMatchingSessionsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L479) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC5176CoAMatchingOneSessionIsACKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L105) | unit/verify | revert, verified |
+| negative | [`TestRFC5176MultipleMatchingSessionsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L483) | unit/verify | mutant, verified |
+| positive | [`TestRFC5176CoAMatchingSeveralSessionsIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L89) | unit/verify | revert, verified |
+| positive | [`TestRFC5176MultipleMatchingSessionsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L480) | unit/verify | mutant, verified |
 
 ### [`RFC5176-3.1-1`](#rfc5176-3.1-1)
 
@@ -349,10 +349,10 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5176ProxyStateContentIsNeverRead`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go#L144) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| negative | [`TestRFC5176ProxyStateReturnedUnmodified`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L519) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC5176StateAndClassUnmodifiedProxyStateOpaque`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go#L37) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC5176ProxyStateReturnedUnmodified`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L517) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC5176ProxyStateContentIsNeverRead`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go#L144) | unit/verify | mutant, verified |
+| negative | [`TestRFC5176ProxyStateReturnedUnmodified`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L520) | unit/verify | mutant, verified |
+| positive | [`TestRFC5176StateAndClassUnmodifiedProxyStateOpaque`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go#L37) | unit/verify | revert, verified |
+| positive | [`TestRFC5176ProxyStateReturnedUnmodified`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L518) | unit/verify | mutant, verified |
 
 ### [`RFC5176-3.2-1`](#rfc5176-3.2-1)
 
@@ -362,8 +362,8 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5176ServiceTypeNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L554) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC5176ServiceTypeNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L551) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC5176ServiceTypeNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L555) | unit/verify | mutant, verified |
+| positive | [`TestRFC5176ServiceTypeNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L552) | unit/verify | mutant, verified |
 
 ### [`RFC5176-3.3-2`](#rfc5176-3.3-2)
 
@@ -373,10 +373,10 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5176NAKForARequestWithoutStateCarriesNone`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L195) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| negative | [`TestRFC5176StateReturnedUnmodified`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L583) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC5176StateReturnedUnmodifiedInANAK`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L172) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC5176StateReturnedUnmodified`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L581) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC5176NAKForARequestWithoutStateCarriesNone`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L195) | unit/verify | revert, verified |
+| negative | [`TestRFC5176StateReturnedUnmodified`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L584) | unit/verify | mutant, verified |
+| positive | [`TestRFC5176StateReturnedUnmodifiedInANAK`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L172) | unit/verify | revert, verified |
+| positive | [`TestRFC5176StateReturnedUnmodified`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L582) | unit/verify | mutant, verified |
 
 ### [`RFC5176-3.4-1`](#rfc5176-3.4-1)
 
@@ -386,10 +386,10 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`authradius/TestRFC5176MessageAuthenticatorZeroesBothFields`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L614) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| negative | [`TestRFC5176MessageAuthenticatorRefusesEveryOtherStream`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L148) | unit/verify | not verified |
-| positive | [`authradius/TestRFC5176MessageAuthenticatorZeroesBothFields`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L610) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`radius/TestRFC5176MessageAuthenticatorZeroesBothFields`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L126) | unit/verify | not verified |
+| negative | [`authradius/TestRFC5176MessageAuthenticatorZeroesBothFields`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L615) | unit/verify | revert, verified |
+| negative | [`TestRFC5176MessageAuthenticatorRefusesEveryOtherStream`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L148) | unit/verify | mutant, verified |
+| positive | [`authradius/TestRFC5176MessageAuthenticatorZeroesBothFields`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L611) | unit/verify | revert, verified |
+| positive | [`radius/TestRFC5176MessageAuthenticatorZeroesBothFields`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L126) | unit/verify | mutant, verified |
 
 ### [`RFC5176-3.4-2`](#rfc5176-3.4-2)
 
@@ -399,8 +399,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) 
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5176RequestAuthenticatorRefusesTheInvertedOrder`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L239) | unit/verify | not verified |
-| positive | [`TestRFC5176RequestAuthenticatorCoversTheSignedMessageAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L218) | unit/verify | not verified |
+| negative | [`TestRFC5176RequestAuthenticatorRefusesTheInvertedOrder`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L239) | unit/verify | mutant, verified |
+| positive | [`TestRFC5176RequestAuthenticatorCoversTheSignedMessageAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L218) | unit/verify | mutant, verified |
 
 ### [`RFC5176-3.4-3`](#rfc5176-3.4-3)
 
@@ -411,8 +411,8 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5176WrongMessageAuthenticatorDiscardedWhenNotRequired`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go#L74) | unit/verify | not verified |
-| negative | [`TestRFC5176ListenerDiscardsWrongMessageAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_test.go#L52) | unit/verify | not verified |
-| positive | [`TestRFC5176ListenerAcceptsConformantMessageAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_test.go#L26) | unit/verify | not verified |
+| negative | [`TestRFC5176ListenerDiscardsWrongMessageAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_test.go#L52) | unit/verify | mutant, verified |
+| positive | [`TestRFC5176ListenerAcceptsConformantMessageAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_test.go#L26) | unit/verify | mutant, verified |
 
 ### [`RFC5176-3.4-4`](#rfc5176-3.4-4)
 
@@ -422,7 +422,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L372) | unit/verify | mutant, verified |
+| negative | [`TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L368) | unit/verify | mutant, verified |
 | positive | [`TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go#L26) | unit/verify | not verified |
 
 ### [`RFC5176-3.5-5`](#rfc5176-3.5-5)
@@ -433,8 +433,8 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5176ErrorCausePlacement`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L653) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC5176ErrorCausePlacement`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L650) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC5176ErrorCausePlacement`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L655) | unit/verify | mutant, verified |
+| positive | [`TestRFC5176ErrorCausePlacement`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L651) | unit/verify | mutant, verified |
 
 ### [`RFC5176-3.6-1`](#rfc5176-3.6-1)
 
@@ -444,8 +444,8 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5176IdentificationAttributesIdentifyOnly`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L764) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC5176IdentificationAttributesIdentifyOnly`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L761) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC5176IdentificationAttributesIdentifyOnly`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L793) | unit/verify | mutant, verified |
+| positive | [`TestRFC5176IdentificationAttributesIdentifyOnly`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L790) | unit/verify | mutant, verified |
 
 ### [`RFC5176-6.1-1`](#rfc5176-6.1-1)
 
@@ -456,9 +456,9 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestCoASourceFilterAnswersAConfiguredClient`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go#L175) | unit/verify | not verified |
-| negative | [`TestRFC5176UntrustedSourceDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L811) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC5176UntrustedSourceDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L840) | unit/verify | mutant, verified |
 | positive | [`TestCoASourceFilterDiscardsWhenNoServerResolved`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go#L121) | unit/verify | not verified |
-| positive | [`TestRFC5176UntrustedSourceDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L808) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC5176UntrustedSourceDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L837) | unit/verify | mutant, verified |
 
 ### [`RFC5176-6.3-1`](#rfc5176-6.3-1)
 
@@ -468,8 +468,8 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5176StaleEventTimestampDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L871) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC5176StaleEventTimestampDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L867) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC5176StaleEventTimestampDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L900) | unit/verify | mutant, verified |
+| positive | [`TestRFC5176StaleEventTimestampDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L896) | unit/verify | mutant, verified |
 
 ### [`RFC5176-2.2-1`](#rfc5176-2.2-1)
 
@@ -479,8 +479,8 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5176CoAWithoutServiceTypeIsACKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L218) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC5176UnsupportedServiceTypeValueIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L191) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC5176CoAWithoutServiceTypeIsACKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L218) | unit/verify | mutant, verified |
+| positive | [`TestRFC5176UnsupportedServiceTypeValueIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L191) | unit/verify | mutant, verified |
 
 ### [`RFC5176-3-1`](#rfc5176-3-1)
 
@@ -490,9 +490,9 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5176DisconnectAdmitsTheSection36TableAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L308) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| negative | [`TestRFC5176DisconnectCarryingOnlyIdentificationIsACKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L286) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC5176DisconnectWithANonIdentificationAttributeIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L241) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC5176DisconnectAdmitsTheSection36TableAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L308) | unit/verify | revert, verified |
+| negative | [`TestRFC5176DisconnectCarryingOnlyIdentificationIsACKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L286) | unit/verify | mutant, verified |
+| positive | [`TestRFC5176DisconnectWithANonIdentificationAttributeIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L241) | unit/verify | mutant, verified |
 
 ### [`RFC5176-3.3-3`](#rfc5176-3.3-3)
 
@@ -502,14 +502,14 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5176StateIsNeverReadAsAChangeOrAnIdentity`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L404) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC5176StateNeverChangesTheOutcome`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L352) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC5176StateIsNeverReadAsAChangeOrAnIdentity`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L404) | unit/verify | mutant, verified |
+| positive | [`TestRFC5176StateNeverChangesTheOutcome`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L352) | unit/verify | mutant, verified |
 
 ### [`RFC5176-3.5-6`](#rfc5176-3.5-6)
 
 This value is only sent within a Disconnect-ACK and MUST NOT be sent within a CoA-ACK, Disconnect-NAK, or CoA-NAK. (§3.5, "This value" is Error-Cause 201, Residual Session Context Removed)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176ResidualSessionCauseInARequestNeverReachesANAK, internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176ResidualSessionCauseOnlyInADisconnectACK moved. Judge 2026-09-30 (access cont 10, independent). + TestRFC5176ResidualSessionCauseOnlyInADisconnectACK: coaResponsePaths drives 15 response paths (both ACKs, NAK 401/404/405/407/503/504/506/508 for CoA and Disconnect), asserts each exact code+cause, requires all four response codes seen, and fails on 201 outside a Disconnect-ACK. - TestRFC5176ResidualSessionCauseInARequestNeverReachesANAK (R1(b)): requests carrying Error-Cause 201 and a Proxy-State holding a 201 TLV -> NAK with only [401], Proxy-State whole, no teardown. Records observed red.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (access cont 10, independent). + TestRFC5176ResidualSessionCauseOnlyInADisconnectACK: coaResponsePaths drives 15 response paths (both ACKs, NAK 401/404/405/407/503/504/506/508 for CoA and Disconnect), asserts each exact code+cause, requires all four response codes seen, and fails on 201 outside a Disconnect-ACK. - TestRFC5176ResidualSessionCauseInARequestNeverReachesANAK (R1(b)): requests carrying Error-Cause 201 and a Proxy-State holding a 201 TLV -> NAK with only [401], Proxy-State whole, no teardown. Records observed red.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -524,7 +524,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5176InvalidEAPPacketCauseNeverSentForAnEAPRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L462) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC5176InvalidEAPPacketCauseNeverSentForAnEAPRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L462) | unit/verify | revert, verified |
 | positive | [`TestRFC5176InvalidEAPPacketCauseNeverSent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L455) | unit/verify | revert, verified |
 
 ### [`RFC5176-3.5-8`](#rfc5176-3.5-8)
@@ -535,7 +535,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5176RequestNotRoutableCauseNeverSentForAForeignSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L488) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC5176RequestNotRoutableCauseNeverSentForAForeignSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L488) | unit/verify | revert, verified |
 | positive | [`TestRFC5176RequestNotRoutableCauseNeverSent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L481) | unit/verify | revert, verified |
 
 ### [`RFC5176-3.5-9`](#rfc5176-3.5-9)
@@ -546,8 +546,8 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5176SessionNotRemovableNeverInACoANAK`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L524) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC5176SessionNotRemovableOnlyInADisconnectNAK`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L506) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC5176SessionNotRemovableNeverInACoANAK`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L524) | unit/verify | mutant, verified |
+| positive | [`TestRFC5176SessionNotRemovableOnlyInADisconnectNAK`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L506) | unit/verify | mutant, verified |
 
 ### [`RFC5176-3.6-2`](#rfc5176-3.6-2)
 
@@ -557,8 +557,8 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5176VendorSpecificIsNeverAnIdentity`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L572) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC5176VendorSpecificIsAChangeOnly`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L540) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC5176VendorSpecificIsNeverAnIdentity`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L572) | unit/verify | mutant, verified |
+| positive | [`TestRFC5176VendorSpecificIsAChangeOnly`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L540) | unit/verify | mutant, verified |
 
 ### [`RFC5176-6.3-2`](#rfc5176-6.3-2)
 
@@ -568,8 +568,8 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5176DuplicateAndTimestampWindowsBothEndOutside`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L675) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC5176DuplicateAndTimestampWindowsBothHoldInside`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L640) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC5176DuplicateAndTimestampWindowsBothEndOutside`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L675) | unit/verify | mutant, verified |
+| positive | [`TestRFC5176DuplicateAndTimestampWindowsBothHoldInside`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L640) | unit/verify | mutant, verified |
 
 ## Requirement list review
 

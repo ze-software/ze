@@ -197,7 +197,7 @@ Plugin sends `ze-plugin-engine:declare-registration` with a `DeclareRegistration
 | `doctor-checks` | `[]DoctorCheckDecl` | Doctor checks the plugin provides, each with a `phase`: `pre-config`, `missing-config`, `parsed-config`, `post-config`, or `runtime`. Declare `runtime` (`sdk.DoctorPhaseRuntime`) for a check that reads your plugin's live state: only `show doctor` on the running daemon runs it, never a local `ze doctor` process, which holds no live state. A `runtime` check only reads; it changes nothing |
 | `resolver-caches` | `[]string` | Resolver caches the plugin holds clients for: `peeringdb`, `irr`, `cymru`. Set by `OnResolverCacheClear`; any other name is refused |
 | `enrichers` | `[]EnricherDecl` | Show enrichers the plugin provides |
-| `pipes` | `[]PipeDecl` | CLI pipe aliases the plugin names for its own commands |
+| `pipes` | `[]PipeDecl` | CLI pipe aliases the plugin names for its own commands, and the pipe operations its handler runs |
 | `claims` | `[]string` | Exclusive runtime roles the plugin takes over |
 | `dissemination` | `[]DisseminationDecl` | Peer-output roles and the explicit source/destination grants each needs; declaring a role grants no permission |
 | `failure-policy` | `string` | What ze does when this plugin fails: `restart`, `ignore` or `fatal`. Omitting it means `ignore` |
@@ -338,7 +338,23 @@ Each `PipeDecl` has these fields:
 | `command` | `string` | Command path the alias sits on. MUST be one of this plugin's own declared commands |
 | `name` | `string` | The word an operator types after the pipe character (kebab-case, 1-64 chars) |
 | `description` | `string` | The one-line summary completion and `command help` show beside the name. At most 256 bytes, no control character |
-| `expansion` | `string` | The operator chain the name stands for, as an operator would type it |
+| `expansion` | `string` | An alias: the operator chain the name stands for, as an operator would type it |
+| `argument` | `string` | An operation: what the words after the name may be, one of `none`, `optional`, `text`, `count` (a positive whole number), `fields` (field names) or `path` |
+
+An entry states exactly one of `expansion` and `argument`; both, or neither,
+is refused by name. With `argument` the entry is a pipe OPERATION the
+plugin's handler runs: the daemon validates the typed words against the kind
+and sends the operation in the `pipe` list of `execute-command`
+(`[{"name":"top-talkers","args":["5"]}]`, in the order typed, `args` absent
+for an operation typed with none), which the Go SDK hands the
+`OnExecuteCommand` handler as its `pipe` parameter. The words never reach
+`args`, and the daemon runs every generic operation after them over the
+answer. A name a generic operator holds is refused, except `count`, `first`,
+`last` and `match`, which a command may override with the generic's own
+argument kind and answer shape. A name an alias of an overlapping path or a
+global alias holds, a command path that already holds another owner's
+operations, and one name twice in one message are refused too, and nothing of
+the list is recorded.
 
 A pipe alias SELECTS and re-sequences the answer the command already returned.
 It renames no key, sums no numbers and counts no rows, so the command MUST emit

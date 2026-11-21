@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 2 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 2 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 2 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 0 | 0 of 8 tests linked to requirements, 0 without a fault test and 8 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 8 | 8 of 8 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -86,9 +86,9 @@ Included in automatic checks: Revised FlowSpec validation: two MUST-level requir
 
 **Area:** FlowSpec validation
 
-**Test verification:** 0 of 2 MUST proven
+**Test verification:** 2 of 2 MUST proven
 
-**Evidence:** -
+**Evidence:** unit 2
 
 **Unmet:** -
 
@@ -110,19 +110,19 @@ Included in automatic checks: Revised FlowSpec validation: two MUST-level requir
 
 ## Figures
 
-- **MUST bar**: Tests awaiting verification 2
-- **Overview bar**: Tests awaiting verification 2, Not assessed 3
+- **MUST bar**: Ze verified 2
+- **Overview bar**: Ze MUST verified 2, Not assessed 3
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 2 |
 | MUST rows kept (the MUST bar) | 2 |
-| Ze verified | 0 |
+| Ze verified | 2 |
 | OS verified | 0 |
-| Tests awaiting verification | 2 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -152,8 +152,8 @@ Source: [data/rfc/rfc9117.json](../../../data/rfc/rfc9117.json).
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC9117-4.1-1` | b) One of the following conditions MUST hold true: \| \| 1. The originator of the Flow Specification matches the \| originator of the best-match unicast route for the \| destination prefix embedded in the Flow Specification (this \| is the unicast route with the longest possible prefix \| length covering the destination prefix embedded in the Flow \| Specification). \| \| 2. The AS_PATH attribute of the Flow Specification is empty or \| contains only an AS_CONFED_SEQUENCE segment [RFC5065]. (§4.1) | MUST | 4.1 - Revision of Route Feasibility | **positive:** `unit/verify` [`TestFlowSpecAuthorizationFromReceivedUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L176). **positive:** `unit/verify` [`TestRFC9117AuthorizationUsesLongestCoveringRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L20). **negative:** `unit/verify` [`TestFlowSpecAuthorizationFromReceivedUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L177). **negative:** `unit/verify` [`TestRFC9117AuthorizationUsesLongestCoveringRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L21) |
-| `RFC9117-4.2-1` | BGP Flow Specification implementations MUST enforce that the AS \| in the left-most position of the AS_PATH attribute of a Flow \| Specification route received via the External Border Gateway \| Protocol (eBGP) matches the AS in the left-most position of the \| AS_PATH attribute of the best-match unicast route for the \| destination prefix embedded in the Flow Specification NLRI. (§4.2) | MUST | 4.2 - Revision of AS_PATH Validation | **positive:** `unit/verify` [`TestFlowSpecAuthorizationFromReceivedUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L178). **positive:** `unit/verify` [`TestRFC9117AuthorizationUsesLongestCoveringRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L22). **negative:** `unit/verify` [`TestFlowSpecAuthorizationFromReceivedUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L179). **negative:** `unit/verify` [`TestRFC9117AuthorizationUsesLongestCoveringRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L23) |
+| `RFC9117-4.1-1` | b) One of the following conditions MUST hold true: \| \| 1. The originator of the Flow Specification matches the \| originator of the best-match unicast route for the \| destination prefix embedded in the Flow Specification (this \| is the unicast route with the longest possible prefix \| length covering the destination prefix embedded in the Flow \| Specification). \| \| 2. The AS_PATH attribute of the Flow Specification is empty or \| contains only an AS_CONFED_SEQUENCE segment [RFC5065]. (§4.1) | MUST | 4.1 - Revision of Route Feasibility | **positive:** `unit/verify` [`TestFlowSpecAuthorizationFromReceivedUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L229). **positive:** `unit/verify` [`TestRFC9117AuthorizationUsesLongestCoveringRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L20). **negative:** `unit/verify` [`TestFlowSpecAuthorizationFromReceivedUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L230). **negative:** `unit/verify` [`TestRFC9117AuthorizationUsesLongestCoveringRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L21) |
+| `RFC9117-4.2-1` | BGP Flow Specification implementations MUST enforce that the AS \| in the left-most position of the AS_PATH attribute of a Flow \| Specification route received via the External Border Gateway \| Protocol (eBGP) matches the AS in the left-most position of the \| AS_PATH attribute of the best-match unicast route for the \| destination prefix embedded in the Flow Specification NLRI. (§4.2) | MUST | 4.2 - Revision of AS_PATH Validation | **positive:** `unit/verify` [`TestFlowSpecAuthorizationFromReceivedUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L231). **positive:** `unit/verify` [`TestRFC9117AuthorizationUsesLongestCoveringRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L22). **negative:** `unit/verify` [`TestFlowSpecAuthorizationFromReceivedUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L232). **negative:** `unit/verify` [`TestRFC9117AuthorizationUsesLongestCoveringRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L23) |
 | `RFC9117-4.1-2` | This condition SHOULD be enabled by default. (§4.1) | SHOULD | 4.1 - Revision of Route Feasibility | **positive:** no positive test. **negative:** no negative test |
 | `RFC9117-4.1-3` | This condition MAY be disabled by explicit \| configuration on a BGP speaker. (§4.1) | MAY | 4.1 - Revision of Route Feasibility | **positive:** no positive test. **negative:** no negative test |
 | `RFC9117-4.1-4` | As an extension to this rule, a given non-empty AS_PATH \| (besides AS_CONFED_SEQUENCE segments) MAY be permitted \| by policy. (§4.1) | MAY | 4.1 - Revision of Route Feasibility | **positive:** no positive test. **negative:** no negative test |
@@ -174,10 +174,10 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9117AuthorizationUsesLongestCoveringRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L21) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| negative | [`TestFlowSpecAuthorizationFromReceivedUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L177) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC9117AuthorizationUsesLongestCoveringRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L20) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestFlowSpecAuthorizationFromReceivedUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L176) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC9117AuthorizationUsesLongestCoveringRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L21) | unit/verify | mutant, verified |
+| negative | [`TestFlowSpecAuthorizationFromReceivedUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L230) | unit/verify | mutant, verified |
+| positive | [`TestRFC9117AuthorizationUsesLongestCoveringRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L20) | unit/verify | mutant, verified |
+| positive | [`TestFlowSpecAuthorizationFromReceivedUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L229) | unit/verify | mutant, verified |
 
 ### [`RFC9117-4.2-1`](#rfc9117-4.2-1)
 
@@ -187,10 +187,10 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9117AuthorizationUsesLongestCoveringRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L23) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| negative | [`TestFlowSpecAuthorizationFromReceivedUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L179) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC9117AuthorizationUsesLongestCoveringRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L22) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestFlowSpecAuthorizationFromReceivedUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L178) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC9117AuthorizationUsesLongestCoveringRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L23) | unit/verify | mutant, verified |
+| negative | [`TestFlowSpecAuthorizationFromReceivedUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L232) | unit/verify | mutant, verified |
+| positive | [`TestRFC9117AuthorizationUsesLongestCoveringRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L22) | unit/verify | mutant, verified |
+| positive | [`TestFlowSpecAuthorizationFromReceivedUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L231) | unit/verify | mutant, verified |
 
 ## Requirement list review
 

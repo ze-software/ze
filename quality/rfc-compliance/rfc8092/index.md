@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 7 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 7 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 7 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 12 | 12 of 23 tests linked to requirements, 0 without a fault test and 1 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 13 | 13 of 23 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -187,7 +187,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | positive | [`TestRFC8092PolicyAddOfPresentValueSentOnce`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8092_large_community_egress_test.go#L150) | unit/verify | revert, verified |
 | positive | [`TestRFC8092WriteRemovesRepeatedLargeCommunity`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8092_large_community_egress_test.go#L89) | unit/verify | revert, verified |
 | positive | [`TestLargeCommunitiesWriteToNoDuplicates`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L433) | unit/verify | not verified |
-| positive | [`rfc8092-large-community-no-repeat-egress.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc8092-large-community-no-repeat-egress.ci#L4) | functional/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`rfc8092-large-community-no-repeat-egress.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc8092-large-community-no-repeat-egress.ci#L4) | functional/verify | revert, verified |
 
 ### [`RFC8092-3-2`](#rfc8092-3-2)
 

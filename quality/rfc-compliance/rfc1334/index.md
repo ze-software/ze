@@ -253,7 +253,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 Upon reception of an Authenticate-Request packet, some type of Authenticate reply (described below) MUST be returned. (Section 2.2.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPRejectedRequestIsStillAnswered, internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPRequestInAuthPhaseIsAnswered moved. Forbidden: an Authenticate-Request in the Authentication phase left without a reply. TestPAPRequestInAuthPhaseIsAnswered asserts a PAP reply frame with Code Ack and Identifier 0x5a for an accepted request; TestPAPRejectedRequestIsStillAnswered asserts a PAP Nak with 0x5a for a rejected one, so silence on either decision goes red.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an Authenticate-Request in the Authentication phase left without a reply. TestPAPRequestInAuthPhaseIsAnswered asserts a PAP reply frame with Code Ack and Identifier 0x5a for an accepted request; TestPAPRejectedRequestIsStillAnswered asserts a PAP Nak with 0x5a for a rejected one, so silence on either decision goes red.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -264,7 +264,7 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 
 Implementation Note: Because the Authenticate-Ack might be lost, the authenticator MUST allow repeated Authenticate- Request packets after completing the Authentication phase. (Section 2.2.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswerDiscardsMalformedRequest, internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswersAfterAuthentication moved. Forbidden: dropping or refusing an Authenticate-Request repeated after the Authentication phase completed. TestPAPReanswersAfterAuthentication delivers two repeats through handleFrame in AckSent and Opened and asserts three replies (require len 3), each an Ack; the negative TestPAPReanswerDiscardsMalformedRequest confines the reanswer to valid requests.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: dropping or refusing an Authenticate-Request repeated after the Authentication phase completed. TestPAPReanswersAfterAuthentication delivers two repeats through handleFrame in AckSent and Opened and asserts three replies (require len 3), each an Ack; the negative TestPAPReanswerDiscardsMalformedRequest confines the reanswer to valid requests.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -275,7 +275,7 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 
 Protocol phase MUST return the same reply Code returned when the Authentication phase completed (§2.2.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswerPreservesDecision, internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswersAfterAuthentication moved. Forbidden: a request after authentication answered with a Code other than the one the Authentication phase returned. TestPAPReanswerPreservesDecision runs accept and reject, changes the credentials of the repeated request, and asserts replies[1].Code == replies[0].Code for both Ack and Nak; TestPAPReanswersAfterAuthentication asserts the Ack Code on repeats through handleFrame. RFC text note: rfc1334.txt drops the line naming the Network-Layer Protocol phase, so the row quotes the surviving span.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a request after authentication answered with a Code other than the one the Authentication phase returned. TestPAPReanswerPreservesDecision runs accept and reject, changes the credentials of the repeated request, and asserts replies[1].Code == replies[0].Code for both Ack and Nak; TestPAPReanswersAfterAuthentication asserts the Ack Code on repeats through handleFrame. RFC text note: rfc1334.txt drops the line naming the Network-Layer Protocol phase, so the row quotes the surviving span.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|

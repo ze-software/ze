@@ -316,7 +316,7 @@ checks syntax independently of this runtime capability.</p>
 </tr>
 <tr>
 <td><code>ze show bmp peers</code></td>
-<td>Show monitored peers, OPEN address families, ordered information strings, and each peer's <code>rib-peer</code>: the key its routes are stored under, which <code>show bgp rib protocol bmp peer &lt;key&gt;</code> takes</td>
+<td>Show monitored peers, OPEN address families, ordered information strings, and each peer's <code>rib-peer</code>: the key its routes are stored under, which <code>show bgp rib protocol bmp | peer &lt;key&gt;</code> takes</td>
 </tr>
 <tr>
 <td><code>ze show bmp collectors</code></td>
@@ -716,7 +716,7 @@ BMP-monitored routes, and <code>ze show bmp rib</code> excludes real BGP routes.
 </table>
 <p>The <code>{name}</code> parameter is a name <code>protocols/bmp</code> lists, which is the peer's
 <code>rib-peer</code> from <code>ze show bmp peers</code>. The looking glass passes it unchanged to
-<code>show bgp rib protocol bmp peer &lt;name&gt;</code>. Its forms are the route keys below:
+<code>show bgp rib protocol bmp | peer &lt;name&gt;</code>. Its forms are the route keys below:
 <code>10.0.0.1:12345:192.168.1.1</code> for a peer on an IPv4 router,
 <code>[2001:db8::8]:4000:2001:db8::1</code> on an IPv6 router, and
 <code>10.0.0.1:12345:loc-rib:0:16909060</code> for a Loc-RIB instance, and
@@ -810,7 +810,7 @@ selected peer, next hop and metrics remain the same.</li>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
                 </div>
             </div>
         </footer>

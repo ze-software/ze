@@ -186,7 +186,7 @@ checks syntax independently of this runtime capability.
 | Command | Description |
 |---------|-------------|
 | `ze show bmp sessions` | Show receiver sessions, identity, uptime and ordered `initiation-strings` |
-| `ze show bmp peers` | Show monitored peers, OPEN address families, ordered information strings, and each peer's `rib-peer`: the key its routes are stored under, which `show bgp rib protocol bmp peer <key>` takes |
+| `ze show bmp peers` | Show monitored peers, OPEN address families, ordered information strings, and each peer's `rib-peer`: the key its routes are stored under, which `show bgp rib protocol bmp \| peer <key>` takes |
 | `ze show bmp collectors` | Show sender collector connection status |
 
 ## Protocol Details
@@ -557,7 +557,7 @@ BMP-monitored routes, and `ze show bmp rib` excludes real BGP routes.
 
 The `{name}` parameter is a name `protocols/bmp` lists, which is the peer's
 `rib-peer` from `ze show bmp peers`. The looking glass passes it unchanged to
-`show bgp rib protocol bmp peer <name>`. Its forms are the route keys below:
+`show bgp rib protocol bmp | peer <name>`. Its forms are the route keys below:
 `10.0.0.1:12345:192.168.1.1` for a peer on an IPv4 router,
 `[2001:db8::8]:4000:2001:db8::1` on an IPv6 router, and
 `10.0.0.1:12345:loc-rib:0:16909060` for a Loc-RIB instance, and

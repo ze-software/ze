@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-monitoring.json](
 
 ## Figures
 
-- **MUST bar**: Ze verified 37, Tests awaiting verification 27, Not built 20
-- **Overview bar**: Ze MUST verified 37, SHOULD verified 3, Tests awaiting verification 28, Not assessed 11, Not built 20
+- **MUST bar**: Ze verified 57, Tests awaiting verification 7, Not built 20
+- **Overview bar**: Ze MUST verified 57, SHOULD verified 3, Tests awaiting verification 8, Not assessed 11, Not built 20
 
 | Figure | Rows |
 |---|---|
@@ -18,9 +18,9 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-monitoring.json](
 | Mandatory requirements complete | not complete |
 | MUST rows | 84 |
 | MUST rows kept (the MUST bar) | 84 |
-| Ze verified | 37 |
+| Ze verified | 57 |
 | OS verified | 0 |
-| Tests awaiting verification | 27 |
+| Tests awaiting verification | 7 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -58,11 +58,11 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 7854](../../rfc7854/) | BGP Monitoring Protocol (BMP) | Ze verified 25, Tests awaiting verification 14 | Ze MUST verified 25, SHOULD verified 3, Tests awaiting verification 15, Not assessed 5 |
+| [RFC 7854](../../rfc7854/) | BGP Monitoring Protocol (BMP) | Ze verified 39 | Ze MUST verified 39, SHOULD verified 3, Tests awaiting verification 1, Not assessed 5 |
 
 ### Level 9
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
 | [RFC 8671](../../rfc8671/) | Support for Adj-RIB-Out in the BGP Monitoring Protocol (BMP) | Ze verified 2, Tests awaiting verification 7, Not built 2 | Ze MUST verified 2, Tests awaiting verification 7, Not assessed 1, Not built 2 |
-| [RFC 9069](../../rfc9069/) | Support for Local RIB in the BGP Monitoring Protocol (BMP) | Ze verified 10, Tests awaiting verification 6 | Ze MUST verified 10, Tests awaiting verification 6 |
+| [RFC 9069](../../rfc9069/) | Support for Local RIB in the BGP Monitoring Protocol (BMP) | Ze verified 16 | Ze MUST verified 16 |

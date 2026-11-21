@@ -15,8 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 4 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 4 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 4 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 0 | 0 of 22 tests linked to requirements, 0 without a fault test and 2 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
-| Audit verdicts | 7 | of 4 mandatory requirements reviewed | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Tests shown to detect a fault | 2 | 2 of 22 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -55,7 +54,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
-| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
@@ -87,9 +86,9 @@ Included in automatic checks: BGP Route Reflection: four MUST-level requirements
 
 **Area:** Route Reflection
 
-**Test verification:** 0 of 4 MUST proven
+**Test verification:** 1 of 4 MUST proven
 
-**Evidence:** -
+**Evidence:** unit 1
 
 **Unmet:** -
 
@@ -111,8 +110,8 @@ Included in automatic checks: BGP Route Reflection: four MUST-level requirements
 
 ## Figures
 
-- **MUST bar**: Tests awaiting verification 4
-- **Overview bar**: Tests awaiting verification 7, Not assessed 2
+- **MUST bar**: Ze verified 1, Tests awaiting verification 3
+- **Overview bar**: Ze MUST verified 1, Tests awaiting verification 6, Not assessed 2
 
 | Figure | Rows |
 |---|---|
@@ -121,9 +120,9 @@ Included in automatic checks: BGP Route Reflection: four MUST-level requirements
 | Mandatory requirements complete | not complete |
 | MUST rows | 4 |
 | MUST rows kept (the MUST bar) | 4 |
-| Ze verified | 0 |
+| Ze verified | 1 |
 | OS verified | 0 |
-| Tests awaiting verification | 4 |
+| Tests awaiting verification | 3 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -228,9 +227,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Sent
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L177) | unit/verify | not verified |
-| negative | [`TestRFC4456OriginatorIDIsTheOriginatorsBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4456_originator_id_test.go#L31) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC4456OriginatorIDIsTheOriginatorsBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4456_originator_id_test.go#L31) | unit/verify | revert, verified |
 | positive | [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L200) | unit/verify | not verified |
-| positive | [`TestRFC4456OriginatorIDIsTheOriginatorsBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4456_originator_id_test.go#L30) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4456OriginatorIDIsTheOriginatorsBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4456_originator_id_test.go#L30) | unit/verify | revert, verified |
 
 ### [`RFC4456-x-2`](#rfc4456-x-2)
 
@@ -247,7 +246,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. asse
 
 In addition, the following rule SHOULD be inserted between Steps f) and g): a BGP Speaker SHOULD prefer a route with the shorter CLUSTER_LIST length.  The CLUSTER_LIST length is zero if a route does not carry the CLUSTER_LIST attribute. (§9)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-17 after 7af5edbb7f. RFC 4456 Section 9 read in rfc/full/rfc4456.txt: "In addition, the following rule SHOULD be inserted between Steps f) and g): a BGP Speaker SHOULD prefer a route with the shorter CLUSTER_LIST length.  The CLUSTER_LIST length is zero if a route does not carry the CLUSTER_LIST attribute." The commit changed checkClusterListLengthTieBreak only in the four assertion 8 and 9 failures, which now pass the BIRD route dump through interoplab.WithSearchedOutput (bounded excerpt) instead of printing it whole; each still returns fail(n, non-nil error) on the same condition. Assertions 11 (ze and BIRD agree), 12 (the agreed winner is the origin's path with no CLUSTER_LIST, the absent-as-zero case) and 13 (ze decided at step cluster-list-length, so no earlier step separated the paths and step g would pick the other path) are byte-identical, so the scenario still fails on a non-compliant selection. The unit covers TestBestPath_ClusterListLength (both tags) and TestClusterListEntries are unchanged: SelectBest and SelectBestExplain asserted on shorter-list win, absent-as-zero win, step f precedence and fall-through to step g; clusterListEntries pins absent and empty as zero. The interop unit carries no discrimination record and was not rerun for this failure-text change. Verdict unchanged.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/le/interoplab/bgp/check_rfc4456.go::checkClusterListLengthTieBreak moved. Rejudged 2026-10-17 after 7af5edbb7f. RFC 4456 Section 9 read in rfc/full/rfc4456.txt: "In addition, the following rule SHOULD be inserted between Steps f) and g): a BGP Speaker SHOULD prefer a route with the shorter CLUSTER_LIST length.  The CLUSTER_LIST length is zero if a route does not carry the CLUSTER_LIST attribute." The commit changed checkClusterListLengthTieBreak only in the four assertion 8 and 9 failures, which now pass the BIRD route dump through interoplab.WithSearchedOutput (bounded excerpt) instead of printing it whole; each still returns fail(n, non-nil error) on the same condition. Assertions 11 (ze and BIRD agree), 12 (the agreed winner is the origin's path with no CLUSTER_LIST, the absent-as-zero case) and 13 (ze decided at step cluster-list-length, so no earlier step separated the paths and step g would pick the other path) are byte-identical, so the scenario still fails on a non-compliant selection. The unit covers TestBestPath_ClusterListLength (both tags) and TestClusterListEntries are unchanged: SelectBest and SelectBestExplain asserted on shorter-list win, absent-as-zero win, step f precedence and fall-through to step g; clusterListEntries pins absent and empty as zero. The interop unit carries no discrimination record and was not rerun for this failure-text change. Verdict unchanged.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|

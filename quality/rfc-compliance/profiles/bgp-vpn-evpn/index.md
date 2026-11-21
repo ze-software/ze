@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-vpn-evpn.json](..
 
 ## Figures
 
-- **MUST bar**: Ze verified 26, Tests awaiting verification 11, Not built 165
-- **Overview bar**: Ze MUST verified 26, SHOULD verified 1, Tests awaiting verification 11, Not assessed 53, Not built 165
+- **MUST bar**: Ze verified 31, Tests awaiting verification 6, Not built 165
+- **Overview bar**: Ze MUST verified 31, SHOULD verified 1, Tests awaiting verification 6, Not assessed 53, Not built 165
 
 | Figure | Rows |
 |---|---|
@@ -18,9 +18,9 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-vpn-evpn.json](..
 | Mandatory requirements complete | not complete |
 | MUST rows | 202 |
 | MUST rows kept (the MUST bar) | 202 |
-| Ze verified | 26 |
+| Ze verified | 31 |
 | OS verified | 0 |
-| Tests awaiting verification | 11 |
+| Tests awaiting verification | 6 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -53,8 +53,8 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
 | [RFC 4364](../../rfc4364/) (cycle with rfc4659, rfc4798, rfc6368, rfc7606, rfc8277, rfc8950) | BGP/MPLS IP Virtual Private Networks (VPNs) | Not built 8 | Not assessed 5, Not built 8 |
-| [RFC 4659](../../rfc4659/) (cycle with rfc4364, rfc4798, rfc6368, rfc7606, rfc8277, rfc8950) | BGP-MPLS IP Virtual Private Network (VPN) Extension for IPv6 VPN | Ze verified 3, Tests awaiting verification 2, Not built 13 | Ze MUST verified 3, Tests awaiting verification 2, Not assessed 6, Not built 13 |
-| [RFC 8277](../../rfc8277/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc7606, rfc8950) | Using BGP to Bind MPLS Labels to Address Prefixes | Ze verified 7, Tests awaiting verification 4, Not built 24 | Ze MUST verified 7, SHOULD verified 1, Tests awaiting verification 4, Not assessed 6, Not built 24 |
+| [RFC 4659](../../rfc4659/) (cycle with rfc4364, rfc4798, rfc6368, rfc7606, rfc8277, rfc8950) | BGP-MPLS IP Virtual Private Network (VPN) Extension for IPv6 VPN | Ze verified 4, Tests awaiting verification 1, Not built 13 | Ze MUST verified 4, Tests awaiting verification 1, Not assessed 6, Not built 13 |
+| [RFC 8277](../../rfc8277/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc7606, rfc8950) | Using BGP to Bind MPLS Labels to Address Prefixes | Ze verified 11, Not built 24 | Ze MUST verified 11, SHOULD verified 1, Not assessed 6, Not built 24 |
 
 ### Level 8
 

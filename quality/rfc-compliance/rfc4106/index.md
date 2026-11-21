@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 8 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 8 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 8 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 7 | 7 of 8 tests linked to requirements, 0 without a fault test and 1 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 11 | 11 of 11 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -70,10 +70,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 8 |
-| Tests linked to requirements | 8 |
+| Test tags | 11 |
+| Tests linked to requirements | 11 |
 | Recorded audit verdicts | 0 |
-| Fault test records | 8 |
+| Fault test records | 11 |
 | Summary | `rfc/short/rfc4106.md` |
 | Requirement table | `rfc/requirements/rfc4106.md` |
 | RFC text | `rfc/full/rfc4106.txt` |
@@ -86,9 +86,9 @@ Included in automatic checks: AES-GCM for ESP: eight MUST-level requirements, ev
 
 **Area:** ESP
 
-**Test verification:** 4 of 8 MUST proven
+**Test verification:** 8 of 8 MUST proven
 
-**Evidence:** unit 4
+**Evidence:** unit 5, os 3
 
 **Unmet:** -
 
@@ -112,20 +112,20 @@ Included in automatic checks: AES-GCM for ESP: eight MUST-level requirements, ev
 
 ## Figures
 
-- **MUST bar**: Ze verified 4, Tests awaiting verification 1, OS testing gap 3
-- **Overview bar**: Ze MUST verified 4, Tests awaiting verification 1, OS testing gap 3, Not assessed 5
+- **MUST bar**: Ze verified 5, OS verified 3
+- **Overview bar**: Ze MUST verified 5, OS verified 3, Not assessed 5
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 8 |
 | MUST rows kept (the MUST bar) | 8 |
-| Ze verified | 4 |
-| OS verified | 0 |
-| Tests awaiting verification | 1 |
-| OS testing gap | 3 |
+| Ze verified | 5 |
+| OS verified | 3 |
+| Tests awaiting verification | 0 |
+| OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
 | Not built | 0 |
@@ -154,14 +154,14 @@ Source: [data/rfc/rfc4106.json](../../../data/rfc/rfc4106.json).
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC4106-2-1` | The same nonce and key combination MUST NOT be used more than once. (§2) | MUST NOT | 2 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Linux XFRM rfc4106(gcm(aes)) and its seqiv IV generator, linux:CONFIG_CRYPTO_GCM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs only the key and salt, and the datapath chooses every IV, so no value ze writes decides the nonce directly; the generator derives each IV from the SA's sequence number, and the value Ze installs that keeps it from cycling is OSeqMayWrap=false, written on every state by the `state.OSeqMayWrap = false` guard in xfrmStateFromParams. Owed tag on that value: internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go (TestRFC4106GCMKeyCannotOutliveTheSequenceSpace) and rfc4301_sad_items_linux_test.go (TestRFC4301SADItemSequenceCounterOverflowIsNeverRollover) |
+| `RFC4106-2-1` | The same nonce and key combination MUST NOT be used more than once. (§2) | MUST NOT | 2 | **positive:** `unit/verify` [`TestRFC4106GCMKeyCannotOutliveTheSequenceSpace`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L101). **negative:** no negative test. **{lower-layer}:** Linux XFRM rfc4106(gcm(aes)) and its seqiv IV generator, linux:CONFIG_CRYPTO_GCM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs only the key and salt, and the datapath chooses every IV, so no value ze writes decides the nonce directly; the generator derives each IV from the SA's sequence number, and the value Ze installs that keeps it from cycling is OSeqMayWrap=false, written on every state by the `state.OSeqMayWrap = false` guard in xfrmStateFromParams. Tagged on that value: internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go (TestRFC4106GCMKeyCannotOutliveTheSequenceSpace), which asserts it on an AES-GCM state; rfc4301_sad_items_linux_test.go (TestRFC4301SADItemSequenceCounterOverflowIsNeverRollover) asserts the same guard on an AES-CBC state, so it carries no RFC 4106 tag |
 | `RFC4106-2-2` | For safety's sake, implementations MUST use an automated key management system, such as the Internet Key Exchange (IKE) [RFC2409], to ensure that this requirement is met. (§2) | MUST | 2 | **positive:** `unit/verify` [`TestManualKeyingRefusesCounterModeCiphers`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_manual_counter_mode_test.go#L66). **negative:** `unit/verify` [`TestManualKeyingRefusesCounterModeCiphers`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_manual_counter_mode_test.go#L49) |
-| `RFC4106-3.1-1` | The AES-GCM-ESP IV field MUST be eight octets. (§3.1) | MUST | 3.1 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Linux XFRM rfc4106(gcm(aes)), linux:CONFIG_CRYPTO_GCM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams names the algorithm and the kernel writes the IV field of every packet |
-| `RFC4106-3.1-2` | For a given key, the IV MUST NOT repeat. (§3.1) | MUST NOT | 3.1 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Linux XFRM rfc4106(gcm(aes)) and its seqiv IV generator, linux:CONFIG_CRYPTO_GCM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs no IV, so the kernel generates each one; the generator derives each IV from the SA's sequence number, and the value Ze installs that keeps it from repeating is OSeqMayWrap=false, written on every state by the `state.OSeqMayWrap = false` guard in xfrmStateFromParams. Owed tag on that value: internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go (TestRFC4106GCMKeyCannotOutliveTheSequenceSpace) and rfc4301_sad_items_linux_test.go (TestRFC4301SADItemSequenceCounterOverflowIsNeverRollover) |
-| `RFC4106-6-1` | Implementations MUST support a full-length 16-octet ICV, and MAY support 8 or 12 octet ICVs, and MUST NOT support other ICV lengths. (§6) | MUST | 6 | **positive:** `unit/verify` [`TestRFC4106GCMStateCarriesTheFullICV`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L40). **negative:** `unit/verify` [`TestRFC4106GCMStateCarriesTheFullICV`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L54) |
+| `RFC4106-3.1-1` | The AES-GCM-ESP IV field MUST be eight octets. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRFC4106GCMStateCarriesTheFullICV`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L48). **negative:** no negative test. **{lower-layer}:** Linux XFRM rfc4106(gcm(aes)), linux:CONFIG_CRYPTO_GCM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams names the algorithm and the kernel writes the IV field of every packet |
+| `RFC4106-3.1-2` | For a given key, the IV MUST NOT repeat. (§3.1) | MUST NOT | 3.1 | **positive:** `unit/verify` [`TestRFC4106GCMKeyCannotOutliveTheSequenceSpace`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L103). **negative:** no negative test. **{lower-layer}:** Linux XFRM rfc4106(gcm(aes)) and its seqiv IV generator, linux:CONFIG_CRYPTO_GCM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs no IV, so the kernel generates each one; the generator derives each IV from the SA's sequence number, and the value Ze installs that keeps it from repeating is OSeqMayWrap=false, written on every state by the `state.OSeqMayWrap = false` guard in xfrmStateFromParams. Tagged on that value: internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go (TestRFC4106GCMKeyCannotOutliveTheSequenceSpace), which asserts it on an AES-GCM state; rfc4301_sad_items_linux_test.go (TestRFC4301SADItemSequenceCounterOverflowIsNeverRollover) asserts the same guard on an AES-CBC state, so it carries no RFC 4106 tag |
+| `RFC4106-6-1` | Implementations MUST support a full-length 16-octet ICV, and MAY support 8 or 12 octet ICVs, and MUST NOT support other ICV lengths. (§6) | MUST | 6 | **positive:** `unit/verify` [`TestRFC4106GCMStateCarriesTheFullICV`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L46). **negative:** `unit/verify` [`TestRFC4106GCMStateCarriesTheFullICV`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L62) |
 | `RFC4106-8.1-1` | The size of the KEYMAT for the AES-GCM-ESP MUST be four octets longer than is needed for the associated AES key. (§8.1) | MUST | 8.1 | **positive:** `unit/verify` [`TestRFC4106KeymatCarriesTheSalt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc4106_gcm_keymat_test.go#L41). **negative:** `unit/verify` [`TestRFC4106KeymatCarriesTheSalt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc4106_gcm_keymat_test.go#L54) |
 | `RFC4106-10-1` | Thus, to avoid counter block collisions, ESP implementations that permit use of the same key for encrypting and decrypting packets with the same peer MUST ensure that the two peers assign different salt values to the security association (SA). (§10) | MUST | 10 | **positive:** `unit/verify` [`TestRFC4106DirectionsTakeDifferentSalts`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc4106_gcm_keymat_test.go#L78). **negative:** no negative test. **{single-polarity}:** every AES-GCM Child SA takes its two keys from consecutive runs of one prf+ stream, so there is no input for which the two directions may share a salt and no contrasting case to test |
-| `RFC4106-10-2` | To protect against this problem, implementations MUST generate a fresh key before encrypting 2^64 blocks of data with a given key. (§10) | MUST | 10 | **positive:** `unit/verify` [`TestRFC4106GCMKeyCannotOutliveTheSequenceSpace`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L85). **negative:** no negative test. **{single-polarity}:** the bound is a property of every state xfrmStateFromParams builds (sequence rollover forbidden, no ESN, so at most 2^32 packets of at most 4096 blocks per key), and no state exists without it to contrast |
+| `RFC4106-10-2` | To protect against this problem, implementations MUST generate a fresh key before encrypting 2^64 blocks of data with a given key. (§10) | MUST | 10 | **positive:** `unit/verify` [`TestRFC4106GCMKeyCannotOutliveTheSequenceSpace`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L99). **negative:** no negative test. **{single-polarity}:** the bound is a property of every state xfrmStateFromParams builds (sequence rollover forbidden, no ESN, so at most 2^32 packets of at most 4096 blocks per key), and no state exists without it to contrast |
 | `RFC4106-3.2-1` | Implementations that do not seek to hide the length of the plaintext SHOULD use the minimum amount of padding required, which will be less than four octets. (§3.2) | SHOULD | 3.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC4106-4-1` | The salt SHOULD be unpredictable (i.e., chosen at random) before it is selected, but need not be secret. (§4) | SHOULD | 4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC4106-8.2-1` | Implementations SHOULD use an IKE Phase 1 cipher that is at least as strong as AES-GCM. (§8.2) | SHOULD | 8.2 | **positive:** no positive test. **negative:** no negative test |
@@ -170,11 +170,7 @@ Source: [data/rfc/rfc4106.json](../../../data/rfc/rfc4106.json).
 
 ## Gaps and untested MUSTs
 
-| Requirement | State | Reason |
-|---|---|---|
-| [`RFC4106-2-1`](#rfc4106-2-1) The same nonce and key combination MUST NOT be used more than once. (§2) | no test | no test carries this requirement id; annotated {lower-layer}: Linux XFRM rfc4106(gcm(aes)) and its seqiv IV generator, linux:CONFIG_CRYPTO_GCM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs only the key and salt, and the datapath chooses every IV, so no value ze writes decides the nonce directly; the generator derives each IV from the SA's sequence number, and the value Ze installs that keeps it from cycling is OSeqMayWrap=false, written on every state by the `state.OSeqMayWrap = false` guard in xfrmStateFromParams. Owed tag on that value: internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go (TestRFC4106GCMKeyCannotOutliveTheSequenceSpace) and rfc4301_sad_items_linux_test.go (TestRFC4301SADItemSequenceCounterOverflowIsNeverRollover) |
-| [`RFC4106-3.1-1`](#rfc4106-3.1-1) The AES-GCM-ESP IV field MUST be eight octets. (§3.1) | no test | no test carries this requirement id; annotated {lower-layer}: Linux XFRM rfc4106(gcm(aes)), linux:CONFIG_CRYPTO_GCM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams names the algorithm and the kernel writes the IV field of every packet |
-| [`RFC4106-3.1-2`](#rfc4106-3.1-2) For a given key, the IV MUST NOT repeat. (§3.1) | no test | no test carries this requirement id; annotated {lower-layer}: Linux XFRM rfc4106(gcm(aes)) and its seqiv IV generator, linux:CONFIG_CRYPTO_GCM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs no IV, so the kernel generates each one; the generator derives each IV from the SA's sequence number, and the value Ze installs that keeps it from repeating is OSeqMayWrap=false, written on every state by the `state.OSeqMayWrap = false` guard in xfrmStateFromParams. Owed tag on that value: internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go (TestRFC4106GCMKeyCannotOutliveTheSequenceSpace) and rfc4301_sad_items_linux_test.go (TestRFC4301SADItemSequenceCounterOverflowIsNeverRollover) |
+RFC 4106 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.
 
 ## Test status
 
@@ -186,7 +182,9 @@ The same nonce and key combination MUST NOT be used more than once. (§2)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4106-2-1, so there is no linked test.
+| Polarity | Test | Kind and tier | Test status |
+|---|---|---|---|
+| positive | [`TestRFC4106GCMKeyCannotOutliveTheSequenceSpace`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L101) | unit/verify | mutant, verified |
 
 ### [`RFC4106-2-2`](#rfc4106-2-2)
 
@@ -205,7 +203,9 @@ The AES-GCM-ESP IV field MUST be eight octets. (§3.1)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4106-3.1-1, so there is no linked test.
+| Polarity | Test | Kind and tier | Test status |
+|---|---|---|---|
+| positive | [`TestRFC4106GCMStateCarriesTheFullICV`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L48) | unit/verify | mutant, verified |
 
 ### [`RFC4106-3.1-2`](#rfc4106-3.1-2)
 
@@ -213,7 +213,9 @@ For a given key, the IV MUST NOT repeat. (§3.1)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC4106-3.1-2, so there is no linked test.
+| Polarity | Test | Kind and tier | Test status |
+|---|---|---|---|
+| positive | [`TestRFC4106GCMKeyCannotOutliveTheSequenceSpace`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L103) | unit/verify | mutant, verified |
 
 ### [`RFC4106-6-1`](#rfc4106-6-1)
 
@@ -223,8 +225,8 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC4106GCMStateCarriesTheFullICV`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L54) | unit/verify | revert, verified |
-| positive | [`TestRFC4106GCMStateCarriesTheFullICV`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L40) | unit/verify | revert, verified |
+| negative | [`TestRFC4106GCMStateCarriesTheFullICV`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L62) | unit/verify | revert, verified |
+| positive | [`TestRFC4106GCMStateCarriesTheFullICV`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L46) | unit/verify | revert, verified |
 
 ### [`RFC4106-8.1-1`](#rfc4106-8.1-1)
 
@@ -255,7 +257,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC4106GCMKeyCannotOutliveTheSequenceSpace`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L85) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4106GCMKeyCannotOutliveTheSequenceSpace`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L99) | unit/verify | revert, verified |
 
 ## Requirement list review
 

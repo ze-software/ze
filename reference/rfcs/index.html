@@ -82,7 +82,7 @@
 <li><a href="#ip-in-ip-gre-and-ipv6-transition-tunnels">IP-in-IP, GRE, and IPv6 transition tunnels</a></li>
 </ol></details></nav><div class="doc-body">
 <p>Every row below is declared by the RFC's own summary, in the <code>## Meta</code> table of <code>rfc/short/&lt;stem&gt;.md</code>. A row belongs here only when current docs, source code, tests, or learned closure notes tie the RFC to a Ze feature, and a summary that ties to none writes <code>| Support | - |</code> instead.</p>
-<p>The per-requirement detail behind each row is published at <code>/quality/rfc-compliance/&lt;stem&gt;/</code>, one page for every summary under <code>rfc/short/</code>, naming each requirement, the tests bound to it, the audit verdict a reader recorded, and every gap and untested MUST under its own requirement id. The 24 of 242 summaries (9.9%) with no row on this page are published there too, and the index at <code>/quality/rfc-compliance/</code> links all of them.</p>
+<p>The per-requirement detail behind each row is published at <code>/quality/rfc-compliance/&lt;stem&gt;/</code>, one page for every summary under <code>rfc/short/</code>, naming each requirement, the tests bound to it, the audit verdict a reader recorded, and every gap and untested MUST under its own requirement id. The 24 of 243 summaries (9.9%) with no row on this page are published there too, and the index at <code>/quality/rfc-compliance/</code> links all of them.</p>
 <p><strong>Area</strong> is the one cell an author writes, a classification. Every other cell is derived, and no author can change it:</p>
 <ul>
 <li><strong>Proof</strong> is <code>N of M MUST proven</code>: of the M MUST-level requirements the summary gates, the N whose tests a recorded break still verifies (<code>rfc/discrimination/&lt;stem&gt;.json</code>), counting a requirement a layer under Ze performs once its recorded break proves the state Ze installs for that layer (OS verified). A tag with no verifying record, and a record that escapes the break (<code>no-break</code>, <code>kernel-producer</code>), prove nothing here. An RFC whose requirement list has not been walked against the RFC's own text (no valid <code>rfc/extraction/&lt;stem&gt;.json</code>) reads <code>not walked</code> and publishes no number, because its list bounds nothing. A walked RFC gating no MUST-level requirement reads <code>no MUST rows</code>.</li>
@@ -199,8 +199,8 @@
 <tr>
 <td>RFC 7999</td>
 <td>BLACKHOLE community</td>
-<td>2 of 4 MUST proven</td>
-<td>unit 2</td>
+<td>4 of 4 MUST proven</td>
+<td>interop 2, unit 2</td>
 <td>-</td>
 </tr>
 <tr>
@@ -213,8 +213,8 @@
 <tr>
 <td>RFC 9234</td>
 <td>BGP Role and OTC</td>
-<td>8 of 19 MUST proven</td>
-<td>interop 1, functional 5, unit 2</td>
+<td>12 of 19 MUST proven</td>
+<td>interop 1, functional 5, unit 6</td>
 <td>RFC9234-5-7, RFC9234-5-8, RFC9234-6-1</td>
 </tr>
 </tbody>
@@ -234,8 +234,8 @@
 <tr>
 <td>RFC 4271</td>
 <td>BGP-4 base protocol</td>
-<td>96 of 133 MUST proven</td>
-<td>interop 4, functional 12, unit 80</td>
+<td>112 of 133 MUST proven</td>
+<td>interop 4, functional 12, unit 96</td>
 <td>RFC4271-5.1.6-1, RFC4271-5.1.7-1, RFC4271-6.2-3, RFC4271-9.1.2.2-2, RFC4271-9.2-2, RFC4271-9.2-3, RFC4271-9.2.1.1-2, RFC4271-9.2.1.1-3, RFC4271-9.2.2.2-1, RFC4271-9.2.2.2-2, RFC4271-9.2.2.2-3, RFC4271-9.2.2.2-4, RFC4271-9.2.2.2-5</td>
 </tr>
 <tr>
@@ -290,8 +290,8 @@
 <tr>
 <td>RFC 2918</td>
 <td>Route Refresh</td>
-<td>3 of 6 MUST proven</td>
-<td>unit 3</td>
+<td>4 of 6 MUST proven</td>
+<td>functional 1, unit 3</td>
 <td>-</td>
 </tr>
 <tr>
@@ -311,15 +311,15 @@
 <tr>
 <td>RFC 7311</td>
 <td>AIGP attribute</td>
-<td>8 of 22 MUST proven</td>
-<td>unit 8</td>
+<td>14 of 22 MUST proven</td>
+<td>unit 14</td>
 <td>-</td>
 </tr>
 <tr>
 <td>RFC 7911</td>
 <td>ADD-PATH</td>
-<td>7 of 9 MUST proven</td>
-<td>interop 1, unit 6</td>
+<td>9 of 9 MUST proven</td>
+<td>interop 1, functional 1, unit 7</td>
 <td>-</td>
 </tr>
 <tr>
@@ -332,15 +332,15 @@
 <tr>
 <td>RFC 7606</td>
 <td>Revised UPDATE error handling</td>
-<td>33 of 53 MUST proven</td>
-<td>interop 2, functional 5, unit 26</td>
+<td>34 of 53 MUST proven</td>
+<td>interop 2, functional 5, unit 27</td>
 <td>RFC7606-8-1</td>
 </tr>
 <tr>
 <td>RFC 8950</td>
 <td>Extended Next Hop</td>
-<td>2 of 6 MUST proven</td>
-<td>unit 2</td>
+<td>3 of 6 MUST proven</td>
+<td>unit 3</td>
 <td>-</td>
 </tr>
 <tr>
@@ -353,8 +353,8 @@
 <tr>
 <td>RFC 7313</td>
 <td>Enhanced Route Refresh</td>
-<td>4 of 11 MUST proven</td>
-<td>unit 4</td>
+<td>5 of 11 MUST proven</td>
+<td>unit 5</td>
 <td>RFC7313-4-13, RFC7313-4-4, RFC7313-4-5, RFC7313-4-6, RFC7313-4-7</td>
 </tr>
 <tr>
@@ -395,29 +395,29 @@
 <tr>
 <td>RFC 8955</td>
 <td>IPv4 FlowSpec</td>
-<td>11 of 29 MUST proven</td>
-<td>unit 11</td>
+<td>14 of 29 MUST proven</td>
+<td>unit 14</td>
 <td>RFC8955-12-2, RFC8955-4-3</td>
 </tr>
 <tr>
 <td>RFC 5575</td>
 <td>BGP Flowspec (obsoleted by RFC 8955)</td>
-<td>3 of 9 MUST proven</td>
-<td>unit 3</td>
+<td>4 of 9 MUST proven</td>
+<td>unit 4</td>
 <td>RFC5575-6-1</td>
 </tr>
 <tr>
 <td>RFC 8956</td>
 <td>IPv6 FlowSpec</td>
-<td>6 of 9 MUST proven</td>
-<td>unit 6</td>
+<td>9 of 9 MUST proven</td>
+<td>unit 9</td>
 <td>-</td>
 </tr>
 <tr>
 <td>RFC 9117</td>
 <td>FlowSpec validation</td>
-<td>0 of 2 MUST proven</td>
-<td>-</td>
+<td>2 of 2 MUST proven</td>
+<td>unit 2</td>
 <td>-</td>
 </tr>
 </tbody>
@@ -444,8 +444,8 @@
 <tr>
 <td>RFC 7752</td>
 <td>BGP-LS</td>
-<td>6 of 26 MUST proven</td>
-<td>unit 6</td>
+<td>8 of 26 MUST proven</td>
+<td>unit 8</td>
 <td>RFC7752-3.2-2, RFC7752-3.2-3, RFC7752-3.2.1-1, RFC7752-3.2.1.1-1, RFC7752-3.2.1.1-2, RFC7752-3.2.1.4-1, RFC7752-3.2.1.4-2, RFC7752-3.2.1.5-1, RFC7752-3.3-1, RFC7752-3.3.2.1-1, RFC7752-3.3.2.2-1, RFC7752-3.3.2.7-1, RFC7752-3.3.3-1, RFC7752-3.4-1, RFC7752-6.2.2-1, RFC7752-6.2.6-1, RFC7752-8-1</td>
 </tr>
 <tr>
@@ -493,8 +493,8 @@
 <tr>
 <td>RFC 7854</td>
 <td>BMP v3</td>
-<td>25 of 39 MUST proven</td>
-<td>unit 25</td>
+<td>39 of 39 MUST proven</td>
+<td>unit 39</td>
 <td>-</td>
 </tr>
 <tr>
@@ -507,8 +507,8 @@
 <tr>
 <td>RFC 9069</td>
 <td>BMP Loc-RIB monitoring</td>
-<td>10 of 16 MUST proven</td>
-<td>unit 10</td>
+<td>16 of 16 MUST proven</td>
+<td>unit 16</td>
 <td>-</td>
 </tr>
 </tbody>
@@ -528,8 +528,8 @@
 <tr>
 <td>RFC 4456</td>
 <td>Route Reflection</td>
-<td>0 of 4 MUST proven</td>
-<td>-</td>
+<td>1 of 4 MUST proven</td>
+<td>unit 1</td>
 <td>-</td>
 </tr>
 <tr>
@@ -549,8 +549,8 @@
 <tr>
 <td>RFC 4724</td>
 <td>Graceful Restart</td>
-<td>12 of 26 MUST proven</td>
-<td>interop 1, unit 11</td>
+<td>14 of 26 MUST proven</td>
+<td>interop 1, unit 13</td>
 <td>RFC4724-3-5, RFC4724-4.1-1, RFC4724-4.1-2, RFC4724-4.1-3, RFC4724-4.1-5, RFC4724-4.1-6, RFC4724-4.1-8, RFC4724-4.2-1, RFC4724-4.2-2</td>
 </tr>
 <tr>
@@ -584,8 +584,8 @@
 <tr>
 <td>RFC 9494</td>
 <td>Long-Lived Graceful Restart</td>
-<td>2 of 25 MUST proven</td>
-<td>functional 1, unit 1</td>
+<td>8 of 25 MUST proven</td>
+<td>functional 2, unit 6</td>
 <td>RFC9494-4.2-10, RFC9494-4.2-7, RFC9494-4.2-9, RFC9494-4.3-2, RFC9494-4.7.2-1, RFC9494-4.7.2-2, RFC9494-5-2</td>
 </tr>
 </tbody>
@@ -696,15 +696,15 @@
 <tr>
 <td>RFC 4659</td>
 <td>VPNv6</td>
-<td>3 of 18 MUST proven</td>
-<td>interop 1, unit 2</td>
+<td>4 of 18 MUST proven</td>
+<td>interop 1, unit 3</td>
 <td>RFC4659-3.2.1.2-1, RFC4659-4-1, RFC4659-4-2, RFC4659-4-3, RFC4659-4-4, RFC4659-4-5, RFC4659-4-6, RFC4659-4-7, RFC4659-8-1, RFC4659-8-2, RFC4659-8-3, RFC4659-8-4, RFC4659-8-5</td>
 </tr>
 <tr>
 <td>RFC 8277</td>
 <td>BGP Labeled Unicast</td>
-<td>7 of 35 MUST proven</td>
-<td>unit 7</td>
+<td>11 of 35 MUST proven</td>
+<td>unit 11</td>
 <td>RFC8277-2-1, RFC8277-2-3, RFC8277-2.1-1, RFC8277-2.1-10, RFC8277-2.1-11, RFC8277-2.1-12, RFC8277-2.1-13, RFC8277-2.1-14, RFC8277-2.1-15, RFC8277-2.1-2, RFC8277-2.1-3, RFC8277-2.1-4, RFC8277-2.1-5, RFC8277-2.1-6, RFC8277-2.1-7, RFC8277-2.1-8, RFC8277-2.1-9, RFC8277-2.2-2, RFC8277-3.2.1-2, RFC8277-3.2.1-3, RFC8277-3.2.1-4, RFC8277-3.2.2-1, RFC8277-3.2.2-2, RFC8277-3.2.2-3</td>
 </tr>
 <tr>
@@ -787,8 +787,8 @@
 <tr>
 <td>RFC 4861</td>
 <td>IPv6 Neighbor Discovery and Router Advertisement</td>
-<td>29 of 138 MUST proven</td>
-<td>unit 29</td>
+<td>30 of 138 MUST proven</td>
+<td>unit 30</td>
 <td>RFC4861-11.2-1, RFC4861-11.2-2, RFC4861-2.3-1, RFC4861-4.4-3, RFC4861-4.6-1, RFC4861-6.1.1-1, RFC4861-6.1.1-2, RFC4861-6.2.1-1, RFC4861-6.2.1-8, RFC4861-6.2.4-1, RFC4861-6.2.5-1, RFC4861-6.2.5-2, RFC4861-6.2.6-1, RFC4861-7.2.6-1, RFC4861-7.2.8-1, RFC4861-7.2.8-2, RFC4861-9-7</td>
 </tr>
 <tr>
@@ -843,8 +843,8 @@
 <tr>
 <td>RFC 7084</td>
 <td>IPv6 customer edge router</td>
-<td>17 of 41 MUST proven</td>
-<td>unit 17</td>
+<td>19 of 41 MUST proven</td>
+<td>unit 19</td>
 <td>RFC7084-4.1-3, RFC7084-4.2-14, RFC7084-4.2-15, RFC7084-4.2-16, RFC7084-4.2-20, RFC7084-4.2-22, RFC7084-4.2-9, RFC7084-4.3-10, RFC7084-4.3-11, RFC7084-4.3-12, RFC7084-4.3-14, RFC7084-4.3-19, RFC7084-4.3-2, RFC7084-4.3-3, RFC7084-4.3-5, RFC7084-4.3-6</td>
 </tr>
 </tbody>
@@ -864,58 +864,65 @@
 <tr>
 <td>RFC 1035</td>
 <td>DNS message behavior</td>
-<td>12 of 27 MUST proven</td>
-<td>functional 1, unit 11</td>
+<td>30 of 32 MUST proven</td>
+<td>functional 2, unit 28</td>
 <td>-</td>
 </tr>
 <tr>
 <td>RFC 2181</td>
 <td>DNS clarifications</td>
-<td>12 of 23 MUST proven</td>
-<td>unit 12</td>
-<td>RFC2181-10.1-4, RFC2181-10.1.1-1, RFC2181-10.2-1, RFC2181-5.4.1-8, RFC2181-5.5-4</td>
+<td>21 of 23 MUST proven</td>
+<td>unit 21</td>
+<td>RFC2181-5.4.1-8</td>
+</tr>
+<tr>
+<td>RFC 2308</td>
+<td>DNS negative caching</td>
+<td>8 of 12 MUST proven</td>
+<td>unit 8</td>
+<td>RFC2308-3-2, RFC2308-5-2, RFC2308-5-3, RFC2308-6-2, RFC2308-6-3, RFC2308-6-4</td>
 </tr>
 <tr>
 <td>RFC 2782</td>
 <td>DNS SRV records</td>
-<td>0 of 7 MUST proven</td>
-<td>-</td>
-<td>RFC2782-Notes-2, RFC2782-Notes-3, RFC2782-Priority-1, RFC2782-Target-1, RFC2782-Target-2</td>
+<td>1 of 7 MUST proven</td>
+<td>unit 1</td>
+<td>RFC2782-Notes-2, RFC2782-Notes-3, RFC2782-Priority-1, RFC2782-Target-2</td>
 </tr>
 <tr>
 <td>RFC 4035</td>
 <td>DNSSEC protocol modifications</td>
-<td>2 of 108 MUST proven</td>
-<td>unit 2</td>
+<td>4 of 108 MUST proven</td>
+<td>unit 4</td>
 <td>RFC4035-2.1-2, RFC4035-2.1-4, RFC4035-2.1-5, RFC4035-2.2-1, RFC4035-2.2-3, RFC4035-2.2-4, RFC4035-2.2-5, RFC4035-2.2-6, RFC4035-2.2-7, RFC4035-2.2-8, RFC4035-2.3-1, RFC4035-2.3-3, RFC4035-2.3-4, RFC4035-2.3-5, RFC4035-2.3-6, RFC4035-2.3-7, RFC4035-2.4-3, RFC4035-2.4-4, RFC4035-2.5-1, RFC4035-2.5-2, RFC4035-2.6-1, RFC4035-3-1, RFC4035-3-2, RFC4035-3-5, RFC4035-3.1-1, RFC4035-3.1-2, RFC4035-3.1-3, RFC4035-3.1.1-3, RFC4035-3.1.1-4, RFC4035-3.1.1-5, RFC4035-3.1.1-6, RFC4035-3.1.1-8, RFC4035-3.1.2-3, RFC4035-3.1.2-4, RFC4035-3.1.3-1, RFC4035-3.1.3.1-1, RFC4035-3.1.3.2-1, RFC4035-3.1.3.3-1, RFC4035-3.1.3.3-2, RFC4035-3.1.3.4-1, RFC4035-3.1.4-1, RFC4035-3.1.4-2, RFC4035-3.1.4-3, RFC4035-3.1.5-2, RFC4035-3.1.5-3, RFC4035-3.1.5-4, RFC4035-3.1.5-5, RFC4035-3.1.5-6, RFC4035-3.1.5-7, RFC4035-3.1.6-6, RFC4035-3.2.1-1, RFC4035-3.2.1-2, RFC4035-3.2.1-3, RFC4035-3.2.2-1, RFC4035-3.2.2-4, RFC4035-3.2.3-2, RFC4035-4.1-5, RFC4035-4.2-1, RFC4035-4.2-3, RFC4035-4.2-5, RFC4035-4.2-6, RFC4035-4.3-1, RFC4035-4.4-1, RFC4035-4.7-2, RFC4035-4.7-3, RFC4035-4.7-7, RFC4035-4.8-1, RFC4035-4.9.3-2, RFC4035-5-1, RFC4035-5-2, RFC4035-5-3, RFC4035-5.2-1, RFC4035-5.2-3, RFC4035-5.3.1-1, RFC4035-5.3.1-10, RFC4035-5.3.1-2, RFC4035-5.3.1-3, RFC4035-5.3.1-4, RFC4035-5.3.1-5, RFC4035-5.3.1-6, RFC4035-5.3.1-7, RFC4035-5.3.1-8, RFC4035-5.3.1-9, RFC4035-5.3.2-1, RFC4035-5.3.2-2, RFC4035-5.3.2-3, RFC4035-5.3.3-1, RFC4035-5.3.3-2, RFC4035-5.4-1, RFC4035-5.4-2, RFC4035-5.4-3, RFC4035-5.4-4, RFC4035-5.5-2, RFC4035-5.5-3</td>
 </tr>
 <tr>
 <td>RFC 8484</td>
 <td>DNS Queries over HTTPS (DoH)</td>
-<td>1 of 16 MUST proven</td>
-<td>unit 1</td>
-<td>RFC8484-3-1, RFC8484-4.1-3, RFC8484-5.1-2, RFC8484-5.1-3, RFC8484-5.3-1, RFC8484-5.4-2</td>
+<td>2 of 16 MUST proven</td>
+<td>unit 2</td>
+<td>RFC8484-3-1, RFC8484-4.1-3, RFC8484-5.1-3, RFC8484-5.3-1, RFC8484-5.4-2</td>
 </tr>
 <tr>
 <td>RFC 7534</td>
 <td>AS112 operations</td>
-<td>2 of 3 MUST proven</td>
+<td>2 of 2 MUST proven</td>
 <td>unit 2</td>
 <td>-</td>
 </tr>
 <tr>
 <td>RFC 7535</td>
 <td>EMPTY.AS112.ARPA</td>
-<td>0 of 1 MUST proven</td>
+<td class="cell-no">✕</td>
 <td>-</td>
-<td>RFC7535-6-1</td>
+<td>-</td>
 </tr>
 <tr>
 <td>RFC 7871</td>
 <td>EDNS0 Client Subnet</td>
-<td>0 of 36 MUST proven</td>
-<td>-</td>
-<td>RFC7871-11.1-2, RFC7871-11.2-1, RFC7871-11.3-4, RFC7871-12.1-3, RFC7871-12.1-4, RFC7871-12.1-5, RFC7871-6-1, RFC7871-6-2, RFC7871-7.1.1-2, RFC7871-7.1.1-3, RFC7871-7.1.1-4, RFC7871-7.1.1-7, RFC7871-7.1.2-2, RFC7871-7.1.2-3, RFC7871-7.1.2-5, RFC7871-7.1.3-1, RFC7871-7.1.3-2, RFC7871-7.1.3-3, RFC7871-7.2.1-12, RFC7871-7.2.1-2, RFC7871-7.2.1-3, RFC7871-7.2.1-4, RFC7871-7.2.1-5, RFC7871-7.2.1-8, RFC7871-7.3-3, RFC7871-7.3-4, RFC7871-7.3-6, RFC7871-7.3.1-1, RFC7871-7.3.1-3, RFC7871-7.3.1-4, RFC7871-7.3.2-1, RFC7871-7.3.2-4, RFC7871-7.5-1, RFC7871-9-1</td>
+<td>10 of 38 MUST proven</td>
+<td>unit 10</td>
+<td>RFC7871-11.1-2, RFC7871-11.3-4, RFC7871-12.1-3, RFC7871-6-1, RFC7871-6-2, RFC7871-7.1.1-2, RFC7871-7.1.1-3, RFC7871-7.1.1-4, RFC7871-7.1.1-7, RFC7871-7.1.2-2, RFC7871-7.1.2-3, RFC7871-7.1.2-5, RFC7871-7.1.3-1, RFC7871-7.1.3-2, RFC7871-7.1.3-3, RFC7871-7.2.2-5, RFC7871-7.2.2-6, RFC7871-7.3-3, RFC7871-7.3-6, RFC7871-7.3.1-1, RFC7871-7.3.1-3, RFC7871-7.3.1-4, RFC7871-7.3.2-1, RFC7871-7.3.2-4, RFC7871-7.5-1, RFC7871-9-1</td>
 </tr>
 <tr>
 <td>RFC 5625</td>
@@ -927,9 +934,9 @@
 <tr>
 <td>RFC 7858</td>
 <td>DNS over TLS (DoT)</td>
-<td>3 of 19 MUST proven</td>
-<td>unit 3</td>
-<td>RFC7858-3.1-2, RFC7858-3.1-3, RFC7858-3.1-7, RFC7858-3.3-4, RFC7858-3.3-5, RFC7858-3.4-7, RFC7858-3.4-8, RFC7858-3.4-9, RFC7858-4.2-4, RFC7858-4.2-5, RFC7858-4.2-6, RFC7858-4.2-7</td>
+<td>7 of 19 MUST proven</td>
+<td>unit 7</td>
+<td>RFC7858-3.1-2, RFC7858-3.3-4, RFC7858-3.3-5, RFC7858-3.4-7, RFC7858-3.4-8, RFC7858-3.4-9, RFC7858-4.2-4, RFC7858-4.2-5, RFC7858-4.2-6, RFC7858-4.2-7</td>
 </tr>
 </tbody>
 </table>
@@ -978,13 +985,13 @@
 <tr>
 <td>draft-ietf-idr-linklocal-capability</td>
 <td>Link-local next-hop capability code 77</td>
-<td>10 of 15 MUST proven</td>
+<td>13 of 15 MUST proven</td>
 <td>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-2, DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-15</td>
 </tr>
 <tr>
 <td>draft-ietf-sidrops-aspa-verification</td>
 <td>ASPA path verification</td>
-<td>8 of 10 MUST proven</td>
+<td>9 of 10 MUST proven</td>
 <td>DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-2</td>
 </tr>
 <tr>
@@ -1017,8 +1024,8 @@
 <tr>
 <td>RFC 2759</td>
 <td>MS-CHAPv2 (PPP and EAP inside IKEv2)</td>
-<td>4 of 7 MUST proven</td>
-<td>unit 4</td>
+<td>7 of 7 MUST proven</td>
+<td>unit 7</td>
 <td>-</td>
 </tr>
 <tr>
@@ -1157,22 +1164,22 @@
 <tr>
 <td>RFC 4106</td>
 <td>ESP</td>
-<td>4 of 8 MUST proven</td>
-<td>unit 4</td>
+<td>8 of 8 MUST proven</td>
+<td>unit 5, os 3</td>
 <td>-</td>
 </tr>
 <tr>
 <td>RFC 4301</td>
 <td>IPsec architecture</td>
-<td>44 of 101 MUST proven</td>
-<td>unit 44</td>
-<td>RFC4301-4.1-5, RFC4301-4.4.1-13, RFC4301-4.4.1-2, RFC4301-4.4.1-3, RFC4301-4.4.1.1-1, RFC4301-4.4.1.1-2, RFC4301-4.4.1.1-5, RFC4301-4.4.1.2-2, RFC4301-4.4.2.1-13, RFC4301-4.4.2.1-14, RFC4301-4.4.2.1-15, RFC4301-4.4.2.1-16, RFC4301-4.4.2.1-17, RFC4301-4.4.2.1-2, RFC4301-4.4.2.1-3, RFC4301-4.4.3.3-1, RFC4301-5.1-7, RFC4301-5.1.2.1-1, RFC4301-5.2-1, RFC4301-5.2-2, RFC4301-5.2-9, RFC4301-6-1, RFC4301-6.2-2, RFC4301-6.2-3, RFC4301-6.2-4, RFC4301-6.2-5, RFC4301-7-1, RFC4301-7.2-1, RFC4301-7.2-2, RFC4301-7.3-1, RFC4301-7.3-2, RFC4301-8.1-2</td>
+<td>59 of 101 MUST proven</td>
+<td>unit 59</td>
+<td>RFC4301-4.1-5, RFC4301-4.4.1-13, RFC4301-4.4.1-2, RFC4301-4.4.1-3, RFC4301-4.4.1.1-1, RFC4301-4.4.1.1-2, RFC4301-4.4.1.1-3, RFC4301-4.4.1.1-5, RFC4301-4.4.1.2-2, RFC4301-4.4.2.1-13, RFC4301-4.4.2.1-15, RFC4301-4.4.2.1-16, RFC4301-4.4.2.1-17, RFC4301-4.4.2.1-2, RFC4301-4.4.2.1-3, RFC4301-4.4.3.3-1, RFC4301-5.1-7, RFC4301-5.1.2.1-1, RFC4301-5.2-1, RFC4301-5.2-11, RFC4301-5.2-2, RFC4301-5.2-9, RFC4301-6-1, RFC4301-6.2-3, RFC4301-6.2-4, RFC4301-6.2-5, RFC4301-7-1, RFC4301-7.2-1, RFC4301-7.2-2, RFC4301-7.3-1, RFC4301-7.3-2, RFC4301-7.3-4, RFC4301-7.3-5, RFC4301-8.1-2</td>
 </tr>
 <tr>
 <td>RFC 4302</td>
 <td>Authentication Header</td>
-<td>8 of 32 MUST proven</td>
-<td>unit 8</td>
+<td>9 of 32 MUST proven</td>
+<td>unit 9</td>
 <td>RFC4302-2.5-5, RFC4302-2.5.1-1, RFC4302-4-1, RFC4302-A2-1</td>
 </tr>
 <tr>
@@ -1192,8 +1199,8 @@
 <tr>
 <td>RFC 7296</td>
 <td>IKEv2</td>
-<td>91 of 234 MUST proven</td>
-<td>interop 1, functional 1, unit 89</td>
+<td>234 of 234 MUST proven</td>
+<td>interop 2, functional 7, unit 225</td>
 <td>-</td>
 </tr>
 <tr>
@@ -1206,8 +1213,8 @@
 <tr>
 <td>RFC 4555</td>
 <td>MOBIKE</td>
-<td>3 of 14 MUST proven</td>
-<td>unit 3</td>
+<td>14 of 14 MUST proven</td>
+<td>unit 14</td>
 <td>-</td>
 </tr>
 <tr>
@@ -1353,8 +1360,8 @@
 <tr>
 <td>RFC 7950</td>
 <td>YANG 1.1 data modeling</td>
-<td>36 of 91 MUST proven</td>
-<td>functional 1, unit 35</td>
+<td>37 of 91 MUST proven</td>
+<td>functional 1, unit 36</td>
 <td>RFC7950-11-1, RFC7950-11-2, RFC7950-11-3, RFC7950-12-1, RFC7950-5.1-1, RFC7950-5.3-1, RFC7950-5.5-1, RFC7950-5.6.5-1, RFC7950-6.2.1-1, RFC7950-6.3.1-1, RFC7950-6.4-1, RFC7950-6.4-2, RFC7950-7.1.4-1, RFC7950-7.12-1, RFC7950-7.14.2-1, RFC7950-7.14.3-1, RFC7950-7.15-1, RFC7950-7.16-1, RFC7950-7.17-1, RFC7950-7.18.2-1, RFC7950-7.20.1-1, RFC7950-7.20.2-1, RFC7950-7.20.3-1, RFC7950-7.20.3.2-1, RFC7950-7.21.2-1, RFC7950-7.21.5-1, RFC7950-7.21.5-2, RFC7950-7.3-1, RFC7950-7.5.3-1, RFC7950-7.6.1-4, RFC7950-7.6.5-1, RFC7950-7.7-1, RFC7950-7.7.2-1, RFC7950-7.8.2-1, RFC7950-7.8.3-1, RFC7950-7.9.2-1, RFC7950-7.9.3-1, RFC7950-7.9.4-1, RFC7950-8.1-1, RFC7950-8.1-4, RFC7950-8.3.1-2, RFC7950-8.3.2-1, RFC7950-8.3.3-2, RFC7950-9.10.2-1, RFC7950-9.12-2, RFC7950-9.2.4-1, RFC7950-9.2.4-2, RFC7950-9.4.5-1, RFC7950-9.6.4-1, RFC7950-9.7-1, RFC7950-9.7.4-1, RFC7950-9.7.4.2-1, RFC7950-x-1, RFC7950-x-2</td>
 </tr>
 <tr>
@@ -1563,8 +1570,8 @@
 <tr>
 <td>RFC 4552</td>
 <td>OSPFv3 IPsec authentication</td>
-<td>4 of 27 MUST proven</td>
-<td>unit 4</td>
+<td>6 of 27 MUST proven</td>
+<td>unit 6</td>
 <td>RFC4552-11-4, RFC4552-6-7, RFC4552-9-1, RFC4552-9-2, RFC4552-9-3, RFC4552-9-4</td>
 </tr>
 <tr>
@@ -1647,9 +1654,9 @@
 <tr>
 <td>RFC 1661</td>
 <td>PPP LCP</td>
-<td>48 of 76 MUST proven</td>
-<td>interop 4, unit 44</td>
-<td>RFC1661-2-2, RFC1661-3.4-1, RFC1661-3.5-2, RFC1661-3.5-4, RFC1661-3.7-2, RFC1661-4.3-3, RFC1661-4.4-1, RFC1661-5-1, RFC1661-5.3-4, RFC1661-5.7-2, RFC1661-5.9-1, RFC1661-5.9-3, RFC1661-6.5-3</td>
+<td>50 of 76 MUST proven</td>
+<td>interop 4, unit 46</td>
+<td>RFC1661-2-2, RFC1661-3.4-1, RFC1661-3.5-2, RFC1661-3.5-4, RFC1661-3.7-2, RFC1661-4.4-1, RFC1661-5-1, RFC1661-5.3-4, RFC1661-5.9-1, RFC1661-5.9-3, RFC1661-6.5-3</td>
 </tr>
 <tr>
 <td>RFC 1570</td>
@@ -1668,8 +1675,8 @@
 <tr>
 <td>RFC 2516</td>
 <td>PPPoE</td>
-<td>24 of 37 MUST proven</td>
-<td>unit 24</td>
+<td>25 of 37 MUST proven</td>
+<td>unit 25</td>
 <td>RFC2516-3-1, RFC2516-x-11, RFC2516-x-14, RFC2516-x-15</td>
 </tr>
 <tr>
@@ -1703,8 +1710,8 @@
 <tr>
 <td>RFC 5072</td>
 <td>IPv6CP</td>
-<td>9 of 16 MUST proven</td>
-<td>unit 9</td>
+<td>10 of 16 MUST proven</td>
+<td>unit 10</td>
 <td>RFC5072-2-2, RFC5072-4.1-10, RFC5072-4.1-11, RFC5072-4.1-8</td>
 </tr>
 <tr>
@@ -1780,15 +1787,15 @@
 <tr>
 <td>RFC 2865</td>
 <td>RADIUS authentication</td>
-<td>27 of 31 MUST proven</td>
-<td>unit 27</td>
+<td>31 of 31 MUST proven</td>
+<td>unit 31</td>
 <td>-</td>
 </tr>
 <tr>
 <td>RFC 2866</td>
 <td>RADIUS accounting</td>
-<td>7 of 15 MUST proven</td>
-<td>functional 1, unit 6</td>
+<td>15 of 15 MUST proven</td>
+<td>functional 1, unit 14</td>
 <td>-</td>
 </tr>
 <tr>
@@ -1829,15 +1836,15 @@
 <tr>
 <td>RFC 2869</td>
 <td>RADIUS extensions</td>
-<td>6 of 8 MUST proven</td>
-<td>unit 6</td>
+<td>8 of 8 MUST proven</td>
+<td>unit 8</td>
 <td>-</td>
 </tr>
 <tr>
 <td>RFC 3162</td>
 <td>RADIUS IPv6 attributes</td>
-<td>2 of 6 MUST proven</td>
-<td>unit 2</td>
+<td>3 of 6 MUST proven</td>
+<td>unit 3</td>
 <td>RFC3162-2.3-1, RFC3162-3.2-1, RFC3162-5-1</td>
 </tr>
 <tr>
@@ -1850,8 +1857,8 @@
 <tr>
 <td>RFC 5176</td>
 <td>RADIUS CoA and Disconnect Message</td>
-<td>6 of 30 MUST proven</td>
-<td>unit 6</td>
+<td>30 of 30 MUST proven</td>
+<td>unit 30</td>
 <td>-</td>
 </tr>
 <tr>
@@ -1915,13 +1922,13 @@
 <td>A Profile for Route Origin Authorizations (ROAs)</td>
 <td>0 of 16 MUST proven</td>
 <td>-</td>
-<td>-</td>
+<td>RFC9582-3-1, RFC9582-4.1-1, RFC9582-4.3.1-1, RFC9582-4.3.1-2, RFC9582-4.3.1-3, RFC9582-4.3.1-4, RFC9582-4.3.2.2-1, RFC9582-5-1, RFC9582-5-2, RFC9582-5-3, RFC9582-5-4, RFC9582-5-5, RFC9582-5-6, RFC9582-5-7, RFC9582-6-1, RFC9582-6-2</td>
 </tr>
 <tr>
 <td>RFC 6811</td>
 <td>RPKI origin validation</td>
-<td>3 of 5 MUST proven</td>
-<td>functional 1, unit 2</td>
+<td>5 of 5 MUST proven</td>
+<td>functional 1, unit 4</td>
 <td>-</td>
 </tr>
 <tr>
@@ -2037,7 +2044,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 22:34 UTC</span>
                 </div>
             </div>
         </footer>

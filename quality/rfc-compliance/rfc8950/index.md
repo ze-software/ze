@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 6 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 6 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 6 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 12 | 12 of 28 tests linked to requirements, 0 without a fault test and 4 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 16 | 16 of 28 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -86,9 +86,9 @@ Included in automatic checks: Advertising IPv4 NLRI with an IPv6 Next Hop (exten
 
 **Area:** Extended Next Hop
 
-**Test verification:** 2 of 6 MUST proven
+**Test verification:** 3 of 6 MUST proven
 
-**Evidence:** unit 2
+**Evidence:** unit 3
 
 **Unmet:** -
 
@@ -112,8 +112,8 @@ Included in automatic checks: Advertising IPv4 NLRI with an IPv6 Next Hop (exten
 
 ## Figures
 
-- **MUST bar**: Ze verified 2, Tests awaiting verification 4
-- **Overview bar**: Ze MUST verified 2, Tests awaiting verification 4, Not assessed 2
+- **MUST bar**: Ze verified 3, Tests awaiting verification 3
+- **Overview bar**: Ze MUST verified 3, Tests awaiting verification 3, Not assessed 2
 
 | Figure | Rows |
 |---|---|
@@ -122,9 +122,9 @@ Included in automatic checks: Advertising IPv4 NLRI with an IPv6 Next Hop (exten
 | Mandatory requirements complete | not complete |
 | MUST rows | 6 |
 | MUST rows kept (the MUST bar) | 6 |
-| Ze verified | 2 |
+| Ze verified | 3 |
 | OS verified | 0 |
-| Tests awaiting verification | 4 |
+| Tests awaiting verification | 3 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -179,15 +179,15 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestDefaultNextHopIPv6RequiresExactExtendedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/default_next_hop_controls_test.go#L129) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestDefaultNextHopIPv6RequiresExactExtendedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/default_next_hop_controls_test.go#L129) | unit/verify | mutant, verified |
 | negative | [`TestFamilyNextHopOriginationAdmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/next_hop_family_admission_test.go#L39) | unit/verify | revert, verified |
 | negative | [`TestCanUseNextHopFor_CrossFamilyNoCap`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1311) | unit/verify | not verified |
 | negative | [`TestCanUseNextHopFor_NilSendCtx`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1335) | unit/verify | not verified |
 | negative | [`TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go#L43) | unit/verify | revert, verified |
-| negative | [`TestDefaultNextHopLinkLocalCandidateUsesSessionPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_default_link_local_test.go#L18) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestDefaultNextHopLinkLocalCandidateUsesSessionPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_default_link_local_test.go#L18) | unit/verify | mutant, verified |
 | negative | [`TestRFC8950IPv6NextHopFollowsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L37) | unit/verify | revert, verified |
 | negative | [`TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go#L212) | unit/verify | revert, verified |
-| positive | [`TestDefaultNextHopIPv6RequiresExactExtendedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/default_next_hop_controls_test.go#L126) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestDefaultNextHopIPv6RequiresExactExtendedPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/default_next_hop_controls_test.go#L126) | unit/verify | mutant, verified |
 | positive | [`TestFamilyNextHopOriginationAdmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/next_hop_family_admission_test.go#L37) | unit/verify | revert, verified |
 | positive | [`TestStaticGroupedResolvedNextHopWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_static_group_next_hop_test.go#L30) | unit/verify | revert, verified |
 | positive | [`TestCanUseNextHopFor_ExtendedNH`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1280) | unit/verify | not verified |
@@ -251,7 +251,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestParseMPReachNLRI_VPNWithIPv6NextHop`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L576) | unit/verify | not verified |
-| positive | [`TestRFC8950VPNIPv6NextHopCarriesZeroRD`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc8950_vpn_nexthop_test.go#L27) | unit/verify | revert, producer-gone (the producer the break was applied to is no longer in the tree) |
+| positive | [`TestRFC8950VPNIPv6NextHopCarriesZeroRD`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc8950_vpn_nexthop_test.go#L27) | unit/verify | revert, verified |
 
 ## Requirement list review
 

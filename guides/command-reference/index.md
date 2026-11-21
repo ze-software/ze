@@ -160,9 +160,9 @@ from stdin (`ze -`) is unaffected.
 
 Use type-ahead filtering and drill-down navigation in Ze's interactive command launcher.
 
-[Download the asciicast recording](../../assets/demos/launcher.cast?v=34f1e25629) · [Plain-text transcript](../../assets/demos/launcher.txt?v=0399dbc59f)
+[Download the asciicast recording](../../assets/demos/launcher.cast?v=3e0679653a) · [Plain-text transcript](../../assets/demos/launcher.txt?v=0399dbc59f)
 
-Recorded with Ze 26.10.09 on macOS and Linux using Ze recorder. Duration: 58 seconds.
+Recorded with Ze 26.11.20 on macOS and Linux using Ze recorder. Duration: 1 minute 57 seconds.
 
 ```console
 $ ze
@@ -201,8 +201,25 @@ ze cli -c "show config validation <config-file> | json"   # the same verdict as 
 
 | Flag | Purpose |
 |------|---------|
-| `-v` | Verbose output |
+| `-v` | Verbose output: a summary of a valid config, with one line per BGP peer |
 | `-q` | Quiet mode (exit code only) |
+
+The `-v` summary shows each BGP peer as the daemon builds it, after group
+inheritance and defaults: its name, address, remote AS, group, and any
+connection direction turned off. A peer the daemon skips is listed as
+incomplete instead, with the setting it lacks after inheritance (a remote IP,
+a remote AS, or a peer-level `ip dynamic`, which only a group accepts). A
+missing global local AS never reaches the summary: validation refuses it first.
+
+```text
+Peers:
+  - edge-a 192.0.2.1 AS64500 group edge
+  - edge-b 192.0.2.2 AS64501 group edge (connect disabled)
+  - bare-a: incomplete, the daemon does not start it: missing required session > asn > remote
+```
+<!-- source: internal/component/config/cli/cmd_validate.go -- buildValidationSummary, peerSummaryLine -->
+<!-- source: internal/component/bgp/config/register.go -- peerSummariesFromTree -->
+<!-- source: internal/component/bgp/reactor/config.go -- PeersAndSkippedFromTree -->
 
 Exit codes: 0 = valid, 1 = invalid, 2 = file not found.
 
@@ -916,7 +933,7 @@ Every pipe operator applies: `| json`, `| yaml`, `| table`, `| count`,
 | `kind` | `internal` for code this binary carries, `external` for another program |
 | `state` | One of the seven below |
 | `commands` | The commands the plugin declares. Absent when it declares none |
-| `pipes` | The pipe aliases the plugin declares. Absent when it declares none |
+| `pipes` | The pipe aliases and pipe operations the plugin declares: an alias carries an `expansion`, an operation an `argument`. Absent when it declares none |
 | `reason` | Why a row carries no declaration. Absent when one was read |
 
 | State | What it means |
@@ -1200,13 +1217,166 @@ two you are reading.
 | `client` | The daemon's hub client: `running`, `stopping` while a stop such as `request fleet disable` is in progress (the status never waits for it), `stopped`, or `not-started` in a daemon that started unmanaged and so owns no hub client. `no-daemon` when no daemon answered |
 | `connection` | `connected` once the hub accepted the client, until that connection ends; `not-connected` otherwise. `no-daemon` when no daemon answered |
 | `holding` | `holding` when the client's last fetch applied nothing, because the configuration the device runs differs from its baseline or could not be compared with it; `not-holding` otherwise. `no-daemon` when no daemon answered |
+| `held-by-hub` | The version of the copy of this device's configuration the hub keeps, as the hub's last fetch answer named it (`held-version`): what `update fleet divergence name <client> adopt version <hash>` and the revert on the hub take. `none` when the hub keeps no copy, `not-fetched` before the hub answered a fetch of this run of the client or when the daemon runs no hub client. `no-daemon` when no daemon answered |
+| `revert-offered` | What the hub's last fetch answer said of a revert (`discard-version`): `none` when it offered none, `offered` when it offered to discard the version this device runs, `stale` when it named another version, so the offer does not apply to what the device runs now. `not-fetched` and `no-daemon` as for `held-by-hub` |
 
 The command refuses, and prints no status, when the store cannot be opened or
 one of the keys above cannot be read: `ze show data check` says why. It also
 refuses when the `plugin` block of the configuration cannot be read, and names
 `ze config validate`.
 
-<!-- source: internal/component/managed/cmd_fleet.go -- fleetStatus, answerFleetStatusWith, readFleetStatus, decodeDaemonFleetStatus, daemonClientReport -->
+<!-- source: internal/component/managed/cmd_fleet.go -- fleetStatus, answerFleetStatusWith, readFleetStatus, decodeDaemonFleetStatus, daemonClientReport, hubAnswerOf, heldByHubWord, revertOfferedWord -->
+
+### show fleet divergence list
+
+On a hub: every managed client whose held configuration the hub keeps. A
+managed client that holds, because its own configuration was changed on the
+device, sends the hub a copy of the configuration it runs. It takes no
+argument.
+
+```
+ze show fleet divergence list
+ze cli -c "show fleet divergence list"
+```
+
+One row per copy, sorted by client:
+
+| Field | Meaning |
+|-------|---------|
+| `client` | The managed client the copy is held for |
+| `declared` | `true` when a server block declares the client. `false` is an orphaned copy: the hub serves no such client, so the client cannot connect to resolve it |
+| `device-version` | The hash of the configuration the client runs, computed by the hub over the copy |
+| `hub-version` | The hash of the configuration the hub serves the client, empty when the hub holds none for it |
+| `edited-at` | When the client's configuration was written on the client, empty when its store records no time |
+| `received-at` | When the hub stored the copy |
+| `revert` | The revert decision the copy carries: `none` when none was taken, `pending` while the client is offered it at its next fetch, `void` when the hub now serves the client another configuration than the one the decision was taken on, so the client is offered nothing and keeps holding |
+| `unreadable` | Present only when the store could not read the copy, or the configuration the hub serves the client: what could not be read, on one line; check the store with `ze show data check`. A row whose copy could not be read answers only `client` and `declared`. A row whose served configuration could not be read also answers `device-version`, `edited-at` and `received-at` from the copy, and leaves `hub-version` and `revert` empty. The other rows are answered as usual |
+
+The copies are in the hub's store, so the command answers with the hub
+running or stopped. Only the running hub knows which clients its server
+serves, so `ze show fleet divergence list` asks a running hub first and shows
+its answer. With no hub running, `declared` is read from the server blocks of
+the hub's stored configuration: the clients the next `ze start` serves.
+
+<!-- source: internal/component/managed/cmd_divergence_show.go -- answerDivergenceListWith, readDivergenceList, divergenceRowOf, storedServedClients, daemonServedClients, daemonDivergenceList -->
+<!-- source: internal/component/managed/register.go -- show fleet divergence list registration -->
+<!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container list -->
+
+### show fleet divergence name
+
+On a hub: what differs between the configuration the hub serves a managed
+client and the one the client holds. It takes the client's name.
+
+```
+ze show fleet divergence name edge-01
+ze cli -c "show fleet divergence name edge-01"
+```
+
+The answer carries every field of the list row, and:
+
+| Field | Meaning |
+|-------|---------|
+| `unchecked-plugins` | The external plugins whose sections the hub could not check when it took the copy |
+| `diff-available` | `true` when the hub compared the two configurations |
+| `change-count` | The number of changes, absent when the diff is not available |
+| `changes` | Each change from the hub's configuration to the client's: `path`, `change` (`added`, `removed` or `changed`), `old` and `new`. A value under a secret leaf is shown masked |
+| `diff-unavailable` | Why the diff is not available, and the command that fixes it, when it is not |
+| `revert-void` | When `revert` is `void`: the hash of the configuration the decision was taken on, the one the hub serves now, and, last, the revert to run again |
+
+The answer never carries the text of either configuration: both carry the
+client's secrets. The diff compares the whole configuration, as
+`ze config diff` does. When the hub cannot parse one of the two, because it
+holds a section of an external plugin the hub did not start, the answer still
+carries the hashes and the times, `diff-available` is `false`, and
+`diff-unavailable` names the plugins. A client with no copy is refused, and
+the refusal names `show fleet divergence list`. A word after the client name is
+refused, beside a running hub and with the hub stopped alike, and the refusal
+names the word; `update ... adopt` and `request ... revert` refuse a word they
+do not declare the same way.
+
+In the interactive CLI, Tab after `name` offers the clients whose copy the
+running hub keeps.
+
+<!-- source: internal/component/managed/cmd_divergence_show.go -- answerDivergenceShowWith, divergenceClientArg, readDivergenceDetail, divergenceDiff, divergenceParseRefusal, divergenceChanges, completeDivergenceClients, handleDivergenceShow -->
+<!-- source: internal/component/managed/register.go -- show fleet divergence name registration, ze-managed:fleet-divergence-show -->
+<!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container divergence -->
+
+### update fleet divergence name adopt
+
+On a hub: make the copy the hub keeps of a holding client's configuration
+the configuration the hub serves that client, so the client stops holding.
+It takes the client's name and the `device-version` that
+`show fleet divergence name` answered.
+
+```
+ze update fleet divergence name edge-01 adopt version 3f9c2a7e1b0d4c58
+ze cli -c "update fleet divergence name edge-01 adopt version 3f9c2a7e1b0d4c58"
+```
+
+| Field | Meaning |
+|-------|---------|
+| `client` | The client whose copy was adopted |
+| `device-version` | The hash of the adopted copy: the configuration the client runs |
+| `stamp` | The version of `client-<name>.conf` the copy became |
+
+The hub publishes the copy as a new version of `client-<name>.conf`, removes
+the copy, and tells the client, which finds its hub current and records the
+hash as its baseline. The check of the hash, the write and the removal run
+under one lock, so a newer copy from the client cannot slip between them.
+Nothing is written when the hash is not the copy's (the refusal names the
+copy's hash, then `show fleet divergence name <client>`), when the hub keeps
+no copy for the client, when no server block declares it, or when a change
+to `client-<name>.conf` is staged (the fix is
+`ze config edit client-<name>.conf`). Beside a running hub, `ze update`
+sends the line to it. With the hub stopped it is refused, fix `ze start`:
+only the running hub records the audit action `fleet-divergence-adopt`, so an
+adopt is taken only there. `update` needs the edit permission.
+
+<!-- source: internal/component/managed/cmd_divergence.go -- handleDivergenceAdopt, updateDivergenceAdoptLocal, adoptLocal, adoptThroughDaemon, adoptHeld, adoptHeldLocked -->
+<!-- source: internal/component/managed/register.go -- ze-managed:fleet-divergence-adopt, update fleet divergence name adopt registration -->
+<!-- test: internal/component/managed/cmd_divergence_adopt_test.go TestAdoptServesHeldBytes, TestAdoptRefusesStaleHash, TestAdoptRefusesUndeclaredClient, TestAdoptRefusesStagedCandidate, TestAdoptLocalOnStoppedHubRefused -->
+
+### request fleet divergence name revert
+
+On a hub: decide that a holding client drops the configuration it runs and
+takes the one the hub serves it. It takes the client's name and the two
+hashes that `show fleet divergence name` answered: the `device-version` as
+`version` and the `hub-version` as `hub-version`.
+
+```
+ze request fleet divergence name edge-01 revert version 3f9c2a7e1b0d4c58 hub-version 8a1d0c6e2f4b9a73
+ze cli -c "request fleet divergence name edge-01 revert version 3f9c2a7e1b0d4c58 hub-version 8a1d0c6e2f4b9a73"
+```
+
+| Field | Meaning |
+|-------|---------|
+| `client` | The client the revert was decided for |
+| `device-version` | The hash of the copy the client is to discard |
+| `hub-version` | The hash of the configuration the hub serves the client: the one the client takes |
+
+The hub stores the decision with the copy, bound to the two hashes you gave,
+and tells the client. The hub's answer to the client's next fetch offers the revert
+only while the client still runs `device-version` and the hub still serves
+`hub-version`; the client then applies the hub's configuration, as any change
+from its hub, and acknowledges it, and the hub removes the copy. A client that
+is not connected takes it at its next connection. A newer copy from the
+client replaces the record and drops the decision, and a new configuration
+for the client on the hub makes it `void` in the show. Nothing is stored when
+`version` is not the copy's hash, or `hub-version` is not the hash of what
+the hub serves the client now (each refusal names the current hash, then
+`show fleet divergence name <client>`), when the hub keeps no copy for the
+client, when no server block declares it, or when the hub holds no
+configuration for it. Beside a running hub, `ze request` sends the line to
+it; with the hub stopped it is refused with `ze start` as the fix, because
+only the running hub records the decision in its audit log and offers it.
+`request` needs the edit permission, and the hub records the audit action
+`fleet-divergence-revert`.
+
+<!-- source: internal/component/managed/cmd_divergence.go -- handleDivergenceRevert, requestDivergenceRevertLocal, revertLocal, revertThroughDaemon, revertHeld, revertHeldLocked -->
+<!-- source: internal/component/plugin/server/managed.go -- HandleConfigFetch -->
+<!-- source: internal/component/managed/register.go -- ze-managed:fleet-divergence-revert, request fleet divergence name revert registration -->
+<!-- test: internal/component/managed/cmd_divergence_revert_test.go TestRevertStoresDecisionAndNotifies, TestRevertRefusesStaleHash, TestRevertRefusesHubWrittenSinceShow, TestRevertThroughDaemonSendsBothHashes, TestRevertRefusesUndeclaredClient, TestRevertLocalOnStoppedHubRefused, TestShowDivergenceReportsVoidDecision -->
+<!-- test: internal/component/managed/cmd_fleet_test.go TestFleetStatusHeldFields -->
 <!-- source: internal/component/managed/baseline.go -- ManagedFlag, ActiveVersion, BaselineVersion -->
 <!-- source: internal/component/config/storage/freeze.go -- refuseFrozenConfigLocked -->
 <!-- source: cmd/ze/hub/managed_owner.go -- state -->
@@ -1237,9 +1407,9 @@ ze show host kernel                # Kernel release, cmdline, microcode, arch fl
 
 Use Ze's offline command fallback to read the complete kernel, CPU, and memory inventory in human-readable structured output.
 
-[Download the asciicast recording](../../assets/demos/host-inventory.cast?v=914610af44) · [Plain-text transcript](../../assets/demos/host-inventory.txt?v=5b221c4c0f)
+[Download the asciicast recording](../../assets/demos/host-inventory.cast?v=a255ffa316) · [Plain-text transcript](../../assets/demos/host-inventory.txt?v=5b221c4c0f)
 
-Recorded with Ze 26.10.09 in a Linux namespace lab using Ze recorder. Duration: 39 seconds.
+Recorded with Ze 26.11.20 in a Linux namespace lab using Ze recorder. Duration: 1 minute 13 seconds.
 
 ```console
 An operator needs to inspect an unfamiliar Linux host before starting Ze.
@@ -1367,6 +1537,75 @@ ze cli -c "show data cat support/archive/ze-support-router1-20261102-101500.tar.
 <!-- source: internal/component/support/support.go -- Run, Answer, storeAnswer, collect, SupportManifest -->
 <!-- source: internal/component/command/blob.go -- BlobRemoteOctetsMax -->
 <!-- source: internal/component/support/modules.go -- moduleRegistry, ModuleNames, ModuleList -->
+
+### ze thanks / ze thanks licence
+
+Ze is built on other people's work. `ze thanks` lists every third-party work
+compiled into this binary: one row per work, under the group headings of the
+website's Dependencies page, with the version this binary carries, its licence,
+its copyright holder, why Ze uses it and where its source is. `ze thanks
+licence` prints the licence texts the binary carries as one document: for each
+distinct text, the works it covers with their copyright lines and source, then
+the text as the works ship it. The `name` pipe operation narrows the document to
+the one work with that exact name, as the list prints it.
+
+```
+ze thanks                                     # One row per carried work
+ze thanks licence                             # Every licence text
+ze cli -c "thanks licence | name github.com/miekg/dns"
+```
+
+Both are answered in the caller's own process, with no daemon. The daemon
+serves the same answers as `show thanks list` and `show thanks licence`, so
+SSH, the web command pages, REST, gRPC and MCP offer them too:
+
+```
+ze cli -c "show thanks list | json"
+ze cli -c "show thanks licence | name github.com/miekg/dns"
+```
+
+The list's columns, and its JSON keys, are `group`, `name`, `version`,
+`licence`, `copyright`, `why` and `source`. A name no carried work has is
+refused, and the refusal names `show thanks list` as the way to see the names.
+
+What a binary lists is what it carries. A Go module is listed when the
+binary's build information links it, at the version that information states,
+and Go itself at the Go version the binary was built with. A work that is not
+a module (htmx, swagger-ui, ExaBGP's ported encoders) is listed only by a
+build that compiles in the feature carrying it, so a build without the
+looking glass, the web interface and the REST server lists no web asset.
+
+```
+group         name                             version   licence       copyright        why  source
+Go Toolchain  Go standard library and runtime  go1.27.4  BSD-3-Clause  The Go Authors   ...  https://github.com/golang/go
+...
+```
+
+A linked module the build's credits record lacks is still listed, with its
+version and the licence `not recorded`. The command then prints the whole list
+and exits 1, naming each such module and `./le deps credits update`: the
+binary was built from a declaration that does not credit it, which is a defect
+of the build, not of the box. A binary built without build information refuses
+both commands, because it cannot tell what it links, and names `./ze thanks`,
+which builds `bin/ze` from the Ze repository with that information.
+
+Each text of the licence document is headed by the works that ship it:
+
+```
+================================================================================
+github.com/miekg/dns v1.1.73, LICENSE
+  Copyright: The Go Authors, Miek Gieben
+  Source: https://github.com/miekg/dns
+--------------------------------------------------------------------------------
+<the text, byte for byte>
+```
+
+A work whose files state no copyright holder reads
+`Copyright: no copyright holder stated`.
+
+<!-- source: internal/plugins/thanks/register.go -- the two registrations, their daemon paths and the name operation -->
+<!-- source: internal/plugins/thanks/thanks.go -- listHandler, licenceHandler, withUnrecorded, creditsRefusal -->
+<!-- source: internal/core/credits/credits.go -- carried, document, writeWorkHeader -->
 
 ### ze interface
 
@@ -2602,8 +2841,9 @@ command's summary under `description` and its long explanation under
 `description`. The full RPKI command list is in `docs/guide/rpki.md`.
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, summaryAliasExpansion -->
 <!-- source: internal/plugins/help/help_command.go -- appendPluginCommands -->
-<!-- source: internal/le/cli/list/commandlist.go -- aliasesFor -->
-<!-- source: internal/plugins/help/help_command.go -- collectCommands, extractPipes -->
+<!-- source: internal/le/cli/list/commandlist.go -- Collect -->
+<!-- source: internal/le/cli/list/report.go -- joinAliases -->
+<!-- source: internal/plugins/help/help_command.go -- collectCommands, pipeOperationsFor -->
 
 `show bgp summary` was a second spelling of this command until 2026-08. It is
 removed, not aliased, so it answers an unknown-command error. `show bgp` gives
@@ -4181,7 +4421,7 @@ unicast; `mp <family> add <prefixes>`, `mp <family> del <prefixes>` and
 | `show bgp rib \| advertised` | read-only | Stream advertised routes only |
 | `show bgp rib \| peer <selector>` | read-only | Stream routes for one peer selector |
 | `show bgp rib \| received \| covering <address>` | read-only | Stream the received routes whose prefix contains the address, most specific first within each peer; refused on advertised routes and on `show bgp rib best` <!-- source: internal/component/bgp/plugins/rib/rib_pipeline_covering.go -- receivedWalk, refuseCoveringScope, coveringOnBestRefusal --> |
-| `show bgp rib \| received \| exact <prefix>` | read-only | Stream the received routes of exactly that prefix, every ADD-PATH path of it, for example `show bgp rib received exact 10.0.0.0/8`; `prefix` is a text filter that also matches longer prefixes sharing its leading text. Refused on advertised routes, on `show bgp rib best`, and beside `covering` <!-- source: internal/component/bgp/plugins/rib/rib_pipeline_covering.go -- receivedWalk, parseExactPrefix, refuseExactScope, exactOnBestRefusal, walkConflictRefusal --> |
+| `show bgp rib \| received \| exact <prefix>` | read-only | Stream the received routes of exactly that prefix, every ADD-PATH path of it, for example `show bgp rib \| received \| exact 10.0.0.0/8`; `prefix` is a text filter that also matches longer prefixes sharing its leading text. Refused on advertised routes, on `show bgp rib best`, and beside `covering` <!-- source: internal/component/bgp/plugins/rib/rib_pipeline_covering.go -- receivedWalk, parseExactPrefix, refuseExactScope, exactOnBestRefusal, walkConflictRefusal --> |
 | `show bgp rib \| path <pattern>` | read-only | Stream the routes whose AS path matches the pattern: AS numbers joined by commas, matched as a run anywhere in the path. `^` first ties the run to the start of the path and `$` last ties it to the end, so `path 65001$` lists the routes AS 65001 originates and `path ^65010,65001$` lists the routes whose path is exactly those two AS numbers. A `$` anywhere but directly after the last AS number is refused. `show bgp rib best` takes the same filter <!-- source: internal/component/bgp/plugins/rib/rib_pipeline.go -- parsePathPattern, pathPattern.matches --> |
 | `show bgp rib best` | read-only | Best-path per prefix |
 | `show bgp rib best status` | read-only | Best-path computation status |
@@ -4254,7 +4494,7 @@ declares `map` rather than `tab`. `| fill` is refused by name.
 | Command | Access | Purpose |
 |---------|--------|---------|
 | `show bmp sessions` | read-only | Show active BMP receiver sessions (router address, sysName, uptime) |
-| `show bmp peers` | read-only | Show monitored BGP peers (AS, BGP ID, up/down status, and `rib-peer`, the key `show bgp rib protocol bmp peer` takes) |
+| `show bmp peers` | read-only | Show monitored BGP peers (AS, BGP ID, up/down status, and `rib-peer`, the key `show bgp rib protocol bmp \| peer` takes) |
 | `show bmp collectors` | read-only | Show BMP sender collector connection status |
 | `show bmp rib` | read-only | Show BMP-monitored routes <!-- source: internal/component/bgp/plugins/bmp/cmd_show.go -- ForwardToPlugin proxy --> |
 
@@ -4343,7 +4583,14 @@ When fib-kernel is loaded, it automatically enables IPv4 and IPv6 forwarding as 
 | `clear l2tp tunnel id <tid>` | run | Send StopCCN for one tunnel |
 | `clear l2tp tunnel all` | run | Send StopCCN for every tunnel |
 | `clear l2tp session id <sid> [expected-id <birth>] [tunnel-id <tid>] [listener <name-or-endpoint>] [reason <text...>] [cause <code>]` | run | Clear a captured original session after confirming local physical cleanup |
+| `clear l2tp session user <name> [actor <label>] [reason <text...>] [cause <code>]` | run | Clear the one live session whose user name equals `<name>` exactly; several matches clear nothing and list one `clear l2tp session id` command each |
+| `clear l2tp session address <ipv4> [actor <label>] [reason <text...>] [cause <code>]` | run | Clear the one live session IPCP assigned `<ipv4>`; several matches clear nothing and list one `clear l2tp session id` command each |
 | `clear l2tp session all` | run | Send CDN for every session |
+
+The `user` and `address` forms select the session the way a RADIUS
+Disconnect-Request does, from the `username` and `assigned-addr` of
+`show l2tp sessions`, and answer `session-id`, `tunnel-id` and the selecting
+`username` or `address`. Tab offers the live values after each keyword.
 
 The `clear l2tp session id` command accepts optional keyword arguments:
 - `reason <text...>`: free-text audit reason, recorded in the per-session event ring

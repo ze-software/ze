@@ -6382,7 +6382,7 @@ certificate against the system roots, and sends no credentials. One
 </tr>
 <tr>
 <td><code>mirror</code></td>
-<td>Server Ze asks first; the registry is asked when it fails. <code>address</code> is mandatory: an IP address or a host name in lower case, and a loopback address is accepted. <code>port</code> is 1 to 65535 and defaults to 443 whatever the transport. <code>path</code> starts with a slash, defaults to <code>/</code>, and is placed before the path of every request to the mirror. The mirror is asked with no credentials, and what it serves passes the same digest and size checks. <span class="ev-src"><span class="ev-ref"><code>/v2/</code></span></span></td>
+<td>Server Ze asks first; the registry is asked when it fails. <code>address</code> is mandatory: an IP address or a host name in lower case, and a loopback address is accepted. <code>port</code> is 1 to 65535 and defaults to 443 whatever the transport. <code>path</code> starts with one slash, never two, holds no backslash, query, fragment or space, defaults to <code>/</code>, and is placed before the path of every request to the mirror. The mirror is asked with no credentials, and what it serves passes the same digest and size checks. <span class="ev-src"><span class="ev-ref"><code>/v2/</code></span></span></td>
 </tr>
 <tr>
 <td><code>authentication</code></td>
@@ -6529,7 +6529,7 @@ match criteria, actions, reserved ranges, and CLI usage.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
                 </div>
             </div>
         </footer>

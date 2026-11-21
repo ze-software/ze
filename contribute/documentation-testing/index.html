@@ -125,7 +125,7 @@ checks needed for the current diff and is a stage of Thomas's release check, <co
 </tr>
 <tr>
 <td><code>./le doc consistency</code></td>
-<td>Design references, cross-references, JSON tags, and package citations agree</td>
+<td>Design references, cross-references, JSON tags, and package citations agree; every <code>.md</code> page a <code>// Design:</code> header names exists, and its <code>## Design decisions</code> section keeps the page format ("Page format"). <span class="ev-src"><span class="ev-ref"><code>docs/architecture/README.md</code></span></span></td>
 </tr>
 <tr>
 <td><code>./le doc wiring</code></td>
@@ -728,6 +728,20 @@ files, while the last records an earlier tree.</p>
 <p><code>internal/le/doc/consistency</code> parses <code>// Design:</code>, <code>// Detail:</code>, <code>// Overview:</code>, and
 <code>// Related:</code> comments, checks their symmetry, and reports references to
 packages that no longer exist.</p>
+<p>The same package reads every <code>.md</code> page a header line before the <code>package</code>
+clause names (each word before the <code>--</code> separator that ends in <code>.md</code>, in a
+Go file outside a <code>testdata</code> directory). A page that does not exist is a
+<code>design-refs</code> error on the file and its header line. On a page that exists,
+the <code>## Design decisions</code> section is judged by the page format: each row's
+four cells, its Date, every Source entry, the columns and a repeated heading
+are <code>design-decisions</code> errors naming the page and the row. A page with no
+section is reported as nothing. The judgment is also registered as a
+change-set check, so <code>./le commit create</code> refuses a malformed row the commit
+adds and a row present at its parent that it changes or removes without
+Thomas (<code>docs/contributing/committing.md</code>, "What the command refuses").</p>
+<!-- source: internal/le/doc/consistency/consistency.go -- checkDesignRefs, designHeader -->
+<!-- source: internal/le/doc/consistency/decisions.go -- designTargets, ParseDecisions, JudgeDecisionRow, checkDesignDecisions -->
+<!-- source: internal/le/doc/consistency/decisionschange.go -- judgeDecisionRows -->
 <h2 id="adding-a-new-documentation-check">Adding a new documentation check</h2>
 <ol>
 <li>Add callable Go behavior to the owning package under <code>internal/le/</code>.</li>
@@ -767,7 +781,7 @@ command validation, and changed-file wiring</li>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
                 </div>
             </div>
         </footer>

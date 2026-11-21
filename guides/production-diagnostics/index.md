@@ -409,9 +409,9 @@ reverse DNS hostnames instead.
 
 Run Ze's live traceroute through a deterministic Linux network-namespace lab.
 
-[Download the asciicast recording](../../assets/demos/traceroute.cast?v=60ee2d3f6b) · [Plain-text transcript](../../assets/demos/traceroute.txt?v=2b9d95cc69)
+[Download the asciicast recording](../../assets/demos/traceroute.cast?v=62346c593a) · [Plain-text transcript](../../assets/demos/traceroute.txt?v=2b9d95cc69)
 
-Recorded with Ze 26.10.09 in a Linux namespace lab using Ze recorder. Duration: 46 seconds.
+Recorded with Ze 26.11.20 in a Linux namespace lab using Ze recorder. Duration: 33 seconds.
 
 ```console
 $ ssh ze-demo

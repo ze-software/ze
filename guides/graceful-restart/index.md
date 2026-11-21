@@ -307,7 +307,7 @@ boundary, so `bgp-gr`, `bgp-rs` and `bgp-rr` may each run in a child process
 ## CLI
 
 ```
- $ ze cli -c "show bgp rib received"
+ $ ze cli -c "show bgp rib | received"
 # Shows routes with stale flag when applicable
 ```
 

@@ -131,14 +131,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>21</strong><b>of 29 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>5</strong><b>of 29 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 29 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>44</strong><b>44 of 108 tests linked to requirements, 0 without a fault test and 23 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>66</strong><b>66 of 108 tests linked to requirements, 0 without a fault test and 1 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>Partial test coverage</span><strong>1</strong><b>of 29 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>1</strong><b>of 29 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>30</strong><b>of 29 mandatory requirements reviewed</b><p>1 weak, wrong or unimplemented, 9 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>30</strong><b>of 29 mandatory requirements reviewed</b><p>1 weak, wrong or unimplemented, 6 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -280,8 +280,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> IPv4 FlowSpec</p>
-<p><strong>Test verification:</strong> 11 of 29 MUST proven</p>
-<p><strong>Evidence:</strong> unit 11</p>
+<p><strong>Test verification:</strong> 14 of 29 MUST proven</p>
+<p><strong>Evidence:</strong> unit 14</p>
 <p><strong>Unmet:</strong> RFC8955-12-2, RFC8955-4-3</p>
 
 </section>
@@ -328,9 +328,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc8955:must">Ze verified 11, Tests awaiting verification 15, Not built 2</div>
+<div data-ze-rfc-bar="rfc8955:must">Ze verified 14, Tests awaiting verification 12, Not built 2</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc8955:overview">Ze MUST verified 11, SHOULD verified 6, Not owed 1, Tests awaiting verification 15, Not assessed 14, Not built 2</div>
+<div data-ze-rfc-bar="rfc8955:overview">Ze MUST verified 14, SHOULD verified 6, Not owed 1, Tests awaiting verification 12, Not assessed 14, Not built 2</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -351,13 +351,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc8955:must.kept">28</span></td>
 </tr>
 <tr><td>Ze verified</td>
-<td><span data-ze-rfc="rfc8955:must.ze-proven">11</span></td>
+<td><span data-ze-rfc="rfc8955:must.ze-proven">14</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc8955:must.os-verified">0</span></td>
 </tr>
 <tr><td>Tests awaiting verification</td>
-<td><span data-ze-rfc="rfc8955:must.proof-pending">15</span></td>
+<td><span data-ze-rfc="rfc8955:must.proof-pending">12</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc8955:must.os-gap">0</span></td>
@@ -472,8 +472,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-4-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L547" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8955NextHopIgnoredForFlowSpec</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L548" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8955NextHopIgnoredForFlowSpec</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L600" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8955NextHopIgnoredForFlowSpec</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L601" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8955NextHopIgnoredForFlowSpec</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2-1">RFC8955-4.2-1</code></td><td colspan="3"><span class="rfc-subject">Components MUST follow strict type ordering by increasing numerical order (§4.2)</span></td></tr>
@@ -576,13 +576,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-6-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L174" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecAuthorizationFromReceivedUpdates</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L463" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecForeignMoreSpecificLosingPathInvalidatesRule</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L339" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNValidationSeparatesAFIAndRD</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L227" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecAuthorizationFromReceivedUpdates</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L516" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecForeignMoreSpecificLosingPathInvalidatesRule</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L392" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNValidationSeparatesAFIAndRD</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L18" title="internal/component/bgp/plugins/rib/rfc9117_best_match_test.go" target="_blank" rel="noopener"><code>TestRFC9117AuthorizationUsesLongestCoveringRoute</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L175" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecAuthorizationFromReceivedUpdates</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L464" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecForeignMoreSpecificLosingPathInvalidatesRule</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L340" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNValidationSeparatesAFIAndRD</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L228" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecAuthorizationFromReceivedUpdates</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L517" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecForeignMoreSpecificLosingPathInvalidatesRule</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L393" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNValidationSeparatesAFIAndRD</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L19" title="internal/component/bgp/plugins/rib/rfc9117_best_match_test.go" target="_blank" rel="noopener"><code>TestRFC9117AuthorizationUsesLongestCoveringRoute</code></a></span></div>
 </div></td>
 </tr>
@@ -591,8 +591,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-6-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L254" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUnicastLifecycleRevalidatesRetainedRule</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L255" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUnicastLifecycleRevalidatesRetainedRule</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L307" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUnicastLifecycleRevalidatesRetainedRule</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L308" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUnicastLifecycleRevalidatesRetainedRule</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-7.1-1">RFC8955-7.1-1</code></td><td colspan="3"><span class="rfc-subject">On encoding, the traffic-rate MUST NOT be negative. (§7.1, §7.2)</span></td></tr>
@@ -830,13 +830,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8955_unmatchable_test.go#L183" title="internal/core/bgp/nlri/flowspec/rfc8955_unmatchable_test.go" target="_blank" rel="noopener"><code>TestCheckMatchable</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8955_rib_flowspec_unmatchable_values_test.go#L23" title="internal/component/bgp/plugins/rib/rfc8955_rib_flowspec_unmatchable_values_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUnmatchableByValueReceivedRuleIsNotPropagated</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8955_unmatchable_values_test.go#L27" title="internal/component/bgp/plugins/nlri/flowspec/rfc8955_unmatchable_values_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUnmatchableByValueRefused</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L691" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUnmatchableReceivedRuleIsNotPropagated</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L744" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUnmatchableReceivedRuleIsNotPropagated</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8955_unmatchable_test.go#L52" title="internal/component/bgp/plugins/nlri/flowspec/rfc8955_unmatchable_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUnmatchableRefused</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8955_unmatchable_test.go#L182" title="internal/core/bgp/nlri/flowspec/rfc8955_unmatchable_test.go" target="_blank" rel="noopener"><code>TestCheckMatchable</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8955_rib_flowspec_unmatchable_values_test.go#L24" title="internal/component/bgp/plugins/rib/rfc8955_rib_flowspec_unmatchable_values_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUnmatchableByValueReceivedRuleIsNotPropagated</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8955_unmatchable_values_test.go#L26" title="internal/component/bgp/plugins/nlri/flowspec/rfc8955_unmatchable_values_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUnmatchableByValueRefused</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L692" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUnmatchableReceivedRuleIsNotPropagated</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L737" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUnmatchableReceivedRuleWithdraw</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L745" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUnmatchableReceivedRuleIsNotPropagated</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L790" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUnmatchableReceivedRuleWithdraw</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8955_unmatchable_test.go#L34" title="internal/component/bgp/plugins/nlri/flowspec/rfc8955_unmatchable_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUnmatchableRefused</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/parse/flowspec-unmatchable-refused.ci#L4" title="test/parse/flowspec-unmatchable-refused.ci" target="_blank" rel="noopener"><code>flowspec-unmatchable-refused.ci</code></a></span></div>
 </div></td>
@@ -951,7 +951,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.</p>
 <h3><a href="#rfc8955-4-1"><code>RFC8955-4-1</code></a></h3>
 <p>Implementations wishing to exchange Flow Specification MUST use BGP&#39;s Capability Advertisement facility to exchange the Multiprotocol Extension Capability Code (Code 1) (§4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-read RFC 8955 Section 4&#39;s complete capability paragraph, including the following 1/133 and 1/134 application sentence, against the current summary/derived row. This row has a genuine positive and negative pair and needs no single-polarity exception. TestIPv4FlowSpecNegotiatesMultiprotocolCapability supplies registration and constructed Multiprotocol-object evidence only, with its shared code constant treated as supplementary. The literal configured-OPEN/peer-stream pair exercises both specified FlowSpec applications, preserving actual emitted bytes, independent numeric capability identity, successful valid-peer negotiation and exclusion of an otherwise well-framed code-250 application while real code-1 unicast survives. No untagged send-path test is counted as a new cover for this row. The configured OPEN fixture&#39;s test-only Session.buildOpen delegates directly to the current production buildOpenFromSnapshot with one captured plugin snapshot. In production prepareOpen retains the built message with its settings and declarations in one preparedOpen; sendOpen writes that message, and prepareNegotiation/publishNegotiation retain the advertised local/remote family intersection. The obsolete production buildOpen code key is replaced by buildOpenFromSnapshot; all other existing code anchors and tagged covers remain. The literal positive independently walks parameter and capability TLVs from the configured OPEN, requiring exactly one literal code 1, length 4 and exact AFI/reserved/SAFI payload for each exercised application (1/133, 1/134, 16388/71), then requires application and unicast negotiation against a separately handwritten code-1 peer stream. The negative provides a valid code-1 unicast control and the application payload under code 250, requires successful parsing, first excludes the application, and then requires surviving unicast. Thus a shared codec constant or rejection of every capability cannot satisfy the pair. Existing recorded breaks target Multiprotocol.WriteTo emitting 250 and parseCapability recognizing 250; the latter must fail for acceptance of the bad application, not solely loss of the unicast control. This independent current-source judgment credits only the capability-advertisement obligation. Main&#39;s final native inventories at HEAD 606a3ba2 report all existing records current: four for RFC5575-4-1, five for RFC7752-3.2-1, two for RFC8955-4-1 and five for RFC9552-5.2-7, with no stale bindings. This continuation read all sixteen actual record objects and every tagged test and reached producer before stamping. The eight numeric-code records and eight partner records remain intact; four supplementary registration/core-positive tagged covers have no historical record and are judged from their assertions without inventing execution. This verdict covers this capability-advertisement requirement alone, not whole-RFC or additional-NLRI conformance.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/nlri/flowspec/plugin_test.go::TestIPv4FlowSpecNegotiatesMultiprotocolCapability moved. Re-read RFC 8955 Section 4&#39;s complete capability paragraph, including the following 1/133 and 1/134 application sentence, against the current summary/derived row. This row has a genuine positive and negative pair and needs no single-polarity exception. TestIPv4FlowSpecNegotiatesMultiprotocolCapability supplies registration and constructed Multiprotocol-object evidence only, with its shared code constant treated as supplementary. The literal configured-OPEN/peer-stream pair exercises both specified FlowSpec applications, preserving actual emitted bytes, independent numeric capability identity, successful valid-peer negotiation and exclusion of an otherwise well-framed code-250 application while real code-1 unicast survives. No untagged send-path test is counted as a new cover for this row. The configured OPEN fixture&#39;s test-only Session.buildOpen delegates directly to the current production buildOpenFromSnapshot with one captured plugin snapshot. In production prepareOpen retains the built message with its settings and declarations in one preparedOpen; sendOpen writes that message, and prepareNegotiation/publishNegotiation retain the advertised local/remote family intersection. The obsolete production buildOpen code key is replaced by buildOpenFromSnapshot; all other existing code anchors and tagged covers remain. The literal positive independently walks parameter and capability TLVs from the configured OPEN, requiring exactly one literal code 1, length 4 and exact AFI/reserved/SAFI payload for each exercised application (1/133, 1/134, 16388/71), then requires application and unicast negotiation against a separately handwritten code-1 peer stream. The negative provides a valid code-1 unicast control and the application payload under code 250, requires successful parsing, first excludes the application, and then requires surviving unicast. Thus a shared codec constant or rejection of every capability cannot satisfy the pair. Existing recorded breaks target Multiprotocol.WriteTo emitting 250 and parseCapability recognizing 250; the latter must fail for acceptance of the bad application, not solely loss of the unicast control. This independent current-source judgment credits only the capability-advertisement obligation. Main&#39;s final native inventories at HEAD 606a3ba2 report all existing records current: four for RFC5575-4-1, five for RFC7752-3.2-1, two for RFC8955-4-1 and five for RFC9552-5.2-7, with no stale bindings. This continuation read all sixteen actual record objects and every tagged test and reached producer before stamping. The eight numeric-code records and eight partner records remain intact; four supplementary registration/core-positive tagged covers have no historical record and are judged from their assertions without inventing execution. This verdict covers this capability-advertisement requirement alone, not whole-RFC or additional-NLRI conformance.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -1010,7 +1010,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_forward_wire_test.go#L32" title="internal/component/bgp/reactor/flowspec_forward_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecForwardingOmitsNextHop</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_origin_wire_test.go#L33" title="internal/component/bgp/reactor/flowspec_origin_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecOriginationOmitsConfiguredNextHop</code></a></td>
@@ -1020,12 +1020,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L28" title="internal/component/bgp/reactor/flowspec_rs_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecRouteServerOmitsNextHop</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8955_flowspec_forward_mixed_test.go#L16" title="internal/component/bgp/reactor/rfc8955_flowspec_forward_mixed_test.go" target="_blank" rel="noopener"><code>TestFlowSpecForwardingKeepsLegacyNextHop</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L15" title="internal/component/bgp/message/flowspec_wire_contract_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUpdateIgnoresConfiguredNextHop</code></a></td>
@@ -1035,12 +1035,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_forward_wire_test.go#L31" title="internal/component/bgp/reactor/flowspec_forward_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecForwardingOmitsNextHop</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_origin_wire_test.go#L32" title="internal/component/bgp/reactor/flowspec_origin_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecOriginationOmitsConfiguredNextHop</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L27" title="internal/component/bgp/reactor/flowspec_rs_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecRouteServerOmitsNextHop</code></a></td>
@@ -1050,7 +1050,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/encode/flow-encode.ci#L15" title="test/encode/flow-encode.ci" target="_blank" rel="noopener"><code>flow-encode.ci</code></a></td>
 <td>functional/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1063,14 +1063,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L548" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8955NextHopIgnoredForFlowSpec</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L601" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8955NextHopIgnoredForFlowSpec</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L547" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8955NextHopIgnoredForFlowSpec</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L600" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8955NextHopIgnoredForFlowSpec</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1290,42 +1290,42 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L19" title="internal/component/bgp/plugins/rib/rfc9117_best_match_test.go" target="_blank" rel="noopener"><code>TestRFC9117AuthorizationUsesLongestCoveringRoute</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L175" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecAuthorizationFromReceivedUpdates</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L228" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecAuthorizationFromReceivedUpdates</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L464" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecForeignMoreSpecificLosingPathInvalidatesRule</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L517" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecForeignMoreSpecificLosingPathInvalidatesRule</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L340" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNValidationSeparatesAFIAndRD</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L393" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNValidationSeparatesAFIAndRD</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L18" title="internal/component/bgp/plugins/rib/rfc9117_best_match_test.go" target="_blank" rel="noopener"><code>TestRFC9117AuthorizationUsesLongestCoveringRoute</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L174" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecAuthorizationFromReceivedUpdates</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L227" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecAuthorizationFromReceivedUpdates</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L463" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecForeignMoreSpecificLosingPathInvalidatesRule</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L516" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecForeignMoreSpecificLosingPathInvalidatesRule</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L339" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNValidationSeparatesAFIAndRD</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L392" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNValidationSeparatesAFIAndRD</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1338,12 +1338,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L255" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUnicastLifecycleRevalidatesRetainedRule</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L308" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUnicastLifecycleRevalidatesRetainedRule</code></a></td>
 <td>unit/verify</td>
 <td>not verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L254" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUnicastLifecycleRevalidatesRetainedRule</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L307" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUnicastLifecycleRevalidatesRetainedRule</code></a></td>
 <td>unit/verify</td>
 <td>not verified</td>
 </tr>
@@ -1629,7 +1629,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8955_flowspec_bestchange_test.go#L79" title="internal/component/bgp/plugins/rib/rfc8955_flowspec_bestchange_test.go" target="_blank" rel="noopener"><code>TestRFC8955FlowSpecPathSelectionPicksOneSetOfAttributes</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1660,7 +1660,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC8955-12-2, so there is no linked test.</p>
 <h3><a href="#rfc8955-4.2.2.5-1"><code>RFC8955-4.2.2.5-1</code></a></h3>
 <p>Type 5 component values SHOULD be encoded as 1- or 2-octet quantities (numeric_op len=00 or len=01). (§4.2.2.5)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding moved. Re-judged 2026-10-16: the emission unit changed only by package qualification (constructors and types now from core flowspec), and the reactor forwarding unit is unchanged. RFC 8955 Section 4.2.2.5: &#34;Type 5 component values SHOULD be encoded as 1- or 2-octet quantities (numeric_op len=00 or len=01).&#34; TestFlowSpecPreferredNumericEmission requires exact literal operator and value bytes at 0/255/256/65535 from typed, generic, registered config (ConfigRouteParserByFamily) and registered text (EncodeNLRIByFamily) producers, and from the EncodeRoute route command&#39;s MP_REACH. TestFlowSpecPreferredNumericForwarding carries the recipient TCP observation. Single-polarity as annotated, and the shortest width is Ze policy. The legal wide-reception compatibility control, which this row does not tag, moved to core numeric_wide_reception_test.go::TestFlowSpecPreferredNumericWideReception. Second re-judgement 2026-10-16: TestFlowSpecPreferredNumericEmission&#39;s typed packet-length producer is now the test helper packetLengthComponent (plugin types_test.go), which builds FlowMatch{Op: FlowOpEqual, Value: v} through NewFlowNumericComponent(FlowPacketLength, ...). That is byte-for-byte the matches that the deleted NewFlowPacketLengthComponent built at HEAD (plugin types_numeric.go:457-463). The deleted constructor had no non-test caller at HEAD, so no production producer lost coverage. The typed and generic cases now drive the same constructor, and the registered config, text and forwarding producers carry the distinct evidence.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-16: the emission unit changed only by package qualification (constructors and types now from core flowspec), and the reactor forwarding unit is unchanged. RFC 8955 Section 4.2.2.5: &#34;Type 5 component values SHOULD be encoded as 1- or 2-octet quantities (numeric_op len=00 or len=01).&#34; TestFlowSpecPreferredNumericEmission requires exact literal operator and value bytes at 0/255/256/65535 from typed, generic, registered config (ConfigRouteParserByFamily) and registered text (EncodeNLRIByFamily) producers, and from the EncodeRoute route command&#39;s MP_REACH. TestFlowSpecPreferredNumericForwarding carries the recipient TCP observation. Single-polarity as annotated, and the shortest width is Ze policy. The legal wide-reception compatibility control, which this row does not tag, moved to core numeric_wide_reception_test.go::TestFlowSpecPreferredNumericWideReception. Second re-judgement 2026-10-16: TestFlowSpecPreferredNumericEmission&#39;s typed packet-length producer is now the test helper packetLengthComponent (plugin types_test.go), which builds FlowMatch{Op: FlowOpEqual, Value: v} through NewFlowNumericComponent(FlowPacketLength, ...). That is byte-for-byte the matches that the deleted NewFlowPacketLengthComponent built at HEAD (plugin types_numeric.go:457-463). The deleted constructor had no non-test caller at HEAD, so no production producer lost coverage. The typed and generic cases now drive the same constructor, and the registered config, text and forwarding producers carry the distinct evidence.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -1680,7 +1680,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8955-4.2.2.6-1"><code>RFC8955-4.2.2.6-1</code></a></h3>
 <p>Type 6 component values SHOULD be encoded as 1- or 2-octet quantities (numeric_op len=00 or len=01). (§4.2.2.6)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding moved. Re-judged 2026-10-16: same units and same change as RFC8955-4.2.2.5-1. RFC 8955 Section 4.2.2.6: &#34;Type 6 component values SHOULD be encoded as 1- or 2-octet quantities (numeric_op len=00 or len=01).&#34; Source-port emission requires exact one- and two-octet operands at 0/255/256/65535 across the typed, generic, config, text and route-command producers, plus recipient forwarding. Single-polarity as annotated. Second re-judgement 2026-10-16: TestFlowSpecPreferredNumericEmission&#39;s typed packet-length producer is now the test helper packetLengthComponent (plugin types_test.go), which builds FlowMatch{Op: FlowOpEqual, Value: v} through NewFlowNumericComponent(FlowPacketLength, ...). That is byte-for-byte the matches that the deleted NewFlowPacketLengthComponent built at HEAD (plugin types_numeric.go:457-463). The deleted constructor had no non-test caller at HEAD, so no production producer lost coverage. The typed and generic cases now drive the same constructor, and the registered config, text and forwarding producers carry the distinct evidence.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-16: same units and same change as RFC8955-4.2.2.5-1. RFC 8955 Section 4.2.2.6: &#34;Type 6 component values SHOULD be encoded as 1- or 2-octet quantities (numeric_op len=00 or len=01).&#34; Source-port emission requires exact one- and two-octet operands at 0/255/256/65535 across the typed, generic, config, text and route-command producers, plus recipient forwarding. Single-polarity as annotated. Second re-judgement 2026-10-16: TestFlowSpecPreferredNumericEmission&#39;s typed packet-length producer is now the test helper packetLengthComponent (plugin types_test.go), which builds FlowMatch{Op: FlowOpEqual, Value: v} through NewFlowNumericComponent(FlowPacketLength, ...). That is byte-for-byte the matches that the deleted NewFlowPacketLengthComponent built at HEAD (plugin types_numeric.go:457-463). The deleted constructor had no non-test caller at HEAD, so no production producer lost coverage. The typed and generic cases now drive the same constructor, and the registered config, text and forwarding producers carry the distinct evidence.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -1700,7 +1700,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8955-4.2.2.8-1"><code>RFC8955-4.2.2.8-1</code></a></h3>
 <p>Type 8 component values SHOULD be encoded as single octet (numeric_op len=00). (§4.2.2.8)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding moved. Re-judged 2026-10-16: same units and same change as RFC8955-4.2.2.5-1. RFC 8955 Section 4.2.2.8: &#34;Type 8 component values SHOULD be encoded as single octet (numeric_op len=00).&#34; ICMP-code emission requires the exact single octet at 0 and 255 across the typed (NewFlowICMPCodeComponent, now exported from core), generic, config and text producers, plus recipient forwarding. The route-command grammar has no ICMP-code criterion. Single-polarity as annotated. Second re-judgement 2026-10-16: TestFlowSpecPreferredNumericEmission&#39;s typed packet-length producer is now the test helper packetLengthComponent (plugin types_test.go), which builds FlowMatch{Op: FlowOpEqual, Value: v} through NewFlowNumericComponent(FlowPacketLength, ...). That is byte-for-byte the matches that the deleted NewFlowPacketLengthComponent built at HEAD (plugin types_numeric.go:457-463). The deleted constructor had no non-test caller at HEAD, so no production producer lost coverage. The typed and generic cases now drive the same constructor, and the registered config, text and forwarding producers carry the distinct evidence.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-16: same units and same change as RFC8955-4.2.2.5-1. RFC 8955 Section 4.2.2.8: &#34;Type 8 component values SHOULD be encoded as single octet (numeric_op len=00).&#34; ICMP-code emission requires the exact single octet at 0 and 255 across the typed (NewFlowICMPCodeComponent, now exported from core), generic, config and text producers, plus recipient forwarding. The route-command grammar has no ICMP-code criterion. Single-polarity as annotated. Second re-judgement 2026-10-16: TestFlowSpecPreferredNumericEmission&#39;s typed packet-length producer is now the test helper packetLengthComponent (plugin types_test.go), which builds FlowMatch{Op: FlowOpEqual, Value: v} through NewFlowNumericComponent(FlowPacketLength, ...). That is byte-for-byte the matches that the deleted NewFlowPacketLengthComponent built at HEAD (plugin types_numeric.go:457-463). The deleted constructor had no non-test caller at HEAD, so no production producer lost coverage. The typed and generic cases now drive the same constructor, and the registered config, text and forwarding producers carry the distinct evidence.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -1720,7 +1720,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8955-4.2.2.10-1"><code>RFC8955-4.2.2.10-1</code></a></h3>
 <p>Type 10 component values SHOULD be encoded as 1- or 2-octet quantities (numeric_op len=00 or len=01). (§4.2.2.10)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding moved. Re-judged 2026-10-16: same units and same change as RFC8955-4.2.2.5-1. RFC 8955 Section 4.2.2.10: &#34;Type 10 component values SHOULD be encoded as 1- or 2-octet quantities (numeric_op len=00 or len=01).&#34; Packet-length emission requires exact one- and two-octet operands at 0/255/256/65535 across the typed, generic, config and text producers, plus recipient forwarding. Single-polarity as annotated, and the shortest width is local policy. Second re-judgement 2026-10-16: TestFlowSpecPreferredNumericEmission&#39;s typed packet-length producer is now the test helper packetLengthComponent (plugin types_test.go), which builds FlowMatch{Op: FlowOpEqual, Value: v} through NewFlowNumericComponent(FlowPacketLength, ...). That is byte-for-byte the matches that the deleted NewFlowPacketLengthComponent built at HEAD (plugin types_numeric.go:457-463). The deleted constructor had no non-test caller at HEAD, so no production producer lost coverage. The typed and generic cases now drive the same constructor, and the registered config, text and forwarding producers carry the distinct evidence.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-16: same units and same change as RFC8955-4.2.2.5-1. RFC 8955 Section 4.2.2.10: &#34;Type 10 component values SHOULD be encoded as 1- or 2-octet quantities (numeric_op len=00 or len=01).&#34; Packet-length emission requires exact one- and two-octet operands at 0/255/256/65535 across the typed, generic, config and text producers, plus recipient forwarding. Single-polarity as annotated, and the shortest width is local policy. Second re-judgement 2026-10-16: TestFlowSpecPreferredNumericEmission&#39;s typed packet-length producer is now the test helper packetLengthComponent (plugin types_test.go), which builds FlowMatch{Op: FlowOpEqual, Value: v} through NewFlowNumericComponent(FlowPacketLength, ...). That is byte-for-byte the matches that the deleted NewFlowPacketLengthComponent built at HEAD (plugin types_numeric.go:457-463). The deleted constructor had no non-test caller at HEAD, so no production producer lost coverage. The typed and generic cases now drive the same constructor, and the registered config, text and forwarding producers carry the distinct evidence.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -1758,17 +1758,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8955_rib_flowspec_unmatchable_values_test.go#L24" title="internal/component/bgp/plugins/rib/rfc8955_rib_flowspec_unmatchable_values_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUnmatchableByValueReceivedRuleIsNotPropagated</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L692" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUnmatchableReceivedRuleIsNotPropagated</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L745" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUnmatchableReceivedRuleIsNotPropagated</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L737" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUnmatchableReceivedRuleWithdraw</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L790" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUnmatchableReceivedRuleWithdraw</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8955_unmatchable_test.go#L182" title="internal/core/bgp/nlri/flowspec/rfc8955_unmatchable_test.go" target="_blank" rel="noopener"><code>TestCheckMatchable</code></a></td>
@@ -1793,12 +1793,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8955_rib_flowspec_unmatchable_values_test.go#L23" title="internal/component/bgp/plugins/rib/rfc8955_rib_flowspec_unmatchable_values_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUnmatchableByValueReceivedRuleIsNotPropagated</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L691" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUnmatchableReceivedRuleIsNotPropagated</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L744" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUnmatchableReceivedRuleIsNotPropagated</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8955_unmatchable_test.go#L183" title="internal/core/bgp/nlri/flowspec/rfc8955_unmatchable_test.go" target="_blank" rel="noopener"><code>TestCheckMatchable</code></a></td>
@@ -2294,7 +2294,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:27 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
                 </div>
             </div>
         </footer>

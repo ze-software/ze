@@ -78,6 +78,7 @@ way; they differ only in how they reach Ze (<code>docs/architecture/plugin/plugi
 <li><a href="#commanddecl-fields">CommandDecl Fields</a></li>
 <li><a href="#declaring-what-your-answer-holds">Declaring What Your Answer Holds</a></li>
 <li><a href="#naming-a-pipe-alias-for-your-command">Naming a Pipe Alias for Your Command</a></li>
+<li><a href="#declaring-a-pipe-operation-for-your-command">Declaring a Pipe Operation for Your Command</a></li>
 <li><a href="#complex-responses">Complex Responses</a></li>
 <li><a href="#dispatching-commands-to-other-plugins">Dispatching Commands to Other Plugins</a></li>
 <li><a href="#help-text">Help Text</a></li>
@@ -236,7 +237,7 @@ for a plugin compiled into <code>ze</code>.</p>
 <!-- source: internal/component/plugin/server/command.go -- Dispatcher.dispatchPlugin, longestReach, ErrUnknownCommand -->
 <!-- source: internal/component/plugin/server/command_registry.go -- commandNameRefusal -->
 <p>In Go:</p>
-<pre><code class="language-go">p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+<pre><code class="language-go">p.OnExecuteCommand(func(serial, command string, args []string, peer string, pipe []sdk.PipeOperation) (string, any, error) {
     switch command {
     case "show acme-monitor status":
         return "done", map[string]string{"target": cfg.Target, "interval": cfg.intervalText()}, nil
@@ -570,6 +571,11 @@ no line can carry earn the same rejected row, and the head then states <code>map
 <td>string</td>
 <td>Peer selector (may be empty)</td>
 </tr>
+<tr>
+<td><code>pipe</code></td>
+<td>[]PipeOperation</td>
+<td>The pipe operations your command declares, in the order typed, each a <code>name</code> and its decoded <code>args</code>; absent when the line names none. The handler receives it as its <code>pipe</code> parameter</td>
+</tr>
 </tbody>
 </table>
 <h2 id="naming-conventions">Naming Conventions</h2>
@@ -787,7 +793,13 @@ for an operator chain they would otherwise type in full. Declare one in the
 <td><code>Expansion</code></td>
 <td>string</td>
 <td class="cell-yes">✓</td>
-<td>The operator chain the name stands for</td>
+<td>The operator chain the name stands for. An entry that states <code>Argument</code> instead is a pipe operation (below); an entry with both, or neither, is refused by name</td>
+</tr>
+<tr>
+<td><code>Argument</code></td>
+<td>string</td>
+<td class="cell-yes">✓</td>
+<td>What the words after the name may be; see "Declaring a Pipe Operation for Your Command"</td>
 </tr>
 </tbody>
 </table>
@@ -806,15 +818,47 @@ to built-in operators alone.</li>
 </ul>
 <p>The engine stops the alias reaching a command below the one it sits on. Declare
 <code>show my-plugin status detail</code> in the same message and it inherits nothing.</p>
-<p><code>ze cli</code> with no command argument expands the chain in the client process, where
-your alias is not registered, so it answers
-<code>pipe error: unknown pipe operator: totals</code> there. It resolves over
-<code>ze cli -c "&lt;command&gt;"</code> and in the interactive session a plain ssh client
-reaches.</p>
-<!-- source: internal/component/cli/model_mode.go -- executeOperationalCommand -->
+<p>The alias resolves in the daemon: over <code>ze cli -c "&lt;command&gt;"</code>, in the
+interactive session <code>ze cli</code> or a plain ssh client opens, and for a plugin's
+<code>dispatch-command</code>, MCP, REST and gRPC. An operational command typed in
+<code>ze config edit</code> reads its chain in the client process, where your alias is
+not registered, so it answers <code>pipe error: unknown pipe operator: totals</code>
+there.</p>
+<!-- source: internal/component/config/cli/cmd_edit.go -- sshCommandExecutor -->
+<h2 id="declaring-a-pipe-operation-for-your-command">Declaring a Pipe Operation for Your Command</h2>
+<p>A pipe operation is a word after the pipe character that your handler runs
+itself, before the answer exists: a selection the daemon should not compute by
+serializing every row, such as <code>show x | top-talkers 5</code>. Declare it in the same
+<code>Pipes</code> list, with <code>Argument</code> in place of <code>Expansion</code>:</p>
+<pre><code class="language-go">Pipes: []sdk.PipeDecl{{
+    Command:     "show my-plugin sessions",
+    Name:        "top-talkers",
+    Description: "The N sessions with the most traffic",
+    Argument:    "count",
+}},
+</code></pre>
+<p><code>Argument</code> is what the words after the name may be: <code>none</code>, <code>optional</code>,
+<code>text</code>, <code>count</code> (a positive whole number), <code>fields</code> or <code>path</code>. Ze validates
+the typed words against it, so your handler never meets a missing number.
+Your handler receives the operations the line typed in its <code>pipe</code> parameter,
+in order, each with its decoded words, and never among <code>args</code>. A word you
+declare is refused when typed as an argument, with the pipe form as the fix.
+The rest of the chain, the generic operators, Ze applies to your answer.</p>
+<p>A declared operation is taken only while no generic operator precedes it:
+<code>show my-plugin sessions | table | top-talkers 5</code> is refused with the line
+reordered. You may declare a generic data operator's name (<code>count</code>, <code>first</code>,
+<code>last</code>, <code>match</code>, <code>display</code>, <code>fill</code>, <code>resolve</code>, <code>origin</code>) to compute it in the
+handler. Your answer is then held to the generic's shape: <code>count</code> answers one
+object holding an integer <code>count</code>, <code>first N</code> and <code>last N</code> at most N of your
+rows, the others your rows. A format, <code>no-more</code>, <code>save</code> or <code>log</code> cannot be
+declared. <code>show command help "&lt;command&gt;"</code> lists each operation with <code>source</code>
+<code>command</code> or <code>override</code>.</p>
+<!-- source: pkg/plugin/rpc/types.go -- PipeDecl, PipeOperation, ExecuteCommandInput -->
+<!-- source: internal/component/command/pipe_filter_plugin.go -- RegisterPluginPipeFilters -->
+<!-- source: internal/component/command/pipe_partition.go -- partitionPipeChain, CheckOverrideAnswer -->
 <h2 id="complex-responses">Complex Responses</h2>
 <p>Return structured JSON data for API consumers:</p>
-<pre><code class="language-go">p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+<pre><code class="language-go">p.OnExecuteCommand(func(serial, command string, args []string, peer string, pipe []sdk.PipeOperation) (string, any, error) {
     if command == "monitor metrics" {
         data := struct {
             Checks    int     `json:"checks"`
@@ -881,7 +925,7 @@ gRPC command lists. A text the module leaves empty is filled from the entry.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:27 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
                 </div>
             </div>
         </footer>

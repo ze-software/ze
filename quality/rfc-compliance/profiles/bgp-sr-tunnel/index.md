@@ -9,7 +9,7 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-sr-tunnel.json](.
 ## Figures
 
 - **MUST bar**: Ze verified 89, Tests awaiting verification 48, Not built 106
-- **Overview bar**: Ze MUST verified 89, SHOULD verified 3, Not owed 1, Tests awaiting verification 49, Not assessed 131, Not built 107
+- **Overview bar**: Ze MUST verified 89, SHOULD verified 4, Not owed 1, Tests awaiting verification 48, Not assessed 131, Not built 107
 
 | Figure | Rows |
 |---|---|
@@ -30,14 +30,14 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-sr-tunnel.json](.
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 1 |
 | SHOULD / MAY rows | 136 |
-| SHOULD verified | 3 |
+| SHOULD verified | 4 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD tests awaiting verification | 1 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 131 |
 | SHOULD not built | 1 |
@@ -58,7 +58,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 9012](../../rfc9012/) | The BGP Tunnel Encapsulation Attribute | Ze verified 25, Not built 50 | Ze MUST verified 25, Not owed 1, Tests awaiting verification 1, Not assessed 21, Not built 50 |
+| [RFC 9012](../../rfc9012/) | The BGP Tunnel Encapsulation Attribute | Ze verified 25, Not built 50 | Ze MUST verified 25, SHOULD verified 1, Not owed 1, Not assessed 21, Not built 50 |
 
 ### Level 11
 

@@ -133,7 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 31 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 31 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 31 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>80</strong><b>80 of 107 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>86</strong><b>86 of 107 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -255,7 +255,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>22</td>
 </tr>
 <tr><td>Fault test records</td>
-<td>80</td>
+<td>86</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc2865.md</code></td>
@@ -275,8 +275,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> RADIUS authentication</p>
-<p><strong>Test verification:</strong> 27 of 31 MUST proven</p>
-<p><strong>Evidence:</strong> unit 27</p>
+<p><strong>Test verification:</strong> 31 of 31 MUST proven</p>
+<p><strong>Evidence:</strong> unit 31</p>
 <p><strong>Unmet:</strong> -</p>
 
 </section>
@@ -322,9 +322,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc2865:must">Ze verified 27, Tests awaiting verification 4</div>
+<div data-ze-rfc-bar="rfc2865:must">Ze verified 31</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc2865:overview">Ze MUST verified 27, Tests awaiting verification 4, Not assessed 1</div>
+<div data-ze-rfc-bar="rfc2865:overview">Ze MUST verified 31, Not assessed 1</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -336,7 +336,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc2865:not-walked">0</span></td>
 </tr>
 <tr><td>Mandatory requirements complete</td>
-<td><span data-ze-rfc="rfc2865:register">not complete</span></td>
+<td><span data-ze-rfc="rfc2865:register">complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
 <td><span data-ze-rfc="rfc2865:must.total">31</span></td>
@@ -345,13 +345,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc2865:must.kept">31</span></td>
 </tr>
 <tr><td>Ze verified</td>
-<td><span data-ze-rfc="rfc2865:must.ze-proven">27</span></td>
+<td><span data-ze-rfc="rfc2865:must.ze-proven">31</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc2865:must.os-verified">0</span></td>
 </tr>
 <tr><td>Tests awaiting verification</td>
-<td><span data-ze-rfc="rfc2865:must.proof-pending">4</span></td>
+<td><span data-ze-rfc="rfc2865:must.proof-pending">0</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc2865:must.os-gap">0</span></td>
@@ -821,7 +821,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L40" title="internal/component/radius/rfc2865_test.go" target="_blank" rel="noopener"><code>TestRFC2865RequestAuthenticatorRandom</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -846,7 +846,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_response_auth_test.go#L99" title="internal/component/radius/rfc2865_response_auth_test.go" target="_blank" rel="noopener"><code>TestRFC2865ResponseAuthenticatorCoversEveryNamedField</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L206" title="internal/component/radius/packet_test.go" target="_blank" rel="noopener"><code>TestResponseAuthenticator</code></a></td>
@@ -861,7 +861,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_response_auth_test.go#L58" title="internal/component/radius/rfc2865_response_auth_test.go" target="_blank" rel="noopener"><code>TestRFC2865ResponseAuthenticatorMatchesTheFormula</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -941,7 +941,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L156" title="internal/component/radius/rfc2865_test.go" target="_blank" rel="noopener"><code>TestRFC2865UserPasswordDependsOnSecret</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_attr_test.go#L35" title="internal/component/radius/rfc2865_attr_test.go" target="_blank" rel="noopener"><code>TestEncodeUserPassword</code></a></td>
@@ -951,7 +951,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_attr_test.go#L97" title="internal/component/radius/rfc2865_attr_test.go" target="_blank" rel="noopener"><code>TestEncodeUserPasswordMultiBlock</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -966,7 +966,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_attr_test.go#L17" title="internal/component/radius/rfc2865_attr_test.go" target="_blank" rel="noopener"><code>TestEncodeUserPassword</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_attr_test.go#L52" title="internal/component/radius/rfc2865_attr_test.go" target="_blank" rel="noopener"><code>TestEncodeUserPasswordEmpty</code></a></td>
@@ -1228,7 +1228,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc2865-4.1-2"><code>RFC2865-4.1-2</code></a></h3>
 <p>It MUST contain either a NAS-IP-Address attribute or a NAS-Identifier attribute (or both). (§4.1, restated at §5.44 Note 2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent rejudgment after canonical subscriber-ID fixture migration. RFC 2865 Section 4.1: &#39;It MUST contain either a NAS-IP-Address attribute or a NAS-Identifier attribute (or both).&#39; TestRADIUSAuthNASIPAddress reads Code 1 and the exact configured IPv4 address from the captured subscriber request. TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured sets neither identity leaf and still requires a nonempty NAS-Identifier with no invented address. The unchanged admin unit reads the wire and requires at least one NAS identity attribute. All requests retain usable PAP credentials, so failure to build a credential cannot substitute for the identity checks. The only subscriber fixture change is the canonical ID required before provider dispatch; packet and assertion inputs are unchanged. These cases retain the whole existing either/or identity obligation. Native discrimination refresh remains separate main-thread evidence.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go::TestRADIUSAuthNASIPAddress moved. Independent rejudgment after canonical subscriber-ID fixture migration. RFC 2865 Section 4.1: &#39;It MUST contain either a NAS-IP-Address attribute or a NAS-Identifier attribute (or both).&#39; TestRADIUSAuthNASIPAddress reads Code 1 and the exact configured IPv4 address from the captured subscriber request. TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured sets neither identity leaf and still requires a nonempty NAS-Identifier with no invented address. The unchanged admin unit reads the wire and requires at least one NAS identity attribute. All requests retain usable PAP credentials, so failure to build a credential cannot substitute for the identity checks. The only subscriber fixture change is the canonical ID required before provider dispatch; packet and assertion inputs are unchanged. These cases retain the whole existing either/or identity obligation. Native discrimination refresh remains separate main-thread evidence.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -2412,7 +2412,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
                 </div>
             </div>
         </footer>

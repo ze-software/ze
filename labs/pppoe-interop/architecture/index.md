@@ -761,6 +761,18 @@ kernel. Both routes refuse an unsuitable Docker host before they build an
 image. Both routes also stage the daemon and le helper from current source.
 <!-- source: internal/le/test/deployment/vpppppoe/product_plan.go -- runProductSuite -->
 
+The checker writes the daemon's configuration to the scenario's evidence
+directory, `/evidence/product.conf` in the VPP peer, so a failed run leaves it
+to read. Ze opens its config store beside the configuration it starts on and
+refuses a store another uid owns. Under `test qemu docker-lab` the evidence
+directory reaches the container through the guest's 9p share, where every
+file carries the host user's uid, even one the container's root creates. Ze,
+running as root, would refuse its own `database.lock` there. So every product
+action (`product`, `product-ipv6`, `product-framed`) copies the configuration
+to `/var/lib/ze-product` in the VPP peer's own filesystem and starts Ze on
+that copy. Its log stays at `/evidence/product-ze.log`.
+<!-- source: internal/le/test/deployment/vpppppoe/product_check.go -- startProductDaemon, productStartCommand -->
+
 The loopback REST observer is a registered, bounded le action. It uses the
 existing authenticated execute endpoint and shared renderer. Its command
 allowlist contains only the session and interface show commands. An error,
@@ -775,6 +787,16 @@ Service-Name. The physical access source MAC and SID must agree with Ze and
 native VPP.
 <!-- source: internal/le/test/deployment/vpppppoe/product_discovery.go -- productDiscovery, productDiscoveryTags -->
 
+Ze serves PPPoE only on an interface its config declares, so every product
+configuration declares the access interface it serves: `ethernet host-eth0`,
+and in the VLAN topology its `unit 100 { vlan-id 100; }`, which names
+`host-eth0.100`. The lab creates both in VPP before Ze starts. The entry
+carries no address and no `mtu`, so Ze only sets the port up, and it keeps the
+existing VLAN sub-interface rather than recreating it.
+`TestProductConfigsValidate` runs every product configuration through
+`ze config validate`'s checks.
+<!-- source: internal/le/test/deployment/vpppppoe/product_plan.go -- productConfigWith, productInterfaces -->
+
 The lab prepares only AF_PACKET and LCP infrastructure. Ze must create its
 own PPPoE map, native session, peer host route and session forwarding state.
 The server has no `/dev/ppp` device, and the checker reads both relevant
@@ -786,7 +808,7 @@ address must agree with Ze's native interface identity and session dump.
 The `ze-pppoe` FIB owner must match that same session. Its exact source path
 must attach to that native session interface. Another source's path or the
 forwarding display cannot supply that association.
-<!-- source: internal/le/test/deployment/vpppppoe/product_state.go -- productAuth, matchProductNative, productOwner, productHostRoute -->
+<!-- source: internal/le/test/deployment/vpppppoe/product_state.go -- productAuth, matchProductNative, productOwner, productHostRoute, productOwnedPath -->
 
 Traffic travels in both directions between the subscriber and an
 independent host. Source routes on the peer force replies through the
@@ -859,7 +881,9 @@ This action is the IPv4 product base. Separate required acceptance packages
 cover RADIUS/accounting, framed routes and VRFs, policers and CoA. They also
 cover IPv6 control and delegated prefixes, physical restart/reconnect
 recovery, and all access-index/SID reuse and foreign-object cases. A pass
-here cannot close those acceptance criteria.
+here cannot close those acceptance criteria. The `product-framed` action
+below covers one RADIUS Framed-Route with a non-peer gateway, not the rest of
+RADIUS, accounting or VRFs.
 <!-- source: internal/le/test/deployment/vpppppoe/product_check.go -- checkProduct -->
 
 Source alone does not record a product-lab pass. Retain the actual named
@@ -874,6 +898,48 @@ result.
 <!-- source: internal/le/test/deployment/vpppppoe/product_discovery.go -- productDiscovery, joinProductCapture -->
 
 <!-- source: internal/le/test/deployment/vpppppoe/product_capacity.go -- productCapacityRefusal, finishProductCapacity -->
+
+### A RADIUS Framed-Route through a VPP session
+
+The separate `product-framed` action reuses the product lab's staging,
+immutable VPP image selection, pinned pppd 2.5.5 image and Suite cleanup in
+the plain topology, and adds pinned FreeRADIUS 3.2.10 as a fourth peer. Ze
+authenticates through `l2tp { auth { radius { ... } } }` instead of a local
+user, so a CHAP success is FreeRADIUS's Access-Accept:
+<!-- source: internal/le/test/deployment/vpppppoe/product_framed.go -- productFramedPlan, framedAuth -->
+
+```sh
+./le --name session test qemu docker-lab lab "test deployment vpp-pppoe product-framed" timeout 3600s
+```
+
+FreeRADIUS answers `alice` with `Framed-Route = "203.0.113.128/25
+203.0.113.77 1"`. In 3.2.10, rlm_files' `file_common` moves that reply item
+into the Access-Accept and `rad_vp2rfc` encodes it as its text. The gateway is
+neither `0.0.0.0` nor the subscriber's pool address, so Ze installs a device
+route through the session (`newFramedRouteReceipt`), and its VPP provider
+sends a path with only the session interface and the metric as preference.
+The server reuses the subscriber lab's `site-default` and `ze_detail` module;
+the lab writes its `clients.conf`, one entry per candidate network, and its
+users file. VPP owns the peer's `eth0` address, so Ze's RADIUS client binds a
+macvlan with its own MAC and address on the same segment, which VPP's L3
+input drops.
+<!-- source: internal/le/test/deployment/vpppppoe/product_framed.go -- framedUsers, framedClients, framedNAS -->
+
+After IPCP, `show ip fib 203.0.113.128/25` must hold one `ze-pppoe` source
+whose one path is `attached` to the session interface at `pref=1`, and the
+entry must not name `203.0.113.77` anywhere. VPP v25.10 `fib_path_create`
+makes a path with a next hop `attached-nexthop`, so a route kept via the
+gateway fails both checks. The subscriber holds `203.0.113.129/32` on its
+loopback and returns traffic through its PPP link; the traffic host routes
+the /25 through VPP and pings that address, and both native session counters
+must rise. After pppd's graceful close, the session, its host route and the
+/25 must all leave VPP.
+<!-- source: internal/le/test/deployment/vpppppoe/product_framed.go -- checkProductFramed, productFramedRoute, framedTraffic -->
+<!-- source: internal/le/test/deployment/vpppppoe/product_state.go -- productOwnedPath -->
+
+This action is authored; a passing run and the counterfactual with the
+non-peer gateway kept must be recorded before the behavior is claimed as
+proved.
 
 ### Actual Ze IPv6 service over VPP
 

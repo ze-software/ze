@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 5 | of 16 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| Tested both ways | 6 | of 16 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
 | One polarity plus reason | 4 | of 16 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 16 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 16 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 4 | 4 of 16 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 6 | 6 of 18 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -22,7 +22,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Declared gap or no test | 6 | of 16 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Declared gap or no test | 5 | of 16 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
 ### Neutral
 
@@ -73,14 +73,14 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 27 |
 | Mandatory requirements (MUST level) | 16 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 6 |
+| Declared gaps | 5 |
 | Declared gaps a test demonstrates | 0 |
 | Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 16 |
-| Tests linked to requirements | 16 |
+| Test tags | 18 |
+| Tests linked to requirements | 18 |
 | Recorded audit verdicts | 1 |
-| Fault test records | 4 |
+| Fault test records | 6 |
 | Summary | `rfc/short/rfc8484.md` |
 | Requirement table | `rfc/requirements/rfc8484.md` |
 | RFC text | `rfc/full/rfc8484.txt` |
@@ -93,19 +93,19 @@ Included in automatic checks: DNS Queries over HTTPS / DoH (RFC 8484): ze is a D
 
 **Area:** DNS Queries over HTTPS (DoH)
 
-**Test verification:** 1 of 16 MUST proven
+**Test verification:** 2 of 16 MUST proven
 
-**Evidence:** unit 1
+**Evidence:** unit 2
 
-**Unmet:** RFC8484-3-1, RFC8484-4.1-3, RFC8484-5.1-2, RFC8484-5.1-3, RFC8484-5.3-1, RFC8484-5.4-2
+**Unmet:** RFC8484-3-1, RFC8484-4.1-3, RFC8484-5.1-3, RFC8484-5.3-1, RFC8484-5.4-2
 
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 5 | one part of the mandatory requirements |
-| Annotated (including scoped evidence) | 11 | one part of the mandatory requirements |
+| Positive and negative tests | 6 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 10 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
 | Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
@@ -113,14 +113,14 @@ Included in automatic checks: DNS Queries over HTTPS / DoH (RFC 8484): ze is a D
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **16** | every mandatory requirement appears in exactly one group above |
 
-**Positive and negative tests (5):** [`RFC8484-4.1-2`](#rfc8484-4.1-2), [`RFC8484-4.2-1`](#rfc8484-4.2-1), [`RFC8484-5.4-1`](#rfc8484-5.4-1), [`RFC8484-6-2`](#rfc8484-6-2), [`RFC8484-6-3`](#rfc8484-6-3)
+**Positive and negative tests (6):** [`RFC8484-4.1-2`](#rfc8484-4.1-2), [`RFC8484-4.2-1`](#rfc8484-4.2-1), [`RFC8484-5.1-2`](#rfc8484-5.1-2), [`RFC8484-5.4-1`](#rfc8484-5.4-1), [`RFC8484-6-2`](#rfc8484-6-2), [`RFC8484-6-3`](#rfc8484-6-3)
 
-**Annotated (including scoped evidence) (11):** [`RFC8484-3-1`](#rfc8484-3-1), [`RFC8484-4.1-1`](#rfc8484-4.1-1), [`RFC8484-4.1-3`](#rfc8484-4.1-3), [`RFC8484-5-1`](#rfc8484-5-1), [`RFC8484-5.1-1`](#rfc8484-5.1-1), [`RFC8484-5.1-2`](#rfc8484-5.1-2), [`RFC8484-5.1-3`](#rfc8484-5.1-3), [`RFC8484-5.3-1`](#rfc8484-5.3-1), [`RFC8484-5.4-2`](#rfc8484-5.4-2), [`RFC8484-6-1`](#rfc8484-6-1), [`RFC8484-6-4`](#rfc8484-6-4)
+**Annotated (including scoped evidence) (10):** [`RFC8484-3-1`](#rfc8484-3-1), [`RFC8484-4.1-1`](#rfc8484-4.1-1), [`RFC8484-4.1-3`](#rfc8484-4.1-3), [`RFC8484-5-1`](#rfc8484-5-1), [`RFC8484-5.1-1`](#rfc8484-5.1-1), [`RFC8484-5.1-3`](#rfc8484-5.1-3), [`RFC8484-5.3-1`](#rfc8484-5.3-1), [`RFC8484-5.4-2`](#rfc8484-5.4-2), [`RFC8484-6-1`](#rfc8484-6-1), [`RFC8484-6-4`](#rfc8484-6-4)
 
 ## Figures
 
-- **MUST bar**: Ze verified 1, Tests awaiting verification 8, Not built 6
-- **Overview bar**: Ze MUST verified 1, Not owed 1, Tests awaiting verification 8, Not assessed 11, Not built 6
+- **MUST bar**: Ze verified 2, Tests awaiting verification 8, Not built 5
+- **Overview bar**: Ze MUST verified 2, Not owed 1, Tests awaiting verification 8, Not assessed 11, Not built 5
 
 | Figure | Rows |
 |---|---|
@@ -129,13 +129,13 @@ Included in automatic checks: DNS Queries over HTTPS / DoH (RFC 8484): ze is a D
 | Mandatory requirements complete | not complete |
 | MUST rows | 16 |
 | MUST rows kept (the MUST bar) | 15 |
-| Ze verified | 1 |
+| Ze verified | 2 |
 | OS verified | 0 |
 | Tests awaiting verification | 8 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 6 |
+| Not built | 5 |
 | MUST rows not owed | 1 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -167,12 +167,12 @@ Source: [data/rfc/rfc8484.json](../../../data/rfc/rfc8484.json).
 | `RFC8484-4.1-3` | Irrespective of the value of the Accept request header field, the client MUST be prepared to process "application/dns-message" (as described in Section 6) responses (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze is a DNS client that implements no DoH: the dnsresolver forwarder sends its upstream queries over plain UDP and TCP only (exchange in internal/plugins/dnsresolver/forward.go) and the stub resolver queries over UDP (internal/component/resolve/dns/resolver.go), and ze's only DoH code is the server (bindDoH in internal/core/dnsserver/secure.go); no owner decision declines a DoH client, so no ze client processes an application/dns-message response |
 | `RFC8484-4.2-1` | A DoH server MUST be able to process "application/dns-message" request messages (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestDoHListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L140). **negative:** `unit/verify` [`TestDoHRejectsWrongContentType`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L487) |
 | `RFC8484-5-1` | This protocol MUST be used with the https URI scheme (§5) | MUST | 5 | **positive:** `unit/verify` [`TestDoHListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L124). **negative:** no negative test. **{single-polarity}:** DoH is bound only on a TLS listener and a code guard refuses to start a secure listener without certificate material, so ze serves DoH exclusively over TLS with no cleartext-request rejection to test as a negative (internal/core/dnsserver/secure.go:341, :92-97) |
-| `RFC8484-5.1-1` | The assigned freshness lifetime of a DoH HTTP response MUST be less than or equal to the smallest TTL in the Answer section of the DNS response (§5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestDoHCacheControlMatchesSmallestTTL`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L549). **negative:** no negative test. **{single-polarity}:** the handler sets Cache-Control max-age to exactly the smallest Answer-section TTL, so the assigned freshness equals (hence never exceeds) that minimum (internal/core/dnsserver/secure.go:416-419, :478) |
-| `RFC8484-5.1-2` | If the DNS response has no records in the Answer section, and the DNS response has an SOA record in the Authority section, the response freshness lifetime MUST NOT be greater than the MINIMUM field from that SOA record (see [RFC2308]). (§5.1) | MUST NOT | 5.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** minAnswerTTL iterates only the Answer section and the handler sets no Cache-Control when that minimum is 0, so a NODATA response's freshness is never capped at the Authority SOA MINIMUM field (internal/core/dnsserver/secure.go:478-488, :416) |
+| `RFC8484-5.1-1` | The assigned freshness lifetime of a DoH HTTP response MUST be less than or equal to the smallest TTL in the Answer section of the DNS response (§5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestDoHCacheControlMatchesSmallestTTL`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L549). **negative:** no negative test. **{single-polarity}:** the handler sets Cache-Control max-age to exactly the smallest Answer-section TTL, so the assigned freshness equals (hence never exceeds) that minimum (internal/core/dnsserver/secure.go dohHandler, dohFreshness, minAnswerTTL) |
+| `RFC8484-5.1-2` | If the DNS response has no records in the Answer section, and the DNS response has an SOA record in the Authority section, the response freshness lifetime MUST NOT be greater than the MINIMUM field from that SOA record (see [RFC2308]). (§5.1) | MUST NOT | 5.1 | **positive:** `unit/verify` [`TestDoHNegativeFreshnessCappedBySOAMinimum`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc8484_negative_freshness_test.go#L53). **negative:** `unit/verify` [`TestDoHAnswerFreshnessIgnoresSOAMinimum`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc8484_negative_freshness_test.go#L86) |
 | `RFC8484-5.1-3` | DoH clients MUST account for the Age response header field's value [RFC7234] when calculating the DNS TTL of a response. (§5.1) | MUST | 5.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze is a DNS client that implements no DoH: the dnsresolver forwarder sends its upstream queries over plain UDP and TCP only (exchange in internal/plugins/dnsresolver/forward.go) and the stub resolver queries over UDP (internal/component/resolve/dns/resolver.go), and ze's only DoH code is the server (bindDoH in internal/core/dnsserver/secure.go); no owner decision declines a DoH client, so no ze client computes a DNS TTL from an Age header |
 | `RFC8484-5.3-1` | Before using DoH response data for DNS resolution, the client MUST establish that the HTTP request URI can be used for the DoH query (§5.3) | MUST | 5.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze is a DNS client that implements no DoH: the dnsresolver forwarder sends its upstream queries over plain UDP and TCP only (exchange in internal/plugins/dnsresolver/forward.go) and the stub resolver queries over UDP (internal/component/resolve/dns/resolver.go), and ze's only DoH code is the server (bindDoH in internal/core/dnsserver/secure.go); no owner decision declines a DoH client, so no ze client validates a DoH request URI before using its response |
 | `RFC8484-5.4-1` | DoH clients and DoH servers MUST support the "application/dns-message" media type (§5.4) | MUST | 5.4 | **positive:** `unit/verify` [`assertDoHAnswer`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L176). **negative:** `unit/verify` [`TestDoHRejectsWrongContentType`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L488) |
-| `RFC8484-5.4-2` | Those media types MUST be flexible enough to express every DNS query that would normally be sent in DNS over UDP (including queries and responses that use DNS extensions, but not those that require multiple responses). (§5.4) | MUST | 5.4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the obligation binds the other media types a DoH client or server may use, and ze's DoH server is such a server: it uses only application/dns-message (dohContentType in internal/core/dnsserver/secure.go) and answers any other content type with 415 Unsupported Media Type, so the rule holds by construction, but no test is tagged to this row |
+| `RFC8484-5.4-2` | Those media types MUST be flexible enough to express every DNS query that would normally be sent in DNS over UDP (including queries and responses that use DNS extensions, but not those that require multiple responses). (§5.4) | MUST | 5.4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** DoH media types other than application/dns-message are wanted after the first release (owner ruling 2026-11-20) and are not built today: ze's DoH server uses only application/dns-message (dohContentType in internal/core/dnsserver/secure.go), internal/core/dnsserver/secure.go::dohRequestBody answers a POST whose Content-Type is any other media type with 415 Unsupported Media Type, and internal/core/dnsserver/secure.go::Manager.dohHandler writes every response as application/dns-message, so no other media type exists to carry this obligation and no test is tagged to this row |
 | `RFC8484-6-1` | DoH servers using this media type MUST ignore the value given for the EDNS UDP payload size in DNS requests (§6) | MUST | 6 | **positive:** `unit/verify` [`TestDoHIgnoresEDNSUDPSize`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L574). **negative:** no negative test. **{single-polarity}:** the handler packs the full reply and writes it over HTTP framing, never consulting the request's EDNS UDP payload size and never UDP-truncating, so the size is ignored by construction (internal/core/dnsserver/secure.go:410-422) |
 | `RFC8484-6-2` | When using the GET method, the data payload for this media type MUST be encoded with base64url [RFC4648] and then provided as a variable named "dns" to the URI Template expansion. (§6) | MUST | 6 | **positive:** `unit/verify` [`TestDoHListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L156). **positive:** `unit/verify` [`TestRFC8484GetPayloadIsBase64URLInTheDNSVariable`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc8484_get_base64url_test.go#L46). **negative:** `unit/verify` [`TestDoHGetRejectsBadDNSParam`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L501). **negative:** `unit/verify` [`TestRFC8484GetPayloadIsBase64URLInTheDNSVariable`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc8484_get_base64url_test.go#L47) |
 | `RFC8484-6-3` | Padding characters for base64url MUST NOT be included (§6) | MUST NOT | 6 | **positive:** `unit/verify` [`TestDoHListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L157). **negative:** `unit/verify` [`TestDoHGetRejectsPaddedDNSParam`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L528) |
@@ -196,10 +196,9 @@ Source: [data/rfc/rfc8484.json](../../../data/rfc/rfc8484.json).
 | [`RFC8484-3-1`](#rfc8484-3-1) A DoH client MUST NOT use a different URI simply because it was discovered outside of the client's configuration (such as through HTTP/2 server push) or because a server offers an unsolicited response that appears to be a valid answer to a DNS query. (§3) | {gap}, no test | ze is a DNS client that implements no DoH: the dnsresolver forwarder sends its upstream queries over plain UDP and TCP only (exchange in internal/plugins/dnsresolver/forward.go) and the stub resolver queries over UDP (internal/component/resolve/dns/resolver.go), and ze's only DoH code is the server (bindDoH in internal/core/dnsserver/secure.go); no owner decision declines a DoH client, so no ze client selects a DoH URI |
 | [`RFC8484-4.1-1`](#rfc8484-4.1-1) Future specifications for new media types for DoH MUST define the variables used for URI Template processing with this protocol. (§4.1) | no test | no test carries this requirement id; annotated {not-applicable}: "Future specifications for new media types for DoH MUST define the variables used for URI Template processing with this protocol."; binds future specifications for new media types for DoH; ze writes no specification and defines no DoH media type: its DoH server serves only application/dns-message (dohContentType in internal/core/dnsserver/secure.go) |
 | [`RFC8484-4.1-3`](#rfc8484-4.1-3) Irrespective of the value of the Accept request header field, the client MUST be prepared to process "application/dns-message" (as described in Section 6) responses (§4.1) | {gap}, no test | ze is a DNS client that implements no DoH: the dnsresolver forwarder sends its upstream queries over plain UDP and TCP only (exchange in internal/plugins/dnsresolver/forward.go) and the stub resolver queries over UDP (internal/component/resolve/dns/resolver.go), and ze's only DoH code is the server (bindDoH in internal/core/dnsserver/secure.go); no owner decision declines a DoH client, so no ze client processes an application/dns-message response |
-| [`RFC8484-5.1-2`](#rfc8484-5.1-2) If the DNS response has no records in the Answer section, and the DNS response has an SOA record in the Authority section, the response freshness lifetime MUST NOT be greater than the MINIMUM field from that SOA record (see [RFC2308]). (§5.1) | {gap}, no test | minAnswerTTL iterates only the Answer section and the handler sets no Cache-Control when that minimum is 0, so a NODATA response's freshness is never capped at the Authority SOA MINIMUM field (internal/core/dnsserver/secure.go:478-488, :416) |
 | [`RFC8484-5.1-3`](#rfc8484-5.1-3) DoH clients MUST account for the Age response header field's value [RFC7234] when calculating the DNS TTL of a response. (§5.1) | {gap}, no test | ze is a DNS client that implements no DoH: the dnsresolver forwarder sends its upstream queries over plain UDP and TCP only (exchange in internal/plugins/dnsresolver/forward.go) and the stub resolver queries over UDP (internal/component/resolve/dns/resolver.go), and ze's only DoH code is the server (bindDoH in internal/core/dnsserver/secure.go); no owner decision declines a DoH client, so no ze client computes a DNS TTL from an Age header |
 | [`RFC8484-5.3-1`](#rfc8484-5.3-1) Before using DoH response data for DNS resolution, the client MUST establish that the HTTP request URI can be used for the DoH query (§5.3) | {gap}, no test | ze is a DNS client that implements no DoH: the dnsresolver forwarder sends its upstream queries over plain UDP and TCP only (exchange in internal/plugins/dnsresolver/forward.go) and the stub resolver queries over UDP (internal/component/resolve/dns/resolver.go), and ze's only DoH code is the server (bindDoH in internal/core/dnsserver/secure.go); no owner decision declines a DoH client, so no ze client validates a DoH request URI before using its response |
-| [`RFC8484-5.4-2`](#rfc8484-5.4-2) Those media types MUST be flexible enough to express every DNS query that would normally be sent in DNS over UDP (including queries and responses that use DNS extensions, but not those that require multiple responses). (§5.4) | {gap}, no test | the obligation binds the other media types a DoH client or server may use, and ze's DoH server is such a server: it uses only application/dns-message (dohContentType in internal/core/dnsserver/secure.go) and answers any other content type with 415 Unsupported Media Type, so the rule holds by construction, but no test is tagged to this row |
+| [`RFC8484-5.4-2`](#rfc8484-5.4-2) Those media types MUST be flexible enough to express every DNS query that would normally be sent in DNS over UDP (including queries and responses that use DNS extensions, but not those that require multiple responses). (§5.4) | {gap}, no test | DoH media types other than application/dns-message are wanted after the first release (owner ruling 2026-11-20) and are not built today: ze's DoH server uses only application/dns-message (dohContentType in internal/core/dnsserver/secure.go), internal/core/dnsserver/secure.go::dohRequestBody answers a POST whose Content-Type is any other media type with 415 Unsupported Media Type, and internal/core/dnsserver/secure.go::Manager.dohHandler writes every response as application/dns-message, so no other media type exists to carry this obligation and no test is tagged to this row |
 
 ## Test status
 
@@ -277,7 +276,10 @@ If the DNS response has no records in the Answer section, and the DNS response h
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC8484-5.1-2, so there is no linked test.
+| Polarity | Test | Kind and tier | Test status |
+|---|---|---|---|
+| negative | [`TestDoHAnswerFreshnessIgnoresSOAMinimum`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc8484_negative_freshness_test.go#L86) | unit/verify | mutant, verified |
+| positive | [`TestDoHNegativeFreshnessCappedBySOAMinimum`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc8484_negative_freshness_test.go#L53) | unit/verify | mutant, verified |
 
 ### [`RFC8484-5.1-3`](#rfc8484-5.1-3)
 

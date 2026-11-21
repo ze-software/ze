@@ -79,16 +79,55 @@ cannot name a <code>policy route</code> entry, and a <code>policy route</code> e
 See <a href="../bgp-policy/">BGP Policy</a> for the filters.</p>
 <!-- source: internal/plugins/policyroute/yang/ze-policyroute-conf.yang -- augment /policy:policy -->
 <!-- source: internal/component/policy/registry.go -- BuildRegistry, ValidateName -->
-<p>Set references (<code>@DstBypass</code>, <code>@SrcBypass</code>) must be defined in the
-<code>firewall</code> config section. See <a href="../firewall/">Firewall Guide</a> for set
-syntax.</p>
-<pre><code>policy {
+<p>An address or port match can name a set with <code>@name</code> instead of a prefix or a
+port list. The set is declared in a <code>firewall</code> table, as any firewall set is
+(see <a href="../firewall/">Firewall Guide</a> for set syntax). <code>source-address</code> and
+<code>destination-address</code> take an <code>ipv4</code> or <code>ipv6</code> set; <code>source-port</code> and
+<code>destination-port</code> take an <code>inet-service</code> set. nftables resolves a set only
+inside its own table, so Ze copies the set, with its type, flags and elements,
+into the policy-routing table <code>ze_pr</code>, and <code>show firewall ruleset pr</code> lists
+that copy. A commit that changes the <code>firewall</code> or the <code>policy route</code> section
+takes the copy again from the firewall section, so a commit that changes a
+referenced set's elements updates the copy too.</p>
+<!-- source: internal/plugins/policyroute/sets.go -- parsePolicySections, resolveSetReferences, checkSetType -->
+<!-- source: internal/plugins/policyroute/translate.go -- referencedSets -->
+<!-- source: internal/plugins/firewall/nft/lower_linux.go -- lowerMatchInSet -->
+<p>A commit whose policies come out the same as the installed ones re-applies
+nothing: a commit that changes only a firewall set no policy route names, or
+leaves a referenced set as it was, leaves <code>ze_pr</code>, the ip rules and the routes
+alone. When the policies did change, Ze installs the new ip rules before it
+removes the old ones, and leaves a rule both hold in place, so traffic a rule
+steers before and after the commit stays steered throughout. If the install
+fails, the previous table and rules are put back.</p>
+<!-- source: internal/plugins/policyroute/rules_diff.go -- policiesUnchanged, replaceRules -->
+<p>The commit is refused, naming the set, when no firewall table declares the
+name, when two firewall tables each declare it (rename all but one), or when
+the set holds elements the leaf cannot read (an address leaf naming an
+<code>inet-service</code> set, a port leaf naming an address set). Elements Ze does not
+write from the configuration never reach the copy. A set another plugin fills
+at run time, such as an IRR set or a domain-group set, is declared in no
+firewall table, so naming it from a policy route is refused with the plugin
+that fills it and the firewall leaf that matches such a set: match that traffic
+in a firewall table term, or declare a set holding the elements and name that
+one. An element added to the firewall table's set with <code>nft</code> by hand is not
+copied.</p>
+<pre><code>firewall {
+    table edge {
+        family inet;
+        set bypass {
+            type ipv4;
+            element 192.0.2.10 {}
+            element 192.0.2.20 {}
+        }
+    }
+}
+policy {
     route surfprotect {
-        interface "l2tp*";
+        interface "ppp*";
 
         rule bypass-dst {
             from {
-                destination-address @DstBypass;
+                destination-address @bypass;
                 destination-port 80,443;
                 protocol tcp;
             }
@@ -100,7 +139,7 @@ syntax.</p>
             from {
                 destination-port 80,443;
                 protocol tcp;
-                source-address @SrcBypass;
+                source-address 198.51.100.80/29;
             }
             then {
                 accept;
@@ -164,12 +203,13 @@ static {
 <h2 id="interface-binding">Interface binding</h2>
 <p>Each policy route binds to one or more ingress interfaces. The list is an
 OR: the policy matches a packet that arrives on any one of the named
-interfaces. A trailing <code>*</code> enables wildcard matching (e.g., <code>l2tp*</code>
-matches all L2TP interfaces), and each entry keeps its own wildcard
-state, so one list mixes <code>eth1</code> and <code>l2tp*</code>.</p>
+interfaces. A trailing <code>*</code> enables wildcard matching (e.g., <code>ppp*</code>
+matches every PPP session interface, which is how the kernel names Ze's
+L2TP LNS sessions), and each entry keeps its own wildcard state, so one
+list mixes <code>eth1</code> and <code>ppp*</code>. A VyOS <code>l2tp*</code> match converts to <code>ppp*</code>.</p>
 <pre><code>policy {
     route example {
-        interface "l2tp*";
+        interface "ppp*";
         interface eth1;
         ...
     }
@@ -210,23 +250,23 @@ listed.</p>
 <tbody>
 <tr>
 <td><code>source-address</code></td>
-<td>Source IP prefix or <code>@set</code> reference</td>
-<td><code>@AllowedSrc</code>. <span class="ev-src"><span class="ev-ref"><code>10.0.0.0/8</code></span></span></td>
+<td>Source IP prefix, or <code>@set</code> naming an <code>ipv4</code> or <code>ipv6</code> set a firewall table declares</td>
+<td><code>@allowed-src</code>. <span class="ev-src"><span class="ev-ref"><code>10.0.0.0/8</code></span></span></td>
 </tr>
 <tr>
 <td><code>destination-address</code></td>
-<td>Destination IP prefix or <code>@set</code> reference</td>
-<td><code>@DstBypass</code>. <span class="ev-src"><span class="ev-ref"><code>0.0.0.0/0</code></span></span></td>
+<td>Destination IP prefix, or <code>@set</code> naming an <code>ipv4</code> or <code>ipv6</code> set a firewall table declares</td>
+<td><code>@bypass</code>. <span class="ev-src"><span class="ev-ref"><code>0.0.0.0/0</code></span></span></td>
 </tr>
 <tr>
 <td><code>source-port</code></td>
-<td>Source port or port range</td>
-<td><code>1024-65535</code></td>
+<td>Source port or port range, or <code>@set</code> naming an <code>inet-service</code> set a firewall table declares</td>
+<td><code>1024-65535</code>, <code>@ephemeral</code></td>
 </tr>
 <tr>
 <td><code>destination-port</code></td>
-<td>Destination port, range, or list</td>
-<td><code>80,443</code></td>
+<td>Destination port, range, or list, or <code>@set</code> naming an <code>inet-service</code> set a firewall table declares</td>
+<td><code>80,443</code>, <code>@web</code></td>
 </tr>
 <tr>
 <td><code>protocol</code></td>
@@ -437,7 +477,7 @@ the shared firewall table registry.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
                 </div>
             </div>
         </footer>

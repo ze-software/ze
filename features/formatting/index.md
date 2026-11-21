@@ -12,7 +12,7 @@ answered wrongly. A command whose answer is text or bytes, such as `show data
 cat` returning the bytes of one stored file, declares the `blob` shape: it
 prints the bytes unchanged, `| json` shows them inside an envelope that names
 their encoding, and every row operator is refused by name.
-<!-- source: internal/plugins/help/help_command.go -- operatorsFor, pathHasOnlyPlainLocalHandler -->
+<!-- source: internal/plugins/help/help_command.go -- pipeOperationsFor, daemonHandlesPath -->
 <!-- source: internal/component/command/pipe.go -- validateDeclaredShape -->
 
 ### The simple way: set a default once
@@ -52,6 +52,14 @@ show bgp peer list | first 5
 
 A chain takes one format operator: `json`, `ndjson`, `table`, `text`, `yaml`
 or `raw`. Two together are rejected. Filter and display operators chain freely.
+
+A value in double quotes is one argument, after a pipe as before it:
+`show log recent | match "link down"` matches the two words together, and
+`| match "error|warn"` matches the text `error|warn` rather than starting a
+second operator. The quotes are removed. Inside them, `\"` and `\\` stand for
+a quote and a backslash. Outside quotes a backslash is an ordinary character,
+so `| match a\b` matches `a\b`. A quote left open is refused with its column.
+<!-- source: internal/component/command/invocation_scan.go -- scanChain -->
 
 The complete, current set is generated from the operator catalog:
 [`pipe-operators.generated.md`](https://github.com/ze-software/ze/blob/main/docs/features/pipe-operators.generated.md). It is the list to
@@ -231,9 +239,9 @@ comparison.
 
 Show one BGP peer as hierarchical blocks and set commands, round-trip between both with identical canonical output, then compose match and count over Ze's plugin registry.
 
-[Download the asciicast recording](../../assets/demos/config-views.cast?v=74dca8e268) · [Plain-text transcript](../../assets/demos/config-views.txt?v=9f1109a1a7)
+[Download the asciicast recording](../../assets/demos/config-views.cast?v=d6617d0c82) · [Plain-text transcript](../../assets/demos/config-views.txt?v=9f1109a1a7)
 
-Recorded with Ze 26.10.09 on macOS and Linux using Ze recorder. Duration: 1 minute 28 seconds.
+Recorded with Ze 26.11.20 on macOS and Linux using Ze recorder. Duration: 1 minute 57 seconds.
 
 ```console
 $ ze config show router.conf bgp peer transit-a
@@ -419,33 +427,46 @@ client reaches. The aliases built into Ze itself, `| summary` and `| peers` on
 ### Command-specific filters
 
 Some commands extend the generic set with their own filter vocabulary,
-folded into the command itself rather than applying to its answer. `show bgp
+handed to the command's own handler rather than applied to its answer. `show bgp
 rib`, for example, adds:
 
 | Filter | Description |
 |--------|-------------|
-| `received` / `advertised` | Select the Adj-RIB-In or Adj-RIB-Out side |
+| `received` / `advertised` (`sent` is another spelling) / `sent-received` | Select the Adj-RIB-In side, the Adj-RIB-Out side, or both (the default) |
 | `peer <selector>` | Filter by peer |
 | `family <afi/safi>` | Filter by address family |
 | `prefix <pattern>` | Filter by prefix |
-| `path <pattern>` | Filter by AS path |
+| `covering <address>` / `exact <prefix>` | Received routes whose prefix contains the address, or of exactly that prefix |
+| `path <pattern>` (`aspath` is another spelling) | Filter by AS path |
 | `community <value>` | Filter by standard community |
-| `match <pattern>` | Cross-field structured match |
-| `count` | Count matching routes without serializing rows |
-| `first <n>` / `last <n>` | Take first or last N routes |
+| `match <pattern>` | An override of the generic `match`, with the generic's meaning: it keeps the routes whose row holds the pattern as a case-insensitive substring of the row's values. The row is the one the command answers for the route, so every value it shows is searched (the direction on `show bgp rib`, the large and extended communities in the text the row shows) and nothing the row does not show |
+| `count` | Count matching routes without serializing rows, an override of the generic `count` |
+| `first <n>` / `last <n>` | Take first or last N routes, overrides of the generic `first` and `last` |
 | `histogram` | Count routes by family and prefix length |
 | `graph` | Answer the AS-path topology as `nodes` and `edges`; the text format draws it as a box diagram and `\| json` shows the structure. More than 100 ASes is refused: narrow it with a filter first |
 | `reason` | Explain best-path selection (`show bgp rib best` only) |
 
-These are parsed and validated the same way as generic pipes, but resolved
-into command arguments before the command runs, rather than filtering
-output afterward. `show bgp rib | peer 10.0.0.1 | count` counts only that peer's
+These are parsed and validated the same way as generic pipes, but handed to
+the command as its declared operations before it runs, rather than filtering
+output afterward. The command line is never rewritten: typing one as an
+argument (`show bgp rib received count`) is refused with the pipe form as the
+fix. A command filter comes before the first generic operator:
+`show bgp rib | table | peer 10.0.0.1` is refused with the reordered line, and
+`count`, `first`, `last` or `match` typed after a generic operator runs as the
+generic over the answer in hand. `show bgp rib | peer 10.0.0.1 | count` counts only that peer's
 routes in the RIB iterator. It does not serialize every route and count the
 answer. Both kinds run in the daemon. A generic pipe filters what the command
 already produced. A command filter stops it being produced. The `path`
 pattern, with its `^` and `$` anchors, is described in the
 [CLI guide](../../guides/cli/index.md#route-commands).
 
-<!-- source: internal/component/bgp/plugins/cmd/rib/rib.go -- PipeFilter registrations -->
+An override answers what its generic answers (`count` one object with an
+integer `count`, `first N` at most N rows), so a script reads the same shape
+either way. `show bgp rib protocol <protocol>` takes the same set without a
+scope word, and `show bgp rib best` takes neither a scope word nor `covering`
+and `exact`, and adds `reason`. `show command help "<command>"` lists every operation a command
+takes after the pipe, each marked `generic`, `override`, `command` or `alias`.
+
+<!-- source: internal/component/bgp/plugins/cmd/rib/rib.go -- registerPipeFilters, ribScopeFilters, ribAttributeFilters, ribSourceFilters, ribRouteReducers, ribBestReducers -->
 <!-- source: internal/component/bgp/plugins/rib/rib_topology.go -- graphTerminal, renderGraphText -->
-<!-- source: internal/component/command/pipe.go -- foldFilters, lookupFilter, validateFilter -->
+<!-- source: internal/component/command/pipe_partition.go -- partitionPipeChain, lookupFilter, validateDeclaredArgument -->

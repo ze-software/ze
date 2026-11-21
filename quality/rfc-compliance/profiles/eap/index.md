@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/eap.json](../../../..
 
 ## Figures
 
-- **MUST bar**: Ze verified 119, Tests awaiting verification 22, OS testing gap 2, Not assessed 3, Not built 26
-- **Overview bar**: Ze MUST verified 119, SHOULD verified 6, Tests awaiting verification 22, OS testing gap 2, Not assessed 55, Not built 27
+- **MUST bar**: Ze verified 122, Tests awaiting verification 19, OS testing gap 2, Not assessed 3, Not built 26
+- **Overview bar**: Ze MUST verified 122, SHOULD verified 6, Tests awaiting verification 19, OS testing gap 2, Not assessed 55, Not built 27
 
 | Figure | Rows |
 |---|---|
@@ -18,9 +18,9 @@ Figures as of the last build, read from [data/rfc/profiles/eap.json](../../../..
 | Mandatory requirements complete | not complete |
 | MUST rows | 172 |
 | MUST rows kept (the MUST bar) | 172 |
-| Ze verified | 119 |
+| Ze verified | 122 |
 | OS verified | 0 |
-| Tests awaiting verification | 22 |
+| Tests awaiting verification | 19 |
 | OS testing gap | 2 |
 | Exclusion unchecked | 0 |
 | Not assessed | 3 |
@@ -58,7 +58,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 2759](../../rfc2759/) | Microsoft PPP CHAP Extensions, Version 2 | Ze verified 4, Tests awaiting verification 3 | Ze MUST verified 4, SHOULD verified 2, Tests awaiting verification 3, Not assessed 2 |
+| [RFC 2759](../../rfc2759/) | Microsoft PPP CHAP Extensions, Version 2 | Ze verified 7 | Ze MUST verified 7, SHOULD verified 2, Not assessed 2 |
 
 ### Level 5
 

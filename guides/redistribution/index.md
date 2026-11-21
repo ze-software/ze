@@ -329,6 +329,25 @@ instance because the rules changed since the route was announced.
 <!-- source: internal/plugins/redistribute/held.go -- removeReplacedRoute -->
 <!-- source: internal/plugins/static/inject.go -- applyRouteLocked -->
 
+A withdrawal goes to the destination instance that accepted the route. When a
+destination protocol registers a new instance while the orchestrator keeps
+running, the new instance holds only what it is sent itself, and a route the
+earlier instance accepted is still withdrawn at that earlier instance, also when
+its source replaces it with a version the rules refuse. When the orchestrator
+itself restarts, the instances it dispatched to end with it and it holds
+nothing from before: the engine retires the BGP contributions of the process
+that ended. The orchestrator forgets a route only
+once the instance that holds it confirms the withdrawal. When it cannot, for
+example because BGP did not confirm the withdrawal toward a peer, the route
+stays held at that same instance. The next removal of the route or the next
+change of the `redistribute` rules withdraws it there again, and nothing retries
+on a timer. Each unconfirmed withdrawal is logged and reported as
+`doctor-redistribute-withdrawal-unconfirmed`, with the source, its instance and
+table, and the destination; `ze show errors` lists it.
+<!-- source: internal/plugins/redistribute/held.go -- retireEpisode, claimRemove, settleWithdrawal, withdrawClaim -->
+<!-- source: internal/plugins/redistribute/redistribute.go -- watchConsumers, withdrawAccepted -->
+<!-- source: internal/plugins/redistribute/withdrawal_diagnostic.go -- reportUnconfirmedWithdrawal -->
+
 A reload that changes an import's `filters` or `final` judges the routes each
 destination already holds again, at once, rather than when each source next
 announces them: a route the new chain rejects is withdrawn, a route it now
@@ -346,7 +365,7 @@ route that was being dispatched while the reload applied is judged again under
 the new rules before the destination keeps it, and is withdrawn once if they
 reject it.
 <!-- source: internal/plugins/redistribute/config.go -- reconcileConsumers -->
-<!-- source: internal/plugins/redistribute/held.go -- withdrawRejectedHeld, releaseRejected, heldRoutes.beginAdd, heldRoutes.settleAdd -->
+<!-- source: internal/plugins/redistribute/held.go -- withdrawRejectedHeld, claimRejected, heldRoutes.beginAdd, heldRoutes.settleAdd -->
 <!-- source: internal/plugins/redistribute/redistribute.go -- replayConsumers, settleDispatchedAdd -->
 
 ### Setting the metric
@@ -651,6 +670,10 @@ peer selector and original cause. Run `ze show bgp peers`, restore the named
 session, negotiated family or `send [ update ]` grant, then retry the source
 change or its replay. These are bounded incident records; later success does
 not rewrite an earlier failed operation. An accepted retained loser with zero
-announcements is not reported as a delivery failure.
+announcements is not reported as a delivery failure. A withdrawal BGP did not
+confirm keeps the route's original admission at the BGP instance that
+accepted it, and the orchestrator also records
+`doctor-redistribute-withdrawal-unconfirmed`: the next removal of the route or
+reload of the rules withdraws it there again under the same admission.
 <!-- source: internal/component/bgp/redistribute/consumer_diagnostic.go -- reportFailure -->
 <!-- source: internal/component/bgp/redistribute/register.go -- redistribution event-code ownership -->

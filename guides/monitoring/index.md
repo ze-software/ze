@@ -233,7 +233,7 @@ telemetry {
 | `basic-auth/enabled` | false | Require HTTP Basic Authentication for metrics and health endpoints |
 | `basic-auth/realm` | `ze prometheus` | Basic Auth realm |
 | `basic-auth/username` | unset | Basic Auth username |
-| `basic-auth/password` | unset | Bcrypt-hashed Basic Auth password |
+| `basic-auth/password` | unset | Hashed Basic Auth password: bcrypt, or a SHA-crypt `$6$`/`$5$` hash kept from another system |
 | `basic-auth/plaintext-password` | unset | Write-only password input, hashed at commit and at load |
 | `netdata/enabled` | true | Enable Netdata-compatible OS collectors |
 | `netdata/prefix` | `netdata` | Prefix for Netdata-compatible OS collector metrics only |
@@ -244,7 +244,7 @@ Deprecated compatibility aliases remain accepted: `prefix`, `interval`, and `col
 
 ### HTTP Basic Authentication
 
-When `basic-auth/enabled` is true, Ze requires HTTP Basic Authentication for every handler on the Prometheus service, including both `/metrics` and `/health`. The password is stored as a bcrypt hash in the persisted config. Use `plaintext-password` when you edit the config and Ze replaces it with `password` at commit. If automation already has a hash from `ze passwd`, set `password` directly.
+When `basic-auth/enabled` is true, Ze requires HTTP Basic Authentication for every handler on the Prometheus service, including both `/metrics` and `/health`. The password is stored as a bcrypt hash in the persisted config. Use `plaintext-password` when you edit the config and Ze replaces it with `password` at commit. If automation already has a hash from `ze passwd`, set `password` directly. A SHA-crypt hash (`$6$` or `$5$`) copied from another system is also accepted as given (see `docs/guide/authentication.md`, "Migrated accounts keep their SHA-crypt hash").
 
 A config file loaded at daemon start or at SIGHUP gets the same transform. Ze hashes the leaf in memory and leaves your file as you wrote it. It warns that the plaintext is still on disk.
 <!-- source: internal/component/config/loader.go -- LoadConfig, warnPlaintextOnDisk -->
@@ -724,7 +724,16 @@ For scripting, use `-c` to execute a single command and exit:
 
 ```
 ze cli -c "show bgp"
-ze cli -c "show bgp rib received"
+ze cli -c "show bgp rib | received"
 ze cli -c "show bgp rpki status"
+```
+
+A monitor given to `-c` runs until you stop it. Ctrl+C, or a SIGTERM from a
+script, ends it: every `| save` file then holds the events shown, and `ze cli`
+exits 0. A save file is written whole when the monitor ends, never while it
+runs; a stream the daemon or the connection breaks writes no file.
+
+```
+ze cli -c "monitor event include state | match up | save events.log"
 ```
 <!-- source: internal/component/cli/client/main.go -- Run, Execute, StreamMonitor -->

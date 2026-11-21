@@ -21,7 +21,7 @@ daemon instances in containers and exchange real BGP messages.
 The table below is a representative subset covering the core BGP protocol and
 extensions. The shared suite has 258 scenarios, including
 RPKI, BMP, IS-IS, OSPF/OSPFv3 and network-service cases. Across all
-8 lab suites, the inventory has 410+
+8 lab suites, the inventory has 420+
 scenarios covering routing, VPNs, access and multi-node topologies. Each scenario
 is counted once by its primary protocol or test area.
 <!-- source: internal/le/site/facts/sitefacts.go -- countInterop, interopProtocol -->

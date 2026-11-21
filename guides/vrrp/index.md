@@ -449,9 +449,9 @@ through each transition.
 
 Commit VRRP and uplink tracking live, observe priority reduction and backup demotion, then prove master failover and recovery while the shown Ze stays running.
 
-[Download the asciicast recording](../../assets/demos/vrrp-tracking.cast?v=682f44f6d3) · [Plain-text transcript](../../assets/demos/vrrp-tracking.txt?v=d48d9109d5)
+[Download the asciicast recording](../../assets/demos/vrrp-tracking.cast?v=8f94901773) · [Plain-text transcript](../../assets/demos/vrrp-tracking.txt?v=c78f20a487)
 
-Recorded with Ze 26.10.28 in a Linux namespace lab using Ze recorder. Duration: 3 minutes 28 seconds.
+Recorded with Ze 26.11.20 in a Linux namespace lab using Ze recorder. Duration: 2 minutes 28 seconds.
 
 ```console
 VRRP tracking and peer-failover walkthrough
@@ -463,8 +463,8 @@ $ ze cli -c 'show vrrp | no-more'
 
 Load: gateway group and tracked zetrk1 decrement 150 in one SSH candidate.
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/vrrp/1-group.conf
-ze# load file absolute merge /src/demos/terminal/topics/vrrp/2-tracking.conf
+ze# load file absolute merge topics/vrrp/1-group.conf
+ze# load file absolute merge topics/vrrp/2-tracking.conf
 ze# show | compare
 ze# commit now
 

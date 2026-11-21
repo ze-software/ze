@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 2 | of 19 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 19 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 19 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 20 | 20 of 71 tests linked to requirements, 0 without a fault test and 17 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 37 | 37 of 71 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -23,7 +23,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Declared gap or no test | 3 | of 19 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Audit verdicts | 17 | of 19 mandatory requirements reviewed | 1 weak, wrong or unimplemented, 2 no longer current. Each is named below under its own requirement id |
+| Audit verdicts | 17 | of 19 mandatory requirements reviewed | 1 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -94,9 +94,9 @@ Included in automatic checks: BGP Open Policy / Roles + Only-To-Customer OTC att
 
 **Area:** BGP Role and OTC
 
-**Test verification:** 8 of 19 MUST proven
+**Test verification:** 12 of 19 MUST proven
 
-**Evidence:** interop 1, functional 5, unit 2
+**Evidence:** interop 1, functional 5, unit 6
 
 **Unmet:** RFC9234-5-7, RFC9234-5-8, RFC9234-6-1
 
@@ -120,8 +120,8 @@ Included in automatic checks: BGP Open Policy / Roles + Only-To-Customer OTC att
 
 ## Figures
 
-- **MUST bar**: Ze verified 8, Tests awaiting verification 8, Not built 3
-- **Overview bar**: Ze MUST verified 8, SHOULD verified 1, Tests awaiting verification 8, Not assessed 4, Not built 3
+- **MUST bar**: Ze verified 12, Tests awaiting verification 4, Not built 3
+- **Overview bar**: Ze MUST verified 12, SHOULD verified 1, Tests awaiting verification 4, Not assessed 4, Not built 3
 
 | Figure | Rows |
 |---|---|
@@ -130,9 +130,9 @@ Included in automatic checks: BGP Open Policy / Roles + Only-To-Customer OTC att
 | Mandatory requirements complete | not complete |
 | MUST rows | 19 |
 | MUST rows kept (the MUST bar) | 19 |
-| Ze verified | 8 |
+| Ze verified | 12 |
 | OS verified | 0 |
-| Tests awaiting verification | 8 |
+| Tests awaiting verification | 4 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -304,21 +304,21 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 If a route is to be advertised to a Customer, a Peer, or an RS- Client (when the sender is an RS), and the OTC Attribute is not present, then when advertising the route, an OTC Attribute MUST be added with a value equal to the AS number of the local AS. (§5)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/bgp/check_rfc.go::checkOTCWithdrawal, internal/le/interoplab/bgp/check_rfc.go::checkOTCWithdrawal#2 moved. Independent source rejudgment against the full Section 5 egress sentence and Section 4.2 local-role prerequisite. TestRFC9234OTCStampedToEveryDownstreamDestination checks Customer, Peer and RS-Client with reachable NLRI, no OTC, a nonzero destination local AS, and exact code-35/set/four-byte/local-AS operations. TestRFC9234OTCNotStampedOutsideTheDownstreamScope checks Provider/RS and existing-OTC controls. TestOTCEgressStampMod pins the same operation; TestOTCEgressNoStampProvider and the no-source-role-config case isolate destination scope. Pure withdrawal, MP_UNREACH-only and mixed withdraw/advertise units distinguish the route-advertisement condition. All tagged native fixtures were read: receiver exact wire expectations include the OTC advertisement and attribute-free withdrawals/EOR; their observer barriers require the corresponding destination updates before shutdown. Both RS-Client fixtures configure the sender as RS. checkOTCWithdrawal requires an established FRR session, an observed advertised route with exact OTC 65001, then observed withdrawal, no receiver attribute error and a surviving session; injector barriers prevent disappearance-by-disconnect from satisfying the negative. OTCEgressFilter, evaluateOTCEgress and PayloadAdvertisesNLRI implement those decisions. Added complementary destination configurations repair RFC applicability while retaining assertions and payloads. Three existing direct producer-break records require renewal; the unchanged interop tuple also needs runtime reproof through the changed OTCEgressFilter dependency. No current runtime or discrimination success is claimed.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent source rejudgment against the full Section 5 egress sentence and Section 4.2 local-role prerequisite. TestRFC9234OTCStampedToEveryDownstreamDestination checks Customer, Peer and RS-Client with reachable NLRI, no OTC, a nonzero destination local AS, and exact code-35/set/four-byte/local-AS operations. TestRFC9234OTCNotStampedOutsideTheDownstreamScope checks Provider/RS and existing-OTC controls. TestOTCEgressStampMod pins the same operation; TestOTCEgressNoStampProvider and the no-source-role-config case isolate destination scope. Pure withdrawal, MP_UNREACH-only and mixed withdraw/advertise units distinguish the route-advertisement condition. All tagged native fixtures were read: receiver exact wire expectations include the OTC advertisement and attribute-free withdrawals/EOR; their observer barriers require the corresponding destination updates before shutdown. Both RS-Client fixtures configure the sender as RS. checkOTCWithdrawal requires an established FRR session, an observed advertised route with exact OTC 65001, then observed withdrawal, no receiver attribute error and a surviving session; injector barriers prevent disappearance-by-disconnect from satisfying the negative. OTCEgressFilter, evaluateOTCEgress and PayloadAdvertisesNLRI implement those decisions. Added complementary destination configurations repair RFC applicability while retaining assertions and payloads. Three existing direct producer-break records require renewal; the unchanged interop tuple also needs runtime reproof through the changed OTCEgressFilter dependency. No current runtime or discrimination success is claimed.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9234OTCNotStampedOutsideTheDownstreamScope`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go#L72) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
-| negative | [`TestOTCEgressNoStampOnMPUnreachOnly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1903) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
-| negative | [`TestOTCEgressNoStampOnPureWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1882) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
-| negative | [`TestOTCEgressNoStampProvider`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L970) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC9234OTCNotStampedOutsideTheDownstreamScope`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go#L72) | unit/verify | mutant, verified |
+| negative | [`TestOTCEgressNoStampOnMPUnreachOnly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1903) | unit/verify | mutant, verified |
+| negative | [`TestOTCEgressNoStampOnPureWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1882) | unit/verify | mutant, verified |
+| negative | [`TestOTCEgressNoStampProvider`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L970) | unit/verify | mutant, verified |
 | negative | [`checkOTCWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L935) | interop/nightly | not verified |
 | negative | [`role-otc-fwd-withdraw.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/role-otc-fwd-withdraw.ci#L11) | functional/verify | not verified |
 | negative | [`role-otc-rs-withdraw-eor.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/role-otc-rs-withdraw-eor.ci#L17) | functional/verify | not verified |
-| positive | [`TestRFC9234OTCStampedToEveryDownstreamDestination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go#L53) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestOTCEgressStampMod`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L930) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestOTCEgressStampsMixedWithdrawAndAnnounce`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1944) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1096) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC9234OTCStampedToEveryDownstreamDestination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go#L53) | unit/verify | mutant, verified |
+| positive | [`TestOTCEgressStampMod`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L930) | unit/verify | mutant, verified |
+| positive | [`TestOTCEgressStampsMixedWithdrawAndAnnounce`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1944) | unit/verify | mutant, verified |
+| positive | [`TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1096) | unit/verify | mutant, verified |
 | positive | [`checkOTCWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L934) | interop/nightly | mutant, verified |
 | positive | [`role-otc-fwd-withdraw.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/role-otc-fwd-withdraw.ci#L8) | functional/verify | not verified |
 | positive | [`role-otc-rs-client-dest-stamp-forked.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/role-otc-rs-client-dest-stamp-forked.ci#L22) | functional/verify | not verified |
@@ -346,7 +346,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 |---|---|---|---|
 | negative | [`TestOTCAttrModHandlerNewAttr`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1505) | unit/verify | not verified |
 | positive | [`TestOTCAttrModHandlerExistingPreserved`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1526) | unit/verify | not verified |
-| positive | [`TestOTCEgressExistingOTCNotRewrittenToLocalASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1352) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestOTCEgressExistingOTCNotRewrittenToLocalASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1352) | unit/verify | mutant, verified |
 
 ### [`RFC9234-5-7`](#rfc9234-5-7)
 
@@ -373,7 +373,7 @@ Audit verdict: weak (the tests pass over code that does not enforce the requirem
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9234PrivateOTCDoesNotLeavePublicEgress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_private_otc_test.go#L20) | unit/verify | not verified |
-| positive | [`TestOTCEgressStampLocalASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1307) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestOTCEgressStampLocalASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1307) | unit/verify | mutant, verified |
 
 ### [`RFC9234-5-10`](#rfc9234-5-10)
 
@@ -383,11 +383,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestOTCEgressStampMod`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L931) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestOTCEgressStampMod`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L931) | unit/verify | mutant, verified |
 | positive | [`TestIsPayloadUnicastMPUnreachFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L2038) | unit/verify | not verified |
-| positive | [`TestOTCEgressNonUnicastWithdrawalNotProcessed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L2081) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestOTCEgressUnicastOnly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1383) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestOTCNonUnicastWithdrawalSkipsOTCProcedures`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L2121) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestOTCEgressNonUnicastWithdrawalNotProcessed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L2081) | unit/verify | mutant, verified |
+| positive | [`TestOTCEgressUnicastOnly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1383) | unit/verify | mutant, verified |
+| positive | [`TestOTCNonUnicastWithdrawalSkipsOTCProcedures`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L2121) | unit/verify | mutant, verified |
 
 ### [`RFC9234-5-11`](#rfc9234-5-11)
 
@@ -416,9 +416,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestOTCEgressFilter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L588) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestOTCEgressFilter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L578) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestOTCEgressSuppressProviderLearnedWithoutMeta`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1041) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestOTCEgressFilter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L588) | unit/verify | mutant, verified |
+| positive | [`TestOTCEgressFilter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L578) | unit/verify | mutant, verified |
+| positive | [`TestOTCEgressSuppressProviderLearnedWithoutMeta`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1041) | unit/verify | mutant, verified |
 
 ### [`RFC9234-5-12`](#rfc9234-5-12)
 

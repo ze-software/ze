@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/drafts.json](../../..
 
 ## Figures
 
-- **MUST bar**: Ze verified 72, Tests awaiting verification 7, OS testing gap 1, Not built 42
-- **Overview bar**: Ze MUST verified 72, SHOULD verified 6, Tests awaiting verification 7, OS testing gap 1, Not assessed 55, Not built 42
+- **MUST bar**: Ze verified 76, Tests awaiting verification 3, OS testing gap 1, Not built 42
+- **Overview bar**: Ze MUST verified 76, SHOULD verified 6, Tests awaiting verification 3, OS testing gap 1, Not assessed 55, Not built 42
 
 | Figure | Rows |
 |---|---|
@@ -18,9 +18,9 @@ Figures as of the last build, read from [data/rfc/profiles/drafts.json](../../..
 | Mandatory requirements complete | not complete |
 | MUST rows | 122 |
 | MUST rows kept (the MUST bar) | 122 |
-| Ze verified | 72 |
+| Ze verified | 76 |
 | OS verified | 0 |
-| Tests awaiting verification | 7 |
+| Tests awaiting verification | 3 |
 | OS testing gap | 1 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -82,8 +82,8 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY](../../draft-ietf-idr-linklocal-capability/) | Link-Local Next Hop Capability for BGP | Ze verified 10, Tests awaiting verification 3, Not built 2 | Ze MUST verified 10, Tests awaiting verification 3, Not assessed 12, Not built 2 |
-| [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION](../../draft-ietf-sidrops-aspa-verification/) | BGP AS_PATH Verification Based on Autonomous System Provider Authorization (ASPA) Objects | Ze verified 8, Tests awaiting verification 1, Not built 1 | Ze MUST verified 8, Tests awaiting verification 1, Not assessed 10, Not built 1 |
+| [DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY](../../draft-ietf-idr-linklocal-capability/) | Link-Local Next Hop Capability for BGP | Ze verified 13, Not built 2 | Ze MUST verified 13, Not assessed 12, Not built 2 |
+| [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION](../../draft-ietf-sidrops-aspa-verification/) | BGP AS_PATH Verification Based on Autonomous System Provider Authorization (ASPA) Objects | Ze verified 9, Not built 1 | Ze MUST verified 9, Not assessed 10, Not built 1 |
 
 ### Level 10
 

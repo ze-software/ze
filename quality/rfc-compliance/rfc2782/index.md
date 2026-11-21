@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 0 | of 7 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| Tested both ways | 1 | of 7 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
 | One polarity plus reason | 0 | of 7 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 7 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 7 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 0 | 0 of 0 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 2 | 2 of 2 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -22,7 +22,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Declared gap or no test | 5 | of 7 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Declared gap or no test | 4 | of 7 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
 ### Neutral
 
@@ -73,14 +73,14 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 14 |
 | Mandatory requirements (MUST level) | 7 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 5 |
+| Declared gaps | 4 |
 | Declared gaps a test demonstrates | 0 |
 | Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 0 |
-| Tests linked to requirements | 0 |
+| Test tags | 2 |
+| Tests linked to requirements | 2 |
 | Recorded audit verdicts | 0 |
-| Fault test records | 0 |
+| Fault test records | 2 |
 | Summary | `rfc/short/rfc2782.md` |
 | Requirement table | `rfc/requirements/rfc2782.md` |
 | RFC text | `rfc/full/rfc2782.txt` |
@@ -93,19 +93,19 @@ Included in automatic checks: DNS SRV resource records: seven MUST-level require
 
 **Area:** DNS SRV records
 
-**Test verification:** 0 of 7 MUST proven
+**Test verification:** 1 of 7 MUST proven
 
-**Evidence:** -
+**Evidence:** unit 1
 
-**Unmet:** RFC2782-Notes-2, RFC2782-Notes-3, RFC2782-Priority-1, RFC2782-Target-1, RFC2782-Target-2
+**Unmet:** RFC2782-Notes-2, RFC2782-Notes-3, RFC2782-Priority-1, RFC2782-Target-2
 
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 0 | one part of the mandatory requirements |
-| Annotated (including scoped evidence) | 7 | one part of the mandatory requirements |
+| Positive and negative tests | 1 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 6 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
 | Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
@@ -113,12 +113,14 @@ Included in automatic checks: DNS SRV resource records: seven MUST-level require
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **7** | every mandatory requirement appears in exactly one group above |
 
-**Annotated (including scoped evidence) (7):** [`RFC2782-Applicability-1`](#rfc2782-applicability-1), [`RFC2782-Applicability-2`](#rfc2782-applicability-2), [`RFC2782-Priority-1`](#rfc2782-priority-1), [`RFC2782-Target-1`](#rfc2782-target-1), [`RFC2782-Target-2`](#rfc2782-target-2), [`RFC2782-Notes-2`](#rfc2782-notes-2), [`RFC2782-Notes-3`](#rfc2782-notes-3)
+**Positive and negative tests (1):** [`RFC2782-Target-1`](#rfc2782-target-1)
+
+**Annotated (including scoped evidence) (6):** [`RFC2782-Applicability-1`](#rfc2782-applicability-1), [`RFC2782-Applicability-2`](#rfc2782-applicability-2), [`RFC2782-Priority-1`](#rfc2782-priority-1), [`RFC2782-Target-2`](#rfc2782-target-2), [`RFC2782-Notes-2`](#rfc2782-notes-2), [`RFC2782-Notes-3`](#rfc2782-notes-3)
 
 ## Figures
 
-- **MUST bar**: Not built 5
-- **Overview bar**: Not owed 2, Not assessed 7, Not built 5
+- **MUST bar**: Ze verified 1, Not built 4
+- **Overview bar**: Ze MUST verified 1, Not owed 2, Not assessed 7, Not built 4
 
 | Figure | Rows |
 |---|---|
@@ -127,13 +129,13 @@ Included in automatic checks: DNS SRV resource records: seven MUST-level require
 | Mandatory requirements complete | not complete |
 | MUST rows | 7 |
 | MUST rows kept (the MUST bar) | 5 |
-| Ze verified | 0 |
+| Ze verified | 1 |
 | OS verified | 0 |
 | Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 5 |
+| Not built | 4 |
 | MUST rows not owed | 2 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -162,7 +164,7 @@ Source: [data/rfc/rfc2782.json](../../../data/rfc/rfc2782.json).
 | `RFC2782-Applicability-1` | Such specification MUST define the symbolic name to be used in the Service field of the SRV record as described below. (§Applicability) | MUST | Applicability | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** "Such specification MUST define the symbolic name to be used in the Service field of the SRV record as described below."; binds such specification; the obligation falls on the protocol specification that adopts SRV, and ze writes no specification: geodns serves the operator's _Service._Proto owner names as configured (parseSRV in internal/plugins/geodns/config.go) |
 | `RFC2782-Applicability-2` | Such specification MUST define the symbolic name to be used in the Service field of the SRV record as described below. It also MUST include security considerations. (§Applicability) | MUST | Applicability | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** "Such specification MUST define the symbolic name to be used in the Service field of the SRV record as described below."; binds such specification; the security considerations the next sentence asks for fall on the same protocol specification that adopts SRV, and ze writes no specification: geodns serves operator-configured SRV records (parseSRV in internal/plugins/geodns/config.go) |
 | `RFC2782-Priority-1` | A client MUST attempt to contact the target host with the lowest-numbered priority it can reach (§Priority) | MUST | Priority | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze holds no SRV-cognizant client: no production code issues a TypeSRV query; geodns only answers SRV (internal/plugins/geodns/server.go), and the stub resolver flattens an SRV answer to a target:port string (internal/component/resolve/dns/resolver.go) but no caller asks it for SRV; no owner decision declines SRV use, so no ze client contacts a target by priority, and the row stays a gap with no test |
-| `RFC2782-Target-1` | There MUST be one or more address records for this name (§Target) | MUST | Target | **positive:** no positive test. **negative:** no negative test. **{gap}:** the obligation falls on the zone that publishes the SRV record, and for a geodns zone that is ze: parseSRV (internal/plugins/geodns/config.go) checks only that the target is a valid name, so an operator can publish an SRV record whose in-zone target has no address record and nothing refuses it; a target outside geodns's zones is that zone's to answer, and no test is tagged to this row |
+| `RFC2782-Target-1` | There MUST be one or more address records for this name (§Target) | MUST | Target | **positive:** `unit/verify` [`TestRFC2782_SRVTargetNeedsAnAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2782_srv_target_test.go#L45). **negative:** `unit/verify` [`TestRFC2782_SRVTargetNeedsAnAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2782_srv_target_test.go#L61) |
 | `RFC2782-Target-2` | There MUST be one or more address records for this name, the name MUST NOT be an alias (in the sense of RFC 1034 or RFC 2181). (§Target) | MUST NOT | Target | **positive:** no positive test. **negative:** no negative test. **{gap}:** geodns serves A, AAAA and SRV records from its configuration (the recordKind values in internal/plugins/geodns/record.go) and builds SOA and NS records for its zones (buildSOA and the NS answers in internal/plugins/geodns/server.go), and it serves no CNAME, so an in-zone SRV target is never an alias and the rule holds by construction there, but parseSRV accepts any out-of-zone target name and no test is tagged to this row |
 | `RFC2782-Notes-2` | A client MUST parse all of the RR's in the reply. (§Notes) | MUST | Notes | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze holds no SRV-cognizant client: no production code issues a TypeSRV query; geodns only answers SRV (internal/plugins/geodns/server.go), and the stub resolver flattens an SRV answer to a target:port string (internal/component/resolve/dns/resolver.go) but no caller asks it for SRV; no owner decision declines SRV use, so no ze client parses an SRV reply to connect, and the row stays a gap with no test |
 | `RFC2782-Notes-3` | If the Additional Data section doesn't contain address records for all the SRV RR's and the client may want to connect to the target host(s) involved, the client MUST look up the address record(s). (§Notes) | MUST | Notes | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze holds no SRV-cognizant client: no production code issues a TypeSRV query; geodns only answers SRV (internal/plugins/geodns/server.go), and the stub resolver flattens an SRV answer to a target:port string (internal/component/resolve/dns/resolver.go) but no caller asks it for SRV; no owner decision declines SRV use, so no ze client looks up a target's address records before connecting, and the row stays a gap with no test |
@@ -181,7 +183,6 @@ Source: [data/rfc/rfc2782.json](../../../data/rfc/rfc2782.json).
 | [`RFC2782-Applicability-1`](#rfc2782-applicability-1) Such specification MUST define the symbolic name to be used in the Service field of the SRV record as described below. (§Applicability) | no test | no test carries this requirement id; annotated {not-applicable}: "Such specification MUST define the symbolic name to be used in the Service field of the SRV record as described below."; binds such specification; the obligation falls on the protocol specification that adopts SRV, and ze writes no specification: geodns serves the operator's _Service._Proto owner names as configured (parseSRV in internal/plugins/geodns/config.go) |
 | [`RFC2782-Applicability-2`](#rfc2782-applicability-2) Such specification MUST define the symbolic name to be used in the Service field of the SRV record as described below. It also MUST include security considerations. (§Applicability) | no test | no test carries this requirement id; annotated {not-applicable}: "Such specification MUST define the symbolic name to be used in the Service field of the SRV record as described below."; binds such specification; the security considerations the next sentence asks for fall on the same protocol specification that adopts SRV, and ze writes no specification: geodns serves operator-configured SRV records (parseSRV in internal/plugins/geodns/config.go) |
 | [`RFC2782-Priority-1`](#rfc2782-priority-1) A client MUST attempt to contact the target host with the lowest-numbered priority it can reach (§Priority) | {gap}, no test | ze holds no SRV-cognizant client: no production code issues a TypeSRV query; geodns only answers SRV (internal/plugins/geodns/server.go), and the stub resolver flattens an SRV answer to a target:port string (internal/component/resolve/dns/resolver.go) but no caller asks it for SRV; no owner decision declines SRV use, so no ze client contacts a target by priority, and the row stays a gap with no test |
-| [`RFC2782-Target-1`](#rfc2782-target-1) There MUST be one or more address records for this name (§Target) | {gap}, no test | the obligation falls on the zone that publishes the SRV record, and for a geodns zone that is ze: parseSRV (internal/plugins/geodns/config.go) checks only that the target is a valid name, so an operator can publish an SRV record whose in-zone target has no address record and nothing refuses it; a target outside geodns's zones is that zone's to answer, and no test is tagged to this row |
 | [`RFC2782-Target-2`](#rfc2782-target-2) There MUST be one or more address records for this name, the name MUST NOT be an alias (in the sense of RFC 1034 or RFC 2181). (§Target) | {gap}, no test | geodns serves A, AAAA and SRV records from its configuration (the recordKind values in internal/plugins/geodns/record.go) and builds SOA and NS records for its zones (buildSOA and the NS answers in internal/plugins/geodns/server.go), and it serves no CNAME, so an in-zone SRV target is never an alias and the rule holds by construction there, but parseSRV accepts any out-of-zone target name and no test is tagged to this row |
 | [`RFC2782-Notes-2`](#rfc2782-notes-2) A client MUST parse all of the RR's in the reply. (§Notes) | {gap}, no test | ze holds no SRV-cognizant client: no production code issues a TypeSRV query; geodns only answers SRV (internal/plugins/geodns/server.go), and the stub resolver flattens an SRV answer to a target:port string (internal/component/resolve/dns/resolver.go) but no caller asks it for SRV; no owner decision declines SRV use, so no ze client parses an SRV reply to connect, and the row stays a gap with no test |
 | [`RFC2782-Notes-3`](#rfc2782-notes-3) If the Additional Data section doesn't contain address records for all the SRV RR's and the client may want to connect to the target host(s) involved, the client MUST look up the address record(s). (§Notes) | {gap}, no test | ze holds no SRV-cognizant client: no production code issues a TypeSRV query; geodns only answers SRV (internal/plugins/geodns/server.go), and the stub resolver flattens an SRV answer to a target:port string (internal/component/resolve/dns/resolver.go) but no caller asks it for SRV; no owner decision declines SRV use, so no ze client looks up a target's address records before connecting, and the row stays a gap with no test |
@@ -220,7 +221,10 @@ There MUST be one or more address records for this name (§Target)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC2782-Target-1, so there is no linked test.
+| Polarity | Test | Kind and tier | Test status |
+|---|---|---|---|
+| negative | [`TestRFC2782_SRVTargetNeedsAnAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2782_srv_target_test.go#L61) | unit/verify | mutant, verified |
+| positive | [`TestRFC2782_SRVTargetNeedsAnAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2782_srv_target_test.go#L45) | unit/verify | mutant, verified |
 
 ### [`RFC2782-Target-2`](#rfc2782-target-2)
 

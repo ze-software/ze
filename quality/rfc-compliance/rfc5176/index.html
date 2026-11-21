@@ -133,7 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 30 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 30 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 30 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>9</strong><b>9 of 98 tests linked to requirements, 0 without a fault test and 73 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>92</strong><b>92 of 98 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -255,7 +255,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>29</td>
 </tr>
 <tr><td>Fault test records</td>
-<td>82</td>
+<td>92</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5176.md</code></td>
@@ -275,8 +275,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> RADIUS CoA and Disconnect Message</p>
-<p><strong>Test verification:</strong> 6 of 30 MUST proven</p>
-<p><strong>Evidence:</strong> unit 6</p>
+<p><strong>Test verification:</strong> 30 of 30 MUST proven</p>
+<p><strong>Evidence:</strong> unit 30</p>
 <p><strong>Unmet:</strong> -</p>
 
 </section>
@@ -322,9 +322,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc5176:must">Ze verified 6, Tests awaiting verification 24</div>
+<div data-ze-rfc-bar="rfc5176:must">Ze verified 30</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc5176:overview">Ze MUST verified 6, SHOULD verified 1, Tests awaiting verification 24</div>
+<div data-ze-rfc-bar="rfc5176:overview">Ze MUST verified 30, SHOULD verified 1</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -336,7 +336,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc5176:not-walked">0</span></td>
 </tr>
 <tr><td>Mandatory requirements complete</td>
-<td><span data-ze-rfc="rfc5176:register">not complete</span></td>
+<td><span data-ze-rfc="rfc5176:register">complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
 <td><span data-ze-rfc="rfc5176:must.total">30</span></td>
@@ -345,13 +345,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc5176:must.kept">30</span></td>
 </tr>
 <tr><td>Ze verified</td>
-<td><span data-ze-rfc="rfc5176:must.ze-proven">6</span></td>
+<td><span data-ze-rfc="rfc5176:must.ze-proven">30</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc5176:must.os-verified">0</span></td>
 </tr>
 <tr><td>Tests awaiting verification</td>
-<td><span data-ze-rfc="rfc5176:must.proof-pending">24</span></td>
+<td><span data-ze-rfc="rfc5176:must.proof-pending">0</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc5176:must.os-gap">0</span></td>
@@ -429,8 +429,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-3.5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L402" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go" target="_blank" rel="noopener"><code>TestCoAListenerUnknownSession</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L317" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go" target="_blank" rel="noopener"><code>TestCoAListenerInvalidAuth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L398" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go" target="_blank" rel="noopener"><code>TestCoAListenerUnknownSession</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L313" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go" target="_blank" rel="noopener"><code>TestCoAListenerInvalidAuth</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-3.3-1">RFC5176-3.3-1</code></td><td colspan="3"><span class="rfc-subject">The combination of NAS and session identification attributes included in a CoA-Request or Disconnect-Request packet MUST match at least one session in order for a Request to be successful; otherwise a Disconnect-NAK or CoA-NAK MUST be sent. (§3)</span></td></tr>
@@ -439,7 +439,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-3.3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go#L109" title="internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go" target="_blank" rel="noopener"><code>TestCoALiveAccountingOwnerIdentitySurvivesRegistryMiss</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L465" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go" target="_blank" rel="noopener"><code>TestDisconnectReplayReturnsCachedResponse</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L461" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go" target="_blank" rel="noopener"><code>TestDisconnectReplayReturnsCachedResponse</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L125" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go" target="_blank" rel="noopener"><code>TestRFC5176UnmatchedIdentificationIsNAKed</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go#L38" title="internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go" target="_blank" rel="noopener"><code>TestCoAOldAccountingIdentityCannotSelectNewIncarnation</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_owner_apply_test.go#L185" title="internal/component/l2tp/plugins/authradius/rfc5176_owner_apply_test.go" target="_blank" rel="noopener"><code>TestCoARegisteredSubscriberAllSelectorsMustMatch</code></a></span></div>
@@ -534,7 +534,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L271" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go" target="_blank" rel="noopener"><code>TestRFC5176DisconnectThatCannotTerminateIsNAKed</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go#L157" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go" target="_blank" rel="noopener"><code>TestRFC5176SubscriberCoAThatCannotBeCarriedOutWholeMakesNoChange</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_atomic_owners_test.go#L62" title="internal/component/l2tp/plugins/authradius/rfc5176_atomic_owners_test.go" target="_blank" rel="noopener"><code>TestCoAMixedOwnerFailureRestoresBothControls</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L449" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L450" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L292" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go" target="_blank" rel="noopener"><code>TestRFC5176DisconnectThatTerminatesIsACKed</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go#L121" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go" target="_blank" rel="noopener"><code>TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed</code></a></span></div>
 </div></td>
@@ -545,9 +545,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>2.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-2.3-7">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L89" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go" target="_blank" rel="noopener"><code>TestRFC5176CoAMatchingSeveralSessionsIsNAKed</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L479" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176MultipleMatchingSessionsNAKed</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L480" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176MultipleMatchingSessionsNAKed</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L105" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go" target="_blank" rel="noopener"><code>TestRFC5176CoAMatchingOneSessionIsACKed</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L482" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176MultipleMatchingSessionsNAKed</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L483" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176MultipleMatchingSessionsNAKed</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-3.1-1">RFC5176-3.1-1</code></td><td colspan="3"><span class="rfc-subject">If there are any Proxy-State attributes in a Disconnect-Request or CoA-Request received from the Dynamic Authorization Client, the Dynamic Authorization Server MUST include those Proxy-State attributes in its response to the Dynamic Authorization Client. A forwarding proxy or NAS MUST NOT modify existing Proxy-State, State, or Class attributes present in the packet. The forwarding proxy or NAS MUST treat any Proxy-State attributes already in the packet as opaque data. Its operation MUST NOT depend on the content of Proxy-State attributes added by previous proxies. (§3.1)</span></td></tr>
@@ -555,10 +555,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-3.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L517" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ProxyStateReturnedUnmodified</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L518" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ProxyStateReturnedUnmodified</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go#L37" title="internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go" target="_blank" rel="noopener"><code>TestRFC5176StateAndClassUnmodifiedProxyStateOpaque</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go#L144" title="internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go" target="_blank" rel="noopener"><code>TestRFC5176ProxyStateContentIsNeverRead</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L519" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ProxyStateReturnedUnmodified</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L520" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ProxyStateReturnedUnmodified</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-3.2-1">RFC5176-3.2-1</code></td><td colspan="3"><span class="rfc-subject">A NAS MUST respond to a CoA-Request including a Service-Type Attribute with value &#34;Authorize Only&#34; with a CoA-NAK; a CoA-ACK MUST NOT be sent. If the NAS does not support a Service-Type value of &#34;Authorize Only&#34;, then it MUST respond with a CoA-NAK; an Error-Cause Attribute with a value of 405 (Unsupported Service) SHOULD be included. (§3.2)</span></td></tr>
@@ -566,8 +566,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-3.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L551" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ServiceTypeNAKed</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L554" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ServiceTypeNAKed</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L552" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ServiceTypeNAKed</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L555" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ServiceTypeNAKed</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-3.3-2">RFC5176-3.3-2</code></td><td colspan="3"><span class="rfc-subject">The State Attribute is available to be sent by the Dynamic Authorization Client to the NAS in a CoA-Request packet and MUST be sent unmodified from the NAS to the Dynamic Authorization Client in a subsequent ACK or NAK packet. (§3.3)</span></td></tr>
@@ -575,10 +575,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-3.3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L581" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176StateReturnedUnmodified</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L582" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176StateReturnedUnmodified</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L172" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go" target="_blank" rel="noopener"><code>TestRFC5176StateReturnedUnmodifiedInANAK</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L195" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go" target="_blank" rel="noopener"><code>TestRFC5176NAKForARequestWithoutStateCarriesNone</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L583" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176StateReturnedUnmodified</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L584" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176StateReturnedUnmodified</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-3.4-1">RFC5176-3.4-1</code></td><td colspan="3"><span class="rfc-subject">When the HMAC-MD5 message integrity check is calculated the Request Authenticator field and Message-Authenticator Attribute MUST each be considered to be sixteen octets of zero. (§3.4)</span></td></tr>
@@ -586,10 +586,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-3.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L610" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>authradius/TestRFC5176MessageAuthenticatorZeroesBothFields</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L611" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>authradius/TestRFC5176MessageAuthenticatorZeroesBothFields</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L126" title="internal/component/radius/rfc5176_message_authenticator_test.go" target="_blank" rel="noopener"><code>radius/TestRFC5176MessageAuthenticatorZeroesBothFields</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L148" title="internal/component/radius/rfc5176_message_authenticator_test.go" target="_blank" rel="noopener"><code>TestRFC5176MessageAuthenticatorRefusesEveryOtherStream</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L614" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>authradius/TestRFC5176MessageAuthenticatorZeroesBothFields</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L615" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>authradius/TestRFC5176MessageAuthenticatorZeroesBothFields</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-3.4-2">RFC5176-3.4-2</code></td><td colspan="3"><span class="rfc-subject">The Message-Authenticator Attribute is calculated and inserted in the packet before the Request Authenticator is calculated. (§3.4)</span></td></tr>
@@ -617,7 +617,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>3.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-3.4-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go#L26" title="internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go" target="_blank" rel="noopener"><code>TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L372" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go" target="_blank" rel="noopener"><code>TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L368" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go" target="_blank" rel="noopener"><code>TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-3.5-5">RFC5176-3.5-5</code></td><td colspan="3"><span class="rfc-subject">Values 200-299 represent successful completion, so that these values may only be sent within CoA-ACK or Disconnect-ACK packets and MUST NOT be sent within a CoA-NAK or Disconnect-NAK packet. Values 400-499 represent fatal errors committed by the Dynamic Authorization Client, so that they MAY be sent within CoA-NAK or Disconnect-NAK packets, and MUST NOT be sent within CoA-ACK or Disconnect-ACK packets. Values 500-599 represent fatal errors occurring on a Dynamic Authorization Server, so that they MAY be sent within CoA-NAK and Disconnect-NAK packets, and MUST NOT be sent within CoA-ACK or Disconnect-ACK packets. (§3.5)</span></td></tr>
@@ -625,8 +625,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-3.5-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L650" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ErrorCausePlacement</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L653" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ErrorCausePlacement</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L651" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ErrorCausePlacement</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L655" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ErrorCausePlacement</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-3.6-1">RFC5176-3.6-1</code></td><td colspan="3"><span class="rfc-subject">Where NAS or session identification attributes are included in Disconnect-Request or CoA-Request packets, they are used for identification purposes only. These attributes MUST NOT be used for purposes other than identification (e.g., within CoA-Request packets to request authorization changes). (§3.6)</span></td></tr>
@@ -634,8 +634,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-3.6-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L761" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176IdentificationAttributesIdentifyOnly</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L764" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176IdentificationAttributesIdentifyOnly</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L790" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176IdentificationAttributesIdentifyOnly</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L793" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176IdentificationAttributesIdentifyOnly</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-6.1-1">RFC5176-6.1-1</code></td><td colspan="3"><span class="rfc-subject">A Dynamic Authorization Server MUST silently discard Disconnect- Request or CoA-Request packets from untrusted sources. (§6.1)</span></td></tr>
@@ -644,9 +644,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>6.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-6.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go#L121" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go" target="_blank" rel="noopener"><code>TestCoASourceFilterDiscardsWhenNoServerResolved</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L808" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176UntrustedSourceDiscarded</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L837" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176UntrustedSourceDiscarded</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go#L175" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go" target="_blank" rel="noopener"><code>TestCoASourceFilterAnswersAConfiguredClient</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L811" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176UntrustedSourceDiscarded</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L840" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176UntrustedSourceDiscarded</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-6.3-1">RFC5176-6.3-1</code></td><td colspan="3"><span class="rfc-subject">When the Event-Timestamp Attribute is present, both the Dynamic Authorization Server and the Dynamic Authorization Client MUST check that the Event-Timestamp Attribute is current within an acceptable time window. If the Event-Timestamp Attribute is not current, then the packet MUST be silently discarded. (§6.3)</span></td></tr>
@@ -654,8 +654,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>6.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-6.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L867" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176StaleEventTimestampDiscarded</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L871" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176StaleEventTimestampDiscarded</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L896" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176StaleEventTimestampDiscarded</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L900" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176StaleEventTimestampDiscarded</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-2.2-1">RFC5176-2.2-1</code></td><td colspan="3"><span class="rfc-subject">A NAS MUST respond to a CoA-Request including a Service-Type Attribute with an unsupported value with a CoA-NAK; an Error-Cause Attribute with value &#34;Unsupported Service&#34; SHOULD be included. (§2.2)</span></td></tr>
@@ -757,14 +757,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L317" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go" target="_blank" rel="noopener"><code>TestCoAListenerInvalidAuth</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L313" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go" target="_blank" rel="noopener"><code>TestCoAListenerInvalidAuth</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L402" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go" target="_blank" rel="noopener"><code>TestCoAListenerUnknownSession</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L398" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go" target="_blank" rel="noopener"><code>TestCoAListenerUnknownSession</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -779,22 +779,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go#L38" title="internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go" target="_blank" rel="noopener"><code>TestCoAOldAccountingIdentityCannotSelectNewIncarnation</code></a></td>
 <td>unit/verify</td>
-<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go#L62" title="internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go" target="_blank" rel="noopener"><code>TestDisconnectOldAccountingIdentityCannotTerminateNewIncarnation</code></a></td>
 <td>unit/verify</td>
-<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L148" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go" target="_blank" rel="noopener"><code>TestRFC5176MatchedIdentificationSucceeds</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go#L25" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go" target="_blank" rel="noopener"><code>TestRFC5176NoSessionIdNotActedOn</code></a></td>
 <td>unit/verify</td>
-<td>mutant, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_owner_apply_test.go#L185" title="internal/component/l2tp/plugins/authradius/rfc5176_owner_apply_test.go" target="_blank" rel="noopener"><code>TestCoARegisteredSubscriberAllSelectorsMustMatch</code></a></td>
@@ -804,17 +804,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go#L109" title="internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go" target="_blank" rel="noopener"><code>TestCoALiveAccountingOwnerIdentitySurvivesRegistryMiss</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L125" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go" target="_blank" rel="noopener"><code>TestRFC5176UnmatchedIdentificationIsNAKed</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L465" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go" target="_blank" rel="noopener"><code>TestDisconnectReplayReturnsCachedResponse</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L461" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go" target="_blank" rel="noopener"><code>TestDisconnectReplayReturnsCachedResponse</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -829,7 +829,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L211" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go" target="_blank" rel="noopener"><code>TestRFC5176ResponseAuthenticatorMatchesAnIndependentMD5</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go#L68" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go" target="_blank" rel="noopener"><code>TestRFC5176ResponseAuthenticator</code></a></td>
@@ -854,7 +854,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_response_auth_test.go#L218" title="internal/component/radius/rfc2865_response_auth_test.go" target="_blank" rel="noopener"><code>TestRFC5176CoARequestAuthenticatorCoversEveryNamedField</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L352" title="internal/component/radius/packet_test.go" target="_blank" rel="noopener"><code>TestVerifyCoARequestAuth</code></a></td>
@@ -864,7 +864,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_response_auth_test.go#L183" title="internal/component/radius/rfc2865_response_auth_test.go" target="_blank" rel="noopener"><code>TestRFC5176CoARequestAuthenticatorMatchesTheFormula</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -899,27 +899,27 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L251" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176DifferentSourcePortIsNotADuplicate</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L171" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176DuplicateRequestAnsweredFromCache</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L284" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176SameTripleNewAuthenticatorIsProcessedAfresh</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L220" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176DuplicateIsSameSourcePortAndIdentifier</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L167" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176DuplicateRequestAnsweredFromCache</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -934,12 +934,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L347" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176LengthFieldGovernsTheOctetsRead</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L345" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176LengthFieldGovernsTheOctetsRead</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -954,12 +954,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L372" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176SharedSecretChosenBySourceAddress</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L369" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176SharedSecretChosenBySourceAddress</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -974,42 +974,42 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go#L117" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go" target="_blank" rel="noopener"><code>TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_identification_test.go#L17" title="internal/component/l2tp/plugins/authradius/rfc5176_identification_test.go" target="_blank" rel="noopener"><code>TestDynamicAuthorizationRefusesUnimplementedIdentification</code></a></td>
 <td>unit/verify</td>
-<td>mutant, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L413" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176UnsupportedAttributeNAKed</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L311" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go" target="_blank" rel="noopener"><code>TestRFC5176CoAWithAnUnsupportedAttributeValueIsNAKed</code></a></td>
 <td>unit/verify</td>
-<td>mutant, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go#L56" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go" target="_blank" rel="noopener"><code>TestRFC5176CoAWithOneUnsupportedValueBesideSupportedOnesIsNAKed</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go#L90" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go" target="_blank" rel="noopener"><code>TestRFC5176DisconnectWithAnUnsupportedValueIsNAKed</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_identification_test.go#L88" title="internal/component/l2tp/plugins/authradius/rfc5176_identification_test.go" target="_blank" rel="noopener"><code>TestCoAImplementedIdentificationStillApplies</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L409" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176UnsupportedAttributeNAKed</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1024,47 +1024,47 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_atomic_owners_test.go#L62" title="internal/component/l2tp/plugins/authradius/rfc5176_atomic_owners_test.go" target="_blank" rel="noopener"><code>TestCoAMixedOwnerFailureRestoresBothControls</code></a></td>
 <td>unit/verify</td>
-<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L292" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go" target="_blank" rel="noopener"><code>TestRFC5176DisconnectThatTerminatesIsACKed</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go#L121" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go" target="_blank" rel="noopener"><code>TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L449" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L450" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_atomic_owners_test.go#L90" title="internal/component/l2tp/plugins/authradius/rfc5176_atomic_owners_test.go" target="_blank" rel="noopener"><code>TestCoAMixedOwnersApplyBeforeACK</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L251" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go" target="_blank" rel="noopener"><code>TestRFC5176CoANAKMakesNoPartialChange</code></a></td>
 <td>unit/verify</td>
-<td>mutant, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L271" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go" target="_blank" rel="noopener"><code>TestRFC5176DisconnectThatCannotTerminateIsNAKed</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go#L157" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go" target="_blank" rel="noopener"><code>TestRFC5176SubscriberCoAThatCannotBeCarriedOutWholeMakesNoChange</code></a></td>
 <td>unit/verify</td>
-<td>mutant, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L447" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1079,22 +1079,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L105" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go" target="_blank" rel="noopener"><code>TestRFC5176CoAMatchingOneSessionIsACKed</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L482" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176MultipleMatchingSessionsNAKed</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L483" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176MultipleMatchingSessionsNAKed</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L89" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go" target="_blank" rel="noopener"><code>TestRFC5176CoAMatchingSeveralSessionsIsNAKed</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L479" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176MultipleMatchingSessionsNAKed</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L480" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176MultipleMatchingSessionsNAKed</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1109,22 +1109,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go#L144" title="internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go" target="_blank" rel="noopener"><code>TestRFC5176ProxyStateContentIsNeverRead</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L519" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ProxyStateReturnedUnmodified</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L520" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ProxyStateReturnedUnmodified</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go#L37" title="internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go" target="_blank" rel="noopener"><code>TestRFC5176StateAndClassUnmodifiedProxyStateOpaque</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L517" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ProxyStateReturnedUnmodified</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L518" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ProxyStateReturnedUnmodified</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1137,14 +1137,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L554" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ServiceTypeNAKed</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L555" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ServiceTypeNAKed</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L551" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ServiceTypeNAKed</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L552" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ServiceTypeNAKed</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1159,22 +1159,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L195" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go" target="_blank" rel="noopener"><code>TestRFC5176NAKForARequestWithoutStateCarriesNone</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L583" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176StateReturnedUnmodified</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L584" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176StateReturnedUnmodified</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L172" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go" target="_blank" rel="noopener"><code>TestRFC5176StateReturnedUnmodifiedInANAK</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L581" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176StateReturnedUnmodified</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L582" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176StateReturnedUnmodified</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1187,24 +1187,24 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L614" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>authradius/TestRFC5176MessageAuthenticatorZeroesBothFields</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L615" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>authradius/TestRFC5176MessageAuthenticatorZeroesBothFields</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L148" title="internal/component/radius/rfc5176_message_authenticator_test.go" target="_blank" rel="noopener"><code>TestRFC5176MessageAuthenticatorRefusesEveryOtherStream</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L610" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>authradius/TestRFC5176MessageAuthenticatorZeroesBothFields</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L611" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>authradius/TestRFC5176MessageAuthenticatorZeroesBothFields</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L126" title="internal/component/radius/rfc5176_message_authenticator_test.go" target="_blank" rel="noopener"><code>radius/TestRFC5176MessageAuthenticatorZeroesBothFields</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1219,12 +1219,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L239" title="internal/component/radius/rfc5176_message_authenticator_test.go" target="_blank" rel="noopener"><code>TestRFC5176RequestAuthenticatorRefusesTheInvertedOrder</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L218" title="internal/component/radius/rfc5176_message_authenticator_test.go" target="_blank" rel="noopener"><code>TestRFC5176RequestAuthenticatorCoversTheSignedMessageAuthenticator</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1244,12 +1244,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_test.go#L52" title="internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_test.go" target="_blank" rel="noopener"><code>TestRFC5176ListenerDiscardsWrongMessageAuthenticator</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_test.go#L26" title="internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_test.go" target="_blank" rel="noopener"><code>TestRFC5176ListenerAcceptsConformantMessageAuthenticator</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1262,7 +1262,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L372" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go" target="_blank" rel="noopener"><code>TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L368" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go" target="_blank" rel="noopener"><code>TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
@@ -1282,14 +1282,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L653" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ErrorCausePlacement</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L655" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ErrorCausePlacement</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L650" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ErrorCausePlacement</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L651" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ErrorCausePlacement</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1302,14 +1302,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L764" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176IdentificationAttributesIdentifyOnly</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L793" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176IdentificationAttributesIdentifyOnly</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L761" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176IdentificationAttributesIdentifyOnly</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L790" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176IdentificationAttributesIdentifyOnly</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1327,9 +1327,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>not verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L811" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176UntrustedSourceDiscarded</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L840" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176UntrustedSourceDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go#L121" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go" target="_blank" rel="noopener"><code>TestCoASourceFilterDiscardsWhenNoServerResolved</code></a></td>
@@ -1337,9 +1337,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>not verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L808" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176UntrustedSourceDiscarded</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L837" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176UntrustedSourceDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1352,14 +1352,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L871" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176StaleEventTimestampDiscarded</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L900" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176StaleEventTimestampDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L867" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176StaleEventTimestampDiscarded</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L896" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176StaleEventTimestampDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1374,12 +1374,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L218" title="internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go" target="_blank" rel="noopener"><code>TestRFC5176CoAWithoutServiceTypeIsACKed</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L191" title="internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go" target="_blank" rel="noopener"><code>TestRFC5176UnsupportedServiceTypeValueIsNAKed</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1394,17 +1394,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L308" title="internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go" target="_blank" rel="noopener"><code>TestRFC5176DisconnectAdmitsTheSection36TableAttributes</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L286" title="internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go" target="_blank" rel="noopener"><code>TestRFC5176DisconnectCarryingOnlyIdentificationIsACKed</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L241" title="internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go" target="_blank" rel="noopener"><code>TestRFC5176DisconnectWithANonIdentificationAttributeIsNAKed</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1419,19 +1419,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L404" title="internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go" target="_blank" rel="noopener"><code>TestRFC5176StateIsNeverReadAsAChangeOrAnIdentity</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L352" title="internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go" target="_blank" rel="noopener"><code>TestRFC5176StateNeverChangesTheOutcome</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc5176-3.5-6"><code>RFC5176-3.5-6</code></a></h3>
 <p>This value is only sent within a Disconnect-ACK and MUST NOT be sent within a CoA-ACK, Disconnect-NAK, or CoA-NAK. (§3.5, &#34;This value&#34; is Error-Cause 201, Residual Session Context Removed)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176ResidualSessionCauseInARequestNeverReachesANAK, internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176ResidualSessionCauseOnlyInADisconnectACK moved. Judge 2026-09-30 (access cont 10, independent). + TestRFC5176ResidualSessionCauseOnlyInADisconnectACK: coaResponsePaths drives 15 response paths (both ACKs, NAK 401/404/405/407/503/504/506/508 for CoA and Disconnect), asserts each exact code+cause, requires all four response codes seen, and fails on 201 outside a Disconnect-ACK. - TestRFC5176ResidualSessionCauseInARequestNeverReachesANAK (R1(b)): requests carrying Error-Cause 201 and a Proxy-State holding a 201 TLV -&gt; NAK with only [401], Proxy-State whole, no teardown. Records observed red.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (access cont 10, independent). + TestRFC5176ResidualSessionCauseOnlyInADisconnectACK: coaResponsePaths drives 15 response paths (both ACKs, NAK 401/404/405/407/503/504/506/508 for CoA and Disconnect), asserts each exact code+cause, requires all four response codes seen, and fails on 201 outside a Disconnect-ACK. - TestRFC5176ResidualSessionCauseInARequestNeverReachesANAK (R1(b)): requests carrying Error-Cause 201 and a Proxy-State holding a 201 TLV -&gt; NAK with only [401], Proxy-State whole, no teardown. Records observed red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -1459,7 +1459,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L462" title="internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go" target="_blank" rel="noopener"><code>TestRFC5176InvalidEAPPacketCauseNeverSentForAnEAPRequest</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L455" title="internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go" target="_blank" rel="noopener"><code>TestRFC5176InvalidEAPPacketCauseNeverSent</code></a></td>
@@ -1479,7 +1479,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L488" title="internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go" target="_blank" rel="noopener"><code>TestRFC5176RequestNotRoutableCauseNeverSentForAForeignSession</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L481" title="internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go" target="_blank" rel="noopener"><code>TestRFC5176RequestNotRoutableCauseNeverSent</code></a></td>
@@ -1499,12 +1499,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L524" title="internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go" target="_blank" rel="noopener"><code>TestRFC5176SessionNotRemovableNeverInACoANAK</code></a></td>
 <td>unit/verify</td>
-<td>mutant, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L506" title="internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go" target="_blank" rel="noopener"><code>TestRFC5176SessionNotRemovableOnlyInADisconnectNAK</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1519,12 +1519,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L572" title="internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go" target="_blank" rel="noopener"><code>TestRFC5176VendorSpecificIsNeverAnIdentity</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L540" title="internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go" target="_blank" rel="noopener"><code>TestRFC5176VendorSpecificIsAChangeOnly</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1539,12 +1539,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L675" title="internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go" target="_blank" rel="noopener"><code>TestRFC5176DuplicateAndTimestampWindowsBothEndOutside</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L640" title="internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go" target="_blank" rel="noopener"><code>TestRFC5176DuplicateAndTimestampWindowsBothHoldInside</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1952,7 +1952,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:27 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
                 </div>
             </div>
         </footer>

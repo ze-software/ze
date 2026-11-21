@@ -133,7 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 9 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 9 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 9 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>16</strong><b>16 of 61 tests linked to requirements, 0 without a fault test and 24 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>42</strong><b>42 of 61 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -255,7 +255,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>9</td>
 </tr>
 <tr><td>Fault test records</td>
-<td>40</td>
+<td>42</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc7911.md</code></td>
@@ -275,8 +275,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> ADD-PATH</p>
-<p><strong>Test verification:</strong> 7 of 9 MUST proven</p>
-<p><strong>Evidence:</strong> interop 1, unit 6</p>
+<p><strong>Test verification:</strong> 9 of 9 MUST proven</p>
+<p><strong>Evidence:</strong> interop 1, functional 1, unit 7</p>
 <p><strong>Unmet:</strong> -</p>
 
 </section>
@@ -321,9 +321,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc7911:must">Ze verified 7, Tests awaiting verification 2</div>
+<div data-ze-rfc-bar="rfc7911:must">Ze verified 9</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc7911:overview">Ze MUST verified 7, Tests awaiting verification 2, Not assessed 4</div>
+<div data-ze-rfc-bar="rfc7911:overview">Ze MUST verified 9, Not assessed 4</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -335,7 +335,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc7911:not-walked">0</span></td>
 </tr>
 <tr><td>Mandatory requirements complete</td>
-<td><span data-ze-rfc="rfc7911:register">not complete</span></td>
+<td><span data-ze-rfc="rfc7911:register">complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
 <td><span data-ze-rfc="rfc7911:must.total">9</span></td>
@@ -344,13 +344,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc7911:must.kept">9</span></td>
 </tr>
 <tr><td>Ze verified</td>
-<td><span data-ze-rfc="rfc7911:must.ze-proven">7</span></td>
+<td><span data-ze-rfc="rfc7911:must.ze-proven">9</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc7911:must.os-verified">0</span></td>
 </tr>
 <tr><td>Tests awaiting verification</td>
-<td><span data-ze-rfc="rfc7911:must.proof-pending">2</span></td>
+<td><span data-ze-rfc="rfc7911:must.proof-pending">0</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc7911:must.os-gap">0</span></td>
@@ -602,12 +602,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_test.go#L45" title="internal/component/bgp/reactor/rfc7911_forward_path_id_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDsDifferForCollidingSources</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_test.go#L96" title="internal/component/bgp/reactor/rfc7911_forward_path_id_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDStableAcrossUpdates</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -622,87 +622,87 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L246" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDFiniteNamespace</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_mp_test.go#L26" title="internal/component/bgp/reactor/rfc7911_forward_path_id_mp_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDMPGeneration</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_test.go#L90" title="internal/component/bgp/reactor/rfc7911_forward_path_id_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDStableAcrossUpdates</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go#L287" title="internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDKeepsTheSourceOfARebuiltFrame</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go#L329" title="internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDKeptWhenOneUpdateWithdrawsAndAnnouncesIt</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go#L232" title="internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDWithdrawCarriesTheAnnouncedValue</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go#L193" title="internal/component/bgp/reactor/rfc7911_forward_path_id_churn_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDsFreedOnRelayedWithdraw</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L166" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDBoundaryReceivedValues</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L48" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDDiffersForTwoSourcePeers</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L244" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDFiniteNamespace</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L75" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDMatchesAnnounceAndWithdraw</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L137" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDSeparatesNonAddPathSources</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L190" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDStableForEachDestination</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L108" title="internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDSurvivesAttributeChange</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_mp_test.go#L25" title="internal/component/bgp/reactor/rfc7911_forward_path_id_mp_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDMPGeneration</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_test.go#L33" title="internal/component/bgp/reactor/rfc7911_forward_path_id_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDsDifferForCollidingSources</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_zz_pathid_growth_probe_test.go#L22" title="internal/component/bgp/reactor/rfc7911_zz_pathid_growth_probe_test.go" target="_blank" rel="noopener"><code>TestPathIDKeyFollowsWhatTheSourceFramed</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L17" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkAddPathReadvertiseCollision</code></a></td>
@@ -712,7 +712,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-addpath-source.ci#L28" title="test/plugin/adj-rib-in-replay-addpath-source.ci" target="_blank" rel="noopener"><code>adj-rib-in-replay-addpath-source.ci</code></a></td>
 <td>functional/verify</td>
-<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -732,17 +732,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/rfc7911_base_len_test.go#L143" title="internal/core/bgp/nlri/rfc7911_base_len_test.go" target="_blank" rel="noopener"><code>TestWriteNLRI_AddPath</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-addpath-source.ci#L24" title="test/plugin/adj-rib-in-replay-addpath-source.ci" target="_blank" rel="noopener"><code>adj-rib-in-replay-addpath-source.ci</code></a></td>
 <td>functional/verify</td>
-<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/format/rfc7911_withdraw_only_test.go#L66" title="internal/component/bgp/format/rfc7911_withdraw_only_test.go" target="_blank" rel="noopener"><code>TestWithdrawOnlyUpdateKeepsPathIdentifier</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/update/rfc7911_addpath_pathid_test.go#L42" title="internal/component/bgp/plugins/cmd/update/rfc7911_addpath_pathid_test.go" target="_blank" rel="noopener"><code>TestPathInformationZeroIsAnIdentifierOnTheWire</code></a></td>
@@ -752,7 +752,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/rfc7911_base_len_test.go#L182" title="internal/core/bgp/nlri/rfc7911_base_len_test.go" target="_blank" rel="noopener"><code>TestWriteNLRI_WithStoredPathID</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/rfc7911_inet_test.go#L112" title="internal/core/bgp/nlri/rfc7911_inet_test.go" target="_blank" rel="noopener"><code>TestINETWithAddPath</code></a></td>
@@ -762,7 +762,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-addpath-source.ci#L21" title="test/plugin/adj-rib-in-replay-addpath-source.ci" target="_blank" rel="noopener"><code>adj-rib-in-replay-addpath-source.ci</code></a></td>
 <td>functional/verify</td>
-<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -897,14 +897,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_body_test.go#L128" title="internal/component/bgp/reactor/rfc7911_forward_body_test.go" target="_blank" rel="noopener"><code>TestForwardSplitSameContextKeepsRawSplit</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc7911-5-4"><code>RFC7911-5-4</code></a></h3>
 <p>A BGP speaker MUST follow the procedures defined in [RFC4271] when generating an UPDATE message for a particular &lt;AFI, SAFI&gt; to a peer unless the BGP speaker advertises the ADD-PATH Capability to the peer indicating its ability to send multiple paths for the &lt;AFI, SAFI&gt;, and also receives the ADD-PATH Capability from the peer indicating its ability to receive multiple paths for the &lt;AFI, SAFI&gt;, in which case the speaker MUST generate a route update for the &lt;AFI, SAFI&gt; based on the combination of the address prefix and the Path Identifier, and use the extended NLRI encodings specified in this document. (Section 5)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/reactor_test.go::TestWriteAnnounceUpdateWithAddPath, internal/component/bgp/reactor/reactor_test.go::TestWriteAnnounceUpdateWithAddPath#2 moved. RFC 7911 Section 5: &#34;A BGP speaker MUST follow the procedures defined in [RFC4271] when generating an UPDATE message for a particular &lt;AFI, SAFI&gt; to a peer unless the BGP speaker advertises the ADD-PATH Capability to the peer indicating its ability to send multiple paths for the &lt;AFI, SAFI&gt;, and also receives the ADD-PATH Capability from the peer indicating its ability to receive multiple paths for the &lt;AFI, SAFI&gt;, in which case the speaker MUST generate a route update for the &lt;AFI, SAFI&gt; based on the combination of the address prefix and the Path Identifier, and use the extended NLRI encodings specified in this document.&#34; All six tagged covers were read. The family-generation positive and negative tags require exact output for two identifiers 7 and 9 on the same prefix, with no extended framing leaking into the crossed family. Its existing actual capability.Negotiate result is now also published to Session; inputs and exact byte comparisons are unchanged. The producer uses each NLRI&#39;s stored identifier and the destination family&#39;s negotiated addPath fact, so prefix-only collapse, wrong identifiers, unconditional identifier fields or family leakage fail. TestWriteAnnounceUpdateWithAddPath is only a four-octet width/attribute-length control and is not treated as an exact content proof. TestSplitUpdateAddPathEndToEnd and TestSplitUpdateEndToEnd compare all concatenated extended/plain NLRI and retained attributes through the shared Splitter; despite their historical names/comments, collectSplit calls Splitter.Split directly, not a socket send path. The exact family-generation API test supplies the recipient-byte boundary. Retain enforced for pair-based generation and extended versus ordinary framing, without claiming all base-BGP decisions, socket integration or foreign interoperability. Native renewal of the four family-generation covers remains a main-thread prerequisite to stamping.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7911 Section 5: &#34;A BGP speaker MUST follow the procedures defined in [RFC4271] when generating an UPDATE message for a particular &lt;AFI, SAFI&gt; to a peer unless the BGP speaker advertises the ADD-PATH Capability to the peer indicating its ability to send multiple paths for the &lt;AFI, SAFI&gt;, and also receives the ADD-PATH Capability from the peer indicating its ability to receive multiple paths for the &lt;AFI, SAFI&gt;, in which case the speaker MUST generate a route update for the &lt;AFI, SAFI&gt; based on the combination of the address prefix and the Path Identifier, and use the extended NLRI encodings specified in this document.&#34; All six tagged covers were read. The family-generation positive and negative tags require exact output for two identifiers 7 and 9 on the same prefix, with no extended framing leaking into the crossed family. Its existing actual capability.Negotiate result is now also published to Session; inputs and exact byte comparisons are unchanged. The producer uses each NLRI&#39;s stored identifier and the destination family&#39;s negotiated addPath fact, so prefix-only collapse, wrong identifiers, unconditional identifier fields or family leakage fail. TestWriteAnnounceUpdateWithAddPath is only a four-octet width/attribute-length control and is not treated as an exact content proof. TestSplitUpdateAddPathEndToEnd and TestSplitUpdateEndToEnd compare all concatenated extended/plain NLRI and retained attributes through the shared Splitter; despite their historical names/comments, collectSplit calls Splitter.Split directly, not a socket send path. The exact family-generation API test supplies the recipient-byte boundary. Retain enforced for pair-based generation and extended versus ordinary framing, without claiming all base-BGP decisions, socket integration or foreign interoperability. Native renewal of the four family-generation covers remains a main-thread prerequisite to stamping.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -1165,7 +1165,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:27 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
                 </div>
             </div>
         </footer>

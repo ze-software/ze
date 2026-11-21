@@ -1269,7 +1269,7 @@ stored revisions after the automatic rollback, before testing acceptance.</p>
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/commit-confirmed.cast?v=d61a5f86c6"
+      data-cast-src="../../assets/demos/commit-confirmed.cast?v=8a0a534d94"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -1277,20 +1277,20 @@ stored revisions after the automatic rollback, before testing acceptance.</p>
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/commit-confirmed.cast?v=d61a5f86c6">Download the asciicast</a> or
-      <a href="../../assets/demos/commit-confirmed.txt?v=bba89459a1">read the transcript</a>.</p>
+      page's own player. <a href="../../assets/demos/commit-confirmed.cast?v=8a0a534d94">Download the asciicast</a> or
+      <a href="../../assets/demos/commit-confirmed.txt?v=74b77a20fb">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.10.28</span><span>2 minutes 38 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
-    <a href="../../assets/demos/commit-confirmed.txt?v=bba89459a1">Plain-text transcript</a>
+    <span>Ze 26.11.20</span><span>1 minute 52 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
+    <a href="../../assets/demos/commit-confirmed.txt?v=74b77a20fb">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
     <pre><code>Commit confirmed: rollback and acceptance on the running router
 
 Connect with sshpass -e ssh ze-demo. The SSH editor starts from edge-original.
-Load /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf, review
+Load topics/commit-confirmed/1-trial-host.conf, review
 show | compare, then run commit confirmed 15. Ze&#39;s timeout is in seconds,
 unlike Junos commit confirmed, whose timeout is in minutes.
 
@@ -1298,7 +1298,7 @@ $ ze-demo card topic-commit-confirmed lab
 $ ze-demo card topic-commit-confirmed overview
 $ sshpass -e ssh ze-demo
 ze# show system host
-ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf
+ze# load file absolute merge topics/commit-confirmed/1-trial-host.conf
 ze# show | compare
 ze# commit confirmed 15
 
@@ -1314,11 +1314,11 @@ ze# show system host
 ze# show | compare
 ze# show | changes
 
-Load /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf,
+Load topics/commit-confirmed/2-confirmed-host.conf,
 compare, commit confirmed 15, then commit accept. Wait beyond the fifteen-second
 deadline and inspect edge-confirmed again. The accepted value must remain.
 
-ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf
+ze# load file absolute merge topics/commit-confirmed/2-confirmed-host.conf
 ze# show | compare
 ze# commit confirmed 15
 ze# commit accept
@@ -1448,7 +1448,7 @@ ze config archive prod config.conf # Archive to named destination
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 22:34 UTC</span>
                 </div>
             </div>
         </footer>

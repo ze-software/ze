@@ -8,31 +8,31 @@
   "must": {
     "total": 76,
     "kept": 76,
-    "ze-proven": 48,
+    "ze-proven": 50,
     "os-verified": 0,
     "os-gap": 2,
     "proof-pending": 13,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
-    "not-built": 13,
+    "not-built": 11,
     "not-owed": 0,
     "not-owed-by-kind": {}
   },
   "should": {
     "total": 25,
-    "proven": 2,
+    "proven": 3,
     "os-verified": 0,
     "os-gap": 0,
     "not-owed": 0,
     "proof-pending": 1,
     "exclusion-unchecked": 0,
-    "not-assessed": 22,
+    "not-assessed": 21,
     "not-built": 0,
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
     "interop": 4,
-    "unit": 44
+    "unit": 46
   },
   "unmet": [
     "RFC1661-2-2",
@@ -40,11 +40,9 @@
     "RFC1661-3.5-2",
     "RFC1661-3.5-4",
     "RFC1661-3.7-2",
-    "RFC1661-4.3-3",
     "RFC1661-4.4-1",
     "RFC1661-5-1",
     "RFC1661-5.3-4",
-    "RFC1661-5.7-2",
     "RFC1661-5.9-1",
     "RFC1661-5.9-3",
     "RFC1661-6.5-3"

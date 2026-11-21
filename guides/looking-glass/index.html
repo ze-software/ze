@@ -588,12 +588,12 @@ read the value the same way:</p>
 <tr>
 <td>A prefix with its length, such as. <span class="ev-src"><span class="ev-ref"><code>10.0.0.0/8</code></span></span></td>
 <td>The routes of exactly that prefix, never a longer prefix inside it. Host bits are cleared first, so. <span class="ev-src"><span class="ev-ref"><code>10.0.0.1/8</code></span><span class="ev-ref"><code>10.0.0.0/8</code></span></span></td>
-<td><code>show bgp rib received exact 10.0.0.0/8</code></td>
+<td><code>show bgp rib | received | exact 10.0.0.0/8</code></td>
 </tr>
 <tr>
 <td>A bare address, such as <code>10.1.2.3</code> or. <span class="ev-src"><span class="ev-ref"><code>2001:db8::1</code></span></span></td>
 <td>Every route whose prefix contains the address, the most specific prefix first for each peer, so a default route comes last</td>
-<td><code>show bgp rib received covering 10.1.2.3</code></td>
+<td><code>show bgp rib | received | covering 10.1.2.3</code></td>
 </tr>
 <tr>
 <td>Anything else, or a length past 32 (IPv4) or 128 (IPv6)</td>
@@ -814,7 +814,7 @@ serves a self-signed certificate when that leaf is unset.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
                 </div>
             </div>
         </footer>

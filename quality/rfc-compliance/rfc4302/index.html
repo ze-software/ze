@@ -132,7 +132,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1</strong><b>of 32 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 32 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 32 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>17</strong><b>17 of 24 tests linked to requirements, 0 without a fault test and 7 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>24</strong><b>24 of 24 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
@@ -279,8 +279,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> Authentication Header</p>
-<p><strong>Test verification:</strong> 8 of 32 MUST proven</p>
-<p><strong>Evidence:</strong> unit 8</p>
+<p><strong>Test verification:</strong> 9 of 32 MUST proven</p>
+<p><strong>Evidence:</strong> unit 9</p>
 <p><strong>Unmet:</strong> RFC4302-2.5-5, RFC4302-2.5.1-1, RFC4302-4-1, RFC4302-A2-1</p>
 
 </section>
@@ -327,9 +327,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc4302:must">Ze verified 8, Tests awaiting verification 1, OS testing gap 19, Not built 4</div>
+<div data-ze-rfc-bar="rfc4302:must">Ze verified 9, OS testing gap 19, Not built 4</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc4302:overview">Ze MUST verified 8, Tests awaiting verification 1, OS testing gap 19, Not assessed 10, Not built 4</div>
+<div data-ze-rfc-bar="rfc4302:overview">Ze MUST verified 9, OS testing gap 19, Not assessed 10, Not built 4</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -350,13 +350,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc4302:must.kept">32</span></td>
 </tr>
 <tr><td>Ze verified</td>
-<td><span data-ze-rfc="rfc4302:must.ze-proven">8</span></td>
+<td><span data-ze-rfc="rfc4302:must.ze-proven">9</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc4302:must.os-verified">0</span></td>
 </tr>
 <tr><td>Tests awaiting verification</td>
-<td><span data-ze-rfc="rfc4302:must.proof-pending">1</span></td>
+<td><span data-ze-rfc="rfc4302:must.proof-pending">0</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc4302:must.os-gap">19</span></td>
@@ -949,7 +949,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.</p>
 <h3><a href="#rfc4302-2-1"><code>RFC4302-2-1</code></a></h3>
 <p>The protocol header (IPv4, IPv6, or IPv6 Extension) immediately preceding the AH header SHALL contain the value 51 in its Protocol (IPv4) or Next Header (IPv6, Extension) fields [DH98]. (§2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber, internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber#2 moved. Re-judged 2026-09-30 (OSPF judge): stale only from a comment change in commit 29ecbbd4ef. TestIPsecSAProtocolNumber: ah SA Proto must be 51 (positive) and esp SA Proto 50, so a blanket-51 installer goes red (negative). Mutant records on ipsecProtoNumber (AH arm forced false / true) observed red. Ze&#39;s boundary is the SA protocol number; Linux XFRM writes the Next Header from it.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (OSPF judge): stale only from a comment change in commit 29ecbbd4ef. TestIPsecSAProtocolNumber: ah SA Proto must be 51 (positive) and esp SA Proto 50, so a blanket-51 installer goes red (negative). Mutant records on ipsecProtoNumber (AH arm forced false / true) observed red. Ze&#39;s boundary is the SA protocol number; Linux XFRM writes the Next Header from it.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -1001,12 +1001,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_test.go#L46" title="internal/plugins/ospf/rfc4302_ipsec_test.go" target="_blank" rel="noopener"><code>TestAHSAIdentifiedBySPIAndProtocol</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_sa_set_test.go#L44" title="internal/plugins/ospf/rfc4302_sa_set_test.go" target="_blank" rel="noopener"><code>TestRFC4302UnicastAHStateIdentifiedBySPI</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_test.go#L37" title="internal/plugins/ospf/rfc4302_ipsec_test.go" target="_blank" rel="noopener"><code>TestAHSAIdentifiedBySPIAndProtocol</code></a></td>
@@ -1177,7 +1177,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc4302-3.4.3-1"><code>RFC4302-3.4.3-1</code></a></h3>
 <p>All AH implementations MUST support the anti-replay service, though its use may be enabled or disabled by the receiver on a per-SA basis. (§3.4.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAReplayWindow, internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAReplayWindow#2 moved. Re-judged 2026-10-30 by an independent auditor (authored none of the userns spec commits d8427e4380, b00e3c6710, 68b723ec4f, 7d11a51269). userns.Enter (internal/test/userns/userns_linux.go) re-executes the one test in a new user+net+mount namespace and returns false in the parent only after the child&#39;s own PASS line; a child failure, a zero-exit failure or a child that selected nothing fails the parent, and a child skip skips it, so the guard cannot turn a red into a green. Section 3.4.3: &#34;All AH implementations MUST support the anti-replay service, though its use may be enabled or disabled by the receiver on a per-SA basis.&#34; TestIPsecInstallerXFRMReplayWindow changed by the guard only (requireXFRM&#39;s CAP refusal now fails). It parses and validates the real config, runs the installer against kernel XFRM, and for replay-window 64, explicit 0 and the absent leaf requires each AH destination (ff02::5, ff02::6, fe80::1) exactly once with the exact window; extra, duplicate or non-AH states fail. Running in the child&#39;s own network namespace also means no foreign XFRM state can collide with the SPI. Proves Ze installs the per-SA anti-replay choice; Linux&#39;s per-packet sequence check is not claimed. Records (xfrmStateFromParams, buildIPsecSA reverts) current.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 by an independent auditor (authored none of the userns spec commits d8427e4380, b00e3c6710, 68b723ec4f, 7d11a51269). userns.Enter (internal/test/userns/userns_linux.go) re-executes the one test in a new user+net+mount namespace and returns false in the parent only after the child&#39;s own PASS line; a child failure, a zero-exit failure or a child that selected nothing fails the parent, and a child skip skips it, so the guard cannot turn a red into a green. Section 3.4.3: &#34;All AH implementations MUST support the anti-replay service, though its use may be enabled or disabled by the receiver on a per-SA basis.&#34; TestIPsecInstallerXFRMReplayWindow changed by the guard only (requireXFRM&#39;s CAP refusal now fails). It parses and validates the real config, runs the installer against kernel XFRM, and for replay-window 64, explicit 0 and the absent leaf requires each AH destination (ff02::5, ff02::6, fe80::1) exactly once with the exact window; extra, duplicate or non-AH states fail. Running in the child&#39;s own network namespace also means no foreign XFRM state can collide with the SPI. Proves Ze installs the per-SA anti-replay choice; Linux&#39;s per-packet sequence check is not claimed. Records (xfrmStateFromParams, buildIPsecSA reverts) current.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -1185,22 +1185,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L453" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAReplayWindow</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go#L182" title="internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIPsecInstallerXFRMReplayWindow</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L448" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAReplayWindow</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go#L180" title="internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIPsecInstallerXFRMReplayWindow</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1232,7 +1232,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_sa_set_test.go#L134" title="internal/plugins/ospf/rfc4302_sa_set_test.go" target="_blank" rel="noopener"><code>TestRFC4302MinimumReplayWindowReachesEverySA</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1703,7 +1703,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
                 </div>
             </div>
         </footer>

@@ -7,16 +7,18 @@
   "implemented": true,
   "must": {
     "total": 23,
-    "kept": 23,
-    "ze-proven": 12,
+    "kept": 22,
+    "ze-proven": 21,
     "os-verified": 0,
     "os-gap": 0,
-    "proof-pending": 6,
+    "proof-pending": 0,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
-    "not-built": 5,
-    "not-owed": 0,
-    "not-owed-by-kind": {}
+    "not-built": 1,
+    "not-owed": 1,
+    "not-owed-by-kind": {
+      "not-applicable": 1
+    }
   },
   "should": {
     "total": 47,
@@ -31,13 +33,9 @@
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
-    "unit": 12
+    "unit": 21
   },
   "unmet": [
-    "RFC2181-10.1-4",
-    "RFC2181-10.1.1-1",
-    "RFC2181-10.2-1",
-    "RFC2181-5.4.1-8",
-    "RFC2181-5.5-4"
+    "RFC2181-5.4.1-8"
   ]
 }

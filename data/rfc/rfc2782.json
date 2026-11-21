@@ -8,13 +8,13 @@
   "must": {
     "total": 7,
     "kept": 5,
-    "ze-proven": 0,
+    "ze-proven": 1,
     "os-verified": 0,
     "os-gap": 0,
     "proof-pending": 0,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
-    "not-built": 5,
+    "not-built": 4,
     "not-owed": 2,
     "not-owed-by-kind": {
       "not-applicable": 2
@@ -32,12 +32,13 @@
     "not-built": 0,
     "not-owed-by-kind": {}
   },
-  "proven-by-kind": {},
+  "proven-by-kind": {
+    "unit": 1
+  },
   "unmet": [
     "RFC2782-Notes-2",
     "RFC2782-Notes-3",
     "RFC2782-Priority-1",
-    "RFC2782-Target-1",
     "RFC2782-Target-2"
   ]
 }

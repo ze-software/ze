@@ -4,9 +4,9 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
-        <title>request fleet divergence revert - Command Equivalents - Ze</title>
+        <title>request fleet divergence name revert - Command Equivalents - Ze</title>
         <meta name="description" content="Make a client that holds take the hub&#39;s configuration." />
-        <meta property="og:title" content="request fleet divergence revert - Command Equivalents - Ze" />
+        <meta property="og:title" content="request fleet divergence name revert - Command Equivalents - Ze" />
         <meta property="og:description" content="Make a client that holds take the hub&#39;s configuration." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
@@ -14,13 +14,13 @@
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="request fleet divergence revert - Command Equivalents - Ze" />
+        <meta name="twitter:title" content="request fleet divergence name revert - Command Equivalents - Ze" />
         <meta name="twitter:description" content="Make a client that holds take the hub&#39;s configuration." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
-        <link rel="canonical" href="https://ze-software.net/reference/command-equivalents/request-fleet-divergence-revert/" />
-        <meta property="og:url" content="https://ze-software.net/reference/command-equivalents/request-fleet-divergence-revert/" />
+        <link rel="canonical" href="https://ze-software.net/reference/command-equivalents/request-fleet-divergence-name-revert/" />
+        <meta property="og:url" content="https://ze-software.net/reference/command-equivalents/request-fleet-divergence-name-revert/" />
         <link rel="stylesheet" href="../../../assets/site.css" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
@@ -47,15 +47,15 @@
 <section class="md-content command-equivalents command-equivalent-detail reveal cat-operate" aria-labelledby="command-equivalent-detail-title">
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Command map</span>
-    <h1 id="command-equivalent-detail-title">request fleet divergence revert</h1>
+    <h1 id="command-equivalent-detail-title">request fleet divergence name revert</h1>
     <p>Make a client that holds take the hub&#39;s configuration.</p>
 </div>
 <div class="cmd-detail-grid">
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
 <dl class="cmd-meta">
-<div><dt>Registry path</dt><dd><code>request fleet divergence revert</code></dd></div>
-<div><dt>Usage</dt><dd><code>request fleet divergence revert &lt;name&gt; &lt;version&gt;</code></dd></div>
-<div><dt>Mode</dt><dd>Daemon</dd></div>
+<div><dt>Registry path</dt><dd><code>request fleet divergence name revert</code></dd></div>
+<div><dt>Usage</dt><dd><code>request fleet divergence name &lt;name&gt; revert &lt;version&gt; &lt;hub-version&gt;</code></dd></div>
+<div><dt>Mode</dt><dd>daemon, offline</dd></div>
 <div><dt>Wire method</dt><dd><code>ze-managed:fleet-divergence-revert</code></dd></div>
 <div><dt>Backends</dt><dd>any backend</dd></div>
 <div><dt>Task support</dt><dd>optional: the MCP call is synchronous, which is the default</dd></div>
@@ -65,7 +65,7 @@
 <div><dt>Pipes, while streaming</dt><dd>log</dd></div>
 <div><dt>Pipes, local process only</dt><dd>save</dd></div>
 </dl>
-<h3>Description</h3><p>Decides that the client drops the configuration it holds and takes<br>the configuration this hub serves it, then tells the client. The<br>decision is bound to the client&#39;s hash given here and to the hub&#39;s<br>configuration as it stands now: a later edit on the client, or a<br>later write of the client&#39;s configuration on the hub, voids it. A<br>client that is not connected takes it at its next connection.</p>
+<h3>Description</h3><p>Decides that the client drops the configuration it holds and takes<br>the configuration this hub serves it, then tells the client. The<br>decision is bound to the two hashes given here, the client&#39;s and the<br>hub&#39;s, both as show fleet divergence name answered them: a revert<br>whose hashes no longer match is refused, and a later edit on the<br>client, or a later write of the client&#39;s configuration on the hub,<br>voids a stored decision. A client that is not connected takes it at<br>its next connection.</p>
 <h3>Arguments</h3>
 <table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>name</code></td><td>string</td><td>yes</td><td>any value of this type</td><td>Managed client name</td><td>The name of a managed client, as the client entry of a hub server
@@ -73,6 +73,10 @@ block names it. The hub keeps one held copy for each client.</td></tr>
 <tr><td><code>version</code></td><td>string</td><td>yes</td><td>any value of this type</td><td>Device configuration hash</td><td>The version hash of the client&#39;s configuration, as show fleet
 divergence name answers it. A held copy with another hash is
 refused, so a decision is made only on the copy the operator saw.</td></tr>
+<tr><td><code>hub-version</code></td><td>string</td><td>yes</td><td>any value of this type</td><td>Hub configuration hash</td><td>The version hash of the configuration this hub serves the client,
+as show fleet divergence name answers it. A hub configuration
+written since hashes otherwise and is refused, so the client is
+reverted only to the configuration the operator saw.</td></tr>
 </tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
@@ -138,7 +142,7 @@ refused, so a decision is made only on the copy the operator saw.</td></tr>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
                 </div>
             </div>
         </footer>

@@ -72,7 +72,10 @@ an interactive CLI view is not automatically a one-shot MCP operation.</p>
 <!-- source: internal/component/command/surface.go -- AnswerSurface, answerView -->
 <h2 id="discoverable-command-tools">Discoverable command tools</h2>
 <p>Generated groups use typed inputs where YANG RPC metadata supplies them.
-Groups without typed inputs expose an <code>arguments</code> string.</p>
+Groups without typed inputs expose an <code>arguments</code> string. Every generated
+group takes an optional ordered <code>pipe</code> list of <code>{"name", "args"}</code> elements,
+applied to the answer as <code>| name args</code> stages, each name one of the command's
+pipe operations.</p>
 <!-- source: internal/component/mcp/tools.go -- buildToolDef -->
 <table>
 <thead>
@@ -149,7 +152,7 @@ explanations are maintained text, not a guarantee that every example is current.
 <li>Read <code>tools/list</code> and call <code>ze_reference</code> to discover this daemon's commands. <!-- doc-links: ignore (MCP method name, not a path) --></li>
 <li>Call <code>ze_execute</code> with <code>show bgp peer list</code> to inspect configured peers.</li>
 <li>Announce through <code>ze_execute</code> with <code>send bgp * update text origin igp next-hop 10.0.0.1 nlri add 10.0.0.0/24</code>.</li>
-<li>Call <code>ze_execute</code> with <code>show bgp rib sent peer peer1 family ipv4/unicast</code> to inspect that peer's sent routes.</li>
+<li>Call <code>ze_execute</code> with <code>show bgp rib | sent | peer peer1 | family ipv4/unicast</code> to inspect that peer's sent routes.</li>
 <li>If withdrawal is needed, use the current <code>send bgp</code> withdrawal grammar through <code>ze_execute</code>, rather than assuming a <code>ze_withdraw</code> tool exists.</li>
 </ol>
 <p>Current results use MCP text-content envelopes. JSON references and rendered
@@ -301,7 +304,7 @@ that prints a violation.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
                 </div>
             </div>
         </footer>

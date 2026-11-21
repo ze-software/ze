@@ -133,7 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 8 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 8 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 8 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>7</strong><b>7 of 8 tests linked to requirements, 0 without a fault test and 1 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>11</strong><b>11 of 11 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -246,16 +246,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>8</td>
+<td>11</td>
 </tr>
 <tr><td>Tests linked to requirements</td>
-<td>8</td>
+<td>11</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Fault test records</td>
-<td>8</td>
+<td>11</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc4106.md</code></td>
@@ -275,8 +275,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> ESP</p>
-<p><strong>Test verification:</strong> 4 of 8 MUST proven</p>
-<p><strong>Evidence:</strong> unit 4</p>
+<p><strong>Test verification:</strong> 8 of 8 MUST proven</p>
+<p><strong>Evidence:</strong> unit 5, os 3</p>
 <p><strong>Unmet:</strong> -</p>
 
 </section>
@@ -322,9 +322,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc4106:must">Ze verified 4, Tests awaiting verification 1, OS testing gap 3</div>
+<div data-ze-rfc-bar="rfc4106:must">Ze verified 5, OS verified 3</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc4106:overview">Ze MUST verified 4, Tests awaiting verification 1, OS testing gap 3, Not assessed 5</div>
+<div data-ze-rfc-bar="rfc4106:overview">Ze MUST verified 5, OS verified 3, Not assessed 5</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -336,7 +336,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc4106:not-walked">0</span></td>
 </tr>
 <tr><td>Mandatory requirements complete</td>
-<td><span data-ze-rfc="rfc4106:register">not complete</span></td>
+<td><span data-ze-rfc="rfc4106:register">complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
 <td><span data-ze-rfc="rfc4106:must.total">8</span></td>
@@ -345,16 +345,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc4106:must.kept">8</span></td>
 </tr>
 <tr><td>Ze verified</td>
-<td><span data-ze-rfc="rfc4106:must.ze-proven">4</span></td>
+<td><span data-ze-rfc="rfc4106:must.ze-proven">5</span></td>
 </tr>
 <tr><td>OS verified</td>
-<td><span data-ze-rfc="rfc4106:must.os-verified">0</span></td>
+<td><span data-ze-rfc="rfc4106:must.os-verified">3</span></td>
 </tr>
 <tr><td>Tests awaiting verification</td>
-<td><span data-ze-rfc="rfc4106:must.proof-pending">1</span></td>
+<td><span data-ze-rfc="rfc4106:must.proof-pending">0</span></td>
 </tr>
 <tr><td>OS testing gap</td>
-<td><span data-ze-rfc="rfc4106:must.os-gap">3</span></td>
+<td><span data-ze-rfc="rfc4106:must.os-gap">0</span></td>
 </tr>
 <tr><td>Exclusion unchecked</td>
 <td><span data-ze-rfc="rfc4106:must.exclusion-unchecked">0</span></td>
@@ -429,9 +429,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4106-2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L101" title="internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4106GCMKeyCannotOutliveTheSequenceSpace</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux XFRM rfc4106(gcm(aes)) and its seqiv IV generator, linux:CONFIG_CRYPTO_GCM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs only the key and salt, and the datapath chooses every IV, so no value ze writes decides the nonce directly; the generator derives each IV from the SA&#39;s sequence number, and the value Ze installs that keeps it from cycling is OSeqMayWrap=false, written on every state by the `state.OSeqMayWrap = false` guard in xfrmStateFromParams. Owed tag on that value: internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go (TestRFC4106GCMKeyCannotOutliveTheSequenceSpace) and rfc4301_sad_items_linux_test.go (TestRFC4301SADItemSequenceCounterOverflowIsNeverRollover)</p></td>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux XFRM rfc4106(gcm(aes)) and its seqiv IV generator, linux:CONFIG_CRYPTO_GCM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs only the key and salt, and the datapath chooses every IV, so no value ze writes decides the nonce directly; the generator derives each IV from the SA&#39;s sequence number, and the value Ze installs that keeps it from cycling is OSeqMayWrap=false, written on every state by the `state.OSeqMayWrap = false` guard in xfrmStateFromParams. Tagged on that value: internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go (TestRFC4106GCMKeyCannotOutliveTheSequenceSpace), which asserts it on an AES-GCM state; rfc4301_sad_items_linux_test.go (TestRFC4301SADItemSequenceCounterOverflowIsNeverRollover) asserts the same guard on an AES-CBC state, so it carries no RFC 4106 tag</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4106-2-2">RFC4106-2-2</code></td><td colspan="3"><span class="rfc-subject">For safety&#39;s sake, implementations MUST use an automated key management system, such as the Internet Key Exchange (IKE) [RFC2409], to ensure that this requirement is met. (§2)</span></td></tr>
 <tr><td></td>
@@ -447,7 +447,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4106-3.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L48" title="internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4106GCMStateCarriesTheFullICV</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux XFRM rfc4106(gcm(aes)), linux:CONFIG_CRYPTO_GCM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams names the algorithm and the kernel writes the IV field of every packet</p></td>
 </tr>
@@ -456,17 +456,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4106-3.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L103" title="internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4106GCMKeyCannotOutliveTheSequenceSpace</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux XFRM rfc4106(gcm(aes)) and its seqiv IV generator, linux:CONFIG_CRYPTO_GCM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs no IV, so the kernel generates each one; the generator derives each IV from the SA&#39;s sequence number, and the value Ze installs that keeps it from repeating is OSeqMayWrap=false, written on every state by the `state.OSeqMayWrap = false` guard in xfrmStateFromParams. Owed tag on that value: internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go (TestRFC4106GCMKeyCannotOutliveTheSequenceSpace) and rfc4301_sad_items_linux_test.go (TestRFC4301SADItemSequenceCounterOverflowIsNeverRollover)</p></td>
+</div><p class="rfc-mark"><strong>{lower-layer}:</strong> Linux XFRM rfc4106(gcm(aes)) and its seqiv IV generator, linux:CONFIG_CRYPTO_GCM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs no IV, so the kernel generates each one; the generator derives each IV from the SA&#39;s sequence number, and the value Ze installs that keeps it from repeating is OSeqMayWrap=false, written on every state by the `state.OSeqMayWrap = false` guard in xfrmStateFromParams. Tagged on that value: internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go (TestRFC4106GCMKeyCannotOutliveTheSequenceSpace), which asserts it on an AES-GCM state; rfc4301_sad_items_linux_test.go (TestRFC4301SADItemSequenceCounterOverflowIsNeverRollover) asserts the same guard on an AES-CBC state, so it carries no RFC 4106 tag</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4106-6-1">RFC4106-6-1</code></td><td colspan="3"><span class="rfc-subject">Implementations MUST support a full-length 16-octet ICV, and MAY support 8 or 12 octet ICVs, and MUST NOT support other ICV lengths. (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4106-6-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L40" title="internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4106GCMStateCarriesTheFullICV</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L54" title="internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4106GCMStateCarriesTheFullICV</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L46" title="internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4106GCMStateCarriesTheFullICV</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L62" title="internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4106GCMStateCarriesTheFullICV</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4106-8.1-1">RFC4106-8.1-1</code></td><td colspan="3"><span class="rfc-subject">The size of the KEYMAT for the AES-GCM-ESP MUST be four octets longer than is needed for the associated AES key. (§8.1)</span></td></tr>
@@ -492,7 +492,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4106-10-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L85" title="internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4106GCMKeyCannotOutliveTheSequenceSpace</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L99" title="internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4106GCMKeyCannotOutliveTheSequenceSpace</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the bound is a property of every state xfrmStateFromParams builds (sequence rollover forbidden, no ESN, so at most 2^32 packets of at most 4096 blocks per key), and no state exists without it to contrast</p></td>
 </tr>
@@ -546,32 +546,25 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Gaps and untested MUSTs</h2>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
-<tbody>
-<tr><td><a href="#rfc4106-2-1"><code>RFC4106-2-1</code></a> The same nonce and key combination MUST NOT be used more than once. (§2)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM rfc4106(gcm(aes)) and its seqiv IV generator, linux:CONFIG_CRYPTO_GCM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs only the key and salt, and the datapath chooses every IV, so no value ze writes decides the nonce directly; the generator derives each IV from the SA&#39;s sequence number, and the value Ze installs that keeps it from cycling is OSeqMayWrap=false, written on every state by the `state.OSeqMayWrap = false` guard in xfrmStateFromParams. Owed tag on that value: internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go (TestRFC4106GCMKeyCannotOutliveTheSequenceSpace) and rfc4301_sad_items_linux_test.go (TestRFC4301SADItemSequenceCounterOverflowIsNeverRollover)</td>
-</tr>
-<tr><td><a href="#rfc4106-3.1-1"><code>RFC4106-3.1-1</code></a> The AES-GCM-ESP IV field MUST be eight octets. (§3.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM rfc4106(gcm(aes)), linux:CONFIG_CRYPTO_GCM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams names the algorithm and the kernel writes the IV field of every packet</td>
-</tr>
-<tr><td><a href="#rfc4106-3.1-2"><code>RFC4106-3.1-2</code></a> For a given key, the IV MUST NOT repeat. (§3.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM rfc4106(gcm(aes)) and its seqiv IV generator, linux:CONFIG_CRYPTO_GCM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs no IV, so the kernel generates each one; the generator derives each IV from the SA&#39;s sequence number, and the value Ze installs that keeps it from repeating is OSeqMayWrap=false, written on every state by the `state.OSeqMayWrap = false` guard in xfrmStateFromParams. Owed tag on that value: internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go (TestRFC4106GCMKeyCannotOutliveTheSequenceSpace) and rfc4301_sad_items_linux_test.go (TestRFC4301SADItemSequenceCounterOverflowIsNeverRollover)</td>
-</tr>
-</tbody>
-</table>
-</div>
+<p>RFC 4106 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.</p>
 </section>
 <section><h2>Test status</h2>
 <p>A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.</p>
 <h3><a href="#rfc4106-2-1"><code>RFC4106-2-1</code></a></h3>
 <p>The same nonce and key combination MUST NOT be used more than once. (§2)</p>
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
-<p>No test carries RFC4106-2-1, so there is no linked test.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L101" title="internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4106GCMKeyCannotOutliveTheSequenceSpace</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc4106-2-2"><code>RFC4106-2-2</code></a></h3>
 <p>For safety&#39;s sake, implementations MUST use an automated key management system, such as the Internet Key Exchange (IKE) [RFC2409], to ensure that this requirement is met. (§2)</p>
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
@@ -595,11 +588,33 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3><a href="#rfc4106-3.1-1"><code>RFC4106-3.1-1</code></a></h3>
 <p>The AES-GCM-ESP IV field MUST be eight octets. (§3.1)</p>
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
-<p>No test carries RFC4106-3.1-1, so there is no linked test.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L48" title="internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4106GCMStateCarriesTheFullICV</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc4106-3.1-2"><code>RFC4106-3.1-2</code></a></h3>
 <p>For a given key, the IV MUST NOT repeat. (§3.1)</p>
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
-<p>No test carries RFC4106-3.1-2, so there is no linked test.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L103" title="internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4106GCMKeyCannotOutliveTheSequenceSpace</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc4106-6-1"><code>RFC4106-6-1</code></a></h3>
 <p>Implementations MUST support a full-length 16-octet ICV, and MAY support 8 or 12 octet ICVs, and MUST NOT support other ICV lengths. (§6)</p>
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
@@ -608,12 +623,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L54" title="internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4106GCMStateCarriesTheFullICV</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L62" title="internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4106GCMStateCarriesTheFullICV</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L40" title="internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4106GCMStateCarriesTheFullICV</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L46" title="internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4106GCMStateCarriesTheFullICV</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -663,9 +678,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L85" title="internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4106GCMKeyCannotOutliveTheSequenceSpace</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go#L99" title="internal/component/ike/dataplane/rfc4106_gcm_install_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4106GCMKeyCannotOutliveTheSequenceSpace</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -913,7 +928,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
                 </div>
             </div>
         </footer>

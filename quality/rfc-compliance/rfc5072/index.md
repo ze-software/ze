@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 6 | of 16 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 16 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 16 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 13 | 13 of 24 tests linked to requirements, 0 without a fault test and 3 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 16 | 16 of 24 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -93,9 +93,9 @@ Included in automatic checks: IPv6 over PPP / IPV6CP (RFC 5072): 7 MET (no IPV6C
 
 **Area:** IPv6CP
 
-**Test verification:** 9 of 16 MUST proven
+**Test verification:** 10 of 16 MUST proven
 
-**Evidence:** unit 9
+**Evidence:** unit 10
 
 **Unmet:** RFC5072-2-2, RFC5072-4.1-10, RFC5072-4.1-11, RFC5072-4.1-8
 
@@ -119,8 +119,8 @@ Included in automatic checks: IPv6 over PPP / IPV6CP (RFC 5072): 7 MET (no IPV6C
 
 ## Figures
 
-- **MUST bar**: Ze verified 9, Tests awaiting verification 3, Not built 4
-- **Overview bar**: Ze MUST verified 9, Tests awaiting verification 3, Not assessed 12, Not built 4
+- **MUST bar**: Ze verified 10, Tests awaiting verification 2, Not built 4
+- **Overview bar**: Ze MUST verified 10, Tests awaiting verification 2, Not assessed 12, Not built 4
 
 | Figure | Rows |
 |---|---|
@@ -129,9 +129,9 @@ Included in automatic checks: IPv6 over PPP / IPV6CP (RFC 5072): 7 MET (no IPV6C
 | Mandatory requirements complete | not complete |
 | MUST rows | 16 |
 | MUST rows kept (the MUST bar) | 16 |
-| Ze verified | 9 |
+| Ze verified | 10 |
 | OS verified | 0 |
-| Tests awaiting verification | 3 |
+| Tests awaiting verification | 2 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -207,13 +207,13 @@ A test reads not verified when no record shows it failing after a deliberate fau
 
 IPV6CP packets may not be exchanged until PPP has reached the network-layer protocol phase. (§3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Read RFC5072 Section3 in full, including the repeated Timeouts statement: IPv6CP must not be exchanged until Network-Layer Protocol phase; pre-phase received packets should be silently discarded. Every tagged unit was read. TestIPv6CPOpenedEmitsAssigned completes actual IPv6CP wire configuration and requires the correct family/interface identifier assignment. TestIPv6CPNoResponseBeforeNetworkPhase supplies a valid Configure-Request before ncpStarted and requires no reply or assignment; this isolates phase rather than malformed framing. TestNCPHeldUntilNetworkPhase keeps real CHAP unanswered with IPv6CP enabled, forbids an IPv6 request and all traffic except a retransmitted CHAP Challenge, then accepts the actual auth request and requires an IPv6CP Configure-Request. afterLCPOpen finishes runAuthPhase before runNCPPhase; runNCPPhase begins the real IPv6CP FSM, and handleFrame explicitly rejects early IPv6CP before parsing/replying. This covers transmit and receive gating with a genuine post-auth positive control; no IPv6 service-forwarding claim is needed for this phase rule. Rejudged independently after full old/current tagged-unit and B private lint-proposal reads. The address-taking caller edits and immediate helper-local copies preserve every old input, wire assertion, state transition, timeout and cleanup join; the changed helpers still construct genuine Driver/request/Attempt capabilities. All tagged units were included, including inline tags. Producer behavior for this requirement is unchanged by the scoped lint packet. This pending source verdict claims neither a fresh compiler/runtime result nor a native discrimination observation; MAIN owns final source stamping and recorded cuts.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNoResponseBeforeNetworkPhase, internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPOpenedEmitsAssigned moved. Read RFC5072 Section3 in full, including the repeated Timeouts statement: IPv6CP must not be exchanged until Network-Layer Protocol phase; pre-phase received packets should be silently discarded. Every tagged unit was read. TestIPv6CPOpenedEmitsAssigned completes actual IPv6CP wire configuration and requires the correct family/interface identifier assignment. TestIPv6CPNoResponseBeforeNetworkPhase supplies a valid Configure-Request before ncpStarted and requires no reply or assignment; this isolates phase rather than malformed framing. TestNCPHeldUntilNetworkPhase keeps real CHAP unanswered with IPv6CP enabled, forbids an IPv6 request and all traffic except a retransmitted CHAP Challenge, then accepts the actual auth request and requires an IPv6CP Configure-Request. afterLCPOpen finishes runAuthPhase before runNCPPhase; runNCPPhase begins the real IPv6CP FSM, and handleFrame explicitly rejects early IPv6CP before parsing/replying. This covers transmit and receive gating with a genuine post-auth positive control; no IPv6 service-forwarding claim is needed for this phase rule. Rejudged independently after full old/current tagged-unit and B private lint-proposal reads. The address-taking caller edits and immediate helper-local copies preserve every old input, wire assertion, state transition, timeout and cleanup join; the changed helpers still construct genuine Driver/request/Attempt capabilities. All tagged units were included, including inline tags. Producer behavior for this requirement is unchanged by the scoped lint packet. This pending source verdict claims neither a fresh compiler/runtime result nor a native discrimination observation; MAIN owns final source stamping and recorded cuts.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestIPv6CPNoResponseBeforeNetworkPhase`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L660) | unit/verify | mutant, verified |
 | negative | [`TestNCPHeldUntilNetworkPhase`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L169) | unit/verify | revert, verified |
-| positive | [`TestIPv6CPOpenedEmitsAssigned`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L407) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestIPv6CPOpenedEmitsAssigned`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L407) | unit/verify | revert, verified |
 | positive | [`TestNCPHeldUntilNetworkPhase`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L170) | unit/verify | mutant, verified |
 
 ### [`RFC5072-2-1`](#rfc5072-2-1)
@@ -224,8 +224,8 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestIPv6ServiceStartsOnlyAfterIPv6CPOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L453) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC5072NoIPv6ServiceWhileIPv6CPShortOfOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc5072_ipv6cp_opened_test.go#L75) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestIPv6ServiceStartsOnlyAfterIPv6CPOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L453) | unit/verify | revert, verified |
+| positive | [`TestRFC5072NoIPv6ServiceWhileIPv6CPShortOfOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc5072_ipv6cp_opened_test.go#L75) | unit/verify | revert, verified |
 
 ### [`RFC5072-2-2`](#rfc5072-2-2)
 

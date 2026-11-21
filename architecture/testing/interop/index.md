@@ -852,6 +852,78 @@ rerunning `./le test deployment vpp` is enough to show it.
 <!-- source: internal/le/test/deployment/vppevidencempls.go -- runMPLSLabelPop, singlePoppedLabel, traceMPLSFrame, vppMPLSInputEnabled -->
 <!-- source: internal/le/test/deployment/vppevidencescenarios.go -- vppMPLSLabelPopConfig -->
 
+## Real VPP cleartext proof (part of `ipsec`)
+
+The `ipsec` scenario of `./le test deployment vpp` ends with a proof of what
+VPP does with an unprotected packet on an interface whose SPD holds inbound
+entries. RFC 4301 Section 5.2 step 3b: "If there is a match and the packet is
+to be discarded or bypassed, do so." A cleartext packet whose selectors match
+a PROTECT entry arrived without the protection it was owed, so it is
+discarded too. This is AC-8 of `plan/post-release/features/spec-ipsec-vpp-policy-interface.md`.
+
+Upstream VPP does not do it. In `ipsec4-input-feature`
+(`src/vnet/ipsec/ipsec_input.c`, identical in FDio/vpp v26.06 and master) the
+IPv4 loop looks a packet up in the SPD only when it is ESP, AH, or UDP to port
+500 or 4500. Every other packet takes `counters.unprocessed += 1` and keeps the
+feature arc's next node, so it is forwarded. The IPv6 loop does the same. So
+the run boots VPP v26.06 with Ze's patch
+(`third_party/vpp-patches-v26.06/README.md`): the policy-mode decrypt nodes
+mark the packet they decrypted, and the input nodes judge an unmarked
+unprotected packet against the SPD, dropping on PROTECT or DISCARD and passing
+on BYPASS. The image is built by `./le build vpp deployment` and loaded from
+the persistent image cache; the run never builds it, and on a cold cache it
+refuses and names that command. A run with `ZE_VPP_DOCKER_IMAGE` set to an
+upstream image fails the proof at `probe-cleartext-protect`.
+
+The harness creates `pg1` with `100.64.45.1/24`. `TestVPPRealCleartextProbe`
+(`internal/component/ike/dataplane/vpp_real_cleartext_integration_test.go`)
+installs through the VPP backend one inbound tunnel-mode AES-256-GCM SA
+(SPI `0x45450001`, from `100.64.46.1`) and three inbound entries toward
+`100.64.45.0/24`: PROTECT from `100.64.46.0/24`, DISCARD from
+`100.64.47.0/24` and BYPASS from `100.64.48.0/24`. The harness then sends one
+frame per check through the packet generator and reads `show errors` and
+`show trace`:
+
+| Check | Frame | Owed fate | Owed `ipsec4-input-feature` count |
+|-------|-------|-----------|-----------------------------------|
+| `probe-install` | none: `show ipsec all` holds the SPD bound to `pg1` with all three entries | | |
+| `probe-cleartext-protect` | ICMP echo from `100.64.46.10` | dropped | `IPSec cleartext matched protect` 1 |
+| `probe-cleartext-discard` | ICMP echo from `100.64.47.10` | dropped | `IPSec policy discard` 1 |
+| `probe-cleartext-bypass` | ICMP echo from `100.64.48.10` | forwarded | `IPSec policy bypass` 1 |
+| `probe-esp-discard` | ESP with an unknown SPI from `100.64.47.10` to `100.64.45.1` | dropped | `IPSec policy discard` 1 |
+| `probe-esp-discard-reversed` | the same ESP with source and destination exchanged | dropped | `IPSec policy discard` 0, `not matched` 1 |
+| `probe-esp-decrypted` | ESP from `100.64.46.1` the SA decrypts, carrying an echo from `100.64.46.10` | forwarded | `IPSec policy match` 1, `IPSec decrypted packet` 1 |
+
+A frame check fails when the generator sent no frame, when
+`ipsec4-input-feature` did not count the frame's `IPSec pkts received` (one,
+two for the decrypted frame, whose inner datagram re-enters the node), when the
+trace shows neither `ip4-lookup` nor `error-drop` after `ip4-input`, when VPP
+gave the frame another fate, or when a count that names the deciding rule
+differs. A fate alone settles nothing: an unprotected packet the patch did not
+judge is forwarded too, and a drop of the decrypted frame for a bad key reads
+as a drop. The detail says what VPP did, every count, and what the RFC
+requires. The two ESP discard checks show which address pair VPP compares
+against an inbound entry. VPP's inbound lookup compares the packet's
+destination with the local range, so the backend writes an inbound policy's
+`SPParams.Dst` into the local range and its `Src` into the remote range
+(`vppSPDSelector`). The decrypted frame is built with the SA's key
+(`decryptedProbePacket`, RFC 4106 nonce and AAD, RFC 4303 trailer). The proof
+carries no RFC tag yet: a tag needs `./le rfc record`.
+
+The run of 2026-11-20 on upstream VPP v26.06 (commit `aba3cec65b`) measured all five
+frames. The three cleartext frames were forwarded, each counted `IPSec policy
+match` 0, `bypass` 0, `discard` 0 and `not matched` 1: VPP's inbound SPD does
+not judge cleartext. The backend then still wrote `SPParams.Src` into the local
+range for both directions, and the ESP checks showed it: `probe-esp-discard`
+was dropped with `discard` 0 and `not matched` 1, and
+`probe-esp-discard-reversed` with `discard` 1. With the inbound mapping fixed,
+the expected run shows `probe-esp-discard` with `discard` 1 and the reversed
+frame with `discard` 0. That run predates the proof's verdicts and the
+decrypted frame; the patched image has not been run yet.
+<!-- source: internal/le/test/deployment/vppevidencecleartext.go -- runCleartextProbe, judgeCleartextFrame, decryptedProbePacket, traceFate, vppErrorCount -->
+<!-- source: internal/le/test/deployment/vppiface.go -- readyImage -->
+<!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppSPDSelector -->
+
 ## Live Interop Tests (`test/interop/`)
 
 Each scenario runs Ze and one or more peer daemons in Docker containers on a shared
@@ -2290,8 +2362,8 @@ function (`session_panic_inject.go`, `!ze_le`).
 configured `behavior { manual-eor true; }`, against FRR 10.7.1. Its external
 process (`le test interop-bgp process bgp-manual-eor-requested-frr
 manual-eor-requester`) acts from inside its handler for the peer-UP event,
-which the engine awaits before it starts the initial sync (`deliverPeerState`,
-`internal/component/bgp/server/events.go`), and answers within 4 s, under the
+which the initial sync waits for before it writes anything (`deliverPeerState`,
+`internal/component/bgp/server/events.go`, and `Session.awaitInitialSyncStart`), and answers within 4 s, under the
 engine's 5 s delivery timeout. On the first session it announces
 `10.84.1.0/24` and asks for nothing: FRR must decode the route and, through a
 10 s hold, no End-of-RIB. The checker then runs `clear bgp <ze>`. On the
@@ -2890,7 +2962,11 @@ so the bit is read as the peer receives it. Under `clear` all six packets must
 arrive with DF clear. Under `copy` each must carry its inner bit. Each burst
 must move exactly one counter by exactly three. `show vpn ipsec dataplane sa`
 must also report the phase's `df-bit` on Ze's outbound SA, with
-`options-known` true. iptables cannot read
+`options-known` true. Each phase judges the wire first and the readback last,
+and judges all three even when one has failed, so a red reports every
+observation that disagreed. Each refusal names its assertion: the clear phase's
+DF-set burst is 1, its DF-clear burst 2 and its readback 3; the copy phase's
+are 4, 5 and 6. iptables cannot read
 the bit on Ze's kernel: its only match for an arbitrary header bit is xt_u32,
 which the kernel does not build. So the strongSwan image carries `nftables`.
 `df-bit set` is not a phase, because every dataplane refuses it at commit.
@@ -2917,12 +2993,12 @@ discriminates"). The harness rebuilds the Ze image with each private fault:
 
 | Scenario | Break | Expected red |
 |----------|-------|--------------|
-| `tunnel-df-treatment` | `xfrmDFFlag` answers false for `DFClear` | the clear phase's DF-set burst arrives with DF set |
-| `tunnel-df-treatment` | `xfrmDFFlag` answers true for `DFCopy` | the copy phase's DF-set burst arrives with DF clear |
+| `tunnel-df-treatment` | `xfrmDFFlag` answers false for `DFClear` | assertion 1: the clear phase's DF-set burst arrives with DF set. Assertion 3, the readback, is red beside it, because it reads the same flag back |
+| `tunnel-df-treatment` | `xfrmDFFlag` answers true for `DFCopy` | assertion 4: the copy phase's DF-set burst arrives with DF clear. Assertion 6, the readback, is red beside it; assertions 1 to 3 pass |
 | `icmp-error-payload-check` (c) | `xfrmStateFromParams` no longer sets `state.ICMP` | the consistent error is not delivered, with strongSwan generation and Ze's inbound ESP carriage observed |
 | `icmp-error-payload-check` (d) | P widens the inbound IPv4 tunnel protect policy's source in `xfrmPolicyFromParams`. S widens the inbound IPv4 tunnel state selector's source in `xfrmStateFromParams`, each to `0.0.0.0/0` | P alone and S alone pass. Together they deliver the inconsistent error and fail its packet assertion |
 
-<!-- source: internal/le/interoplab/ipsec/dftreatment.go -- checkTunnelDFTreatment, installOuterDFCounters, judgeOuterDF, requireDataplaneDF -->
+<!-- source: internal/le/interoplab/ipsec/dftreatment.go -- checkTunnelDFTreatment, judgeDFPhase, dfAssertion, installOuterDFCounters, judgeOuterDF, requireDataplaneDF -->
 <!-- source: internal/le/interoplab/ipsec/icmperror.go -- checkICMPErrorPayloadCheck, icmpErrorRoutes, carryErrorSourceOverSA, icmpErrorObservation -->
 <!-- source: test/interop-ipsec/Dockerfile.strongswan -- nftables -->
 
@@ -2931,6 +3007,52 @@ single-fault passes show that either selector still rejects the inconsistent
 error. Preserve the negotiated traffic selectors and every other state and
 policy field. Template-free BYPASS and DISCARD entries keep their selectors.
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmStateFromParams, xfrmPolicyFromParams -->
+
+### An operator DISCARD entry and a PAD sub-tree (RFC 4301)
+
+`spd-discard-entry` proves RFC 4301 Section 4.4.1's DISCARD disposition on the
+default configuration: no `unmatched` leaf, no `icmp-error-check` leaf, and the
+entry's order, direction and protocol at their defaults. Ze initiates a
+policy-based tunnel for 10.2.0.0/24 === 10.1.0.0/24, and the entry
+`drop-swan-upper` discards 10.2.0.0/24 <-> 10.1.0.128/25, inside the Child SA's
+selectors. Its order of 1000 ranks it before the peer's policy-priority of 2000.
+strongSwan's Child SA covers the whole /24, and charon installs its policies as
+`XFRM_POLICY_ALLOW` with the SA's template (`add_policy_internal` in
+`kernel_netlink_ipsec.c`, strongSwan 6.1.0), so strongSwan carries the upper
+half like the rest. The checker requires, in numbered assertions: Ze's echo to
+10.1.0.1 crosses the tunnel in all four directions (3); Ze's echo to
+10.1.0.200 is all lost, Ze's `XfrmOutPolBlock` rises by the echoes sent and
+Ze's outbound SA moves no byte (4); strongSwan's echo from 10.1.0.200 is all
+lost, strongSwan's outbound SA and Ze's inbound SA move bytes, and Ze's
+`XfrmInPolBlock` rises by the echoes sent (5); both peers still list the IKE SA
+established, the ESP SPIs are unchanged, and 10.1.0.1 still crosses (6).
+
+`pad-subtree-identity` proves RFC 4301 Section 4.4.3.1's sub-tree match for an
+ID_FQDN. Ze initiates with `remote-id ".example.com"`. strongSwan first asserts
+`id = vpn.example.com`, which `identification_create_from_string`
+(`identification.c`) reads as ID_FQDN, and Ze must authenticate it (1) and carry
+traffic (3). The checker then writes a conf.d file that changes strongSwan's
+local id alone to `vpn.notexample.com`, which ends in the characters
+`example.com` but lies outside the sub-tree, loads it (`merge_config` in
+`vici_config.c` replaces the connection), and clears Ze's SAs so Ze redials. Ze
+sends no IDr, so charon answers with its configured id (`build_r` in
+`ike_auth.c`). charon's own log must show it authenticating as the second id
+(6), and Ze must log `ike: remote AUTH verification failed` naming
+`vpn.notexample.com` and `.example.com` (7, 8), list no established IKE SA (9)
+and hold no ESP state (10). charon is not read after the refusal: as the
+responder it lists its side established once it has answered.
+
+| Scenario | Break | Expected red |
+|----------|-------|--------------|
+| `spd-discard-entry` | `spdPolicyHasDirection` answers false for `SADirOut` | assertion 4: Ze's echo to 10.1.0.200 crosses the tunnel |
+| `spd-discard-entry` | `spdPolicyHasDirection` answers false for `SADirIn` | assertion 5: every echo is still lost to Ze's out BLOCK, but `XfrmInPolBlock` stays still |
+| `pad-subtree-identity` | `textIdentityMatches` answers true for a sub-tree whatever the name | assertion 7: Ze authenticates `vpn.notexample.com` and logs no refusal |
+| `pad-subtree-identity` | `textIdentityMatches` answers false for a sub-tree | assertion 1: Ze refuses `vpn.example.com` |
+
+<!-- source: internal/le/interoplab/ipsec/spddiscard.go -- checkSPDDiscardEntry, requireDiscarded, requireESPStill, requireTunnelStayedUp -->
+<!-- source: internal/le/interoplab/ipsec/padsubtree.go -- checkPADSubtreeIdentity, loadOutsideIdentity, requireZeIKENotEstablished -->
+<!-- source: internal/component/ike/engine/spd_policy.go -- spdPolicyHasDirection -->
+<!-- source: internal/component/ike/engine/remote_id.go -- textIdentityMatches, checkRemoteIdentity -->
 
 ### Live ESP form changes
 
@@ -3690,8 +3812,9 @@ validation (no matching StopCCN 2/8), then passed after a normal rebuild.
 <!-- source: internal/le/interoplab/l2tp/mandatory_avp.go -- checkUnknownMandatoryAVP -->
 <!-- source: internal/le/interoplab/l2tp/avprelay/main.go -- run, inject -->
 
-`ppp-code-reject-xl2tpd` puts the same relay between xl2tpd and Ze, and it is
-the one scenario where the relay originates frames. No lab peer sends a PPP
+`ppp-code-reject-xl2tpd` puts the same relay between xl2tpd and Ze, and it was
+the first scenario where the relay originates frames; `lcp-restart-timer-pppd`
+and the three NCP lifetime scenarios below do too. No lab peer sends a PPP
 Code it does not know, so the relay injects them on the live L2TP session,
 and only after the checker creates `/run/code-reject` once PPP traffic has
 flowed. The next data message from the LAC is the trigger: the relay
@@ -3719,10 +3842,71 @@ or IPCP Configure or Terminate packet afterwards. Last, the checker creates
 `/run/ipcp-terminate`, the relay sends one IPCP Terminate-Request with
 Identifier 0x5a on the next LAC datagram, and Ze must answer with an IPCP
 Terminate-Ack carrying 0x5a (RFC 1661 Section 5.5: "Upon reception of a
-Terminate-Request, a Terminate-Ack MUST be transmitted."). That ends IPCP,
-so it runs after every other assertion.
+Terminate-Request, a Terminate-Ack MUST be transmitted."). That takes IPCP
+out of Opened, so it runs after every assertion that needs IPCP Opened. It
+does not end IPCP: pppd never asked to terminate, so Ze's Terminate-Ack
+reaches its Opened IPCP, and pppd 2.5.5 `fsm_rtermack` (`pppd/fsm.c`),
+`case OPENED:`, runs the down callback, sends a new Configure-Request and
+enters Req-Sent. Ze withdraws the IPv4 family on the Terminate-Request and
+holds IPCP in Stopping for one Restart time, so the checker polls Ze's
+`pppN` from the trigger on, every 100 ms, until its IPv4 address is gone
+while the interface stays (assertion 9). It then requires, after the
+Terminate-Ack, an IPCP Configure-Ack from each side on the wire, Ze's
+address and peer back on the same `pppN`, both peers still on their PPP
+interfaces from before, and a ping across the session (assertion 10). The
+full-session framing check (assertion 7) runs last, over that longer
+capture.
 <!-- source: internal/le/interoplab/l2tp/ppp_code_reject.go -- checkPPPCodeReject -->
+<!-- source: internal/le/interoplab/l2tp/ppp_ipcp_reopen.go -- waitIPv4Withdrawn, ipcpReopened, waitIPv4Reinstalled -->
 <!-- source: internal/le/interoplab/l2tp/avprelay/pppinject.go -- relayData, codeRejectFrames -->
+
+Three scenarios prove the independent lifetime of IPCP and IPv6CP against
+pppd 2.5.5 on Ze's IPv4-only pool, the only pool Ze ships, so Ze's own IPv6CP
+never starts in any of them and pppd's is answered with an LCP Protocol-Reject
+naming 0x8057. Each reads the relay's complete capture: every normal data
+datagram of both directions carries a consecutive `data_ordinal` from one, and
+the reader refuses a gap or a missing prefix, so an assertion that something
+was not sent never reads a truncated log as silence. The IPCP Terminate-Request
+(`/run/ipcp-terminate`) and the CCP Configure-Request (`/run/ccp-configure-request`)
+markers each inject once per relay on the next LAC datagram, and neither needs
+the Code-Reject marker.
+
+- `l2tp-lns-pppd-ipv6cp-rejected-by-lns` runs stock pppd, which offers IPv6CP
+  (`ipv6cp_protent` `enabled_flag` 1). Ze Protocol-Rejects it, pppd sends no
+  IPv6CP after (`ipv6cp_protrej` calls `fsm_lowerdown`, and no `np_finished`
+  follows), and IPv4 still carries a ping past `ncp timeout`. The relay then
+  injects one CCP Configure-Request (Protocol 0x80fd, Code 1, Identifier
+  0x3c, no option); Ze runs no CCP and answers with an LCP Protocol-Reject
+  naming 0x80fd whose Rejected-Information is that packet. It is goal
+  evidence, passing before and after the lifetime work, and owes no revert
+  walk.
+- `l2tp-lns-pppd-noip-rejects-ipcp` runs pppd `noip`, so pppd answers Ze's
+  IPCP with an LCP Protocol-Reject naming 0x8021 and keeps the link for its
+  IPv6CP (`continue_networks` counts it in `num_np_open`). Ze must send no
+  IPCP after that reject (RFC 1661 Section 5.7: "Upon reception of a
+  Protocol-Reject, the implementation MUST stop sending packets of the
+  indicated protocol at the earliest opportunity."), log no `PPP session up`,
+  send no LCP Terminate-Request, and end the call with a CDN when the no-NCP
+  bound expires. Its `ncp timeout` (8 s) exceeds several `lcp restart-timer`
+  periods (2 s), so a Ze that ignored the reject retransmits IPCP before the
+  session ends, and removing the dispatch (`receiveProtocolReject`) turns the
+  no-IPCP-after assertion red.
+- `l2tp-lns-pppd-ipcp-terminate-redistribute` is the one topology with both
+  the relay and FRR: xl2tpd dials the relay on `172.29.0.4`, and FRR moves to
+  `172.29.0.6` (`relayFRRHost`), where the scenario's `frr.conf` and
+  `ze.conf` place it. After the relay injects the IPCP Terminate-Request, the
+  address leaves Ze's `pppN` and FRR loses the subscriber `/32`, polled every
+  250 ms inside the one Restart time Ze holds IPCP in Stopping; pppd
+  renegotiates (`fsm_rtermack`, `case OPENED:`), and the address, the `/32` and
+  traffic return. Past `ncp timeout` from the trigger no CDN follows, because
+  the reopen cancelled the no-NCP bound. The timers keep that order: Ze
+  ignores pppd's Configure-Requests until Stopped, so the reopen waits up to
+  pppd's 3 s retransmission after the 10 s Restart time, and `ncp timeout` 20 s
+  exceeds both. Removing the release event (`publishNCPRelease`) leaves the
+  `/32` in FRR and turns phase A red.
+<!-- source: internal/le/interoplab/l2tp/ncp_lifetime.go -- checkIPv6CPRejectedByLNS, checkNoIPRejectsIPCP, checkIPCPTerminateRedistribute, sessionPPPFrames -->
+<!-- source: internal/le/interoplab/l2tp/avprelay/pppinject.go -- injectCCP, injectTerminate -->
+<!-- source: internal/le/interoplab/l2tp/l2tp.go -- prepareScenario, standardImageBuilds -->
 
 `pppoe-chap-rechallenge-ze-client` observes two accel-ppp reauthentication
 exchanges after working IPCP traffic, checks each CHAP Response's Identifier
@@ -3888,6 +4072,8 @@ is the Dynamic Authorization Client.
 | `radius-coa-disconnect-freeradius` | Requires both kernel shaping rates to change after CoA-ACK; a mixed valid/unsupported request must NAK without changing either rate. A valid Disconnect must ACK and produce the matching Accounting-Stop |
 | `l2tp-radius-framed-protocol-reject` | Changes only FreeRADIUS's Framed-Protocol for one user: PPP must establish traffic, SLIP must produce authorization refusal and CHAP failure without Accounting-Start, then PPP must work again |
 | `radius-subscriber-dns` | RFC 2548 Sections 2.7.6 and 2.7.7 through the pool (spec-home-cpe-23b AC-9). The scenario's own users file has FreeRADIUS answer alice with MS-Primary-DNS-Server 198.51.100.53 and MS-Secondary-DNS-Server 198.51.100.54 (`dictionary.microsoft`, Microsoft attributes 28 and 29, moved into the reply by rlm_files' `file_common`), and its own pppd options add `usepeerdns`. The pool writes no `dns-source` and has its own `dns-primary` 203.0.113.53, so its built-in list (radius first) must offer the RADIUS pair: pppd's `create_resolv` writes exactly those two `nameserver` lines to `/etc/ppp/resolv.conf`, and the pool's address must not appear. Not yet run |
+| `radius-subscriber-framed-mtu` | RFC 2865 Section 5.12 on ze's side. The scenario's own users file has FreeRADIUS answer alice with Framed-MTU 1400 (`share/dictionary.rfc2865`, attribute 12, type integer). The suite's pppd names no `mru`, so LCP agrees on the default 1500, and that is what ze's pppN would hold with the Framed-MTU ignored. The checker requires ze's one PPP interface to report kernel MTU 1400 (`ip -j link show type ppp` in ze's container), `show l2tp sessions` to report `"mtu": 1400` beside `"mru": 1500`, so the 1400 cannot come from LCP, and the subscriber to ping through the session. Passes against FreeRADIUS 3.2.10. Forced red: with `pppSession.interfaceMTU` changed to ignore the Framed-MTU, the image rebuilt and the scenario rerun, it fails in the checker with "ze's ppp0 has kernel MTU 1500, want the RADIUS Framed-MTU 1400" while FreeRADIUS still sent Framed-MTU 1400 and Ze logged `framed-mtu=1400` at extraction |
+| `l2tp-lns-radius-framed-route-hidden-xl2tpd` | Ze as LNS behind xl2tpd, with FreeRADIUS, on one session, four ways. Hidden AVPs (RFC 2661 Section 4.3): the scenario's own `xl2tpd.conf` adds `challenge = yes` and `hidden bit = yes`, so the LAC's `-DTEST_HIDDEN` build hides the ICRQ's Assigned Session ID (`add_callid_avp`, under the secret `handle_challenge` read from `l2tp-secrets`) and Ze, whose `shared-secret` matches, reveals it: a tcpdump capture on Ze's LNS port must show every ICRQ carrying AVP 14 with the H bit, and the session must come up. Framed-Route: the scenario's own users file returns `Framed-Route = "203.0.113.128/25 203.0.113.77 1"`, and `ip route show 203.0.113.128/25` in Ze's container must hold one route through the interface Ze routes the subscriber's address through, proto 253, metric 1, with no `via`; with 203.0.113.129/32 on the LAC's loopback, Ze must ping it. Message-Authenticator: a capture of what Ze receives from port 1812 must hold an Access-Accept carrying attribute 80, which FreeRADIUS's `rad_encode` writes first into every Access-Accept, and Ze, which requires it by default, starts the session. Clear by user: `clear l2tp session user alice` through the REST surface must answer the session, then the Accounting-Stop must reach the server's detail file, pppd's `ppp0` must go, and the /25 must leave Ze's kernel. Not yet run |
 
 The server listens as a stock deployment does, `type = auth` on 1812 and
 `type = acct` on 1813 (`site-default`), and ze sends accounting to a server
@@ -3928,6 +4114,26 @@ logs. This keeps the checker's CHAP-refusal observation connected to the peer.
 <!-- source: internal/le/interoplab/radiussubscriber/check_coa_disconnect.go -- checkCoADisconnect -->
 <!-- source: internal/le/interoplab/radiussubscriber/check_framed_protocol.go -- configureFramedServerPeer, checkFramedReject, setFramedProtocol -->
 <!-- source: internal/le/interoplab/radiussubscriber/check_subscriber_dns.go -- configureSubscriberDNSPeers, checkSubscriberDNS -->
+<!-- source: internal/le/interoplab/radiussubscriber/check_framed_mtu.go -- configureFramedMTUServerPeer, checkFramedMTU -->
+
+The LAC image builds xl2tpd with `-DTEST_HIDDEN`, the one way xl2tpd 1.3.20
+hides an AVP, and `xl2tpd-test-hidden.patch` makes that build compile:
+upstream's `add_callid_avp` still increments a `raw` pointer the
+`add_header` refactor removed. Every hidden branch tests the tunnel's `hbit`,
+which stays 0 unless a LAC or LNS section sets `hidden bit = yes`, so every
+other scenario, and the topology suite's `xl2tpd-lns` built from the same
+image, sends what an unflagged build sends. The red check for the hidden-AVP
+scenario is `revealHiddenAVPs` returning the body unchanged: the hidden,
+mandatory AVP 14 then refuses the ICRQ with a CDN and no Accounting-Start
+arrives. The scenario does not interpose `test/interop-radius/unsigned-relay.pl`
+for an unsigned negative: the relay would put its own re-encoding between
+FreeRADIUS and Ze, where the capture has to show FreeRADIUS's own answer, and
+the admin-login suite's `radius-admin-pap-unsigned-freeradius` already proves
+the RADIUS client both surfaces share (`internal/component/radius`) discarding
+an unsigned Access-Accept.
+<!-- source: test/interop-radius-subscriber/Dockerfile.lac -- TEST_HIDDEN -->
+<!-- source: test/interop-radius-subscriber/xl2tpd-test-hidden.patch -- add_callid_avp -->
+<!-- source: internal/le/interoplab/radiussubscriber/check_framed_route_hidden.go -- configureFramedRouteHiddenPeers, checkFramedRouteHidden, icrqAssignedSessionID, carriesMessageAuthenticator, judgeFramedRoute, clearSubscriber -->
 
 ### Independent TFTP duplicate-ACK recovery
 
@@ -4385,6 +4591,25 @@ Two properties of that line are load-bearing and neither is obvious.
 
 `ze cli -c` rather than the verb form `ze show bgp rib status`: `--user` and
 `--format` are flags of `ze cli`, and the verb form has no slot for either.
+
+`--format json` lowers to `| json`, and a row command then prints one of two
+shapes, decided by the line the checker typed
+(`docs/architecture/api/json-format.md`, "the chain's row-shaping steps under
+`pipe`"):
+
+| Line | Printed document |
+|------|------------------|
+| no row-shaping pipe operation: `show bgp rib`, `show bgp rib best` | a bare array of rows, because `\| json` unwraps a document of one key |
+| a row-shaping operation, generic or the command's own: `show bgp rib \| received`, `show bgp rib best \| prefix <p>`, `show bgp rib best \| first 10` | `{"routes":[...],"pipe":[{"op":"received"}]}`: the rows under the command's envelope key (`routes`, `best-path`) beside the chain that shaped them |
+
+A checker reads the second shape through `decodeZePipedRows`, which names the
+operation it relies on and refuses a document whose chain lacks it. The bare
+array is what the removed argument form (`show bgp rib received`) printed for
+the same rows; a reader that still accepts it for a piped line would pass
+without proof that the scope reached the daemon. `| count` answers
+`{"count":N,"pipe":[{"op":"count"}]}`.
+<!-- source: internal/le/interoplab/bgp/ze_piped_rows.go -- decodeZePipedRows -->
+<!-- source: internal/component/command/pipe.go -- collectPipeMeta, injectPipeMeta, unwrapSingleKeyArray -->
 
 The daemon starts an SSH listener only when its config asks for one
 (`infraSetup`, `cmd/ze/hub/infra_setup.go`), and `ze cli` reaches the daemon over
@@ -4858,10 +5083,11 @@ An explicit FRR-origin received-route check preserves the original reverse
 direction proof despite the added native sources. This does not cover
 NOTIFICATION, reconnect F-bit or received-stale-policy behavior.
 
-The receipt query is `show bgp rib received | json`; its CLI output is a
-top-level array of route rows, not an object containing a `routes` field.
-An empty array is a measured RIB with no matching route; null or an object
-is not a valid CLI observation.
+The receipt query is `show bgp rib | received | json`; its CLI output is the
+piped row document of "Querying Ze": the route rows under `routes` beside
+`"pipe":[{"op":"received"}]`. An empty `routes` array is a measured RIB with
+no matching route; null, a bare array and an object with no `received` step
+in its chain are not valid CLI observations.
 
 The received-route fence retains the last completed CLI result (stdout, stderr,
 exit status and parse error), the last successfully measured RIB, and probe
@@ -5013,9 +5239,9 @@ is not packet-forwarding evidence.
 | 50 | bgp-exabgp-bridge-rtc-gobgp | Ze (exabgp bridge), GoBGP | RFC 4684 Section 4: an ExaBGP API script writes `announce ipv4 rtc origin-as 65001 route-target 65001:100 next-hop ...`; the bridge hands it to `update text ... mp ipv4/rtc add`, and GoBGP's RIB (through `gobgp-paths 1 132`) holds membership `65001:65001:100`. The 0-bit default membership is not sent: GoBGP v3.31.0 panicked on it (nil Route Target in `BgpServer.propagateUpdate`); v4.10.0 handles a nil Route Target (`processRTCMembership`, `pkg/server/server.go`), and the scenario still sends the specific membership only. Red with the bridge's `rtc` row of `bridgeSAFI` removed, which refuses the line | <!-- doc-links: ignore (GoBGP v4.10.0 source in github.com/osrg/gobgp, outside this repository) -->
 | 51 | bgp-exabgp-bridge-vpnv4-frr | Ze (exabgp bridge), FRR | RFC 4364: an ExaBGP API script writes ExaBGP 6.0's `announce ipv4 mpls-vpn 10.0.0.0/24 next-hop ... rd 65001:100 label 100`; the bridge hands it to `update text ... mp ipv4/mpls-vpn add`, and FRR holds the route under RD 65001:100 with remote label 100, its session staying up. Red with the bridge's `mpls-vpn` row of `bridgeSAFI` removed, which refuses the line |
 | 52 | bgp-flowspec-redirect-check-frr | Ze (route server, bgp-rib), FRR, raw injector | draft-simpson-idr-flowspec-redirect-02 Section 3: the injector (AS 65004) sends a cover for 192.0.2.0/24 originated in AS 65009, then a FlowSpec rule for that prefix with the 0x0800 redirect-to-IP community and next hop 192.0.2.77. The longest match for the next hop is not originated in the peer's AS, so FRR must hold the rule (`show bgp ipv4 flowspec detail json`) with no `FS:redirect` in its `ecomlist`. No lab daemon originates a 0x0800 rule, hence the raw frames; both reach FRR through Ze's peer-up replay. The plain `show bgp ipv4 flowspec json` is FRR's generic route printer and carries no extended communities, so a check on it passes either way. Red with the RIB's refusal disabled (`flowSpecRedirectRefused` answering false, by Go overlay): FRR holds `"ecomlist":"FS:redirect IP 0x0"` |
-| 54 | bgp-route-server-replacement-frr | Ze (route server, bgp-rib), FRR, GoBGP, BIRD | RFC 4271 Section 9.2 and RFC 7947 at a client that negotiated no ADD-PATH: BIRD holds one route for 10.98.0.0/24, and Ze decides whose. The checker first asserts from BIRD's `show protocols all ze_peer` that no ADD-PATH capability was exchanged. GoBGP announces the prefix with one prepended AS, and BIRD holds AS_PATH `65004 65004`. FRR announces it, better and later, and BIRD moves to `65002`. GoBGP re-announces it, still worse, with community 65004:2; Ze's `show bgp rib received community 65004:2` must list the prefix, the proof the revision reached the route server, and BIRD must keep `65002` through a 20 s window read every second (assertion 12). FRR withdraws it with `no network`; BIRD must reach `65004 65004` with no reading in between that lacks the prefix (assertion 14), then keep it through the window. The two sources are attached receive-only: in a run where Ze also relayed to them, FRR re-advertised GoBGP's route back as `65002 65004 65004` (a route server adds no AS, so nothing stops the loop), and FRR's `no network` became an implicit replacement that never exercised the withdrawal half. Red on 2026-10-26, each from a `git archive` export of HEAD with the Ze image rebuilt: `oweAnnouncement` answering false fails assertion 12 at reading 1, BIRD holding `65004 65004`; `owesWithdrawal` answering false fails assertion 14 at reading 1, BIRD answering the prefix lookup with no route |
+| 54 | bgp-route-server-replacement-frr | Ze (route server, bgp-rib), FRR, GoBGP, BIRD | RFC 4271 Section 9.2 and RFC 7947 at a client that negotiated no ADD-PATH: BIRD holds one route for 10.98.0.0/24, and Ze decides whose. The checker first asserts from BIRD's `show protocols all ze_peer` that no ADD-PATH capability was exchanged. GoBGP announces the prefix with one prepended AS, and BIRD holds AS_PATH `65004 65004`. FRR announces it, better and later, and BIRD moves to `65002`. GoBGP re-announces it, still worse, with community 65004:2; Ze's `show bgp rib \| received \| community 65004:2` must list the prefix, the proof the revision reached the route server, and BIRD must keep `65002` through a 20 s window read every second (assertion 12). FRR withdraws it with `no network`; BIRD must reach `65004 65004` with no reading in between that lacks the prefix (assertion 14), then keep it through the window. The two sources are attached receive-only: in a run where Ze also relayed to them, FRR re-advertised GoBGP's route back as `65002 65004 65004` (a route server adds no AS, so nothing stops the loop), and FRR's `no network` became an implicit replacement that never exercised the withdrawal half. Red on 2026-10-26, each from a `git archive` export of HEAD with the Ze image rebuilt: `oweAnnouncement` answering false fails assertion 12 at reading 1, BIRD holding `65004 65004`; `owesWithdrawal` answering false fails assertion 14 at reading 1, BIRD answering the prefix lookup with no route |
 | 55 | bgp-route-server-control-community-frr | Ze (route server), FRR, BIRD | RFC 7947 Section 2.2.2.1 and the route server's large control communities: FRR (AS 65002) announces 10.99.0.0/24 with `65001:101:65003`, asking Ze (AS 65001) to prepend once toward BIRD (AS 65003), and 10.98.0.0/24 with `65001:101:65099`, naming a client that is not BIRD; both carry FRR's own `65002:1:1`. BIRD must decode `65001 65002` for the first and `65002` for the second, and its `bgp_large_community` must hold `(65002, 1, 1)` and no value under 65001. Red on 2026-10-27, working tree with the Ze image rebuilt by the harness: `RSPrepend` returning its input fails assertion 5, BIRD decoding `65002` for 10.99.0.0/24; `StripLargeControlCommunities` returning nil fails assertion 6, BIRD holding `(65001, 101, 65003) (65002, 1, 1)` |
-| 56 | bgp-paths-limit-receive-bird | Ze, BIRD 3.4.0 | draft-abraitis-idr-addpath-paths-limit Section 3, the receive ceiling against a sender that ignores it: BIRD has no capability 76 and, with `add paths tx`, exports every route its table holds, so four static protocols give 10.70.0.0/24 four paths. Ze advertises `limit { receive 2; }` and must hold exactly two in `show bgp rib received`, count two in `ze_bgp_paths_limit_refused_total`, install 10.71.0.0/24 and keep the session. The wait ends once every offered path is held or refused, so the held count is read after the last offer. Red on 2026-10-27, `processValidatedMessage` skipping `receiveCeiling` (a `GOFLAGS=-overlay` build, image rebuilt by the harness): assertion 3, "ze holds 4 paths of 10.70.0.0/24, want the advertised ceiling 2 (refused 0)", which is also the reading that BIRD offered four |
+| 56 | bgp-paths-limit-receive-bird | Ze, BIRD 3.4.0 | draft-abraitis-idr-addpath-paths-limit Section 3, the receive ceiling against a sender that ignores it: BIRD has no capability 76 and, with `add paths tx`, exports every route its table holds, so four static protocols give 10.70.0.0/24 four paths. Ze advertises `limit { receive 2; }` and must hold exactly two in `show bgp rib \| received`, count two in `ze_bgp_paths_limit_refused_total`, install 10.71.0.0/24 and keep the session. The wait ends once every offered path is held or refused, so the held count is read after the last offer. Red on 2026-10-27, `processValidatedMessage` skipping `receiveCeiling` (a `GOFLAGS=-overlay` build, image rebuilt by the harness): assertion 3, "ze holds 4 paths of 10.70.0.0/24, want the advertised ceiling 2 (refused 0)", which is also the reading that BIRD offered four |
 | 57 | bgp-paths-limit-best-path-frr | Ze (route server, bgp-rib), FRR 10.7.1, BIRD 3.4.0 | draft-abraitis-idr-addpath-paths-limit Section 1, best paths under a peer's limit: FRR advertises PATHS-LIMIT 2 for ipv4/unicast, and BIRD (`add paths tx`, `allow bgp_med yes`) gives Ze four paths of 10.72.0.0/24 one at a time, worst first, by enabling static protocols MED 300, 200, 100, then 50. After each step FRR's `show bgp ipv4 unicast 10.72.0.0/24 json` must hold exactly the two best MEDs from Ze; more than two fails at once. Disabling MED 50 must bring MED 200 back under the path identifier FRR held it with before its demotion. Without `allow bgp_med`, BIRD strips a MED on an EBGP export that its own export filter did not set, and every path arrives with none. Red on 2026-10-27, `owePathsLimitElections` returning before it owes an election (a `GOFLAGS=-overlay` build, image rebuilt by the harness): assertion 6, FRR holding MED 300 and MED 200 after MED 100 arrived |
 | 58 | bgp-session-protection-frr | Ze (GTSM `ttl { max 1; }`, `control-plane-protection bgp`), FRR 10.7.1 | RFC 5082 Section 2.2 and Section 3, and RFC 7454 Section 4, read at the sender: FRR runs `ttl-security hops 1`, and the checker opens python3 connects to Ze's port 179 inside FRR's container, because FRR's image has no other tool that sets a socket's TTL. A SYN from FRR's address at TTL 254 must time out (only the `ze_gtsm` listen-port term can drop it: FRR is a CoPP neighbor); the same address at TTL 255 must complete the handshake, the control that proves the probe can see a SYN-ACK; a SYN at TTL 255 from 172.30.0.40, an address the checker adds to FRR's interface and Ze does not know, must time out, never reset (only CoPP's `unknown-source-drop` can drop it: GTSM leaves an unknown source alone), and that term's counter in `nft list table inet ze_copp` must rise. FRR's session must keep its established and dropped counts and both ports across the probes. Red on 2026-10-27, each producer broken by a `GOFLAGS=-overlay` build with the image rebuilt by the harness: `peerTerms` without the listen-port term, assertion 4, "a SYN from 172.30.0.3 at TTL 254 got a completed handshake from ze"; `translatePolicy` without `unknown-source-drop`, assertion 6, "a SYN from the unconfigured 172.30.0.40 got a completed handshake from ze" |
 | 59 | rtr-stayrtr-preference | Ze (two RTR caches, preference 10 and 20), StayRTR v0.6.4 twice, FRR 10.7.1, BIRD 3.4.0 | RFC 8210 Section 10, cache preference, failover and fail-back observed at BIRD's export: the preferred cache's set is in use first, the standby's after the checker stops the preferred container, the preferred cache's again after it starts it ("RTR cache preference, failover and fail-back" above). Red on 2026-10-27 in phase 1 with the preference sort reversed, and in phase 3 with fail-back disabled. Green in 10 of 10 runs once the StayRTR image carried its Error Report patch and a readiness probe that waits for RTR |
@@ -5176,12 +5402,74 @@ changes nothing; `BUILD_TIMEOUT` stays the one knob that lowers it. No suite
 declares one. The PPPoE suite did until 2026-09-04: 10 minutes for its ze image,
 15 for accel-ppp and 10 for the client, each written when the shipped default was
 10 minutes and each a cap once the default became 90, because the field then
-replaced the machine bound instead of raising it.
+replaced the machine bound instead of raising it. The VPP lab image
+(`internal/le/build/vpp`, `imageRecipe`) declares 45 minutes, which is below
+the machine bound and so changes the bound only where `BUILD_TIMEOUT` is lower.
 
 Subsequent runs with `NO_BUILD=1` skip rebuilds. Once the images exist, the full
 suite takes roughly 5-10 minutes depending on session establishment times.
 <!-- source: internal/le/interoplab/docker.go -- dockerBuildTimeoutDefault, buildTimeout -->
 <!-- source: internal/le/interoplab/zebuild.go -- StageBinaries, LabBinary -->
+
+### The persistent image cache
+
+An image whose build is expensive opts into a persistent cache on the machine
+`le` runs on, with `ImageBuild.Cache`. Today only the VPP lab images opt in
+(`ze-vpp-pppoe-lab` and its metadata counterfactual): their build compiles VPP
+for about twenty minutes, and `./le test qemu docker-lab` opens its Docker
+host guest's disk with `snapshot=on`, so the guest's own image store is gone
+after every shutdown. No other lab image opts in, because the key hashes the
+whole build context on every `Build`.
+
+The cache is one `docker image save` archive per key, in `docker-image/` under
+the per-user cache (`$XDG_CACHE_HOME/ze`, else `~/.cache/ze`, the target the
+checkout's `cache/` link names). The docker CLI writes and reads the archive on
+its own side, so a daemon reached through a forwarded socket still saves to and
+loads from the `le` machine. No `./le scratch` clean or trim reaches it, the same
+as the docker-host image cache beside it; an entry is removed by hand.
+
+The key is the SHA-256 of everything that decides the image: the Dockerfile's
+place and the main context exactly as `Build` streams it (the same walk, its
+ignore file applied, each entry's name, type, link, mode, size and bytes, but
+not its modification time), each named context whole, the target, the build
+arguments in order, and the architecture the Docker daemon builds for. Owner
+labels and tags are not inputs. An input the context does not carry, such as a
+distribution package a `RUN apt-get install` fetches, is not in the key either:
+an entry keeps the packages of the build that made it, as Docker's own layer
+cache does.
+
+An image compiled for the build host's CPU sets `ImageBuild.HostCPUSpecific`,
+and its key also carries the CPU identity of the `le` machine: on Linux the
+first processor's vendor, family, model, model name and flags (x86) or
+implementer, architecture, variant, part and features (arm64) from
+`/proc/cpuinfo`, on macOS the `machdep.cpu.brand_string`, `hw.cpufamily` and
+`hw.cpusubfamily` sysctls and an Intel Mac's feature lists. The VPP image is
+one (`VPP_BUILD_NATIVE_ONLY=ON`). The `le` machine's CPU stands for the Docker
+host's because the lab's daemon runs on that machine or in a VM it runs with
+its own CPU (`docker-lab` boots its guest with `-cpu max` under KVM or HVF).
+The cache is not used, and the image is built, when that cannot be shown: a
+daemon of another architecture than `le`'s (it runs emulated), an endpoint
+that is neither a local socket nor a loopback address, or a CPU identity that
+cannot be read. One progress line names the reason.
+
+A run takes the key's lock first, so a second run needing the same build waits
+for the first and then loads what it saved. A hit runs `docker image load`
+through the same CLI and endpoint, then builds a one-line Dockerfile `FROM` the
+loaded image, which compiles nothing and gives the image this run's owner
+labels, the shared `Tag` and a new run-owned tag, exactly what a build answers:
+the loaded image carries the labels of the run that built it, and the orphan
+sweep would otherwise remove a run-owned tag on it as abandoned. The result
+says `cached`, and the progress stream prints
+`interop: image <name> loaded from the image cache, key <key> (<ID>)`. A miss
+builds, then saves the built image ID to a partial file in the cache directory
+and renames it into place, so an entry that exists is whole; the next run of
+the same key, holding its lock, removes a partial file a killed run left. The save runs
+without the run's cancellation, so a build reaches the cache once it completes,
+and a save that fails prints a warning with the cause and the fix and leaves
+the build answered. An entry Docker refuses to load is removed, the image is
+built and saved again, and the progress stream says so.
+<!-- source: internal/le/interoplab/docker_image_cache.go -- buildCached, imageCacheKey, dockerHostCPU, loadCachedImage, relabelCachedImage, saveCachedImage -->
+<!-- source: internal/le/interoplab/host_cpu.go -- cpuinfoIdentity -->
 
 
 ### Source-built peers

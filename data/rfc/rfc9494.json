@@ -8,10 +8,10 @@
   "must": {
     "total": 25,
     "kept": 25,
-    "ze-proven": 2,
+    "ze-proven": 8,
     "os-verified": 0,
     "os-gap": 0,
-    "proof-pending": 16,
+    "proof-pending": 10,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
     "not-built": 7,
@@ -31,8 +31,8 @@
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
-    "functional": 1,
-    "unit": 1
+    "functional": 2,
+    "unit": 6
   },
   "unmet": [
     "RFC9494-4.2-10",

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 8484 requirements and tests - Ze</title>
-        <meta name="description" content="RFC 8484: DNS Queries over HTTPS (DoH). 16 mandatory requirements included in automatic checks, 6 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="description" content="RFC 8484: DNS Queries over HTTPS (DoH). 16 mandatory requirements included in automatic checks, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 8484 requirements and tests - Ze" />
-        <meta property="og:description" content="RFC 8484: DNS Queries over HTTPS (DoH). 16 mandatory requirements included in automatic checks, 6 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta property="og:description" content="RFC 8484: DNS Queries over HTTPS (DoH). 16 mandatory requirements included in automatic checks, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 8484 requirements and tests - Ze" />
-        <meta name="twitter:description" content="RFC 8484: DNS Queries over HTTPS (DoH). 16 mandatory requirements included in automatic checks, 6 declared gaps (0 demonstrated by a test), 0 with no test." />
+        <meta name="twitter:description" content="RFC 8484: DNS Queries over HTTPS (DoH). 16 mandatory requirements included in automatic checks, 5 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -128,16 +128,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>5</strong><b>of 16 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>6</strong><b>of 16 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>4</strong><b>of 16 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 16 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 16 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>4</strong><b>4 of 16 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>6</strong><b>6 of 18 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>6</strong><b>of 16 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
+<article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>5</strong><b>of 16 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -238,7 +238,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>6</td>
+<td>5</td>
 </tr>
 <tr><td>Declared gaps a test demonstrates</td>
 <td>0</td>
@@ -250,16 +250,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>16</td>
+<td>18</td>
 </tr>
 <tr><td>Tests linked to requirements</td>
-<td>16</td>
+<td>18</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>1</td>
 </tr>
 <tr><td>Fault test records</td>
-<td>4</td>
+<td>6</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc8484.md</code></td>
@@ -279,9 +279,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> DNS Queries over HTTPS (DoH)</p>
-<p><strong>Test verification:</strong> 1 of 16 MUST proven</p>
-<p><strong>Evidence:</strong> unit 1</p>
-<p><strong>Unmet:</strong> RFC8484-3-1, RFC8484-4.1-3, RFC8484-5.1-2, RFC8484-5.1-3, RFC8484-5.3-1, RFC8484-5.4-2</p>
+<p><strong>Test verification:</strong> 2 of 16 MUST proven</p>
+<p><strong>Evidence:</strong> unit 2</p>
+<p><strong>Unmet:</strong> RFC8484-3-1, RFC8484-4.1-3, RFC8484-5.1-3, RFC8484-5.3-1, RFC8484-5.4-2</p>
 
 </section>
 <section><h2>Coverage</h2>
@@ -290,11 +290,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>5</strong></td>
+<td><strong>6</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>11</strong></td>
+<td><strong>10</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Only a positive or negative test</td>
@@ -321,14 +321,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (5):</strong> <a href="#rfc8484-4.1-2"><code>RFC8484-4.1-2</code></a>, <a href="#rfc8484-4.2-1"><code>RFC8484-4.2-1</code></a>, <a href="#rfc8484-5.4-1"><code>RFC8484-5.4-1</code></a>, <a href="#rfc8484-6-2"><code>RFC8484-6-2</code></a>, <a href="#rfc8484-6-3"><code>RFC8484-6-3</code></a></p>
-<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (11):</strong> <a href="#rfc8484-3-1"><code>RFC8484-3-1</code></a>, <a href="#rfc8484-4.1-1"><code>RFC8484-4.1-1</code></a>, <a href="#rfc8484-4.1-3"><code>RFC8484-4.1-3</code></a>, <a href="#rfc8484-5-1"><code>RFC8484-5-1</code></a>, <a href="#rfc8484-5.1-1"><code>RFC8484-5.1-1</code></a>, <a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>, <a href="#rfc8484-5.1-3"><code>RFC8484-5.1-3</code></a>, <a href="#rfc8484-5.3-1"><code>RFC8484-5.3-1</code></a>, <a href="#rfc8484-5.4-2"><code>RFC8484-5.4-2</code></a>, <a href="#rfc8484-6-1"><code>RFC8484-6-1</code></a>, <a href="#rfc8484-6-4"><code>RFC8484-6-4</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (6):</strong> <a href="#rfc8484-4.1-2"><code>RFC8484-4.1-2</code></a>, <a href="#rfc8484-4.2-1"><code>RFC8484-4.2-1</code></a>, <a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a>, <a href="#rfc8484-5.4-1"><code>RFC8484-5.4-1</code></a>, <a href="#rfc8484-6-2"><code>RFC8484-6-2</code></a>, <a href="#rfc8484-6-3"><code>RFC8484-6-3</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (10):</strong> <a href="#rfc8484-3-1"><code>RFC8484-3-1</code></a>, <a href="#rfc8484-4.1-1"><code>RFC8484-4.1-1</code></a>, <a href="#rfc8484-4.1-3"><code>RFC8484-4.1-3</code></a>, <a href="#rfc8484-5-1"><code>RFC8484-5-1</code></a>, <a href="#rfc8484-5.1-1"><code>RFC8484-5.1-1</code></a>, <a href="#rfc8484-5.1-3"><code>RFC8484-5.1-3</code></a>, <a href="#rfc8484-5.3-1"><code>RFC8484-5.3-1</code></a>, <a href="#rfc8484-5.4-2"><code>RFC8484-5.4-2</code></a>, <a href="#rfc8484-6-1"><code>RFC8484-6-1</code></a>, <a href="#rfc8484-6-4"><code>RFC8484-6-4</code></a></p>
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc8484:must">Ze verified 1, Tests awaiting verification 8, Not built 6</div>
+<div data-ze-rfc-bar="rfc8484:must">Ze verified 2, Tests awaiting verification 8, Not built 5</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc8484:overview">Ze MUST verified 1, Not owed 1, Tests awaiting verification 8, Not assessed 11, Not built 6</div>
+<div data-ze-rfc-bar="rfc8484:overview">Ze MUST verified 2, Not owed 1, Tests awaiting verification 8, Not assessed 11, Not built 5</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -349,7 +349,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc8484:must.kept">15</span></td>
 </tr>
 <tr><td>Ze verified</td>
-<td><span data-ze-rfc="rfc8484:must.ze-proven">1</span></td>
+<td><span data-ze-rfc="rfc8484:must.ze-proven">2</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc8484:must.os-verified">0</span></td>
@@ -367,7 +367,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc8484:must.not-assessed">0</span></td>
 </tr>
 <tr><td>Not built</td>
-<td><span data-ze-rfc="rfc8484:must.not-built">6</span></td>
+<td><span data-ze-rfc="rfc8484:must.not-built">5</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="rfc8484:must.not-owed">1</span></td>
@@ -489,16 +489,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8484-5.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L549" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoHCacheControlMatchesSmallestTTL</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the handler sets Cache-Control max-age to exactly the smallest Answer-section TTL, so the assigned freshness equals (hence never exceeds) that minimum (internal/core/dnsserver/secure.go:416-419, :478)</p></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the handler sets Cache-Control max-age to exactly the smallest Answer-section TTL, so the assigned freshness equals (hence never exceeds) that minimum (internal/core/dnsserver/secure.go dohHandler, dohFreshness, minAnswerTTL)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8484-5.1-2">RFC8484-5.1-2</code></td><td colspan="3"><span class="rfc-subject">If the DNS response has no records in the Answer section, and the DNS response has an SOA record in the Authority section, the response freshness lifetime MUST NOT be greater than the MINIMUM field from that SOA record (see [RFC2308]). (§5.1)</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>5.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8484-5.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> minAnswerTTL iterates only the Answer section and the handler sets no Cache-Control when that minimum is 0, so a NODATA response&#39;s freshness is never capped at the Authority SOA MINIMUM field (internal/core/dnsserver/secure.go:478-488, :416)</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc8484_negative_freshness_test.go#L53" title="internal/core/dnsserver/rfc8484_negative_freshness_test.go" target="_blank" rel="noopener"><code>TestDoHNegativeFreshnessCappedBySOAMinimum</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc8484_negative_freshness_test.go#L86" title="internal/core/dnsserver/rfc8484_negative_freshness_test.go" target="_blank" rel="noopener"><code>TestDoHAnswerFreshnessIgnoresSOAMinimum</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8484-5.1-3">RFC8484-5.1-3</code></td><td colspan="3"><span class="rfc-subject">DoH clients MUST account for the Age response header field&#39;s value [RFC7234] when calculating the DNS TTL of a response. (§5.1)</span></td></tr>
 <tr><td></td>
@@ -534,7 +534,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8484-5.4-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> the obligation binds the other media types a DoH client or server may use, and ze&#39;s DoH server is such a server: it uses only application/dns-message (dohContentType in internal/core/dnsserver/secure.go) and answers any other content type with 415 Unsupported Media Type, so the rule holds by construction, but no test is tagged to this row</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> DoH media types other than application/dns-message are wanted after the first release (owner ruling 2026-11-20) and are not built today: ze&#39;s DoH server uses only application/dns-message (dohContentType in internal/core/dnsserver/secure.go), internal/core/dnsserver/secure.go::dohRequestBody answers a POST whose Content-Type is any other media type with 415 Unsupported Media Type, and internal/core/dnsserver/secure.go::Manager.dohHandler writes every response as application/dns-message, so no other media type exists to carry this obligation and no test is tagged to this row</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8484-6-1">RFC8484-6-1</code></td><td colspan="3"><span class="rfc-subject">DoH servers using this media type MUST ignore the value given for the EDNS UDP payload size in DNS requests (§6)</span></td></tr>
 <tr><td></td>
@@ -694,10 +694,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>{gap}, no test</td>
 <td>ze is a DNS client that implements no DoH: the dnsresolver forwarder sends its upstream queries over plain UDP and TCP only (exchange in internal/plugins/dnsresolver/forward.go) and the stub resolver queries over UDP (internal/component/resolve/dns/resolver.go), and ze&#39;s only DoH code is the server (bindDoH in internal/core/dnsserver/secure.go); no owner decision declines a DoH client, so no ze client processes an application/dns-message response</td>
 </tr>
-<tr><td><a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a> If the DNS response has no records in the Answer section, and the DNS response has an SOA record in the Authority section, the response freshness lifetime MUST NOT be greater than the MINIMUM field from that SOA record (see [RFC2308]). (§5.1)</td>
-<td>{gap}, no test</td>
-<td>minAnswerTTL iterates only the Answer section and the handler sets no Cache-Control when that minimum is 0, so a NODATA response&#39;s freshness is never capped at the Authority SOA MINIMUM field (internal/core/dnsserver/secure.go:478-488, :416)</td>
-</tr>
 <tr><td><a href="#rfc8484-5.1-3"><code>RFC8484-5.1-3</code></a> DoH clients MUST account for the Age response header field&#39;s value [RFC7234] when calculating the DNS TTL of a response. (§5.1)</td>
 <td>{gap}, no test</td>
 <td>ze is a DNS client that implements no DoH: the dnsresolver forwarder sends its upstream queries over plain UDP and TCP only (exchange in internal/plugins/dnsresolver/forward.go) and the stub resolver queries over UDP (internal/component/resolve/dns/resolver.go), and ze&#39;s only DoH code is the server (bindDoH in internal/core/dnsserver/secure.go); no owner decision declines a DoH client, so no ze client computes a DNS TTL from an Age header</td>
@@ -708,7 +704,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td><a href="#rfc8484-5.4-2"><code>RFC8484-5.4-2</code></a> Those media types MUST be flexible enough to express every DNS query that would normally be sent in DNS over UDP (including queries and responses that use DNS extensions, but not those that require multiple responses). (§5.4)</td>
 <td>{gap}, no test</td>
-<td>the obligation binds the other media types a DoH client or server may use, and ze&#39;s DoH server is such a server: it uses only application/dns-message (dohContentType in internal/core/dnsserver/secure.go) and answers any other content type with 415 Unsupported Media Type, so the rule holds by construction, but no test is tagged to this row</td>
+<td>DoH media types other than application/dns-message are wanted after the first release (owner ruling 2026-11-20) and are not built today: ze&#39;s DoH server uses only application/dns-message (dohContentType in internal/core/dnsserver/secure.go), internal/core/dnsserver/secure.go::dohRequestBody answers a POST whose Content-Type is any other media type with 415 Unsupported Media Type, and internal/core/dnsserver/secure.go::Manager.dohHandler writes every response as application/dns-message, so no other media type exists to carry this obligation and no test is tagged to this row</td>
 </tr>
 </tbody>
 </table>
@@ -801,7 +797,23 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3><a href="#rfc8484-5.1-2"><code>RFC8484-5.1-2</code></a></h3>
 <p>If the DNS response has no records in the Answer section, and the DNS response has an SOA record in the Authority section, the response freshness lifetime MUST NOT be greater than the MINIMUM field from that SOA record (see [RFC2308]). (§5.1)</p>
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
-<p>No test carries RFC8484-5.1-2, so there is no linked test.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc8484_negative_freshness_test.go#L86" title="internal/core/dnsserver/rfc8484_negative_freshness_test.go" target="_blank" rel="noopener"><code>TestDoHAnswerFreshnessIgnoresSOAMinimum</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc8484_negative_freshness_test.go#L53" title="internal/core/dnsserver/rfc8484_negative_freshness_test.go" target="_blank" rel="noopener"><code>TestDoHNegativeFreshnessCappedBySOAMinimum</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc8484-5.1-3"><code>RFC8484-5.1-3</code></a></h3>
 <p>DoH clients MUST account for the Age response header field&#39;s value [RFC7234] when calculating the DNS TTL of a response. (§5.1)</p>
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
@@ -1171,7 +1183,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
                 </div>
             </div>
         </footer>

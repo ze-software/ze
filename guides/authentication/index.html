@@ -64,6 +64,7 @@ connecting with the <code>ze</code> CLI.</p>
 <ol>
 <li><a href="#step-1-hash-a-password">Step 1: hash a password</a></li>
 <li><a href="#step-2-declare-the-user-in-yang">Step 2: declare the user in YANG</a></li>
+<li><a href="#migrated-accounts-keep-their-sha-crypt-hash">Migrated accounts keep their SHA-crypt hash</a></li>
 <li><a href="#weak-passwords-are-named-never-refused">Weak passwords are named, never refused</a></li>
 <li><a href="#passwords-in-a-config-file">Passwords in a config file</a></li>
 <li><a href="#step-3-reload">Step 3: reload</a></li>
@@ -247,7 +248,7 @@ $2a$10$abcdefghijklmnopqrstuABCDEFGHIJKLMNOPQRSTUVWXYZ012345678
 </code></pre>
 <!-- source: internal/plugins/passwd/main.go -- runImpl -->
 <h3 id="step-2-declare-the-user-in-yang">Step 2: declare the user in YANG</h3>
-<p>Two equivalent ways to set the password:</p>
+<p>Three ways to set the password:</p>
 <table>
 <thead>
 <tr>
@@ -259,6 +260,10 @@ $2a$10$abcdefghijklmnopqrstuABCDEFGHIJKLMNOPQRSTUVWXYZ012345678
 <tr>
 <td><code>password "$2a$10$..."</code></td>
 <td>You already have a hash (from <code>ze passwd</code>, fleet automation, or a backup)</td>
+</tr>
+<tr>
+<td><code>password "$6$..."</code></td>
+<td>You migrate an account from another system and keep its SHA-crypt hash (see below)</td>
 </tr>
 <tr>
 <td><code>plaintext-password "secret"</code></td>
@@ -281,6 +286,67 @@ written to disk. This matches Junos's <code>plain-text-password</code> behavior.
 <!-- source: internal/component/authz/yang/ze-authz-conf.yang -- system.authentication.user -->
 <!-- source: internal/component/config/password_hash.go -- ApplyPasswordHashing -->
 <!-- source: internal/component/cli/editor_commit.go -- commit path caller -->
+<h3 id="migrated-accounts-keep-their-sha-crypt-hash">Migrated accounts keep their SHA-crypt hash</h3>
+<p>An account copied from another system keeps the password its user already
+has. Put the system's stored hash on <code>password</code> as it is:</p>
+<pre><code>system {
+    authentication {
+        user alice {
+            password "$6$rounds=656000$examplesalt$..."
+        }
+    }
+}
+</code></pre>
+<p>Ze recognises the format by the hash's prefix:</p>
+<table>
+<thead>
+<tr>
+<th>Prefix</th>
+<th>Format</th>
+<th>Ze writes it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>$2a$</code>, <code>$2b$</code>, <code>$2y$</code></td>
+<td>bcrypt</td>
+<td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td><code>$6$</code></td>
+<td>SHA-crypt with SHA-512, the format of a Linux shadow file</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td><code>$5$</code></td>
+<td>SHA-crypt with SHA-256</td>
+<td class="cell-no">✕</td>
+</tr>
+</tbody>
+</table>
+<p>A SHA-crypt hash has the form <code>$6$[rounds=N$]salt$digest</code>. Without a
+<code>rounds=</code> field the hash uses 5000 rounds. With one, N is between 1000 and
+999999999, the salt holds at most 16 characters, and the digest holds 86
+characters for <code>$6$</code> and 43 for <code>$5$</code>. That is the form crypt(3) writes, so a
+hash copied from a shadow file fits it. Ze stores the hash as given and never
+hashes it again. <code>ze config validate</code> warns about a value that is neither a
+bcrypt hash nor a well-formed SHA-crypt hash, and that account cannot log in.</p>
+<p>Each login runs all of the hash's rounds. A hash with a very high <code>rounds=</code>
+value costs that much CPU for every login attempt, wrong passwords included.</p>
+<p>The login time of a migrated account also differs from that of a name that
+does not exist. Ze hides which names exist by running one bcrypt comparison
+for an unknown name, and a SHA-crypt account takes the time of its rounds
+instead. Someone who measures login times can tell that such an account
+exists, more easily the higher its rounds, until its password is set again.</p>
+<p>When the user sets a new password through <code>plaintext-password</code>, Ze stores it
+as bcrypt and the SHA-crypt hash is gone, and with it the timing difference.
+Every <code>ze:bcrypt</code> leaf accepts both formats, the telemetry exporter's
+<code>basic-auth/password</code> included, because the config check and every consumer
+of such a leaf use the same verifier.</p>
+<!-- source: internal/core/shacrypt/shacrypt.go -- Parse, Hash.Matches -->
+<!-- source: internal/core/passhash/passhash.go -- Check, Verify -->
+<!-- source: internal/component/authz/auth.go -- CheckPassword -->
+<!-- source: internal/component/config/password_hash.go -- CheckBcryptLeaves -->
 <h3 id="weak-passwords-are-named-never-refused">Weak passwords are named, never refused</h3>
 <p>Ze judges the plaintext before it hashes it, and warns when the password is
 shorter than 8 characters or is one of eight passwords an attacker tries first:
@@ -628,15 +694,16 @@ super-admin (created by <code>ze init</code>) authenticates with a password.</p>
 <h2 id="why-two-leaves-instead-of-auto-detecting-the-format">Why two leaves instead of auto-detecting the format</h2>
 <p>The canonical <code>password</code> leaf is marked <code>ze:bcrypt</code> -- the parser stores
 the value verbatim and never tries to apply the <code>$9$</code> reversible
-obfuscation used for other sensitive fields. Bcrypt is one-way; mixing
-it with <code>$9$</code> would let an operator recover the password from the file.</p>
+obfuscation used for other sensitive fields. A password hash is one-way;
+mixing it with <code>$9$</code> would let an operator recover the password from the file.</p>
 <p>If you write a literal plaintext directly on <code>password</code>:</p>
 <pre><code>user alice {
-    password "secret"     # WRONG -- not a bcrypt hash
+    password "secret"     # WRONG -- not a password hash
 }
 </code></pre>
 <p>then <code>ze config validate</code> emits a warning, the daemon logs a warning at
-load, and the user cannot authenticate (bcrypt compare fails). Use
+load, and the user cannot authenticate (the value is neither a bcrypt hash
+nor a SHA-crypt hash, so no comparison can match). Use
 <code>plaintext-password</code> (auto-hashed) or <code>ze passwd</code> (manual) instead.</p>
 <!-- source: internal/component/config/password_hash.go -- CheckBcryptLeaves -->
 <h2 id="notes-on-plaintext-lifetime">Notes on plaintext lifetime</h2>
@@ -810,7 +877,7 @@ and continues.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
                 </div>
             </div>
         </footer>

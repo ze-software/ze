@@ -161,7 +161,7 @@ for a plugin compiled into `ze`.
 In Go:
 
 ```go
-p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+p.OnExecuteCommand(func(serial, command string, args []string, peer string, pipe []sdk.PipeOperation) (string, any, error) {
     switch command {
     case "show acme-monitor status":
         return "done", map[string]string{"target": cfg.Target, "interval": cfg.intervalText()}, nil
@@ -475,6 +475,7 @@ The engine sends these fields in the `execute-command` RPC:
 | `command` | string | Command name (e.g., `"show my-plugin status"`) |
 | `args` | []string | The words after the command path, as the operator typed them, once Ze accepted them (may be empty) |
 | `peer` | string | Peer selector (may be empty) |
+| `pipe` | []PipeOperation | The pipe operations your command declares, in the order typed, each a `name` and its decoded `args`; absent when the line names none. The handler receives it as its `pipe` parameter |
 
 ## Naming Conventions
 
@@ -591,7 +592,8 @@ err := p.Run(ctx, &sdk.Registration{
 | `Command` | string | Yes | Command path the alias sits on. MUST be one of your own declared commands |
 | `Name` | string | Yes | The word typed after the pipe character (kebab-case) |
 | `Description` | string | No | The line completion and `command help` show beside the name |
-| `Expansion` | string | Yes | The operator chain the name stands for |
+| `Expansion` | string | Yes, for an alias | The operator chain the name stands for. An entry that states `Argument` instead is a pipe operation (below); an entry with both, or neither, is refused by name |
+| `Argument` | string | Yes, for an operation | What the words after the name may be; see "Declaring a Pipe Operation for Your Command" |
 
 Three rules decide whether your command CAN have an alias.
 <!-- source: internal/component/command/alias.go -- RegisterPluginAliases, checkAlias -->
@@ -609,19 +611,57 @@ Three rules decide whether your command CAN have an alias.
 The engine stops the alias reaching a command below the one it sits on. Declare
 `show my-plugin status detail` in the same message and it inherits nothing.
 
-`ze cli` with no command argument expands the chain in the client process, where
-your alias is not registered, so it answers
-`pipe error: unknown pipe operator: totals` there. It resolves over
-`ze cli -c "<command>"` and in the interactive session a plain ssh client
-reaches.
-<!-- source: internal/component/cli/model_mode.go -- executeOperationalCommand -->
+The alias resolves in the daemon: over `ze cli -c "<command>"`, in the
+interactive session `ze cli` or a plain ssh client opens, and for a plugin's
+`dispatch-command`, MCP, REST and gRPC. An operational command typed in
+`ze config edit` reads its chain in the client process, where your alias is
+not registered, so it answers `pipe error: unknown pipe operator: totals`
+there.
+<!-- source: internal/component/config/cli/cmd_edit.go -- sshCommandExecutor -->
+
+## Declaring a Pipe Operation for Your Command
+
+A pipe operation is a word after the pipe character that your handler runs
+itself, before the answer exists: a selection the daemon should not compute by
+serializing every row, such as `show x | top-talkers 5`. Declare it in the same
+`Pipes` list, with `Argument` in place of `Expansion`:
+
+```go
+Pipes: []sdk.PipeDecl{{
+    Command:     "show my-plugin sessions",
+    Name:        "top-talkers",
+    Description: "The N sessions with the most traffic",
+    Argument:    "count",
+}},
+```
+
+`Argument` is what the words after the name may be: `none`, `optional`,
+`text`, `count` (a positive whole number), `fields` or `path`. Ze validates
+the typed words against it, so your handler never meets a missing number.
+Your handler receives the operations the line typed in its `pipe` parameter,
+in order, each with its decoded words, and never among `args`. A word you
+declare is refused when typed as an argument, with the pipe form as the fix.
+The rest of the chain, the generic operators, Ze applies to your answer.
+
+A declared operation is taken only while no generic operator precedes it:
+`show my-plugin sessions | table | top-talkers 5` is refused with the line
+reordered. You may declare a generic data operator's name (`count`, `first`,
+`last`, `match`, `display`, `fill`, `resolve`, `origin`) to compute it in the
+handler. Your answer is then held to the generic's shape: `count` answers one
+object holding an integer `count`, `first N` and `last N` at most N of your
+rows, the others your rows. A format, `no-more`, `save` or `log` cannot be
+declared. `show command help "<command>"` lists each operation with `source`
+`command` or `override`.
+<!-- source: pkg/plugin/rpc/types.go -- PipeDecl, PipeOperation, ExecuteCommandInput -->
+<!-- source: internal/component/command/pipe_filter_plugin.go -- RegisterPluginPipeFilters -->
+<!-- source: internal/component/command/pipe_partition.go -- partitionPipeChain, CheckOverrideAnswer -->
 
 ## Complex Responses
 
 Return structured JSON data for API consumers:
 
 ```go
-p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+p.OnExecuteCommand(func(serial, command string, args []string, peer string, pipe []sdk.PipeOperation) (string, any, error) {
     if command == "monitor metrics" {
         data := struct {
             Checks    int     `json:"checks"`

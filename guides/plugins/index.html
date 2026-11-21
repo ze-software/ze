@@ -1095,7 +1095,7 @@ address. A session whose events named it nothing is selected by no name.</p>
 </tr>
 <tr>
 <td><code>l2tp-auth-radius</code></td>
-<td>RADIUS authentication (Access-Request), accounting (Start/Stop/Interim-Update), CoA/DM listener, and Access-Accept attribute extraction (Framed-IP-Address, Framed-Pool, Session-Timeout, Idle-Timeout, Filter-Id, Acct-Interim-Interval)</td>
+<td>RADIUS authentication (Access-Request), accounting (Start/Stop/Interim-Update), CoA/DM listener, and Access-Accept attribute extraction (Framed-IP-Address, Framed-Pool, Framed-MTU, Session-Timeout, Idle-Timeout, Filter-Id, Acct-Interim-Interval)</td>
 </tr>
 <tr>
 <td><code>l2tp-pool</code></td>
@@ -1967,7 +1967,7 @@ collection, return an <code>sdk.Records</code> instead. The SDK then writes one 
 each row past the first 256, and neither the plugin nor the engine holds the
 whole answer. A walk that ends inside those 256 rows collapses to the one
 document the command answered with before it produced rows at all.</p>
-<pre><code class="language-go">p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
+<pre><code class="language-go">p.OnExecuteCommand(func(serial, command string, args []string, peer string, pipe []sdk.PipeOperation) (string, any, error) {
 	return "done", sdk.Records{
 		Key:  "sessions",
 		Rows: sessionRows(),
@@ -2306,7 +2306,7 @@ backend. Cycles among selected plugins are refused for order-only edges too.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
                 </div>
             </div>
         </footer>

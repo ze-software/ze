@@ -76,9 +76,14 @@ and <strong>runtime commands</strong> sent to the running daemon via SSH.</p>
 <li><a href="#request-fleet-disable">request fleet disable</a></li>
 <li><a href="#request-fleet-enable">request fleet enable</a></li>
 <li><a href="#show-fleet-status">show fleet status</a></li>
+<li><a href="#show-fleet-divergence-list">show fleet divergence list</a></li>
+<li><a href="#show-fleet-divergence-name">show fleet divergence name</a></li>
+<li><a href="#update-fleet-divergence-name-adopt">update fleet divergence name adopt</a></li>
+<li><a href="#request-fleet-divergence-name-revert">request fleet divergence name revert</a></li>
 <li><a href="#show-host">show host</a></li>
 <li><a href="#show-storage-smart">show storage smart</a></li>
 <li><a href="#ze-request-support-archive">ze request support archive</a></li>
+<li><a href="#ze-thanks-ze-thanks-licence">ze thanks / ze thanks licence</a></li>
 <li><a href="#ze-interface">ze interface</a></li>
 <li><a href="#show-traffic-control">show traffic control</a></li>
 <li><a href="#show-flow-export">show flow export</a></li>
@@ -354,7 +359,7 @@ from stdin (<code>ze -</code>) is unaffected.</p>
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/launcher.cast?v=34f1e25629"
+      data-cast-src="../../assets/demos/launcher.cast?v=3e0679653a"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -362,12 +367,12 @@ from stdin (<code>ze -</code>) is unaffected.</p>
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/launcher.cast?v=34f1e25629">Download the asciicast</a> or
+      page's own player. <a href="../../assets/demos/launcher.cast?v=3e0679653a">Download the asciicast</a> or
       <a href="../../assets/demos/launcher.txt?v=0399dbc59f">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.10.09</span><span>58 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
+    <span>Ze 26.11.20</span><span>1 minute 57 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
     <a href="../../assets/demos/launcher.txt?v=0399dbc59f">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -454,7 +459,7 @@ ze cli -c "show config validation &lt;config-file&gt; | json"   # the same verdi
 <tbody>
 <tr>
 <td><code>-v</code></td>
-<td>Verbose output</td>
+<td>Verbose output: a summary of a valid config, with one line per BGP peer</td>
 </tr>
 <tr>
 <td><code>-q</code></td>
@@ -462,6 +467,20 @@ ze cli -c "show config validation &lt;config-file&gt; | json"   # the same verdi
 </tr>
 </tbody>
 </table>
+<p>The <code>-v</code> summary shows each BGP peer as the daemon builds it, after group
+inheritance and defaults: its name, address, remote AS, group, and any
+connection direction turned off. A peer the daemon skips is listed as
+incomplete instead, with the setting it lacks after inheritance (a remote IP,
+a remote AS, or a peer-level <code>ip dynamic</code>, which only a group accepts). A
+missing global local AS never reaches the summary: validation refuses it first.</p>
+<pre><code class="language-text">Peers:
+  - edge-a 192.0.2.1 AS64500 group edge
+  - edge-b 192.0.2.2 AS64501 group edge (connect disabled)
+  - bare-a: incomplete, the daemon does not start it: missing required session &gt; asn &gt; remote
+</code></pre>
+<!-- source: internal/component/config/cli/cmd_validate.go -- buildValidationSummary, peerSummaryLine -->
+<!-- source: internal/component/bgp/config/register.go -- peerSummariesFromTree -->
+<!-- source: internal/component/bgp/reactor/config.go -- PeersAndSkippedFromTree -->
 <p>Exit codes: 0 = valid, 1 = invalid, 2 = file not found.</p>
 <p>A value the schema does not accept (outside an enumeration, a range, a length
 or a format, a list key included) is refused with the line, the setting's full
@@ -1437,7 +1456,7 @@ corrupt the answer. SSH, the web UI, MCP, REST and gRPC reach the same handler.<
 </tr>
 <tr>
 <td><code>pipes</code></td>
-<td>The pipe aliases the plugin declares. Absent when it declares none</td>
+<td>The pipe aliases and pipe operations the plugin declares: an alias carries an <code>expansion</code>, an operation an <code>argument</code>. Absent when it declares none</td>
 </tr>
 <tr>
 <td><code>reason</code></td>
@@ -1886,13 +1905,233 @@ two you are reading.</p>
 <td><code>holding</code></td>
 <td><code>holding</code> when the client's last fetch applied nothing, because the configuration the device runs differs from its baseline or could not be compared with it; <code>not-holding</code> otherwise. <code>no-daemon</code> when no daemon answered</td>
 </tr>
+<tr>
+<td><code>held-by-hub</code></td>
+<td>The version of the copy of this device's configuration the hub keeps, as the hub's last fetch answer named it (<code>held-version</code>): what <code>update fleet divergence name &lt;client&gt; adopt version &lt;hash&gt;</code> and the revert on the hub take. <code>none</code> when the hub keeps no copy, <code>not-fetched</code> before the hub answered a fetch of this run of the client or when the daemon runs no hub client. <code>no-daemon</code> when no daemon answered</td>
+</tr>
+<tr>
+<td><code>revert-offered</code></td>
+<td>What the hub's last fetch answer said of a revert (<code>discard-version</code>): <code>none</code> when it offered none, <code>offered</code> when it offered to discard the version this device runs, <code>stale</code> when it named another version, so the offer does not apply to what the device runs now. <code>not-fetched</code> and <code>no-daemon</code> as for <code>held-by-hub</code></td>
+</tr>
 </tbody>
 </table>
 <p>The command refuses, and prints no status, when the store cannot be opened or
 one of the keys above cannot be read: <code>ze show data check</code> says why. It also
 refuses when the <code>plugin</code> block of the configuration cannot be read, and names
 <code>ze config validate</code>.</p>
-<!-- source: internal/component/managed/cmd_fleet.go -- fleetStatus, answerFleetStatusWith, readFleetStatus, decodeDaemonFleetStatus, daemonClientReport -->
+<!-- source: internal/component/managed/cmd_fleet.go -- fleetStatus, answerFleetStatusWith, readFleetStatus, decodeDaemonFleetStatus, daemonClientReport, hubAnswerOf, heldByHubWord, revertOfferedWord -->
+<h3 id="show-fleet-divergence-list">show fleet divergence list</h3>
+<p>On a hub: every managed client whose held configuration the hub keeps. A
+managed client that holds, because its own configuration was changed on the
+device, sends the hub a copy of the configuration it runs. It takes no
+argument.</p>
+<pre><code>ze show fleet divergence list
+ze cli -c "show fleet divergence list"
+</code></pre>
+<p>One row per copy, sorted by client:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>client</code></td>
+<td>The managed client the copy is held for</td>
+</tr>
+<tr>
+<td><code>declared</code></td>
+<td><code>true</code> when a server block declares the client. <code>false</code> is an orphaned copy: the hub serves no such client, so the client cannot connect to resolve it</td>
+</tr>
+<tr>
+<td><code>device-version</code></td>
+<td>The hash of the configuration the client runs, computed by the hub over the copy</td>
+</tr>
+<tr>
+<td><code>hub-version</code></td>
+<td>The hash of the configuration the hub serves the client, empty when the hub holds none for it</td>
+</tr>
+<tr>
+<td><code>edited-at</code></td>
+<td>When the client's configuration was written on the client, empty when its store records no time</td>
+</tr>
+<tr>
+<td><code>received-at</code></td>
+<td>When the hub stored the copy</td>
+</tr>
+<tr>
+<td><code>revert</code></td>
+<td>The revert decision the copy carries: <code>none</code> when none was taken, <code>pending</code> while the client is offered it at its next fetch, <code>void</code> when the hub now serves the client another configuration than the one the decision was taken on, so the client is offered nothing and keeps holding</td>
+</tr>
+<tr>
+<td><code>unreadable</code></td>
+<td>Present only when the store could not read the copy, or the configuration the hub serves the client: what could not be read, on one line; check the store with <code>ze show data check</code>. A row whose copy could not be read answers only <code>client</code> and <code>declared</code>. A row whose served configuration could not be read also answers <code>device-version</code>, <code>edited-at</code> and <code>received-at</code> from the copy, and leaves <code>hub-version</code> and <code>revert</code> empty. The other rows are answered as usual</td>
+</tr>
+</tbody>
+</table>
+<p>The copies are in the hub's store, so the command answers with the hub
+running or stopped. Only the running hub knows which clients its server
+serves, so <code>ze show fleet divergence list</code> asks a running hub first and shows
+its answer. With no hub running, <code>declared</code> is read from the server blocks of
+the hub's stored configuration: the clients the next <code>ze start</code> serves.</p>
+<!-- source: internal/component/managed/cmd_divergence_show.go -- answerDivergenceListWith, readDivergenceList, divergenceRowOf, storedServedClients, daemonServedClients, daemonDivergenceList -->
+<!-- source: internal/component/managed/register.go -- show fleet divergence list registration -->
+<!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container list -->
+<h3 id="show-fleet-divergence-name">show fleet divergence name</h3>
+<p>On a hub: what differs between the configuration the hub serves a managed
+client and the one the client holds. It takes the client's name.</p>
+<pre><code>ze show fleet divergence name edge-01
+ze cli -c "show fleet divergence name edge-01"
+</code></pre>
+<p>The answer carries every field of the list row, and:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>unchecked-plugins</code></td>
+<td>The external plugins whose sections the hub could not check when it took the copy</td>
+</tr>
+<tr>
+<td><code>diff-available</code></td>
+<td><code>true</code> when the hub compared the two configurations</td>
+</tr>
+<tr>
+<td><code>change-count</code></td>
+<td>The number of changes, absent when the diff is not available</td>
+</tr>
+<tr>
+<td><code>changes</code></td>
+<td>Each change from the hub's configuration to the client's: <code>path</code>, <code>change</code> (<code>added</code>, <code>removed</code> or <code>changed</code>), <code>old</code> and <code>new</code>. A value under a secret leaf is shown masked</td>
+</tr>
+<tr>
+<td><code>diff-unavailable</code></td>
+<td>Why the diff is not available, and the command that fixes it, when it is not</td>
+</tr>
+<tr>
+<td><code>revert-void</code></td>
+<td>When <code>revert</code> is <code>void</code>: the hash of the configuration the decision was taken on, the one the hub serves now, and, last, the revert to run again</td>
+</tr>
+</tbody>
+</table>
+<p>The answer never carries the text of either configuration: both carry the
+client's secrets. The diff compares the whole configuration, as
+<code>ze config diff</code> does. When the hub cannot parse one of the two, because it
+holds a section of an external plugin the hub did not start, the answer still
+carries the hashes and the times, <code>diff-available</code> is <code>false</code>, and
+<code>diff-unavailable</code> names the plugins. A client with no copy is refused, and
+the refusal names <code>show fleet divergence list</code>. A word after the client name is
+refused, beside a running hub and with the hub stopped alike, and the refusal
+names the word; <code>update ... adopt</code> and <code>request ... revert</code> refuse a word they
+do not declare the same way.</p>
+<p>In the interactive CLI, Tab after <code>name</code> offers the clients whose copy the
+running hub keeps.</p>
+<!-- source: internal/component/managed/cmd_divergence_show.go -- answerDivergenceShowWith, divergenceClientArg, readDivergenceDetail, divergenceDiff, divergenceParseRefusal, divergenceChanges, completeDivergenceClients, handleDivergenceShow -->
+<!-- source: internal/component/managed/register.go -- show fleet divergence name registration, ze-managed:fleet-divergence-show -->
+<!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container divergence -->
+<h3 id="update-fleet-divergence-name-adopt">update fleet divergence name adopt</h3>
+<p>On a hub: make the copy the hub keeps of a holding client's configuration
+the configuration the hub serves that client, so the client stops holding.
+It takes the client's name and the <code>device-version</code> that
+<code>show fleet divergence name</code> answered.</p>
+<pre><code>ze update fleet divergence name edge-01 adopt version 3f9c2a7e1b0d4c58
+ze cli -c "update fleet divergence name edge-01 adopt version 3f9c2a7e1b0d4c58"
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>client</code></td>
+<td>The client whose copy was adopted</td>
+</tr>
+<tr>
+<td><code>device-version</code></td>
+<td>The hash of the adopted copy: the configuration the client runs</td>
+</tr>
+<tr>
+<td><code>stamp</code></td>
+<td>The version of <code>client-&lt;name&gt;.conf</code> the copy became</td>
+</tr>
+</tbody>
+</table>
+<p>The hub publishes the copy as a new version of <code>client-&lt;name&gt;.conf</code>, removes
+the copy, and tells the client, which finds its hub current and records the
+hash as its baseline. The check of the hash, the write and the removal run
+under one lock, so a newer copy from the client cannot slip between them.
+Nothing is written when the hash is not the copy's (the refusal names the
+copy's hash, then <code>show fleet divergence name &lt;client&gt;</code>), when the hub keeps
+no copy for the client, when no server block declares it, or when a change
+to <code>client-&lt;name&gt;.conf</code> is staged (the fix is
+<code>ze config edit client-&lt;name&gt;.conf</code>). Beside a running hub, <code>ze update</code>
+sends the line to it. With the hub stopped it is refused, fix <code>ze start</code>:
+only the running hub records the audit action <code>fleet-divergence-adopt</code>, so an
+adopt is taken only there. <code>update</code> needs the edit permission.</p>
+<!-- source: internal/component/managed/cmd_divergence.go -- handleDivergenceAdopt, updateDivergenceAdoptLocal, adoptLocal, adoptThroughDaemon, adoptHeld, adoptHeldLocked -->
+<!-- source: internal/component/managed/register.go -- ze-managed:fleet-divergence-adopt, update fleet divergence name adopt registration -->
+<!-- test: internal/component/managed/cmd_divergence_adopt_test.go TestAdoptServesHeldBytes, TestAdoptRefusesStaleHash, TestAdoptRefusesUndeclaredClient, TestAdoptRefusesStagedCandidate, TestAdoptLocalOnStoppedHubRefused -->
+<h3 id="request-fleet-divergence-name-revert">request fleet divergence name revert</h3>
+<p>On a hub: decide that a holding client drops the configuration it runs and
+takes the one the hub serves it. It takes the client's name and the two
+hashes that <code>show fleet divergence name</code> answered: the <code>device-version</code> as
+<code>version</code> and the <code>hub-version</code> as <code>hub-version</code>.</p>
+<pre><code>ze request fleet divergence name edge-01 revert version 3f9c2a7e1b0d4c58 hub-version 8a1d0c6e2f4b9a73
+ze cli -c "request fleet divergence name edge-01 revert version 3f9c2a7e1b0d4c58 hub-version 8a1d0c6e2f4b9a73"
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>client</code></td>
+<td>The client the revert was decided for</td>
+</tr>
+<tr>
+<td><code>device-version</code></td>
+<td>The hash of the copy the client is to discard</td>
+</tr>
+<tr>
+<td><code>hub-version</code></td>
+<td>The hash of the configuration the hub serves the client: the one the client takes</td>
+</tr>
+</tbody>
+</table>
+<p>The hub stores the decision with the copy, bound to the two hashes you gave,
+and tells the client. The hub's answer to the client's next fetch offers the revert
+only while the client still runs <code>device-version</code> and the hub still serves
+<code>hub-version</code>; the client then applies the hub's configuration, as any change
+from its hub, and acknowledges it, and the hub removes the copy. A client that
+is not connected takes it at its next connection. A newer copy from the
+client replaces the record and drops the decision, and a new configuration
+for the client on the hub makes it <code>void</code> in the show. Nothing is stored when
+<code>version</code> is not the copy's hash, or <code>hub-version</code> is not the hash of what
+the hub serves the client now (each refusal names the current hash, then
+<code>show fleet divergence name &lt;client&gt;</code>), when the hub keeps no copy for the
+client, when no server block declares it, or when the hub holds no
+configuration for it. Beside a running hub, <code>ze request</code> sends the line to
+it; with the hub stopped it is refused with <code>ze start</code> as the fix, because
+only the running hub records the decision in its audit log and offers it.
+<code>request</code> needs the edit permission, and the hub records the audit action
+<code>fleet-divergence-revert</code>.</p>
+<!-- source: internal/component/managed/cmd_divergence.go -- handleDivergenceRevert, requestDivergenceRevertLocal, revertLocal, revertThroughDaemon, revertHeld, revertHeldLocked -->
+<!-- source: internal/component/plugin/server/managed.go -- HandleConfigFetch -->
+<!-- source: internal/component/managed/register.go -- ze-managed:fleet-divergence-revert, request fleet divergence name revert registration -->
+<!-- test: internal/component/managed/cmd_divergence_revert_test.go TestRevertStoresDecisionAndNotifies, TestRevertRefusesStaleHash, TestRevertRefusesHubWrittenSinceShow, TestRevertThroughDaemonSendsBothHashes, TestRevertRefusesUndeclaredClient, TestRevertLocalOnStoppedHubRefused, TestShowDivergenceReportsVoidDecision -->
+<!-- test: internal/component/managed/cmd_fleet_test.go TestFleetStatusHeldFields -->
 <!-- source: internal/component/managed/baseline.go -- ManagedFlag, ActiveVersion, BaselineVersion -->
 <!-- source: internal/component/config/storage/freeze.go -- refuseFrozenConfigLocked -->
 <!-- source: cmd/ze/hub/managed_owner.go -- state -->
@@ -1932,7 +2171,7 @@ ze show host kernel                # Kernel release, cmdline, microcode, arch fl
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/host-inventory.cast?v=914610af44"
+      data-cast-src="../../assets/demos/host-inventory.cast?v=a255ffa316"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -1940,12 +2179,12 @@ ze show host kernel                # Kernel release, cmdline, microcode, arch fl
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/host-inventory.cast?v=914610af44">Download the asciicast</a> or
+      page's own player. <a href="../../assets/demos/host-inventory.cast?v=a255ffa316">Download the asciicast</a> or
       <a href="../../assets/demos/host-inventory.txt?v=5b221c4c0f">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.10.09</span><span>39 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
+    <span>Ze 26.11.20</span><span>1 minute 13 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
     <a href="../../assets/demos/host-inventory.txt?v=5b221c4c0f">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -2123,6 +2362,57 @@ ze cli -c "show data cat support/archive/ze-support-router1-20261102-101500.tar.
 <!-- source: internal/component/support/support.go -- Run, Answer, storeAnswer, collect, SupportManifest -->
 <!-- source: internal/component/command/blob.go -- BlobRemoteOctetsMax -->
 <!-- source: internal/component/support/modules.go -- moduleRegistry, ModuleNames, ModuleList -->
+<h3 id="ze-thanks-ze-thanks-licence">ze thanks / ze thanks licence</h3>
+<p>Ze is built on other people's work. <code>ze thanks</code> lists every third-party work
+compiled into this binary: one row per work, under the group headings of the
+website's Dependencies page, with the version this binary carries, its licence,
+its copyright holder, why Ze uses it and where its source is. <code>ze thanks licence</code> prints the licence texts the binary carries as one document: for each
+distinct text, the works it covers with their copyright lines and source, then
+the text as the works ship it. The <code>name</code> pipe operation narrows the document to
+the one work with that exact name, as the list prints it.</p>
+<pre><code>ze thanks                                     # One row per carried work
+ze thanks licence                             # Every licence text
+ze cli -c "thanks licence | name github.com/miekg/dns"
+</code></pre>
+<p>Both are answered in the caller's own process, with no daemon. The daemon
+serves the same answers as <code>show thanks list</code> and <code>show thanks licence</code>, so
+SSH, the web command pages, REST, gRPC and MCP offer them too:</p>
+<pre><code>ze cli -c "show thanks list | json"
+ze cli -c "show thanks licence | name github.com/miekg/dns"
+</code></pre>
+<p>The list's columns, and its JSON keys, are <code>group</code>, <code>name</code>, <code>version</code>,
+<code>licence</code>, <code>copyright</code>, <code>why</code> and <code>source</code>. A name no carried work has is
+refused, and the refusal names <code>show thanks list</code> as the way to see the names.</p>
+<p>What a binary lists is what it carries. A Go module is listed when the
+binary's build information links it, at the version that information states,
+and Go itself at the Go version the binary was built with. A work that is not
+a module (htmx, swagger-ui, ExaBGP's ported encoders) is listed only by a
+build that compiles in the feature carrying it, so a build without the
+looking glass, the web interface and the REST server lists no web asset.</p>
+<pre><code>group         name                             version   licence       copyright        why  source
+Go Toolchain  Go standard library and runtime  go1.27.4  BSD-3-Clause  The Go Authors   ...  https://github.com/golang/go
+...
+</code></pre>
+<p>A linked module the build's credits record lacks is still listed, with its
+version and the licence <code>not recorded</code>. The command then prints the whole list
+and exits 1, naming each such module and <code>./le deps credits update</code>: the
+binary was built from a declaration that does not credit it, which is a defect
+of the build, not of the box. A binary built without build information refuses
+both commands, because it cannot tell what it links, and names <code>./ze thanks</code>,
+which builds <code>bin/ze</code> from the Ze repository with that information.</p>
+<p>Each text of the licence document is headed by the works that ship it:</p>
+<pre><code>================================================================================
+github.com/miekg/dns v1.1.73, LICENSE
+  Copyright: The Go Authors, Miek Gieben
+  Source: https://github.com/miekg/dns
+--------------------------------------------------------------------------------
+&lt;the text, byte for byte&gt;
+</code></pre>
+<p>A work whose files state no copyright holder reads
+<code>Copyright: no copyright holder stated</code>.</p>
+<!-- source: internal/plugins/thanks/register.go -- the two registrations, their daemon paths and the name operation -->
+<!-- source: internal/plugins/thanks/thanks.go -- listHandler, licenceHandler, withUnrecorded, creditsRefusal -->
+<!-- source: internal/core/credits/credits.go -- carried, document, writeWorkHeader -->
 <h3 id="ze-interface">ze interface</h3>
 <p>OS network interface management (standalone, no daemon needed for most commands).
 Show uses the verb syntax: <code>ze show interface</code>.</p>
@@ -3063,8 +3353,9 @@ command's summary under <code>description</code> and its long explanation under
 <code>description</code>. The full RPKI command list is in <code>docs/guide/rpki.md</code>.</p>
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, summaryAliasExpansion -->
 <!-- source: internal/plugins/help/help_command.go -- appendPluginCommands -->
-<!-- source: internal/le/cli/list/commandlist.go -- aliasesFor -->
-<!-- source: internal/plugins/help/help_command.go -- collectCommands, extractPipes -->
+<!-- source: internal/le/cli/list/commandlist.go -- Collect -->
+<!-- source: internal/le/cli/list/report.go -- joinAliases -->
+<!-- source: internal/plugins/help/help_command.go -- collectCommands, pipeOperationsFor -->
 <p><code>show bgp summary</code> was a second spelling of this command until 2026-08. It is
 removed, not aliased, so it answers an unknown-command error. <code>show bgp</code> gives
 the ordered table, and <code>show bgp | summary</code> gives the aggregate fields that
@@ -5260,7 +5551,7 @@ unicast; <code>mp &lt;family&gt; add &lt;prefixes&gt;</code>, <code>mp &lt;famil
 <tr>
 <td><code>show bgp rib | received | exact &lt;prefix&gt;</code></td>
 <td>read-only</td>
-<td>Stream the received routes of exactly that prefix, every ADD-PATH path of it, for example <code>show bgp rib received exact 10.0.0.0/8</code>; <code>prefix</code> is a text filter that also matches longer prefixes sharing its leading text. Refused on advertised routes, on <code>show bgp rib best</code>, and beside <code>covering</code> <!-- source: internal/component/bgp/plugins/rib/rib_pipeline_covering.go -- receivedWalk, parseExactPrefix, refuseExactScope, exactOnBestRefusal, walkConflictRefusal --></td>
+<td>Stream the received routes of exactly that prefix, every ADD-PATH path of it, for example <code>show bgp rib | received | exact 10.0.0.0/8</code>; <code>prefix</code> is a text filter that also matches longer prefixes sharing its leading text. Refused on advertised routes, on <code>show bgp rib best</code>, and beside <code>covering</code> <!-- source: internal/component/bgp/plugins/rib/rib_pipeline_covering.go -- receivedWalk, parseExactPrefix, refuseExactScope, exactOnBestRefusal, walkConflictRefusal --></td>
 </tr>
 <tr>
 <td><code>show bgp rib | path &lt;pattern&gt;</code></td>
@@ -5473,7 +5764,7 @@ declares <code>map</code> rather than <code>tab</code>. <code>| fill</code> is r
 <tr>
 <td><code>show bmp peers</code></td>
 <td>read-only</td>
-<td>Show monitored BGP peers (AS, BGP ID, up/down status, and <code>rib-peer</code>, the key <code>show bgp rib protocol bmp peer</code> takes)</td>
+<td>Show monitored BGP peers (AS, BGP ID, up/down status, and <code>rib-peer</code>, the key <code>show bgp rib protocol bmp | peer</code> takes)</td>
 </tr>
 <tr>
 <td><code>show bmp collectors</code></td>
@@ -5756,12 +6047,26 @@ a keyword.</p>
 <td>Clear a captured original session after confirming local physical cleanup</td>
 </tr>
 <tr>
+<td><code>clear l2tp session user &lt;name&gt; [actor &lt;label&gt;] [reason &lt;text...&gt;] [cause &lt;code&gt;]</code></td>
+<td>run</td>
+<td>Clear the one live session whose user name equals <code>&lt;name&gt;</code> exactly; several matches clear nothing and list one <code>clear l2tp session id</code> command each</td>
+</tr>
+<tr>
+<td><code>clear l2tp session address &lt;ipv4&gt; [actor &lt;label&gt;] [reason &lt;text...&gt;] [cause &lt;code&gt;]</code></td>
+<td>run</td>
+<td>Clear the one live session IPCP assigned <code>&lt;ipv4&gt;</code>; several matches clear nothing and list one <code>clear l2tp session id</code> command each</td>
+</tr>
+<tr>
 <td><code>clear l2tp session all</code></td>
 <td>run</td>
 <td>Send CDN for every session</td>
 </tr>
 </tbody>
 </table>
+<p>The <code>user</code> and <code>address</code> forms select the session the way a RADIUS
+Disconnect-Request does, from the <code>username</code> and <code>assigned-addr</code> of
+<code>show l2tp sessions</code>, and answer <code>session-id</code>, <code>tunnel-id</code> and the selecting
+<code>username</code> or <code>address</code>. Tab offers the live values after each keyword.</p>
 <p>The <code>clear l2tp session id</code> command accepts optional keyword arguments:</p>
 <ul>
 <li><code>reason &lt;text...&gt;</code>: free-text audit reason, recorded in the per-session event ring</li>
@@ -6364,7 +6669,7 @@ reaches, where the daemon expands the chain.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 22:34 UTC</span>
                 </div>
             </div>
         </footer>

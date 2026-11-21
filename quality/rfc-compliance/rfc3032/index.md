@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 0 | of 18 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 18 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 18 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 13 | 13 of 14 tests linked to requirements, 0 without a fault test and 1 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 14 | 14 of 14 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -298,7 +298,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 |---|---|---|---|
 | negative | [`TestVerifyRefusesMPLSTTLNoPropagate`](https://github.com/ze-software/ze/blob/main/internal/component/sysctl/rfc3032_ttl_propagate_linux_test.go#L45) | unit/verify | mutant, verified |
 | positive | [`TestBuildRichRoutePushCarriesNoTTL`](https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/rfc3032_push_ttl_linux_test.go#L95) | unit/verify | mutant, verified |
-| positive | [`TestFibVPPLabelTTLUniform`](https://github.com/ze-software/ze/blob/main/internal/plugins/fib/vpp/rfc3032_mplsentry_test.go#L211) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestFibVPPLabelTTLUniform`](https://github.com/ze-software/ze/blob/main/internal/plugins/fib/vpp/rfc3032_mplsentry_test.go#L211) | unit/verify | mutant, verified |
 
 ### [`RFC3032-3.3-1`](#rfc3032-3.3-1)
 

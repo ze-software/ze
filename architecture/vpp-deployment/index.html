@@ -453,7 +453,7 @@ An unavailable statistics segment does not restart an otherwise usable VPP API.<
 <!-- source: internal/component/vpp/runtime_stats.go -- VPPManager.activateRuntimeStats, VPPManager.connectRuntimeStats -->
 <!-- source: internal/component/vpp/runtime_stats_doctor.go -- checkRuntimeStats, reportRuntimeStatsFailure -->
 <p>A session retains its binary API connector and connection generation.
-<code>GetInterfaceStatsForGeneration</code> accepts only the statistics connection published
+<code>InterfaceCountersForGeneration</code> accepts only the statistics connection published
 for that pair and checks the generation again after reading. A replaced VPP
 process cannot answer an older session's counter request. Statistics reads are
 serialized because GoVPP updates cached statistics directories. When telemetry
@@ -462,7 +462,20 @@ the poller, withdraws the statistics publication and disconnects it before
 closing the binary API connection. A success clears only the same live owner's
 statistics category, and a confirmed new statistics connection clears its own
 connection failure.</p>
-<!-- source: internal/component/vpp/runtime_stats.go -- GetInterfaceStatsForGeneration, runtimeStats.read, runtimeStats.Close -->
+<!-- source: internal/component/vpp/runtime_stats.go -- statsForGeneration, runtimeStats.readLocked, runtimeStats.read, runtimeStats.Close -->
+<p>Per-session counters come from one shared snapshot, not one dump per session.
+<code>InterfaceCountersForGeneration</code> answers one interface index from the
+statistics owner's latest dump, indexed by interface, and takes a new dump
+only when that one started before the caller's freshness bound. Reading every
+subscriber within one interval therefore costs one dump and one lookup per
+session. A fresh read (the bound set to the call time) still shares the one
+dump that starts after it, with every other fresh read waiting behind it. The
+snapshot belongs to the statistics owner of one API generation, and every
+answer re-checks that generation, so a replaced VPP process never answers from
+it. A request with no bound is refused, a failed dump discards the snapshot so
+the failure reaches the next caller, and a missing or duplicated interface row
+is an error.</p>
+<!-- source: internal/component/vpp/runtime_stats_counters.go -- InterfaceCountersForGeneration, runtimeStats.interfaceCounters, runtimeStats.refreshCountersLocked -->
 <!-- source: internal/component/vpp/vpp.go -- VPPManager.runOnce -->
 <h2 id="system-prerequisites">System Prerequisites</h2>
 <table>
@@ -1061,7 +1074,7 @@ at a time), 256 = saturated (processing full vectors). Production typically 4-16
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 22:34 UTC</span>
                 </div>
             </div>
         </footer>

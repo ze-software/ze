@@ -143,9 +143,13 @@ unregistered access (<code>env.MustRegister()</code>).</p>
 <p>An in-tree plugin's declarations are in reach of both catalogs. <code>ze help command --json</code> and <code>./le cli list</code> read the compiled command tree in their own
 process and start no plugin, but a registered plugin puts the same declarations
 on its <code>registry.Registration</code>: <code>Commands</code> for what each answer holds and
-<code>Pipes</code> for the aliases it puts on its commands. So both catalogs name every
-plugin command and publish its <code>answer-shape</code>, <code>column-orders</code>,
-<code>address-fields</code> and <code>pipe-aliases</code>. A command the plugin marks hidden is left
+<code>Pipes</code> for the aliases and the operations it puts on its commands. So both
+catalogs name every plugin command and publish its <code>answer-shape</code>,
+<code>column-orders</code>, <code>address-fields</code> and <code>pipe-operations</code>: one list of what the
+command takes after a pipe, each entry naming its <code>source</code> (<code>generic</code>,
+<code>override</code>, <code>command</code> or <code>alias</code>), its <code>argument</code>, its <code>available</code> and its
+<code>description</code>, the same list <code>show command help</code> answers and Tab completion
+offers. A command the plugin marks hidden is left
 out of both, the way the daemon leaves it out of completion.</p>
 <p>One registration is still out of their reach: an EXTERNAL plugin's. It registers
 nothing in the composition root, so its declaration reaches a running daemon
@@ -229,9 +233,9 @@ with everything it started: the run string is given to a shell, and a shell
 that runs more than one command holds the plugin as its own child.</p>
 <!-- source: internal/component/plugin/declarations.go -- dataDeclarations, declarationRows, queriedDeclarationRow -->
 <!-- source: internal/component/config/register_plugin_declarations.go -- readConfiguredPlugins -->
-<!-- source: internal/plugins/help/help_command.go -- collectCommands, extractPipes -->
+<!-- source: internal/plugins/help/help_command.go -- collectCommands, pipeOperationsFor -->
 <!-- source: internal/component/command/declared.go -- DeclaredForCommand -->
-<!-- source: internal/plugins/meta/cmd/help.go -- commandHelp, pipeAliasHelp -->
+<!-- source: internal/plugins/meta/cmd/help.go -- commandHelp -->
 <h2 id="build-time-verification">Build-Time Verification</h2>
 <table>
 <thead>
@@ -323,7 +327,7 @@ completion, schema discovery, inventory, and environment variable listing. No ma
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
                 </div>
             </div>
         </footer>

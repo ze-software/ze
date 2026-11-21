@@ -202,23 +202,23 @@ what <code>show | blame</code> reports for the changes the console commits.</p>
 <td>Hex-format UPDATE</td>
 </tr>
 <tr>
-<td><code>show bgp rib received [peer &lt;selector&gt;] [family &lt;family&gt;]</code></td>
+<td><code>show bgp rib | received [| peer &lt;selector&gt;] [| family &lt;family&gt;]</code></td>
 <td>Show Adj-RIB-In</td>
 </tr>
 <tr>
-<td><code>show bgp rib advertised [peer &lt;selector&gt;] [family &lt;family&gt;]</code></td>
+<td><code>show bgp rib | advertised [| peer &lt;selector&gt;] [| family &lt;family&gt;]</code></td>
 <td>Show Adj-RIB-Out</td>
 </tr>
 <tr>
-<td><code>show bgp rib received covering &lt;address&gt;</code></td>
+<td><code>show bgp rib | received | covering &lt;address&gt;</code></td>
 <td>Show every received route whose prefix contains the address, most specific first within each peer (IPv4 and IPv6 prefix families)</td>
 </tr>
 <tr>
-<td><code>show bgp rib received exact &lt;prefix&gt;</code></td>
+<td><code>show bgp rib | received | exact &lt;prefix&gt;</code></td>
 <td>Show the received routes of exactly that prefix, every ADD-PATH path of it, from every selected peer (IPv4 and IPv6 prefix families)</td>
 </tr>
 <tr>
-<td><code>show bgp rib path &lt;pattern&gt;</code></td>
+<td><code>show bgp rib | path &lt;pattern&gt;</code></td>
 <td>Show the routes whose AS path matches the pattern: AS numbers joined by commas, with <code>^</code> first to tie them to the start of the path and <code>$</code> last to tie them to its end</td>
 </tr>
 <tr>
@@ -233,10 +233,16 @@ what <code>show | blame</code> reports for the changes the console commits.</p>
 </table>
 <!-- source: internal/component/bgp/plugins/cmd/rib/yang/ze-rib-cmd.yang -- show/bgp/rib, clear/bgp/rib; internal/component/bgp/plugins/cmd/rib/rib.go -- route filters -->
 <!-- source: internal/component/bgp/plugins/rib/rib_pipeline_covering.go -- receivedWalk, parseCoveringAddress, parseExactPrefix, walkConflictRefusal, refuseCoveringScope, refuseExactScope -->
-<p><code>covering</code> takes one address with no mask: <code>show bgp rib received covering 192.0.2.1</code> lists <code>192.0.2.0/24</code>, then <code>192.0.0.0/22</code>, then <code>0.0.0.0/0</code> when a
+<p>The scope, the filters and the reducers of a RIB read are pipe operations
+typed after the command, each behind its own <code>|</code>, never words of the command
+itself: <code>show bgp rib received</code> is refused, with <code>show bgp rib | received</code> as
+the line to type.</p>
+<p><code>covering</code> takes one address with no mask:
+<code>show bgp rib | received | covering 192.0.2.1</code> lists <code>192.0.2.0/24</code>, then <code>192.0.0.0/22</code>, then <code>0.0.0.0/0</code> when a
 peer holds all three. It reads received routes only, so on <code>sent</code> or on the
 default scope it is refused with the received form to type.</p>
-<p><code>exact</code> takes one prefix with its mask and answers that prefix alone: <code>show bgp rib received exact 192.0.0.0/2</code> lists the routes of <code>192.0.0.0/2</code> and not
+<p><code>exact</code> takes one prefix with its mask and answers that prefix alone:
+<code>show bgp rib | received | exact 192.0.0.0/2</code> lists the routes of <code>192.0.0.0/2</code> and not
 <code>192.0.0.0/24</code>. A bare address is refused with the <code>covering</code> form to type, and
 a prefix with host bits set is refused with its masked form (<code>10.0.0.1/8</code> names
 <code>10.0.0.0/8</code>). It reads received routes only, like <code>covering</code>, and one command
@@ -547,7 +553,7 @@ command. Each row also carries the command's one-line summary under
 <code>short-help</code> and its long explanation under <code>description</code>. Neither is derived
 from the other, and no row is cut at a sentence or a newline.</p>
 <!-- source: internal/component/command/pipe.go -- applyMatch, applyMatchLines -->
-<!-- source: internal/plugins/help/help_command.go -- operatorsFor, collectCommands -->
+<!-- source: internal/plugins/help/help_command.go -- pipeOperationsFor, collectCommands -->
 </li>
 <li>
 <p><strong>History</strong> is immediately browsable and published across sessions without
@@ -694,7 +700,7 @@ none says so.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
                 </div>
             </div>
         </footer>

@@ -15,8 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 39 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 39 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 39 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 53 | 53 of 99 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
-| Audit verdicts | 43 | of 39 mandatory requirements reviewed | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Tests shown to detect a fault | 79 | 79 of 99 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -55,7 +54,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
-| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
@@ -74,7 +73,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 99 |
 | Tests linked to requirements | 99 |
 | Recorded audit verdicts | 43 |
-| Fault test records | 53 |
+| Fault test records | 79 |
 | Summary | `rfc/short/rfc7854.md` |
 | Requirement table | `rfc/requirements/rfc7854.md` |
 | RFC text | `rfc/full/rfc7854.txt` |
@@ -87,9 +86,9 @@ Included in automatic checks: Ze implements the BMP sender and receiver under in
 
 **Area:** BMP v3
 
-**Test verification:** 25 of 39 MUST proven
+**Test verification:** 39 of 39 MUST proven
 
-**Evidence:** unit 25
+**Evidence:** unit 39
 
 **Unmet:** -
 
@@ -113,19 +112,19 @@ Included in automatic checks: Ze implements the BMP sender and receiver under in
 
 ## Figures
 
-- **MUST bar**: Ze verified 25, Tests awaiting verification 14
-- **Overview bar**: Ze MUST verified 25, SHOULD verified 3, Tests awaiting verification 15, Not assessed 5
+- **MUST bar**: Ze verified 39
+- **Overview bar**: Ze MUST verified 39, SHOULD verified 3, Tests awaiting verification 1, Not assessed 5
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 39 |
 | MUST rows kept (the MUST bar) | 39 |
-| Ze verified | 25 |
+| Ze verified | 39 |
 | OS verified | 0 |
-| Tests awaiting verification | 14 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -266,12 +265,12 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 It is 4 bytes long if an IPv4 address is carried in this field (with the 12 most significant bytes zero-filled) and 16 bytes long if an IPv6 address is carried in this field. (§4.2, Per-Peer Header)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. IPv4 lands in octets 12..15 with 0..11 zero; the IPv6 negative keeps its full address
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/plugins/bmp/event_test.go::TestParseIPIntoIPv6 moved. IPv4 lands in octets 12..15 with 0..11 zero; the IPv6 negative keeps its full address
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestParseIPIntoIPv6`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L400) | unit/verify | not verified |
-| positive | [`TestParseIPIntoIPv4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L386) | unit/verify | not verified |
+| negative | [`TestParseIPIntoIPv6`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L400) | unit/verify | mutant, verified |
+| positive | [`TestParseIPIntoIPv4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L386) | unit/verify | mutant, verified |
 
 ### [`RFC7854-x-6`](#rfc7854-x-6)
 
@@ -281,7 +280,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. coll
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestBMPSenderConnects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_test.go#L19) | unit/verify | not verified |
+| positive | [`TestBMPSenderConnects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_test.go#L19) | unit/verify | mutant, verified |
 
 ### [`RFC7854-x-7`](#rfc7854-x-7)
 
@@ -291,19 +290,19 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. live
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestBMPSenderInitiation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_test.go#L84) | unit/verify | not verified |
+| positive | [`TestBMPSenderInitiation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_test.go#L84) | unit/verify | mutant, verified |
 
 ### [`RFC7854-x-8`](#rfc7854-x-8)
 
 Sent OPEN Message: The full OPEN message transmitted by the monitored router to its peer. o Received OPEN Message: The full OPEN message received by the monitored router from its peer. (§4.10, Peer Up Notification)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 7854 Section 4.10: "Sent OPEN Message: The full OPEN message transmitted by the monitored router to its peer. o Received OPEN Message: The full OPEN message received by the monitored router from its peer." 238bdb62e9 (spec-refuse-instead-of-defaulting) changed PeerInfo/StructuredEvent PeerAS from uint32 to rpc.RemoteAS; the unit now writes rpc.RemoteASOf(N) where it wrote N, the same known peer AS, and no assertion, input byte or expected value changed (TestHandleSenderStatePeerUp, TestPeerUpOnCacheMissNeverReachesTheCollector). The second unit now builds its per-peer header through the test helper mustPeerHeader, which calls peerHeaderFromEvent and fails the test on its new refusal; the event has a known AS, so the written frame and the assertion that no Peer Up without both OPENs reaches the collector are the same. Verdict unchanged: enforced. Earlier judgement follows. Re-judged 2026-10-13 after the RFC 7854 Section 3.3 guard (no Peer Down for a peer never reported up). Positives unchanged: TestHandleSenderStatePeerUp and TestBMPSenderPeerUp echo both cached OPENs byte for byte. Negative TestPeerUpOnCacheMissNeverReachesTheCollector: up event with no OPEN cached, down event, then a Route Monitoring sentinel on the same FIFO queue; the first message read must be the sentinel, and a Peer Up is a named failure. Owner-approved marker change (sentinel replaces the Peer Down, which Section 3.3 no longer owes). Reviewer observed red with the guard removed (first message became the Peer Down), so the test still sees the whole queue head; a Peer Up emitted without both OPENs would be read first and fail.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/bmp/event_test.go::TestHandleSenderStatePeerUp moved. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 7854 Section 4.10: "Sent OPEN Message: The full OPEN message transmitted by the monitored router to its peer. o Received OPEN Message: The full OPEN message received by the monitored router from its peer." 238bdb62e9 (spec-refuse-instead-of-defaulting) changed PeerInfo/StructuredEvent PeerAS from uint32 to rpc.RemoteAS; the unit now writes rpc.RemoteASOf(N) where it wrote N, the same known peer AS, and no assertion, input byte or expected value changed (TestHandleSenderStatePeerUp, TestPeerUpOnCacheMissNeverReachesTheCollector). The second unit now builds its per-peer header through the test helper mustPeerHeader, which calls peerHeaderFromEvent and fails the test on its new refusal; the event has a known AS, so the written frame and the assertion that no Peer Up without both OPENs reaches the collector are the same. Verdict unchanged: enforced. Earlier judgement follows. Re-judged 2026-10-13 after the RFC 7854 Section 3.3 guard (no Peer Down for a peer never reported up). Positives unchanged: TestHandleSenderStatePeerUp and TestBMPSenderPeerUp echo both cached OPENs byte for byte. Negative TestPeerUpOnCacheMissNeverReachesTheCollector: up event with no OPEN cached, down event, then a Route Monitoring sentinel on the same FIFO queue; the first message read must be the sentinel, and a Peer Up is a named failure. Owner-approved marker change (sentinel replaces the Peer Down, which Section 3.3 no longer owes). Reviewer observed red with the guard removed (first message became the Peer Down), so the test still sees the whole queue head; a Peer Up emitted without both OPENs would be read first and fail.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestPeerUpOnCacheMissNeverReachesTheCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_peerup_openless_test.go#L43) | unit/verify | not verified |
+| negative | [`TestPeerUpOnCacheMissNeverReachesTheCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_peerup_openless_test.go#L43) | unit/verify | mutant, verified |
 | positive | [`TestHandleSenderStatePeerUp`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L139) | unit/verify | not verified |
-| positive | [`TestBMPSenderPeerUp`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_test.go#L211) | unit/verify | not verified |
+| positive | [`TestBMPSenderPeerUp`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_test.go#L211) | unit/verify | mutant, verified |
 
 ### [`RFC7854-x-9`](#rfc7854-x-9)
 
@@ -313,13 +312,13 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Rout
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestBMPSenderRouteMonitoring`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_test.go#L279) | unit/verify | not verified |
+| positive | [`TestBMPSenderRouteMonitoring`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_test.go#L279) | unit/verify | mutant, verified |
 
 ### [`RFC7854-x-10`](#rfc7854-x-10)
 
 Reason indicates why the session was closed. (§4.9, Peer Down Notification)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 7854 Section 4.9: "Reason indicates why the session was closed." 238bdb62e9 (spec-refuse-instead-of-defaulting) changed PeerInfo/StructuredEvent PeerAS from uint32 to rpc.RemoteAS; the unit now writes rpc.RemoteASOf(N) where it wrote N, the same known peer AS, and no assertion, input byte or expected value changed (TestHandleSenderStatePeerDown). The reason-byte assertions are unchanged. Verdict unchanged: enforced. Earlier judgement follows. Re-judged 2026-10-18 (independent auditor, after 4ef90497c6). Section 4.9: "Reason indicates why the session was closed." The earlier finding (no unit tied a Reason to the cause, and peerDownFor never emitted reason 4) is fixed and now proven at both decision points. Reactor: TestPeerCloseNamesTheTransportLoss drops TCP under a running Peer and asserts rpc.ReasonTCPFailure with Event 18; TestPeerCloseNamesTheCongestionTeardownLocal drives congestionTeardownPeer and asserts rpc.ReasonLocalClose with Event 18, so ze closing the transport itself is not reported as the remote doing it. BMP: TestRFC7854PeerDownTransportLossIsReason4 asserts Reason 4 ("This includes any unexpected termination of the transport session") with no Data for rpc.ReasonTCPFailure. TestHandleSenderStatePeerDown (reason 2 for a NOTIFICATION close with no cached PDU) and TestBMPSenderPeerDown (round-trips a chosen byte) remain weak on their own. Seam not covered by a tagged unit: apiStateObserver.OnPeerClosed and server/events.go copying the reason and CloseFSMEvent into the StructuredEvent. Single-polarity annotation holds: every Peer Down is written with a reason byte.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/bmp/event_test.go::TestHandleSenderStatePeerDown moved. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 7854 Section 4.9: "Reason indicates why the session was closed." 238bdb62e9 (spec-refuse-instead-of-defaulting) changed PeerInfo/StructuredEvent PeerAS from uint32 to rpc.RemoteAS; the unit now writes rpc.RemoteASOf(N) where it wrote N, the same known peer AS, and no assertion, input byte or expected value changed (TestHandleSenderStatePeerDown). The reason-byte assertions are unchanged. Verdict unchanged: enforced. Earlier judgement follows. Re-judged 2026-10-18 (independent auditor, after 4ef90497c6). Section 4.9: "Reason indicates why the session was closed." The earlier finding (no unit tied a Reason to the cause, and peerDownFor never emitted reason 4) is fixed and now proven at both decision points. Reactor: TestPeerCloseNamesTheTransportLoss drops TCP under a running Peer and asserts rpc.ReasonTCPFailure with Event 18; TestPeerCloseNamesTheCongestionTeardownLocal drives congestionTeardownPeer and asserts rpc.ReasonLocalClose with Event 18, so ze closing the transport itself is not reported as the remote doing it. BMP: TestRFC7854PeerDownTransportLossIsReason4 asserts Reason 4 ("This includes any unexpected termination of the transport session") with no Data for rpc.ReasonTCPFailure. TestHandleSenderStatePeerDown (reason 2 for a NOTIFICATION close with no cached PDU) and TestBMPSenderPeerDown (round-trips a chosen byte) remain weak on their own. Seam not covered by a tagged unit: apiStateObserver.OnPeerClosed and server/events.go copying the reason and CloseFSMEvent into the StructuredEvent. Single-polarity annotation holds: every Peer Down is written with a reason byte.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -348,7 +347,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. rece
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestBMPReceiverUnidirectional`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_test.go#L135) | unit/verify | not verified |
+| positive | [`TestBMPReceiverUnidirectional`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_test.go#L135) | unit/verify | mutant, verified |
 
 ### [`RFC7854-4.9-1`](#rfc7854-4.9-1)
 
@@ -370,8 +369,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. rece
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestBMPReceiverKeepsSessionWithoutTermination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_termination_absent_test.go#L9) | unit/verify | not verified |
-| positive | [`TestBMPReceiverClosesAfterTermination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_termination_close_test.go#L9) | unit/verify | not verified |
+| negative | [`TestBMPReceiverKeepsSessionWithoutTermination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_termination_absent_test.go#L9) | unit/verify | mutant, verified |
+| positive | [`TestBMPReceiverClosesAfterTermination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_termination_close_test.go#L9) | unit/verify | mutant, verified |
 
 ### [`RFC7854-x-15`](#rfc7854-x-15)
 
@@ -446,13 +445,13 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. afte
 
 Once it has sent all the routes for a given peer, it MUST send an End-of-RIB message for that peer (§3.3, Lifecycle of a BMP Session, and restated in the Route Monitoring section)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. after reconnect Peer Up precedes the surviving route and each family gets EOR after its routes; an incremental UPDATE and another collector's reconnect produce no EOR, and an incomplete snapshot never emits EOR
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854AdjReplayEndsEachFamily moved. after reconnect Peer Up precedes the surviving route and each family gets EOR after its routes; an incremental UPDATE and another collector's reconnect produce no EOR, and an incomplete snapshot never emits EOR
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7854AdjReplayCompletionIsSessionScoped`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_replay_test.go#L95) | unit/verify | not verified |
-| negative | [`TestRFC7854IncompleteAdjReplayCannotClaimCompletion`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_replay_test.go#L198) | unit/verify | not verified |
-| positive | [`TestRFC7854AdjReplayEndsEachFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_replay_test.go#L67) | unit/verify | not verified |
+| negative | [`TestRFC7854IncompleteAdjReplayCannotClaimCompletion`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_replay_test.go#L198) | unit/verify | mutant, verified |
+| positive | [`TestRFC7854AdjReplayEndsEachFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_replay_test.go#L67) | unit/verify | mutant, verified |
 
 ### [`RFC7854-4.1-1`](#rfc7854-4.1-1)
 
@@ -495,10 +494,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Init
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7854InitiationStringsKeepDuplicates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L32) | unit/verify | not verified |
-| negative | [`TestRFC7854PeerUpStringsKeepDuplicates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L55) | unit/verify | not verified |
-| positive | [`TestRFC7854InitiationStringsReportedInOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L21) | unit/verify | not verified |
-| positive | [`TestRFC7854PeerUpStringsReportedInOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L44) | unit/verify | not verified |
+| negative | [`TestRFC7854InitiationStringsKeepDuplicates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L32) | unit/verify | mutant, verified |
+| negative | [`TestRFC7854PeerUpStringsKeepDuplicates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L55) | unit/verify | mutant, verified |
+| positive | [`TestRFC7854InitiationStringsReportedInOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L21) | unit/verify | mutant, verified |
+| positive | [`TestRFC7854PeerUpStringsReportedInOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L44) | unit/verify | mutant, verified |
 
 ### [`RFC7854-4.4-2`](#rfc7854-4.4-2)
 
@@ -508,8 +507,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. sysD
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7854InitiationDescriptionChangesWithBuild`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L227) | unit/verify | not verified |
-| positive | [`TestRFC7854InitiationDescribesRunningSystem`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L205) | unit/verify | not verified |
+| negative | [`TestRFC7854InitiationDescriptionChangesWithBuild`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L227) | unit/verify | mutant, verified |
+| positive | [`TestRFC7854InitiationDescribesRunningSystem`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L205) | unit/verify | mutant, verified |
 
 ### [`RFC7854-4.4-3`](#rfc7854-4.4-3)
 
@@ -519,8 +518,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. sysN
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7854InitiationSystemNameChanges`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L188) | unit/verify | not verified |
-| positive | [`TestRFC7854InitiationUsesConfiguredSystemName`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L168) | unit/verify | not verified |
+| negative | [`TestRFC7854InitiationSystemNameChanges`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L188) | unit/verify | mutant, verified |
+| positive | [`TestRFC7854InitiationUsesConfiguredSystemName`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L168) | unit/verify | mutant, verified |
 
 ### [`RFC7854-4.5-1`](#rfc7854-4.5-1)
 
@@ -541,8 +540,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. live
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7854TerminationRequiresTwoByteReason`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L86) | unit/verify | not verified |
-| positive | [`TestRFC7854SenderTerminationCarriesReason`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L54) | unit/verify | not verified |
+| negative | [`TestRFC7854TerminationRequiresTwoByteReason`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L86) | unit/verify | mutant, verified |
+| positive | [`TestRFC7854SenderTerminationCarriesReason`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L54) | unit/verify | mutant, verified |
 
 ### [`RFC7854-4.5-4`](#rfc7854-4.5-4)
 
@@ -586,8 +585,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Erro
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7854ErroredMirrorWithoutPDUEndsSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L146) | unit/verify | not verified |
-| positive | [`TestRFC7854ErroredMirrorWithPDUAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L121) | unit/verify | not verified |
+| negative | [`TestRFC7854ErroredMirrorWithoutPDUEndsSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L146) | unit/verify | mutant, verified |
+| positive | [`TestRFC7854ErroredMirrorWithPDUAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L121) | unit/verify | mutant, verified |
 
 ### [`RFC7854-4.7-3`](#rfc7854-4.7-3)
 
@@ -659,12 +658,12 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 If the implementation is able to provide information about when routes were received, it MAY provide such information in the BMP Timestamp field. Otherwise, the BMP Timestamp field MUST be set to 0, indicating that time is not available. (§5, Route Monitoring)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. replayed routes and EORs with unknown receipt time carry 0.0; a known receipt time survives replay exactly
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854KnownRouteTimeSurvivesReplay, internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854UnknownRouteTimeIsZero moved. replayed routes and EORs with unknown receipt time carry 0.0; a known receipt time survives replay exactly
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7854KnownRouteTimeSurvivesReplay`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_replay_test.go#L142) | unit/verify | not verified |
-| positive | [`TestRFC7854UnknownRouteTimeIsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_replay_test.go#L122) | unit/verify | not verified |
+| negative | [`TestRFC7854KnownRouteTimeSurvivesReplay`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_replay_test.go#L142) | unit/verify | mutant, verified |
+| positive | [`TestRFC7854UnknownRouteTimeIsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_replay_test.go#L122) | unit/verify | mutant, verified |
 
 ### [`RFC7854-5-4`](#rfc7854-5-4)
 
@@ -681,7 +680,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Firs
 
 When a change occurs to a route, such as an attribute change, the router must update the monitoring station with the new attribute. (§5, Route Monitoring)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. rfc7854_replay_test.go::TestRFC7854ChangedAttributesCanReturnToEarlierValue receives one prefix three times with ORIGIN IGP, INCOMPLETE, IGP and requires exactly three Route Monitoring messages, each body byte-equal to the UPDATE carrying that ORIGIN, so a sender that suppresses or dedupes the return to an earlier value fails (record: handleSenderUpdate break observed red). One attribute (ORIGIN) samples 'such as an attribute change'. {single-polarity: positive} holds: every route change is compliant input to the router, which has no refusal path.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854ChangedAttributesCanReturnToEarlierValue moved. rfc7854_replay_test.go::TestRFC7854ChangedAttributesCanReturnToEarlierValue receives one prefix three times with ORIGIN IGP, INCOMPLETE, IGP and requires exactly three Route Monitoring messages, each body byte-equal to the UPDATE carrying that ORIGIN, so a sender that suppresses or dedupes the return to an earlier value fails (record: handleSenderUpdate break observed red). One attribute (ORIGIN) samples 'such as an attribute change'. {single-polarity: positive} holds: every route change is compliant input to the router, which has no refusal path.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|

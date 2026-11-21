@@ -24,9 +24,9 @@ the same configuration and demonstration fragments as this continuous recording.
 
 Migrate ExaBGP, operate the BGP dashboard, then configure, prove, diagnose and repair eight features in one continuous session without restarting Ze.
 
-[Download the asciicast recording](../../assets/demos/showcase.cast?v=a7426845c0) · [Plain-text transcript](../../assets/demos/showcase.txt?v=8bf911576a)
+[Download the asciicast recording](../../assets/demos/showcase.cast?v=f7b16356ea) · [Plain-text transcript](../../assets/demos/showcase.txt?v=0efc0de27d)
 
-Recorded with Ze 26.10.28 in a Linux namespace lab using Ze recorder. Duration: 32 minutes 57 seconds.
+Recorded with Ze 26.11.20 in a Linux namespace lab using Ze recorder. Duration: 21 minutes 57 seconds.
 
 ```console
 One running router, eight live configuration topics
@@ -80,9 +80,9 @@ ze> exit
 
 RPKI live configuration, outage diagnosis and recovery:
 $ ze-demo card topic-rpki lab
-ze# load file absolute merge /src/demos/terminal/topics/rpki/1-cache.conf
-ze# load file absolute merge /src/demos/terminal/topics/rpki/2-policy.conf
-ze# load file absolute merge /src/demos/terminal/topics/rpki/3-attach.conf
+ze# load file absolute merge topics/rpki/1-cache.conf
+ze# load file absolute merge topics/rpki/2-policy.conf
+ze# load file absolute merge topics/rpki/3-attach.conf
 ze# show | compare
 ze# commit now
 $ ze cli -c 'show bgp rpki status | yaml | no-more'
@@ -94,25 +94,25 @@ $ ze cli -c 'show bgp rpki status | yaml | no-more'
 
 IRR live configuration, wrong AS-SET and repaired route decisions:
 $ ze-demo card topic-irr lab
-ze# load file absolute merge /src/demos/terminal/topics/irr/1-server.conf
-ze# load file absolute merge /src/demos/terminal/topics/irr/2-as-set.conf
-ze# load file absolute merge /src/demos/terminal/topics/irr/3-import.conf
+ze# load file absolute merge topics/irr/1-server.conf
+ze# load file absolute merge topics/irr/2-as-set.conf
+ze# load file absolute merge topics/irr/3-import.conf
 ze# show | compare
 ze# commit now
 $ ze cli -c 'show bgp irr check customer 10.0.0.0/24 | yaml | no-more'
-ze# load file absolute merge /src/demos/terminal/topics/irr/4-wrong-as-set.conf
+ze# load file absolute merge topics/irr/4-wrong-as-set.conf
 ze# commit now
 $ ze cli -c 'show bgp irr prefix customer | yaml | no-more'
-ze# load file absolute merge /src/demos/terminal/topics/irr/2-as-set.conf
+ze# load file absolute merge topics/irr/2-as-set.conf
 ze# commit now
-$ ze cli -c 'update bgp irr as-set AS-TEST | yaml | no-more'
+$ ze cli -c 'update irr as-set AS-TEST | yaml | no-more'
 $ ze-demo run showcase-lab control customer reannounce
 $ ze cli -c 'show bgp adj-rib-in | no-more'
 
 BFD opt-in, link failure and session recovery:
 $ ze-demo card topic-bfd overview
-ze# load file absolute merge /src/demos/terminal/topics/bfd/1-profile.conf
-ze# load file absolute merge /src/demos/terminal/topics/bfd/2-peer.conf
+ze# load file absolute merge topics/bfd/1-profile.conf
+ze# load file absolute merge topics/bfd/2-peer.conf
 ze# show | compare
 ze# commit now
 $ ze cli -c 'show bfd session address 172.29.0.2 | no-more'
@@ -123,37 +123,37 @@ $ ze cli -c 'show bfd session address 172.29.0.2 | no-more'
 
 OSPF adjacency, Hello mismatch diagnosis and recovery:
 $ ze-demo card topic-ospf overview
-ze# load file absolute merge /src/demos/terminal/topics/ospf/1-area.conf
-ze# load file absolute merge /src/demos/terminal/topics/ospf/2-interface.conf
+ze# load file absolute merge topics/ospf/1-area.conf
+ze# load file absolute merge topics/ospf/2-interface.conf
 ze# show | compare
 ze# commit now
 $ ze cli -c 'show ospf neighbor detail | no-more'
 $ ze cli -c 'show ospf route | no-more'
-ze# load file absolute merge /src/demos/terminal/topics/ospf/3-mismatch.conf
+ze# load file absolute merge topics/ospf/3-mismatch.conf
 ze# commit now
 $ ze cli -c 'show metrics name ze_ospf_packets_dropped_total label interface frr0 label reason hello-interval | no-more'
-ze# load file absolute merge /src/demos/terminal/topics/ospf/4-recovery.conf
+ze# load file absolute merge topics/ospf/4-recovery.conf
 ze# commit now
 $ ze cli -c 'show ospf neighbor detail | no-more'
 $ ze cli -c 'show ospf route | no-more'
 
 IPsec live tunnel, proposal mismatch and protected traffic recovery:
 $ ze-demo card topic-ipsec lab
-ze# load file absolute merge /src/demos/terminal/topics/ipsec/1-ike.conf
-ze# load file absolute merge /src/demos/terminal/topics/ipsec/2-esp.conf
-ze# load file absolute merge /src/demos/terminal/topics/ipsec/3-peer.conf
-ze# load file absolute merge /src/demos/terminal/topics/ipsec/4-xfrm.conf
+ze# load file absolute merge topics/ipsec/1-ike.conf
+ze# load file absolute merge topics/ipsec/2-esp.conf
+ze# load file absolute merge topics/ipsec/3-peer.conf
+ze# load file absolute merge topics/ipsec/4-xfrm.conf
 ze# show | compare
 ze# commit now
 $ ze cli -c 'show vpn ipsec dataplane sa | no-more'
 $ ze-demo run showcase-lab control vpn ping
-ze# load file absolute merge /src/demos/terminal/topics/ipsec/5-mismatch.conf
+ze# load file absolute merge topics/ipsec/5-mismatch.conf
 ze# commit now
 $ ze cli -c 'show vpn ipsec peer name responder | no-more'
 $ ze cli -c 'show log recent level warn | match NO_PROPOSAL_CHOSEN | last 1 | yaml | no-more'
 $ ze cli -c 'show vpn ipsec dataplane sa | yaml | no-more'
 $ ze cli -c 'show vpn ipsec dataplane drift | yaml | no-more'
-ze# load file absolute merge /src/demos/terminal/topics/ipsec/2-esp.conf
+ze# load file absolute merge topics/ipsec/2-esp.conf
 ze# commit now
 $ ze cli -c 'clear vpn ipsec sa peer responder | no-more'
 $ ze-demo run showcase-lab control vpn ping
@@ -161,8 +161,8 @@ $ ze cli -c 'show vpn ipsec dataplane sa | no-more'
 
 VRRP tracked preference, reduced-priority takeover and recovery:
 $ ze-demo card topic-vrrp overview
-ze# load file absolute merge /src/demos/terminal/topics/vrrp/1-group.conf
-ze# load file absolute merge /src/demos/terminal/topics/vrrp/2-tracking.conf
+ze# load file absolute merge topics/vrrp/1-group.conf
+ze# load file absolute merge topics/vrrp/2-tracking.conf
 ze# show | compare
 ze# commit now
 $ ze cli -c 'show vrrp interface name zeptrk0 | no-more'
@@ -176,8 +176,8 @@ $ ze cli -c 'show vrrp statistics | no-more'
 
 Traffic accounting, heavier senders and settled counters:
 $ ze-demo card topic-traffic overview
-ze# load file absolute merge /src/demos/terminal/topics/traffic/1-accounting.conf
-ze# load file absolute merge /src/demos/terminal/topics/traffic/2-interface.conf
+ze# load file absolute merge topics/traffic/1-accounting.conf
+ze# load file absolute merge topics/traffic/2-interface.conf
 ze# show | compare
 ze# commit now
 $ ip netns exec traffic-peer ping -c 3 -W 2 10.77.0.1
@@ -189,14 +189,14 @@ $ ze cli -c 'show traffic usage name traffic0 | no-more'
 
 Confirmed commit rollback and explicit acceptance:
 $ ze-demo card topic-commit-confirmed lab
-ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf
+ze# load file absolute merge topics/commit-confirmed/1-trial-host.conf
 ze# show | compare
-ze# commit confirmed 8
+ze# commit confirmed 15
 ze# show system host
 ze# show system host
 ze# show | compare
 ze# show | changes
-ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf
+ze# load file absolute merge topics/commit-confirmed/2-confirmed-host.conf
 ze# show | compare
 ze# commit confirmed 15
 ze# commit accept
@@ -215,9 +215,9 @@ $ ze-demo card showcase recap
 
 Use type-ahead filtering and drill-down navigation in Ze's interactive command launcher.
 
-[Download the asciicast recording](../../assets/demos/launcher.cast?v=34f1e25629) · [Plain-text transcript](../../assets/demos/launcher.txt?v=0399dbc59f)
+[Download the asciicast recording](../../assets/demos/launcher.cast?v=3e0679653a) · [Plain-text transcript](../../assets/demos/launcher.txt?v=0399dbc59f)
 
-Recorded with Ze 26.10.09 on macOS and Linux using Ze recorder. Duration: 58 seconds.
+Recorded with Ze 26.11.20 on macOS and Linux using Ze recorder. Duration: 1 minute 57 seconds.
 
 ```console
 $ ze
@@ -235,9 +235,9 @@ Press Escape to move back through the menu and return to the shell.
 
 Connect to Ze over SSH, open the live BGP dashboard, sort peers, and inspect one session.
 
-[Download the asciicast recording](../../assets/demos/cli-dashboard.cast?v=daa8ddc3ec) · [Plain-text transcript](../../assets/demos/cli-dashboard.txt?v=86542601eb)
+[Download the asciicast recording](../../assets/demos/cli-dashboard.cast?v=ded54531e5) · [Plain-text transcript](../../assets/demos/cli-dashboard.txt?v=86542601eb)
 
-Recorded with Ze 26.10.09 on macOS and Linux using Ze recorder. Duration: 45 seconds.
+Recorded with Ze 26.11.20 on macOS and Linux using Ze recorder. Duration: 37 seconds.
 
 ```console
 $ ssh ze-demo
@@ -254,9 +254,9 @@ The dashboard polls three local BGP sessions. Press "s" to sort by the next colu
 
 Create the ZeFS database, edit the active configuration through Ze's SSH management plane, and verify the committed setting.
 
-[Download the asciicast recording](../../assets/demos/zefs-config.cast?v=bd9dbca818) · [Plain-text transcript](../../assets/demos/zefs-config.txt?v=586e5c6ada)
+[Download the asciicast recording](../../assets/demos/zefs-config.cast?v=d5973a2454) · [Plain-text transcript](../../assets/demos/zefs-config.txt?v=2674c1918e)
 
-Recorded with Ze 26.10.09 on macOS and Linux using Ze recorder. Duration: 3 minutes 7 seconds.
+Recorded with Ze 26.11.20 on macOS and Linux using Ze recorder. Duration: 2 minutes 16 seconds.
 
 ```console
 $ ze init
@@ -276,7 +276,7 @@ $ ssh ze-demo show bgp
 $ ssh ze-demo
 ze# set environment cli format default table
 ze# show | compare
-ze# commit
+ze# commit now
 Session committed
 ze# exit
 ze> exit
@@ -298,9 +298,9 @@ $ ze cli -c 'show bgp | raw' | ze pipe text
 
 Run an allowed NOC command, then show Ze explicitly refuse a known state-changing command.
 
-[Download the asciicast recording](../../assets/demos/rbac.cast?v=ad89e9aeef) · [Plain-text transcript](../../assets/demos/rbac.txt?v=939addc51a)
+[Download the asciicast recording](../../assets/demos/rbac.cast?v=79bdeaa07a) · [Plain-text transcript](../../assets/demos/rbac.txt?v=d2a17306f1)
 
-Recorded with Ze 26.10.09 on macOS and Linux using Ze recorder. Duration: 1 minute 13 seconds.
+Recorded with Ze 26.11.20 on macOS and Linux using Ze recorder. Duration: 1 minute 36 seconds.
 
 ```console
 $ ze config show rbac.conf system authorization profile read-only
@@ -316,7 +316,7 @@ profile read-only
 $ ze cli --user noc -c 'show version'
 version: ze 26.07.18
 
-$ ze cli --user noc -c 'clear interface counters'
+$ ze cli --user noc -c 'clear interface counters all'
 error: command restricted by access control
 
 The recording displays the command restriction and the NOC user's profile binding before exercising both paths. The daemon allows `show version`, then rejects the matching `clear` command before execution.
@@ -329,9 +329,9 @@ The recording displays the command restriction and the NOC user's profile bindin
 
 Run Ze's live traceroute through a deterministic Linux network-namespace lab.
 
-[Download the asciicast recording](../../assets/demos/traceroute.cast?v=60ee2d3f6b) · [Plain-text transcript](../../assets/demos/traceroute.txt?v=2b9d95cc69)
+[Download the asciicast recording](../../assets/demos/traceroute.cast?v=62346c593a) · [Plain-text transcript](../../assets/demos/traceroute.txt?v=2b9d95cc69)
 
-Recorded with Ze 26.10.09 in a Linux namespace lab using Ze recorder. Duration: 46 seconds.
+Recorded with Ze 26.11.20 in a Linux namespace lab using Ze recorder. Duration: 33 seconds.
 
 ```console
 $ ssh ze-demo
@@ -374,15 +374,15 @@ Expected result: Ze commits the browser user's isolated draft and the active YAN
 
 Load a risky hostname change over SSH, observe automatic rollback, then accept a second change and prove it persists on the same running router.
 
-[Download the asciicast recording](../../assets/demos/commit-confirmed.cast?v=d61a5f86c6) · [Plain-text transcript](../../assets/demos/commit-confirmed.txt?v=bba89459a1)
+[Download the asciicast recording](../../assets/demos/commit-confirmed.cast?v=8a0a534d94) · [Plain-text transcript](../../assets/demos/commit-confirmed.txt?v=74b77a20fb)
 
-Recorded with Ze 26.10.28 in a Linux namespace lab using Ze recorder. Duration: 2 minutes 38 seconds.
+Recorded with Ze 26.11.20 in a Linux namespace lab using Ze recorder. Duration: 1 minute 52 seconds.
 
 ```console
 Commit confirmed: rollback and acceptance on the running router
 
 Connect with sshpass -e ssh ze-demo. The SSH editor starts from edge-original.
-Load /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf, review
+Load topics/commit-confirmed/1-trial-host.conf, review
 show | compare, then run commit confirmed 15. Ze's timeout is in seconds,
 unlike Junos commit confirmed, whose timeout is in minutes.
 
@@ -390,7 +390,7 @@ $ ze-demo card topic-commit-confirmed lab
 $ ze-demo card topic-commit-confirmed overview
 $ sshpass -e ssh ze-demo
 ze# show system host
-ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf
+ze# load file absolute merge topics/commit-confirmed/1-trial-host.conf
 ze# show | compare
 ze# commit confirmed 15
 
@@ -406,11 +406,11 @@ ze# show system host
 ze# show | compare
 ze# show | changes
 
-Load /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf,
+Load topics/commit-confirmed/2-confirmed-host.conf,
 compare, commit confirmed 15, then commit accept. Wait beyond the fifteen-second
 deadline and inspect edge-confirmed again. The accepted value must remain.
 
-ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf
+ze# load file absolute merge topics/commit-confirmed/2-confirmed-host.conf
 ze# show | compare
 ze# commit confirmed 15
 ze# commit accept
@@ -440,9 +440,9 @@ must succeed before this source is published as a recording.
 
 Commit the RTR cache and validation binding live, distinguish Valid, NotFound and ineligible Invalid routes, diagnose a stopped cache, and restore synchronization.
 
-[Download the asciicast recording](../../assets/demos/rpki.cast?v=c8eada776e) · [Plain-text transcript](../../assets/demos/rpki.txt?v=8853dceca8)
+[Download the asciicast recording](../../assets/demos/rpki.cast?v=b62e61c1ee) · [Plain-text transcript](../../assets/demos/rpki.txt?v=37b95d3e88)
 
-Recorded with Ze 26.10.28 in a Linux namespace lab using Ze recorder. Duration: 3 minutes 57 seconds.
+Recorded with Ze 26.11.20 in a Linux namespace lab using Ze recorder. Duration: 2 minutes 35 seconds.
 
 ```console
 RPKI: live policy, failure diagnosis and recovery
@@ -458,9 +458,9 @@ $ ze cli -c 'show bgp adj-rib-in | no-more'
 In the SSH editor, load the cache, validation policy and transit binding sections:
 $ ze-demo card topic-rpki overview
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/rpki/1-cache.conf
-ze# load file absolute merge /src/demos/terminal/topics/rpki/2-policy.conf
-ze# load file absolute merge /src/demos/terminal/topics/rpki/3-attach.conf
+ze# load file absolute merge topics/rpki/1-cache.conf
+ze# load file absolute merge topics/rpki/2-policy.conf
+ze# load file absolute merge topics/rpki/3-attach.conf
 ze# show | compare
 ze# commit now
 ze# exit
@@ -514,9 +514,9 @@ must succeed before this source is published as a recording.
 
 Load the local test IRR server, AS-SET and import policy over SSH, prove route acceptance and refusal, then diagnose and repair a wrong AS-SET without restarting Ze.
 
-[Download the asciicast recording](../../assets/demos/irr-filter.cast?v=9312a6df11) · [Plain-text transcript](../../assets/demos/irr-filter.txt?v=46836a5e6e)
+[Download the asciicast recording](../../assets/demos/irr-filter.cast?v=20eb104aee) · [Plain-text transcript](../../assets/demos/irr-filter.txt?v=cc64033bb9)
 
-Recorded with Ze 26.10.28 in a Linux namespace lab using Ze recorder. Duration: 4 minutes 57 seconds.
+Recorded with Ze 26.11.20 in a Linux namespace lab using Ze recorder. Duration: 3 minutes 36 seconds.
 
 ```console
 IRR: live import filtering and repair
@@ -531,9 +531,9 @@ $ ze cli -c 'show bgp irr | yaml | no-more'
 Load three sections in one SSH candidate:
 $ ze-demo card topic-irr overview
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/irr/1-server.conf
-ze# load file absolute merge /src/demos/terminal/topics/irr/2-as-set.conf
-ze# load file absolute merge /src/demos/terminal/topics/irr/3-import.conf
+ze# load file absolute merge topics/irr/1-server.conf
+ze# load file absolute merge topics/irr/2-as-set.conf
+ze# load file absolute merge topics/irr/3-import.conf
 ze# show | compare
 ze# commit now
 ze# exit
@@ -559,7 +559,7 @@ control arrives can the absence of both 10.0 routes prove refusal, not delay.
 
 $ ze-demo card topic-irr failure
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/irr/4-wrong-as-set.conf
+ze# load file absolute merge topics/irr/4-wrong-as-set.conf
 ze# show | compare
 ze# commit now
 ze# exit
@@ -568,19 +568,19 @@ $ ze cli -c 'show bgp irr check customer 10.0.0.0/24 | yaml | no-more'
 $ ze cli -c 'show bgp irr prefix customer | yaml | no-more'
 $ ze cli -c 'show bgp adj-rib-in | no-more'
 
-Load 2-as-set.conf again and commit the repair. Run update bgp irr as-set
+Load 2-as-set.conf again and commit the repair. Run update irr as-set
 AS-TEST, then ze-demo run showcase-lab control customer reannounce. Inspect
 the accepted decision, 10.0.0.0/24 and its final 10.0.1.0/24 control again.
 The wrong-set control and outside route must be absent. Ze stays running.
 
 $ ze-demo card topic-irr recovery
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/irr/2-as-set.conf
+ze# load file absolute merge topics/irr/2-as-set.conf
 ze# show | compare
 ze# commit now
 ze# exit
 ze> exit
-$ ze cli -c 'update bgp irr as-set AS-TEST | yaml | no-more'
+$ ze cli -c 'update irr as-set AS-TEST | yaml | no-more'
 $ ze-demo run showcase-lab control customer reannounce
 $ ze cli -c 'show bgp irr check customer 10.0.0.0/24 | yaml | no-more'
 $ ze cli -c 'show bgp adj-rib-in | no-more'
@@ -596,13 +596,13 @@ must succeed before this source is published as a recording.
 
 Inject one route, inspect BGP best-path selection, and verify Linux installed it with Ze's route protocol ID. Validation also proves withdrawal removes it.
 
-[Download the asciicast recording](../../assets/demos/rib-fib.cast?v=01fa66b2f1) · [Plain-text transcript](../../assets/demos/rib-fib.txt?v=ca05c09bc8)
+[Download the asciicast recording](../../assets/demos/rib-fib.cast?v=8353460a42) · [Plain-text transcript](../../assets/demos/rib-fib.txt?v=d00d6fdb7c)
 
-Recorded with Ze 26.10.09 in a Linux namespace lab using Ze recorder. Duration: 52 seconds.
+Recorded with Ze 26.11.20 in a Linux namespace lab using Ze recorder. Duration: 1 minute 19 seconds.
 
 ```console
 $ ze cli -c 'request bgp rib inject 192.0.2.10 ipv4/unicast 198.51.100.0/24 origin igp nexthop 127.0.0.1 med 42'
-$ ze cli -c 'show bgp rib best prefix 198.51.100.0/24 | no-more'
+$ ze cli -c 'show bgp rib best | prefix 198.51.100.0/24 | no-more'
 198.51.100.0/24
 $ ip -details route show exact 198.51.100.0/24
 198.51.100.0/24 ... proto 250
@@ -627,9 +627,9 @@ The route enters Ze's BGP RIB, wins best-path selection, reaches the protocol-in
 
 Show one BGP peer as hierarchical blocks and set commands, round-trip between both with identical canonical output, then compose match and count over Ze's plugin registry.
 
-[Download the asciicast recording](../../assets/demos/config-views.cast?v=74dca8e268) · [Plain-text transcript](../../assets/demos/config-views.txt?v=9f1109a1a7)
+[Download the asciicast recording](../../assets/demos/config-views.cast?v=d6617d0c82) · [Plain-text transcript](../../assets/demos/config-views.txt?v=9f1109a1a7)
 
-Recorded with Ze 26.10.09 on macOS and Linux using Ze recorder. Duration: 1 minute 28 seconds.
+Recorded with Ze 26.11.20 on macOS and Linux using Ze recorder. Duration: 1 minute 57 seconds.
 
 ```console
 $ ze config show router.conf bgp peer transit-a
@@ -677,9 +677,9 @@ Hierarchical and set syntax are alternate presentations of the same parsed confi
 
 Commit BFD onto an established FRR BGP peer, cut the link, inspect diagnostics and peer history, then restore both sessions without restarting Ze.
 
-[Download the asciicast recording](../../assets/demos/bfd-failover.cast?v=a134574836) · [Plain-text transcript](../../assets/demos/bfd-failover.txt?v=1d2f779b15)
+[Download the asciicast recording](../../assets/demos/bfd-failover.cast?v=041056d852) · [Plain-text transcript](../../assets/demos/bfd-failover.txt?v=7f978ea5b7)
 
-Recorded with Ze 26.10.28 in a Linux namespace lab using Ze recorder. Duration: 3 minutes 5 seconds.
+Recorded with Ze 26.11.20 in a Linux namespace lab using Ze recorder. Duration: 2 minutes 2 seconds.
 
 ```console
 BFD live opt-in and link-failure walkthrough
@@ -692,8 +692,8 @@ $ ip netns exec showcase-frr vtysh -c 'show bgp neighbor 172.29.0.1 json'
 
 Load: profile fast and peer frr BFD binding, section by section in one SSH candidate.
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/bfd/1-profile.conf
-ze# load file absolute merge /src/demos/terminal/topics/bfd/2-peer.conf
+ze# load file absolute merge topics/bfd/1-profile.conf
+ze# load file absolute merge topics/bfd/2-peer.conf
 ze# show | compare
 ze# commit now
 
@@ -728,9 +728,9 @@ $ ze-demo card topic-bfd recap
 
 Commit OSPF live, follow a Full neighbor through the router database to its loopback route, then diagnose and repair mismatched Hello timers.
 
-[Download the asciicast recording](../../assets/demos/ospf-adjacency.cast?v=a6fe1973c6) · [Plain-text transcript](../../assets/demos/ospf-adjacency.txt?v=fc63b795c8)
+[Download the asciicast recording](../../assets/demos/ospf-adjacency.cast?v=9f6571a72e) · [Plain-text transcript](../../assets/demos/ospf-adjacency.txt?v=47ced42968)
 
-Recorded with Ze 26.10.28 in a Linux namespace lab using Ze recorder. Duration: 4 minutes 24 seconds.
+Recorded with Ze 26.11.20 in a Linux namespace lab using Ze recorder. Duration: 2 minutes 57 seconds.
 
 ```console
 OSPF live adjacency and Hello-mismatch walkthrough
@@ -742,8 +742,8 @@ $ ze cli -c 'show ospf neighbor | no-more'
 
 Load: area 0 and broadcast interface timers 10/40 in one SSH candidate.
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/ospf/1-area.conf
-ze# load file absolute merge /src/demos/terminal/topics/ospf/2-interface.conf
+ze# load file absolute merge topics/ospf/1-area.conf
+ze# load file absolute merge topics/ospf/2-interface.conf
 ze# show | compare
 ze# commit now
 
@@ -757,7 +757,7 @@ $ ze cli -c 'show ospf route | no-more'
 Failure: commit Hello interval 20; inspect current interface timers, lost adjacency/route and the hello-interval packet-drop metric.
 $ ze-demo card topic-ospf failure
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/ospf/3-mismatch.conf
+ze# load file absolute merge topics/ospf/3-mismatch.conf
 ze# show | compare
 ze# commit now
 $ ze cli -c 'show ospf neighbor detail | no-more'
@@ -768,7 +768,7 @@ $ ze cli -c 'show ospf route | no-more'
 Fix: commit interval 10, require all three protocol observations again, and print the unchanged shown PID.
 $ ze-demo card topic-ospf fix
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/ospf/4-recovery.conf
+ze# load file absolute merge topics/ospf/4-recovery.conf
 ze# show | compare
 ze# commit now
 $ ze cli -c 'show ospf neighbor detail | no-more'
@@ -785,9 +785,9 @@ $ ze-demo card topic-ospf recap
 
 Commit IKE, ESP, selectors and XFRM routing over SSH, prove kernel SPIs with protected traffic, diagnose an ESP mismatch, and restore the tunnel.
 
-[Download the asciicast recording](../../assets/demos/ipsec.cast?v=95f50fd1c5) · [Plain-text transcript](../../assets/demos/ipsec.txt?v=f5fa147589)
+[Download the asciicast recording](../../assets/demos/ipsec.cast?v=55dd94b16e) · [Plain-text transcript](../../assets/demos/ipsec.txt?v=a76f3239ba)
 
-Recorded with Ze 26.10.28 in a Linux namespace lab using Ze recorder. Duration: 5 minutes 33 seconds.
+Recorded with Ze 26.11.20 in a Linux namespace lab using Ze recorder. Duration: 3 minutes 37 seconds.
 
 ```console
 Native IKEv2 and Linux IPsec, configured live
@@ -805,10 +805,10 @@ commit now. The sections define IKE, ESP, authenticated peer and selectors,
 and the route through vpn-xfrm (if-id 42).
 
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/ipsec/1-ike.conf
-ze# load file absolute merge /src/demos/terminal/topics/ipsec/2-esp.conf
-ze# load file absolute merge /src/demos/terminal/topics/ipsec/3-peer.conf
-ze# load file absolute merge /src/demos/terminal/topics/ipsec/4-xfrm.conf
+ze# load file absolute merge topics/ipsec/1-ike.conf
+ze# load file absolute merge topics/ipsec/2-esp.conf
+ze# load file absolute merge topics/ipsec/3-peer.conf
+ze# load file absolute merge topics/ipsec/4-xfrm.conf
 ze# show | compare
 ze# commit now
 ze# exit
@@ -829,7 +829,7 @@ the far end offers AES-256. IKE can stay established while no Child SA exists.
 
 $ ze-demo card topic-ipsec failure
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/ipsec/5-mismatch.conf
+ze# load file absolute merge topics/ipsec/5-mismatch.conf
 ze# show | compare
 ze# commit now
 ze# exit
@@ -849,7 +849,7 @@ Verify the new kernel SPIs, successful protected ping and increasing packets-in.
 The shown Ze process is never restarted.
 
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/ipsec/2-esp.conf
+ze# load file absolute merge topics/ipsec/2-esp.conf
 ze# show | compare
 ze# commit now
 ze# exit
@@ -874,9 +874,9 @@ https://www.juniper.net/documentation/us/en/software/junos/cli-reference/topics/
 
 Enable eBPF accounting on the running router, attribute an unexpected ICMP and HTTP burst to its source and port, stop the sender, and observe recovery.
 
-[Download the asciicast recording](../../assets/demos/traffic-anomaly.cast?v=e0f89040c5) · [Plain-text transcript](../../assets/demos/traffic-anomaly.txt?v=8c33b2924c)
+[Download the asciicast recording](../../assets/demos/traffic-anomaly.cast?v=03bee0a1e6) · [Plain-text transcript](../../assets/demos/traffic-anomaly.txt?v=5204b50e70)
 
-Recorded with Ze 26.10.28 in a Linux namespace lab using Ze recorder. Duration: 3 minutes 9 seconds.
+Recorded with Ze 26.11.20 in a Linux namespace lab using Ze recorder. Duration: 2 minutes 7 seconds.
 
 ```console
 Traffic usage live attribution walkthrough
@@ -888,8 +888,8 @@ $ ze cli -c 'show traffic usage | no-more'
 
 Load: bounded eBPF accounting and traffic0 attachment in one SSH candidate.
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/traffic/1-accounting.conf
-ze# load file absolute merge /src/demos/terminal/topics/traffic/2-interface.conf
+ze# load file absolute merge topics/traffic/1-accounting.conf
+ze# load file absolute merge topics/traffic/2-interface.conf
 ze# show | compare
 ze# commit now
 
@@ -925,9 +925,9 @@ $ ze-demo card topic-traffic recap
 
 Commit VRRP and uplink tracking live, observe priority reduction and backup demotion, then prove master failover and recovery while the shown Ze stays running.
 
-[Download the asciicast recording](../../assets/demos/vrrp-tracking.cast?v=682f44f6d3) · [Plain-text transcript](../../assets/demos/vrrp-tracking.txt?v=d48d9109d5)
+[Download the asciicast recording](../../assets/demos/vrrp-tracking.cast?v=8f94901773) · [Plain-text transcript](../../assets/demos/vrrp-tracking.txt?v=c78f20a487)
 
-Recorded with Ze 26.10.28 in a Linux namespace lab using Ze recorder. Duration: 3 minutes 28 seconds.
+Recorded with Ze 26.11.20 in a Linux namespace lab using Ze recorder. Duration: 2 minutes 28 seconds.
 
 ```console
 VRRP tracking and peer-failover walkthrough
@@ -939,8 +939,8 @@ $ ze cli -c 'show vrrp | no-more'
 
 Load: gateway group and tracked zetrk1 decrement 150 in one SSH candidate.
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/vrrp/1-group.conf
-ze# load file absolute merge /src/demos/terminal/topics/vrrp/2-tracking.conf
+ze# load file absolute merge topics/vrrp/1-group.conf
+ze# load file absolute merge topics/vrrp/2-tracking.conf
 ze# show | compare
 ze# commit now
 
@@ -985,9 +985,9 @@ $ ze-demo card topic-vrrp recap
 
 Use Ze's offline command fallback to read the complete kernel, CPU, and memory inventory in human-readable structured output.
 
-[Download the asciicast recording](../../assets/demos/host-inventory.cast?v=914610af44) · [Plain-text transcript](../../assets/demos/host-inventory.txt?v=5b221c4c0f)
+[Download the asciicast recording](../../assets/demos/host-inventory.cast?v=a255ffa316) · [Plain-text transcript](../../assets/demos/host-inventory.txt?v=5b221c4c0f)
 
-Recorded with Ze 26.10.09 in a Linux namespace lab using Ze recorder. Duration: 39 seconds.
+Recorded with Ze 26.11.20 in a Linux namespace lab using Ze recorder. Duration: 1 minute 13 seconds.
 
 ```console
 An operator needs to inspect an unfamiliar Linux host before starting Ze.
@@ -1011,9 +1011,9 @@ The commands work without a running Ze daemon. Every field returned by `ze show 
 
 Inspect and validate a BGP group, then use Ze's dependency graph to prove which peers inherit the value before scheduling maintenance.
 
-[Download the asciicast recording](../../assets/demos/config-graph.cast?v=4c952f92ac) · [Plain-text transcript](../../assets/demos/config-graph.txt?v=7a64ac5a0c)
+[Download the asciicast recording](../../assets/demos/config-graph.cast?v=c0c287ab94) · [Plain-text transcript](../../assets/demos/config-graph.txt?v=7a64ac5a0c)
 
-Recorded with Ze 26.10.09 on macOS and Linux using Ze recorder. Duration: 1 minute 13 seconds.
+Recorded with Ze 26.11.20 on macOS and Linux using Ze recorder. Duration: 1 minute 34 seconds.
 
 ```console
 An operator needs to change the transit group's remote ASN and identify every peer that inherits it before scheduling maintenance.

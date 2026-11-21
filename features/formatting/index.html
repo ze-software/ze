@@ -74,7 +74,7 @@ operator the command's answer cannot support is refused by name rather than
 answered wrongly. A command whose answer is text or bytes, such as <code>show data cat</code> returning the bytes of one stored file, declares the <code>blob</code> shape: it
 prints the bytes unchanged, <code>| json</code> shows them inside an envelope that names
 their encoding, and every row operator is refused by name.</p>
-<!-- source: internal/plugins/help/help_command.go -- operatorsFor, pathHasOnlyPlainLocalHandler -->
+<!-- source: internal/plugins/help/help_command.go -- pipeOperationsFor, daemonHandlesPath -->
 <!-- source: internal/component/command/pipe.go -- validateDeclaredShape -->
 <h3 id="the-simple-way-set-a-default-once">The simple way: set a default once</h3>
 <p><code>set cli format &lt;name&gt;</code> in the interactive CLI picks a default so every
@@ -125,6 +125,13 @@ show bgp peer list | first 5
 </code></pre>
 <p>A chain takes one format operator: <code>json</code>, <code>ndjson</code>, <code>table</code>, <code>text</code>, <code>yaml</code>
 or <code>raw</code>. Two together are rejected. Filter and display operators chain freely.</p>
+<p>A value in double quotes is one argument, after a pipe as before it:
+<code>show log recent | match "link down"</code> matches the two words together, and
+<code>| match "error|warn"</code> matches the text <code>error|warn</code> rather than starting a
+second operator. The quotes are removed. Inside them, <code>\"</code> and <code>\\</code> stand for
+a quote and a backslash. Outside quotes a backslash is an ordinary character,
+so <code>| match a\b</code> matches <code>a\b</code>. A quote left open is refused with its column.</p>
+<!-- source: internal/component/command/invocation_scan.go -- scanChain -->
 <p>The complete, current set is generated from the operator catalog:
 <a href="https://github.com/ze-software/ze/blob/main/docs/features/pipe-operators.generated.md" target="_blank" rel="noopener"><code>pipe-operators.generated.md</code></a>. It is the list to
 build a tool against, and <code>./le doc check all</code> fails when it and the product
@@ -286,7 +293,7 @@ comparison.</p>
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/config-views.cast?v=74dca8e268"
+      data-cast-src="../../assets/demos/config-views.cast?v=d6617d0c82"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -294,12 +301,12 @@ comparison.</p>
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/config-views.cast?v=74dca8e268">Download the asciicast</a> or
+      page's own player. <a href="../../assets/demos/config-views.cast?v=d6617d0c82">Download the asciicast</a> or
       <a href="../../assets/demos/config-views.txt?v=9f1109a1a7">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.10.09</span><span>1 minute 28 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
+    <span>Ze 26.11.20</span><span>1 minute 57 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
     <a href="../../assets/demos/config-views.txt?v=9f1109a1a7">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -469,7 +476,7 @@ client reaches. The aliases built into Ze itself, <code>| summary</code> and <co
 <!-- source: internal/component/cli/model_mode.go -- executeOperationalCommand -->
 <h3 id="command-specific-filters">Command-specific filters</h3>
 <p>Some commands extend the generic set with their own filter vocabulary,
-folded into the command itself rather than applying to its answer. <code>show bgp rib</code>, for example, adds:</p>
+handed to the command's own handler rather than applied to its answer. <code>show bgp rib</code>, for example, adds:</p>
 <table>
 <thead>
 <tr>
@@ -479,8 +486,8 @@ folded into the command itself rather than applying to its answer. <code>show bg
 </thead>
 <tbody>
 <tr>
-<td><code>received</code> / <code>advertised</code></td>
-<td>Select the Adj-RIB-In or Adj-RIB-Out side</td>
+<td><code>received</code> / <code>advertised</code> (<code>sent</code> is another spelling) / <code>sent-received</code></td>
+<td>Select the Adj-RIB-In side, the Adj-RIB-Out side, or both (the default)</td>
 </tr>
 <tr>
 <td><code>peer &lt;selector&gt;</code></td>
@@ -495,7 +502,11 @@ folded into the command itself rather than applying to its answer. <code>show bg
 <td>Filter by prefix</td>
 </tr>
 <tr>
-<td><code>path &lt;pattern&gt;</code></td>
+<td><code>covering &lt;address&gt;</code> / <code>exact &lt;prefix&gt;</code></td>
+<td>Received routes whose prefix contains the address, or of exactly that prefix</td>
+</tr>
+<tr>
+<td><code>path &lt;pattern&gt;</code> (<code>aspath</code> is another spelling)</td>
 <td>Filter by AS path</td>
 </tr>
 <tr>
@@ -504,15 +515,15 @@ folded into the command itself rather than applying to its answer. <code>show bg
 </tr>
 <tr>
 <td><code>match &lt;pattern&gt;</code></td>
-<td>Cross-field structured match</td>
+<td>An override of the generic <code>match</code>, with the generic's meaning: it keeps the routes whose row holds the pattern as a case-insensitive substring of the row's values. The row is the one the command answers for the route, so every value it shows is searched (the direction on <code>show bgp rib</code>, the large and extended communities in the text the row shows) and nothing the row does not show</td>
 </tr>
 <tr>
 <td><code>count</code></td>
-<td>Count matching routes without serializing rows</td>
+<td>Count matching routes without serializing rows, an override of the generic <code>count</code></td>
 </tr>
 <tr>
 <td><code>first &lt;n&gt;</code> / <code>last &lt;n&gt;</code></td>
-<td>Take first or last N routes</td>
+<td>Take first or last N routes, overrides of the generic <code>first</code> and <code>last</code></td>
 </tr>
 <tr>
 <td><code>histogram</code></td>
@@ -528,17 +539,28 @@ folded into the command itself rather than applying to its answer. <code>show bg
 </tr>
 </tbody>
 </table>
-<p>These are parsed and validated the same way as generic pipes, but resolved
-into command arguments before the command runs, rather than filtering
-output afterward. <code>show bgp rib | peer 10.0.0.1 | count</code> counts only that peer's
+<p>These are parsed and validated the same way as generic pipes, but handed to
+the command as its declared operations before it runs, rather than filtering
+output afterward. The command line is never rewritten: typing one as an
+argument (<code>show bgp rib received count</code>) is refused with the pipe form as the
+fix. A command filter comes before the first generic operator:
+<code>show bgp rib | table | peer 10.0.0.1</code> is refused with the reordered line, and
+<code>count</code>, <code>first</code>, <code>last</code> or <code>match</code> typed after a generic operator runs as the
+generic over the answer in hand. <code>show bgp rib | peer 10.0.0.1 | count</code> counts only that peer's
 routes in the RIB iterator. It does not serialize every route and count the
 answer. Both kinds run in the daemon. A generic pipe filters what the command
 already produced. A command filter stops it being produced. The <code>path</code>
 pattern, with its <code>^</code> and <code>$</code> anchors, is described in the
 <a href="../../guides/cli/#route-commands">CLI guide</a>.</p>
-<!-- source: internal/component/bgp/plugins/cmd/rib/rib.go -- PipeFilter registrations -->
+<p>An override answers what its generic answers (<code>count</code> one object with an
+integer <code>count</code>, <code>first N</code> at most N rows), so a script reads the same shape
+either way. <code>show bgp rib protocol &lt;protocol&gt;</code> takes the same set without a
+scope word, and <code>show bgp rib best</code> takes neither a scope word nor <code>covering</code>
+and <code>exact</code>, and adds <code>reason</code>. <code>show command help "&lt;command&gt;"</code> lists every operation a command
+takes after the pipe, each marked <code>generic</code>, <code>override</code>, <code>command</code> or <code>alias</code>.</p>
+<!-- source: internal/component/bgp/plugins/cmd/rib/rib.go -- registerPipeFilters, ribScopeFilters, ribAttributeFilters, ribSourceFilters, ribRouteReducers, ribBestReducers -->
 <!-- source: internal/component/bgp/plugins/rib/rib_topology.go -- graphTerminal, renderGraphText -->
-<!-- source: internal/component/command/pipe.go -- foldFilters, lookupFilter, validateFilter -->
+<!-- source: internal/component/command/pipe_partition.go -- partitionPipeChain, lookupFilter, validateDeclaredArgument -->
 </div>
 </div>
             </section>
@@ -576,7 +598,7 @@ pattern, with its <code>^</code> and <code>$</code> anchors, is described in the
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 22:34 UTC</span>
                 </div>
             </div>
         </footer>

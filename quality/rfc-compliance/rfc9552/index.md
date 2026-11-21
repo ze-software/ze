@@ -13,7 +13,7 @@ what Ze has
 | Tested both ways | 46 | of 59 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
 | One polarity plus reason | 5 | of 59 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 59 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Tests shown to detect a fault | 114 | 114 of 165 tests linked to requirements, 0 without a fault test and 3 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 117 | 117 of 165 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -306,7 +306,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. D2 r
 |---|---|---|---|
 | negative | [`TestRFC9552UnknownTypesSurviveARewrittenUpdate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_propagate_test.go#L191) | unit/verify | revert, verified |
 | positive | [`TestRFC7752UnknownTLVPreservedAndPropagated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L67) | unit/verify | revert, verified |
-| positive | [`TestRFC9552UnknownTypesPropagateOnAForwardedUpdate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_propagate_test.go#L171) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC9552UnknownTypesPropagateOnAForwardedUpdate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_propagate_test.go#L171) | unit/verify | revert, verified |
 
 ### [`RFC9552-5.1-4`](#rfc9552-5.1-4)
 
@@ -417,10 +417,10 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestMultiprotocolApplicationsRejectUnrecognizedCapabilityCode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/multiprotocol_application_code_test.go#L109) | unit/verify | mutant, verified |
-| negative | [`TestRFC9552LinkStateNeverSentToIncapablePeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_capability_test.go#L78) | unit/verify | revert, producer-gone (the producer the break was applied to is no longer in the tree) |
+| negative | [`TestRFC9552LinkStateNeverSentToIncapablePeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_capability_test.go#L78) | unit/verify | revert, verified |
 | negative | [`TestRFC7752BGPLSCapabilityNotNegotiatedWhenPeerSilent`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc7752_bgpls_test.go#L63) | unit/verify | revert, verified |
 | positive | [`TestMultiprotocolApplicationsAdvertiseLiteralCodeOne`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/multiprotocol_application_code_test.go#L30) | unit/verify | mutant, verified |
-| positive | [`TestRFC9552LinkStateSentToCapablePeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_capability_test.go#L55) | unit/verify | revert, producer-gone (the producer the break was applied to is no longer in the tree) |
+| positive | [`TestRFC9552LinkStateSentToCapablePeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_capability_test.go#L55) | unit/verify | revert, verified |
 | positive | [`TestRFC7752BGPLSCapabilityAdvertisedAndNegotiated`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc7752_bgpls_test.go#L29) | unit/verify | not verified |
 
 ### [`RFC9552-5.2-8`](#rfc9552-5.2-8)

@@ -133,7 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 14 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 14 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 14 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>12</strong><b>12 of 44 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>34</strong><b>34 of 44 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -255,7 +255,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>13</td>
 </tr>
 <tr><td>Fault test records</td>
-<td>12</td>
+<td>34</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc4555.md</code></td>
@@ -275,8 +275,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> MOBIKE</p>
-<p><strong>Test verification:</strong> 3 of 14 MUST proven</p>
-<p><strong>Evidence:</strong> unit 3</p>
+<p><strong>Test verification:</strong> 14 of 14 MUST proven</p>
+<p><strong>Evidence:</strong> unit 14</p>
 <p><strong>Unmet:</strong> -</p>
 
 </section>
@@ -321,9 +321,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc4555:must">Ze verified 3, Tests awaiting verification 11</div>
+<div data-ze-rfc-bar="rfc4555:must">Ze verified 14</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc4555:overview">Ze MUST verified 3, SHOULD verified 2, Tests awaiting verification 11, Not assessed 10</div>
+<div data-ze-rfc-bar="rfc4555:overview">Ze MUST verified 14, SHOULD verified 2, Not assessed 10</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -335,7 +335,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc4555:not-walked">0</span></td>
 </tr>
 <tr><td>Mandatory requirements complete</td>
-<td><span data-ze-rfc="rfc4555:register">not complete</span></td>
+<td><span data-ze-rfc="rfc4555:register">complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
 <td><span data-ze-rfc="rfc4555:must.total">14</span></td>
@@ -344,13 +344,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc4555:must.kept">14</span></td>
 </tr>
 <tr><td>Ze verified</td>
-<td><span data-ze-rfc="rfc4555:must.ze-proven">3</span></td>
+<td><span data-ze-rfc="rfc4555:must.ze-proven">14</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc4555:must.os-verified">0</span></td>
 </tr>
 <tr><td>Tests awaiting verification</td>
-<td><span data-ze-rfc="rfc4555:must.proof-pending">11</span></td>
+<td><span data-ze-rfc="rfc4555:must.proof-pending">0</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc4555:must.os-gap">0</span></td>
@@ -449,9 +449,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>3.9</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4555-3.9-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L553" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeAdvertisementAfterSourceChange</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1092" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeAuthRetransmitKeepsProtectedTuple</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1026" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeConfiguredNATPolicy</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1028" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeConfiguredNATPolicy</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1102" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeAuthRetransmitKeepsProtectedTuple</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1036" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeConfiguredNATPolicy</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1038" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeConfiguredNATPolicy</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4555-3.7-1">RFC4555-3.7-1</code></td><td colspan="3"><span class="rfc-subject">The sender of an INFORMATIONAL request MAY include a COOKIE2 notification, and if included, the recipient of an INFORMATIONAL request MUST copy the notification as-is to the response. (§3.7)</span></td></tr>
@@ -469,8 +469,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.8</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4555-3.8-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L736" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikePathProbeRetainsTunnelEndpoint</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L738" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikePathProbeRetainsTunnelEndpoint</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L746" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikePathProbeRetainsTunnelEndpoint</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L748" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikePathProbeRetainsTunnelEndpoint</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4555-3.8-2">RFC4555-3.8-2</code></td><td colspan="3"><span class="rfc-subject">the NAT_DETECTION_SOURCE_IP and NAT_DETECTION_DESTINATION_IP notifications MAY be included in any INFORMATIONAL request; if the request includes them, the responder MUST also include them in the response (§3.8)</span></td></tr>
@@ -478,8 +478,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.8</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4555-3.8-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L740" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikePathProbeRetainsTunnelEndpoint</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L742" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikePathProbeRetainsTunnelEndpoint</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L750" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikePathProbeRetainsTunnelEndpoint</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L752" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikePathProbeRetainsTunnelEndpoint</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4555-3.6-1">RFC4555-3.6-1</code></td><td colspan="3"><span class="rfc-subject">If the request to update the addresses is retransmitted using several different source addresses, a new INFORMATIONAL request MUST be sent (Additional Addresses, Section 3.6)</span></td></tr>
@@ -497,7 +497,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>3.7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4555-3.7-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L276" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeCookie2ResponseControlsMigration</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L998" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeChangedPathStillChecksCookie2</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1008" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeChangedPathStillChecksCookie2</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L277" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeCookie2ResponseControlsMigration</code></a></span></div>
 </div></td>
 </tr>
@@ -506,7 +506,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4555-3.7-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1000" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeChangedPathStillChecksCookie2</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1010" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeChangedPathStillChecksCookie2</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L278" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeCookie2ResponseControlsMigration</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L280" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeCookie2ResponseControlsMigration</code></a></span></div>
 </div></td>
@@ -518,7 +518,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4555-3.9-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L393" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsIPv4Tuple</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L507" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsIPv6Tuple</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L805" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsUpdateWaitsForRoutability</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L815" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsUpdateWaitsForRoutability</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L394" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsIPv4Tuple</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L508" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsIPv6Tuple</code></a></span></div>
 </div></td>
@@ -531,7 +531,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L396" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsIPv4Tuple</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L468" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsReplyUsesReceivedDestination</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L398" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsIPv4Tuple</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L807" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsUpdateWaitsForRoutability</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L817" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsUpdateWaitsForRoutability</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4555-4.2.6-1">RFC4555-4.2.6-1</code></td><td colspan="3"><span class="rfc-subject">The Notify Message Type for this message is 16402. The notification data contains the IP addresses and ports from/to which the packet was sent. (§4.2.6)</span></td></tr>
@@ -539,8 +539,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>4.2.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4555-4.2.6-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1811" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsDataIsTheSendTuple</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1815" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsDataIsTheSendTuple</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1822" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsDataIsTheSendTuple</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1826" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsDataIsTheSendTuple</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4555-4.2.1-1">RFC4555-4.2.1-1</code></td><td colspan="3"><span class="rfc-subject">The notification data field MUST be left empty (zero-length) when sending, and its contents (if any) MUST be ignored when this notification is received. (Payload Formats, Section 4.2.1)</span></td></tr>
@@ -640,7 +640,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MAY</td>
 <td>3.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4555-3.6-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1780" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeUpdateCarriesItsAddressList</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1791" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeUpdateCarriesItsAddressList</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> a MAY that permits the update to carry its address list, so the one observable is that Ze&#39;s INFORMATIONAL update carries NO_ADDITIONAL_ADDRESSES (internal/component/ike/engine/mobike_test.go TestMobikeUpdateCarriesItsAddressList); an update without the list is also permitted, so there is no violating input for a negative to refuse</p></td>
 </tr>
@@ -649,7 +649,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MAY</td>
 <td>3.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4555-3.6-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1782" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeUpdateCarriesItsAddressList</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1793" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeUpdateCarriesItsAddressList</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> a MAY that permits the address notifications to ride in the UPDATE_SA_ADDRESSES request, so the one observable is that Ze sends NO_ADDITIONAL_ADDRESSES in that same request (internal/component/ike/engine/mobike_test.go TestMobikeUpdateCarriesItsAddressList); sending them in a separate request is also permitted, so there is no violating input for a negative to refuse</p></td>
 </tr>
@@ -712,7 +712,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc4555-x-2"><code>RFC4555-x-2</code></a></h3>
 <p>The addresses are taken from the IKE_AUTH request because IKEv2 requires changing from port 500 to 4500 if a NAT is discovered.  To simplify things, implementations that support both this specification and NAT Traversal MUST change to port 4500 if the correspondent also supports both, even if no NAT was detected between them (this way, there is no need to change the ports later if a NAT is detected on some other path). (§3.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a MOBIKE plus NAT-T implementation staying on port 500 for IKE_AUTH when no NAT is detected. internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation (through mbAuthHandshake) binds only NAT-T sockets, targets the port-500 stand-in at respTr-1, fails if ini.NATDetected, and requires the IKE_AUTH to arrive on respTr (mbReceive) with the non-ESP marker. Without the float the packet reaches no listener and the test goes red. Negative: internal/component/ike/engine/mobike_test.go::TestMobikeAuthWithoutNATTSocketKeepsBaseIKE shows that with no NAT-T support the condition does not hold and no MOBIKE offer is made.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-20 by an independent agent after 1b0198fb0d changed the negative TestMobikeAuthWithoutNATTSocketKeepsBaseIKE. RFC 4555 Section 3.3: &#34;implementations that support both this specification and NAT Traversal MUST change to port 4500 if the correspondent also supports both, even if no NAT was detected between them&#34;. The negative gained an assertion that neither the initiator nor the responder SA sits on port 4500 without NAT-T support, beside the unchanged check that no IKE_AUTH carries MOBIKE_SUPPORTED: that is the case just outside the clause, where the correct answer is no float. The positive TestMobikeAuthNegotiation is byte-identical: through mbAuthHandshake it binds NAT-T sockets only, sends to the port-500 stand-in, fails on NATDetected and requires the IKE_AUTH on the NAT-T socket with the non-ESP marker, so a missing float delivers nothing and goes red. Verdict stands.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -720,27 +720,27 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L712" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeAuthWithoutNATTSocketKeepsBaseIKE</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L654" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeAuthNegotiation</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc4555-3.9-1"><code>RFC4555-3.9-1</code></a></h3>
 <p>More specifically, when NAT Traversal is not enabled, all messages that can update the addresses associated with the IKE_SA and/or IPsec SAs (the first IKE_AUTH request and all INFORMATIONAL requests that contain any of the following notifications: UPDATE_SA_ADDRESSES, ADDITIONAL_IP4_ADDRESS, ADDITIONAL_IP6_ADDRESS, NO_ADDITIONAL_ADDRESSES) MUST also include a NO_NATS_ALLOWED notification. (NAT Prohibition, Section 3.9)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: an address-updating message sent without NO_NATS_ALLOWED when NAT is prohibited. Ze sends two kinds, the first IKE_AUTH and the INFORMATIONAL carrying UPDATE_SA_ADDRESSES and NO_ADDITIONAL_ADDRESSES. It never sends ADDITIONAL_IP4/IP6 (startMobikeRequest, mobike.go). First IKE_AUTH: mbAuthHandshake under policy prohibit (from internal/component/ike/engine/mobike_test.go::TestMobikeConfiguredNATPolicy) requires NO_NATS_ALLOWED with the actual tuple, and internal/component/ike/engine/mobike_test.go::TestMobikeAuthRetransmitKeepsProtectedTuple covers the retransmission. The INFORMATIONAL update is covered by TestMobikeConfiguredNATPolicy (notification == nil goes red) and by internal/component/ike/engine/mobike_test.go::TestMobikeAdvertisementAfterSourceChange (Linux only) for original and replacement updates. Negative: allow and default policies send none.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-20 by an independent agent after df3221e7b8 changed TestMobikeAuthRetransmitKeepsProtectedTuple. RFC 4555 Section 3.9: &#34;when NAT Traversal is not enabled, all messages that can update the addresses associated with the IKE_SA and/or IPsec SAs (the first IKE_AUTH request and all INFORMATIONAL requests that contain any of the following notifications: UPDATE_SA_ADDRESSES, ADDITIONAL_IP4_ADDRESS, ADDITIONAL_IP6_ADDRESS, NO_ADDITIONAL_ADDRESSES) MUST also include a NO_NATS_ALLOWED notification.&#34; The change is mechanical: the PeerSession takes its NAT-T socket through ps.sockets.Store(&amp;sessionSockets{natt: iniTr}) instead of a natt field; the assertions are unchanged, so the retransmitted first IKE_AUTH must be byte-identical and carry NO_NATS_ALLOWED with the actual tuple. TestMobikeConfiguredNATPolicy (both tags) and TestMobikeAdvertisementAfterSourceChange are unchanged: under prohibit the IKE_AUTH and the UPDATE_SA_ADDRESSES INFORMATIONAL carry the notification, under allow and the default none do. Ze sends no ADDITIONAL_IP4 or ADDITIONAL_IP6 address. Verdict stands.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1028" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeConfiguredNATPolicy</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1038" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeConfiguredNATPolicy</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L553" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeAdvertisementAfterSourceChange</code></a></td>
@@ -748,14 +748,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>not verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1092" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeAuthRetransmitKeepsProtectedTuple</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1102" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeAuthRetransmitKeepsProtectedTuple</code></a></td>
 <td>unit/verify</td>
 <td>not verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1026" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeConfiguredNATPolicy</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1036" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeConfiguredNATPolicy</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -770,12 +770,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L235" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeCookie2EchoBounds</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L234" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeCookie2EchoBounds</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L29" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeOwnerDispatchRepliesFromArrivalSocket</code></a></td>
@@ -793,14 +793,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L738" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikePathProbeRetainsTunnelEndpoint</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L748" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikePathProbeRetainsTunnelEndpoint</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L736" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikePathProbeRetainsTunnelEndpoint</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L746" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikePathProbeRetainsTunnelEndpoint</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -813,14 +813,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L742" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikePathProbeRetainsTunnelEndpoint</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L752" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikePathProbeRetainsTunnelEndpoint</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L740" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikePathProbeRetainsTunnelEndpoint</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L750" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikePathProbeRetainsTunnelEndpoint</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -835,12 +835,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L548" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeAdvertisementAfterSourceChange</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L546" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeAdvertisementAfterSourceChange</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -853,19 +853,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L998" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeChangedPathStillChecksCookie2</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1008" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeChangedPathStillChecksCookie2</code></a></td>
 <td>unit/verify</td>
 <td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L277" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeCookie2ResponseControlsMigration</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L276" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeCookie2ResponseControlsMigration</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -880,17 +880,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L280" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeCookie2ResponseControlsMigration</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1000" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeChangedPathStillChecksCookie2</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1010" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeChangedPathStillChecksCookie2</code></a></td>
 <td>unit/verify</td>
 <td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L278" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeCookie2ResponseControlsMigration</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -905,7 +905,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L394" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsIPv4Tuple</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L508" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsIPv6Tuple</code></a></td>
@@ -915,7 +915,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L393" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsIPv4Tuple</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L507" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsIPv6Tuple</code></a></td>
@@ -923,7 +923,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>not verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L805" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsUpdateWaitsForRoutability</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L815" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsUpdateWaitsForRoutability</code></a></td>
 <td>unit/verify</td>
 <td>not verified</td>
 </tr>
@@ -940,17 +940,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L398" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsIPv4Tuple</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L807" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsUpdateWaitsForRoutability</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L817" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsUpdateWaitsForRoutability</code></a></td>
 <td>unit/verify</td>
 <td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L396" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsIPv4Tuple</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L468" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsReplyUsesReceivedDestination</code></a></td>
@@ -968,12 +968,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1815" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsDataIsTheSendTuple</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1826" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsDataIsTheSendTuple</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1811" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsDataIsTheSendTuple</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1822" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeNoNATsDataIsTheSendTuple</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -990,12 +990,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L649" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeAuthNegotiation</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L647" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeAuthNegotiation</code></a></td>
 <td>unit/verify</td>
-<td>not verified</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1038,7 +1038,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1780" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeUpdateCarriesItsAddressList</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1791" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeUpdateCarriesItsAddressList</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1053,7 +1053,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1782" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeUpdateCarriesItsAddressList</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/mobike_test.go#L1793" title="internal/component/ike/engine/mobike_test.go" target="_blank" rel="noopener"><code>TestMobikeUpdateCarriesItsAddressList</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1442,7 +1442,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
                 </div>
             </div>
         </footer>

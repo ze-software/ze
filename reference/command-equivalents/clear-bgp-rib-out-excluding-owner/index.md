@@ -5,7 +5,7 @@ Replay while excluding one original destination owner\.
 ## Ze command
 
 - Registry path: `clear bgp rib out-excluding-owner`
-- Usage: `clear bgp rib out-excluding-owner`
+- Usage: `clear bgp rib out-excluding-owner owner <owner> [family <family>]`
 - Mode: Daemon
 - Wire method: `ze-bgp:rib-clear-out-excluding-owner`
 - Backends: any backend
@@ -25,7 +25,10 @@ Re\-advertise to current destinations except one captured original peer owner\. 
 
 ## Arguments
 
-No command-specific arguments listed.
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `owner` | uint | yes | any value of this type | Original destination owner to exclude | The configured Peer owner whose original destination is left out of the replay\, typed after its keyword as owner 12\. It narrows the replay and grants no send permission\. |
+| `family` | string | no | any value of this type | Address family to replay\, such as ipv4\/unicast | An address family such as ipv4\/unicast\, typed after its keyword\. Absent\, every family the session negotiated is replayed\. |
 
 ## Mapping intents
 

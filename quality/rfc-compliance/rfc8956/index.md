@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 9 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 9 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 9 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 11 | 11 of 18 tests linked to requirements, 0 without a fault test and 2 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 15 | 15 of 18 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -73,7 +73,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 18 |
 | Tests linked to requirements | 18 |
 | Recorded audit verdicts | 7 |
-| Fault test records | 13 |
+| Fault test records | 15 |
 | Summary | `rfc/short/rfc8956.md` |
 | Requirement table | `rfc/requirements/rfc8956.md` |
 | RFC text | `rfc/full/rfc8956.txt` |
@@ -86,9 +86,9 @@ Included in automatic checks: Dissemination of Flow Specification Rules for IPv6
 
 **Area:** IPv6 FlowSpec
 
-**Test verification:** 6 of 9 MUST proven
+**Test verification:** 9 of 9 MUST proven
 
-**Evidence:** unit 6
+**Evidence:** unit 9
 
 **Unmet:** -
 
@@ -112,19 +112,19 @@ Included in automatic checks: Dissemination of Flow Specification Rules for IPv6
 
 ## Figures
 
-- **MUST bar**: Ze verified 6, Tests awaiting verification 3
-- **Overview bar**: Ze MUST verified 6, Tests awaiting verification 3, Not assessed 5
+- **MUST bar**: Ze verified 9
+- **Overview bar**: Ze MUST verified 9, Not assessed 5
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 9 |
 | MUST rows kept (the MUST bar) | 9 |
-| Ze verified | 6 |
+| Ze verified | 9 |
 | OS verified | 0 |
-| Tests awaiting verification | 3 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -162,7 +162,7 @@ Source: [data/rfc/rfc8956.json](../../../data/rfc/rfc8956.json).
 | `RFC8956-3.6-2` | 0: MUST be set to 0 on NLRI encoding (§3.6) | MUST | 3.6 | **positive:** `unit/verify` [`TestRFC8956FragmentEncodingRespectsEnclosingFamily`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go#L45). **negative:** `unit/verify` [`TestRFC8956FragmentEncodingRespectsEnclosingFamily`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go#L46) |
 | `RFC8956-3.6-3` | 0: MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§3.6) | MUST | 3.6 | **positive:** `unit/verify` [`TestRFC8956FragmentDecodeIgnoresReservedBits`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go#L69). **negative:** `unit/verify` [`TestRFC8956FragmentDecodeIgnoresReservedBits`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go#L70) |
 | `RFC8956-3.1-3` | If length = 0 and offset = 0, this component matches every address; otherwise, length MUST be in the range offset < length < 129 or the component is malformed. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestIPv6FlowPrefixRejectsMalformedBounds`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L12). **positive:** `unit/verify` [`TestRFC8956ZeroLengthZeroOffsetMatchesEveryAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8956_zero_prefix_test.go#L26). **negative:** `unit/verify` [`TestIPv6FlowPrefixRejectsMalformedBounds`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L13) |
-| `RFC8956-5-1` | item a) of the validation procedure should now read as follows: \| a) A destination prefix component with offset=0 is embedded in \| the Flow Specification (§5) | MUST | 5 | **positive:** `unit/verify` [`TestFlowSpecVPNValidationSeparatesAFIAndRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L341). **negative:** `unit/verify` [`TestFlowSpecVPNValidationSeparatesAFIAndRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L342) |
+| `RFC8956-5-1` | item a) of the validation procedure should now read as follows: \| a) A destination prefix component with offset=0 is embedded in \| the Flow Specification (§5) | MUST | 5 | **positive:** `unit/verify` [`TestFlowSpecVPNValidationSeparatesAFIAndRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L394). **negative:** `unit/verify` [`TestFlowSpecVPNValidationSeparatesAFIAndRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L395) |
 | `RFC8956-3.3-1` | Type 3 component values SHOULD be encoded as a single octet (numeric_op len=00). (§3.3) | SHOULD | 3.3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8956-3.4-1` | Type 7 component values SHOULD be encoded as a single octet (numeric_op len=00). (§3.4) | SHOULD | 3.4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8956-3.5-1` | Type 8 component values SHOULD be encoded as a single octet (numeric_op len=00). (§3.5) | SHOULD | 3.5 | **positive:** no positive test. **negative:** no negative test |
@@ -185,7 +185,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestIPv6FlowSpecNegotiatesMultiprotocolCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/plugin_test.go#L865) | unit/verify | not verified |
+| positive | [`TestIPv6FlowSpecNegotiatesMultiprotocolCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/plugin_test.go#L865) | unit/verify | mutant, verified |
 
 ### [`RFC8956-2-2`](#rfc8956-2-2)
 
@@ -195,7 +195,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestFlowSpecIPv6Basic`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L440) | unit/verify | not verified |
+| positive | [`TestFlowSpecIPv6Basic`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L440) | unit/verify | mutant, verified |
 | positive | [`TestFlowSpecVPNFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L655) | unit/verify | not verified |
 
 ### [`RFC8956-3.1-1`](#rfc8956-3.1-1)
@@ -273,8 +273,8 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestFlowSpecVPNValidationSeparatesAFIAndRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L342) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestFlowSpecVPNValidationSeparatesAFIAndRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L341) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestFlowSpecVPNValidationSeparatesAFIAndRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L395) | unit/verify | mutant, verified |
+| positive | [`TestFlowSpecVPNValidationSeparatesAFIAndRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L394) | unit/verify | mutant, verified |
 
 ## Requirement list review
 

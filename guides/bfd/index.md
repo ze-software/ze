@@ -731,6 +731,7 @@ takes effect then.
 <!-- source: internal/component/bfd/engine/engine.go -- EnsureSession, reviveReleasedLocked, createSessionLocked -->
 <!-- source: internal/component/bfd/engine/auth_join.go -- authMismatchCase -->
 <!-- source: internal/component/bgp/reactor/peer_run.go -- startBFDClient and stopBFDClient callers -->
+<!-- source: internal/component/bgp/reactor/peer_up_delivery.go -- startEstablishedSession, the startBFDClient caller on Established -->
 <!-- source: internal/plugins/static/inject.go -- setupBFDLocked, releaseBFDLocked -->
 <!-- source: internal/plugins/ospf/bfd_client.go -- bfdNeighborFull, startBFDSession, reconcileBFD -->
 <!-- source: internal/plugins/ospf/instance.go -- reconcileBFD caller on every ospf apply -->
@@ -759,9 +760,9 @@ retirement and restores the link without replacing the shown Ze process.
 
 Commit BFD onto an established FRR BGP peer, cut the link, inspect diagnostics and peer history, then restore both sessions without restarting Ze.
 
-[Download the asciicast recording](../../assets/demos/bfd-failover.cast?v=a134574836) · [Plain-text transcript](../../assets/demos/bfd-failover.txt?v=1d2f779b15)
+[Download the asciicast recording](../../assets/demos/bfd-failover.cast?v=041056d852) · [Plain-text transcript](../../assets/demos/bfd-failover.txt?v=7f978ea5b7)
 
-Recorded with Ze 26.10.28 in a Linux namespace lab using Ze recorder. Duration: 3 minutes 5 seconds.
+Recorded with Ze 26.11.20 in a Linux namespace lab using Ze recorder. Duration: 2 minutes 2 seconds.
 
 ```console
 BFD live opt-in and link-failure walkthrough
@@ -774,8 +775,8 @@ $ ip netns exec showcase-frr vtysh -c 'show bgp neighbor 172.29.0.1 json'
 
 Load: profile fast and peer frr BFD binding, section by section in one SSH candidate.
 $ sshpass -e ssh ze-demo
-ze# load file absolute merge /src/demos/terminal/topics/bfd/1-profile.conf
-ze# load file absolute merge /src/demos/terminal/topics/bfd/2-peer.conf
+ze# load file absolute merge topics/bfd/1-profile.conf
+ze# load file absolute merge topics/bfd/2-peer.conf
 ze# show | compare
 ze# commit now
 

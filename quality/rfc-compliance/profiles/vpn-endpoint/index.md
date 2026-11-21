@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/vpn-endpoint.json](..
 
 ## Figures
 
-- **MUST bar**: Ze verified 241, Tests awaiting verification 173, OS testing gap 56, Not built 77
-- **Overview bar**: Ze MUST verified 241, SHOULD verified 8, Tests awaiting verification 175, OS testing gap 57, Not assessed 156, Not built 79
+- **MUST bar**: Ze verified 401, OS verified 3, Tests awaiting verification 11, OS testing gap 53, Not built 79
+- **Overview bar**: Ze MUST verified 401, OS verified 3, SHOULD verified 8, Tests awaiting verification 13, OS testing gap 54, Not assessed 156, Not built 81
 
 | Figure | Rows |
 |---|---|
@@ -18,13 +18,13 @@ Figures as of the last build, read from [data/rfc/profiles/vpn-endpoint.json](..
 | Mandatory requirements complete | not complete |
 | MUST rows | 547 |
 | MUST rows kept (the MUST bar) | 547 |
-| Ze verified | 241 |
-| OS verified | 0 |
-| Tests awaiting verification | 173 |
-| OS testing gap | 56 |
+| Ze verified | 401 |
+| OS verified | 3 |
+| Tests awaiting verification | 11 |
+| OS testing gap | 53 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 77 |
+| Not built | 79 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -65,11 +65,11 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
 | [RFC 3948](../../rfc3948/) (cycle with rfc3602, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | UDP Encapsulation of IPsec ESP Packets | Ze verified 6, Tests awaiting verification 4, Not built 1 | Ze MUST verified 6, SHOULD verified 2, Tests awaiting verification 4, Not assessed 3, Not built 1 | vpn-endpoint: required by rfc/short/rfc3948.md |
-| [RFC 4106](../../rfc4106/) (cycle with rfc3602, rfc3948, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | The Use of Galois/Counter Mode (GCM) in IPsec Encapsulating Security Payload (ESP) | Ze verified 4, Tests awaiting verification 1, OS testing gap 3 | Ze MUST verified 4, Tests awaiting verification 1, OS testing gap 3, Not assessed 5 | vpn-endpoint: required by rfc/short/rfc4106.md |
-| [RFC 4301](../../rfc4301/) (cycle with rfc3602, rfc3948, rfc4106, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | Security Architecture for the Internet Protocol | Ze verified 43, Tests awaiting verification 24, OS testing gap 3, Not built 31 | Ze MUST verified 43, Tests awaiting verification 24, OS testing gap 4, Not assessed 1, Not built 32 | vpn-endpoint: required by rfc/short/rfc4301.md |
+| [RFC 4106](../../rfc4106/) (cycle with rfc3602, rfc3948, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | The Use of Galois/Counter Mode (GCM) in IPsec Encapsulating Security Payload (ESP) | Ze verified 5, OS verified 3 | Ze MUST verified 5, OS verified 3, Not assessed 5 | vpn-endpoint: required by rfc/short/rfc4106.md |
+| [RFC 4301](../../rfc4301/) (cycle with rfc3602, rfc3948, rfc4106, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | Security Architecture for the Internet Protocol | Ze verified 59, Tests awaiting verification 6, OS testing gap 3, Not built 33 | Ze MUST verified 59, Tests awaiting verification 6, OS testing gap 4, Not assessed 1, Not built 34 | vpn-endpoint: required by rfc/short/rfc4301.md |
 | [RFC 4303](../../rfc4303/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4309, rfc5282, rfc7296, rfc8247) | IP Encapsulating Security Payload (ESP) | Ze verified 8, Tests awaiting verification 1, Not built 14 | Ze MUST verified 8, SHOULD verified 1, Tests awaiting verification 1, Not assessed 2, Not built 15 | vpn-endpoint: required by rfc/short/rfc4303.md |
 | [RFC 5282](../../rfc5282/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc7296, rfc8247) | Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol | Ze verified 19 | Ze MUST verified 19, Not assessed 11 | vpn-endpoint: required by rfc/short/rfc5282.md |
-| [RFC 7296](../../rfc7296/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc8247) | Internet Key Exchange Protocol Version 2 (IKEv2) | Ze verified 91, Tests awaiting verification 143 | Ze MUST verified 91, SHOULD verified 4, Tests awaiting verification 145, Not assessed 3 | vpn-endpoint: required by rfc/short/rfc7296.md |
+| [RFC 7296](../../rfc7296/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc8247) | Internet Key Exchange Protocol Version 2 (IKEv2) | Ze verified 234 | Ze MUST verified 234, SHOULD verified 4, Tests awaiting verification 2, Not assessed 3 | vpn-endpoint: required by rfc/short/rfc7296.md |
 | [RFC 8247](../../rfc8247/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296) | Algorithm Implementation Requirements and Usage Guidance for the Internet Key Exchange Protocol Version 2 (IKEv2) | Ze verified 17, Not built 3 | Ze MUST verified 17, SHOULD verified 1, Not assessed 5, Not built 3 | vpn-endpoint: required by rfc/short/rfc8247.md |
 
 ### Level 5

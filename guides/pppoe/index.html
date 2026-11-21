@@ -58,6 +58,7 @@ over Ethernet to the BNG without an intermediate LAC/LNS tunnel.</p>
 <ol>
 <li><a href="#changing-the-configuration">Changing the configuration</a></li>
 <li><a href="#subscriber-authentication">Subscriber authentication</a></li>
+<li><a href="#redistribute-subscriber-routes">Redistribute subscriber routes</a></li>
 <li><a href="#pppoe-client-keepalive-and-redial">PPPoE client keepalive and redial</a></li>
 <li><a href="#pppoe-client-ipv6">PPPoE client IPv6</a></li>
 </ol></li>
@@ -145,6 +146,15 @@ exactly <code>max-configure</code> Configure-Requests before the session ends. T
 give ten requests over 30 seconds. <code>max-terminate</code> bounds unanswered
 Terminate-Requests, and <code>max-failure</code> bounds Naks sent without a Configure-Ack
 before unacceptable options are rejected. The Restart timer controls each wait.</p>
+<p>IPCP and IPv6CP open and close independently: one NCP closing leaves the
+other and the link up. A session comes up only once at least one NCP is open,
+and a link with no NCP open is held for a fixed 30 seconds, counted from the
+start of NCP negotiation or from the moment the last open NCP closed. PPPoE has
+no leaf for this bound; L2TP's is <code>ncp timeout</code>. If an NCP opens within it,
+the session goes on. Otherwise a session that never came up ends with NAS
+Error, and one that was up sends an LCP Terminate-Request and ends with Idle
+Timeout.</p>
+<!-- source: internal/component/l2tp/ppp/ncp_bound.go -- noNCPTimeout, closeIdleLink -->
 <!-- source: internal/component/l2tp/ppp/yang/ze-ppp-lcp.yang -- shared LCP settings -->
 <!-- source: internal/component/l2tp/ppp/session_run.go -- applyTransition, spendRestartCount, handleRestartTimeout, sendConfigureNakOrReject -->
 <p>Valid negotiation replies can renew the request budget. A convergence deadline
@@ -325,6 +335,40 @@ owner: <code>l2tp-auth-radius</code> claims it when a RADIUS server is configure
 <code>l2tp-auth-local</code> keeps it otherwise. A box with local users and no RADIUS block
 therefore authenticates against those users, on PPPoE and on L2TP.</p>
 <!-- source: internal/component/l2tp/plugins/authradius/register.go -- activateRadiusConfig claims the slot -->
+<h3 id="redistribute-subscriber-routes">Redistribute subscriber routes</h3>
+<p>Use <code>import pppoe</code> to advertise PPPoE subscriber routes through a
+redistribution destination, such as BGP. This works on a PPPoE-only BNG.</p>
+<pre><code>redistribute {
+    destination bgp {
+        import pppoe { final accept; }
+    }
+}
+</code></pre>
+<p>When IPCP assigns the subscriber an IPv4 address, Ze publishes its <code>/32</code>
+and the IPv4 and IPv6 framed routes from that session's accepted RADIUS
+profile. IPv6CP interface identifiers do not create host routes. An LCP
+network reset or disconnect withdraws the original session's routes. A
+new network lifetime publishes its own address and authorization profile.</p>
+<p>The session also installs each framed route through its own interface
+once that interface is up, before the session is reported up, and
+withdraws it when the network lifetime ends.
+An IPv4 route's <code>0.0.0.0</code> gateway is replaced by the subscriber's address,
+and an IPv6 route's <code>::</code> gateway by the subscriber's link-local address,
+once the IPv6 service starts. Any other gateway, one that is not the
+subscriber's address, is installed as a device route through the session
+interface: the link is point-to-point, so that route reaches the
+subscriber. A route the data plane refuses, or a profile
+over the limit below, takes the session down. The L2TP guide describes the
+installed routes (<a href="../l2tp/#radius-framed-routes">RADIUS framed routes</a>).</p>
+<!-- source: internal/component/l2tp/ppp/framed_route.go -- installNCPFramedRoutesIPv4Locked, withdrawNCPFramedRoutesIPv4, installFramedRoutes, removeFramedRoutes -->
+<p>Ze refuses the whole route update if the RADIUS profile has more than 64
+valid framed routes. <code>doctor-pppoe-framed-route-limit</code> identifies the
+subscriber. Correct its RADIUS profile and use <code>ze show pppoe sessions</code> to
+locate the session before reconnecting it.</p>
+<!-- source: internal/component/l2tp/pppoe/redistribute.go -- source registration -->
+<!-- source: internal/component/l2tp/pppoe/subsystem.go -- onSessionIPAssigned, handlePPPEvent -->
+<!-- source: internal/component/l2tp/route_observer.go -- assign, withdraw, reemitAll -->
+<!-- source: internal/component/l2tp/route_source.go -- reportFramedRouteRefusal -->
 <h3 id="pppoe-client-keepalive-and-redial">PPPoE client keepalive and redial</h3>
 <p>The client's <code>lcp restart-timer</code> sets the Configure-Request retransmission
 interval in milliseconds (100 to 60000, default 3000). <code>lcp max-configure</code>
@@ -655,7 +699,7 @@ ID for L2TP) and SessionID.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
                 </div>
             </div>
         </footer>

@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/dhcp-provisioning.jso
 
 ## Figures
 
-- **MUST bar**: Ze verified 187, Tests awaiting verification 23, OS testing gap 116, Not built 147
-- **Overview bar**: Ze MUST verified 187, SHOULD verified 10, Not owed 1, Tests awaiting verification 23, OS testing gap 116, Not assessed 209, Not built 148
+- **MUST bar**: Ze verified 190, Tests awaiting verification 20, OS testing gap 116, Not built 147
+- **Overview bar**: Ze MUST verified 190, SHOULD verified 10, Not owed 1, Tests awaiting verification 20, OS testing gap 116, Not assessed 209, Not built 148
 
 | Figure | Rows |
 |---|---|
@@ -18,9 +18,9 @@ Figures as of the last build, read from [data/rfc/profiles/dhcp-provisioning.jso
 | Mandatory requirements complete | not complete |
 | MUST rows | 474 |
 | MUST rows kept (the MUST bar) | 473 |
-| Ze verified | 187 |
+| Ze verified | 190 |
 | OS verified | 0 |
-| Tests awaiting verification | 23 |
+| Tests awaiting verification | 20 |
 | OS testing gap | 116 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -55,7 +55,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 | [RFC 1350](../../rfc1350/) (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1332, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | The TFTP Protocol (Revision 2) | Ze verified 8, Not built 3 | Ze MUST verified 8, SHOULD verified 2, Not assessed 2, Not built 3 |
 | [RFC 2131](../../rfc2131/) (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1332, rfc1350, rfc1812, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | Dynamic Host Configuration Protocol | Ze verified 21, Tests awaiting verification 13, OS testing gap 9, Not built 28 | Ze MUST verified 21, SHOULD verified 3, Tests awaiting verification 13, OS testing gap 9, Not assessed 35, Not built 28 |
 | [RFC 2132](../../rfc2132/) (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1332, rfc1350, rfc1812, rfc2131, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | DHCP Options and BOOTP Vendor Extensions | Ze verified 1, Tests awaiting verification 7, Not built 26 | Ze MUST verified 1, Tests awaiting verification 7, Not assessed 34, Not built 26 |
-| [RFC 4861](../../rfc4861/) (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1332, rfc1350, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc5905, rfc8200, rfc8201, rfc9293) | Neighbor Discovery for IP version 6 (IPv6) | Ze verified 29, Tests awaiting verification 1, OS testing gap 91, Not built 17 | Ze MUST verified 29, Tests awaiting verification 1, OS testing gap 91, Not assessed 79, Not built 17 |
+| [RFC 4861](../../rfc4861/) (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1332, rfc1350, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc5905, rfc8200, rfc8201, rfc9293) | Neighbor Discovery for IP version 6 (IPv6) | Ze verified 30, OS testing gap 91, Not built 17 | Ze MUST verified 30, OS testing gap 91, Not assessed 79, Not built 17 |
 
 ### Level 3
 
@@ -79,4 +79,4 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 7084](../../rfc7084/) | Basic Requirements for IPv6 Customer Edge Routers | Ze verified 17, Tests awaiting verification 2, OS testing gap 7, Not built 15 | Ze MUST verified 17, Tests awaiting verification 2, OS testing gap 7, Not assessed 24, Not built 16 |
+| [RFC 7084](../../rfc7084/) | Basic Requirements for IPv6 Customer Edge Routers | Ze verified 19, OS testing gap 7, Not built 15 | Ze MUST verified 19, OS testing gap 7, Not assessed 24, Not built 16 |

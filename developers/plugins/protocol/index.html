@@ -484,7 +484,7 @@ reader goroutine routes incoming lines by verb: <code>ok</code>/<code>error</cod
 <tr>
 <td><code>pipes</code></td>
 <td><code>[]PipeDecl</code></td>
-<td>CLI pipe aliases the plugin names for its own commands</td>
+<td>CLI pipe aliases the plugin names for its own commands, and the pipe operations its handler runs</td>
 </tr>
 <tr>
 <td><code>claims</code></td>
@@ -749,10 +749,29 @@ one-line rule.</p>
 <tr>
 <td><code>expansion</code></td>
 <td><code>string</code></td>
-<td>The operator chain the name stands for, as an operator would type it</td>
+<td>An alias: the operator chain the name stands for, as an operator would type it</td>
+</tr>
+<tr>
+<td><code>argument</code></td>
+<td><code>string</code></td>
+<td>An operation: what the words after the name may be, one of <code>none</code>, <code>optional</code>, <code>text</code>, <code>count</code> (a positive whole number), <code>fields</code> (field names) or <code>path</code></td>
 </tr>
 </tbody>
 </table>
+<p>An entry states exactly one of <code>expansion</code> and <code>argument</code>; both, or neither,
+is refused by name. With <code>argument</code> the entry is a pipe OPERATION the
+plugin's handler runs: the daemon validates the typed words against the kind
+and sends the operation in the <code>pipe</code> list of <code>execute-command</code>
+(<code>[{"name":"top-talkers","args":["5"]}]</code>, in the order typed, <code>args</code> absent
+for an operation typed with none), which the Go SDK hands the
+<code>OnExecuteCommand</code> handler as its <code>pipe</code> parameter. The words never reach
+<code>args</code>, and the daemon runs every generic operation after them over the
+answer. A name a generic operator holds is refused, except <code>count</code>, <code>first</code>,
+<code>last</code> and <code>match</code>, which a command may override with the generic's own
+argument kind and answer shape. A name an alias of an overlapping path or a
+global alias holds, a command path that already holds another owner's
+operations, and one name twice in one message are refused too, and nothing of
+the list is recorded.</p>
 <p>A pipe alias SELECTS and re-sequences the answer the command already returned.
 It renames no key, sums no numbers and counts no rows, so the command MUST emit
 the aggregate fields beside the detail rows. One bad entry refuses the whole
@@ -2802,7 +2821,7 @@ source provenance before Ze can advertise origin arbitration.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
                 </div>
             </div>
         </footer>

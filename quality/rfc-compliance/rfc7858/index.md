@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 4 | of 19 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| Tested both ways | 6 | of 19 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
 | One polarity plus reason | 3 | of 19 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 19 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 19 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 8 | 8 of 15 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 20 | 20 of 27 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -22,7 +22,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Declared gap or no test | 12 | of 19 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Declared gap or no test | 10 | of 19 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
 ### Neutral
 
@@ -73,14 +73,14 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 38 |
 | Mandatory requirements (MUST level) | 19 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 12 |
+| Declared gaps | 10 |
 | Declared gaps a test demonstrates | 0 |
 | Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 15 |
-| Tests linked to requirements | 15 |
+| Test tags | 27 |
+| Tests linked to requirements | 27 |
 | Recorded audit verdicts | 6 |
-| Fault test records | 8 |
+| Fault test records | 20 |
 | Summary | `rfc/short/rfc7858.md` |
 | Requirement table | `rfc/requirements/rfc7858.md` |
 | RFC text | `rfc/full/rfc7858.txt` |
@@ -93,19 +93,19 @@ Included in automatic checks: DNS over TLS / DoT (RFC 7858): ze is a DoT server 
 
 **Area:** DNS over TLS (DoT)
 
-**Test verification:** 3 of 19 MUST proven
+**Test verification:** 7 of 19 MUST proven
 
-**Evidence:** unit 3
+**Evidence:** unit 7
 
-**Unmet:** RFC7858-3.1-2, RFC7858-3.1-3, RFC7858-3.1-7, RFC7858-3.3-4, RFC7858-3.3-5, RFC7858-3.4-7, RFC7858-3.4-8, RFC7858-3.4-9, RFC7858-4.2-4, RFC7858-4.2-5, RFC7858-4.2-6, RFC7858-4.2-7
+**Unmet:** RFC7858-3.1-2, RFC7858-3.3-4, RFC7858-3.3-5, RFC7858-3.4-7, RFC7858-3.4-8, RFC7858-3.4-9, RFC7858-4.2-4, RFC7858-4.2-5, RFC7858-4.2-6, RFC7858-4.2-7
 
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 4 | one part of the mandatory requirements |
-| Annotated (including scoped evidence) | 15 | one part of the mandatory requirements |
+| Positive and negative tests | 6 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 13 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
 | Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
@@ -113,14 +113,14 @@ Included in automatic checks: DNS over TLS / DoT (RFC 7858): ze is a DoT server 
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **19** | every mandatory requirement appears in exactly one group above |
 
-**Positive and negative tests (4):** [`RFC7858-3.1-5`](#rfc7858-3.1-5), [`RFC7858-3.1-6`](#rfc7858-3.1-6), [`RFC7858-3.1-8`](#rfc7858-3.1-8), [`RFC7858-8-1`](#rfc7858-8-1)
+**Positive and negative tests (6):** [`RFC7858-3.1-3`](#rfc7858-3.1-3), [`RFC7858-3.1-5`](#rfc7858-3.1-5), [`RFC7858-3.1-6`](#rfc7858-3.1-6), [`RFC7858-3.1-7`](#rfc7858-3.1-7), [`RFC7858-3.1-8`](#rfc7858-3.1-8), [`RFC7858-8-1`](#rfc7858-8-1)
 
-**Annotated (including scoped evidence) (15):** [`RFC7858-3.1-1`](#rfc7858-3.1-1), [`RFC7858-3.1-2`](#rfc7858-3.1-2), [`RFC7858-3.1-3`](#rfc7858-3.1-3), [`RFC7858-3.1-7`](#rfc7858-3.1-7), [`RFC7858-3.3-1`](#rfc7858-3.3-1), [`RFC7858-3.3-4`](#rfc7858-3.3-4), [`RFC7858-3.3-5`](#rfc7858-3.3-5), [`RFC7858-3.4-5`](#rfc7858-3.4-5), [`RFC7858-3.4-7`](#rfc7858-3.4-7), [`RFC7858-3.4-8`](#rfc7858-3.4-8), [`RFC7858-3.4-9`](#rfc7858-3.4-9), [`RFC7858-4.2-4`](#rfc7858-4.2-4), [`RFC7858-4.2-5`](#rfc7858-4.2-5), [`RFC7858-4.2-6`](#rfc7858-4.2-6), [`RFC7858-4.2-7`](#rfc7858-4.2-7)
+**Annotated (including scoped evidence) (13):** [`RFC7858-3.1-1`](#rfc7858-3.1-1), [`RFC7858-3.1-2`](#rfc7858-3.1-2), [`RFC7858-3.3-1`](#rfc7858-3.3-1), [`RFC7858-3.3-4`](#rfc7858-3.3-4), [`RFC7858-3.3-5`](#rfc7858-3.3-5), [`RFC7858-3.4-5`](#rfc7858-3.4-5), [`RFC7858-3.4-7`](#rfc7858-3.4-7), [`RFC7858-3.4-8`](#rfc7858-3.4-8), [`RFC7858-3.4-9`](#rfc7858-3.4-9), [`RFC7858-4.2-4`](#rfc7858-4.2-4), [`RFC7858-4.2-5`](#rfc7858-4.2-5), [`RFC7858-4.2-6`](#rfc7858-4.2-6), [`RFC7858-4.2-7`](#rfc7858-4.2-7)
 
 ## Figures
 
-- **MUST bar**: Ze verified 3, Tests awaiting verification 4, Not built 12
-- **Overview bar**: Ze MUST verified 3, Tests awaiting verification 4, Not assessed 19, Not built 12
+- **MUST bar**: Ze verified 7, Tests awaiting verification 2, Not built 10
+- **Overview bar**: Ze MUST verified 7, Tests awaiting verification 2, Not assessed 19, Not built 10
 
 | Figure | Rows |
 |---|---|
@@ -129,13 +129,13 @@ Included in automatic checks: DNS over TLS / DoT (RFC 7858): ze is a DoT server 
 | Mandatory requirements complete | not complete |
 | MUST rows | 19 |
 | MUST rows kept (the MUST bar) | 19 |
-| Ze verified | 3 |
+| Ze verified | 7 |
 | OS verified | 0 |
-| Tests awaiting verification | 4 |
+| Tests awaiting verification | 2 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 12 |
+| Not built | 10 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -163,11 +163,11 @@ Source: [data/rfc/rfc7858.json](../../../data/rfc/rfc7858.json).
 |---|---|---|---|---|
 | `RFC7858-3.1-1` | By default, a DNS server that supports DNS over TLS MUST listen for and accept TCP connections on port 853, unless it has mutual agreement with its clients to use a port other than 853 for DNS over TLS. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestDefaultSecureConfig`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L379). **positive:** `unit/verify` [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L52). **negative:** no negative test. **{single-polarity}:** affirmative listen mandate. Positive proof: a DoT listener accepts a TCP+TLS connection and answers (internal/core/dnsserver/secure_test.go TestDoTListener) with the default DoT port pinned to 853 (internal/core/dnsserver/secure.go:41, TestDefaultSecureConfig). A "must listen and accept" obligation has no rejecting counter-behavior to assert as a negative. |
 | `RFC7858-3.1-2` | By default, a DNS client desiring privacy from DNS over TLS from a particular server MUST establish a TCP connection to port 853 on the server, unless it has mutual agreement with its server to use a port other than port 853 for DNS over TLS. (§3.1) | MUST | 3.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze is a DNS client that implements no DoT: the dnsresolver forwarder sends its upstream queries over plain UDP and TCP only (exchange in internal/plugins/dnsresolver/forward.go) and the stub resolver queries over UDP (internal/component/resolve/dns/resolver.go), and ze's only DoT code is the server listener bindDoT (internal/core/dnsserver/secure.go); no owner decision declines a DoT client, so no ze client establishes a DoT connection to port 853 |
-| `RFC7858-3.1-3` | Such another port MUST NOT be port 53 (§3.1) | MUST NOT | 3.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze does not enforce this. ParseSecureLeaves validates the DoT listen-port only as 1..65535 (internal/core/dnsserver/secure.go:276-279) and does not reject 53, so an operator can configure the DoT listener on port 53. |
+| `RFC7858-3.1-3` | Such another port MUST NOT be port 53 (§3.1) | MUST NOT | 3.1 | **positive:** `unit/verify` [`TestDoTListenPortBesides53Accepted`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc7858_dot_port_test.go#L45). **negative:** `unit/verify` [`TestDoTListenPort53Refused`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc7858_dot_port_test.go#L17) |
 | `RFC7858-3.1-5` | The first data exchange on this TCP connection MUST be the client and server initiating a TLS handshake using the procedure described in [RFC5246]. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L53). **negative:** `unit/verify` [`TestDoTRefusesCleartext`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L642) |
-| `RFC7858-3.1-6` | DNS clients and servers MUST NOT use port 853 to transport cleartext DNS messages (§3.1) | MUST NOT | 3.1 | **positive:** `unit/verify` [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L54). **negative:** `unit/verify` [`TestDoTRefusesCleartext`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L643) |
-| `RFC7858-3.1-7` | DNS clients MUST NOT send and DNS servers MUST NOT respond to cleartext DNS messages on any port used for DNS over TLS (including, for example, after a failed TLS handshake). (§3.1) | MUST NOT | 3.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the client clause binds ze's DNS clients and nothing holds it: the forward server parser in internal/plugins/dnsresolver/config.go accepts any upstream port from 1 to 65535, 853 included, and the forwarder sends cleartext to it (exchange in internal/plugins/dnsresolver/forward.go), so an operator can make ze send cleartext DNS to a port used for DoT; the server clause is met under RFC7858-3.1-8 |
-| `RFC7858-3.1-8` | DNS servers MUST NOT respond to cleartext DNS messages on any port used for DNS over TLS (including, for example, after a failed TLS handshake). (§3.1) | MUST NOT | 3.1 | **positive:** `unit/verify` [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L55). **negative:** `unit/verify` [`TestDoTRefusesCleartext`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L644) |
+| `RFC7858-3.1-6` | DNS clients and servers MUST NOT use port 853 to transport cleartext DNS messages (§3.1) | MUST NOT | 3.1 | **positive:** `unit/verify` [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L54). **positive:** `unit/verify` [`TestForwardServerOffDoTPortAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc7858_cleartext_port_test.go#L91). **positive:** `unit/verify` [`TestGeoDNSListenerOffDoTPortAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc7858_cleartext_port_test.go#L49). **positive:** `unit/verify` [`TestResolverListenerOffDoTPortAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc7858_cleartext_port_test.go#L51). **negative:** `unit/verify` [`TestDoTRefusesCleartext`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L643). **negative:** `unit/verify` [`TestForwardServerOn853Refused`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc7858_cleartext_port_test.go#L77). **negative:** `unit/verify` [`TestGeoDNSListenerOn853Refused`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc7858_cleartext_port_test.go#L36). **negative:** `unit/verify` [`TestResolverListenerOn853Refused`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc7858_cleartext_port_test.go#L38) |
+| `RFC7858-3.1-7` | DNS clients MUST NOT send and DNS servers MUST NOT respond to cleartext DNS messages on any port used for DNS over TLS (including, for example, after a failed TLS handshake). (§3.1) | MUST NOT | 3.1 | **positive:** `unit/verify` [`TestForwardServerOffDoTPortAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc7858_cleartext_port_test.go#L92). **negative:** `unit/verify` [`TestForwardServerOn853Refused`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc7858_cleartext_port_test.go#L78) |
+| `RFC7858-3.1-8` | DNS servers MUST NOT respond to cleartext DNS messages on any port used for DNS over TLS (including, for example, after a failed TLS handshake). (§3.1) | MUST NOT | 3.1 | **positive:** `unit/verify` [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L55). **positive:** `unit/verify` [`TestGeoDNSListenerOffDoTListenPortAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc7858_cleartext_port_test.go#L101). **negative:** `unit/verify` [`TestDoTRefusesCleartext`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L644). **negative:** `unit/verify` [`TestGeoDNSListenerOnDoTListenPortRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc7858_cleartext_port_test.go#L75) |
 | `RFC7858-3.3-1` | All messages (requests and responses) in the established TLS session MUST use the two-octet length field described in Section 4.2.2 of [RFC1035]. (§3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L56). **negative:** no negative test. **{single-polarity}:** the RFC 1035 4.2.2 two-octet length-prefixed framing is provided by the miekg/dns Server ze hands the TLS listener to (internal/core/dnsserver/secure.go:514-515). A successful DoT round trip (internal/core/dnsserver/secure_test.go TestDoTListener) proves conformant framing; ze has no code path that emits non-length-prefixed framing to exercise as a negative. |
 | `RFC7858-3.3-4` | Since pipelined responses can arrive out of order, clients MUST match responses to outstanding queries on the same TLS connection using the Message ID. (§3.3) | MUST | 3.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze is a DNS client that implements no DoT: the dnsresolver forwarder sends its upstream queries over plain UDP and TCP only (exchange in internal/plugins/dnsresolver/forward.go) and the stub resolver queries over UDP (internal/component/resolve/dns/resolver.go), and ze's only DoT code is the server listener bindDoT (internal/core/dnsserver/secure.go); no owner decision declines a DoT client, so no ze client matches pipelined DoT responses by Message ID |
 | `RFC7858-3.3-5` | If the response contains a Question Section, the client MUST match the QNAME, QCLASS, and QTYPE fields. (§3.3) | MUST | 3.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze is a DNS client that implements no DoT: the dnsresolver forwarder sends its upstream queries over plain UDP and TCP only (exchange in internal/plugins/dnsresolver/forward.go) and the stub resolver queries over UDP (internal/component/resolve/dns/resolver.go), and ze's only DoT code is the server listener bindDoT (internal/core/dnsserver/secure.go); no owner decision declines a DoT client, so no ze client matches the Question Section of a DoT response |
@@ -205,8 +205,6 @@ Source: [data/rfc/rfc7858.json](../../../data/rfc/rfc7858.json).
 | Requirement | State | Reason |
 |---|---|---|
 | [`RFC7858-3.1-2`](#rfc7858-3.1-2) By default, a DNS client desiring privacy from DNS over TLS from a particular server MUST establish a TCP connection to port 853 on the server, unless it has mutual agreement with its server to use a port other than port 853 for DNS over TLS. (§3.1) | {gap}, no test | ze is a DNS client that implements no DoT: the dnsresolver forwarder sends its upstream queries over plain UDP and TCP only (exchange in internal/plugins/dnsresolver/forward.go) and the stub resolver queries over UDP (internal/component/resolve/dns/resolver.go), and ze's only DoT code is the server listener bindDoT (internal/core/dnsserver/secure.go); no owner decision declines a DoT client, so no ze client establishes a DoT connection to port 853 |
-| [`RFC7858-3.1-3`](#rfc7858-3.1-3) Such another port MUST NOT be port 53 (§3.1) | {gap}, no test | ze does not enforce this. ParseSecureLeaves validates the DoT listen-port only as 1..65535 (internal/core/dnsserver/secure.go:276-279) and does not reject 53, so an operator can configure the DoT listener on port 53. |
-| [`RFC7858-3.1-7`](#rfc7858-3.1-7) DNS clients MUST NOT send and DNS servers MUST NOT respond to cleartext DNS messages on any port used for DNS over TLS (including, for example, after a failed TLS handshake). (§3.1) | {gap}, no test | the client clause binds ze's DNS clients and nothing holds it: the forward server parser in internal/plugins/dnsresolver/config.go accepts any upstream port from 1 to 65535, 853 included, and the forwarder sends cleartext to it (exchange in internal/plugins/dnsresolver/forward.go), so an operator can make ze send cleartext DNS to a port used for DoT; the server clause is met under RFC7858-3.1-8 |
 | [`RFC7858-3.3-4`](#rfc7858-3.3-4) Since pipelined responses can arrive out of order, clients MUST match responses to outstanding queries on the same TLS connection using the Message ID. (§3.3) | {gap}, no test | ze is a DNS client that implements no DoT: the dnsresolver forwarder sends its upstream queries over plain UDP and TCP only (exchange in internal/plugins/dnsresolver/forward.go) and the stub resolver queries over UDP (internal/component/resolve/dns/resolver.go), and ze's only DoT code is the server listener bindDoT (internal/core/dnsserver/secure.go); no owner decision declines a DoT client, so no ze client matches pipelined DoT responses by Message ID |
 | [`RFC7858-3.3-5`](#rfc7858-3.3-5) If the response contains a Question Section, the client MUST match the QNAME, QCLASS, and QTYPE fields. (§3.3) | {gap}, no test | ze is a DNS client that implements no DoT: the dnsresolver forwarder sends its upstream queries over plain UDP and TCP only (exchange in internal/plugins/dnsresolver/forward.go) and the stub resolver queries over UDP (internal/component/resolve/dns/resolver.go), and ze's only DoT code is the server listener bindDoT (internal/core/dnsserver/secure.go); no owner decision declines a DoT client, so no ze client matches the Question Section of a DoT response |
 | [`RFC7858-3.4-7`](#rfc7858-3.4-7) As with current DNS over TCP, clients MUST handle abrupt closes and be prepared to reestablish connections and/or retry queries. (§3.4) | {gap}, no test | ze is a DNS client that implements no DoT: the dnsresolver forwarder sends its upstream queries over plain UDP and TCP only (exchange in internal/plugins/dnsresolver/forward.go) and the stub resolver queries over UDP (internal/component/resolve/dns/resolver.go), and ze's only DoT code is the server listener bindDoT (internal/core/dnsserver/secure.go); no owner decision declines a DoT client, so no ze client handles an abrupt DoT close or retries over DoT |
@@ -246,7 +244,10 @@ Such another port MUST NOT be port 53 (§3.1)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7858-3.1-3, so there is no linked test.
+| Polarity | Test | Kind and tier | Test status |
+|---|---|---|---|
+| negative | [`TestDoTListenPort53Refused`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc7858_dot_port_test.go#L17) | unit/verify | mutant, verified |
+| positive | [`TestDoTListenPortBesides53Accepted`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc7858_dot_port_test.go#L45) | unit/verify | mutant, verified |
 
 ### [`RFC7858-3.1-5`](#rfc7858-3.1-5)
 
@@ -268,7 +269,13 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestDoTRefusesCleartext`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L643) | unit/verify | not verified |
+| negative | [`TestForwardServerOn853Refused`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc7858_cleartext_port_test.go#L77) | unit/verify | mutant, verified |
+| negative | [`TestResolverListenerOn853Refused`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc7858_cleartext_port_test.go#L38) | unit/verify | mutant, verified |
+| negative | [`TestGeoDNSListenerOn853Refused`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc7858_cleartext_port_test.go#L36) | unit/verify | mutant, verified |
 | positive | [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L54) | unit/verify | not verified |
+| positive | [`TestForwardServerOffDoTPortAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc7858_cleartext_port_test.go#L91) | unit/verify | mutant, verified |
+| positive | [`TestResolverListenerOffDoTPortAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc7858_cleartext_port_test.go#L51) | unit/verify | mutant, verified |
+| positive | [`TestGeoDNSListenerOffDoTPortAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc7858_cleartext_port_test.go#L49) | unit/verify | mutant, verified |
 
 ### [`RFC7858-3.1-7`](#rfc7858-3.1-7)
 
@@ -276,18 +283,23 @@ DNS clients MUST NOT send and DNS servers MUST NOT respond to cleartext DNS mess
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-No test carries RFC7858-3.1-7, so there is no linked test.
+| Polarity | Test | Kind and tier | Test status |
+|---|---|---|---|
+| negative | [`TestForwardServerOn853Refused`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc7858_cleartext_port_test.go#L78) | unit/verify | mutant, verified |
+| positive | [`TestForwardServerOffDoTPortAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc7858_cleartext_port_test.go#L92) | unit/verify | mutant, verified |
 
 ### [`RFC7858-3.1-8`](#rfc7858-3.1-8)
 
 DNS servers MUST NOT respond to cleartext DNS messages on any port used for DNS over TLS (including, for example, after a failed TLS handshake). (§3.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-15 (subagent, after 14d1c8f19c and 224b0ef514). The tagged unit changed only in its setup call: mgr.apply/applyListeners became reconcile(..., BindLenient), the policy the deleted wrappers passed; the unit binds one free loopback port, where lenient and strict bind alike, and every assertion line is byte-identical. Where this unit carries a revert record (TestDoTListener, TestDoHListener, TestRFC7858DoTNegotiatesOnlyBCP195Suites, the two RFC 2181 4.1-1 units), it was re-observed red today. Prior judgement re-read against the current body and stands: Forbidden: a DNS server responding to a cleartext DNS message on its DoT port, including after the TLS handshake fails. TestDoTRefusesCleartext sends a cleartext query whose bytes fail the TLS handshake and fails at t.Fatalf("server answered a cleartext DNS query on the DoT port") on any unpackable reply with the matching Id. Positive: TestDoTListener asserts the TLS-wrapped query on the same kind of port is answered with the expected A record.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/plugins/geodns/rfc7858_cleartext_port_test.go::TestGeoDNSListenerOffDoTListenPortAccepted, internal/plugins/geodns/rfc7858_cleartext_port_test.go::TestGeoDNSListenerOnDoTListenPortRefused moved. Re-judged 2026-10-15 (subagent, after 14d1c8f19c and 224b0ef514). The tagged unit changed only in its setup call: mgr.apply/applyListeners became reconcile(..., BindLenient), the policy the deleted wrappers passed; the unit binds one free loopback port, where lenient and strict bind alike, and every assertion line is byte-identical. Where this unit carries a revert record (TestDoTListener, TestDoHListener, TestRFC7858DoTNegotiatesOnlyBCP195Suites, the two RFC 2181 4.1-1 units), it was re-observed red today. Prior judgement re-read against the current body and stands: Forbidden: a DNS server responding to a cleartext DNS message on its DoT port, including after the TLS handshake fails. TestDoTRefusesCleartext sends a cleartext query whose bytes fail the TLS handshake and fails at t.Fatalf("server answered a cleartext DNS query on the DoT port") on any unpackable reply with the matching Id. Positive: TestDoTListener asserts the TLS-wrapped query on the same kind of port is answered with the expected A record.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestDoTRefusesCleartext`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L644) | unit/verify | not verified |
+| negative | [`TestGeoDNSListenerOnDoTListenPortRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc7858_cleartext_port_test.go#L75) | unit/verify | mutant, verified |
 | positive | [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L55) | unit/verify | not verified |
+| positive | [`TestGeoDNSListenerOffDoTListenPortAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc7858_cleartext_port_test.go#L101) | unit/verify | mutant, verified |
 
 ### [`RFC7858-3.3-1`](#rfc7858-3.3-1)
 

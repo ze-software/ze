@@ -4,23 +4,23 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
-        <title>update fleet divergence adopt - Command Equivalents - Ze</title>
-        <meta name="description" content="Make the configuration a client holds the hub&#39;s configuration for it." />
-        <meta property="og:title" content="update fleet divergence adopt - Command Equivalents - Ze" />
-        <meta property="og:description" content="Make the configuration a client holds the hub&#39;s configuration for it." />
+        <title>thanks - Command Equivalents - Ze</title>
+        <meta name="description" content="List the third-party works this binary carries, with version, licence and copyright." />
+        <meta property="og:title" content="thanks - Command Equivalents - Ze" />
+        <meta property="og:description" content="List the third-party works this binary carries, with version, licence and copyright." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="update fleet divergence adopt - Command Equivalents - Ze" />
-        <meta name="twitter:description" content="Make the configuration a client holds the hub&#39;s configuration for it." />
+        <meta name="twitter:title" content="thanks - Command Equivalents - Ze" />
+        <meta name="twitter:description" content="List the third-party works this binary carries, with version, licence and copyright." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
-        <link rel="canonical" href="https://ze-software.net/reference/command-equivalents/update-fleet-divergence-adopt/" />
-        <meta property="og:url" content="https://ze-software.net/reference/command-equivalents/update-fleet-divergence-adopt/" />
+        <link rel="canonical" href="https://ze-software.net/reference/command-equivalents/thanks/" />
+        <meta property="og:url" content="https://ze-software.net/reference/command-equivalents/thanks/" />
         <link rel="stylesheet" href="../../../assets/site.css" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
@@ -47,33 +47,23 @@
 <section class="md-content command-equivalents command-equivalent-detail reveal cat-operate" aria-labelledby="command-equivalent-detail-title">
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Command map</span>
-    <h1 id="command-equivalent-detail-title">update fleet divergence adopt</h1>
-    <p>Make the configuration a client holds the hub&#39;s configuration for it.</p>
+    <h1 id="command-equivalent-detail-title">thanks</h1>
+    <p>List the third-party works this binary carries, with version, licence and copyright.</p>
 </div>
 <div class="cmd-detail-grid">
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
 <dl class="cmd-meta">
-<div><dt>Registry path</dt><dd><code>update fleet divergence adopt</code></dd></div>
-<div><dt>Usage</dt><dd><code>update fleet divergence adopt &lt;name&gt; &lt;version&gt;</code></dd></div>
-<div><dt>Mode</dt><dd>Daemon</dd></div>
-<div><dt>Wire method</dt><dd><code>ze-managed:fleet-divergence-adopt</code></dd></div>
+<div><dt>Registry path</dt><dd><code>thanks</code></dd></div>
+<div><dt>Mode</dt><dd>Offline</dd></div>
+<div><dt>Wire method</dt><dd><code>not listed</code></dd></div>
 <div><dt>Backends</dt><dd>any backend</dd></div>
 <div><dt>Task support</dt><dd>optional: the MCP call is synchronous, which is the default</dd></div>
 <div><dt>Subcommands</dt><dd>none: this command takes no subcommand</dd></div>
-<div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save</dd></div>
-<div><dt>Pipes, when the answer has rows</dt><dd>match, count, first, last, display, fill</dd></div>
-<div><dt>Pipes, while streaming</dt><dd>log</dd></div>
-<div><dt>Pipes, local process only</dt><dd>save</dd></div>
+<div><dt>Pipes</dt><dd>none: this command reaches no pipe layer</dd></div>
 </dl>
-<h3>Description</h3><p>Makes the configuration the client holds this hub&#39;s configuration<br>for that client, as a new version of client-&lt;name&gt;.conf, and<br>removes the held copy. The client already runs it, so its next<br>fetch is answered current and its hold ends. The hash given here<br>must be the held copy&#39;s.</p>
+<h3>Description</h3><p>Each row names one work Ze is built on, the version this binary carries, its licence, its copyright holder and why Ze uses it.</p>
 <h3>Arguments</h3>
-<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>name</code></td><td>string</td><td>yes</td><td>any value of this type</td><td>Managed client name</td><td>The name of a managed client, as the client entry of a hub server
-block names it. The hub keeps one held copy for each client.</td></tr>
-<tr><td><code>version</code></td><td>string</td><td>yes</td><td>any value of this type</td><td>Device configuration hash</td><td>The version hash of the client&#39;s configuration, as show fleet
-divergence name answers it. A held copy with another hash is
-refused, so a decision is made only on the copy the operator saw.</td></tr>
-</tbody></table>
+<p>No command-specific arguments listed.</p>
 </article>
 <article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
 <article class="cmd-detail-card cmd-vendor-detail"><h2>Juniper Junos MX</h2>
@@ -138,7 +128,7 @@ refused, so a decision is made only on the copy the operator saw.</td></tr>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
                 </div>
             </div>
         </footer>

@@ -8,10 +8,10 @@
   "must": {
     "total": 133,
     "kept": 133,
-    "ze-proven": 96,
+    "ze-proven": 112,
     "os-verified": 0,
     "os-gap": 0,
-    "proof-pending": 24,
+    "proof-pending": 8,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
     "not-built": 13,
@@ -20,11 +20,11 @@
   },
   "should": {
     "total": 34,
-    "proven": 2,
+    "proven": 3,
     "os-verified": 0,
     "os-gap": 0,
     "not-owed": 0,
-    "proof-pending": 2,
+    "proof-pending": 1,
     "exclusion-unchecked": 0,
     "not-assessed": 30,
     "not-built": 0,
@@ -33,7 +33,7 @@
   "proven-by-kind": {
     "functional": 12,
     "interop": 4,
-    "unit": 80
+    "unit": 96
   },
   "unmet": [
     "RFC4271-5.1.6-1",

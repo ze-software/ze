@@ -116,15 +116,15 @@ caching forwarder that answers recursive queries from customer LANs
 </tr>
 <tr>
 <td>Server failover</td>
-<td>The internal resolver asks the router's servers in order. A server that gives no answer, or answers SERVFAIL, REFUSED or any RCODE other than NOERROR and NXDOMAIN, passes the query to the next one. When every server fails, the caller gets the last server failure, never an empty success</td>
+<td>The internal resolver asks the router's servers in order. A server that gives no answer, or answers SERVFAIL, REFUSED or any RCODE other than NOERROR and NXDOMAIN, passes the query to the next one. A server that did not answer in time is asked once more after every other server was tried, so a lost query is retransmitted, and each server is asked at most twice per query. When every server fails, the caller gets the last server failure, never an empty success</td>
+</tr>
+<tr>
+<td>Timeout control</td>
+<td>Per-resolver configurable timeout (1-60 seconds) for each attempt at a server</td>
 </tr>
 <tr>
 <td>Fail closed</td>
 <td>With no server selected, queries fail with <code>no DNS server configured</code>. No public resolver is ever added</td>
-</tr>
-<tr>
-<td>Timeout control</td>
-<td>Per-resolver configurable timeout (1-60 seconds)</td>
 </tr>
 <tr>
 <td>Cache management</td>
@@ -141,7 +141,7 @@ caching forwarder that answers recursive queries from customer LANs
 </tbody>
 </table>
 <!-- source: internal/component/config/system/resolv.go -- routerDefault, Resolvers.refresh -->
-<!-- source: internal/component/resolve/dns/resolver.go -- Resolver.query, unansweredError -->
+<!-- source: internal/component/resolve/dns/resolver.go -- Resolver.query, unansweredError, queryTries, timedOut -->
 <h2 id="configuration">Configuration</h2>
 <pre><code>system {
     name-server [8.8.8.8 1.1.1.1]
@@ -703,7 +703,7 @@ them needs a process restart.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
                 </div>
             </div>
         </footer>

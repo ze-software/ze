@@ -133,8 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 4 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 4 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 4 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>0</strong><b>0 of 22 tests linked to requirements, 0 without a fault test and 2 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
-<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>7</strong><b>of 4 mandatory requirements reviewed</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>2</strong><b>2 of 22 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -202,7 +201,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current</td>
 </tr>
 <tr><td>Mandatory requirements (MUST level)</td>
@@ -276,8 +275,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> Route Reflection</p>
-<p><strong>Test verification:</strong> 0 of 4 MUST proven</p>
-<p><strong>Evidence:</strong> -</p>
+<p><strong>Test verification:</strong> 1 of 4 MUST proven</p>
+<p><strong>Evidence:</strong> unit 1</p>
 <p><strong>Unmet:</strong> -</p>
 
 </section>
@@ -322,9 +321,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc4456:must">Tests awaiting verification 4</div>
+<div data-ze-rfc-bar="rfc4456:must">Ze verified 1, Tests awaiting verification 3</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc4456:overview">Tests awaiting verification 7, Not assessed 2</div>
+<div data-ze-rfc-bar="rfc4456:overview">Ze MUST verified 1, Tests awaiting verification 6, Not assessed 2</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -345,13 +344,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc4456:must.kept">4</span></td>
 </tr>
 <tr><td>Ze verified</td>
-<td><span data-ze-rfc="rfc4456:must.ze-proven">0</span></td>
+<td><span data-ze-rfc="rfc4456:must.ze-proven">1</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc4456:must.os-verified">0</span></td>
 </tr>
 <tr><td>Tests awaiting verification</td>
-<td><span data-ze-rfc="rfc4456:must.proof-pending">4</span></td>
+<td><span data-ze-rfc="rfc4456:must.proof-pending">3</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc4456:must.os-gap">0</span></td>
@@ -638,7 +637,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4456_originator_id_test.go#L31" title="internal/component/bgp/reactor/rfc4456_originator_id_test.go" target="_blank" rel="noopener"><code>TestRFC4456OriginatorIDIsTheOriginatorsBGPIdentifier</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L200" title="internal/component/bgp/reactor/forward_rr_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRRPreservesOriginator</code></a></td>
@@ -648,7 +647,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4456_originator_id_test.go#L30" title="internal/component/bgp/reactor/rfc4456_originator_id_test.go" target="_blank" rel="noopener"><code>TestRFC4456OriginatorIDIsTheOriginatorsBGPIdentifier</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -675,7 +674,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc4456-9-1"><code>RFC4456-9-1</code></a></h3>
 <p>In addition, the following rule SHOULD be inserted between Steps f) and g): a BGP Speaker SHOULD prefer a route with the shorter CLUSTER_LIST length.  The CLUSTER_LIST length is zero if a route does not carry the CLUSTER_LIST attribute. (§9)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-17 after 7af5edbb7f. RFC 4456 Section 9 read in rfc/full/rfc4456.txt: &#34;In addition, the following rule SHOULD be inserted between Steps f) and g): a BGP Speaker SHOULD prefer a route with the shorter CLUSTER_LIST length.  The CLUSTER_LIST length is zero if a route does not carry the CLUSTER_LIST attribute.&#34; The commit changed checkClusterListLengthTieBreak only in the four assertion 8 and 9 failures, which now pass the BIRD route dump through interoplab.WithSearchedOutput (bounded excerpt) instead of printing it whole; each still returns fail(n, non-nil error) on the same condition. Assertions 11 (ze and BIRD agree), 12 (the agreed winner is the origin&#39;s path with no CLUSTER_LIST, the absent-as-zero case) and 13 (ze decided at step cluster-list-length, so no earlier step separated the paths and step g would pick the other path) are byte-identical, so the scenario still fails on a non-compliant selection. The unit covers TestBestPath_ClusterListLength (both tags) and TestClusterListEntries are unchanged: SelectBest and SelectBestExplain asserted on shorter-list win, absent-as-zero win, step f precedence and fall-through to step g; clusterListEntries pins absent and empty as zero. The interop unit carries no discrimination record and was not rerun for this failure-text change. Verdict unchanged.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/le/interoplab/bgp/check_rfc4456.go::checkClusterListLengthTieBreak moved. Rejudged 2026-10-17 after 7af5edbb7f. RFC 4456 Section 9 read in rfc/full/rfc4456.txt: &#34;In addition, the following rule SHOULD be inserted between Steps f) and g): a BGP Speaker SHOULD prefer a route with the shorter CLUSTER_LIST length.  The CLUSTER_LIST length is zero if a route does not carry the CLUSTER_LIST attribute.&#34; The commit changed checkClusterListLengthTieBreak only in the four assertion 8 and 9 failures, which now pass the BIRD route dump through interoplab.WithSearchedOutput (bounded excerpt) instead of printing it whole; each still returns fail(n, non-nil error) on the same condition. Assertions 11 (ze and BIRD agree), 12 (the agreed winner is the origin&#39;s path with no CLUSTER_LIST, the absent-as-zero case) and 13 (ze decided at step cluster-list-length, so no earlier step separated the paths and step g would pick the other path) are byte-identical, so the scenario still fails on a non-compliant selection. The unit covers TestBestPath_ClusterListLength (both tags) and TestClusterListEntries are unchanged: SelectBest and SelectBestExplain asserted on shorter-list win, absent-as-zero win, step f precedence and fall-through to step g; clusterListEntries pins absent and empty as zero. The interop unit carries no discrimination record and was not rerun for this failure-text change. Verdict unchanged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -962,7 +961,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
+                    <span class="footer-published">Published 21 November 2026 00:08 UTC</span>
                 </div>
             </div>
         </footer>

@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 4 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 4 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 4 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 12 | 12 of 39 tests linked to requirements, 0 without a fault test and 6 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 20 | 20 of 39 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -73,7 +73,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 39 |
 | Tests linked to requirements | 39 |
 | Recorded audit verdicts | 7 |
-| Fault test records | 18 |
+| Fault test records | 20 |
 | Summary | `rfc/short/rfc7999.md` |
 | Requirement table | `rfc/requirements/rfc7999.md` |
 | RFC text | `rfc/full/rfc7999.txt` |
@@ -86,9 +86,9 @@ Included in automatic checks: BLACKHOLE Community (65535:666, 0xFFFF029A): four 
 
 **Area:** BLACKHOLE community
 
-**Test verification:** 2 of 4 MUST proven
+**Test verification:** 4 of 4 MUST proven
 
-**Evidence:** unit 2
+**Evidence:** interop 2, unit 2
 
 **Unmet:** -
 
@@ -110,19 +110,19 @@ Included in automatic checks: BLACKHOLE Community (65535:666, 0xFFFF029A): four 
 
 ## Figures
 
-- **MUST bar**: Ze verified 2, Tests awaiting verification 2
-- **Overview bar**: Ze MUST verified 2, SHOULD verified 3, Tests awaiting verification 2, Not assessed 9
+- **MUST bar**: Ze verified 4
+- **Overview bar**: Ze MUST verified 4, SHOULD verified 3, Not assessed 9
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 4 |
 | MUST rows kept (the MUST bar) | 4 |
-| Ze verified | 2 |
+| Ze verified | 4 |
 | OS verified | 0 |
-| Tests awaiting verification | 2 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -202,11 +202,11 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7999BlackholeRefusedUnderALongerAuthorizedPrefix`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_equal_cover_test.go#L50) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC7999BlackholeRefusedUnderALongerAuthorizedPrefix`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_equal_cover_test.go#L50) | unit/verify | mutant, verified |
 | negative | [`TestBlackholeNotStampedOutsideAuthorization`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go#L186) | unit/verify | not verified |
 | negative | [`checkRFC7999Blackhole`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L840) | interop/nightly | not verified |
-| positive | [`TestRFC7999BlackholeHonoredOnAnEqualAuthorizedPrefix`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_equal_cover_test.go#L23) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestBlackholeGroupIdentityArrivesOnAStructuredEvent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_dynamic_test.go#L30) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC7999BlackholeHonoredOnAnEqualAuthorizedPrefix`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_equal_cover_test.go#L23) | unit/verify | mutant, verified |
+| positive | [`TestBlackholeGroupIdentityArrivesOnAStructuredEvent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_dynamic_test.go#L30) | unit/verify | mutant, verified |
 | positive | [`TestBlackholeRouteTypeStampedOnBestPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go#L104) | unit/verify | not verified |
 | positive | [`TestBlackholeRuleForDynamicGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go#L326) | unit/verify | not verified |
 | positive | [`checkRFC7999Blackhole`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L839) | interop/nightly | not verified |
@@ -219,13 +219,13 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7999BlackholeNotHonoredOutsideTheAuthorizedPrefix`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_cover_test.go#L37) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| negative | [`TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go#L158) | unit/verify | not verified |
+| negative | [`TestRFC7999BlackholeNotHonoredOutsideTheAuthorizedPrefix`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_cover_test.go#L37) | unit/verify | mutant, verified |
+| negative | [`TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go#L158) | unit/verify | mutant, verified |
 | negative | [`TestBlackholeRuleForDynamicGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go#L359) | unit/verify | not verified |
 | negative | [`checkRFC7999Blackhole`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L842) | interop/nightly | not verified |
-| positive | [`TestRFC7999BlackholeHonoredForTheEqualAuthorizedPrefix`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_cover_test.go#L13) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestBlackholeGroupIdentityArrivesOnAStructuredEvent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_dynamic_test.go#L33) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestBlackholeRouteTypeStampedOnBestPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go#L107) | unit/verify | not verified |
+| positive | [`TestRFC7999BlackholeHonoredForTheEqualAuthorizedPrefix`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_cover_test.go#L13) | unit/verify | mutant, verified |
+| positive | [`TestBlackholeGroupIdentityArrivesOnAStructuredEvent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_dynamic_test.go#L33) | unit/verify | mutant, verified |
+| positive | [`TestBlackholeRouteTypeStampedOnBestPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go#L107) | unit/verify | mutant, verified |
 | positive | [`TestBlackholeRuleForDynamicGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go#L329) | unit/verify | not verified |
 | positive | [`checkRFC7999Blackhole`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L841) | interop/nightly | not verified |
 

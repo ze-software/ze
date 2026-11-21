@@ -60,7 +60,10 @@
 <li><a href="#runtime-change">Runtime Change</a></li>
 </ol></li>
 <li><a href="#priority-order">Priority Order</a></li>
-<li><a href="#backends">Backends</a></li>
+<li><a href="#backends">Backends</a>
+<ol>
+<li><a href="#syslog-facility-and-severity">Syslog facility and severity</a></li>
+</ol></li>
 <li><a href="#plugin-stderr-relay">Plugin Stderr Relay</a></li>
 <li><a href="#naming-convention">Naming Convention</a></li>
 <li><a href="#subsystems">Subsystems</a></li>
@@ -173,7 +176,7 @@ restart.</p>
 <tr>
 <td><code>syslog</code></td>
 <td><code>backend syslog</code></td>
-<td>Remote syslog. Set address with <code>destination</code>.</td>
+<td>Syslog: the local daemon, a Unix socket or a UDP collector, set with <code>destination</code>.</td>
 </tr>
 </tbody>
 </table>
@@ -182,10 +185,56 @@ restart.</p>
     log {
         level info
         backend syslog
-        destination 10.0.0.100:514
+        destination 192.0.2.100:514
     }
 }
 </code></pre>
+<h3 id="syslog-facility-and-severity">Syslog facility and severity</h3>
+<p>Each syslog record carries the severity of its level: <code>debug</code> is sent as
+debug, <code>info</code> as info, <code>warn</code> as warning and <code>err</code> as err. A collector can
+select records by facility and severity.</p>
+<!-- source: internal/core/slogutil/syslog.go -- severityHandler -->
+<p>Every subsystem goes out on the <code>daemon</code> facility unless the <code>syslog</code>
+container names another one. The <code>facility</code> leaf changes the facility for all
+subsystems. Any other name in the container is a subsystem, and its value is
+the facility that subsystem and its children go out on. Ze reads the longest
+matching name first, as it does for levels, so <code>bgp</code> covers <code>bgp.server</code> until
+<code>bgp.server</code> is named too. The name <code>facility</code> is reserved for the leaf, so a
+subsystem called <code>facility</code> cannot be mapped here. Facility names are <code>kern</code>, <code>user</code>, <code>mail</code>,
+<code>daemon</code>, <code>auth</code>, <code>syslog</code>, <code>lpr</code>, <code>news</code>, <code>uucp</code>, <code>cron</code>, <code>authpriv</code>, <code>ftp</code>
+and <code>local0</code> to <code>local7</code>.</p>
+<!-- source: internal/core/slogutil/syslog.go -- syslogFacilities, facilityFor -->
+<p>The level of a facility is the level of the subsystems it carries. To send
+everything at <code>info</code> on <code>daemon</code>, and the BGP subsystems at <code>debug</code> on
+<code>local7</code>:</p>
+<pre><code>environment {
+    log {
+        level info
+        bgp debug
+        backend syslog
+        destination 192.0.2.100:514
+        syslog {
+            bgp local7
+        }
+    }
+}
+</code></pre>
+<p>To send everything on one facility, set only the leaf:</p>
+<pre><code>environment {
+    log {
+        level info
+        backend syslog
+        syslog {
+            facility local7
+        }
+    }
+}
+</code></pre>
+<p>The environment variable <code>ze.log.syslog.facility</code> overrides the leaf, and
+<code>ze.log.syslog.&lt;subsystem&gt;</code> overrides a subsystem name (<code>ZE_LOG_SYSLOG_BGP=local7</code>).
+A word that names no facility is refused with a warning on stderr, and the
+subsystem keeps the facility of the next shorter name.</p>
+<!-- source: internal/core/slogutil/slogutil.go -- syslogConfigEntries -->
 <h2 id="plugin-stderr-relay">Plugin Stderr Relay</h2>
 <p>External plugins (forked processes) write to stderr. Ze captures this output and relays it through the logging system tagged with subsystem <code>plugin.relay</code>.</p>
 <pre><code class="language-bash">export ZE_LOG_PLUGIN_RELAY=debug      # see all plugin stderr
@@ -411,7 +460,7 @@ ze cli -c "show log levels"    # show runtime log levels
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:03 UTC</span>
                 </div>
             </div>
         </footer>

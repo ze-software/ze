@@ -380,7 +380,7 @@ to inspect the retained Linux cause.</p>
 <tr>
 <td><code>basic-auth/password</code></td>
 <td>unset</td>
-<td>Bcrypt-hashed Basic Auth password</td>
+<td>Hashed Basic Auth password: bcrypt, or a SHA-crypt <code>$6$</code>/<code>$5$</code> hash kept from another system</td>
 </tr>
 <tr>
 <td><code>basic-auth/plaintext-password</code></td>
@@ -411,7 +411,7 @@ to inspect the retained Linux cause.</p>
 </table>
 <p>Deprecated compatibility aliases remain accepted: <code>prefix</code>, <code>interval</code>, and <code>collector</code> directly under <code>prometheus</code>. Prefer <code>netdata/prefix</code>, <code>netdata/interval</code>, and <code>netdata/collector</code> in new config.</p>
 <h3 id="http-basic-authentication">HTTP Basic Authentication</h3>
-<p>When <code>basic-auth/enabled</code> is true, Ze requires HTTP Basic Authentication for every handler on the Prometheus service, including both <code>/metrics</code> and <code>/health</code>. The password is stored as a bcrypt hash in the persisted config. Use <code>plaintext-password</code> when you edit the config and Ze replaces it with <code>password</code> at commit. If automation already has a hash from <code>ze passwd</code>, set <code>password</code> directly.</p>
+<p>When <code>basic-auth/enabled</code> is true, Ze requires HTTP Basic Authentication for every handler on the Prometheus service, including both <code>/metrics</code> and <code>/health</code>. The password is stored as a bcrypt hash in the persisted config. Use <code>plaintext-password</code> when you edit the config and Ze replaces it with <code>password</code> at commit. If automation already has a hash from <code>ze passwd</code>, set <code>password</code> directly. A SHA-crypt hash (<code>$6$</code> or <code>$5$</code>) copied from another system is also accepted as given (see <code>docs/guide/authentication.md</code>, "Migrated accounts keep their SHA-crypt hash").</p>
 <p>A config file loaded at daemon start or at SIGHUP gets the same transform. Ze hashes the leaf in memory and leaves your file as you wrote it. It warns that the plaintext is still on disk.</p>
 <!-- source: internal/component/config/loader.go -- LoadConfig, warnPlaintextOnDisk -->
 <p>Prometheus scrape configuration:</p>
@@ -1422,8 +1422,14 @@ their authority is checked by AAA, and <code>send</code> grants authority to a p
 <h2 id="single-command">Single Command</h2>
 <p>For scripting, use <code>-c</code> to execute a single command and exit:</p>
 <pre><code>ze cli -c "show bgp"
-ze cli -c "show bgp rib received"
+ze cli -c "show bgp rib | received"
 ze cli -c "show bgp rpki status"
+</code></pre>
+<p>A monitor given to <code>-c</code> runs until you stop it. Ctrl+C, or a SIGTERM from a
+script, ends it: every <code>| save</code> file then holds the events shown, and <code>ze cli</code>
+exits 0. A save file is written whole when the monitor ends, never while it
+runs; a stream the daemon or the connection breaks writes no file.</p>
+<pre><code>ze cli -c "monitor event include state | match up | save events.log"
 </code></pre>
 <!-- source: internal/component/cli/client/main.go -- Run, Execute, StreamMonitor -->
 </div>
@@ -1475,7 +1481,7 @@ ze cli -c "show bgp rpki status"
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 19 November 2026 12:05 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 22:34 UTC</span>
                 </div>
             </div>
         </footer>

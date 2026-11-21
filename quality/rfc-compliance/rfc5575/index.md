@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 1 | of 9 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 9 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 9 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 8 | 8 of 31 tests linked to requirements, 0 without a fault test and 10 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 18 | 18 of 31 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -93,9 +93,9 @@ Included in automatic checks: BGP Flowspec (obsoleted by RFC 8955): 8 single-pol
 
 **Area:** BGP Flowspec (obsoleted by RFC 8955)
 
-**Test verification:** 3 of 9 MUST proven
+**Test verification:** 4 of 9 MUST proven
 
-**Evidence:** unit 3
+**Evidence:** unit 4
 
 **Unmet:** RFC5575-6-1
 
@@ -121,8 +121,8 @@ Included in automatic checks: BGP Flowspec (obsoleted by RFC 8955): 8 single-pol
 
 ## Figures
 
-- **MUST bar**: Ze verified 3, Tests awaiting verification 5, Not built 1
-- **Overview bar**: Ze MUST verified 3, Tests awaiting verification 5, Not assessed 4, Not built 1
+- **MUST bar**: Ze verified 4, Tests awaiting verification 4, Not built 1
+- **Overview bar**: Ze MUST verified 4, Tests awaiting verification 4, Not assessed 4, Not built 1
 
 | Figure | Rows |
 |---|---|
@@ -131,9 +131,9 @@ Included in automatic checks: BGP Flowspec (obsoleted by RFC 8955): 8 single-pol
 | Mandatory requirements complete | not complete |
 | MUST rows | 9 |
 | MUST rows kept (the MUST bar) | 9 |
-| Ze verified | 3 |
+| Ze verified | 4 |
 | OS verified | 0 |
-| Tests awaiting verification | 5 |
+| Tests awaiting verification | 4 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -172,7 +172,7 @@ Source: [data/rfc/rfc5575.json](../../../data/rfc/rfc5575.json).
 | `RFC5575-6-3` | A flow specification NLRI must be validated such that it is considered feasible if and only if: a) The originator of the flow specification matches the originator of the best-match unicast route for the destination prefix embedded in the flow specification. (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{rollup}:** RFC8955-6-1; RFC 5575 is obsoleted and originator matching is condition (b) of the RFC 8955 Section 6 procedure, so the row holds exactly when RFC8955-6-1 does. **derived:** met |
 | `RFC5575-6-4` | A flow specification NLRI must be validated such that it is considered feasible if and only if: a) The originator of the flow specification matches the originator of the best-match unicast route for the destination prefix embedded in the flow specification. b) There are no more specific unicast routes, when compared with the flow destination prefix, that have been received from a different neighboring AS than the best-match unicast route, which has been determined in step a). (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{rollup}:** RFC8955-6-1; RFC 5575 is obsoleted and the more-specific-route rule is condition (c) of the RFC 8955 Section 6 procedure, so the row holds exactly when RFC8955-6-1 does. **derived:** met |
 | `RFC5575-7-1` | This extended community is encoded as a sequence of 5 zero bytes followed by the DSCP value encoded in the 6 least significant bits of 6th byte. (§7) | MUST | 7 | **positive:** `unit/verify` [`TestFlowSpecTrafficMarkingReservedBytesZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1508). **negative:** no negative test. **{single-polarity}:** the traffic-marking community is emitted with literal zero reserved bytes and only the trailing DSCP octet varies (internal/component/bgp/plugins/nlri/flowspec/encode.go:124-127) |
-| `RFC5575-4-8` | Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt. (§4) | MUST | 4 | **positive:** `unit/verify` [`TestFlowSpecForwardingOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_forward_wire_test.go#L33). **positive:** `unit/verify` [`TestFlowSpecOriginationOmitsConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_origin_wire_test.go#L34). **positive:** `unit/verify` [`TestFlowSpecRouteServerOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L29). **positive:** `unit/verify` [`TestFlowSpecUpdateIgnoresConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L17). **positive:** `unit/verify` [`TestRFC8955NextHopIgnoredForFlowSpec`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L549). **negative:** `unit/verify` [`TestFlowSpecForwardingOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_forward_wire_test.go#L34). **negative:** `unit/verify` [`TestFlowSpecOriginationOmitsConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_origin_wire_test.go#L35). **negative:** `unit/verify` [`TestFlowSpecRouteServerOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L30). **negative:** `unit/verify` [`TestFlowSpecUpdateIgnoresConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L18). **negative:** `unit/verify` [`TestRFC8955NextHopIgnoredForFlowSpec`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L550) |
+| `RFC5575-4-8` | Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt. (§4) | MUST | 4 | **positive:** `unit/verify` [`TestFlowSpecForwardingOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_forward_wire_test.go#L33). **positive:** `unit/verify` [`TestFlowSpecOriginationOmitsConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_origin_wire_test.go#L34). **positive:** `unit/verify` [`TestFlowSpecRouteServerOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L29). **positive:** `unit/verify` [`TestFlowSpecUpdateIgnoresConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L17). **positive:** `unit/verify` [`TestRFC8955NextHopIgnoredForFlowSpec`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L602). **negative:** `unit/verify` [`TestFlowSpecForwardingOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_forward_wire_test.go#L34). **negative:** `unit/verify` [`TestFlowSpecOriginationOmitsConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_origin_wire_test.go#L35). **negative:** `unit/verify` [`TestFlowSpecRouteServerOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L30). **negative:** `unit/verify` [`TestFlowSpecUpdateIgnoresConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L18). **negative:** `unit/verify` [`TestRFC8955NextHopIgnoredForFlowSpec`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L603) |
 | `RFC5575-5.1-1` | This ordering function must be such that it must not depend on the arrival order of the flow specification's rules and must be constant in the network. (§5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestFlowSpecPrecedenceFromWire`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go#L13). **positive:** `unit/verify` [`TestRFC5575PrecedenceIndependentOfArrival`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc5575_arrival_order_test.go#L14). **negative:** `unit/verify` [`TestFlowSpecPrecedenceFromWire`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go#L14). **negative:** `unit/verify` [`TestRFC5575PrecedenceIndependentOfArrival`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc5575_arrival_order_test.go#L15) |
 | `RFC5575-8-1` | The NLRI length field shall include both the 8 bytes of the Route Distinguisher as well as the subsequent flow specification. (§8) | MUST | 8 | **positive:** `unit/verify` [`TestFlowSpecVPNUpdateCountsRouteDistinguisher`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L36). **negative:** `unit/verify` [`TestFlowSpecVPNUpdateCountsRouteDistinguisher`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L37) |
 | `RFC5575-3-1` | Standard BGP policy mechanisms, such as UPDATE filtering by NLRI prefix and community matching, SHOULD apply to the newly defined NLRI-type. (§3) | SHOULD | 3 | **positive:** no positive test. **negative:** no negative test |
@@ -202,10 +202,10 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestMultiprotocolApplicationsRejectUnrecognizedCapabilityCode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/multiprotocol_application_code_test.go#L106) | unit/verify | mutant, verified |
-| negative | [`TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L22) | unit/verify | revert, producer-gone (the producer the break was applied to is no longer in the tree) |
+| negative | [`TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L22) | unit/verify | revert, verified |
 | positive | [`TestIPv4FlowSpecNegotiatesMultiprotocolCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/plugin_test.go#L902) | unit/verify | not verified |
 | positive | [`TestMultiprotocolApplicationsAdvertiseLiteralCodeOne`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/multiprotocol_application_code_test.go#L27) | unit/verify | mutant, verified |
-| positive | [`TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L21) | unit/verify | revert, producer-gone (the producer the break was applied to is no longer in the tree) |
+| positive | [`TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L21) | unit/verify | revert, verified |
 
 ### [`RFC5575-4-2`](#rfc5575-4-2)
 
@@ -215,10 +215,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L24) | unit/verify | revert, producer-gone (the producer the break was applied to is no longer in the tree) |
+| negative | [`TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L24) | unit/verify | revert, verified |
 | positive | [`TestFlowSpecIPv4Basic`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L421) | unit/verify | not verified |
 | positive | [`TestFlowSpecVPNFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L647) | unit/verify | not verified |
-| positive | [`TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L23) | unit/verify | revert, producer-gone (the producer the break was applied to is no longer in the tree) |
+| positive | [`TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L23) | unit/verify | revert, verified |
 
 ### [`RFC5575-4-3`](#rfc5575-4-3)
 
@@ -294,13 +294,13 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestFlowSpecUpdateIgnoresConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L18) | unit/verify | not verified |
-| negative | [`TestRFC8955NextHopIgnoredForFlowSpec`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L550) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| negative | [`TestFlowSpecForwardingOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_forward_wire_test.go#L34) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| negative | [`TestFlowSpecOriginationOmitsConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_origin_wire_test.go#L35) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| negative | [`TestFlowSpecRouteServerOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L30) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC8955NextHopIgnoredForFlowSpec`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L603) | unit/verify | mutant, verified |
+| negative | [`TestFlowSpecForwardingOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_forward_wire_test.go#L34) | unit/verify | revert, verified |
+| negative | [`TestFlowSpecOriginationOmitsConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_origin_wire_test.go#L35) | unit/verify | revert, verified |
+| negative | [`TestFlowSpecRouteServerOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L30) | unit/verify | revert, verified |
 | positive | [`TestFlowSpecUpdateIgnoresConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L17) | unit/verify | not verified |
-| positive | [`TestRFC8955NextHopIgnoredForFlowSpec`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L549) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestFlowSpecForwardingOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_forward_wire_test.go#L33) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC8955NextHopIgnoredForFlowSpec`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L602) | unit/verify | mutant, verified |
+| positive | [`TestFlowSpecForwardingOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_forward_wire_test.go#L33) | unit/verify | revert, verified |
 | positive | [`TestFlowSpecOriginationOmitsConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_origin_wire_test.go#L34) | unit/verify | revert, verified |
 | positive | [`TestFlowSpecRouteServerOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L29) | unit/verify | revert, verified |
 

@@ -132,13 +132,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 15 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 15 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 15 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>30</strong><b>30 of 57 tests linked to requirements, 0 without a fault test and 27 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>57</strong><b>57 of 57 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>2</strong><b>of 15 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>15</strong><b>of 15 mandatory requirements reviewed</b><p>2 weak, wrong or unimplemented, 3 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>15</strong><b>of 15 mandatory requirements reviewed</b><p>2 weak, wrong or unimplemented, 2 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -280,8 +280,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> Link-local next-hop capability code 77</p>
-<p><strong>Test verification:</strong> 10 of 15 MUST proven</p>
-<p><strong>Evidence:</strong> unit 10</p>
+<p><strong>Test verification:</strong> 13 of 15 MUST proven</p>
+<p><strong>Evidence:</strong> unit 13</p>
 <p><strong>Unmet:</strong> DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-2, DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-15</p>
 
 </section>
@@ -327,9 +327,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="draft-ietf-idr-linklocal-capability:must">Ze verified 10, Tests awaiting verification 3, Not built 2</div>
+<div data-ze-rfc-bar="draft-ietf-idr-linklocal-capability:must">Ze verified 13, Not built 2</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="draft-ietf-idr-linklocal-capability:overview">Ze MUST verified 10, Tests awaiting verification 3, Not assessed 12, Not built 2</div>
+<div data-ze-rfc-bar="draft-ietf-idr-linklocal-capability:overview">Ze MUST verified 13, Not assessed 12, Not built 2</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -350,13 +350,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="draft-ietf-idr-linklocal-capability:must.kept">15</span></td>
 </tr>
 <tr><td>Ze verified</td>
-<td><span data-ze-rfc="draft-ietf-idr-linklocal-capability:must.ze-proven">10</span></td>
+<td><span data-ze-rfc="draft-ietf-idr-linklocal-capability:must.ze-proven">13</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="draft-ietf-idr-linklocal-capability:must.os-verified">0</span></td>
 </tr>
 <tr><td>Tests awaiting verification</td>
-<td><span data-ze-rfc="draft-ietf-idr-linklocal-capability:must.proof-pending">3</span></td>
+<td><span data-ze-rfc="draft-ietf-idr-linklocal-capability:must.proof-pending">0</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="draft-ietf-idr-linklocal-capability:must.os-gap">0</span></td>
@@ -650,11 +650,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go#L89" title="internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go" target="_blank" rel="noopener"><code>TestLinkLocalCapabilityWellFormedThirtyTwoOctet</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L642" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedPairFirstAddressValidated</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L657" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedPairFirstAddressValidated</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L232" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedPairSecondAddressValidated</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go#L47" title="internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go" target="_blank" rel="noopener"><code>TestLinkLocalCapabilityMalformedThirtyTwoOctet</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L715" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545EffectivePairPolicyAndMixedSibling</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L641" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedPairFirstAddressValidated</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L730" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545EffectivePairPolicyAndMixedSibling</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L656" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedPairFirstAddressValidated</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L231" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedPairSecondAddressValidated</code></a></span></div>
 </div></td>
 </tr>
@@ -795,7 +795,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L84" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L70" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithNoNextHopIsNotAdvertised</code></a></td>
@@ -805,7 +805,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L80" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -820,22 +820,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L84" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go" target="_blank" rel="noopener"><code>TestLinkLocalIncludedForPeerOneHopAway</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L158" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestLinkLocalReceivedPairStrippedForMultihopInternalPeer</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L73" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go" target="_blank" rel="noopener"><code>TestLinkLocalNotIncludedForPeerMoreThanOneHopAway</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L155" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestLinkLocalReceivedPairStrippedForMultihopInternalPeer</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -905,7 +905,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L86" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -920,12 +920,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go#L232" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go" target="_blank" rel="noopener"><code>TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go#L223" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go" target="_blank" rel="noopener"><code>TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -940,12 +940,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go#L346" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go" target="_blank" rel="noopener"><code>TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go#L316" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go" target="_blank" rel="noopener"><code>TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -970,7 +970,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L193" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestNextHopSelfWithheldRouteServerWithdraws</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -985,22 +985,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go#L140" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go" target="_blank" rel="noopener"><code>TestLinkLocalReceivedPairKeptForDirectlyAttachedExternalPeer</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go#L261" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteServerKeepsReceivedPairForAttachedClient</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_single_next_hop_test.go#L46" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_single_next_hop_test.go" target="_blank" rel="noopener"><code>TestDraftBareLinkLocalAttachedCached</code></a></td>
 <td>unit/verify</td>
-<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_single_next_hop_test.go#L53" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_single_next_hop_test.go" target="_blank" rel="noopener"><code>TestDraftBareLinkLocalAttachedNative</code></a></td>
 <td>unit/verify</td>
-<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L108" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go" target="_blank" rel="noopener"><code>TestLinkLocalIncludedForDirectlyAttachedExternalPeer</code></a></td>
@@ -1010,37 +1010,37 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go#L108" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go" target="_blank" rel="noopener"><code>TestLinkLocalReceivedPairStrippedForMultihopExternalPeer</code></a></td>
 <td>unit/verify</td>
-<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go#L230" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteServerStripsReceivedPairForMultihopClient</code></a></td>
 <td>unit/verify</td>
-<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_single_next_hop_test.go#L32" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_single_next_hop_test.go" target="_blank" rel="noopener"><code>TestDraftBareLinkLocalPolicyMultihopCached</code></a></td>
 <td>unit/verify</td>
-<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_single_next_hop_test.go#L39" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_single_next_hop_test.go" target="_blank" rel="noopener"><code>TestDraftBareLinkLocalPolicyMultihopNative</code></a></td>
 <td>unit/verify</td>
-<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_single_next_hop_test.go#L18" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_single_next_hop_test.go" target="_blank" rel="noopener"><code>TestDraftBareLinkLocalReceivedMultihopCached</code></a></td>
 <td>unit/verify</td>
-<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_single_next_hop_test.go#L25" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_single_next_hop_test.go" target="_blank" rel="noopener"><code>TestDraftBareLinkLocalReceivedMultihopNative</code></a></td>
 <td>unit/verify</td>
-<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L95" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go" target="_blank" rel="noopener"><code>TestLinkLocalNotIncludedForMultihopExternalPeer</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1060,7 +1060,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L127" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOnlyRouteServerWithdrawnFromMultihopClient</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L137" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithNoGlobalNextHopIsNotAdvertisedToAMultihopExternalPeer</code></a></td>
@@ -1070,12 +1070,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L124" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOnlyRouteServerWithdrawnFromMultihopClient</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go#L88" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go" target="_blank" rel="noopener"><code>TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1106,7 +1106,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#draft-ietf-idr-linklocal-capability-6-1"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1</code></a></h3>
 <p>If the Next Hop field is malformed, the implementation MUST handle the malformed UPDATE message using the approach of &#34;treat-as- withdraw&#34;, as described in section 7.3 of [RFC7606]. (§6)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545EffectivePairPolicyAndMixedSibling, internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairFirstAddressValidated, internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairFirstAddressValidated#2, internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairSecondAddressValidated, internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairSecondAddressValidated#2 moved. Re-judged 2026-11-03 by an independent auditor who authored none of 816ce1ce4c, 2cbd255ba4, 2e5c2d012a, d22b811ce4 or 1a2ccaeef8 (phase 5 of spec-filter-wire-0-umbrella, the per-peer text filter chain deleted). Draft Section 6 read: &#34;If the Next Hop field is malformed, the implementation MUST handle the malformed UPDATE message using the approach of &#34;treat-as- withdraw&#34;, as described in section 7.3 of [RFC7606].&#34; The only moved unit, TestRFC2545EffectivePairPolicyAndMixedSibling, changed only its export-filter plumbing: The test filter is now an answerTransport behind filterTransportSeam, compiled by answerPolicy into a policychain library chain, so the verdict travels the real filter-update path (route.Input, rpc.FilterUpdateOutput decoded by the library chain) instead of the deleted policyFilterSeam that handed a PolicyResponse straight to the text chain; that is the production path every plugin filter now takes. The filter is now called once per UPDATE and rewrites only when the fields carry the IPv6 prefix 2001:db8:7::/64, where it was called per family on the text. The tagged negative row cap77-source-invalid-second-withdrawn has no replacement, installs no policy, and still returns through rfc2545AssertWithdrawnAtReceipt, which requires the Session to publish the withdrawal of every route of the UPDATE, legacy sibling included, and no announcement to the recipient; every assertion is byte-identical. The other carriers of the row are unmoved and their judgement stands. Ran the tagged units under ./le job run at HEAD (-tags ze_bgp, -v): PASS (scratch audit-p5-units-v.log). Verdict unchanged: enforced.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-03 by an independent auditor who authored none of 816ce1ce4c, 2cbd255ba4, 2e5c2d012a, d22b811ce4 or 1a2ccaeef8 (phase 5 of spec-filter-wire-0-umbrella, the per-peer text filter chain deleted). Draft Section 6 read: &#34;If the Next Hop field is malformed, the implementation MUST handle the malformed UPDATE message using the approach of &#34;treat-as- withdraw&#34;, as described in section 7.3 of [RFC7606].&#34; The only moved unit, TestRFC2545EffectivePairPolicyAndMixedSibling, changed only its export-filter plumbing: The test filter is now an answerTransport behind filterTransportSeam, compiled by answerPolicy into a policychain library chain, so the verdict travels the real filter-update path (route.Input, rpc.FilterUpdateOutput decoded by the library chain) instead of the deleted policyFilterSeam that handed a PolicyResponse straight to the text chain; that is the production path every plugin filter now takes. The filter is now called once per UPDATE and rewrites only when the fields carry the IPv6 prefix 2001:db8:7::/64, where it was called per family on the text. The tagged negative row cap77-source-invalid-second-withdrawn has no replacement, installs no policy, and still returns through rfc2545AssertWithdrawnAtReceipt, which requires the Session to publish the withdrawal of every route of the UPDATE, legacy sibling included, and no announcement to the recipient; every assertion is byte-identical. The other carriers of the row are unmoved and their judgement stands. Ran the tagged units under ./le job run at HEAD (-tags ze_bgp, -v): PASS (scratch audit-p5-units-v.log). Verdict unchanged: enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -1114,15 +1114,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go#L47" title="internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go" target="_blank" rel="noopener"><code>TestLinkLocalCapabilityMalformedThirtyTwoOctet</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L715" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545EffectivePairPolicyAndMixedSibling</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L730" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545EffectivePairPolicyAndMixedSibling</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L641" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedPairFirstAddressValidated</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L656" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedPairFirstAddressValidated</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1137,7 +1137,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L642" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedPairFirstAddressValidated</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L657" title="internal/component/bgp/reactor/rfc2545_forward_subnet_test.go" target="_blank" rel="noopener"><code>TestRFC2545ReceivedPairFirstAddressValidated</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1361,7 +1361,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:27 UTC</span>
+                    <span class="footer-published">Published 20 November 2026 18:36 UTC</span>
                 </div>
             </div>
         </footer>

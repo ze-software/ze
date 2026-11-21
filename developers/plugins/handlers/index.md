@@ -17,7 +17,7 @@ p.OnShareRegistry(func(commands []sdk.RegistryCommand) { ... })
 
 // Runtime handlers
 p.OnEvent(func(event string) error { ... })
-p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) { ... })
+p.OnExecuteCommand(func(serial, command string, args []string, peer string, pipe []sdk.PipeOperation) (string, any, error) { ... })
 p.OnConfigVerify(func(sections []sdk.ConfigSection) error { ... })
 p.OnConfigApply(func(diffs []sdk.ConfigDiffSection) error { ... })
 p.DeclareAppliesNothing("why a reload has nothing for this plugin to apply")
@@ -156,11 +156,12 @@ Called at runtime when the engine routes a command to the plugin.
 <!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandInput, ExecuteCommandOutput -->
 
 ```go
-p.OnExecuteCommand(func(serial, command string, args []string, peer string) (status string, data any, err error) {
+p.OnExecuteCommand(func(serial, command string, args []string, peer string, pipe []sdk.PipeOperation) (status string, data any, err error) {
     // serial: request correlation ID
     // command: the command name (e.g., "rib adjacent status")
     // args: additional arguments
     // peer: peer address (if command is peer-scoped)
+    // pipe: the pipe operations the command declares, in the order typed
 
     switch command {
     case "rib adjacent status":
@@ -184,6 +185,7 @@ p.OnExecuteCommand(func(serial, command string, args []string, peer string) (sta
 | `command` | `string` | Full command name |
 | `args` | `[]string` | Additional arguments |
 | `peer` | `string` | Peer address (may be empty) |
+| `pipe` | `[]sdk.PipeOperation` | The operations the command declares in its `Pipes` entries with an `argument`, in the order typed, each a `Name` and its decoded `Args`; never inside `args`. The engine applies the rest of the chain to the answer ([commands.md](../commands/index.md), "Declaring a Pipe Operation for Your Command") |
 
 **Return values:**
 
@@ -706,11 +708,12 @@ Dispatches a command through the engine's command dispatcher (inter-plugin commu
 status, data, err := p.DispatchCommand(ctx, "rib adjacent inbound show")
 ```
 
-Send a command's own filters as its arguments, never as a pipe chain:
-`show bgp rib received first 3 count`, not the operator's spelling with pipes.
-The engine refuses a line that holds a pipe outside double quotes, because the
-answer is data and a chain renders text. The error names the line to send
-instead. A pipe inside double quotes is an ordinary argument value.
+Send the line an operator types, pipe chain included:
+`show bgp rib | received | first 3 | count`. The engine hands the command the
+operations it declares and runs the rest of the chain over the answer, the
+same as on every other surface. A selection word typed as an argument
+(`show bgp rib received`) is refused, with the pipe form as the fix. A pipe
+inside double quotes is an ordinary argument value.
 <!-- source: internal/component/plugin/server/command.go -- Dispatcher.Dispatch -->
 <!-- source: internal/test/fixture/plugin_fixture_16.go -- plugin16PipeFirstLast -->
 
