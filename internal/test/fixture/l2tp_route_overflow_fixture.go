@@ -61,7 +61,7 @@ func routeOverflowDriver(ctx context.Context, args []string) error {
 	}
 	state := new(routeOverflowObservation)
 	setup := func(plugin *sdk.Plugin) error {
-		plugin.SetStartupSubscriptionsIn("l2tp", []string{"route-change", "session-ip-assigned"}, nil, "full")
+		plugin.SetStartupSubscriptionsIn(namespaceL2TP, []string{"route-change", "session-ip-assigned"}, nil, "full")
 		plugin.SetEnvelope(true)
 		plugin.OnEvent(state.receive)
 		return nil
@@ -85,7 +85,7 @@ func (state *routeOverflowObservation) receive(raw string) (err error) {
 	if err != nil {
 		return err
 	}
-	if envelope.Namespace != "l2tp" {
+	if envelope.Namespace != namespaceL2TP {
 		return errors.New("route observer received a different namespace")
 	}
 	switch envelope.Event {
@@ -323,8 +323,8 @@ func routeOverflowDiagnostics(ctx context.Context, plugin *sdk.Plugin, original 
 		return errors.New("retained refusal has no original context")
 	}
 	for key, value := range map[string]any{
-		"subscriber-id": original.Birth.String(), "tunnel-id": float64(original.TunnelID),
-		"session-id": float64(original.SessionID), "framed-routes-at-least": float64(65), "limit": float64(64),
+		"subscriber-id": original.Birth.String(), fieldTunnelID: float64(original.TunnelID),
+		fieldSessionID: float64(original.SessionID), "framed-routes-at-least": float64(65), "limit": float64(64),
 	} {
 		if detail[key] != value {
 			return fmt.Errorf("retained refusal %s=%v, want %v", key, detail[key], value)
@@ -398,7 +398,7 @@ func routeOverflowWarning(ctx context.Context, plugin *sdk.Plugin, original rout
 			continue
 		}
 		for key, expected := range map[string]any{
-			"tunnel-id": float64(original.TunnelID), "session-id": float64(original.SessionID),
+			fieldTunnelID: float64(original.TunnelID), fieldSessionID: float64(original.SessionID),
 			"error": cause, "fix": routeOverflowFix,
 		} {
 			if attributes[key] != expected {

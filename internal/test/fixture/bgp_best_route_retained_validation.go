@@ -66,7 +66,7 @@ func bgpRetainedScenario(ctx context.Context, plugin *sdk.Plugin, address, retir
 		return err
 	}
 	defer source.Close() //nolint:errcheck // Scenario owns the useful result.
-	if err := p12WaitPeersEOR(ctx, plugin, "source"); err != nil {
+	if err := p12WaitPeersEOR(ctx, plugin, peerNameSource); err != nil {
 		return err
 	}
 	if err := bgpRetainedEOR(source); err != nil {
@@ -269,7 +269,7 @@ func bgpRetainedScenario(ctx context.Context, plugin *sdk.Plugin, address, retir
 		return err
 	}
 	defer replacement.Close() //nolint:errcheck // Scenario owns the useful result.
-	if err := p12WaitPeersEOR(ctx, plugin, "source"); err != nil {
+	if err := p12WaitPeersEOR(ctx, plugin, peerNameSource); err != nil {
 		return err
 	}
 	if err := bgpRetainedEOR(replacement); err != nil {
@@ -326,7 +326,7 @@ func bgpRetainedPurge(ctx context.Context, plugin *sdk.Plugin, address string, o
 		return fmt.Errorf("restarted source initial EOR: %w", err)
 	}
 	if err := bgpRetainedSame(ctx, plugin, original, 1, false); err != nil {
-		return fmt.Errorf("F-bit preservation before successor EOR: %w", err)
+		return fmt.Errorf("preserving the F-bit before successor EOR: %w", err)
 	}
 	// Empty reachable and withdrawn NLRI with no attributes is the IPv4
 	// End-of-RIB marker (RFC 4724 Section 2), not a route withdrawal.
@@ -343,8 +343,8 @@ func bgpRetainedPurge(ctx context.Context, plugin *sdk.Plugin, address string, o
 	}
 	// The source is configured passive. Active means its preceding Session
 	// completed its DOWN and joins before this next accept cycle started.
-	if err := p12WaitPeerField(ctx, plugin, p12Peer{name: "source", addr: original.Peer}, "state",
-		func(value any) bool { return value == "active" }, "empty GR successor to finish its DOWN"); err != nil {
+	if err := p12WaitPeerField(ctx, plugin, p12Peer{name: peerNameSource, addr: original.Peer}, "state",
+		func(value any) bool { return value == stateActive }, "empty GR successor to finish its DOWN"); err != nil {
 		return err
 	}
 	return quiesce(ctx, plugin)

@@ -82,7 +82,7 @@ func vppShutdownEnvironment(dir, readyPath string) map[string]string {
 		envLogVPP:             logLevelInfo,
 		envLogBGP:             logLevelWarn,
 		"ze.log":              logLevelInfo,
-		"ze.log.interface":    logLevelWarn,
+		envLogInterface:       logLevelWarn,
 		"ze.log.plugin":       logLevelWarn,
 		"ze.log.relay":        logLevelWarn,
 		"ze.log.plugin.relay": logLevelWarn,

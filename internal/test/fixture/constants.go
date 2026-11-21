@@ -15,13 +15,15 @@ import (
 
 // Command words and fields several le fixtures share.
 const (
-	areaSpec     = "spec"
-	fieldDryRun  = "dry-run"
-	flagJSON     = "--json"
-	leafPort     = "port"   // The config leaf that carries a listener or peer port.
-	mockRadius   = "radius" // The le mock server selector.
-	programZeLe  = "ze le"
-	sourceRadius = "radius" // The authentication source recorded after a RADIUS login.
+	areaSpec            = "spec"
+	containerConnection = "connection" // The BGP peer config container of the local and remote endpoints.
+	fieldDryRun         = "dry-run"
+	flagJSON            = "--json"
+	leafPort            = "port"   // The config leaf that carries a listener or peer port.
+	leafTarget          = "target" // The acme-monitor leaf the external YANG fixture plugin's module defines.
+	mockRadius          = "radius" // The le mock server selector.
+	programZeLe         = "ze le"
+	sourceRadius        = "radius" // The authentication source recorded after a RADIUS login.
 )
 
 // Environment variables and build tags.
@@ -45,6 +47,7 @@ const (
 	envLEBuildName     = "ZE_LE_BUILD_NAME"
 	envLogBFD          = "ze.log.bfd"
 	envLogBGP          = "ze.log.bgp"
+	envLogInterface    = "ze.log.interface"
 	envLogVPP          = "ze.log.vpp"
 	envNoColor         = "NO_COLOR"
 	envPath            = "PATH"
@@ -57,6 +60,7 @@ const (
 	envSSHUsername     = "ZE_SSH_USERNAME"
 	envTerm            = "TERM"
 	envTestBGPPort     = "ze_test_bgp_port"
+	envTypeString      = "string" // The value type an env.EnvEntry declares.
 	envXDGRuntimeDir   = "XDG_RUNTIME_DIR"
 )
 
@@ -107,6 +111,7 @@ const (
 	metricPeerStateTransitions = "ze_peer_state_transitions_total"
 	metricPoolUsedRatio        = "ze_bgp_pool_used_ratio"
 	peerNameOne                = "peer1"
+	peerNameSource             = "source" // The configured BGP peer a scenario sends its routes from.
 	portL2TP                   = "1701"
 	prefixTestNet1             = "192.0.2.0/24" // RFC 5737 TEST-NET-1.
 	prefixTestNet2             = "198.51.100.0/24"
@@ -172,7 +177,9 @@ const (
 	fieldResult             = "result" // The field in a dispatch answer.
 	fieldRouterID           = "router-id"
 	fieldRows               = "rows"
-	fieldSource             = "source" // The field in a payload.
+	fieldSessionID          = "session-id" // The L2TP session identifier in a payload or a diagnostic argument.
+	fieldSeverity           = "severity"   // The severity field of a diagnostic, a doctor check or a finding.
+	fieldSource             = "source"     // The field in a payload.
 	fieldStage              = "stage"
 	fieldState              = "state" // The peer or interface field in a payload.
 	fieldStatus             = "status"
@@ -189,6 +196,7 @@ const (
 	linkStateDown           = "down"
 	messageTypeUpdateRPKI   = "update-rpki"
 	namespaceBGP            = "bgp"
+	namespaceL2TP           = "l2tp" // The event namespace an L2TP observer subscribes to.
 	outcomeFailed           = "failed"
 	outcomeSuccess          = "success"
 	severityError           = "error" // The severity of a diagnostic entry.

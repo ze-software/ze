@@ -128,7 +128,7 @@ func bgpBestRouteRSWithdrawals(socket net.Conn, expected [][]byte) error {
 	for _, prefix := range expected {
 		remaining[string(prefix)] = true
 	}
-	for range len(expected) {
+	for range expected {
 		update, err := atomicAggregatePolicyRead(socket)
 		if err != nil {
 			return err

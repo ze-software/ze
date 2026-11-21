@@ -102,7 +102,7 @@ func bgpBestRouteOriginDistance(ctx context.Context, plugin *sdk.Plugin, address
 	if admission.Destination != addrLoopbackThird {
 		return fmt.Errorf("local P admission destination=%s, want %s", admission.Destination, addrLoopbackThird)
 	}
-	if admission.Family != "ipv4/unicast" {
+	if admission.Family != familyIPv4Unicast {
 		return fmt.Errorf("local P admission family=%s, want ipv4/unicast", admission.Family)
 	}
 	if !bytes.Equal(admission.KeyNLRI, prefix) {

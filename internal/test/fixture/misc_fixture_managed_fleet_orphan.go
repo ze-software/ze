@@ -287,7 +287,7 @@ func (h *fleetOrphanHub) requireOrphanReported(ctx context.Context, deviceVersio
 	}
 	const fieldFix = "fix"
 	wants := []struct{ field, text string }{
-		{"severity", severityWarning},
+		{fieldSeverity, severityWarning},
 		{fieldMessage, fleetOrphanText},
 		{fieldMessage, "version " + deviceVersion},
 		{fieldFix, fleetOrphanFixDeclare},

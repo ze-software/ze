@@ -27,7 +27,7 @@ const (
 // fleetDivergenceToken is a secret leaf the device's edit adds outside its
 // hub block: the hub's secret must stay, or the device would not authenticate.
 // An api-server token with no transport enabled starts nothing.
-const fleetDivergenceToken = "fleet-divergence-device-api-token-0123"
+const fleetDivergenceToken = "fleet-divergence-device-api-token-0123" // #nosec G101 -- a fixture token for an api-server that enables no transport, so nothing ever accepts it.
 
 // fleetDivergenceTokenPath is the diff path of that leaf.
 const fleetDivergenceTokenPath = "environment/api-server/token"

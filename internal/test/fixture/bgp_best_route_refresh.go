@@ -30,7 +30,7 @@ func bgpBestRouteRefreshSelected(ctx context.Context, plugin *sdk.Plugin, addres
 		return err
 	}
 	defer source.Close() //nolint:errcheck // The scenario retains both sockets until its assertions finish.
-	if err := p12WaitPeersEOR(ctx, plugin, "source"); err != nil {
+	if err := p12WaitPeersEOR(ctx, plugin, peerNameSource); err != nil {
 		return err
 	}
 	if err := bgpBestRouteExpect(source, nil, nil, nil); err != nil {
@@ -128,7 +128,7 @@ func bgpBestRouteRefreshSelected(ctx context.Context, plugin *sdk.Plugin, addres
 // route; duplicates, withdrawals, other NLRIs and changed ORIGIN/AS_PATH fail.
 func bgpBestRouteRefreshInitial(conn net.Conn, prefix, path []byte) error {
 	seenRoute, seenEOR := false, false
-	for index := 0; index < 2; index++ {
+	for range 2 {
 		update, err := atomicAggregatePolicyRead(conn)
 		if err != nil {
 			return err

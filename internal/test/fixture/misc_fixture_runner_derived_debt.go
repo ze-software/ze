@@ -411,7 +411,7 @@ func newDerivedDebtScratch(ctx context.Context, args []string) (*derivedDebtScra
 	remote := repo + ".origin.git"
 	for _, step := range [][]string{
 		{"branch", "-M", gitBranchMain}, {argInit, "-q", "--bare", "--initial-branch=" + gitBranchMain, remote},
-		{"remote", "add", gitRemoteOrigin, remote}, {"push", "-q", "-u", gitRemoteOrigin, gitBranchMain},
+		{"remote", argAdd, gitRemoteOrigin, remote}, {"push", "-q", "-u", gitRemoteOrigin, gitBranchMain},
 	} {
 		if _, err := scratch.git(ctx, step...); err != nil {
 			scratch.remove()

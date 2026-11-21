@@ -20,8 +20,8 @@ const (
 )
 
 var (
-	_ = env.MustRegister(env.EnvEntry{Key: forkEnvironmentDottedKey, Type: "string", Description: "Value a forked fixture reads back to prove a dotted ze key reached it (tests)"})
-	_ = env.MustRegister(env.EnvEntry{Key: forkEnvironmentHyphenKey, Type: "string", Description: "Value a forked fixture reads back to prove a hyphenated ze key reached it (tests)"})
+	_ = env.MustRegister(env.EnvEntry{Key: forkEnvironmentDottedKey, Type: envTypeString, Description: "Value a forked fixture reads back to prove a dotted ze key reached it (tests)"})
+	_ = env.MustRegister(env.EnvEntry{Key: forkEnvironmentHyphenKey, Type: envTypeString, Description: "Value a forked fixture reads back to prove a hyphenated ze key reached it (tests)"})
 )
 
 func init() {

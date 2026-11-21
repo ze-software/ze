@@ -201,8 +201,8 @@ func prepareQuickstart(ctx context.Context, binary, repository, work string, inp
 	environment := daemonEnvironment(os.Environ(), dir, daemonStoreDisk)
 	updates := [][]string{
 		{"environment", "ssh", "server", "main", leafPort, strconv.Itoa(int(input.sshPort))},
-		{namespaceBGP, fieldPeer, input.peer, "connection", "local", leafPort, strconv.Itoa(int(input.bgpPort))},
-		{namespaceBGP, fieldPeer, input.peer, "connection", "remote", leafPort, strconv.Itoa(int(input.bgpPort))},
+		{namespaceBGP, fieldPeer, input.peer, containerConnection, "local", leafPort, strconv.Itoa(int(input.bgpPort))},
+		{namespaceBGP, fieldPeer, input.peer, containerConnection, "remote", leafPort, strconv.Itoa(int(input.bgpPort))},
 	}
 	for _, update := range updates {
 		argv := append([]string{binary, "config", "set", path}, update...)

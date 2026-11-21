@@ -214,7 +214,7 @@ func fleetDoctorJudgeDiverged(report []doctorConfigClaimsDiagnostic, state, clie
 	}
 	const fieldFix = "fix"
 	wants := []struct{ field, text string }{
-		{"severity", severityWarning},
+		{fieldSeverity, severityWarning},
 		{fieldMessage, fleetDoctorDivergedMessage},
 		{fieldMessage, "(version " + active + ")"},
 		{fieldMessage, "(version " + baseline + ")"},

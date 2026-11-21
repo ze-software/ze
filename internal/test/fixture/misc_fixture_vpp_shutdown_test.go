@@ -226,7 +226,7 @@ func startVPPShutdownSyslog(t *testing.T) (string, <-chan vppShutdownSyslogRecei
 	if err != nil {
 		t.Fatal(err)
 	}
-	listener, err := net.Listen("unix", socket)
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "unix", socket)
 	if err != nil {
 		os.RemoveAll(dir) //nolint:errcheck // no worker owns the directory after a failed listen
 		t.Fatal(err)
@@ -282,7 +282,7 @@ func startVPPShutdownLoggerChild(t *testing.T, environ []string, subsystem, mode
 	if err != nil {
 		t.Fatal(err)
 	}
-	child, err := startFixtureProcess(t.Context(), environ, "", executable,
+	child, err := startFixtureProcess(t.Context(), environ, executable,
 		"-test.run=^TestVPPShutdownChild$", "--", "vpp-shutdown-child", mode, subsystem)
 	if err != nil {
 		t.Fatal(err)
@@ -306,7 +306,7 @@ func startVPPShutdownChild(t *testing.T, mode string, detail ...string) *fixture
 	}
 	args := []string{"-test.run=^TestVPPShutdownChild$", "--", "vpp-shutdown-child", mode}
 	args = append(args, detail...)
-	child, err := startFixtureProcess(t.Context(), os.Environ(), "", executable, args...)
+	child, err := startFixtureProcess(t.Context(), os.Environ(), executable, args...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -382,7 +382,7 @@ func TestVPPShutdownChild(t *testing.T) {
 		fmt.Println("Ze stopped.")
 	case "failure":
 		fmt.Println("Ze stopped.")
-		os.Exit(17)
+		os.Exit(17) //nolint:gocritic // exitAfterDefer: this child process exits 17 on purpose; its deferred cancel and signal.Stop release nothing a dead process keeps
 	case "silent":
 	case "warning":
 		if len(args) != 2 {

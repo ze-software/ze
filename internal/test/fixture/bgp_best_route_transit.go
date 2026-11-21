@@ -167,9 +167,9 @@ func bgpBestRouteExportPolicy(ctx context.Context, plugin *sdk.Plugin, address, 
 // next-hop resolution. The caller MUST close both returned sockets; this
 // helper MUST close every socket it opens if setup fails.
 func bgpBestRouteConnect(ctx context.Context, plugin *sdk.Plugin, address string, sourceASN, targetASN uint16) (net.Conn, net.Conn, error) {
-	peers := []p12Peer{{name: "source", addr: addrLoopbackSecond}, {name: "destination", addr: addrLoopbackThird}}
+	peers := []p12Peer{{name: peerNameSource, addr: addrLoopbackSecond}, {name: "destination", addr: addrLoopbackThird}}
 	if err := p12WaitAllPeerFields(ctx, plugin, peers, "state", func(_ p12Peer, state any) bool {
-		return state == "active"
+		return state == stateActive
 	}, "both passive peers to start before opening TCP"); err != nil {
 		return nil, nil, err
 	}
@@ -183,7 +183,7 @@ func bgpBestRouteConnect(ctx context.Context, plugin *sdk.Plugin, address string
 		return nil, nil, err
 	}
 	setup := func() error {
-		if err := p12WaitPeersEOR(ctx, plugin, "source", "destination"); err != nil {
+		if err := p12WaitPeersEOR(ctx, plugin, peerNameSource, "destination"); err != nil {
 			return err
 		}
 		for _, socket := range []net.Conn{source, target} {

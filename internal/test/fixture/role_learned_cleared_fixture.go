@@ -110,7 +110,7 @@ func roleClearedStartPeer(ctx context.Context, port string) (*fixtureProcess, er
 	if err := os.WriteFile(script, []byte(roleClearedScript), 0o600); err != nil {
 		return nil, fmt.Errorf("write %s: %w", script, err)
 	}
-	peer, err := startFixtureProcess(ctx, os.Environ(), "", "le", "test", "peer",
+	peer, err := startFixtureProcess(ctx, os.Environ(), "le", "test", "peer",
 		"--bind", roleClearedPeer, "--port", port, "--asn", "65002", script)
 	if err != nil {
 		return nil, fmt.Errorf("start the test peer without Role: %w", err)

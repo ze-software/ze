@@ -433,7 +433,7 @@ func clearL2TPSession(ctx context.Context, form string, sid uint16, address neti
 		return err
 	}
 	for _, row := range jsonObjectsWith(answer, "status") {
-		if row["action"] == "session-teardown" && row["session-id"] == float64(sid) && row["status"] == "sent" {
+		if row["action"] == "session-teardown" && row[fieldSessionID] == float64(sid) && row["status"] == "sent" {
 			fmt.Println("OK: clear l2tp session " + selector + " answered status sent for session " + sessionIDText(sid))
 			return nil
 		}

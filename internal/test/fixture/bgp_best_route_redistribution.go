@@ -46,7 +46,7 @@ func bgpBestRouteRedistributionSelected(ctx context.Context, plugin *sdk.Plugin,
 		return err
 	}
 	defer target.Close() //nolint:errcheck // Original sockets stay open through both reloads.
-	if err := p12WaitPeersEOR(ctx, plugin, "source", "destination"); err != nil {
+	if err := p12WaitPeersEOR(ctx, plugin, peerNameSource, "destination"); err != nil {
 		return err
 	}
 	for _, socket := range []net.Conn{source, target} {

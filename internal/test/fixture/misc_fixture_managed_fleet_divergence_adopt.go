@@ -181,7 +181,13 @@ func (s *fleetHoldScenario) requireAdopted(ctx context.Context, device string) e
 		return true
 	})
 	if !cleared {
-		return fmt.Errorf("after %q the hub still lists the copy of %s, or the list failed (%v):\n%s", adopt, caTrustClientName, err, list)
+		// The last poll's request error, when there is one, is why the list
+		// never cleared; without one the list still named the copy or did not
+		// decode.
+		if err != nil {
+			return fmt.Errorf("after %q the hub's copy list failed: %w:\n%s", adopt, err, list)
+		}
+		return fmt.Errorf("after %q the hub still lists the copy of %s, or its list did not decode:\n%s", adopt, caTrustClientName, list)
 	}
 
 	audit, err := storageLiveRequest(ctx, s.hubOperator, fleetDivergenceAuditCommand)

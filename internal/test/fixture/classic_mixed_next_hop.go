@@ -199,7 +199,7 @@ func (state *classicMixedNextHopState) run(ctx context.Context, plugin *sdk.Plug
 		}
 		sockets[index] = conn
 	}
-	if err := p12WaitPeersEOR(ctx, plugin, "source", "harmful", "useful"); err != nil {
+	if err := p12WaitPeersEOR(ctx, plugin, peerNameSource, "harmful", "useful"); err != nil {
 		return err
 	}
 	for _, conn := range sockets {

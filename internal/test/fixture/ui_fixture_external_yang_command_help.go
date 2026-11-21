@@ -155,7 +155,7 @@ func externalYANGCommandCompletion(ctx context.Context, args []string) error {
 		}
 	}
 
-	leaf, err := command("show acme-monitor target ", "target")
+	leaf, err := command("show acme-monitor target ", leafTarget)
 	if err != nil {
 		return err
 	}

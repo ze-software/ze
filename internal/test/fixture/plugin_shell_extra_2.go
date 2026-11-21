@@ -80,8 +80,12 @@ type pluginShellExtra2Daemon struct {
 	log     *os.File
 }
 
-func pluginShellExtra2StartDaemon(ctx context.Context, config, logPath string, env map[string]string) (*pluginShellExtra2Daemon, error) {
-	logFile, err := os.Create(logPath) //nolint:gosec // the path is the fixture's own scratch file
+// pluginShellExtra2DaemonLog is the scratch file every daemon these fixtures
+// start writes its stderr to, and the file each one reads back.
+const pluginShellExtra2DaemonLog = "daemon.log"
+
+func pluginShellExtra2StartDaemon(ctx context.Context, config string, env map[string]string) (*pluginShellExtra2Daemon, error) {
+	logFile, err := os.Create(pluginShellExtra2DaemonLog)
 	if err != nil {
 		return nil, err
 	}
@@ -130,10 +134,10 @@ func pluginShellExtra2Log(path string) string {
 // loaded machine has taken more than ten seconds to start the daemon. Its
 // bound is 30 seconds, which is the longest runner timeout among the callers,
 // and the runner's SIGTERM cancels ctx sooner for a shorter one.
-func pluginShellExtra2WaitSSHPort(ctx context.Context, logPath string) (string, error) {
+func pluginShellExtra2WaitSSHPort(ctx context.Context) (string, error) {
 	var port string
 	if !Poll(ctx, 150, 200*time.Millisecond, func() bool {
-		match := pluginShellExtra2SSHAddress.FindStringSubmatch(pluginShellExtra2Log(logPath))
+		match := pluginShellExtra2SSHAddress.FindStringSubmatch(pluginShellExtra2Log(pluginShellExtra2DaemonLog))
 		if len(match) != 2 {
 			return false
 		}
@@ -170,7 +174,7 @@ func pluginShellExtra2AuthzRecoveryAdmin(ctx context.Context, args []string) err
 		return pluginShellExtra2CommandFailure("ze init failed", initResult)
 	}
 	_, _ = os.Stderr.WriteString(initResult.stderr)
-	daemon, err := pluginShellExtra2StartDaemon(ctx, "authz-recovery-admin.conf", "daemon.log", map[string]string{
+	daemon, err := pluginShellExtra2StartDaemon(ctx, "authz-recovery-admin.conf", map[string]string{
 		envConfigDir:   shared,
 		"ze_log_authz": logLevelInfo,
 	})
@@ -179,9 +183,9 @@ func pluginShellExtra2AuthzRecoveryAdmin(ctx context.Context, args []string) err
 	}
 	defer pluginShellExtra2StopDaemon(daemon)
 
-	port, err := pluginShellExtra2WaitSSHPort(ctx, "daemon.log")
+	port, err := pluginShellExtra2WaitSSHPort(ctx)
 	if err != nil {
-		return fmt.Errorf("%w\n%s", err, pluginShellExtra2Log("daemon.log"))
+		return fmt.Errorf("%w\n%s", err, pluginShellExtra2Log(pluginShellExtra2DaemonLog))
 	}
 	fmt.Fprintf(os.Stderr, "ssh on :%s\n", port)
 	cliResult := pluginShellExtra2RunCombined(ctx, map[string]string{
@@ -191,11 +195,11 @@ func pluginShellExtra2AuthzRecoveryAdmin(ctx context.Context, args []string) err
 		envSSHPassword: "recoverypass",
 	}, "cli", "--user", "admin", "-c", "show version")
 	if cliResult.err != nil {
-		return fmt.Errorf("bootstrap admin must reach the box via the recovery profile: %w\nOUTPUT: %s%s\n%s", cliResult.err, cliResult.stdout, cliResult.stderr, pluginShellExtra2Log("daemon.log"))
+		return fmt.Errorf("bootstrap admin must reach the box via the recovery profile: %w\nOUTPUT: %s%s\n%s", cliResult.err, cliResult.stdout, cliResult.stderr, pluginShellExtra2Log(pluginShellExtra2DaemonLog))
 	}
 	fmt.Fprintf(os.Stderr, "OK: recovery admin allowed 'show version': %s\n", strings.TrimRight(cliResult.stdout, "\n"))
-	if !strings.Contains(pluginShellExtra2Log("daemon.log"), "break-glass recovery admin") {
-		return fmt.Errorf("daemon did not log the break-glass recovery decision\n%s", pluginShellExtra2Log("daemon.log"))
+	if !strings.Contains(pluginShellExtra2Log(pluginShellExtra2DaemonLog), "break-glass recovery admin") {
+		return fmt.Errorf("daemon did not log the break-glass recovery decision\n%s", pluginShellExtra2Log(pluginShellExtra2DaemonLog))
 	}
 	fmt.Fprintln(os.Stderr, "OK: daemon logged break-glass recovery admin decision")
 	return nil
@@ -270,16 +274,16 @@ func pluginShellExtra2CredentialResolution(ctx context.Context, args []string) e
 	if err := pluginShellExtra2WriteReady(); err != nil {
 		return err
 	}
-	daemon, err := pluginShellExtra2StartDaemon(ctx, "cli-credential-resolution.conf", "daemon.log", map[string]string{
+	daemon, err := pluginShellExtra2StartDaemon(ctx, "cli-credential-resolution.conf", map[string]string{
 		envTestBGPPort: strconv.Itoa(10000 + os.Getpid()%50000),
 	})
 	if err != nil {
 		return err
 	}
 	defer pluginShellExtra2StopDaemon(daemon)
-	port, err := pluginShellExtra2WaitSSHPort(ctx, "daemon.log")
+	port, err := pluginShellExtra2WaitSSHPort(ctx)
 	if err != nil {
-		return fmt.Errorf("%w\n%s", err, pluginShellExtra2Log("daemon.log"))
+		return fmt.Errorf("%w\n%s", err, pluginShellExtra2Log(pluginShellExtra2DaemonLog))
 	}
 	fmt.Fprintf(os.Stderr, "SSH port: %s\n", port)
 	if err := pluginShellExtra2Sleep(ctx, 500*time.Millisecond); err != nil {
@@ -293,7 +297,7 @@ func pluginShellExtra2CredentialResolution(ctx context.Context, args []string) e
 	if _, err := os.Stat(filepath.Join(emptyDir, "database")); !errors.Is(err, os.ErrNotExist) {
 		return errors.New("test setup wrong: the store must not exist")
 	}
-	before, _ := os.Stat("daemon.log")
+	before, _ := os.Stat(pluginShellExtra2DaemonLog)
 	common := map[string]string{
 		envConfigDir: emptyDir,
 		envSSHHost:   addrLoopback,
@@ -307,9 +311,9 @@ func pluginShellExtra2CredentialResolution(ctx context.Context, args []string) e
 	}
 	login := pluginShellExtra2RunCombined(ctx, loginEnv, "cli", "--user", "alice", "-c", "show bgp peer list")
 	if login.err != nil {
-		return fmt.Errorf("ze cli --user alice must log in with no credential store: %w\nOUTPUT: %s%s\n%s", login.err, login.stdout, login.stderr, pluginShellExtra2Log("daemon.log"))
+		return fmt.Errorf("ze cli --user alice must log in with no credential store: %w\nOUTPUT: %s%s\n%s", login.err, login.stdout, login.stderr, pluginShellExtra2Log(pluginShellExtra2DaemonLog))
 	}
-	log := pluginShellExtra2Log("daemon.log")
+	log := pluginShellExtra2Log(pluginShellExtra2DaemonLog)
 	start := int64(0)
 	if before != nil {
 		start = before.Size()
@@ -368,16 +372,16 @@ func pluginShellExtra2PlaintextPasswordAtBoot(ctx context.Context, args []string
 	if err := pluginShellExtra2RequireNoArgs(args, "plaintext password boot fixture"); err != nil {
 		return err
 	}
-	daemon, err := pluginShellExtra2StartDaemon(ctx, "plaintext-at-boot.conf", "daemon.log", map[string]string{
+	daemon, err := pluginShellExtra2StartDaemon(ctx, "plaintext-at-boot.conf", map[string]string{
 		envTestBGPPort: strconv.Itoa(10000 + os.Getpid()%50000),
 	})
 	if err != nil {
 		return err
 	}
 	defer pluginShellExtra2StopDaemon(daemon)
-	port, err := pluginShellExtra2WaitSSHPort(ctx, "daemon.log")
+	port, err := pluginShellExtra2WaitSSHPort(ctx)
 	if err != nil {
-		return fmt.Errorf("%w\n%s", err, pluginShellExtra2Log("daemon.log"))
+		return fmt.Errorf("%w\n%s", err, pluginShellExtra2Log(pluginShellExtra2DaemonLog))
 	}
 	if err := pluginShellExtra2Sleep(ctx, 500*time.Millisecond); err != nil {
 		return err
@@ -394,9 +398,9 @@ func pluginShellExtra2PlaintextPasswordAtBoot(ctx context.Context, args []string
 		envSSHPassword: "labsecret",
 	}, "cli", "--user", "lab", "-c", "show bgp peer list")
 	if login.err != nil {
-		return fmt.Errorf("plaintext-password in a config file must authenticate: %w\nOUTPUT: %s%s\n%s", login.err, login.stdout, login.stderr, pluginShellExtra2Log("daemon.log"))
+		return fmt.Errorf("plaintext-password in a config file must authenticate: %w\nOUTPUT: %s%s\n%s", login.err, login.stdout, login.stderr, pluginShellExtra2Log(pluginShellExtra2DaemonLog))
 	}
-	log := pluginShellExtra2Log("daemon.log")
+	log := pluginShellExtra2Log(pluginShellExtra2DaemonLog)
 	if !regexp.MustCompile(`SSH auth success.*username=lab`).MatchString(log) {
 		return fmt.Errorf("daemon did not log auth success for username=lab\n%s", log)
 	}

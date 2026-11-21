@@ -399,7 +399,7 @@ func plugin01APIDoctorChecker(ctx context.Context, plugin *sdk.Plugin) error {
 		if diagnostic["code"] != codeDoctorTestCacheDown {
 			continue
 		}
-		if diagnostic["severity"] != severityWarning || !strings.Contains(fmt.Sprint(diagnostic["message"]), "test cache not responding") {
+		if diagnostic[fieldSeverity] != severityWarning || !strings.Contains(fmt.Sprint(diagnostic["message"]), "test cache not responding") {
 			return fmt.Errorf("wrong diagnostic: %v", diagnostic)
 		}
 		return nil

@@ -258,7 +258,7 @@ func startCLIWireSession(ctx context.Context, args []string) (*cliWireSession, e
 	// expects from it. Without it ze-peer mirrors ZE's OPEN and presents ze's own
 	// AS 65533, which ze answers with NOTIFICATION 2/2 Bad Peer AS: the session
 	// never establishes and the CLI has no wire to reach.
-	session.peer, err = startFixtureProcess(ctx, os.Environ(), "", "le", "test", "peer",
+	session.peer, err = startFixtureProcess(ctx, os.Environ(), "le", "test", "peer",
 		"--port", strconv.Itoa(port), "--asn", strconv.Itoa(cliWirePeerAS), peerScript)
 	if err != nil {
 		return nil, fmt.Errorf("start the peer: %w", err)
@@ -278,7 +278,7 @@ func startCLIWireSession(ctx context.Context, args []string) (*cliWireSession, e
 		envTestBGPPort:  strconv.Itoa(port),
 		envLogBGP:       logLevelInfo,
 	})
-	session.daemon, err = startFixtureProcess(ctx, daemonEnv, "", "ze", "-f", configPath)
+	session.daemon, err = startFixtureProcess(ctx, daemonEnv, "ze", "-f", configPath)
 	if err != nil {
 		return nil, fmt.Errorf("start the daemon: %w", err)
 	}

@@ -499,7 +499,7 @@ func firewallIRRRefusedCommit07(table, expectedRefusal string) ObserverScenario 
 			if entry["subject"] != "config-reload" {
 				return false
 			}
-			if entry["severity"] != severityError {
+			if entry[fieldSeverity] != severityError {
 				return false
 			}
 			message, _ := entry["message"].(string)

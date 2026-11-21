@@ -217,7 +217,7 @@ func startPathsLimitSession(ctx context.Context, args []string) (*cliWireSession
 	if err := os.WriteFile(configPath, []byte(config), 0o600); err != nil {
 		return nil, err
 	}
-	session.peer, err = startFixtureProcess(ctx, os.Environ(), "", "le", "test", fieldPeer,
+	session.peer, err = startFixtureProcess(ctx, os.Environ(), "le", "test", fieldPeer,
 		"--port", args[0], "--asn", strconv.Itoa(cliWirePeerAS), filepath.Join(cwd, "peer-script"))
 	if err != nil {
 		return nil, err
@@ -236,7 +236,7 @@ func startPathsLimitSession(ctx context.Context, args []string) (*cliWireSession
 		envTestBGPPort:  args[0],
 		envLogBGP:       logLevelInfo,
 	})
-	session.daemon, err = startFixtureProcess(ctx, daemonEnv, "", "ze", "-f", configPath)
+	session.daemon, err = startFixtureProcess(ctx, daemonEnv, "ze", "-f", configPath)
 	if err != nil {
 		return nil, err
 	}

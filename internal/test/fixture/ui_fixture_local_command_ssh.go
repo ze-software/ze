@@ -72,7 +72,7 @@ func localCommandDaemonSSH(ctx context.Context, args []string) error {
 		return fmt.Errorf("ssh completion after 'show env ' did not offer 'list':\n%s", screen)
 	}
 
-	creds := sshclient.Credentials{Host: "127.0.0.1", Port: account.port, Username: account.user, Auth: account.password}
+	creds := sshclient.Credentials{Host: addrLoopback, Port: account.port, Username: account.user, Auth: account.password}
 	inside := filepath.Join(configDir, "ze.conf")
 	answer, err := sshclient.ExecCommand(creds, "show config validation "+inside+" | json")
 	if err != nil {

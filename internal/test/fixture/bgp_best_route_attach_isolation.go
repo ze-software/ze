@@ -163,7 +163,7 @@ func (events *attachIsolationEvents) record(raw string) error {
 	events.mu.Lock()
 	defer events.mu.Unlock()
 	switch {
-	case !events.sourceOnly, name != "source":
+	case !events.sourceOnly, name != peerNameSource:
 		if events.unexpected == "" {
 			events.unexpected = fmt.Sprintf("UPDATE for peer %q (%s)", name, direction)
 		}
@@ -174,10 +174,10 @@ func (events *attachIsolationEvents) record(raw string) error {
 	}
 	update, _ := eventBody02(raw)["update"].(map[string]any)
 	nlri, _ := update["nlri"].(map[string]any)
-	entries, _ := nlri["ipv4/unicast"].([]any)
+	entries, _ := nlri[familyIPv4Unicast].([]any)
 	for _, rawEntry := range entries {
 		entry, _ := rawEntry.(map[string]any)
-		if entry["action"] != "add" {
+		if entry["action"] != eventActionAdd {
 			continue
 		}
 		prefixes, _ := entry["nlri"].([]any)

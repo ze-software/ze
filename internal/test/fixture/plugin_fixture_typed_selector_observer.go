@@ -21,6 +21,16 @@ import (
 const typedSelectorPollDelay = 100 * time.Millisecond
 const typedSelectorResponseMax = 64 * 1024
 
+// The listener values the observer sends and expects echoed back.
+const (
+	// typedSelectorListenerPlain is the listener the raw command lines spell
+	// after the listener keyword.
+	typedSelectorListenerPlain = "edge"
+	// typedSelectorListenerKeyword is a listener value spelled like the
+	// listener leaf name itself, which the daemon must still bind as a value.
+	typedSelectorListenerKeyword = "listener"
+)
+
 func init() {
 	Register("plugin/typed-selector-observer", typedSelectorObserver)
 }
@@ -106,16 +116,16 @@ func typedSelectorObserver(parent context.Context, args []string) error {
 		good     bool
 		force    bool
 	}{
-		{name: "raw-useful", command: externalyang.TypedSelectorCommand + " 7 listener edge count 3 enabled false", listener: "edge", good: true},
-		{name: "raw-forced-useful", command: externalyang.TypedSelectorCommand + " 7 listener edge count 3 enabled false force", listener: "edge", good: true, force: true},
-		{name: "structured-listener", command: externalyang.TypedSelectorCommand, params: typedSelectorParams(7, "listener", false), listener: "listener", good: true},
+		{name: "raw-useful", command: externalyang.TypedSelectorCommand + " 7 listener edge count 3 enabled false", listener: typedSelectorListenerPlain, good: true},
+		{name: "raw-forced-useful", command: externalyang.TypedSelectorCommand + " 7 listener edge count 3 enabled false force", listener: typedSelectorListenerPlain, good: true, force: true},
+		{name: "structured-listener", command: externalyang.TypedSelectorCommand, params: typedSelectorParams(7, typedSelectorListenerKeyword, false), listener: typedSelectorListenerKeyword, good: true},
 		{name: "structured-tunnel-keyword", command: externalyang.TypedSelectorCommand, params: typedSelectorParams(7, "tunnel-id", false), listener: "tunnel-id", good: true},
 		{name: "structured-guard-keyword", command: externalyang.TypedSelectorCommand, params: typedSelectorParams(7, "expected-id", false), listener: "expected-id", good: true},
-		{name: "mixed-false", command: externalyang.TypedSelectorCommand + " 7", params: typedSelectorParams(nil, "listener", false), listener: "listener", good: true},
-		{name: "mixed-true", command: externalyang.TypedSelectorCommand + " 7", params: typedSelectorParams(nil, "listener", true), listener: "listener", good: true, force: true},
-		{name: "malformed-flag", command: externalyang.TypedSelectorCommand + " 7", params: typedSelectorParams(nil, "listener", "maybe")},
-		{name: "zero-id", command: externalyang.TypedSelectorCommand, params: typedSelectorParams(0, "listener", false)},
-		{name: "wide-id", command: externalyang.TypedSelectorCommand, params: typedSelectorParams(65536, "listener", false)},
+		{name: "mixed-false", command: externalyang.TypedSelectorCommand + " 7", params: typedSelectorParams(nil, typedSelectorListenerKeyword, false), listener: typedSelectorListenerKeyword, good: true},
+		{name: "mixed-true", command: externalyang.TypedSelectorCommand + " 7", params: typedSelectorParams(nil, typedSelectorListenerKeyword, true), listener: typedSelectorListenerKeyword, good: true, force: true},
+		{name: "malformed-flag", command: externalyang.TypedSelectorCommand + " 7", params: typedSelectorParams(nil, typedSelectorListenerKeyword, "maybe")},
+		{name: "zero-id", command: externalyang.TypedSelectorCommand, params: typedSelectorParams(0, typedSelectorListenerKeyword, false)},
+		{name: "wide-id", command: externalyang.TypedSelectorCommand, params: typedSelectorParams(65536, typedSelectorListenerKeyword, false)},
 	} {
 		var result typedSelectorEnvelope
 		payload := struct {

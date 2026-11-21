@@ -159,7 +159,10 @@ func redistPPPoEAdmit(ctx context.Context, discovery, wire *tunnelPPPoEWire, num
 		return lastErr == nil && len(cookie) != 0 && !bytes.Equal(cookie, previous)
 	})
 	if !ready {
-		return nil, nil, fmt.Errorf("PPPoE discovery did not provide a distinct AC-Cookie: %v", lastErr)
+		if lastErr != nil {
+			return nil, nil, fmt.Errorf("PPPoE discovery did not provide a distinct AC-Cookie: %w", lastErr)
+		}
+		return nil, nil, errors.New("PPPoE discovery did not provide a distinct AC-Cookie: the last offer's cookie was empty or repeated")
 	}
 	request := tunnelPPPoEPacket(tunnelPPPoEPADR, cookie, hostUniq, "")
 	source, sid, _, err := discovery.exchange(ctx, server, request, tunnelPPPoEPADS, 3)
@@ -296,7 +299,10 @@ func redistPPPoEWaitSessions(ctx context.Context, plugin *sdk.Plugin, want ...ui
 	}) {
 		return nil
 	}
-	return fmt.Errorf("live PPPoE sessions %v, want %v (last read: %v)", last, want, lastErr)
+	if lastErr != nil {
+		return fmt.Errorf("live PPPoE sessions %v, want %v (last read: %w)", last, want, lastErr)
+	}
+	return fmt.Errorf("live PPPoE sessions %v, want %v", last, want)
 }
 
 func redistPPPoEBGPOpen(conn net.Conn) error {

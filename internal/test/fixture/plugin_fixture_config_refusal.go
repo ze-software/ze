@@ -30,6 +30,7 @@ const configRefusalLinePrefix = "line "
 const configRefusalRouteRefreshPath = "bgp.peer.peer1.session.capability.route-refresh"
 const configRefusalInvalidRequire = "requre"
 const configRefusalRouteRefreshLeaf = "route-refresh"
+const configRefusalSessionContainer = "session" // The BGP peer container that holds the capability block.
 
 func configRefusalClient(address, certificate string) (*grpc.ClientConn, error) {
 	cert, err := os.ReadFile(certificate) //nolint:gosec // config-refusal/tls generated this fixture's pinned trust anchor
@@ -155,7 +156,7 @@ func grpcConfigEnumRefusal(ctx context.Context, address, certificate string) err
 func configRefusalPath() *gpb.Path {
 	return &gpb.Path{Elem: []*gpb.PathElem{
 		{Name: namespaceBGP}, {Name: fieldPeer, Key: map[string]string{"name": "peer1"}},
-		{Name: "session"}, {Name: "capability"}, {Name: configRefusalRouteRefreshLeaf},
+		{Name: configRefusalSessionContainer}, {Name: "capability"}, {Name: configRefusalRouteRefreshLeaf},
 	}}
 }
 

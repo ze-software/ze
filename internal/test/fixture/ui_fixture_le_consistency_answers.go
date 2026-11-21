@@ -143,7 +143,7 @@ func runLEConsistencyAnswers(parent context.Context) error {
 	}
 
 	first := findings[0]
-	for _, key := range []string{"severity", actionCheck, fieldFile, fieldMessage} {
+	for _, key := range []string{fieldSeverity, actionCheck, fieldFile, fieldMessage} {
 		if _, ok := first[key]; !ok {
 			return fmt.Errorf("FAIL: a finding carries no %q: %s", key, compactJSON(first))
 		}
@@ -174,7 +174,7 @@ func runLEConsistencyAnswers(parent context.Context) error {
 		if err := json.Unmarshal(finding[actionCheck], &check); err != nil {
 			return fmt.Errorf("FAIL: invalid finding check: %w", err)
 		}
-		if err := json.Unmarshal(finding["severity"], &severity); err != nil {
+		if err := json.Unmarshal(finding[fieldSeverity], &severity); err != nil {
 			return fmt.Errorf("FAIL: invalid finding severity: %w", err)
 		}
 		if file != "internal/sample/sample.go" || wantFindings[check] != severity {

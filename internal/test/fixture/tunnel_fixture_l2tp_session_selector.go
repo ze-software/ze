@@ -478,7 +478,7 @@ func selectorTeardownAnswered(answer any, sid uint16) bool {
 		if row["action"] != "session-teardown" {
 			continue
 		}
-		if row["session-id"] != float64(sid) {
+		if row[fieldSessionID] != float64(sid) {
 			continue
 		}
 		if row["status"] == "sent" {

@@ -124,7 +124,7 @@ func ifaceMirrorTargetDeleteRefused(ctx context.Context, args []string) (retErr 
 	}
 	readyPath := filepath.Join(workDir, fileDaemonReady)
 	env := miscEnvironment(map[string]string{envConfigDir: configDir, "ZE_READY_FILE": readyPath})
-	daemon, err := startFixtureProcess(ctx, env, "", "ze", actionStart, configPath)
+	daemon, err := startFixtureProcess(ctx, env, "ze", actionStart, configPath)
 	if err != nil {
 		return fmt.Errorf("start ze: %w", err)
 	}

@@ -250,10 +250,10 @@ func plugin16StartVPP(ctx context.Context) (run *plugin16VPPRun, stop func(), er
 	ze.Stdout = logFile
 	ze.Stderr = logFile
 	ze.Env = plugin15Environment(map[string]string{
-		"ze.config.dir":    configDir,
-		envLogVPP:          logLevelInfo,
-		"ze.log.interface": logLevelInfo,
-		envLogBGP:          logLevelWarn,
+		"ze.config.dir": configDir,
+		envLogVPP:       logLevelInfo,
+		envLogInterface: logLevelInfo,
+		envLogBGP:       logLevelWarn,
 	})
 	zeDone, err := plugin16StartProcess(ze)
 	if err != nil {

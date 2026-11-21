@@ -352,9 +352,9 @@ func plugin16TeardownTunnel(ctx context.Context, p *sdk.Plugin) error {
 	if !ok || payload["status"] != directionSent {
 		return fmt.Errorf("teardown payload status=%v want sent", payload["status"])
 	}
-	payloadTID, ok := plugin16Number(payload["tunnel-id"])
+	payloadTID, ok := plugin16Number(payload[fieldTunnelID])
 	if !ok || payloadTID != localTID {
-		return fmt.Errorf("teardown payload tunnel-id=%v want %d", payload["tunnel-id"], localTID)
+		return fmt.Errorf("teardown payload tunnel-id=%v want %d", payload[fieldTunnelID], localTID)
 	}
 	if !Poll(ctx, 50, 100*time.Millisecond, func() bool {
 		rows, ok := plugin16L2TPList(ctx, p, "show l2tp tunnels")
@@ -430,9 +430,9 @@ func plugin16TeardownSession(ctx context.Context, p *sdk.Plugin) error {
 	if !ok || payload["status"] != directionSent {
 		return fmt.Errorf("teardown payload status=%v want sent", payload["status"])
 	}
-	payloadSID, ok := plugin16Number(payload["session-id"])
+	payloadSID, ok := plugin16Number(payload[fieldSessionID])
 	if !ok || payloadSID != localSID {
-		return fmt.Errorf("teardown payload session-id=%v want %d", payload["session-id"], localSID)
+		return fmt.Errorf("teardown payload session-id=%v want %d", payload[fieldSessionID], localSID)
 	}
 	if !Poll(ctx, 50, 100*time.Millisecond, func() bool {
 		rows, ok := plugin16L2TPList(ctx, p, "show l2tp sessions")

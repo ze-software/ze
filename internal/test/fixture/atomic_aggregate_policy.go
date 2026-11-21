@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"io"
 	"net"
 	"net/netip"
@@ -18,6 +17,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -95,7 +96,7 @@ func atomicAggregatePolicyForwarder(ctx context.Context, args []string) error {
 		if _, eor := event.BGP.Update["eor"]; eor {
 			return plugin.ReleaseCached(ctx, id)
 		}
-		if event.BGP.Peer.Name != "source" {
+		if event.BGP.Peer.Name != peerNameSource {
 			return plugin.ReleaseCached(ctx, id)
 		}
 		if err := plugin.ForwardCached(ctx, rpc.ForwardCachedInput{IDs: id, Destinations: []string{addrLoopbackThird, addrLoopbackFourth}}); err != nil {
@@ -216,7 +217,7 @@ func atomicAggregatePolicyScenario(ctx context.Context, plugin *sdk.Plugin, plac
 		sockets[index] = conn
 	}
 	stage = "initial End-of-RIB"
-	if err := p12WaitPeersEOR(ctx, plugin, "source", "raw-destination", "typed-destination"); err != nil {
+	if err := p12WaitPeersEOR(ctx, plugin, peerNameSource, "raw-destination", "typed-destination"); err != nil {
 		return err
 	}
 	for _, conn := range sockets {

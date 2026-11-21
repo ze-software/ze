@@ -108,7 +108,7 @@ func externalYANGSessionEditor(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	for _, want := range []string{"interval", "target"} {
+	for _, want := range []string{"interval", leafTarget} {
 		if !strings.Contains(leaves, want) {
 			return fmt.Errorf("the daemon's editor did not offer %q after 'set acme-monitor ':\n%s", want, leaves)
 		}
@@ -169,7 +169,7 @@ func externalYANGDaemonSchema(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	creds := sshclient.Credentials{Host: "127.0.0.1", Port: account.port, Username: account.user, Auth: account.password}
+	creds := sshclient.Credentials{Host: addrLoopback, Port: account.port, Username: account.user, Auth: account.password}
 
 	listed, err := sshclient.ExecCommand(creds, "show schema list")
 	if err != nil {
@@ -241,7 +241,7 @@ func externalYANGTreeHoldsTheModule(answer string) error {
 	if root == nil {
 		return errors.New("show yang tree config in the daemon holds no node acme-monitor, the root the external plugin's module defines")
 	}
-	if externalYANGTreeNode(root["children"], "target") == nil {
+	if externalYANGTreeNode(root["children"], leafTarget) == nil {
 		return fmt.Errorf("show yang tree config in the daemon holds no leaf target under acme-monitor: %v", root)
 	}
 	interval := externalYANGTreeNode(root["children"], "interval")

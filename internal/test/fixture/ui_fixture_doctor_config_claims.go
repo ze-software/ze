@@ -58,7 +58,7 @@ func doctorConfigClaims(ctx context.Context) error {
 		return doctorConfigClaimsFail("the diagnostic must name the subtree: %s", message)
 	}
 
-	severity, err := doctorConfigClaimsField(unclaimed[0], "severity")
+	severity, err := doctorConfigClaimsField(unclaimed[0], fieldSeverity)
 	if err != nil {
 		return doctorConfigClaimsFail("inspect %s severity: %v", doctorConfigClaimsUnclaimed, err)
 	}

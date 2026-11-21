@@ -67,13 +67,10 @@ func (p *fixtureProcess) exit(status error) error {
 	return status
 }
 
-func startFixtureProcess(ctx context.Context, env []string, stdin, name string, args ...string) (*fixtureProcess, error) {
+func startFixtureProcess(ctx context.Context, env []string, name string, args ...string) (*fixtureProcess, error) {
 	command := exec.CommandContext(ctx, name, args...) //nolint:gosec // the fixture chooses the program and its arguments
 	command.Env = env
 	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	if stdin != "" {
-		command.Stdin = strings.NewReader(stdin)
-	}
 	output := new(lockedBuffer)
 	command.Stdout = io.MultiWriter(os.Stderr, output)
 	command.Stderr = io.MultiWriter(os.Stderr, output)
@@ -130,11 +127,11 @@ func vppWorkPaths(prefix string) (string, string, string, error) {
 }
 
 func startVPPStub(ctx context.Context, socket, log string, deadline int) (*fixtureProcess, error) {
-	return startFixtureProcess(ctx, os.Environ(), "", "le", "test", "vpp", "stub", "--socket", socket, "--log", log, "--deadline", strconv.Itoa(deadline), "-v")
+	return startFixtureProcess(ctx, os.Environ(), "le", "test", "vpp", "stub", "--socket", socket, "--log", log, "--deadline", strconv.Itoa(deadline), "-v")
 }
 
 func startVPPPeer(ctx context.Context, port int, script string, mode testpeer.Mode) (*fixtureProcess, error) {
-	process, err := startFixtureProcess(ctx, os.Environ(), "", "le", "test", "peer", "--mode", mode.String(), "--port", strconv.Itoa(port), script)
+	process, err := startFixtureProcess(ctx, os.Environ(), "le", "test", "peer", "--mode", mode.String(), "--port", strconv.Itoa(port), script)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +154,7 @@ func startVPPZe(ctx context.Context, config string, values map[string]string) (*
 	// Explicit-file start creates the DUT's normal store when absent.
 	// The FIB restores ownership before processing IP routes.
 	// The driver's owned directory cleanup removes the config after stop.
-	return startFixtureProcess(ctx, miscEnvironment(values), "", "ze", "start", configPath)
+	return startFixtureProcess(ctx, miscEnvironment(values), "ze", "start", configPath)
 }
 
 // vppLogMatches reports whether any line of the stub log satisfies the
@@ -415,7 +412,7 @@ func vppIfaceDriver(ctx context.Context, args []string) error {
 		return errors.New("stub socket did not appear")
 	}
 	config := fmt.Sprintf("environment {\n}\nbgp { router-id 10.0.0.1; session { asn { local 65533; } } }\nvpp { enabled true; external true; api-socket %s; }\ninterface { backend vpp; }\n", socket)
-	ze, err := startVPPZe(ctx, config, map[string]string{envConfigDir: dir, envLogVPP: logLevelInfo, "ze.log.interface": logLevelInfo, envLogBGP: logLevelWarn})
+	ze, err := startVPPZe(ctx, config, map[string]string{envConfigDir: dir, envLogVPP: logLevelInfo, envLogInterface: logLevelInfo, envLogBGP: logLevelWarn})
 	if err != nil {
 		return err
 	}

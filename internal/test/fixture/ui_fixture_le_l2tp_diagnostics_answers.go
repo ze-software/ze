@@ -93,7 +93,7 @@ func runLEL2TPDiagnosticsAnswers(ctx context.Context) error {
 		directionLocal, "0.0.0.0", directionRemote, addrLoopback,
 		"source-port", portL2TP, "destination-port", portL2TP,
 		fieldTunnelID, "1", "peer-tunnel-id", valueHundred,
-		"session-id", "1", "peer-session-id", valueHundred,
+		fieldSessionID, "1", "peer-session-id", valueHundred,
 	}
 	pppox := runLE(ctx, binary, work, "pppox.ndjson", append(pppoxArgs, "|", "json")...)
 	if pppox.code != 0 {

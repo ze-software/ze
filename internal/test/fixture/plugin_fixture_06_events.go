@@ -64,7 +64,7 @@ func fixture06ErrorsConfigAbort(ctx context.Context, p *sdk.Plugin) error {
 	detail, _ := entry["detail"].(map[string]any)
 	subject, _ := entry["subject"].(string)
 	reason, _ := detail["reason"].(string)
-	if entry["severity"] != severityError || subject == "" || detail["phase"] != "verify" || reason == "" {
+	if entry[fieldSeverity] != severityError || subject == "" || detail["phase"] != "verify" || reason == "" {
 		return fmt.Errorf("invalid commit-aborted entry: %v", entry)
 	}
 	fmt.Fprintf(os.Stderr, "OK: show errors returned %d entries; commit-aborted present\n", len(entries))
@@ -87,7 +87,7 @@ func fixture06ErrorsReceived(ctx context.Context, p *sdk.Plugin) error {
 	detail, _ := entry["detail"].(map[string]any)
 	code, codeOK := fixture06Number(detail["code"])
 	subcode, subcodeOK := fixture06Number(detail["subcode"])
-	if entry["severity"] != severityError || detail["direction"] != directionReceived || !codeOK || code != 6 || !subcodeOK || subcode != 2 {
+	if entry[fieldSeverity] != severityError || detail["direction"] != directionReceived || !codeOK || code != 6 || !subcodeOK || subcode != 2 {
 		return fmt.Errorf("invalid notification-received entry: %v", entry)
 	}
 	fmt.Fprintf(os.Stderr, "OK: show errors returned %d entry(s); 1 matching notification-received\n", len(entries))
@@ -116,7 +116,7 @@ func fixture06ErrorsSent(ctx context.Context, p *sdk.Plugin) error {
 	detail, _ := entry["detail"].(map[string]any)
 	code, codeOK := fixture06Number(detail["code"])
 	subcode, subcodeOK := fixture06Number(detail["subcode"])
-	if entry["severity"] != severityError || detail["direction"] != directionSent || !codeOK || code != 6 || !subcodeOK || subcode != 4 {
+	if entry[fieldSeverity] != severityError || detail["direction"] != directionSent || !codeOK || code != 6 || !subcodeOK || subcode != 4 {
 		return fmt.Errorf("invalid notification-sent entry: %v", entry)
 	}
 	fmt.Fprintf(os.Stderr, "OK: show errors returned %d entry(s); 1 matching notification-sent\n", len(entries))

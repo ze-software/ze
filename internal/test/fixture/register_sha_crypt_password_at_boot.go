@@ -37,16 +37,16 @@ func pluginSHACryptPasswordAtBoot(ctx context.Context, args []string) error {
 	if err := pluginShellExtra2RequireNoArgs(args, "SHA-crypt password boot fixture"); err != nil {
 		return err
 	}
-	daemon, err := pluginShellExtra2StartDaemon(ctx, "sha-crypt-at-boot.conf", "daemon.log", map[string]string{
+	daemon, err := pluginShellExtra2StartDaemon(ctx, "sha-crypt-at-boot.conf", map[string]string{
 		envTestBGPPort: strconv.Itoa(10000 + os.Getpid()%50000),
 	})
 	if err != nil {
 		return err
 	}
 	defer pluginShellExtra2StopDaemon(daemon)
-	port, err := pluginShellExtra2WaitSSHPort(ctx, "daemon.log")
+	port, err := pluginShellExtra2WaitSSHPort(ctx)
 	if err != nil {
-		return fmt.Errorf("%w\n%s", err, pluginShellExtra2Log("daemon.log"))
+		return fmt.Errorf("%w\n%s", err, pluginShellExtra2Log(pluginShellExtra2DaemonLog))
 	}
 	emptyDir, err := os.MkdirTemp("", "sha-crypt-password-cli-")
 	if err != nil {
@@ -68,10 +68,10 @@ func pluginSHACryptPasswordAtBoot(ctx context.Context, args []string) error {
 		result := login(user, shaCryptAtBootPassword)
 		if result.err != nil {
 			return fmt.Errorf("%s must log in with the password its SHA-crypt hash was made from: %w\nOUTPUT: %s%s\n%s",
-				user, result.err, result.stdout, result.stderr, pluginShellExtra2Log("daemon.log"))
+				user, result.err, result.stdout, result.stderr, pluginShellExtra2Log(pluginShellExtra2DaemonLog))
 		}
-		if !regexp.MustCompile(`SSH auth success.*username=` + user).MatchString(pluginShellExtra2Log("daemon.log")) {
-			return fmt.Errorf("daemon did not log auth success for username=%s\n%s", user, pluginShellExtra2Log("daemon.log"))
+		if !regexp.MustCompile(`SSH auth success.*username=` + user).MatchString(pluginShellExtra2Log(pluginShellExtra2DaemonLog)) {
+			return fmt.Errorf("daemon did not log auth success for username=%s\n%s", user, pluginShellExtra2Log(pluginShellExtra2DaemonLog))
 		}
 		progress.Str("OK: ").Str(user).Str(" logged in with its SHA-crypt password\n")
 	}
@@ -80,12 +80,12 @@ func pluginSHACryptPasswordAtBoot(ctx context.Context, args []string) error {
 	if refused.err == nil {
 		return fmt.Errorf("a wrong password must not log migrated512 in\nOUTPUT: %s%s", refused.stdout, refused.stderr)
 	}
-	if !regexp.MustCompile(`SSH auth failure.*username=migrated512`).MatchString(pluginShellExtra2Log("daemon.log")) {
-		return fmt.Errorf("daemon did not log the refused login for username=migrated512\n%s", pluginShellExtra2Log("daemon.log"))
+	if !regexp.MustCompile(`SSH auth failure.*username=migrated512`).MatchString(pluginShellExtra2Log(pluginShellExtra2DaemonLog)) {
+		return fmt.Errorf("daemon did not log the refused login for username=migrated512\n%s", pluginShellExtra2Log(pluginShellExtra2DaemonLog))
 	}
 	progress.Str("OK: a wrong password is refused\n")
 
-	log := pluginShellExtra2Log("daemon.log")
+	log := pluginShellExtra2Log(pluginShellExtra2DaemonLog)
 	if strings.Contains(log, "not a valid bcrypt hash") {
 		return fmt.Errorf("the daemon warned about a stored SHA-crypt hash\n%s", log)
 	}

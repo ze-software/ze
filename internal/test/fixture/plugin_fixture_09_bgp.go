@@ -87,7 +87,7 @@ func llgrReadvertise09(name string) Driver {
 			if !strings.Contains(best.text, "10.0.0.0/24") {
 				return fmt.Errorf("source route never became best: %s", best.text)
 			}
-			if err := p12WaitPeersEOR(ctx, p, "source", "obsn"); err != nil {
+			if err := p12WaitPeersEOR(ctx, p, peerNameSource, "obsn"); err != nil {
 				return err
 			}
 			routesSent := func() int {
@@ -248,7 +248,7 @@ func medRawDrop09(ctx context.Context, _ []string) error {
 		close(started)
 		go func() {
 			var scenarioErr error
-			if err := p12WaitPeersEOR(ctx, plugin, "source", "dest"); err != nil {
+			if err := p12WaitPeersEOR(ctx, plugin, peerNameSource, "dest"); err != nil {
 				scenarioErr = err
 			} else if !Poll(ctx, 100, 100*time.Millisecond, func() bool { mu.Lock(); defer mu.Unlock(); return removed > 0 }) {
 				scenarioErr = fmt.Errorf("RAW-MED-DROP: export filter never saw the forwarded route")
