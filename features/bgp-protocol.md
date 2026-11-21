@@ -15,7 +15,7 @@
 | Interop | bgp/bgp-update-delay-frr, bgp/bgp-ebgp-ipv4-frr, bgp/bgp-ibgp-frr, bgp/bgp-ebgp-gobgp, bgp/bgp-routes-from-bird, bgp/bgp-rfc8212-default-reject-frr, bgp/bgp-delayopen-frr, bgp/bgp-best-route-transit-frr, bgp/bgp-best-route-transit-bird |
 | RFCs | rfc4271, rfc4760, rfc6793, rfc4724, rfc7606, rfc8654, rfc8212 |
 | Docs | docs/features/bgp-protocol.md |
-| Doc review | 2026-10-19: re-read after the 2026-10-19 docs/features/bgp-protocol.md edits, which added the two RFC 9774 AS_SET rows and the draft-ietf-idr-linklocal-capability 32-octet next-hop row; no claim here names AS_PATH segments or a 32-octet next hop, so the earlier review stands. 2026-10-08: re-read after the 2026-10-08 bgp-protocol.md edit, which only rewrote the next-hop wire-form row (relayed link-local retention, VPN-IPv6 unspecified pair); no claim here names next-hop encoding; 2026-10-07 review otherwise stands |
+| Doc review | 2026-11-19: checked the ordinary transit grants, export policy, and refresh against the current source and the November 14 third-party next-hop change against the neighbor table lookup and watch. The separate LLGR readvertisement paragraph omits the policy-change branch in `runStaleChain`. |
 | Defect review | 2026-10-07: plan/release/fixes/spec-rfc4271-med-ibgp-readvertisement.md open; spec-rfc-verdict-fix-bgp open; journal helper-bypassed-by-an-open-coded-copy forward-rail rows taken as open |
 
 ## Description
