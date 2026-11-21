@@ -21,6 +21,7 @@ import (
 	configstorage "github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/config/system"
 	"github.com/ze-software/ze/internal/component/host"
+	"github.com/ze-software/ze/internal/component/host/trend"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/component/resolve"
@@ -30,6 +31,7 @@ import (
 	"github.com/ze-software/ze/internal/component/resolve/peeringdb"
 	zestorage "github.com/ze-software/ze/internal/component/storage"
 	sysctlevents "github.com/ze-software/ze/internal/component/sysctl/events"
+	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/dnssource"
 	coreenv "github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/identity"
@@ -499,6 +501,35 @@ func startSmartManager(tree *zeconfig.Tree) {
 func stopSmartManager() {
 	if smartManager != nil {
 		smartManager.Stop()
+	}
+}
+
+// trendMonitor is the host trend monitor the system start started; nil when
+// Start refused, which the monitor's doctor check then reports.
+var trendMonitor *trend.Monitor
+
+// startTrendMonitor starts the host trend monitor on the real clock over the
+// real filesystem root. It runs whatever the configuration holds, with no
+// telemetry and no bgp block, and has no config: no reload step touches it,
+// so a reload keeps its history. A successful start MUST be paired with
+// stopTrendMonitor at daemon stop.
+func startTrendMonitor() {
+	monitor, err := trend.Start(clock.RealClock{}, &host.Detector{})
+	if err != nil {
+		slogutil.Logger("host").Warn("host trend monitor did not start",
+			"code", trend.CodeNotRunning, "error", err, "fix", "ze signal restart")
+		return
+	}
+	trendMonitor = monitor
+}
+
+// stopTrendMonitor stops the monitor startTrendMonitor started, which clears
+// its own warnings. It MUST run after startTrendMonitor; with no monitor it
+// does nothing.
+func stopTrendMonitor() {
+	if trendMonitor != nil {
+		trendMonitor.Stop()
+		trendMonitor = nil
 	}
 }
 

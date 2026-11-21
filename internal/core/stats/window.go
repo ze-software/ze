@@ -1,9 +1,10 @@
 // Design: docs/architecture/traffic/traffic-analysis-layers.md -- shared traffic-analysis stats primitives
 //
 // Package stats holds the domain-NEUTRAL statistical primitives shared by the
-// traffic-analysis layers (trafficstat, trafficfeature) and the detection plugins
-// (ddos, anomaly). It is a core leaf: pure math and small stateful helpers with no
-// component imports, so any tier may depend on it.
+// traffic-analysis layers (trafficstat, trafficfeature), the detection plugins
+// (ddos, anomaly) and the host trend monitor (internal/component/host/trend). It
+// is a core leaf: pure math and small stateful helpers with no component imports,
+// so any tier may depend on it.
 package stats
 
 // Window is a per-key rolling byte accumulator: it converts bytes seen during the

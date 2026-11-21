@@ -293,6 +293,16 @@ type MemoryInfo struct {
 	ECCPresent             bool   `json:"ecc-present"`
 }
 
+// KernelMemory is what the kernel-memory trend rule reads from /proc/meminfo
+// (DetectKernelMemory): the memory the box has, what is still available, and the
+// kernel memory that cannot be reclaimed (SUnreclaim), all in bytes. It is not
+// part of any command answer, so it carries no JSON shape.
+type KernelMemory struct {
+	TotalBytes         uint64
+	AvailableBytes     uint64
+	UnreclaimableBytes uint64
+}
+
 // ThermalInfo aggregates hwmon sensor readings and per-core throttle
 // counters.
 type ThermalInfo struct {

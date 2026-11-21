@@ -363,6 +363,28 @@ warning for a state that cannot be read.
 <!-- test: internal/component/doctor/checks_storage_grown_test.go TestInstallerSpellsTheStorageDoctorCode -->
 <!-- test: internal/component/host/storage_persistent_linux_test.go TestDetectPersistentStorageReadsTheMountTable -->
 
+## Host resources that grow toward exhaustion
+
+The host trend monitor (`docs/architecture/host/observability.md`, "The trend
+monitor") lives in the daemon, so its checks take the `runtime` phase. The
+package that registers them is `internal/component/host/trend`, not the host
+component, for the import cycle the section above names.
+
+| Runtime check | Registered by | Reports | Code |
+|---------------|---------------|---------|------|
+| `host-trend-monitor` | the monitor's own file | the monitor not running, with `ze signal restart` as fix, because the daemon's system start starts it; and each rule whose latest read failed, naming the path and the error, with `show host trend` | `doctor-host-trend-not-running`, `doctor-host-trend-unreadable` |
+| `host-trend-kernel-memory` | the kernel-memory rule's file | the rule's standing warning, with the message and the fix the report bus holds; no row while the rule is quiet, warming up or not present | `doctor-host-kernel-memory-growth` |
+
+Every row is a warning: the box still reads ready. Because each runtime check
+declares the code it reports, `recent-events` skips those warnings
+(`ownedCodes`) and adds no second row. A rule check answers nothing while the
+monitor is not running, so the monitor check reports that once. A new rule
+registers its own check from its own file, with `ruleCheck` as the function.
+<!-- source: internal/component/host/trend/register.go -- checkMonitor, ruleCheck -->
+<!-- source: internal/component/host/trend/register_kernel_memory.go -- the host-trend-kernel-memory registration -->
+<!-- test: internal/component/host/trend/trend_doctor_linux_test.go TestTrendDoctorCheckRowFollowsRuleState -->
+<!-- test: internal/component/host/trend/trend_doctor_test.go TestTrendMonitorNotRunningIsReported -->
+
 ## Kernel capabilities: one enrolment, three callers
 
 Configured L2TP, kernel PPPoE and PPPoE clients inspect the same positive

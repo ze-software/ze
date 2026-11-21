@@ -1290,6 +1290,8 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	registry.RunBootEffects(configPath, data)
 	startSmartManager(loadResult.Tree)
 	defer stopSmartManager()
+	startTrendMonitor()
+	defer stopTrendMonitor()
 	applyConsole(&sc)
 	applyKernelHostname(loadResult.Tree)
 	applyConntrack(&sc, apiServer)

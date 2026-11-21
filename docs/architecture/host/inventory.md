@@ -40,6 +40,11 @@ and never writes to them.
 - `/proc/meminfo` values are in kB. The library converts to bytes at parse time,
   so every public field name can end in `-bytes`. Skipping that conversion
   reports 8 GB of memory as "8053028 bytes".
+- One reader, `scanMeminfo`, parses `/proc/meminfo` for every caller. The
+  memory section maps its keys into `MemoryInfo`; `DetectKernelMemory` maps
+  `MemTotal`, `MemAvailable` and `SUnreclaim` into `KernelMemory` for the
+  kernel-memory trend rule, so `show host memory` keeps its answer. A missing
+  line is an error naming the file, never a zero counter.
 - Temperatures stay in millicelsius, the kernel hwmon convention. The field
   names carry an explicit `-mc` suffix. A reading of 0 is a reading: a channel
   is present because its file parsed, never because its value is non-zero, and

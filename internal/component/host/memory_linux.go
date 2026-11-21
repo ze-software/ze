@@ -53,32 +53,87 @@ func (d *Detector) DetectMemory() (*MemoryInfo, error) {
 
 // readMeminfo parses /proc/meminfo into MemoryInfo.
 func (d *Detector) readMeminfo() (*MemoryInfo, error) {
+	info := &MemoryInfo{}
+	err := scanMeminfo(d.procPath("meminfo"), func(key string, value uint64) {
+		if set, known := meminfoFields[key]; known {
+			set(info, value*1024)
+			return
+		}
+		if set, known := meminfoCounts[key]; known {
+			set(info, value)
+		}
+	})
+	if err != nil {
+		return nil, err
+	}
+	return info, nil
+}
+
+// kernelMemoryFields maps the /proc/meminfo keys the kernel-memory trend rule
+// reads to the KernelMemory setter. All three are kB lines, converted to bytes
+// as meminfoFields converts them. They are kept apart from meminfoFields so the
+// answer of `show host memory` keeps its shape: SUnreclaim is not one of its
+// keys.
+var kernelMemoryFields = map[string]func(*KernelMemory, uint64){
+	"MemTotal":     func(m *KernelMemory, v uint64) { m.TotalBytes = v },
+	"MemAvailable": func(m *KernelMemory, v uint64) { m.AvailableBytes = v },
+	"SUnreclaim":   func(m *KernelMemory, v uint64) { m.UnreclaimableBytes = v },
+}
+
+// errMeminfoLineMissing names a /proc/meminfo line DetectKernelMemory needs
+// and did not find.
+var errMeminfoLineMissing = errors.New("has no line for a counter the kernel-memory rule needs")
+
+// DetectKernelMemory reads the three /proc/meminfo counters the kernel-memory
+// trend rule judges. Every error it answers is an *fs.PathError naming the
+// file, so the rule reports which path it could not read. A file without one
+// of the three lines is such an error, never a zero counter: the kernel has
+// carried all three since Linux 3.14.
+func (d *Detector) DetectKernelMemory() (KernelMemory, error) {
 	path := d.procPath("meminfo")
+	var memory KernelMemory
+	found := make(map[string]bool, len(kernelMemoryFields))
+	err := scanMeminfo(path, func(key string, value uint64) {
+		if set, known := kernelMemoryFields[key]; known {
+			set(&memory, value*1024)
+			found[key] = true
+		}
+	})
+	if err != nil {
+		return KernelMemory{}, err
+	}
+	for key := range kernelMemoryFields {
+		if !found[key] {
+			return KernelMemory{}, &fs.PathError{Op: "parse", Path: path,
+				Err: fmt.Errorf("%w: %s", errMeminfoLineMissing, key)}
+		}
+	}
+	return memory, nil
+}
+
+// scanMeminfo is the one /proc/meminfo reader: it opens path and hands visit
+// the key and the bare number of every line parseMeminfoLine accepts, leaving
+// the unit to the caller's map. Every error it answers is an *fs.PathError
+// naming path.
+func scanMeminfo(path string, visit func(key string, value uint64)) error {
 	f, err := os.Open(path) //nolint:gosec // path is under /proc root
 	if err != nil {
-		return nil, fmt.Errorf("open %s: %w", path, err)
+		return err
 	}
 	defer func() { _ = f.Close() }()
 
-	info := &MemoryInfo{}
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		key, value, ok := parseMeminfoLine(scanner.Text())
 		if !ok {
 			continue
 		}
-		if set, known := meminfoFields[key]; known {
-			set(info, value*1024)
-			continue
-		}
-		if set, known := meminfoCounts[key]; known {
-			set(info, value)
-		}
+		visit(key, value)
 	}
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("scan meminfo: %w", err)
+		return &fs.PathError{Op: "read", Path: path, Err: err}
 	}
-	return info, nil
+	return nil
 }
 
 // parseMeminfoLine parses one meminfo line of the form
