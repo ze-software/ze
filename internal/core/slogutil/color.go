@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"golang.org/x/term"
 
@@ -33,12 +34,15 @@ const (
 )
 
 // colorHandler wraps slog.TextHandler to add ANSI colors to terminal output.
-// Level values get severity-based colors, key= prefixes are dimmed.
+// Keys, timestamps, severity, and structured values have distinct styles.
 type colorHandler struct {
 	inner  slog.Handler
 	writer io.Writer
 	mu     *sync.Mutex
 	buf    *bytes.Buffer
+	// terminal holds the detected terminal state for a console destination.
+	// A nil value selects unconditional color.
+	terminal *bool
 }
 
 func newColorHandler(w io.Writer, opts *slog.HandlerOptions) *colorHandler {
@@ -49,6 +53,13 @@ func newColorHandler(w io.Writer, opts *slog.HandlerOptions) *colorHandler {
 		mu:     &sync.Mutex{},
 		buf:    buf,
 	}
+}
+
+func newConsoleHandler(w io.Writer, opts *slog.HandlerOptions) *colorHandler {
+	handler := newColorHandler(w, opts)
+	terminal := isLogTerminal(w)
+	handler.terminal = &terminal
+	return handler
 }
 
 func (h *colorHandler) Enabled(ctx context.Context, level slog.Level) bool {
@@ -64,6 +75,11 @@ func (h *colorHandler) Handle(ctx context.Context, r slog.Record) error {
 		return err
 	}
 
+	if h.terminal != nil && !useColor(*h.terminal) {
+		_, err := h.writer.Write(h.buf.Bytes())
+		return err
+	}
+
 	colored := colorizeLine(h.buf.String(), r.Level)
 	_, err := io.WriteString(h.writer, colored)
 	return err
@@ -71,24 +87,25 @@ func (h *colorHandler) Handle(ctx context.Context, r slog.Record) error {
 
 func (h *colorHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	return &colorHandler{
-		inner:  h.inner.WithAttrs(attrs),
-		writer: h.writer,
-		mu:     h.mu,
-		buf:    h.buf,
+		inner:    h.inner.WithAttrs(attrs),
+		writer:   h.writer,
+		mu:       h.mu,
+		buf:      h.buf,
+		terminal: h.terminal,
 	}
 }
 
 func (h *colorHandler) WithGroup(name string) slog.Handler {
 	return &colorHandler{
-		inner:  h.inner.WithGroup(name),
-		writer: h.writer,
-		mu:     h.mu,
-		buf:    h.buf,
+		inner:    h.inner.WithGroup(name),
+		writer:   h.writer,
+		mu:       h.mu,
+		buf:      h.buf,
+		terminal: h.terminal,
 	}
 }
 
 // colorizeLine adds ANSI color codes to a slog text format line.
-// Level values get severity-specific colors, all key= prefixes are dimmed.
 func colorizeLine(line string, level slog.Level) string {
 	if line == "" {
 		return line
@@ -112,11 +129,16 @@ func colorizeLine(line string, level slog.Level) string {
 		first = false
 
 		rest := line[pos:]
-		eqIdx := strings.IndexByte(rest, '=')
+		keyStart := 0
+		if rest[0] == '"' {
+			keyStart = findClosingQuote(rest, 1) + 1
+		}
+		eqIdx := strings.IndexByte(rest[keyStart:], '=')
 		if eqIdx == -1 {
 			b.Str(rest)
 			break
 		}
+		eqIdx += keyStart
 
 		key := rest[:eqIdx]
 
@@ -143,8 +165,8 @@ func colorizeLine(line string, level slog.Level) string {
 
 		value := rest[valueStart:valueEnd]
 
-		if key == "level" {
-			b.Str(levelColor(level)).Str(value).Str(ansiReset)
+		if color := logValueColor(key, value, level); color != "" {
+			b.Str(color).Str(value).Str(ansiReset)
 		} else {
 			b.Str(value)
 		}
@@ -160,6 +182,25 @@ func colorizeLine(line string, level slog.Level) string {
 	}
 
 	return b.String()
+}
+
+func logValueColor(key, value string, level slog.Level) string {
+	switch key {
+	case slog.LevelKey:
+		return levelColor(level)
+	case slog.TimeKey:
+		return ansiDim
+	case slog.MessageKey:
+		return ""
+	case "state", "status":
+		switch strings.ToLower(value) {
+		case "down", "failed":
+			return ansiBoldRed
+		case "degraded":
+			return ansiYellow
+		}
+	}
+	return ansiGreen
 }
 
 // levelColor returns the ANSI color escape code for a log level.
@@ -184,6 +225,10 @@ func levelColor(level slog.Level) string {
 //  3. ze.log.color set -> use its boolean value (set by --color/--no-color flags or env var)
 //  4. term.IsTerminal(fd) -> enabled/disabled based on TTY
 func UseColor(w io.Writer) bool {
+	return useColor(isLogTerminal(w))
+}
+
+func useColor(isTerminal bool) bool {
 	if _, ok := os.LookupEnv("NO_COLOR"); ok {
 		return false
 	}
@@ -193,9 +238,27 @@ func UseColor(w io.Writer) bool {
 	if v := env.Get("ze.log.color"); v != "" {
 		return env.IsEnabled("ze.log.color")
 	}
+	return isTerminal
+}
+
+type stderrRelay struct {
+	pipe, destination *os.File
+}
+
+var logStderrRelay atomic.Pointer[stderrRelay]
+
+// SetStderrRelay records the terminal destination of the crash capture pipe.
+func SetStderrRelay(pipe, destination *os.File) {
+	logStderrRelay.Store(&stderrRelay{pipe: pipe, destination: destination})
+}
+
+func isLogTerminal(w io.Writer) bool {
 	f, ok := w.(*os.File)
 	if !ok {
 		return false
+	}
+	if relay := logStderrRelay.Load(); relay != nil && f == relay.pipe {
+		f = relay.destination
 	}
 	return term.IsTerminal(int(f.Fd()))
 }

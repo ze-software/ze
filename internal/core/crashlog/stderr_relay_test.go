@@ -1,14 +1,51 @@
 package crashlog
 
 import (
+	"bytes"
 	"errors"
 	"io"
+	"log/syslog"
+	"net"
 	"os"
 	"strings"
 	"testing"
 	"testing/iotest"
 	"time"
 )
+
+// VALIDATES: The stderr relay preserves terminal styling and forwards plain syslog.
+func TestStderrRelayKeepsColorOutOfSyslog(t *testing.T) {
+	receiver, err := net.ListenPacket("udp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer receiver.Close()
+	if err := receiver.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	sender, err := syslog.Dial("udp4", receiver.LocalAddr().String(), syslog.LOG_WARNING, "ze-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sender.Close()
+
+	const colored = "level=\x1b[33mWARN\x1b[0m msg=hello\n"
+	var terminal bytes.Buffer
+	if _, _, err := relayStderr(strings.NewReader(colored), &terminal, sender); err != nil {
+		t.Fatal(err)
+	}
+	if terminal.String() != colored {
+		t.Fatalf("terminal output = %q, want %q", terminal.String(), colored)
+	}
+	var datagram [512]byte
+	n, _, err := receiver.ReadFrom(datagram[:])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(datagram[:n]); !strings.HasSuffix(got, "level=WARN msg=hello\n") || strings.Contains(got, "\x1b") {
+		t.Fatalf("syslog output = %q, want plain log record", got)
+	}
+}
 
 // VALIDATES: relayStderr marks a panic trace whose read stopped early.
 // PREVENTS: a crash file that ends mid-trace being read as the whole panic,

@@ -56,7 +56,8 @@ for its answer: a relay that forwarded whole lines held the prompt, and the
 operator saw nothing to answer. Syslog keeps one message per line, because a
 syslog message is a record. A line goes to syslog at its newline, at the end of
 input, or once it fills 256 KiB, after which the rest of it goes in fragments of
-that size. Panic detection reads the same lines, so only the start of a line can
+that size. The relay strips terminal styling from the syslog and crash trace
+copies. Panic detection reads the same lines, so only the start of a line can
 open a trace.
 <!-- source: internal/core/crashlog/stderr.go -- relayStderr, lineRelay -->
 

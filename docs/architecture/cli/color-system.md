@@ -160,6 +160,15 @@ that.
 | INFO+ level | value | `level=INFO` |
 | DEBUG level | identity | `level=DEBUG` |
 | Key prefixes | muted | `component=bgp` |
+| Timestamps | muted | `time=2026-11-21T10:00:00Z` |
+| Field values | value | `peer=192.0.2.1`, `routes=42` |
+| Degraded state or status | caution | `status=degraded` |
+| Down or failed state or status | danger | `state=down` |
+
+Log messages use the terminal's default foreground. Ze selects color per
+stdout or stderr destination. Use `--color` to force color for those streams
+and `--no-color` for plain text.
+Syslog and kernel logs use plain text.
 
 ### SSH Sessions
 

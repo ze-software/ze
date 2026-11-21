@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -65,6 +67,7 @@ func redirectStderr(syslogAddress, crashDirPath string) error {
 	}
 
 	os.Stderr = pw
+	slogutil.SetStderrRelay(pw, origStderr)
 	pipeW = pw
 	readerDone = startRelay(pr, origStderr, syslogW, crashDirPath)
 	return nil
@@ -249,6 +252,9 @@ func (l *lineRelay) flush() {
 func (l *lineRelay) take(fragment []byte, complete bool) {
 	if complete {
 		fragment = bytes.TrimSuffix(fragment, []byte{'\r'})
+	}
+	if bytes.IndexByte(fragment, '\x1b') >= 0 {
+		fragment = []byte(ansi.Strip(string(fragment)))
 	}
 
 	if l.syslogW != nil {

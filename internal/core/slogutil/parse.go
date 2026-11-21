@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"strconv"
 	"strings"
+
+	"github.com/charmbracelet/x/ansi"
 )
 
 // ParseLogLine extracts level, message, and attributes from a slog text line.
@@ -27,6 +29,9 @@ import (
 func ParseLogLine(line string) (slog.Level, string, []any) {
 	if line == "" {
 		return slog.LevelInfo, "", nil
+	}
+	if strings.HasPrefix(line, ansiDim) {
+		line = ansi.Strip(line)
 	}
 
 	// Try to find level= and msg= in the line

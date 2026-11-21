@@ -236,7 +236,7 @@ func PluginLogger(subsystem, cliLevel string) *slog.Logger {
 	if cliLevel != "" && cliLevel != levelDisabled {
 		lvl, ok := parseLevel(cliLevel)
 		if ok {
-			handler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: lvl})
+			handler := newConsoleHandler(os.Stderr, &slog.HandlerOptions{Level: lvl})
 			return slog.New(handler).With("subsystem", subsystem)
 		}
 	}
@@ -244,14 +244,14 @@ func PluginLogger(subsystem, cliLevel string) *slog.Logger {
 	// Fall back to hierarchical env var lookup
 	v := getLogEnv(subsystem)
 	if v == "" {
-		handler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: DefaultLevel})
+		handler := newConsoleHandler(os.Stderr, &slog.HandlerOptions{Level: DefaultLevel})
 		return slog.New(handler).With("subsystem", subsystem)
 	}
 	lvl, ok := parseLevel(v)
 	if !ok {
 		return slog.New(discardHandler{})
 	}
-	handler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: lvl})
+	handler := newConsoleHandler(os.Stderr, &slog.HandlerOptions{Level: lvl})
 	return slog.New(handler).With("subsystem", subsystem)
 }
 
@@ -306,20 +306,18 @@ func createHandler(level slog.Leveler, subsystem string) slog.Handler {
 		writers = append(writers, os.Stderr)
 	}
 
-	var w io.Writer
-	if len(writers) == 1 {
-		w = writers[0]
-	} else {
-		w = io.MultiWriter(writers...)
+	handlers := make([]slog.Handler, 0, len(writers))
+	for _, w := range writers {
+		if w == os.Stdout || w == os.Stderr {
+			handlers = append(handlers, newConsoleHandler(w, opts))
+		} else {
+			handlers = append(handlers, slog.NewTextHandler(w, opts))
+		}
 	}
-
-	var base slog.Handler
-	if UseColor(w) {
-		base = newColorHandler(w, opts)
-	} else {
-		base = slog.NewTextHandler(w, opts)
+	if len(handlers) == 1 {
+		return newRingHandler(handlers[0], globalLogRing)
 	}
-	return newRingHandler(base, globalLogRing)
+	return newRingHandler(slog.NewMultiHandler(handlers...), globalLogRing)
 }
 
 // writerForBackend returns an io.Writer for a backend name, or nil if unknown/empty.

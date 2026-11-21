@@ -52,17 +52,34 @@ func TestColorizeLineDimsKeys(t *testing.T) {
 	assert.Contains(t, result, ansiDim+"peer="+ansiReset)
 }
 
-// TestColorizeLinePreservesValues verifies attribute values are not altered.
+// TestColorizeLinePreservesValues verifies value styling preserves the text.
 //
-// VALIDATES: Only keys and level get ANSI treatment, values are preserved.
+// VALIDATES: Timestamps are dim, attribute data is green, and prose is plain.
 // PREVENTS: Values being garbled or wrapped in unexpected codes.
 func TestColorizeLinePreservesValues(t *testing.T) {
 	line := `time=2025-01-18T12:00:00Z level=INFO msg="hello world" subsystem=bgp` + "\n"
 	result := colorizeLine(line, slog.LevelInfo)
 
-	assert.Contains(t, result, "2025-01-18T12:00:00Z")
-	assert.Contains(t, result, `"hello world"`)
-	assert.Contains(t, result, ansiDim+"subsystem="+ansiReset+"bgp")
+	assert.Contains(t, result, ansiDim+"2025-01-18T12:00:00Z"+ansiReset)
+	assert.Contains(t, result, ansiDim+"msg="+ansiReset+`"hello world"`)
+	assert.Contains(t, result, ansiGreen+"bgp"+ansiReset)
+}
+
+func TestColorizeLineStylesStateAndQuotedKeys(t *testing.T) {
+	line := `level=WARN msg="status=down" status=down "a=b"=42` + "\n"
+	result := colorizeLine(line, slog.LevelWarn)
+	assert.Contains(t, result, ansiDim+"msg="+ansiReset+`"status=down"`)
+	assert.Contains(t, result, ansiBoldRed+"down"+ansiReset)
+	assert.Contains(t, result, ansiDim+`"a=b"=`+ansiReset+ansiGreen+"42"+ansiReset)
+}
+
+// VALIDATES: Plugin stderr relays recover the severity and data of a colored record.
+func TestParseColoredLogRecord(t *testing.T) {
+	line := colorizeLine(`level=WARN msg="peer changed" state=down`, slog.LevelWarn)
+	level, message, attrs := ParseLogLine(line)
+	assert.Equal(t, slog.LevelWarn, level)
+	assert.Equal(t, "peer changed", message)
+	assert.Equal(t, []any{"state", "down"}, attrs)
 }
 
 // TestColorizeLineQuotedValueWithEquals verifies quoted values containing = are handled.
@@ -113,6 +130,30 @@ func TestColorHandlerOutput(t *testing.T) {
 	assert.Contains(t, output, "hello")
 	assert.Contains(t, output, "key")
 	assert.Contains(t, output, "value")
+}
+
+// VALIDATES: A color override applies to console handlers created before it.
+func TestConsoleHandlerUsesCurrentColorOverride(t *testing.T) {
+	t.Setenv("NO_COLOR", "")
+	require.NoError(t, os.Unsetenv("NO_COLOR"))
+	t.Setenv("TERM", "xterm")
+	t.Setenv("ze.log.color", "")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
+	var buf bytes.Buffer
+	handler := newConsoleHandler(&buf, &slog.HandlerOptions{})
+	logger := slog.New(handler)
+
+	require.NoError(t, env.Set("ze.log.color", "true"))
+	logger.Warn("forced color")
+	assert.Contains(t, buf.String(), ansiYellow+"WARN"+ansiReset)
+
+	buf.Reset()
+	require.NoError(t, env.Set("ze.log.color", "false"))
+	logger.Warn("plain output")
+	assert.NotContains(t, buf.String(), "\x1b")
+	assert.Contains(t, buf.String(), `level=WARN msg="plain output"`)
 }
 
 // TestColorHandlerWithAttrs verifies WithAttrs carries pre-defined attrs through.
