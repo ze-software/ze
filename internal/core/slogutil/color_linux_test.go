@@ -19,6 +19,7 @@ func TestConsoleDestinationsSelectColorIndependently(t *testing.T) {
 	t.Setenv("NO_COLOR", "")
 	require.NoError(t, os.Unsetenv("NO_COLOR"))
 	t.Setenv("TERM", "xterm")
+	t.Setenv("COLORFGBG", "")
 	t.Setenv("ze.log.color", "")
 	t.Setenv("ze.log.backend", "stderr,stdout")
 	env.ResetCache()
@@ -51,8 +52,8 @@ func TestConsoleDestinationsSelectColorIndependently(t *testing.T) {
 
 	line, err := bufio.NewReader(relayRead).ReadString('\n')
 	require.NoError(t, err)
-	assert.Contains(t, line, ansiYellow+"WARN"+ansiReset)
-	assert.Contains(t, line, ansiBoldRed+"down"+ansiReset)
+	assert.Contains(t, line, ansiLogPalette.warning+"WARN"+ansiReset)
+	assert.Contains(t, line, ansiLogPalette.failure+"down"+ansiReset)
 	plain, err := os.ReadFile(file.Name())
 	require.NoError(t, err)
 	assert.Contains(t, string(plain), `msg="peer changed" state=down`)

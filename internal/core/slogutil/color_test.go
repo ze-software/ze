@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/colorprofile"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -24,62 +26,97 @@ func TestColorizeLineLevelColors(t *testing.T) {
 		label     string
 		wantColor string
 	}{
-		{slog.LevelDebug, "DEBUG", ansiCyan},
-		{slog.LevelInfo, "INFO", ansiGreen},
-		{slog.LevelWarn, "WARN", ansiYellow},
-		{slog.LevelError, "ERROR", ansiBoldRed},
+		{slog.LevelDebug, "DEBUG", ""},
+		{slog.LevelInfo, "INFO", ""},
+		{slog.LevelWarn, "WARN", ansiLogPalette.warning},
+		{slog.LevelError, "ERROR", ansiLogPalette.failure},
 	}
 	for _, tt := range tests {
 		t.Run(tt.label, func(t *testing.T) {
 			line := "time=2025-01-18T12:00:00Z level=" + tt.label + " msg=test\n"
-			result := colorizeLine(line, tt.level)
+			result := ansiLogPalette.colorizeLine(line, tt.level)
+			if tt.wantColor == "" {
+				assert.Contains(t, result, ansiLogPalette.key+"level="+ansiReset+tt.label+" ")
+				return
+			}
 			assert.Contains(t, result, tt.wantColor+tt.label+ansiReset)
 		})
 	}
 }
 
-// TestColorizeLineDimsKeys verifies all key= prefixes are dimmed.
+// TestColorizeLineStylesKeys verifies all key= prefixes are blue.
 //
-// VALIDATES: Key prefixes are wrapped in dim ANSI codes.
+// VALIDATES: Key prefixes have a consistent foreground color.
 // PREVENTS: Keys and values having identical styling.
-func TestColorizeLineDimsKeys(t *testing.T) {
+func TestColorizeLineStylesKeys(t *testing.T) {
 	line := "time=2025-01-18T12:00:00Z level=INFO msg=hello subsystem=bgp peer=192.168.1.1\n"
-	result := colorizeLine(line, slog.LevelInfo)
+	result := ansiLogPalette.colorizeLine(line, slog.LevelInfo)
 
-	assert.Contains(t, result, ansiDim+"time="+ansiReset)
-	assert.Contains(t, result, ansiDim+"msg="+ansiReset)
-	assert.Contains(t, result, ansiDim+"subsystem="+ansiReset)
-	assert.Contains(t, result, ansiDim+"peer="+ansiReset)
+	assert.Contains(t, result, ansiLogPalette.key+"time="+ansiReset)
+	assert.Contains(t, result, ansiLogPalette.key+"msg="+ansiReset)
+	assert.Contains(t, result, ansiLogPalette.key+"subsystem="+ansiReset)
+	assert.Contains(t, result, ansiLogPalette.key+"peer="+ansiReset)
 }
 
 // TestColorizeLinePreservesValues verifies value styling preserves the text.
 //
-// VALIDATES: Timestamps are dim, attribute data is green, and prose is plain.
+// VALIDATES: The date and clock use separate colors and the timestamp retains its text.
 // PREVENTS: Values being garbled or wrapped in unexpected codes.
 func TestColorizeLinePreservesValues(t *testing.T) {
-	line := `time=2025-01-18T12:00:00Z level=INFO msg="hello world" subsystem=bgp` + "\n"
-	result := colorizeLine(line, slog.LevelInfo)
+	line := `time=2025-01-18T12:00:00.123+05:30 level=INFO msg="hello world" subsystem=bgp` + "\n"
+	result := ansiLogPalette.colorizeLine(line, slog.LevelInfo)
 
-	assert.Contains(t, result, ansiDim+"2025-01-18T12:00:00Z"+ansiReset)
-	assert.Contains(t, result, ansiDim+"msg="+ansiReset+`"hello world"`)
-	assert.Contains(t, result, ansiGreen+"bgp"+ansiReset)
+	assert.Contains(t, result, ansiLogPalette.date+"2025-01-18"+ansiReset+"T"+ansiLogPalette.clock+"12:00:00.123"+ansiReset+"+05:30")
+	assert.Contains(t, result, ansiLogPalette.key+"msg="+ansiReset+`"hello world"`)
+	assert.Contains(t, result, ansiLogPalette.key+"subsystem="+ansiReset+ansiLogPalette.identity+"bgp"+ansiReset)
+	assert.Equal(t, line, ansi.Strip(result))
 }
 
 func TestColorizeLineStylesStateAndQuotedKeys(t *testing.T) {
 	line := `level=WARN msg="status=down" status=down "a=b"=42` + "\n"
-	result := colorizeLine(line, slog.LevelWarn)
-	assert.Contains(t, result, ansiDim+"msg="+ansiReset+`"status=down"`)
-	assert.Contains(t, result, ansiBoldRed+"down"+ansiReset)
-	assert.Contains(t, result, ansiDim+`"a=b"=`+ansiReset+ansiGreen+"42"+ansiReset)
+	result := ansiLogPalette.colorizeLine(line, slog.LevelWarn)
+	assert.Contains(t, result, ansiLogPalette.key+"msg="+ansiReset+`"status=down"`)
+	assert.Contains(t, result, ansiLogPalette.failure+"down"+ansiReset)
+	assert.Contains(t, result, ansiLogPalette.key+`"a=b"=`+ansiReset+"42")
 }
 
 // VALIDATES: Plugin stderr relays recover the severity and data of a colored record.
 func TestParseColoredLogRecord(t *testing.T) {
-	line := colorizeLine(`level=WARN msg="peer changed" state=down`, slog.LevelWarn)
+	palette := logPaletteFor("15;0", colorprofile.TrueColor)
+	line := palette.colorizeLine(`level=WARN msg="peer changed" state=down`, slog.LevelWarn)
 	level, message, attrs := ParseLogLine(line)
 	assert.Equal(t, slog.LevelWarn, level)
 	assert.Equal(t, "peer changed", message)
 	assert.Equal(t, []any{"state", "down"}, attrs)
+}
+
+// VALIDATES: Log colors follow the advertised background and color depth.
+func TestLogPaletteFollowsTerminalProfile(t *testing.T) {
+	dark := logPaletteFor("15;0", colorprofile.TrueColor)
+	light := logPaletteFor("0;15", colorprofile.TrueColor)
+	assert.Equal(t, "\x1b[38;2;197;181;244m", dark.date)
+	assert.Equal(t, "\x1b[38;2;98;217;244m", dark.clock)
+	assert.Equal(t, "\x1b[38;2;89;66;140m", light.date)
+	assert.Equal(t, "\x1b[38;2;0;97;116m", light.clock)
+	assert.True(t, strings.HasPrefix(logPaletteFor("15;0", colorprofile.ANSI256).clock, "\x1b[38;5;"))
+	assert.Equal(t, ansiLogPalette, logPaletteFor("", colorprofile.TrueColor))
+}
+
+// VALIDATES: A mid-tone background can fall back to the terminal foreground.
+func TestLogPaletteRechecksContrastAfterReduction(t *testing.T) {
+	palette := logPaletteFor("15;244", colorprofile.ANSI256)
+	assert.Empty(t, palette.key)
+	assert.Equal(t, "\x1b[1m", palette.warning)
+}
+
+// VALIDATES: Plugin stderr relays recognize styled severity with a plain key.
+func TestParseColoredLogRecordWithPlainKey(t *testing.T) {
+	palette := logPaletteFor("15;244", colorprofile.ANSI256)
+	line := palette.colorizeLine(`level=WARN msg="peer changed"`, slog.LevelWarn)
+	assert.True(t, strings.HasPrefix(line, "level="))
+	level, message, _ := ParseLogLine(line)
+	assert.Equal(t, slog.LevelWarn, level)
+	assert.Equal(t, "peer changed", message)
 }
 
 // TestColorizeLineQuotedValueWithEquals verifies quoted values containing = are handled.
@@ -88,10 +125,10 @@ func TestParseColoredLogRecord(t *testing.T) {
 // PREVENTS: Quoted error messages being split at internal = signs.
 func TestColorizeLineQuotedValueWithEquals(t *testing.T) {
 	line := `time=2025-01-18T12:00:00Z level=ERROR msg="failed" error="key=value inside"` + "\n"
-	result := colorizeLine(line, slog.LevelError)
+	result := ansiLogPalette.colorizeLine(line, slog.LevelError)
 
 	assert.Contains(t, result, `"key=value inside"`)
-	assert.Contains(t, result, ansiDim+"error="+ansiReset)
+	assert.Contains(t, result, ansiLogPalette.key+"error="+ansiReset)
 }
 
 // TestColorizeLineEmptyLine verifies empty input returns empty output.
@@ -99,7 +136,7 @@ func TestColorizeLineQuotedValueWithEquals(t *testing.T) {
 // VALIDATES: Empty string is returned unchanged.
 // PREVENTS: Panic on empty input.
 func TestColorizeLineEmptyLine(t *testing.T) {
-	assert.Equal(t, "", colorizeLine("", slog.LevelInfo))
+	assert.Equal(t, "", ansiLogPalette.colorizeLine("", slog.LevelInfo))
 }
 
 // TestColorizeLinePreservesNewline verifies trailing newline is preserved.
@@ -108,7 +145,7 @@ func TestColorizeLineEmptyLine(t *testing.T) {
 // PREVENTS: Log lines missing their terminator.
 func TestColorizeLinePreservesNewline(t *testing.T) {
 	line := "time=2025-01-18T12:00:00Z level=INFO msg=test\n"
-	result := colorizeLine(line, slog.LevelInfo)
+	result := ansiLogPalette.colorizeLine(line, slog.LevelInfo)
 	assert.True(t, strings.HasSuffix(result, "\n"))
 }
 
@@ -124,9 +161,9 @@ func TestColorHandlerOutput(t *testing.T) {
 	logger.Info("hello", "key", "value")
 
 	output := buf.String()
-	assert.Contains(t, output, ansiDim)
+	assert.Contains(t, output, ansiLogPalette.clock)
 	assert.Contains(t, output, ansiReset)
-	assert.Contains(t, output, ansiGreen)
+	assert.Contains(t, output, ansiLogPalette.identity+"test"+ansiReset)
 	assert.Contains(t, output, "hello")
 	assert.Contains(t, output, "key")
 	assert.Contains(t, output, "value")
@@ -137,6 +174,7 @@ func TestConsoleHandlerUsesCurrentColorOverride(t *testing.T) {
 	t.Setenv("NO_COLOR", "")
 	require.NoError(t, os.Unsetenv("NO_COLOR"))
 	t.Setenv("TERM", "xterm")
+	t.Setenv("COLORFGBG", "")
 	t.Setenv("ze.log.color", "")
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
@@ -147,7 +185,7 @@ func TestConsoleHandlerUsesCurrentColorOverride(t *testing.T) {
 
 	require.NoError(t, env.Set("ze.log.color", "true"))
 	logger.Warn("forced color")
-	assert.Contains(t, buf.String(), ansiYellow+"WARN"+ansiReset)
+	assert.Contains(t, buf.String(), ansiLogPalette.warning+"WARN"+ansiReset)
 
 	buf.Reset()
 	require.NoError(t, env.Set("ze.log.color", "false"))
@@ -206,13 +244,13 @@ func TestUseColorNoColorEnv(t *testing.T) {
 
 // TestLevelColor verifies color mapping for each severity level.
 //
-// VALIDATES: Each level maps to a distinct ANSI color.
+// VALIDATES: Warning and error use dedicated accents while routine levels are plain.
 // PREVENTS: Wrong color for a severity level.
 func TestLevelColor(t *testing.T) {
-	assert.Equal(t, ansiCyan, levelColor(slog.LevelDebug))
-	assert.Equal(t, ansiGreen, levelColor(slog.LevelInfo))
-	assert.Equal(t, ansiYellow, levelColor(slog.LevelWarn))
-	assert.Equal(t, ansiBoldRed, levelColor(slog.LevelError))
+	assert.Empty(t, ansiLogPalette.valueStyle(slog.LevelKey, "DEBUG", slog.LevelDebug))
+	assert.Empty(t, ansiLogPalette.valueStyle(slog.LevelKey, "INFO", slog.LevelInfo))
+	assert.Equal(t, ansiLogPalette.warning, ansiLogPalette.valueStyle(slog.LevelKey, "WARN", slog.LevelWarn))
+	assert.Equal(t, ansiLogPalette.failure, ansiLogPalette.valueStyle(slog.LevelKey, "ERROR", slog.LevelError))
 }
 
 // TestColorHandlerWithGroup verifies WithGroup prefixes keys correctly.

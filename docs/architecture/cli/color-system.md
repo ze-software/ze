@@ -153,22 +153,35 @@ that.
 
 ### Structured Logging
 
-| Element | Role | Example |
-|---------|------|---------|
-| ERROR+ level | danger | `level=ERROR` |
-| WARN+ level | caution | `level=WARN` |
-| INFO+ level | value | `level=INFO` |
-| DEBUG level | identity | `level=DEBUG` |
-| Key prefixes | muted | `component=bgp` |
-| Timestamps | muted | `time=2026-11-21T10:00:00Z` |
-| Field values | value | `peer=192.0.2.1`, `routes=42` |
-| Degraded state or status | caution | `status=degraded` |
-| Down or failed state or status | danger | `state=down` |
+Color spans preserve the structured record byte for byte. Removing ANSI
+styling leaves the same keys, values, quotes, separators, and newline as the
+plain text record. The RFC 3339 timestamp keeps its original format.
 
-Log messages use the terminal's default foreground. Ze selects color per
-stdout or stderr destination. Use `--color` to force color for those streams
-and `--no-color` for plain text.
-Syslog and kernel logs use plain text.
+| Span | Meaning | Dark foreground | Light foreground | ANSI fallback |
+|------|---------|-----------------|------------------|---------------|
+| Keys, including the equals sign | Field boundaries | Blue `#91B8FA` | Blue `#2456A6` | Bright blue |
+| Calendar date | Date | Lavender `#C5B5F4` | Violet `#59428C` | Bright magenta |
+| Clock and fractional seconds | Time | Cyan `#62D9F4` | Deep cyan `#006174` | Bright cyan |
+| `subsystem` and `plugin` values | Component identity | Teal `#83D6C1` | Deep teal `#006A55` | Cyan |
+| `WARN` and `degraded` | Needs attention | Bold amber `#FFCB6B` | Bold amber `#805000` | Bold bright yellow |
+| `ERROR`, `failed`, and `down` | Failure | Bold coral `#FF8D9A` | Bold crimson `#A42139` | Bold bright red |
+| `up`, `healthy`, and `success` | Positive state | Green `#9BDB8B` | Deep green `#326622` | Bright green |
+| Timestamp separator and timezone, routine severity, messages, and ordinary values | Record content | Terminal foreground | Terminal foreground | Terminal foreground |
+
+The status words apply to `state` and `status` fields. Ze uses the background
+index from `COLORFGBG` as a hint and interprets it using standard ANSI palette
+values. On RGB and 256-color terminals, it checks for 4.5:1 contrast against
+that estimate after converting the foreground to the supported palette.
+When a swatch falls below that threshold, Ze uses the terminal foreground and
+keeps the bold weight for warnings and errors. If the hint is unavailable
+or the terminal only supports basic colors, Ze uses the terminal's ANSI palette.
+
+Ze selects color per stdout or stderr destination. Use `--color` to force
+color for those streams and `--no-color` for plain text. Syslog and kernel
+logs use plain text.
+
+<!-- source: internal/core/slogutil/palette.go -- logPaletteFor -->
+<!-- source: internal/core/slogutil/color.go -- colorizeLine, valueStyle -->
 
 ### SSH Sessions
 

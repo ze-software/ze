@@ -30,8 +30,11 @@ func ParseLogLine(line string) (slog.Level, string, []any) {
 	if line == "" {
 		return slog.LevelInfo, "", nil
 	}
-	if strings.HasPrefix(line, ansiDim) {
-		line = ansi.Strip(line)
+	if strings.Contains(line, "\x1b[") {
+		plain := ansi.Strip(line)
+		if strings.HasPrefix(plain, "time=") || strings.HasPrefix(plain, "level=") {
+			line = plain
+		}
 	}
 
 	// Try to find level= and msg= in the line

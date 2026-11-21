@@ -23,23 +23,16 @@ import (
 // Env var registration for color control.
 var _ = env.MustRegister(env.EnvEntry{Key: "ze.log.color", Type: "bool", Description: "Force color output on (true) or off (false)"})
 
-// ANSI escape codes for terminal output.
-const (
-	ansiReset   = "\033[0m"
-	ansiDim     = "\033[2m"
-	ansiGreen   = "\033[32m"
-	ansiYellow  = "\033[33m"
-	ansiCyan    = "\033[36m"
-	ansiBoldRed = "\033[1;31m"
-)
+const ansiReset = "\033[0m"
 
 // colorHandler wraps slog.TextHandler to add ANSI colors to terminal output.
 // Keys, timestamps, severity, and structured values have distinct styles.
 type colorHandler struct {
-	inner  slog.Handler
-	writer io.Writer
-	mu     *sync.Mutex
-	buf    *bytes.Buffer
+	inner   slog.Handler
+	writer  io.Writer
+	mu      *sync.Mutex
+	buf     *bytes.Buffer
+	palette logPalette
 	// terminal holds the detected terminal state for a console destination.
 	// A nil value selects unconditional color.
 	terminal *bool
@@ -48,10 +41,11 @@ type colorHandler struct {
 func newColorHandler(w io.Writer, opts *slog.HandlerOptions) *colorHandler {
 	buf := &bytes.Buffer{}
 	return &colorHandler{
-		inner:  slog.NewTextHandler(buf, opts),
-		writer: w,
-		mu:     &sync.Mutex{},
-		buf:    buf,
+		inner:   slog.NewTextHandler(buf, opts),
+		writer:  w,
+		mu:      &sync.Mutex{},
+		buf:     buf,
+		palette: ansiLogPalette,
 	}
 }
 
@@ -59,6 +53,7 @@ func newConsoleHandler(w io.Writer, opts *slog.HandlerOptions) *colorHandler {
 	handler := newColorHandler(w, opts)
 	terminal := isLogTerminal(w)
 	handler.terminal = &terminal
+	handler.palette = consoleLogPalette()
 	return handler
 }
 
@@ -80,7 +75,7 @@ func (h *colorHandler) Handle(ctx context.Context, r slog.Record) error {
 		return err
 	}
 
-	colored := colorizeLine(h.buf.String(), r.Level)
+	colored := h.palette.colorizeLine(h.buf.String(), r.Level)
 	_, err := io.WriteString(h.writer, colored)
 	return err
 }
@@ -91,6 +86,7 @@ func (h *colorHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 		writer:   h.writer,
 		mu:       h.mu,
 		buf:      h.buf,
+		palette:  h.palette,
 		terminal: h.terminal,
 	}
 }
@@ -101,12 +97,13 @@ func (h *colorHandler) WithGroup(name string) slog.Handler {
 		writer:   h.writer,
 		mu:       h.mu,
 		buf:      h.buf,
+		palette:  h.palette,
 		terminal: h.terminal,
 	}
 }
 
 // colorizeLine adds ANSI color codes to a slog text format line.
-func colorizeLine(line string, level slog.Level) string {
+func (p logPalette) colorizeLine(line string, level slog.Level) string {
 	if line == "" {
 		return line
 	}
@@ -142,7 +139,7 @@ func colorizeLine(line string, level slog.Level) string {
 
 		key := rest[:eqIdx]
 
-		b.Str(ansiDim).Str(key).Byte('=').Str(ansiReset)
+		writeLogSpan(&b, p.key, rest[:eqIdx+1])
 
 		valueStart := eqIdx + 1
 		var valueEnd int
@@ -165,10 +162,10 @@ func colorizeLine(line string, level slog.Level) string {
 
 		value := rest[valueStart:valueEnd]
 
-		if color := logValueColor(key, value, level); color != "" {
-			b.Str(color).Str(value).Str(ansiReset)
+		if key == slog.TimeKey {
+			p.writeLogTime(&b, value)
 		} else {
-			b.Str(value)
+			writeLogSpan(&b, p.valueStyle(key, value, level), value)
 		}
 
 		pos += valueEnd
@@ -184,37 +181,56 @@ func colorizeLine(line string, level slog.Level) string {
 	return b.String()
 }
 
-func logValueColor(key, value string, level slog.Level) string {
+func writeLogSpan(b *textbuf.Buffer, style, value string) {
+	if style == "" {
+		b.Str(value)
+		return
+	}
+	b.Str(style).Str(value).Str(ansiReset)
+}
+
+// writeLogTime styles the date and clock within an RFC 3339 timestamp.
+func (p logPalette) writeLogTime(b *textbuf.Buffer, value string) {
+	const dateEnd, clockEnd = len("2006-01-02"), len("2006-01-02T15:04:05")
+	if len(value) <= clockEnd || value[dateEnd] != 'T' ||
+		value[dateEnd+3] != ':' || value[dateEnd+6] != ':' {
+		b.Str(value)
+		return
+	}
+	zoneOffset := strings.IndexAny(value[clockEnd:], "Z+-")
+	if zoneOffset < 0 {
+		b.Str(value)
+		return
+	}
+	zoneStart := clockEnd + zoneOffset
+	writeLogSpan(b, p.date, value[:dateEnd])
+	b.Byte('T')
+	writeLogSpan(b, p.clock, value[dateEnd+1:zoneStart])
+	b.Str(value[zoneStart:])
+}
+
+func (p logPalette) valueStyle(key, value string, level slog.Level) string {
 	switch key {
 	case slog.LevelKey:
-		return levelColor(level)
-	case slog.TimeKey:
-		return ansiDim
-	case slog.MessageKey:
-		return ""
+		switch {
+		case level >= slog.LevelError:
+			return p.failure
+		case level >= slog.LevelWarn:
+			return p.warning
+		}
+	case "subsystem", "plugin":
+		return p.identity
 	case "state", "status":
 		switch strings.ToLower(value) {
 		case "down", "failed":
-			return ansiBoldRed
+			return p.failure
 		case "degraded":
-			return ansiYellow
+			return p.warning
+		case "up", "healthy", "success":
+			return p.success
 		}
 	}
-	return ansiGreen
-}
-
-// levelColor returns the ANSI color escape code for a log level.
-func levelColor(level slog.Level) string {
-	switch {
-	case level >= slog.LevelError:
-		return ansiBoldRed
-	case level >= slog.LevelWarn:
-		return ansiYellow
-	case level >= slog.LevelInfo:
-		return ansiGreen
-	}
-	// DEBUG and below
-	return ansiCyan
+	return ""
 }
 
 // UseColor reports whether color output should be used for the given writer.
