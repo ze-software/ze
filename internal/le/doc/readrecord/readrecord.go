@@ -9,8 +9,10 @@
 //
 // The writer is the Read hook (internal/le/hookruntime, hookSourceRead); the
 // readers are the hook's owed-set computation and `le spec design judge`. The
-// format lives here, outside hookruntime, so both sides read one declaration:
-// the spec design package cannot import hookruntime, which will import it.
+// format, the key a checkout's copy carries (CheckoutLabel, CheckoutKey) and
+// where a reader outside the hook looks (Stores) live here, outside
+// hookruntime, so both sides read one declaration: the spec design package
+// cannot import hookruntime, which imports it.
 //
 // A section is a heading and every line up to the next heading of its level
 // or a higher one, its trailing blank lines trimmed. Its digest is the SHA-256
@@ -27,6 +29,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 // Section is one heading's span of a markdown page.
@@ -175,6 +179,76 @@ func headingOf(line string) (level int, text string, ok bool) {
 // session root's tmp/session, which the session reaper clears.
 func SessionDir(sessionRoot string) string {
 	return filepath.Join(sessionRoot, "tmp", "session")
+}
+
+// CheckoutLabel names dir, a checkout other than the session's root, both
+// resolved: its path relative to that root when it lies inside it
+// (`.claude/worktrees/<name>`), else its absolute path.
+func CheckoutLabel(sessionRoot, dir string) string {
+	relative, err := filepath.Rel(sessionRoot, dir)
+	if err != nil {
+		return filepath.ToSlash(dir)
+	}
+	if !filepath.IsLocal(relative) {
+		return filepath.ToSlash(dir)
+	}
+	return filepath.ToSlash(relative)
+}
+
+// CheckoutKey is how a record's name carries relative, a checkout-relative
+// path, for the checkout label names (CheckoutLabel): unchanged for the
+// session's root (label ""), and under the SHA-256 of the label for another
+// checkout, so a read of one checkout's copy is no record for another's, and a
+// checkout's path of any depth keeps the name inside NAME_MAX (a name too long
+// to create would refuse the edit forever).
+func CheckoutKey(label, relative string) string {
+	if label == "" {
+		return relative
+	}
+	digest := sha256.Sum256([]byte(label))
+	return hex.EncodeToString(digest[:]) + "/" + relative
+}
+
+// Store is one place a reader looks for an agent's read records of one
+// checkout's pages: a session root's tmp/session, and the label that session
+// root gives the checkout ("" when the checkout is that root).
+type Store struct {
+	// Dir is the session root's tmp/session (SessionDir).
+	Dir   string
+	label string
+}
+
+// Key answers the key relative, a path of the store's checkout, carries in
+// the store's record names (CheckoutKey).
+func (store Store) Key(relative string) string { return CheckoutKey(store.label, relative) }
+
+// Stores answers every store that can hold an agent's read records of the
+// checkout at root, as the Read hook writes them. The hook keeps every record
+// in its session root's tmp/session, the harness's project directory, which a
+// process started from a Bash call is not told. For a session started in the
+// checkout that root is the checkout itself. For a worktree the harness opened
+// under another checkout's .claude/worktrees (lepath.WorktreeMainCheckout), a
+// session started in that holding checkout and working in the worktree keeps
+// them in the holder's tmp/session, under the worktree's label. A record in
+// either store names this checkout's copy and this agent alone, so a reader
+// counts one found in either; a record of another checkout's copy carries
+// another key and counts in neither.
+func Stores(root string) []Store {
+	// A root whose links cannot be resolved is judged as spelled, a guard:
+	// the hook labels a checkout from its resolved directory, so a spelling
+	// through a link can miss the holder's store, which leaves the rows owed
+	// and refused with the Read that clears them, never counted unread as read.
+	checkout := root
+	if resolved, err := filepath.EvalSymlinks(root); err == nil {
+		checkout = resolved
+	}
+	stores := make([]Store, 0, 2)
+	stores = append(stores, Store{Dir: SessionDir(root)})
+	holder := lepath.WorktreeMainCheckout(checkout)
+	if holder == checkout {
+		return stores
+	}
+	return append(stores, Store{Dir: SessionDir(holder), label: CheckoutLabel(holder, checkout)})
 }
 
 // markerName escapes a key into one file name component.

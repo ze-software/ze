@@ -17,14 +17,12 @@ import (
 	"mvdan.cc/sh/v3/syntax"
 
 	"github.com/ze-software/ze/internal/le/heavytool"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
-// worktreesDirectory is the directory of the checkout that holds its worktrees.
-const worktreesDirectory = ".claude/worktrees"
-
 // worktreeClaudeDirectory and worktreeWorktreesComponent are the two
-// components of worktreesDirectory, which a line may name apart.
+// components of lepath.WorktreesDir, which a line may name apart.
 const (
 	worktreeClaudeDirectory    = ".claude"
 	worktreeWorktreesComponent = "worktrees"
@@ -239,28 +237,6 @@ type worktreeCopyJudge struct {
 	homeAssigned bool
 }
 
-// worktreeMainCheckout answers the main checkout of a session's root: the
-// root itself, or, for a session started inside one of its worktrees (whose
-// project directory is the worktree), the checkout that holds
-// .claude/worktrees. A worktree's root is `<checkout>/.claude/worktrees/<name>`,
-// one name and no deeper, so a checkout that merely lies somewhere under a
-// worktree (a test's directory in its tmp/) stays its own root. It reads the
-// path alone, because the hook runs on every Bash call and asking git would
-// cost a process each time.
-func worktreeMainCheckout(root string) string {
-	checkout, name, found := strings.CutLast(root, "/"+worktreesDirectory+"/")
-	if !found {
-		return root
-	}
-	if name == "" {
-		return root
-	}
-	if strings.Contains(name, "/") {
-		return root
-	}
-	return checkout
-}
-
 // worktreeLineStart answers the directory a line starts in: the session's
 // cwd, or the session's root when the envelope carries none.
 func worktreeLineStart(root, cwd string) string {
@@ -405,7 +381,7 @@ func (judge *worktreeCopyJudge) noteRead(token string) {
 // from the first worktree path the walk met.
 func (judge *worktreeCopyJudge) readSource() string {
 	if judge.read == "" {
-		return "what a command read under " + worktreesDirectory
+		return "what a command read under " + lepath.WorktreesDir
 	}
 	return "what a command read from " + judge.read
 }

@@ -82,6 +82,32 @@ func CheckoutContaining(dir string) (string, bool) {
 	return found, found != ""
 }
 
+// WorktreesDir is the directory of a checkout that holds its worktrees,
+// relative to the checkout root: the harness opens each one at
+// `<checkout>/.claude/worktrees/<name>`.
+const WorktreesDir = ".claude/worktrees"
+
+// WorktreeMainCheckout answers the checkout that holds root: root itself, or,
+// for a worktree the harness opened under a checkout's WorktreesDir, that
+// checkout. A worktree's root is `<checkout>/.claude/worktrees/<name>`, one
+// name and no deeper, so a checkout that merely lies somewhere under a
+// worktree (a test's directory in its tmp/) stays its own root. It reads the
+// path alone, because the Bash hook asks it on every call and asking git
+// would cost a process each time.
+func WorktreeMainCheckout(root string) string {
+	checkout, name, found := strings.CutLast(root, "/"+WorktreesDir+"/")
+	if !found {
+		return root
+	}
+	if name == "" {
+		return root
+	}
+	if strings.Contains(name, "/") {
+		return root
+	}
+	return checkout
+}
+
 // ancestorWithMarkers answers the nearest ancestor of start that carries every
 // marker, or "" when none does. The walk is bounded by the filesystem: each
 // step shortens the path by one element, and the loop ends when filepath.Dir

@@ -7,6 +7,8 @@
 package specdesign_test
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"strings"
@@ -32,18 +34,90 @@ func useJudge(t *testing.T, agent string) {
 // read of the widget page and of the system door.
 func readAsJudge(t *testing.T, root, agent string) {
 	t.Helper()
+	recordJudgeReads(t, root, "", agent)
+}
+
+// recordJudgeReads records agent's whole read of the widget page and of the
+// system door in the tmp/session of sessionRoot, each path behind prefix in
+// the record's key: "" for a read of the session root's own copy, or the
+// prefix the Read hook writes for another checkout's copy.
+func recordJudgeReads(t *testing.T, sessionRoot, prefix, agent string) {
+	t.Helper()
 	fingerprint := judgeSession + "+" + agent
-	sessionDir := readrecord.SessionDir(root)
+	sessionDir := readrecord.SessionDir(sessionRoot)
 	if err := os.MkdirAll(sessionDir, 0o750); err != nil {
 		t.Fatal(err)
 	}
 	lines := strings.Count(widgetPageText, "\n")
-	if err := readrecord.RecordRead(readrecord.SectionMarker(sessionDir, widgetPage, fingerprint), widgetPageText, 1, lines); err != nil {
+	if err := readrecord.RecordRead(readrecord.SectionMarker(sessionDir, prefix+widgetPage, fingerprint), widgetPageText, 1, lines); err != nil {
 		t.Fatalf("record the page read: %v", err)
 	}
-	if err := os.WriteFile(readrecord.WholeReadMarker(sessionDir, widgetDoor, fingerprint), nil, 0o600); err != nil {
+	if err := os.WriteFile(readrecord.WholeReadMarker(sessionDir, prefix+widgetDoor, fingerprint), nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// worktreeLabelPrefix is the key prefix the Read hook writes, in the tmp/session
+// of a session started in the holding checkout, for a read of a copy in its
+// worktree `.claude/worktrees/<name>`: the hex SHA-256 of that label and a
+// slash. It is spelled here from the door marker the hook was seen to write
+// for this agent's reads of a worktree's doors, whose name carries that
+// digest, not through readrecord, so the test fails if the judge stops
+// reading what the hook writes.
+func worktreeLabelPrefix(name string) string {
+	digest := sha256.Sum256([]byte(".claude/worktrees/" + name))
+	return hex.EncodeToString(digest[:]) + "/"
+}
+
+// widgetWorktree lays out the widget fixture with the complete spec in a
+// worktree `<holder>/.claude/worktrees/wt` of a fresh holding checkout,
+// selects the worktree as le's checkout, and answers the holder.
+func widgetWorktree(t *testing.T) string {
+	t.Helper()
+	holder := t.TempDir()
+	worktree := widgetTree(t, filepath.Join(holder, ".claude", "worktrees", "wt"))
+	writeTree(t, worktree, map[string]string{widgetSpec: completeSpecText})
+	return holder
+}
+
+// TestJudgeInAWorktreeReadsTheRecordsItsSessionKeeps is the worktree defect a
+// judge met: its session started in the holding checkout, so the Read hook
+// kept every read of the worktree's pages in the holder's tmp/session under
+// the worktree's label, and the judge looked in the worktree's own
+// tmp/session under the bare path and refused 30 sections it had read.
+// Method: run from the worktree, a judge whose reads are recorded where and
+// how the hook writes them records approve, and the record lands in the
+// worktree.
+func TestJudgeInAWorktreeReadsTheRecordsItsSessionKeeps(t *testing.T) {
+	holder := widgetWorktree(t)
+	useJudge(t, "judge-agent")
+	recordJudgeReads(t, holder, worktreeLabelPrefix("wt"), "judge-agent")
+
+	text, code := runJudge(t, "approve", "every verdict holds against its section")
+	if code != 0 {
+		t.Fatalf("a judge whose reads its session keeps in the holder answered %d, want 0:\n%s", code, text)
+	}
+	worktree := filepath.Join(holder, ".claude", "worktrees", "wt")
+	requireContains(t, "the judge record", readRecord(t, worktree), "Verdict: approve", "Judge: "+judgeSession+"+judge-agent")
+}
+
+// TestJudgeInAWorktreeRefusesAReadOfTheHoldersCopy pins the other side: a
+// read of the holding checkout's own copy of a page is no read of the
+// worktree's, whose branch may hold another text. Method: the judge's reads
+// are recorded in the holder's tmp/session under the bare paths, which is how
+// the hook records the holder's copies; run from the worktree, the judge
+// exits 2 naming the page and the door, and writes no record.
+func TestJudgeInAWorktreeRefusesAReadOfTheHoldersCopy(t *testing.T) {
+	holder := widgetWorktree(t)
+	useJudge(t, "judge-agent")
+	recordJudgeReads(t, holder, "", "judge-agent")
+
+	text, code := runJudge(t, "approve", "every verdict holds against its section")
+	if code != 2 {
+		t.Fatalf("a judge that read only the holder's copies answered %d, want 2:\n%s", code, text)
+	}
+	requireContains(t, "the refusal", text, widgetPage, widgetDoor+": Read the whole door")
+	requireAbsent(t, filepath.Join(holder, ".claude", "worktrees", "wt"), judgedRecord)
 }
 
 // runJudge runs the judge action and answers its rendered answer, its stderr

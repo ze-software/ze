@@ -65,7 +65,13 @@ func writeTree(t *testing.T, root string, files map[string]string) {
 // widgetRoot lays out the widget fixture in a fresh checkout and selects it.
 func widgetRoot(t *testing.T) string {
 	t.Helper()
-	root := t.TempDir()
+	return widgetTree(t, t.TempDir())
+}
+
+// widgetTree lays out the widget fixture in the checkout at root, selects it
+// and answers root.
+func widgetTree(t *testing.T, root string) string {
+	t.Helper()
 	writeTree(t, root, map[string]string{
 		widgetCode:   "// Design: " + widgetPage + " -- the widget\n\npackage widget\n",
 		widgetPage:   widgetPageText,

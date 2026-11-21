@@ -166,10 +166,13 @@ func (u uncoveredRow) line() string {
 // uncoveredRows answers every row of rows whose section the agent of
 // fingerprint holds no current read record of, once per page and section. A
 // door row is covered by the whole-read marker the door gate keeps; any other
-// row by a section read record carrying the section's current digest. A row
-// whose page or section the checkout does not hold is the check's to report.
+// row by a section read record carrying the section's current digest. Both
+// are looked for in every store the Read hook can have written them to for
+// the checkout at root (readrecord.Stores), so a judge working in a worktree
+// finds the reads its session keeps in the holding checkout. A row whose page
+// or section the checkout does not hold is the check's to report.
 func uncoveredRows(root, fingerprint string, rows []tableRow, pages *pageCache) ([]uncoveredRow, error) {
-	sessionDir := readrecord.SessionDir(root)
+	stores := readrecord.Stores(root)
 	seen := map[string]bool{}
 	var uncovered []uncoveredRow
 	for _, row := range rows {
@@ -179,7 +182,7 @@ func uncoveredRows(root, fingerprint string, rows []tableRow, pages *pageCache) 
 		}
 		seen[key] = true
 		if strings.HasPrefix(row.document, doorindex.Dir+"/") {
-			if _, err := os.Stat(readrecord.WholeReadMarker(sessionDir, row.document, fingerprint)); err != nil {
+			if !doorRead(stores, row.document, fingerprint) {
 				uncovered = append(uncovered, uncoveredRow{document: row.document, door: true})
 			}
 			continue
@@ -195,7 +198,7 @@ func uncoveredRows(root, fingerprint string, rows []tableRow, pages *pageCache) 
 		if !found {
 			continue
 		}
-		read, err := readrecord.SectionRead(readrecord.SectionMarker(sessionDir, row.document, fingerprint), section)
+		read, err := sectionRead(stores, row.document, fingerprint, section)
 		if err != nil {
 			return nil, err
 		}
@@ -204,6 +207,34 @@ func uncoveredRows(root, fingerprint string, rows []tableRow, pages *pageCache) 
 		}
 	}
 	return uncovered, nil
+}
+
+// doorRead reports whether some store holds the whole-read marker of door for
+// fingerprint. A marker that cannot be stat'ed is no record, so the door stays
+// owed and the refusal names the Read that clears it.
+func doorRead(stores []readrecord.Store, door, fingerprint string) bool {
+	for _, store := range stores {
+		if _, err := os.Stat(readrecord.WholeReadMarker(store.Dir, store.Key(door), fingerprint)); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
+// sectionRead reports whether some store records fingerprint's read of
+// section of page as it stands. A record that cannot be read is an error,
+// never "not read" (readrecord.SectionRead).
+func sectionRead(stores []readrecord.Store, page, fingerprint string, section readrecord.Section) (bool, error) {
+	for _, store := range stores {
+		read, err := readrecord.SectionRead(readrecord.SectionMarker(store.Dir, store.Key(page), fingerprint), section)
+		if err != nil {
+			return false, err
+		}
+		if read {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // judgeAnswer is the answer of a recorded verdict.

@@ -6,8 +6,6 @@
 package hookruntime
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -121,7 +119,7 @@ func walkCheckout(ctx context, file, root, sessionRoot string) (documentCheckout
 			if resolved == sessionRoot {
 				return gatedCheckoutAt(documentCheckout{root: ctx.root}, dir, file)
 			}
-			return gatedCheckoutAt(documentCheckout{root: resolved, label: checkoutLabel(sessionRoot, resolved)}, dir, file)
+			return gatedCheckoutAt(documentCheckout{root: resolved, label: readrecord.CheckoutLabel(sessionRoot, resolved)}, dir, file)
 		}
 		if filepath.Dir(dir) == dir {
 			return documentCheckout{}, "", false
@@ -152,19 +150,6 @@ func gitCheckout(dir string) bool {
 	return err == nil
 }
 
-// checkoutLabel names a checkout other than the session's root, both resolved:
-// its path relative to that root when it lies inside it
-// (`.claude/worktrees/<name>`), else its absolute path.
-func checkoutLabel(sessionRoot, dir string) string {
-	if relative, err := filepath.Rel(sessionRoot, dir); err == nil {
-		relative = filepath.ToSlash(relative)
-		if insideRoot(relative) {
-			return relative
-		}
-	}
-	return filepath.ToSlash(dir)
-}
-
 // readDocument answers the checkout and the gated document a read of path
 // reads, and whether it reads one: path is that document's own copy in the
 // checkout it lies in. A copy kept anywhere else in a checkout
@@ -185,16 +170,11 @@ func readDocument(ctx context, path string) (documentCheckout, string, bool) {
 	return checkout, document, true
 }
 
-// markerKey is how a marker name carries relative, a checkout-relative path:
-// unchanged in the session's root, and under the SHA-256 of the checkout's
-// label in another, so a checkout's path of any depth keeps the marker name
-// inside NAME_MAX (a name too long to create would refuse the edit forever).
+// markerKey is how a marker name carries relative, a checkout-relative path,
+// in the spelling readrecord declares (CheckoutKey), which `le spec design
+// judge` reads through readrecord.Stores.
 func (checkout documentCheckout) markerKey(relative string) string {
-	if checkout.label == "" {
-		return relative
-	}
-	digest := sha256.Sum256([]byte(checkout.label))
-	return hex.EncodeToString(digest[:]) + "/" + relative
+	return readrecord.CheckoutKey(checkout.label, relative)
 }
 
 // documentReadMarker names the file recording this context's whole read of

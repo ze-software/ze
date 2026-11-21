@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	"mvdan.cc/sh/v3/syntax"
+
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 // worktreeLineConcerns reports whether the guard reads a line at all: it
@@ -211,7 +213,7 @@ func (judge *worktreeCopyJudge) destinationOf(target worktreeWord, directory wor
 	if !inside {
 		return worktreeDestinationElsewhere
 	}
-	if worktreeUnder(relative, worktreesDirectory) {
+	if worktreeUnder(relative, lepath.WorktreesDir) {
 		return worktreeDestinationElsewhere
 	}
 	if worktreeUnder(relative, worktreeScratchDirectory) {
@@ -384,7 +386,7 @@ func (judge *worktreeCopyJudge) inWorktree(path string) bool {
 	if !inside {
 		return worktreePath(path)
 	}
-	return worktreeUnder(relative, worktreesDirectory)
+	return worktreeUnder(relative, lepath.WorktreesDir)
 }
 
 // worktreeDevice reports whether a destination read exactly is a device
@@ -478,7 +480,7 @@ func worktreeUnder(relative, directory string) bool {
 // worktreePath reports whether a cleaned path names .claude/worktrees or a
 // path under it, by its components.
 func worktreePath(path string) bool {
-	return strings.Contains("/"+path+"/", "/"+worktreesDirectory+"/")
+	return strings.Contains("/"+path+"/", "/"+lepath.WorktreesDir+"/")
 }
 
 // worktreeRemoteDirectory answers the directory a `cd` or `pushd` on another
@@ -516,7 +518,7 @@ func worktreeRemoteDirectory(arguments []worktreeWord, directory worktreeDirecto
 // worktree. A path of another host is judged by its components alone, so
 // what lies before them does not matter.
 func worktreeRemoteTail(path string) string {
-	_, tail, found := strings.Cut("/"+path+"/", "/"+worktreesDirectory+"/")
+	_, tail, found := strings.Cut("/"+path+"/", "/"+lepath.WorktreesDir+"/")
 	if !found {
 		return ""
 	}
@@ -525,5 +527,5 @@ func worktreeRemoteTail(path string) string {
 	if name == "" {
 		return ""
 	}
-	return "/" + worktreesDirectory + "/" + tail
+	return "/" + lepath.WorktreesDir + "/" + tail
 }

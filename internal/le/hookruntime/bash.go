@@ -16,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/derived"
 	"github.com/ze-software/ze/internal/le/heavytool"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
@@ -80,7 +81,7 @@ var (
 //
 // The main checkout is the session's root, or, for a session started inside
 // one of its worktrees, the checkout that holds .claude/worktrees
-// (worktreeMainCheckout). The guard reads a line that starts under that
+// (lepath.WorktreeMainCheckout). The guard reads a line that starts under that
 // checkout's .claude/ (the session's cwd) or a word of which may name a path
 // under .claude/worktrees (worktreeLineConcerns), and judges the commands the
 // line runs from where it starts (worktreeCopyLine): a copy verb counts only
@@ -130,7 +131,7 @@ var (
 func bashWorktreeCopy(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
 	session := filepath.Clean(ctx.root)
-	root := worktreeMainCheckout(session)
+	root := lepath.WorktreeMainCheckout(session)
 	cwd := worktreeLineStart(session, ctx.payload.Cwd)
 	parse := ctx.commandParse()
 	if !worktreeLineConcerns(command, parse, root, cwd) {

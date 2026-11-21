@@ -125,6 +125,7 @@ exits 2 when it cannot answer: a page or a record it cannot read.
 ### The judge
 
 <!-- source: internal/le/spec/design/judge.go -- judge, judgeSpec, uncoveredRows, judgeApprovalProblem -->
+<!-- source: internal/le/doc/readrecord/readrecord.go -- Stores, CheckoutKey, CheckoutLabel -->
 An agent that did not write the spec runs the `ze-design-judge` skill
 (`ai/skills/ze-design-judge.md`) and records its verdict itself:
 `./le spec design judge spec <path> verdict approve|refuse reason "<one
@@ -133,7 +134,15 @@ sentence>"`. The action refuses a process with no agent identity
 refuses while this agent has no current read record of the section behind
 some row, and prints the Read offset and limit that clear each one. A door row
 is covered by the whole-read record the door gate keeps, and any other row by
-a record of its section's current text. An `approve` verdict is also refused
+a record of its section's current text. The Read hook keeps every record in
+its session root's `tmp/session`, the harness's project directory, which a
+command started from Bash is not told. So the judge looks in the checkout's
+own `tmp/session` under the page's path, and, from a worktree under another
+checkout's `.claude/worktrees`, also in that checkout's `tmp/session` under the
+key the hook gives the worktree's copy: the SHA-256 of the label
+`.claude/worktrees/<name>`, a slash and the path (`readrecord.Stores`). A read
+of the holding checkout's own copy carries another key, and covers no row of
+the worktree's spec. An `approve` verdict is also refused
 while the table fails the check. The reason is one line that does not start
 like a trailer. The record is replaced on each verdict, so a later `approve`
 replaces a `refuse`.
