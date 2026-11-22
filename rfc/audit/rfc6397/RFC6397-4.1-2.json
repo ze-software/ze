@@ -1,0 +1,13 @@
+{
+  "note": "Production code (ValidateGeoCoordPair, WriteGeoPeerTable, DecodeGeoPeerTable, BuildGeoPeerTableForIndex, parseGeoEntity) rejects mixed single-peer WGS84/NaN while permitting paired WGS84, paired NaN, and independent WGS84 vs NaN across different peers. Positive polarity rejects both mixed directions via ParseConfig and mixed single-peer inputs in WriteGeoPeerTable and DecodeGeoPeerTable with exact ErrGeoMixedCoords (isolated by valid (NaN, NaN) collector and valid 27-byte frame); negative polarity proves paired WGS84 (192.0.2.1) and paired private NaN (2001:db8::2) peers coexist and round-trip end-to-end through ParseConfig -> DumpRIB -> ReadFile. Discrimination proofs cite real producers (ValidateGeoCoordPair, WriteGeoPeerTable).",
+  "requirement_sha": "972e80a0142cc145",
+  "tests": {
+    "internal/plugins/mrt/rfc6397_geo_test.go::TestRFC6397GeoPeerTableCoordsOrderAndPrivacy": "2b237dc350601db8",
+    "internal/plugins/mrt/rfc6397_geo_test.go::TestRFC6397GeoPeerTableCoordsOrderAndPrivacy#2": "2b237dc350601db8"
+  },
+  "units": {
+    "internal/plugins/mrt/rfc6397_geo_test.go::TestRFC6397GeoPeerTableCoordsOrderAndPrivacy": "e382a32109e94125",
+    "internal/plugins/mrt/rfc6397_geo_test.go::TestRFC6397GeoPeerTableCoordsOrderAndPrivacy#2": "e382a32109e94125"
+  },
+  "verdict": "enforced"
+}

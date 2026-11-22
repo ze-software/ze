@@ -23,7 +23,7 @@ type Handler struct {
 	OnPeerIndex   func(h Header, pit *PeerIndexTable) error
 	OnRIB         func(h Header, r *RIBRecord) error
 	OnRIBGeneric  func(h Header, r *RIBGenericRecord) error
-	OnGeoPeer     func(h Header, g *geoPeerTable) error
+	OnGeoPeer     func(h Header, g *GeoPeerTable) error
 	OnMessage     func(h Header, microsecond uint32, m *MessageRecord) error
 	OnStateChange func(h Header, microsecond uint32, s *StateChangeRecord) error
 	OnTableDump   func(h Header, t *TableDumpRecord) error
@@ -204,6 +204,7 @@ func (b *readerCloser) Close() error               { return b.cls.Close() }
 func readRecords(r io.Reader, handler *Handler) error {
 	var hdrBuf [CommonHeaderLen]byte
 	var contexts SessionContexts
+	var peerIndex *PeerIndexTable
 	// Record ordinal, 1-based, counting every record read from this stream.
 	// It is the only handle a user has on WHICH record failed: a decode error
 	// carries an offset inside the record's own fields, which on a multi-GB
@@ -249,7 +250,7 @@ func readRecords(r io.Reader, handler *Handler) error {
 			}
 		}
 
-		if err := dispatch(h, microsecond, msgData, handler, &contexts); err != nil {
+		if err := dispatch(h, microsecond, msgData, handler, &contexts, &peerIndex); err != nil {
 			return fmt.Errorf("mrt: record %d (type %d subtype %d, timestamp %d): %w",
 				ordinal, h.Type, h.Subtype, h.Timestamp, err)
 		}
@@ -260,10 +261,10 @@ func isETType(typ uint16) bool {
 	return typ == TypeBGP4MPET || typ == TypeISISET || typ == TypeOSPFv3ET
 }
 
-func dispatch(h Header, usec uint32, data []byte, handler *Handler, contexts *SessionContexts) error {
+func dispatch(h Header, usec uint32, data []byte, handler *Handler, contexts *SessionContexts, peerIndex **PeerIndexTable) error {
 	switch h.Type {
 	case TypeTableDumpV2:
-		return dispatchTDV2(h, data, handler)
+		return dispatchTDV2(h, data, handler, peerIndex)
 	case TypeBGP4MP, TypeBGP4MPET:
 		return dispatchBGP4MP(h, usec, data, handler, contexts)
 	case TypeTableDump:
@@ -272,15 +273,19 @@ func dispatch(h Header, usec uint32, data []byte, handler *Handler, contexts *Se
 	return nil
 }
 
-func dispatchTDV2(h Header, data []byte, handler *Handler) error {
+func dispatchTDV2(h Header, data []byte, handler *Handler, peerIndex **PeerIndexTable) error {
 	switch h.Subtype {
 	case TDV2PeerIndexTable:
-		if handler.OnPeerIndex == nil {
-			return nil
-		}
 		pit, err := DecodePeerIndexTable(data)
 		if err != nil {
+			if handler.OnPeerIndex == nil {
+				return nil
+			}
 			return err
+		}
+		*peerIndex = pit
+		if handler.OnPeerIndex == nil {
+			return nil
 		}
 		return handler.OnPeerIndex(h, pit)
 
@@ -308,12 +313,19 @@ func dispatchTDV2(h Header, data []byte, handler *Handler) error {
 		return handler.OnRIBGeneric(h, rec)
 
 	case TDV2GeoPeerTable:
-		if handler.OnGeoPeer == nil {
-			return nil
-		}
-		g, err := decodeGeoPeerTable(data)
+		// RFC 6397 Section 4.1: validate coordinate pairing and peer-table
+		// correspondence against the preceding PEER_INDEX_TABLE on read.
+		g, err := DecodeGeoPeerTable(data)
 		if err != nil {
 			return err
+		}
+		if *peerIndex != nil {
+			if err := ValidateGeoPeerTableAgainstIndex(*peerIndex, g); err != nil {
+				return err
+			}
+		}
+		if handler.OnGeoPeer == nil {
+			return nil
 		}
 		return handler.OnGeoPeer(h, g)
 	}

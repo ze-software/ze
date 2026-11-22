@@ -137,6 +137,127 @@ module ze-mrt-conf {
                      order.";
                 ze:help "RIB dump interval in seconds. Minimum 60.";
             }
+
+            container geo {
+                description "Optional RFC 6397 GEO_PEER_TABLE (TABLE_DUMP_V2 subtype 7)
+                             companion record carrying WGS84 coordinates for the collector
+                             and its peers, with RFC 6397 Section 6 GEOPRIV privacy controls.";
+                ze:help "MRT geo-location extension (RFC 6397).";
+
+                leaf enabled {
+                    type boolean;
+                    default false;
+                    description "Emit a GEO_PEER_TABLE record alongside PEER_INDEX_TABLE in TABLE_DUMP_V2 dumps.";
+                    ze:help "Enable RFC 6397 GEO_PEER_TABLE export.";
+                }
+
+                container collector {
+                    description "Collector WGS84 coordinates and privacy rules (RFC 6397 Sections 4.1 and 6).";
+                    ze:help "Collector geo-location coordinates and privacy policy.";
+
+                    leaf latitude {
+                        type string;
+                        description "WGS84 decimal degrees in [-90, 90], or NaN for private location.";
+                        ze:help "Collector WGS84 latitude or NaN.";
+                    }
+
+                    leaf longitude {
+                        type string;
+                        description "WGS84 decimal degrees in [-180, 180], or NaN for private location.";
+                        ze:help "Collector WGS84 longitude or NaN.";
+                    }
+
+                    leaf retransmission-allowed {
+                        type boolean;
+                        default true;
+                        description "GEOPRIV retransmission-allowed rule (RFC 6397 Section 6 default: true).";
+                        ze:help "Whether location retransmission is allowed (default true).";
+                    }
+
+                    leaf retention-years {
+                        type uint32;
+                        default 100;
+                        description "GEOPRIV retention horizon in years (RFC 6397 Section 6 default: 100).";
+                        ze:help "Location retention horizon in years (default 100).";
+                    }
+
+                    leaf ruleset-reference {
+                        type string;
+                        description "GEOPRIV ruleset-reference URI (RFC 6397 Section 6 default: empty).";
+                        ze:help "Optional GEOPRIV ruleset-reference URI.";
+                    }
+
+                    leaf note-well {
+                        type string;
+                        description "GEOPRIV note-well privacy constraint (RFC 6397 Section 6 default: empty).";
+                        ze:help "Optional GEOPRIV note-well constraint.";
+                    }
+
+                    leaf non-technical-measures {
+                        type boolean;
+                        default false;
+                        description "Confirm non-technical measures (e.g., contractual agreements) enforce more restrictive privacy rules.";
+                        ze:help "Acknowledge non-technical measures enforcing restrictive privacy rules.";
+                    }
+                }
+
+                list peer {
+                    key "address";
+                    description "Per-peer WGS84 coordinates and privacy rules (RFC 6397 Sections 4.1 and 6).";
+                    ze:help "Peer geo-location coordinates and privacy policy.";
+
+                    leaf address {
+                        type string;
+                        description "BGP peer IP address matching PEER_INDEX_TABLE.";
+                        ze:help "Peer IP address.";
+                    }
+
+                    leaf latitude {
+                        type string;
+                        description "WGS84 decimal degrees in [-90, 90], or NaN for private location.";
+                        ze:help "Peer WGS84 latitude or NaN.";
+                    }
+
+                    leaf longitude {
+                        type string;
+                        description "WGS84 decimal degrees in [-180, 180], or NaN for private location.";
+                        ze:help "Peer WGS84 longitude or NaN.";
+                    }
+
+                    leaf retransmission-allowed {
+                        type boolean;
+                        default true;
+                        description "GEOPRIV retransmission-allowed rule (RFC 6397 Section 6 default: true).";
+                        ze:help "Whether location retransmission is allowed (default true).";
+                    }
+
+                    leaf retention-years {
+                        type uint32;
+                        default 100;
+                        description "GEOPRIV retention horizon in years (RFC 6397 Section 6 default: 100).";
+                        ze:help "Location retention horizon in years (default 100).";
+                    }
+
+                    leaf ruleset-reference {
+                        type string;
+                        description "GEOPRIV ruleset-reference URI (RFC 6397 Section 6 default: empty).";
+                        ze:help "Optional GEOPRIV ruleset-reference URI.";
+                    }
+
+                    leaf note-well {
+                        type string;
+                        description "GEOPRIV note-well privacy constraint (RFC 6397 Section 6 default: empty).";
+                        ze:help "Optional GEOPRIV note-well constraint.";
+                    }
+
+                    leaf non-technical-measures {
+                        type boolean;
+                        default false;
+                        description "Confirm non-technical measures (e.g., contractual agreements) enforce more restrictive privacy rules.";
+                        ze:help "Acknowledge non-technical measures enforcing restrictive privacy rules.";
+                    }
+                }
+            }
         }
     }
 }

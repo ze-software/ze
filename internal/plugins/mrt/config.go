@@ -2,7 +2,18 @@
 
 package mrt
 
-import "time"
+import (
+	"time"
+
+	mrtfmt "github.com/ze-software/ze/internal/mrt"
+)
+
+// GeoConfig holds RFC 6397 GEO_PEER_TABLE configuration for TABLE_DUMP_V2 dumps.
+type GeoConfig struct {
+	Enabled   bool
+	Collector mrtfmt.GeoLocation
+	Peers     map[string]mrtfmt.GeoLocation // keyed by canonical IP string
+}
 
 // Config holds MRT dump configuration for the daemon component.
 type Config struct {
@@ -14,6 +25,7 @@ type Config struct {
 
 	RoutesPath     string        // strftime pattern for periodic RIB snapshots
 	RoutesInterval time.Duration // dump interval for TABLE_DUMP_V2
+	Geo            GeoConfig     // optional RFC 6397 GEO_PEER_TABLE companion record
 
 	ExtendedTimestamp bool // use BGP4MP_ET (type 17) instead of BGP4MP (type 16)
 

@@ -1,0 +1,13 @@
+{
+  "note": "Production code (ValidateGeoCoordPair, WriteGeoPeerTable, DecodeGeoPeerTable, BuildGeoPeerTableForIndex, parseGeoEntity) rejects mixed collector WGS84/NaN with ErrGeoMixedCoords while accepting both paired WGS84 and paired private (NaN, NaN). Positive tests reject both mixed directions across ParseConfig, WriteGeoPeerTable, and DecodeGeoPeerTable with isolated 14-byte wire frames; negative tests prove both paired WGS84 (48.8566, 2.3522) and paired private (NaN, NaN) collectors round-trip end-to-end through ParseConfig -> DumpRIB -> mrt.ReadFile. Discrimination proofs cite real producers (ValidateGeoCoordPair, WriteGeoPeerTable).",
+  "requirement_sha": "41daa076027dbb3b",
+  "tests": {
+    "internal/plugins/mrt/rfc6397_geo_test.go::TestRFC6397GeoPeerTableCoordsOrderAndPrivacy": "2b237dc350601db8",
+    "internal/plugins/mrt/rfc6397_geo_test.go::TestRFC6397GeoPeerTableCoordsOrderAndPrivacy#2": "2b237dc350601db8"
+  },
+  "units": {
+    "internal/plugins/mrt/rfc6397_geo_test.go::TestRFC6397GeoPeerTableCoordsOrderAndPrivacy": "e382a32109e94125",
+    "internal/plugins/mrt/rfc6397_geo_test.go::TestRFC6397GeoPeerTableCoordsOrderAndPrivacy#2": "e382a32109e94125"
+  },
+  "verdict": "enforced"
+}

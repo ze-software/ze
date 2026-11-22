@@ -77,8 +77,8 @@ type GeoPeerEntry struct {
 	Longitude float32
 }
 
-// geoPeerTable represents a TABLE_DUMP_V2 GEO_PEER_TABLE (RFC 6397 Section 4.1).
-type geoPeerTable struct {
+// GeoPeerTable represents a TABLE_DUMP_V2 GEO_PEER_TABLE (RFC 6397 Section 4.1).
+type GeoPeerTable struct {
 	CollectorBGPID [4]byte
 	CollectorLat   float32
 	CollectorLon   float32
@@ -475,17 +475,26 @@ func DecodeTableDump(subtype uint16, data []byte) (*TableDumpRecord, error) {
 	return rec, nil
 }
 
-// decodeGeoPeerTable parses a TABLE_DUMP_V2 GEO_PEER_TABLE message body (RFC 6397).
-func decodeGeoPeerTable(data []byte) (*geoPeerTable, error) {
+// DecodeGeoPeerTable parses a TABLE_DUMP_V2 GEO_PEER_TABLE message body (RFC 6397 Section 4.1).
+//
+// RFC 6397 Section 4.1: "The Collector Latitude and Collector Longitude MUST
+// NOT be a mix of WGS84 [WGS-84] datum coordinates and NAN values."
+//
+// RFC 6397 Section 4.1: "The Peer Latitude and Peer Longitude MUST NOT be a mix
+// of WGS84 [WGS-84] datum coordinates and NAN values for a single peer."
+func DecodeGeoPeerTable(data []byte) (*GeoPeerTable, error) {
 	// CollectorBGPID(4) + Lat(4) + Lon(4) + PeerCount(2) = 14
 	if len(data) < 14 {
 		return nil, fmt.Errorf("geo peer table: %w (have %d, need >=14)", ErrShortData, len(data))
 	}
 
-	gpt := &geoPeerTable{}
+	gpt := &GeoPeerTable{}
 	copy(gpt.CollectorBGPID[:], data[0:4])
 	gpt.CollectorLat = math.Float32frombits(binary.BigEndian.Uint32(data[4:8]))
 	gpt.CollectorLon = math.Float32frombits(binary.BigEndian.Uint32(data[8:12]))
+	if err := ValidateGeoCoordPair(gpt.CollectorLat, gpt.CollectorLon); err != nil {
+		return nil, fmt.Errorf("geo peer table collector: %w", err)
+	}
 
 	peerCount := int(binary.BigEndian.Uint16(data[12:14]))
 	off := 14
@@ -507,6 +516,9 @@ func decodeGeoPeerTable(data []byte) (*geoPeerTable, error) {
 		off += 4
 		ge.Longitude = math.Float32frombits(binary.BigEndian.Uint32(data[off : off+4]))
 		off += 4
+		if err := ValidateGeoCoordPair(ge.Latitude, ge.Longitude); err != nil {
+			return nil, fmt.Errorf("geo peer entry %d: %w", i, err)
+		}
 
 		gpt.Peers = append(gpt.Peers, ge)
 	}

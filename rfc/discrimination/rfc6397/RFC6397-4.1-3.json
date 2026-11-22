@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC6397-4.1-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/mrt/rfc6397_geo_test.go::TestRFC6397GeoPeerTableCoordsOrderAndPrivacy",
+    "unit-sha": "5b69375021955735",
+    "claim-sha": "67645f0098e33875",
+    "route": "revert",
+    "producer": "internal/mrt/geo.go::BuildGeoPeerTableForIndex",
+    "producer-sha": "6cf2c1748eae7d4b",
+    "break": "body of BuildGeoPeerTableForIndex replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC6397-4.1-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/mrt/rfc6397_geo_test.go::TestRFC6397GeoPeerTableCoordsOrderAndPrivacy",
+    "unit-sha": "5b69375021955735",
+    "claim-sha": "4eeafbb2b9925306",
+    "route": "revert",
+    "producer": "internal/mrt/geo.go::ValidateGeoPeerTableAgainstIndex",
+    "producer-sha": "61fce8bec8b62d8e",
+    "break": "body of ValidateGeoPeerTableAgainstIndex replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

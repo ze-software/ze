@@ -1,0 +1,13 @@
+{
+  "note": "Tx path (writePeerIndexTable -> writeGeoPeerTable -> BuildGeoPeerTableForIndex) emits GEO_PEER_TABLE matching PEER_INDEX_TABLE peer count, order, Type, and BGP ID end-to-end through ParseConfig -> DumpRIB -> mrt.ReadFile (including 7 mixed IPv4/IPv6 peers in non-alphabetical order and unconfigured peers defaulting to NaN, NaN). Rx path wires ValidateGeoPeerTableAgainstIndex directly into internal/mrt/reader.go (readRecords tracks *PeerIndexTable and dispatchTDV2 validates TDV2GeoPeerTable against it on read). Negative tests prove mrt.ReadFrom rejects swapped Peer Type (peer 0 IPv4 vs peer 1 IPv6), swapped same-Type BGP ID (peer 2 IPv4 vs peer 3 IPv4), and truncated peer count with ErrGeoPeerTableMismatch. Discrimination proofs cite real live producers (BuildGeoPeerTableForIndex, ValidateGeoPeerTableAgainstIndex).",
+  "requirement_sha": "7659aea4cf17d0d2",
+  "tests": {
+    "internal/plugins/mrt/rfc6397_geo_test.go::TestRFC6397GeoPeerTableCoordsOrderAndPrivacy": "2b237dc350601db8",
+    "internal/plugins/mrt/rfc6397_geo_test.go::TestRFC6397GeoPeerTableCoordsOrderAndPrivacy#2": "2b237dc350601db8"
+  },
+  "units": {
+    "internal/plugins/mrt/rfc6397_geo_test.go::TestRFC6397GeoPeerTableCoordsOrderAndPrivacy": "e382a32109e94125",
+    "internal/plugins/mrt/rfc6397_geo_test.go::TestRFC6397GeoPeerTableCoordsOrderAndPrivacy#2": "e382a32109e94125"
+  },
+  "verdict": "enforced"
+}

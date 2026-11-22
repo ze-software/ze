@@ -1,0 +1,13 @@
+{
+  "note": "Production code (GeoPrivacyRules.IsMoreRestrictive/AllowInclude, BuildGeoPeerTableForIndex, parseGeoEntity, ze-mrt-conf.yang) enforces all four RFC 6397 Section 6 GEOPRIV default rules and the non-technical-measures override. Positive polarity proves each restrictive rule independently excludes coordinates (emitted as NaN, NaN) end-to-end through ParseConfig -> DumpRIB -> mrt.ReadFile with non-technical-measures=false: retransmission-allowed=false (peer 2), retention-years=99 boundary <100 (peer 3), non-empty ruleset-reference (peer 4), and non-empty note-well (peer 5 and collector). Negative polarity proves default privacy (peer 0) and restrictive rules with non-technical-measures=true (peer 6) include WGS84 coordinates end-to-end. Discrimination proofs cite GeoPrivacyRules.AllowInclude.",
+  "requirement_sha": "8d5128d4ab9520fa",
+  "tests": {
+    "internal/plugins/mrt/rfc6397_geo_test.go::TestRFC6397GeoPeerTableCoordsOrderAndPrivacy": "2b237dc350601db8",
+    "internal/plugins/mrt/rfc6397_geo_test.go::TestRFC6397GeoPeerTableCoordsOrderAndPrivacy#2": "2b237dc350601db8"
+  },
+  "units": {
+    "internal/plugins/mrt/rfc6397_geo_test.go::TestRFC6397GeoPeerTableCoordsOrderAndPrivacy": "e382a32109e94125",
+    "internal/plugins/mrt/rfc6397_geo_test.go::TestRFC6397GeoPeerTableCoordsOrderAndPrivacy#2": "e382a32109e94125"
+  },
+  "verdict": "enforced"
+}

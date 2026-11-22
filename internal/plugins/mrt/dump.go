@@ -258,6 +258,34 @@ func (c *Component) writePeerIndexTable(hdrSize int, now time.Time, peers []mrtf
 	writeHeader(pitBuf, c.config.ExtendedTimestamp, now, mrtfmt.TypeTableDumpV2, mrtfmt.TDV2PeerIndexTable, pitLen)
 	if err := c.routes.Write(pitBuf[:hdrSize+pitLen]); err != nil {
 		c.logger.Warn("mrt: write peer index table", "error", err)
+		return
+	}
+	if c.config.Geo.Enabled {
+		// RFC 6397 Section 4.1 and Section 6
+		c.writeGeoPeerTable(hdrSize, now, [4]byte{}, peers)
+	}
+}
+
+// writeGeoPeerTable emits a TABLE_DUMP_V2 GEO_PEER_TABLE (subtype 7) companion
+// record matching the PEER_INDEX_TABLE peer order and enforcing RFC 6397
+// Section 4.1 coordinate validation and Section 6 privacy filtering.
+func (c *Component) writeGeoPeerTable(hdrSize int, now time.Time, collectorBGPID [4]byte, peers []mrtfmt.PeerEntry) {
+	// RFC 6397 Section 4.1 and Section 6
+	table, err := mrtfmt.BuildGeoPeerTableForIndex(collectorBGPID, c.config.Geo.Collector, peers, c.config.Geo.Peers)
+	if err != nil {
+		c.logger.Warn("mrt: build geo peer table", "code", codeMRTGeoDump, "error", err)
+		return
+	}
+	geoBuf := make([]byte, hdrSize+mrtfmt.GeoPeerTableSize(len(table.Peers)))
+	// RFC 6397 Section 4.1
+	geoLen, err := mrtfmt.WriteGeoPeerTable(geoBuf, hdrSize, table)
+	if err != nil {
+		c.logger.Warn("mrt: encode geo peer table", "code", codeMRTGeoDump, "error", err)
+		return
+	}
+	writeHeader(geoBuf, c.config.ExtendedTimestamp, now, mrtfmt.TypeTableDumpV2, mrtfmt.TDV2GeoPeerTable, geoLen)
+	if err := c.routes.Write(geoBuf[:hdrSize+geoLen]); err != nil {
+		c.logger.Warn("mrt: write geo peer table", "code", codeMRTGeoDump, "error", err)
 	}
 }
 
@@ -356,33 +384,30 @@ func updateAddPath(body []byte, ctxID bgpctx.ContextID) bool {
 		return false
 	}
 	withdrawn, attrs, nlri, err := mrtfmt.UpdateSections(body)
-	if err != nil {
-		// A malformed UPDATE is still recorded. No complete family fields
-		// exist to justify marking this record as ADD-PATH.
-		return false
-	}
-	if len(withdrawn)+len(nlri) > 0 {
-		if ctx.AddPath(family.IPv4Unicast) {
-			return true
-		}
-	}
-	iter := attribute.NewAttrIterator(attrs)
-	for code, _, value, ok := iter.Next(); ok; code, _, value, ok = iter.Next() {
-		// Only MP_REACH_NLRI and MP_UNREACH_NLRI carry extra family fields for ADD-PATH detection.
-		//exhaustive:ignore
-		switch code {
-		case attribute.AttrMPReachNLRI, attribute.AttrMPUnreachNLRI:
-			if len(value) < 3 {
-				continue
-			}
-			fam := family.Family{
-				AFI:  family.AFI(binary.BigEndian.Uint16(value[:2])),
-				SAFI: family.SAFI(value[2]),
-			}
-			if ctx.AddPath(fam) {
+	if err == nil {
+		if len(withdrawn)+len(nlri) > 0 {
+			if ctx.AddPath(family.IPv4Unicast) {
 				return true
 			}
-		default:
+		}
+		iter := attribute.NewAttrIterator(attrs)
+		for code, _, value, ok := iter.Next(); ok; code, _, value, ok = iter.Next() {
+			// Only MP_REACH_NLRI and MP_UNREACH_NLRI carry extra family fields for ADD-PATH detection.
+			//exhaustive:ignore
+			switch code {
+			case attribute.AttrMPReachNLRI, attribute.AttrMPUnreachNLRI:
+				if len(value) < 3 {
+					continue
+				}
+				fam := family.Family{
+					AFI:  family.AFI(binary.BigEndian.Uint16(value[:2])),
+					SAFI: family.SAFI(value[2]),
+				}
+				if ctx.AddPath(fam) {
+					return true
+				}
+			default:
+			}
 		}
 	}
 	return false

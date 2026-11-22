@@ -4,13 +4,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"math"
 	"net"
 	"os"
+	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	mrtfmt "github.com/ze-software/ze/internal/mrt"
 	mrtyang "github.com/ze-software/ze/internal/plugins/mrt/yang"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
@@ -116,6 +120,7 @@ func init() {
 	// which is what lets //go:build ze_bgp drop MRT from the binary.
 	registry.SetMRTMessageCallback(MessageBridge)
 	registry.SetMRTPeerCallback(PeerBridge)
+	registerMRTDoctorChecks()
 }
 
 func runEngine(conn net.Conn) int {
@@ -242,8 +247,9 @@ func ParseConfig(data json.RawMessage) (*Config, error) {
 			Interval int    `json:"interval"`
 		} `json:"all"`
 		Routes *struct {
-			File     string `json:"file"`
-			Interval int    `json:"interval"`
+			File     string          `json:"file"`
+			Interval int             `json:"interval"`
+			Geo      json.RawMessage `json:"geo"`
 		} `json:"routes"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
@@ -269,8 +275,168 @@ func ParseConfig(data json.RawMessage) (*Config, error) {
 	if raw.Routes != nil {
 		cfg.RoutesPath = raw.Routes.File
 		cfg.RoutesInterval = time.Duration(raw.Routes.Interval) * time.Second
+		if len(raw.Routes.Geo) > 0 {
+			// RFC 6397 Section 4.1 and Section 6
+			geoCfg, err := parseGeoConfig(raw.Routes.Geo)
+			if err != nil {
+				return nil, err
+			}
+			cfg.Geo = geoCfg
+		}
 	}
 	return cfg, nil
+}
+
+type rawGeoEntity struct {
+	Address               string `json:"address"`
+	Latitude              any    `json:"latitude"`
+	Longitude             any    `json:"longitude"`
+	RetransmissionAllowed any    `json:"retransmission-allowed"`
+	RetentionYears        any    `json:"retention-years"`
+	RulesetReference      string `json:"ruleset-reference"`
+	NoteWell              string `json:"note-well"`
+	NonTechnicalMeasures  any    `json:"non-technical-measures"`
+}
+
+func parseGeoConfig(data json.RawMessage) (GeoConfig, error) {
+	var raw struct {
+		Enabled   any                     `json:"enabled"`
+		Collector *rawGeoEntity           `json:"collector"`
+		Peer      map[string]rawGeoEntity `json:"peer"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return GeoConfig{}, fmt.Errorf("mrt geo config: %w", err)
+	}
+	enabled, err := parseOptBool(raw.Enabled, false)
+	if err != nil {
+		return GeoConfig{}, fmt.Errorf("mrt geo enabled: %w", err)
+	}
+	cfg := GeoConfig{
+		Enabled:   enabled,
+		Collector: mrtfmt.PrivateGeoLocation(),
+	}
+	if raw.Collector != nil {
+		loc, err := parseGeoEntity(*raw.Collector)
+		if err != nil {
+			return GeoConfig{}, fmt.Errorf("mrt geo collector: %w", err)
+		}
+		cfg.Collector = loc
+	}
+	if len(raw.Peer) > 0 {
+		cfg.Peers = make(map[string]mrtfmt.GeoLocation, len(raw.Peer))
+		for key, entry := range raw.Peer {
+			addrStr := key
+			if entry.Address != "" {
+				addrStr = entry.Address
+			}
+			ip := net.ParseIP(addrStr)
+			if ip == nil {
+				return GeoConfig{}, fmt.Errorf("mrt geo peer %q: invalid IP address", addrStr)
+			}
+			loc, err := parseGeoEntity(entry)
+			if err != nil {
+				return GeoConfig{}, fmt.Errorf("mrt geo peer %s: %w", ip.String(), err)
+			}
+			cfg.Peers[ip.String()] = loc
+		}
+	}
+	return cfg, nil
+}
+
+func parseGeoEntity(raw rawGeoEntity) (mrtfmt.GeoLocation, error) {
+	lat, err := parseGeoCoord(raw.Latitude)
+	if err != nil {
+		return mrtfmt.GeoLocation{}, fmt.Errorf("latitude: %w", err)
+	}
+	lon, err := parseGeoCoord(raw.Longitude)
+	if err != nil {
+		return mrtfmt.GeoLocation{}, fmt.Errorf("longitude: %w", err)
+	}
+	// RFC 6397 Section 4.1: validate no WGS84/NaN mixing at config parse time.
+	if err := mrtfmt.ValidateGeoCoordPair(lat, lon); err != nil {
+		return mrtfmt.GeoLocation{}, err
+	}
+
+	var privacy mrtfmt.GeoPrivacyRules
+	if raw.RetransmissionAllowed != nil {
+		v, err := parseOptBool(raw.RetransmissionAllowed, true)
+		if err != nil {
+			return mrtfmt.GeoLocation{}, fmt.Errorf("retransmission-allowed: %w", err)
+		}
+		privacy.RetransmissionAllowed = &v
+	}
+	if raw.RetentionYears != nil {
+		v, err := parseOptInt(raw.RetentionYears)
+		if err != nil {
+			return mrtfmt.GeoLocation{}, fmt.Errorf("retention-years: %w", err)
+		}
+		privacy.RetentionYears = &v
+	}
+	privacy.RulesetReference = raw.RulesetReference
+	privacy.NoteWell = raw.NoteWell
+	if raw.NonTechnicalMeasures != nil {
+		v, err := parseOptBool(raw.NonTechnicalMeasures, false)
+		if err != nil {
+			return mrtfmt.GeoLocation{}, fmt.Errorf("non-technical-measures: %w", err)
+		}
+		privacy.NonTechnicalMeasures = v
+	}
+
+	return mrtfmt.GeoLocation{
+		Latitude:  lat,
+		Longitude: lon,
+		Privacy:   privacy,
+	}, nil
+}
+
+func parseGeoCoord(raw any) (float32, error) {
+	if raw == nil {
+		return float32(math.NaN()), nil
+	}
+	switch v := raw.(type) {
+	case float64:
+		return float32(v), nil
+	case string:
+		trimmed := strings.TrimSpace(v)
+		if trimmed == "" {
+			return float32(math.NaN()), nil
+		}
+		if strings.EqualFold(trimmed, "nan") {
+			return float32(math.NaN()), nil
+		}
+		f, err := strconv.ParseFloat(trimmed, 32)
+		if err != nil {
+			return 0, fmt.Errorf("invalid coordinate %q: %w", v, err)
+		}
+		return float32(f), nil
+	default:
+		return 0, fmt.Errorf("unsupported coordinate type %T", raw)
+	}
+}
+
+func parseOptBool(raw any, fallback bool) (bool, error) {
+	if raw == nil {
+		return fallback, nil
+	}
+	switch v := raw.(type) {
+	case bool:
+		return v, nil
+	case string:
+		return strconv.ParseBool(strings.TrimSpace(v))
+	default:
+		return false, fmt.Errorf("unsupported boolean type %T", raw)
+	}
+}
+
+func parseOptInt(raw any) (int, error) {
+	switch v := raw.(type) {
+	case float64:
+		return int(v), nil
+	case string:
+		return strconv.Atoi(strings.TrimSpace(v))
+	default:
+		return 0, fmt.Errorf("unsupported integer type %T", raw)
+	}
 }
 
 // commandDecls names the commands this plugin serves and states what each
