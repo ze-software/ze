@@ -38,8 +38,11 @@ import (
 // can be stale.
 const CodeOutputRel = "ai/CODE-TO-DOCS.md"
 
-// docsDir is the tree the anchors are read from.
+// docsDir is the primary documentation tree; anchorDirs lists every tree
+// whose markdown files carry validated `<!-- source: -->` anchors.
 const docsDir = "docs"
+
+var anchorDirs = [...]string{docsDir, "ai/patterns"}
 
 // namedRefs limits the documents named for a stale path before the report
 // counts the rest. namedInline limits the package files listed as bullets
@@ -641,37 +644,39 @@ func sortRefs(refs []Ref) {
 	})
 }
 
-// markdownFiles answers every .md file under docs/, sorted by its path.
+// markdownFiles answers every .md file under anchorDirs (docs/ and ai/patterns/),
+// sorted by its path.
 //
 // A whole-path sort replaces a per-directory sort. The anchors and the findings
 // use this same order.
 func markdownFiles(root string) ([]string, error) {
-	base := filepath.Join(root, docsDir)
-	// A tree with no docs/ holds no anchors, which is an ANSWER rather than a
-	// failure: the honest reverse index for it is empty. Returning the walk's
-	// ErrNotExist conflated "nothing to scan" with "cannot scan", and the hook
-	// that rebuilds this artifact on demand then refused every command naming
-	// ai/ in a checkout that carries no documentation tree.
-	if _, err := os.Stat(base); errors.Is(err, os.ErrNotExist) {
-		return nil, nil
-	}
 	var found []string
-	err := filepath.WalkDir(base, func(path string, entry os.DirEntry, err error) error {
-		if err != nil {
-			return err
+	for _, relDir := range anchorDirs {
+		base := filepath.Join(root, filepath.FromSlash(relDir))
+		// A tree missing an anchor dir holds no anchors there, which is an
+		// ANSWER rather than a failure: the honest reverse index for it is
+		// empty. Returning ErrNotExist conflated "nothing to scan" with
+		// "cannot scan".
+		if _, err := os.Stat(base); errors.Is(err, os.ErrNotExist) {
+			continue
 		}
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+		err := filepath.WalkDir(base, func(path string, entry os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+				return nil
+			}
+			rel, relErr := filepath.Rel(root, path)
+			if relErr != nil {
+				return relErr
+			}
+			found = append(found, filepath.ToSlash(rel))
 			return nil
+		})
+		if err != nil {
+			return nil, err
 		}
-		rel, relErr := filepath.Rel(root, path)
-		if relErr != nil {
-			return relErr
-		}
-		found = append(found, filepath.ToSlash(rel))
-		return nil
-	})
-	if err != nil {
-		return nil, err
 	}
 	slices.Sort(found)
 	return found, nil
@@ -681,12 +686,20 @@ func markdownFiles(root string) ([]string, error) {
 // path is relative to the checkout root, in slash form.
 //
 // The reverse index inverts the `<!-- source: -->` anchors of every markdown
-// file markdownFiles answers, which is every `.md` file under docs/.
+// file markdownFiles answers (docs/ and ai/patterns/).
 //
 // A gitignored page is dropped by the generator and accepted here, because
 // filterGitignored costs one git child process and this predicate is asked on
 // every edit. The cost of accepting one is a rebuild the next read pays for
 // once; the cost of the git call is paid by every write in the session.
 func IsAnchorSource(path string) bool {
-	return strings.HasPrefix(path, docsDir+"/") && strings.HasSuffix(path, ".md")
+	if !strings.HasSuffix(path, ".md") {
+		return false
+	}
+	for _, relDir := range anchorDirs {
+		if strings.HasPrefix(path, relDir+"/") {
+			return true
+		}
+	}
+	return false
 }

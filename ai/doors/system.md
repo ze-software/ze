@@ -1,6 +1,6 @@
 # The system door: what every change in Ze must respect
 
-<!-- door-base: pkg cmd/ze internal -->
+<!-- door-base: pkg cmd internal -->
 
 Read this before the door of the subsystem you work in. Every subsystem door
 assumes it. It names the design facts that code written from habit breaks, and

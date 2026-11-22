@@ -21,7 +21,7 @@ Ask the question from Bash instead
 | Question | Read |
 |----------|------|
 | Am I allowed to grep or spawn an agent for this yet? | `ai/rules/documentation.md` — not until the page below is read. The page answers most questions, and an investigation names the sentence that is silent or wrong |
-| What does package X do? (one line each, all ~590 packages) | `ai/PACKAGE-MAP.md` |
+| What does package X do? (one line each, all ~1,060 packages) | `ai/PACKAGE-MAP.md` |
 | Which `.go` files implement design doc Y? | `ai/DOCS-TO-CODE.md` (inverse of the per-file `// Design:` headers) |
 | Which docs describe code path Z? | `ai/CODE-TO-DOCS.md` (inverse of doc `<!-- source: -->` anchors) |
 | Why is the code shaped this way? | `plan/learned/DESIGN-HISTORY.md` |
@@ -612,7 +612,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | hub, API commands | `hub-architecture.md`, `hub-api-commands.md` |
 | cache, update cache | `update-cache.md`, `update-density-analysis.md` |
 | metadata, route meta | `meta/README.md` |
-| interop, test infra, raw injector, inject.msg sidecar, python speaker, speaker-args, independent bgp peer | `testing/interop.md`, `testing/ci-format.md`, `../plan/spec-bgp-plugin-speaker.md` |
+| interop, test infra, raw injector, inject.msg sidecar, python speaker, speaker-args, independent bgp peer | `testing/interop.md`, `testing/ci-format.md` |
 | GoBGP export reload, SIGHUP unchanged best, secondary route withdrawal, applied GoBGP patch, gobgp-patch-sha256 | `docs/architecture/testing/interop.md` (GoBGP export-reload successor proof), `internal/le/interoplab/bgp/check_gobgp_reload_patch.go`, `test/interop/gobgp-v4.11.0-export-reload.patch` |
 | zefs, blob, netcapstring, storage | `storage-backends.md`, `zefs-format.md`, `fleet-config.md` |
 | config history, object/<sha256>, content-addressed version, dangling entry, orphan object, dangling pointer | `storage-backends.md`, `internal/component/config/storage/history.go`, `internal/component/config/storage/history_check.go` |

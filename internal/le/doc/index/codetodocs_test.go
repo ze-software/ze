@@ -381,6 +381,37 @@ func TestDocumentsByPathAsksGitAboutTheRootAndNotAnEnclosingCheckout(t *testing.
 	}
 }
 
+// VALIDATES: ai/patterns/*.md source anchors are scanned by buildCodeIndex and
+// reported by IsAnchorSource alongside docs/*.md.
+// PREVENTS: stale `<!-- source: -->` anchors inside ai/patterns/ going unchecked.
+func TestPatternsAnchorsAreScannedAndValidated(t *testing.T) {
+	if !IsAnchorSource("ai/patterns/plugin.md") {
+		t.Fatalf("IsAnchorSource(ai/patterns/plugin.md) = false, want true")
+	}
+	if IsAnchorSource("ai/digests/bgp-reactor.md") {
+		t.Fatalf("IsAnchorSource(ai/digests/bgp-reactor.md) = true, want false")
+	}
+	root := t.TempDir()
+	writeFixture(t, filepath.Join(root, "internal", "a", "a.go"), "package a\n\nfunc RealSymbol() {}\n")
+	writeFixture(t, filepath.Join(root, "ai", "patterns", "demo.md"),
+		"# Demo\n<!-- source: internal/a/a.go -- RealSymbol -->\n<!-- source: internal/a/a.go -- MissingSymbol -->\n")
+
+	index, err := DocumentsByPath(root)
+	if err != nil {
+		t.Fatalf("DocumentsByPath: %v", err)
+	}
+	if got := index["internal/a/a.go"]; !slices.Equal(got, []string{"ai/patterns/demo.md"}) {
+		t.Fatalf("DocumentsByPath = %v, want [ai/patterns/demo.md]", got)
+	}
+	report, err := CheckCodeIndex(root)
+	if err != nil {
+		t.Fatalf("CheckCodeIndex: %v", err)
+	}
+	if len(report.Claims) != 1 || !strings.Contains(report.Claims[0], "MissingSymbol") {
+		t.Fatalf("Claims = %v, want MissingSymbol from ai/patterns/demo.md", report.Claims)
+	}
+}
+
 // gitInit makes dir a git repository, with the discovery variables of the
 // test's own environment dropped so the repository is the one git answers for.
 func gitInit(t *testing.T, dir string) {
