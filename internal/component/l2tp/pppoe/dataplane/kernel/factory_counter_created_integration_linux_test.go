@@ -22,6 +22,9 @@ import (
 // factoryCounterBackend delegates actual original creation to the independently
 // owned real backend. Its one private reply seam changes numeric measurement
 // inputs only, never files, identity, namespace, socket custody or native birth.
+// Embedding iface.Backend hides the real backend's optional capabilities, so
+// the original-unit mutation binding (iface.NativePPPBackend) is forwarded
+// unchanged to the same real backend, the way original creation is.
 // These tests prove conversion/refusal, not actual traffic measurement. Serial.
 type factoryCounterBackend struct {
 	iface.Backend
@@ -68,6 +71,16 @@ func (backend *factoryCounterBackend) CreateLinkCounterReader(request *nl.Netlin
 			RxDropped: stats.RxDropped, TxDropped: stats.TxDropped,
 		}, nil
 	}, attempted, nil
+}
+
+// BindNativePPPUnit forwards the original-unit mutation binding to the real
+// backend that created the unit. A real backend without it stays refused.
+func (backend *factoryCounterBackend) BindNativePPPUnit(owner iface.NativePPPUnitOwner, index int, unit int32) (iface.NativePPPWriter, error) {
+	source, ok := backend.Backend.(iface.NativePPPBackend)
+	if !ok {
+		return nil, errors.Join(iface.ErrNativePPPUnavailable, errors.New("actual fixture backend has no original-unit mutation binding"))
+	}
+	return source.BindNativePPPUnit(owner, index, unit)
 }
 
 func (*factoryCounterBackend) GetStats(string) (*iface.InterfaceStats, error) {
