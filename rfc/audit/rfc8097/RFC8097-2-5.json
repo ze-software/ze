@@ -1,0 +1,13 @@
+{
+  "note": "RFC 8097 Section 2 requires discarding any received origin validation state value greater than 2 (attribute-discard strategy per RFC 7606) and logging the error for further analysis. TestRFC8097ValueAboveTwoDiscardedAndLogged (internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go) drives real wire UPDATE frames through Session.ReadAndProcess on an Established iBGP session: positive cases test value 3 (exact lower invalid boundary) alongside sibling RT and sole value 255 (dirty Reserved), asserting Established state, zero NOTIFICATIONs, intact NLRI, erroneous community discarded (preserving sibling RT or cleanly removing the sole attribute), and 1 level=ERROR log per erroneous instance at defaultSessionLogLevel carrying registered code doctor-bgp-origin-validation-state-invalid. Negative cases test every valid state individually \u2014 0 (valid), 1 (not-found), and 2 (invalid, exact upper valid boundary) \u2014 closing the '>' vs '>=' boundary mutant and asserting each is retained with zero additional error logs. Discrimination records verify Session.sanitizeOriginValidationState for both polarities.",
+  "requirement_sha": "77aa554a59e4bff0",
+  "tests": {
+    "internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go::TestRFC8097ValueAboveTwoDiscardedAndLogged": "822b51cf4982d8a9",
+    "internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go::TestRFC8097ValueAboveTwoDiscardedAndLogged#2": "822b51cf4982d8a9"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go::TestRFC8097ValueAboveTwoDiscardedAndLogged": "ae4ff9cb8e505451",
+    "internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go::TestRFC8097ValueAboveTwoDiscardedAndLogged#2": "ae4ff9cb8e505451"
+  },
+  "verdict": "enforced"
+}

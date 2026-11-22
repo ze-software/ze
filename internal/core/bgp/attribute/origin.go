@@ -285,7 +285,12 @@ func WriteAttributesOrdered(attrs []Attribute, buf []byte, off int) int {
 	ordered := OrderAttributes(attrs)
 	start := off
 	for _, attr := range ordered {
-		off += WriteAttrTo(attr, buf, off)
+		n := WriteAttrTo(attr, buf, off)
+		// RFC 8097 Section 2: "The Reserved field MUST be set to 0 and ignored upon the receipt of this community."
+		if attr.Code() == AttrExtCommunity {
+			zeroOriginValidationStateReservedInWireAttr(buf[off : off+n])
+		}
+		off += n
 	}
 
 	return off - start

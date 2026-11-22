@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8097-2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc8097_origin_validation_state_test.go::TestRFC8097ReservedFieldZeroOnSend",
+    "unit-sha": "ee2eb90723e00ac0",
+    "claim-sha": "129c93db0ba964cd",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/origin_validation_state.go::ZeroOriginValidationStateReservedBytes",
+    "producer-sha": "1d462c0a815880e7",
+    "break": "body of ZeroOriginValidationStateReservedBytes replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8097-2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc8097_origin_validation_state_test.go::TestRFC8097ReservedFieldZeroOnSend",
+    "unit-sha": "ee2eb90723e00ac0",
+    "claim-sha": "668f9fd7a668d4a4",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/builder_parse.go::parseExtCommunityTypedHex",
+    "producer-sha": "ba6579c1aa00ddb3",
+    "break": "body of parseExtCommunityTypedHex replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "note": "RFC 8097 Section 2 requires the 5-octet Reserved field [2..6] of the Origin Validation State extended community (0x43/0x00) to be set to 0 on send. Both prior bypasses are now closed: parseExtCommunityTypedHex (internal/core/bgp/attribute/builder_parse.go:322) calls validateOriginValidationStateExtCommunityForSend alongside ParseExtendedCommunityHex, WriteAttributesOrdered (internal/core/bgp/attribute/origin.go:290) calls zeroOriginValidationStateReservedInWireAttr for AttrExtCommunity across all UpdateBuilder variants, and filter_community/handler.go (emitCommunityOp, emitKeptCommunityValue) zeroes dirty Reserved bytes on egress Set/Add/Keep (verified by TestExtCommunityAttrModHandlerZeroesRFC8097Reserved). TestRFC8097ReservedFieldZeroOnSend (internal/component/bgp/message/rfc8097_origin_validation_state_test.go) proves positive zero-Reserved emission through NewOriginValidationStateExtCommunity, ParseSingleExtCommunity (keyword, raw hex, typed hex), ExtendedCommunities.WriteTo, and real UpdateBuilder.BuildUnicast wire PathAttributes (without mutating caller input), and negative rejection across all 5 Reserved positions [2..6] and state > 2 in both raw hex and typed hex while preserving non-0x4300 opaque communities (0x430b) verbatim. Discrimination records verify ZeroOriginValidationStateReservedBytes and parseExtCommunityTypedHex.",
+  "requirement_sha": "398ba351102ba363",
+  "tests": {
+    "internal/component/bgp/message/rfc8097_origin_validation_state_test.go::TestRFC8097ReservedFieldZeroOnSend": "40b03e23b3f456f3",
+    "internal/component/bgp/message/rfc8097_origin_validation_state_test.go::TestRFC8097ReservedFieldZeroOnSend#2": "40b03e23b3f456f3"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc8097_origin_validation_state_test.go::TestRFC8097ReservedFieldZeroOnSend": "f166b9334676e208",
+    "internal/component/bgp/message/rfc8097_origin_validation_state_test.go::TestRFC8097ReservedFieldZeroOnSend#2": "f166b9334676e208"
+  },
+  "verdict": "enforced"
+}

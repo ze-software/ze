@@ -26,18 +26,20 @@ import (
 // first, through ParseExtendedCommunityKeyword, so a community added here is
 // accepted on every surface and none of the three is edited for it.
 var extCommKeywords = map[string]func(value string) (ExtendedCommunity, error){
-	interfaceSetKeyword:  parseInterfaceSet,
-	layer2InfoKeyword:    parseLayer2Info,
-	trafficMarkKeyword:   parseTrafficMark,
-	trafficActionKeyword: FlowSpecTrafficAction,
+	interfaceSetKeyword:          parseInterfaceSet,
+	layer2InfoKeyword:            parseLayer2Info,
+	trafficMarkKeyword:           parseTrafficMark,
+	trafficActionKeyword:         FlowSpecTrafficAction,
+	originValidationStateKeyword: parseOriginValidationState,
 }
 
 // The names AppendDecoded writes and the parsers read.
 const (
-	interfaceSetKeyword  = "interface-set"
-	layer2InfoKeyword    = "l2info"
-	trafficMarkKeyword   = "mark"
-	trafficActionKeyword = "traffic-action"
+	interfaceSetKeyword          = "interface-set"
+	layer2InfoKeyword            = "l2info"
+	trafficMarkKeyword           = "mark"
+	trafficActionKeyword         = "traffic-action"
+	originValidationStateKeyword = "origin-validation-state"
 )
 
 // parseTrafficMark reads the value of `mark:<dscp>`, the traffic-marking

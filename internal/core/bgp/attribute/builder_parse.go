@@ -317,6 +317,11 @@ func parseExtCommunityTypedHex(s string) (ExtendedCommunity, error) {
 	if _, err := hex.Decode(ec[2:8], []byte(valueDigits)); err != nil {
 		return ExtendedCommunity{}, fmt.Errorf("invalid extended community %q: %w", s, err)
 	}
+	// RFC 8097 Section 2: "The Reserved field MUST be set to 0 and ignored upon
+	// the receipt of this community."
+	if err := validateOriginValidationStateExtCommunityForSend(ec); err != nil {
+		return ExtendedCommunity{}, fmt.Errorf("invalid extended community %q: %w", s, err)
+	}
 	return ec, nil
 }
 

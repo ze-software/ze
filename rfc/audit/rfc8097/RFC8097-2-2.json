@@ -1,0 +1,13 @@
+{
+  "note": "RFC 8097 Section 2 requires the 5-octet Reserved field [2..6] to be set to 0 and ignored upon receipt. TestRFC8097ReservedFieldIgnoredOnReceive (internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go) now drives real wire UPDATE frames through Session.ReadAndProcess -> processValidatedMessage -> Session.sanitizeOriginValidationState on an Established iBGP session across all 5 Reserved byte positions [2..6] (individually and all 5 set) for all 3 valid states (0, 1, 2), asserting Established state, zero NOTIFICATIONs, intact NLRI, zero RFC 8097 error logs, canonical delivered 0x43/0x00 with zeroed Reserved octets and matching state, and matching DecodeOriginValidationStateExtCommunity output. Negative assertions isolate the Reserved field by verifying octet [7] changes the delivered state (0, 1, 2 with 0xff Reserved bytes) and sub-type 0x43/0x01 preserves octets [2..6] verbatim. Discrimination records verify Session.sanitizeOriginValidationState for both polarities.",
+  "requirement_sha": "28f0afbb2e6283bf",
+  "tests": {
+    "internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go::TestRFC8097ReservedFieldIgnoredOnReceive": "822b51cf4982d8a9",
+    "internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go::TestRFC8097ReservedFieldIgnoredOnReceive#2": "822b51cf4982d8a9"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go::TestRFC8097ReservedFieldIgnoredOnReceive": "2a7bd0159d74c946",
+    "internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go::TestRFC8097ReservedFieldIgnoredOnReceive#2": "2a7bd0159d74c946"
+  },
+  "verdict": "enforced"
+}

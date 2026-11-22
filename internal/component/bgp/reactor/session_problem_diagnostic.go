@@ -10,12 +10,13 @@ import (
 )
 
 const (
-	codeOpenConnectionRefused   = "doctor-bgp-open-connection-refused"
-	openConnectionRefusalFix    = "ze show bgp peer list"
-	openIdentifierRefusalAction = "configure a nonzero BGP Identifier on the peer; for iBGP it must differ from this speaker's identifier"
-	codeBFDWaitHoldExpired      = "doctor-bgp-bfd-wait-hold-expired"
-	bfdWaitHoldExpiryFix        = "ze show bfd sessions"
-	codeDoctorBGPBoRRBeforeEOR  = "doctor-bgp-borr-before-eor"
+	codeOpenConnectionRefused             = "doctor-bgp-open-connection-refused"
+	openConnectionRefusalFix              = "ze show bgp peer list"
+	openIdentifierRefusalAction           = "configure a nonzero BGP Identifier on the peer; for iBGP it must differ from this speaker's identifier"
+	codeBFDWaitHoldExpired                = "doctor-bgp-bfd-wait-hold-expired"
+	bfdWaitHoldExpiryFix                  = "ze show bfd sessions"
+	codeDoctorBGPBoRRBeforeEOR            = "doctor-bgp-borr-before-eor"
+	codeDoctorBGPOriginValidationStateBad = "doctor-bgp-origin-validation-state-invalid"
 )
 
 // init declares connection history through the existing recent-events check.
@@ -54,6 +55,17 @@ func init() {
 	}
 	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorBGPBoRRBeforeEOR}); err != nil {
 		panic("BUG: bgp reactor: BoRR-before-EoR event registration failed: " + err.Error())
+	}
+	if err := diagnostic.Register(diagnostic.CodeMeta{
+		Code:        codeDoctorBGPOriginValidationStateBad,
+		Title:       "BGP Origin Validation State extended community discarded (invalid value)",
+		Description: "A peer sent an RFC 8097 Prefix Origin Validation State extended community (type 0x43, sub-type 0x00) carrying a validation state value greater than 2 (0=valid, 1=not-found, 2=invalid). Per RFC 8097 Section 2, Ze applied an attribute-discard strategy by discarding the erroneous community while preserving the route and session.",
+		Examples:    []string{"ze show bgp peer list", "ze show diagnostic " + codeDoctorBGPOriginValidationStateBad},
+	}); err != nil {
+		panic("BUG: bgp reactor: RFC 8097 invalid origin validation state diagnostic registration failed: " + err.Error())
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorBGPOriginValidationStateBad}); err != nil {
+		panic("BUG: bgp reactor: RFC 8097 invalid origin validation state event registration failed: " + err.Error())
 	}
 }
 

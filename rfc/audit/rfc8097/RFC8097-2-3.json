@@ -1,0 +1,13 @@
+{
+  "note": "RFC 8097 Section 2 requires disregarding all instances other than the one with the numerically greatest validation state when multiple instances are received. TestRFC8097MultipleInstancesSelectGreatest (internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go) now exercises real wire UPDATE frames through Session.ReadAndProcess on an Established iBGP session. Positive cases cover [0,2,1], [2,0,1], [0,1], [1,0], [1,2], [2,1], and duplicate [2,2] alongside sibling RT, asserting Established state, zero NOTIFICATIONs, intact NLRI, zero error logs, and delivery of sibling RT plus exactly one canonical 0x43/0x00 with the greatest valid state (2 > 1 > 0). Negative cases cover [0,2,5], [0,1,5], and multiple bogus [4,7], proving erroneous >2 instances are discarded and logged (exact error count 1, 1, 2) rather than winning numerically over valid states. Discrimination records verify Session.sanitizeOriginValidationState for both polarities.",
+  "requirement_sha": "3df1b8fd4adb787a",
+  "tests": {
+    "internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go::TestRFC8097MultipleInstancesSelectGreatest": "822b51cf4982d8a9",
+    "internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go::TestRFC8097MultipleInstancesSelectGreatest#2": "822b51cf4982d8a9"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go::TestRFC8097MultipleInstancesSelectGreatest": "58a3aadddb74f10f",
+    "internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go::TestRFC8097MultipleInstancesSelectGreatest#2": "58a3aadddb74f10f"
+  },
+  "verdict": "enforced"
+}

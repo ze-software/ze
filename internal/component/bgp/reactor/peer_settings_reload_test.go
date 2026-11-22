@@ -107,6 +107,11 @@ func TestPeerSettingsEqualDetectsEachSignificantField(t *testing.T) {
 			why:    "admits PrefixSID (code 40) from EBGP peers",
 		},
 		{
+			name:   "AcceptOriginValidationState",
+			mutate: func(s *PeerSettings) { s.AcceptOriginValidationState = !s.AcceptOriginValidationState },
+			why:    "RFC 8097 Section 2 admits Origin Validation State extended community (0x43/0x00) from EBGP peers",
+		},
+		{
 			name:   "PropagateSRv6PrefixSID",
 			mutate: func(s *PeerSettings) { s.PropagateSRv6PrefixSID = !s.PropagateSRv6PrefixSID },
 			why:    "RFC 8669 Section 8 admits PrefixSID (code 40) onto an EBGP peer's egress; an ignored edit leaves the operator's new boundary unenforced until restart",

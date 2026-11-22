@@ -1,0 +1,13 @@
+{
+  "note": "RFC 8097 Section 2 requires implementations by default to drop the origin validation state extended community if received from an EBGP peer without processing it further. TestRFC8097EBGPDropsOriginValidationByDefault (internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go) verifies untouched NewPeerSettings defaults AcceptOriginValidationState to false, parses real BGP config trees through PeersFromTree without accept-origin-validation-state (confirming default false), and drives Session.ReadAndProcess on that EBGP session: 0x43/0x00 instances (including invalid state 9) are dropped without processing or logging (zero rfc8097ErrorLines), sibling RT or sole-attribute removal and NLRI/Established state are preserved. Negative cases parse real config trees via PeersFromTree for iBGP (leaf omitted) and EBGP with accept-origin-validation-state=true, proving both retain valid 0x43/0x00 through Session.ReadAndProcess. Companion YANG test TestSchemaAcceptOriginValidationStateDefaultsFalse pins the boolean leaf default to false. Discrimination records verify Session.sanitizeOriginValidationState for both polarities.",
+  "requirement_sha": "8ebbc864dadc9468",
+  "tests": {
+    "internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go::TestRFC8097EBGPDropsOriginValidationByDefault": "822b51cf4982d8a9",
+    "internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go::TestRFC8097EBGPDropsOriginValidationByDefault#2": "822b51cf4982d8a9"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go::TestRFC8097EBGPDropsOriginValidationByDefault": "900b9746bce12c17",
+    "internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go::TestRFC8097EBGPDropsOriginValidationByDefault#2": "900b9746bce12c17"
+  },
+  "verdict": "enforced"
+}

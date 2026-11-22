@@ -148,6 +148,9 @@ func (e ExtendedCommunity) AppendDecoded(buf []byte) []byte {
 		// is no DSCP, and the firewall then drops the marking action.
 		buf = append(buf, "mark:"...)
 		return strconv.AppendUint(buf, uint64(e[7]&extCommDSCPMask), 10)
+	case extCommOriginValidationState:
+		// RFC 8097 Section 2: ignore Reserved octets [2..6] on decode.
+		return appendExtCommOriginValidationState(buf, e)
 	}
 	buf = append(buf, "0x"...)
 	buf = hex.AppendEncode(buf, e[0:2])

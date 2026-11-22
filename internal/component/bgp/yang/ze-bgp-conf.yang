@@ -916,6 +916,17 @@ module ze-bgp-conf {
                 ze:help "Advertise the BGP Prefix-SID attribute (code 40) to this EBGP peer.";
             }
 
+            leaf accept-origin-validation-state {
+                type boolean;
+                default false;
+                description "RFC 8097 Section 2 requires implementations to drop the BGP Prefix Origin Validation State
+                    extended community (type 0x43, sub-type 0x00) when received from an EBGP peer by default, without
+                    processing it further. Set this leaf to true only for a trusted EBGP peer (such as a route server
+                    or adjacent AS under common administration) to accept and process the community. Has no effect on
+                    IBGP sessions, where the community is always processed.";
+                ze:help "Accept RFC 8097 Origin Validation State extended community from this EBGP peer.";
+            }
+
             container community {
                 description "The container holds the send leaf-list alone. send names the community types Ze puts in an
                     outbound UPDATE, and it acts on no inbound message.";

@@ -411,6 +411,10 @@ func parsePeerSettings(name string, tree map[string]any, ip netip.Addr, peerAS, 
 		if v, ok := mapBool(sessionMap, "propagate-srv6-prefix-sid"); ok {
 			ps.PropagateSRv6PrefixSID = v
 		}
+		// RFC 8097 Section 2: accept Origin Validation State extended community from EBGP only when configured.
+		if v, ok := mapBool(sessionMap, "accept-origin-validation-state"); ok {
+			ps.AcceptOriginValidationState = v
+		}
 	}
 
 	// Send-community control from session > community > send (leaf-list).

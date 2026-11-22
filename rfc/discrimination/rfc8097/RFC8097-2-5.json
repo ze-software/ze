@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8097-2-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go::TestRFC8097ValueAboveTwoDiscardedAndLogged",
+    "unit-sha": "7f70c36bd56ee739",
+    "claim-sha": "f4c331630a266369",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_origin_validation.go::Session.sanitizeOriginValidationState",
+    "producer-sha": "7662d6d18825c652",
+    "break": "body of Session.sanitizeOriginValidationState replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8097-2-5",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go::TestRFC8097ValueAboveTwoDiscardedAndLogged",
+    "unit-sha": "7f70c36bd56ee739",
+    "claim-sha": "fed2ae8e3c904c7d",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_origin_validation.go::Session.sanitizeOriginValidationState",
+    "producer-sha": "7662d6d18825c652",
+    "break": "body of Session.sanitizeOriginValidationState replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

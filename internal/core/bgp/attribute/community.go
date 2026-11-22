@@ -320,7 +320,12 @@ func (e ExtendedCommunities) Len() int { return len(e) * 8 }
 // WriteTo writes the extended communities into buf at offset.
 func (e ExtendedCommunities) WriteTo(buf []byte, off int) int {
 	for i, ec := range e {
-		copy(buf[off+i*8:], ec[:])
+		pos := off + i*8
+		copy(buf[pos:], ec[:])
+		// RFC 8097 Section 2: "The Reserved field MUST be set to 0" on send.
+		if IsOriginValidationStateExtCommunity(ec) {
+			clear(buf[pos+2 : pos+7])
+		}
 	}
 	return len(e) * 8
 }

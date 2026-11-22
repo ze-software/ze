@@ -570,6 +570,14 @@ type PeerSettings struct {
 	// Has no effect on IBGP sessions (always accepted).
 	AcceptSRv6PrefixSID bool
 
+	// AcceptOriginValidationState allows the RFC 8097 Prefix Origin Validation
+	// State extended community (0x43/0x00) to be accepted from EBGP peers.
+	// RFC 8097 Section 2: "By default, implementations MUST drop the origin
+	// validation state extended community if received from an External BGP
+	// (EBGP) peer, without processing it further." Default false = drop from EBGP.
+	// Has no effect on IBGP sessions (always processed).
+	AcceptOriginValidationState bool
+
 	// PropagateSRv6PrefixSID allows the PrefixSID attribute (code 40) to be
 	// advertised to this EBGP peer.
 	// RFC 8669 Section 8: "The propagation to other ASes MUST be explicitly

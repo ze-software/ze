@@ -118,7 +118,7 @@ func genericCommunityHandler(code attribute.AttributeCode, valueSize int, p *fil
 			return
 		}
 		if len(ops[setIdx].Buf) > 0 {
-			p.Op(setIdx)
+			emitCommunityOp(p, code, setIdx, ops[setIdx].Buf)
 		}
 		if keepLLGROff >= 0 {
 			p.Keep(keepLLGROff, 4)
@@ -198,7 +198,7 @@ func genericCommunityHandler(code attribute.AttributeCode, valueSize int, p *fil
 			// RFC 9494 Section 4.3: "The LLGR_STALE community MUST NOT be
 			// removed when the route is further advertised."
 			if !set.has(v) || (code == attribute.AttrCommunity && bytes.Equal(v, llgrStaleWire[:])) {
-				p.Keep(i, valueSize)
+				emitKeptCommunityValue(p, code, i, valueSize, v)
 			}
 		}
 	}
@@ -206,7 +206,7 @@ func genericCommunityHandler(code attribute.AttributeCode, valueSize int, p *fil
 	// Then the additions, straight from their operation buffers.
 	for i := range ops {
 		if ops[i].Action == filterapi.AttrModAdd {
-			p.Op(i)
+			emitCommunityOp(p, code, i, ops[i].Buf)
 		}
 	}
 
@@ -215,6 +215,36 @@ func genericCommunityHandler(code attribute.AttributeCode, valueSize int, p *fil
 		return
 	}
 	emitCommunity(p, code)
+}
+
+// emitCommunityOp appends op i's buffer, zeroing any dirty RFC 8097 Reserved
+// octets [2..6] on 0x43/0x00 extended communities before wire emission.
+// RFC 8097 Section 2: "The Reserved field MUST be set to 0 and ignored upon the receipt of this community."
+func emitCommunityOp(p *filterapi.AttrPlan, code attribute.AttributeCode, opIdx int, buf []byte) {
+	if code == attribute.AttrExtCommunity {
+		if attribute.HasOriginValidationStateNonZeroReserved(buf) {
+			clean := append([]byte(nil), buf...)
+			attribute.ZeroOriginValidationStateReservedBytes(clean)
+			p.New(clean)
+			return
+		}
+	}
+	p.Op(opIdx)
+}
+
+// emitKeptCommunityValue keeps source slice [off:off+valueSize], or emits a
+// canonicalized 8-byte copy when an RFC 8097 0x43/0x00 entry carries non-zero
+// Reserved octets.
+func emitKeptCommunityValue(p *filterapi.AttrPlan, code attribute.AttributeCode, off, valueSize int, v []byte) {
+	if code == attribute.AttrExtCommunity {
+		if attribute.HasOriginValidationStateNonZeroReserved(v) {
+			clean := append([]byte(nil), v...)
+			attribute.ZeroOriginValidationStateReservedBytes(clean)
+			p.New(clean)
+			return
+		}
+	}
+	p.Keep(off, valueSize)
 }
 
 // emitCommunity writes an Optional Transitive header with the source's Partial

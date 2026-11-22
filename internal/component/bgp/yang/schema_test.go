@@ -101,3 +101,50 @@ func TestSchemaAcceptOwnDefaultsDisabled(t *testing.T) {
 	require.NoError(t, validator.Validate("bgp/accept-own", true))
 	require.Error(t, validator.Validate("bgp/accept-own", "not-a-bool"))
 }
+
+// TestSchemaAcceptOriginValidationStateDefaultsFalse proves RFC 8097 Section 2
+// at the YANG schema boundary: session/accept-origin-validation-state is a
+// boolean leaf defaulting to "false" across global, group, and peer scopes.
+func TestSchemaAcceptOriginValidationStateDefaultsFalse(t *testing.T) {
+	loader := yang.NewLoader()
+	require.NoError(t, loader.LoadEmbedded())
+	require.NoError(t, loader.LoadRegistered())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
+
+	mod := schema.GetModule("ze-bgp-conf")
+	require.NotNil(t, mod)
+	var found bool
+	for _, g := range mod.Grouping {
+		if g.Name != "peer-fields" {
+			continue
+		}
+		for _, c := range g.Container {
+			if c.Name != "session" {
+				continue
+			}
+			for _, leaf := range c.Leaf {
+				if leaf.Name != "accept-origin-validation-state" {
+					continue
+				}
+				found = true
+				require.NotNil(t, leaf.Type)
+				assert.Equal(t, "boolean", leaf.Type.Name)
+				require.NotNil(t, leaf.Default)
+				assert.Equal(t, "false", leaf.Default.Name)
+			}
+		}
+	}
+	require.True(t, found, "ze-bgp-conf peer-fields/session must declare accept-origin-validation-state leaf")
+
+	validator := yang.NewValidator(schema)
+	for _, path := range []string{
+		"bgp/group/session/accept-origin-validation-state",
+		"bgp/group/peer/session/accept-origin-validation-state",
+		"bgp/peer/session/accept-origin-validation-state",
+	} {
+		require.NoError(t, validator.Validate(path, false), path)
+		require.NoError(t, validator.Validate(path, true), path)
+		require.Error(t, validator.Validate(path, "not-a-bool"), path)
+	}
+}

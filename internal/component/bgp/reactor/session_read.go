@@ -533,6 +533,9 @@ func (s *Session) processValidatedMessage(hdr *message.Header, body []byte, buf 
 			// Partial stamping: an error must retain what the peer sent.
 			wireUpdate = s.publishBase(wireUpdate)
 		}
+		// RFC 8097 Section 2: enforce EBGP default drop, Reserved ignore,
+		// multi-instance greatest-value selection, and >2 discard + log.
+		wireUpdate = s.sanitizeOriginValidationState(wireUpdate)
 
 		// ActionNone or ActionAttributeDiscard: continue to dispatch.
 		// For attribute-discard, the malformed attributes are logged but the
