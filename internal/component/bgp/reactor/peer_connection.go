@@ -161,6 +161,12 @@ func (p *Peer) finishCollisionHandoff(session *Session, conn net.Conn, remoteID 
 	// Re-ask Section 6.8 rather than closing a now-preferred connection.
 	accept, closeExisting := session.detectCollision(remoteID)
 	if accept && closeExisting {
+		if session.State() == fsm.StateEstablished && session.peerAdvertisedGRFamilies() {
+			// RFC 4724 Section 4.2: "\"Acting accordingly\" in this context means that the previous TCP session MUST be closed, and the new one retained."
+			// RFC 4724 Section 4.2: "Since the previous connection is considered to be terminated, no NOTIFICATION message should be sent -- the previous TCP session is simply closed."
+			session.closeConn()
+			return
+		}
 		if err := session.CloseWithNotification(message.NotifyCease, message.NotifyCeaseConnectionCollision); err != nil {
 			sessionLogger().Debug("collision close failed", "error", err)
 		}

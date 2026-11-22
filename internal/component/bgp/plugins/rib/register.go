@@ -47,6 +47,7 @@ func init() {
 		ribevents.EventCache, ribevents.EventRoute, ribevents.EventBestChange, ribevents.EventReplayRequest,
 		ribevents.EventValidationChange, ribevents.EventValidationGate, "flowspec-change",
 		ribevents.EventFlowSpecGate, ribevents.EventGateQuery,
+		ribevents.EventSelectionDeferred, ribevents.EventSelectionComplete,
 	)
 
 	reg := registry.Registration{

@@ -121,9 +121,9 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 	require.NotNil(t, readyInput.Subscribe,
 		"ready RPC MUST include Subscribe — atomic subscription prevents race")
 	assert.ElementsMatch(t,
-		[]string{"update direction sent", "update direction received", "state", "refresh"},
+		[]string{"update direction sent", "update direction received", "state", "refresh", "negotiated", "eor"},
 		readyInput.Subscribe.Events,
-		"bgp rib subscribes to sent/received updates, state changes, and route-refresh")
+		"bgp rib subscribes to sent/received updates, state changes, route-refresh, negotiated capabilities, and End-of-RIB")
 	assert.Equal(t, "full", readyInput.Subscribe.Format,
 		"bgp rib uses full format for events")
 

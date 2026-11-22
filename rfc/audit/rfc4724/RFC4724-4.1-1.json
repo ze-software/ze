@@ -1,0 +1,18 @@
+{
+  "code": {
+    "internal/plugins/fib/kernel/fibkernel.go::fibKernel.run": "a6dc6671a22514b6",
+    "internal/plugins/fib/kernel/fibkernel.go::fibKernel.startupSweep": "012611c9dd8388a0",
+    "internal/plugins/fib/kernel/register.go::parseFIBConfig": "5d239669c5e02957"
+  },
+  "note": "Independent re-audit against RFC 4724 Section 4.1. TestRFC4724RestartingSpeakerForwardingState proves the full shutdown-and-restart retention lifecycle: parseFIBConfig defaults FlushOnStop to false; fib.run(ctx, false, ready) retains installed 198.51.100.0/24 across shutdown with 0 backend deletes; fib.run(ctx, true, ready) flushes 198.51.100.0/24 on shutdown (negative); and startupSweep() retains pre-restart surviving kernel routes without deleting them.",
+  "requirement_sha": "2ddf81c616c9924e",
+  "tests": {
+    "internal/plugins/fib/kernel/rfc4724_restarting_fib_test.go::TestRFC4724RestartingSpeakerForwardingState": "1577840eac90ea3b",
+    "internal/plugins/fib/kernel/rfc4724_restarting_fib_test.go::TestRFC4724RestartingSpeakerForwardingState#2": "1577840eac90ea3b"
+  },
+  "units": {
+    "internal/plugins/fib/kernel/rfc4724_restarting_fib_test.go::TestRFC4724RestartingSpeakerForwardingState": "16a11e28acc2223f",
+    "internal/plugins/fib/kernel/rfc4724_restarting_fib_test.go::TestRFC4724RestartingSpeakerForwardingState#2": "16a11e28acc2223f"
+  },
+  "verdict": "enforced"
+}

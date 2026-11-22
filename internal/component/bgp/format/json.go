@@ -321,6 +321,13 @@ func (e *JSONEncoder) Negotiated(peer *plugin.PeerInfo, neg DecodedNegotiated) s
 		inner["paths-limit"] = pathsLimit
 	}
 
+	if neg.GracefulRestart != nil {
+		inner["graceful-restart"] = map[string]any{
+			"restart-state": neg.GracefulRestart.RestartState,
+			"restart-time":  neg.GracefulRestart.RestartTime,
+		}
+	}
+
 	return e.marshal(outer)
 }
 

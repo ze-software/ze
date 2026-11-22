@@ -1189,15 +1189,33 @@ func (s *Session) returnReadBuffer(h BufHandle) {
 	returnReadBuffer(h)
 }
 
+// peerAdvertisedGRFamilies reports whether the peer's OPEN carried a Graceful
+// Restart Capability with one or more AFI/SAFI tuples.
+// RFC 4724 Section 5: "if the Graceful Restart Capability with one or more
+// AFIs/SAFIs has been received for the session".
+func (s *Session) peerAdvertisedGRFamilies() bool {
+	neg := s.Negotiated()
+	if neg == nil {
+		return false
+	}
+	if neg.GracefulRestart == nil {
+		return false
+	}
+	return len(neg.GracefulRestart.Families) > 0
+}
+
 // detectCollision checks if an incoming connection causes a collision.
 // RFC 4271 §6.8 - BGP Connection Collision Detection.
+// RFC 4724 §4.2 & §5 - Graceful Restart collision override on Established sessions.
 //
 // Returns (shouldAccept, shouldCloseExisting):
 //   - shouldAccept: true if the new connection should be accepted
 //   - shouldCloseExisting: true if the existing connection should be closed
 //
 // The collision resolution algorithm:
-//   - ESTABLISHED: always reject new connection
+//   - ESTABLISHED: if peer advertised GR with one or more AFIs/SAFIs, accept new
+//     and close existing without NOTIFICATION (RFC 4724 §4.2, §5); otherwise
+//     always reject new connection (RFC 4271 §6.8)
 //   - OPENCONFIRM: compare BGP IDs as uint32
 //   - If local_id < remote_id: accept new, close existing
 //   - If local_id >= remote_id: reject new, keep existing
@@ -1207,6 +1225,10 @@ func (s *Session) detectCollision(remoteBGPID uint32) (shouldAccept, shouldClose
 
 	switch state {
 	case fsm.StateEstablished:
+		// RFC 4724 Section 4.2: "In case it does not detect the termination of the old TCP session and still considers the BGP session as being established, it MUST treat the subsequent open connection from the peer as an indication of the termination of the old TCP session and act accordingly (when the Graceful Restart Capability has been received from the peer)."
+		if s.peerAdvertisedGRFamilies() {
+			return true, true
+		}
 		// RFC 4271 §6.8: "collision with existing BGP connection that is in
 		// the Established state causes closing of the newly created connection"
 		return false, false

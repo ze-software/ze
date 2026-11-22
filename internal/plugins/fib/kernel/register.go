@@ -293,14 +293,11 @@ func runFIBKernelPlugin(conn net.Conn) int {
 
 		if len(stale) > 0 {
 			delay := cfg.SweepDelay
+			sweepReady := make(chan struct{})
 			workers.Go(func() {
-				select {
-				case <-ctx.Done():
-					return
-				case <-time.After(delay):
-					f.sweepStale(stale)
-				}
+				f.waitAndSweepStale(ctx, stale, delay, sweepReady)
 			})
+			<-sweepReady
 		}
 
 		return nil

@@ -1,0 +1,23 @@
+{
+  "code": {
+    "internal/component/bgp/plugins/rib/selection_deferral.go::parseSelectionDeferralConfig": "31fc2f86f4297abb",
+    "internal/component/bgp/plugins/rib/selection_deferral.go::parseUpdateDelaySecondsValue": "ed335fcbc0d7e543",
+    "internal/component/bgp/plugins/rib/selection_deferral.go::selectionDeferral.arm": "b25f46f6be549a01",
+    "internal/component/bgp/reactor/update_delay.go::updateDelayHold.arm": "eb8f20388669c802"
+  },
+  "note": "Independent re-audit against RFC 4724 Section 4.1. TestRFC4724RIBSelectionDeferralPerFamilyAndTimer configures bgp update-delay max-delay using Ze's real string-serialized YANG leaf across two distinct positive values (\"45\" -> held at 44s, released + selected into Loc-RIB + SelectionComplete at 45s; \"90\" -> held at 89s, released + selected at 90s) and \"0\" (negative -> does not arm deferral, selects immediately). TestRFC4724SelectionDeferralTimerAndExclusions likewise proves 45s, 90s, and 0 in reactor updateDelayHold.",
+  "requirement_sha": "cbb447e289521efb",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc4724_selection_deferral_test.go::TestRFC4724RIBSelectionDeferralPerFamilyAndTimer": "cd1033289481d6dc",
+    "internal/component/bgp/plugins/rib/rfc4724_selection_deferral_test.go::TestRFC4724RIBSelectionDeferralPerFamilyAndTimer#2": "cd1033289481d6dc",
+    "internal/component/bgp/reactor/rfc4724_restarting_test.go::TestRFC4724SelectionDeferralTimerAndExclusions": "2a790bdde7cbdf75",
+    "internal/component/bgp/reactor/rfc4724_restarting_test.go::TestRFC4724SelectionDeferralTimerAndExclusions#2": "2a790bdde7cbdf75"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc4724_selection_deferral_test.go::TestRFC4724RIBSelectionDeferralPerFamilyAndTimer": "cb44b3a2df4c8a99",
+    "internal/component/bgp/plugins/rib/rfc4724_selection_deferral_test.go::TestRFC4724RIBSelectionDeferralPerFamilyAndTimer#2": "cb44b3a2df4c8a99",
+    "internal/component/bgp/reactor/rfc4724_restarting_test.go::TestRFC4724SelectionDeferralTimerAndExclusions": "246c58969a3aa7eb",
+    "internal/component/bgp/reactor/rfc4724_restarting_test.go::TestRFC4724SelectionDeferralTimerAndExclusions#2": "246c58969a3aa7eb"
+  },
+  "verdict": "enforced"
+}

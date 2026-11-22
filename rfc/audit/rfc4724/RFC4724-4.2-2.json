@@ -1,0 +1,17 @@
+{
+  "code": {
+    "internal/component/bgp/reactor/peer_connection.go::Peer.finishCollisionHandoff": "a7ce4ee0ae264f12",
+    "internal/component/bgp/reactor/session.go::Session.peerAdvertisedGRFamilies": "d534a44710245821"
+  },
+  "note": "Independent audit against RFC 4724 Section 4.2. Positive subtest drives Peer.finishCollisionHandoff on an Established session that received GR families and proves the previous TCP connection is closed with 0 bytes read and io.EOF (no NOTIFICATION sent) while the new connection remains retained in peer.inbound and readable/writable (byte written by newClient received on newServer). Negative subtest drives finishCollisionHandoff without GR families and proves the new connection receives NOTIFICATION Cease/Connection Collision (6/7) while the previous TCP session remains open (oldSession.Conn() != nil).",
+  "requirement_sha": "e5b8b1ed907dfc34",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4724_collision_test.go::TestRFC4724EstablishedGRCollisionClosesOldWithoutNotification": "c8a74024176be074",
+    "internal/component/bgp/reactor/rfc4724_collision_test.go::TestRFC4724EstablishedGRCollisionClosesOldWithoutNotification#2": "c8a74024176be074"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4724_collision_test.go::TestRFC4724EstablishedGRCollisionClosesOldWithoutNotification": "3e72e8b4a3093213",
+    "internal/component/bgp/reactor/rfc4724_collision_test.go::TestRFC4724EstablishedGRCollisionClosesOldWithoutNotification#2": "3e72e8b4a3093213"
+  },
+  "verdict": "enforced"
+}

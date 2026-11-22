@@ -26,6 +26,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 
 	sysctlevents "github.com/ze-software/ze/internal/component/sysctl/events"
@@ -940,4 +941,85 @@ func (f *fibKernel) run(ctx context.Context, flushOnStop bool, ready chan<- erro
 		f.flushRoutes()
 	}
 	logger().Info("fib-kernel: stopped")
+}
+
+// waitAndSweepStale coordinates post-restart stale-route removal with BGP
+// deferred route selection (RFC 4724 Section 4.1).
+//
+// RFC 4724 Section 4.1: "After the BGP speaker performs route selection, the
+// forwarding state of the speaker MUST be updated and any previously marked
+// stale information MUST be removed."
+//
+// If BGP signals SelectionDeferred with a MaxDelay longer than fallbackDelay,
+// the fallback safety-net timer is extended past MaxDelay so preserved
+// forwarding entries are not deleted before BGP completes route selection. As
+// soon as BGP emits SelectionComplete, sweepStale runs immediately. When no
+// BGP deferral is active, fallbackDelay (cfg.SweepDelay) triggers the sweep.
+func (f *fibKernel) waitAndSweepStale(ctx context.Context, stale map[string]string, fallbackDelay time.Duration, ready chan<- struct{}) {
+	eb := getEventBus()
+	deferredCh := make(chan time.Duration, 1)
+	completeCh := make(chan struct{}, 1)
+
+	if eb != nil {
+		unsubDef := ribevents.SelectionDeferred.Subscribe(eb, func(ev *ribevents.SelectionDeferredEvent) {
+			if ev == nil {
+				return
+			}
+			select {
+			case deferredCh <- ev.MaxDelay:
+			default:
+			}
+		})
+		defer unsubDef()
+
+		unsubDone := ribevents.SelectionComplete.Subscribe(eb, func(_ *ribevents.SelectionCompleteEvent) {
+			select {
+			case completeCh <- struct{}{}:
+			default:
+			}
+		})
+		defer unsubDone()
+	}
+
+	// Check whether bgp-rib already armed RFC 4724 Section 4.1 selection deferral
+	// during Stage 2 (OnConfigure) before fib-kernel subscribed at Stage 5
+	// (OnStarted). Reading after Subscribe guarantees we either observe the
+	// active deferral here or receive SelectionComplete on completeCh.
+	initialDelay := fallbackDelay
+	if active := ribevents.ActiveSelectionDeferral(); active > 0 {
+		if extended := active + fallbackDelay; extended > initialDelay {
+			initialDelay = extended
+		}
+	}
+
+	if ready != nil {
+		close(ready)
+	}
+
+	timer := time.NewTimer(initialDelay)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case maxDelay := <-deferredCh:
+			extended := maxDelay + fallbackDelay
+			if extended > fallbackDelay {
+				if !timer.Stop() {
+					select {
+					case <-timer.C:
+					default:
+					}
+				}
+				timer.Reset(extended)
+			}
+		case <-completeCh:
+			f.sweepStale(stale)
+			return
+		case <-timer.C:
+			f.sweepStale(stale)
+			return
+		}
+	}
 }

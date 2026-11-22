@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4724-4.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4724_collision_test.go::TestRFC4724EstablishedGRCollisionClosesOldWithoutNotification",
+    "unit-sha": "e3105f84fbc194e2",
+    "claim-sha": "15fd75eb8166eba5",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer_connection.go::Peer.finishCollisionHandoff",
+    "producer-sha": "64cb5a0ec079c1e9",
+    "break": "body of Peer.finishCollisionHandoff replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4724-4.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4724_collision_test.go::TestRFC4724EstablishedGRCollisionClosesOldWithoutNotification",
+    "unit-sha": "e3105f84fbc194e2",
+    "claim-sha": "3d0fb3d1b25280e0",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer_connection.go::Peer.finishCollisionHandoff",
+    "producer-sha": "64cb5a0ec079c1e9",
+    "break": "body of Peer.finishCollisionHandoff replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

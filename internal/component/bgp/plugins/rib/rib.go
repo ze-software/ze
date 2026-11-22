@@ -359,6 +359,11 @@ type RIBManager struct {
 	// pins (source_policy.go). Under peerMu; dropped when the session ends.
 	sourcePolicy map[uint64]*sourcePolicyTxn
 
+	// selectionDefer holds the RFC 4724 Section 4.1 per-family route selection
+	// deferral state when `bgp update-delay max-delay` is configured.
+	selectionDefer selectionDeferral
+	deferClk       clock.Clock
+
 	// ribInPool stores routes received FROM non-BGP protocols (e.g. BMP),
 	// keyed by source protocol then protocol-defined peer key. BMP keys are
 	// composite "router:peerIP" strings (see bmpCompositeKey and
@@ -843,7 +848,7 @@ func runRIBPlugin(conn net.Conn) int {
 	// Register event subscriptions atomically with startup completion.
 	// Included in the "ready" RPC so the engine registers them before SignalAPIReady,
 	// ensuring the rib sees every "sent" event from the very first route.
-	p.SetStartupSubscriptions([]string{"update direction sent", "update direction received", stateEvent, "refresh"}, nil, "full")
+	p.SetStartupSubscriptions([]string{"update direction sent", "update direction received", stateEvent, "refresh", "negotiated", "eor"}, nil, "full")
 	// The receive store's eligibility change, through the SDK so a forked
 	// bgp-rib hears it too: the daemon's own bus never reaches a subprocess.
 	// Enveloped, so dispatchText tells it from the BGP events. The gate's
@@ -1491,6 +1496,7 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 		return // Zero is unrecorded, never a wildcard source owner.
 	}
 	if state == rpc.SessionStateDown {
+		r.selectionDefer.onPeerDown(peerAddr)
 		if se.Reason != rpc.ReasonPeerRemoved {
 			r.peerMu.RLock()
 			current := r.sourceSessionCurrentLocked(peerOwner, se.DestinationSession)
@@ -1600,6 +1606,7 @@ func (r *RIBManager) handleState(event *Event) {
 		return // Zero is unrecorded, never a wildcard source owner.
 	}
 	if state == "down" {
+		r.selectionDefer.onPeerDown(peerAddr)
 		if event.Reason != rpc.ReasonPeerRemoved {
 			r.peerMu.RLock()
 			current := r.sourceSessionCurrentLocked(peerOwner, event.DestinationSession)

@@ -82,6 +82,7 @@ func (r *RIBManager) shutdownReceivedSources() {
 			cancel()
 		}
 		r.sourceLeases.stop()
+		r.selectionDefer.stop()
 		r.backgroundWG.Wait()
 		r.grTimers.Wait()
 		r.stopSelectedDispatch()

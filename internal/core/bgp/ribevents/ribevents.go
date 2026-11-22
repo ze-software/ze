@@ -22,6 +22,8 @@ package ribevents
 import (
 	"encoding/json"
 	"net/netip"
+	"sync/atomic"
+	"time"
 
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 
@@ -38,11 +40,62 @@ const Namespace = "bgp-rib"
 // RIB event types. These constants remain so code that still references
 // them by name (external plugin authors, registries) keeps compiling.
 const (
-	EventCache         = "cache"
-	EventRoute         = "route"
-	EventBestChange    = "best-change"    // protocol RIB published a best-path change
-	EventReplayRequest = "replay-request" // downstream consumer asking for full table replay
+	EventCache             = "cache"
+	EventRoute             = "route"
+	EventBestChange        = "best-change"        // protocol RIB published a best-path change
+	EventReplayRequest     = "replay-request"     // downstream consumer asking for full table replay
+	EventSelectionDeferred = "selection-deferred" // RFC 4724 Section 4.1 selection deferral armed
+	EventSelectionComplete = "selection-complete" // RFC 4724 Section 4.1 deferred route selection finished
 )
+
+// SelectionDeferredEvent signals that the BGP RIB armed RFC 4724 Section 4.1
+// route selection deferral bounded by MaxDelay (Selection_Deferral_Timer).
+// Downstream FIB writers extend their stale-route sweep deadline past MaxDelay
+// so preserved forwarding entries are not deleted before BGP selects routes.
+type SelectionDeferredEvent struct {
+	MaxDelay time.Duration `json:"max_delay"`
+}
+
+// SelectionCompleteEvent signals that the BGP RIB finished RFC 4724 Section 4.1
+// deferred route selection across all families and published its selected routes,
+// so downstream FIB writers can now sweep any remaining unrefreshed stale routes.
+type SelectionCompleteEvent struct{}
+
+// SelectionDeferred is the typed EventBus handle for EventSelectionDeferred.
+var SelectionDeferred = events.Register[*SelectionDeferredEvent](Namespace, EventSelectionDeferred)
+
+// SelectionComplete is the typed EventBus handle for EventSelectionComplete.
+var SelectionComplete = events.Register[*SelectionCompleteEvent](Namespace, EventSelectionComplete)
+
+// selectionDeferralMaxDelayNS holds the active RFC 4724 Section 4.1
+// Selection_Deferral_Timer upper bound (in nanoseconds) while bgp-rib is
+// deferring route selection. Recording this state alongside the EventBus
+// signal closes the startup race where bgp-rib arms deferral at Stage 2
+// (OnConfigure) before downstream FIB writers subscribe at Stage 5 (OnStarted).
+var selectionDeferralMaxDelayNS atomic.Int64
+
+// NoteSelectionDeferred records that bgp-rib armed RFC 4724 Section 4.1
+// route selection deferral bounded by maxDelay.
+func NoteSelectionDeferred(maxDelay time.Duration) {
+	if maxDelay <= 0 {
+		selectionDeferralMaxDelayNS.Store(0)
+		return
+	}
+	selectionDeferralMaxDelayNS.Store(maxDelay.Nanoseconds())
+}
+
+// ClearSelectionDeferred clears the active RFC 4724 Section 4.1 selection
+// deferral state once deferred route selection completes or stops.
+func ClearSelectionDeferred() {
+	selectionDeferralMaxDelayNS.Store(0)
+}
+
+// ActiveSelectionDeferral returns the active RFC 4724 Section 4.1
+// Selection_Deferral_Timer duration if bgp-rib is currently deferring route
+// selection, or 0 if no deferral is active.
+func ActiveSelectionDeferral() time.Duration {
+	return time.Duration(selectionDeferralMaxDelayNS.Load())
+}
 
 // BestChangeAction values for BestChangeEntry.Action. Aliases on the typed
 // routeaction.Action so consumers that already imported these names keep

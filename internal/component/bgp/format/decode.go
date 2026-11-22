@@ -375,6 +375,13 @@ func refreshSubtypeName(subtype uint8) string {
 	return string(out)
 }
 
+// DecodedGracefulRestart holds the peer's advertised Graceful Restart capability
+// fields for API/plugin event consumers (RFC 4724 Section 3).
+type DecodedGracefulRestart struct {
+	RestartState bool
+	RestartTime  uint16
+}
+
 // DecodedNegotiated holds negotiated capabilities for API formatting.
 // Sent after OPEN exchange to inform plugins of negotiated capabilities.
 type DecodedNegotiated struct {
@@ -398,6 +405,8 @@ type DecodedNegotiated struct {
 	PathsLimitSend map[string]uint16
 	// PathsLimitRecv maps family to path count limit from us (constrains peer's send).
 	PathsLimitRecv map[string]uint16
+	// GracefulRestart is non-nil when the peer advertised the RFC 4724 Graceful Restart Capability.
+	GracefulRestart *DecodedGracefulRestart
 }
 
 // NegotiatedToDecoded converts capability.Negotiated to DecodedNegotiated.
@@ -470,6 +479,14 @@ func NegotiatedToDecoded(neg *capability.Negotiated) DecodedNegotiated {
 		}
 	}
 
+	var gr *DecodedGracefulRestart
+	if neg.GracefulRestart != nil {
+		gr = &DecodedGracefulRestart{
+			RestartState: neg.GracefulRestart.RestartState,
+			RestartTime:  neg.GracefulRestart.RestartTime,
+		}
+	}
+
 	return DecodedNegotiated{
 		MessageSize:     msgSize,
 		HoldTime:        neg.HoldTime,
@@ -481,5 +498,6 @@ func NegotiatedToDecoded(neg *capability.Negotiated) DecodedNegotiated {
 		ExtendedNextHop: extNH,
 		PathsLimitSend:  plSend,
 		PathsLimitRecv:  plRecv,
+		GracefulRestart: gr,
 	}
 }

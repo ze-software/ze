@@ -1,0 +1,14 @@
+{
+  "code": {
+    "internal/plugins/fib/kernel/fibkernel.go::fibKernel.startupSweep": "012611c9dd8388a0"
+  },
+  "note": "Independent re-audit against RFC 4724 Section 4.1 and {single-polarity: positive}. startupSweep() only records stale ownership in memory and performs zero backend adds, replaces, or deletes, leaving surviving kernel forwarding entries identical to fresh routes with no differentiating code path. TestRFC4724RestartingSpeakerForwardingState asserts backend.deleted==0, backend.replaced==0, and backend.added==0 after startupSweep().",
+  "requirement_sha": "af0da39317e5e83a",
+  "tests": {
+    "internal/plugins/fib/kernel/rfc4724_restarting_fib_test.go::TestRFC4724RestartingSpeakerForwardingState": "1577840eac90ea3b"
+  },
+  "units": {
+    "internal/plugins/fib/kernel/rfc4724_restarting_fib_test.go::TestRFC4724RestartingSpeakerForwardingState": "16a11e28acc2223f"
+  },
+  "verdict": "enforced"
+}

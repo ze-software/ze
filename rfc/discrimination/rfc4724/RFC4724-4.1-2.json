@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4724-4.1-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/fib/kernel/rfc4724_restarting_fib_test.go::TestRFC4724RestartingSpeakerForwardingState",
+    "unit-sha": "4b79543b628ad234",
+    "claim-sha": "99e0bb24d7482bb9",
+    "route": "revert",
+    "producer": "internal/plugins/fib/kernel/fibkernel.go::fibKernel.startupSweep",
+    "producer-sha": "c083b066ce3190a3",
+    "break": "body of fibKernel.startupSweep replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4724-4.1-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/fib/kernel/rfc4724_restarting_fib_test.go::TestRFC4724RestartingSpeakerForwardingState",
+    "unit-sha": "4b79543b628ad234",
+    "claim-sha": "5e5f5abbfeb1b840",
+    "route": "revert",
+    "producer": "internal/plugins/fib/kernel/fibkernel.go::fibKernel.processEvent",
+    "producer-sha": "3dcf50f357bfb0a3",
+    "break": "body of fibKernel.processEvent replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

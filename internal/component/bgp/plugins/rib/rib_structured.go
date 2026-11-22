@@ -114,6 +114,9 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	}
 
 	wu := msg.WireUpdate
+	if eorFam, isEOR := wu.IsEOR(); isEOR {
+		r.selectionDefer.onPeerEOR(peerAddr, eorFam)
+	}
 	source, err := r.sourceLeases.acquire(context.Background(), peerAddr, se.PeerOwner, msg.SourceReceipt, se.ConnectionID)
 	if err != nil {
 		r.sourceLeases.reportFailures(context.Background())
@@ -407,6 +410,13 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	var multiFam map[family.Family][]bestChangeEntry
 
 	for _, ap := range affected {
+		// RFC 4724 Section 4.1: "However, it MUST defer route selection for an
+		// address family until it either (a) receives the End-of-RIB marker from
+		// all its peers [...] or (b) the Selection_Deferral_Timer referred to
+		// below has expired."
+		if r.selectionDefer.isDeferred(ap.fam) {
+			continue
+		}
 		change, ok := r.checkRouteBestChange(ap.fam, ap.nlriBytes, ap.addPath, ap.withdraw, forward)
 		if !ok {
 			continue

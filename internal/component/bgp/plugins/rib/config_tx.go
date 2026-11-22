@@ -8,8 +8,10 @@
 package rib
 
 import (
+	"net/netip"
 	"reflect"
 	"sync/atomic"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/core/bgp/asn"
@@ -18,12 +20,14 @@ import (
 
 // ribConfig holds the BGP settings and the system distance table the RIB reads.
 type ribConfig struct {
-	maximumPaths uint32
-	relaxASPath  bool
-	blackhole    map[configjson.PeerConfigKey]blackholeConfig
-	notation     asn.Notation
-	redirect     flowSpecRedirectConfig
-	distances    map[string]uint8
+	maximumPaths      uint32
+	relaxASPath       bool
+	blackhole         map[configjson.PeerConfigKey]blackholeConfig
+	notation          asn.Notation
+	redirect          flowSpecRedirectConfig
+	distances         map[string]uint8
+	selectionDeferral time.Duration
+	expectedPeers     []netip.Addr
 }
 
 // unconfiguredRIB is what the rib runs before any config: one best path, no
@@ -107,6 +111,10 @@ func parseRIBConfigSections(cfg ribConfig, sections []sdk.ConfigSection) (ribCon
 		if err != nil {
 			return ribConfig{}, false, err
 		}
+		cfg.selectionDeferral, cfg.expectedPeers, err = parseSelectionDeferralConfig(bgpCfg)
+		if err != nil {
+			return ribConfig{}, false, err
+		}
 		return cfg, true, nil
 	}
 	if readDistances {
@@ -135,6 +143,11 @@ func (r *RIBManager) installConfig(cfg ribConfig, recordsNotation bool) error {
 	previousRedirect := r.flowSpecRedirectCfg.Load()
 	redirect := cfg.redirect
 	r.flowSpecRedirectCfg.Store(&redirect)
+	if cfg.selectionDeferral > 0 {
+		if r.selectionDefer.arm(r.deferClock(), cfg.selectionDeferral, cfg.expectedPeers, r.reselectDeferredFamily, r.emitSelectionComplete) {
+			r.emitSelectionDeferred(cfg.selectionDeferral)
+		}
+	}
 	if recordsNotation {
 		asn.Record(cfg.notation)
 	}

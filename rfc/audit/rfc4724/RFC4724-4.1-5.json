@@ -1,0 +1,25 @@
+{
+  "code": {
+    "internal/component/bgp/plugins/rib/selection_deferral.go::parseSelectionDeferralConfig": "31fc2f86f4297abb",
+    "internal/component/bgp/plugins/rib/selection_deferral.go::selectionDeferral.evaluateReleasesLocked": "84df04dfd75dfc77",
+    "internal/component/bgp/plugins/rib/selection_deferral.go::selectionDeferral.onPeerEOR": "14f68905476f36a7",
+    "internal/component/bgp/plugins/rib/selection_deferral.go::selectionDeferral.onPeerNegotiated": "e82e50a9db1eeac4",
+    "internal/component/bgp/reactor/update_delay.go::updateDelayHold.peerEndOfRIB": "2c16c6cd50063e3e",
+    "internal/component/bgp/reactor/update_delay.go::updateDelayHold.trackLocked": "398180f4f0efdb3b"
+  },
+  "note": "Independent re-audit against RFC 4724 Section 4.1. All three previous defects are fixed: (1) parseSelectionDeferralConfig now uses configjson.ForEachPeer + configjson.PeerRemoteIP, skipping dynamic group templates and DynamicPeerIP, and TestRFC4724RIBSelectionDeferralPerFamilyAndTimer exercises real Ze BGP config JSON (named standalone peers, grouped peer, dynamic group template, string leaves); (2) knownFamilies ensures route-less converged families (proven via IPv4Multicast) are marked released while other families remain deferred; (3) both TestRFC4724RIBSelectionDeferralPerFamilyAndTimer and TestRFC4724SelectionDeferralTimerAndExclusions use 2 non-excluded GR peers plus 1 R=1 peer and 1 non-GR peer, proving partial EoR (1 of 2), duplicate EoR, and unnegotiated-family EoR keep deferral active while 2 of 2 releases per-family without waiting for R=1 or non-GR peers, and remaining deferred families release at Selection_Deferral_Timer expiry.",
+  "requirement_sha": "16fc568fee109adc",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc4724_selection_deferral_test.go::TestRFC4724RIBSelectionDeferralPerFamilyAndTimer": "cd1033289481d6dc",
+    "internal/component/bgp/plugins/rib/rfc4724_selection_deferral_test.go::TestRFC4724RIBSelectionDeferralPerFamilyAndTimer#2": "cd1033289481d6dc",
+    "internal/component/bgp/reactor/rfc4724_restarting_test.go::TestRFC4724SelectionDeferralTimerAndExclusions": "2a790bdde7cbdf75",
+    "internal/component/bgp/reactor/rfc4724_restarting_test.go::TestRFC4724SelectionDeferralTimerAndExclusions#2": "2a790bdde7cbdf75"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc4724_selection_deferral_test.go::TestRFC4724RIBSelectionDeferralPerFamilyAndTimer": "cb44b3a2df4c8a99",
+    "internal/component/bgp/plugins/rib/rfc4724_selection_deferral_test.go::TestRFC4724RIBSelectionDeferralPerFamilyAndTimer#2": "cb44b3a2df4c8a99",
+    "internal/component/bgp/reactor/rfc4724_restarting_test.go::TestRFC4724SelectionDeferralTimerAndExclusions": "246c58969a3aa7eb",
+    "internal/component/bgp/reactor/rfc4724_restarting_test.go::TestRFC4724SelectionDeferralTimerAndExclusions#2": "246c58969a3aa7eb"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,17 @@
+{
+  "code": {
+    "internal/plugins/fib/kernel/fibkernel.go::fibKernel.processEvent": "9c4f9cc3eda43144",
+    "internal/plugins/fib/kernel/fibkernel.go::fibKernel.startupSweep": "012611c9dd8388a0"
+  },
+  "note": "Independent re-audit against RFC 4724 Section 4.1. TestRFC4724RestartingSpeakerForwardingState proves both shutdown retention and restart stale-marking: startupSweep() retains both surviving kernel routes with 0 deletes and marks both in fib.retained and fib.staleTables (positive); processEvent clears staleTables on refreshed 198.51.100.0/24 and leaves newly installed post-restart 198.18.0.0/24 unmarked (negative); and post-selection sweep deletes only the unrefreshed stale prefix.",
+  "requirement_sha": "b6752ce2c70f05c9",
+  "tests": {
+    "internal/plugins/fib/kernel/rfc4724_restarting_fib_test.go::TestRFC4724RestartingSpeakerForwardingState": "1577840eac90ea3b",
+    "internal/plugins/fib/kernel/rfc4724_restarting_fib_test.go::TestRFC4724RestartingSpeakerForwardingState#2": "1577840eac90ea3b"
+  },
+  "units": {
+    "internal/plugins/fib/kernel/rfc4724_restarting_fib_test.go::TestRFC4724RestartingSpeakerForwardingState": "16a11e28acc2223f",
+    "internal/plugins/fib/kernel/rfc4724_restarting_fib_test.go::TestRFC4724RestartingSpeakerForwardingState#2": "16a11e28acc2223f"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC4724-4.1-8",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc4724_selection_deferral_test.go::TestRFC4724RIBSelectionDeferralPerFamilyAndTimer",
+    "unit-sha": "3f1ebe0c25a8adba",
+    "claim-sha": "1d25610291a78d8f",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/selection_deferral.go::selectionDeferral.arm",
+    "producer-sha": "793bf7a2d046cfb5",
+    "break": "body of selectionDeferral.arm replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4724-4.1-8",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc4724_selection_deferral_test.go::TestRFC4724RIBSelectionDeferralPerFamilyAndTimer",
+    "unit-sha": "3f1ebe0c25a8adba",
+    "claim-sha": "5439f4ce87770927",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/selection_deferral.go::selectionDeferral.arm",
+    "producer-sha": "793bf7a2d046cfb5",
+    "break": "body of selectionDeferral.arm replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4724-4.1-8",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4724_restarting_test.go::TestRFC4724SelectionDeferralTimerAndExclusions",
+    "unit-sha": "0fab9d2230681119",
+    "claim-sha": "5a0c662f3c2de38c",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/update_delay.go::updateDelayHold.arm",
+    "producer-sha": "e515588b240f640f",
+    "break": "body of updateDelayHold.arm replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4724-4.1-8",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4724_restarting_test.go::TestRFC4724SelectionDeferralTimerAndExclusions",
+    "unit-sha": "0fab9d2230681119",
+    "claim-sha": "29f9c7ed841fd283",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/update_delay.go::updateDelayHold.arm",
+    "producer-sha": "e515588b240f640f",
+    "break": "body of updateDelayHold.arm replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

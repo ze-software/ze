@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC4724-4.1-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc4724_selection_deferral_test.go::TestRFC4724RIBSelectionDeferralPerFamilyAndTimer",
+    "unit-sha": "3f1ebe0c25a8adba",
+    "claim-sha": "1487e087c21a7e48",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/selection_deferral.go::selectionDeferral.onPeerEOR",
+    "producer-sha": "608d74c28bacdf10",
+    "break": "body of selectionDeferral.onPeerEOR replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4724-4.1-5",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc4724_selection_deferral_test.go::TestRFC4724RIBSelectionDeferralPerFamilyAndTimer",
+    "unit-sha": "3f1ebe0c25a8adba",
+    "claim-sha": "a4be717602760ffe",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/selection_deferral.go::selectionDeferral.onPeerEOR",
+    "producer-sha": "608d74c28bacdf10",
+    "break": "body of selectionDeferral.onPeerEOR replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4724-4.1-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4724_restarting_test.go::TestRFC4724SelectionDeferralTimerAndExclusions",
+    "unit-sha": "0fab9d2230681119",
+    "claim-sha": "34a64c4028921799",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/update_delay.go::updateDelayHold.peerEndOfRIB",
+    "producer-sha": "47dbd0cd6ec46a7a",
+    "break": "body of updateDelayHold.peerEndOfRIB replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4724-4.1-5",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4724_restarting_test.go::TestRFC4724SelectionDeferralTimerAndExclusions",
+    "unit-sha": "0fab9d2230681119",
+    "claim-sha": "cb4e98d8cdf1a824",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/update_delay.go::updateDelayHold.peerEndOfRIB",
+    "producer-sha": "47dbd0cd6ec46a7a",
+    "break": "body of updateDelayHold.peerEndOfRIB replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

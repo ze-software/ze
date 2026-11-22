@@ -67,6 +67,13 @@ func (r *RIBManager) dispatchText(jsonStr string) {
 		}
 		return
 	}
+	handledDeferral, deferErr := r.handleSelectionDeferralText(jsonStr)
+	if deferErr != nil {
+		logger().Warn("bgp-rib: selection-deferral event ignored", "code", codeDoctorBGPSelectedOutput, "error", deferErr)
+	}
+	if handledDeferral {
+		return
+	}
 	event, err := parseEvent([]byte(jsonStr))
 	if err != nil {
 		logger().Warn("parse error", "error", err, "line", jsonStr[:min(100, len(jsonStr))])
@@ -152,9 +159,15 @@ func receivedFamilyAttrs(event *Event, fam family.Family, raw []byte) ([]byte, e
 // the structured path's best-path publication for both adds and withdrawals.
 func (r *RIBManager) reconcileReceived(event *Event) {
 	for _, fam := range event.RawWithdrawnFamilies() {
+		if r.selectionDefer.isDeferred(fam) {
+			continue
+		}
 		r.reconcileReceivedNLRIs(fam, event.GetRawWithdrawnBytes(fam), event.AddPath[fam], true)
 	}
 	for _, fam := range event.RawNLRIFamilies() {
+		if r.selectionDefer.isDeferred(fam) {
+			continue
+		}
 		r.reconcileReceivedNLRIs(fam, event.GetRawNLRIBytes(fam), event.AddPath[fam], false)
 	}
 }
