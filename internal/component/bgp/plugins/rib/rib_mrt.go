@@ -84,6 +84,8 @@ func (r *RIBManager) dumpRIBForMRT(visitor registry.RIBDumpVisitor) {
 		}
 
 		for _, fam := range s.rib.Families() {
+			// Read before IterateFamily: PeerRIB.IsAddPath takes the lock the walk holds.
+			addPath := s.rib.IsAddPath(fam)
 			// Snapshot route entries under short per-family lock, then process outside.
 			var routes []routeSnap
 			s.rib.IterateFamily(fam, func(nlriBytes []byte, entry storage.RouteEntry) bool {
@@ -100,11 +102,33 @@ func (r *RIBManager) dumpRIBForMRT(visitor registry.RIBDumpVisitor) {
 				if len(attrBuf) == 0 {
 					continue
 				}
+				// RFC 8050 Section 4.1: "This adds a field to the RIB Entries record to
+				// store the Path Identifier when used with the RIB_IPV4_UNICAST_ADDPATH,
+				// RIB_IPV4_MULTICAST_ADDPATH, RIB_IPV6_UNICAST_ADDPATH, and
+				// RIB_IPV6_MULTICAST_ADDPATH subtypes."
+				// For ADD-PATH unicast families PeerRIB keys carry the 4-octet big-endian
+				// Path Identifier ahead of [prefixLen, prefix...]; peel it so the MRT
+				// TABLE_DUMP_V2 writer stores the route's real Path Identifier and clean prefix.
+				var pathID uint32
+				var prefixLen uint8
+				var prefix []byte
 				switch {
-				case (fam.AFI == 1 || fam.AFI == 2) && fam.SAFI == 1 && len(rt.nlri) > 0:
-					visitor.OnRoute(peerIdx, afi, safi, rt.nlri[0], rt.nlri[1:], attrBuf)
+				case (fam.AFI == 1 || fam.AFI == 2) && fam.SAFI == 1 && addPath && len(rt.nlri) > 4:
+					pathID = binary.BigEndian.Uint32(rt.nlri[:4])
+					prefixLen = rt.nlri[4]
+					prefix = rt.nlri[5:]
+				case (fam.AFI == 1 || fam.AFI == 2) && fam.SAFI == 1 && !addPath && len(rt.nlri) > 0:
+					prefixLen = rt.nlri[0]
+					prefix = rt.nlri[1:]
 				default:
-					visitor.OnRoute(peerIdx, afi, safi, 0, rt.nlri, attrBuf)
+					// RFC 8050 Section 4.2: RIB_GENERIC_ADDPATH retains the Path Identifier
+					// inside the raw NLRI blob rather than in the RIB Entry.
+					prefix = rt.nlri
+				}
+				if visitor.OnRouteAddPath != nil {
+					visitor.OnRouteAddPath(peerIdx, afi, safi, pathID, prefixLen, prefix, attrBuf)
+				} else if visitor.OnRoute != nil {
+					visitor.OnRoute(peerIdx, afi, safi, prefixLen, prefix, attrBuf)
 				}
 			}
 		}

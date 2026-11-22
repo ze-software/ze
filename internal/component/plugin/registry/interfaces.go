@@ -68,8 +68,12 @@ type MessageCallback interface {
 type RIBDumpVisitor struct {
 	// OnPeer is called once per peer. Returns the peer index for route entries.
 	OnPeer func(peerAddr string, peerASN uint32, bgpID [4]byte, isIPv6 bool) uint16
-	// OnRoute is called for each route. attrs contains full wire-format path attributes.
+	// OnRoute is called for each route when OnRouteAddPath is nil. attrs contains full wire-format path attributes.
 	OnRoute func(peerIndex uint16, afi, safi uint16, prefixLen uint8, prefix []byte, attrs []byte)
+	// OnRouteAddPath, when non-nil, receives each route together with its RFC 7911
+	// Path Identifier (0 when ADD-PATH is not active for the family).
+	// RFC 8050 Section 4.1.
+	OnRouteAddPath func(peerIndex uint16, afi, safi uint16, pathID uint32, prefixLen uint8, prefix []byte, attrs []byte)
 }
 
 // RIBDumpCallback iterates all peers and routes for MRT TABLE_DUMP_V2 snapshots.

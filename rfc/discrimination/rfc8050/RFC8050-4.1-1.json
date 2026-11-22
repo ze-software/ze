@@ -2,6 +2,28 @@
   {
     "rid": "RFC8050-4.1-1",
     "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc8050_mrt_addpath_test.go::TestRFC8050MRTSnapshotPreservesPathIDs",
+    "unit-sha": "bd4dd9b2f72f41d3",
+    "claim-sha": "74a51459e50dc7ec",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_mrt.go::RIBManager.dumpRIBForMRT",
+    "producer-sha": "3b37cca39266ccd1",
+    "break": "body of RIBManager.dumpRIBForMRT replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8050-4.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc8050_mrt_addpath_test.go::TestRFC8050MRTSnapshotPreservesPathIDs",
+    "unit-sha": "bd4dd9b2f72f41d3",
+    "claim-sha": "dc64268e68718cdb",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_mrt.go::RIBManager.dumpRIBForMRT",
+    "producer-sha": "3b37cca39266ccd1",
+    "break": "body of RIBManager.dumpRIBForMRT replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8050-4.1-1",
+    "polarity": "positive",
     "unit": "internal/mrt/mrt_test.go::TestRIBRecordAddPathRoundTrip",
     "unit-sha": "fe92a20175b18df4",
     "claim-sha": "7af0903f086addb9",
@@ -31,5 +53,27 @@
     "producer": "internal/mrt/decode.go::decodeRIBEntries",
     "producer-sha": "7ab36476c3137c6a",
     "break": "body of decodeRIBEntries replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8050-4.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/mrt/rfc8050_dump_addpath_test.go::TestRFC8050DumpV2AddPathStoresPathID",
+    "unit-sha": "16d232f14ff2d86f",
+    "claim-sha": "41f22de8c452d3ed",
+    "route": "revert",
+    "producer": "internal/plugins/mrt/dump.go::Component.writeTableDumpV2",
+    "producer-sha": "e24b5ff96b82474d",
+    "break": "body of Component.writeTableDumpV2 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8050-4.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/mrt/rfc8050_dump_addpath_test.go::TestRFC8050DumpV2AddPathStoresPathID",
+    "unit-sha": "16d232f14ff2d86f",
+    "claim-sha": "1a75e7ea5c1f3fa7",
+    "route": "revert",
+    "producer": "internal/plugins/mrt/dump.go::Component.writeTableDumpV2",
+    "producer-sha": "e24b5ff96b82474d",
+    "break": "body of Component.writeTableDumpV2 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

@@ -137,6 +137,41 @@ func (c *Component) writeTableDumpV2() {
 	var seq uint32
 	pitWritten := false
 
+	writeRoute := func(peerIndex, afi, _ uint16, pathID uint32, prefixLen uint8, prefix, attrs []byte) {
+		if !pitWritten {
+			pitWritten = true
+			c.writePeerIndexTable(hdrSize, now, peers)
+		}
+
+		seq++
+		// RFC 8050 Section 4.1: "This adds a field to the RIB Entries record to
+		// store the Path Identifier when used with the RIB_IPV4_UNICAST_ADDPATH,
+		// RIB_IPV4_MULTICAST_ADDPATH, RIB_IPV6_UNICAST_ADDPATH, and
+		// RIB_IPV6_MULTICAST_ADDPATH subtypes."
+		entry := mrtfmt.RIBEntry{
+			PeerIndex:  peerIndex,
+			OrigTime:   ts,
+			PathID:     pathID,
+			Attributes: attrs,
+		}
+
+		subtype := ribSubtype(afi, addPath)
+
+		needed := hdrSize + 4 + 1 + len(prefix) + 2 + 8 + 2 + len(attrs) + 4
+		buf := pb.b
+		if needed > len(buf) {
+			buf = make([]byte, needed)
+		}
+
+		msgLen := mrtfmt.WriteRIBHeader(buf, hdrSize, seq, prefixLen, prefix)
+		msgLen += mrtfmt.WriteRIBEntries(buf, hdrSize+msgLen, []mrtfmt.RIBEntry{entry}, addPath)
+		writeHeader(buf, c.config.ExtendedTimestamp, now, mrtfmt.TypeTableDumpV2, subtype, msgLen)
+
+		if err := c.routes.Write(buf[:hdrSize+msgLen]); err != nil {
+			c.logger.Warn("mrt: write rib entry", "error", err)
+		}
+	}
+
 	visitor := registry.RIBDumpVisitor{
 		OnPeer: func(peerAddr string, peerASN uint32, bgpID [4]byte, isIPv6 bool) uint16 {
 			idx := uint16(len(peers))
@@ -155,35 +190,10 @@ func (c *Component) writeTableDumpV2() {
 			peers = append(peers, pe)
 			return idx
 		},
-		OnRoute: func(peerIndex, afi, _ uint16, prefixLen uint8, prefix, attrs []byte) {
-			if !pitWritten {
-				pitWritten = true
-				c.writePeerIndexTable(hdrSize, now, peers)
-			}
-
-			seq++
-			entry := mrtfmt.RIBEntry{
-				PeerIndex:  peerIndex,
-				OrigTime:   ts,
-				Attributes: attrs,
-			}
-
-			subtype := ribSubtype(afi, addPath)
-
-			needed := hdrSize + 4 + 1 + len(prefix) + 2 + 8 + 2 + len(attrs) + 4
-			buf := pb.b
-			if needed > len(buf) {
-				buf = make([]byte, needed)
-			}
-
-			msgLen := mrtfmt.WriteRIBHeader(buf, hdrSize, seq, prefixLen, prefix)
-			msgLen += mrtfmt.WriteRIBEntries(buf, hdrSize+msgLen, []mrtfmt.RIBEntry{entry}, addPath)
-			writeHeader(buf, c.config.ExtendedTimestamp, now, mrtfmt.TypeTableDumpV2, subtype, msgLen)
-
-			if err := c.routes.Write(buf[:hdrSize+msgLen]); err != nil {
-				c.logger.Warn("mrt: write rib entry", "error", err)
-			}
+		OnRoute: func(peerIndex, afi, safi uint16, prefixLen uint8, prefix, attrs []byte) {
+			writeRoute(peerIndex, afi, safi, 0, prefixLen, prefix, attrs)
 		},
+		OnRouteAddPath: writeRoute,
 	}
 	c.ribDumper.DumpRIB(visitor)
 
