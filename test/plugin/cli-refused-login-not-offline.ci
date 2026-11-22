@@ -2,7 +2,7 @@
 #       the refused login, and never answers from a command's offline
 #       fallback as if no daemon ran.
 # VALIDATES: dialDaemon (internal/component/cli/sshclient/answer.go) types a
-#   login failure after an accepted host key as LoginRefused, and runBGP
+#   login failure after an accepted host key as LoginRefused, and endFailedAsk
 #   (internal/component/cli/client/main.go) prints LoginRefusal for it before
 #   it would consult runOfflineFallback.
 # PREVENTS: `show host trend` printing "show host trend needs the daemon, and
