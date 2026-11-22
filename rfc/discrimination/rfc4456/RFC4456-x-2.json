@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4456-x-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRNonClientRule",
+    "unit-sha": "f6a7363310a9abf0",
+    "claim-sha": "49c929338c4409a8",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRS",
+    "producer-sha": "5cf249f1d8106773",
+    "break": "body of reactorForwardRS replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4456-x-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRNonClientRule",
+    "unit-sha": "f6a7363310a9abf0",
+    "claim-sha": "6ee31c70bf28dbf8",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRS",
+    "producer-sha": "5cf249f1d8106773",
+    "break": "body of reactorForwardRS replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

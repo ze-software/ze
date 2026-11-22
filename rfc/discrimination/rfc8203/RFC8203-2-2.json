@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC8203-2-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/notification_test.go::TestRFC8203LengthCap",
+    "unit-sha": "d39817c029ecffa5",
+    "claim-sha": "0d00bd8f8184be3b",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/notification.go::BuildShutdownData",
+    "producer-sha": "dd40161145b949a6",
+    "break": "body of BuildShutdownData replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

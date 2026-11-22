@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7311-3.2-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPReceiveValidatesEveryTLV",
+    "unit-sha": "291129755bce41db",
+    "claim-sha": "4318fe69d4db1e80",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateAIGPAttr",
+    "producer-sha": "d5434bc287a78106",
+    "break": "body of validateAIGPAttr replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7311-3.2-5",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPReceiveValidatesEveryTLV",
+    "unit-sha": "291129755bce41db",
+    "claim-sha": "448a5dddc4ce3644",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateAIGPAttr",
+    "producer-sha": "d5434bc287a78106",
+    "break": "body of validateAIGPAttr replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

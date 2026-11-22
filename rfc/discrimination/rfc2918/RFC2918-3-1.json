@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2918-3-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/header_test.go::TestParseHeaderAllTypes",
+    "unit-sha": "e57a98c69f7860d4",
+    "claim-sha": "2b826891367b60c7",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/header.go::ParseHeader",
+    "producer-sha": "d17f39b8b55fb7da",
+    "break": "body of ParseHeader replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2918-3-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshType",
+    "unit-sha": "78e0bd4b4debe49c",
+    "claim-sha": "742a91e87ed6e48b",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/routerefresh.go::RouteRefresh.Type",
+    "producer-sha": "15edc99d0bae32af",
+    "break": "body of RouteRefresh.Type replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

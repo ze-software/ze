@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7313-5-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshBadLengthByMessageSubtype",
+    "unit-sha": "11529841b8dfc6f2",
+    "claim-sha": "cc07dcedd5a5973d",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_handlers.go::routeRefreshNotificationData",
+    "producer-sha": "403687ea192c5e99",
+    "break": "body of routeRefreshNotificationData replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

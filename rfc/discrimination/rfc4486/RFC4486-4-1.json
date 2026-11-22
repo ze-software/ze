@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4486-4-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/session_prefix_test.go::TestPrefixExceedTeardown",
+    "unit-sha": "f1f65e6561bd251c",
+    "claim-sha": "8a2ee3dd4d89648e",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_prefix.go::Session.checkPrefixLimits",
+    "producer-sha": "7bcb2d1439b79d0f",
+    "break": "body of Session.checkPrefixLimits replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4486-4-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/session_prefix_test.go::TestPrefixWarningThreshold",
+    "unit-sha": "54627867756023a9",
+    "claim-sha": "e23e9d3ed25fef9f",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_prefix.go::Session.checkPrefixLimits",
+    "producer-sha": "7bcb2d1439b79d0f",
+    "break": "body of Session.checkPrefixLimits replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

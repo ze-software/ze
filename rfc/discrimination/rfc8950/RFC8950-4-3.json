@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC8950-4-3",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/capability/capability_test.go::TestExtendedNextHopRoundTrip",
+    "unit-sha": "a289c6e0376cd356",
+    "claim-sha": "447b1d31862be553",
+    "route": "revert",
+    "producer": "internal/core/bgp/capability/capability.go::ExtendedNextHop.WriteTo",
+    "producer-sha": "8a3bd2aec1b34264",
+    "break": "body of ExtendedNextHop.WriteTo replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

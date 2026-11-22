@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5701-2-3",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go::TestRFC5701IPv6ExtCommunityLengthMultipleOf20",
+    "unit-sha": "a6954fa2a038e33b",
+    "claim-sha": "e8e2ab6ee50bc58d",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/community.go::ParseIPv6ExtendedCommunities",
+    "producer-sha": "0b1b735d8adc9313",
+    "break": "body of ParseIPv6ExtendedCommunities replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5701-2-3",
+    "polarity": "negative",
+    "unit": "internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go::TestRFC5701IPv6ExtCommunityLengthMultipleOf20",
+    "unit-sha": "a6954fa2a038e33b",
+    "claim-sha": "747469ab07014264",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/community.go::ParseIPv6ExtendedCommunities",
+    "producer-sha": "0b1b735d8adc9313",
+    "break": "body of ParseIPv6ExtendedCommunities replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

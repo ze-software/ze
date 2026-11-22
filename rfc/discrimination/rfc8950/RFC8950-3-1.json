@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8950-3-1",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/attribute/mpnlri_test.go::TestParseMPReachNLRI_ExtendedNextHop",
+    "unit-sha": "2e597c1cf5a3bada",
+    "claim-sha": "019841ffca5b5659",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/mpnlri.go::ParseMPReachNLRI",
+    "producer-sha": "eb4fee58d8bf7cb9",
+    "break": "body of ParseMPReachNLRI replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8950-3-1",
+    "polarity": "negative",
+    "unit": "internal/core/bgp/attribute/mpnlri_test.go::TestParseMPReachNLRI_InvalidNextHopLength",
+    "unit-sha": "34f52f48bda1dc66",
+    "claim-sha": "b18dfd04ba7f6d7c",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/mpnlri.go::ParseMPReachNLRI",
+    "producer-sha": "eb4fee58d8bf7cb9",
+    "break": "body of ParseMPReachNLRI replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

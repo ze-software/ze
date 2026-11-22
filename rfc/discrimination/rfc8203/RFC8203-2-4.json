@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8203-2-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/notification_test.go::TestRFC8203UTF8Invalid",
+    "unit-sha": "8685744b71a92cfc",
+    "claim-sha": "8ed3e247fb05c89e",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/notification.go::Notification.ShutdownMessage",
+    "producer-sha": "a68f0b8059e93a69",
+    "break": "body of Notification.ShutdownMessage replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8203-2-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/notification_test.go::TestRFC8203UTF8Valid",
+    "unit-sha": "08dd24165a523543",
+    "claim-sha": "04a92aca8d3e3cae",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/notification.go::Notification.ShutdownMessage",
+    "producer-sha": "a68f0b8059e93a69",
+    "break": "body of Notification.ShutdownMessage replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

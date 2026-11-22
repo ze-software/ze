@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7311-3.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPConfiguredOriginationRejectsOutsideDomain",
+    "unit-sha": "60eca3c8a63020ed",
+    "claim-sha": "089e45a2d7c85742",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_aigp.go::Session.aigpOriginAllowed",
+    "producer-sha": "a17dfda7e5a5daf6",
+    "break": "body of Session.aigpOriginAllowed replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7311-3.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPConfiguredOriginationRejectsOutsideDomain",
+    "unit-sha": "60eca3c8a63020ed",
+    "claim-sha": "6a99bd172b20271c",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_aigp.go::Session.aigpOriginAllowed",
+    "producer-sha": "a17dfda7e5a5daf6",
+    "break": "body of Session.aigpOriginAllowed replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

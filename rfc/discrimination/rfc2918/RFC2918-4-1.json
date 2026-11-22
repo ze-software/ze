@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2918-4-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go::TestRFC2918SoftClearPeerSendsRefreshToCapablePeer",
+    "unit-sha": "d2cb62eb5061702e",
+    "claim-sha": "035719ed76ac60d8",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/reactor_api.go::reactorAPIAdapter.SoftClearPeer",
+    "producer-sha": "f51782e8793b8466",
+    "break": "body of reactorAPIAdapter.SoftClearPeer replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2918-4-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go::TestRFC2918SoftClearPeerSkipsPeerWithoutCapability",
+    "unit-sha": "c4020446573f90bf",
+    "claim-sha": "093aafd98418d997",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/reactor_api.go::reactorAPIAdapter.SoftClearPeer",
+    "producer-sha": "f51782e8793b8466",
+    "break": "body of reactorAPIAdapter.SoftClearPeer replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]
