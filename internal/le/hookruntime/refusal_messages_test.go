@@ -79,8 +79,9 @@ func TestIdentityRefusalEndsWithTheFixingLine(t *testing.T) {
 //
 // The refusal said to merge or cherry-pick instead, and a worktree agent may
 // do neither: it commits on its own branch, and the user lands that branch on
-// main by rebase. The hook refuses the merge verb and lets cherry-pick through,
-// so the advice steered the agent onto the banned verb nothing stops.
+// main by rebase. The hook refused the merge verb and, until bashBranchMove
+// named it, let cherry-pick through, so the advice steered the agent onto a
+// banned verb nothing stopped.
 //
 // VALIDATES: AC-1 and AC-2: the copy exits 2, the text names the commit route
 // and the user's `git rebase <branch>`, its last line is the commit route, and

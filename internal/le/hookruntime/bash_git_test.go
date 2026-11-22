@@ -89,6 +89,11 @@ func TestTheCommitRouteAndReadsAreNotBlocked(t *testing.T) {
 // rule that a session stays on the branch it started on was enforced against
 // the one verb the repository already tells nobody to use.
 //
+// `git cherry-pick` integrates commits from another branch, and no pattern
+// named it, so it went through for every caller while git-safety.md bans
+// integrating a branch from a tool call. Its `--abort` and `--continue` forms,
+// and the form behind a pre-verb option, are refused with it.
+//
 // VALIDATES: creating, switching, renaming, deleting and integrating a branch
 // are each refused, and the refusal says the branch is the user's to move.
 // PREVENTS: a session landing its work on a branch the user is not looking at,
@@ -98,6 +103,11 @@ func TestEveryBranchMovingVerbIsRefused(t *testing.T) {
 		"git" + " merge other",
 		"git" + " rebase main",
 		"git" + " rebase -i HEAD~3",
+		"git" + " cherry-pick abc123",
+		"git" + " cherry-pick --abort",
+		"git" + " cherry-pick --continue",
+		"git" + " -C /other/tree cherry-pick abc123",
+		"ls && git" + " cherry-pick abc123",
 		"git" + " switch other",
 		"git" + " switch -c new-branch",
 		"git" + " checkout -b new-branch",
@@ -129,13 +139,18 @@ func TestEveryBranchMovingVerbIsRefused(t *testing.T) {
 // TestReadingBranchesIsNotMovingThem is the other polarity. `git branch` with
 // no mutating flag lists, and a session asking which branch it is on is the
 // first thing the branch rule expects it to do. A guard that blocked the
-// question would push sessions into guessing.
+// question would push sessions into guessing. `git log --cherry-pick` and
+// `git cherry` only compare two branches' commits, so they pass beside the
+// refused `git cherry-pick`.
 func TestReadingBranchesIsNotMovingThem(t *testing.T) {
 	commands := []string{
 		"git" + " branch --show-current",
 		"git" + " branch -a",
 		"git" + " branch --list",
 		"git" + " branch -vv",
+		"git" + " log --cherry-pick --oneline main...other",
+		"git" + " log --left-right --cherry-pick main...other",
+		"git" + " cherry -v main other",
 	}
 	for _, command := range commands {
 		t.Run(command, func(t *testing.T) {

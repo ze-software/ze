@@ -2625,8 +2625,13 @@ that write neither the index nor a branch, such as `git merge-tree`,
 Two guards read the result. `bashDestructiveGit` refuses the verbs that discard
 work or publish it, staging included, and names `./le commit create` as the route
 that works. `bashBranchMove` refuses the verbs that create, switch, rename, delete
-or integrate a branch, and says the branch is the user's to move; `git branch`
-with no mutating flag is a read and passes.
+or integrate a branch, `git cherry-pick` and its `--abort` and `--continue` forms
+included, and says the branch is the user's to move; `git branch` with no
+mutating flag is a read and passes, and so do `git log --cherry-pick` and
+`git cherry`, which only compare two branches. Each guard reads its verbs from
+one declared table (`destructiveGitVerbs`, `branchMoveVerbs`).
+<!-- source: internal/le/hookruntime/bash.go -- branchMoveVerbs -->
+<!-- source: internal/le/hookruntime/bash.go -- destructiveGitVerbs -->
 
 The guard is still coarse where quoting cannot help: an unquoted verb in a
 pipeline reads as a run. One extra round-trip costs less than one real bare

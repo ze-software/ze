@@ -296,22 +296,26 @@ func gitInvocation(command string) string {
 	return gitGlobalOptions.ReplaceAllString(command, "${1}git")
 }
 
+// destructiveGitVerbs are the patterns bashDestructiveGit refuses: the git
+// verbs that discard work or publish it, each matched by gitVerbRun.
+var destructiveGitVerbs = []string{
+	"git commit", "git push", "git reset", "git checkout --", "git checkout -f",
+	"git checkout HEAD", "git restore", "git revert", "git stash",
+	"git clean", "git push --force", "git push -f",
+	// The staging verbs. Several sessions share one index, so a loose
+	// stage puts another session's path into your commit, or yours into
+	// theirs. The generated commit script stages inside itself, and it
+	// reaches the tool as `bash <script>`, so this never blocks it.
+	"git add", "git rm", "git mv",
+}
+
 // ze point: git-safety/before-destructive-actions/never-run-a-destructive-git-verb
 // bashDestructiveGit refuses every git verb that discards work or publishes it.
 // Committing and pushing are allowed, through the prepared script alone, because
 // sessions share one index and a loose verb carries another session's changes.
 func bashDestructiveGit(ctx context) *verdict {
 	command := gitInvocation(stringInput(ctx.input, "command"))
-	for _, pattern := range []string{
-		"git commit", "git push", "git reset", "git checkout --", "git checkout -f",
-		"git checkout HEAD", "git restore", "git revert", "git stash",
-		"git clean", "git push --force", "git push -f",
-		// The staging verbs. Several sessions share one index, so a loose
-		// stage puts another session's path into your commit, or yours into
-		// theirs. The generated commit script stages inside itself, and it
-		// reaches the tool as `bash <script>`, so this never blocks it.
-		"git add", "git rm", "git mv",
-	} {
+	for _, pattern := range destructiveGitVerbs {
 		if gitVerbRun(command, pattern) {
 			return &verdict{2, "❌ Blocked: " + pattern + " (run manually)\n" +
 				"Staging and committing go through ./le commit create, which writes one\n" +
@@ -321,6 +325,29 @@ func bashDestructiveGit(ctx context) *verdict {
 		}
 	}
 	return nil
+}
+
+// branchMoveVerbs are the patterns bashBranchMove refuses: the git verbs that
+// create, switch, rename, delete or integrate a branch, each matched by
+// gitVerbRun.
+var branchMoveVerbs = []string{
+	"git merge", "git rebase", "git switch",
+	// Cherry-pick integrates commits from another branch into this one, so it
+	// is integration under another name. The verb ends where the name does
+	// (gitVerbRun), so `--abort` and `--continue` stay refused, while the
+	// reader flag `git log --cherry-pick` and the reader `git cherry` pass.
+	"git cherry-pick",
+	// Each of these performs a merge into the index and working tree under
+	// a longer name. The verb is matched as a whole word, so `git merge`
+	// no longer covers them, and each is named here. Their relatives
+	// `git merge-base`, `git merge-tree` and `git merge-file` write
+	// neither the index nor a branch, so they pass.
+	"git merge-recursive", "git merge-octopus", "git merge-resolve",
+	"git merge-ours", "git merge-subtree", "git merge-index",
+	"git merge-one-file", "git mergetool",
+	"git checkout -b", "git checkout -B",
+	"git branch -d", "git branch -D", "git branch --delete",
+	"git branch -m", "git branch -M", "git branch --move",
 }
 
 // ze point: git-safety/directives/stay-on-your-branch-and-integrate-by-rebase
@@ -333,20 +360,7 @@ func bashDestructiveGit(ctx context) *verdict {
 // so it moved here beside the rest of the family.
 func bashBranchMove(ctx context) *verdict {
 	command := gitInvocation(stringInput(ctx.input, "command"))
-	for _, pattern := range []string{
-		"git merge", "git rebase", "git switch",
-		// Each of these performs a merge into the index and working tree under
-		// a longer name. The verb is matched as a whole word, so `git merge`
-		// no longer covers them, and each is named here. Their relatives
-		// `git merge-base`, `git merge-tree` and `git merge-file` write
-		// neither the index nor a branch, so they pass.
-		"git merge-recursive", "git merge-octopus", "git merge-resolve",
-		"git merge-ours", "git merge-subtree", "git merge-index",
-		"git merge-one-file", "git mergetool",
-		"git checkout -b", "git checkout -B",
-		"git branch -d", "git branch -D", "git branch --delete",
-		"git branch -m", "git branch -M", "git branch --move",
-	} {
+	for _, pattern := range branchMoveVerbs {
 		if gitVerbRun(command, pattern) {
 			return &verdict{2, "❌ Blocked: " + pattern + " (the branch is the user's to move)\n" +
 				"Stay on the branch this session started on, and ask the user to create,\n" +
