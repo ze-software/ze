@@ -865,7 +865,8 @@ func (gp *grPlugin) dispatchSource(source grSource, command string, tail ...stri
 // then empty; an applied command dispatched through dispatchHook also answers
 // empty, which its reader MUST treat as "not said", never as "none".
 func (gp *grPlugin) dispatchSourceAnswer(source grSource, command string, tail ...string) (json.RawMessage, bool) {
-	args := []string{"owner", textbuf.StringUint(source.owner), "connection", textbuf.StringUint(source.connectionID)}
+	args := make([]string, 0, 4+len(tail))
+	args = append(args, "owner", textbuf.StringUint(source.owner), "connection", textbuf.StringUint(source.connectionID))
 	args = append(args, tail...)
 	if !gp.dispatches() {
 		return nil, false

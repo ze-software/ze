@@ -240,14 +240,6 @@ func (d *detector) restoreContext(ctx context.Context) {
 	}
 }
 
-// saveBaseline persists both baselines. The snapshot is taken under d.mu; the
-// SDK state RPC runs off the lock so a slow store never stalls the rate tick
-// (R-4). Best-effort: saveBaselines is a no-op when no state client or store
-// is available.
-func (d *detector) saveBaseline() {
-	d.saveBaselineContext(context.Background())
-}
-
 // savePeriodicBaseline is the crash-safety save a tick spawns. It runs under
 // the detector's own context, so stopContext's cancel ends a put that waits on
 // a slow store, where it used to hold stopContext's wg.Wait for the whole
@@ -257,6 +249,10 @@ func (d *detector) savePeriodicBaseline() {
 	d.saveBaselineContext(d.ctx)
 }
 
+// saveBaselineContext persists both baselines. The snapshot is taken under
+// d.mu; the SDK state RPC runs off the lock so a slow store never stalls the
+// rate tick (R-4). Best-effort: saveBaselines is a no-op when no state client
+// or store is available.
 func (d *detector) saveBaselineContext(ctx context.Context) {
 	d.mu.Lock()
 	pps := d.baseline.snapshot()
@@ -330,7 +326,7 @@ func (d *detector) tick(maxPps, maxBps float64, maxPpsIface, maxBpsIface string)
 	// baselineSaveInterval is a count of one-second ticks and the trigger is a
 	// modulo, so at a check-interval that does not divide it no evaluation would
 	// ever land on a multiple and the crash-safety save would stop running.
-	// Spawned off the tick: saveBaseline re-acquires d.mu once the caller has
+	// Spawned off the tick: savePeriodicBaseline re-acquires d.mu once the caller has
 	// released it, so file I/O never runs under the lock (R-4). Guarded by
 	// d.stopped (mirrors onAttackStart) so it never races Stop's wg.Wait.
 	if d.tickNum%baselineSaveInterval == 0 && !d.stopped {

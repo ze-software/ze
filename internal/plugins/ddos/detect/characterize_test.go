@@ -852,7 +852,7 @@ func TestStopFencesCharacterization(t *testing.T) {
 // VALIDATES: spec-fixit-firewall-concurrency-deadlock, the L7 instance of the
 // lock-held-across-a-slow-call class.
 // PREVENTS: a wedged kernel freezing the rate loop (onRates takes d.mu on
-// every tick) and Stop()/saveBaseline() with it.
+// every tick) and Stop()/saveBaselineContext() with it.
 func TestEmitDetectedDoesNotHoldDetectorMuAcrossFanout(t *testing.T) {
 	entered := make(chan struct{})
 	release := make(chan struct{})
