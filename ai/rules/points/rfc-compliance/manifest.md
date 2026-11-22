@@ -2,18 +2,10 @@
 title: RFC Compliance (every protocol, not just BGP)
 when: writing, changing, reviewing, or testing any protocol-implementing code, for any RFC Ze implements
 severity: blocking
+related: rfc-conformance, testing, interop-and-goal-validation
 ---
 directives ## Directives
   hold-every-protocol-to-its-own-rfcs
-  quote-the-rfc-text-a-new-function-implements
-  keep-a-quoted-rfc-sentence-byte-exact
-  count-conformance-on-the-whole-stack
-  name-who-implements-each-rfc
-  name-the-implementer-and-test-what-ze-installs
-  a-requirement-list-is-a-claim-until-it-is-walked
-  quote-each-requirement-row-verbatim
-  treat-conformance-as-non-negotiable
-  read-the-rfc-text-before-claiming-conformance
   prove-a-new-tag-discriminates-its-claim
 implement-full-compliance-ask-thomas-only-before-doing-less ## Full RFC Coverage
   implement-full-compliance-when-it-is-reachable

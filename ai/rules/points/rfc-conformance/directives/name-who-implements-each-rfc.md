@@ -2,7 +2,6 @@
 kind: directive
 level: MUST
 stage:
-applies: writing or changing an RFC summary's implementer kind
 rationale: ai/rationale/rfc-compliance.md
 ---
 **Every summary MUST declare who implements the document, and a document Ze does not implement in Go MUST leave the conformance count and name what implements it instead.** The ledger answers one question: does Ze's Go code do what the RFC says. Four kinds answer it, and every summary declares exactly one.
