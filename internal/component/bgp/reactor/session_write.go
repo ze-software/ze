@@ -816,18 +816,24 @@ func (s *Session) writeUpdateBody(body []byte, raw bool) (opaque bool, result er
 	if !raw && s.sentAIGPCostWithheld {
 		s.noteAIGPWrite(body, true)
 	}
-	if !raw {
-		length, err := ownership.filter(nil, body)
-		if err != nil {
+	// RFC 4760 Section 8 / RFC 4659 Section 3.4: family admission applies to
+	// parseable raw UPDATEs as well as managed writes (owner approval,
+	// 2026-11-22), while duplicate suppression stays disabled for raw writes
+	// (adjOutWrite.allow) and unparseable diagnostic bytes remain opaque.
+	length, err := ownership.filter(nil, body)
+	if err != nil {
+		if !raw {
 			return false, err
 		}
+		opaque = true
+	} else {
 		if ownership.suppressed != 0 {
 			ownership.table.recordSuppressed(ownership.suppressed)
 			sessionLogger().Debug("announce suppressed: peer holds the final wire advertisement",
 				"peer", s.settings.Address, "routes", ownership.suppressed)
 		}
 		if length == 0 {
-			// An all-owed body never reaches record; its owes apply here.
+			// An all-owed or all-unnegotiated body never reaches record; its owes apply here.
 			ownership.applyStaged()
 			return false, nil
 		}
@@ -890,16 +896,10 @@ func (s *Session) writeUpdateBody(body []byte, raw bool) (opaque bool, result er
 	copy(buf[message.HeaderLen:], body)
 	body = buf[message.HeaderLen:totalLen]
 
-	if raw {
-		// Observe only the final bytes admitted by the pre-existing policies.
-		// An opaque diagnostic write is not a fabricated local advertisement.
-		_, err := ownership.filter(nil, body)
-		opaque = err != nil
-		if opaque && finalRejects {
-			// The projection could not prove these are accountable withdrawals.
-			// Refuse before ownership or bytes escape, not after diagnostic flush.
-			return false, nil
-		}
+	if raw && opaque && finalRejects {
+		// The projection could not prove these are accountable withdrawals.
+		// Refuse before ownership or bytes escape, not after diagnostic flush.
+		return false, nil
 	}
 
 	written = true

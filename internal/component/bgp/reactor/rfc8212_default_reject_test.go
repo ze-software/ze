@@ -492,6 +492,15 @@ func TestRFC8212RawAPIAdmission(t *testing.T) {
 			} {
 				t.Run(mode+"/"+policyCase.name+"/"+tc.name, func(t *testing.T) {
 					peer, conn := rawOwnershipPeer(t)
+					// Negotiate IPv4 and IPv6 unicast (preserving 2-byte AS width)
+					// so IPv6 MP_REACH/MP_UNREACH cases test RFC 8212 export
+					// admission rather than unnegotiated-family withholding (AC-27).
+					mpCaps := []capability.Capability{
+						&capability.Multiprotocol{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast},
+						&capability.Multiprotocol{AFI: family.AFIIPv6, SAFI: family.SAFIUnicast},
+					}
+					peer.session.negotiateWith(mpCaps, mpCaps)
+					peer.setEncodingContexts(peer.session.Negotiated())
 					if policyCase.internal {
 						peer.settings.PeerAS = peer.settings.LocalAS
 					}

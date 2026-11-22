@@ -842,17 +842,34 @@ func (w *adjOutWrite) section(dst, data []byte, fam family.Family, withdraw, mul
 	// information for a particular <AFI, SAFI> between a pair of BGP speakers,
 	// each such speaker MUST advertise to the other (via the Capability
 	// Advertisement mechanism) the capability to support that particular
-	// <AFI, SAFI> route." SupportsFamily includes classic IPv4 negotiation.
-	// negotiateCapabilities publishes this immutable pointer under writeMu;
-	// no reverse Session.mu acquisition or duplicate capability fact is needed.
-	if negotiated := w.session.negotiated; !w.raw && negotiated != nil &&
-		!negotiated.SupportsFamily(fam) {
-		w.removed++
-		return 0, nil
-	}
+	// <AFI, SAFI> route."
+	// RFC 4659 Section 3.4: "In order for two PEs to exchange labeled IPv6 VPN
+	// NLRIs, they MUST use BGP Capabilities Negotiation to ensure that they both
+	// are capable of properly processing such NLRIs."
+	// SupportsFamily includes classic IPv4 negotiation and applies to raw
+	// locally originated writes as well as managed writes (owner approval,
+	// 2026-11-22). negotiateCapabilities publishes this immutable pointer under
+	// writeMu; no reverse Session.mu acquisition or duplicate capability fact is
+	// needed.
 	split := nlrisplit.Get(fam)
 	if withdraw {
 		split = nlrisplit.GetWithdraw(fam)
+	}
+	if negotiated := w.session.negotiated; negotiated != nil &&
+		!negotiated.SupportsFamily(fam) {
+		if w.raw {
+			// Preserve opaque diagnostic handling for malformed or unknown-family
+			// raw payloads: only structurally valid unnegotiated sections are
+			// cleanly withheld.
+			if split == nil {
+				return 0, errAdjOutProvenance
+			}
+			if _, err := split(data, w.encoding.AddPathFor(fam), func([]byte) bool { return true }); err != nil {
+				return 0, err
+			}
+		}
+		w.removed++
+		return 0, nil
 	}
 	if split == nil {
 		return 0, errAdjOutProvenance
