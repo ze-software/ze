@@ -587,7 +587,7 @@ func RenderIndex(in RenderInput) (string, error) {
 	// followed found 882 MUST-level obligations the RFCs state and no summary
 	// carried. The caveat existed, three paragraphs below, and it did not stop
 	// the number being quoted alone. So the bound now travels inside the
-	// sentence a reader copies (ai/rules/rfc-compliance.md).
+	// sentence a reader copies (ai/rules/rfc-conformance.md).
 	var counts textbuf.Buffer
 	out = append(out, counts.Int(int64(len(in.Requirements))).Str(" requirements across ").
 		Int(int64(len(byRFC))).Str(" summaries. ").Int(int64(total)).

@@ -44,7 +44,7 @@ const (
 	// text this repository holds for it is a reconstruction the project wrote,
 	// so no checklist drawn from it bounds anything (ai/META-DECISIONS.md). A
 	// gap is an ISSUE and an exclusion is a DECISION
-	// (ai/rules/rfc-compliance.md); this is the second.
+	// (ai/rules/rfc-conformance.md); this is the second.
 	dispositionSourceRestricted = "source-restricted"
 	// dispositionOutOfScope is a SCOPE decision rather than a claim about the
 	// document or a debt against it.
@@ -58,7 +58,7 @@ const (
 	// It is not a way to look green. A summary declaring it MUST NOT claim
 	// public support: checkOutOfScope refuses any Status other than
 	// 'Unsupported' or 'Future', so the ledger says out loud that Ze does not
-	// do this. ai/rules/rfc-compliance.md draws the same line -- an optional
+	// do this. ai/rules/rfc-conformance.md draws the same line -- an optional
 	// feature Ze declined is an implementation gap a later scope decision can
 	// revisit, and never a conformance gap.
 	dispositionOutOfScope = "out-of-scope"

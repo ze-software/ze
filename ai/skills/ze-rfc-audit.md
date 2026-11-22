@@ -110,7 +110,7 @@ the record and the agreeing annotation — precisely so it stays more expensive 
 alternatives.
 
 Judge the annotation against the RFC, the current producers, and the agreed capability
-boundary. The scope rules are in `ai/rules/rfc-compliance.md`.
+boundary. The scope rules are in `ai/rules/rfc-compliance.md`, and the exclusion kinds in `ai/rules/rfc-conformance.md`.
 
 | Field | When | What it is |
 |-------|------|-----------|

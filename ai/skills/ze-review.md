@@ -271,7 +271,7 @@ phase itself.
     **When to run:** The diff touches wire encoding/decoding, message handling, capability negotiation, state machine transitions, timer behavior, NLRI parsing, attribute handling, or any code with existing `// RFC NNNN` comments.
 
     **How to check:**
-    1. Identify relevant RFCs: check the spec's Required Reading section, scan the diff for `// RFC` comments, and consult the Common RFCs table in `ai/rules/rfc-compliance.md`.
+    1. Identify relevant RFCs: check the spec's Required Reading section, scan the diff for `// RFC` comments, and list the `rfc/short/` summaries of each protocol the diff touches.
     2. Read every matching `rfc/short/rfcNNNN.md` summary.
     3. For each MUST/MUST NOT in the summary that applies to the changed code, verify the implementation enforces it. Check: is there a code path that violates the requirement?
     4. For each SHOULD in the summary, verify the implementation follows it or has an explicit reason not to.

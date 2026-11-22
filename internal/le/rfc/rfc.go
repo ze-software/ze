@@ -20,7 +20,7 @@
 //
 // Package rfc binds every MUST-level requirement of an enrolled RFC to the
 // tests that enforce it, and carries the ratchets in
-// ai/rules/rfc-compliance.md.
+// ai/rules/rfc-conformance.md.
 //
 // Messages that are part of the established contract use the Python spellings
 // implemented in pyfmt.go rather than Go's %q.

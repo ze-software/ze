@@ -10,6 +10,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -115,11 +116,33 @@ func CheckRefusalAdvice(change changecheck.Change) (string, error) {
 		}
 		fileHits, err := scanRefusalAdviceSource(rel, text)
 		if err != nil {
-			return "", err
+			// A file that does not parse is a red the build reports, and a red
+			// never refuses a commit (ai/META-DECISIONS.md, "A red prevents a
+			// release, never a commit"): skip it, and say so.
+			writeRefusalAdviceSkip(rel, err)
+			continue
 		}
 		hits = append(hits, fileHits...)
 	}
 	return formatRefusalAdviceHits(hits), nil
+}
+
+// refusalAdviceNotes receives the note naming each carried file the check
+// skipped because it does not parse. A test replaces it to read the note.
+var refusalAdviceNotes io.Writer = os.Stderr
+
+// writeRefusalAdviceSkip writes the note for a carried file the check could
+// not read as Go: which file went unchecked, why, and the command that shows
+// the syntax error.
+func writeRefusalAdviceSkip(rel string, parseErr error) {
+	var problem, fix textbuf.Buffer
+	problem.Str(rel).Str(": not checked for refusal advice that names a banned command: it does not parse (").
+		Err(parseErr).Byte(')')
+	fix.Str("gopls check ").Str(rel)
+	note := opererr.New(problem.String(),
+		"the commit goes ahead, since a file that does not parse is a red for the build to report, never a reason to refuse a commit",
+		fix.String())
+	_, _ = io.WriteString(refusalAdviceNotes, note.Error()+"\n") //nolint:errcheck // a note on stderr; the commit does not depend on it
 }
 
 // CheckRefusalAdviceTree scans every non-test Go file under the guard and gate
@@ -185,10 +208,14 @@ func scanRefusalAdviceSource(rel, source string) ([]RefusalAdviceHit, error) {
 	if err != nil {
 		return nil, err
 	}
+	matched := matchedLiterals(file)
 	var hits []RefusalAdviceHit
 	ast.Inspect(file, func(node ast.Node) bool {
 		lit, ok := node.(*ast.BasicLit)
 		if !ok || lit.Kind != token.STRING {
+			return true
+		}
+		if matched[lit] {
 			return true
 		}
 		value, unquoteErr := strconv.Unquote(lit.Value)
@@ -212,6 +239,62 @@ func scanRefusalAdviceSource(rel, source string) ([]RefusalAdviceHit, error) {
 		return true
 	})
 	return hits, nil
+}
+
+// textMatchers are the standard library functions whose string arguments are
+// patterns compared against text, never text shown to a reader.
+var textMatchers = map[string]map[string]bool{
+	"strings": {"Contains": true, "HasPrefix": true, "HasSuffix": true, "Index": true, "LastIndex": true, "Cut": true, "CutPrefix": true, "CutSuffix": true, "TrimPrefix": true, "TrimSuffix": true, "EqualFold": true, "Count": true},
+	"bytes":   {"Contains": true, "HasPrefix": true, "HasSuffix": true, "Index": true, "LastIndex": true, "Cut": true, "CutPrefix": true, "CutSuffix": true, "TrimPrefix": true, "TrimSuffix": true, "EqualFold": true, "Count": true},
+	"regexp":  {"MustCompile": true, "Compile": true, "MatchString": true, "QuoteMeta": true},
+}
+
+// matchedLiterals answers the string literals file uses only to recognize
+// text: an argument of a textMatchers call, an operand of == or !=, and a
+// switch case value. Code that detects a retired marker in order to refuse it
+// names the marker in such a position, and no reader is ever shown it from
+// there; a literal anywhere else may reach a message and is judged.
+func matchedLiterals(file *ast.File) map[*ast.BasicLit]bool {
+	matched := make(map[*ast.BasicLit]bool)
+	mark := func(expr ast.Expr) {
+		if lit, ok := expr.(*ast.BasicLit); ok {
+			matched[lit] = true
+		}
+	}
+	ast.Inspect(file, func(node ast.Node) bool {
+		switch typed := node.(type) {
+		case *ast.CallExpr:
+			selector, ok := typed.Fun.(*ast.SelectorExpr)
+			if !ok {
+				return true
+			}
+			pkg, ok := selector.X.(*ast.Ident)
+			if !ok {
+				return true
+			}
+			if !textMatchers[pkg.Name][selector.Sel.Name] {
+				return true
+			}
+			for _, arg := range typed.Args {
+				mark(arg)
+			}
+		case *ast.BinaryExpr:
+			// Only the two comparisons recognize text; every other operator
+			// leaves its operands to be judged.
+			//exhaustive:ignore
+			switch typed.Op {
+			case token.EQL, token.NEQ:
+				mark(typed.X)
+				mark(typed.Y)
+			}
+		case *ast.CaseClause:
+			for _, value := range typed.List {
+				mark(value)
+			}
+		}
+		return true
+	})
+	return matched
 }
 
 func formatRefusalAdviceHits(hits []RefusalAdviceHit) string {

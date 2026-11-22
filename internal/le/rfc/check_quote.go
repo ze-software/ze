@@ -20,7 +20,7 @@ func stemPath(dir, stem, suffix string) string {
 }
 
 // checkRowQuotes refuses each requirement row in the corpus whose text is not a
-// verbatim span of the section it cites (ai/rules/rfc-compliance.md: a
+// verbatim span of the section it cites (ai/rules/rfc-conformance.md: a
 // requirement list a model produced is a claim, never evidence; the RFC's own
 // sentence is). Every row is judged, whether or not the commit under test
 // touched it, so a row that stops being verbatim because its RFC text or a

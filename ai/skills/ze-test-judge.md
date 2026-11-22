@@ -68,7 +68,7 @@ the unit to another judge.
    reaches, not its doc comment (`ai/rules/evidence.md`).
 3. For a unit carrying `RFC requirement: <id> <polarity>`, read the cited
    section in `rfc/full/<stem>.txt` (fetch it if absent, per
-   `ai/rules/rfc-compliance.md`). The `rfc/short/` summary is never the
+   `ai/rules/rfc-conformance.md`). The `rfc/short/` summary is never the
    authority.
 4. Decide.
 

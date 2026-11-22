@@ -472,7 +472,7 @@ func TestAStemPageCarriesTheTitleFromTheSummaryMetaRow(t *testing.T) {
 
 // VALIDATES: AC-4 -- a declared gap shows its kind and its whole reason, beside
 // the public ledger's own Remaining cell. A gap is an ISSUE and is never
-// rendered as coverage (ai/rules/rfc-compliance.md).
+// rendered as coverage (ai/rules/rfc-conformance.md).
 func TestAGapIsShownWithItsReasonAndTheLedgerRemainder(t *testing.T) {
 	_, text, mirror := disclosurePage(t)
 	// The ledger's derived Unmet cell is stated under What the public ledger

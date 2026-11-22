@@ -12,7 +12,7 @@
 // and refuses a decision for a site the source does not derive. A site the file
 // leaves out stays UNCLASSIFIED and is named in the report: an obligation
 // nobody could classify is a question for the owner, never a null annotated
-// away (ai/rules/rfc-compliance.md).
+// away (ai/rules/rfc-conformance.md).
 package rfc
 
 import (
@@ -491,7 +491,7 @@ func validateExcludedDecision(tree, place, stem, source string, decision classif
 // `binds-another-role` reads on the public ledger as "not our problem" where
 // the truth is usually "our problem, unbuilt", so the rule requires the reason
 // to name the role, show Ze never acts as it, and cite the producer that would
-// act as it if Ze did (ai/rules/rfc-compliance.md, owner directive
+// act as it if Ze did (ai/rules/rfc-conformance.md, owner directive
 // 2026-08-31). No gate can read a sentence, so what is checked here is the
 // citation: the producer is a field the author had to write, it has to appear
 // in the reason a reader will meet, and where it names a path in this tree that
@@ -502,7 +502,7 @@ func validateBindsAnotherRole(tree, place string, decision classifySiteDecision)
 		return errors.New(message.Str(place).Str(": ").Str(bindsAnotherRole).
 			Str(" needs a 'producer': the file that would act as the role if Ze did, or the ").
 			Str("role itself where Ze holds no code for it. This kind is PRESUMED WRONG ").
-			Str("(ai/rules/rfc-compliance.md): Ze speaks both sides of nearly every ").
+			Str("(ai/rules/rfc-conformance.md): Ze speaks both sides of nearly every ").
 			Str("protocol, so an obligation addressed to a sender or a receiver almost ").
 			Str("always binds it, and an unbuilt role is a gap rather than another role").String())
 	}
@@ -529,7 +529,7 @@ func validateBindsAnotherRole(tree, place string, decision classifySiteDecision)
 // conditional on an OPTIONAL feature.
 //
 // The rule requires the reason to QUOTE the sentence that makes the feature
-// optional (ai/rules/rfc-compliance.md, owner directive 2026-08-31), and that
+// optional (ai/rules/rfc-conformance.md, owner directive 2026-08-31), and that
 // is a claim about a document this repository holds, so it is checked against
 // the document. A reason quoting a document the source only CITES is checked
 // against that document, which is how the RFC 5176 site quoting RFC 2865

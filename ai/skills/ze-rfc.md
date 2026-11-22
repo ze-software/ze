@@ -201,7 +201,7 @@ Name the component and the mechanism, never "the kernel": Linux XFRM for the
 ESP and AH datapath, the Linux TCP stack for the transport. Out of the count is
 not out of test: where Ze can observe the behavior, assert what Ze produced, the
 selector, the security association, the socket option or the kernel counter.
-Full rule: `ai/rules/rfc-compliance.md`, procedure:
+Full rule: `ai/rules/rfc-conformance.md`, procedure:
 `docs/contributing/rfc-conformance-gates.md`, "Who implements the document".
 
 ### Wire Formats

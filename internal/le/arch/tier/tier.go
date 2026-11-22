@@ -38,6 +38,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	pluginimports "github.com/ze-software/ze/internal/le/plugin/imports"
 )
 
@@ -157,6 +158,11 @@ func collectSourceEdges(tree, module string) (sourceGraph, error) {
 		registrations: make(map[corePair]bool),
 	}
 	files := token.NewFileSet()
+	// The launcher's build store holds the git archive export a running build
+	// compiles (inside its .building lock and .staging- directories) and every
+	// published build: copies of HEAD, never this tree's source, so scanning
+	// them reports another session's build as this tree's edges.
+	builds := gotoolchain.BuildsDir(tree)
 	err := filepath.WalkDir(tree, func(name string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -177,6 +183,9 @@ func collectSourceEdges(tree, module string) (sourceGraph, error) {
 				return fs.SkipDir
 			}
 			if rel == buildCacheDir {
+				return fs.SkipDir
+			}
+			if name == builds {
 				return fs.SkipDir
 			}
 			return nil

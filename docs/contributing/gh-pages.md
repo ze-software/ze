@@ -1530,7 +1530,7 @@ one. The Exclusion disclosure section counts those by kind, reads the vocabulary
 and each kind's meaning from `rfc.ExclusionKinds` and `rfc.ExclusionKindMeaning`,
 and links every summary that used a kind to its own page where the reason is.
 It states its own coverage on its face, because sign-offs exist for a minority
-of summaries, and it states that `ai/rules/rfc-compliance.md` treats
+of summaries, and it states that `ai/rules/rfc-conformance.md` treats
 `binds-another-role` as PRESUMED WRONG until justified -- publishing the largest
 kind without that context would be the flattery failure one layer down.
 

@@ -720,7 +720,7 @@ func rfcLedgerCoverageOf(bucket rfc.CoverageRow, requirements []rfcLedgerRequire
 //
 // The excluded sites are carried whole and never as a count. An exclusion is a
 // DECISION, so the reason that took it is the fact a reader needs
-// (ai/rules/rfc-compliance.md).
+// (ai/rules/rfc-conformance.md).
 func rfcLedgerExtractionOf(extraction rfc.Extraction) *rfcLedgerExtraction {
 	sites, sections := extraction.Unclassified()
 	entry := &rfcLedgerExtraction{

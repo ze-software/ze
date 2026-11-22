@@ -531,7 +531,7 @@ func renderExtractionTable(in RenderInput) ([]string, error) {
 		"",
 		"Every other table here judges the requirements a summary LISTS. None of them " +
 			"can see an obligation nobody wrote down, so a green gate is bounded by what " +
-			"was extracted (`ai/rules/rfc-compliance.md`, Extraction Completeness). A " +
+			"was extracted (`ai/rules/rfc-conformance.md`, the walk of a requirement list). A " +
 			"sign-off (`rfc/extraction/<stem>.json`) bounds the MISS: every normative " +
 			"site of the RFC's own text is mapped to a requirement id or excluded with a " +
 			"reason, and the gate re-derives the inventory and re-checks the arithmetic " +

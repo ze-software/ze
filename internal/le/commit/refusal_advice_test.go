@@ -94,6 +94,71 @@ func TestCheckRefusalAdviceReproducesHistoricalViolations(t *testing.T) {
 	}
 }
 
+// VALIDATES: a carried file that does not parse is skipped with a note naming
+// it, and the check answers no refusal and no error for it.
+// PREVENTS: a syntax error, a red the build reports, refusing the commit as
+// ErrCouldNotJudge (ai/META-DECISIONS.md, "A red prevents a release, never a
+// commit").
+func TestCheckRefusalAdviceSkipsAFileThatDoesNotParse(t *testing.T) {
+	var notes strings.Builder
+	saved := refusalAdviceNotes
+	refusalAdviceNotes = &notes
+	t.Cleanup(func() { refusalAdviceNotes = saved })
+
+	const path = "internal/le/hookruntime/broken.go"
+	change := changecheck.Change{
+		Paths: []string{path},
+		After: func(rel string) (string, bool, error) {
+			return "package hookruntime\nconst msg = \"Use git merge or cherry-pick\"\nfunc {\n", rel == path, nil
+		},
+	}
+	got, err := CheckRefusalAdvice(change)
+	if err != nil {
+		t.Fatalf("CheckRefusalAdvice answered an error, which changecheck.Run turns into a refused commit: %v", err)
+	}
+	if got != "" {
+		t.Fatalf("CheckRefusalAdvice refused a file it could not parse:\n%s", got)
+	}
+	for _, want := range []string{path, "does not parse", "gopls check " + path} {
+		if !strings.Contains(notes.String(), want) {
+			t.Errorf("the skip note lacks %q:\n%s", want, notes.String())
+		}
+	}
+}
+
+// VALIDATES: a retired marker named where code only recognizes text (a
+// strings.Contains argument, an == operand, a switch case) is accepted, while
+// the same marker in a literal that can reach a message is still refused.
+// PREVENTS: the check refusing the code that detects a retired marker in order
+// to refuse it.
+func TestCheckRefusalAdviceAcceptsCodeThatDetectsARetiredMarker(t *testing.T) {
+	t.Parallel()
+
+	const path = "internal/le/hookruntime/marker.go"
+	detects := "package hookruntime\nimport \"strings\"\n" +
+		"func retired(line string) bool {\n" +
+		"\tif strings.Contains(line, \"test-relax:\") {\n\t\treturn true\n\t}\n" +
+		"\tswitch line {\n\tcase \"rfc-test-change-approved:\":\n\t\treturn true\n\t}\n" +
+		"\treturn line == \"test-relax:\"\n}\n"
+	advises := detects + "const msg = \"Add // test-relax: reason\"\n"
+	judge := func(source string) string {
+		got, err := CheckRefusalAdvice(changecheck.Change{
+			Paths: []string{path},
+			After: func(rel string) (string, bool, error) { return source, rel == path, nil },
+		})
+		if err != nil {
+			t.Fatalf("CheckRefusalAdvice: %v", err)
+		}
+		return got
+	}
+	if got := judge(detects); got != "" {
+		t.Fatalf("code that only detects a retired marker was refused:\n%s", got)
+	}
+	if got := judge(advises); !strings.Contains(got, "test-relax:") {
+		t.Fatalf("a message literal naming a retired marker was accepted: %q", got)
+	}
+}
+
 // VALIDATES: CheckRefusalAdvice is registered in changecheck and green over the
 // entire live repository under internal/le/{hookruntime,commit,rfc}.
 // PREVENTS: an unregistered check or an unfixed banned-advice string remaining

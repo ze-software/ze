@@ -101,6 +101,16 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 |------|----------|-------------------|--------|
 | `test-xxx` | `test/.../*.ci` | [or N-A for internal-only fix] | |
 
+### Interop Tests (Scope: protocol)
+<!-- REQUIRED when Scope is protocol: a fix that changes protocol behavior
+     carries an interop test against at least one other implementation
+     (ai/rules/interop-and-goal-validation.md), including the vacuity traps:
+     prove the test FAILS when the fix is reverted. Delete this section only
+     for another Scope. -->
+| Scenario | Directory | Peer Daemon | What It Proves | Status |
+|----------|-----------|-------------|----------------|--------|
+| `feature-peer` | `test/interop/scenarios/` | [FRR/BIRD/GoBGP/strongSwan] | [protocol behavior validated] | |
+
 ## Files to Modify
 - `internal/...` - [producing fix]
 
@@ -138,6 +148,21 @@ none
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+
+## RFC Documentation (Scope: protocol)
+<!-- REQUIRED when Scope is protocol (ai/rules/rfc-compliance.md). Delete this
+     section only for another Scope. -->
+
+Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
+MUST document: validation rules, error conditions, state transitions, timer
+constraints, message ordering, and every MUST/MUST NOT.
+
+Assess the fix on the default configuration path, preserve explicit options
+and extensions, name the configuration each claim covers, and test both paths.
+
+| RFC / section | Default configuration and required behavior | Explicit options / extensions to preserve | Tests of default behavior | Tests preserving options / extensions |
+|---------------|---------------------------------------------|-------------------------------------------|---------------------------|---------------------------------------|
+| [RFC and section] | [exact configuration and observable behavior] | [option paths and behavior, or none with reason] | [test names and proof] | [test names, including any difference from the RFC] |
 
 ## Checklist
 

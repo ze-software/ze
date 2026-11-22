@@ -73,7 +73,7 @@ const (
 	// implementationFoundation says the document defines, registers or
 	// describes, and obliges no implementer. A document nobody implements while
 	// Ze OWES the behavior is not this: that is a gap, and it stays on the
-	// ledger until the behavior exists (ai/rules/rfc-compliance.md).
+	// ledger until the behavior exists (ai/rules/rfc-conformance.md).
 	implementationFoundation = "foundation"
 )
 
@@ -669,7 +669,7 @@ func readEnrolment(values map[string]string, out *Meta, where string) error {
 //
 // "the kernel" alone is refused on purpose. An unnamed implementer is the claim
 // without the showing, and on the public page it reads as work nobody owns
-// (ai/rules/rfc-compliance.md).
+// (ai/rules/rfc-conformance.md).
 func readImplementation(values map[string]string, out *Meta, where string) error {
 	kind, held := values[metaImplementation]
 	if !held {

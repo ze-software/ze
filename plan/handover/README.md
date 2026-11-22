@@ -1,7 +1,9 @@
 # Handover Documents
 
 Live home for handovers: a handoff that must survive beyond the chat is written
-here as `NN-<slug>.md`, `NN` being the highest existing number plus one, and
+here as `YYYY-MM-DD-<slug>.md`, dated the day it is written, so two sessions
+writing at once never take the same number (the `NN-` files are older
+handovers, kept under their names), and
 removed through `./le commit create ... remove <path>` once every item in it has
 landed (`ai/rules/completion.md`).
 

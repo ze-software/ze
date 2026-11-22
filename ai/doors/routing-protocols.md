@@ -29,7 +29,7 @@ work, not the tests in this repository alone.
 
 | Outside party | What they hold | The contract |
 |---------------|----------------|--------------|
-| A protocol peer: FRR, BIRD, freeRouter, a vendor router | Adjacencies, sessions, LSAs, LSPs, label bindings, PATH and RESV state | The RFC text in `rfc/full/`, never the summary (`ai/rules/rfc-compliance.md`). Interop scenarios prove it against a real peer (`docs/architecture/testing/interop.md`) |
+| A protocol peer: FRR, BIRD, freeRouter, a vendor router | Adjacencies, sessions, LSAs, LSPs, label bindings, PATH and RESV state | The RFC text in `rfc/full/`, never the summary (`ai/rules/rfc-conformance.md`). Interop scenarios prove it against a real peer (`docs/architecture/testing/interop.md`) |
 | The operator | `ospf`, `isis`, `ldp`, `rsvp-te`, `bfd` config and the `show` commands | The YANG schema and the guides: `docs/guide/ospf.md`, `isis.md`, `mpls.md`, `rsvp-te.md`, `bfd.md` |
 | The forwarding plane | The kernel or VPP FIB, shared with other writers | Routes reach it only through the Loc-RIB and sysrib. Labels reach it only through `(mpls-fib, entry)` events (Boundaries) |
 | Other protocols on the box | BGP, static, redistribution consumers | Administrative distance in the Loc-RIB (`rib { distance }`), and the redistribution bus `redistevents`, which never installs a route (`internal/plugins/isis/spf/install.go`, package comment) |
@@ -68,7 +68,7 @@ work, not the tests in this repository alone.
 ## RFC and interop obligations
 
 - **Quote the RFC above the code that implements it**, with number and
-  section, and name the section at each caller (`ai/rules/rfc-compliance.md`).
+  section, and name the section at each caller (`ai/rules/rfc-conformance.md`).
 - **A tag you add or change carries a discrimination record** written by
   `./le rfc record` (`docs/contributing/rfc-conformance-gates.md`).
 - **Every RFC Ze implements gets full coverage** (`ai/META-DECISIONS.md`):

@@ -3,7 +3,7 @@
 `./le rfc check` judges whether Ze's RFC obligations are still extracted,
 implemented, proven and publicly declared. This page describes what it checks
 and what each check refuses. What an author OWES is in
-`ai/rules/rfc-compliance.md`; this page is how the machine measures it.
+`ai/rules/rfc-compliance.md` and `ai/rules/rfc-conformance.md`; this page is how the machine measures it.
 
 Every check named here is a function in `internal/le/rfc/`. The package was
 ported from a Python tool, so older prose and older commit messages spell these
@@ -1358,7 +1358,7 @@ Four rules decide whether it is the right kind:
 - **The absent FEATURE is still disclosed.** It goes in the feature's own
   Scope (`features/*.md`), as an implementation gap a later scope decision can
   revisit, and never as a conformance gap
-  (`ai/rules/rfc-compliance.md`, owner directive 2026-08-31). This kind is the
+  (`ai/rules/rfc-conformance.md`, owner directive 2026-08-31). This kind is the
   coverage register's word for the decision the extraction register records as
   `feature-out-of-scope`. The two were spelled apart because the site's
   ledger counter, now `annotated-never-bound`, meant `{not-applicable}` there.

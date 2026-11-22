@@ -2029,7 +2029,7 @@ func rfcExclusionCoverage() string {
 }
 
 // rfcExclusionCaution is the sentence the presumed-wrong kind carries.
-const rfcExclusionCaution = "ai/rules/rfc-compliance.md treats binds-another-role as " +
+const rfcExclusionCaution = "ai/rules/rfc-conformance.md treats binds-another-role as " +
 	"PRESUMED WRONG until it is justified: Ze rarely implements one side of a protocol, so an " +
 	"obligation addressed to \"the sender\" or \"the receiver\" almost always binds it, and the " +
 	"label reads as \"not our problem\" where the truth is usually \"our problem, unbuilt\". " +

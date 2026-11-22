@@ -22,7 +22,7 @@ type ImplementedSections struct {
 	// Sections sums SectionsOf over the walked RFCs Ze implements. An
 	// unwalked RFC's rows are out of it: its list is unbounded, so a section
 	// holding it would measure the list, not the software
-	// (ai/rules/rfc-compliance.md).
+	// (ai/rules/rfc-conformance.md).
 	Sections Sections
 	// NotWalked is how many of the RFCs Ze implements carry no valid
 	// extraction sign-off. They add nothing to Sections, exactly as a profile

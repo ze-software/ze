@@ -1227,6 +1227,51 @@ func TestSubagentStartBoundsALongBranchName(t *testing.T) {
 	}
 }
 
+// TestSubagentStartStaysUnderTheHarnessContextCapWhenItCarriesTheBans drives
+// the same start as TestSubagentStartStaysUnderTheHarnessContextCap with the
+// hard bans block cut out of the ze-work definition, so the hook takes its
+// fallback and writes the whole "# Hard Bans" section of ai/INSTRUCTIONS.md
+// into the start text: the worst case of the start text's size.
+//
+// VALIDATES: the start text carries the bans section whole, and stays under
+// the cap less subagentContextReserve, counted in UTF-16 code units.
+// PREVENTS: the fallback for a definition without the block, never measured
+// while the measured definition carries it, turning the agent's rules into a
+// path it is never told to open.
+func TestSubagentStartStaysUnderTheHarnessContextCapWhenItCarriesTheBans(t *testing.T) {
+	text := repositoryStartTextWith(t, "feature/agent-economy-3-preamble-subagent-start-text", withoutHardBansBlock)
+	repository, err := filepath.Abs(filepath.Join("..", "..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	bans, err := ruleset.HardBans(repository)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(text, strings.TrimSpace(bans.Text)) {
+		t.Fatalf("the start text does not carry the hard bans section, so the fallback was not measured:\n%s", text)
+	}
+	if length := len(utf16.Encode([]rune(text))); length >= subagentContextCap-subagentContextReserve {
+		t.Fatalf("start text with the bans injected is %d characters, at or over the harness cap of %d less the %d reserved", length, subagentContextCap, subagentContextReserve)
+	}
+}
+
+// withoutHardBansBlock answers an agent definition body with its hard bans
+// block, from the begin line through the end line, cut out.
+func withoutHardBansBlock(t *testing.T, body []byte) []byte {
+	t.Helper()
+	text := string(body)
+	begin := strings.Index(text, agentBansBegin)
+	if begin < 0 {
+		t.Fatalf("the definition holds no %q line, so no block was cut", agentBansBegin)
+	}
+	end := strings.Index(text[begin:], agentBansEnd)
+	if end < 0 {
+		t.Fatalf("the definition holds no %q line after its begin line", agentBansEnd)
+	}
+	return []byte(text[:begin] + text[begin+end+len(agentBansEnd):])
+}
+
 // capSpecPath is the spec repositoryStartText's session has claimed.
 const capSpecPath = "plan/post-release/engineering/spec-agent-economy-3-preamble-subagent-start-text.md"
 
@@ -1235,6 +1280,13 @@ const capSpecPath = "plan/post-release/engineering/spec-agent-economy-3-preamble
 // definition, from a session that has claimed capSpecPath, on branch, under a
 // real session id.
 func repositoryStartText(t *testing.T, branch string) string {
+	t.Helper()
+	return repositoryStartTextWith(t, branch, nil)
+}
+
+// repositoryStartTextWith answers repositoryStartText's start text with the
+// ze-work definition body passed through definition first, when it is not nil.
+func repositoryStartTextWith(t *testing.T, branch string, definition func(*testing.T, []byte) []byte) string {
 	t.Helper()
 	repository, err := filepath.Abs(filepath.Join("..", "..", ".."))
 	if err != nil {
@@ -1256,6 +1308,9 @@ func repositoryStartText(t *testing.T, branch string) string {
 		target := filepath.Join(root, name)
 		if name == filepath.Join("ai", "agents", "ze-work.md") {
 			target = filepath.Join(root, ruleset.AgentDefinitionsDir, "ze-work.md")
+			if definition != nil {
+				body = definition(t, body)
+			}
 		}
 		if err := os.MkdirAll(filepath.Dir(target), 0o750); err != nil {
 			t.Fatal(err)

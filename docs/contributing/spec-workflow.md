@@ -792,7 +792,7 @@ THEN: [test command with a timeout]
 | The final verification command | |
 
 A handoff that has to survive the chat, for multi-session work or work picked up
-days later, is written to `plan/handover/NN-<slug>.md` with the same template.
+days later, is written to `plan/handover/YYYY-MM-DD-<slug>.md` with the same template.
 Name it for the spec's stem or its set's prefix: `./le commit create` then
 refuses to remove it while that spec, or a child of that set, is still open
 (`docs/contributing/committing.md`, `handoverRefusal`).

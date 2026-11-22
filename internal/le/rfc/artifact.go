@@ -85,7 +85,7 @@ const (
 // the behavior and does not produce it, so it stays on the ledger until the
 // behavior exists. This says the obligation never bound Ze at all. The absent
 // FEATURE is still recorded, as an implementation gap a later scope decision
-// can revisit, and never as a conformance gap (ai/rules/rfc-compliance.md,
+// can revisit, and never as a conformance gap (ai/rules/rfc-conformance.md,
 // owner directive 2026-08-31).
 // The two things an exclusion can MEAN. Every kind declares one, and there is
 // no default: a kind added without a group is a kind whose meaning nobody
@@ -154,7 +154,7 @@ func ExclusionKindGroup(kind string) (string, bool) {
 // ExclusionPresumedWrong answers whether the repository's own rule treats this
 // kind as suspect until it is justified.
 //
-// `binds-another-role` is PRESUMED WRONG (ai/rules/rfc-compliance.md, owner
+// `binds-another-role` is PRESUMED WRONG (ai/rules/rfc-conformance.md, owner
 // directive 2026-08-31): Ze rarely implements one side of a protocol, so an
 // obligation addressed to "the sender" or "the receiver" almost always binds
 // it, and the label reads on the public ledger as "not our problem" where the

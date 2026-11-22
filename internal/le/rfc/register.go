@@ -156,7 +156,7 @@ func rebuildLedger(root string) error {
 //     evaluateExtractions, and decides the backlog table.
 //   - rfc/full and rfc/drafts hold each RFC's own text, which the same chain
 //     re-derives through Deriver.Inventory and SourceText: absent, the sign-off
-//     cannot be re-checked and the table reports it unsigned. ai/rules/rfc-compliance.md
+//     cannot be re-checked and the table reports it unsigned. ai/rules/rfc-conformance.md
 //     tells an agent to fetch a missing text straight into rfc/full/, so this is
 //     a path sessions really write.
 //   - .github/workflows says which native actions CI runs on a SCHEDULE, through

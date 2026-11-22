@@ -153,6 +153,31 @@ func TestTheEdgeScanSkipsTheModuleCacheAndSiblingWorktrees(t *testing.T) {
 	}
 }
 
+// VALIDATES: the edge scan skips the launcher's build store, the source export a
+// running build compiles inside its .building lock and .staging- directory
+// included, and it still reads a source directory named builds deeper in the
+// tree.
+// PREVENTS: `./le arch tier check` reporting the files of another session's
+// in-flight le build as this tree's tier failures (handover 57, 2026-11-22).
+func TestTheEdgeScanSkipsTheLauncherBuildStore(t *testing.T) {
+	root := fixtureTree(t, map[string]string{
+		"go.mod":          "module example.com/m\n",
+		"internal/a/x.go": blankImport("a", "internal/component/thing"),
+		"bin/builds/.building/src/internal/b/y.go":    blankImport("b", "internal/component/thing"),
+		"bin/builds/.staging-123/src/internal/c/z.go": blankImport("c", "internal/component/thing"),
+		"internal/d/builds/w.go":                      blankImport("builds", "internal/component/thing"),
+	})
+	edges, err := collectEdges(root, fixtureModule)
+	if err != nil {
+		t.Fatalf("collecting edges: %v", err)
+	}
+	importers := edges["example.com/m/internal/component/thing"]
+	want := []string{"internal/a/x.go", "internal/d/builds/w.go"}
+	if !slices.Equal(importers, want) {
+		t.Fatalf("importers %q, want %q", importers, want)
+	}
+}
+
 // VALIDATES: a Go file the scan cannot READ stops the run.
 // PREVENTS: the script's fail-open, where an unreadable file contributes no
 // import edge and a LOWER violation count is what passing looks like.

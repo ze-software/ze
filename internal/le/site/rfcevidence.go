@@ -33,7 +33,7 @@ type rfcGapRow struct {
 //
 // A `{gap}` is an ISSUE and is never rendered as coverage. A gated MUST with no
 // tag is listed even where an annotation excuses it, because the annotation is
-// the reason and not the test (ai/rules/rfc-compliance.md). A requirement that
+// the reason and not the test (ai/rules/rfc-conformance.md). A requirement that
 // is both takes ONE row naming both: two rows quoting the same reason under one
 // id read as two findings, and there is one (owner review, 2026-09-01).
 func rfcGapRows(entry *rfcLedgerStem) []rfcGapRow {
@@ -357,7 +357,7 @@ func rfcExtractionHTML(entry *rfcLedgerStem) string {
 // The kind is the project's own word and means nothing to a reader outside it,
 // so the sentence internal/le/rfc declares beside the word comes with it. A
 // kind the repository's own rule presumes wrong says so here, where its
-// justification is the cell beside it (ai/rules/rfc-compliance.md).
+// justification is the cell beside it (ai/rules/rfc-conformance.md).
 func rfcExclusionKindHTML(kind string) string {
 	if strings.TrimSpace(kind) == "" {
 		return html.EscapeString(rfcOrUnstated(kind))

@@ -249,7 +249,7 @@ func checkSuperseded(tree string, requirements []Requirement, successors map[str
 			var tb textbuf.Buffer
 			errs = append(errs, tb.Str(where).Str(": ").Str(req.RID).Str(" points at ").Str(mark.Target).
 				Str(", which is not a ").Str(Prefix(successor)).Str(" requirement. rfc/short/").Str(req.RFC).
-				Str(".md names ").Str(Prefix(successor)).Str(" as its successor, and the lineage that matters runs forward (ai/rules/rfc-compliance.md)").String())
+				Str(".md names ").Str(Prefix(successor)).Str(" as its successor, and the lineage that matters runs forward (ai/rules/rfc-conformance.md)").String())
 			continue
 		}
 		if !idsByStem[successor][mark.Target] {
