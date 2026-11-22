@@ -223,18 +223,11 @@ gokrazy/docker-host/extrafiles_*.tar
 /docs/features/.*.md.tmp-*
 
 # meta/ca holds a REAL PKI root private key, so a stray one must never be
-# committable. LoadOrGenerateRootFor (internal/component/pki/ca.go) writes the
-# RELATIVE ZeFS keys meta/ca/cert and meta/ca/key (pkg/zefs/keys.go) onto
-# whatever store it is handed, and filesystemStorage.WriteFile passes the name
-# through verbatim, so on a filesystem-backed store they resolve against the
-# process working directory. A test binary's cwd is its package directory,
-# which is how one lands in the source tree.
-#
-# This ignores the artifact and fixes nothing: the same call in a shipped
-# `ze <file>` daemon writes the root key into the operator's cwd, because that
-# path falls back to a filesystem store when the blob store lacks the config.
-# docs/architecture/pki/pki-store.md says the root lives in ZeFS, and on that
-# path it lives in neither ZeFS nor the config directory.
+# committable. filesystemStorage (which passed relative ZeFS keys like
+# meta/ca/cert and meta/ca/key through verbatim against the process cwd) has
+# been removed, and PKI roots now live in ZeFS (docs/architecture/pki/pki-store.md).
+# Keep these ignore rules as a defense-in-depth safety net against accidental
+# commits of stray PKI root material.
 meta/ca/
 **/hub/meta/
 

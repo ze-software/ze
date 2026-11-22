@@ -88,8 +88,13 @@ var fileAllowlist = map[string]string{
 	"internal/plugins/vrrp/dataplane_linux.go":                       "/proc/sys/net/ipv4/conf arp_ignore/arp_filter/rp_filter knobs for the virtual-MAC dataplane; procfs scalars, no runtime state",
 	"internal/plugins/iface/netlink/addr_primary.go":                 "/proc/sys/net/ipv4/conf promote_secondaries knob so deleting a primary IPv4 address does not flush its same-subnet secondaries; procfs scalar, no runtime state",
 	"internal/plugins/flowexport/conntrack_setup_appliance_linux.go": "procfs nf_conntrack_acct sysctl on the appliance (ze_appliance conntrack init)",
+	"internal/plugins/fib/kernel/labelspace_linux.go":                "writes /proc/sys/net/mpls/platform_labels (via writeFile test seam) to enable the kernel MPLS label table before programming the first label; procfs scalar, no runtime state",
+	"internal/component/kernelcap/probe_linux.go":                    "writes /proc/sys/net/mpls/platform_labels (via writeFile test seam) inside a throwaway mount+network namespace to probe kernel MPLS support; procfs scalar, no runtime state",
 	"internal/component/vpp/dpdk.go":                                 "sysfs PCI/VFIO/hugepage knobs",
-	"internal/component/l2tp/ppp/kernel/devppp_linux.go":             "opens the /dev/ppp kernel device",
+	"internal/component/l2tp/ppp/kernel/devppp_linux.go":              "opens the /dev/ppp kernel device",
+	"internal/component/l2tp/ppp/kernel/created_channel_linux.go":     "opens the /dev/ppp kernel device for original PPP channel capture",
+	"internal/component/l2tp/ppp/kernel/created_unit_linux.go":        "opens the /dev/ppp kernel device for original PPP unit creation",
+	"internal/component/l2tp/ppp/kernel/original_attachment_linux.go": "opens the /dev/ppp kernel device to probe kernel PPP attachment support",
 	"internal/component/cli/client/main.go":                          "opens /dev/tty (operator terminal)",
 	"internal/component/cli/sshclient/terminal.go":                   "opens /dev/tty (operator terminal, moved from internal/core/ssh/client in the storage-1 cutover)",
 	"internal/component/command/pipe_save.go":                        "`| save <path>` writes ONE answer to a path the operator typed, in the operator's own process. It is not daemon state and it never goes through the storage layer: the point of the operator is to put a rendering where the operator asked for it. It is refused where the daemon expands the chain, so a remote caller cannot reach this write (see the file header)",
@@ -112,7 +117,9 @@ var fileAllowlist = map[string]string{
 	"internal/component/config/archive/archive.go":            "operator/external config backup artifact",
 	"internal/component/config/system/selfupdate.go":          "stages/installs/rolls-back the ze binary (a real executable file); the update-history JSON is persisted via statestore",
 	// --- config storage / editing machinery (the layer, not state) ---
-	"internal/component/config/provider.go":     "config file save/serialize machinery",
+	"internal/component/config/artifact/store.go":    "ephemeral private backup-workspace staging rename under MkdirTemp",
+	"internal/component/config/artifact/transfer.go": "ephemeral private backup-upload staging file under MkdirTemp (0700)",
+	"internal/component/config/provider.go":          "config file save/serialize machinery",
 	"internal/component/config/cli/cmd_edit.go": "creates the config file / ephemeral ssh addr",
 	"internal/component/cli/editor.go":          "generic atomic-write util (config editor)",
 }
@@ -315,15 +322,42 @@ func ScanFile(fset *token.FileSet, path, rel string) ([]Finding, error) {
 	}
 	lines := strings.Split(string(src), "\n")
 
+	handledSelectors := make(map[*ast.SelectorExpr]bool)
 	var out []Finding
 	ast.Inspect(file, func(node ast.Node) bool {
-		// Inspect references as well as calls, so f := blob.OpenFileIn cannot
-		// hide the bypass. Import aliases resolve by their declared package path.
+		// Inspect references as well as calls, so f := blob.OpenFileIn or
+		// var writeFile = os.WriteFile cannot hide the bypass. Import aliases
+		// resolve by their declared package path.
+		var matchPos token.Pos
+		var pkg, fn string
 		if selector, ok := node.(*ast.SelectorExpr); ok {
 			if zefsNames[identName(selector.X)] {
 				if zefsConstructors[selector.Sel.Name] {
 					line := fset.Position(selector.Pos()).Line
 					out = append(out, Finding{File: rel, Line: line, Pkg: zefsPkg, Fn: selector.Sel.Name, Code: "live-zefs-open: " + strings.TrimSpace(lines[line-1])})
+				}
+			}
+			if !handledSelectors[selector] {
+				selPkg := identName(selector.X)
+				selFn := selector.Sel.Name
+				if osNames[selPkg] {
+					if osWriteFuncs[selFn] {
+						matchPos = selector.Pos()
+						pkg = selPkg
+						fn = selFn
+					}
+					if selFn == "OpenFile" {
+						matchPos = selector.Pos()
+						pkg = selPkg
+						fn = selFn
+					}
+				}
+				if ioutilNames[selPkg] {
+					if selFn == "WriteFile" {
+						matchPos = selector.Pos()
+						pkg = selPkg
+						fn = selFn
+					}
 				}
 			}
 		}
@@ -337,30 +371,43 @@ func ScanFile(fset *token.FileSet, path, rel string) ([]Finding, error) {
 				}
 			}
 		}
-		call, ok := node.(*ast.CallExpr)
-		if !ok {
-			return true
-		}
-		selector, ok := call.Fun.(*ast.SelectorExpr)
-		if !ok {
-			return true
-		}
-		pkg := identName(selector.X)
-		fn := selector.Sel.Name
-		switch {
-		case osNames[pkg] && fn == "OpenFile":
-			// Flag unless the flag argument is provably read-only; a variable
-			// or computed flag (os.OpenFile(p, mode, 0)) is treated
-			// conservatively.
-			if openFileIsReadOnly(src, fset, call) {
+		if call, ok := node.(*ast.CallExpr); ok {
+			selector, ok := call.Fun.(*ast.SelectorExpr)
+			if !ok {
 				return true
 			}
-		case osNames[pkg] && osWriteFuncs[fn]:
-		case ioutilNames[pkg] && fn == "WriteFile":
-		default:
+			callPkg := identName(selector.X)
+			callFn := selector.Sel.Name
+			switch {
+			case osNames[callPkg] && callFn == "OpenFile":
+				handledSelectors[selector] = true
+				// Flag unless the flag argument is provably read-only; a variable
+				// or computed flag (os.OpenFile(p, mode, 0)) is treated
+				// conservatively.
+				if openFileIsReadOnly(src, fset, call) {
+					return true
+				}
+				matchPos = call.Pos()
+				pkg = callPkg
+				fn = callFn
+			case osNames[callPkg] && osWriteFuncs[callFn]:
+				handledSelectors[selector] = true
+				matchPos = call.Pos()
+				pkg = callPkg
+				fn = callFn
+			case ioutilNames[callPkg] && callFn == "WriteFile":
+				handledSelectors[selector] = true
+				matchPos = call.Pos()
+				pkg = callPkg
+				fn = callFn
+			default:
+				return true
+			}
+		}
+		if !matchPos.IsValid() {
 			return true
 		}
-		line := fset.Position(call.Pos()).Line
+		line := fset.Position(matchPos).Line
 		code := ""
 		if line >= 1 && line <= len(lines) {
 			code = strings.TrimSpace(lines[line-1])

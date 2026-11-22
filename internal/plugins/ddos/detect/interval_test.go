@@ -1,6 +1,7 @@
 package detect
 
 import (
+	"context"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/trafficstat"
@@ -105,17 +106,17 @@ func TestCheckIntervalEvaluatesTheIntervalPeak(t *testing.T) {
 // ticks and the trigger is a modulo, so at check-interval 7 no evaluation tick is
 // ever a multiple of 300 and the crash-safety save would never run again.
 func TestBaselineSaveFollowsTheFeedTickNotTheEvaluation(t *testing.T) {
-	useBaselineStore(t)
+	store := useBaselineStore(t)
 	cfg := intervalTestConfig(t, `{"ddos":{"detect":{"enabled":"true","check-interval":"7",`+
 		`"absolute-floor":"1000000","baseline-window":"10","startup-grace":"0"}}}`)
 
-	d := newDetector(cfg, newDTestBus(), nil)
+	d := newDetectorWithState(cfg, newDTestBus(), nil, store)
 	for range baselineSaveInterval {
 		d.onRates([]trafficstat.InterfaceEntry{{Name: "xe0", RxPps: 10, RxBps: 10}})
 	}
 	d.wg.Wait()
 
-	if _, ok := loadBaselines(); !ok {
+	if _, ok := loadBaselines(context.Background(), store); !ok {
 		t.Fatalf("no baseline was persisted after %d feed ticks at check-interval 7", baselineSaveInterval)
 	}
 }

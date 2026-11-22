@@ -435,3 +435,45 @@ func TestDeadBlobArtifactExemption(t *testing.T) {
 		t.Fatalf("stale artifact rule unnamed: %v", err)
 	}
 }
+
+// VALIDATES: function-value aliases of os write primitives (such as
+// `var f = os.WriteFile` or `var g = os.OpenFile`) are flagged, while direct
+// calls are reported once and read-only os.OpenFile calls remain silent.
+// PREVENTS: bypassing the raw-write gate by assigning an os write function to
+// a variable or passing it as a callback.
+func TestFunctionValueAliasOfOSWriteIsFlagged(t *testing.T) {
+	tree := writeTree(t, map[string]string{
+		"internal/plugins/alias/write.go":  "package alias\n\nimport \"os\"\n\nvar f = os.WriteFile\n",
+		"internal/plugins/alias/open.go":   "package alias\n\nimport \"os\"\n\nvar openFn = os.OpenFile\n",
+		"internal/plugins/alias/import.go": "package alias\n\nimport fsys \"os\"\n\nvar createFn = fsys.Create\n",
+		"internal/plugins/alias/direct.go": "package alias\n\nimport \"os\"\n\nfunc save(p string, d []byte) error { return os.WriteFile(p, d, 0o600) }\n" +
+			"func read(p string) (*os.File, error) { return os.OpenFile(p, os.O_RDONLY, 0) }\n",
+	})
+	findings, err := Check(tree, 0)
+	if err != nil {
+		t.Fatalf("Check: %v", err)
+	}
+	want := map[string]string{
+		"internal/plugins/alias/write.go":  "WriteFile",
+		"internal/plugins/alias/open.go":   "OpenFile",
+		"internal/plugins/alias/import.go": "Create",
+		"internal/plugins/alias/direct.go": "WriteFile",
+	}
+	if len(findings) != len(want) {
+		t.Fatalf("got %d findings, want %d: %+v", len(findings), len(want), findings)
+	}
+	for _, finding := range findings {
+		expectedFn, ok := want[finding.File]
+		if !ok {
+			t.Errorf("unexpected or duplicate finding: %+v", finding)
+			continue
+		}
+		if finding.Fn != expectedFn {
+			t.Errorf("%s flagged %q, want %q", finding.File, finding.Fn, expectedFn)
+		}
+		delete(want, finding.File)
+	}
+	if len(want) != 0 {
+		t.Fatalf("missing findings: %v", want)
+	}
+}

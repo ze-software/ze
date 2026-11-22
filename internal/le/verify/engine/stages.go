@@ -332,8 +332,8 @@ func fastStages() []Stage {
 //   - the race pieces race the change set's groups
 //   - the gating functional suite runs the suites the suite map selects
 //
-// It is the evidence a push owes, so an agent may start it: it is admitted
-// through the job slots like any job and is not a release check.
+// It is owner-only; no agent runs any `./le verify` command (AGENTS.md). It is
+// admitted through the job slots like any job and is not a release check.
 func changedStages() []Stage {
 	stages := []Stage{
 		stage("go lint", "run", "changed"),

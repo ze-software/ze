@@ -63,6 +63,7 @@ type detector struct {
 	cfg      *Config
 	bus      ze.EventBus
 	dispatch dispatchFunc
+	state    stateClient
 	baseline *baseline
 	// baselineBps is a parallel rolling baseline over bytes/sec, feeding the
 	// bandwidth trigger. Same type and poisoning guard as the PPS baseline; its
@@ -171,10 +172,15 @@ func (p *intervalPeak) add(pps, bps float64, ppsIface, bpsIface string) {
 }
 
 func newDetector(cfg *Config, bus ze.EventBus, dispatch dispatchFunc) *detector {
+	return newDetectorWithState(cfg, bus, dispatch, nil)
+}
+
+func newDetectorWithState(cfg *Config, bus ze.EventBus, dispatch dispatchFunc, state stateClient) *detector {
 	d := &detector{
 		cfg:         cfg,
 		bus:         bus,
 		dispatch:    dispatch,
+		state:       state,
 		baseline:    newBaseline(cfg.BaselineWindow, cfg.ThresholdMultiplier, cfg.AbsoluteFloor),
 		baselineBps: newBaseline(cfg.BaselineWindow, cfg.BpsThresholdMultiplier, cfg.BpsFloor/8.0),
 		evalTicks:   max(1, cfg.CheckInterval),
@@ -194,6 +200,11 @@ func newDetector(cfg *Config, bus ze.EventBus, dispatch dispatchFunc) *detector 
 // adding to the WaitGroup after Wait has started -- a late trafficstat tick
 // delivered after Unsubscribe would otherwise panic "WaitGroup reused".
 func (d *detector) Stop() {
+	d.stopContext(context.Background())
+}
+
+// stopContext is Stop with a caller-supplied context for the final state RPC.
+func (d *detector) stopContext(ctx context.Context) {
 	d.mu.Lock()
 	d.stopped = true
 	d.mu.Unlock()
@@ -204,15 +215,20 @@ func (d *detector) Stop() {
 	// Persist after in-flight work unwinds and (in production) after the caller has
 	// unsubscribed, so the baselines are quiescent. Called on both reconfigure and
 	// shutdown, so a config change also preserves the warmed baseline.
-	d.saveBaseline()
+	d.saveBaselineContext(ctx)
 }
 
-// restore loads the persisted baselines from the shared zefs store into the live
-// baselines so a restart/reconfigure resumes detection without re-warming over
-// BaselineWindow. No-op when the store or key is absent or rejected (warm fresh).
-// Called once after construction, before subscribing to rates.
+// restore loads the persisted baselines from the daemon's managed zefs store
+// into the live baselines so a restart/reconfigure resumes detection without
+// re-warming over BaselineWindow. No-op when no state client is attached or the
+// store/key is absent or rejected (warm fresh). Called once after OnStarted,
+// before subscribing to rates.
 func (d *detector) restore() {
-	blob, ok := loadBaselines()
+	d.restoreContext(context.Background())
+}
+
+func (d *detector) restoreContext(ctx context.Context) {
+	blob, ok := loadBaselines(ctx, d.state)
 	if !ok {
 		return
 	}
@@ -224,19 +240,24 @@ func (d *detector) restore() {
 	}
 }
 
-// saveBaseline persists both baselines. The snapshot is taken under d.mu; the file
-// I/O runs off the lock so a slow disk never stalls the rate tick (R-4). Best-effort:
-// saveBaselines is a no-op when no shared store is registered.
+// saveBaseline persists both baselines. The snapshot is taken under d.mu; the
+// SDK state RPC runs off the lock so a slow store never stalls the rate tick
+// (R-4). Best-effort: saveBaselines is a no-op when no state client or store
+// is available.
 func (d *detector) saveBaseline() {
+	d.saveBaselineContext(context.Background())
+}
+
+func (d *detector) saveBaselineContext(ctx context.Context) {
 	d.mu.Lock()
 	pps := d.baseline.snapshot()
 	bps := d.baselineBps.snapshot()
 	d.mu.Unlock()
 	// Serialize concurrent saves (periodic vs on-stop) so they never overlap on the
-	// store. Held only around the file I/O, never with d.mu, so the tick is free.
+	// store. Held only around the state RPC, never with d.mu, so the tick is free.
 	d.saveMu.Lock()
 	defer d.saveMu.Unlock()
-	if err := saveBaselines(pps, bps); err != nil {
+	if err := saveBaselines(ctx, d.state, pps, bps); err != nil {
 		logger().Debug("ddos-detect: baseline save failed", "error", err)
 	}
 }

@@ -4,8 +4,6 @@
 # A module is approved only for its approved use: a new row is written by
 # ./le deps approve, from Thomas's terminal, never by hand.
 # Page: docs/contributing/dependency-approval.md
-1..255	internal/component/config	in use when the ledger was seeded
-1..65535	internal/component/config	in use when the ledger was seeded
 charm.land/bubbles/v2/textinput	internal/component/cli	in use when the ledger was seeded
 charm.land/bubbles/v2/viewport	internal/component/cli	in use when the ledger was seeded
 charm.land/bubbletea/v2	cmd/ze	in use when the ledger was seeded

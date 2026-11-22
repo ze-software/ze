@@ -44,15 +44,18 @@ rejected as unconventional and error-prone. The cost is one divide.
 <!-- source: internal/plugins/ddos/detect/baseline.go -- snapshot, restore -->
 
 The format is versioned JSON under `meta/ddos/detect-baseline` in the daemon's
-selected `database/` tree, through `internal/core/statestore`.
+selected `database/` tree, through the plugin SDK state RPCs (`p.StateGet` /
+`p.StatePut`, granted via `statestore.RegisterPluginKeys` in `register.go`).
 `baseline.restore` refuses a value whose version differs, that holds fewer
 than `min(50, window)` samples, or that holds a NaN, infinity or negative value.
 
-`newDetector` is I/O-free. `register.go` calls `restore()` before subscribing
-to rate updates. `Stop()` saves after unsubscribing and draining in-flight work,
-which covers reconfiguration and shutdown, and a periodic save runs every
-300 rate-feed ticks. `saveMu` serialises that periodic save against the save on
-stop.
+`newDetector` is I/O-free. `register.go` defers `restore()` and rate-feed
+subscription until `OnStarted` (when SDK state RPCs are live) and registers
+`OnDrain` / `OnBye` so `Stop()` saves through `p.StatePut` while the daemon
+transport is still open. `Stop()` saves after unsubscribing and draining
+in-flight work, which covers reconfiguration and shutdown, and a periodic save
+runs every 300 rate-feed ticks. `saveMu` serialises that periodic save against
+the save on stop.
 
 The restart fixture waits for the periodic save to contain a complete
 ten-sample window from the production rate collector. It stops that daemon and

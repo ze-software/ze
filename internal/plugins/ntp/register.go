@@ -1,11 +1,13 @@
 package ntp
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/command"
@@ -16,10 +18,13 @@ import (
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/statestore"
 	ntpevents "github.com/ze-software/ze/internal/plugins/ntp/events"
 	ntpyang "github.com/ze-software/ze/internal/plugins/ntp/yang"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // eventBusMu guards eventBusRef.
@@ -53,6 +58,8 @@ func init() {
 
 	d := slogutil.DiscardLogger()
 	loggerPtr.Store(d)
+
+	statestore.RegisterPluginKeys("ntp", zefs.KeyNTPLastTime)
 
 	reg := registry.Registration{
 		Name:                    "ntp",
@@ -195,12 +202,30 @@ func runNTPPlugin(conn net.Conn) int {
 	defer func() { _ = p.Close() }()
 	p.OnExecuteCommand(executeNTPCommand)
 
-	var worker *syncWorker
-	var unsubscribe func()
+	var (
+		workerMu     sync.Mutex
+		worker       *syncWorker
+		unsubscribe  func()
+		drainRefusal *opererr.Error
+		startedOnce  sync.Once
+		started      atomic.Bool
+	)
+	startedCh := make(chan struct{})
+
+	takeWorker := func() (*syncWorker, func()) {
+		workerMu.Lock()
+		defer workerMu.Unlock()
+		w, unsub := worker, unsubscribe
+		worker, unsubscribe = nil, nil
+		return w, unsub
+	}
 
 	// startWorker stops any existing worker, then starts a new one
 	// with the given config. Safe to call multiple times (reload).
 	startWorker := func(cfg ntpConfig) {
+		workerMu.Lock()
+		defer workerMu.Unlock()
+
 		if worker != nil {
 			worker.stopAndWait()
 			worker = nil
@@ -219,6 +244,8 @@ func runNTPPlugin(conn net.Conn) int {
 		// an explicit unknown, rather than a stale enabled or disabled answer.
 		storeState(nil)
 		worker = newSyncWorker(cfg, getEventBus())
+		worker.state = p
+		worker.ready = startedCh
 		worker.start()
 		log.Info("ntp: sync worker started",
 			"servers", cfg.Servers, "interval", cfg.IntervalSec)
@@ -244,6 +271,15 @@ func runNTPPlugin(conn net.Conn) int {
 			startWorker(cfg)
 			return nil
 		}
+		return nil
+	})
+
+	// Release the worker's SDK state RPC calls only after the 5-stage startup
+	// handshake completes (sdk.Plugin state calls MUST begin no earlier than
+	// OnStarted).
+	p.OnStarted(func(_ context.Context) error {
+		started.Store(true)
+		startedOnce.Do(func() { close(startedCh) })
 		return nil
 	})
 
@@ -277,6 +313,38 @@ func runNTPPlugin(conn net.Conn) int {
 		return nil
 	})
 
+	// Persist the final clock snapshot while the daemon RPC transport is still
+	// open (works identically for internal and external plugin processes).
+	p.OnDrain(func(drainCtx context.Context, _ rpc.DrainInput) error {
+		w, unsub := takeWorker()
+		if unsub != nil {
+			unsub()
+		}
+		if refusal := finishNTPWorkerContext(drainCtx, w); refusal != nil {
+			workerMu.Lock()
+			drainRefusal = refusal
+			workerMu.Unlock()
+			return refusal
+		}
+		return nil
+	})
+
+	p.OnBye(func(_ string) error {
+		if !started.Load() {
+			return nil
+		}
+		w, unsub := takeWorker()
+		if unsub != nil {
+			unsub()
+		}
+		if refusal := finishNTPWorkerContext(context.Background(), w); refusal != nil {
+			workerMu.Lock()
+			drainRefusal = refusal
+			workerMu.Unlock()
+		}
+		return nil
+	})
+
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	runErr := p.Run(ctx, &sdk.Registration{
@@ -290,13 +358,27 @@ func runNTPPlugin(conn net.Conn) int {
 		// comfortable headroom over that residual one-query wait while dead
 		// servers keep the phase-2 retry loop busy (startup-resilience FIX 1).
 		ApplyBudget: 10,
+		DrainBudget: 5,
 	})
 
-	// Shutdown: save time and stop worker.
-	shutdownErr := finishNTPWorker(worker)
-	if unsubscribe != nil {
-		unsubscribe()
+	// Shutdown: save time (when not already saved during OnDrain/OnBye) and stop worker.
+	w, unsub := takeWorker()
+	if unsub != nil {
+		unsub()
 	}
+	if w != nil {
+		if !started.Load() {
+			// Startup aborted before OnStarted: the SDK state RPC transport
+			// never became active, so stop the worker without sending StatePut.
+			w.state = nil
+		}
+	}
+	shutdownErr := finishNTPWorkerContext(context.Background(), w)
+	workerMu.Lock()
+	if shutdownErr == nil {
+		shutdownErr = drainRefusal
+	}
+	workerMu.Unlock()
 	refusal := shutdownErr
 	if runErr != nil {
 		if shutdownErr != nil {
@@ -319,13 +401,17 @@ func runNTPPlugin(conn net.Conn) int {
 // fails. A failed save is a failed shutdown, with its original cause retained;
 // the caller releases its remaining resources before rendering the refusal.
 func finishNTPWorker(worker *syncWorker) *opererr.Error {
+	return finishNTPWorkerContext(context.Background(), worker)
+}
+
+func finishNTPWorkerContext(ctx context.Context, worker *syncWorker) *opererr.Error {
 	if worker == nil {
 		return nil
 	}
 	defer worker.stopAndWait()
-	// persist-path enables the final save; the shared store owns its location.
+	// persist-path enables the final save; the managed store owns its location.
 	if worker.cfg.PersistPath != "" {
-		if err := saveTime(currentTime()); err != nil {
+		if err := saveTime(ctx, worker.state, currentTime()); err != nil {
 			return opererr.Wrap(err, "NTP shutdown could not save the last-known time",
 				"The managed state store refused the write, so the next boot cannot rely on a fresh saved clock. Inspect the store and restore write access before restarting NTP.",
 				"ze show doctor")

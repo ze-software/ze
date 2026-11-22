@@ -237,7 +237,7 @@ func TestAVerdictInAnUnpublishedStateSaysSoRatherThanRenderingAnEmptyCell(t *tes
 		{"a known verdict", "weak", "cannot fail on non-compliance"},
 		{"a known state", "weak (shifted)", "re-stamp it with `./le rfc reseal stem <rfc>`"},
 		{"an unknown state", "weak (invented)",
-			"unpublished freshness state `invented` -- add it to _STATE_MEANING"},
+			"unpublished freshness state `invented` -- add it to stateMeaning"},
 		{"an unknown verdict", "invented", "outside the recorded vocabulary"},
 		{"a fresh enforced is not a worklist row", "enforced", "outside the recorded vocabulary"},
 	}
@@ -840,5 +840,34 @@ func TestTheGeneratorPageNamesWhatItWroteAndWhatItRemoved(t *testing.T) {
 	busy := IndexReport{Ledger: ledgerRel, Shards: 3, Deleted: []string{"rfc1000", "rfc1001"}}
 	if !strings.HasSuffix(busy.Text(), "deleted orphan shard(s): rfc1000, rfc1001\n") {
 		t.Errorf("a run that deleted does not name what it removed: %q", busy.Text())
+	}
+}
+
+// VALIDATES: every non-enforced verdict word in auditVerdicts has a published
+// meaning in unprovenMeaning, and statusPageIntro cites the per-requirement
+// discrimination path rfc/discrimination/<stem>/<requirement-id>.json.
+// PREVENTS: a verdict like "partial" falling through to a placeholder cell in
+// the worklist, or the public status page pointing at the retired flat path.
+func TestEveryUnprovenAuditVerdictHasAMeaningAndIntroNamesPerRequirementDiscriminationPath(t *testing.T) {
+	for verdict := range auditVerdicts {
+		if verdict == VerdictEnforced {
+			continue
+		}
+		meaning, ok := unprovenMeaning[verdict]
+		if !ok || strings.TrimSpace(meaning) == "" {
+			t.Errorf("non-enforced verdict %q is missing from unprovenMeaning", verdict)
+		}
+		got := verdictMeaning(verdict)
+		if got != meaning {
+			t.Errorf("verdictMeaning(%q) = %q, want %q", verdict, got, meaning)
+		}
+	}
+
+	intro := statusPageIntro(1, 2)
+	if !strings.Contains(intro, "rfc/discrimination/<stem>/<requirement-id>.json") {
+		t.Errorf("statusPageIntro does not name the per-requirement discrimination path:\n%s", intro)
+	}
+	if strings.Contains(intro, "rfc/discrimination/<stem>.json") {
+		t.Errorf("statusPageIntro still names the retired flat discrimination path:\n%s", intro)
 	}
 }

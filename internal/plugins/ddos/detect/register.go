@@ -1,19 +1,23 @@
 package detect
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
+	"sync"
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/trafficstat"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/statestore"
 	detectyang "github.com/ze-software/ze/internal/plugins/ddos/detect/yang"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 var eventBusPtr atomic.Pointer[ze.EventBus]
@@ -34,6 +38,8 @@ func loadBus() (ze.EventBus, error) {
 }
 
 func init() {
+	statestore.RegisterPluginKeys(Name, zefs.KeyDDoSDetectBaseline)
+
 	reg := registry.Registration{
 		Name:         Name,
 		Description:  "Automatic DDoS attack detector with two-stage detection",
@@ -113,22 +119,26 @@ func runEngine(conn net.Conn) int {
 	warnIfExternal(p.IsInternal())
 	defer func() { _ = p.Close() }()
 
-	var det *detector
-	var rateSubID int
+	var (
+		detMu     sync.Mutex
+		det       *detector
+		rateSubID int
+		started   atomic.Bool
+	)
 	// armed is the detector the doctor callback judges: the subscribed one, or
 	// nil while ddos detect is disabled. The callback runs on the SDK's own
 	// goroutine, so it reads this pointer and never det.
 	var armed atomic.Pointer[detector]
 
-	// subscribe wires the detector to the trafficstat service, then arms the
+	// subscribeLocked wires the detector to the trafficstat service, then arms the
 	// blind-feed watch (blind.go) and publishes the detector to the doctor
-	// callback.
+	// callback. Caller MUST hold detMu.
 	//
 	// EnsureGlobal (not Global): the trafficstat service is created lazily and
 	// nothing else guarantees it exists at detector-config time. EnsureGlobal
 	// creates it on first use, so it never answers nil.
 	internal := p.IsInternal()
-	subscribe := func(d *detector) {
+	subscribeLocked := func(d *detector) {
 		svc := trafficstat.EnsureGlobal()
 		if svc == nil {
 			panic("BUG: trafficstat.EnsureGlobal returned no service")
@@ -139,7 +149,8 @@ func runEngine(conn net.Conn) int {
 		armed.Store(d)
 	}
 
-	unsubscribe := func() {
+	// unsubscribeLocked removes the trafficstat subscription. Caller MUST hold detMu.
+	unsubscribeLocked := func() {
 		armed.Store(nil)
 		if rateSubID != 0 {
 			if svc := trafficstat.Global(); svc != nil {
@@ -147,6 +158,21 @@ func runEngine(conn net.Conn) int {
 			}
 			rateSubID = 0
 		}
+	}
+
+	stopCurrent := func(ctx context.Context, clearState bool) {
+		detMu.Lock()
+		unsubscribeLocked()
+		current := det
+		det = nil
+		detMu.Unlock()
+		if current == nil {
+			return
+		}
+		if clearState {
+			current.state = nil
+		}
+		current.stopContext(ctx)
 	}
 
 	parseSections := func(sections []sdk.ConfigSection) (*Config, error) {
@@ -168,6 +194,9 @@ func runEngine(conn net.Conn) int {
 
 	var pendingCfg *Config
 
+	// During Stage-2 configure, build the detector without calling StateGet or
+	// subscribing yet: SDK state RPCs MUST begin no earlier than OnStarted.
+	// A redelivered configure after OnStarted restores and subscribes inline.
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		cfg, err := parseSections(sections)
 		if err != nil {
@@ -177,15 +206,39 @@ func runEngine(conn net.Conn) int {
 		if err != nil {
 			return err
 		}
-		unsubscribe()
-		if det != nil {
-			det.Stop()
+		isStarted := started.Load()
+		stopCurrent(context.Background(), !isStarted)
+		next := newDetectorWithState(cfg, bus, p.DispatchCommand, p)
+		if isStarted {
+			next.restore()
 		}
-		det = newDetector(cfg, bus, p.DispatchCommand)
-		det.restore()
-		if cfg.Enabled {
-			subscribe(det)
+		detMu.Lock()
+		det = next
+		if isStarted {
+			if cfg.Enabled {
+				subscribeLocked(next)
+			}
 		}
+		detMu.Unlock()
+		return nil
+	})
+
+	p.OnStarted(func(startCtx context.Context) error {
+		started.Store(true)
+		detMu.Lock()
+		current := det
+		detMu.Unlock()
+		if current == nil {
+			return nil
+		}
+		current.restoreContext(startCtx)
+		detMu.Lock()
+		if det == current {
+			if current.cfg.Enabled {
+				subscribeLocked(current)
+			}
+		}
+		detMu.Unlock()
 		return nil
 	})
 
@@ -208,19 +261,31 @@ func runEngine(conn net.Conn) int {
 		if err != nil {
 			return err
 		}
-		unsubscribe()
-		if det != nil {
-			det.Stop()
-		}
-		det = newDetector(cfg, bus, p.DispatchCommand)
-		det.restore()
+		stopCurrent(context.Background(), false)
+		next := newDetectorWithState(cfg, bus, p.DispatchCommand, p)
+		next.restore()
+		detMu.Lock()
+		det = next
 		if cfg.Enabled {
-			subscribe(det)
+			subscribeLocked(next)
 		}
+		detMu.Unlock()
 		return nil
 	})
 
 	p.OnConfigRollback(func(_ string) error {
+		return nil
+	})
+
+	// Persist the final baseline snapshot while the daemon RPC transport is
+	// still live (works identically for internal and external plugins).
+	p.OnDrain(func(drainCtx context.Context, _ rpc.DrainInput) error {
+		stopCurrent(drainCtx, false)
+		return nil
+	})
+
+	p.OnBye(func(_ string) error {
+		stopCurrent(context.Background(), !started.Load())
 		return nil
 	})
 
@@ -234,20 +299,15 @@ func runEngine(conn net.Conn) int {
 		WantsConfig:  []string{configRoot},
 		VerifyBudget: 2,
 		ApplyBudget:  10,
+		DrainBudget:  5,
 		DoctorChecks: []rpc.DoctorCheckDecl{rateFeedCheckDecl},
 	}); err != nil {
 		log.Error("ddos-detect plugin failed", "error", err)
-		unsubscribe()
-		if det != nil {
-			det.Stop()
-		}
+		stopCurrent(context.Background(), !started.Load())
 		return 1
 	}
 
-	unsubscribe()
-	if det != nil {
-		det.Stop()
-	}
+	stopCurrent(context.Background(), !started.Load())
 	log.Info("ddos-detect plugin stopped")
 	return 0
 }

@@ -279,6 +279,7 @@ func renderAuditCoverage(in RenderInput) []string {
 
 // unprovenMeaning is one line per verdict word.
 var unprovenMeaning = map[string]string{
+	VerdictPartial:       "the tests enforce only the declared tested scope; the whole requirement remains unmet",
 	VerdictWeak:          "tagged and green, but cannot fail on non-compliance",
 	VerdictWrong:         "the test asserts something the RFC does not say",
 	VerdictUnimplemented: "the tests are fine; the CODE does not comply",
@@ -321,7 +322,7 @@ func verdictMeaning(reason string) string {
 		var tb textbuf.Buffer
 		return tb.Str("recorded `").Str(value).
 			Str("` in the unpublished freshness state `").Str(state).
-			Str("` -- add it to _STATE_MEANING").String()
+			Str("` -- add it to stateMeaning").String()
 	}
 	if _, known := auditVerdicts[value]; value == VerdictEnforced || !known {
 		return "outside the recorded vocabulary"
@@ -329,7 +330,7 @@ func verdictMeaning(reason string) string {
 	if meaning, held := unprovenMeaning[value]; held {
 		return meaning
 	}
-	return "no published meaning for this verdict -- add one to _UNPROVEN_MEANING"
+	return "no published meaning for this verdict -- add one to unprovenMeaning"
 }
 
 // renderDiscrimination is the published state of the claim half of a tag.

@@ -179,11 +179,12 @@ ze_bfd     internal/component/bfd
 ze_bfd     internal/component/bfd/cmd
 
 # ze_vpp -- the VPP dataplane: the shared GoVPP connector component and every
-# per-plugin VPP backend (fib, firewall, iface, traffic, static) plus the IKE
-# IPsec vpp backend (source-tagged files in ike/dataplane and plugins/static;
-# registry fallbacks keep netlink/kernel/xfrm behavior identical). Dropping the
-# tag unlinks vendored govpp (~46k LOC) for netlink-only deployments. Without
-# it the `vpp {}` component root fails at parse, and `backend vpp` under
+# per-plugin VPP backend (fib, firewall, iface, traffic, static, pppoe-vpp and
+# its l2tp/pppoe/dataplane/vpp implementation) plus the IKE IPsec vpp backend
+# (source-tagged files in ike/dataplane and plugins/static; registry fallbacks
+# keep netlink/kernel/xfrm behavior identical). Dropping the tag unlinks
+# vendored govpp (~46k LOC) for netlink-only deployments. Without it the
+# `vpp {}` component root fails at parse, and `backend vpp` under
 # `traffic control`, `interface` or `firewall` is refused at validate, commit
 # and boot, naming ze_vpp: each of those owners declares a config need on its
 # optional edge to the vpp component (registry.ConfigNeed).
@@ -194,6 +195,7 @@ ze_vpp     internal/plugins/iface/vpp
 ze_vpp     internal/plugins/traffic/vpp
 ze_vpp     internal/plugins/static/vpp
 ze_vpp     internal/component/l2tp/plugins/pppoe-vpp
+ze_vpp     internal/component/l2tp/pppoe/dataplane/vpp
 
 # ze_ike -- the IKEv2/IPsec VPN control plane: engine, ipsec config plumbing,
 # command surface, schema (eap/wire/transport drop transitively with the

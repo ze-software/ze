@@ -1,7 +1,11 @@
 package ntp
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
+	"io/fs"
+	"net"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -9,39 +13,64 @@ import (
 	"time"
 
 	"github.com/beevik/ntp"
-
-	"github.com/ze-software/ze/internal/component/config/storage"
-	"github.com/ze-software/ze/internal/component/plugin"
-	"github.com/ze-software/ze/internal/core/statestore"
-	"github.com/ze-software/ze/pkg/zefs"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/command/commandtest"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/component/plugin"
 	ntpevents "github.com/ze-software/ze/internal/plugins/ntp/events"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
-// newTimeStore registers a private tree for time persistence.
-// It resets the store to nil on cleanup. The statestore is process-global, so tests
-// that call this MUST NOT call t.Parallel(): a parallel sibling would clobber the
-// registered store (see the non-parallel show-handler tests for the same pattern).
-func newTimeStore(t *testing.T) {
+// zefsStateClient adapts a real storage.Storage tree to the SDK stateClient
+// seam so persistence tests exercise real zefs storage without global state.
+type zefsStateClient struct {
+	store storage.Storage
+}
+
+func (c *zefsStateClient) StateGet(_ context.Context, key string) ([]byte, bool, error) {
+	data, err := c.store.ReadFile(key)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	return data, true, nil
+}
+
+func (c *zefsStateClient) StatePut(_ context.Context, key string, data []byte) error {
+	return c.store.WriteFile(key, data, 0o600)
+}
+
+// unavailableStateClient simulates a daemon with no managed store registered.
+type unavailableStateClient struct{}
+
+func (unavailableStateClient) StateGet(context.Context, string) ([]byte, bool, error) {
+	return nil, false, &rpc.StateError{Status: rpc.StateUnavailable, Message: "no managed store"}
+}
+
+func (unavailableStateClient) StatePut(context.Context, string, []byte) error {
+	return &rpc.StateError{Status: rpc.StateUnavailable, Message: "no managed store"}
+}
+
+// newTimeStore creates a private zefs tree wrapped as a stateClient and closes
+// it in t.Cleanup.
+func newTimeStore(t *testing.T) *zefsStateClient {
 	t.Helper()
 	bs, err := storage.Create(t.TempDir())
 	if err != nil {
 		t.Fatalf("storage.Create: %v", err)
 	}
-	statestore.SetStore(bs)
 	t.Cleanup(func() {
-		statestore.SetStore(nil)
-		// close now runs in t.Cleanup for the process-global store; a
-		// deferred cleanup reports with the non-fatal t.Errorf (Fatal is discouraged
-		// in cleanup), not the Fatalf the old path-returning helper used inline.
 		if err := bs.Close(); err != nil {
 			t.Errorf("close store: %v", err)
 		}
 	})
+	return &zefsStateClient{store: bs}
 }
 
 // errTestUnreachable is the stub error for an unreachable NTP server.
@@ -173,36 +202,35 @@ func TestClockOffsetAllowedMaxStep(t *testing.T) {
 	assert.True(t, clockOffsetAllowed(24*time.Hour, 0))
 }
 
-// TestTimePersistenceSave verifies time is saved into the shared zefs store.
+// TestTimePersistenceSave verifies time is saved into the managed zefs store.
 //
 // VALIDATES: AC-5 - NTP query succeeds, time persisted under the NTP last-time key.
 // PREVENTS: Time persistence silently failing, or reverting to loose-file writes.
-// Not parallel: newTimeStore registers a process-global statestore (see helper).
 func TestTimePersistenceSave(t *testing.T) {
-	newTimeStore(t)
+	store := newTimeStore(t)
 
 	now := time.Date(2026, 4, 12, 15, 30, 0, 0, time.UTC)
-	err := saveTime(now)
+	err := saveTime(context.Background(), store, now)
 	require.NoError(t, err)
 
 	// The RFC3339 blob is stored under the NTP last-time key in the zefs store.
-	data, ok := statestore.Get(zefs.KeyNTPLastTime.Pattern)
+	data, ok, err := store.StateGet(context.Background(), zefs.KeyNTPLastTime.Pattern)
+	require.NoError(t, err)
 	require.True(t, ok, "expected a persisted time blob under the key")
 	assert.Contains(t, string(data), "2026-04-12")
 }
 
-// TestTimePersistenceRestore verifies time is restored from the shared zefs store.
+// TestTimePersistenceRestore verifies time is restored from the managed zefs store.
 //
 // VALIDATES: AC-6 - Boot with a persisted time, clock set to saved time.
 // PREVENTS: Saved time ignored on boot.
-// Not parallel: newTimeStore registers a process-global statestore (see helper).
 func TestTimePersistenceRestore(t *testing.T) {
-	newTimeStore(t)
+	store := newTimeStore(t)
 
 	saved := time.Date(2026, 4, 12, 15, 30, 0, 0, time.UTC)
-	require.NoError(t, saveTime(saved))
+	require.NoError(t, saveTime(context.Background(), store, saved))
 
-	loaded, err := loadTime()
+	loaded, err := loadTime(context.Background(), store)
 	require.NoError(t, err)
 	assert.Equal(t, saved.Unix(), loaded.Unix())
 }
@@ -211,11 +239,10 @@ func TestTimePersistenceRestore(t *testing.T) {
 //
 // VALIDATES: AC-7 - Boot without a persisted time, no crash (error surfaced).
 // PREVENTS: Crash on first boot when the store has no saved time yet.
-// Not parallel: newTimeStore registers a process-global statestore (see helper).
 func TestTimePersistenceMissing(t *testing.T) {
 	// A store that exists but has no saved-time key yet.
-	newTimeStore(t)
-	_, err := loadTime()
+	store := newTimeStore(t)
+	_, err := loadTime(context.Background(), store)
 	assert.Error(t, err)
 
 }
@@ -224,14 +251,13 @@ func TestTimePersistenceMissing(t *testing.T) {
 //
 // VALIDATES: loadTime rejects corrupt content.
 // PREVENTS: Panic on a corrupt saved time.
-// Not parallel: newTimeStore registers a process-global statestore (see helper).
 func TestTimePersistenceCorrupt(t *testing.T) {
-	newTimeStore(t)
+	store := newTimeStore(t)
 
-	_, err := statestore.Put(zefs.KeyNTPLastTime.Pattern, []byte("not a valid time"))
+	err := store.StatePut(context.Background(), zefs.KeyNTPLastTime.Pattern, []byte("not a valid time"))
 	require.NoError(t, err)
 
-	_, err = loadTime()
+	_, err = loadTime(context.Background(), store)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "parse")
 }
@@ -240,16 +266,15 @@ func TestTimePersistenceCorrupt(t *testing.T) {
 //
 // VALIDATES: AC-14 - NTP response with absurd timestamp rejected.
 // PREVENTS: Saved time from 1970 or far future accepted.
-// Not parallel: newTimeStore registers a process-global statestore (see helper).
 func TestTimePersistenceAbsurdYear(t *testing.T) {
-	newTimeStore(t)
+	store := newTimeStore(t)
 
 	old := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
 	buf, _ := old.MarshalText()
-	_, err := statestore.Put(zefs.KeyNTPLastTime.Pattern, buf)
+	err := store.StatePut(context.Background(), zefs.KeyNTPLastTime.Pattern, buf)
 	require.NoError(t, err)
 
-	_, err = loadTime()
+	_, err = loadTime(context.Background(), store)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "out of range")
 }
@@ -738,25 +763,85 @@ func TestSyncWorkerClockSyncedNilEventBus(t *testing.T) {
 }
 
 // TestTimePersistenceNoStoreIsNoOp verifies saveTime is a best-effort no-op when
-// the shared zefs store does not exist: statestore never creates the store, so the
-// save returns nil (nothing persisted) rather than erroring or writing a loose file.
+// no state client is attached or the daemon reports no managed store registered
+// (rpc.StateUnavailable), rather than erroring or writing a loose file.
 //
-// VALIDATES: NTP time persistence is best-effort through statestore.
+// VALIDATES: NTP time persistence is best-effort through the SDK state RPC.
 // PREVENTS: A regression that recreates loose-file writes or treats an absent store as fatal.
-// Not parallel: reads the process-global statestore, which sibling persistence
-// tests register (see newTimeStore).
 func TestTimePersistenceNoStoreIsNoOp(t *testing.T) {
-	// No store registered: statestore Put/Get are best-effort no-ops.
-	statestore.SetStore(nil)
-
 	now := time.Date(2026, 4, 12, 15, 0, 0, 0, time.UTC)
-	require.NoError(t, saveTime(now), "save with no store registered should be a best-effort no-op")
+	require.NoError(t, saveTime(context.Background(), nil, now), "save with no state client should be a best-effort no-op")
+	require.NoError(t, saveTime(context.Background(), unavailableStateClient{}, now), "save with no daemon store registered should be a best-effort no-op")
 
-	// Nothing was persisted, so loadTime reports not-found.
-	// the old os.Stat "no loose file created" assertion is obsolete under
-	// the paramless API -- saveTime takes no path and cannot write a loose file.
-	_, err := loadTime()
+	// Nothing was persisted, so loadTime reports not-found / unavailable.
+	_, err := loadTime(context.Background(), nil)
 	assert.Error(t, err)
+	_, err = loadTime(context.Background(), unavailableStateClient{})
+	assert.Error(t, err)
+}
+
+// TestTimePersistenceOverSDKStateRPC verifies saveTime and loadTime travel
+// through sdk.Plugin.StatePut / StateGet over the plugin wire protocol.
+//
+// VALIDATES: NTP persistence uses SDK state RPCs (ze-plugin-engine:state-put
+// and state-get) under zefs.KeyNTPLastTime.Pattern rather than direct
+// process-global statestore access.
+func TestTimePersistenceOverSDKStateRPC(t *testing.T) {
+	pluginSide, engineSide := net.Pipe()
+	p := sdk.NewWithConn("ntp", pluginSide)
+	mux := rpc.NewMuxConn(rpc.NewConn(engineSide, engineSide))
+	t.Cleanup(func() {
+		_ = p.Close()
+		_ = mux.Close()
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var stored []byte
+	done := make(chan error, 1)
+	go func() {
+		for range 2 {
+			req := <-mux.Requests()
+			if req == nil {
+				done <- errors.New("connection closed before both state RPCs completed")
+				return
+			}
+			var in rpc.StateInput
+			if err := json.Unmarshal(req.Params, &in); err != nil {
+				done <- err
+				return
+			}
+			if in.Key != zefs.KeyNTPLastTime.Pattern {
+				done <- errors.New("unexpected state key: " + in.Key)
+				return
+			}
+			switch req.Method {
+			case rpc.MethodStatePut:
+				stored = append([]byte(nil), in.Data...)
+				if err := mux.SendResult(ctx, req.ID, rpc.StateOutput{Status: rpc.StateOK}); err != nil {
+					done <- err
+					return
+				}
+			case rpc.MethodStateGet:
+				if err := mux.SendResult(ctx, req.ID, rpc.StateOutput{Status: rpc.StateOK, Data: stored}); err != nil {
+					done <- err
+					return
+				}
+			default:
+				done <- errors.New("unexpected RPC method: " + req.Method)
+				return
+			}
+		}
+		done <- nil
+	}()
+
+	saved := time.Date(2026, 4, 12, 15, 30, 0, 0, time.UTC)
+	require.NoError(t, saveTime(ctx, p, saved))
+	loaded, err := loadTime(ctx, p)
+	require.NoError(t, err)
+	assert.Equal(t, saved.Unix(), loaded.Unix())
+	require.NoError(t, <-done)
 }
 
 // TestDoSyncStopChecksBetweenServers verifies that a stop signal arriving

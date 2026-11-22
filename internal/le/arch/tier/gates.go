@@ -13,6 +13,7 @@ package archtier
 
 import (
 	"errors"
+	"go/build/constraint"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -681,16 +682,90 @@ func loadFeatureGates(tree string) (map[string]string, error) {
 	return gates, nil
 }
 
-// tagRequired reports whether a //go:build constraint positively requires a tag.
-func tagRequired(constraint, tag string) bool {
-	quoted := regexp.QuoteMeta(tag)
-	var tb textbuf.Buffer
-	negated := regexp.MustCompile(tb.Str(`!\s*`).Str(quoted).Str(`\b`).String())
-	if negated.MatchString(constraint) {
+// maxConstraintTags bounds the distinct non-target tag count evaluated by
+// tagRequired. Build constraints carry only a handful of tags in practice; an
+// expression beyond this bound fails closed (answers false).
+const maxConstraintTags = 16
+
+// tagRequired reports whether a //go:build line positively requires tag:
+// every assignment to the other tags with tag=false makes the expression false,
+// and at least one assignment with tag=true makes it true.
+func tagRequired(line, tag string) bool {
+	expr, err := constraint.Parse(line)
+	if err != nil {
 		return false
 	}
-	tb.Reset()
-	return regexp.MustCompile(tb.Str(`\b`).Str(quoted).Str(`\b`).String()).MatchString(constraint)
+	others, hasTarget := collectConstraintTags(expr, tag)
+	if !hasTarget {
+		return false
+	}
+	if len(others) > maxConstraintTags {
+		return false
+	}
+
+	// Evaluate every truth assignment over the other tags (2^len(others),
+	// bounded by maxConstraintTags).
+	combos := 1 << len(others)
+	indexOf := make(map[string]int, len(others))
+	for i, name := range others {
+		indexOf[name] = i
+	}
+	satisfiableWithTag := false
+	for mask := range combos {
+		eval := func(targetVal bool) bool {
+			return expr.Eval(func(name string) bool {
+				if name == tag {
+					return targetVal
+				}
+				bit, ok := indexOf[name]
+				if !ok {
+					return false
+				}
+				return (mask & (1 << bit)) != 0
+			})
+		}
+		if eval(false) {
+			return false
+		}
+		if eval(true) {
+			satisfiableWithTag = true
+		}
+	}
+	return satisfiableWithTag
+}
+
+// collectConstraintTags walks a parsed build expression using an explicit stack
+// and returns the distinct tag names other than target plus whether target
+// itself appears.
+func collectConstraintTags(expr constraint.Expr, target string) ([]string, bool) {
+	seen := make(map[string]bool)
+	var others []string
+	hasTarget := false
+
+	stack := []constraint.Expr{expr}
+	for len(stack) > 0 {
+		top := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		switch node := top.(type) {
+		case *constraint.TagExpr:
+			if node.Tag == target {
+				hasTarget = true
+				continue
+			}
+			if seen[node.Tag] {
+				continue
+			}
+			seen[node.Tag] = true
+			others = append(others, node.Tag)
+		case *constraint.NotExpr:
+			stack = append(stack, node.X)
+		case *constraint.AndExpr:
+			stack = append(stack, node.X, node.Y)
+		case *constraint.OrExpr:
+			stack = append(stack, node.X, node.Y)
+		}
+	}
+	return others, hasTarget
 }
 
 // fileRequiresTag reports whether a file carries a build constraint requiring
@@ -706,10 +781,13 @@ func fileRequiresTag(tree, rel, tag string) bool {
 	}
 	for line := range strings.SplitSeq(string(raw), "\n") {
 		trimmed := strings.TrimSpace(line)
-		if constraint, ok := strings.CutPrefix(trimmed, "//go:build"); ok {
-			return tagRequired(constraint, tag)
+		if constraint.IsGoBuild(trimmed) {
+			return tagRequired(trimmed, tag)
 		}
-		if trimmed != "" && !strings.HasPrefix(trimmed, "//") {
+		if trimmed == "" {
+			continue
+		}
+		if !strings.HasPrefix(trimmed, "//") {
 			return false // reached code before any build constraint
 		}
 	}

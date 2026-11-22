@@ -400,6 +400,38 @@ func TestANegatedTagDoesNotRequireIt(t *testing.T) {
 	}
 }
 
+// VALIDATES: boolean build-tag expressions are evaluated semantically via
+// go/build/constraint so disjunctions (`ze_bgp || other`, `ze_bgp || !linux`)
+// do not pass as requiring `ze_bgp`, while conjunctions (`ze_bgp && linux`,
+// `(ze_bgp && linux) || (ze_bgp && darwin)`) do.
+// PREVENTS: a regex matcher accepting `//go:build ze_bgp || other`, which
+// compiles when `ze_bgp` is off and `other` is on, pinning `ze_bgp` into a
+// no-BGP binary.
+func TestTagRequiredEvaluatesBooleanBuildConstraints(t *testing.T) {
+	cases := []struct {
+		name string
+		line string
+		tag  string
+		want bool
+	}{
+		{"plain", "//go:build ze_bgp", "ze_bgp", true},
+		{"conjunction", "//go:build ze_bgp && linux", "ze_bgp", true},
+		{"disjunction with other", "//go:build ze_bgp || other", "ze_bgp", false},
+		{"disjunction with negated other", "//go:build ze_bgp || !linux", "ze_bgp", false},
+		{"distributed conjunction", "//go:build (ze_bgp && linux) || (ze_bgp && darwin)", "ze_bgp", true},
+		{"negated tag in conjunction", "//go:build !ze_other && !ze_bgp", "ze_bgp", false},
+		{"unsatisfiable contradiction", "//go:build ze_bgp && !ze_bgp", "ze_bgp", false},
+		{"malformed constraint", "//go:build ze_bgp &&", "ze_bgp", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tagRequired(tc.line, tc.tag); got != tc.want {
+				t.Errorf("tagRequired(%q, %q) = %v, want %v", tc.line, tc.tag, got, tc.want)
+			}
+		})
+	}
+}
+
 // VALIDATES: the feature-gate manifest refuses a malformed line rather than
 // dropping it.
 // PREVENTS: a gate map that came back short, which finds no violation for the

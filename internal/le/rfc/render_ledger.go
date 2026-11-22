@@ -463,7 +463,7 @@ func statusPageIntro(unrowed, summaries int) string {
 	tb.Str("**Area** is the one cell an author writes, a classification. Every other cell is ")
 	tb.Str("derived, and no author can change it:\n\n")
 	tb.Str("- **Proof** is `N of M MUST proven`: of the M MUST-level requirements the summary gates, ")
-	tb.Str("the N whose tests a recorded break still verifies (`rfc/discrimination/<stem>.json`), ")
+	tb.Str("the N whose tests a recorded break still verifies (`rfc/discrimination/<stem>/<requirement-id>.json`), ")
 	tb.Str("counting a requirement a layer under Ze performs once its recorded break proves the state ")
 	tb.Str("Ze installs for that layer (OS verified). A tag with no verifying record, and a record that ")
 	tb.Str("escapes the break (`no-break`, `kernel-producer`), prove nothing here. An RFC whose requirement list has ")

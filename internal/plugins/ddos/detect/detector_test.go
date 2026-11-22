@@ -1,6 +1,7 @@
 package detect
 
 import (
+	"context"
 	"sync"
 	"testing"
 
@@ -239,15 +240,15 @@ func TestApplyTick_BpsTriggerFiresOnNonTopPpsInterface(t *testing.T) {
 // VALIDATES: AC-5 -- a restart with a valid persisted baseline restores it (both
 // series Ready, PPS p99 preserved) so the window re-warm is skipped.
 func TestDetectorRestoresBaselineFromDisk(t *testing.T) {
-	useBaselineStore(t)
+	store := useBaselineStore(t)
 	pps := baselineState{Samples: makeSamples(300, 1000), Count: 300, P99Cache: 1000}
 	bps := baselineState{Samples: makeSamples(300, 20000), Count: 300, P99Cache: 20000}
-	if err := saveBaselines(pps, bps); err != nil {
+	if err := saveBaselines(context.Background(), store, pps, bps); err != nil {
 		t.Fatal(err)
 	}
 	cfg := DefaultConfig()
 	cfg.Enabled = true
-	d := newDetector(cfg, newDTestBus(), nil)
+	d := newDetectorWithState(cfg, newDTestBus(), nil, store)
 	d.restore()
 	if !d.baseline.Ready() || !d.baselineBps.Ready() {
 		t.Error("both baselines should be Ready after restore (no warm-up)")
@@ -260,17 +261,17 @@ func TestDetectorRestoresBaselineFromDisk(t *testing.T) {
 // VALIDATES: Stop persists a loadable baseline (save-on-shutdown/reconfigure), so the
 // next construct + restore resumes without a re-warm.
 func TestDetectorSavesBaselineOnStop(t *testing.T) {
-	useBaselineStore(t)
+	store := useBaselineStore(t)
 	cfg := DefaultConfig()
 	cfg.Enabled = true
 	cfg.BaselineWindow = 10
 	cfg.StartupGrace = 0
-	d := newDetector(cfg, newDTestBus(), nil)
+	d := newDetectorWithState(cfg, newDTestBus(), nil, store)
 	for range 15 {
 		d.onRates([]trafficstat.InterfaceEntry{{Name: "xe0", RxPps: 100, RxBps: 20000}})
 	}
 	d.Stop()
-	if _, ok := loadBaselines(); !ok {
+	if _, ok := loadBaselines(context.Background(), store); !ok {
 		t.Error("Stop should have persisted a loadable baseline")
 	}
 }
@@ -399,7 +400,7 @@ func TestDetectorHoldsTheThresholdThroughASustainedAttack(t *testing.T) {
 // low-PPS shape amplification has, so a restored and Ready BPS baseline was
 // ignored for the whole grace window.
 func TestApplyTick_BpsTriggerFiresDuringStartupGrace(t *testing.T) {
-	useBaselineStore(t)
+	store := useBaselineStore(t)
 	cfg := bpsTestConfig()
 	cfg.StartupGrace = 90 // the default: the whole test runs inside the grace window
 
@@ -407,12 +408,12 @@ func TestApplyTick_BpsTriggerFiresDuringStartupGrace(t *testing.T) {
 	// tick 1, so its threshold is ~30000 B/s before grace has expired.
 	pps := baselineState{Samples: makeSamples(cfg.BaselineWindow, 50), Count: cfg.BaselineWindow, P99Cache: 50}
 	bps := baselineState{Samples: makeSamples(cfg.BaselineWindow, 10000), Count: cfg.BaselineWindow, P99Cache: 10000}
-	if err := saveBaselines(pps, bps); err != nil {
+	if err := saveBaselines(context.Background(), store, pps, bps); err != nil {
 		t.Fatal(err)
 	}
 
 	bus := newDTestBus()
-	d := newDetector(cfg, bus, nil)
+	d := newDetectorWithState(cfg, bus, nil, store)
 	d.restore()
 	if !d.baselineBps.Ready() {
 		t.Fatal("restored BPS baseline is not Ready")

@@ -4,22 +4,25 @@
 package ntp
 
 import (
+	"context"
 	"errors"
 	"testing"
 
-	"github.com/ze-software/ze/internal/core/statestore"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
-// ntpStopStore uses the real statestore write boundary and supplies its storage
-// outcome. No other storage operation is reached by a final save.
+// ntpStopStore implements stateClient to capture the final-save key and supply
+// its storage outcome. No other storage operation is reached by a final save.
 type ntpStopStore struct {
-	statestore.Storage
 	cause error
 	keys  []string
 }
 
-func (s *ntpStopStore) WriteKey(key string, _ []byte) error {
+func (*ntpStopStore) StateGet(context.Context, string) ([]byte, bool, error) {
+	return nil, false, nil
+}
+
+func (s *ntpStopStore) StatePut(_ context.Context, key string, _ []byte) error {
 	s.keys = append(s.keys, key)
 	return s.cause
 }
@@ -27,8 +30,6 @@ func (s *ntpStopStore) WriteKey(key string, _ []byte) error {
 // TestNTPFinalSaveFailureStillStopsWorker preserves the write cause and recovery
 // while proving the worker is stopped on both the failed and successful rail.
 func TestNTPFinalSaveFailureStillStopsWorker(t *testing.T) {
-	previous := statestore.Store()
-	t.Cleanup(func() { statestore.SetStore(previous) })
 	cause := errors.New("managed store is read-only")
 	for _, current := range []struct {
 		name        string
@@ -42,8 +43,8 @@ func TestNTPFinalSaveFailureStillStopsWorker(t *testing.T) {
 	} {
 		t.Run(current.name, func(t *testing.T) {
 			store := &ntpStopStore{cause: current.cause}
-			statestore.SetStore(store)
 			worker := newSyncWorker(ntpConfig{PersistPath: current.persistPath}, nil)
+			worker.state = store
 			// A completed worker still requires the stop signal and join protocol.
 			// This fixture starts no synchronization or clock adjustment loop.
 			close(worker.done)

@@ -10,6 +10,7 @@
 package ntp
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -56,9 +57,10 @@ type ntpConfig struct {
 	MaxStepSec      int // max accepted clock step in seconds; 0 means unlimited
 	SlewThresholdMs int // max offset in ms for slew (Adjtimex); 0 = always step
 	// PersistPath is vestigial/back-compat. The last-known time now persists in the
-	// managed store (database/) via internal/core/statestore, not this path;
-	// the value no longer designates a file. A non-empty value still enables time
-	// persistence (the default), so the YANG leaf stays parsed and validated.
+	// daemon's managed store (database/) via the plugin SDK state RPCs
+	// (p.StateGet/p.StatePut), not this path; the value no longer designates a
+	// file. A non-empty value still enables time persistence (the default), so
+	// the YANG leaf stays parsed and validated.
 	// TODO: consider deprecating the persist-path YANG leaf.
 	PersistPath string
 }
@@ -79,6 +81,8 @@ type syncWorker struct {
 	cfg      ntpConfig
 	stop     chan struct{}
 	done     chan struct{}
+	ready    <-chan struct{} // closed on SDK OnStarted; nil in direct unit tests
+	state    stateClient     // daemon state RPC client (*sdk.Plugin); nil in unit tests without state
 	mu       sync.Mutex
 	dhcpSrv  []string    // DHCP-discovered servers (lower priority)
 	eventBus ze.EventBus // for emitting clock-synced event
@@ -139,11 +143,22 @@ func (w *syncWorker) run() {
 	// Publish initial "enabled but not synced" state.
 	w.publishState(false, "", 0, 0)
 
+	// SDK state RPCs MUST begin no earlier than OnStarted (Stage 5 complete).
+	// Waiting here keeps Stage-2 configure fast and prevents state-get RPCs
+	// from racing the startup handshake.
+	if w.ready != nil {
+		select {
+		case <-w.ready:
+		case <-w.stop:
+			return
+		}
+	}
+
 	// Phase 1: restore saved time (rough clock for devices without RTC).
 	// A non-empty persist-path enables persistence; the store location is the
-	// shared zefs store, not the (vestigial) path value.
+	// daemon's managed zefs store, not the (vestigial) path value.
 	if w.cfg.PersistPath != "" {
-		if t, err := loadTime(); err == nil {
+		if t, err := loadTime(context.Background(), w.state); err == nil {
 			if err := setClock(t); err != nil { //nolint:staticcheck // SA4023 holds only on darwin: the !linux stub always errors, the linux implementation can return nil
 				logger.Warn("ntp: restore clock failed", "err", err)
 			} else {
@@ -299,10 +314,11 @@ func (w *syncWorker) doSync(logger *slog.Logger) bool {
 		logger.Debug("ntp: rtc write failed (non-fatal)", "err", err)
 	}
 
-	// Persist time to the shared zefs store (persist-path is vestigial: a non-empty
-	// value enables persistence, but the location is the shared zefs store).
+	// Persist time to the daemon's managed zefs store via the SDK state RPC
+	// (persist-path is vestigial: a non-empty value enables persistence, but
+	// the location is the managed zefs store).
 	if w.cfg.PersistPath != "" {
-		if err := saveTime(clockTime); err != nil {
+		if err := saveTime(context.Background(), w.state, clockTime); err != nil {
 			logger.Debug("ntp: time persistence failed", "err", err)
 		}
 	}

@@ -23,15 +23,15 @@ dependency graph", "The priority tree").
 
 | RFC | Title | Status |
 |-----|-------|--------|
-| [4271](rfc4271.txt) | A Border Gateway Protocol 4 (BGP-4) | **Core** |
-| [4760](rfc4760.txt) | Multiprotocol Extensions for BGP-4 | Core |
-| [6793](rfc6793.txt) | BGP Support for Four-Octet AS Numbers | Core |
+| [4271](full/rfc4271.txt) | A Border Gateway Protocol 4 (BGP-4) | **Core** |
+| [4760](full/rfc4760.txt) | Multiprotocol Extensions for BGP-4 | Core |
+| [6793](full/rfc6793.txt) | BGP Support for Four-Octet AS Numbers | Core |
 
 ## Error Handling
 
 | RFC | Title | Status | Notes |
 |-----|-------|--------|-------|
-| [7606](rfc7606.txt) | Revised Error Handling for BGP UPDATE Messages | Implemented | **Supersedes RFC 4271 §6 for error handling** |
+| [7606](full/rfc7606.txt) | Revised Error Handling for BGP UPDATE Messages | Implemented | **Supersedes RFC 4271 §6 for error handling** |
 
 > ⚠️ **Important:** RFC 7606 updates RFC 4271's strict "session reset" error handling with recovery tactics: treat-as-withdraw, attribute discard, AFI/SAFI disable. New implementations SHOULD follow RFC 7606.
 
@@ -39,59 +39,59 @@ dependency graph", "The priority tree").
 
 | RFC | Title | Status |
 |-----|-------|--------|
-| [4724](rfc4724.txt) | Graceful Restart Mechanism for BGP | Partial (EOR markers) |
+| [4724](full/rfc4724.txt) | Graceful Restart Mechanism for BGP | Partial (EOR markers) |
 
 ## Capabilities
 
 | RFC | Title | Status |
 |-----|-------|--------|
-| [5492](rfc5492.txt) | Capabilities Advertisement with BGP-4 | Core |
-| [8950](rfc8950.txt) | IPv4 NLRI with IPv6 Next Hop | **Implemented** |
-| [5549](rfc5549.txt) | IPv4 NLRI with IPv6 Next Hop | Obsoleted by RFC 8950 |
-| [9072](rfc9072.txt) | Extended Optional Parameters Length | Planned |
-| [2918](rfc2918.txt) | Route Refresh Capability | Implemented |
-| [7313](rfc7313.txt) | Enhanced Route Refresh | Planned |
-| [7911](rfc7911.txt) | Advertisement of Multiple Paths (Add-Path) | Implemented |
-| [8654](rfc8654.txt) | Extended Message Support | Planned |
+| [5492](full/rfc5492.txt) | Capabilities Advertisement with BGP-4 | Core |
+| [8950](full/rfc8950.txt) | IPv4 NLRI with IPv6 Next Hop | **Implemented** |
+| [5549](full/rfc5549.txt) | IPv4 NLRI with IPv6 Next Hop | Obsoleted by RFC 8950 |
+| [9072](full/rfc9072.txt) | Extended Optional Parameters Length | Partial |
+| [2918](full/rfc2918.txt) | Route Refresh Capability | Implemented |
+| [7313](full/rfc7313.txt) | Enhanced Route Refresh | Partial |
+| [7911](full/rfc7911.txt) | Advertisement of Multiple Paths (Add-Path) | Implemented |
+| [8654](full/rfc8654.txt) | Extended Message Support | Implemented |
 
 ## Path Attributes
 
 | RFC | Title | Status |
 |-----|-------|--------|
-| [1997](rfc1997.txt) | BGP Communities Attribute | Implemented |
-| [4360](rfc4360.txt) | BGP Extended Communities Attribute | Implemented |
-| [5701](rfc5701.txt) | IPv6 Address Specific Extended Community | Planned |
-| [8092](rfc8092.txt) | BGP Large Communities Attribute | Implemented |
-| [8195](rfc8195.txt) | Use of BGP Large Communities | Reference |
-| [9234](rfc9234.txt) | Route Leak Prevention (OTC Attribute) | Reference |
+| [1997](full/rfc1997.txt) | BGP Communities Attribute | Implemented |
+| [4360](full/rfc4360.txt) | BGP Extended Communities Attribute | Implemented |
+| [5701](full/rfc5701.txt) | IPv6 Address Specific Extended Community | Partial |
+| [8092](full/rfc8092.txt) | BGP Large Communities Attribute | Implemented |
+| [8195](full/rfc8195.txt) | Use of BGP Large Communities | Reference |
+| [9234](full/rfc9234.txt) | Route Leak Prevention (OTC Attribute) | Reference |
 
 ## NLRI Types
 
 | RFC | Title | Status |
 |-----|-------|--------|
-| [7432](rfc7432.txt) | BGP MPLS-Based Ethernet VPN (EVPN) | Partial |
-| [5575](rfc5575.txt) | Dissemination of Flow Specification Rules | Obsoleted by RFC 8955 |
-| [8955](rfc8955.txt) | Dissemination of Flow Specification Rules | **Implemented** |
-| [8956](rfc8956.txt) | Dissemination of Flow Specification Rules for IPv6 | **Implemented** |
-| [4364](rfc4364.txt) | BGP/MPLS IP Virtual Private Networks (VPNs) | Implemented |
-| [4659](rfc4659.txt) | BGP-MPLS IP VPN Extension for IPv6 VPN | Implemented |
-| [4761](rfc4761.txt) | Virtual Private LAN Service (VPLS) | Planned |
-| [4684](rfc4684.txt) | Constrained Route Distribution (RTC) | Planned |
+| [7432](full/rfc7432.txt) | BGP MPLS-Based Ethernet VPN (EVPN) | Partial |
+| [5575](full/rfc5575.txt) | Dissemination of Flow Specification Rules | Obsoleted by RFC 8955 |
+| [8955](full/rfc8955.txt) | Dissemination of Flow Specification Rules | **Implemented** |
+| [8956](full/rfc8956.txt) | Dissemination of Flow Specification Rules for IPv6 | **Implemented** |
+| [4364](full/rfc4364.txt) | BGP/MPLS IP Virtual Private Networks (VPNs) | Implemented |
+| [4659](full/rfc4659.txt) | BGP-MPLS IP VPN Extension for IPv6 VPN | Implemented |
+| [4761](full/rfc4761.txt) | Virtual Private LAN Service (VPLS) | Partial |
+| [4684](full/rfc4684.txt) | Constrained Route Distribution (RTC) | Partial |
 
 ## Notifications
 
 | RFC | Title | Status |
 |-----|-------|--------|
-| [8203](rfc8203.txt) | BGP Administrative Shutdown Communication | Implemented |
-| [9003](rfc9003.txt) | Extended BGP Administrative Shutdown Communication | Implemented |
+| [8203](full/rfc8203.txt) | BGP Administrative Shutdown Communication | Implemented |
+| [9003](full/rfc9003.txt) | Extended BGP Administrative Shutdown Communication | Implemented |
 
 ## BGP-LS (Link State)
 
 | RFC | Title | Status |
 |-----|-------|--------|
-| [7752](rfc7752.txt) | BGP-LS: North-Bound Distribution of Link-State | Implemented |
-| [9085](rfc9085.txt) | BGP-LS Extensions for Segment Routing | Partial (TLV 1099) |
-| [9514](rfc9514.txt) | BGP-LS Extensions for SRv6 | Partial (TLVs 1106-1108) |
+| [7752](full/rfc7752.txt) | BGP-LS: North-Bound Distribution of Link-State | Implemented |
+| [9085](full/rfc9085.txt) | BGP-LS Extensions for Segment Routing | Partial (TLV 1099) |
+| [9514](full/rfc9514.txt) | BGP-LS Extensions for SRv6 | Partial (TLVs 1106-1108) |
 
 ---
 
