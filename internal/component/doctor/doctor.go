@@ -258,6 +258,12 @@ const doctorFixIndent = "      "
 // everywhere.
 const doctorFixLabel = "fix: "
 
+// fixRerunDoctor is the fix of a finding whose check could not run: once the
+// cause the message names is gone, running the readiness checks again gets
+// the answer. It is not fixAskActiveConfig, which tells a caller to drop a
+// config file the daemon would not read, though both spell the same command.
+const fixRerunDoctor = "ze doctor"
+
 // outputText draws the readiness result as the text report on stdout, and
 // answers exit 1 when the box is not ready.
 func outputText(result diagnostic.DoctorResult) int {

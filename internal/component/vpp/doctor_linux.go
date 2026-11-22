@@ -20,12 +20,9 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-const (
-	doctorVPPHugepagesCode = "doctor-vpp-hugepages"
-	// doctorHugepagesRootEnv, when set, prefixes every procfs/sysfs path the
-	// check reads so functional tests can run it hermetically against fixtures.
-	doctorHugepagesRootEnv = "ze.test.doctor.hugepages-root"
-)
+// doctorHugepagesRootEnv, when set, prefixes every procfs/sysfs path the
+// check reads so functional tests can run it hermetically against fixtures.
+const doctorHugepagesRootEnv = "ze.test.doctor.hugepages-root"
 
 // hugepageDoctorRoots are the procfs/sysfs paths the hugepage doctor check reads.
 // Held in a struct so tests can point them at fixture directories.

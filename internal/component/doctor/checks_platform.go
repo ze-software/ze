@@ -23,6 +23,10 @@ import (
 
 const doctorPlatformEnv = "ze.test.doctor.platform"
 
+// fixShowPlatform is the fix a platform finding names: the command that shows
+// the runtime platform doctor detected, so the operator can see what it found.
+const fixShowPlatform = "ze show host platform"
+
 var _ = env.MustRegister(env.EnvEntry{
 	Key:         doctorPlatformEnv,
 	Type:        envTypeString,
@@ -45,7 +49,7 @@ func resolveDoctorPlatform() (*host.PlatformInfo, []diagnostic.Diagnostic) {
 	if err != nil {
 		return nil, []diagnostic.Diagnostic{{
 			Code:     codeDoctorPlatformDetect,
-			Fix:      "ze show host platform",
+			Fix:      fixShowPlatform,
 			Severity: diagnostic.SeverityWarning,
 			Message:  tb.Str("platform detection failed: ").Err(err).String(),
 		}}
@@ -53,7 +57,7 @@ func resolveDoctorPlatform() (*host.PlatformInfo, []diagnostic.Diagnostic) {
 	if p == nil {
 		return nil, []diagnostic.Diagnostic{{
 			Code:     codeDoctorPlatformDetect,
-			Fix:      "ze show host platform",
+			Fix:      fixShowPlatform,
 			Severity: diagnostic.SeverityWarning,
 			Message:  "platform detection returned no platform information",
 		}}
@@ -75,7 +79,7 @@ func checkPlatform(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	if p.Type == host.PlatformUnknown {
 		diags = append(diags, diagnostic.Diagnostic{
 			Code:     codeDoctorPlatformUnknown,
-			Fix:      "ze show host platform",
+			Fix:      fixShowPlatform,
 			Severity: diagnostic.SeverityWarning,
 			Message:  "could not identify runtime platform",
 		})
@@ -91,7 +95,7 @@ func checkPlatform(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	if p.Type == host.PlatformContainer && p.ReadOnlyRoot {
 		diags = append(diags, diagnostic.Diagnostic{
 			Code:     codeDoctorPlatformContainerRO,
-			Fix:      "ze show host platform",
+			Fix:      fixShowPlatform,
 			Severity: diagnostic.SeverityWarning,
 			Message:  "running in container with read-only root filesystem; ensure writable volumes are mounted for config and state",
 		})

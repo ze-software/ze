@@ -22,8 +22,6 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-const doctorVPPCPUIsolationCode = "doctor-vpp-cpu-isolation"
-
 // vppCPUIsolationDoctorCheck is the doctor check registered from register_linux.go.
 func vppCPUIsolationDoctorCheck() diagnostic.DoctorCheck {
 	return diagnostic.DoctorCheck{

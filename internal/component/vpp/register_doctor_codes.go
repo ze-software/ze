@@ -8,6 +8,15 @@ const (
 	codeDoctorVPPProcess = "doctor-vpp-process"
 	codeDoctorVPPStats   = "doctor-vpp-stats"
 	exampleDoctorJSON    = "ze doctor --json"
+
+	// doctorVPPDPDKCode names a missing VFIO module or PCI device, or original NIC
+	// state that cannot be captured. doctorDiagnosticCodes below registers it, so
+	// `ze show diagnostic doctor-vpp-dpdk` answers.
+	doctorVPPDPDKCode = "doctor-vpp-dpdk"
+
+	doctorVPPCPUIsolationCode = "doctor-vpp-cpu-isolation"
+
+	doctorVPPHugepagesCode = "doctor-vpp-hugepages"
 )
 
 // doctorDiagnosticCodes is the explanation metadata for the doctor codes this package owns.

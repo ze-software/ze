@@ -178,7 +178,7 @@ func checkRandomSeed(platform *host.PlatformInfo) []diagnostic.Diagnostic {
 		}
 		return []diagnostic.Diagnostic{{
 			Code:     codeDoctorRandomSeed,
-			Fix:      "ze show host platform",
+			Fix:      fixShowPlatform,
 			Severity: diagnostic.SeverityWarning,
 			Message:  "gokrazy random seed not found at " + path + "; verify randomd is included in the gokrazy image",
 			Path:     path,

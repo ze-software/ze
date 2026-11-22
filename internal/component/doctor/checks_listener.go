@@ -189,7 +189,7 @@ func listenerSetUnknown(cause error) diagnostic.Diagnostic {
 	var tb textbuf.Buffer
 	return diagnostic.Diagnostic{
 		Code:     codeDoctorListenerSetUnknown,
-		Fix:      "ze doctor",
+		Fix:      fixRerunDoctor,
 		Severity: diagnostic.SeverityError,
 		Message: tb.Str("listeners: cannot work out which listen addresses to check: ").Err(cause).
 			Str(". No web, SSH, gNMI, API or other schema-declared listener was checked. ").

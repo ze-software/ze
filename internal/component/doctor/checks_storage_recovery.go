@@ -23,7 +23,7 @@ func doctorCheckRecoveryPending(ctx diagnostic.DoctorCheckContext) []diagnostic.
 			Severity: diagnostic.SeverityError,
 			Message:  message.Str("retained full-store recovery sources could not be inspected: ").Err(err).String(),
 			Path:     ctx.ConfigDir,
-			Fix:      fixAskActiveConfig,
+			Fix:      fixRerunDoctor,
 		}}
 	}
 	if stage == "" {

@@ -26,11 +26,6 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// doctorVPPDPDKCode names a missing VFIO module or PCI device, or original NIC
-// state that cannot be captured. internal/core/diagnostic/codes.go declares it, so
-// `ze show diagnostic doctor-vpp-dpdk` answers.
-const doctorVPPDPDKCode = "doctor-vpp-dpdk"
-
 // These read-only boundaries let tests supply the module list, PCI presence
 // and original state of one host. No binding or restoration runs here.
 var (

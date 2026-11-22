@@ -56,7 +56,7 @@ func checkConfigClaims(tree *config.Tree) []diagnostic.Diagnostic {
 		var tb textbuf.Buffer
 		return []diagnostic.Diagnostic{{
 			Code:     codeDoctorConfigClaimsUnavailable,
-			Fix:      "ze doctor",
+			Fix:      fixRerunDoctor,
 			Severity: diagnostic.SeverityWarning,
 			Message:  tb.Str("cannot read the schema handler paths, so config delivery was not checked: ").Err(err).String(),
 		}}
@@ -68,7 +68,7 @@ func checkConfigClaims(tree *config.Tree) []diagnostic.Diagnostic {
 		var tb textbuf.Buffer
 		return []diagnostic.Diagnostic{{
 			Code:     codeDoctorConfigClaimsUnavailable,
-			Fix:      "ze doctor",
+			Fix:      fixRerunDoctor,
 			Severity: diagnostic.SeverityWarning,
 			Message:  tb.Str("cannot read the config claim allowlist, so config delivery was not checked: ").Err(err).String(),
 		}}
@@ -89,7 +89,7 @@ func configClaimDiagnostics(tree *config.Tree, cs []claims.Claim, allow []claims
 	if len(cs) == 0 {
 		return []diagnostic.Diagnostic{{
 			Code:     codeDoctorConfigClaimsUnavailable,
-			Fix:      "ze doctor",
+			Fix:      fixRerunDoctor,
 			Severity: diagnostic.SeverityWarning,
 			Message:  "no plugin declares a config root in this build, so config delivery could not be checked",
 		}}
