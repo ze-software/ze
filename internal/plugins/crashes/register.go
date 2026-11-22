@@ -106,7 +106,12 @@ func registerDoctorCheck(check diagnostic.DoctorCheck) {
 // offlineShowCrashes adapts the daemon grammar (`show crashes [latest | name
 // <file>]`) to RunShow, which takes the bare selector: `name <file>` selects one
 // report, `latest` the newest, and no argument lists all.
-func offlineShowCrashes(validated command.ValidatedArgs) int {
+//
+// The crash files are read from this host whoever asks, so the answer needs
+// nothing from the cause: the route that ran the fallback tells the operator
+// the answer is this process's and why the daemon gave none
+// (command.InvokeOfflineFallback).
+func offlineShowCrashes(validated command.ValidatedArgs, _ command.DaemonUnanswered) int {
 	args := validated.Tokens()
 	if len(args) > 0 && args[0] == "name" {
 		if len(args) < 2 {

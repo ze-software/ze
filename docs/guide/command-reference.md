@@ -1371,10 +1371,15 @@ only the running hub records the decision in its audit log and offers it.
 
 Host hardware inventory. Read-only. Walks sysfs/procfs (and issues best-effort
 `ethtool` ioctls for NIC firmware/rings) to produce a structured JSON description
-of the machine. Served by the daemon when reachable; when no daemon is running it
-falls back to the same in-process detection library, so `show host` works whether
-or not the daemon is up. JSON output for pipeline consumption (`jq`, Prometheus
-scrapers, SNMP shims).
+of the machine. Served by the daemon when reachable; when the daemon gives no
+answer it falls back to the same in-process detection library, so `show host`
+works whether or not the daemon is up. The fallback then adds a note on stderr
+that says this `ze` process answered, why the daemon did not (nothing listens, or
+this account has no credentials for it), and the command that gets the daemon's
+answer; stdout holds the inventory alone. A daemon that refuses the login is
+reported as a refused login, and nothing is answered. `show host trend` has no
+local answer: with no daemon answer it refuses, naming the same cause and its fix.
+JSON output for pipeline consumption (`jq`, Prometheus scrapers, SNMP shims).
 
 ```
 ze show host all                   # Full inventory (all sections), JSON

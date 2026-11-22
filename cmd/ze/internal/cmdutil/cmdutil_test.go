@@ -657,7 +657,7 @@ func TestSyntheticOfflineFallbackBeatsGroupingContainer(t *testing.T) {
 		t.Fatalf("`%s` is dispatchable with no fallback registered", joined)
 	}
 
-	cmd.MustRegisterOfflineFallback(joined, func(cmd.ValidatedArgs) int { return 0 })
+	cmd.MustRegisterOfflineFallback(joined, func(cmd.ValidatedArgs, cmd.DaemonUnanswered) int { return 0 })
 	if !res.dispatchable() {
 		t.Errorf("`%s` is not dispatchable with an offline fallback registered: RunCommand will print its subcommands and exit 1 instead of serving it", joined)
 	}

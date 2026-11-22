@@ -1,0 +1,27 @@
+# Test: with no daemon listening, `ze show host kernel` answers from its own
+#       process and says so on stderr, with why the daemon gave no answer and
+#       the command that gets the daemon's.
+# QUESTION: does an operator who gets a local answer from an offline fallback
+#   learn that the answer is local, and why?
+# VALIDATES: AC-32 of spec-host-resource-trend-alerts.
+#   command.InvokeOfflineFallback (internal/component/command/local.go) writes
+#   the note after a fallback that exits 0, with the cause the CLI client
+#   handed it.
+# PREVENTS: a local answer read as the daemon's, with nothing naming why the
+#   daemon was not the one that answered.
+# Why not a unit test: TestOfflineFallbackAnswerIsMarkedAsThisProcess proves
+#   the note for a synthetic fallback; only the real binary proves the
+#   registered `show host` fallback is run through that route by `ze show`.
+#
+# No daemon listens on the port the runner handed out, and the test's store
+# holds no login, so the walk to the daemon stops at the listener.
+
+option=skip-os:value=darwin
+option=timeout:value=30s
+option=env:var=ze.ssh.port:value=$PORT
+
+cmd=foreground:seq=1:exec=ze show host kernel:exit=0
+expect=stdout:contains="release"
+expect=stderr:contains=note: this ze process answered show host itself, because the daemon did not
+expect=stderr:contains=no ze listens at 127.0.0.1
+expect=stderr:contains=fix: ze start

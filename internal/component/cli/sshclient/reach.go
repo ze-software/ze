@@ -17,6 +17,7 @@ package sshclient
 import (
 	"net"
 
+	"github.com/ze-software/ze/internal/core/redact"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -85,6 +86,15 @@ func (e *Unreached) Explain() (why, fix string) {
 	}
 }
 
+// FixAskAsAccount is the fix of ReachStepCredentials for a caller whose asking
+// command is one daemon command line: that line, sent from an account that
+// can log in. The line passes through redact.Command, so one that carries a
+// credential shows the placeholder.
+func FixAskAsAccount(line string) string {
+	var fix textbuf.Buffer
+	return fix.Str(`ze cli --user <name> -c "`).Str(redact.Command(line)).Byte('"').String()
+}
+
 // Reached is a daemon that listens and a credential to log in to it with.
 type Reached struct {
 	// Address is the host:port of the daemon's SSH listener.
@@ -107,19 +117,45 @@ type Reached struct {
 // The error is always an *Unreached. It logs in to nothing: the caller sends
 // its command with the credentials and reads that failure itself.
 func ReachDaemon(user string) (Reached, error) {
-	host, port, err := DaemonAddress()
-	if err != nil {
-		return Reached{}, &Unreached{Step: ReachStepAddress, Cause: err}
-	}
-	address := net.JoinHostPort(host, port)
-	if err := ProbeDaemon(address); err != nil {
-		return Reached{}, &Unreached{Step: ReachStepListener, Address: address, Cause: err}
+	address, unreached := reachListener()
+	if unreached != nil {
+		return Reached{}, unreached
 	}
 	creds, err := reachCredentials(user)
 	if err != nil {
 		return Reached{}, &Unreached{Step: ReachStepCredentials, Address: address, Cause: err}
 	}
 	return Reached{Address: address, Credentials: creds}, nil
+}
+
+// reachListener walks the two steps that need no credential: the daemon's
+// address, then a probe of its listener. It answers the address of a listener
+// that accepted the probe, or the step that stopped the walk.
+func reachListener() (address string, unreached *Unreached) {
+	host, port, err := DaemonAddress()
+	if err != nil {
+		return "", &Unreached{Step: ReachStepAddress, Cause: err}
+	}
+	address = net.JoinHostPort(host, port)
+	if err := ProbeDaemon(address); err != nil {
+		return "", &Unreached{Step: ReachStepListener, Address: address, Cause: err}
+	}
+	return address, nil
+}
+
+// UnreachedWithoutCredentials is where the walk to the running daemon stops
+// for a caller whose own credential load already failed with cause: `ze cli`
+// loads its credential before it connects, so that failure alone does not say
+// whether a daemon runs. The walk takes the address and the listener steps as
+// ReachDaemon does and answers the first that fails, because no credential
+// reaches a daemon that is not there; when a daemon listens, the step is
+// ReachStepCredentials with cause underneath. cause MUST be non-nil.
+func UnreachedWithoutCredentials(cause error) *Unreached {
+	address, unreached := reachListener()
+	if unreached != nil {
+		return unreached
+	}
+	return &Unreached{Step: ReachStepCredentials, Address: address, Cause: cause}
 }
 
 // reachCredentials loads the credential ReachDaemon answers: the stored one

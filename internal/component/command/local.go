@@ -10,10 +10,12 @@ package command
 import (
 	"errors"
 	"fmt"
+	"os"
 	"sort"
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -25,6 +27,52 @@ import (
 // declares builds one, so no route can run a local handler on tokens nobody
 // judged. Every route that runs one calls InvokeLocal, which judges first.
 type LocalHandler func(args ValidatedArgs) int
+
+// DaemonUnanswered is why the daemon did not answer the command an offline
+// fallback is run for, and the command that gets the daemon's answer. The
+// route that asked the daemon builds it from the failure it met; a fallback
+// words its own answer with it and never guesses the cause.
+//
+// Build it with NewDaemonUnanswered. The zero value names no cause and is not
+// a valid one: InvokeOfflineFallback refuses it.
+type DaemonUnanswered struct {
+	why string
+	fix string
+}
+
+// NewDaemonUnanswered builds the cause an offline fallback receives. why is a
+// clause with no capital and no full stop that says why no daemon answered,
+// naming the address when it is known ("no ze listens at 127.0.0.1:2222
+// (connection refused)"). fix is the one command that gets the daemon's
+// answer, alone, as opererr.New takes it. Both are text the route writes
+// around the failure it met, so an empty one is a defect of that route and
+// panics with BUG.
+func NewDaemonUnanswered(why, fix string) DaemonUnanswered {
+	if why == "" {
+		panic("BUG: command.NewDaemonUnanswered called with an empty why")
+	}
+	if fix == "" {
+		panic("BUG: command.NewDaemonUnanswered called with an empty fix for: " + why)
+	}
+	return DaemonUnanswered{why: why, fix: fix}
+}
+
+// Why answers why no daemon answered, as a clause with no capital and no full
+// stop.
+func (u DaemonUnanswered) Why() string { return u.why }
+
+// Fix answers the command that gets the daemon's answer, without a label.
+func (u DaemonUnanswered) Fix() string { return u.fix }
+
+// OfflineHandler answers a command in this process after the daemon did not
+// answer it, and answers the process exit code. args is the judged value a
+// LocalHandler takes. unanswered is why the daemon did not answer: a fallback
+// that holds the answer in this process (hardware inventory, crash files)
+// prints it and exits 0, and InvokeOfflineFallback then tells the operator the
+// answer is this process's and why. A fallback whose answer only the daemon
+// holds refuses, and its refusal MUST name unanswered.Why and end on
+// unanswered.Fix, never a cause of its own.
+type OfflineHandler func(args ValidatedArgs, unanswered DaemonUnanswered) int
 
 // LocalCommandEntry pairs a registered local-command path with its metadata.
 type LocalCommandEntry struct {
@@ -40,11 +88,11 @@ var local = struct {
 	sync.RWMutex
 	handlers  map[string]LocalHandler
 	meta      map[string]registry.Meta
-	fallbacks map[string]LocalHandler
+	fallbacks map[string]OfflineHandler
 }{
 	handlers:  make(map[string]LocalHandler),
 	meta:      make(map[string]registry.Meta),
-	fallbacks: make(map[string]LocalHandler),
+	fallbacks: make(map[string]OfflineHandler),
 }
 
 // errRegisterLocalEmptyPath is the refusal of a local handler or offline
@@ -174,28 +222,78 @@ func longestLocalPrefix(words []string) (LocalHandler, int) {
 // InvokeLocal judges args against the leaves the model declares for the
 // registered path and runs handler on the value that judgment returned. A
 // refusal is written to stderr and exits 1 without reaching the handler. Every
-// route that runs a handler LookupLocal or LookupOfflineFallback answered MUST
-// call this with the path it matched and every token it will pass: the
-// `ze <verb>` routes (R6) and the daemon-down fallback (R7).
+// route that runs a handler LookupLocal answered MUST call this with the path
+// it matched and every token it will pass: the `ze <verb>` routes (R6). The
+// daemon-down fallback (R7) calls InvokeOfflineFallback, which judges the same
+// way.
 func InvokeLocal(path string, handler LocalHandler, args []string) int {
-	invocation := "ze " + path
-	validated, err := validateModelArgsAs(invocation, path, args, nil)
-	if err != nil {
-		writeLocalRefusal(invocation, err)
+	validated, judged := judgeLocalArgs(path, args)
+	if !judged {
 		return 1
 	}
 	return handler(validated)
 }
 
+// judgeLocalArgs judges args against the leaves the model declares for path.
+// judged is false when the model refused them: the refusal is then already on
+// stderr, and the caller exits 1 without running a handler.
+func judgeLocalArgs(path string, args []string) (validated ValidatedArgs, judged bool) {
+	invocation := "ze " + path
+	validated, err := validateModelArgsAs(invocation, path, args, nil)
+	if err != nil {
+		writeLocalRefusal(invocation, err)
+		return ValidatedArgs{}, false
+	}
+	return validated, true
+}
+
+// InvokeOfflineFallback runs an offline fallback (route R7): it judges args as
+// InvokeLocal does, then runs handler with why the daemon did not answer.
+// Every route that runs a handler LookupOfflineFallback answered MUST call
+// this with the path it matched, every token it will pass, and the cause it
+// learned from its own failed ask of the daemon.
+//
+// A fallback that exits 0 answered from this process. The operator is then
+// told so on stderr, with why the daemon did not answer and the command that
+// gets the daemon's answer, so a local answer is never read as the daemon's.
+// A fallback that exits non-zero printed its own refusal, which names the
+// cause itself (OfflineHandler).
+func InvokeOfflineFallback(path string, handler OfflineHandler, args []string, unanswered DaemonUnanswered) int {
+	if unanswered.why == "" {
+		panic("BUG: command.InvokeOfflineFallback called with no cause for: " + path)
+	}
+	validated, judged := judgeLocalArgs(path, args)
+	if !judged {
+		return 1
+	}
+	code := handler(validated, unanswered)
+	if code == 0 {
+		os.Stderr.WriteString(offlineAnswerNote(path, unanswered).Error() + "\n") //nolint:errcheck // CLI diagnostic
+	}
+	return code
+}
+
+// offlineAnswerNote is the text InvokeOfflineFallback writes after a fallback
+// answered from this process: whose answer it is, why the daemon did not give
+// one, and the command that gets the daemon's.
+func offlineAnswerNote(path string, unanswered DaemonUnanswered) *opererr.Error {
+	var problem, why textbuf.Buffer
+	problem.Str("note: this ze process answered ").Str(path).Str(" itself, because the daemon did not")
+	why.Str("the daemon was asked first and gave no answer: ").Str(unanswered.why)
+	return opererr.New(problem.String(), why.String(), unanswered.fix)
+}
+
 // RegisterOfflineFallback registers an in-process handler for a read-only
 // command path (for example "show crashes" or "show host") that is served ONLY
-// when the daemon is unreachable. Unlike RegisterLocal, a fallback is never
-// consulted while the daemon is up, so it does not shadow the daemon command:
-// the CLI tries the daemon first and calls the fallback only after a
-// connection-level failure. Intended for host-local read-only data (crash
-// files, hardware inventory) an operator must still be able to read with no
-// daemon running.
-func RegisterOfflineFallback(path string, handler LocalHandler) error {
+// when the daemon did not answer. Unlike RegisterLocal, a fallback is never
+// consulted while the daemon answers, so it does not shadow the daemon command:
+// the CLI asks the daemon first and calls the fallback only after that ask
+// failed, handing it why (OfflineHandler, DaemonUnanswered). Intended for
+// host-local read-only data (crash files, hardware inventory) an operator must
+// still be able to read with no daemon running. A path below such a fallback
+// whose answer only the daemon holds registers a fallback of its own, which
+// refuses with the cause it was handed.
+func RegisterOfflineFallback(path string, handler OfflineHandler) error {
 	if path == "" {
 		return errRegisterLocalEmptyPath
 	}
@@ -211,7 +309,7 @@ func RegisterOfflineFallback(path string, handler LocalHandler) error {
 // MustRegisterOfflineFallback is the panicking variant, intended for init().
 // The path and handler are fixed at each call site, so a failure is a
 // programming bug; the offending call site is evident from the panic stack.
-func MustRegisterOfflineFallback(path string, handler LocalHandler) {
+func MustRegisterOfflineFallback(path string, handler OfflineHandler) {
 	if err := RegisterOfflineFallback(path, handler); err != nil {
 		panic("BUG: command.MustRegisterOfflineFallback: " + err.Error())
 	}
@@ -222,8 +320,8 @@ func MustRegisterOfflineFallback(path string, handler LocalHandler) {
 // Returns a nil handler if no fallback is registered. Same longest-prefix
 // semantics as LookupLocal, but a separate registry so fallbacks are only
 // reachable through the daemon-unreachable path. The caller MUST run the
-// handler through InvokeLocal.
-func LookupOfflineFallback(words []string) (LocalHandler, []string) {
+// handler through InvokeOfflineFallback.
+func LookupOfflineFallback(words []string) (OfflineHandler, []string) {
 	local.RLock()
 	defer local.RUnlock()
 	for i := len(words); i > 0; i-- {
@@ -278,5 +376,5 @@ func ResetLocalForTest() {
 	defer local.Unlock()
 	local.handlers = make(map[string]LocalHandler)
 	local.meta = make(map[string]registry.Meta)
-	local.fallbacks = make(map[string]LocalHandler)
+	local.fallbacks = make(map[string]OfflineHandler)
 }

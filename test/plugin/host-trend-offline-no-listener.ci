@@ -1,0 +1,29 @@
+# Test: with no daemon listening, `show host trend` refuses with "no ze
+#       listens at <address>" and the fix `ze start`.
+# QUESTION: does an operator who runs the command with no daemon read the
+#   cause the CLI client classified (nothing listens) in the refusal of the
+#   command's offline fallback?
+# VALIDATES: AC-32 of spec-host-resource-trend-alerts. endFailedAsk
+#   (internal/component/cli/client/main.go) hands the offline fallback the
+#   cause unansweredAfterConnect built from a probe of the listener, and
+#   trendOfflineRefusal (internal/plugins/host/trend_offline.go) words its
+#   refusal with it.
+# PREVENTS: the refusal wording a cause of its own ("no daemon answered"),
+#   which it printed for every failure, a running daemon included.
+# Why not a unit test: TestShowHostTrendOfflineRefusalBlamesTheRealCause and
+#   TestFailedAskNoListenerHandsTheFallbackItsCause prove the two halves; only
+#   the real binary proves `ze cli -c` joins them for the registered command.
+#
+# The client holds credentials (the environment's) and no daemon listens on
+# the port the runner handed out, so the first request fails at the connect.
+
+option=timeout:value=30s
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+
+cmd=foreground:seq=1:exec=ze cli -c "show host trend":exit=1
+expect=stderr:contains=show host trend needs the daemon, and no ze listens at 127.0.0.1
+expect=stderr:contains=fix: ze start
+reject=stderr:contains=no daemon answered
+reject=stderr:contains=note: this ze process answered

@@ -110,9 +110,16 @@ that the daemon's own dispatcher serves (`pluginserver.RegisterRPCs`, loaded by
 `NewServer` through `LoadBuiltins`), so they run in the process that holds the
 monitor, as `show storage smart` reads the SMART manager. With no monitor
 running the command refuses with an operator error whose fix is
-`ze signal restart`, and with no daemon reachable the offline fallback of
+`ze signal restart`. When the daemon did not answer, the offline fallback of
 `show host trend` says the daemon is needed, rather than reading `trend` as an
-unknown inventory section.
+unknown inventory section. Its refusal names why the daemon did not answer and
+ends on that cause's fix, both handed to it by the CLI client that asked
+(`command.DaemonUnanswered`): `ze start` when nothing listens, `ze cli --user
+<name> -c "show host trend"` when a daemon listens and this account holds no
+credentials for it, and the connection's own repair or `ze status` when
+something listens and the connection failed. A daemon that refused the login
+is answered by the client's login refusal, and the fallback is not run
+(`../api/commands.md`, "Offline fallback").
 <!-- source: internal/plugins/host-cmd/cmd/show_trend.go -- handleShowTrend, trendRuleOf, trendReadRefusal -->
 <!-- source: internal/plugins/host/trend_offline.go -- runShowTrendOffline, trendOfflineRefusal -->
 

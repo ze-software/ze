@@ -398,8 +398,9 @@ var argDefSource ArgDefSource
 
 // RegisterArgDefSource installs the source every route outside the daemon
 // dispatcher reads argument definitions from (ValidateModelArgs), which the
-// `ze <verb>` and offline-fallback routes reach through InvokeLocal. One call
-// covers every route, so none can be left unvalidated. Called from init();
+// `ze <verb>` routes reach through InvokeLocal and the offline-fallback route
+// through InvokeOfflineFallback. One call covers every route, so none can be
+// left unvalidated. Called from init();
 // not safe for concurrent use with any route.
 func RegisterArgDefSource(source ArgDefSource) {
 	argDefSource = source

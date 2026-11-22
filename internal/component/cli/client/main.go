@@ -300,16 +300,27 @@ func runInteractiveSession(client *cliClient) int {
 	return 0
 }
 
-// runBGP runs the BGP CLI using the unified cli.Model.
-// runOfflineFallback serves a read-only command in-process when the daemon is
-// unreachable, if an offline fallback was registered for that command path
-// (via cmd.RegisterOfflineFallback). Returns the command's exit code and
-// true when it handled the command; false lets the caller emit the usual
-// "daemon unreachable" error. The fallback registry is separate from the local
-// command registry, so a fallback is reached only through this daemon-down path
-// and never shadows the daemon command while the daemon is up.
-func runOfflineFallback(command string) (int, bool) {
+// runOfflineFallback serves a read-only command in-process after the local
+// daemon did not answer it, if an offline fallback was registered for that
+// command path (via cmd.RegisterOfflineFallback). Returns the command's exit
+// code and true when it handled the command; false lets the caller print its
+// own refusal. The fallback registry is separate from the local command
+// registry, so a fallback is reached only through this route and never shadows
+// the daemon command while the daemon answers.
+//
+// unanswered answers why the daemon did not answer. It is a function because
+// learning the cause probes the daemon's listener, which a command with no
+// fallback has no use for; the fallback is handed its answer, so its refusal
+// or the note after its answer names the real cause (daemon_unanswered.go).
+//
+// remote is the --remote address, empty for the local daemon. A fallback
+// answers from this host's own files, so it never stands in for a daemon on
+// another host: its answer would be this host's, read as the other's.
+func runOfflineFallback(command, remote string, unanswered func() cmd.DaemonUnanswered) (int, bool) {
 	if command == "" {
+		return 0, false
+	}
+	if remote != "" {
 		return 0, false
 	}
 	words := strings.Fields(command)
@@ -319,9 +330,11 @@ func runOfflineFallback(command string) (int, bool) {
 	}
 	// Route R7: the fallback runs on the value the model's leaves judged, as
 	// the daemon would have.
-	return cmd.InvokeLocal(strings.Join(words[:len(words)-len(fallbackArgs)], " "), handler, fallbackArgs), true
+	path := strings.Join(words[:len(words)-len(fallbackArgs)], " ")
+	return cmd.InvokeOfflineFallback(path, handler, fallbackArgs, unanswered()), true
 }
 
+// runBGP runs the BGP CLI using the unified cli.Model.
 func runBGP(args []string) int {
 	fs := flag.NewFlagSet("cli", flag.ExitOnError)
 	runCmd := fs.String("c", "", "Execute single command and exit")
@@ -366,10 +379,15 @@ func runBGP(args []string) int {
 		creds, err = sshclient.LoadCredentialsForRemote(*user, host, port)
 	}
 	if err != nil {
-		// No usable credentials means no daemon to talk to. Read-only commands
-		// that registered an in-process fallback (show crashes, show host) are
-		// served locally so host-local data stays readable with no daemon.
-		if code, served := runOfflineFallback(*runCmd); served {
+		// No usable credentials means this process cannot ask the daemon; it
+		// does not say whether a daemon runs. A read-only command that
+		// registered an in-process fallback is served locally, so host-local
+		// data stays readable, and the fallback is handed where the walk to
+		// the daemon stops: nothing listens, or a daemon listens and this
+		// account holds no credentials for it.
+		if code, served := runOfflineFallback(*runCmd, *remote, func() cmd.DaemonUnanswered {
+			return unansweredWithoutCredentials(*runCmd, err)
+		}); served {
 			return code
 		}
 		fmt.Fprintf(os.Stderr, "error: %v\n", sshclient.CredentialsUnavailable(err))
@@ -385,25 +403,8 @@ func runBGP(args []string) int {
 	// version` must not send the operator to the offline fallback with
 	// "cannot reach the daemon".
 	if _, err := client.SendCommand("show version"); err != nil {
-		// A refused login proves the daemon runs too: it answered and refused
-		// these credentials. The offline fallback stands in only for a daemon
-		// that is not there, so it is not consulted, and the refusal names the
-		// login rather than a start.
-		if refused, ok := errors.AsType[*sshclient.LoginRefused](err); ok {
-			var tb textbuf.Buffer
-			tb.Str("error: ").Str(sshclient.LoginRefusal(refused).Error()).Byte('\n').StdErr() //nolint:errcheck // CLI error
-			return 1
-		}
-		if !strings.Contains(err.Error(), plugin.UnauthorizedMessage) {
-			// Daemon unreachable: try an in-process offline fallback before
-			// giving up. The fallback registry is consulted ONLY here, after a
-			// connection-level failure, so it never shadows the daemon command
-			// when the daemon is up.
-			if code, served := runOfflineFallback(*runCmd); served {
-				return code
-			}
-			fmt.Fprintf(os.Stderr, "error: %v\n", daemonUnreachable(creds.Host, creds.Port, err))
-			return 1
+		if code, ended := endFailedAsk(*runCmd, *remote, creds, err); ended {
+			return code
 		}
 	}
 
@@ -413,6 +414,40 @@ func runBGP(args []string) int {
 	}
 
 	return runInteractiveSession(client)
+}
+
+// endFailedAsk answers what runBGP does when its first request to the daemon
+// creds name failed with err. ended is false for the one failure that proves
+// the daemon answers and leaves the session usable, an authorization refusal
+// of `show version`: the caller then goes on. Every other failure ends the
+// run with the exit code answered, after one of three things was printed.
+//
+// A refused login proves the daemon runs: it answered and refused these
+// credentials. The offline fallback stands in only for a daemon that gave no
+// answer, so it is not consulted, and the refusal names the login, never a
+// start. Any other failure is a daemon that did not answer: a command with an
+// offline fallback is served by it, handed why (nothing listens, or something
+// listens and the connection to it failed); a command with none gets
+// daemonUnreachable. command and remote are the -c and --remote values.
+func endFailedAsk(command, remote string, creds sshclient.Credentials, err error) (code int, ended bool) {
+	if refused, ok := errors.AsType[*sshclient.LoginRefused](err); ok {
+		var tb textbuf.Buffer
+		tb.Str("error: ").Str(sshclient.LoginRefusal(refused).Error()).Byte('\n').StdErr() //nolint:errcheck // CLI error
+		return 1, true
+	}
+	if strings.Contains(err.Error(), plugin.UnauthorizedMessage) {
+		return 0, false
+	}
+	// The fallback registry is consulted ONLY after a failed ask, so it never
+	// shadows the daemon command when the daemon answers.
+	if code, served := runOfflineFallback(command, remote, func() cmd.DaemonUnanswered {
+		return unansweredAfterConnect(command, creds.Host, creds.Port, err)
+	}); served {
+		return code, true
+	}
+	var tb textbuf.Buffer
+	tb.Str("error: ").Err(daemonUnreachable(creds.Host, creds.Port, err)).Byte('\n').StdErr() //nolint:errcheck // CLI error
+	return 1, true
 }
 
 // RunReached runs one command on the daemon creds log in to, as `ze cli -c`

@@ -51,8 +51,8 @@ func withLocalArgDefs(t *testing.T) {
 // VALIDATES: a registered data handler receives exactly the value ValidateArgs
 // returned, on both routes that run it: ServeLocal (R2) and the plain local
 // handler RegisterLocalData builds (R3), the lone positional token bound to
-// its leaf included. A local handler and an offline fallback receive the value
-// InvokeLocal judged (R6, R7).
+// its leaf included. A local handler receives the value InvokeLocal judged
+// (R6), and an offline fallback the value InvokeOfflineFallback judged (R7).
 // PREVENTS: a handler that takes a token slice, which any route can hand it
 // without calling the validator.
 // Method: register one handler, run it through each route, read what it got.
@@ -99,7 +99,8 @@ func TestHandlerTypesTakeValidatedArguments(t *testing.T) {
 		if err := RegisterLocal(localDataArgsPath, handler); err != nil {
 			t.Fatal(err)
 		}
-		if err := RegisterOfflineFallback(localDataArgsPath, handler); err != nil {
+		offline := func(args ValidatedArgs, _ DaemonUnanswered) int { return handler(args) }
+		if err := RegisterOfflineFallback(localDataArgsPath, offline); err != nil {
 			t.Fatal(err)
 		}
 		words := []string{"show", "test", "local", "data", "args", "abcd"}
@@ -120,7 +121,8 @@ func TestHandlerTypesTakeValidatedArguments(t *testing.T) {
 		if fallback == nil {
 			t.Fatal("LookupOfflineFallback answered no handler")
 		}
-		if code := InvokeLocal(localDataArgsPath, fallback, args); code != 0 {
+		unanswered := NewDaemonUnanswered("no ze listens at 127.0.0.1:1 (connection refused)", "ze start")
+		if code := InvokeOfflineFallback(localDataArgsPath, fallback, args, unanswered); code != 0 {
 			t.Fatalf("offline fallback: exit %d, want 0", code)
 		}
 		assertReceivedName(t, "offline fallback", received, "abcd")
