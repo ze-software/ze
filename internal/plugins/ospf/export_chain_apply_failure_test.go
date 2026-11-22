@@ -228,7 +228,7 @@ func TestOSPFFailedApplyThatCannotUndoHandsTheRepairToRollback(t *testing.T) {
 	want := "OSPF could not apply the new config, and could not put its engines back to the running config either\n" +
 		sdk.RunningConfigLostWhy + ": " + stateErr + "; putting the running config back: " + stateErr +
 		" (" + sdk.ErrRunningConfigLost.Error() + ")\n" +
-		"fix: " + runningStateFix + ".\n" + sdk.RunningConfigLostRestart
+		"fix: " + runningStateFix + ".\n" + sdk.RunningConfigLostRestart()
 	if apply.Error != want {
 		t.Errorf("config-apply error =\n%s\nwant\n%s", apply.Error, want)
 	}

@@ -631,7 +631,7 @@ func TestConfigApplyWithoutHandlerIsRefused(t *testing.T) {
 		require.Equal(t, rpc.StatusError, output.Status, "answer %s", answer)
 		for _, want := range []string{
 			"plugin " + p.name, "bgp", "registered no config apply handler",
-			"under systemd: systemctl restart ze", "on the ze appliance: request reboot",
+			RestartSteps(), "on the ze appliance: request reboot",
 		} {
 			assert.Contains(t, output.Error, want)
 		}

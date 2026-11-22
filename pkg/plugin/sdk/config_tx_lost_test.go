@@ -27,8 +27,8 @@ func TestRunningConfigLostCarriesWhyAndFix(t *testing.T) {
 		firstStep string
 		fix       string
 	}{
-		{"listener lost", RunningConfigLostListenerFix, RunningConfigLostListenerFix + ".\n" + RunningConfigLostRestart},
-		{"restart only", "", RunningConfigLostRestart},
+		{"listener lost", RunningConfigLostListenerFix, RunningConfigLostListenerFix + ".\n" + RunningConfigLostRestart()},
+		{"restart only", "", RunningConfigLostRestart()},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -89,7 +89,7 @@ func TestRunningConfigLostEmptyProblem(t *testing.T) {
 
 	want := RunningConfigLostProblem + "\n" +
 		RunningConfigLostWhy + ": " + cause.Error() + " (" + ErrRunningConfigLost.Error() + ")\n" +
-		"fix: " + RunningConfigLostListenerFix + ".\n" + RunningConfigLostRestart
+		"fix: " + RunningConfigLostListenerFix + ".\n" + RunningConfigLostRestart()
 	if err.Error() != want {
 		t.Errorf("RunningConfigLost =\n%s\nwant\n%s", err, want)
 	}

@@ -13,6 +13,9 @@
 #            plugin with no apply handler and no declaration is refused at
 #            verify, with the restart routes as the next step, never
 #            `ze signal restart`.
+# ROUTE:     the runner starts ze, so ze runs outside ze.service: the
+#            restart route is the stop-and-start steps and never a
+#            systemctl command (privilege.RestartRemedy).
 # PREVENTS:  a plugin accepting a reload it never applies, so the operator's
 #            change is reported committed and the plugin keeps the old config.
 #
@@ -128,7 +131,9 @@ cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=60s
 
 expect=stderr:contains=plugin plugin-without-apply cannot apply a change to bgp while ze runs: it registered no config apply handler
-expect=stderr:contains=  under systemd: systemctl restart ze
+expect=stderr:contains=no single command restarts an unsupervised ze: run ze signal stop, then start ze again the way it was started
+expect=stderr:contains=  on the ze appliance: request reboot in the ze CLI, or ze signal reboot from a shell
 expect=stderr:contains=PLUGIN-WITHOUT-APPLY-REFUSED: reload refused, session kept
 reject=stderr:pattern=ZE-OBSERVER-FAIL
 reject=stderr:pattern=ze signal restart
+reject=stderr:pattern=systemctl restart ze

@@ -1296,11 +1296,15 @@ var builtinCodes = append([]CodeMeta{
 			"complete path: at a bounded rate, above which every datagram is dropped, and a " +
 			"firewall rule keyed on the input " +
 			"interface sees ze-espform, not the link the packet arrived on. Every packet is still " +
-			"checked against the SA's policy. Under systemd, a ze unit written by an older ze does " +
-			"not grant CAP_BPF: stop ze with sudo systemctl stop ze, then rewrite the unit with " +
-			"sudo ze install systemd --force --start, which starts ze again. Without systemd, start " +
-			"ze with CAP_BPF and CAP_NET_ADMIN. On a kernel before Linux 6.6, which has no TCX, " +
-			"upgrade the kernel, then restart ze.",
+			"checked against the SA's policy. The finding says why the program did not load. A " +
+			"capability fault is a load the kernel refused with EPERM: ze lacks CAP_BPF or " +
+			"CAP_NET_ADMIN. A kernel fault is a kernel before Linux 6.6, which has no TCX, so no " +
+			"capability makes the program load: the fix builds Ze's runtime kernel, which has it, " +
+			"to install and boot. Any other cause is one Ze cannot classify, and the fix names the " +
+			"warnings that carry the kernel's answer. A fast path that detached itself, or stopped " +
+			"following new links, loads again when ze restarts. For a missing capability and for a " +
+			"restart, the finding's fix gives the remedy for this process: a systemd command only " +
+			"when ze runs under ze.service, otherwise the steps for a ze started another way.",
 		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-esp-form-fast-path"},
 	},
 	{
@@ -1380,8 +1384,9 @@ var builtinCodes = append([]CodeMeta{
 		Title: "A loaded ESP GRO module can consume bare ESP before Ze receives it",
 		Description: "The IPv4 dual-form receiver has a watched SPI and esp4_offload is loaded. Its GRO callback " +
 			"can send bare ESP into XFRM before tc ingress or raw sockets, so an ESP-in-UDP state can refuse it " +
-			"before either Ze receive path sees it. On a systemd host, sudo systemctl stop ze && sudo modprobe -r " +
-			"esp4_offload && sudo systemctl start ze removes Ze's SAs before unloading their referenced module. " +
+			"before either Ze receive path sees it. The finding's fix stops ze, unloads esp4_offload with " +
+			"sudo modprobe -r esp4_offload, then starts ze again, which removes Ze's SAs before unloading their " +
+			"referenced module; it names the systemd commands only when ze runs under ze.service. " +
 			"Other IPsec owners may still hold or load the module; stop them too or disable GRO on receiving " +
 			"links through the existing interface offload configuration. This check only detects the loaded " +
 			"module, never an ESP GRO implementation built into the kernel.",

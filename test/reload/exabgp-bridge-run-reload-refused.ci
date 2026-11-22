@@ -11,6 +11,9 @@
 # VALIDATES: spec-plugin-reload-applies-or-refuses row 27, AC-8 (owner
 #            decision Q4 = e1): bridgeRunner.verifyReload refuses every
 #            non-capability change under exabgp bridge.
+# ROUTE:     the runner starts ze, so ze runs outside ze.service: the
+#            restart route is the stop-and-start steps and never a
+#            systemctl command (privilege.RestartRemedy).
 # PREVENTS:  the acked-and-dropped reload. With OnConfigure alone the SDK
 #            answered config-verify and config-apply OK, the commit succeeded,
 #            and the script kept running the old command.
@@ -153,9 +156,11 @@ cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=60s
 
 expect=stderr:contains=exabgp bridge process helper cannot change while ze runs (plugin exabgp-bridge): the bridge's scripts keep the config they started with.
-expect=stderr:contains=  under systemd: systemctl restart ze
+expect=stderr:contains=no single command restarts an unsupervised ze: run ze signal stop, then start ze again the way it was started
+expect=stderr:contains=  on the ze appliance: request reboot in the ze CLI, or ze signal reboot from a shell
 expect=stderr:contains=BRIDGE-RUN-REFUSED: reload refused, session kept
 reject=stderr:pattern=ZE-OBSERVER-FAIL
 reject=stderr:pattern=peer restart required
 reject=stderr:pattern=capability route-refresh cannot change
 reject=stderr:pattern=ze signal restart
+reject=stderr:pattern=systemctl restart ze

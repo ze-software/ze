@@ -139,7 +139,7 @@ func TestInstallRefusedReloadReturnsAFailedRegistrationRestore(t *testing.T) {
 	}
 	// AC-11: the registration branch carries the SDK's next step for
 	// running-config loss, the daemon restart, with no first step of its own.
-	if got, want := operr.Fix(), sdk.RunningConfigLostRestart; got != want {
+	if got, want := operr.Fix(), sdk.RunningConfigLostRestart(); got != want {
 		t.Errorf("fix = %q, want the SDK's restart %q", got, want)
 	}
 	for _, want := range []string{"reload refused", "restoring the registration: ", "owned by another plugin"} {
@@ -170,7 +170,7 @@ func TestRefuseListenersLostCarriesTheSDKNextStep(t *testing.T) {
 	}
 	want := "as112 could not apply the new config, and could not bind the running config's listeners again\n" +
 		sdk.RunningConfigLostWhy + ": " + lost.Error() + " (" + sdk.ErrRunningConfigLost.Error() + ")\n" +
-		"fix: " + sdk.RunningConfigLostListenerFix + ".\n" + sdk.RunningConfigLostRestart
+		"fix: " + sdk.RunningConfigLostListenerFix + ".\n" + sdk.RunningConfigLostRestart()
 	if err.Error() != want {
 		t.Errorf("refuse =\n%s\nwant\n%s", err, want)
 	}

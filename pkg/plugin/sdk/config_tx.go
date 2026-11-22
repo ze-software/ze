@@ -44,13 +44,18 @@ const RunningConfigLostWhy = "ze rolls the commit back: the rollback binds the r
 const RunningConfigLostListenerFix = "stop the program that holds the address and port named above, " +
 	"or give the interface its address back"
 
-// RunningConfigLostRestart is the last repair. No command restarts one
-// plugin, so it is a daemon restart, by the routes RestartSteps names; `ze
-// signal restart` is not one, because it leaves ze stopped (restart_text.go).
-var RunningConfigLostRestart = "If a Rollback line says ze restarted the plugin, its listeners on a port that was still in use stay down. " +
-	"No command restarts one plugin: once the port is free, stop the whole ze daemon and start it again. " +
-	"This restarts every protocol and drops every session:\n" +
-	restartRoutes
+// RunningConfigLostRestart answers the last repair. No command restarts one
+// plugin, so it is a daemon restart, by the routes RestartSteps names for this
+// process: the systemd command only when ze runs under ze.service. `ze signal
+// restart` is not one (restart_text.go). It is evaluated on each call, because
+// the route depends on the process's service membership. Safe for concurrent
+// use.
+func RunningConfigLostRestart() string {
+	return "If a Rollback line says ze restarted the plugin, its listeners on a port that was still in use stay down. " +
+		"No command restarts one plugin: once the port is free, stop the whole ze daemon and start it again. " +
+		"This restarts every protocol and drops every session:\n" +
+		restartRoutes()
+}
 
 // RunningConfigLostProblem is the problem RunningConfigLost states when the
 // plugin passes none: what every caller's own problem says, without naming
@@ -72,9 +77,9 @@ func RunningConfigLost(cause error, problem, firstStep string) error {
 	if problem == "" {
 		problem = RunningConfigLostProblem
 	}
-	fix := RunningConfigLostRestart
+	fix := RunningConfigLostRestart()
 	if firstStep != "" {
-		fix = firstStep + ".\n" + RunningConfigLostRestart
+		fix = firstStep + ".\n" + fix
 	}
 	return opererr.Wrap(fmt.Errorf("%w (%w)", cause, ErrRunningConfigLost), problem, RunningConfigLostWhy, fix)
 }
