@@ -307,7 +307,7 @@ func TestHandleAnnounceFlowspec(t *testing.T) {
 // described.
 func TestFlowspecActionAcceptsACommunity(t *testing.T) {
 	reg := NewRegistry(func(*selector.Selector, bgptypes.NLRIBatch, plugin.Sender) error { return nil })
-	ctx := &pluginserver.CommandContext{}
+	ctx := &pluginserver.CommandContext{Sender: plugin.OperatorSender()}
 
 	announce := func(t *testing.T, args []string) []byte {
 		t.Helper()
@@ -427,7 +427,7 @@ func TestAnnounceRefusesAWordAfterTheOptions(t *testing.T) {
 // PREVENTS: a refusal wide enough to reject the grammar it is guarding.
 func TestAnnounceReadsEveryTrailingOption(t *testing.T) {
 	reg := NewRegistry(func(*selector.Selector, bgptypes.NLRIBatch, plugin.Sender) error { return nil })
-	ctx := &pluginserver.CommandContext{}
+	ctx := &pluginserver.CommandContext{Sender: plugin.OperatorSender()}
 	const prefix = "1.1.1.1/32"
 
 	for _, tc := range []struct {
@@ -746,7 +746,7 @@ func TestHandleAnnounceUnicastAcceptsGlobalNextHop(t *testing.T) {
 // it, so a test that calls the registry directly is green against the defect.
 func TestAnnounceForWithoutATagStillExpires(t *testing.T) {
 	reg := NewRegistry(func(*selector.Selector, bgptypes.NLRIBatch, plugin.Sender) error { return nil })
-	ctx := &pluginserver.CommandContext{}
+	ctx := &pluginserver.CommandContext{Sender: plugin.OperatorSender()}
 	rctr := &captureReactor{}
 
 	resp, err := handleAnnounceFlowspec(ctx, rctr, reg,

@@ -12,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 	ospfspf "github.com/ze-software/ze/internal/plugins/ospf/spf"
 	staticevents "github.com/ze-software/ze/internal/plugins/static/events"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // importChain renders `<root> { filter { import { filters [ name ]; final accept; } } }`.
@@ -204,9 +205,10 @@ func TestMatchAndModifyBoundaries(t *testing.T) {
 	}
 }
 
-// TestMatchLevelBoundaries: the level condition takes 1 or 2. The parse does
-// not apply a leaf-list's range, so the refusal is the one a commit meets, at
-// verify: level 2 attaches to isis import, 0 and 3 are refused naming the fix.
+// TestMatchLevelBoundaries: the level condition takes 1 or 2. Level 2 attaches
+// to isis import; 0 and 3 are refused both at YANG parse time (leaf-list range
+// 1..2) and at policy verify time (when raw config sections bypass the parser,
+// naming "use 1 or 2").
 func TestMatchLevelBoundaries(t *testing.T) {
 	t.Cleanup(func() { locrib.PublishPolicy(nil) })
 	for _, tc := range []struct {
@@ -215,11 +217,28 @@ func TestMatchLevelBoundaries(t *testing.T) {
 	}{{"2", true}, {"0", false}, {"3", false}} {
 		t.Run("level "+tc.level, func(t *testing.T) {
 			text := "policy {\n\tmatch M { level [ " + tc.level + " ]; }\n}\n" + importChain("isis", "M")
-			err := policy.ApplyRIBImportsForTest(configSections(t, text))
-			if tc.valid && err != nil {
-				t.Fatalf("refused a valid level: %v", err)
+			if tc.valid {
+				if err := policy.ApplyRIBImportsForTest(configSections(t, text)); err != nil {
+					t.Fatalf("refused a valid level: %v", err)
+				}
+				return
 			}
-			if !tc.valid && (err == nil || !strings.Contains(err.Error(), "use 1 or 2")) {
+			_, parseErr := config.ParseTreeWithYANG(text, nil)
+			if parseErr == nil {
+				t.Fatalf("ParseTreeWithYANG accepted out-of-range level %s", tc.level)
+			}
+			if !strings.Contains(parseErr.Error(), "1..2") {
+				t.Fatalf("parseErr = %v, want a refusal naming range 1..2", parseErr)
+			}
+			rawSections := []sdk.ConfigSection{
+				{Root: policy.RootName, Data: `{"policy":{"match":{"M":{"level":["` + tc.level + `"]}}}}`},
+				{Root: "isis", Data: `{"isis":{"filter":{"import":{"filters":["M"],"final":"accept"}}}}`},
+			}
+			err := policy.ApplyRIBImportsForTest(rawSections)
+			if err == nil {
+				t.Fatalf("ApplyRIBImportsForTest accepted out-of-range level %s", tc.level)
+			}
+			if !strings.Contains(err.Error(), "use 1 or 2") {
 				t.Fatalf("err = %v, want a refusal naming levels 1 and 2", err)
 			}
 		})

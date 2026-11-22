@@ -70,16 +70,25 @@ const (
 
 // TypedefName is the ze-types YANG typedef that marks a leaf as an AS number.
 // PrefixedTypedefName is the same typedef, as a module that imports ze-types
-// spells it. A schema reader tests a leaf type name with IsTypedef, and learns
-// that the leaf takes the notations this package reads.
+// spells it. FilterTypedefName and PrefixedFilterTypedefName name the route-
+// filter typedef that also admits reserved AS 0 (RFC 7607). A schema reader
+// tests a leaf type name with IsTypedef, and learns that the leaf takes the
+// notations this package reads.
 const (
-	TypedefName         = "asn"
-	PrefixedTypedefName = "zt:asn"
+	TypedefName               = "asn"
+	PrefixedTypedefName       = "zt:asn"
+	FilterTypedefName         = "asn-filter"
+	PrefixedFilterTypedefName = "zt:asn-filter"
 )
 
-// IsTypedef reports whether a YANG type name names the AS number typedef.
+// IsTypedef reports whether a YANG type name names an AS number typedef.
 func IsTypedef(name string) bool {
-	return name == TypedefName || name == PrefixedTypedefName
+	switch name {
+	case TypedefName, PrefixedTypedefName, FilterTypedefName, PrefixedFilterTypedefName:
+		return true
+	default:
+		return false
+	}
 }
 
 // String returns the config token that names the notation.

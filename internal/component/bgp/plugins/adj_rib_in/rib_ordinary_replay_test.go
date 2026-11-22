@@ -64,10 +64,10 @@ func TestOrdinaryReplayOwnershipKeepsReadiness(t *testing.T) {
 					&RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NHopHex: "c0000229", NLRIHex: "180a0000"})
 				r.ribIn[receivedPeer{address: netip.MustParseAddr(source)}] = routes
 				if delivery == "structured" {
-					r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: target, PeerOwner: 2, State: rpc.SessionStateUp,
+					r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: target, PeerOwner: 2, ConnectionID: 471, State: rpc.SessionStateUp,
 						InitialReplay: 471, DestinationSession: 471, OrdinaryReplayOwned: owned})
 				} else {
-					data, err := json.Marshal(&bgp.Event{PeerOwner: 2, Type: "state", State: stateUp, InitialReplay: 471,
+					data, err := json.Marshal(&bgp.Event{PeerOwner: 2, ConnectionID: 471, Type: "state", State: stateUp, InitialReplay: 471,
 						DestinationSession: 471, OrdinaryReplayOwned: owned,
 						Peer: mustMarshal(t, bgp.PeerInfoJSON{Remote: bgp.PeerRemoteInfo{Address: target, AS: 65001}})})
 					require.NoError(t, err)

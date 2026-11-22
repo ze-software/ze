@@ -209,16 +209,26 @@ func TestParseRefusesUncompilablePattern(t *testing.T) {
 //
 // The 512-character cap is bgp-filter-aspath's, applied for the same reason: RE2
 // is linear in the subject, so the bound is defense in depth rather than a ReDoS
-// guard. The regex leaf-list carries the length in YANG too, and phase 1 measured
-// that such a bound fires only under ValidateTreeAllModules, which no daemon path
-// runs over bgp.
+// guard. Both the YANG-aware config parser (via leaf-list length 1..512) and the
+// plugin's own config parser must refuse a pattern over 512 characters.
 //
-// VALIDATES: AC-47.
+// VALIDATES: AC-47 at both the config-parse layer and the plugin config-parse layer.
 // PREVENTS: a bound declared in the schema and enforced by nothing.
 func TestParseRefusesOverlongPattern(t *testing.T) {
-	_, err := parseLists(t, `        reject-asn NO-TRANSIT {
-            regex [ "^`+strings.Repeat("a", maxPatternLen)+`" ]
-        }`)
+	overlong := "^" + strings.Repeat("a", maxPatternLen)
+	_, parseErr := config.ParseTreeWithYANG(policyOnly(`        reject-asn NO-TRANSIT {
+            regex [ "`+overlong+`" ]
+        }`), nil)
+	require.Error(t, parseErr, "ParseTreeWithYANG must refuse a pattern over 512 characters")
+	assert.Contains(t, parseErr.Error(), "512", "the parse refusal must name the bound the operator crossed")
+
+	_, err := parseRejectASNLists(map[string]any{
+		"reject-asn": map[string]any{
+			"NO-TRANSIT": map[string]any{
+				"regex": []any{overlong},
+			},
+		},
+	})
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "NO-TRANSIT", "the message must name the list")

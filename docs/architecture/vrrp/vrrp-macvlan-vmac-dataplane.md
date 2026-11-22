@@ -77,8 +77,12 @@ under the owner `vrrp-backup`:
 A private macvlan receives a unicast frame only when the destination MAC is its
 own. The discard combines the exact input interface with `MatchUnicast`, lowered
 to nft `meta pkttype host`. Broadcast and multicast, including VRRP and IPv6 ND,
-do not match. Both advertisement receive and transmit sockets bind to the
-macvlan, while the engine retains the parent's identity for group lookup.
+do not match. Multicast advertisement receive and transmit sockets bind to the
+macvlan, while a companion unicast-only receive socket binds to the parent so
+unicast advertisements addressed to the parent's physical MAC and IP (for
+example keepalived `unicast_peer`) still reach the engine. Both receive paths
+retain the parent's identity for group lookup, and the parent socket drops
+multicast destinations so a multicast frame is never delivered twice.
 The worker sets the entry when it starts; a demotion sets it before addresses
 are removed; a promotion withdraws it after installation; shutdown withdraws it.
 `TestVRRPBackupDoesNotForwardVirtualMACFrames` sends a transit datagram to the

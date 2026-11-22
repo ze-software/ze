@@ -84,9 +84,14 @@ exists only for IPv4 groups. VRRPv2 uses no pseudo-header, per RFC 3768 Section
 
 <!-- source: internal/plugins/vrrp/transport/backend_linux.go -- TTL and hop-limit checks -->
 
-Adverts are sent and checked with TTL or hop limit 255. The receive socket is
-bound to the PARENT and joins the multicast group. The transmit socket is bound
-to the MACVLAN, so frames leave with the virtual MAC.
+Adverts are sent and checked with TTL or hop limit 255. Each instance opens a
+multicast receive socket bound to the MACVLAN (joined to `224.0.0.18` or
+`ff02::12`, because Linux redirects same-VMAC peer multicast frames to the
+PRIVATE macvlan and consumes the parent's copy) plus a unicast receive socket
+bound to the PARENT without a multicast join (delivering non-multicast adverts
+addressed to the parent's primary address, such as keepalived `unicast_peer`).
+The transmit socket is bound to the MACVLAN, so frames leave with the virtual
+MAC.
 
 ### Owner auto-detection forces the effective values
 
@@ -360,11 +365,13 @@ state; a tracked route and a health-check script are not implemented.
   in the plugin's `ConfigureMetrics` fixes it. A registered counter that nothing
   increments, and a registered registry that nothing forwards, are both invisible
   failures. Assert the production wiring, not the unit-level registration.
-- Each instance opens its own macvlan-bound receive socket. Multicast received on
-  that device belongs to its configured parent; routing receive by VRID alone
-  hands every copy to one instance, which gives duplicate FSM events and counters
-  inflated by the instance count. The per-instance receive sink stamps
-  `transport.RxItem.Key` and routing keys on that.
+- Each instance opens its own macvlan-bound multicast receive socket and
+  parent-bound unicast receive socket. Packets received on either socket belong
+  to the configured parent (multicast is skipped on the parent socket to avoid
+  duplicate delivery); routing receive by VRID alone hands every copy to one
+  instance, which gives duplicate FSM events and counters inflated by the
+  instance count. The per-instance receive sink stamps `transport.RxItem.Key`
+  and routing keys on that.
 - A bool leaf can arrive from the config tree as the STRING "true". A `.(bool)`
   assertion drops it silently, which let a `version 2` plus accept-mode config
   validate clean. Use a helper that accepts both shapes and rejects anything else.

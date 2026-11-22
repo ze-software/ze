@@ -240,6 +240,7 @@ func TestAnnounceBlackholeRefusesAnUnreadableAgreement(t *testing.T) {
 // narrowed selector is what the tag registry stores.
 func TestAnnounceBlackholeTracksTheNarrowedSelector(t *testing.T) {
 	ctx, rctr := agreementCtx(t, "blackhole")
+	ctx.Sender = plugin.OperatorSender()
 	reg := newReg()
 
 	_, err := handleAnnounceBlackhole(ctx, rctr, reg, []string{"198.51.100.1/32", "tag", "k", "v"})

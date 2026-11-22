@@ -260,9 +260,9 @@ func parseOneList(name string, body any) (*rejectList, error) {
 
 // addASNs unions one leaf-list's ASNs into the list under positions.
 //
-// The leaf-list is `type zt:asn`. The config parser therefore refuses a value
-// that names no AS number before this runs, and it accepts all three RFC 5396
-// spellings. asn.Parse reads them here for the same reason.
+// The leaf-list is `type zt:asn-filter`. The config parser therefore refuses a value
+// that names no AS number before this runs, accepts AS 0 (RFC 7607), and accepts
+// all three RFC 5396 spellings. asn.Parse reads them here for the same reason.
 //
 // The error stays because the alternative is to skip the value. That would
 // drop an ASN the operator wrote and leave a filter that looks configured

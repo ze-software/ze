@@ -126,6 +126,10 @@ func TestASPARetainedEarlyReplacementSurvivesTimeout(t *testing.T) {
 	r := newTestManager(t)
 	_, _, err := r.handleCommand("request bgp adj-rib-in enable-validation", nil, "")
 	require.NoError(t, err)
+	r.handleStructuredState(&rpc.StructuredEvent{
+		PeerAddress: "192.0.2.1", PeerOwner: 1, ConnectionID: 41,
+		State: rpc.SessionStateUp, Reason: rpc.ReasonAttached,
+	})
 	retainedReceive(t, r, 50, rfc4271Announce(1, 0, 0, 0, 0, 24, 203, 0, 113))
 	retainedDecision(t, r, "i", 0, 51)
 	r.mu.Lock()

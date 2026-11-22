@@ -29,6 +29,10 @@ func TestRPKIDisablePreservesReceivedGenerations(t *testing.T) {
 	r := newTestManager(t)
 	_, _, err := r.handleCommand("request bgp adj-rib-in enable-validation", nil, "")
 	require.NoError(t, err)
+	r.handleStructuredState(&rpc.StructuredEvent{
+		PeerAddress: "192.0.2.1", PeerOwner: 1, ConnectionID: 41,
+		State: rpc.SessionStateUp, Reason: rpc.ReasonAttached,
+	})
 	body := rfc4271Announce(1,
 		0, 0, 0, 0, 24, 203, 0, 113,
 		0, 0, 0, 1, 24, 203, 0, 113)
@@ -38,7 +42,7 @@ func TestRPKIDisablePreservesReceivedGenerations(t *testing.T) {
 	require.NoError(t, err)
 	routes, _ := retainedRelay(t, r, "request bgp adj-rib-in replay", "192.0.2.99")
 	require.Equal(t, []rpc.StoredRoute{{
-		SourcePeer: "192.0.2.1", Family: "ipv4/unicast", MsgID: 40, PathID: 1,
+		SourcePeer: "192.0.2.1", SourceOwner: 1, SourceConnectionID: 41, Family: "ipv4/unicast", MsgID: 40, PathID: 1,
 		AttrHex: hex.EncodeToString(body[4:18]), NextHopHex: "0a000001",
 		NLRIHex: "18cb0071", NLRIFraming: rpc.NLRIFramingPrefixOnly, InitialUpdate: true,
 	}}, routes, "only the unsuperseded pending sibling is released")
@@ -68,7 +72,7 @@ func TestRPKIDisablePreservesReceivedGenerations(t *testing.T) {
 	retainedDecision(t, r, "a", 0, 41)
 	recovered, _ := retainedRelay(t, r, "request bgp adj-rib-in replay", "192.0.2.99")
 	require.Equal(t, []rpc.StoredRoute{{
-		SourcePeer: "192.0.2.1", Family: "ipv4/unicast", MsgID: 41,
+		SourcePeer: "192.0.2.1", SourceOwner: 1, SourceConnectionID: 41, Family: "ipv4/unicast", MsgID: 41,
 		AttrHex: hex.EncodeToString(newBody[4:18]), NextHopHex: "0a000002",
 		NLRIHex: "18cb0071", NLRIFraming: rpc.NLRIFramingPrefixOnly, InitialUpdate: true,
 	}}, recovered, "re-enabled validation replays only the accepted current generation")
@@ -196,10 +200,10 @@ func TestSelfOwnedPeerUpReplaysFlowSpecBeforeReady(t *testing.T) {
 				}
 				if delivery == "structured" {
 					r.handleStructuredState(&rpc.StructuredEvent{
-						PeerAddress: target, PeerOwner: 2, State: rpc.SessionStateUp, UnheldRoles: unheld, InitialReplay: 41,
+						PeerAddress: target, PeerOwner: 2, ConnectionID: 41, State: rpc.SessionStateUp, UnheldRoles: unheld, InitialReplay: 41,
 					})
 				} else {
-					r.handleState(&bgp.Event{PeerOwner: 2, Type: "state", State: stateUp, UnheldRoles: unheld, InitialReplay: 41,
+					r.handleState(&bgp.Event{PeerOwner: 2, ConnectionID: 41, Type: "state", State: stateUp, UnheldRoles: unheld, InitialReplay: 41,
 						Peer: mustMarshal(t, bgp.PeerInfoJSON{Remote: bgp.PeerRemoteInfo{Address: target, AS: 65001}})})
 				}
 				want := []string{"rule", "ready"}

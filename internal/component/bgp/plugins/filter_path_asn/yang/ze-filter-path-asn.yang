@@ -58,7 +58,7 @@ module ze-filter-path-asn {
             }
 
             leaf-list direct {
-                type zt:asn;
+                type zt:asn-filter;
                 ze:validate "transit-asn";
                 description "The position is the leading run of tokens equal to the ASN of the sending peer, so four
                     prepends are one direct position. On export no ASN is direct, because the filter input carries
@@ -68,7 +68,7 @@ module ze-filter-path-asn {
             }
 
             leaf-list indirect {
-                type zt:asn;
+                type zt:asn-filter;
                 ze:validate "transit-asn";
                 description "The keyword covers transit and origin together. It is the leaf an operator writes for RFC
                     7454 Section 9. The route reached you through the ASN, and a direct session with that ASN is
@@ -77,7 +77,7 @@ module ze-filter-path-asn {
             }
 
             leaf-list transit {
-                type zt:asn;
+                type zt:asn-filter;
                 ze:validate "transit-asn";
                 description "A token is transit when it sits neither inside the leading run of the sender nor at the
                     end of the path. Ze gives every token exactly one of direct, transit and origin.";
@@ -85,7 +85,7 @@ module ze-filter-path-asn {
             }
 
             leaf-list origin {
-                type zt:asn;
+                type zt:asn-filter;
                 ze:validate "transit-asn";
                 description "The last ASN of the path announced the route. The leading run of the sender wins over that
                     last position, so a lone ASN sent by the peer that owns it is direct rather than the origin.";
@@ -93,7 +93,7 @@ module ze-filter-path-asn {
             }
 
             leaf-list anywhere {
-                type zt:asn;
+                type zt:asn-filter;
                 ze:validate "transit-asn";
                 description "The keyword is the union of the other three, so it rejects the ASN wherever it sits. The
                     reject log line still names which of the three caught the route.";
@@ -117,7 +117,7 @@ module ze-filter-path-asn {
                 }
 
                 leaf-list asn {
-                    type zt:asn;
+                    type zt:asn-filter;
                     ze:validate "transit-asn";
                     description "The completion of the leaf offers a curated table of transit-free networks, and that
                         table constrains nothing. Every ASN the type admits stays valid, and an ASN the table never

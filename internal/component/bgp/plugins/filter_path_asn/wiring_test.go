@@ -156,41 +156,47 @@ func TestSchemaRefusesAnUnknownPositionKey(t *testing.T) {
 // carries beyond the leaf types: the 512-character cap on a regex pattern
 // (AC-47).
 //
-// It is reported by the module walk, and NOT by the parse. The bgp section is
-// deliberately outside the validatedSections list that ValidateCustomSections
-// walks (internal/component/config/validate_sections.go), so no daemon path runs
-// this walk over bgp today. The bound is a declaration this test proves live, and
-// the refusal an operator meets is owed by the plugin's own config parse.
+// Both the YANG-aware config parser (which enforces native leaf-list length
+// restrictions on every member) and the YANG module walk over a policy tree
+// must enforce the bound.
 //
-// VALIDATES: the regex leaf-list carries a 512-character bound, and it fires.
+// VALIDATES: the regex leaf-list carries a 512-character bound, and it fires
+// both at parse time and during a full YANG tree walk.
 // PREVENTS: a bound written into the schema, believed to be enforced, and
 // enforced by nothing.
 func TestPositionBoundsFireWhenTheTreeIsWalked(t *testing.T) {
+	overlong := strings.Repeat("3", 513)
 	cases := []struct {
 		name string
 		list string
+		tree map[string]any
 		want string
 	}{{
 		name: "pattern_over_512_characters",
 		list: `        reject-asn NO-TRANSIT {
-            regex [ "` + strings.Repeat("3", 513) + `" ]
+            regex [ "` + overlong + `" ]
         }`,
+		tree: map[string]any{
+			"reject-asn": map[string]any{
+				"NO-TRANSIT": map[string]any{
+					"regex": []string{overlong},
+				},
+			},
+		},
 		want: "length",
 	}}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			tree, err := config.ParseTreeWithYANG(policyOnly(tc.list), nil)
-			require.NoError(t, err, "the parse does not carry these bounds; the walk does")
+			_, parseErr := config.ParseTreeWithYANG(policyOnly(tc.list), nil)
+			require.Error(t, parseErr, "the parse must enforce the leaf-list length bound")
+			assert.Contains(t, parseErr.Error(), tc.want)
 
 			validator, err := config.YANGValidatorWithPlugins(nil)
 			require.NoError(t, err)
 
-			container := tree.GetContainer(policy.RootName)
-			require.NotNil(t, container)
-
 			var messages []string
-			for _, ve := range validator.ValidateTreeAllModules(policy.RootName, container.ToMap()) {
+			for _, ve := range validator.ValidateTreeAllModules(policy.RootName, tc.tree) {
 				messages = append(messages, ve.Path+": "+ve.Message)
 			}
 			require.NotEmpty(t, messages, "the bound must fire over the walked tree")

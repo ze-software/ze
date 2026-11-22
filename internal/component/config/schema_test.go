@@ -364,3 +364,25 @@ func TestASNTypedefMapsToTypeASN(t *testing.T) {
 		t.Errorf("yangTypeToValueType(\"uint32\") = %v, want TypeUint32", got)
 	}
 }
+
+// TestASNFilterTypedefMapsToTypeASNAndAcceptsAS0 proves the ze-types
+// `asn-filter` typedef (RFC 7607) maps to TypeASN so filter leaf-lists accept
+// both AS 0 and RFC 5396 asdot notations while still refusing malformed tokens.
+func TestASNFilterTypedefMapsToTypeASNAndAcceptsAS0(t *testing.T) {
+	for _, name := range []string{"asn-filter", "zt:asn-filter"} {
+		if got := yangTypeToValueType(&gyang.YangType{Name: name, Kind: gyang.Yuint32}); got != TypeASN {
+			t.Errorf("yangTypeToValueType(%q) = %v, want TypeASN", name, got)
+		}
+	}
+	leaf := &LeafNode{Type: TypeASN, Ranges: []NumericRange{{Min: "0", Max: "4294967295"}}}
+	for _, value := range []string{"0", "0.0", "1.10", "4294967295"} {
+		if err := ValidateLeafValue(leaf, nil, value); err != nil {
+			t.Errorf("ValidateLeafValue(%q): unexpected error %v", value, err)
+		}
+	}
+	for _, value := range []string{"65536.0", "4294967296", "peer"} {
+		if err := ValidateLeafValue(leaf, nil, value); err == nil {
+			t.Errorf("ValidateLeafValue(%q) accepted invalid ASN", value)
+		}
+	}
+}

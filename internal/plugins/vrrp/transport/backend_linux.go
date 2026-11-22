@@ -5,11 +5,14 @@
 // Related: garp_linux.go -- AF_PACKET gratuitous-ARP sender on the macvlan
 // Related: na_linux.go -- raw ICMPv6 unsolicited-NA sender on the macvlan
 //
-// The Linux backend opens per-instance raw proto-112 RX and TX sockets on the
-// MACVLAN. A peer uses the same virtual source MAC; Linux redirects its multicast
-// to the PRIVATE macvlan and consumes the parent's copy, so parent-bound RX loses
-// the winning advertisement. The RX metadata retains the configured parent's
-// ifindex for the engine's group lookup.
+// The Linux backend opens per-instance raw proto-112 RX sockets on both the
+// MACVLAN and the PARENT, plus TX on the MACVLAN. A peer using the virtual
+// source MAC has its multicast redirected to the PRIVATE macvlan (consuming the
+// parent's copy), so multicast RX lives on the macvlan. Unicast advertisements
+// addressed to the parent interface's IP and physical MAC (such as keepalived
+// unicast_peer) arrive only on the parent, so parentRxFD delivers non-multicast
+// packets and skips multicast to avoid double delivery. Both RX paths retain
+// the configured parent's ifindex for the engine's group lookup.
 // IPv4 TX uses IP_HDRINCL with an explicitly built header (the addressless macvlan
 // has no primary IPv4 for kernel source selection); IPv6 TX pins the source via an
 // IPV6_PKTINFO cmsg and offloads the checksum to the kernel (IPV6_CHECKSUM). A
@@ -60,9 +63,12 @@ type linuxInstance struct {
 	spec        InstanceSpec
 	family      uint8
 	rxFD        int
+	parentRxFD  int
+	hasParentRx bool
 	txFD        int
 	annFD       int
 	parentIf    int
+	parentName  string
 	macvlanIf   int
 	macvlanName string
 	sink        rxSink
@@ -80,6 +86,10 @@ func (linuxBackend) OpenInstance(spec InstanceSpec, sink rxSink) (InstanceHandle
 	if err != nil {
 		return nil, fmt.Errorf("vrrp/transport: resolve parent %s: %w", spec.Parent, err)
 	}
+	parentOS := pb.OsName
+	if parentOS == "" {
+		parentOS = spec.Parent
+	}
 	mvi, err := net.InterfaceByName(spec.MacvlanDevice)
 	if err != nil {
 		return nil, fmt.Errorf("vrrp/transport: resolve macvlan %s: %w", spec.MacvlanDevice, err)
@@ -89,9 +99,11 @@ func (linuxBackend) OpenInstance(spec InstanceSpec, sink rxSink) (InstanceHandle
 		spec:        spec,
 		family:      spec.Family,
 		rxFD:        -1,
+		parentRxFD:  -1,
 		txFD:        -1,
 		annFD:       -1,
 		parentIf:    pb.Ifindex,
+		parentName:  parentOS,
 		macvlanIf:   mvi.Index,
 		macvlanName: spec.MacvlanDevice,
 		sink:        sink,
@@ -130,6 +142,19 @@ func (li *linuxInstance) openV4() error {
 	mreq := &unix.IPMreqn{Multiaddr: packet.MulticastV4.As4(), Ifindex: int32(li.macvlanIf)}
 	if jerr := unix.SetsockoptIPMreqn(rxFD, unix.IPPROTO_IP, unix.IP_ADD_MEMBERSHIP, mreq); jerr != nil {
 		return fmt.Errorf("vrrp/transport: join 224.0.0.18 on ifindex %d: %w", li.macvlanIf, jerr)
+	}
+
+	// Unicast advertisements addressed to the parent's primary IP arrive on the
+	// parent's physical MAC and never reach the PRIVATE macvlan; bind a second
+	// raw socket to the parent without joining multicast.
+	parentRxFD, err := openRawIP(unix.AF_INET, li.parentName)
+	if err != nil {
+		return err
+	}
+	li.parentRxFD = parentRxFD
+	li.hasParentRx = true
+	if terr := setRcvTimeout(parentRxFD); terr != nil {
+		return terr
 	}
 
 	txFD, err := openRawIP(unix.AF_INET, li.macvlanName)
@@ -176,6 +201,24 @@ func (li *linuxInstance) openV6() error {
 	}
 	if herr := unix.SetsockoptInt(rxFD, unix.IPPROTO_IPV6, unix.IPV6_RECVHOPLIMIT, 1); herr != nil {
 		return fmt.Errorf("vrrp/transport: setsockopt IPV6_RECVHOPLIMIT: %w", herr)
+	}
+
+	// Unicast advertisements addressed to the parent's IPv6 address arrive on the
+	// parent's physical MAC and never reach the PRIVATE macvlan.
+	parentRxFD, err := openRawIP(unix.AF_INET6, li.parentName)
+	if err != nil {
+		return err
+	}
+	li.parentRxFD = parentRxFD
+	li.hasParentRx = true
+	if terr := setRcvTimeout(parentRxFD); terr != nil {
+		return terr
+	}
+	if perr := unix.SetsockoptInt(parentRxFD, unix.IPPROTO_IPV6, unix.IPV6_RECVPKTINFO, 1); perr != nil {
+		return fmt.Errorf("vrrp/transport: parent setsockopt IPV6_RECVPKTINFO: %w", perr)
+	}
+	if herr := unix.SetsockoptInt(parentRxFD, unix.IPPROTO_IPV6, unix.IPV6_RECVHOPLIMIT, 1); herr != nil {
+		return fmt.Errorf("vrrp/transport: parent setsockopt IPV6_RECVHOPLIMIT: %w", herr)
 	}
 
 	txFD, err := openRawIP(unix.AF_INET6, li.macvlanName)
@@ -330,12 +373,20 @@ func (li *linuxInstance) Close() error {
 }
 
 func (li *linuxInstance) closeFDs() error {
+	fds := []int{li.rxFD, li.txFD, li.annFD}
+	if li.hasParentRx {
+		fds = append(fds, li.parentRxFD)
+	}
 	var first error
-	for _, fd := range []int{li.rxFD, li.txFD, li.annFD} {
+	for _, fd := range fds {
 		if fd < 0 {
 			continue
 		}
-		if cerr := unix.Close(fd); cerr != nil && first == nil {
+		cerr := unix.Close(fd)
+		if cerr == nil {
+			continue
+		}
+		if first == nil {
 			first = cerr
 		}
 	}
@@ -398,27 +449,72 @@ func (li *linuxInstance) describeReceive() taskguard.Context {
 // payload once, and delivers it drop-on-overflow.
 func (li *linuxInstance) readLoopV4() {
 	var buf [rxBufLen]byte
+	if !li.hasParentRx {
+		for {
+			if li.stopped() {
+				return
+			}
+			if !li.readOneV4(li.rxFD, 0, false, buf[:]) {
+				return
+			}
+		}
+	}
+	pfds := []unix.PollFd{
+		{Fd: int32(li.rxFD), Events: unix.POLLIN},
+		{Fd: int32(li.parentRxFD), Events: unix.POLLIN},
+	}
+	timeoutMS := int(rcvTimeout / time.Millisecond)
 	for {
 		if li.stopped() {
 			return
 		}
-		n, _, err := unix.Recvfrom(li.rxFD, buf[:], 0)
+		nready, err := unix.Poll(pfds, timeoutMS)
 		if err != nil {
 			if recvRetry(err) {
 				continue
 			}
 			return
 		}
-		payload, meta, serr := packet.StripIPv4Header(buf[:n])
-		if serr != nil {
-			li.sink.counters.packetError(reasonMalformedIPv4)
+		if nready == 0 {
 			continue
 		}
-		meta.IfIndex = li.parentIf
-		cp := make([]byte, len(payload))
-		copy(cp, payload)
-		li.sink.deliver(RxItem{Meta: meta, Payload: cp})
+		if pfds[0].Revents != 0 {
+			if !li.readOneV4(li.rxFD, unix.MSG_DONTWAIT, false, buf[:]) {
+				return
+			}
+		}
+		if pfds[1].Revents != 0 {
+			if !li.readOneV4(li.parentRxFD, unix.MSG_DONTWAIT, true, buf[:]) {
+				return
+			}
+		}
 	}
+}
+
+// readOneV4 reads one IPv4 proto-112 datagram from fd and delivers it to the
+// sink. When skipMulticast is true (parentRxFD), multicast destinations are
+// ignored because rxFD on the macvlan already receives multicast VRRP frames.
+// It returns false when fd returned a non-retryable error and the loop must exit.
+func (li *linuxInstance) readOneV4(fd, flags int, skipMulticast bool, buf []byte) bool {
+	n, _, err := unix.Recvfrom(fd, buf, flags)
+	if err != nil {
+		return recvRetry(err)
+	}
+	payload, meta, serr := packet.StripIPv4Header(buf[:n])
+	if serr != nil {
+		li.sink.counters.packetError(reasonMalformedIPv4)
+		return true
+	}
+	if skipMulticast {
+		if meta.Dst.IsMulticast() {
+			return true
+		}
+	}
+	meta.IfIndex = li.parentIf
+	cp := make([]byte, len(payload))
+	copy(cp, payload)
+	li.sink.deliver(RxItem{Meta: meta, Payload: cp})
+	return true
 }
 
 // readLoopV6 reads proto-112 payloads (raw AF_INET6 delivers no IPv6 header) plus
@@ -426,27 +522,72 @@ func (li *linuxInstance) readLoopV4() {
 func (li *linuxInstance) readLoopV6() {
 	var buf [rxBufLen]byte
 	var oob [oobBufLen]byte
+	if !li.hasParentRx {
+		for {
+			if li.stopped() {
+				return
+			}
+			if !li.readOneV6(li.rxFD, 0, false, buf[:], oob[:]) {
+				return
+			}
+		}
+	}
+	pfds := []unix.PollFd{
+		{Fd: int32(li.rxFD), Events: unix.POLLIN},
+		{Fd: int32(li.parentRxFD), Events: unix.POLLIN},
+	}
+	timeoutMS := int(rcvTimeout / time.Millisecond)
 	for {
 		if li.stopped() {
 			return
 		}
-		n, oobn, _, from, err := unix.Recvmsg(li.rxFD, buf[:], oob[:], 0)
+		nready, err := unix.Poll(pfds, timeoutMS)
 		if err != nil {
 			if recvRetry(err) {
 				continue
 			}
 			return
 		}
-		ttl, dst := parseV6Ancillary(oob[:oobn])
-		var src netip.Addr
-		if sa, ok := from.(*unix.SockaddrInet6); ok {
-			src = netip.AddrFrom16(sa.Addr)
+		if nready == 0 {
+			continue
 		}
-		meta := packet.RxMeta{TTL: ttl, Src: src, Dst: dst, Family: packet.V6, IfIndex: li.parentIf}
-		cp := make([]byte, n)
-		copy(cp, buf[:n])
-		li.sink.deliver(RxItem{Meta: meta, Payload: cp})
+		if pfds[0].Revents != 0 {
+			if !li.readOneV6(li.rxFD, unix.MSG_DONTWAIT, false, buf[:], oob[:]) {
+				return
+			}
+		}
+		if pfds[1].Revents != 0 {
+			if !li.readOneV6(li.parentRxFD, unix.MSG_DONTWAIT, true, buf[:], oob[:]) {
+				return
+			}
+		}
 	}
+}
+
+// readOneV6 reads one IPv6 proto-112 datagram from fd and delivers it to the
+// sink. When skipMulticast is true (parentRxFD), multicast destinations are
+// ignored because rxFD on the macvlan already receives multicast VRRP frames.
+// It returns false when fd returned a non-retryable error and the loop must exit.
+func (li *linuxInstance) readOneV6(fd, flags int, skipMulticast bool, buf, oob []byte) bool {
+	n, oobn, _, from, err := unix.Recvmsg(fd, buf, oob, flags)
+	if err != nil {
+		return recvRetry(err)
+	}
+	ttl, dst := parseV6Ancillary(oob[:oobn])
+	if skipMulticast {
+		if dst.IsMulticast() {
+			return true
+		}
+	}
+	var src netip.Addr
+	if sa, ok := from.(*unix.SockaddrInet6); ok {
+		src = netip.AddrFrom16(sa.Addr)
+	}
+	meta := packet.RxMeta{TTL: ttl, Src: src, Dst: dst, Family: packet.V6, IfIndex: li.parentIf}
+	cp := make([]byte, n)
+	copy(cp, buf[:n])
+	li.sink.deliver(RxItem{Meta: meta, Payload: cp})
+	return true
 }
 
 // recvRetry reports whether a Recvfrom/Recvmsg error is a transient wakeup

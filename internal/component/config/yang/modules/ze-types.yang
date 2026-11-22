@@ -237,6 +237,13 @@ module ze-types {
         description "Autonomous System Number (4-byte, RFC 6793)";
     }
 
+    typedef asn-filter {
+        type uint32 {
+            range "0..4294967295";
+        }
+        description "Autonomous System Number for route filters (4-byte, RFC 6793), including reserved AS 0 (RFC 7607)";
+    }
+
     typedef asn2 {
         type uint16 {
             range "1..65535";

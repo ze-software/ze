@@ -2,8 +2,8 @@
 // Design: docs/architecture/vrrp/vrrp-first-hop-redundancy.md -- VRRP raw-socket transport orchestrator
 //
 // The transport is the byte pipe between the raw sockets and the VRRP engine
-// (spec-vrrp-5). It owns a per-instance socket set (rx on the parent, tx + announce
-// on the macvlan), a bounded delivery channel, transport-owned metrics, and the
+// (spec-vrrp-5). It owns a per-instance socket set (multicast rx + tx + announce
+// on the macvlan, unicast rx on the parent), a bounded delivery channel, transport-owned metrics, and the
 // two LAN announcers. It NEVER inspects VRRP payload bytes: spec-vrrp-1 encodes /
 // validates, spec-vrrp-2 times, this package moves bytes and builds the L2/ND
 // announcement frames. The platform raw-socket details live behind the Backend

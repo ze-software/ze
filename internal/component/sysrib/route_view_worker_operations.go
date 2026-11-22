@@ -158,8 +158,17 @@ func (task *routeViewConfigurationTask) perform(worker *routeViewWorker) error {
 	if errors.Is(err, errRouteViewReset) {
 		err = worker.reopen(operation, task.configuration)
 	}
+	callerErr := task.ctx.Err()
 	cancel()
 	if err != nil {
+		// Preserve the caller's cancellation sentinel when the peer answered the
+		// canceled RPC with a plain wire error string before the local transport
+		// observed ctx.Done().
+		if callerErr != nil {
+			if !errors.Is(err, callerErr) {
+				err = errors.Join(callerErr, err)
+			}
+		}
 		// An RPC refusal can follow uncertain publication. Rebuilding a fresh
 		// old-configuration lease also replaces a possibly fenced output lease.
 		restore, stop := context.WithTimeout(worker.ctx, routeViewConfigurationCompensationTimeout)

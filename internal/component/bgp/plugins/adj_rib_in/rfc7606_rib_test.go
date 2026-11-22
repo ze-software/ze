@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net"
 	"net/netip"
+	"slices"
 	"strings"
 	"testing"
 
@@ -169,20 +170,23 @@ func TestHandleReceivedStructuredIPv4NextHop(t *testing.T) {
 // TestStoreAllFamilies verifies VPN, EVPN, FlowSpec routes are stored (no filtering).
 //
 // VALIDATES: All address families are stored without isSimplePrefixFamily filter.
-// VALIDATES: Complex family NLRIHex uses raw blob, not computed prefix bytes.
+// VALIDATES: Complex family NLRIHex keeps the full RD+label+prefix wire NLRI, not bare prefix bytes,
+// and malformed VPN blobs are refused before storage.
 // PREVENTS: Complex families being silently dropped.
 // PREVENTS: VPN NLRI stored as bare IPv4 prefix (missing RD+labels).
 func TestStoreAllFamilies(t *testing.T) {
 	r := newTestManager(t)
 
-	// VPN family route - raw NLRI bytes contain RD+labels+prefix in wire format.
-	// The raw blob "deadbeef" must be stored as-is; prefixToWireHex would produce
+	// Valid RFC 4364 VPN wire NLRI (label + RD + 10.0.0.0/24).
+	// The full wire NLRI must be stored as-is; prefixToWireHex would produce
 	// bare IPv4 bytes "180a0000" which is wrong for VPN wire format.
+	wireNLRI := vpnNLRI(labelOneBottom, rd(1), 10, 0, 0)
+	wireHex := hex.EncodeToString(wireNLRI)
 	event := &bgp.Event{
 		Message:       &bgp.MessageInfo{Type: rpc.EventKindUpdate, ID: 200},
 		Peer:          testPeerJSON(t),
 		RawAttributes: "40010100",
-		RawNLRI:       map[family.Family]string{ipv4VPN: "deadbeef"},
+		RawNLRI:       map[family.Family]string{ipv4VPN: wireHex},
 		FamilyOps: map[family.Family][]bgp.FamilyOperation{
 			ipv4VPN: {
 				{NextHop: "10.0.0.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}},
@@ -195,7 +199,7 @@ func TestStoreAllFamilies(t *testing.T) {
 	require.Contains(t, r.ribIn, receivedPeer{address: netip.MustParseAddr("10.0.0.1")})
 	require.Equal(t, 1, r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}].Len(), "VPN route should be stored")
 
-	// Verify the raw blob is used, not prefixToWireHex output.
+	// Verify the full VPN wire NLRI is stored, not bare prefixToWireHex output.
 	var route *RawRoute
 	r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}].Range(func(_ compactRouteKey, _ uint64, rt *RawRoute) bool {
 		route = rt
@@ -203,8 +207,24 @@ func TestStoreAllFamilies(t *testing.T) {
 	})
 	require.NotNil(t, route)
 	assert.Equal(t, ipv4VPN, route.Family)
-	assert.Equal(t, "deadbeef", route.NLRIHex,
-		"complex family must use raw NLRI blob, not computed prefix bytes")
+	assert.Equal(t, wireHex, route.NLRIHex,
+		"complex family must store full RD+label+prefix wire NLRI, not bare prefix bytes")
+	assert.NotEqual(t, "180a0000", route.NLRIHex)
+
+	// Malformed VPN wire bytes must be refused before storage.
+	rMalformed := newTestManager(t)
+	rMalformed.handleReceived(&bgp.Event{
+		Message:       &bgp.MessageInfo{Type: rpc.EventKindUpdate, ID: 201},
+		Peer:          testPeerJSON(t),
+		RawAttributes: "40010100",
+		RawNLRI:       map[family.Family]string{ipv4VPN: "deadbeef"},
+		FamilyOps: map[family.Family][]bgp.FamilyOperation{
+			ipv4VPN: {
+				{NextHop: "10.0.0.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}},
+			},
+		},
+	})
+	assert.NotContains(t, rMalformed.ribIn, receivedPeer{address: netip.MustParseAddr("10.0.0.1")})
 }
 
 // TestRemoveWithdrawnRoute verifies withdrawal removes route from ribIn.
@@ -895,21 +915,24 @@ func TestHandleState_PeerUpSelfExclusion(t *testing.T) {
 	assert.Equal(t, "0a000002", sent[0].routes[0].NextHopHex, "should contain peer B's next-hop")
 }
 
-// TestComplexFamilyMultiNLRI verifies that multi-NLRI VPN UPDATEs store
-// only one entry using the raw blob (which covers all NLRIs).
+// TestComplexFamilyMultiNLRI verifies that multi-NLRI VPN UPDATEs split the
+// concatenated wire NLRI section via the family splitter and store each VPN
+// NLRI individually with its own RD+label+prefix wire bytes.
 //
-// VALIDATES: Complex family stores raw blob for first NLRI, skips subsequent.
-// PREVENTS: Duplicate or incorrectly-encoded entries for VPN multi-NLRI UPDATEs.
+// VALIDATES: Complex family splits a multi-NLRI wire section into one entry per NLRI.
+// PREVENTS: Collapsing or losing sibling VPN routes, or rewriting them as bare prefixes.
 func TestComplexFamilyMultiNLRI(t *testing.T) {
 	r := newTestManager(t)
 
-	// VPN UPDATE with 2 parsed NLRIs but a single concatenated raw blob.
-	// The raw blob contains both NLRIs in wire format (RD+labels+prefix).
+	// VPN UPDATE carrying two valid RFC 4364 NLRIs concatenated in the wire blob.
+	first := vpnNLRI(labelOneBottom, rd(1), 10, 0, 0)
+	second := vpnNLRI(labelOneBottom, rd(1), 10, 0, 1)
+	combined := append(append([]byte(nil), first...), second...)
 	event := &bgp.Event{
 		Message:       &bgp.MessageInfo{Type: rpc.EventKindUpdate, ID: 300},
 		Peer:          testPeerJSON(t),
 		RawAttributes: "40010100",
-		RawNLRI:       map[family.Family]string{ipv4VPN: "aabbccdd11223344"},
+		RawNLRI:       map[family.Family]string{ipv4VPN: hex.EncodeToString(combined)},
 		FamilyOps: map[family.Family][]bgp.FamilyOperation{
 			ipv4VPN: {
 				{NextHop: "10.0.0.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}},
@@ -920,18 +943,19 @@ func TestComplexFamilyMultiNLRI(t *testing.T) {
 	r.handleReceived(event)
 
 	require.Contains(t, r.ribIn, receivedPeer{address: netip.MustParseAddr("10.0.0.1")})
-	// Only 1 entry: the first NLRI carries the raw blob, second is skipped (i > 0).
-	require.Equal(t, 1, r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}].Len(),
-		"complex family multi-NLRI should store one entry with full raw blob")
+	require.Equal(t, 2, r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}].Len(),
+		"complex family multi-NLRI should store one entry per valid wire NLRI")
 
-	var route *RawRoute
+	var got []string
 	r.ribIn[receivedPeer{address: netip.MustParseAddr("10.0.0.1")}].Range(func(_ compactRouteKey, _ uint64, rt *RawRoute) bool {
-		route = rt
+		assert.Equal(t, ipv4VPN, rt.Family)
+		got = append(got, rt.NLRIHex)
 		return true
 	})
-	require.NotNil(t, route)
-	assert.Equal(t, "aabbccdd11223344", route.NLRIHex,
-		"must store entire raw blob, not computed prefix bytes")
+	want := []string{hex.EncodeToString(first), hex.EncodeToString(second)}
+	slices.Sort(got)
+	slices.Sort(want)
+	assert.Equal(t, want, got, "each stored VPN entry must preserve its full RD+label+prefix wire bytes")
 }
 
 // TestReplayOwnerDedupe verifies that an explicit replay request makes this

@@ -11,39 +11,70 @@ import (
 	"github.com/ze-software/ze/internal/core/configorder"
 )
 
-// testPolicyModules augments the policy root with one ze:filter list and one
-// unmarked list, the shape policy routing's route list has beside the filter
-// types.
-var testPolicyModules = map[string]string{
-	"ze-policy-registry-test.yang": `module ze-policy-registry-test {
-    namespace "urn:ze:policy-registry-test";
-    prefix prt;
-    import ze-extensions { prefix ze; }
-    import ze-policy-conf { prefix policy; }
-    augment "/policy:policy" {
-        list prefix-list {
+// testPolicyListAugments holds the minimal YANG list definitions that the
+// registry tests expect under /policy:policy when not already registered by
+// linked plugin packages in the test binary.
+var testPolicyListAugments = []struct {
+	name string
+	yang string
+}{
+	{
+		name: "prefix-list",
+		yang: `        list prefix-list {
             ze:filter;
             key "name";
             leaf name { type string; }
-        }
-        list as-path-list {
+        }`,
+	},
+	{
+		name: "as-path-list",
+		yang: `        list as-path-list {
             ze:filter;
             key "name";
             leaf name { type string; }
-        }
-        list route {
+        }`,
+	},
+	{
+		name: "route",
+		yang: `        list route {
             key "name";
             ze:help "A named policy route applied to ingress interfaces.";
             leaf name { type string; }
-        }
-    }
-}`,
+        }`,
+	},
 }
 
-// policySchema loads the real policy root with the test augment.
+// policySchema loads the real policy root, augmenting only the test lists that
+// are not already registered by linked plugin modules in the test binary.
 func policySchema(t *testing.T) *config.ContainerNode {
 	t.Helper()
-	schema, err := config.YANGSchemaWithPlugins(testPolicyModules)
+	base, err := config.YANGSchema()
+	require.NoError(t, err)
+	baseRoot, ok := base.Get(RootName).(*config.ContainerNode)
+	require.True(t, ok, "the policy root must be a container in the loaded schema")
+
+	var missing []string
+	for _, item := range testPolicyListAugments {
+		if !baseRoot.Has(item.name) {
+			missing = append(missing, item.yang)
+		}
+	}
+	if len(missing) == 0 {
+		return baseRoot
+	}
+
+	module := "module ze-policy-registry-test {\n" +
+		"    namespace \"urn:ze:policy-registry-test\";\n" +
+		"    prefix prt;\n" +
+		"    import ze-extensions { prefix ze; }\n" +
+		"    import ze-policy-conf { prefix policy; }\n" +
+		"    augment \"/policy:policy\" {\n" +
+		strings.Join(missing, "\n") + "\n" +
+		"    }\n" +
+		"}"
+	schema, err := config.YANGSchemaWithPlugins(map[string]string{
+		"ze-policy-registry-test.yang": module,
+	})
 	require.NoError(t, err)
 	root, ok := schema.Get(RootName).(*config.ContainerNode)
 	require.True(t, ok, "the policy root must be a container in the loaded schema")
