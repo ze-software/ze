@@ -71,7 +71,10 @@ func handleRibClearAdvertised(ctx *pluginserver.CommandContext, validated comman
 		only = fam
 	}
 
-	withdrawCtx, cancel := context.WithTimeout(context.Background(), advertisedTimeout)
+	// Preserve the authenticated process incarnation alongside request
+	// cancellation so plugin-issued clears can withdraw their own admitted
+	// origins through WithdrawNLRIBatch.
+	withdrawCtx, cancel := context.WithTimeout(ctx.OriginContext(), advertisedTimeout)
 	defer cancel()
 
 	withdrawn, err := reactor.WithdrawAdvertised(withdrawCtx, selector.ParseDefault(peers), uint16(only.AFI), uint8(only.SAFI), ctx.Sender)

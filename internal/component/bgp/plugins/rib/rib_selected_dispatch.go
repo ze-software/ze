@@ -641,7 +641,19 @@ func selectedDispatchKey(name string, raw []byte) (advertiseKey, error) {
 	}
 	key := advertiseKey{family: fam}
 	if storage.IsCIDRFamily(fam) {
-		_, prefix, valid := parsePrevKey(fam, raw, false)
+		cidr := raw
+		if nlrisplit.KeysByCIDR(fam) {
+			// Labeled unicast carries its label stack in native advertisement
+			// framing while CIDR storage keys by the stripped prefix alone
+			// (RFC 8277 Section 2.5).
+			var scratch [nlrisplit.PrefixKeyScratchSize]byte
+			var err error
+			cidr, err = nlrisplit.RouteCIDR(fam, raw, scratch[:], false)
+			if err != nil {
+				return key, errors.New("current selection has an invalid CIDR key; use native advertisement framing")
+			}
+		}
+		_, prefix, valid := parsePrevKey(fam, cidr, false)
 		if !valid {
 			return key, errors.New("current selection has an invalid CIDR key; use native advertisement framing")
 		}
