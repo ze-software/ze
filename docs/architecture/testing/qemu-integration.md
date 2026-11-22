@@ -621,14 +621,20 @@ population is printed at the START of the run as well.
 | `GOOS != linux` | The runner sets `SkipReason` and the test reports SKIP, never FAIL. `./le verify worktree` and `./le test functional gating` stay green on darwin without running the test |
 | `GOOS == linux`, a `caps=` capability the process does not hold | The same: SKIP, with the missing capability in the reason |
 | `GOOS == linux`, inside the VM | The option is inert, so the same `.ci` test runs for real against the Linux kernel |
+| `GOOS == linux`, a `lacks-caps=` capability ze would hold (root, or the netns-mode grant) | SKIP, naming the capability ze holds. Inside the VM too: the guest is never this test's home |
 
 Each skip reason ends with the host command that runs that test in the guest,
 `./le test qemu ci test <path>`, never `test qemu all`, which is a guest action
 and refuses on the host that printed the reason. A declaration with no `.ci`
 behind it (an `.et` or `.wb` admission), or a `.ci` outside the checkout's
-`test/` tree, gets the command with a `test/<dir>/<name>.ci` placeholder.
+`test/` tree, gets the command with a `test/<dir>/<name>.ci` placeholder. A
+test that declares `lacks-caps=` is the exception: the guest holds the
+capability it must not, so its reason names an unprivileged Linux host
+instead, and `NeedsGuest` never routes it to the guest
+(`docs/architecture/testing/ci-format.md`, "Capabilities the daemon must not
+hold").
 
-<!-- source: internal/test/runner/record_parse_option.go -- parseOptionNeedsLinux -->
+<!-- source: internal/test/runner/record_parse_option.go -- parseOptionNeedsLinux, needsLinuxRunAdvice -->
 <!-- source: internal/test/runner/guest_route.go -- guestRouteAdvice -->
 
 ## A run boots ze's kernel when it is given one

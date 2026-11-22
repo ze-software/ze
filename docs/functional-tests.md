@@ -1363,7 +1363,7 @@ the Docker DUT matrix uses the native Go runner: `./le perf run`.
 
 ### Privileged kernel-state tests under QEMU (`option=needs-linux`)
 
-Editor `.et` tests also accept `option=needs-linux[:caps=<tokens>]` and
+Editor `.et` tests also accept `option=needs-linux[:caps=<tokens>][:lacks-caps=<tokens>]` and
 `option=exclusive:group=<name>` through the shared resource parser. An unavailable
 capability skips the case before editor startup. Malformed declarations and
 invalid or overflowing timeouts fail discovery. If capability probing fails,
@@ -1379,7 +1379,12 @@ Linux, then run as root inside `./le test qemu all`. CAP_NET_ADMIN and real
 interfaces are available in that guest. The skip reason ends with the host
 command that boots the guest for that one test,
 `./le test qemu ci test test/<dir>/<name>.ci`. `TestCapabilityGatedTestsHaveANativeVMHome`
-fails when a capability-gated test has no registered QEMU path.
+fails when a capability-gated test has no registered QEMU path. A test that
+proves what an unprivileged daemon meets declares the capabilities ze must not
+hold instead, `option=needs-linux:lacks-caps=net-bind`, and skips wherever ze
+would hold one, the QEMU guest included
+(`docs/architecture/testing/ci-format.md`, "Capabilities the daemon must not
+hold").
 <!-- source: internal/le/test/qemu/alltests.go -- allTestsRun -->
 <!-- source: internal/test/runner/record_parse_option.go -- parseOptionNeedsLinux, capability gate -->
 <!-- source: internal/test/runner/record_parse_option.go -- parseOptionNeedsLinux, caps=net-admin gate and skip reason -->
