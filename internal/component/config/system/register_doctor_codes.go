@@ -16,6 +16,11 @@ const (
 	exampleShowSystemDNS            = "ze show system dns"
 )
 
+// codeConntrackProcfs names a netfilter sysctl tree that is absent or not
+// writable. internal/core/diagnostic/codes.go declares it, so `ze show diagnostic
+// doctor-conntrack-procfs` answers.
+const codeConntrackProcfs = "doctor-conntrack-procfs"
+
 // doctorDiagnosticCodes is the explanation metadata for the doctor codes this package owns.
 var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 	{

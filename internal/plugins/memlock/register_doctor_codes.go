@@ -4,6 +4,15 @@ package memlock
 
 import "github.com/ze-software/ze/internal/core/diagnostic"
 
+// codeMemlockRlimitLow is raised when RLIMIT_MEMLOCK is smaller than the ze
+// executable and no capability lifts the limit.
+const codeMemlockRlimitLow = "doctor-memlock-rlimit-low"
+
+// codeMemlockRlimitUnknown is raised when the host could not be read, so the
+// check has no verdict. It is a separate code because the operator acts
+// differently: one says raise the limit, the other says the probe failed.
+const codeMemlockRlimitUnknown = "doctor-memlock-rlimit-unknown"
+
 // doctorDiagnosticCodes is the explanation metadata for the doctor codes this package owns.
 var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 	{

@@ -14,6 +14,11 @@ const (
 	exampleDoctorJSON                  = "ze doctor --json"
 )
 
+// codeKernelNexthop names a kernel without nexthop objects.
+// internal/core/diagnostic/codes.go declares it, so `ze show diagnostic
+// doctor-kernel-nexthop` answers.
+const codeKernelNexthop = "doctor-kernel-nexthop"
+
 // doctorDiagnosticCodes is the explanation metadata for the doctor codes this package owns.
 var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 	{

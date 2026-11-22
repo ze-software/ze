@@ -23,14 +23,6 @@ import (
 	"github.com/ze-software/ze/internal/core/smart"
 )
 
-// codeSmartSysfs names a /sys/class/block the check cannot enumerate.
-// internal/core/diagnostic/codes.go declares it, so `ze show diagnostic` answers.
-const codeSmartSysfs = "doctor-smart-sysfs"
-
-// codeSmartAccess names a host whose whole devices all refuse SMART, declared
-// beside codeSmartSysfs in the same registry.
-const codeSmartAccess = "doctor-smart-access"
-
 // The two probes checkSmartEnabled runs: the sysfs walk and the SMART query.
 // Each is a variable so a test stands in a host without devices or without
 // the privilege; nothing else assigns them.

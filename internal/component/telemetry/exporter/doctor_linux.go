@@ -24,11 +24,6 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// codeTelemetryProcfs names a /proc/stat the exporter cannot read.
-// internal/core/diagnostic/codes.go declares it, so `ze show diagnostic
-// doctor-telemetry-procfs` answers.
-const codeTelemetryProcfs = "doctor-telemetry-procfs"
-
 // procfsReadFile is the probe checkTelemetryProcfs runs. It is a variable so a
 // test stands in a procfs that refuses the read; nothing else assigns it.
 var procfsReadFile = os.ReadFile

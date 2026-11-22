@@ -23,11 +23,6 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// codePolicyRouteNetlink names a route netlink handle this process cannot
-// open. internal/core/diagnostic/codes.go declares it, so `ze show diagnostic
-// doctor-policyroute-netlink` answers.
-const codePolicyRouteNetlink = "doctor-policyroute-netlink"
-
 // doctorNetlinkFailEnv forces the probe to fail, so a functional test reaches
 // the diagnostic on a host whose netlink is healthy. It keeps the doctor
 // spelling because the doctor tier's fixtures set it.

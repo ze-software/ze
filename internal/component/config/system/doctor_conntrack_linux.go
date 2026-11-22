@@ -24,11 +24,6 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// codeConntrackProcfs names a netfilter sysctl tree that is absent or not
-// writable. internal/core/diagnostic/codes.go declares it, so `ze show diagnostic
-// doctor-conntrack-procfs` answers.
-const codeConntrackProcfs = "doctor-conntrack-procfs"
-
 // The two probes checkConntrackProcfs runs: whether the netfilter tree exists,
 // and whether nf_conntrack_max is writable. Each is a variable so a test stands
 // in a kernel without the tree; nothing else assigns them.

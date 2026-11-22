@@ -29,15 +29,6 @@ import (
 // preparing a host learns the limit is too small without booting the daemon
 // and reading a soft failure back.
 
-// codeMemlockRlimitLow is raised when RLIMIT_MEMLOCK is smaller than the ze
-// executable and no capability lifts the limit.
-const codeMemlockRlimitLow = "doctor-memlock-rlimit-low"
-
-// codeMemlockRlimitUnknown is raised when the host could not be read, so the
-// check has no verdict. It is a separate code because the operator acts
-// differently: one says raise the limit, the other says the probe failed.
-const codeMemlockRlimitUnknown = "doctor-memlock-rlimit-unknown"
-
 // errNoCapEff says /proc/self/status carried no CapEff line, so the capability
 // set could not be read. The check reports that rather than assuming the
 // capability is absent, which would warn on a host that locks memory fine.

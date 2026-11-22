@@ -4,6 +4,11 @@ package exporter
 
 import "github.com/ze-software/ze/internal/core/diagnostic"
 
+// codeTelemetryProcfs names a /proc/stat the exporter cannot read.
+// internal/core/diagnostic/codes.go declares it, so `ze show diagnostic
+// doctor-telemetry-procfs` answers.
+const codeTelemetryProcfs = "doctor-telemetry-procfs"
+
 // doctorDiagnosticCodes is the explanation metadata for the doctor codes this package owns.
 var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 	{

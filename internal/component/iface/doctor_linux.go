@@ -24,21 +24,6 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// The codes the check emits. internal/core/diagnostic/codes.go declares each
-// one, so `ze show diagnostic <code>` answers. Each is its own declaration: one code
-// is one fact, and a block of them reads as a second list of the code
-// registry (./le arch enumeration check).
-
-// codeIfaceMissing names a configured ethernet device sysfs does not hold.
-const codeIfaceMissing = "doctor-iface-missing"
-
-// codeIfaceDown names a configured ethernet device whose operstate is down.
-const codeIfaceDown = "doctor-iface-down"
-
-// codeIfaceMACOverrideByName names an entry that overrides a MAC on a device it
-// reaches by name.
-const codeIfaceMACOverrideByName = "doctor-iface-mac-override-by-name"
-
 // The two operstate values sysfs reports for a device that carries traffic:
 // "up", and "unknown" for a kind the kernel does not track a carrier for.
 const (

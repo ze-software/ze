@@ -4,6 +4,11 @@ package policyroute
 
 import "github.com/ze-software/ze/internal/core/diagnostic"
 
+// codePolicyRouteNetlink names a route netlink handle this process cannot
+// open. internal/core/diagnostic/codes.go declares it, so `ze show diagnostic
+// doctor-policyroute-netlink` answers.
+const codePolicyRouteNetlink = "doctor-policyroute-netlink"
+
 // doctorDiagnosticCodes is the explanation metadata for the doctor codes this package owns.
 var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 	{

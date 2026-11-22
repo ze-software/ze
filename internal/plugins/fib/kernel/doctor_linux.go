@@ -27,11 +27,6 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// codeKernelNexthop names a kernel without nexthop objects.
-// internal/core/diagnostic/codes.go declares it, so `ze show diagnostic
-// doctor-kernel-nexthop` answers.
-const codeKernelNexthop = "doctor-kernel-nexthop"
-
 // nexthopStatPath is the probe checkKernelNexthop runs. It is a variable so a
 // test stands in a kernel without the file; nothing else assigns it.
 var nexthopStatPath = os.Stat

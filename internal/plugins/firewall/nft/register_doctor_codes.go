@@ -4,6 +4,11 @@ package firewallnft
 
 import "github.com/ze-software/ze/internal/core/diagnostic"
 
+// codeFirewallNftables names a firewall config on this backend whose kernel
+// has not loaded nf_tables. internal/core/diagnostic/codes.go declares it, so
+// `ze show diagnostic doctor-firewall-nftables` answers.
+const codeFirewallNftables = "doctor-firewall-nftables"
+
 // doctorDiagnosticCodes is the explanation metadata for the doctor codes this package owns.
 var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 	{

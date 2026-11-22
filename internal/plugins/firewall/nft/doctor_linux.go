@@ -18,11 +18,6 @@ import (
 	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
-// codeFirewallNftables names a firewall config on this backend whose kernel
-// has not loaded nf_tables. internal/core/diagnostic/codes.go declares it, so
-// `ze show diagnostic doctor-firewall-nftables` answers.
-const codeFirewallNftables = "doctor-firewall-nftables"
-
 // nftModule is the kernel module this backend programs through.
 const nftModule = "nf_tables"
 

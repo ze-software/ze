@@ -4,6 +4,14 @@ package storage
 
 import "github.com/ze-software/ze/internal/core/diagnostic"
 
+// codeSmartSysfs names a /sys/class/block the check cannot enumerate.
+// internal/core/diagnostic/codes.go declares it, so `ze show diagnostic` answers.
+const codeSmartSysfs = "doctor-smart-sysfs"
+
+// codeSmartAccess names a host whose whole devices all refuse SMART, declared
+// beside codeSmartSysfs in the same registry.
+const codeSmartAccess = "doctor-smart-access"
+
 // doctorDiagnosticCodes is the explanation metadata for the doctor codes this package owns.
 var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 	{
