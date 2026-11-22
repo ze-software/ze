@@ -45,14 +45,23 @@ Each commit body names the tests that passed and what it did not do.
 ## Reds met, not from this work
 
 Each already failed in another session's log before this work started.
+Thomas then ordered them fixed:
 
-| Test | Package | Cause as diagnosed |
-|------|---------|--------------------|
-| `TestSDKEventBusWholeFamilyFrames/redistribution` | bgp/plugins/rib | one 30 s `sdkEventEmitTimeout` over a 170k-entry hand-off under the race detector |
-| `TestDisableValidationBurstRecoversActualSelection` | bgp/plugins/rib | its own 60 s context over 180k selections under the race detector |
-| `TestConfiguredPluginConformanceRejectedReloadRetainsAcceptedTarget` | cmd/ze/hub | "unknown command"; not investigated |
-| `TestDoReloadRadiusRemovalLateBindFailurePreservesAccounting` | cmd/ze/hub | "accounting record did not arrive"; not investigated |
-| `TestTheHomepageRFCCardSaysWhatTheOldFigureCounted`, `TestADetailPageStatesWhatAnUndeclaredCommandTakes` | internal/le/site | named as reds by 770170950a |
+| Test | Package | Fixed by |
+|------|---------|----------|
+| `TestSDKEventBusWholeFamilyFrames/redistribution`, `TestDisableValidationBurstRecoversActualSelection` | bgp/plugins/rib | b3345bbd87: a deadline and a 4096-entry cap per event frame (a product defect, not slowness alone) |
+| `TestDoReloadRadiusRemovalLateBindFailurePreservesAccounting` | cmd/ze/hub | e155d3eeca: fixture lacked the subscriber identity since 6ee99f1e49 |
+| `TestAC26APIOnlyDefaultAIGPValidatesAndCommits` | config/cli | 76e5e17c69: validation now reports every selection-feed refusal |
+| four delivery-graph and dynamic-group tests | bgp/config | 76e5e17c69: they relied on a leaked registry setting that ac81c6ad1c fixed |
+| `TestLocalCommandDaemonMatchesLocal` | cmd/ze/hub | ea93e7baca: plus a product fix, an unread conformance run string is refused |
+| `TestADetailPageStatesWhatAnUndeclaredCommandTakes`, `TestLGReplayBlockListsTheTourAndTheTranscript` | internal/le/site | 5ec4ccadca |
+
+Still red, each waiting on a decision of Thomas's:
+
+| Test | Decision |
+|------|----------|
+| the 11 `TestConfiguredPluginConformance*` | They drive `request plugin conformance`, a daemon feature deferred on 2026-11-17. Build it now, or keep it deferred (the drafts stay red, or leave the default run with the judge's approval) |
+| `TestTheHomepageRFCCardSaysWhatTheOldFigureCounted` | 7abd87b87f replaced the card's "Counting history" box with "Our testing goal"; the rule requires a corrected figure to say what it replaced. A fix restoring the box, collapsed, is in the working tree of `internal/le/site/homebody.go`, uncommitted: commit it unless the removal was Thomas's ruling |
 
 ## Open findings, second round
 
