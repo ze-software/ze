@@ -76,7 +76,7 @@ func TestSelectedWriterSourceFactsExcludeReconstructionMetadata(t *testing.T) {
 	_, facts := sourceReceiptFixture(t)
 	operation := facts.source
 	operation.receipt, operation.metadata = 701, selectedStaleMeta
-	captured, err := newSourceReceiptFacts(operation, facts.connectionID)
+	captured, err := newSourceReceiptFacts(&operation, facts.connectionID)
 	require.NoError(t, err)
 	require.Zero(t, captured.source.receipt)
 	require.Nil(t, captured.source.metadata)

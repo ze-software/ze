@@ -43,6 +43,7 @@ func TestAtomicRetirementRecoveryCanFollowUnrelatedFence(t *testing.T) {
 			alternate, _ := newAnnouncePeer(t, "10.0.0.3")
 			alternate.recvCtxID = rail.source.recvCtxID
 			negotiateForwardTestFamilies(alternate, family.IPv4Unicast)
+			originalAlt := captureRecoveryFixtureOrigin(t, alternate, alternate.currentSession(), rail.source.recvCtxID)
 			rail.r.mu.Lock()
 			rail.r.peers[alternate.Settings().PeerKey()] = alternate
 			rail.r.mu.Unlock()
@@ -105,8 +106,9 @@ func TestAtomicRetirementRecoveryCanFollowUnrelatedFence(t *testing.T) {
 				require.NoError(t, err)
 				answer = func(request ribevents.RecoveryRequest) []ribevents.RecoveryOutcome {
 					return recoverySurvivorAnswer(request, first, ribevents.RecoveryRoute{
-						Source: alternate.Settings().Address, SourcePolicyEpoch: alternate.sourcePolicyEpoch.Load(),
-						NLRI: first, Attributes: survivor.PathAttributes, NextHop: []byte{198, 18, 231, 1}, MessageID: 103,
+						Source: originalAlt.address, SourceOwner: originalAlt.owner, SourceReceipt: originalAlt.receipt,
+						SourcePolicyEpoch: alternate.sourcePolicyEpoch.Load(),
+						NLRI:              first, Attributes: survivor.PathAttributes, NextHop: []byte{198, 18, 231, 1}, MessageID: 103,
 					})
 				}
 			}

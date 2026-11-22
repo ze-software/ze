@@ -21,7 +21,7 @@ type sourceReceiptFacts struct {
 	connectionID uint64 // immutable original physical Session from the issuing factory
 }
 
-func newSourceReceiptFacts(source relaySource, connectionID uint64) (*sourceReceiptFacts, error) {
+func newSourceReceiptFacts(source *relaySource, connectionID uint64) (*sourceReceiptFacts, error) {
 	if connectionID == 0 {
 		return nil, errors.New("source receipt: original physical connection is missing")
 	}
@@ -51,11 +51,25 @@ func newSourceReceiptFacts(source relaySource, connectionID uint64) (*sourceRece
 	// replay state. None is a source-session fact or transferable authority.
 	facts := &sourceReceiptFacts{connectionID: connectionID, peerOwner: source.info.peer.sourceOwner, source: relaySource{addr: source.addr, ctxID: source.ctxID,
 		srcID: source.srcID, strAdr: source.strAdr, generation: source.generation, ok: true}}
-	source.info.filterInfo.ConnectionID = connectionID
+	filterInfo := source.info.filterInfo
+	filterInfo.ConnectionID = connectionID
 	facts.source.info = forwardSourceInfo{isIBGP: source.info.isIBGP, isRRClient: source.info.isRRClient,
 		remoteRouterID: source.info.remoteRouterID, globalLocalAS: source.info.globalLocalAS,
-		filterInfo: source.info.filterInfo, resolved: true, peer: source.info.peer}
+		filterInfo: filterInfo, resolved: true, peer: source.info.peer}
 	return facts, nil
+}
+
+// sourceReceiptStore holds session facts, not routes or GR policy. Its zero
+// value is usable. Entries are bounded by open session-delivery references,
+// current owner leases, actual grant transactions and admitted final writes.
+// Completed references leave no tombstones. Receipt identifiers never wrap or
+// depend on peer addresses.
+// Safe for concurrent use. mu is a leaf and is never held across I/O or waits.
+type sourceReceiptStore struct {
+	mu      sync.Mutex
+	next    uint64
+	entries map[uint64]*sourceReceiptRecord
+	grants  map[sourceGrantKey]*sourceReceiptGrant
 }
 
 // recoverySource returns the original immutable Session facts, never permission
@@ -71,19 +85,6 @@ func (store *sourceReceiptStore) recoverySource(id, owner uint64) relaySource {
 	source := record.facts.source
 	source.receipt = id
 	return source
-}
-
-// sourceReceiptStore holds session facts, not routes or GR policy. Its zero
-// value is usable. Entries are bounded by open session-delivery references,
-// current owner leases, actual grant transactions and admitted final writes.
-// Completed references leave no tombstones. Receipt identifiers never wrap or
-// depend on peer addresses.
-// Safe for concurrent use. mu is a leaf and is never held across I/O or waits.
-type sourceReceiptStore struct {
-	mu      sync.Mutex
-	next    uint64
-	entries map[uint64]*sourceReceiptRecord
-	grants  map[sourceGrantKey]*sourceReceiptGrant
 }
 
 type sourceReceiptRecord struct {

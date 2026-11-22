@@ -5,6 +5,8 @@ package reactor
 
 import (
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
+	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -173,13 +175,19 @@ func (w *adjOutWrite) recordNLRI(raw []byte) bool {
 		}
 		entry.signature = walk.stored
 	}
-	// Selected retirement reconstructs the withdrawal from this current slot,
-	// without asking its source or re-reading a possibly replaced candidate.
-	// Retain framing the semantic key intentionally discards for these outputs
-	// as well as for local duplicate evidence.
+	// Selected and relayed retirement reconstruct the withdrawal from this
+	// current slot, without asking its source or re-reading a possibly replaced
+	// candidate. Retain framing the semantic key intentionally discards for
+	// these outputs as well as for local duplicate evidence.
 	keepNative := entry.selection.owner.Done() != nil
 	if owner.source == nil {
 		keepNative = walk.readable
+	} else if !keepNative {
+		if nlrisplit.GetWithdrawalWriter(walk.family) == nil {
+			if !ribevents.IsFlowSpec(walk.family) {
+				keepNative = true
+			}
+		}
 	}
 	if keepNative {
 		if !adjOutExactNLRI(entry, key, raw) {

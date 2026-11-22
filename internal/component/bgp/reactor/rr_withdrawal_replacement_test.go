@@ -76,9 +76,7 @@ func rrLiveRouter(t *testing.T, vpn bool, specs ...rrLivePeerSpec) []*lowLivePee
 			{"bgp-rr", "update-received state open-received refresh"},
 			{"bgp-adj-rib-in", "update-received state"},
 		} {
-			if err := EnsureProcessBinding(s, binding.name, binding.receive, "update"); err != nil {
-				t.Fatal(err)
-			}
+			lowLiveAttachProcess(t, s, binding.name, binding.receive)
 		}
 		if err := r.AddPeer(s); err != nil {
 			t.Fatal(err)

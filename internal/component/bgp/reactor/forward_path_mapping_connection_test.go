@@ -5,12 +5,14 @@ package reactor
 import (
 	"bytes"
 	"encoding/binary"
+	"testing"
+
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
-	"testing"
 )
 
 // mappingConnectionUpdate makes this exact original source generation. The
@@ -51,7 +53,7 @@ func mappingConnectionEmit(t *testing.T, original *ReceivedUpdate, destination *
 	return binary.BigEndian.Uint32(encoded.NLRI[:4])
 }
 
-func mappingConnectionReceipt(t *testing.T, source relaySource, connectionID uint64) *liveSourceReceipt {
+func mappingConnectionReceipt(t *testing.T, source *relaySource, connectionID uint64) *liveSourceReceipt {
 	t.Helper()
 	facts, err := newSourceReceiptFacts(source, connectionID)
 	require.NoError(t, err)
@@ -75,7 +77,7 @@ func TestForwardPathMappingRetainedCacheEvictionKeepsFreshConnection(t *testing.
 			source, originalFacts := sourceReceiptFixture(t)
 			_, sourceCtxID := registerForwardBodyTestContext(t, true, true)
 			originalFacts.source.ctxID = sourceCtxID
-			original := mappingConnectionReceipt(t, originalFacts.source, originalFacts.connectionID)
+			original := mappingConnectionReceipt(t, &originalFacts.source, originalFacts.connectionID)
 			owner, done := sourceReceiptOwner(t)
 			t.Cleanup(func() { close(done) })
 			lease, err := sourceReceipts.acquire(original.ID(), owner)
@@ -107,7 +109,7 @@ func TestForwardPathMappingRetainedCacheEvictionKeepsFreshConnection(t *testing.
 			source.state.Store(int32(PeerStateEstablished))
 			replacementSource := originalFacts.source
 			replacementSource.generation = source.forwardGeneration.Load()
-			replacement := mappingConnectionReceipt(t, replacementSource, replacementSession.connectionID)
+			replacement := mappingConnectionReceipt(t, &replacementSource, replacementSession.connectionID)
 			require.Greater(t, replacementSession.connectionID, originalFacts.connectionID)
 			held, err := lease.begin(source.sourcePolicyEpoch.Load())
 			require.NoError(t, err, "retained original lease is still legitimate")
@@ -130,7 +132,7 @@ func TestForwardPathMappingRetainedCacheEvictionKeepsFreshConnection(t *testing.
 			siblingSource := replacementSource
 			siblingSource.info.peer = sibling
 			siblingSource.generation = sibling.forwardGeneration.Load()
-			independent := mappingConnectionReceipt(t, siblingSource, siblingSession.connectionID)
+			independent := mappingConnectionReceipt(t, &siblingSource, siblingSession.connectionID)
 			siblingDomain := fwdPathSource{sourceID: sibling.SourceID(), peerOwner: sibling.sourceOwner}
 			t.Cleanup(func() { fwdPathIDs.releaseSource(siblingDomain) })
 			control := mappingConnectionUpdate(t, independent, announced)
@@ -178,7 +180,7 @@ func TestForwardPathMappingPresenceQueryCannotReleaseConcurrentReuse(t *testing.
 			peer, facts := sourceReceiptFixture(t)
 			_, ctxID := registerForwardBodyTestContext(t, true, true)
 			facts.source.ctxID = ctxID
-			original := mappingConnectionReceipt(t, facts.source, facts.connectionID)
+			original := mappingConnectionReceipt(t, &facts.source, facts.connectionID)
 			ctx := bgpctx.Registry.Get(ctxID)
 			destination := forwardBodyTestPeer(ctx, ctxID)
 			domain := fwdPathSource{sourceID: peer.SourceID(), peerOwner: peer.sourceOwner}
@@ -226,7 +228,7 @@ func TestForwardPathMappingNewWithdrawalQueriesMappedOriginal(t *testing.T) {
 	peer, facts := sourceReceiptFixture(t)
 	_, ctxID := registerForwardBodyTestContext(t, true, true)
 	facts.source.ctxID = ctxID
-	original := mappingConnectionReceipt(t, facts.source, facts.connectionID)
+	original := mappingConnectionReceipt(t, &facts.source, facts.connectionID)
 	ctx := bgpctx.Registry.Get(ctxID)
 	destination := forwardBodyTestPeer(ctx, ctxID)
 	domain := fwdPathSource{sourceID: peer.SourceID(), peerOwner: peer.sourceOwner}
@@ -235,7 +237,7 @@ func TestForwardPathMappingNewWithdrawalQueriesMappedOriginal(t *testing.T) {
 	want := mappingConnectionEmit(t, update, destination, ctxID)
 	replacementSession := peer.newSession()
 	t.Cleanup(replacementSession.timers.StopAll)
-	newer := mappingConnectionReceipt(t, facts.source, replacementSession.connectionID)
+	newer := mappingConnectionReceipt(t, &facts.source, replacementSession.connectionID)
 	present := true
 	var queries []ribevents.ValidationRoute
 	ribevents.RegisterValidationLookup(func(ribevents.ValidationRoute, uint64) bool { return true }, func(query ribevents.ValidationRoute) bool {
@@ -274,7 +276,7 @@ func TestForwardPathMappingReplayKeepsOriginalIngressOrder(t *testing.T) {
 	peer, facts := sourceReceiptFixture(t)
 	_, ctxID := registerForwardBodyTestContext(t, true, true)
 	facts.source.ctxID = ctxID
-	original := mappingConnectionReceipt(t, facts.source, facts.connectionID)
+	original := mappingConnectionReceipt(t, &facts.source, facts.connectionID)
 	destination := forwardBodyTestPeer(bgpctx.Registry.Get(ctxID), ctxID)
 	domain := fwdPathSource{sourceID: peer.SourceID(), peerOwner: peer.sourceOwner}
 	t.Cleanup(func() { fwdPathIDs.releaseSource(domain) })

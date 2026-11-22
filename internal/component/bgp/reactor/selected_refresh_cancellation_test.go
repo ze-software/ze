@@ -46,7 +46,7 @@ func TestSelectedRefreshCancellationJoinsFinalWrite(t *testing.T) {
 				}
 				if !joined {
 					select {
-					case <-done:
+					case <-done: //nolint:errcheck // test cleanup joins the canceled marker goroutine
 					case <-time.After(5 * time.Second):
 						t.Error("marker caller did not join cleanup")
 					}

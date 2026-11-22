@@ -20,6 +20,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 )
@@ -339,6 +340,7 @@ func reactorForwardRSSectionResult(r *Reactor, update *ReceivedUpdate, wire *wir
 		rsLocalAS = sourcePeer.Settings().GlobalLocalAS
 	}
 	srcAIGP := payloadAIGP(wire.Payload())
+	metricRevision := aigpRevision()
 	var srcAIGPLinkMetric uint64
 	sourceMessageID := update.sourceMessageID()
 	if len(srcAIGP) != 0 {
@@ -570,7 +572,7 @@ func reactorForwardRSSectionResult(r *Reactor, update *ReceivedUpdate, wire *wir
 		applyFactsNextHop(facts, &mods, base.nextHop.mpFamily)
 		applyNextHopFamily(facts, &mods, base.nextHop, base.wire.Payload())
 		applyFactsSendCommunity(facts, &mods)
-		applyFactsAIGP(facts, srcAIGP, srcNextHop, base.wire.Payload(), sourcePeerAddr, srcAIGPLinkMetric, &mods)
+		aigpCostWithheld := applyFactsAIGP(facts, srcAIGP, srcNextHop, base.wire.Payload(), sourcePeerAddr, srcAIGPLinkMetric, &mods)
 
 		// RFC 2545 Section 3; draft-ietf-idr-linklocal-capability Section 4.
 		// Keep the effective Global unchanged (RFC 7947 Section 2.2.1),
@@ -770,6 +772,11 @@ func reactorForwardRSSectionResult(r *Reactor, update *ReceivedUpdate, wire *wir
 		item.sourcePolicyEpoch = update.SourcePolicyEpoch
 		item.sourceReceipt = update.SourceReceipt
 		item.exportGeneration = facts.exportGeneration
+		if facts.rsRelaySendProcess != "" {
+			item.aigpOrigin = announceOrigin(plugin.ProcessSender(facts.rsRelaySendProcess))
+		}
+		item.aigpRevision = metricRevision
+		item.aigpCostWithheld = aigpCostWithheld
 
 		extendedMessage := facts.extendedMsg
 		maxMsgSize := facts.maxMsgSize

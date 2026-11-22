@@ -230,13 +230,13 @@ func (a *reactorAPIAdapter) announceEOR(sel *selector.Selector, fam family.Famil
 			continue
 		}
 		var sendErr error
-		if target.destinationOwner != 0 {
+		if target.destinationOwner == 0 {
+			sendErr = peer.SendUpdate(update)
+		} else {
 			owner := fwdItem{peer: peer, session: target.session,
 				destinationOwner: target.destinationOwner, destinationSession: target.destinationSession,
 				endOfRIB: &fwdEndOfRIB{session: target.session, family: fam, ownsClaim: claimed}}
 			sendErr = target.session.sendUpdateOwnedWithSplit(context.Background(), update, message.MaxMsgLen, false, false, &owner, (*Session).writeUpdate)
-		} else {
-			sendErr = peer.SendUpdate(update)
 		}
 		if err := sendErr; err != nil {
 			// Release, or the family stays marked and the peer never gets it.
@@ -1544,8 +1544,8 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			if suppressedCount == ordinaryDestinations {
 				if len(result.fatal) == 0 {
 					result.err = errAllDestinationsSuppressed
+					return result
 				}
-				return result
 			}
 		}
 		if ordinaryDestinations > 0 {

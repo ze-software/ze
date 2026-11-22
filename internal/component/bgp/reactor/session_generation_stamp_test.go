@@ -118,7 +118,7 @@ func TestNegotiatedSessionEndStampsGeneration(t *testing.T) {
 	}, "OpenConfirm KEEPALIVE")
 	require.NoError(t, remote.Close())
 	select {
-	case <-done:
+	case <-done: //nolint:errcheck // session exits with EOF/close error after remote.Close
 	case <-time.After(5 * time.Second):
 		t.Fatal("session teardown did not return")
 	}

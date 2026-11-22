@@ -2,12 +2,14 @@
 package reactor
 
 import (
-	"github.com/stretchr/testify/require"
-	"github.com/ze-software/ze/internal/component/bgp/wireu"
-	"github.com/ze-software/ze/internal/core/source"
 	"net/netip"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/core/source"
 )
 
 // fwdPathIDFixtureOrigin supplies an explicit synthetic peer incarnation and
@@ -36,7 +38,7 @@ func fwdPathIDFixtureReceived(t testing.TB, peer *Peer, wire *wireu.WireUpdate) 
 	if wire.MessageID() == 0 {
 		wire.SetMessageID(nextMsgID())
 	}
-	facts, err := newSourceReceiptFacts(relaySource{addr: peer.Settings().Address, strAdr: peer.addrString,
+	facts, err := newSourceReceiptFacts(&relaySource{addr: peer.Settings().Address, strAdr: peer.addrString,
 		info: forwardSourceInfo{resolved: true, peer: peer}, ctxID: wire.SourceCtxID(), srcID: wire.SourceID(), generation: peer.forwardGeneration.Load(), ok: true}, 41)
 	require.NoError(t, err)
 	live, err := sourceReceipts.issue(facts)

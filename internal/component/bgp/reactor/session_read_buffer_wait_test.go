@@ -131,7 +131,7 @@ func TestSessionReadWaitsForBufferWhenPoolExhausted(t *testing.T) {
 
 	cancel()
 	select {
-	case <-result:
+	case <-result: //nolint:errcheck // Run exits with cancellation error after cancel
 	case <-time.After(5 * time.Second):
 		t.Fatal("Run did not return after cancel")
 	}
@@ -173,7 +173,7 @@ func TestSessionReadWaitEndsOnClose(t *testing.T) {
 	}
 	cancel()
 	select {
-	case <-result:
+	case <-result: //nolint:errcheck // Run exits with cancellation error after cancel
 	case <-time.After(5 * time.Second):
 		t.Fatal("Run did not return after cancel while waiting for a read buffer")
 	}
@@ -323,7 +323,7 @@ func TestSessionReadWaitHasNoBoundWithoutHoldTime(t *testing.T) {
 	}
 	cancel()
 	select {
-	case <-result:
+	case <-result: //nolint:errcheck // Run exits with cancellation error after cancel
 	case <-time.After(5 * time.Second):
 		t.Fatal("Run did not return after cancel")
 	}
@@ -439,7 +439,7 @@ func TestSessionReadWaitRetriesWithoutReturn(t *testing.T) {
 	}
 	cancel()
 	select {
-	case <-result:
+	case <-result: //nolint:errcheck // Run exits with cancellation error after cancel
 	case <-time.After(5 * time.Second):
 		t.Fatal("Run did not return after cancel")
 	}
@@ -531,7 +531,7 @@ func TestSessionReadWaitWarnsOncePerEpisode(t *testing.T) {
 	}
 	cancel()
 	select {
-	case <-result:
+	case <-result: //nolint:errcheck // Run exits with cancellation error after cancel
 	case <-time.After(5 * time.Second):
 		t.Fatal("Run did not return after cancel")
 	}

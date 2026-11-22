@@ -282,7 +282,11 @@ func teEncapsulationFilterRoundTrip(t *testing.T, transport *teCommunityTranspor
 		}
 		assertBody(msg.WireUpdate.Payload(), want)
 	}})
-	source.session.onMessageReceived = r.capturedMessageReceiver
+	source.advanceForwardGeneration()
+	source.session.SetSourceID(source.SourceID())
+	require.NoError(t, source.session.captureSourceReceipt(source, &sourceReceipts))
+	t.Cleanup(source.session.closeSourceReceipt)
+	source.session.onMessageReceived = source.session.sourceMessageCallback(r.capturedMessageReceiver)
 	header := message.Header{Type: msgtype.TypeUPDATE, Length: uint16(message.HeaderLen + len(body))}
 	err, kept := source.session.processMessage(&header, body, BufHandle{ID: noPoolBufID, Buf: body})
 	require.NoError(t, err)

@@ -161,6 +161,7 @@ func departureAfterReconnect(t *testing.T, hold bool) {
 		for start := 0; start < len(batch); start += 250 {
 			ownershipLiveSend(t, a, nil, attrsOld, batch[start:start+250]...) // RFC 4271 Section 4.3.
 		}
+		ownershipLiveThrough(t, b, batch[len(batch)-1], attrsOld)
 		ownershipLiveThrough(t, c, batch[len(batch)-1], attrsOld)
 	}
 

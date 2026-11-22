@@ -479,11 +479,11 @@ func TestAnnounceSealedSessionRIBReconnect(t *testing.T) {
 	session := readyProducerSession(peer)
 	initial := peer.initialReplayToken()
 	readyProducerState(t, proc, peer, session, rpc.SessionStateUp, initial)
-	readyProducerAwait(t, api, owner, initial, false)
+	readyProducerAwait(t, api, initial, false)
 
 	sent := make(chan error, 1)
 	f.r.messageReceiver = &testMessageReceiver{onSent: func(info plugin.PeerInfo, msg bgptypes.RawMessage) {
-		sent <- readyProducerSent(proc, info, msg)
+		sent <- readyProducerSent(proc, &info, &msg)
 	}}
 	session.SetMessageCallback(f.r.capturedMessageReceiver)
 	batch := gateRailBatch()
@@ -522,7 +522,7 @@ func TestAnnounceSealedSessionRIBReconnect(t *testing.T) {
 	raiseTestReplayFence(peer, owner)
 	token := peer.initialReplayToken()
 	readyProducerState(t, proc, peer, nextSession, rpc.SessionStateUp, token)
-	readyProducerAwait(t, api, owner, token, false)
+	readyProducerAwait(t, api, token, false)
 	require.NoError(t, readyProducerAttempt(t, api))
 	require.Equal(t, gateRailPrefixes[:1], wirePrefixes(t, conn.written(), false), "real sent history restores only the previously sent prefix")
 	require.False(t, peer.drainAndCloseQueueGate(peer.currentSession(), peer.addrString, message.MaxMsgLen))

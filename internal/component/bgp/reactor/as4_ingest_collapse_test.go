@@ -486,7 +486,11 @@ func collapseForwardIngest(t *testing.T, attrs []byte, dests []collapseDest) *co
 	sourcePeer.mu.Lock()
 	sourcePeer.session = session
 	sourcePeer.mu.Unlock()
-	session.onMessageReceived = r.capturedMessageReceiver
+	sourcePeer.advanceForwardGeneration()
+	session.SetSourceID(sourcePeer.SourceID())
+	require.NoError(t, session.captureSourceReceipt(sourcePeer, &sourceReceipts))
+	t.Cleanup(session.closeSourceReceipt)
+	session.onMessageReceived = session.sourceMessageCallback(r.capturedMessageReceiver)
 
 	body := makeUpdateBody(nil, attrs, fwdTestNLRI)
 	hdr := message.Header{Length: uint16(message.HeaderLen + len(body)), Type: msgtype.TypeUPDATE} //nolint:gosec // fixture bodies are small

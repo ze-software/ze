@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"net"
+	"net/netip"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
@@ -15,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
+	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -159,9 +161,7 @@ func tunnelStoragePeer(t *testing.T, fam family.Family) (*Peer, net.Conn) {
 		&capability.ASN4{ASN: 65000},
 		&capability.Multiprotocol{AFI: fam.AFI, SAFI: fam.SAFI},
 	}
-	if err := EnsureProcessBinding(settings, "bgp-rib", "update state refresh", "update"); err != nil {
-		t.Fatal(err)
-	}
+	lowLiveAttachProcess(t, settings, "bgp-rib", "update state refresh")
 	if err := r.AddPeer(settings); err != nil {
 		t.Fatal(err)
 	}
@@ -275,16 +275,35 @@ func tunnelStorageAwait(t *testing.T, fam family.Family, route, control, want []
 			},
 		})
 		if present {
-			return count == 2 && seenRoute && seenControl && exact
+			if count != 2 || !seenRoute || !seenControl || !exact {
+				return false
+			}
+			if fam.SAFI == family.SAFIMPLSLabel {
+				if !tunnelStorageHasLabeledWire(fam, control) {
+					return false
+				}
+				return tunnelStorageHasLabeledWire(fam, route)
+			}
+			return true
 		}
-		return count == 1 && !seenRoute && seenControl
+		if count != 1 || seenRoute || !seenControl {
+			return false
+		}
+		if fam.SAFI == family.SAFIMPLSLabel {
+			if !tunnelStorageHasLabeledWire(fam, control) {
+				return false
+			}
+			return !tunnelStorageHasLabeledWire(fam, route)
+		}
+		return true
 	}, "exact native received-route inventory after tunnel processing")
 }
 
-// tunnelStorageMatches observes the RIB snapshot, not the MRT file format.
-// insertLabeledEntry stores SAFI 4 under a CIDR key with separate label bindings.
-// Its original MP_REACH still has to carry this exact family and labeled NLRI;
-// accepting a matching CIDR alone would lose the native label assertion.
+// tunnelStorageMatches observes the RIB dump snapshot.
+// insertLabeledEntry stores SAFI 4 under a CIDR key with separate label bindings,
+// and DumpRIB abbreviates MP_REACH_NLRI to [nhLen, nextHop...] per RFC 6396
+// Section 4.3.4; tunnelStorageHasLabeledWire verifies the exact native labeled
+// NLRI from the RIB recovery provider after DumpRIB returns.
 func tunnelStorageMatches(fam family.Family, key, attrs, wire []byte) bool {
 	if fam.SAFI != family.SAFIMPLSLabel {
 		return bytes.Equal(key, wire)
@@ -301,21 +320,37 @@ func tunnelStorageMatches(fam family.Family, key, attrs, wire []byte) bool {
 	if !found {
 		return false
 	}
-	if len(reach) < 5 {
+	if len(reach) < 1 {
 		return false
 	}
-	if reach[0] != byte(fam.AFI>>8) {
+	return 1+int(reach[0]) == len(reach)
+}
+
+func tunnelStorageHasLabeledWire(fam family.Family, wire []byte) bool {
+	owner := ribevents.RecoveryProvider()
+	if owner == nil {
 		return false
 	}
-	if reach[1] != byte(fam.AFI) {
+	answers, err := owner.Lookup(ribevents.RecoveryRequest{
+		Destination:      netip.MustParseAddr("192.0.2.2"),
+		DestinationOwner: ^uint64(0),
+		Family:           fam,
+		Keys:             []ribevents.RecoveryKey{{NLRI: wire}},
+	})
+	if err != nil {
 		return false
 	}
-	if reach[2] != byte(fam.SAFI) {
+	if len(answers) != 1 {
 		return false
 	}
-	nlriOffset := 5 + int(reach[3])
-	if nlriOffset > len(reach) {
-		return false
+	source := netip.MustParseAddr("192.0.2.1")
+	for _, survivor := range answers[0].Survivors {
+		if survivor.Source != source {
+			continue
+		}
+		if bytes.Equal(survivor.NLRI, wire) {
+			return true
+		}
 	}
-	return bytes.Equal(reach[nlriOffset:], wire)
+	return false
 }

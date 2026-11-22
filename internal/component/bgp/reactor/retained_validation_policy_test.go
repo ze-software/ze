@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
 	bgp "github.com/ze-software/ze/internal/component/bgp"
 	"github.com/ze-software/ze/internal/component/bgp/format"
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
@@ -18,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -53,11 +55,13 @@ func TestRetainedCleanupSeesEffectiveImportNoLLGR(t *testing.T) {
 			if kind == "wire" {
 				attrs = append(attrs, 0xc0, 8, 4, 0xff, 0xff, 0, 7)
 			}
+			ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
+			require.NoError(t, err)
 			nlri := []byte{24, 10, 99, 2}
 			body := buildUpdatePayload(attrs, nlri)
-			wire := wireu.NewWireUpdate(body, 0)
+			wire := wireu.NewWireUpdate(body, ctxID)
 			wire.SetSourceID(source.SourceID())
-			r.notifyMessageReceiver(address, msgtype.TypeUPDATE, body, wire, 0, rpc.DirectionReceived, BufHandle{ID: noPoolBufID, Buf: body}, nil, "", 0)
+			r.notifyMessageReceiver(address, msgtype.TypeUPDATE, body, wire, ctxID, rpc.DirectionReceived, BufHandle{ID: noPoolBufID, Buf: body}, nil, "", 0)
 			require.Len(t, messages, 1, "the plain sibling remains useful and accepted too")
 			msg := messages[0]
 			want := kind != "plain-sibling"

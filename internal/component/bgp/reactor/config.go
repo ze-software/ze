@@ -802,8 +802,7 @@ func PeersAndSkippedFromTree(bgpTree map[string]any) ([]*PeerSettings, []Skipped
 
 // incompleteReason answers the missing setting of an incomplete peer's error.
 func incompleteReason(err error) string {
-	var incomplete *IncompletePeerError
-	if errors.As(err, &incomplete) {
+	if incomplete, ok := errors.AsType[*IncompletePeerError](err); ok {
 		return incomplete.Reason
 	}
 	return err.Error()

@@ -341,7 +341,7 @@ func TestPolicyFinalReloadStoreSelfReplay(t *testing.T) {
 	next.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 	var bindings []ProcessBinding
 	for _, binding := range next.ProcessBindings {
-		if binding.PluginName != "bgp-rs" {
+		if binding.PluginName == "bgp-adj-rib-in" {
 			bindings = append(bindings, binding)
 		}
 	}

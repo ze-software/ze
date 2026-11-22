@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	bgpserver "github.com/ze-software/ze/internal/component/bgp/server"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/configop"
@@ -30,7 +31,9 @@ func TestOperationCandidateResolvesRuntimeOwner(t *testing.T) {
 			name = "dynamic group source"
 		}
 		t.Run(name, func(t *testing.T) {
-			f := newSelectedWriterFixture(t, false)
+			runtime := newOriginRuntimeSDKFixture(t, true)
+			f := runtime.writer
+			f.api.r.bindEvents = bgpserver.NewEventDispatcher(runtime.host)
 			f.peer.settings.Name = "destination"
 			live := f.peer.selectedOwnerSnapshot()
 			require.NotNil(t, live)
@@ -40,7 +43,7 @@ func TestOperationCandidateResolvesRuntimeOwner(t *testing.T) {
 			destination.DisseminationOwner = pluginserver.DisseminationOwner{}
 			destination.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalReject)
 			source := &PeerSettings{Name: "source", Address: netip.MustParseAddr("192.0.2.79"),
-				ProcessBindings: []ProcessBinding{{PluginName: selectedWriterProcess, Explicit: true,
+				ProcessBindings: []ProcessBinding{{PluginName: runtime.name, Explicit: true,
 					Receive: map[string]events.Direction{"update": events.DirReceived, "state": events.DirBoth}}}}
 			peers := []*PeerSettings{source, destination}
 			var groups []*DynamicGroupConfig

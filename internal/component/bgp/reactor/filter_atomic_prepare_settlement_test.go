@@ -260,6 +260,13 @@ func TestAtomicPreparationFatalAndSuppressedIsNotSuccess(t *testing.T) {
 	suppressed.settings.PeerAS = suppressed.settings.LocalAS
 	f.source.refreshForwardFacts()
 	suppressed.refreshForwardFacts()
+	// Re-capture the source receipt after changing f.source to iBGP so
+	// originalCachedSource sees the updated iBGP relationship for this test.
+	f.source.currentSession().closeSourceReceipt()
+	f.source.currentSession().sourceReceipt.Store(nil)
+	update, ok := f.r.recentUpdates.Get(id)
+	require.True(t, ok)
+	fixtureForwardOrigin(t, update, f.source, f.source.currentSession())
 	require.True(t, f.source.IsIBGP())
 	require.True(t, suppressed.IsIBGP())
 	require.False(t, f.source.Settings().RouteReflectorClient)

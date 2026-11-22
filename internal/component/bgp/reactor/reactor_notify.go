@@ -251,6 +251,8 @@ func (r *Reactor) emitCongestionEvent(peerAddr netip.Addr, eventType string) {
 // carries the original policy decision: notifyOneMessage MUST NOT run ingress
 // again on that generated body. It owes no further continuation, so the loop
 // ends without giving ordinary received messages any bypass authority.
+//
+//nolint:unparam // keeps notifyMessageReceiverFrom signature stable for RFC-tagged test callers
 func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection, buf BufHandle, meta map[string]any, sentSourcePeerStr string, sourceMessageID uint64) bool {
 	return r.notifyMessageReceiverFrom(nil, nil, peerAddr, msgType, rawBytes, wireUpdate, ctxID, direction, buf, meta, sentSourcePeerStr, sourceMessageID)
 }

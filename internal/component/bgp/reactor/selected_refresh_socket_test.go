@@ -196,7 +196,7 @@ func TestSelectedRefreshSocketCancellationJoinsRealWriter(t *testing.T) {
 				}
 				if !joined {
 					select {
-					case <-finished:
+					case <-finished: //nolint:errcheck // test cleanup joins the canceled socket goroutine
 					case <-time.After(5 * time.Second):
 						t.Error("socket marker caller did not join")
 					}

@@ -263,8 +263,14 @@ func purgeRIBCommand(t *testing.T, r *Reactor, command string, args ...string) {
 // forwarding owner to be subscribed to it.
 func emitRetentionVerdict(t *testing.T, r *Reactor, peer string, families ...string) {
 	t.Helper()
-	delivered, err := r.api.Emit(retention.Namespace, retention.EventType,
-		&retention.Verdict{PeerAddress: peer, Families: families})
+	verdict := &retention.Verdict{PeerAddress: peer, Families: families}
+	if p, ok := r.lookupPeer(peer); ok {
+		verdict.PeerOwner = p.sourceOwner
+		if session := p.currentSession(); session != nil {
+			verdict.ConnectionID = session.connectionID
+		}
+	}
+	delivered, err := r.api.Emit(retention.Namespace, retention.EventType, verdict)
 	if err != nil {
 		t.Fatalf("emit %s/%s: %v", retention.Namespace, retention.EventType, err)
 	}

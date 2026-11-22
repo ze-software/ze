@@ -34,7 +34,7 @@ func TestForwardValidationRemoteGateBatches(t *testing.T) {
 	payload := buildUpdatePayload(attrs, []byte{24, 10, 0, 0, 24, 10, 0, 1})
 	payload = append([]byte{0, 4, 24, 10, 0, 2}, payload[2:]...)
 	update, id := newLeakTestUpdate(t, api.r.recentUpdates, payload, src.recvCtxID)
-	update.WireUpdate.SetSourceID(src.SourceID())
+	fixtureForwardOrigin(t, update, src, src.currentSession())
 	ownerEligible := func(key ribevents.ValidationRoute, generation uint64) bool {
 		return key.Prefix == netip.MustParsePrefix("10.0.0.0/24") && (generation == 0 || generation == id)
 	}

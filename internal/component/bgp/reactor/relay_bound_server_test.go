@@ -6,23 +6,26 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/stretchr/testify/require"
-	"github.com/ze-software/ze/internal/component/bgp/types"
-	"github.com/ze-software/ze/internal/component/bgp/wireu"
-	"github.com/ze-software/ze/internal/component/plugin"
-	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
-	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"net"
 	"net/netip"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/component/plugin"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 func boundRelaySecondTarget(t *testing.T, f *boundRelayWireFixture, address string, port uint16) (*Peer, *recordingConn) {
 	t.Helper()
 	peer, conn := newGroupUpdatesPeer(t, address, "absent")
 	peer.settings.Port = port
+	peer.settings.LocalAddress = f.target.peer.settings.LocalAddress
 	peer.settings.ProcessBindings = f.target.peer.settings.ProcessBindings
 	peer.settings.ExportPolicy = f.target.peer.settings.ExportPolicy
 	peer.sendCtx.Store(f.target.peer.sendCtx.Load())

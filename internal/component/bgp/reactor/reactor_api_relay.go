@@ -31,6 +31,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/source"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -268,18 +269,14 @@ func (a *reactorAPIAdapter) relayStoredRoutes(ctx context.Context, destination n
 			continue
 		}
 
-		if route.Withdraw {
-			if route.SourceOwner != 0 {
-				{
-					if err := a.retireOriginalStoredRoute(ctx, matchingPeers, route, sender, bound); err != nil {
-						lastErr = err
-					} else {
-						relayed += run
-					}
-					i += run
-					continue
-				}
+		if relayUseOriginalRetirement(route) {
+			if err := a.retireOriginalStoredRoute(ctx, matchingPeers, route, sender, bound); err != nil {
+				lastErr = err
+			} else {
+				relayed += run
 			}
+			i += run
+			continue
 		}
 		src, sourceErr := a.relaySourceForRequest(ctx, srcAddr, route, sender, bound)
 		if sourceErr != nil {
@@ -306,7 +303,7 @@ func (a *reactorAPIAdapter) relayStoredRoutes(ctx context.Context, destination n
 			i += run
 			continue
 		}
-		update, updateID, consumed, buildErr := a.buildRelayUpdate(routes[i:i+run], src, &spans)
+		update, updateID, consumed, buildErr := a.buildRelayUpdate(routes[i:i+run], &src, &spans)
 		if buildErr != nil {
 			// The whole run is dropped, not just its first route. Every reason
 			// buildRelayUpdate refuses is read off the fields the run shares --
@@ -451,7 +448,7 @@ func relayRunLen(routes []rpc.StoredRoute) int {
 // These maps MUST NOT be written: egress and sent-event consumers only read.
 var relayRebuiltMeta = map[string]any{filterapi.MetaKeyRebuilt: true}
 
-func (a *reactorAPIAdapter) buildRelayUpdate(routes []rpc.StoredRoute, src relaySource, spans *[]relayAttrSpan) (*ReceivedUpdate, uint64, int, error) {
+func (a *reactorAPIAdapter) buildRelayUpdate(routes []rpc.StoredRoute, src *relaySource, spans *[]relayAttrSpan) (*ReceivedUpdate, uint64, int, error) {
 	// Every field read here outside the NLRI section is shared by the whole run,
 	// which is what relayRunLen guarantees, so the first route states them all.
 	route := &routes[0]
@@ -703,9 +700,43 @@ func (a *reactorAPIAdapter) buildRelayUpdate(routes []rpc.StoredRoute, src relay
 	return ru, updateID, consumed, nil
 }
 
+// relayUseOriginalRetirement reports whether a stored withdrawal retires an
+// acknowledged SENT slot directly via retireOriginalStoredRoute rather than
+// flowing through buildRelayWithdrawal and the receive-validation gate.
+// When receive validation or mandatory FlowSpec authorization is active and
+// the route still carries a live original source receipt, the withdrawal MUST
+// pass through forwardValidationWire so a stale removal cannot withdraw a
+// currently eligible path and ADD-PATH preserves the advertised identifier.
+func relayUseOriginalRetirement(route *rpc.StoredRoute) bool {
+	if !route.Withdraw {
+		return false
+	}
+	if route.SourceOwner == 0 {
+		return false
+	}
+	if route.SourceReceipt == 0 {
+		return true
+	}
+	fam, known := family.LookupFamily(route.Family)
+	validationActive := ribevents.ValidationEnabled()
+	if known {
+		if ribevents.IsFlowSpec(fam) {
+			validationActive = true
+		}
+	}
+	if !validationActive {
+		return true
+	}
+	source := sourceReceipts.recoverySource(route.SourceReceipt, route.SourceOwner)
+	if !source.ok {
+		return true
+	}
+	return !forwardSourceCurrent(source.info.peer, source.generation)
+}
+
 // buildRelayWithdrawal carries a removed validation path through the same
 // source identity and ADD-PATH regeneration as its former advertisement.
-func (a *reactorAPIAdapter) buildRelayWithdrawal(route *rpc.StoredRoute, src relaySource, fam family.Family, pathIDLen int) (*ReceivedUpdate, uint64, int, error) {
+func (a *reactorAPIAdapter) buildRelayWithdrawal(route *rpc.StoredRoute, src *relaySource, fam family.Family, pathIDLen int) (*ReceivedUpdate, uint64, int, error) {
 	nlriLen := pathIDLen + hex.DecodedLen(len(route.NLRIHex))
 	if nlriLen == pathIDLen {
 		return nil, 0, 0, errRelayHex
@@ -743,13 +774,19 @@ func (a *reactorAPIAdapter) buildRelayWithdrawal(route *rpc.StoredRoute, src rel
 		returnReadBuffer(out)
 		return nil, 0, 0, errRelayHex
 	}
+	var sourceOwner uint64
+	if src.info.peer != nil {
+		sourceOwner = src.info.peer.sourceOwner
+	}
 	update := &ReceivedUpdate{
+		SourceOwner:        sourceOwner,
 		poolBuf:            out,
 		SourcePeerIP:       src.addr,
 		SourcePeerStr:      src.strAdr,
 		receivedPeer:       src.info.peer,
 		receivedGeneration: src.generation,
 		SourcePolicyEpoch:  route.SourcePolicyEpoch,
+		SourceReceipt:      src.receipt,
 		ReceivedAt:         a.r.clock.Now(),
 		validationReplay:   true,
 		validationMsgID:    route.MsgID,
@@ -758,6 +795,8 @@ func (a *reactorAPIAdapter) buildRelayWithdrawal(route *rpc.StoredRoute, src rel
 	updateID := nextMsgID()
 	update.wireUpdateInline.SetMessageID(updateID)
 	update.wireUpdateInline.SetSourceID(src.srcID)
+	update.wireUpdateInline.SetSourceReceipt(src.receipt)
+	update.wireUpdateInline.SetSourceOwner(sourceOwner)
 	update.WireUpdate = &update.wireUpdateInline
 	a.r.recentUpdates.Add(update)
 	a.r.recentUpdates.retainN(updateID, 1)

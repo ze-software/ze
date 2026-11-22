@@ -10,11 +10,12 @@ package reactor
 
 import (
 	"bytes"
-	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"net/netip"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
@@ -86,7 +87,7 @@ func forwardRSOnce(t *testing.T, export filterapi.Policy, payload []byte) ([]rpc
 	}
 
 	fixtureForwardOrigin(t, update, src, src.testInitialSync())
-	wantTarget := fixtureForwardTarget(t, dst)
+	wantTarget := fixtureForwardTargetForPool(t, dst)
 	skipped, dispatched := reactorForwardRS(r, update, 61, netip.MustParseAddr("10.0.0.1"), src)
 	for _, target := range skipped {
 		if target != wantTarget {

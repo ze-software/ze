@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
-	"net/netip"
 	"testing"
 	"time"
 
@@ -249,7 +248,9 @@ func TestAtomicPolicyAdmissionStoredReplayOutlivesCache(t *testing.T) {
 		return rpc.FilterUpdateOutput{Action: rpc.FilterModify, Raw: rfc4271ProofRelayBody(prefix, false, 20)}
 	}, f.destination)
 	stored := rpc.StoredRoute{SourcePeer: f.source.Settings().Address.String(),
-		SourcePolicyEpoch: f.source.sourcePolicyEpoch.Load(), MsgID: id,
+		SourceOwner: f.source.sourceOwner, SourceReceipt: f.source.currentSession().sourceReceiptID(),
+		SourceConnectionID: f.source.currentSession().connectionID,
+		SourcePolicyEpoch:  f.source.sourcePolicyEpoch.Load(), MsgID: id,
 		Family: "ipv4/unicast", AttrHex: attrs, NextHopHex: "c612e701",
 		NLRIHex: hex.EncodeToString(prefix), NLRIFraming: rpc.NLRIFramingPrefixOnly}
 	require.NoError(t, (&reactorAPIAdapter{r: f.r}).RelayStoredRoute(
@@ -795,7 +796,7 @@ func atomicAdmissionRelayWithFallback(t *testing.T, f *aigpReplayFixture, body [
 	require.True(t, present)
 	skipped, _ := reactorForwardRS(f.r, update, id, f.source.Settings().Address, f.source)
 	if fallback {
-		require.Equal(t, []netip.AddrPort{f.destination.Settings().PeerKey()}, skipped)
+		require.Equal(t, []rpc.ForwardTarget{capturedForwardTarget(f.destination, f.destination.currentSession())}, skipped)
 		require.Empty(t, f.source.session.fwdDirty, "the native rail must not also write this destination")
 		f.forward(t, id)
 	} else {

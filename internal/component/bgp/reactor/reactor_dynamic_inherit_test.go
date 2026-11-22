@@ -12,10 +12,14 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
+	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // dynamicPeerDivergence names every PeerSettings field a dynamic peer is allowed
@@ -215,6 +219,34 @@ func fillDistinctValue(field reflect.Value, seed int) error {
 			return err
 		}
 		field.Set(reflect.ValueOf(policy))
+		return nil
+	case reflect.TypeFor[pluginserver.DisseminationOwner]():
+		if err := events.RegisterNamespace("bgp", "update", "state", "refresh"); err != nil {
+			return err
+		}
+		var tb textbuf.Buffer
+		name := tb.Str("sentinel-owner-").Int(int64(seed)).String()
+		graph := pluginserver.NewDisseminationGraph("bgp", []pluginserver.DeliveryPeer{
+			{Addr: "source", Bindings: []plugin.PeerProcessBinding{{PluginName: name, Explicit: true,
+				Receive: map[string]events.Direction{"update": events.DirReceived, "state": events.DirBoth}}}},
+			{Addr: "destination", Bindings: []plugin.PeerProcessBinding{{PluginName: name, Explicit: true,
+				Receive: map[string]events.Direction{"state": events.DirBoth, "refresh": events.DirBoth, "update": events.DirSent},
+				Send:    map[string]bool{"update": true}}}},
+		})
+		owner, err := graph.ResolveDisseminationOwner("destination", SelectedDisseminationRole, []pluginserver.DisseminationProcess{{
+			Name: name,
+			Declarations: []rpc.DisseminationDecl{{
+				Namespace:          "bgp",
+				Role:               SelectedDisseminationRole,
+				SourceReceive:      []string{"update-received", "state"},
+				DestinationReceive: []string{"state", "refresh", "update-sent"},
+				DestinationSend:    []string{"update"},
+			}},
+		}})
+		if err != nil {
+			return err
+		}
+		field.Set(reflect.ValueOf(owner))
 		return nil
 	}
 

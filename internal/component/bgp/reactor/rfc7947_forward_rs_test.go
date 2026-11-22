@@ -9,7 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/bgp/msgtype"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
@@ -19,11 +20,9 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // helper: create established peer with matching context.
@@ -304,6 +303,7 @@ func TestReactorForwardRSFallback(t *testing.T) {
 		fwdPool: testPool,
 	}
 
+	wantSkipped := fixtureForwardTarget(t, dst2)
 	skipped, nDispatched := reactorForwardRS(r, update, 50, netip.MustParseAddr("10.0.0.1"), src)
 	if nDispatched != 1 {
 		t.Fatalf("nDispatched = %d, want 1 (the other peer was export-filtered)", nDispatched)
@@ -316,7 +316,7 @@ func TestReactorForwardRSFallback(t *testing.T) {
 	}
 
 	require.Len(t, skipped, 1, "one peer should be skipped")
-	assert.Equal(t, dst2.Settings().PeerKey(), skipped[0])
+	assert.Equal(t, wantSkipped, skipped[0])
 
 	mu.Lock()
 	require.Len(t, dispatched, 1, "only one peer dispatched (the other was skipped)")

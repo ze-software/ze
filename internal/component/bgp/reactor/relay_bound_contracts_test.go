@@ -3,9 +3,11 @@ package reactor
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
-	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 func TestBoundRelayEmptyWorkValidatesOriginalDestination(t *testing.T) {
@@ -49,7 +51,7 @@ func TestBoundCachedMultipleTargetsShareOneAcknowledgment(t *testing.T) {
 	cache.RegisterConsumer(selectedWriterProcess)
 	defer cache.UnregisterConsumer(selectedWriterProcess)
 	var spans []relayAttrSpan
-	_, id, _, err := f.target.api.buildRelayUpdate([]rpc.StoredRoute{f.route}, source, &spans)
+	_, id, _, err := f.target.api.buildRelayUpdate([]rpc.StoredRoute{f.route}, &source, &spans)
 	require.NoError(t, err)
 	defer cache.Release(id)
 	targets := []rpc.ForwardTarget{

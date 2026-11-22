@@ -113,7 +113,13 @@ func teSessionFilterRoundTrip(t *testing.T, filtered int) {
 			}
 		},
 	})
-	source.session.onMessageReceived = r.capturedMessageReceiver
+	source.advanceForwardGeneration()
+	source.session.SetSourceID(source.SourceID())
+	if err := source.session.captureSourceReceipt(source, &sourceReceipts); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(source.session.closeSourceReceipt)
+	source.session.onMessageReceived = source.session.sourceMessageCallback(r.capturedMessageReceiver)
 	header := message.Header{Type: msgtype.TypeUPDATE, Length: uint16(message.HeaderLen + len(body))}
 	// RFC 9012 Sections 11 and 13: receive validation precedes export policy.
 	err, kept := source.session.processMessage(&header, body, BufHandle{ID: noPoolBufID, Buf: body})

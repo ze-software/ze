@@ -213,7 +213,7 @@ func startForkedFilterPlugin(b *testing.B) *ipc.PluginConn {
 		_ = plugin.Close() //nolint:errcheck // the benchmark is over; a close error changes no figure
 		_ = engine.Close() //nolint:errcheck // the benchmark is over; a close error changes no figure
 		select {
-		case <-runDone:
+		case <-runDone: //nolint:errcheck // the benchmark is over; shutdown cancel error changes no figure
 		case <-time.After(5 * time.Second):
 			b.Error("the SDK plugin did not stop")
 		}

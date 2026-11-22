@@ -83,6 +83,9 @@ func tryDirectWriteNoFlush(item *fwdItem) (handled, delivered bool, dst *Session
 		session.releaseFastPathWrites()
 		return true, false, nil
 	}
+	session.sentAIGPOrigin = item.aigpOrigin
+	session.sentAIGPRevision = item.aigpRevision
+	session.sentAIGPCostWithheld = item.aigpCostWithheld
 	session.sentMeta = item.meta
 	session.sentSourcePeerStr = item.sourcePeerStr
 	session.sentSourceMessageID = item.sourceMessageID
@@ -92,6 +95,9 @@ func tryDirectWriteNoFlush(item *fwdItem) (handled, delivered bool, dst *Session
 		session.sentMeta = nil
 		session.sentSourcePeerStr = ""
 		session.sentSourceMessageID = 0
+		session.sentAIGPOrigin = sendOrigin{}
+		session.sentAIGPRevision = 0
+		session.sentAIGPCostWithheld = false
 		session.sentForward = nil
 		session.releaseFastPathWrites()
 	}()

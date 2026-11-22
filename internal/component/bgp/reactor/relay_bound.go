@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"net/netip"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -102,7 +103,7 @@ func (a *reactorAPIAdapter) ForwardUpdatesBound(ctx context.Context, ids []uint6
 		}
 		destinations = append(destinations, netip.AddrPortFrom(address, 0))
 	}
-	return a.forwardUpdates(ctx, ids, destinations, name, sender, request)
+	return a.forwardUpdates(ids, destinations, name, sender, request)
 }
 func (a *reactorAPIAdapter) relayDestinationPeers(address netip.Addr, sender plugin.Sender, bound *boundForwardRequest) ([]*Peer, error) {
 	if bound == nil {
@@ -159,14 +160,7 @@ func (request *boundForwardRequest) senderFor(peer *Peer) plugin.Sender {
 }
 
 func relayOtherPeers(peers []*Peer, source *Peer) []*Peer {
-	found := false
-	for _, peer := range peers {
-		if peer == source {
-			found = true
-			break
-		}
-	}
-	if !found {
+	if !slices.Contains(peers, source) {
 		return peers
 	}
 	selected := make([]*Peer, 0, len(peers)-1)
@@ -329,11 +323,11 @@ func (stage *boundForwardStage) flush() (result error) {
 	return result
 }
 
-func (stage *boundForwardStage) flushPeer(ctx context.Context, target *Peer, session *Session, owner fwdItem, pool *fwdPool) error {
+func (stage *boundForwardStage) flushPeer(ctx context.Context, target *Peer, session *Session, owner *fwdItem, pool *fwdPool) error {
 	if err := stage.current(target, session); err != nil {
 		return err
 	}
-	err := session.sendUpdateCounted(ctx, &message.Update{}, nil, false, &owner, func(s *Session, _ *message.Update) error {
+	err := session.sendUpdateCounted(ctx, &message.Update{}, nil, false, owner, func(s *Session, _ *message.Update) error {
 		defer func() {
 			s.sentMeta = nil
 			s.sentSourcePeerStr = ""
@@ -403,7 +397,7 @@ func (write *boundForwardTargetWrite) run() bool {
 		write.err = err
 		return false
 	}
-	err := write.stage.flushPeer(write.ctx, write.peer, write.session, write.owner, write.pool)
+	err := write.stage.flushPeer(write.ctx, write.peer, write.session, &write.owner, write.pool)
 	if errors.Is(err, errBoundForwardHeld) {
 		return true
 	}

@@ -39,7 +39,7 @@ func TestBoundForwardWorkerDebtSettlesAfterJoin(t *testing.T) {
 						source, err := f.target.api.originalRelayFacts(f.source.settings.Address, &f.route, f.sender)
 						require.NoError(t, err)
 						var spans []relayAttrSpan
-						_, id, _, err := f.target.api.buildRelayUpdate([]rpc.StoredRoute{f.route}, source, &spans)
+						_, id, _, err := f.target.api.buildRelayUpdate([]rpc.StoredRoute{f.route}, &source, &spans)
 						require.NoError(t, err)
 						defer f.target.api.r.recentUpdates.Release(id)
 						targets := []rpc.ForwardTarget{{Destination: f.target.peer.settings.PeerKey().String(),

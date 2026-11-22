@@ -69,9 +69,7 @@ func TestFlowSpecForwardingRequiresAuthorizationAcrossRails(t *testing.T) {
 			payload = binary.BigEndian.AppendUint16(payload, uint16(len(attrs)))
 			payload = append(payload, attrs...)
 			update, id := newLeakTestUpdate(t, api.r.recentUpdates, payload, src.recvCtxID)
-			update.WireUpdate.SetSourceID(src.SourceID())
-			update.SourceOwner = src.sourceOwner
-			update.WireUpdate.SetSourceOwner(src.sourceOwner)
+			fixtureForwardOrigin(t, update, src, src.currentSession())
 			ribevents.RegisterFlowSpecLookup(nil, nil, nil, nil)
 			t.Cleanup(func() { ribevents.RegisterFlowSpecLookup(nil, nil, nil, nil) })
 			if skipped, delivered := reactorForwardRS(api.r, update, id, src.Settings().Address, src); len(skipped) != 0 || delivered != 0 {
@@ -325,7 +323,7 @@ func TestFlowSpecLiveForwardDefersToRIBVerdict(t *testing.T) {
 			announce = append(announce, mp[:n]...)
 			unreach := append([]byte{0x80, 15, byte(3 + len(raw)), 0, 1, 133}, raw...)
 			withdraw := append([]byte{0, 0, 0, byte(len(unreach))}, unreach...)
-			key := ribevents.ValidationRoute{Peer: src.Settings().Address, Family: fam, NLRI: string(raw)}
+			key := ribevents.ValidationRoute{Peer: src.Settings().Address, PeerOwner: src.sourceOwner, Family: fam, NLRI: string(raw)}
 			var judged uint64
 			present := true
 			ribevents.RegisterFlowSpecLookup(func(got ribevents.ValidationRoute, msgID uint64) bool {
@@ -335,7 +333,7 @@ func TestFlowSpecLiveForwardDefersToRIBVerdict(t *testing.T) {
 			forward := func(payload []byte, verdict func(id uint64)) uint64 {
 				t.Helper()
 				update, id := newLeakTestUpdate(t, api.r.recentUpdates, payload, src.recvCtxID)
-				update.WireUpdate.SetSourceID(src.SourceID())
+				fixtureForwardOrigin(t, update, src, src.currentSession())
 				verdict(id)
 				var err error
 				if rail == "batch" {

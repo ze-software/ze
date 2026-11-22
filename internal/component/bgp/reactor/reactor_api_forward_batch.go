@@ -4,7 +4,6 @@
 package reactor
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net/netip"
@@ -63,10 +62,10 @@ var errNoPeersMatch = errors.New("forward-cached: no established peers match des
 // it is not an identity anything trusts. A refused batch still acks every id,
 // for the reason the destination-resolution branch below already states.
 func (a *reactorAPIAdapter) ForwardUpdatesDirect(updateIDs []uint64, destinations []netip.AddrPort, pluginName string, sender plugin.Sender) error {
-	return a.forwardUpdates(context.Background(), updateIDs, destinations, pluginName, sender, nil)
+	return a.forwardUpdates(updateIDs, destinations, pluginName, sender, nil)
 }
 
-func (a *reactorAPIAdapter) forwardUpdates(ctx context.Context, updateIDs []uint64, destinations []netip.AddrPort, pluginName string, sender plugin.Sender, bound *boundForwardRequest) error {
+func (a *reactorAPIAdapter) forwardUpdates(updateIDs []uint64, destinations []netip.AddrPort, pluginName string, sender plugin.Sender, bound *boundForwardRequest) error {
 	if err := requireBoundForwardContext(sender, bound); err != nil {
 		if bound == nil {
 			a.ackBatch(updateIDs, pluginName)

@@ -12,9 +12,9 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
-	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/rib/igpcost"
 )
 
@@ -247,7 +247,7 @@ func TestAIGPConfiguredOriginationRejectsOutsideDomain(t *testing.T) {
 		s.settings.AIGPOriginate = true
 		s.settings.AIGPDomainAS = []uint32{65001}
 		s.settings.LocalAddress = netip.MustParseAddr("192.0.2.1")
-		s.negotiated = &capability.Negotiated{ASN4: true}
+		negotiateForwardTestFamilies(peer, family.IPv4Unicast)
 		path := binary.BigEndian.AppendUint32([]byte{2, 1}, asn)
 		var mods filterapi.ModAccumulator
 		mods.Op(uint8(attribute.AttrASPath), filterapi.AttrModSet, path)

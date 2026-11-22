@@ -156,7 +156,7 @@ func forwardRSOnceVia(t *testing.T, export filterapi.Policy, transport filterTra
 		filterTransportSeam: transport,
 	}
 	fixtureForwardOrigin(t, update, src, src.testInitialSync())
-	wantTarget := fixtureForwardTarget(t, dst)
+	wantTarget := fixtureForwardTargetForPool(t, dst)
 	skipped, dispatched := reactorForwardRS(r, update, 62, netip.MustParseAddr("10.0.0.1"), src)
 	for _, target := range skipped {
 		if target != wantTarget {

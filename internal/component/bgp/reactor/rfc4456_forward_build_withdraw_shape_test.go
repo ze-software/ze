@@ -329,16 +329,19 @@ func forwardOneBody(t *testing.T, srcPeerAS uint32, destSettings *PeerSettings, 
 	const updateID = 9300
 	wu.SetMessageID(updateID)
 
-	cache := newRecentUpdateCache(100)
-	cache.Add(&ReceivedUpdate{
+	src := relayShapeSourcePeer(t, srcPeerAS, ctx, ctxID)
+	dest := relayShapeDestPeer(t, destSettings, ctx, ctxID)
+
+	update := &ReceivedUpdate{
 		WireUpdate:   wu,
 		SourcePeerIP: netip.MustParseAddr(forwardSourceAddr),
 		ReceivedAt:   time.Now(),
-	})
-	cache.Activate(updateID, 1)
+	}
+	fixtureForwardOrigin(t, update, src, src.testInitialSync())
 
-	src := relayShapeSourcePeer(t, srcPeerAS, ctx, ctxID)
-	dest := relayShapeDestPeer(t, destSettings, ctx, ctxID)
+	cache := newRecentUpdateCache(100)
+	cache.Add(update)
+	cache.Activate(updateID, 1)
 
 	var dispatched []fwdItem
 	var mu sync.Mutex

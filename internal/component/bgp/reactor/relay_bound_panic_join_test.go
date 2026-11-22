@@ -4,12 +4,14 @@ package reactor
 import (
 	"bufio"
 	"context"
-	"github.com/stretchr/testify/require"
-	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"net"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 type boundPanicConn struct{ *recordingConn }
@@ -22,9 +24,11 @@ func TestBoundCachedPanicStillJoinsEveryOtherFinalWriter(t *testing.T) {
 	for _, socket := range []bool{false, true} {
 		t.Run(map[bool]string{false: "native", true: "framed"}[socket], func(t *testing.T) {
 			f := newBoundRelayWireFixture(t, false)
-			work, cancel := context.WithTimeout(t.Context(), 15*time.Second)
+			hostWork, stopHost := context.WithTimeout(t.Context(), 15*time.Second)
+			defer stopHost()
+			work, cancel := context.WithTimeout(hostWork, 15*time.Second)
 			defer cancel()
-			_, client, proc := selectedRefreshCleanupSDK(t, f.target, socket, work)
+			_, client, proc := selectedRefreshCleanupSDK(t, f.target, socket, hostWork)
 			heldPeer, _ := boundRelaySecondTarget(t, f, "192.0.2.186", 2179)
 			usefulPeer, usefulConn := boundRelaySecondTarget(t, f, "192.0.2.187", 3179)
 			panicWire := &boundPanicConn{f.target.conn}
@@ -51,7 +55,7 @@ func TestBoundCachedPanicStillJoinsEveryOtherFinalWriter(t *testing.T) {
 			floor := cache.pluginLastAck[proc.Name()]
 			cache.mu.RUnlock()
 			var spans []relayAttrSpan
-			_, id, _, err := f.target.api.buildRelayUpdate([]rpc.StoredRoute{f.route}, source, &spans)
+			_, id, _, err := f.target.api.buildRelayUpdate([]rpc.StoredRoute{f.route}, &source, &spans)
 			require.NoError(t, err)
 			defer cache.Release(id)
 			targets := make([]rpc.ForwardTarget, 0, 3)

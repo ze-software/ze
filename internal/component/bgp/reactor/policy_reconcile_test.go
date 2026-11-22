@@ -530,6 +530,9 @@ func testPolicyFinalReplayWithdrawnAddPath(t *testing.T, gapEviction bool) {
 		t.Fatal(err)
 	}
 	source.recvCtxID = ctxID
+	sourceSession := source.testInitialSync()
+	sourceSession.SetSourceID(source.SourceID())
+	originalSource := captureRecoveryFixtureOrigin(t, source, sourceSession, ctxID)
 	destination.sendCtx.Store(ctx)
 	destination.sendCtxID = ctxID
 	destination.session.setSendCtxID(ctxID)
@@ -558,6 +561,9 @@ func testPolicyFinalReplayWithdrawnAddPath(t *testing.T, gapEviction bool) {
 		operatorBinding(t, "policy-retained-page", "state", "update"),
 	}
 	route := storedIPv4Route(source.Settings().Address.String())
+	route.SourceOwner = originalSource.owner
+	route.SourceReceipt = originalSource.receipt
+	route.SourceConnectionID = sourceSession.connectionID
 	route.SourcePolicyEpoch = source.sourcePolicyEpoch.Load()
 	route.PathID = 7
 	route.NLRIHex = "18c00002"

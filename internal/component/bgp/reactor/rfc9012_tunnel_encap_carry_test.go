@@ -214,7 +214,11 @@ func teForwardedAttrs(t *testing.T, body []byte, rebuild bool, expectedTunnel ..
 		consumerCount: 1,
 		onReceived:    func(_ plugin.PeerInfo, msg bgptypes.RawMessage) { id = msg.MessageID },
 	})
-	source.session.onMessageReceived = r.capturedMessageReceiver
+	source.advanceForwardGeneration()
+	source.session.SetSourceID(source.SourceID())
+	require.NoError(t, source.session.captureSourceReceipt(source, &sourceReceipts))
+	t.Cleanup(source.session.closeSourceReceipt)
+	source.session.onMessageReceived = source.session.sourceMessageCallback(r.capturedMessageReceiver)
 	header := message.Header{Type: msgtype.TypeUPDATE, Length: uint16(message.HeaderLen + len(body))}
 	// RFC 9012 Section 13; RFC 9830 Sections 2.2, 2.3 and 2.4.
 	err, kept := source.session.processMessage(&header, body, BufHandle{ID: noPoolBufID, Buf: body})

@@ -38,7 +38,8 @@ func (s *Session) captureSourceReceipt(peer *Peer, store *sourceReceiptStore) er
 	if !context.ASN4() {
 		return errors.New("source receipt: normalized four-octet receive encoding could not be registered")
 	}
-	facts, err := newSourceReceiptFacts(relaySourceForPeer(peer, contextID, s.advertisedLLGR()), s.connectionID)
+	src := relaySourceForPeer(peer, contextID, s.advertisedLLGR())
+	facts, err := newSourceReceiptFacts(&src, s.connectionID)
 	if err != nil {
 		return err
 	}

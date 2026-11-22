@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -53,7 +54,7 @@ func (f *originalRelayFixture) cached(t *testing.T) (*ReceivedUpdate, uint64) {
 	source, err := f.api.originalRelaySource(f.source.settings.Address, &f.route, plugin.OperatorSender())
 	require.NoError(t, err)
 	var spans []relayAttrSpan
-	update, id, consumed, err := f.api.buildRelayUpdate([]rpc.StoredRoute{f.route}, source, &spans)
+	update, id, consumed, err := f.api.buildRelayUpdate([]rpc.StoredRoute{f.route}, &source, &spans)
 	require.NoError(t, err)
 	require.Equal(t, 1, consumed)
 	t.Cleanup(func() { f.api.r.recentUpdates.Release(id) })

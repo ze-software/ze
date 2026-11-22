@@ -22,7 +22,6 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/network"
 	"github.com/ze-software/ze/internal/core/report"
@@ -101,7 +100,7 @@ func (s *Session) Accept(conn net.Conn) error {
 drainLoop:
 	for {
 		select {
-		case <-s.errChan:
+		case <-s.errChan: //nolint:errcheck // discarding stale errors from a previous teardown
 		default:
 			break drainLoop
 		}
@@ -118,7 +117,7 @@ drainLoop:
 drainLoop2:
 	for {
 		select {
-		case <-s.errChan:
+		case <-s.errChan: //nolint:errcheck // discarding stale teardown error racing with new connection setup
 		default:
 			break drainLoop2
 		}
@@ -1088,8 +1087,8 @@ func (s *Session) reportWritePathHeld(wait time.Duration, notifyMissed bool) {
 		sessionLogger().Error("no NOTIFICATION was sent to the peer: another writer held the "+
 			"session's write path, so the connection is closed without one",
 			"peer", peerAddr,
-			"fix", writePathHeldFix, "code", diagnostic.CodeDoctorBGPWritePathHeld)
-		report.RaiseErrorFix(reportSourceBGP, diagnostic.CodeDoctorBGPWritePathHeld, peerAddr,
+			"fix", writePathHeldFix, "code", codeDoctorBGPWritePathHeld)
+		report.RaiseErrorFix(reportSourceBGP, codeDoctorBGPWritePathHeld, peerAddr,
 			"BGP session closed: no NOTIFICATION was sent to peer "+peerAddr+
 				", another writer held the session's write path",
 			writePathHeldFix, map[string]any{"notification": "not-sent"})
@@ -1098,8 +1097,8 @@ func (s *Session) reportWritePathHeld(wait time.Duration, notifyMissed bool) {
 	sessionLogger().Error("BGP connection closed while another writer held the session's write path: "+
 		"what that writer had not sent to the peer is dropped",
 		"peer", peerAddr, "waited", wait,
-		"fix", writePathHeldFix, "code", diagnostic.CodeDoctorBGPWritePathHeld)
-	report.RaiseErrorFix(reportSourceBGP, diagnostic.CodeDoctorBGPWritePathHeld, peerAddr,
+		"fix", writePathHeldFix, "code", codeDoctorBGPWritePathHeld)
+	report.RaiseErrorFix(reportSourceBGP, codeDoctorBGPWritePathHeld, peerAddr,
 		"BGP session closed: another writer held the write path of the session to peer "+peerAddr+
 			" for "+wait.String()+"; what it had not sent is dropped",
 		writePathHeldFix, map[string]any{"waited": wait.String()})

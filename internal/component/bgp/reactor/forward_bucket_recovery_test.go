@@ -232,7 +232,7 @@ func TestRecoveryPackLiveDepartureOneUpdatePerFit(t *testing.T) {
 		setting.ImportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 		setting.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 	}
-	peers := lowLiveRouter(t, settings...)
+	peers := rsLiveRouter(t, settings...)
 	a, b, c := peers[0], peers[1], peers[2]
 	attrsA := firstASAttrs(4, 65002)
 	attrsB := firstASAttrs(4, 65003, 65003)

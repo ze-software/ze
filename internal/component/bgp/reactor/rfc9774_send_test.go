@@ -250,6 +250,7 @@ func TestRFC9774SendRawUntouched(t *testing.T) {
 // AS_SET twin.
 func TestRFC9774SendGroupedStaticRoutesKeepCleanTwin(t *testing.T) {
 	peer, conn := newAnnouncePeer(t, "192.0.2.2")
+	peer.sendCtx.Store(bgpctx.EncodingContextForASN4(false))
 	peer.negotiated.Store(&NegotiatedCapabilities{
 		families: map[family.Family]bool{family.IPv4Unicast: true},
 	})

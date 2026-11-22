@@ -61,12 +61,21 @@ const (
 // is the destination's wire on these three rails, so "nothing was sent" is
 // "nothing was dispatched".
 type railEnv struct {
-	api   *reactorAPIAdapter
-	cache *RecentUpdateCache
+	api    *reactorAPIAdapter
+	cache  *RecentUpdateCache
+	source *Peer
 
 	mu         sync.Mutex
 	dispatched []fwdItem
 	saw        chan struct{}
+}
+
+func (e *railEnv) cacheUpdate(t *testing.T, id uint64) {
+	t.Helper()
+	cacheReflectableUpdate(t, e.cache, id)
+	update, ok := e.cache.Get(id)
+	require.True(t, ok)
+	fixtureForwardOrigin(t, update, e.source, e.source.currentSession())
 }
 
 // items returns a snapshot of everything the pool has dispatched.
@@ -98,10 +107,15 @@ func railFixture(t *testing.T) *railEnv {
 
 	src := makeRSPeer(t, forwardSourceAddr, 65001, ctx, ctxID)
 	src.recvCtxID = ctxID
+	srcSession := src.testInitialSync()
+	srcSession.SetSourceID(src.SourceID())
+	captureRecoveryFixtureOrigin(t, src, srcSession, ctxID)
 	dst := makeRSPeer(t, railDest, 65002, ctx, ctxID)
+	dst.settings.LocalAddress = netip.MustParseAddr("10.0.0.254")
 	dst.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly(railGranted)}
+	dst.refreshForwardFacts()
 
-	env := &railEnv{saw: make(chan struct{}, 8)}
+	env := &railEnv{source: src, saw: make(chan struct{}, 8)}
 	pool := newFwdPool(func(_ fwdKey, items []fwdItem) {
 		env.mu.Lock()
 		env.dispatched = append(env.dispatched, items...)
@@ -160,8 +174,8 @@ func TestCacheForwardEntryPointRefusesAnUnattachedProcess(t *testing.T) {
 	env := railFixture(t)
 
 	const refusedID, grantedID = uint64(41), uint64(42)
-	cacheReflectableUpdate(t, env.cache, refusedID)
-	cacheReflectableUpdate(t, env.cache, grantedID)
+	env.cacheUpdate(t, refusedID)
+	env.cacheUpdate(t, grantedID)
 
 	refused := railServer(t, env.api, plugin.ProcessSender(railRefused))
 	resp, err := refused.Server.Dispatcher().Dispatch(refused, "send bgp "+railDest+" cached 41")
@@ -198,7 +212,7 @@ func TestCacheForwardEntryPointRefusesAnUnattachedProcess(t *testing.T) {
 func TestCacheForwardRefusalNamesTheAttachBlock(t *testing.T) {
 	resetSendPermissionMetrics(t)
 	env := railFixture(t)
-	cacheReflectableUpdate(t, env.cache, 41)
+	env.cacheUpdate(t, 41)
 
 	refused := railServer(t, env.api, plugin.ProcessSender(railRefused))
 	resp, err := refused.Server.Dispatcher().Dispatch(refused, "send bgp "+railDest+" cached 41")
@@ -276,8 +290,8 @@ func TestForwardCachedRailRefusesAnUnattachedProcess(t *testing.T) {
 	env := railFixture(t)
 
 	const refusedID, grantedID = uint64(51), uint64(52)
-	cacheReflectableUpdate(t, env.cache, refusedID)
-	cacheReflectableUpdate(t, env.cache, grantedID)
+	env.cacheUpdate(t, refusedID)
+	env.cacheUpdate(t, grantedID)
 	dst := []netip.AddrPort{netip.AddrPortFrom(netip.MustParseAddr(railDest), 0)}
 
 	err := env.api.ForwardUpdatesDirect([]uint64{refusedID}, dst, railRefused, plugin.ProcessSender(railRefused))
@@ -319,7 +333,11 @@ func TestRelayStoredRouteRailRefusesAnUnattachedProcess(t *testing.T) {
 		}
 	}
 
-	routes := []rpc.StoredRoute{storedIPv4Route(forwardSourceAddr)}
+	route := storedIPv4Route(forwardSourceAddr)
+	route.SourceOwner = env.source.sourceOwner
+	route.SourceReceipt = env.source.currentSession().sourceReceiptID()
+	route.SourceConnectionID = env.source.currentSession().connectionID
+	routes := []rpc.StoredRoute{route}
 	for _, process := range []string{railRefused, receiveOnly, rawOnly} {
 		err := env.api.RelayStoredRoute(dst, routes, plugin.ProcessSender(process))
 		require.ErrorIs(t, err, errSendNotPermitted, "process %s", process)

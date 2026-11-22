@@ -380,7 +380,7 @@ func TestFamilyIndependentNextHopFields(t *testing.T) {
 		{"mvpn-ipv4", message.PluginParams{AFI: 2, SAFI: 5, IsIPv6: true, NLRI: []byte{1}, NextHop: netip.MustParseAddr("192.0.2.9")}, "c0000209"},
 		{"flowspec-zero", message.PluginParams{AFI: 2, SAFI: 133, IsIPv6: true, NLRI: []byte{1}, NextHop: netip.IPv6Loopback()}, ""},
 		{"mup-mapped", message.PluginParams{AFI: 2, SAFI: 85, IsIPv6: true, NLRI: []byte{1}, NextHop: netip.MustParseAddr("192.0.2.9"), MapV4NextHop: true}, "00000000000000000000ffffc0000209"},
-		{"unknown-profile", message.PluginParams{AFI: 16388, SAFI: 71, NLRI: []byte{1}, NextHop: netip.IPv6Loopback()}, "00000000000000000000000000000001"},
+		{"unknown-profile", message.PluginParams{AFI: 16388, SAFI: 99, NLRI: []byte{1}, NextHop: netip.IPv6Loopback()}, "00000000000000000000000000000001"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			builder := message.NewUpdateBuilder(65000, false, true, false)

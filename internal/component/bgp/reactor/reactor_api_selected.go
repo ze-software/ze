@@ -132,7 +132,7 @@ func (a *reactorAPIAdapter) selectRoute(ctx context.Context, peer *Peer, session
 	defer write.complete()
 	work.source = write
 	source := write.source()
-	if err := selectedOriginalSource(route, source, fam); err != nil {
+	if err := selectedOriginalSource(route, &source, fam); err != nil {
 		return rpc.SelectedRouteResult{}, err
 	}
 	ctx, release := write.writeContext(ctx)
@@ -141,7 +141,7 @@ func (a *reactorAPIAdapter) selectRoute(ctx context.Context, peer *Peer, session
 	// recent-update cache. Cache readers may observe it as soon as Add returns.
 	source.metadata = selectedStaleMetadata(route.StaleLevel)
 	var spans []relayAttrSpan
-	update, id, _, err := a.buildRelayUpdate([]rpc.StoredRoute{*route.Route}, source, &spans)
+	update, id, _, err := a.buildRelayUpdate([]rpc.StoredRoute{*route.Route}, &source, &spans)
 	if err != nil {
 		return rpc.SelectedRouteResult{}, err
 	}
@@ -270,7 +270,7 @@ func selectedStoredPath(route rpc.SelectedRoute, fam family.Family, key fwdPathK
 	return nil
 }
 
-func selectedOriginalSource(route rpc.SelectedRoute, source relaySource, fam family.Family) error {
+func selectedOriginalSource(route rpc.SelectedRoute, source *relaySource, fam family.Family) error {
 	address, err := netip.ParseAddr(route.Route.SourcePeer)
 	if err != nil {
 		return err

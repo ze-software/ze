@@ -13,11 +13,14 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 const sourceLeaseRole = "bgp-selected-output"
+
+var sourceLeaseClock clock.Clock = clock.RealClock{}
 
 // decodeSourceLease keeps both transports on the same bounded scalar shape.
 // Unknown fields cannot smuggle a claimed peer, process name or retained facts.
@@ -35,7 +38,7 @@ func decodeSourceLease(raw json.RawMessage) (rpc.SourceLeaseInput, error) {
 	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
 		return input, errors.New("source-lease request contains trailing JSON; send one complete input object")
 	}
-	return input, input.Validate(time.Now())
+	return input, input.Validate(sourceLeaseClock.Now())
 }
 
 func sourceLeaseJSON(server *pluginserver.Server, ctx context.Context, proc *process.Process, raw json.RawMessage) (any, error) {
@@ -70,7 +73,7 @@ func sourceLeaseCancellation(server *pluginserver.Server, proc *process.Process,
 // authority only; its absence is a settled result, never permission to acquire.
 // It needs no now-removed receive grant, so terminal cleanup can finish.
 func sourceLeaseAdmission(server *pluginserver.Server, proc *process.Process, input rpc.SourceLeaseInput) (plugin.SelectedOwner, error) {
-	if err := input.Validate(time.Now()); err != nil {
+	if err := input.Validate(sourceLeaseClock.Now()); err != nil {
 		return plugin.SelectedOwner{}, err
 	}
 	if proc == nil {

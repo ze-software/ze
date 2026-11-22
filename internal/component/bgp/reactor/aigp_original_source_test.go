@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -27,7 +28,7 @@ func TestAIGPReplayKeepsSameAddressOriginals(t *testing.T) {
 		t.Run(map[bool]string{false: "general", true: "native-rs"}[native], func(t *testing.T) {
 			f := newAIGPReplayFixture(t, nil)
 			f.source.settings.AIGPLinkMetric = 11
-			sibling := aigpOwnerSibling(t, f, 2179, 29)
+			sibling := aigpOwnerSibling(t, f)
 			first := f.receive(t, f.body(t, 100))
 			aigpOwnerForward(t, f, first, native)
 			lastAnnounces(t, aigpSocketBodies(t, f.conn), []byte{24, 10, 20, 0}, 111)
@@ -153,7 +154,7 @@ func TestAIGPHeldReplayCannotBorrowSuccessor(t *testing.T) {
 func TestAIGPReleasedOriginalRefusesReplayKeepsSibling(t *testing.T) {
 	f := newAIGPReplayFixture(t, nil)
 	f.source.settings.AIGPLinkMetric = 11
-	sibling := aigpOwnerSibling(t, f, 2179, 29)
+	sibling := aigpOwnerSibling(t, f)
 	aigpOwnerForward(t, f, f.receive(t, f.body(t, 100)), false)
 	body := f.body(t, 200)
 	sections, err := wire.ParseUpdateSections(body)
@@ -181,7 +182,7 @@ func TestAIGPOriginalSourceRejectsMismatchedReceipt(t *testing.T) {
 	f := newAIGPReplayFixture(t, nil)
 	f.source.settings.Name = "aigp-original"
 	f.source.refreshForwardFacts()
-	sibling := aigpOwnerSibling(t, f, 2179, 29)
+	sibling := aigpOwnerSibling(t, f)
 	id := f.receive(t, f.body(t, 100))
 	update, ok := f.r.recentUpdates.Get(id)
 	require.True(t, ok)
@@ -249,7 +250,7 @@ func TestAIGPOriginalSourceAddPathZeroRawAndConverted(t *testing.T) {
 			require.NoError(t, err)
 			f.ctxID = contextID
 			f.source.recvCtxID = contextID
-			sibling := aigpOwnerSibling(t, f, 2179, 29)
+			sibling := aigpOwnerSibling(t, f)
 			sibling.recvCtxID = contextID
 			if addOutput {
 				f.destination.sendCtx.Store(context)
@@ -320,13 +321,13 @@ func aigpOwnerReconnect(t *testing.T, f *aigpReplayFixture) *Session {
 	return session
 }
 
-func aigpOwnerSibling(t *testing.T, f *aigpReplayFixture, port uint16, metric uint64) *Peer {
+func aigpOwnerSibling(t *testing.T, f *aigpReplayFixture) *Peer {
 	t.Helper()
 	firstKey := f.source.Settings().PeerKey()
 	peer := f.addSource(t, f.source.Settings().Address.String())
-	peer.settings.Port = port
+	peer.settings.Port = 2179
 	peer.settings.Name = "aigp-sibling"
-	peer.settings.AIGPLinkMetric = metric
+	peer.settings.AIGPLinkMetric = 29
 	peer.refreshForwardFacts()
 	f.r.mu.Lock()
 	f.r.peers[firstKey] = f.source
@@ -346,6 +347,13 @@ func aigpOwnerForward(t *testing.T, f *aigpReplayFixture, id uint64, native bool
 	if native {
 		_, sent, _ := reactorForwardRSSection(f.r, update, update.WireUpdate, []*Peer{f.destination}, id, source.addr, source.info.peer)
 		require.Equal(t, 1, sent)
+		// The native rail writes directly into the destination's bufWriter and
+		// records the dirty session on the source; Session.Run flushes it at
+		// the read boundary, so this direct-call fixture serves that boundary.
+		srcSession := source.info.peer.currentSession()
+		require.NotNil(t, srcSession)
+		srcSession.flushFwdDirty()
+		require.Empty(t, srcSession.fwdDirty)
 	} else {
 		source.info.sender = plugin.ProcessSender("aigp-forwarder")
 		require.NoError(t, (&reactorAPIAdapter{r: f.r}).forwardUpdateCore(update, id, []*Peer{f.destination}, source.info))

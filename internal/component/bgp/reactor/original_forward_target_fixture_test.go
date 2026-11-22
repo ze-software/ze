@@ -2,13 +2,15 @@
 package reactor
 
 import (
+	"net/netip"
+	"testing"
+
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
-	"net/netip"
-	"testing"
 )
 
 // fixtureForwardTarget explicitly installs the fixture's actual Session through
@@ -22,8 +24,19 @@ func fixtureForwardTarget(t testing.TB, peer *Peer) rpc.ForwardTarget {
 	require.NotNil(t, session)
 	require.NotZero(t, peer.sourceOwner)
 	require.NotZero(t, session.initialReplay.Load())
-	peer.refreshForwardFacts()
+	peer.fwdFacts.Store(peer.buildForwardFacts())
 	return rpc.ForwardTarget{Destination: peer.Settings().PeerKey().String(), DestinationOwner: peer.sourceOwner, DestinationSession: session.initialReplay.Load()}
+}
+
+// fixtureForwardTargetForPool captures the original target for a pool-intercept
+// fixture whose destination carries no socket, keeping reactorForwardRS on
+// fwdPool.TryDispatch instead of dropping on tryDirectWriteNoFlush's idle check.
+func fixtureForwardTargetForPool(t testing.TB, peer *Peer) rpc.ForwardTarget {
+	t.Helper()
+	target := fixtureForwardTarget(t, peer)
+	peer.fwdChannelPending.Add(1)
+	t.Cleanup(func() { peer.fwdChannelPending.Add(-1) })
+	return target
 }
 
 // fixtureForwardOrigin binds a primitive forwarding fixture to the original

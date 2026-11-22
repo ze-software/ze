@@ -188,13 +188,23 @@ func TestForwardAIGPLiveGenerationEndsWithSourceSession(t *testing.T) {
 				f.r.forgetClosedPeer(old, old.currentSession())
 				f.r.notifyPeerClosed(old, closeWithReason("forwarding regression"))
 				if boundary == "reconnect" {
+					next := sourceSessionFixture(t, old)
+					next.setRecvCtxID(f.ctxID)
+					next.SetSourceID(old.SourceID())
 					old.setState(PeerStateEstablished)
+					require.NoError(t, next.captureSourceReceipt(old, &sourceReceipts))
+					t.Cleanup(next.closeSourceReceipt)
 				} else {
 					old.Stop()
 					replacement, _ := newAnnouncePeer(t, old.Settings().Address.String())
 					settings := *old.Settings()
 					replacement.settings = &settings
 					replacement.recvCtxID = f.ctxID
+					replacement.advanceForwardGeneration()
+					replacement.session.setRecvCtxID(f.ctxID)
+					replacement.session.SetSourceID(replacement.SourceID())
+					require.NoError(t, replacement.session.captureSourceReceipt(replacement, &sourceReceipts))
+					t.Cleanup(replacement.session.closeSourceReceipt)
 					f.r.peers[old.Settings().PeerKey()] = replacement
 					f.source = replacement
 				}

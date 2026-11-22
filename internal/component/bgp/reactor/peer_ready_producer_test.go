@@ -225,18 +225,19 @@ func readyProducerReceive(t *testing.T, proc *process.Process, peer *Peer, sessi
 	}}))
 }
 
-func readyProducerSent(proc *process.Process, peer plugin.PeerInfo, msg bgptypes.RawMessage) error {
+func readyProducerSent(proc *process.Process, peer *plugin.PeerInfo, msg *bgptypes.RawMessage) error {
+	copied := *msg
 	return proc.Bridge().DeliverStructured([]any{&rpc.StructuredEvent{
 		PeerAddress: peer.AddrStr(), PeerAS: peer.PeerAS, PeerOwner: peer.PeerOwner,
 		ConnectionID: peer.ConnectionID, DestinationSession: peer.DestinationSession, EventType: rpc.EventKindUpdate,
-		Direction: rpc.DirectionSent, MessageID: msg.MessageID, RawMessage: &msg,
-		SourcePeerStr: msg.SourcePeerStr, SourceID: msg.SourceID, Meta: msg.Meta,
+		Direction: rpc.DirectionSent, MessageID: copied.MessageID, RawMessage: &copied,
+		SourcePeerStr: copied.SourcePeerStr, SourceID: copied.SourceID, Meta: copied.Meta,
 	}})
 }
 
-func readyProducerAwait(t *testing.T, api *readyProducerAPI, owner string, token uint64, rejected bool) {
+func readyProducerAwait(t *testing.T, api *readyProducerAPI, token uint64, rejected bool) {
 	t.Helper()
-	readyProducerAwaitSender(t, api, plugin.ProcessSender(owner), token, rejected)
+	readyProducerAwaitSender(t, api, plugin.ProcessSender("bgp-rib"), token, rejected)
 }
 
 func readyProducerAwaitSender(t *testing.T, api *readyProducerAPI, sender plugin.Sender, token uint64, rejected bool) {
@@ -335,13 +336,13 @@ func TestPeerReadyRIBReplayCompletion(t *testing.T) {
 			raiseTestReplayFence(f.destination, owner)
 			session := readyProducerSession(f.destination)
 			readyProducerState(t, proc, f.destination, session, rpc.SessionStateUp, f.destination.initialReplayToken())
-			readyProducerAwait(t, api, owner, f.destination.session.initialReplay.Load(), false)
+			readyProducerAwait(t, api, f.destination.session.initialReplay.Load(), false)
 
 			// The real final writer and notifyMessageReceiver produce the sent
 			// ownership receipt consumed by the running RIB SDK handler.
 			sent := make(chan error, 2)
 			f.r.messageReceiver = &testMessageReceiver{onSent: func(peer plugin.PeerInfo, msg bgptypes.RawMessage) {
-				sent <- readyProducerSent(proc, peer, msg)
+				sent <- readyProducerSent(proc, &peer, &msg)
 			}}
 			f.destination.session.SetMessageCallback(f.r.capturedMessageReceiver)
 			seed := func(source *Peer, body []byte) {
@@ -404,7 +405,7 @@ func TestPeerReadyRIBReplayCompletion(t *testing.T) {
 					readyProducerReplace(f.destination, next.session)
 				}
 				readyProducerState(t, proc, f.destination, session, rpc.SessionStateUp, token)
-				readyProducerAwait(t, api, owner, token, true)
+				readyProducerAwait(t, api, token, true)
 				require.Error(t, readyProducerAttempt(t, api))
 				require.True(t, f.destination.forwardOrderHold(false))
 				require.False(t, apiSyncReleased(f.destination))
@@ -419,7 +420,7 @@ func TestPeerReadyRIBReplayCompletion(t *testing.T) {
 			// RFC 4271 Section 9.2.
 			require.NoError(t, api.forwardUpdateCore(live, f.id, []*Peer{f.destination}, replayFenceSource(f.source, false)))
 			readyProducerState(t, proc, f.destination, session, rpc.SessionStateUp, token)
-			readyProducerAwait(t, api, owner, token, false)
+			readyProducerAwait(t, api, token, false)
 			if mode == "source-disappears" {
 				require.ErrorIs(t, readyProducerAttempt(t, api), errAdjOutProvenance)
 			}
@@ -447,11 +448,11 @@ func TestPeerReadyRIBReconnectBeforeRelease(t *testing.T) {
 	raiseTestReplayFence(f.destination, owner)
 	session := readyProducerSession(f.destination)
 	readyProducerState(t, proc, f.destination, session, rpc.SessionStateUp, f.destination.initialReplayToken())
-	readyProducerAwait(t, api, owner, f.destination.session.initialReplay.Load(), false)
+	readyProducerAwait(t, api, f.destination.session.initialReplay.Load(), false)
 
 	sent := make(chan error, 1)
 	f.r.messageReceiver = &testMessageReceiver{onSent: func(peer plugin.PeerInfo, msg bgptypes.RawMessage) {
-		sent <- readyProducerSent(proc, peer, msg)
+		sent <- readyProducerSent(proc, &peer, &msg)
 	}}
 	f.destination.session.SetMessageCallback(f.r.capturedMessageReceiver)
 	sourceSession := readyProducerAttachSource(t, f.source, proc)
@@ -483,7 +484,7 @@ func TestPeerReadyRIBReconnectBeforeRelease(t *testing.T) {
 	beforeRelease := make(chan []byte, 1)
 	api.beforeReady = func() { beforeRelease <- conn.written() }
 	readyProducerState(t, proc, f.destination, session, rpc.SessionStateUp, token)
-	readyProducerAwait(t, api, owner, token, false)
+	readyProducerAwait(t, api, token, false)
 	require.NoError(t, readyProducerAttempt(t, api))
 	// RFC 4271 Section 4.3: bytes must precede readiness, not be scheduled by it.
 	require.Equal(t, []string{"announce"}, wireKinds(parseWireUpdates(t, <-beforeRelease)))
@@ -526,11 +527,11 @@ func TestPeerReadyRIBNativeReconnect(t *testing.T) {
 				initial := f.destination.initialReplayToken()
 				session := readyProducerSession(f.destination)
 				readyProducerState(t, proc, f.destination, session, rpc.SessionStateUp, initial)
-				readyProducerAwait(t, api, owner, initial, false)
+				readyProducerAwait(t, api, initial, false)
 
 				sent := make(chan error, 1)
 				f.r.messageReceiver = &testMessageReceiver{onSent: func(peer plugin.PeerInfo, msg bgptypes.RawMessage) {
-					sent <- readyProducerSent(proc, peer, msg)
+					sent <- readyProducerSent(proc, &peer, &msg)
 				}}
 				f.destination.session.SetMessageCallback(f.r.capturedMessageReceiver)
 				paths := []struct {
@@ -578,7 +579,7 @@ func TestPeerReadyRIBNativeReconnect(t *testing.T) {
 						readyProducerReplace(f.destination, next.session)
 					}
 					readyProducerState(t, proc, f.destination, session, rpc.SessionStateUp, token)
-					readyProducerAwait(t, api, owner, token, true)
+					readyProducerAwait(t, api, token, true)
 					for range paths {
 						require.Error(t, readyProducerAttempt(t, api))
 					}
@@ -607,7 +608,7 @@ func TestPeerReadyRIBNativeReconnect(t *testing.T) {
 				beforeRelease := make(chan []byte, 1)
 				api.beforeReady = func() { beforeRelease <- conn.written() }
 				readyProducerState(t, proc, f.destination, session, rpc.SessionStateUp, token)
-				readyProducerAwait(t, api, owner, token, false)
+				readyProducerAwait(t, api, token, false)
 				for range paths {
 					require.NoError(t, readyProducerAttempt(t, api))
 				}

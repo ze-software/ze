@@ -5,13 +5,15 @@ import (
 	"bufio"
 	"context"
 	"encoding/hex"
-	"github.com/stretchr/testify/require"
-	"github.com/ze-software/ze/internal/core/family"
-	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"net"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 type boundNotifyConn struct {
@@ -31,9 +33,11 @@ func TestBoundCachedServerHeldTargetKeepsSiblingUsefulBeforeAck(t *testing.T) {
 	for _, socket := range []bool{false, true} {
 		t.Run(map[bool]string{false: "native", true: "framed"}[socket], func(t *testing.T) {
 			f := newBoundRelayWireFixture(t, false)
-			work, cancel := context.WithTimeout(t.Context(), 15*time.Second)
+			hostWork, stopHost := context.WithTimeout(t.Context(), 15*time.Second)
+			defer stopHost()
+			work, cancel := context.WithTimeout(hostWork, 15*time.Second)
 			defer cancel()
-			_, client, proc := selectedRefreshCleanupSDK(t, f.target, socket, work)
+			_, client, proc := selectedRefreshCleanupSDK(t, f.target, socket, hostWork)
 			sibling, siblingConn := boundRelaySecondTarget(t, f, f.target.peer.settings.Address.String(), 2179)
 			cache := f.target.api.r.recentUpdates
 			cache.RegisterConsumer(proc.Name())
@@ -44,7 +48,7 @@ func TestBoundCachedServerHeldTargetKeepsSiblingUsefulBeforeAck(t *testing.T) {
 			source, err := f.target.api.originalRelayFacts(f.source.settings.Address, &f.route, f.sender)
 			require.NoError(t, err)
 			var spans []relayAttrSpan
-			_, id, _, err := f.target.api.buildRelayUpdate([]rpc.StoredRoute{f.route}, source, &spans)
+			_, id, _, err := f.target.api.buildRelayUpdate([]rpc.StoredRoute{f.route}, &source, &spans)
 			require.NoError(t, err)
 			defer cache.Release(id)
 			left, right := net.Pipe()
@@ -120,7 +124,7 @@ func TestBoundCachedPartialFailureStillWritesHealthyCapturedTarget(t *testing.T)
 	source, err := f.target.api.originalRelayFacts(f.source.settings.Address, &f.route, f.sender)
 	require.NoError(t, err)
 	var spans []relayAttrSpan
-	_, id, _, err := f.target.api.buildRelayUpdate([]rpc.StoredRoute{f.route}, source, &spans)
+	_, id, _, err := f.target.api.buildRelayUpdate([]rpc.StoredRoute{f.route}, &source, &spans)
 	require.NoError(t, err)
 	defer f.target.api.r.recentUpdates.Release(id)
 	targets := []rpc.ForwardTarget{

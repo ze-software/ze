@@ -32,6 +32,7 @@ import (
 // and the session is not torn down.
 func TestOwedKeyNoExportSurvivorWithdrawsAtExternalDestination(t *testing.T) {
 	rail := newOwedRail(t)
+	originalSource := captureRecoveryFixtureOrigin(t, rail.source, rail.source.currentSession(), rail.source.sendCtxID)
 	rail.destination.settings.PeerAS = 65002
 	rail.destination.refreshForwardFacts()
 	p := []byte{24, 192, 0, 2}
@@ -49,9 +50,8 @@ func TestOwedKeyNoExportSurvivorWithdrawsAtExternalDestination(t *testing.T) {
 		0x40, 0x03, 0x04, 192, 0, 2, 1, // NEXT_HOP
 		0xC0, 0x08, 0x04, 0xFF, 0xFF, 0xFF, 0x01, // COMMUNITY NO_EXPORT
 	}
-	source := rail.source.Settings().Address
 	rail.release <- func(request ribevents.RecoveryRequest) []ribevents.RecoveryOutcome {
-		return recoverySurvivorAnswer(request, p, ribevents.RecoveryRoute{Source: source, SourcePolicyEpoch: rail.source.sourcePolicyEpoch.Load(),
+		return recoverySurvivorAnswer(request, p, ribevents.RecoveryRoute{Source: originalSource.address, SourceOwner: originalSource.owner, SourceReceipt: originalSource.receipt, SourcePolicyEpoch: rail.source.sourcePolicyEpoch.Load(),
 			NLRI: p, Attributes: attributes, NextHop: []byte{192, 0, 2, 1}, MessageID: 9})
 	}
 

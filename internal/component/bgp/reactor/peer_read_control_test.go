@@ -3,11 +3,12 @@ package reactor
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
 	"net/netip"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 // Same-address original owners and physical successors remain separate. These
@@ -97,7 +98,7 @@ func TestPhysicalPeerReadControlCancellationAtFinalReadGate(t *testing.T) {
 			return
 		}
 		select {
-		case <-done:
+		case <-done: //nolint:errcheck // test cleanup joins the canceled goroutine; outcome was already checked
 		case <-time.After(5 * time.Second):
 			t.Error("physical read-gate caller did not join")
 		}

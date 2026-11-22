@@ -49,7 +49,7 @@ func aigpOriginalSource(address netip.Addr, update *wireu.WireUpdate) (relaySour
 	return source, nil
 }
 
-func aigpIdentity(source relaySource) aigpSourceIdentity {
+func aigpIdentity(source *relaySource) aigpSourceIdentity {
 	return aigpSourceIdentity{owner: source.info.peer.sourceOwner, connection: source.info.filterInfo.ConnectionID}
 }
 

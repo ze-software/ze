@@ -31,14 +31,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // The migration topology every test in this file forwards through. The router
@@ -258,11 +258,13 @@ func forwardLocalAS(t *testing.T, topo localASTopology, dests []localASDest) map
 	wu := wireu.NewWireUpdate(localASSourcePayload(topo.sourceAS), ctxID4)
 	const updateID = 7705
 	wu.SetMessageID(updateID)
-	cache.Add(&ReceivedUpdate{
+	update := &ReceivedUpdate{
 		WireUpdate:   wu,
 		SourcePeerIP: netip.MustParseAddr(forwardSourceAddr),
 		ReceivedAt:   time.Now(),
-	})
+	}
+	fixtureForwardOrigin(t, update, source, source.testInitialSync())
+	cache.Add(update)
 	cache.Activate(updateID, 1)
 
 	r := &Reactor{

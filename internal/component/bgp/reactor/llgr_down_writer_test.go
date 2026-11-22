@@ -126,11 +126,17 @@ func llgrDownLiveRouter(t *testing.T, restart uint16) ([]*lowLivePeer, *process.
 			{"bgp-rs", "update-received state open-received refresh"},
 			{"bgp-adj-rib-in", "update-received state"},
 		} {
-			send := ""
+			entry := map[string]any{"receive": binding.receive}
 			if i == 1 {
-				send = "update"
+				if binding.name == "bgp-rib" {
+					entry["send"] = "update refresh"
+				} else {
+					entry["send"] = "update"
+				}
 			}
-			require.NoError(t, EnsureProcessBinding(s, binding.name, binding.receive, send))
+			require.NoError(t, parseProcessBindingsFromTree(map[string]any{
+				"attach": map[string]any{"process": map[string]any{binding.name: entry}},
+			}, s))
 		}
 		require.NoError(t, r.AddPeer(s))
 	}

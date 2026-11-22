@@ -5,10 +5,11 @@ package reactor
 
 import (
 	"bytes"
-	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // ls71PairRelay requires the phase's exact rail outcome before its caller checks
@@ -37,7 +38,7 @@ func ls71PairRelay(t *testing.T, f *aigpReplayFixture, body []byte, native, expe
 	f.r.rsForwardingEnabled = true
 	skipped, dispatched := reactorForwardRS(f.r, update, id, f.source.Settings().Address, f.source)
 	f.r.rsForwardingEnabled = false
-	require.Equal(t, []netip.AddrPort{f.destination.Settings().PeerKey()}, skipped,
+	require.Equal(t, []rpc.ForwardTarget{capturedForwardTarget(f.destination, f.destination.currentSession())}, skipped,
 		"the native rail must hand back exactly the intended recipient")
 	require.Zero(t, dispatched, "the native rail must dispatch nothing before handback")
 	f.source.session.flushFwdDirty()

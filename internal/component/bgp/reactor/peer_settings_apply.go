@@ -97,7 +97,6 @@ type peerSettingsSwap struct {
 //     (draft-ietf-idr-bgp-bfd-strict-mode Sections 6 and 8). Every reader of a
 //     running peer's opt-in goes through the p.mu-guarded Peer.bfdSettings,
 //     the session's included (Session.bfdOptIn).
-//
 //   - Description: the operator's label. No session and no datapath reads it:
 //     its one consumer is the peer snapshot a command answers from
 //     (reactorAPIAdapter.Peers, reactor_api.go), which reads it on demand

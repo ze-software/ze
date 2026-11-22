@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/plugin"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
@@ -128,7 +129,7 @@ func TestBoundCachedRelayWaitsForExactDestination(t *testing.T) {
 	source, err := f.target.api.originalRelayFacts(f.source.settings.Address, &f.route, f.sender)
 	require.NoError(t, err)
 	var spans []relayAttrSpan
-	update, id, _, err := f.target.api.buildRelayUpdate([]rpc.StoredRoute{f.route}, source, &spans)
+	update, id, _, err := f.target.api.buildRelayUpdate([]rpc.StoredRoute{f.route}, &source, &spans)
 	require.NoError(t, err)
 	defer f.target.api.r.recentUpdates.Release(id)
 	require.Equal(t, f.session.sourceReceiptID(), update.SourceReceipt)

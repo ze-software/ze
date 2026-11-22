@@ -34,7 +34,7 @@ func (a *reactorAPIAdapter) matchCapturedDestination(sel *selector.Selector, sen
 		if peer.sourceOwner != owner {
 			continue
 		}
-		matches := false
+		var matches bool
 		switch sel.SelectorKind() {
 		case selector.KindName, selector.KindASN:
 			matches = slices.Contains(a.matchPositive(sel), peer)

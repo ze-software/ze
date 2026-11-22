@@ -191,7 +191,7 @@ func (r *Reactor) invalidateAIGPReceived(peer netip.Addr, wu *wireu.WireUpdate) 
 		reportAIGPOriginalSourceFailure(peer, err)
 		return
 	}
-	identity := aigpIdentity(original)
+	identity := aigpIdentity(&original)
 	s := &r.aigp
 	s.dispatch.Lock()
 	defer s.dispatch.Unlock()
@@ -215,7 +215,7 @@ func (r *Reactor) retainAIGPReceived(peer netip.Addr, wu *wireu.WireUpdate, meta
 		reportAIGPOriginalSourceFailure(peer, err)
 		return
 	}
-	identity := aigpIdentity(original)
+	identity := aigpIdentity(&original)
 	body := bytes.Clone(wu.Payload())
 	retained := wireu.NewWireUpdate(body, wu.SourceCtxID())
 	retained.SetMessageID(wu.MessageID())
@@ -285,7 +285,7 @@ func (s *Session) noteAIGPWrite(body []byte, withheldOnly bool) {
 			receivedSource = true
 			source := sourceReceipts.recoverySource(s.sentForward.sourceReceipt, original.sourceOwner)
 			if source.ok {
-				sourceIdentity = aigpIdentity(source)
+				sourceIdentity = aigpIdentity(&source)
 				sourceAddress = source.addr
 			}
 		}
@@ -365,7 +365,8 @@ func (s *Session) commitAIGPWrites(ok bool) {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if ok && s.State() == fsm.StateEstablished {
-		for _, sent := range s.aigpPending {
+		for i := range s.aigpPending {
+			sent := &s.aigpPending[i]
 			current := state.advertised[sent.key]
 			live := current != nil && state.routes[current.route.key] == current.route
 			// RFC 7311 Section 3.4.3: the withheld route stays owed until a
@@ -384,7 +385,7 @@ func (s *Session) commitAIGPWrites(ok bool) {
 			}
 			delete(state.advertised, sent.key)
 			if sent.route != nil && state.routes[sent.route.key] == sent.route {
-				entry := sent
+				entry := *sent
 				state.advertised[sent.key] = &entry
 			}
 		}
@@ -559,7 +560,7 @@ func (r *Reactor) replayAIGP(ad *aigpAdvertisement, revision uint64) {
 		SourceOwner:       ad.route.key.source.owner, SourceReceipt: wu.SourceReceipt(), SourceConnectionID: ad.route.key.source.connection,
 		NLRIHex: hex.EncodeToString(ad.route.raw), AttrHex: hex.EncodeToString(wu.Payload()[start:end]), NextHopHex: hex.EncodeToString(ad.route.nextHop)}
 	var spans []relayAttrSpan
-	update, id, _, err := adapter.buildRelayUpdate([]rpc.StoredRoute{route}, src, &spans)
+	update, id, _, err := adapter.buildRelayUpdate([]rpc.StoredRoute{route}, &src, &spans)
 	if err != nil {
 		return
 	}

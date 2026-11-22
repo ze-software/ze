@@ -60,7 +60,7 @@ func TestRFC9687Event29ReleasesTheLivePeersRIB(t *testing.T) {
 		&capability.ASN4{ASN: 65001},
 		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
 	}
-	require.NoError(t, EnsureProcessBinding(settings, "bgp-rib", "update state refresh", "update"))
+	lowLiveAttachProcess(t, settings, "bgp-rib", "update state refresh")
 	require.NoError(t, r.AddPeer(settings))
 	peer := r.peers[settings.PeerKey()]
 	peer.setReconnectDelay(time.Minute, time.Minute)

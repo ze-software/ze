@@ -220,10 +220,12 @@ func lateNeighborFields(t *testing.T, peer *lowLivePeer) [][]byte {
 
 func lateNeighborStored(t *testing.T, source *Peer) {
 	t.Helper()
+	destPeer, ok := source.reactor.lookupPeer("2001:db8:1::2")
+	require.True(t, ok)
 	lowEventually(t, func() bool {
 		owner := ribevents.RecoveryProvider()
 		require.NotNil(t, owner)
-		answers, err := owner.Lookup(ribevents.RecoveryRequest{Destination: netip.MustParseAddr("2001:db8:1::2"), Family: family.IPv6Unicast,
+		answers, err := owner.Lookup(ribevents.RecoveryRequest{Destination: netip.MustParseAddr("2001:db8:1::2"), DestinationOwner: destPeer.sourceOwner, Family: family.IPv6Unicast,
 			Keys: []ribevents.RecoveryKey{{NLRI: mustHex(t, "4020010db857090000")}}})
 		require.NoError(t, err)
 		require.Len(t, answers, 1)

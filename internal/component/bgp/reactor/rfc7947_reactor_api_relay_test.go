@@ -52,6 +52,8 @@ func relayFixtureAS(t *testing.T, srcAS, dstAS uint32) (*reactorAPIAdapter, *Rec
 	src := makeRSPeer(t, "10.0.0.1", srcAS, ctx, ctxID)
 	src.recvCtxID = ctxID
 	dst := makeRSPeer(t, "10.0.0.2", dstAS, ctx, ctxID)
+	dst.settings.LocalAddress = netip.MustParseAddr("10.0.0.254")
+	dst.refreshForwardFacts()
 
 	var dispatched []fwdItem
 	var mu sync.Mutex
@@ -624,6 +626,10 @@ func relayAddPathContexts(t *testing.T, api *reactorAPIAdapter, srcAddPath, dest
 	src := peer("10.0.0.1")
 	_, srcID := registerContext(srcAddPath)
 	src.recvCtxID = srcID
+	srcSession := src.testInitialSync()
+	srcSession.setRecvCtxID(srcID)
+	srcSession.SetSourceID(src.SourceID())
+	captureRecoveryFixtureOrigin(t, src, srcSession, srcID)
 
 	dst := peer("10.0.0.2")
 	destCtx, destID := registerContext(destAddPath)
@@ -637,10 +643,16 @@ func relayAddPathContexts(t *testing.T, api *reactorAPIAdapter, srcAddPath, dest
 // storedAddPathRoute is storedIPv4Route from the fixture source with the RFC
 // 7911 fields an ADD-PATH source records: the bare prefix in NLRIHex, the
 // identifier beside it.
-func storedAddPathRoute(pathID uint32) rpc.StoredRoute {
+func storedAddPathRoute(src *Peer, pathID uint32) rpc.StoredRoute {
 	route := storedIPv4Route("10.0.0.1")
 	route.PathID = pathID
 	route.NLRIFraming = rpc.NLRIFramingPrefixOnly
+	route.SourceOwner = src.sourceOwner
+	route.SourcePolicyEpoch = src.sourcePolicyEpoch.Load()
+	if session := src.currentSession(); session != nil {
+		route.SourceReceipt = session.sourceReceiptID()
+		route.SourceConnectionID = session.connectionID
+	}
 	return route
 }
 
@@ -651,7 +663,11 @@ func storedAddPathRoute(pathID uint32) rpc.StoredRoute {
 // when ze relays that path's withdraw.
 func relayIngressPathID(t *testing.T, src *Peer, received uint32) uint32 {
 	t.Helper()
-	memo := fwdPathIDMemo{origin: fwdPathIDFixturePeerOrigin(src)}
+	origin := fwdPathIDFixturePeerOrigin(src)
+	if session := src.currentSession(); session != nil {
+		origin.connectionID = session.connectionID
+	}
+	memo := fwdPathIDMemo{origin: origin}
 	id, err := memo.framed(family.IPv4Unicast, received, relayStoredNLRIWire, false)
 	require.NoError(t, err)
 	return id
@@ -728,7 +744,7 @@ func TestRelayAddPathRoundTrip(t *testing.T) {
 			src := relayAddPathContexts(t, api, true, tc.destAddPath)
 
 			item := relayDispatchedItemFor(t, api, dispatched, mu, done,
-				storedAddPathRoute(sourcePathID))
+				storedAddPathRoute(src, sourcePathID))
 			nlri := relayDispatchedNLRI(t, &item)
 
 			if !tc.destAddPath {
@@ -764,8 +780,8 @@ func TestRelayMultiPathPreserved(t *testing.T) {
 	src := relayAddPathContexts(t, api, true, true)
 
 	routes := []rpc.StoredRoute{
-		storedAddPathRoute(1),
-		storedAddPathRoute(2),
+		storedAddPathRoute(src, 1),
+		storedAddPathRoute(src, 2),
 	}
 	require.NoError(t, api.RelayStoredRoute(netip.MustParseAddr("10.0.0.2"), routes, plugin.OperatorSender()))
 
@@ -938,7 +954,7 @@ func TestRelayAddPathZeroPathIDIsRelayed(t *testing.T) {
 	api, _, dispatched, mu, done := relayFixture(t)
 	src := relayAddPathContexts(t, api, true, true)
 
-	item := relayDispatchedItemFor(t, api, dispatched, mu, done, storedAddPathRoute(0))
+	item := relayDispatchedItemFor(t, api, dispatched, mu, done, storedAddPathRoute(src, 0))
 	nlri := relayDispatchedNLRI(t, &item)
 
 	require.Len(t, nlri, relayPathIDLen+4, "identifier 0 is encoded, not omitted")

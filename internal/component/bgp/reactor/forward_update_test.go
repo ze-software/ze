@@ -9,6 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -17,9 +20,6 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // forwardSourceAddr is the address every fixture below stores in
@@ -91,12 +91,13 @@ func TestForwardUpdate_DispatchesToPool(t *testing.T) {
 		ReceivedAt:   time.Now(),
 	}
 
+	src := makeForwardSourcePeer(t, ctx, ctxID)
+	fixtureForwardOrigin(t, update, src, src.testInitialSync())
+
 	// Create cache and add update
 	cache := newRecentUpdateCache(100)
 	cache.Add(update)
 	cache.Activate(42, 1) // 1 consumer (the plugin doing the forward)
-
-	src := makeForwardSourcePeer(t, ctx, ctxID)
 
 	// Create peer in Established state with matching context
 	peerAddr := netip.MustParseAddr("10.0.0.2")
@@ -191,13 +192,14 @@ func TestForwardUpdate_RetainRelease(t *testing.T) {
 		ReceivedAt:   time.Now(),
 	}
 
+	src := makeForwardSourcePeer(t, ctx, ctxID)
+	fixtureForwardOrigin(t, update, src, src.testInitialSync())
+
 	cache := newRecentUpdateCache(100)
 	cache.Add(update)
 	// 1 consumer plugin — Ack will decrement pendingConsumers to 0
 	// but Retain keeps the entry alive while workers are in flight
 	cache.Activate(100, 1)
-
-	src := makeForwardSourcePeer(t, ctx, ctxID)
 
 	// Two established peers → two Retain calls → two Release calls needed
 	peer1Settings := &PeerSettings{
@@ -301,15 +303,16 @@ func TestForwardUpdate_DispatchToStoppedPool(t *testing.T) {
 		ReceivedAt:   time.Now(),
 	}
 
-	cache := newRecentUpdateCache(100)
-	cache.Add(update)
-	cache.Activate(200, 1)
-
 	// Without the source peer this test still saw an error after the fail-closed
 	// guard landed -- but errForwardNoSource, never reaching the stopped pool it
 	// exists to exercise. It was passing for the wrong reason, which is why the
 	// fixture is fixed rather than left alone.
 	src := makeForwardSourcePeer(t, ctx, ctxID)
+	fixtureForwardOrigin(t, update, src, src.testInitialSync())
+
+	cache := newRecentUpdateCache(100)
+	cache.Add(update)
+	cache.Activate(200, 1)
 
 	peerSettings := &PeerSettings{
 		Connection: ConnectionBoth,
@@ -389,11 +392,12 @@ func TestForwardUpdate_ModsApplied(t *testing.T) {
 		ReceivedAt:   time.Now(),
 	}
 
+	src := makeForwardSourcePeer(t, ctx, ctxID)
+	fixtureForwardOrigin(t, update, src, src.testInitialSync())
+
 	cache := newRecentUpdateCache(100)
 	cache.Add(update)
 	cache.Activate(300, 1)
-
-	src := makeForwardSourcePeer(t, ctx, ctxID)
 
 	peerAddr := netip.MustParseAddr("10.0.0.2")
 	settings := &PeerSettings{
@@ -507,11 +511,12 @@ func TestForwardUpdate_ModHandlerPanic(t *testing.T) {
 		ReceivedAt:   time.Now(),
 	}
 
+	src := makeForwardSourcePeer(t, ctx, ctxID)
+	fixtureForwardOrigin(t, update, src, src.testInitialSync())
+
 	cache := newRecentUpdateCache(100)
 	cache.Add(update)
 	cache.Activate(301, 1)
-
-	src := makeForwardSourcePeer(t, ctx, ctxID)
 
 	peerAddr := netip.MustParseAddr("10.0.0.2")
 	settings := &PeerSettings{
@@ -604,11 +609,12 @@ func TestForwardUpdate_ModsNoHandler(t *testing.T) {
 		ReceivedAt:   time.Now(),
 	}
 
+	src := makeForwardSourcePeer(t, ctx, ctxID)
+	fixtureForwardOrigin(t, update, src, src.testInitialSync())
+
 	cache := newRecentUpdateCache(100)
 	cache.Add(update)
 	cache.Activate(302, 1)
-
-	src := makeForwardSourcePeer(t, ctx, ctxID)
 
 	peerAddr := netip.MustParseAddr("10.0.0.2")
 	settings := &PeerSettings{
@@ -677,13 +683,23 @@ func TestForwardUpdate_ModsNoHandler(t *testing.T) {
 // test can call RemovePeer (the real removal entry point) rather than reaching
 // into r.peers.
 type reflectionEnv struct {
-	r     *Reactor
-	api   *reactorAPIAdapter
-	cache *RecentUpdateCache
-	saw   chan struct{} // one token per dispatched item
+	r          *Reactor
+	api        *reactorAPIAdapter
+	cache      *RecentUpdateCache
+	src        *Peer
+	srcSession *Session
+	saw        chan struct{} // one token per dispatched item
 
 	mu         sync.Mutex
 	dispatched []fwdItem
+}
+
+func (e *reflectionEnv) cacheUpdate(t *testing.T, id uint64) {
+	t.Helper()
+	cacheReflectableUpdate(t, e.cache, id)
+	update, ok := e.cache.Get(id)
+	require.True(t, ok)
+	fixtureForwardOrigin(t, update, e.src, e.srcSession)
 }
 
 // items returns a snapshot of everything dispatched so far.
@@ -730,9 +746,15 @@ func reflectionFixture(t *testing.T) *reflectionEnv {
 	// half of why the guard requires an ESTABLISHED source and not merely a
 	// present one.
 	src.remoteRouterID.Store(srcOriginatorID)
+	src.refreshForwardFacts()
+	srcSession := src.testInitialSync()
 	dst := mkIBGP("10.0.0.2", dstClusterID, false) // non-client
 
-	env := &reflectionEnv{saw: make(chan struct{}, 8)}
+	env := &reflectionEnv{
+		src:        src,
+		srcSession: srcSession,
+		saw:        make(chan struct{}, 8),
+	}
 
 	pool := newFwdPool(func(_ fwdKey, in []fwdItem) {
 		env.mu.Lock()
@@ -848,7 +870,8 @@ func TestForwardUpdateRefusesAfterSourcePeerRemoved(t *testing.T) {
 	// Phase 1: source present. The forward must succeed AND reflect properly.
 	// Without this the phase-2 refusal would be indistinguishable from a fixture
 	// that could never forward at all.
-	cacheReflectableUpdate(t, env.cache, 1000)
+	env.cacheUpdate(t, 1000)
+	env.cacheUpdate(t, 1001)
 	require.NoError(t, env.api.ForwardUpdate(sel, 1000, "test-plugin", plugin.OperatorSender()))
 
 	select {
@@ -876,7 +899,6 @@ func TestForwardUpdateRefusesAfterSourcePeerRemoved(t *testing.T) {
 	// UPDATE is still cached and still forwardable by a plugin.
 	require.NoError(t, env.r.RemovePeer(netip.MustParseAddr(forwardSourceAddr)))
 
-	cacheReflectableUpdate(t, env.cache, 1001)
 	err = env.api.ForwardUpdate(sel, 1001, "test-plugin", plugin.OperatorSender())
 	require.ErrorIs(t, err, errForwardNoSource,
 		"a forward whose source peer is gone must fail closed, not forward unreflected")
@@ -901,6 +923,8 @@ func TestForwardUpdateRefusesAfterSourcePeerRemoved(t *testing.T) {
 func TestForwardUpdateRefusesUnestablishedSource(t *testing.T) {
 	env := reflectionFixture(t)
 
+	env.cacheUpdate(t, 1002)
+
 	src, found := env.r.findPeerByAddr(netip.MustParseAddr(forwardSourceAddr))
 	require.True(t, found, "fixture must have the source peer")
 	src.state.Store(int32(PeerStateConnecting))
@@ -910,7 +934,6 @@ func TestForwardUpdateRefusesUnestablishedSource(t *testing.T) {
 	sel, err := selector.Parse("*")
 	require.NoError(t, err)
 
-	cacheReflectableUpdate(t, env.cache, 1002)
 	require.ErrorIs(t, env.api.ForwardUpdate(sel, 1002, "test-plugin", plugin.OperatorSender()), errForwardNoSource,
 		"a source peer that is present but not established must fail closed")
 
@@ -932,7 +955,8 @@ func TestForwardUpdatesDirectRefusesAfterSourcePeerRemoved(t *testing.T) {
 	dests := []netip.AddrPort{netip.AddrPortFrom(netip.MustParseAddr("10.0.0.2"), 0)}
 
 	// Phase 1: source present -> the batch forwards.
-	cacheReflectableUpdate(t, env.cache, 2000)
+	env.cacheUpdate(t, 2000)
+	env.cacheUpdate(t, 2001)
 	require.NoError(t, env.api.ForwardUpdatesDirect([]uint64{2000}, dests, "rs", plugin.OperatorSender()))
 	select {
 	case <-env.saw:
@@ -943,7 +967,6 @@ func TestForwardUpdatesDirectRefusesAfterSourcePeerRemoved(t *testing.T) {
 	// Phase 2: source removed -> the batch refuses that id.
 	require.NoError(t, env.r.RemovePeer(netip.MustParseAddr(forwardSourceAddr)))
 
-	cacheReflectableUpdate(t, env.cache, 2001)
 	require.NoError(t, env.api.ForwardUpdatesDirect([]uint64{2001}, dests, "rs", plugin.OperatorSender()),
 		"the batch contract keeps per-id outcomes out of the return value")
 
@@ -987,16 +1010,18 @@ func fastpathSetup(t *testing.T, nPeers int, msgID uint64) (
 		ReceivedAt:   time.Now(),
 	}
 
+	// The source peer is in the reactor but never in the returned destination
+	// slice: ForwardUpdatesDirect excludes it per id, and the callers below build
+	// their destination list from `peers`.
+	src := makeForwardSourcePeer(t, ctx, ctxID)
+	fixtureForwardOrigin(t, update, src, src.testInitialSync())
+
 	cache = newRecentUpdateCache(100)
 	cache.RegisterConsumer("rs")
 	cache.setConsumerUnordered("rs")
 	cache.Add(update)
 	cache.Activate(msgID, 1)
 
-	// The source peer is in the reactor but never in the returned destination
-	// slice: ForwardUpdatesDirect excludes it per id, and the callers below build
-	// their destination list from `peers`.
-	src := makeForwardSourcePeer(t, ctx, ctxID)
 	peersMap := map[netip.AddrPort]*Peer{src.Settings().PeerKey(): src}
 	peers = make([]*Peer, 0, nPeers)
 	for i := range nPeers {
@@ -1109,14 +1134,15 @@ func TestForwardUpdateDirectCopyOnModify(t *testing.T) {
 		ReceivedAt:   time.Now(),
 	}
 
+	src := makeForwardSourcePeer(t, ctx, ctxID)
+	fixtureForwardOrigin(t, update, src, src.testInitialSync())
+
 	cache := newRecentUpdateCache(100)
 	defer cache.Stop()
 	cache.RegisterConsumer("rs")
 	cache.setConsumerUnordered("rs")
 	cache.Add(update)
 	cache.Activate(msgID, 1)
-
-	src := makeForwardSourcePeer(t, ctx, ctxID)
 
 	mkPeer := func(addr string, rid uint32) *Peer {
 		s := &PeerSettings{
@@ -1211,6 +1237,22 @@ func TestForwardUpdateDirectCopyOnModify(t *testing.T) {
 	assert.Equal(t, payload, itemB.rawBodies[0], "peerB rawBody should be the unchanged source")
 }
 
+func fastpathCacheUpdate(t testing.TB, adapter *reactorAPIAdapter, cache *RecentUpdateCache, id uint64, ctxID bgpctx.ContextID) {
+	t.Helper()
+	src, found := adapter.r.findPeerByAddr(netip.MustParseAddr(forwardSourceAddr))
+	require.True(t, found)
+	wu := wireu.NewWireUpdate([]byte{0, 0, 0, 0}, ctxID)
+	wu.SetMessageID(id)
+	update := &ReceivedUpdate{
+		WireUpdate:   wu,
+		SourcePeerIP: netip.MustParseAddr(forwardSourceAddr),
+		ReceivedAt:   time.Now(),
+	}
+	fixtureForwardOrigin(t, update, src, src.testInitialSync())
+	cache.Add(update)
+	cache.Activate(id, 1)
+}
+
 // TestForwardUpdateDirectOrdering verifies AC-4 through the fast path: N
 // UPDATEs dispatched in a single ForwardUpdatesDirect call arrive on the
 // destination worker in sender order.
@@ -1224,15 +1266,7 @@ func TestForwardUpdateDirectOrdering(t *testing.T) {
 
 	// Add N-1 additional cached updates (500 is already in the setup).
 	for i := 1; i < n; i++ {
-		id := uint64(500 + i)
-		wu := wireu.NewWireUpdate([]byte{0, 0, 0, 0}, peers[0].sendCtxID)
-		wu.SetMessageID(id)
-		cache.Add(&ReceivedUpdate{
-			WireUpdate:   wu,
-			SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
-			ReceivedAt:   time.Now(),
-		})
-		cache.Activate(id, 1)
+		fastpathCacheUpdate(t, adapter, cache, uint64(500+i), peers[0].sendCtxID)
 	}
 
 	var mu sync.Mutex
@@ -1312,13 +1346,7 @@ func TestForwardBackpressureThroughFastPath(t *testing.T) {
 
 	// Second call's item cannot fit in the pool channel -> overflow path.
 	// Add a second cached update for id=601.
-	wu := wireu.NewWireUpdate([]byte{0, 0, 0, 0}, peers[0].sendCtxID)
-	wu.SetMessageID(601)
-	cache.Add(&ReceivedUpdate{
-		WireUpdate: wu, SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
-		ReceivedAt: time.Now(),
-	})
-	cache.Activate(601, 1)
+	fastpathCacheUpdate(t, adapter, cache, 601, peers[0].sendCtxID)
 
 	err = adapter.ForwardUpdatesDirect([]uint64{601}, dests, "rs", plugin.OperatorSender())
 	require.NoError(t, err, "fast path must not drop on full channel -- overflow path")
@@ -1735,10 +1763,11 @@ func TestPerDestinationModificationIsolation(t *testing.T) {
 		ReceivedAt:   time.Now(),
 	}
 
+	src := makeForwardSourcePeer(t, ctx, ctxID)
+	fixtureForwardOrigin(t, update, src, src.testInitialSync())
+
 	cache := newRecentUpdateCache(100)
 	cache.Add(update)
-
-	src := makeForwardSourcePeer(t, ctx, ctxID)
 
 	// Three destinations. markerFor is the policy: two distinct values, and one
 	// destination that asks for nothing at all.

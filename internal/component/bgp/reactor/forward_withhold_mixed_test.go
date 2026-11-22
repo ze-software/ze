@@ -169,7 +169,7 @@ func mixedForward(t *testing.T, run mixedRun, payload []byte, dests ...*Peer) ma
 	originalTargets := make(map[rpc.ForwardTarget]*Peer, len(dests))
 	peerMap := make(map[netip.AddrPort]*Peer, len(dests)+1)
 	for _, d := range dests {
-		originalTargets[fixtureForwardTarget(t, d)] = d
+		originalTargets[fixtureForwardTargetForPool(t, d)] = d
 		key := fwdKey{peerAddr: d.Settings().PeerKey()}
 		pool.registerOutgoingPool(key, 4096)
 		peerMap[key.peerAddr] = d

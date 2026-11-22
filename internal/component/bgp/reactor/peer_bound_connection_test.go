@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/bgp/format"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -27,7 +28,11 @@ type boundConnectionCapture struct {
 
 func (capture *boundConnectionCapture) OnPeerBound(info *plugin.PeerInfo, negotiated any, stateNames, negotiatedNames []string) {
 	capture.info = append(capture.info, *info)
-	capture.negotiated = append(capture.negotiated, negotiated.(format.DecodedNegotiated))
+	decoded, ok := negotiated.(format.DecodedNegotiated)
+	if !ok {
+		panic("BUG: OnPeerBound negotiated payload is not format.DecodedNegotiated")
+	}
+	capture.negotiated = append(capture.negotiated, decoded)
 	capture.stateNames = append(capture.stateNames, append([]string(nil), stateNames...))
 	capture.negotiatedNames = append(capture.negotiatedNames, append([]string(nil), negotiatedNames...))
 }

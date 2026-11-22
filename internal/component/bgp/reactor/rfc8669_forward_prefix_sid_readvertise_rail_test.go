@@ -19,21 +19,22 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // readvertisePeerWithPipe returns an ESTABLISHED external peer whose session
@@ -49,11 +50,25 @@ func readvertisePeerWithPipe(t *testing.T, addr string, propagatePrefixSID bool)
 	settings.PropagateSRv6PrefixSID = propagatePrefixSID
 	peer := NewPeer(settings)
 	peer.state.Store(int32(PeerStateEstablished))
+	sendCtx := bgpctx.EncodingContextForASN4(true)
+	sendCtxID, err := bgpctx.Registry.Register(sendCtx)
+	require.NoError(t, err)
+	peer.sendCtx.Store(sendCtx)
+	peer.sendCtxID = sendCtxID
 	peer.negotiated.Store(&NegotiatedCapabilities{
+		ASN4:     true,
 		families: map[family.Family]bool{family.IPv4Unicast: true},
 	})
 
 	session := NewSession(settings)
+	caps := []capability.Capability{
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
+		&capability.ASN4{ASN: settings.LocalAS},
+	}
+	session.negotiated = capability.Negotiate(caps, caps, capability.PeerIdentity{
+		LocalASN: settings.LocalAS, PeerASN: settings.PeerAS, Internal: settings.IsIBGP(),
+	})
+	session.setSendCtxID(sendCtxID)
 	require.NoError(t, session.fsm.Event(fsm.EventManualStart))
 	require.NoError(t, session.fsm.Event(fsm.EventTCPConnectionConfirmed))
 	require.NoError(t, session.fsm.Event(fsm.EventBGPOpen))

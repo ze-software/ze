@@ -56,7 +56,14 @@ func (o *apiStateObserver) OnPeerEstablished(peer *Peer) {
 func establishedPeerInfo(peer *Peer) plugin.PeerInfo {
 	session := peer.currentSession()
 	info := boundPeerInfo(peer, session)
-	if session != nil {
+	if session == nil {
+		return info
+	}
+	if session.initialSyncEOROwed.Load() {
+		info.InitialReplay = session.initialReplay.Load()
+		return info
+	}
+	if peer.initialUpdateOwed.Load() {
 		info.InitialReplay = session.initialReplay.Load()
 	}
 	return info

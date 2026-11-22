@@ -82,7 +82,7 @@ func TestLLGREORWriterKeepsRefreshedRoute(t *testing.T) {
 				ConnectionID: originalDestination.connectionID, DestinationSession: destinationSession,
 				EventType: rpc.EventKindState, State: rpc.SessionStateUp, InitialReplay: token,
 			}}))
-			readyProducerAwait(t, api, owner, token, false)
+			readyProducerAwait(t, api, token, false)
 
 			// The callback returns immediately, like asynchronous sent delivery.
 			// Snapshot owns every borrowed byte before the writer reuses its body.
@@ -296,11 +296,16 @@ type llgrWriterRoute struct {
 
 func llgrWriterRoutes(t *testing.T, proc *process.Process, direction, peer string) []llgrWriterRoute {
 	t.Helper()
-	data := llgrWriterCommand(t, proc, "show bgp rib", direction, "peer", peer)
+	out, err := proc.Bridge().DispatchCommand(t.Context(), "show bgp rib | "+direction+" | peer "+peer)
+	require.NoError(t, err)
+	require.NotNil(t, out)
+	defer out.TransportComplete()
+	require.Equal(t, rpc.StatusDone, out.Status, out.Error)
+	require.Empty(t, out.Error)
 	var result struct {
 		Routes []llgrWriterRoute `json:"routes"`
 	}
-	require.NoError(t, json.Unmarshal(data, &result))
+	require.NoError(t, json.Unmarshal(out.Data, &result))
 	return result.Routes
 }
 

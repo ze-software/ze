@@ -5,12 +5,12 @@ package reactor
 import (
 	"context"
 	"errors"
-	"github.com/ze-software/ze/internal/core/family"
 	"slices"
-	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -75,7 +75,11 @@ func (a *reactorAPIAdapter) SendBoundRefresh(ctx context.Context, sel *selector.
 	if ordinary {
 		deadline, ok := ctx.Deadline()
 		if !ok {
-			deadline = time.Now().Add(rpc.CancellableRequestTimeout)
+			clk := a.r.clock
+			if clk == nil {
+				clk = clock.RealClock{}
+			}
+			deadline = clk.Now().Add(rpc.CancellableRequestTimeout)
 		}
 		request, err := plugin.NewSelectedRefresh(rpc.SelectRefreshInput{Destination: peer.addrString,
 			PeerOwner: owner, DestinationSession: replay, Family: family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)}.String(),
@@ -132,7 +136,7 @@ func (s *Session) sendBoundMarker(ctx context.Context, marker *message.RouteRefr
 	if err := owner.Current(); err != nil {
 		return err
 	}
-	fam := family.Family{AFI: family.AFI(marker.AFI), SAFI: family.SAFI(marker.SAFI)}
+	fam := family.Family{AFI: marker.AFI, SAFI: marker.SAFI}
 	if err := s.selectedRefreshOwner(fam, owner); err != nil {
 		return err
 	}

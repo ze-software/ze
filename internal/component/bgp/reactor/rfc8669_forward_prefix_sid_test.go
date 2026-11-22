@@ -17,15 +17,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 const prefixSIDCodeByte = byte(attribute.AttrPrefixSID)
@@ -70,6 +70,7 @@ func prefixSIDPeer(addr string, peerAS, routerID uint32, propagate, rsClient boo
 		LocalAS:                65000,
 		PeerAS:                 peerAS,
 		RouterID:               routerID,
+		NextHopMode:            NextHopUnchanged,
 		RSFastPath:             true,
 		RSClient:               rsClient,
 		PropagateSRv6PrefixSID: propagate,

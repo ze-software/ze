@@ -123,7 +123,7 @@ func (f *selectedWriterFixture) route(t *testing.T, revision uint64, sourceAddre
 	contextID, err := bgpctx.Registry.Register(bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{family.IPv4Unicast: sourceAddPath}))
 	require.NoError(t, err)
 	source.ctxID = contextID
-	facts, err := newSourceReceiptFacts(source, peer.newSession().connectionID)
+	facts, err := newSourceReceiptFacts(&source, peer.newSession().connectionID)
 	require.NoError(t, err)
 	live, err := sourceReceipts.issue(facts)
 	require.NoError(t, err)

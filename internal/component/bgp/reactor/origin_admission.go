@@ -166,6 +166,7 @@ func originAdmissionBuildMatches(build *originBuildValue, snapshot rpc.OriginAdm
 		value := raw[header : header+int(length)]
 		// This adapter emits exactly ORIGIN, optional MED and communities.
 		// Explicit API and other native-family rails never enter this branch.
+		//exhaustive:ignore
 		switch code {
 		case attribute.AttrOrigin:
 			if origin {

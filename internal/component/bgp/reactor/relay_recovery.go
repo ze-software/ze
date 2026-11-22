@@ -960,7 +960,7 @@ func (a *reactorAPIAdapter) queueRecovery(destination *Peer, route *rpc.StoredRo
 		panic("BUG: recovery source receipt returned no cut state")
 	}
 	var spans []relayAttrSpan
-	update, id, _, err := a.buildRelayUpdate([]rpc.StoredRoute{*route}, source, &spans)
+	update, id, _, err := a.buildRelayUpdate([]rpc.StoredRoute{*route}, &source, &spans)
 	if err != nil {
 		return err
 	}
@@ -976,7 +976,7 @@ func (a *reactorAPIAdapter) queueRecovery(destination *Peer, route *rpc.StoredRo
 // Identifier can be used to identify a route advertised by a BGP speaker.".
 func (a *reactorAPIAdapter) queueRecoveryWithdrawal(destination *Peer, route *rpc.StoredRoute, fam family.Family, admission *recoveryAdmission, demotion bool) error {
 	source := relaySource{addr: destination.Settings().Address, ctxID: destination.sendContextID()}
-	update, id, _, err := a.buildRelayWithdrawal(route, source, fam, 0)
+	update, id, _, err := a.buildRelayWithdrawal(route, &source, fam, 0)
 	if err != nil {
 		return err
 	}

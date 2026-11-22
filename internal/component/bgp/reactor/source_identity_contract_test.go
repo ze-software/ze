@@ -69,9 +69,9 @@ func TestReceivedUpdateCarriesExactStableSourceOwner(t *testing.T) {
 func TestSourceReceiptFactsRequireStablePeerOwner(t *testing.T) {
 	peer, facts := sourceReceiptFixture(t)
 	require.NotZero(t, peer.sourceOwner)
-	_, err := newSourceReceiptFacts(facts.source, facts.connectionID)
+	_, err := newSourceReceiptFacts(&facts.source, facts.connectionID)
 	require.NoError(t, err)
 	peer.sourceOwner = 0 // Deliberately corrupt this isolated, transport-free fixture.
-	_, err = newSourceReceiptFacts(facts.source, facts.connectionID)
+	_, err = newSourceReceiptFacts(&facts.source, facts.connectionID)
 	require.Error(t, err)
 }

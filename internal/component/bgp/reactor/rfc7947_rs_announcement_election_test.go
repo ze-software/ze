@@ -50,7 +50,20 @@ func announcementLiveRouter(t *testing.T, fastPath bool) *announcementLive {
 // rs, bgp-rs is not loaded and bgp-adj-rib-in replays to C itself.
 func announcementLiveLate(t *testing.T, fastPath, rs bool, api func(*reactorAPIAdapter) plugin.ReactorLifecycle) *announcementLive {
 	t.Helper()
-	peers := lowLiveStart(t, lowLiveOptions{api: api, withoutRS: !rs}, acceptingPolicies(t, announcementSettings(fastPath, rs)...)...)
+	settings := acceptingPolicies(t, announcementSettings(fastPath, rs)...)
+	if !rs {
+		// Without bgp-rs this fixture exercises bgp-adj-rib-in's own peer-up
+		// relay; keep bgp-rib receive-only so it serves recovery elections
+		// without claiming OrdinaryReplayOwned on the client.
+		for _, setting := range settings {
+			require.NoError(t, parseProcessBindingsFromTree(map[string]any{
+				"attach": map[string]any{"process": map[string]any{
+					"bgp-rib": map[string]any{"receive": "update state refresh"},
+				}},
+			}, setting))
+		}
+	}
+	peers := lowLiveStart(t, lowLiveOptions{api: api, withoutRS: !rs}, settings...)
 	run := &announcementLive{client: peers[3]}
 	for i, peer := range peers[:3] {
 		run.peers = append(run.peers, lowLiveConnect(t, peer, 0x0a000001+uint32(i)))
@@ -198,7 +211,7 @@ func announcementRIBCandidates(t *testing.T, destination *Peer, prefix netip.Pre
 	t.Helper()
 	owner := ribevents.RecoveryProvider()
 	require.NotNil(t, owner, "bgp-rib published no recovery owner")
-	outcomes, err := owner.Lookup(ribevents.RecoveryRequest{Destination: destination.Settings().Address, Family: family.IPv4Unicast,
+	outcomes, err := owner.Lookup(ribevents.RecoveryRequest{Destination: destination.Settings().Address, DestinationOwner: destination.sourceOwner, Family: family.IPv4Unicast,
 		Keys: []ribevents.RecoveryKey{{NLRI: ownershipLiveNLRI([]netip.Prefix{prefix})}}})
 	require.NoError(t, err)
 	require.Len(t, outcomes, 1)
@@ -426,10 +439,7 @@ type replayRaceAdapter struct {
 	relayed    []string
 }
 
-func (a *replayRaceAdapter) RelayStoredRoute(destination netip.Addr, routes []rpc.StoredRoute, sender plugin.Sender) error {
-	if destination != a.client {
-		return a.reactorAPIAdapter.RelayStoredRoute(destination, routes, sender)
-	}
+func (a *replayRaceAdapter) orderRelayRoutes(routes []rpc.StoredRoute) []rpc.StoredRoute {
 	a.hold(false)
 	a.mu.Lock()
 	if a.relayFirst != "" {
@@ -442,7 +452,23 @@ func (a *replayRaceAdapter) RelayStoredRoute(destination netip.Addr, routes []rp
 		a.relayed = append(a.relayed, routes[i].SourcePeer)
 	}
 	a.mu.Unlock()
+	return routes
+}
+
+func (a *replayRaceAdapter) RelayStoredRoute(destination netip.Addr, routes []rpc.StoredRoute, sender plugin.Sender) error {
+	if destination != a.client {
+		return a.reactorAPIAdapter.RelayStoredRoute(destination, routes, sender)
+	}
+	routes = a.orderRelayRoutes(routes)
 	return a.reactorAPIAdapter.RelayStoredRoute(destination, routes, sender)
+}
+
+func (a *replayRaceAdapter) RelayStoredRouteBound(ctx context.Context, destination netip.Addr, routes []rpc.StoredRoute, sender plugin.Sender, owner plugin.SelectedOwner) error {
+	if destination != a.client {
+		return a.reactorAPIAdapter.RelayStoredRouteBound(ctx, destination, routes, sender, owner)
+	}
+	routes = a.orderRelayRoutes(routes)
+	return a.reactorAPIAdapter.RelayStoredRouteBound(ctx, destination, routes, sender, owner)
 }
 
 // boolRank orders false before true.

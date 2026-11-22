@@ -3,9 +3,10 @@
 package reactor
 
 import (
+	"time"
+
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
-	"time"
 )
 
 const codeForwardPathOrigin = "doctor-bgp-forward-path-origin"

@@ -5,12 +5,14 @@ package reactor
 import (
 	"context"
 	"errors"
-	"github.com/ze-software/ze/internal/component/plugin"
-	"github.com/ze-software/ze/internal/core/bgp/ribevents"
-	"github.com/ze-software/ze/internal/core/family"
-	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"net/netip"
 	"time"
+
+	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/bgp/ribevents"
+	"github.com/ze-software/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // coldBoundRelaySource runs after exact original facts and before dispatch or
@@ -27,11 +29,11 @@ func (a *reactorAPIAdapter) coldBoundRelaySource(ctx context.Context, address ne
 	} // Explicit operator-local input.
 	peer := source.info.peer
 	if !forwardSourceCurrent(peer, source.generation) {
-		return a.retainedColdRelaySource(source, bound)
+		return a.retainedColdRelaySource(&source, bound)
 	}
 	cut := peer.receiveCut()
 	if !forwardSourceCurrent(peer, source.generation) {
-		return a.retainedColdRelaySource(source, bound)
+		return a.retainedColdRelaySource(&source, bound)
 	}
 	if err := cut.wait(ctx); err != nil {
 		return relaySource{}, err
@@ -44,7 +46,7 @@ func (a *reactorAPIAdapter) coldBoundRelaySource(ctx context.Context, address ne
 		return relaySource{}, errRelayOriginalSource
 	}
 	if !forwardSourceCurrent(peer, source.generation) {
-		return a.retainedColdRelaySource(source, bound)
+		return a.retainedColdRelaySource(&source, bound)
 	}
 	if cut.state(peer) != receiveCutCurrent {
 		return relaySource{}, errReceivePublicationStopped
@@ -66,12 +68,16 @@ func (a *reactorAPIAdapter) coldBoundRelaySource(ctx context.Context, address ne
 		return relaySource{}, errors.New("cold stored relay has no original received message position; preserve its received message identity")
 	}
 	key := ribevents.ValidationRoute{Peer: address, PeerOwner: route.SourceOwner, ConnectionID: route.SourceConnectionID, Family: fam}
+	clk := a.r.clock
+	if clk == nil {
+		clk = clock.RealClock{}
+	}
 	for {
 		if err := ctx.Err(); err != nil {
 			return relaySource{}, err
 		}
 		if !forwardSourceCurrent(peer, source.generation) {
-			return a.retainedColdRelaySource(source, bound)
+			return a.retainedColdRelaySource(&source, bound)
 		}
 		pending := false
 		if ribevents.IsFlowSpec(fam) {
@@ -92,17 +98,17 @@ func (a *reactorAPIAdapter) coldBoundRelaySource(ctx context.Context, address ne
 		}
 		// Known lag is a finite read-only retry, never route absence or a sticky
 		// application failure. The ordinary validator still decides actual NLRIs.
-		timer := time.NewTimer(20 * time.Millisecond)
+		timer := clk.NewTimer(20 * time.Millisecond)
 		select {
 		case <-ctx.Done():
 			timer.Stop()
 			return relaySource{}, ctx.Err()
-		case <-timer.C:
+		case <-timer.C():
 		}
 	}
 }
 
-func (a *reactorAPIAdapter) retainedColdRelaySource(source relaySource, bound *boundForwardRequest) (relaySource, error) {
+func (a *reactorAPIAdapter) retainedColdRelaySource(source *relaySource, bound *boundForwardRequest) (relaySource, error) {
 	if bound == nil {
 		return relaySource{}, errRelayNoSource
 	}
@@ -120,5 +126,5 @@ func (a *reactorAPIAdapter) retainedColdRelaySource(source relaySource, bound *b
 	if !retained {
 		return relaySource{}, errors.New("original cold relay source ended without retained membership; use its existing retained lease before replay")
 	}
-	return source, nil
+	return *source, nil
 }

@@ -667,7 +667,13 @@ func TestRFC8212StoredReplayEpochFences(t *testing.T) {
 			}
 			switch transition {
 			case "reconnect":
-				f.source.advanceForwardGeneration()
+				next := sourceSessionFixture(t, f.source)
+				next.setRecvCtxID(f.ctxID)
+				next.SetSourceID(f.source.SourceID())
+				if err := next.captureSourceReceipt(f.source, &sourceReceipts); err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(next.closeSourceReceipt)
 			case "policy":
 				f.source.advanceSourcePolicyEpoch()
 			case "replacement":
@@ -721,6 +727,7 @@ func rfc8212EpochAdmit(t *testing.T, f *ownershipRailFixture, body []byte) *Rece
 	if !ok {
 		t.Fatal("admitted UPDATE disappeared before dispatch")
 	}
+	fixtureForwardOrigin(t, cached, f.source, f.source.testInitialSync())
 	return cached
 }
 

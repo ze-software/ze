@@ -466,7 +466,7 @@ func TestRecoveryParserRetainsNativeAddPathAndPrunesSent(t *testing.T) {
 		require.NoError(t, command.Process.DrainEventsApplied(ctx))
 		output, err := command.Process.Conn().SendExecuteCommand(ctx, &rpc.ExecuteCommandInput{
 			Serial: "parser-recovery-sent", Command: "show bgp rib", Peer: "*",
-			Args: []string{"sent", "peer", destination.peer.Settings().Address.String(), "json"},
+			Pipe: []rpc.PipeOperation{{Name: "sent"}, {Name: "peer", Args: []string{destination.peer.Settings().Address.String()}}},
 		})
 		require.NoError(t, err)
 		require.NotNil(t, output)
@@ -937,13 +937,4 @@ func recoveryWithdrawAnswer(request ribevents.RecoveryRequest) []ribevents.Recov
 		outcomes[i] = ribevents.RecoveryOutcome{NLRI: request.Keys[i].NLRI, Withdraw: true}
 	}
 	return outcomes
-}
-
-// recoveryDepartureRequest names one departed source's keys at a destination.
-func recoveryDepartureRequest(source, destination *Peer, fam family.Family, keys ...[]byte) ribevents.RecoveryRequest {
-	request := ribevents.RecoveryRequest{Destination: destination.Settings().Address, DestinationOwner: destination.sourceOwner, Family: fam}
-	for _, raw := range keys {
-		request.Keys = append(request.Keys, ribevents.RecoveryKey{NLRI: raw, Excluded: []uint64{source.sourceOwner}})
-	}
-	return request
 }

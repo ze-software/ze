@@ -60,6 +60,14 @@ func incomingReadPools(t *testing.T) (*incomingReadPoolProbe, *incomingReadPoolP
 
 func incomingReadPoolExhaustExtended(t *testing.T) func() {
 	t.Helper()
+	// Prime one standard 4K block before capping the shared budget so the
+	// incoming candidate can still read its standard-size OPEN before blocking
+	// on the exhausted extended pool for the post-OPEN KEEPALIVE.
+	std := bufMuxStd.Get()
+	if std.Buf == nil {
+		t.Fatal("standard read pool refused its initial handle")
+	}
+	bufMuxStd.Return(std)
 	budget := bufMuxExt.mux.budget
 	previous := budget.maxBytes.Load()
 	held := []BufHandle{bufMuxExt.Get()}

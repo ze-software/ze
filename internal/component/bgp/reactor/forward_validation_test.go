@@ -35,6 +35,9 @@ func validationForwardFixture(t *testing.T, addPath bool) (*reactorAPIAdapter, *
 	}
 	src := makeRSPeer(t, "10.0.0.1", 65001, ctx, ctxID)
 	src.recvCtxID = ctxID
+	srcSession := src.testInitialSync()
+	srcSession.SetSourceID(src.SourceID())
+	captureRecoveryFixtureOrigin(t, src, srcSession, ctxID)
 	dst := makeRSPeer(t, "10.0.0.2", 65002, ctx, ctxID)
 	// The capture pool still needs the destination Session identity carried by
 	// dispatch receipts across validation partitions.
@@ -101,7 +104,7 @@ func validationParts(t *testing.T, bodies [][]byte) (announced, withdrawn []byte
 // attributes without a replacement received UPDATE.
 func TestForwardValidationRetainedRecovery(t *testing.T) {
 	api, src, dst, capture := validationForwardFixture(t, true)
-	route := storedAddPathRoute(7)
+	route := storedAddPathRoute(src, 7)
 	attrs, err := hex.DecodeString(route.AttrHex)
 	if err != nil {
 		t.Fatal(err)
@@ -111,12 +114,12 @@ func TestForwardValidationRetainedRecovery(t *testing.T) {
 	payload := buildUpdatePayload(attrs, nlri)
 	before := bytes.Clone(payload)
 	update, id := newLeakTestUpdate(t, api.r.recentUpdates, payload, src.recvCtxID)
-	update.WireUpdate.SetSourceID(src.SourceID())
+	fixtureForwardOrigin(t, update, src, src.currentSession())
 	route.MsgID = id
 	eligible := false
 	present := true
 	generation := id
-	key := ribevents.ValidationRoute{Peer: src.Settings().Address, Family: family.IPv4Unicast, Prefix: netip.MustParsePrefix("10.0.0.0/24"), PathID: 7}
+	key := ribevents.ValidationRoute{Peer: src.Settings().Address, PeerOwner: src.sourceOwner, ConnectionID: src.currentSession().connectionID, Family: family.IPv4Unicast, Prefix: netip.MustParsePrefix("10.0.0.0/24"), PathID: 7}
 	ribevents.RegisterValidationLookup(func(got ribevents.ValidationRoute, msgID uint64) bool {
 		return got == key && eligible && (msgID == 0 || msgID == generation)
 	}, func(got ribevents.ValidationRoute) bool {
@@ -200,7 +203,7 @@ func TestForwardValidationMixedNLRI(t *testing.T) {
 	payload := buildUpdatePayload(attrs, []byte{24, 10, 0, 0, 24, 10, 0, 1})
 	payload = append([]byte{0, 4, 24, 10, 0, 2}, payload[2:]...)
 	update, id := newLeakTestUpdate(t, api.r.recentUpdates, payload, src.recvCtxID)
-	update.WireUpdate.SetSourceID(src.SourceID())
+	fixtureForwardOrigin(t, update, src, src.currentSession())
 	ribevents.RegisterValidationLookup(func(key ribevents.ValidationRoute, generation uint64) bool {
 		return key.Prefix == netip.MustParsePrefix("10.0.0.0/24") && (generation == 0 || generation == id)
 	}, nil)
