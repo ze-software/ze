@@ -76,6 +76,9 @@ func (rr *routeReflector) targets(source peerIdentity, fam family.Family) []peer
 		if state.DestinationSession == 0 {
 			continue
 		}
+		if state.UpdateSendDenied {
+			continue
+		}
 		if fam.AFI != 0 {
 			if !state.Families[fam] {
 				continue
@@ -97,6 +100,9 @@ func (rr *routeReflector) targetCurrent(target peerTarget) bool {
 		return false
 	}
 	if state.DestinationSession != target.session {
+		return false
+	}
+	if state.UpdateSendDenied {
 		return false
 	}
 	return state.ReplayGen == target.generation

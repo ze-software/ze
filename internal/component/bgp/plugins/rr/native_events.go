@@ -44,6 +44,7 @@ func (rr *routeReflector) textState(fields []string) error {
 	reason := ""
 	seenReason := false
 	seenFlags := make(map[string]bool)
+	updateSendDenied := false
 	for index := 7; index < len(fields); {
 		key := fields[index]
 		if key == "selected-destination" || key == "ordinary-replay-owned" || key == "update-send-denied" {
@@ -53,8 +54,12 @@ func (rr *routeReflector) textState(fields []string) error {
 			if index+1 == len(fields) {
 				return errors.New("bgp-rr: state flag has no value")
 			}
-			if _, err := strconv.ParseBool(fields[index+1]); err != nil {
+			parsedBool, err := strconv.ParseBool(fields[index+1])
+			if err != nil {
 				return err
+			}
+			if key == "update-send-denied" {
+				updateSendDenied = parsedBool
 			}
 			seenFlags[key] = true
 			index += 2
@@ -97,7 +102,7 @@ func (rr *routeReflector) textState(fields []string) error {
 		return errors.New("bgp-rr: unknown state value")
 	}
 	return rr.handleStructuredState(&rpc.StructuredEvent{PeerAddress: fields[1], PeerOwner: values["peer-owner"], ConnectionID: values["connection-id"],
-		DestinationSession: values["destination-session"], SessionGeneration: values["session-generation"], InitialReplay: values["initial-replay"], State: kind, Reason: reason})
+		DestinationSession: values["destination-session"], SessionGeneration: values["session-generation"], InitialReplay: values["initial-replay"], State: kind, Reason: reason, UpdateSendDenied: updateSendDenied})
 }
 
 func (rr *routeReflector) textOpen(fields []string) error {

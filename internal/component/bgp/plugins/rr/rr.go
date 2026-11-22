@@ -110,6 +110,7 @@ type peerState struct {
 	RetainPending       bool
 	ASN                 uint32
 	Up                  bool
+	UpdateSendDenied    bool
 	ReplayGen           uint64 // Incremented on each state-up, guards stale goroutines
 	Families            map[family.Family]bool
 	Capabilities        map[string]bool
@@ -493,6 +494,7 @@ func (rr *routeReflector) handleStructuredState(se *rpc.StructuredEvent) error {
 			return nil
 		}
 		peer.Up = true
+		peer.UpdateSendDenied = se.UpdateSendDenied
 		peer.DestinationSession = se.DestinationSession
 		peer.PublishedGeneration = se.SessionGeneration
 		if asn, known := se.PeerAS.ASN(); known {
@@ -504,6 +506,10 @@ func (rr *routeReflector) handleStructuredState(se *rpc.StructuredEvent) error {
 			return err
 		}
 		if se.Reason == rpc.ReasonAttached {
+			rr.mu.Unlock()
+			return nil
+		}
+		if se.UpdateSendDenied {
 			rr.mu.Unlock()
 			return nil
 		}
