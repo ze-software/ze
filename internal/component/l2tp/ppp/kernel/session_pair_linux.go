@@ -125,8 +125,18 @@ func (pair *claimedSessionPair) withRetainedOriginalFiles(operation func(*os.Fil
 // an externally held lifecycle lock through an unbounded signal retry loop.
 func originalPairLive(channelFD, unitFD int) error {
 	fds := [2]unix.PollFd{{Fd: int32(channelFD), Events: unix.POLLIN}, {Fd: int32(unitFD), Events: unix.POLLIN}}
-	if _, err := unix.Poll(fds[:], 0); err != nil {
-		return err
+	// A signal (the Go runtime's preemption among them) interrupts even a
+	// zero-timeout poll. EINTR says nothing about the pair, so ask again
+	// rather than fail the unit operation that borrows it.
+	for {
+		_, err := unix.Poll(fds[:], 0)
+		if errors.Is(err, unix.EINTR) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		break
 	}
 	for _, fd := range fds {
 		if fd.Revents&unix.POLLNVAL != 0 {
