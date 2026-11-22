@@ -20,6 +20,9 @@ type supplierNamespaceFixture struct {
 	creator  *UnitCreator
 	ops      pppSetupNamespaceOps
 	trace    []string
+	// name is the interface name every setup call passes. The default creator
+	// refuses any other, proving the name crosses the namespace worker intact.
+	name string
 }
 
 func newSupplierNamespaceFixture(t *testing.T) *supplierNamespaceFixture {
@@ -38,14 +41,18 @@ func newSupplierNamespaceFixture(t *testing.T) *supplierNamespaceFixture {
 	fixture := &supplierNamespaceFixture{
 		original: &capturedSessionNamespace{file: original},
 		target:   &capturedSessionNamespace{file: target}, unit: &CreatedUnit{},
+		name: "original",
 	}
 	t.Cleanup(func() {
 		if err := errors.Join(fixture.original.Close(), fixture.target.Close()); err != nil {
 			t.Error(err)
 		}
 	})
-	fixture.creator = &UnitCreator{create: func(string) (*CreatedUnit, error) {
+	fixture.creator = &UnitCreator{create: func(name string) (*CreatedUnit, error) {
 		fixture.trace = append(fixture.trace, "create")
+		if name != fixture.name {
+			t.Errorf("namespace worker created %q, want the requested %q", name, fixture.name)
+		}
 		return fixture.unit, nil
 	}}
 	fixture.ops = pppSetupNamespaceOps{
@@ -67,11 +74,21 @@ func newSupplierNamespaceFixture(t *testing.T) *supplierNamespaceFixture {
 	return fixture
 }
 
+// Private runner adapter injects only namespace operations. Creation, result
+// ownership and revocation are the exact actual setup producer,
+// createPPPSetupUnitWith; production reaches it through runOriginalPPPNamespace.
+func createPPPSetupUnitThreadWith(creator *UnitCreator, target *capturedSessionNamespace, name string, ops pppSetupNamespaceOps) (*CreatedUnit, error) {
+	return createPPPSetupUnitWith(creator, target, name,
+		func(target *capturedSessionNamespace, operation func() error) originalPPPNamespaceResult {
+			return runOriginalPPPNamespaceThread(target, operation, ops)
+		})
+}
+
 // Successful creation restores before unlock and preserves the exact original
 // partial result pointer. The logical result still grants no native authority.
 func TestOriginalPPPSupplierNamespaceRestoresBeforeReturn(t *testing.T) {
 	fixture := newSupplierNamespaceFixture(t)
-	unit, err := createPPPSetupUnitThreadWith(fixture.creator, fixture.target, "original", fixture.ops)
+	unit, err := createPPPSetupUnitThreadWith(fixture.creator, fixture.target, fixture.name, fixture.ops)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +129,7 @@ func TestOriginalPPPSupplierNamespaceRestoreFailureRetainsPartialCause(t *testin
 		}
 		return enter(file)
 	}
-	unit, err := createPPPSetupUnitThreadWith(fixture.creator, fixture.target, "original", fixture.ops)
+	unit, err := createPPPSetupUnitThreadWith(fixture.creator, fixture.target, fixture.name, fixture.ops)
 	if unit != fixture.unit {
 		t.Fatal("restore failure discarded partial unit owner")
 	}
@@ -138,7 +155,7 @@ func TestOriginalPPPSupplierNamespacePanicStillRestores(t *testing.T) {
 	fixture := newSupplierNamespaceFixture(t)
 	cause := errors.New("original provider panic")
 	fixture.creator.create = func(string) (*CreatedUnit, error) { fixture.trace = append(fixture.trace, "create"); panic(cause) }
-	unit, err := createPPPSetupUnitThreadWith(fixture.creator, fixture.target, "original", fixture.ops)
+	unit, err := createPPPSetupUnitThreadWith(fixture.creator, fixture.target, fixture.name, fixture.ops)
 	if unit != nil {
 		t.Fatal("panicked provider invented a returned unit")
 	}
@@ -156,7 +173,7 @@ func TestOriginalPPPSupplierNamespaceUnknownRefusesBeforeCreate(t *testing.T) {
 	if err := fixture.target.Close(); err != nil {
 		t.Fatal(err)
 	}
-	unit, err := createPPPSetupUnitThreadWith(fixture.creator, fixture.target, "original", fixture.ops)
+	unit, err := createPPPSetupUnitThreadWith(fixture.creator, fixture.target, fixture.name, fixture.ops)
 	if !errors.Is(err, os.ErrClosed) {
 		t.Fatalf("unknown namespace cause=%v", err)
 	}

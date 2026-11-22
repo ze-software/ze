@@ -109,15 +109,6 @@ func createPPPSetupUnitWith(creator *UnitCreator, target *capturedSessionNamespa
 	return unit, result.err()
 }
 
-// Private runner adapter injects only namespace operations. Creation, result
-// ownership and revocation are the exact actual setup producer above.
-func createPPPSetupUnitThreadWith(creator *UnitCreator, target *capturedSessionNamespace, name string, ops pppSetupNamespaceOps) (*CreatedUnit, error) {
-	return createPPPSetupUnitWith(creator, target, name,
-		func(target *capturedSessionNamespace, operation func() error) originalPPPNamespaceResult {
-			return runOriginalPPPNamespaceThread(target, operation, ops)
-		})
-}
-
 func runOriginalPPPNamespaceThread(target *capturedSessionNamespace, operation func() error, ops pppSetupNamespaceOps) (result originalPPPNamespaceResult) {
 	defer func() {
 		if failure := recover(); failure != nil {
