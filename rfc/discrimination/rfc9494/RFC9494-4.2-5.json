@@ -13,6 +13,17 @@
   {
     "rid": "RFC9494-4.2-5",
     "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_entry_test.go::TestRFC9494ReconnectDuringLLGREntryStillRemovesNoLLGRRoutes",
+    "unit-sha": "54a4917ece79bc48",
+    "claim-sha": "a7cd506e057d83f4",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/gr/gr_state.go::grStateManager.llgrFamilyActive",
+    "producer-sha": "32b6ee2430228ea9",
+    "break": "body of grStateManager.llgrFamilyActive replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9494-4.2-5",
+    "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go::TestRFC9494NoLLGRSweepWithdrawsTheBestPath",
     "unit-sha": "bf2e577575a11b47",
     "claim-sha": "e5dc1c23d1c9d6f1",

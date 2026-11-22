@@ -9,6 +9,7 @@ package gr
 import (
 	"encoding/json"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -195,6 +196,8 @@ func TestRFC9494ConsecutiveRestartExpiryDeletesEveryConnectionsRoutes(t *testing
 // route of connection 41 and the stale route of connection 42 are both "from
 // the peer"; the route connection 43 refreshed is not stale and stays.
 // PREVENTS: the End-of-RIB purge addressed to one connection only.
+//
+// RFC requirement: RFC4724-4.2-11 positive -- after two consecutive restarts, an End-of-RIB for IPv4 unicast from connection 43 deletes from the real RIB the stale route connection 41 delivered and the stale route connection 42 delivered.
 func TestRFC9494ConsecutiveRestartEORDeletesEveryConnectionsStaleRoutes(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		gp, rib, _ := rfc9494SecondRestartDuringLLGR(t)
@@ -218,24 +221,29 @@ func TestRFC9494ConsecutiveRestartEORDeletesEveryConnectionsStaleRoutes(t *testi
 }
 
 // TestRFC9494ConsecutiveRestartCompletesARevokedLLGREntry reconnects while the
-// first connection's LLGR entry is still being dispatched. The reconnect
-// revokes the rest of that entry, so the route connection 41 delivered stays
-// stale without LLGR_STALE although its family's LLST timer runs. Connection
-// 42 then goes down before End-of-RIB.
+// first connection's LLGR entry is still being dispatched, and keeps that
+// entry held while connection 42 refreshes one route and goes down before
+// End-of-RIB. The reconnect does not stop the entry. The second session-down
+// does: it makes connection 42 the cycle's source, so the entry of connection
+// 41 sends nothing more once it returns. That DOWN's restale completes the
+// marks for every connection the cycle retains.
 //
 //	t=0    connection 41 goes down: Restart Time 1 s, LLST 10 s
 //	t=1s   IPv4 unicast enters LLGR; the entry is held at its first command
-//	t=1s   connection 42 comes up, the held entry returns and sends no more
-//	t=1s   connection 42 refreshes one route and goes down
+//	t=1s   connection 42 comes up and refreshes one route; the entry is still
+//	       held, so the route of connection 41 is stale level 1, undecorated
+//	t=1s   connection 42 goes down; its restale decorates both connections
+//	t=1s   the held entry is released and changes nothing
 //	t=11s  the LLST deadline
 //
 // VALIDATES: RFC 9494 Section 4.2: "The helper router MUST attach the
-// LLGR_STALE community to the stale routes being retained." At the second DOWN
-// the route of connection 41 gains LLGR_STALE and stale level 2, and it is
-// deleted with the others at the LLST deadline.
-// PREVENTS: decorating the latest connection's routes only, which left the
-// earlier connection's route at stale level 1 with no community for the whole
-// Long-Lived Stale Time.
+// LLGR_STALE community to the stale routes being retained." At the second
+// DOWN, with the entry still held, the route of connection 41 gains LLGR_STALE
+// and stale level 2 beside the route of connection 42, and both are deleted at
+// the LLST deadline.
+// PREVENTS: the second DOWN decorating the latest connection's routes only,
+// which left the earlier connection's route at stale level 1 with no community
+// for the whole Long-Lived Stale Time once its own entry was stopped.
 func TestRFC9494ConsecutiveRestartCompletesARevokedLLGREntry(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		gp, rib := newGRWithRealRIB(t)
@@ -250,14 +258,18 @@ func TestRFC9494ConsecutiveRestartCompletesARevokedLLGREntry(t *testing.T) {
 		// Hold the entry's first command, the NO_LLGR deletion, before it reaches
 		// the RIB. Every other command, and every later deletion, passes.
 		entered, release := make(chan struct{}), make(chan struct{})
-		var holdEntryOnce, releaseOnce sync.Once
+		// The hold is a flag and not a sync.Once: a Once keeps its own mutex
+		// while the held call waits, which would block the later deletions the
+		// second DOWN sends while the entry is still held.
+		var entryHeld atomic.Bool
+		var releaseOnce sync.Once
 		t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
 		gp.answerHook = func(command string, args ...string) json.RawMessage {
 			if command == "request bgp rib source delete-with-community" {
-				holdEntryOnce.Do(func() {
+				if entryHeld.CompareAndSwap(false, true) {
 					close(entered)
 					<-release
-				})
+				}
 			}
 			return rib.command(command, args...)
 		}
@@ -271,16 +283,23 @@ func TestRFC9494ConsecutiveRestartCompletesARevokedLLGREntry(t *testing.T) {
 		<-entered
 		second := grFixtureSource(t, testPeer, first.owner, 42)
 		rfc9494Reconnect(t, gp, rib, second, 142)
-		releaseOnce.Do(func() { close(release) })
-		synctest.Wait()
-		// The revoked entry left the earlier route stale and undecorated.
+		rib.received("18c63365", grReceivedAttrs)
+		// Precondition: the entry is still held, so the earlier route is stale
+		// and undecorated when connection 42 goes down.
 		rib.requireStale(llgrRouteOfFirst, 1)
 		require.NotContains(t, rib.communities(llgrRouteOfFirst), uint32(0xffff0006))
 
-		rib.received("18c63365", grReceivedAttrs)
 		gp.handleStateEvent(second, map[string]any{"state": "down", "reason": "tcp-failure"})
 		synctest.Wait()
 		rib.down()
+		// The entry is still held: the second DOWN alone decorated both routes.
+		requireLLGRStale(t, rib, llgrRouteOfFirst)
+		requireLLGRStale(t, rib, llgrRouteOfSecond)
+
+		// The released entry belongs to a connection that is no longer the
+		// cycle's source, so it sends nothing more and changes neither route.
+		releaseOnce.Do(func() { close(release) })
+		synctest.Wait()
 		requireLLGRStale(t, rib, llgrRouteOfFirst)
 		requireLLGRStale(t, rib, llgrRouteOfSecond)
 

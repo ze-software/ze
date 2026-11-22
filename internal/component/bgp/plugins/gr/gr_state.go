@@ -150,14 +150,27 @@ func (m *grStateManager) retainedSource(source grSource) (grSource, bool) {
 	return state.source, true
 }
 
-// llgrFamilyActive answers whether this original connection still owns a
-// family's LLST timer. Safe for concurrent use. Callers MUST check after each
-// blocking entry RPC before dispatching the next mutation.
-// llgrFamilyActive answers whether this original connection still owns a
-// pre-reconnect LLGR entry cycle for fam. Once a successor session has
-// re-established (reestablishedConnectionID != 0), an in-flight LLGR entry
-// tail from before reconnect must not continue mutating or readvertising
-// routes on the re-established session.
+// llgrFamilyActive answers whether the retained cycle addressed by this
+// original connection still runs fam's LLST timer. Safe for concurrent use.
+// Callers MUST check after each blocking entry RPC before dispatching the next
+// mutation.
+//
+// The answer stays true once a successor session has re-established, so an
+// LLGR entry that a reconnect overtakes still sends its remaining commands.
+// RFC 9494 Section 4.2: "Once the Restart Time period ends (including the case
+// in which the Restart Time is zero), the LLGR period is said to have begun and
+// the following procedures MUST be performed:" and "However, the timer
+// continues to run once the session has re-established."
+// The period has begun for a family that holds a timer, and a reconnect does
+// not end it, so its stale routes still owe LLGR_STALE and its NO_LLGR routes
+// their removal. Finishing the entry cannot reach a route the successor sent:
+// each entry command names the original connection, and the RIB stores a
+// refreshed route under the connection that delivered it. The entry starts or
+// updates no timer.
+//
+// The answer turns false when the family's timer is gone (End-of-RIB, expiry,
+// a purge on reconnect) and when a later DOWN makes another connection the
+// cycle's source; that DOWN completes the marks (restalePreservedLLGR).
 func (m *grStateManager) llgrFamilyActive(source grSource, fam family.Family) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -166,9 +179,6 @@ func (m *grStateManager) llgrFamilyActive(source grSource, fam family.Family) bo
 		return false
 	}
 	if state.source.connectionID != source.connectionID {
-		return false
-	}
-	if state.reestablishedConnectionID != 0 {
 		return false
 	}
 	_, active := state.llgrFamilies[fam]

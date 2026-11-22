@@ -164,10 +164,13 @@ func TestGRSuccessorEORTargetsOriginalConnection(t *testing.T) {
 	}
 }
 
-// The actual timer callback enters LLGR, blocks at its first RIB RPC and loses
-// its timer to a reconnect. On return it cannot execute the remaining old
-// community/stale mutations. The successor still starts a useful GR cycle.
-// MUTATION: continue the LLGR RPC sequence without checking its live family.
+// The actual timer callback enters LLGR and blocks at its first RIB RPC while
+// the peer reconnects. The LLGR period has begun and its timer keeps running,
+// so on return the entry sends the rest of its sequence, in order and to the
+// original connection: the LLGR_STALE attachment, the level-2 marking and the
+// readvertisement (RFC 9494 Section 4.2). The successor still starts a useful
+// GR cycle.
+// MUTATION: answer llgrFamilyActive false once a successor has re-established.
 func TestGRReconnectRevokesHeldLLGREntryTail(t *testing.T) {
 	old, err := newGRSource("192.0.2.246", 1346, 2346)
 	require.NoError(t, err)
@@ -228,7 +231,11 @@ func TestGRReconnectRevokesHeldLLGREntryTail(t *testing.T) {
 		t.Fatal("LLGR entry tail did not join")
 	}
 	mu.Lock()
-	require.Len(t, commands, before, "reconnect revokes undispatched LLGR mutation and readvertisement tails")
+	require.Equal(t, [][]string{
+		{"request bgp rib source attach-community", "owner", "1346", "connection", "2346", "family", "ipv4/unicast", "community", "ffff0006"},
+		{"request bgp rib source mark-stale", "owner", "1346", "connection", "2346", "restart-time", "0", "stale-level", "2", "family", "ipv4/unicast"},
+		{"clear bgp rib out-excluding-owner", "owner", "1346", "family", "ipv4/unicast"},
+	}, commands[before:], "a reconnect does not stop an LLGR entry whose period has begun")
 	mu.Unlock()
 	require.Equal(t, []family.Family{family.IPv4Unicast}, gp.state.retainedFamilies(old))
 	grConnectionState(t, gp, fresh, true, rpc.SessionStateDown)

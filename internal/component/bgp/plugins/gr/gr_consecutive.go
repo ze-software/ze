@@ -214,8 +214,9 @@ func (gp *grPlugin) restalePreservedLLGR(source grSource, families []family.Fami
 		gp.markLLGRStale(source, famStr)
 		// The two community commands also reach the earlier connections. Their
 		// stale routes normally carry the marks already, and the commands then
-		// change nothing; but a reconnect revokes an LLGR entry that is still
-		// dispatching (llgrFamilyActive), which leaves those routes stale
+		// change nothing; but this DOWN makes source the cycle's connection,
+		// which stops an LLGR entry of an earlier connection that is still
+		// dispatching (llgrFamilyActive) and can leave those routes stale
 		// without LLGR_STALE while the family's timer runs. attach-community
 		// raises a stale route to level 2 itself, so no mark is owed to them.
 		for _, retained := range gp.retainedConnections(source) {

@@ -24,6 +24,28 @@
   {
     "rid": "RFC9494-4.2-4",
     "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_entry_test.go::TestRFC9494ReconnectDuringLLGREntryLeavesTheNewConnectionsRouteFresh",
+    "unit-sha": "6172588d57b490e6",
+    "claim-sha": "040e53920f51dfa9",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/gr/gr_state.go::grStateManager.llgrFamilyActive",
+    "producer-sha": "32b6ee2430228ea9",
+    "break": "body of grStateManager.llgrFamilyActive replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9494-4.2-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_entry_test.go::TestRFC9494ReconnectDuringLLGREntryStillAttachesLLGRStale",
+    "unit-sha": "95a26854c28e8072",
+    "claim-sha": "cab31ea1a386e951",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/gr/gr_state.go::grStateManager.llgrFamilyActive",
+    "producer-sha": "32b6ee2430228ea9",
+    "break": "body of grStateManager.llgrFamilyActive replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9494-4.2-4",
+    "polarity": "negative",
     "unit": "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_FreshRoutesDoNotGetLLGRStale",
     "unit-sha": "87cbb5fe41af4960",
     "claim-sha": "a0f0fcd2df47cf7f",

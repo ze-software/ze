@@ -615,9 +615,9 @@ delivered. The RIB names the earlier connections in its `retain-routes`
 answer. GR then sends each purge and each release once per connection, the
 earlier ones first, and the `validation-cleanup` event with it, so every store
 keyed by connection is told about each one. At the second drop the NO_LLGR
-deletion and the LLGR_STALE attachment also go to each connection, because a
-reconnect cancels an LLGR entry that is still being dispatched and can leave
-the earlier routes without the community. Stale marking goes to the latest
+deletion and the LLGR_STALE attachment also go to each connection, so every
+earlier route carries the community whichever connection delivered it. Stale
+marking goes to the latest
 connection only: the earlier routes were marked when their own connection
 went down. If the answer names no list, GR keeps
 addressing every connection the cycle already held and logs a warning.
@@ -640,11 +640,17 @@ is never accepted as a wildcard for a transport DOWN or a lifecycle command.
 <!-- source: internal/component/bgp/retention/retention.go -- Verdict, Ledger -->
 
 An LLGR callback checks that its captured state still owns the family's timer.
-A reconnect cancels queued callbacks and deferred entry completions, even when
-some old families remain retained. An LLGR entry that has begun a blocking RIB
-RPC rechecks its timer before it sends the next mutation. An already-dispatched
-original cleanup remains scoped to its original physical connection.
-<!-- source: internal/component/bgp/plugins/gr/gr_state.go -- handleLLSTExpired -->
+An LLGR entry already being applied when the peer reconnects runs to its end:
+the NO_LLGR deletion, the LLGR_STALE attachment, stale level 2 and the
+readvertisement all still go to the original connection, and the LLST timer is
+neither restarted nor updated (RFC 9494 Section 4.2). Routes the new connection
+sends are stored under that connection, so the entry never marks them. An entry
+stops only when its family's LLST timer is gone (End-of-RIB, expiry, a purge on
+reconnect) or a later session-down changes the cycle's source, which completes
+it. A reconnect still cancels deferred entry completions. An LLGR entry that
+has begun a blocking RIB RPC rechecks its timer before it sends the next
+mutation.
+<!-- source: internal/component/bgp/plugins/gr/gr_state.go -- handleLLSTExpired, llgrFamilyActive -->
 
 ### Special Case: Skip GR
 

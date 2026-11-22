@@ -20,5 +20,16 @@
     "producer": "internal/component/bgp/plugins/gr/gr.go::handleEOREvent",
     "producer-sha": "df6d046fd6663335",
     "break": "line 733: \"gp.dispatchSource(retainedSource, \\\"request bgp rib source purge-stale\\\", \\\"family\\\", famStr)\" -\u003e \"_ = retainedSource\""
+  },
+  {
+    "rid": "RFC4724-4.2-11",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/gr/rfc9494_llgr_consecutive_rib_test.go::TestRFC9494ConsecutiveRestartEORDeletesEveryConnectionsStaleRoutes",
+    "unit-sha": "d7e77d7af9d3bb47",
+    "claim-sha": "0d21ce700771620e",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/gr/gr_consecutive.go::grPlugin.dispatchRetained",
+    "producer-sha": "ea6094d0fc0e5043",
+    "break": "body of grPlugin.dispatchRetained replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
