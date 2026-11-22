@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4724-3-4",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/capability/negotiated_test.go::TestNegotiateGracefulRestartLastInstance",
+    "unit-sha": "5b711f45a1706bce",
+    "claim-sha": "6ddc39e6bbf2817d",
+    "route": "revert",
+    "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+    "producer-sha": "f5de8d610f57837f",
+    "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4724-3-4",
+    "polarity": "negative",
+    "unit": "internal/core/bgp/capability/negotiated_test.go::TestNegotiateGracefulRestartLastInstance",
+    "unit-sha": "5b711f45a1706bce",
+    "claim-sha": "64e12431c237ff15",
+    "route": "revert",
+    "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+    "producer-sha": "f5de8d610f57837f",
+    "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

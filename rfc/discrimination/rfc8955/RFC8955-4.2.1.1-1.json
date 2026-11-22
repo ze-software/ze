@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC8955-4.2.1.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FirstOperatorAndBitEncodedUnset",
+    "unit-sha": "f8a3c8185d17ddc2",
+    "claim-sha": "9f89a97c0fba8c76",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/flowspec/config_builder.go::buildFlowSpecComponents",
+    "producer-sha": "1d6088b701220b50",
+    "break": "body of buildFlowSpecComponents replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

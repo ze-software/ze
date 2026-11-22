@@ -9,5 +9,16 @@
     "producer": "internal/core/bgp/nlri/flowspec/types_numeric.go::fragmentMask",
     "producer-sha": "fb59d6af99337175",
     "break": "body of fragmentMask replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8955-4.2.2.12-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FragmentReservedBitsIgnoredOnDecode",
+    "unit-sha": "8dbf2141be595ca3",
+    "claim-sha": "ce7822c59cbd2043",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/flowspec/types.go::ParseFlowSpec",
+    "producer-sha": "f8ef94c56c23c1f0",
+    "break": "body of ParseFlowSpec replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9494-4.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleStructuredOpenGRPlusLLGR",
+    "unit-sha": "758b85d851c4a52e",
+    "claim-sha": "00e5f6f21e7869df",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/gr/gr.go::grPlugin.handleStructuredOpen",
+    "producer-sha": "ff10f82c56f57374",
+    "break": "body of grPlugin.handleStructuredOpen replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9494-4.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleStructuredOpenLLGRNoGR",
+    "unit-sha": "de11f681cfaa3878",
+    "claim-sha": "b1e16a171aaf00de",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/gr/gr.go::grPlugin.handleStructuredOpen",
+    "producer-sha": "ff10f82c56f57374",
+    "break": "body of grPlugin.handleStructuredOpen replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

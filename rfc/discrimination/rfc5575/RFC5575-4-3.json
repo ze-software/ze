@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5575-4-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecComponentsAscendingOrder",
+    "unit-sha": "9aed75a6e47f476a",
+    "claim-sha": "89ba5763a153661b",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/flowspec/types.go::FlowSpec.writeComponentsSorted",
+    "producer-sha": "c77e6ff334fd0a2b",
+    "break": "body of FlowSpec.writeComponentsSorted replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5575-4-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestParseFlowSpecRefusesRepeatedComponentType",
+    "unit-sha": "3243c16f88ce42aa",
+    "claim-sha": "5b645b50c6a66920",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/flowspec/types.go::ParseFlowSpec",
+    "producer-sha": "f8ef94c56c23c1f0",
+    "break": "body of ParseFlowSpec replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

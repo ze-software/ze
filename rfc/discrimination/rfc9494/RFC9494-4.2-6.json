@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9494-4.2-6",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_LLGRStaleRouteIsLeastPreferred",
+    "unit-sha": "22119931dd030616",
+    "claim-sha": "5cc4e8207c6b59bb",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/bestpath.go::SelectBest",
+    "producer-sha": "a049a8f03195997a",
+    "break": "body of SelectBest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9494-4.2-6",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_RouteWithoutLLGRStaleNotLeastPreferred",
+    "unit-sha": "30af0ba9165b1bd0",
+    "claim-sha": "decb95cef6733a41",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/bestpath.go::SelectBest",
+    "producer-sha": "a049a8f03195997a",
+    "break": "body of SelectBest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

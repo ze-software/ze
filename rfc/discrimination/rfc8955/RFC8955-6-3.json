@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8955-6-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule",
+    "unit-sha": "f8861f2bb7c7dea1",
+    "claim-sha": "9033ef2a5e3ab55f",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_flowspec_validation.go::flowSpecAuthorized",
+    "producer-sha": "0a47a97a2218c705",
+    "break": "body of flowSpecAuthorized replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8955-6-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule",
+    "unit-sha": "f8861f2bb7c7dea1",
+    "claim-sha": "371e6d25469b8337",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_flowspec_validation.go::flowSpecAuthorized",
+    "producer-sha": "0a47a97a2218c705",
+    "break": "body of flowSpecAuthorized replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

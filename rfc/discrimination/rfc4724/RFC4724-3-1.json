@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC4724-3-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/gr/gr_test.go::TestExtractGRCapabilities_CapabilityDecl",
+    "unit-sha": "3eea94ddc3612839",
+    "claim-sha": "01270ca707e75517",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/gr/gr_capability.go::extractGRCapabilities",
+    "producer-sha": "e422b3a4986b76a6",
+    "break": "body of extractGRCapabilities replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

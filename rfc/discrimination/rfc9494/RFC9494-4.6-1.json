@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9494-4.6-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_EBGPNonLLGR",
+    "unit-sha": "035e69aa381bf2e8",
+    "claim-sha": "cb71863d8edadd10",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/gr/gr_egress.go::LLGREgressFilter",
+    "producer-sha": "cfb6ffa5e3fd565a",
+    "break": "body of LLGREgressFilter replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9494-4.6-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_IBGPPartial",
+    "unit-sha": "0fc3e693ece45fff",
+    "claim-sha": "6f1a754b7050795a",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/gr/gr_egress.go::LLGREgressFilter",
+    "producer-sha": "cfb6ffa5e3fd565a",
+    "break": "body of LLGREgressFilter replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

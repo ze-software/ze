@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8955-7.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/route/rfc8955_route_parse_test.go::TestParseExtendedCommunitiesTrafficRatePackets",
+    "unit-sha": "ce38361ed6311253",
+    "claim-sha": "8937a63405652e6e",
+    "route": "revert",
+    "producer": "internal/component/bgp/route/route_community.go::ParseExtendedCommunities",
+    "producer-sha": "911ba680a5d84eac",
+    "break": "body of ParseExtendedCommunities replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8955-7.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/route/rfc8955_route_parse_test.go::TestParseExtendedCommunitiesTrafficRatePackets",
+    "unit-sha": "ce38361ed6311253",
+    "claim-sha": "1a707cae7ff0811c",
+    "route": "revert",
+    "producer": "internal/component/bgp/route/route_community.go::ParseExtendedCommunities",
+    "producer-sha": "911ba680a5d84eac",
+    "break": "body of ParseExtendedCommunities replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

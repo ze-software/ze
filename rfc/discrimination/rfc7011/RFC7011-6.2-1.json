@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7011-6.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011NoReducedSizeForAddressOrTimestamp",
+    "unit-sha": "0b0713fa966d7c2d",
+    "claim-sha": "1e3b706a3c6aad18",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/ipfix/template.go::BuildCounterTemplate",
+    "producer-sha": "895e5a63e909370d",
+    "break": "body of BuildCounterTemplate replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

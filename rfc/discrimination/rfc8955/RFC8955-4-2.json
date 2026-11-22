@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC8955-4-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/flowspec/plugin_test.go::TestIPv4FlowSpecNegotiatesMultiprotocolCapability",
+    "unit-sha": "00f278b1b2e65bc1",
+    "claim-sha": "ffd02dc2f8c54f9c",
+    "route": "revert",
+    "producer": "internal/core/family/registry.go::LookupFamily",
+    "producer-sha": "21f48ea3797552f2",
+    "break": "body of LookupFamily replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

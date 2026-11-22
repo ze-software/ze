@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8955-4.2.1.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecBitmaskOperatorReservedBitsZero",
+    "unit-sha": "165e8c9536f08830",
+    "claim-sha": "729fe7db0d085eb0",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/flowspec/types_numeric.go::NewFlowTCPFlagsMatchComponent",
+    "producer-sha": "a7661a6860b004e2",
+    "break": "body of NewFlowTCPFlagsMatchComponent replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8955-4.2.1.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955BitmaskOperatorReservedBitsIgnoredOnDecode",
+    "unit-sha": "83f2a775c59b9aa0",
+    "claim-sha": "3f2b94d9f38d9290",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/flowspec/types.go::ParseFlowSpec",
+    "producer-sha": "f8ef94c56c23c1f0",
+    "break": "body of ParseFlowSpec replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

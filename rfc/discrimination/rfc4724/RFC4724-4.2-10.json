@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4724-4.2-10",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/storage/rfc4724_stale_test.go::TestFamilyRIB_InsertClearsStale",
+    "unit-sha": "062e70168a6a0f23",
+    "claim-sha": "ab0ca2a7fcdf8797",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/storage/familyrib.go::FamilyRIB.Insert",
+    "producer-sha": "4585e64a2d69fb70",
+    "break": "body of FamilyRIB.Insert replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4724-4.2-10",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/storage/rfc4724_stale_test.go::TestFamilyRIB_InsertNewDuringStale",
+    "unit-sha": "8bb3f4a61ee2227b",
+    "claim-sha": "e912f63efb595849",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/storage/familyrib.go::FamilyRIB.Insert",
+    "producer-sha": "4585e64a2d69fb70",
+    "break": "body of FamilyRIB.Insert replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

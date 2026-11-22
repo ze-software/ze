@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7011-3.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011VersionIsIPFIX",
+    "unit-sha": "0633f20829afe287",
+    "claim-sha": "d68c6b613b7a433b",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/ipfix/encoder.go::WriteMessageHeader",
+    "producer-sha": "8ca542b4f9f1ab0a",
+    "break": "body of WriteMessageHeader replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

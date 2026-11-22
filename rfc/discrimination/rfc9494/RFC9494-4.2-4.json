@@ -9,5 +9,16 @@
     "producer": "internal/component/bgp/plugins/gr/gr.go::wireStateCallbacks",
     "producer-sha": "d51fef8e0a156bfd",
     "break": "body of wireStateCallbacks replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9494-4.2-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_FreshRoutesDoNotGetLLGRStale",
+    "unit-sha": "87cbb5fe41af4960",
+    "claim-sha": "a0f0fcd2df47cf7f",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_commands.go::RIBManager.handleCommand",
+    "producer-sha": "eddf225d7e3eaac6",
+    "break": "body of RIBManager.handleCommand replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

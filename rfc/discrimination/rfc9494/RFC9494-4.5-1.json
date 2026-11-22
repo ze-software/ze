@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9494-4.5-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleEventOpenLLGR",
+    "unit-sha": "fe63bcbcf98bd818",
+    "claim-sha": "eca07be202038d58",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/gr/gr.go::grPlugin.handleEvent",
+    "producer-sha": "e7afe041ff89db42",
+    "break": "body of grPlugin.handleEvent replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9494-4.5-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleEventOpenLLGR_NoGR",
+    "unit-sha": "0d8f7f4ebfb2f564",
+    "claim-sha": "64ec5a837f3a6abc",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/gr/gr.go::grPlugin.handleEvent",
+    "producer-sha": "e7afe041ff89db42",
+    "break": "body of grPlugin.handleEvent replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

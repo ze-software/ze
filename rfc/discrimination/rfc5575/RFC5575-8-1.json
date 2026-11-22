@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5575-8-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecVPNUpdateCountsRouteDistinguisher",
+    "unit-sha": "a24cbc6314e4c2c6",
+    "claim-sha": "d1c596d720d60141",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/update_build_flowspec.go::UpdateBuilder.BuildFlowSpec",
+    "producer-sha": "f72357bc3cdf8ed1",
+    "break": "body of UpdateBuilder.BuildFlowSpec replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5575-8-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecVPNUpdateCountsRouteDistinguisher",
+    "unit-sha": "a24cbc6314e4c2c6",
+    "claim-sha": "d21e491fe8bea28c",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/flowspec/types_vpn.go::ParseFlowSpecVPN",
+    "producer-sha": "ce9b7070a09b55c9",
+    "break": "body of ParseFlowSpecVPN replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

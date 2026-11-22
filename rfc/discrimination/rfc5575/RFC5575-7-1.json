@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC5575-7-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecTrafficMarkingReservedBytesZero",
+    "unit-sha": "06334c817b847c41",
+    "claim-sha": "3b801a01d1d8e772",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/flowspec/encode.go::flowSpecActionExtComm",
+    "producer-sha": "09fbc5efe8e16608",
+    "break": "body of flowSpecActionExtComm replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

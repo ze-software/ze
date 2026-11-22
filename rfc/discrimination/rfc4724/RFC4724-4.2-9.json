@@ -1,6 +1,17 @@
 [
   {
     "rid": "RFC4724-4.2-9",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc4724_eor_test.go::TestBuildEOR_IPv4Unicast",
+    "unit-sha": "fba330261789c7c0",
+    "claim-sha": "52dc4acac9a3e28f",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/eor.go::BuildEOR",
+    "producer-sha": "9210eca25144271c",
+    "break": "body of BuildEOR replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4724-4.2-9",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc4724_reactor_b_test.go::TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes",
     "unit-sha": "392b9b4405784b82",

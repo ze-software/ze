@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9494-4.4-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/bestpath_test.go::TestSelectBest_BothLLGRStale",
+    "unit-sha": "18b81bd50b78f049",
+    "claim-sha": "66f846843b3f77d5",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/bestpath.go::SelectBest",
+    "producer-sha": "a049a8f03195997a",
+    "break": "body of SelectBest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9494-4.4-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/bestpath_test.go::TestSelectBest_LLGRStaleDepreference",
+    "unit-sha": "fc0e66d11cdcf585",
+    "claim-sha": "b160f218a621df33",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/bestpath.go::SelectBest",
+    "producer-sha": "a049a8f03195997a",
+    "break": "body of SelectBest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

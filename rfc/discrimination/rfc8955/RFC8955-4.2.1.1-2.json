@@ -9,5 +9,16 @@
     "producer": "internal/core/bgp/nlri/flowspec/types_numeric.go::writeToAFI",
     "producer-sha": "60d1d6394148d40e",
     "break": "body of writeToAFI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8955-4.2.1.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode",
+    "unit-sha": "b21bdad4cb4bf851",
+    "claim-sha": "9c6119aab15d6239",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/flowspec/types.go::ParseFlowSpec",
+    "producer-sha": "f8ef94c56c23c1f0",
+    "break": "body of ParseFlowSpec replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
