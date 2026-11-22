@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8210-5.1-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go::TestRTRTLSSerialResponseSessionIDMismatch",
+    "unit-sha": "4e9f223c0800d612",
+    "claim-sha": "5e644d4688643167",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_response_identity.go::RTRSession.checkResponseIdentity",
+    "producer-sha": "db15ec2eb32837b4",
+    "break": "body of RTRSession.checkResponseIdentity replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8210-5.1-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rpki/rfc8210_rtr_identity_lifecycle_test.go::TestRTRTLSSerialResponseSessionIDMismatch",
+    "unit-sha": "4e9f223c0800d612",
+    "claim-sha": "0e80c44d2a1e24d2",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_response_identity.go::RTRSession.checkResponseIdentity",
+    "producer-sha": "db15ec2eb32837b4",
+    "break": "body of RTRSession.checkResponseIdentity replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

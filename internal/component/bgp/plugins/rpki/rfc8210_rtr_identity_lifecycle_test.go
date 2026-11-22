@@ -1,6 +1,7 @@
 // Design: docs/guide/rpki.md -- authenticated RTR data must keep its session identity.
+// RFC: rfc/short/rfc8210.md -- Sections 5.1 and 7, Session ID and Protocol Version identity
+// Related: rtr_response_identity.go -- checkResponseIdentity, rtrResponseErrorCode, revokeResponseData
 // Related: rtr_session.go -- Cache Response and End of Data processing
-// RFC naming: untagged -- these RTR identity defect probes have failing baselines and earn no conformance credit.
 package rpki
 
 import (
@@ -28,6 +29,11 @@ import (
 // learned from that cache."
 // PREVENTS: adopting a restarted cache's ID while merging its delta with the
 // previous cache instance's serial base.
+//
+// RFC requirement: RFC8210-5.1-3 positive -- when Cache Response changes Session ID after negotiation, the router terminates the session with Error Report code 0 (Corrupt Data).
+// RFC requirement: RFC8210-5.1-3 negative -- when Cache Response keeps the negotiated Session ID, the router completes the serial sync without sending an Error Report.
+// RFC requirement: RFC8210-5.1-4 positive -- on Session ID mismatch, the router flushes previously learned VRPs from that cache (192.0.2.0/24 returns ValidationNotFound) and marks the session unsynced.
+// RFC requirement: RFC8210-5.1-4 negative -- when Session ID matches, the router retains its previously learned VRPs and applies the delta.
 func TestRTRTLSSerialResponseSessionIDMismatch(t *testing.T) {
 	for _, mismatch := range []bool{false, true} {
 		t.Run(map[bool]string{false: "matching ID", true: "changed Cache Response ID"}[mismatch], func(t *testing.T) {
@@ -110,6 +116,9 @@ func TestRTRTLSEndOfDataSessionIDMismatch(t *testing.T) {
 // and is deliberately not a prerequisite of this test.
 // PREVENTS: checking only whether a version is supported, then merging payloads
 // of another version into a v1 serial base.
+//
+// RFC requirement: RFC8210-7-4 positive -- receiving a prefix or End of Data PDU with a different Protocol Version after Cache Response drops the session without publishing the payload or advancing the serial.
+// RFC requirement: RFC8210-7-4 negative -- receiving PDUs at the negotiated Protocol Version completes the response and publishes the delta without error.
 func TestRTRTLSSupportedVersionCannotChangeWithinResponse(t *testing.T) {
 	for _, stage := range []string{"unchanged", "prefix", "end of data"} {
 		t.Run(stage, func(t *testing.T) {
@@ -138,6 +147,48 @@ func TestRTRTLSSupportedVersionCannotChangeWithinResponse(t *testing.T) {
 				"the mixed-version delta advanced the previous session's serial")
 			assert.Equal(t, ValidationNotFound, session.cache.Validate("192.0.3.0/24", 64500),
 				"the mixed-version payload became usable")
+		})
+	}
+}
+
+// TestRFC8210DifferentVersionSameSessionIDIsSeparateSession sends a Cache Response
+// carrying the same numeric Session ID (0x1234) as the prior v1 session, but under
+// a different Protocol Version (v2).
+//
+// VALIDATES: RFC 8210 Section 5.1: "routers MUST treat sessions with different
+// Protocol Version fields as separate sessions even if they do happen to have
+// the same Session ID."
+// PREVENTS: matching Session ID alone and merging a v2 delta into a v1 serial base.
+//
+// RFC requirement: RFC8210-5.1-5 positive -- a Cache Response with a different Protocol Version (v2) and the same Session ID (0x1234) as an existing v1 session is rejected as a separate session and never merges its delta into the v1 serial base.
+// RFC requirement: RFC8210-5.1-5 negative -- a Cache Response with the same Protocol Version (v1) and same Session ID (0x1234) continues the existing session and applies its delta.
+func TestRFC8210DifferentVersionSameSessionIDIsSeparateSession(t *testing.T) {
+	for _, diffVersion := range []bool{false, true} {
+		name := map[bool]string{false: "same version same Session ID", true: "different version same Session ID"}[diffVersion]
+		t.Run(name, func(t *testing.T) {
+			response, end := rtrIdentityResponse(0x1234, 2)
+			prefix := rtrIdentityPrefix(3)
+			if diffVersion {
+				response[0], prefix[0], end[0] = rtrVersionMax, rtrVersionMax, rtrVersionMax
+			}
+			session, observed := newRTRIdentitySession(t, slices.Concat(response, prefix, end))
+			err := session.syncOnce()
+			got := <-observed
+			assertRTRIdentityQuery(t, got.query)
+			require.NoError(t, got.err)
+			if !diffVersion {
+				require.NoError(t, err)
+				assert.Empty(t, got.report)
+				assert.Equal(t, uint32(2), session.Snapshot().Serial)
+				assert.Equal(t, ValidationValid, session.cache.Validate("192.0.3.0/24", 64500))
+				return
+			}
+			assert.ErrorIs(t, err, errRtrUnexpectedVersion,
+				"different Protocol Version with identical Session ID must not continue the v1 session")
+			assert.Equal(t, uint32(1), session.Snapshot().Serial,
+				"cross-version response must not advance the v1 serial")
+			assert.Equal(t, ValidationNotFound, session.cache.Validate("192.0.3.0/24", 64500),
+				"cross-version payload must not merge into the v1 session")
 		})
 	}
 }
