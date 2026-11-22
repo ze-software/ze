@@ -66,12 +66,13 @@ func TestHubCleanupStartupFailureJoinsBuiltAPI(t *testing.T) {
 				os.Stderr = original
 				require.NoError(t, output.Close())
 			}()
-			config := []byte(`environment {
-	api-server {
-		rest { enabled true; server main { ip 127.0.0.1; port 0; } }
-		grpc { enabled true; server main { ip 127.0.0.1; port 0; } }
-	}
-}`)
+			// Enable both always-on API seams via env vars rather than ze_rest/ze_grpc-gated
+			// YANG blocks so this startup-cleanup test runs identically under -tags ze_core.
+			require.NoError(t, env.Set("ze.api-server.rest.enabled", "1"))
+			require.NoError(t, env.Set("ze.api-server.rest.listen", "127.0.0.1:0"))
+			require.NoError(t, env.Set("ze.api-server.grpc.enabled", "1"))
+			require.NoError(t, env.Set("ze.api-server.grpc.listen", "127.0.0.1:0"))
+			config := []byte("environment {}\n")
 			exit := runYANGConfig(newTestStore(t), "-", config, nil, 0, -1,
 				false, false, "", false, "", "", false, nil)
 			require.Equal(t, 1, exit)

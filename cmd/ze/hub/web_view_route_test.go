@@ -26,6 +26,7 @@ import (
 // missing route or a new monitor. The paired forged request must stop at origin.
 // MUTATION: omit POST /cli/view/action registration; this answers 404, not 410.
 func TestWebCLIViewActionRouteRefusesUnknownHandle(t *testing.T) {
+	resetAAABundleForTest(t)
 	setAPIConfigDir(t, t.TempDir())
 	store, err := storage.Create(t.TempDir())
 	require.NoError(t, err)

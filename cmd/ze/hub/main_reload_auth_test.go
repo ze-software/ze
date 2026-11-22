@@ -691,6 +691,7 @@ func TestRunReloadRemovedAssignmentDeniedAfterReauthentication(t *testing.T) {
 // than a load closure written here is what makes this a wiring test: a
 // hand-built closure would prove only that the test can call LoadConfig.
 func TestReloadHashesPlaintextPassword(t *testing.T) {
+	resetAAABundleForTest(t)
 	t.Cleanup(func() { _ = zepki.Load(nil) })
 
 	dir := t.TempDir()

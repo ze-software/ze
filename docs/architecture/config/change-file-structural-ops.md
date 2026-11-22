@@ -262,8 +262,11 @@ renderer over typed pending records. Review reads current committed values under
 the same storage guard as the session's durable intent and projects removed
 values onto presentation copies. It never rewrites the metadata's original
 `Previous` value or rebuilds the candidate. Rename ancestry uses the same
-`committedPathOf` resolver as conflict checks. Explicit source, target and format
-comparisons retain their parsed-tree representation.
+`committedPathOf` resolver as conflict checks. Deleting and recreating a plain
+(non-user-ordered) list entry with semantically identical content produces no
+diff in review while keeping the pending records intact so commit preserves the
+recorded list order; user-ordered lists remain visible. Explicit source, target
+and format comparisons retain their parsed-tree representation.
 The session count uses the same logical record collector as review, including
 saved metadata and unsaved structural intent. It reads that user's known
 change file directly instead of needing a census of other users' files.

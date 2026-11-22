@@ -17,7 +17,7 @@ bgp {
     session { asn { remote 65001; } }
     timer { receive-hold-time 90; }
     attach process bgp-rib {
-      receive [ update-received state refresh ];
+      receive [ update state refresh ];
       send [ update ];
     }
   }

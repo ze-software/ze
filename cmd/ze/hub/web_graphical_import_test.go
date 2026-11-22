@@ -39,6 +39,7 @@ type graphicalImportServer struct {
 // login. Cleanup joins its HTTP/history owners before closing the borrowed store.
 func newGraphicalImportServer(t *testing.T) *graphicalImportServer {
 	t.Helper()
+	resetAAABundleForTest(t)
 	setAPIConfigDir(t, t.TempDir())
 	store, err := storage.Create(t.TempDir())
 	require.NoError(t, err)

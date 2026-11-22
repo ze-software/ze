@@ -53,14 +53,11 @@ func TestDaemonRestartExitStatus(t *testing.T) {
 				response.TransportComplete()
 				return apiServerHandle{}, nil
 			}
-			config := []byte(`environment {
-	api-server {
-		grpc {
-			enabled true
-			server main { ip 127.0.0.1; port 0; }
-		}
-	}
-}`)
+			// Enable the always-on gRPC seam via env vars rather than a ze_grpc-gated
+			// YANG block so this exit-status test runs identically under -tags ze_core.
+			require.NoError(t, env.Set("ze.api-server.grpc.enabled", "1"))
+			require.NoError(t, env.Set("ze.api-server.grpc.listen", "127.0.0.1:0"))
+			config := []byte("environment {}\n")
 			exit := runYANGConfig(newTestStore(t), "-", config, nil, 0, -1,
 				false, false, "", false, "", "", false, nil)
 			require.True(t, dispatched, "boot must reach the lifecycle command before judging its exit")

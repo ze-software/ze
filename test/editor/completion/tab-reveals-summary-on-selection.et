@@ -6,10 +6,10 @@
 option=mode:value=command
 option=timeout:value=10s
 
-# "show t" matches three commands. Each one declares its own description in a
+# "show t" matches four commands. Each one declares its own description in a
 # -cmd YANG module, and the real command tree carries that text to the model.
 input=type:text=show t
-expect=completion:contains=tcp-check,traceroute,traffic
+expect=completion:contains=tcp-check,thanks,traceroute,traffic
 expect=dropdown:hidden
 
 # Tab opens the menu on the first candidate. Its summary reaches message line 2.
@@ -18,6 +18,9 @@ expect=dropdown:visible
 expect=hint:contains=Test TCP connectivity to a remote host and port.
 
 # Each arrow moves the selection, and the summary moves with it.
+input=key:name=down
+expect=hint:contains=The third-party works Ze is built on, and their licences.
+
 input=key:name=down
 expect=hint:contains=Trace the network path from this router to a target.
 

@@ -84,3 +84,73 @@ func TestSSHComparePendingEmpty(t *testing.T) {
 	require.NoError(t, m.err)
 	assert.Empty(t, strings.TrimSpace(m.ViewportContent()))
 }
+
+// TestSSHComparePendingPlainListReorderEmpty proves that deleting and
+// recreating a plain (non-user-ordered) list entry with identical content
+// produces an empty semantic compare while retaining pending intent for commit,
+// whereas changing its payload or reordering a user-ordered list stays visible.
+func TestSSHComparePendingPlainListReorderEmpty(t *testing.T) {
+	seed := `interface {
+    backend netlink;
+    dummy zulu { description first; }
+    dummy alpha { description second; }
+}
+firewall {
+    table wan {
+        family inet
+        chain input {
+            type filter
+            hook input
+            priority 0
+            policy accept
+            term a { then { jump done; } }
+            term b { then { jump done; } }
+        }
+        chain done {
+            term finish { then { accept; } }
+        }
+    }
+}`
+	t.Run("plain list identical recreate has empty compare", func(t *testing.T) {
+		ed, session, _ := newLoadSessionEditor(t, seed)
+		require.True(t, ed.treeValid)
+		require.NoError(t, ed.DeleteByPath([]string{"interface", "dummy", "zulu"}))
+		require.NoError(t, ed.SetValue([]string{"interface", "dummy", "zulu"}, "description", "first"))
+		require.NotEmpty(t, ed.PendingChanges(session.ID), "order-only pending records must survive for commit")
+
+		m, err := NewModel(ed, FilesystemAuthorityUnknown)
+		require.NoError(t, err)
+		t.Cleanup(func() { require.NoError(t, m.Close()) })
+		m = enterLine(t, m, "show | compare")
+		require.NoError(t, m.err)
+		assert.Empty(t, strings.TrimSpace(m.ViewportContent()))
+	})
+
+	t.Run("plain list modified recreate remains visible", func(t *testing.T) {
+		ed, _, _ := newLoadSessionEditor(t, seed)
+		require.True(t, ed.treeValid)
+		require.NoError(t, ed.DeleteByPath([]string{"interface", "dummy", "zulu"}))
+		require.NoError(t, ed.SetValue([]string{"interface", "dummy", "zulu"}, "description", "changed"))
+
+		m, err := NewModel(ed, FilesystemAuthorityUnknown)
+		require.NoError(t, err)
+		t.Cleanup(func() { require.NoError(t, m.Close()) })
+		m = enterLine(t, m, "show | compare")
+		require.NoError(t, m.err)
+		assert.Contains(t, m.ViewportContent(), "+ interface dummy zulu description changed")
+	})
+
+	t.Run("user-ordered list identical recreate remains visible", func(t *testing.T) {
+		ed, _, _ := newLoadSessionEditor(t, seed)
+		require.True(t, ed.treeValid)
+		require.NoError(t, ed.DeleteByPath([]string{"firewall", "table", "wan", "chain", "input", "term", "a"}))
+		require.NoError(t, ed.SetValue([]string{"firewall", "table", "wan", "chain", "input", "term", "a", "then"}, "jump", "done"))
+
+		m, err := NewModel(ed, FilesystemAuthorityUnknown)
+		require.NoError(t, err)
+		t.Cleanup(func() { require.NoError(t, m.Close()) })
+		m = enterLine(t, m, "show | compare")
+		require.NoError(t, m.err)
+		assert.NotEmpty(t, strings.TrimSpace(m.ViewportContent()))
+	})
+}

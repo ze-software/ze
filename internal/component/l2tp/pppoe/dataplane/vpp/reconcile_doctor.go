@@ -24,6 +24,11 @@ func init() {
 	}); err != nil {
 		panic("BUG: PPPoE VPP reconciliation doctor registration failed: " + err.Error())
 	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{
+		Code: diagnostic.CodeDoctorPPPoEVPPSocketCleanup,
+	}); err != nil {
+		panic("BUG: PPPoE VPP socket cleanup event registration failed: " + err.Error())
+	}
 	health.Register("pppoe-vpp-reconciliation", report.HealthProbeDegraded(diagnostic.CodeDoctorPPPoEVPPReconcile))
 }
 

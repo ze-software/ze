@@ -5,6 +5,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/component/config"
@@ -61,6 +62,10 @@ func (e *Editor) pendingReviewChanges(guard storage.WriteGuard, scope []string) 
 	}
 	ops = filterStructuralOps(ops, e.session.ID)
 	changes := e.pendingSessionChanges(meta, ops, e.session.ID)
+	reordered, err := e.unchangedPlainListReorders(committed, ops, changes)
+	if err != nil {
+		return nil, err
+	}
 	var review []contract.PendingChange
 	for _, change := range changes {
 		selected, err := pendingReviewAtPath(e.schema, change, scope)
@@ -68,6 +73,13 @@ func (e *Editor) pendingReviewChanges(guard storage.WriteGuard, scope []string) 
 			return nil, err
 		}
 		if !selected {
+			continue
+		}
+		elided, err := isPlainListReorderChange(e.schema, change, reordered)
+		if err != nil {
+			return nil, err
+		}
+		if elided {
 			continue
 		}
 		if change.Member == "" {
@@ -94,6 +106,87 @@ func (e *Editor) pendingReviewChanges(guard storage.WriteGuard, scope []string) 
 		})
 	}
 	return review, nil
+}
+
+// unchangedPlainListReorders finds plain (non-user-ordered) list entries that
+// this session deleted and recreated with semantically identical content against
+// committed. Commit still replays the pending records to preserve the recorded
+// list order, while semantic comparison reports no diff.
+func (e *Editor) unchangedPlainListReorders(committed *config.Tree, ops []config.StructuralOp, changes []config.PendingChange) ([]config.EditPath, error) {
+	if !e.treeValid {
+		return nil, nil
+	}
+	if e.tree == nil {
+		return nil, nil
+	}
+	if committed == nil {
+		return nil, nil
+	}
+	var reordered []config.EditPath
+	for _, change := range changes {
+		if change.Kind != config.PendingChangeDelete {
+			continue
+		}
+		if change.Member != "" {
+			continue
+		}
+		path, err := config.ParseEditPath(change.Path)
+		if err != nil {
+			return nil, err
+		}
+		original, err := committedPathOf(e.schema, ops, path)
+		if err != nil {
+			return nil, err
+		}
+		if !slices.Equal(original, path) {
+			continue
+		}
+		workingEntry, workingNode := e.walkPathWithSchemaFrom(e.tree, path)
+		if workingEntry == nil {
+			continue
+		}
+		listNode, ok := workingNode.(*config.ListNode)
+		if !ok {
+			continue
+		}
+		if listNode.UserOrdered {
+			continue
+		}
+		committedEntry, _ := e.walkPathWithSchemaFrom(committed, original)
+		if committedEntry == nil {
+			continue
+		}
+		if !config.SubtreesEqual(workingEntry, committedEntry, listNode) {
+			continue
+		}
+		resolved, err := config.ResolveEditPath(e.schema, change.Path)
+		if err != nil {
+			return nil, err
+		}
+		reordered = append(reordered, resolved)
+	}
+	return reordered, nil
+}
+
+func isPlainListReorderChange(schema *config.Schema, change config.PendingChange, reordered []config.EditPath) (bool, error) {
+	if len(reordered) == 0 {
+		return false, nil
+	}
+	switch change.Kind {
+	case config.PendingChangeDelete, config.PendingChangeSet:
+	default:
+		return false, nil
+	}
+	resolved, err := config.ResolveEditPath(schema, change.Path)
+	if err != nil {
+		return false, err
+	}
+	for _, entry := range reordered {
+		if resolved.HasPrefix(entry) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func pendingReviewAtPath(schema *config.Schema, change config.PendingChange, scope []string) (bool, error) {

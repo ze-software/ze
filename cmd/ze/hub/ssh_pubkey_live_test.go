@@ -66,6 +66,7 @@ func sshDialWithKey(addr, username string, signer gossh.Signer) error {
 // of this spec shipped exactly that fault once (a second stale snapshot in front
 // of the fixed one), and only a wiring test found it.
 func TestInfraSetupSSHPublicKeyFollowsRunningConfig(t *testing.T) {
+	resetAAABundleForTest(t)
 	require.NoError(t, env.Set("ze.ssh.ephemeral", ""))
 	defer func() { _ = env.Set("ze.ssh.ephemeral", "") }()
 

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 )
 
 // The bounds of the connection retry. A simulated speaker stands for a router
@@ -189,7 +190,7 @@ func exchangeOpen(ctx context.Context, cfg SimulatorConfig, conn net.Conn) error
 	}
 
 	peerOpen := &arrivalReader{source: conn}
-	if readErr := readMsg(peerOpen); readErr != nil {
+	if readErr := readMsg(peerOpen, msgtype.TypeOPEN); readErr != nil {
 		if peerOpen.arrived {
 			return fmt.Errorf("reading OPEN: %w", readErr)
 		}
@@ -202,7 +203,7 @@ func exchangeOpen(ctx context.Context, cfg SimulatorConfig, conn net.Conn) error
 	if writeErr := writeMsg(conn, message.NewKeepalive()); writeErr != nil {
 		return fmt.Errorf("sending KEEPALIVE: %w", writeErr)
 	}
-	if readErr := readMsg(conn); readErr != nil {
+	if readErr := readMsg(conn, msgtype.TypeKEEPALIVE); readErr != nil {
 		return fmt.Errorf("reading KEEPALIVE: %w", readErr)
 	}
 

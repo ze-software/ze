@@ -579,6 +579,10 @@ func (s *pppSession) sendEvent(ev Event) {
 		// A peer-initiated transport close has already gated the wire, so
 		// its cleanup can only fail a write rather than send after PADT.
 		ev = s.prepareSessionDown(event)
+		// Release the canonical subscriber slot before publishing Down so a
+		// replacement attempt admitted by a subscriber reacting to Down never
+		// races against the retiring goroutine's reader drain.
+		s.retireSubscriberKey()
 	case EventLCPDown:
 		ev = s.prepareLCPDown(event)
 	}
@@ -589,6 +593,20 @@ func (s *pppSession) sendEvent(ev Event) {
 		}
 	case <-s.stopCh:
 	}
+}
+
+// retireSubscriberKey removes this session's canonical subscriber key from the
+// driver table while keeping native dataplane ownership (d.owners) intact until
+// physical release is confirmed.
+func (s *pppSession) retireSubscriberKey() {
+	if s.driver == nil {
+		return
+	}
+	s.driver.mu.Lock()
+	if s.driver.sessions[s.subscriberID] == s {
+		delete(s.driver.sessions, s.subscriberID)
+	}
+	s.driver.mu.Unlock()
 }
 
 // prepareSessionDown ends native work before its caller publishes the event.

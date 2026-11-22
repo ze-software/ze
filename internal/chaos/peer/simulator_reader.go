@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 )
 
 // readLoop reads BGP messages from conn and emits route events.
@@ -343,8 +344,11 @@ func writeMsg(conn net.Conn, msg message.Message) error {
 	return err
 }
 
-// readMsg reads and discards a single BGP message from the connection.
-func readMsg(conn io.Reader) error {
+// readMsg reads a single BGP message from the connection and verifies its
+// message type matches expected. Receiving a NOTIFICATION (such as Cease /
+// Connection Collision Resolution during handshake) or any unexpected type
+// returns an error so the caller does not mistake a refusal for completion.
+func readMsg(conn io.Reader, expected msgtype.MessageType) error {
 	header := make([]byte, message.HeaderLen)
 	if _, err := io.ReadFull(conn, header); err != nil {
 		return fmt.Errorf("reading header: %w", err)
@@ -355,11 +359,22 @@ func readMsg(conn io.Reader) error {
 		return fmt.Errorf("invalid message length: %d", msgLen)
 	}
 
+	var body []byte
 	if msgLen > message.HeaderLen {
-		body := make([]byte, msgLen-message.HeaderLen)
+		body = make([]byte, msgLen-message.HeaderLen)
 		if _, err := io.ReadFull(conn, body); err != nil {
 			return fmt.Errorf("reading body: %w", err)
 		}
+	}
+
+	got := msgtype.MessageType(header[18])
+	if got != expected {
+		if got == msgtype.TypeNOTIFICATION {
+			if len(body) >= 2 {
+				return fmt.Errorf("expected %s, got NOTIFICATION (code=%d subcode=%d)", expected, body[0], body[1])
+			}
+		}
+		return fmt.Errorf("expected %s, got %s", expected, got)
 	}
 
 	return nil

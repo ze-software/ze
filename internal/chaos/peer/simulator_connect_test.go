@@ -90,6 +90,15 @@ func notificationThenClose(conn net.Conn) {
 	_ = conn.Close()
 }
 
+// openThenNotificationThenClose answers OPEN with OPEN and then refuses the
+// colliding session with a NOTIFICATION instead of KEEPALIVE (RFC 4271 §8.2.2).
+func openThenNotificationThenClose(conn net.Conn) {
+	if err := sendZeOpen(conn); err == nil {
+		_, _ = conn.Write(serializeMessage(BuildCeaseNotification()))
+	}
+	_ = conn.Close()
+}
+
 // fakeZe is a listener whose i-th connection gets the i-th answer; a
 // connection past the last answer gets the last one again.
 type fakeZe struct {
@@ -360,4 +369,20 @@ func TestSimulatorRetryOfACallerConnection(t *testing.T) {
 		assert.Empty(t, retriesOf(events))
 		assert.Equal(t, int32(1), ze.accepted.Load(), "connections Ze accepted")
 	})
+}
+
+// TestSimulatorRefusesOpenThenNotification verifies that when a peer answers
+// OPEN with OPEN and then rejects the session with a NOTIFICATION instead of a
+// KEEPALIVE (e.g., RFC 4271 §6.8 / §8.2.2 collision resolution), the simulator
+// treats the handshake as failed rather than emitting EventEstablished.
+func TestSimulatorRefusesOpenThenNotification(t *testing.T) {
+	ze := startFakeZe(t, openThenNotificationThenClose)
+
+	events := runToOutcome(t, SimulatorConfig{Profile: connectProfile(), Seed: 42, Addr: ze.addr})
+
+	last := events[len(events)-1]
+	require.Equal(t, EventError, last.Type)
+	assert.Contains(t, last.Err.Error(), "NOTIFICATION")
+	assert.Empty(t, retriesOf(events))
+	assert.Equal(t, int32(1), ze.accepted.Load(), "connections Ze accepted")
 }

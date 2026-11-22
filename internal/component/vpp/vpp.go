@@ -234,9 +234,8 @@ func (m *VPPManager) runWithOps(ctx context.Context, ops managerRunOps) (failure
 	defer setActiveLCPSettings(LCPSettings{}, false)
 
 	defer func() {
-		var child nativeCleanupError
 		var childFailure error
-		if errors.As(failure, &child) {
+		if _, ok := errors.AsType[nativeCleanupError](failure); ok {
 			childFailure = failure
 		}
 		if err := ops.unbindAll(); err != nil {
@@ -254,13 +253,12 @@ func (m *VPPManager) runWithOps(ctx context.Context, ops managerRunOps) (failure
 		if ctx.Err() != nil {
 			lg.Info("vpp: shutdown requested")
 			m.connector.Close()
-			if err == ctx.Err() {
+			if err == ctx.Err() { //nolint:errorlint // Only exact ctx.Err identity is a clean shutdown; a joined cleanup cause must survive.
 				return nil
 			}
 			return err
 		}
-		var cleanup nativeCleanupError
-		if errors.As(err, &cleanup) {
+		if _, ok := errors.AsType[nativeCleanupError](err); ok {
 			m.connector.Close()
 			return err
 		}
@@ -311,6 +309,11 @@ func (m *VPPManager) runOnce(ctx context.Context, confPath string) (failure erro
 		var err error
 		child, err = startManagedProcess(cmd)
 		if err != nil {
+			if cmd.Process == nil {
+				if err == ctx.Err() { //nolint:errorlint // Only exact ctx.Err identity with no started child proves clean pre-start cancellation; a wrapped or joined startup or cleanup cause must survive.
+					return err
+				}
+			}
 			return fmt.Errorf("start vpp: %w", err)
 		}
 		defer func() {
@@ -331,8 +334,10 @@ func (m *VPPManager) runOnce(ctx context.Context, confPath string) (failure erro
 			cleanup = stopVPPChildWithStop(ctx, cmd, stop)
 			m.connector.Close()
 		}
-		if err == ctx.Err() && cleanup == nil {
-			return err
+		if cleanup == nil {
+			if err == ctx.Err() { //nolint:errorlint // Only exact ctx.Err identity is clean cancellation; a joined connect or cleanup cause must survive.
+				return err
+			}
 		}
 		return errors.Join(fmt.Errorf("vpp: connect: %w", err), cleanup)
 	}
@@ -389,8 +394,10 @@ func (m *VPPManager) runOnce(ctx context.Context, confPath string) (failure erro
 		// waitVPPConnection joins cmd.Wait on process exit, API loss and
 		// shutdown. The physical observer independently proves process death.
 		m.connector.retireManagedConnection(owned)
-		if err == ctx.Err() && err != nil {
-			return err
+		if err != nil {
+			if err == ctx.Err() { //nolint:errorlint // Only exact ctx.Err identity is clean cancellation; a joined exit or cleanup cause must survive.
+				return err
+			}
 		}
 		if err == nil {
 			return errors.New("vpp process exited")

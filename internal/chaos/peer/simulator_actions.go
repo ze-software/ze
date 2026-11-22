@@ -18,6 +18,7 @@ import (
 	"github.com/ze-software/ze/internal/chaos/engine"
 	"github.com/ze-software/ze/internal/chaos/route"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 )
 
 // defaultSlowReadDelay is the read delay applied when ActionSlowRead toggles
@@ -230,7 +231,7 @@ func executeReconnectStorm(ctx context.Context, addr string, p SimProfile, diale
 			stormConn.Close() //nolint:errcheck,gosec // closing failed connection
 			break
 		}
-		if readErr := readMsg(stormConn); readErr != nil {
+		if readErr := readMsg(stormConn, msgtype.TypeOPEN); readErr != nil {
 			stormConn.Close() //nolint:errcheck,gosec // closing failed connection
 			break
 		}
@@ -238,7 +239,7 @@ func executeReconnectStorm(ctx context.Context, addr string, p SimProfile, diale
 			stormConn.Close() //nolint:errcheck,gosec // closing failed connection
 			break
 		}
-		if readErr := readMsg(stormConn); readErr != nil {
+		if readErr := readMsg(stormConn, msgtype.TypeKEEPALIVE); readErr != nil {
 			stormConn.Close() //nolint:errcheck,gosec // closing failed connection
 			break
 		}

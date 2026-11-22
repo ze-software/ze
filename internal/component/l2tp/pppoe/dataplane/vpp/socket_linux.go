@@ -14,6 +14,7 @@ import (
 	"log/slog"
 	"os"
 	"runtime"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -23,6 +24,7 @@ import (
 	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 type socketFile struct {
@@ -38,14 +40,16 @@ func (s *socketFile) Read(buf []byte) (int, error) {
 	var count, flags int
 	var readErr error
 	err := s.raw.Read(func(fd uintptr) bool {
-		count, _, flags, _, readErr = receiveControlDatagram(int(fd), buf, nil, unix.MSG_DONTWAIT|unix.MSG_TRUNC)
-		if errors.Is(readErr, unix.EAGAIN) {
-			return false
+		for {
+			count, _, flags, _, readErr = receiveControlDatagram(int(fd), buf, nil, unix.MSG_DONTWAIT|unix.MSG_TRUNC)
+			if errors.Is(readErr, unix.EINTR) {
+				continue
+			}
+			if errors.Is(readErr, unix.EAGAIN) {
+				return false
+			}
+			return true
 		}
-		if errors.Is(readErr, unix.EINTR) {
-			return false
-		}
-		return true
 	})
 	if err != nil {
 		return 0, err
@@ -96,6 +100,8 @@ func openControlSocket(ctx context.Context, request dataplane.Request) (*control
 	}
 }
 
+var socketCleanupSeq atomic.Uint64
+
 // startControlSocketThread owns one namespace creation attempt. The opener MUST
 // set restored only when the original namespace is restored. Receiving result
 // transfers the socket; cancellation leaves cleanup with this worker. A caller
@@ -109,6 +115,20 @@ func startControlSocketThread(ctx context.Context, request dataplane.Request,
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
+		var subjectBuf textbuf.Buffer
+		subject := subjectBuf.Reset().
+			Str("socket/").Uint16(request.SessionID).
+			Byte('/').Hex(request.PeerMAC[:]).
+			Byte('/').Uint(socketCleanupSeq.Add(1)).
+			String()
+		owner, reserveErr := report.NewResourceWarning(reconciliationSource, subject)
+		if reserveErr != nil {
+			select {
+			case result <- socketResult{err: fmt.Errorf("pppoe-vpp: reserve control socket cleanup diagnostic: %w", reserveErr)}:
+			case <-ctx.Done():
+			}
+			return
+		}
 		runtime.LockOSThread()
 		restored := false
 		defer func() {
@@ -119,20 +139,103 @@ func startControlSocketThread(ctx context.Context, request dataplane.Request,
 		socket, err := open(ctx, request, &restored)
 		select {
 		case result <- socketResult{socket: socket, err: err}:
+			releaseUnusedSocketWarning(owner)
 		case <-ctx.Done():
+			var closeErr error
 			if socket != nil {
-				if err := socket.Close(); err != nil {
-					subject := fmt.Sprintf("socket/%p/%d", socket, time.Now().UnixNano())
-					report.RaiseWarningFix(reconciliationSource, diagnostic.CodeDoctorPPPoEVPPReconcile, subject,
-						"Canceled PPPoE VPP control socket cleanup failed", reconciliationFix,
-						map[string]any{reconciliationErrorKey: err.Error(), "access": request.AccessName, "namespace": request.Namespace})
-					slog.Default().Warn("pppoe-vpp: canceled control socket cleanup failed",
-						"code", diagnostic.CodeDoctorPPPoEVPPReconcile, "fix", reconciliationFix, "error", err)
-				}
+				closeErr = socket.Close()
 			}
+			failure := unpublishedSocketCleanupFailure(ctx, err, closeErr)
+			if failure == nil {
+				releaseUnusedSocketWarning(owner)
+				return
+			}
+			publishSocketCleanupWarning(owner, request, failure)
 		}
 	}()
 	return result, done
+}
+
+func releaseUnusedSocketWarning(owner *report.ResourceWarning) {
+	if err := owner.Close(); err != nil {
+		slog.Default().Warn("pppoe-vpp: release unused socket cleanup reservation failed",
+			"code", diagnostic.CodeDoctorPPPoEVPPSocketCleanup, "fix", reconciliationFix, "error", err)
+	}
+}
+
+// unpublishedSocketCleanupFailure extracts any cleanup or restoration failure
+// from an unpublished namespace open attempt. A pure context cancellation with
+// confirmed close returns nil so the unused diagnostic reservation is released.
+func unpublishedSocketCleanupFailure(ctx context.Context, openErr, closeErr error) error {
+	ctxErr := ctx.Err()
+	var causes []error
+	collectNonCancelErrors(openErr, ctxErr, 0, &causes)
+	if closeErr != nil {
+		causes = append(causes, closeErr)
+	}
+	return errors.Join(causes...)
+}
+
+const maxErrorUnwrapDepth = 8
+
+func collectNonCancelErrors(err, ctxErr error, depth int, out *[]error) {
+	if err == nil {
+		return
+	}
+	if ctxErr != nil {
+		if err == ctxErr { //nolint:errorlint // Exact ctx.Err leaf identity proves pure cancellation; wrapped or joined cleanup causes must survive.
+			return
+		}
+	}
+	if depth < maxErrorUnwrapDepth {
+		if joined, ok := err.(interface{ Unwrap() []error }); ok { //nolint:errorlint // Inspect only the exact join node so wrapped cleanup causes stay intact.
+			for _, child := range joined.Unwrap() {
+				collectNonCancelErrors(child, ctxErr, depth+1, out)
+			}
+			return
+		}
+	}
+	*out = append(*out, err)
+}
+
+func publishSocketCleanupWarning(owner *report.ResourceWarning, request dataplane.Request, failure error) {
+	clientMAC := textbuf.StringHex(request.PeerMAC[:])
+	// Place the cause before variable-length names so FitResourceWarningCause
+	// never drops the failure text when valid AccessName/Namespace are long.
+	var msgBuf textbuf.Buffer
+	rawMessage := msgBuf.Reset().
+		Str("Canceled PPPoE VPP control socket cleanup failed (sid=").Uint16(request.SessionID).
+		Str(" mac=").Str(clientMAC).
+		Str("): ").Str(failure.Error()).
+		Str(" [access=").Str(request.AccessName).
+		Str(" dev=").Str(request.Device).
+		Str(" ctrl=").Str(request.ControlDevice).
+		Str(" ns=").Str(request.Namespace).
+		Byte(']').
+		String()
+	message := report.FitResourceWarningCause(rawMessage)
+	detail := map[string]any{
+		"access":               request.AccessName,
+		"device":               request.Device,
+		"control-device":       request.ControlDevice,
+		"namespace":            request.Namespace,
+		"session-id":           request.SessionID,
+		"client-mac":           clientMAC,
+		reconciliationErrorKey: failure.Error(),
+	}
+	episode, err := owner.NewEpisode(diagnostic.CodeDoctorPPPoEVPPSocketCleanup, message, reconciliationFix, detail)
+	if err != nil {
+		slog.Default().Warn("pppoe-vpp: retain canceled control socket cleanup episode failed",
+			"code", diagnostic.CodeDoctorPPPoEVPPSocketCleanup, "fix", reconciliationFix, "error", err, "cause", failure)
+		return
+	}
+	if err := episode.Publish(); err != nil {
+		slog.Default().Warn("pppoe-vpp: publish canceled control socket cleanup episode failed",
+			"code", diagnostic.CodeDoctorPPPoEVPPSocketCleanup, "fix", reconciliationFix, "error", err, "cause", failure)
+		return
+	}
+	slog.Default().Warn("pppoe-vpp: canceled control socket cleanup failed",
+		"code", diagnostic.CodeDoctorPPPoEVPPSocketCleanup, "fix", reconciliationFix, "error", failure)
 }
 
 func openSocketInNamespace(ctx context.Context, request dataplane.Request, restored *bool) (socket *controlSocket, err error) {
