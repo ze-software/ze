@@ -108,8 +108,9 @@ was once sent from the session-down callback, which waited up to 10 seconds
 for the server. That callback runs on the publisher of the Down, which is the
 L2TP reactor when a peer sends a CDN, so one silent accounting server stopped
 the control traffic of every tunnel. The callback now records the end of
-service (cause, session time, Event-Timestamp instant, final counters) and
-hands the Stop to the session's accounting task. One sender per session also
+service (cause, session time, Event-Timestamp instant) and hands the Stop to
+the session's accounting task, which awaits the network's terminal counters
+from the original PPP unit, within 10 seconds, before it sends the Stop. One sender per session also
 keeps the Stop behind an unacknowledged Start or Interim. Each record is
 bounded at 10 seconds.
 

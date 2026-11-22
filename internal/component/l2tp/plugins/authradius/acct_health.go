@@ -15,11 +15,12 @@ import (
 
 const acctHealthCheckName = "l2tp-radius-accounting"
 const acctHealthFix = "show diagnostic " + codeRADIUSAccountingUnacknowledged
+const acctCountersFix = "show diagnostic " + codeRADIUSAccountingCounters
 
 func acctHealthDeclaration() rpc.DoctorCheckDecl {
 	return rpc.DoctorCheckDecl{
 		Name: acctHealthCheckName, Phase: rpc.DoctorPhaseRuntime, Order: 712,
-		Codes: []string{codeRADIUSAccountingUnacknowledged},
+		Codes: []string{codeRADIUSAccountingUnacknowledged, codeRADIUSAccountingCounters},
 	}
 }
 
@@ -45,11 +46,49 @@ func recordAccountingOutcome(sess *acctSession, purpose string, err error) {
 	report.RaiseWarningFix(Name, codeRADIUSAccountingUnacknowledged, subject,
 		"No RADIUS accounting server acknowledged this session's "+purpose+
 			" record; the billing system may lack it. Restore the accounting server's reachability",
-		acctHealthFix, map[string]any{"error": err.Error()})
+		acctHealthFix, map[string]any{findingDetailError: err.Error()})
 }
 
+// recordCountersOmitted logs why one of the session's accounting records
+// leaves without its traffic counters, and raises the session's finding, from
+// one place so the log line and the finding cannot disagree. The record is
+// still sent: its six counter attributes are omitted, never reported as zero,
+// so the billing record is incomplete and never wrong. err is nil when the
+// cause carries no error of its own.
+func recordCountersOmitted(sess *acctSession, why string, err error) {
+	subject := acctHealthSubject(sess)
+	message := "A RADIUS accounting record of this session was sent without traffic counters: " +
+		why + ". The billing system lacks its octets and packets until a later record of the " +
+		"session carries them. Read the cause, then inspect the session's PPP unit"
+	if err == nil {
+		logger().Warn("l2tp-auth-radius: "+why+"; traffic counters omitted",
+			"code", codeRADIUSAccountingCounters,
+			"tunnel", sess.tunnelID, "session", sess.sessionID, "acct-session-id", sess.acctSessID)
+		report.RaiseWarningFix(Name, codeRADIUSAccountingCounters, subject, message, acctCountersFix)
+		return
+	}
+	logger().Warn("l2tp-auth-radius: "+why+"; traffic counters omitted",
+		"code", codeRADIUSAccountingCounters,
+		"tunnel", sess.tunnelID, "session", sess.sessionID, "acct-session-id", sess.acctSessID,
+		"error", err)
+	report.RaiseWarningFix(Name, codeRADIUSAccountingCounters, subject, message, acctCountersFix,
+		map[string]any{findingDetailError: err.Error()})
+}
+
+// clearCountersOmitted settles the session's counter finding once a record
+// carries counters again. RFC 2869 Section 2.1: "Note that all information in
+// an interim message is cumulative", and the Stop's counters are as well, so
+// that record makes up for every record before it that omitted them.
+func clearCountersOmitted(sess *acctSession) {
+	report.ClearWarning(Name, codeRADIUSAccountingCounters, acctHealthSubject(sess))
+}
+
+// checkAccountingHealth answers the accounting check's findings under each of
+// its codes. Each code is judged on its own, so an evicted warning of one code
+// still answers unknown while the other code holds findings.
 func checkAccountingHealth() []rpc.DoctorCheckDiagnostic {
-	return retainedFindings(codeRADIUSAccountingUnacknowledged)
+	findings := retainedFindings(codeRADIUSAccountingUnacknowledged)
+	return append(findings, retainedFindings(codeRADIUSAccountingCounters)...)
 }
 
 // retainedFindings answers this provider's retained warnings under one doctor
@@ -65,7 +104,7 @@ func retainedFindings(code string) []rpc.DoctorCheckDiagnostic {
 			continue
 		}
 		message := issue.Subject + ": " + issue.Message
-		if cause, found := issue.Detail["error"].(string); found {
+		if cause, found := issue.Detail[findingDetailError].(string); found {
 			message += ": " + cause
 		}
 		findings = append(findings, rpc.DoctorCheckDiagnostic{

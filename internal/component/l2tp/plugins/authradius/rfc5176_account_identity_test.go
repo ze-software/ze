@@ -114,7 +114,7 @@ func TestCoALiveAccountingOwnerIdentitySurvivesRegistryMiss(t *testing.T) {
 	seedCoAAccountingIdentity(t, &acctSession{
 		birth:    l2tp.LookupService().Snapshot().Tunnels[0].Sessions[0].Birth,
 		tunnelID: 10, sessionID: 20, username: "alice",
-		acctSessID: "10-20-radius-current", pppInterface: "ppp-coa-apply",
+		acctSessID: "10-20-radius-current",
 	})
 	response := sendAppliedCoA(t, addr, radius.CodeCoARequest, secret, []radius.Attr{
 		{Type: radius.AttrAcctSessionID, Value: radius.AttrString("10-20-radius-current")},
@@ -179,7 +179,7 @@ func seedCoAServiceAccounting(t *testing.T) {
 			seedCoAAccountingIdentity(t, &acctSession{
 				birth:    session.Birth,
 				tunnelID: snapshot.Tunnels[i].LocalTID, sessionID: session.LocalSID,
-				username: session.Username, pppInterface: session.PppInterface,
+				username:   session.Username,
 				acctSessID: id.Uint16(snapshot.Tunnels[i].LocalTID).Byte('-').Uint16(session.LocalSID).Str("-1").String(),
 			})
 		}

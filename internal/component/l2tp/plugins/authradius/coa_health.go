@@ -42,7 +42,7 @@ func recordCoAHealth(session *subscriber.Session, err error) {
 	}
 	report.RaiseWarningFix(Name, codeDoctorRADIUSCoAApply, subject,
 		"Subscriber authorization was not confirmed; inspect shaping and repair the backend before retrying the request",
-		coaHealthFix, map[string]any{"error": err.Error()})
+		coaHealthFix, map[string]any{findingDetailError: err.Error()})
 }
 
 // checkCoAHealth answers the runtime check coaHealthDeclaration declares;

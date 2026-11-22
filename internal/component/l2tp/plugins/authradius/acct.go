@@ -14,14 +14,12 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/binary"
-	"errors"
 	"net"
 	"net/netip"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/l2tp"
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
@@ -32,17 +30,31 @@ import (
 	"github.com/ze-software/ze/pkg/ze"
 )
 
-// PPP interface names identify kernel devices. Accounting needs raw counters,
-// not iface.GetStats' operator-visible "since last clear" values.
-func acctRawStats(name string) (*iface.InterfaceStats, error) {
-	backend := iface.GetBackend()
-	if backend == nil {
-		return nil, errors.New("interface backend is unavailable")
+// acctCaptureSession binds one accounting task to its session's original
+// network. Every counter read through the capture reaches the PPP unit created
+// for that network, never an interface name, so a renamed pppN or a name
+// another subscriber now holds cannot answer for this session. The reads are
+// raw totals, untouched by an operator's display-counter clear. A test
+// replaces it.
+var acctCaptureSession = func(selector l2tp.SessionSelector) (l2tp.CapturedSession, error) {
+	service := l2tp.LookupService()
+	if service == nil {
+		return nil, l2tp.ErrSubsystemNotStarted
 	}
-	return backend.GetStats(name)
+	return service.CaptureSession(selector)
 }
 
-var acctGetStats = acctRawStats
+// acctTerminalBound is how long the task of a session whose network ended
+// waits for that network's terminal counters. On a peer hang-up L2TP publishes
+// the session-down before PPP has disconnected and measured the original unit,
+// so the measurement normally arrives after the Down. The bound is the one a
+// record waits for its acknowledgement (acctRecordBound), so a Stop never waits
+// longer for its data than for its own exchange. A test replaces it.
+var acctTerminalBound = acctRecordBound
+
+// acctCaptureRef holds a bound capture, so one atomic pointer publishes it
+// from the accounting task to a retirement that ends the session.
+type acctCaptureRef struct{ session l2tp.CapturedSession }
 
 // acctNow reads the clock that stamps Event-Timestamp. A test replaces it so
 // the encoded seconds are exact rather than a window around the real clock.
@@ -78,19 +90,23 @@ type acctSession struct {
 	peerAddr  string // Updated and read under radiusAcct.mu.
 	endpoint  *acctEndpoint
 	// terminateCause, finalDuration and the final counters describe the end
-	// of service. end writes them, and the caller that claims the session for
-	// teardown is the only caller of end: onSessionDown and retirement claim
-	// the session out of radiusAcct.sessions under radiusAcct.mu, and exactly
-	// one can. Closing ended publishes them to the accounting task, which
-	// reads them only after ended is closed. The interim loop never reads
-	// them: buildAcctPacket reads them inside the Acct-Status-Type Stop
-	// branch alone.
+	// of service. end or endLive writes the first three, and the caller that
+	// claims the session for teardown is the only caller of either:
+	// onSessionDown and retirement claim the session out of
+	// radiusAcct.sessions under radiusAcct.mu, and exactly one can. endLive
+	// also writes the final counters and sets finalSettled. Closing ended
+	// publishes them to the accounting task, which reads them only after ended
+	// is closed, and which writes the final counters itself when finalSettled
+	// is false, from the network's terminal measurement. The interim loop
+	// never reads them: buildAcctPacket reads them inside the Acct-Status-Type
+	// Stop branch alone.
 	terminateCause     l2tpevents.TerminateCause
 	finalDuration      uint32
 	finalAt            time.Time
 	finalAtValid       bool
 	finalCounters      acctCounters
 	finalCountersValid bool
+	finalSettled       bool
 	ended              chan struct{}
 	// finished closes when the accounting task has sent the Stop, or given up
 	// on it, and released its endpoint.
@@ -103,11 +119,22 @@ type acctSession struct {
 	callingStationID string
 	acctSessID       string
 	nasPortID        string
-	pppInterface     string
 	startTime        time.Time
 	cancel           context.CancelFunc
-	counterBase      acctCounters
-	countersInvalid  atomic.Bool
+	// network is the network lifetime this accounting session measures, named
+	// by the session-ip-assigned that started it.
+	network l2tpevents.NetworkLifetime
+	// capture is the session's network-qualified capture. The accounting task
+	// binds it before the Start and retains it until the task finishes; the
+	// capture owns no resource, so dropping the reference releases it. Nil
+	// until bound, and for good when binding failed: every counter read then
+	// answers unavailable.
+	capture atomic.Pointer[acctCaptureRef]
+	// counterBase is the original unit's reading PPP took before it published
+	// the assignment, carried in the payload. countersInvalid is set when that
+	// baseline was unavailable or a later reading fell below it.
+	counterBase     acctCounters
+	countersInvalid atomic.Bool
 }
 
 type acctCounters struct {
@@ -117,43 +144,44 @@ type acctCounters struct {
 	txPackets uint64
 }
 
-func readAcctCounters(name string) (acctCounters, error) {
-	if name == "" {
-		return acctCounters{}, errors.New("PPP interface is unavailable")
-	}
-	stats, err := acctGetStats(name)
-	if err != nil {
-		return acctCounters{}, err
-	}
-	if stats == nil {
-		return acctCounters{}, errors.New("interface backend returned no counters")
-	}
+// acctTotals converts one original-unit measurement the events carry.
+func acctTotals(totals l2tpevents.TrafficTotals) acctCounters {
 	return acctCounters{
-		rxBytes: stats.RxBytes, txBytes: stats.TxBytes,
-		rxPackets: stats.RxPackets, txPackets: stats.TxPackets,
-	}, nil
+		rxBytes: totals.RxBytes, txBytes: totals.TxBytes,
+		rxPackets: totals.RxPackets, txPackets: totals.TxPackets,
+	}
 }
 
-// counterDelta measures this service rather than the retained PPP unit.
-// RFC 2866 Section 5.3: "This attribute indicates how many octets have been
-// received from the port over the course of this service being provided,
-// and can only be present in Accounting-Request records where the
-// Acct-Status-Type is set to Stop." RFC 2869 Section 2.1 extends these
+// countersBelow reports whether any field of current is below base.
+func countersBelow(current, base acctCounters) bool {
+	if current.rxBytes < base.rxBytes {
+		return true
+	}
+	if current.txBytes < base.txBytes {
+		return true
+	}
+	if current.rxPackets < base.rxPackets {
+		return true
+	}
+	return current.txPackets < base.txPackets
+}
+
+// sinceBaseline measures this service rather than the retained PPP unit: one
+// reading of the original unit minus the baseline the network lifetime
+// started from. RFC 2866 Section 5.3: "This attribute indicates how many
+// octets have been received from the port over the course of this service
+// being provided, and can only be present in Accounting-Request records where
+// the Acct-Status-Type is set to Stop." RFC 2869 Section 2.1 extends these
 // counters to Interim-Update records.
-func (s *acctSession) counterDelta() (acctCounters, bool) {
-	if s.countersInvalid.Load() {
-		return acctCounters{}, false
-	}
-	current, err := readAcctCounters(s.pppInterface)
-	if err != nil {
-		logger().Warn("l2tp-auth-radius: counter read failed", "interface", s.pppInterface, "error", err)
-		return acctCounters{}, false
-	}
+//
+// A reading below the baseline is not this lifetime's continuation. It marks
+// the session's counters invalid for good rather than wrap the unsigned
+// subtraction into a huge bill.
+func (s *acctSession) sinceBaseline(current acctCounters) (acctCounters, bool) {
 	base := s.counterBase
-	if current.rxBytes < base.rxBytes || current.txBytes < base.txBytes ||
-		current.rxPackets < base.rxPackets || current.txPackets < base.txPackets {
+	if countersBelow(current, base) {
 		s.countersInvalid.Store(true)
-		logger().Warn("l2tp-auth-radius: counters fell below the session baseline", "interface", s.pppInterface)
+		recordCountersOmitted(s, "a counter reading of the PPP unit fell below the session's baseline", nil)
 		return acctCounters{}, false
 	}
 	return acctCounters{
@@ -162,10 +190,91 @@ func (s *acctSession) counterDelta() (acctCounters, bool) {
 	}, true
 }
 
-// end records the end of service and hands the Accounting-Stop to the
-// session's accounting task, without waiting for any RADIUS server. The
-// caller MUST have claimed the session by removing it from the accountant's
-// map, so end runs once per session.
+// boundCapture answers the session's capture, or records why counters are
+// unavailable and answers nil.
+func (s *acctSession) boundCapture() l2tp.CapturedSession {
+	ref := s.capture.Load()
+	if ref == nil {
+		recordCountersOmitted(s, "the session's original network is not bound to its PPP unit", nil)
+		return nil
+	}
+	return ref.session
+}
+
+// liveDelta reads the original PPP unit now, through the bound capture. An
+// Interim-Update and a retirement's Stop report it. A failed read answers
+// false, so the record omits its traffic counters; it never ends the session.
+func (s *acctSession) liveDelta() (acctCounters, bool) {
+	if s.countersInvalid.Load() {
+		return acctCounters{}, false
+	}
+	captured := s.boundCapture()
+	if captured == nil {
+		return acctCounters{}, false
+	}
+	counters, err := captured.Counters()
+	if err != nil {
+		recordCountersOmitted(s, "the counter read of the session's PPP unit failed", err)
+		return acctCounters{}, false
+	}
+	return s.sinceBaseline(acctCounters{
+		rxBytes: counters.RxBytes, txBytes: counters.TxBytes,
+		rxPackets: counters.RxPackets, txPackets: counters.TxPackets,
+	})
+}
+
+// terminalDelta waits, at most acctTerminalBound, for the terminal measurement
+// PPP takes of the ended network before it closes the original unit. A wait
+// that ends at the bound, and a measurement PPP could not take, answer false.
+func (s *acctSession) terminalDelta() (acctCounters, bool) {
+	if s.countersInvalid.Load() {
+		return acctCounters{}, false
+	}
+	captured := s.boundCapture()
+	if captured == nil {
+		return acctCounters{}, false
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), acctTerminalBound)
+	defer cancel()
+	sample, err := captured.TerminalCounters(ctx)
+	if err != nil {
+		recordCountersOmitted(s, "PPP's final measurement of the session was not received within "+
+			acctTerminalBound.String(), err)
+		return acctCounters{}, false
+	}
+	totals, err := sample.Counters()
+	if err != nil {
+		recordCountersOmitted(s, "PPP's final measurement of the session is unavailable", err)
+		return acctCounters{}, false
+	}
+	return s.sinceBaseline(acctTotals(totals))
+}
+
+// bindCapture binds the session's network-qualified capture. It runs in the
+// accounting task, never on the session-ip-assigned callback: CaptureSession
+// takes the L2TP subsystem mutex, and Subsystem.Stop holds that mutex while it
+// waits for the reactor goroutine that delivers the callback.
+func (s *acctSession) bindCapture() {
+	if !s.network.IsValid() {
+		recordCountersOmitted(s, "the session's address assignment named no network lifetime", nil)
+		return
+	}
+	captured, err := acctCaptureSession(l2tp.SessionSelector{
+		SID: s.sessionID, TID: s.tunnelID, Birth: s.birth, NetworkLifetime: s.network,
+	})
+	if err != nil {
+		recordCountersOmitted(s, "the session's original network could not be captured", err)
+		return
+	}
+	s.capture.Store(&acctCaptureRef{session: captured})
+}
+
+// end records the end of a session whose network ended and hands the
+// Accounting-Stop to the session's accounting task, without waiting for any
+// RADIUS server or for PPP. The task then awaits the network's terminal
+// counters itself (captureTerminal). The caller MUST have claimed the session
+// by removing it from the accountant's map, so end or endLive runs once per
+// session.
 //
 // The hand-over is deferred, so a Ze defect met while capturing the end still
 // releases the task to send the Stop with what was captured: the end of
@@ -177,18 +286,29 @@ func (s *acctSession) end(cause l2tpevents.TerminateCause) {
 	s.captureEnd(cause)
 }
 
+// endLive ends the accounting of a session whose network continues: the
+// accounting configuration retired under it. No terminal measurement will
+// come, so the final counters are read from the original unit now, when the
+// accounting service ends. Same caller contract as end.
+func (s *acctSession) endLive(cause l2tpevents.TerminateCause) {
+	defer close(s.ended)
+	defer s.cancel()
+	s.captureEnd(cause)
+	s.captureLive()
+}
+
 // captureEnd records what the Stop reports about the end of service. The
-// elapsed time, the instant and the counters are read here, when service
-// ends, rather than when the task sends: the task may still be waiting for the
-// session's Start or Interim to be acknowledged, and by then the PPP interface
-// can be gone. RFC 2866 Section 5.7: "This attribute indicates how many
-// seconds the user has received service for, and can only be present in
-// Accounting-Request records where the Acct-Status-Type is set to Stop."
+// elapsed time and the instant are read here, when service ends, rather than
+// when the task sends: the task may still be waiting for the session's Start
+// or Interim to be acknowledged. RFC 2866 Section 5.7: "This attribute
+// indicates how many seconds the user has received service for, and can only
+// be present in Accounting-Request records where the Acct-Status-Type is set
+// to Stop."
 //
-// The instant and the counters are read inside the accounting panic boundary,
-// because both reach seams and the interface backend. A defect there leaves
-// the cause and the elapsed time recorded and marks the rest unavailable, so
-// the Stop omits them rather than reporting a zero.
+// The instant is read inside the accounting panic boundary, because it reaches
+// a seam. A defect there leaves the cause and the elapsed time recorded and
+// marks the rest unavailable, so the Stop omits them rather than reporting a
+// zero.
 func (s *acctSession) captureEnd(cause l2tpevents.TerminateCause) {
 	s.terminateCause = cause
 	s.finalDuration = uint32(time.Since(s.startTime).Seconds())
@@ -198,7 +318,24 @@ func (s *acctSession) captureEnd(cause l2tpevents.TerminateCause) {
 	// Accounting-Request packet to record the time that this event occurred on
 	// the NAS, in seconds since January 1, 1970 00:00 UTC."
 	s.finalAt, s.finalAtValid = acctNow(), true
-	s.finalCounters, s.finalCountersValid = s.counterDelta()
+}
+
+// captureLive records a live session's final counters, inside the accounting
+// panic boundary. A defect leaves them unavailable, so the Stop omits them.
+func (s *acctSession) captureLive() {
+	s.finalSettled = true
+	describe := func() taskguard.Context { return sessionUnit(s.tunnelID, s.sessionID) }
+	defer accountingTask.Contain(describe, nil)
+	s.finalCounters, s.finalCountersValid = s.liveDelta()
+}
+
+// captureTerminal records the final counters of a session whose network
+// ended. The accounting task calls it after ended closes, never the Down's
+// publication callback: on a peer hang-up L2TP publishes the Down before PPP
+// has measured the network, and the capture's TerminalCounters MUST be awaited
+// off that callback.
+func (s *acctSession) captureTerminal() {
+	s.finalCounters, s.finalCountersValid = s.terminalDelta()
 }
 
 // eventTime answers the instant one record reports as its Event-Timestamp. A
@@ -536,21 +673,24 @@ func (a *radiusAcct) onSessionIPAssigned(payload *l2tpevents.SessionIPAssignedPa
 		callingStationID: payload.CallingStationID,
 		acctSessID:       acctSessID,
 		nasPortID:        resolveNASPortID(portIDFormat, nasPortIDFacts{nasID: endpoint.nasID, tunnelID: payload.TunnelID, sessionID: payload.SessionID}),
-		pppInterface:     payload.PppInterface,
+		network:          payload.NetworkLifetime,
 		endpoint:         endpoint,
 		startTime:        time.Now(),
 		cancel:           cancel,
 		ended:            make(chan struct{}),
 		finished:         make(chan struct{}),
 	}
-	// The channel is disconnected while NCP assigns addresses. A replacement
-	// lifetime therefore starts from the retained unit's last traffic totals.
-	base, err := readAcctCounters(sess.pppInterface)
+	// PPP read the baseline from the original unit before it published this
+	// assignment, while the channel was still disconnected, so a replacement
+	// lifetime starts from the retained unit's last traffic totals. An absent
+	// or unavailable sample is never read as zero: every record of the
+	// session then omits its traffic counters.
+	base, err := payload.BaselineCounters.Counters()
 	if err != nil {
 		sess.countersInvalid.Store(true)
-		logger().Warn("l2tp-auth-radius: counter baseline unavailable", "interface", sess.pppInterface, "error", err)
+		recordCountersOmitted(sess, "PPP could not read the counter baseline when the session's network started", err)
 	} else {
-		sess.counterBase = base
+		sess.counterBase = acctTotals(base)
 	}
 
 	endpoint.acquire()
@@ -566,13 +706,20 @@ const acctRecordBound = 10 * time.Second
 
 // runAccounting is one session's accounting task, and the only sender of the
 // session's records: its Accounting-Start, one Interim-Update per interval
-// until the session's context ends, then its Accounting-Stop once end hands
-// the end of service over. One goroutine sends all three kinds, so the Stop
-// leaves only after the Start and every Interim have been acknowledged or
-// given up, and the publisher of the session's Down never waits for a RADIUS
-// server. The task closes sess.finished after it releases the endpoint.
+// until the session's context ends, then its Accounting-Stop once end or
+// endLive hands the end of service over. One goroutine sends all three kinds,
+// so the Stop leaves only after the Start and every Interim have been
+// acknowledged or given up, and the publisher of the session's Down never
+// waits for a RADIUS server or for PPP. The task binds the session's
+// network-qualified capture before the Start, retains it for every counter
+// read, and, after end, awaits the network's terminal counters within
+// acctTerminalBound before it sends the Stop. The task closes sess.finished
+// after it releases the endpoint, and its capture goes with it.
 //
-// Two panic boundaries split the task. A Ze defect met in the Start or the
+// Panic boundaries split the task: the capture binding, the Start and Interim
+// loop, the terminal wait, and the Stop. A defect in the binding or the
+// terminal wait leaves the counters unavailable and the records still go out.
+// A Ze defect met in the Start or the
 // Interim loop ends those records only: the session stays up and in
 // a.sessions, every other session's task runs on, and this task still waits
 // for the end of service and sends the Stop. RFC 2866 Section 2 ties the Stop
@@ -587,11 +734,17 @@ func (a *radiusAcct) runAccounting(ctx context.Context, sess *acctSession, inter
 	defer sess.endpoint.release()
 	defer a.forgetEnding(sess)
 
+	a.containAccounting(sess, sess.bindCapture)
 	a.containAccounting(sess, func() {
 		a.sendAcctStart(sess)
 		a.interimLoop(ctx, nil, sess, "", nil, interval)
 	})
 	<-sess.ended
+	if !sess.finalSettled {
+		// A defect while awaiting the terminal counters leaves them
+		// unavailable; the Stop below is still sent, without them.
+		a.containAccounting(sess, sess.captureTerminal)
+	}
 	a.containAccounting(sess, func() {
 		a.sendAcctStop(sess)
 	})
@@ -779,12 +932,26 @@ func (a *radiusAcct) buildAcctPacket(sess *acctSession, nasID string, sourceAddr
 }
 
 // recordCounters answers the counters one record reports. A Stop reports the
-// counters end read at the end of service; an Interim reads them now.
+// final counters: the ended network's terminal measurement, or a live reading
+// when accounting retired under a continuing network. An Interim reads the
+// original unit now, through the same capture.
+//
+// It is the one place a record's counters are confirmed present, so a record
+// that carries them settles the session's earlier omission finding here. The
+// final counters are read in the Stop branch alone: end and endLive write
+// them, and only the Stop is built after ended closes.
 func (s *acctSession) recordCounters(statusType uint8) (acctCounters, bool) {
+	var counters acctCounters
+	var present bool
 	if statusType == radius.AcctStatusStop {
-		return s.finalCounters, s.finalCountersValid
+		counters, present = s.finalCounters, s.finalCountersValid
+	} else {
+		counters, present = s.liveDelta()
 	}
-	return s.counterDelta()
+	if present {
+		clearCountersOmitted(s)
+	}
+	return counters, present
 }
 
 // sendAcctPacket sends one record and waits, at most acctRecordBound, for its
@@ -888,7 +1055,8 @@ func (r *acctRetirement) stopDetached() {
 	}
 	for _, sess := range r.sessions {
 		// RFC 2866 Section 5.10 value 7: administrator ending NAS service.
-		sess.end(l2tpevents.TerminateCauseAdminReboot)
+		// The session's network continues, so its counters are read now.
+		sess.endLive(l2tpevents.TerminateCauseAdminReboot)
 		r.ending[sess] = struct{}{}
 	}
 	late := r.awaitTasks(acctRecordBound)

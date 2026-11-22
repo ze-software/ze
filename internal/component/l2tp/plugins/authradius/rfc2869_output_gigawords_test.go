@@ -13,34 +13,24 @@ package l2tpauthradius
 import (
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/radius"
 )
 
 // TestRFC2869OutputGigawordsOnInterimUpdate: an Interim-Update whose output
 // octet counter has wrapped carries Acct-Output-Gigawords with the wrap count.
-// It stubs the interface counters at three wraps plus 200 octets on transmit and
+// It stubs the original PPP unit's counters at three wraps plus 200 octets on transmit and
 // reads the attribute out of the built Accounting-Request.
 //
 // RFC requirement: RFC2869-5.2-1 positive -- an Accounting-Request with Acct-Status-Type
 // Interim-Update, whose output octet counter has wrapped around 2^32 three times,
 // carries Acct-Output-Gigawords holding 3 beside Acct-Output-Octets holding the remainder.
 func TestRFC2869OutputGigawordsOnInterimUpdate(t *testing.T) {
-	saved := acctGetStats
-	acctGetStats = func(name string) (*iface.InterfaceStats, error) {
-		return &iface.InterfaceStats{
-			RxBytes: 100,
-			TxBytes: 0x300000000 + 200, // 3 gigawords + 200 octets
-		}, nil
-	}
-	defer func() { acctGetStats = saved }()
-
 	acct := newRADIUSAcct()
 	sess := &acctSession{
-		username:     "heidi",
-		acctSessID:   "1-8-1",
-		pppInterface: "ppp8",
+		username:   "heidi",
+		acctSessID: "1-8-1",
 	}
+	bindAcctUnit(sess, newAcctUnitCapture(fixedAcctUnit(unitCounters(100, 0x300000000+200, 0, 0), nil)))
 
 	pkt := acct.buildAcctPacket(sess, "nas1", nil, radius.AcctStatusInterimUpdate, 60)
 
@@ -56,21 +46,12 @@ func TestRFC2869OutputGigawordsOnInterimUpdate(t *testing.T) {
 // Start carries no Acct-Output-Gigawords even when the output octet counter has wrapped
 // around 2^32.
 func TestRFC2869OutputGigawordsAbsentOnStart(t *testing.T) {
-	saved := acctGetStats
-	acctGetStats = func(name string) (*iface.InterfaceStats, error) {
-		return &iface.InterfaceStats{
-			RxBytes: 100,
-			TxBytes: 0x300000000 + 200, // 3 gigawords + 200 octets
-		}, nil
-	}
-	defer func() { acctGetStats = saved }()
-
 	acct := newRADIUSAcct()
 	sess := &acctSession{
-		username:     "ivan",
-		acctSessID:   "1-9-1",
-		pppInterface: "ppp9",
+		username:   "ivan",
+		acctSessID: "1-9-1",
 	}
+	bindAcctUnit(sess, newAcctUnitCapture(fixedAcctUnit(unitCounters(100, 0x300000000+200, 0, 0), nil)))
 
 	pkt := acct.buildAcctPacket(sess, "nas1", nil, radius.AcctStatusStart, 0)
 

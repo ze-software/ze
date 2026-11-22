@@ -13,12 +13,14 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/l2tp"
 	"github.com/ze-software/ze/internal/component/l2tp/events"
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/component/radius"
 )
 
 // Backend registration and display baselines have no unregister API. Keep them
-// in a joined child, leaving the parent's backend and acctGetStats untouched.
+// in a joined child, leaving the parent's backend and acctCaptureSession untouched.
 func isolatedAcctCounters(t *testing.T) bool {
 	t.Helper()
 	const key = "ZE_RADIUS_ACCT_COUNTER_TEST"
@@ -39,11 +41,46 @@ func isolatedAcctCounters(t *testing.T) bool {
 // Like the Linux backend, GetStats returns raw totals and ResetCounters cannot
 // physically clear them. Real iface dispatch owns the display-only baseline.
 // Embedding Backend makes an unexpected operation fail rather than fake success.
+//
+// The same raw totals are the original PPP unit's: accounting reaches them only
+// through the session's capture (unit), which installAcctCounterBackend binds.
 type acctCounterBackend struct {
 	iface.Backend
 	mu    sync.Mutex
 	stats iface.InterfaceStats
 	err   error
+	unit  *acctUnitCapture
+}
+
+// rawCounters is the original unit's reading, never the display view.
+func (b *acctCounterBackend) rawCounters() (ppp.SessionCounters, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.err != nil {
+		return ppp.SessionCounters{}, b.err
+	}
+	return unitCounters(b.stats.RxBytes, b.stats.TxBytes, b.stats.RxPackets, b.stats.TxPackets), nil
+}
+
+// sample is the measurement PPP would publish now: the baseline at an
+// assignment, the terminal sample at a network's end.
+func (b *acctCounterBackend) sample() events.TrafficSample {
+	counters, err := b.rawCounters()
+	if err != nil {
+		return events.UnavailableTrafficCounters(err)
+	}
+	return measuredSample(counters.RxBytes, counters.TxBytes, counters.RxPackets, counters.TxPackets)
+}
+
+// boundUnit is the capture the latest accounting task bound.
+func (b *acctCounterBackend) boundUnit(t *testing.T) *acctUnitCapture {
+	t.Helper()
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.unit == nil {
+		t.Fatal("no accounting task bound the original unit")
+	}
+	return b.unit
 }
 
 func (b *acctCounterBackend) set(stats iface.InterfaceStats, err error) {
@@ -102,6 +139,13 @@ func installAcctCounterBackend(t *testing.T) *acctCounterBackend {
 			t.Error(err)
 		}
 	})
+	useAcctCaptures(t, func(l2tp.SessionSelector) (l2tp.CapturedSession, error) {
+		unit := newAcctUnitCapture(b.rawCounters)
+		b.mu.Lock()
+		b.unit = unit
+		b.mu.Unlock()
+		return unit, nil
+	})
 	return b
 }
 
@@ -152,12 +196,15 @@ func (c *acctCapture) waitForCounterRecord(t *testing.T, description string, mat
 	}
 }
 
-func counterLifetimeStart(t *testing.T, acct *radiusAcct, capture *acctCapture, username string) capturedAcct {
+// counterLifetimeStart publishes an assignment carrying the baseline PPP read
+// from the original unit, as the producer does before forwarding starts.
+func counterLifetimeStart(t *testing.T, backend *acctCounterBackend, acct *radiusAcct, capture *acctCapture, username string) capturedAcct {
 	t.Helper()
 	acct.onSessionIPAssigned(&events.SessionIPAssignedPayload{
 		SubscriberID: "l2tp-2030-49",
 		TunnelID:     2030, SessionID: 49, Username: username,
 		PeerAddr: "198.51.100.42", PppInterface: "ppp4242",
+		NetworkLifetime: firstNetworkLifetime(t), BaselineCounters: backend.sample(),
 	})
 	start := capture.waitForCounterRecord(t, username+" Start", func(p capturedAcct) bool {
 		return p.statusType == radius.AcctStatusStart && p.username == username
@@ -168,8 +215,11 @@ func counterLifetimeStart(t *testing.T, acct *radiusAcct, capture *acctCapture, 
 	return start
 }
 
-func counterLifetimeStop(t *testing.T, acct *radiusAcct, capture *acctCapture, start capturedAcct) capturedAcct {
+// counterLifetimeStop ends the network: PPP's terminal measurement of the
+// original unit, then the Down.
+func counterLifetimeStop(t *testing.T, backend *acctCounterBackend, acct *radiusAcct, capture *acctCapture, start capturedAcct) capturedAcct {
 	t.Helper()
+	backend.boundUnit(t).measure(backend.sample())
 	acct.onSessionDown(&events.SessionDownPayload{
 		TunnelID: 2030, SessionID: 49, Cause: events.TerminateCauseUserRequest,
 	})
@@ -231,19 +281,19 @@ func TestAccountingCountersRetainedPPPUnit(t *testing.T) {
 	backend := installAcctCounterBackend(t)
 	acct, capture := newCounterAccounting(t, time.Hour)
 	backend.set(iface.InterfaceStats{RxBytes: 100, TxBytes: 200, RxPackets: 5, TxPackets: 7}, nil)
-	first := counterLifetimeStart(t, acct, capture, "alice")
+	first := counterLifetimeStart(t, backend, acct, capture, "alice")
 	retained := iface.InterfaceStats{RxBytes: 1<<32 - 16, TxBytes: 1<<32 - 32, RxPackets: 71, TxPackets: 93}
 	backend.set(retained, nil)
-	assertCounterAttrs(t, counterLifetimeStop(t, acct, capture, first), counterAttrs(iface.InterfaceStats{
+	assertCounterAttrs(t, counterLifetimeStop(t, backend, acct, capture, first), counterAttrs(iface.InterfaceStats{
 		RxBytes: 1<<32 - 116, TxBytes: 1<<32 - 232, RxPackets: 66, TxPackets: 86,
 	}))
 
-	idle := counterLifetimeStart(t, acct, capture, "bob-idle")
-	assertCounterAttrs(t, counterLifetimeStop(t, acct, capture, idle), counterAttrs(iface.InterfaceStats{}))
+	idle := counterLifetimeStart(t, backend, acct, capture, "bob-idle")
+	assertCounterAttrs(t, counterLifetimeStop(t, backend, acct, capture, idle), counterAttrs(iface.InterfaceStats{}))
 
-	busy := counterLifetimeStart(t, acct, capture, "carol-busy")
+	busy := counterLifetimeStart(t, backend, acct, capture, "carol-busy")
 	backend.set(iface.InterfaceStats{RxBytes: 2<<32 + 16, TxBytes: 3<<32 + 32, RxPackets: 171, TxPackets: 293}, nil)
-	assertCounterAttrs(t, counterLifetimeStop(t, acct, capture, busy), counterAttrs(iface.InterfaceStats{
+	assertCounterAttrs(t, counterLifetimeStop(t, backend, acct, capture, busy), counterAttrs(iface.InterfaceStats{
 		RxBytes: 1<<32 + 32, TxBytes: 2<<32 + 64, RxPackets: 100, TxPackets: 200,
 	}))
 	if first.sessionID == idle.sessionID || first.sessionID == busy.sessionID || idle.sessionID == busy.sessionID {
@@ -260,7 +310,7 @@ func TestAccountingCountersIgnoreDisplayClear(t *testing.T) {
 	backend := installAcctCounterBackend(t)
 	acct, capture := newCounterAccounting(t, 200*time.Millisecond)
 	backend.set(iface.InterfaceStats{RxBytes: 1000, TxBytes: 2000, RxPackets: 10, TxPackets: 20}, nil)
-	start := counterLifetimeStart(t, acct, capture, "display-clear")
+	start := counterLifetimeStart(t, backend, acct, capture, "display-clear")
 	backend.set(iface.InterfaceStats{RxBytes: 1600, TxBytes: 2800, RxPackets: 16, TxPackets: 28}, nil)
 	if err := iface.ResetCounters("ppp4242"); err != nil {
 		t.Fatal(err)
@@ -277,7 +327,7 @@ func TestAccountingCountersIgnoreDisplayClear(t *testing.T) {
 	capture.waitForCounterRecord(t, "Interim with lifetime totals despite display clear", func(p capturedAcct) bool {
 		return p.statusType == radius.AcctStatusInterimUpdate && p.sessionID == start.sessionID && hasCounterAttrs(p, want)
 	})
-	assertCounterAttrs(t, counterLifetimeStop(t, acct, capture, start), want)
+	assertCounterAttrs(t, counterLifetimeStop(t, backend, acct, capture, start), want)
 }
 
 func TestAccountingCountersUnavailableSnapshots(t *testing.T) {
@@ -289,21 +339,21 @@ func TestAccountingCountersUnavailableSnapshots(t *testing.T) {
 	t.Run("baseline-read-fails", func(t *testing.T) {
 		// A successful final read cannot reconstruct an unavailable baseline.
 		backend.set(iface.InterfaceStats{}, errors.New("raw baseline unavailable"))
-		start := counterLifetimeStart(t, acct, capture, "missing-baseline")
+		start := counterLifetimeStart(t, backend, acct, capture, "missing-baseline")
 		backend.set(iface.InterfaceStats{RxBytes: 5000, TxBytes: 7000, RxPackets: 50, TxPackets: 70}, nil)
-		assertCounterAttrs(t, counterLifetimeStop(t, acct, capture, start), nil)
+		assertCounterAttrs(t, counterLifetimeStop(t, backend, acct, capture, start), nil)
 	})
 	t.Run("counter-decreases", func(t *testing.T) {
 		// One regressing field invalidates the snapshot; unsigned subtraction
 		// must not manufacture a huge bill while the other counters increase.
 		backend.set(iface.InterfaceStats{RxBytes: 5000, TxBytes: 7000, RxPackets: 50, TxPackets: 70}, nil)
-		start := counterLifetimeStart(t, acct, capture, "decreased-counter")
+		start := counterLifetimeStart(t, backend, acct, capture, "decreased-counter")
 		backend.set(iface.InterfaceStats{RxBytes: 4999, TxBytes: 8000, RxPackets: 60, TxPackets: 80}, nil)
 		capture.waitForCounterRecord(t, "Interim omitting decreased snapshot", func(p capturedAcct) bool {
 			return p.statusType == radius.AcctStatusInterimUpdate && p.sessionID == start.sessionID && hasCounterAttrs(p, nil)
 		})
 		// Numerical catch-up cannot recover continuity after a reset.
 		backend.set(iface.InterfaceStats{RxBytes: 6000, TxBytes: 9000, RxPackets: 70, TxPackets: 90}, nil)
-		assertCounterAttrs(t, counterLifetimeStop(t, acct, capture, start), nil)
+		assertCounterAttrs(t, counterLifetimeStop(t, backend, acct, capture, start), nil)
 	})
 }

@@ -479,7 +479,6 @@ func TestRFC2866AcctSessionIDKeepsTunnelSessionPrefix(t *testing.T) {
 	seedCoAAccountingIdentity(t, &acctSession{
 		birth:    fake.snap.Tunnels[0].Sessions[0].Birth,
 		tunnelID: 10, sessionID: 20, username: "alice", acctSessID: id,
-		pppInterface: fake.snap.Tunnels[0].Sessions[0].PppInterface,
 	})
 	resp := sendRawCoAPacket(t, addr, buildCoAPacket(t, radius.CodeDisconnectRequest, secret,
 		[]radius.Attr{{Type: radius.AttrAcctSessionID, Value: radius.AttrString(id)}}, time.Now()))

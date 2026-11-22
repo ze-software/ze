@@ -931,10 +931,27 @@ sent no Calling Number AVP has no station id, and RFC 2866 Section 5 forbids
 sending text of length zero. NAS-Port-Id is added when the operator configured a
 template. Stop and Interim-Update add Acct-Session-Time. Their traffic counters
 measure the current network lifetime, excluding traffic from an earlier
-lifetime on the same PPP unit. Display-counter clears do not change them.
-RFC 2869 gigaword counters carry the upper 32 bits when nonzero. If the counter
-baseline or a later snapshot is unavailable, Ze logs the failure and omits the
-traffic counters instead of reporting zero.
+lifetime on the same PPP unit. They are read from the PPP unit Ze created for
+the session, never by interface name, so renaming the pppN device or a later
+session reusing its name cannot change them. Display-counter clears do not
+change them. A Stop waits up to 10 seconds for PPP's final measurement of the
+session's network. RFC 2869 gigaword counters carry the upper 32 bits when
+nonzero. If the counter baseline or a later snapshot is unavailable, or the
+final measurement does not arrive within those 10 seconds, Ze logs the failure
+and omits the traffic counters instead of reporting zero.
+
+A record sent without its traffic counters is also a
+`doctor-radius-accounting-counters` finding of the runtime doctor check
+`l2tp-radius-accounting`, one per session, named by its tunnel, session and
+Acct-Session-Id, with the cause. The billing record is then incomplete, never
+wrong. The counters are cumulative, so a later record of the same session that
+carries them clears the finding. A missing baseline, a reading below the
+baseline and a network that could not be captured last for the session, and a
+Stop without counters stays until the plugin stops. Read the cause with
+`show warnings`, then inspect the session with `show l2tp session id <id>`;
+`show diagnostic doctor-radius-accounting-counters` explains each cause.
+<!-- source: internal/component/l2tp/plugins/authradius/acct_health.go -- recordCountersOmitted, clearCountersOmitted, checkAccountingHealth -->
+<!-- source: internal/component/l2tp/plugins/authradius/register_acct_doctor.go -- codeRADIUSAccountingCounters -->
 
 The Acct-Session-Id is `tunnelID-sessionID-boottag-sequence`, and the Start,
 Interim-Update and Stop records of one session carry the same one. The sequence

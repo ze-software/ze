@@ -3,7 +3,7 @@
     "rid": "RFC5176-3.3-1",
     "polarity": "positive",
     "unit": "internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go::TestCoALiveAccountingOwnerIdentitySurvivesRegistryMiss",
-    "unit-sha": "57a91b5213dc93ec",
+    "unit-sha": "c8852208173a50a9",
     "claim-sha": "9f11bb9d593a2c35",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/coa.go::findSessions",

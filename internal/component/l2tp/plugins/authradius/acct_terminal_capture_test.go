@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/l2tp"
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/radius"
 	"github.com/ze-software/ze/internal/core/crashlog"
@@ -17,37 +17,36 @@ import (
 )
 
 // TestAccountingStopSurvivesDefectWhileCapturingEnd proves that a Ze defect
-// met while the Down callback reads the final counters loses neither the
+// met while the accounting task reads the final counters loses neither the
 // session's Accounting-Stop nor the bound on shutdown.
 //
-// METHOD: the counter seam answers real values for the Start's baseline, then
-// panics on the read the end of service makes. The Down must return to its
-// publisher, the panic must be counted on the accounting boundary, the Stop
-// must still reach the wire with the original Acct-Session-Id and cause and
-// without counters, and Stop must return well inside its bound.
+// METHOD: the session's capture answers a real baseline in the assignment,
+// then panics when the task awaits the terminal counters after the end of
+// service. The Down must return to its publisher, the panic must be counted on
+// the accounting boundary, the Stop must still reach the wire with the
+// original Acct-Session-Id and cause and without counters, and Stop must
+// return well inside its bound.
 // PREVENTS: a panic in the end-of-service capture leaving the task waiting
 // forever, so the Stop is never sent and retirement never returns.
 func TestAccountingStopSurvivesDefectWhileCapturingEnd(t *testing.T) {
 	t.Cleanup(crashlog.SetCrashDirForTest(t.TempDir()))
 	// Installed before the accountant, so it is restored after the tasks join.
-	var armed atomic.Bool
-	saved := acctGetStats
-	acctGetStats = func(string) (*iface.InterfaceStats, error) {
-		if armed.Load() {
-			panic("boom")
-		}
-		return &iface.InterfaceStats{RxBytes: 10, TxBytes: 20, RxPackets: 1, TxPackets: 2}, nil
-	}
-	t.Cleanup(func() { acctGetStats = saved })
+	unit := newAcctUnitCapture(fixedAcctUnit(unitCounters(10, 20, 1, 2), nil))
+	useAcctCaptures(t, func(l2tp.SessionSelector) (l2tp.CapturedSession, error) { return unit, nil })
 	acct, capture := capturedAccountant(t)
 	before, _ := authGuard.Panics(taskAccounting)
 
+	network, err := l2tpevents.NetworkLifetime{}.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
 	acct.onSessionIPAssigned(&l2tpevents.SessionIPAssignedPayload{
 		SubscriberID: "l2tp-5-6",
 		TunnelID:     5, SessionID: 6, Username: "dora", PeerAddr: "10.0.0.6", PppInterface: "ppp6",
+		NetworkLifetime: network, BaselineCounters: measuredSample(10, 20, 1, 2),
 	})
 	start := capture.waitN(t, 1)[0]
-	armed.Store(true)
+	unit.defect.Store(true)
 	acct.onSessionDown(&l2tpevents.SessionDownPayload{
 		TunnelID: 5, SessionID: 6, Cause: l2tpevents.TerminateCauseUserRequest,
 	})
@@ -145,12 +144,20 @@ func TestAccountingStopReportsTheEndOfService(t *testing.T) {
 // PREVENTS: a billing record lost to an unreachable server being visible only
 // to an operator who reads the log.
 func TestUnacknowledgedAccountingRecordIsADoctorFinding(t *testing.T) {
+	// Earlier tests in this process leave their own findings in the report
+	// store; this test answers only for the session it creates.
+	report.ClearSource(Name)
 	t.Cleanup(func() { report.ClearSource(Name) })
+	// The session is measured, so the only finding it can raise is the
+	// unacknowledged record this test is about.
+	unit := newAcctUnitCapture(fixedAcctUnit(unitCounters(0, 0, 0, 0), nil))
+	useAcctCaptures(t, func(l2tp.SessionSelector) (l2tp.CapturedSession, error) { return unit, nil })
 	acct := newDeadServerAcct(t)
 	t.Cleanup(acct.Stop)
 	acct.onSessionIPAssigned(&l2tpevents.SessionIPAssignedPayload{
 		SubscriberID: "l2tp-8-9",
 		TunnelID:     8, SessionID: 9, Username: "erin", PeerAddr: "10.0.0.9",
+		NetworkLifetime: firstNetworkLifetime(t), BaselineCounters: measuredSample(0, 0, 0, 0),
 	})
 	acctID := acct.currentSessionIDsByLabels(t, 8, 9)
 

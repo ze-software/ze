@@ -14,7 +14,6 @@ package l2tpauthradius
 import (
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/radius"
 )
 
@@ -22,21 +21,12 @@ import (
 // attribute even when the interface counters exceed 4GB; presence is gated on
 // Acct-Status-Type being Stop or Interim-Update, not on the counter value.
 func TestRFC2869GigawordsAbsentOnStart(t *testing.T) {
-	saved := acctGetStats
-	acctGetStats = func(name string) (*iface.InterfaceStats, error) {
-		return &iface.InterfaceStats{
-			RxBytes: 0x200000000 + 100, // 2 gigawords + 100 octets
-			TxBytes: 0x300000000 + 200, // 3 gigawords + 200 octets
-		}, nil
-	}
-	defer func() { acctGetStats = saved }()
-
 	acct := newRADIUSAcct()
 	sess := &acctSession{
-		username:     "grace",
-		acctSessID:   "1-7-1",
-		pppInterface: "ppp7",
+		username:   "grace",
+		acctSessID: "1-7-1",
 	}
+	bindAcctUnit(sess, newAcctUnitCapture(fixedAcctUnit(unitCounters(0x200000000+100, 0x300000000+200, 0, 0), nil)))
 
 	pkt := acct.buildAcctPacket(sess, "nas1", nil, radius.AcctStatusStart, 0)
 

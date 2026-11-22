@@ -184,8 +184,11 @@ func (r *l2tpReactor) notifySessionDowns(batch []sessionDown) {
 		return
 	}
 	for _, d := range batch {
-		// A pending snapshot remains owned by the already-bound accounting
-		// task, which awaits the exact receipt off this publication callback.
+		// On these L2TP-initiated paths PPP has usually not measured the
+		// network yet, so the payload carries the zero (not captured) sample.
+		// RADIUS accounting does not read it: its per-session task bound a
+		// capture of this network at assignment and awaits the same receipt
+		// through CapturedSession.TerminalCounters, off this callback.
 		terminal, _ := d.counterReceipt.TerminalSnapshot()
 		if _, err := l2tpevents.SessionDown.Emit(r.eventBus, &l2tpevents.SessionDownPayload{
 			Birth:            d.birth,

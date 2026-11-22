@@ -290,8 +290,7 @@ func newCoACollisionFixture(t *testing.T) (string, []byte, *coaCollisionService,
 	for index := range 2 {
 		seedCoAAccountingIdentity(t, &acctSession{birth: service.originals[index].snapshot.Birth,
 			tunnelID:  service.originals[index].snapshot.TunnelLocalTID,
-			sessionID: 421, username: "ac2-collision", acctSessID: coaCollisionAccountingID(index),
-			pppInterface: service.originals[index].snapshot.PppInterface})
+			sessionID: 421, username: "ac2-collision", acctSessID: coaCollisionAccountingID(index)})
 		coaCollisionRequireRates(t, owners.rateBackend, service.originals[index].snapshot.PppInterface, 10_000_000, 5_000_000)
 	}
 	secret := []byte("ac2-original-accounting-collision")

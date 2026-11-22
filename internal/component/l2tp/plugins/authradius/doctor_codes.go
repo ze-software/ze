@@ -11,6 +11,10 @@ const (
 	codeDoctorRADIUSInvalid            = "doctor-radius-invalid"
 	codeDoctorRADIUSUnsignedResponse   = "doctor-radius-unsigned-response"
 	exampleDoctorJSON                  = "ze doctor --json"
+	// exampleShowDoctor is the command that lists every doctor finding.
+	exampleShowDoctor = "ze show doctor"
+	// findingDetailError is the report detail key that holds a finding's cause.
+	findingDetailError = "error"
 )
 
 // doctorDiagnosticCodes is the explanation metadata for the doctor codes this package owns.
@@ -25,7 +29,7 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 		Code:        codeDoctorRADIUSCoAApply,
 		Title:       "Subscriber authorization backend did not confirm a change",
 		Description: "A RADIUS CoA owner failed to apply or restore a subscriber's shaping or VLAN maps. The runtime finding retains the backend cause until a successful retry for that session, session teardown, or provider shutdown. Inspect shaping and interface state, repair the backend, then retry the authenticated authorization request.",
-		Examples:    []string{"ze show doctor", "ze show l2tp shaper"},
+		Examples:    []string{exampleShowDoctor, "ze show l2tp shaper"},
 	},
 	{
 		Code:        codeDoctorRADIUSFramedRouteSkipped,

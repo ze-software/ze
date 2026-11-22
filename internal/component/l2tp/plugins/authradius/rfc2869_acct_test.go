@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/l2tp"
 	"github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/radius"
 )
@@ -288,23 +288,12 @@ func TestSplitGigawords(t *testing.T) {
 // With sub-4GB counters (gigawords == 0) a Stop/Interim Accounting-Request
 // carries no Acct-Input/Output-Gigawords attribute.
 func TestBuildAcctPacketWithCounters(t *testing.T) {
-	saved := acctGetStats
-	acctGetStats = func(name string) (*iface.InterfaceStats, error) {
-		return &iface.InterfaceStats{
-			RxBytes:   5000,
-			TxBytes:   3000,
-			RxPackets: 50,
-			TxPackets: 30,
-		}, nil
-	}
-	defer func() { acctGetStats = saved }()
-
 	acct := newRADIUSAcct()
 	sess := &acctSession{
-		username:     "alice",
-		acctSessID:   "1-2-1",
-		pppInterface: "ppp0",
+		username:   "alice",
+		acctSessID: "1-2-1",
 	}
+	bindAcctUnit(sess, newAcctUnitCapture(fixedAcctUnit(unitCounters(5000, 3000, 50, 30), nil)))
 
 	pkt := acct.buildAcctPacket(sess, "nas1", nil, radius.AcctStatusInterimUpdate, 60)
 
@@ -325,25 +314,20 @@ func TestBuildAcctPacketWithCounters(t *testing.T) {
 // Stop carries the Acct-Input/Output-Gigawords attributes, and when the octet
 // counter has wrapped past 2^32 each holds the wrap count.
 func TestBuildAcctPacketGigawords(t *testing.T) {
-	saved := acctGetStats
-	acctGetStats = func(name string) (*iface.InterfaceStats, error) {
-		return &iface.InterfaceStats{
-			RxBytes:   0x200000000 + 100, // 2 gigawords + 100 octets
-			TxBytes:   0x300000000 + 200, // 3 gigawords + 200 octets
-			RxPackets: 10,
-			TxPackets: 20,
-		}, nil
-	}
-	defer func() { acctGetStats = saved }()
-
 	acct := newRADIUSAcct()
 	sess := &acctSession{
-		username:     "bob",
-		acctSessID:   "1-3-1",
-		pppInterface: "ppp1",
+		username:   "bob",
+		acctSessID: "1-3-1",
 	}
-	// A Stop reports the counters read when service ended.
+	unit := newAcctUnitCapture(fixedAcctUnit(unitCounters(0, 0, 0, 0), nil))
+	unit.measure(measuredSample(
+		0x200000000+100, // 2 gigawords + 100 octets
+		0x300000000+200, // 3 gigawords + 200 octets
+		10, 20))
+	bindAcctUnit(sess, unit)
+	// A Stop reports the terminal measurement of the network that ended.
 	sess.captureEnd(events.TerminateCauseUserRequest)
+	sess.captureTerminal()
 
 	pkt := acct.buildAcctPacket(sess, "nas1", nil, radius.AcctStatusStop, 120)
 
@@ -356,39 +340,35 @@ func TestBuildAcctPacketGigawords(t *testing.T) {
 }
 
 func TestBuildAcctPacketStartZeroCounters(t *testing.T) {
-	called := false
-	saved := acctGetStats
-	acctGetStats = func(name string) (*iface.InterfaceStats, error) {
-		called = true
-		return &iface.InterfaceStats{RxBytes: 999}, nil
-	}
-	defer func() { acctGetStats = saved }()
-
 	acct := newRADIUSAcct()
 	sess := &acctSession{
-		username:     "carol",
-		acctSessID:   "1-4-1",
-		pppInterface: "ppp2",
+		username:   "carol",
+		acctSessID: "1-4-1",
 	}
+	unit := newAcctUnitCapture(fixedAcctUnit(unitCounters(999, 0, 0, 0), nil))
+	bindAcctUnit(sess, unit)
 
 	pkt := acct.buildAcctPacket(sess, "nas1", nil, radius.AcctStatusStart, 0)
 
-	if called {
-		t.Error("GetStats should not be called for Start packets")
+	if unit.liveReads() != 0 {
+		t.Error("the original unit should not be read for Start packets")
+	}
+	select {
+	case <-unit.awaiting:
+		t.Error("the original unit's terminal counters should not be awaited for Start packets")
+	default:
 	}
 	if v := pkt.FindAttr(radius.AttrAcctInputOctets); v != nil {
 		t.Error("Start packet should not include counter attributes")
 	}
 }
 
+// A session whose original network was never bound has no counters to report.
 func TestBuildAcctPacketMissingIface(t *testing.T) {
-	saved := acctGetStats
-	acctGetStats = func(name string) (*iface.InterfaceStats, error) {
-		t.Error("GetStats should not be called when pppInterface is empty")
-		return &iface.InterfaceStats{}, nil
-	}
-	defer func() { acctGetStats = saved }()
-
+	useAcctCaptures(t, func(l2tp.SessionSelector) (l2tp.CapturedSession, error) {
+		t.Error("no capture may be sought for a session whose network was never bound")
+		return nil, errors.New("unexpected capture")
+	})
 	acct := newRADIUSAcct()
 	sess := &acctSession{
 		username:   "dave",
@@ -408,18 +388,12 @@ func TestBuildAcctPacketMissingIface(t *testing.T) {
 }
 
 func TestBuildAcctPacketGetStatsError(t *testing.T) {
-	saved := acctGetStats
-	acctGetStats = func(name string) (*iface.InterfaceStats, error) {
-		return nil, errors.New("interface not found")
-	}
-	defer func() { acctGetStats = saved }()
-
 	acct := newRADIUSAcct()
 	sess := &acctSession{
-		username:     "frank",
-		acctSessID:   "1-6-1",
-		pppInterface: "ppp99",
+		username:   "frank",
+		acctSessID: "1-6-1",
 	}
+	bindAcctUnit(sess, newAcctUnitCapture(fixedAcctUnit(unitCounters(0, 0, 0, 0), errors.New("original unit is closed"))))
 
 	pkt := acct.buildAcctPacket(sess, "nas1", nil, radius.AcctStatusInterimUpdate, 60)
 
@@ -446,7 +420,19 @@ func assertAcctPacketCountersAbsent(t *testing.T, pkt *radius.Packet) {
 	}
 }
 
+// TestAcctSessionPppInterface proves that the session's counters come from the
+// network the assignment named, not from its interface name: the accounting
+// task binds the capture of that SID, TID and network lifetime.
 func TestAcctSessionPppInterface(t *testing.T) {
+	network, err := events.NetworkLifetime{}.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+	selectors := make(chan l2tp.SessionSelector, 1)
+	useAcctCaptures(t, func(selector l2tp.SessionSelector) (l2tp.CapturedSession, error) {
+		selectors <- selector
+		return newAcctUnitCapture(fixedAcctUnit(unitCounters(0, 0, 0, 0), nil)), nil
+	})
 	sharedKey := []byte("accttest")
 	capture := newAcctCapture()
 	conn, addr := startAcctServer(t, sharedKey, capture)
@@ -466,12 +452,14 @@ func TestAcctSessionPppInterface(t *testing.T) {
 	acct.setClient(client, "test-nas", 300*time.Second, addr, nil, "")
 
 	acct.onSessionIPAssigned(&events.SessionIPAssignedPayload{
-		SubscriberID: "l2tp-1-10",
-		TunnelID:     1,
-		SessionID:    10,
-		Username:     "eve",
-		PeerAddr:     "10.0.0.5",
-		PppInterface: "ppp42",
+		SubscriberID:     "l2tp-1-10",
+		TunnelID:         1,
+		SessionID:        10,
+		Username:         "eve",
+		PeerAddr:         "10.0.0.5",
+		PppInterface:     "ppp42",
+		NetworkLifetime:  network,
+		BaselineCounters: measuredSample(0, 0, 0, 0),
 	})
 
 	capture.waitN(t, 1) // wait for start
@@ -483,8 +471,19 @@ func TestAcctSessionPppInterface(t *testing.T) {
 	if !ok {
 		t.Fatal("session not found")
 	}
-	if sess.pppInterface != "ppp42" {
-		t.Errorf("pppInterface: got %q, want %q", sess.pppInterface, "ppp42")
+	if sess.network != network {
+		t.Errorf("network: got %v, want %v", sess.network, network)
+	}
+	select {
+	case selector := <-selectors:
+		if selector.SID != 10 || selector.TID != 1 || selector.NetworkLifetime != network {
+			t.Errorf("capture selector = %+v, want SID 10, TID 1 and the assigned network", selector)
+		}
+	default:
+		t.Error("the accounting task bound no capture before its Start")
+	}
+	if sess.capture.Load() == nil {
+		t.Error("the bound capture is not retained by the session")
 	}
 
 	acct.Stop()

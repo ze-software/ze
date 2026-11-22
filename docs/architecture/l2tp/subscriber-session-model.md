@@ -368,12 +368,14 @@ does whenever the reactor publishes to a slow reader
 (`plan/journal/slow-reader-stalls-a-shared-goroutine.md`), so no reader waits
 for a remote server inside a delivery.
 
-RADIUS accounting answers a session-down without waiting for its server. The
-callback reads the session's elapsed time and counters, which a Stop reports
-about the end of service, and hands the Stop to the session's own accounting
-task. That one task sends the session's Start, its Interim-Updates and then its
-Stop, so the Stop leaves only after every earlier record was acknowledged or
-given up, each record bounded at 10 seconds. A session keeps the accounting
+RADIUS accounting answers a session-down without waiting for its server or
+for PPP. The callback records the session's elapsed time and the instant
+service ended, and hands the Stop to the session's own accounting task. That
+one task sends the session's Start, its Interim-Updates and then its Stop, so
+the Stop leaves only after every earlier record was acknowledged or given up,
+each record bounded at 10 seconds. Before the Stop, the task waits up to the
+same 10 seconds for the network's terminal counters (see "Accounting counters
+come from the original unit" below). A session keeps the accounting
 server and NAS identity it started under: a reload moves new sessions to the
 new configuration, and the replaced client closes once the last session that
 started under it has sent its Stop. Shutdown and the removal of RADIUS
@@ -603,16 +605,41 @@ L2TP accounting starts once per network lifetime, not once per address family.
 A later IPv4 assignment updates subsequent records without replacing the
 accounting session. LCP-down stops that session before replacement authentication.
 
-Accounting subtracts each network lifetime's initial raw interface counters.
-Traffic from an earlier lifetime is not billed again when the PPP unit remains.
-The original network lifetime is established at the first valid address
-assignment, before its synchronous publication and acknowledgement. The second
-address family and SessionUp retain that same lifetime. Exact captured counter
-reads check its original PPP attempt, Control and network pointer around the
-read; a pre-network capture has no baseline. The L2TP accounting callback captures
-its baseline during address publication, before PPP enables forwarding.
+Accounting subtracts each network lifetime's initial raw counters of the
+original PPP unit. Traffic from an earlier lifetime is not billed again when
+the PPP unit remains. The original network lifetime is established at the first
+valid address assignment, before its synchronous publication and
+acknowledgement. The second address family and SessionUp retain that same
+lifetime. Exact captured counter reads check its original PPP attempt, Control
+and network pointer around the read; a pre-network capture has no baseline.
 Accounting-Start runs asynchronously, so PPP does not wait for a RADIUS server
 response.
+
+**Accounting counters come from the original unit.** RADIUS accounting never
+reads a counter by interface name, because a renamed pppN, or a name another
+subscriber's unit now holds, would answer for the wrong session.
+
+- Baseline: the `BaselineCounters` sample of the session-ip-assigned payload,
+  which PPP read from the original unit before publishing it.
+- Binding: the session's accounting task captures the session by SID, TID,
+  Birth and `NetworkLifetime`, and retains that capture until the task ends.
+  It binds in the task, not in the assignment callback: `CaptureSession` takes
+  the subsystem mutex, and `Subsystem.Stop` holds that mutex while it waits
+  for the reactor goroutine that delivers the callback.
+- Interim-Update: the capture's `Counters` minus the baseline.
+- Stop after a session-down: the task awaits the capture's `TerminalCounters`
+  for up to 10 seconds, then subtracts the baseline. On a peer CDN, a StopCCN
+  or an administrative clear, L2TP publishes the Down before PPP has measured
+  the network, so the Down's own `TerminalCounters` field is the zero
+  (not captured) sample and accounting does not use it.
+- Stop at retirement (shutdown, RADIUS configuration removed or replaced): the
+  network continues, so no terminal measurement will come; the task reports the
+  capture's live `Counters` read when retirement ended the session.
+
+A missing baseline, an unbound capture, a failed read, a wait that reaches its
+bound, an unavailable sample and a reading below the baseline each omit the
+record's six traffic attributes and log a warning; none is reported as zero,
+and none ends the session.
 
 The L2TP event schema provides a typed `NetworkLifetime` to distinguish network
 phases within the same logical Birth. Its sequence is nonzero and cannot wrap;
@@ -665,7 +692,7 @@ are omitted and logged, not reported as zero.
 
 PPPoE accounting is not connected to subscriber events.
 
-<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- subscribeEventBus, onSessionIPAssigned -->
+<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- subscribeEventBus, onSessionIPAssigned, bindCapture, liveDelta, terminalDelta, endLive, acctTerminalBound -->
 
 **The bridge must not be built on a nil event bus.** L2TP subsystem tests start
 with a nil bus, and the bridge panics on one. Guard before constructing it.
