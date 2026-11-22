@@ -22,6 +22,36 @@ import (
 // Returns an empty string if discovered is empty -- callers should treat
 // the empty return as "nothing to emit" and skip writing the file.
 func EmitConfig(discovered []DiscoveredInterface) string {
+	return EmitConfigKept(discovered, keepEvery)
+}
+
+// keepEvery keeps every discovered entry: EmitConfig writes all of them.
+func keepEvery(*DiscoveredInterface) bool { return true }
+
+// Emits reports whether EmitConfig writes an entry for di: the loopback, and
+// each kind the interface config holds (ethernet, bridge, veth, dummy,
+// wireguard, xfrm) whose name the config grammar can carry. `ze init
+// --confirm` asks about exactly these, so it never asks about a device it
+// would not write.
+func Emits(di *DiscoveredInterface) bool {
+	switch di.Type {
+	case zeTypeLoopback:
+		return true
+	case zeTypeEthernet, TypeBridge, TypeVeth, TypeDummy, zeTypeWireguard, zeTypeXFRM:
+		return safeEmitName(di.Name)
+	}
+	// A kind the interface config does not hold (a tunnel, any link type
+	// discovery adds later) is not written.
+	return false
+}
+
+// EmitConfigKept is EmitConfig over the entries keep answers true for, the
+// writer behind `ze init --confirm`. The hardware selector of a kept entry is
+// still judged against EVERY discovered device: a factory address two NICs
+// report stays shared when the operator keeps only one of them, so the kept
+// entry binds by os-name rather than by a `mac match` that would name both
+// devices and refuse the whole commit (uniquePermanentMACs).
+func EmitConfigKept(discovered []DiscoveredInterface, keep func(*DiscoveredInterface) bool) string {
 	if len(discovered) == 0 {
 		return ""
 	}
@@ -34,25 +64,23 @@ func EmitConfig(discovered []DiscoveredInterface) string {
 	hasLoopback := false
 	for i := range discovered {
 		di := &discovered[i]
+		if !Emits(di) {
+			continue
+		}
+		if !keep(di) {
+			continue
+		}
+		// Emits admitted only the kinds listed here.
 		switch di.Type {
 		case zeTypeLoopback:
 			hasLoopback = true
 		case zeTypeEthernet, TypeBridge, TypeVeth, TypeDummy:
-			if !safeEmitName(di.Name) {
-				continue
-			}
-			fmt.Fprintf(&b, "    %s %s {\n", di.Type, di.Name) //nolint:errcheck // buffer output
+			b.Str("    ").Str(di.Type).Byte(' ').Str(di.Name).Str(" {\n")
 			emitSelectorBlock(&b, di, unique, "        ")
 			b.WriteString("    }\n")
 		case zeTypeWireguard:
-			if !safeEmitName(di.Name) {
-				continue
-			}
 			emitWireguardBlock(&b, di)
 		case zeTypeXFRM:
-			if !safeEmitName(di.Name) {
-				continue
-			}
 			emitXFRMBlock(&b, di)
 		}
 	}

@@ -377,7 +377,25 @@ A managed client (`ze init --managed`) and an appliance seed (`ze init --seed`) 
 discovery and write no initial config: the managed client takes its first config from
 its hub, and the appliance discovers on the device at first boot.
 
-<!-- source: internal/plugins/init/main.go -- runInitPublished, writeInitialConfig -->
+By default `ze init` writes every device discovery finds, including the ones another
+program owns (`docker0`, `br-*`, `virbr0`, container veths, `wg-quick` devices), and a
+root ze then manages each of them. `ze init --confirm` asks about each device the config
+can hold, the loopback included, and writes only the ones answered yes. Each question
+shows the device's kind and name, its MAC address, the bridge or bond it is a member of,
+and its kernel alias: the hints that name the program that owns it. One line answers one
+device, in the order `ze interface scan` lists them: `yes` or `y` writes it, and `no`, `n`
+or an empty line leaves it out. Any other answer, and input that ends before every device
+is answered, is refused before the store is published, so a script works the same as a
+terminal. When discovery fails, `--confirm` asks nothing and `ze init` warns as it does
+without the flag. `--confirm` is refused with `--seed`, `--managed` and `--from`, which
+write no discovered interface.
+
+A kept ethernet's selector is still judged against every discovered device: when two
+NICs report one factory address and only one is kept, the kept entry binds by `os-name`,
+because a `mac { match }` on that address would name both devices and refuse the commit.
+
+<!-- source: internal/plugins/init/main.go -- runInitPublished, writeInitialConfig, profileFromFlags, confirmInterfaces, describeDevice, readAnswer -->
+<!-- source: internal/component/iface/emit.go -- Emits, EmitConfigKept -->
 
 <!-- source: internal/component/iface/discover.go -- DiscoverInterfaces, infoToZeType -->
 
@@ -464,6 +482,12 @@ device appears, and a config is validated on machines that will never run it.
 
 <!-- source: internal/component/config/validators.go -- MACAddressValidator, CompleteFn -->
 <!-- source: internal/component/config/validators_register.go -- mac-address registration -->
+
+## Design decisions
+
+| Decision | It forbids | Source | Date |
+|----------|------------|--------|------|
+| `ze init` claims every discovered device by default, including the ones another program owns. `ze init --confirm` asks about each discovered device and writes only the ones the operator confirms | Leaving a discovered device out of the default `ze init` config by kind, membership, alias or any other ownership guess; asking about devices without `--confirm`; writing a device `--confirm` did not get a yes for | plan/records/ruling-ze-init-claims-discovered-devices.md | 2026-11-22 |
 
 ## Key Design Decisions
 

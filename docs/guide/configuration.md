@@ -2737,8 +2737,27 @@ environment {
 }
 ```
 
-The discovered interfaces follow it. When discovery fails, `ze init` warns and still
-writes the listener. Each discovered interface gets an entry named
+The discovered interfaces follow it: every one discovery finds, including the ones another
+program owns, such as `docker0` or a container's veth. A root ze then manages each of them.
+When discovery fails, `ze init` warns and still writes the listener.
+
+To choose, run `ze init --confirm`. After the instance name it asks about each discovered
+interface the config can hold, the loopback included, and writes only the ones answered
+yes. Each question names the kind and the device, then its MAC address, the bridge or bond
+it is a member of, and its kernel alias, the hints that say which program owns it:
+
+```
+veth veth1a2b (mac 0e:00:00:00:00:02, member of docker0, alias "container web"): write it into the config? yes/no [no]:
+```
+
+`yes` or `y` writes the device, and `no`, `n` or an empty line leaves it out. Piped input
+gives one line per device in `ze interface scan` order, after the five credential lines.
+Any other answer, and input that ends before every device is answered, is refused and no
+store is written. The status line then reads `discovered <n> interface(s), wrote the <m>
+confirmed into the initial config`. `--confirm` is refused with `--seed`, `--managed` and
+`--from`, which write no discovered interface.
+
+Each discovered interface gets an entry named
 after its OS name, carrying one selector that binds it back to the device:
 
 | Discovered kind | Selector written |
@@ -2765,7 +2784,7 @@ the active config (they belong to the wrong machine and would shadow the applian
 first-boot template). The appliance discovers its own interfaces at first boot instead.
 `--managed` writes none either: a managed client's first config comes from its hub.
 
-<!-- source: internal/plugins/init/main.go -- writeInitialConfig, writeSSHListener, discoverInterfaceConfig, seedFlag -->
+<!-- source: internal/plugins/init/main.go -- writeInitialConfig, writeSSHListener, discoverInterfaces, confirmInterfaces, readAnswer, profileFromFlags, seedFlag -->
 <!-- source: internal/component/iface/discover.go -- DiscoverInterfaces -->
 <!-- source: internal/component/iface/emit.go -- matchMACFor, emitSelectorBlock, emitSelectorSet -->
 <!-- source: cmd/ze/ze_core_start.go -- bootstrapConfigFromTemplate, bootstrapFromDiscovery -->

@@ -1,0 +1,55 @@
+# Test: does `ze init --confirm` on the real binary ask about this host's
+# discovered interfaces, and refuse input that leaves one unanswered, without
+# writing a store?
+#
+# VALIDATES: the --confirm flag reaches the question path through the shipped
+# binary: its flag parsing, the netlink backend the composition root links, and
+# discovery of the host's devices. Linux always has the loopback, which
+# --confirm asks about, so at least one question is asked on every Linux host.
+# Given only the five credential lines, the input ends before that question is
+# answered, and ze init refuses, naming the command that asks again. The second
+# `ze init`, without --confirm, succeeds only because the refused run left no
+# store behind ("database already exists" otherwise).
+# PREVENTS: --confirm parsed and then ignored, so the default writes every
+# device although the operator asked to confirm each; and an unanswered device
+# decided for the operator.
+#
+# A unit test cannot decide it: the unit tests supply a fixed discovered set
+# through the discoverHostInterfaces seam, so only this run proves the flag
+# reaches real discovery. The positive path (only the confirmed devices are
+# written) is host-dependent in count and is proven by the unit tests in
+# internal/plugins/init/confirm_internal_test.go.
+#
+# needs-linux: discovery runs through the netlink backend, which exists on
+# Linux only. No daemon starts and nothing is applied, so no capability is
+# needed.
+
+option=needs-linux
+option=timeout:value=60s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+
+stdin=credentials-only:terminator=EOF_INIT
+admin
+init-confirm-secret
+127.0.0.1
+$PORT
+edge
+EOF_INIT
+
+stdin=default-answers:terminator=EOF_DEFAULT
+admin
+init-confirm-secret
+127.0.0.1
+$PORT
+edge
+EOF_DEFAULT
+
+cmd=foreground:seq=1:exec=ze init --confirm:stdin=credentials-only:exit=1
+expect=stderr:contains=ze init --confirm got no answer for
+expect=stderr:contains=fix: ze init --confirm
+reject=stdout:contains=initialized
+
+cmd=foreground:seq=2:exec=ze init:stdin=default-answers:exit=0
+expect=stdout:contains=with the SSH listener on 127.0.0.1:
+reject=stderr:contains=already exists

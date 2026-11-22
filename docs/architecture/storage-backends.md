@@ -90,10 +90,10 @@ when the import stopped after recording its intent
 `--force --yes` it calls `ReplaceImportBlob`, which moves an existing tree, and
 an unrelated seed, to `.replaced-<stamp>` before publication. `--from` reads no
 credentials and refuses, each by name, the flags that shape a new store:
-`--seed`, `--managed`, `--web-cert` and `--web-cert-name`. The URL form and
+`--seed`, `--managed`, `--web-cert`, `--web-cert-name` and `--confirm`. The URL form and
 `--sha256` are storage-2.
 Appliance first boot imports its seed through the same API.
-<!-- source: internal/plugins/init/main.go -- Run, runImport -->
+<!-- source: internal/plugins/init/main.go -- Run, runImport, profileFromFlags -->
 <!-- source: cmd/ze/ze_core_autoinit.go -- gokrazyAutoInit -->
 
 The tree root and its intermediate directories are exactly 0700; regular frame

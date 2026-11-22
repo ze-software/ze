@@ -50,12 +50,8 @@ writes the SSH listener the CLI connects to).
 | 8 | The parse and ui suites for `cli-host-*-show` and `cli-crashes-*` | Not run after 65dfcaa062, which adds a stderr note after a local answer; they assert stdout and exit only | Run those tests by pattern |
 | 9 | Two stale texts | The header comment of `test/plugin/cli-refused-login-not-offline.ci` says `runBGP` prints the refusal (now `endFailedAsk`); `docs/contributing/ze-go-style.md` names `./le go style check path <file>`, which `./le` does not have | Correct both |
 
-Open for Thomas: `ze init` writes every discovered bridge, veth, dummy,
-WireGuard and xfrm device into the config, with nothing that excludes a device
-another program owns (docker0, `br-*`, virbr0, container veths). A root ze
-then brings each up, manages it, and creates a missing one. Keeping all needs
-no change. Skipping foreign devices needs an ownership signal discovery does
-not read today (the `ze:owned:` alias, the master index, or a kind rule such as
-ethernet and loopback only, which `EmitBootstrapConfig` already applies), in
-`ze init` alone or in `iface.EmitConfig`, which also changes
-`ze interface scan --config`.
+Answered by Thomas: `ze init` keeps claiming every discovered device by
+default, the ones another program owns included, and `ze init --confirm` asks
+about each device and writes only the confirmed ones. `--confirm` is
+implemented in this work; the ruling is the `## Design decisions` row of
+`docs/features/interfaces.md`.

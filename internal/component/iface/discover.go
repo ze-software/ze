@@ -6,6 +6,8 @@ package iface
 
 import (
 	"sort"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // Ze interface type names matching the YANG schema list/container names.
@@ -88,6 +90,14 @@ func DiscoverInterfaces() ([]DiscoveredInterface, error) {
 		return nil, err
 	}
 
+	// names maps each listed device's index to its name, so a member names
+	// the bridge or bond it belongs to even when that is a kind discovery
+	// does not keep.
+	names := make(map[int]string, len(infos))
+	for i := range infos {
+		names[infos[i].Index] = infos[i].Name
+	}
+
 	var result []DiscoveredInterface
 	for i := range infos {
 		zeType := infoToZeType(&infos[i])
@@ -99,6 +109,8 @@ func DiscoverInterfaces() ([]DiscoveredInterface, error) {
 			Type:         zeType,
 			MAC:          infos[i].MAC,
 			PermanentMAC: infos[i].PermanentMAC,
+			Master:       masterName(names, infos[i].MasterIndex),
+			Alias:        infos[i].Alias,
 		}
 		if zeType == zeTypeWireguard {
 			// Read per-device state via wgctrl so ze init can emit a
@@ -128,6 +140,20 @@ func DiscoverInterfaces() ([]DiscoveredInterface, error) {
 	})
 
 	return result, nil
+}
+
+// masterName answers the name of the device at index, from names: empty when
+// index is zero (a member of none), and "ifindex <n>" when no listed device
+// carries that index, so a membership is never reported as none.
+func masterName(names map[int]string, index int) string {
+	if index == 0 {
+		return ""
+	}
+	if name, ok := names[index]; ok {
+		return name
+	}
+	var b textbuf.Buffer
+	return b.Str("ifindex ").Int(int64(index)).String()
 }
 
 // CanonicalInterfaceType maps an InterfaceInfo to a Ze/YANG interface type.

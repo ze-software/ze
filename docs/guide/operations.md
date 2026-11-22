@@ -44,7 +44,18 @@ the directory, so an interrupted initialization cannot expose partial credential
 | `--web-cert <address>` | Generate a web TLS certificate for the listen address |
 | `--web-cert-name <name>` | Add a DNS name to the generated certificate |
 | `--seed` | Build `database.zefs` as an appliance seed artifact, without build-host interface discovery |
-<!-- source: internal/plugins/init/main.go -- Run -->
+| `--confirm` | Ask about each discovered interface and write only the ones answered yes; refused with `--seed`, `--managed` and `--from` |
+<!-- source: internal/plugins/init/main.go -- Run, profileFromFlags -->
+
+Without `--confirm`, the initial config holds every discovered interface,
+including the ones another program owns (`docker0`, a container's veth), and a
+root ze manages each of them. With it, `ze init` asks one question per interface
+after the instance name, showing its kind, name, MAC address, the bridge or bond
+it is a member of, and its kernel alias. `yes` or `y` writes it, and `no`, `n`
+or an empty line leaves it out. Any other answer is refused, so is input that
+ends early, and no store is written
+([Discovery During Init](configuration.md#discovery-during-init)).
+<!-- source: internal/plugins/init/main.go -- confirmInterfaces, readAnswer -->
 
 ### Reinitializing
 

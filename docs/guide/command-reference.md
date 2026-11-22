@@ -3168,6 +3168,7 @@ are durable. An existing tree or blob refuses initialization.
 
 ```
 ze init                          # Interactive setup
+ze init --confirm                # Ask before writing each discovered interface
 ze init --managed                # Fleet mode
 ze init --managed --hub-ca hub-root.pem   # Fleet mode, with the hub's root
 ze init --force --yes             # Replace an unowned store with a backup
@@ -3180,7 +3181,11 @@ Input fields are username, password, host, port, and instance name. With
 `--managed` two more follow: the hub address as `host:port`, and this client's
 secret on the hub. Both may be empty ([Fleet configuration](fleet-config.md)).
 The default host is `127.0.0.1`, the port is `2222`, and the name is the hostname.
-Normal initialization discovers interfaces and stores their initial config.
+Normal initialization discovers interfaces and stores their initial config, every
+discovered interface included. With `--confirm`, one more answer follows per
+discovered interface the config can hold, in `ze interface scan` order: `yes` or
+`y` writes it, and `no`, `n` or an empty line leaves it out. Any other answer, and
+input that ends early, is refused before a store is written.
 
 | Flag | Purpose |
 |------|---------|
@@ -3192,6 +3197,7 @@ Normal initialization discovers interfaces and stores their initial config.
 | `--web-cert <address>` | Generate a web TLS certificate |
 | `--web-cert-name <name>` | Add a DNS name to that certificate |
 | `--seed` | Build a `database.zefs` appliance seed without host interface discovery |
+| `--confirm` | Ask about each discovered interface, showing its kind, name, MAC address, the bridge or bond it is a member of and its alias, and write only the ones answered yes. Refused with `--seed`, `--managed` and `--from`, which write no discovered interface |
 | `--from <source>` | Import a blob from a local path or an `http`, `https` or `tftp` URL into the live store; reads no credentials; refuses `--seed`; with `--force --yes` replaces an existing store. A local blob is retired as `.replaced-<stamp>`. A URL is fetched into a `database.fetch-*` folder beside the store, and that folder is removed after the import |
 | `--sha256 <hex>` | Refuse the `--from` source unless its bytes have this SHA-256, 64 hex digits; the check runs before a key is written |
 

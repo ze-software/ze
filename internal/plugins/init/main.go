@@ -49,6 +49,9 @@ const (
 	// told how to authenticate its hub before it holds a config.
 	flagHubCA            = "--hub-ca"
 	flagHubTrustFirstUse = "--hub-trust-first-use"
+	// flagConfirm asks about each discovered interface before the initial
+	// config claims it.
+	flagConfirm = "--confirm"
 	// hubTokenMin is the shortest secret a hub accepts for a client
 	// (plugin/hub/server/client/secret in ze-hub-conf.yang).
 	hubTokenMin = 32
@@ -68,6 +71,7 @@ func Run(args []string) int {
 	webCertFlag := fs.String("web-cert", "", "Generate TLS certificate for web server (listen address, e.g. 0.0.0.0:8080)")
 	webCertNameFlag := fs.String("web-cert-name", "", "Extra DNS name for the TLS certificate SAN (e.g. router.example.com)")
 	seedFlag := fs.Bool("seed", false, "Create a database.zefs appliance seed artifact without build-host interface discovery")
+	confirmFlag := fs.Bool("confirm", false, "Ask about each discovered interface and write only the ones answered yes into the initial config")
 	fromFlag := fs.String("from", "", "Import a blob artifact from a local path or a URL into the live store instead of prompting for credentials")
 	sha256Flag := fs.String("sha256", "", "Refuse the --from source unless its bytes have this SHA-256 (64 hex digits)")
 	schemes := strings.Join(fetch.Schemes(), ", ")
@@ -86,6 +90,7 @@ func Run(args []string) int {
 					{Name: "Line 5: name", Desc: "(default: hostname)"},
 					{Name: "Line 6: hub address", Desc: "(--managed only) host:port of the hub; empty to name it at the first start"},
 					{Name: "Line 7: hub token", Desc: "(--managed only) this client's secret on the hub, 32 characters or more"},
+					{Name: "Then: one line per device", Desc: "(--confirm only) for each discovered interface the config can hold, in 'ze interface scan' order: yes or y writes it, no, n or an empty line leaves it out"},
 				}},
 				{Title: "Options", Entries: []helpfmt.HelpEntry{
 					{Name: flagManaged, Desc: "Enable managed (fleet) mode"},
@@ -96,12 +101,14 @@ func Run(args []string) int {
 					{Name: "--web-cert <addr>", Desc: "Generate TLS certificate for web server (e.g. 0.0.0.0:8080)"},
 					{Name: "--web-cert-name <host>", Desc: "Extra DNS name for TLS certificate SAN (e.g. router.example.com)"},
 					{Name: "--seed", Desc: "Create a blob artifact for appliance builders; skip build-host interface discovery"},
+					{Name: flagConfirm, Desc: "Ask about each discovered interface and write only the ones answered yes; without it every discovered interface is written. Refused with --seed, --managed and --from, which write no discovered interface"},
 					{Name: "--from <source>", Desc: "Import a blob artifact (database.zefs) from a local path or a URL (" + schemes + ") into the live store; a local blob is retired as .replaced-<date>, a fetched copy is removed; reads no credentials"},
 					{Name: "--sha256 <hex>", Desc: "Check the --from source against this SHA-256 before a key is written"},
 				}},
 			},
 			Examples: []string{
 				`echo -e "admin\nsecret\n127.0.0.1\n2222\nmy-router" | ze init`,
+				"ze init --confirm  (ask before writing each discovered interface)",
 				"ze init --managed  (interactive prompts, managed mode)",
 				"ze init --managed --hub-ca hub-root.pem   (authenticate the hub against its root)",
 				"ze init --force         (replace existing database)",
@@ -120,6 +127,11 @@ func Run(args []string) int {
 	fleet, fleetErr := managedInitFromFlags(*managedFlag, *hubCAFlag, *hubTrustFirstUseFlag)
 	if fleetErr != nil {
 		fmt.Fprintln(os.Stderr, fleetErr.Error())
+		return 1
+	}
+	profile, profileErr := profileFromFlags(*confirmFlag, *seedFlag, *managedFlag, *fromFlag)
+	if profileErr != nil {
+		fmt.Fprintln(os.Stderr, profileErr.Error())
 		return 1
 	}
 
@@ -188,7 +200,34 @@ func Run(args []string) int {
 		return 1
 	}
 
-	return runInitFleet(inputReader, promptWriter, dbPath, fleet, *webCertFlag, *webCertNameFlag, *seedFlag, *forceFlag)
+	return runInitStore(inputReader, promptWriter, dbPath, fleet, *webCertFlag, *webCertNameFlag, *seedFlag, *forceFlag, profile)
+}
+
+// profileFromFlags answers which discovered interfaces the initial config
+// claims: every one by default, and with --confirm only those the operator
+// answers yes for. --from, --seed and --managed write no discovered interface,
+// so --confirm with any of them would ask nothing; it is refused by name
+// rather than silently ignored.
+func profileFromFlags(confirm, seed, managed bool, from string) (initProfile, error) {
+	if !confirm {
+		return initDiscover, nil
+	}
+	if from != "" {
+		return 0, opererr.New(flagConfirm+" was given with --from",
+			"--from imports a blob as it is, so ze init discovers no interface to ask about",
+			"ze init --from "+redact.URL(from))
+	}
+	if seed {
+		return 0, opererr.New(flagConfirm+" was given with --seed",
+			"a seed writes no initial config: the appliance discovers its own interfaces at first boot",
+			"ze init --seed")
+	}
+	if managed {
+		return 0, opererr.New(flagConfirm+" was given with "+flagManaged,
+			"a managed client writes no initial config: its first config comes from its hub",
+			"ze init "+flagManaged)
+	}
+	return initDiscoverConfirmed, nil
 }
 
 // managedInit is what ze init was told about managed (fleet) mode. The zero
@@ -409,6 +448,12 @@ func runInit(r io.Reader, promptW io.Writer, dir string, managed bool, webCertAd
 
 // runInitFleet is runInit with everything ze init was told about managed mode.
 func runInitFleet(r io.Reader, promptW io.Writer, dir string, fleet managedInit, webCertAddr, webCertName string, seed, force bool) int {
+	return runInitStore(r, promptW, dir, fleet, webCertAddr, webCertName, seed, force, initDiscover)
+}
+
+// runInitStore is runInitFleet with the profile that decides which discovered
+// interfaces the initial config claims (profileFromFlags).
+func runInitStore(r io.Reader, promptW io.Writer, dir string, fleet managedInit, webCertAddr, webCertName string, seed, force bool, profile initProfile) int {
 	path := filepath.Join(dir, "database")
 	if seed {
 		path = filepath.Join(dir, "database.zefs")
@@ -422,7 +467,7 @@ func runInitFleet(r io.Reader, promptW io.Writer, dir string, fleet managedInit,
 		}
 		return storage.CreatePopulated(dir, populate)
 	}
-	return runInitPublishedProfile(r, promptW, path, fleet, webCertAddr, webCertName, seed, publish, initDiscover)
+	return runInitPublishedProfile(r, promptW, path, fleet, webCertAddr, webCertName, seed, publish, profile)
 }
 
 // runInitPublished shares credential population between ordinary init and the
@@ -431,10 +476,16 @@ func runInitPublished(r io.Reader, promptW io.Writer, path string, managed bool,
 	return runInitPublishedProfile(r, promptW, path, managedInit{enabled: managed}, webCertAddr, webCertName, seed, publish, initDiscover)
 }
 
+// initProfile says which of the host's interfaces the initial config claims.
 type initProfile uint8
 
 const (
+	// initDiscover writes every interface discovery finds: the default.
 	initDiscover initProfile = iota + 1
+	// initDiscoverConfirmed asks about each discovered interface the config
+	// can hold and writes only the ones answered yes (--confirm).
+	initDiscoverConfirmed
+	// initLocalService writes none: `ze install` claims no host interface.
 	initLocalService
 )
 
@@ -454,7 +505,12 @@ func runInitPublishedProfile(r io.Reader, promptW io.Writer, path string, fleet 
 
 	var password string
 	if promptW != nil && r == os.Stdin && isTerminal(os.Stdin) {
-		password = readPassword(promptW, "password: ")
+		typed, err := readPassword(promptW, "password: ")
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		password = typed
 	} else {
 		password = promptAndRead(scanner, promptW, "password: ")
 	}
@@ -470,7 +526,12 @@ func runInitPublishedProfile(r io.Reader, promptW io.Writer, path string, fleet 
 	if managed {
 		hubAddress = promptAndRead(scanner, promptW, "hub address (host:port), empty to give it at the first start: ")
 		if promptW != nil && r == os.Stdin && isTerminal(os.Stdin) {
-			hubToken = readPassword(promptW, "hub token: ")
+			typed, err := readPassword(promptW, "hub token: ")
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				return 1
+			}
+			hubToken = typed
 		} else {
 			hubToken = promptAndRead(scanner, promptW, "hub token: ")
 		}
@@ -594,7 +655,7 @@ func runInitPublishedProfile(r io.Reader, promptW io.Writer, path string, fleet 
 			// cached config, so a file under that name would stand in for it
 			// and the first boot would never fetch from the hub.
 		default:
-			if err := writeInitialConfig(store, host, port, profile); err != nil {
+			if err := writeInitialConfig(store, host, port, profile, scanner, promptW); err != nil {
 				return err
 			}
 		}
@@ -678,9 +739,11 @@ func checkListenerEndpoint(host, port string, profile initProfile) error {
 // writeInitialConfig writes file/active/<name>.conf, the config a bare
 // `ze start` on this store reads. It opens with the SSH listener on the
 // endpoint ze init saved as the CLI's default target (meta/ssh/default), so
-// `ze cli` reaches the daemon ze init set up. The discover profile adds this
-// host's interfaces; the local-service profile claims none.
-func writeInitialConfig(store storage.Storage, host, port string, profile initProfile) error {
+// `ze cli` reaches the daemon ze init set up. The discover profile adds every
+// interface this host has, the confirmed profile only those the operator
+// answers yes for on scanner (asked on promptW, nil when stdin is piped), and
+// the local-service profile claims none.
+func writeInitialConfig(store storage.Storage, host, port string, profile initProfile, scanner *bufio.Scanner, promptW io.Writer) error {
 	// Named by the instance name written before, as `ze start` names it.
 	configName, err := resolve.DefaultConfig(store)
 	if err != nil {
@@ -692,17 +755,31 @@ func writeInitialConfig(store storage.Storage, host, port string, profile initPr
 		return writeInitialConfigKey(store, configName, &config)
 	}
 	var status textbuf.Buffer
-	interfaces, discovered, discErr := discoverInterfaceConfig()
-	if discErr != nil {
+	discovered, discErr := discoverHostInterfaces()
+	switch {
+	case discErr != nil:
 		// The listener is still written: it is how the operator reaches the
-		// daemon to configure the interfaces discovery missed.
+		// daemon to configure the interfaces discovery missed. --confirm has
+		// nothing to ask, so it asks nothing.
 		var warning textbuf.Buffer
 		warning.Str("warning: interface discovery failed, so the initial config holds no interface: ").Err(discErr).
 			Str(" (after ze start, 'ze interface scan --config' prints them)\n").StdErr() //nolint:errcheck // command diagnostic
 		status.Str("wrote initial config")
-	} else {
-		config.Str(interfaces)
-		status.Str("discovered ").Int(int64(discovered)).Str(" interface(s), wrote initial config")
+	case profile == initDiscoverConfirmed:
+		confirmed, err := confirmInterfaces(scanner, promptW, discovered)
+		if err != nil {
+			return err
+		}
+		// Nothing confirmed writes no interface block at all, rather than
+		// an empty one.
+		if len(confirmed) != 0 {
+			config.Str(iface.EmitConfigKept(discovered, func(di *iface.DiscoveredInterface) bool { return confirmed[di.Name] }))
+		}
+		status.Str("discovered ").Int(int64(len(discovered))).Str(" interface(s), wrote the ").Int(int64(len(confirmed))).
+			Str(" confirmed into the initial config")
+	default:
+		config.Str(iface.EmitConfig(discovered))
+		status.Str("discovered ").Int(int64(len(discovered))).Str(" interface(s), wrote initial config")
 	}
 	if err := writeInitialConfigKey(store, configName, &config); err != nil {
 		return err
@@ -728,14 +805,20 @@ func writeSSHListener(config *textbuf.Buffer, host, port string) {
 		Str(";\n            port ").Str(port).Str(";\n        }\n    }\n}\n")
 }
 
-// discoverInterfaceConfig answers this host's interfaces as config text and
-// how many were discovered. LoadBackend activates the netlink backend
-// registered via a blank import; without it DiscoverInterfaces answers "no
-// backend loaded". A backend that does not load (a platform with only the
-// stub) and a discovery that fails are both returned as the error.
-func discoverInterfaceConfig() (string, int, error) {
+// discoverHostInterfaces is the discovery writeInitialConfig reads. It is a
+// variable so a test supplies a fixed discovered set, because the host's own
+// devices differ from one machine to the next. A test replaces it before it
+// runs init and restores it after; NOT safe to replace while an init runs.
+var discoverHostInterfaces = discoverInterfaces
+
+// discoverInterfaces answers this host's interfaces. LoadBackend activates the
+// netlink backend registered via a blank import; without it
+// DiscoverInterfaces answers "no backend loaded". A backend that does not
+// load (a platform with only the stub) and a discovery that fails are both
+// returned as the error.
+func discoverInterfaces() ([]iface.DiscoveredInterface, error) {
 	if err := iface.LoadBackend("netlink"); err != nil {
-		return "", 0, fmt.Errorf("load netlink backend: %w", err)
+		return nil, fmt.Errorf("load netlink backend: %w", err)
 	}
 	discovered, discErr := iface.DiscoverInterfaces()
 	if closeErr := iface.CloseBackend(); closeErr != nil {
@@ -743,9 +826,91 @@ func discoverInterfaceConfig() (string, int, error) {
 		warning.Str("warning: close netlink backend: ").Err(closeErr).Byte('\n').StdErr() //nolint:errcheck // command diagnostic
 	}
 	if discErr != nil {
-		return "", 0, discErr
+		return nil, discErr
 	}
-	return iface.EmitConfig(discovered), len(discovered), nil
+	return discovered, nil
+}
+
+// confirmInterfaces asks, for each discovered device the initial config can
+// hold (iface.Emits), whether to write it, and answers the names of the
+// devices confirmed. Every device is asked about, the loopback included: a
+// device written into the config is one a root ze manages, and the SSH
+// listener binds its address without a loopback entry. One line answers one
+// device, in discovery order. The prompts go to promptW, nil when stdin is
+// piped, so a script feeds the same lines a terminal user types.
+func confirmInterfaces(scanner *bufio.Scanner, promptW io.Writer, discovered []iface.DiscoveredInterface) (map[string]bool, error) {
+	if promptW != nil {
+		fmt.Fprint(promptW, "ze manages each interface written into the config once it starts. Answer yes to write it, no or Enter to leave it out.\n") //nolint:errcheck // terminal prompt
+	}
+	confirmed := make(map[string]bool, len(discovered))
+	for i := range discovered {
+		di := &discovered[i]
+		if !iface.Emits(di) {
+			continue
+		}
+		var device textbuf.Buffer
+		describeDevice(&device, di)
+		if promptW != nil {
+			fmt.Fprint(promptW, device.String(), ": write it into the config? yes/no [no]: ") //nolint:errcheck // terminal prompt
+		}
+		yes, err := readAnswer(scanner, device.String())
+		if err != nil {
+			return nil, err
+		}
+		if yes {
+			confirmed[di.Name] = true
+		}
+	}
+	return confirmed, nil
+}
+
+// describeDevice writes what the operator needs to decide about di: its kind
+// and name, then what discovery knows that hints at an owner, such as the
+// bridge or bond it is a member of and its kernel alias.
+func describeDevice(b *textbuf.Buffer, di *iface.DiscoveredInterface) {
+	b.Str(di.Type).Byte(' ').Str(di.Name)
+	separator := " ("
+	if di.MAC != "" {
+		b.Str(separator).Str("mac ").Str(di.MAC)
+		separator = ", "
+	}
+	if di.Master != "" {
+		b.Str(separator).Str("member of ").Str(di.Master)
+		separator = ", "
+	}
+	if di.Alias != "" {
+		// Quoted: the alias is free text another program wrote.
+		b.Str(separator).Str("alias ").Str(strconv.Quote(di.Alias))
+		separator = ", "
+	}
+	if separator == ", " {
+		b.Byte(')')
+	}
+}
+
+// readAnswer reads the operator's answer about device: true for yes or y,
+// false for no, n or an empty line, compared without case. Any other answer
+// is refused, and so is input that ends before the question is answered: a
+// device is never decided for the operator.
+func readAnswer(scanner *bufio.Scanner, device string) (bool, error) {
+	if !scanner.Scan() {
+		if err := scanner.Err(); err != nil {
+			return false, fmt.Errorf("read the answer for %s: %w", device, err)
+		}
+		return false, opererr.New("ze init "+flagConfirm+" got no answer for "+device,
+			"the input ended before every discovered interface was answered, and ze init decides none for you: give one line per interface, yes or no",
+			"ze init "+flagConfirm)
+	}
+	answer := strings.TrimSpace(scanner.Text())
+	switch strings.ToLower(answer) {
+	case "yes", "y":
+		return true, nil
+	case "", "no", "n":
+		return false, nil
+	}
+	return false, opererr.New("the answer "+strconv.Quote(answer)+" for "+device+" is not yes or no",
+		"ze init accepts yes, y, no, n, or an empty line for no, and never guesses another answer",
+		"ze init "+flagConfirm)
 }
 
 // readLine reads a single line from the scanner, trimming whitespace.
@@ -759,22 +924,29 @@ func readLine(scanner *bufio.Scanner) string {
 // isTerminal returns true if f is a terminal (not a pipe or file).
 func isTerminal(f *os.File) bool {
 	fi, err := f.Stat()
+	// refuse-by-default: guards runInitPublishedProfile -- a file whose mode cannot be read is not known to be a terminal, so its input is read as plain lines and no no-echo read is tried on it
 	if err != nil {
 		return false
 	}
 	return fi.Mode()&os.ModeCharDevice != 0
 }
 
-// readPassword prompts for a password without echoing input to the terminal.
-// Prints "***" after reading to confirm input was received.
-func readPassword(w io.Writer, prompt string) string {
+// readPassword prompts for a secret without echoing input to the terminal.
+// Prints "***" after reading to confirm input was received. A read that fails
+// is returned as an error naming what was asked for: an empty secret is a
+// valid answer to some prompts (the hub token), so it cannot stand for a
+// failed read.
+func readPassword(w io.Writer, prompt string) (string, error) {
 	fmt.Fprint(w, prompt) //nolint:errcheck // terminal prompt
 	pw, err := term.ReadPassword(int(os.Stdin.Fd()))
 	fmt.Fprintln(w, "***") //nolint:errcheck // visual confirmation
 	if err != nil {
-		return ""
+		what := strings.TrimSuffix(prompt, ": ")
+		return "", opererr.Wrap(err, "The "+what+" could not be read from the terminal",
+			"ze init reads it without echo, and the terminal refused that read, so nothing was stored.",
+			"ze init")
 	}
-	return strings.TrimSpace(string(pw))
+	return strings.TrimSpace(string(pw)), nil
 }
 
 // promptAndRead optionally writes a prompt to w, then reads a line.
@@ -794,6 +966,7 @@ func confirmForceReplace(dbPath string) bool {
 		ttyReader = os.Stdin
 	} else {
 		tty, err := os.Open("/dev/tty")
+		// refuse-by-default: guards confirmForce -- false is "not confirmed", so with no terminal to ask on confirmForce aborts and the database is kept
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: --force requires a terminal for confirmation\n")
 			return false

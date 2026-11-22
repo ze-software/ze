@@ -466,7 +466,8 @@ Native installation selects `/usr/local` unless `--prefix` supplies another
 absolute prefix. It refuses symlink paths, package ownership markers and
 conflicting services before copying the executable. A fresh private store
 contains prompted credentials and a loopback SSH listener, without discovered
-host interfaces. An existing store is retained. The binary copy takes the
+host interfaces, so it asks no interface question: `ze init --confirm` has no
+counterpart there. An existing store is retained. The binary copy takes the
 store's maintenance lock and releases it before the service owner starts Ze.
 <!-- source: internal/plugins/local/native.go -- nativeRuntime.install, selectNativeTarget, nativeTarget.preflight, nativePath -->
 <!-- source: internal/plugins/init/main.go -- runInstallInit, runInitPublishedProfile -->

@@ -19,7 +19,7 @@ func init() {
 		ShortHelp: "Initialize a live store or appliance seed with SSH credentials",
 		Mode:      "setup",
 		Section:   registry.SectionSystem,
-		Subs:      "--managed --hub-ca <file> --hub-trust-first-use --force --yes --web-cert <address> --web-cert-name <name> --seed --from <source> --sha256 <hex>",
+		Subs:      "--managed --hub-ca <file> --hub-trust-first-use --force --yes --web-cert <address> --web-cert-name <name> --seed --confirm --from <source> --sha256 <hex>",
 	})
 
 	// Flag inventory for shell completion (registration over hardcoding).
@@ -33,6 +33,7 @@ func init() {
 		{Name: "--web-cert", Description: "generate a TLS certificate for the web server listen address", ValueHint: registry.FlagValueText},
 		{Name: "--web-cert-name", Description: "extra DNS name for the TLS certificate SAN", ValueHint: registry.FlagValueText},
 		{Name: "--seed", Description: "create an appliance seed artifact without interface discovery", ValueHint: registry.FlagValueNone},
+		{Name: flagConfirm, Description: "ask about each discovered interface and write only the ones answered yes", ValueHint: registry.FlagValueNone},
 		{Name: "--from", Description: "import a blob artifact from a local path or a URL into the live store", ValueHint: registry.FlagValueFile},
 		{Name: "--sha256", Description: "refuse the --from source unless its bytes have this SHA-256 (64 hex digits)", ValueHint: registry.FlagValueNone},
 	})

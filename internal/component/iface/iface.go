@@ -483,7 +483,15 @@ type DiscoveredInterface struct {
 	// the kinds that report none. It is the identity the emitted config binds
 	// an ethernet by, because it survives a kernel rename and an operational
 	// MAC override, which the name and the current address do not (emit.go).
-	PermanentMAC string         `json:"permanent-mac-address,omitempty"`
-	Wireguard    *WireguardSpec `json:"-"`
-	XFRM         *XFRMInfo      `json:"-"`
+	PermanentMAC string `json:"permanent-mac-address,omitempty"`
+	// Master is the name of the bridge or bond this device is a member of
+	// (IFLA_MASTER), empty when it is a member of none, or "ifindex <n>" when
+	// that device was not in the same listing. Alias is the kernel link alias
+	// (IFLA_IFALIAS), empty when none is set. Both hint at the program that
+	// owns the device, which `ze init --confirm` shows before it asks; they
+	// stay out of the `ze interface scan` answer.
+	Master    string         `json:"-"`
+	Alias     string         `json:"-"`
+	Wireguard *WireguardSpec `json:"-"`
+	XFRM      *XFRMInfo      `json:"-"`
 }
