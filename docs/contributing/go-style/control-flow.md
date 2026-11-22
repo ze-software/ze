@@ -11,13 +11,16 @@ A reader who meets `if a && b && !c` must hold three facts at once to decide
 whether every case is covered.
 
 The split changes no meaning, because `||` stops at the first true operand and
-the body leaves either way. `./le arch compound-guard check` refuses a top-level
+the body leaves either way. `./le arch compound-guard check`,
+`./le go style check` and `./le commit create` refuse a newly added top-level
 `||` condition with no `else` and a body that ends in `return`, `continue`,
-`break` or `goto`, on the lines your unpushed commits and working tree changed.
+`break` or `goto`.
 It does not judge `&&`, an `else`, or a body that falls through, because none of
-those splits without a design decision. How it chooses the lines:
+those splits without a design decision. How `./le arch compound-guard check`
+chooses unpushed lines:
 [`ze-go-style-background.md`](../ze-go-style-background.md).
 <!-- source: internal/le/arch/compoundguard/compoundguard.go -- Check -->
+<!-- source: internal/le/arch/compoundguard/change.go -- judgeChange -->
 
 `if index >= length` states the failure of the invariant, and the reader must
 invert it.

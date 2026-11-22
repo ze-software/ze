@@ -20,8 +20,8 @@ exchange whether it succeeded, on purpose. `PeerResult` gained `Discarded` and
 
 ## The shapes the check refuses
 
-`./le arch refuse-by-default check` refuses five shapes on the lines your
-unpushed commits and working tree changed:
+`./le arch refuse-by-default check`, `./le go style check` and `./le commit create`
+refuse five shapes on newly added or changed lines:
 
 | Shape | Refused | Write instead |
 |-------|---------|---------------|

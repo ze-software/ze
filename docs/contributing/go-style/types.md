@@ -15,7 +15,7 @@ type Candidate struct {
 }
 ```
 
-Full rule: `ai/rules/go-standards.md`, "Prefer Typed Numeric Over String".
+Full rule: `ai/rules/go-standards.md` and `docs/contributing/go-conventions.md`, "Typed numeric over string".
 
 The sections below explain the Go mechanisms and their limits.
 <!-- source: ai/rules/points/go-standards/directives/preserve-validity-from-construction-through-use.md -- construction and representation scope -->

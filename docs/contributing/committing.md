@@ -510,21 +510,31 @@ call per file. A check judges only what the commit adds and
 never an instance its parent already held: a refusal names the check
 (`./le arch operator-error check refused what this commit adds`) and carries
 the check's own text, and a check that cannot judge answers exit 3, never a
-pass. Five checks register today:
+pass. The checks registered today:
 
 | Check | What it refuses in what the commit adds | Page |
 |-------|------------------------------------------|------|
-| `arch operator-error` | a plain `errors.New` or `fmt.Errorf` returned from a registered command handler, RPC handler or config verifier, and a `plugin.StatusError` answer whose `Error` text the handler wrote rather than built with `plugin.OperatorErrorResponse` | `docs/architecture/cli/error-surface.md`, "The operator error" |
+| `arch compound-guard` | a newly added terminating `if a \|\| b { leave }` guard in shipped Go | `docs/contributing/go-style/control-flow.md` |
 | `arch doctor-coverage` | a `Warn` or `Error` log line or report-bus raise under `internal/component`, `internal/plugins` or `cmd/ze` that names no doctor code a registered doctor check declares, and a `diagnostic.Diagnostic` finding in shipped Go with no `Fix` | `docs/architecture/doctor-and-health-checks.md`, "Every problem site names a doctor code" |
 | `arch error-inventory` | a `plain` or `plain-names-command` message handed to a surface writer neither check above judges (a local `ze` stderr write or refusal, an MCP error result, a REST error body, a web `http.Error`, a gNMI or gRPC status error, an `./le` refusal or finding); a writer call on a line one of them names is theirs | `docs/contributing/error-inventory.md`, "The check and the commit gate" |
+| `arch error-wrap` | a newly added `fmt.Errorf` wrap whose `: `-separated prefix segment before `%w` is already carried by the wrapped error | `docs/contributing/go-style/errors.md`, "A wrap" |
+| `arch operator-error` | a plain `errors.New` or `fmt.Errorf` returned from a registered command handler, RPC handler or config verifier, and a `plugin.StatusError` answer whose `Error` text the handler wrote rather than built with `plugin.OperatorErrorResponse` | `docs/architecture/cli/error-surface.md`, "The operator error" |
+| `arch refuse-by-default` | a newly added unannotated plausible default (unmatched switch returning nil error, miss answered as a hit, ADD-PATH ID compared with zero, state from a literal, or error dropped below WARN) | `docs/contributing/go-style/zero-values.md` |
+| `commit refusal-advice` | a newly added guard or gate refusal message advising banned commands, loose `tmp/` paths or retired scripts | `internal/le/commit/refusal_advice.go` |
+| `deps credits` | a third-party dependency change whose `website/data/dependencies.json` or generated `internal/core/credits/data/` is missing or stale | `docs/contributing/dependency-approval.md`, "What a new dependency owes" |
 | `doc consistency` | in a carried or removed `.md` page's `## Design decisions` section: a row whose cells break the page format, or a shape problem (wrong columns, a repeated heading, no row) the parent's side did not hold; and a row present at the parent that the commit changes or removes, unless `decision-change` carries Thomas's words or an approved `departs` row of a spec names the page and the row. A row the commit leaves alone is never judged, and adding or reordering rows needs nobody | `docs/architecture/README.md`, "Page format" |
+| `repo go-style` | an un-gofmt'd or mis-grouped Go file, or newly added shipped Go lines carrying banned patterns (`fmt.Sprintf/Printf/Fprintf`, `strconv.FormatInt/FormatUint`, legacy `log.*`, handler `os.Exit`, direct `os.Getenv("ZE_*")`, `.String() ==`, fake `BufHandle`, `switch args[0]`, `go func`, `init()` outside `register*/init/all`, or unexplained `//nolint`) | `docs/contributing/ze-go-style.md` |
 | `rfc` | an RFC proof record under `rfc/discrimination/` that verifies against the parent and no longer verifies against what the commit leaves, because the commit changed its tagged unit or its claim, or deleted it while its tag stays (a commit that changes only a producer the record broke stales nothing: the proof belongs to its test); the refusal names each record, why, and the `./le rfc record` line that re-takes it | `docs/contributing/rfc-conformance-gates.md`, "The commit carries the record it stales" |
 
+<!-- source: internal/le/arch/compoundguard/change.go -- judgeChange -->
+<!-- source: internal/le/arch/errorwrap/change.go -- judgeChange -->
 <!-- source: internal/le/arch/operatorerror/report.go -- judgeChange -->
+<!-- source: internal/le/arch/refusebydefault/change.go -- judgeChange -->
 <!-- source: internal/le/rfc/discriminate_commit.go -- judgeStaleRecords -->
 <!-- source: internal/le/arch/doctorcoverage/report.go -- judgeChange -->
 <!-- source: internal/le/arch/errorinventory/report.go -- judgeChange -->
 <!-- source: internal/le/doc/consistency/decisionschange.go -- judgeDecisionRows, approvedDeparture -->
+<!-- source: internal/le/repo/gostyle.go -- CheckAddedGoStyle -->
 <!-- source: internal/le/commit/changechecks.go -- changeCheckRefusal -->
 <!-- source: internal/le/commit/changecheck/changecheck.go -- Register, Run -->
 

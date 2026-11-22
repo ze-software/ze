@@ -19,8 +19,9 @@ dropped below WARN" shape of [zero-values.md](zero-values.md).
 
 When the config loader returns `parse config: %w` and the reload that called it
 wraps that in `reload: parse config: %w`, the operator reads `reload: parse
-config: parse config: line 3`. `./le arch error-wrap check` refuses a
-`fmt.Errorf` on a changed line when one of the `: `-separated segments before
+config: parse config: line 3`. `./le arch error-wrap check`,
+`./le go style check` and `./le commit create` refuse a newly added
+`fmt.Errorf` when one of the `: `-separated segments before
 its `%w` is already in the error it wraps. A segment's verbs compare as one
 mark, so `line %d: ` written by the parser and again by the renderer is a
 repeat, while a part that holds a verb and no word, a bare `%s: `, is no
