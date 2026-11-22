@@ -185,7 +185,7 @@ telemetry. A failed connection or read remains explicitly unavailable; it is
 never interpreted as zero traffic or idle time. The runtime doctor and health
 row retain `doctor-vpp-stats`, with the underlying failure in `show warnings`.
 An unavailable statistics segment does not restart an otherwise usable VPP API.
-<!-- source: internal/component/vpp/runtime_stats.go -- VPPManager.activateRuntimeStats, VPPManager.connectRuntimeStats -->
+<!-- source: internal/component/vpp/runtime_stats.go -- VPPManager.activateRuntimeStats -->
 <!-- source: internal/component/vpp/runtime_stats_doctor.go -- checkRuntimeStats, reportRuntimeStatsFailure -->
 
 A session retains its binary API connector and connection generation.

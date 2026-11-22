@@ -336,7 +336,7 @@ remain available to ROA/ASPA cache changes until the original GR lifetime is
 purged; a duplicate old DOWN cannot erase them or a fresh connection. Terminal
 Peer removal removes only that original owner's entries. An unowned observation stays separate and
 cannot acquire a received route's authority.
-<!-- source: internal/component/bgp/plugins/rpki/aspa_tracker.go -- rpkiSource, routeKey, removePeer, removeOwner -->
+<!-- source: internal/component/bgp/plugins/rpki/aspa_tracker.go -- rpkiSource, routeKey, removeOwner -->
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- handlePeerDown, buildDecisions -->
 <!-- source: internal/component/bgp/plugins/rpki/rpki_reload.go -- configRouteSnapshot, revalidateConfigSnapshot -->
 
