@@ -1131,12 +1131,18 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 			// so any non-Spec change still takes effect.
 			continue
 		}
+		// present: the device was there before this step, made by the
+		// previous config or found at the first apply after start. A device
+		// created just now holds no key, and on vpp it is made only by the
+		// configure write, so it is not read.
+		present := hadPrev
 		if !hadPrev {
 			// New wireguard interface: create the netdev first.
 			existed, existsErr := interfaceExists(b, e.Name)
 			if existsErr != nil {
 				return record(e.Name+" read", existsErr)
 			}
+			present = existed
 			created := false
 			if err := applyBackendStep(journal, func() error {
 				if err := b.CreateWireguardDevice(e.Name); err != nil {
@@ -1165,12 +1171,21 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 				return record("wireguard "+e.Name+" create", err)
 			}
 		}
-		// Whether newly created or spec-changed, push the full desired
-		// state. wgctrl handles key rotation, endpoint changes, peer
-		// add/remove, keepalive updates in a single genetlink message
-		// with ReplacePeers: true -- peers that are still in the spec
-		// preserve their handshake state because the kernel matches
-		// them by public key.
+		// A device that already holds the configured keys and peers gets no
+		// write, so an unchanged device keeps its peers, and no undo is
+		// recorded for a step that changed nothing. The write needs
+		// CAP_NET_ADMIN, and on the netlink backend the read does too, so
+		// an unprivileged read fails and the write follows
+		// (wireguardNeedsWrite).
+		if present {
+			if !wireguardNeedsWrite(b, &e.Spec) {
+				continue
+			}
+		}
+		// Push the full desired state: key, port, fwmark and every peer in
+		// one genetlink message with ReplacePeers: true, which removes every
+		// current peer before adding the configured ones, so a peer loses
+		// its handshake and any endpoint it roamed to.
 		if err := applyBackendStep(journal, func() error {
 			return b.ConfigureWireguardDevice(e.Spec)
 		}, func() error {

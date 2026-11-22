@@ -239,14 +239,22 @@ nothing.
 | Bridge member | `GetLink` of the bridge and the port | the port is already a member of that bridge |
 | VLAN QoS maps | `GetLink` of the VLAN | the VLAN holds maps that program the same translation (an entry at 0 equals an absent one) |
 | `dhcp-auto` interface up | `GetLink` | the interface is administratively up |
+| WireGuard keys and peers | `GetWireguardDevice` (wgctrl on netlink), when the device existed before the apply | the device holds the private key and fwmark, the listen port when the leaf is set, and exactly the enabled peers, each with the configured preshared key, endpoint, keepalive and allowed-IP set and nothing else (the write replaces the peer set, so an extra peer, a learned endpoint or a disabled peer still present is a difference; allowed IPs compare as masked prefixes in any order) |
 
 A state that cannot be read is written, never taken for one that matches, and
-a backend that does not report a setting (the VPP backend reports no STP state
-and no QoS maps) keeps writing it. A failed read of a device's link state is
-logged at warning and raised on the report bus under
-`doctor-iface-state-unread`, so `show doctor` names the device, the backend's
-answer and `ze show interface name <device> detail`; a later apply whose read
-of that device answers clears it. A backend that is not ready yet (the VPP
+a backend that does not report a setting (the VPP backend reports no STP state,
+no QoS maps, and no WireGuard fwmark or preshared key) keeps writing it. A
+failed read of a device's link state is logged at warning and raised on the
+report bus under `doctor-iface-state-unread`, so `show doctor` names the
+device, the backend's answer and `ze show interface name <device> detail`; a
+later apply whose read of that device answers clears it. A failed read of a
+WireGuard device's keys and peers is raised the same way under the subject
+`<device> wireguard`, so the link read of the same device does not clear it.
+On Linux the kernel answers a WireGuard read only to a process with
+CAP_NET_ADMIN, as it does a write, so an unprivileged ze cannot read the
+device: the read is reported and the write that follows fails with the
+capability named. A privileged start over a device that already holds its
+config no longer replaces its peers, which kept each peer's session. A backend that is not ready yet (the VPP
 startup path) and a device the read does not find by its name are logged at
 debug only, because the write that follows reports them. A skipped setting adds no step to the apply
 journal, so a failed commit does not undo with a write what it did not change:
@@ -255,11 +263,12 @@ up. A write that is needed still fails without CAP_NET_ADMIN, with the
 capability named in the error.
 
 Devices are still created on every apply, and a create refused for a device
-that existed is ignored, as above. A wireguard device's keys and peers are
-written on the first apply after start.
+that existed is ignored, as above.
 
-<!-- source: internal/component/iface/config_apply_held.go -- linkFacts, logUnreadState, sameMAC, vlanQoSNeedsWrite, portInBridge, adminUpHeld -->
-<!-- source: internal/component/iface/config_apply.go -- applyConfigPass STP, MTU, MAC, QoS and admin steps -->
+<!-- source: internal/component/iface/config_apply_held.go -- linkFacts, logUnreadState, logUnreadStateAs, sameMAC, vlanQoSNeedsWrite, portInBridge, adminUpHeld, wireguardNeedsWrite, wireguardHolds -->
+<!-- source: internal/component/iface/config_apply.go -- applyConfigPass STP, MTU, MAC, QoS, admin and WireGuard steps -->
+<!-- source: internal/plugins/iface/netlink/wireguard_linux.go -- GetWireguardDevice, deviceToSpec, buildWireguardConfig -->
+<!-- source: internal/plugins/iface/vpp/wireguard.go -- GetWireguardDevice -->
 <!-- source: internal/plugins/iface/netlink/bridge_linux.go -- bridgeSTPFromAttrs -->
 <!-- source: internal/plugins/iface/netlink/show_linux.go -- linkToInfo AdminState, QoSMapsRead -->
 
@@ -939,14 +948,19 @@ MD5 passwords, SSH secrets, MCP tokens, and API tokens.
 
 On reload, `applyConfig` compares the new spec to the previously
 applied spec via `wireguardSpecEqual`. Unchanged entries are a no-op; the
-kernel is not touched and peer handshake state is preserved. Changed
-entries trigger a single `ConfigureWireguardDevice` call with
-`wgtypes.Config{ReplacePeers: true}` -- the kernel matches unchanged peers
-by public-key and preserves their handshake state, so "apply entire spec
-on every change" is functionally equivalent to a per-peer diff at a tiny
-fraction of the code. New wireguard entries get a `CreateWireguardDevice`
-(netlink) before the Configure call. Wireguard list entries removed from
-config are deleted by Phase 4 reconciliation, same as tunnels.
+kernel is not touched and peer handshake state is preserved. A changed
+entry, and every entry at the first apply after start, is then compared
+with what the device holds, read through `GetWireguardDevice`: a device
+that already holds the spec gets no write ("Writing only what differs"
+above). Otherwise a single `ConfigureWireguardDevice` call sends the whole
+spec with `wgtypes.Config{ReplacePeers: true}`, which makes the kernel
+remove every current peer before it adds the configured ones
+(`WGDEVICE_F_REPLACE_PEERS`): each peer starts again with no session and
+no learned endpoint until its next handshake. New wireguard entries get a
+`CreateWireguardDevice` (netlink) before the Configure call, and a device
+the apply has just created is written without a read. Wireguard list
+entries removed from config are deleted by Phase 4 reconciliation, same as
+tunnels.
 
 Peer names in config (`peer site2 { ... }`) are operator-chosen labels.
 The kernel tracks peers only by public key, so the label can change
@@ -955,6 +969,7 @@ with synthetic names (`peer0`, `peer1`, ...) which operators typically
 rename via `ze config edit`.
 
 <!-- source: internal/component/iface/config_apply.go -- wireguardSpecEqual, wireguardPeerEqual -->
+<!-- source: internal/component/iface/config_apply_held.go -- wireguardNeedsWrite, wireguardHolds -->
 <!-- source: internal/component/iface/backend.go -- CreateWireguardDevice, ConfigureWireguardDevice, GetWireguardDevice interface methods -->
 
 ### Port conflict detection

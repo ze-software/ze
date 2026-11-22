@@ -55,7 +55,8 @@ DHCP/link-failover/IPv6-RA handlers in this same package.
    destination may name exists; a VLAN-unit destination binds through its parent entry
    (`newInterfaceTargets`, `interface_targets.go`, which also binds bridge members and tunnel local interfaces). Phase 2c (`721-742`) brings every non-disabled interface
    administratively up via `SetAdminUp` -- required before DHCP or PPP can send packets.
-   Bridge STP, MTU, MAC, admin state, bridge membership and an existing VLAN's QoS maps are
+   Bridge STP, MTU, MAC, admin state, bridge membership and an existing VLAN's QoS maps (and,
+   in Phase 1, an existing WireGuard device's keys and peers) are
    read first and written only when the device holds another value; an unread state is
    written (`config_apply_held.go`, `linkFacts`; `docs/features/interfaces.md`, "Writing only
    what differs").
@@ -88,11 +89,15 @@ DHCP/link-failover/IPv6-RA handlers in this same package.
    (`parseWireguardPeer`, `719`) into a `WireguardSpec` (`wireguard.go`) /
    `WireguardPeerSpec` (`36`). The Phase-1 wireguard block (`config_apply.go`) creates
    the netdev once via `CreateWireguardDevice` (`wireguard_linux.go`; `LinkAdd` + `LinkSetUp`,
-   rollback-delete on failure) then always pushes the full spec via `ConfigureWireguardDevice`
-   (`63`) -- `wgctrl.ConfigureDevice` with `ReplacePeers: true` (`buildWireguardConfig`, `108`) --
-   so key rotation, endpoint changes, and peer add/remove are one genetlink message, and peers
-   matched by public key keep their handshake state. `wireguardSpecEqual` (`config_apply.go`,
-   an unordered peer-set comparison) skips the whole call when nothing changed.
+   rollback-delete on failure) then pushes the full spec via `ConfigureWireguardDevice`
+   -- `wgctrl.ConfigureDevice` with `ReplacePeers: true` (`buildWireguardConfig`) --
+   so key rotation, endpoint changes, and peer add/remove are one genetlink message; the
+   kernel removes every current peer first, so each peer loses its session.
+   `wireguardSpecEqual` (`config_apply.go`, an unordered peer-set comparison) skips the whole
+   call when nothing changed since the previous config; otherwise a device that existed before
+   the apply is read with `GetWireguardDevice` and written only when it holds something else
+   (`config_apply_held.go`, `wireguardNeedsWrite`; an unread device is written). On Linux the
+   read needs CAP_NET_ADMIN, as the write does.
 10. **PPPoE client sub-flow.** `reconcilePPPoEClients` (`pppoe_client.go`, called from
     `iface/register.go`) diffs `cfg.PPPoEClient` against the active client map by name
     and config fields (`pppoeClientConfigChanged`, `355`), stopping removed/changed clients and

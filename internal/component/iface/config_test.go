@@ -2153,13 +2153,18 @@ var errFakeLinkExists = errors.New("file exists")
 
 // fakeBackend implements Backend for testing config application.
 type fakeBackend struct {
-	ifaces           map[string]fakeIface
-	created          map[string]bool
-	deleted          map[string]bool
-	addrs            map[string][]string
-	tunnels          map[string]TunnelSpec
-	wgConfigs        map[string]WireguardSpec
-	wgConfigCt       map[string]int
+	ifaces     map[string]fakeIface
+	created    map[string]bool
+	deleted    map[string]bool
+	addrs      map[string][]string
+	tunnels    map[string]TunnelSpec
+	wgConfigs  map[string]WireguardSpec
+	wgConfigCt map[string]int
+	// wgHeld is the WireGuard state each device holds, as GetWireguardDevice
+	// reports it; a device with no entry reports the empty state of a new
+	// device. getWireguardErr makes the read of a device fail.
+	wgHeld           map[string]WireguardSpec
+	getWireguardErr  map[string]error
 	vlans            map[string]VLANSpec
 	routeAdds        []routeCall
 	routeRemoves     []routeCall
@@ -2438,8 +2443,11 @@ func (b *fakeBackend) ConfigureWireguardDevice(spec WireguardSpec) error {
 	return nil
 }
 
-func (b *fakeBackend) GetWireguardDevice(_ string) (WireguardSpec, error) {
-	return WireguardSpec{}, nil
+func (b *fakeBackend) GetWireguardDevice(name string) (WireguardSpec, error) {
+	if err := b.getWireguardErr[name]; err != nil {
+		return WireguardSpec{}, err
+	}
+	return b.wgHeld[name], nil
 }
 
 func (b *fakeBackend) CreateXFRM(spec XFRMSpec) error {
