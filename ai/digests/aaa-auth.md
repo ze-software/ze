@@ -99,8 +99,7 @@ registry; the flow below shows where boot, request-time reads, and reload meet.
     exist, the dispatcher receives `liveLocalAuthorizer` directly.
 14. **Per-command check.** `Dispatcher.Dispatch` (`internal/component/plugin/server/command.go`)
     resolves the builtin command, then calls `isAuthorized(ctx, input,
-    matchedCmd.ReadOnly)` (`internal/component/plugin/server/command.go`,
-    used at `:565` and `:599`) which delegates to
+    matchedCmd.ReadOnly)` (`internal/component/plugin/server/command.go`) which delegates to
     `authorizer.Authorize(username, remoteAddr, command, isReadOnly)`. A nil
     authorizer allows everything. Typed inter-plugin dispatch (peer-scoped RPCs)
     goes through `isAuthorizedCommandArgs`
@@ -113,15 +112,14 @@ registry; the flow below shows where boot, request-time reads, and reload meet.
     resolves the user's assigned profiles (`system.authentication.user
     <name>.profile`), evaluates each profile's `Run` or `Edit` `Section` in
     order (`Entry.matches`, `authz/authz.go`; first match wins,
-    `Section.evaluate`, `:197-206`); unassigned users are denied once any user
-    has assignments (fail closed, `:343-357`); with no assignments at all,
+    `Section.evaluate`); unassigned users are denied once any user
+    has assignments (fail closed); with no assignments at all,
     everything is allowed. `TacacsAuthorizer.Authorize`
     (`tacacs/authorizer.go`) instead sends an RFC 8907 AUTHOR REQUEST
-    (`:92-145`) and only calls the local fallback on server error or
-    unreachability (`strictFallback` flips that to deny, `:105-144`).
+    and only calls the local fallback on server error or
+    unreachability (`strictFallback` flips that to deny).
 16. **Accounting.** `BeginAccounting` (`internal/component/plugin/server/command.go`)
-    calls `Accountant.CommandStart`/`CommandStop` around the handler
-    (`:590`, `:593`). When TACACS+ accounting is enabled
+    calls `Accountant.CommandStart`/`CommandStop` around the handler. When TACACS+ accounting is enabled
     (`tacacs/register.go`), `TacacsAccountant.CommandStart`/`CommandStop`
     (`tacacs/accounting.go`) enqueue START/STOP records to a buffered
     channel drained by one worker goroutine; a full queue or a
@@ -226,7 +224,7 @@ registry; the flow below shows where boot, request-time reads, and reload meet.
 - **Two authorization call shapes must stay consistent.** CLI-typed commands
   use the legacy string form (`isAuthorized`,
   `internal/component/plugin/server/command.go`); peer-scoped plugin
-  dispatch uses the typed form (`isAuthorizedCommandArgs`, `:519`).
+  dispatch uses the typed form (`isAuthorizedCommandArgs`).
   `aaa.CanonicalCommand` (`aaa/command_args.go`) is what keeps the two
   RBAC/TACACS+ match strings equivalent; changing one without the other
   desyncs profile `match` patterns from typed dispatch.

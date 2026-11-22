@@ -48,11 +48,10 @@ forwarding`, independent of either engine's in-memory state.
    (`ldp/register.go`, `ldp/discovery.go`), which creates/refreshes an `Adjacency`
    keyed by `AdjacencyKey(LSR-ID, label-space)` (`ldp/discovery.go`).
 4. **Session establishment (RFC 5036 §2.5, TCP/646).** A new adjacency triggers
-   `startSessionForAdj` (`ldp/register.go`,`:430`): it dials TCP to the peer's
+   `startSessionForAdj` (`ldp/register.go`): it dials TCP to the peer's
    advertised transport address (`ldpSessionDialer`, `ldp/register.go`), builds a
    `Session` (`ldp/session.go`), and `runSession` (`ldp/register.go`) sends
-   Initialization then Keepalive (`Session.SendInit`/`SendKeepalive`, `ldp/session.go`,
-   `:240`). Rx runs on `Session.ReadLoop` (`ldp/session.go`) → `processMessages`
+   Initialization then Keepalive (`Session.SendInit`/`SendKeepalive`, `ldp/session.go`). Rx runs on `Session.ReadLoop` (`ldp/session.go`) → `processMessages`
    (`ldp/session.go`); a received Initialization advances the session state via
    `handleInit` (`ldp/session.go`), OpenSent→Operational on the first Init after we
    sent ours (`ldp/session.go`).
@@ -62,12 +61,12 @@ forwarding`, independent of either engine's in-memory state.
    (`ldp/session.go`, called at `ldp/register.go`).
 6. **Label distribution in (LabelMapping/Withdraw → LIB → FIB).** `ReadLoop`
    dispatches `MsgTypeLabelMapping`/`MsgTypeLabelWithdraw` to the `onLabel`/
-   `onWithdraw` closures (`ldp/session.go`,`:395`) built in `runSession`
-   (`ldp/register.go`,`:756`). On a mapping: resolve the data-plane next hop
+   `onWithdraw` closures (`ldp/session.go`) built in `runSession`
+   (`ldp/register.go`). On a mapping: resolve the data-plane next hop
    from the peer's advertised Address-message interfaces (`pickNextHop`,
    `ldp/local.go`), then atomically `lib.AddRemote` + `reconcileFEC` under
    `fib.withReconcileLock` (`ldp/register.go`, `ldp/lib.go`,
-   `ldp/fib.go`,`:61`). On a withdraw: `withdrawRemoteBinding`
+   `ldp/fib.go`). On a withdraw: `withdrawRemoteBinding`
    (`ldp/fib.go`) removes the LIB entry and reconciles the same way.
 7. **FEC → mpls-fib entry.** `reconcileFEC` (`ldp/fib.go`) picks the
    lowest-peer-key surviving binding for the FEC (`LIB.remainingForFEC`,
@@ -288,7 +287,7 @@ forwarding`, independent of either engine's in-memory state.
   dependency on `ldp`/`rsvpte`/`mplsfib` and no knowledge of which protocol
   installed an entry; it distinguishes push (ze-owned IP route with `MPLSEncap`,
   `rtprotZE` = `rtproto.FIBKernel`) from swap/pop (`AF_MPLS` route) purely from
-  kernel route shape (`mpls/forwarding_linux.go`,`:108`).
+  kernel route shape (`mpls/forwarding_linux.go`).
 
 ## See also
 - `ai/PACKAGE-MAP.md`, one-line role of every package, including `mplsfib` and

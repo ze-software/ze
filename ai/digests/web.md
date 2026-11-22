@@ -65,7 +65,7 @@ unmarshal it back into a `map[string]any` for template rendering.
    purpose-built pages (interfaces, BGP, IP, firewall, system, L2TP, tools,
    logs, dashboard, dispatched by `path[0]`). Otherwise it walks the YANG
    schema generically via `walkSchema`/`walkTree`
-   (`internal/component/web/handler_config_walk.go,166`) and
+   (`internal/component/web/handler_config_walk.go`) and
    `buildFragmentData` (`internal/component/web/fragment.go`), which builds
    breadcrumbs, sidebar columns, and per-leaf `FieldMeta`
    (`renderer.ResolveDecorations` fills in display annotations,
@@ -116,7 +116,7 @@ unmarshal it back into a `map[string]any` for template rendering.
    `dispatchCLICommand` (`cli.go`) routes by verb to per-verb handlers,
    each ending in `writeCLIResponse` (`cli_terminal.go`): content area plus
    four independently-built OOB spans (`buildBreadcrumbOOB`/`buildPromptOOB`/
-   `buildPathBarOOB`/`buildContextOOB`, `cli_terminal.go,999,975,987`), a
+   `buildPathBarOOB`/`buildContextOOB`, `cli_terminal.go`), a
    third OOB shape distinct from steps 6 and 7. `POST /cli/terminal`
    (operational mode) → `HandleCLITerminalWithDispatchAuthorizerAndAudit`
    (`cli_terminal.go`) → `executeTerminalOperationalMode` (`cli_terminal.go`)
@@ -129,7 +129,7 @@ unmarshal it back into a `map[string]any` for template rendering.
     → `HandleAdminExecute` (`handler_admin.go`) joins path segments into a
     command string, calls `dispatch(commandStr, username, r.RemoteAddr)`, and
     renders `detail` with `CommandResultData`, or raw JSON for `?format=json`
-    (`ParseURL`/`NegotiateContentType`, `internal/component/web/handler.go,214`).
+    (`ParseURL`/`NegotiateContentType`, `internal/component/web/handler.go`).
     `POST /tools/related/run` → `HandleRelatedToolRun`
     (`internal/component/web/handler_tools.go`) accepts only `tool_id` +
     `context_path` (never raw command text), checks Origin/Referer
@@ -149,7 +149,7 @@ unmarshal it back into a `map[string]any` for template rendering.
 12. **Protocol live views (poll-push SSE).** `GET /isis/neighbors/stream` and
     `/ospf/*/stream` share one loop: `ISISHandlers`/`OSPFHandlers`
     (`internal/component/web/handler_isis.go`) configure a `viewSpec` +
-    `snapshotHandlers` (`internal/component/web/snapshot_views.go,28`) whose
+    `snapshotHandlers` (`internal/component/web/snapshot_views.go`) whose
     `.sse()` (`snapshot_views.go`) calls `sseSnapshotStream`
     (`internal/component/web/sse_snapshot.go`): push an immediate snapshot,
     then re-dispatch the same show command (`dispatchJSON`,
@@ -230,7 +230,7 @@ unmarshal it back into a `map[string]any` for template rendering.
 
 ## Invariants & gotchas
 - **`RegisterRoutes`/`RegisterCLIRoutes` are not production wiring.**
-  `internal/component/web/handler.go,249` look authoritative but
+  `internal/component/web/handler.go` look authoritative but
   `handler_test.go` is their only caller; `startWebServer` wires every route
   by hand in `cmd/ze/hub/service_web.go`. Adding a route to `RegisterRoutes`
   does not make it live.

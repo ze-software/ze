@@ -430,3 +430,30 @@ func TestNoDigestTokenNeedsAUnicodeWordCharacter(t *testing.T) {
 		}
 	}
 }
+
+// VALIDATES: damaged line anchors (`file.go,123` and orphaned `:123`) are
+// refused instead of silently skipped by AnchorPattern.
+// PREVENTS: bulk line-stripping edits or shorthand `:line` references from
+// leaving unchecked, rotted line numbers inside ai/digests/*.md.
+func TestMalformedCommaAndOrphanedLineAnchorsAreRefused(t *testing.T) {
+	root := tree(t, map[string]string{
+		"ai/digests/m.md": "<!-- digest-base: internal/a -->\n`x.go,42` and `:99` and `:10-20` and `x.go`\n",
+		"internal/a/x.go": "package a\n",
+	})
+	report, err := Check(root)
+	if err != nil {
+		t.Fatalf("checking: %v", err)
+	}
+	if len(report.Errors) != 3 {
+		t.Fatalf("errors %+v, want 3 malformed anchor findings", report.Errors)
+	}
+	if report.Errors[0].Anchor != "x.go,42" || !strings.Contains(report.Errors[0].Detail, "malformed line anchor") {
+		t.Errorf("first error = %+v, want malformed comma anchor for x.go,42", report.Errors[0])
+	}
+	if report.Errors[1].Anchor != ":99" || !strings.Contains(report.Errors[1].Detail, "orphaned line anchor") {
+		t.Errorf("second error = %+v, want orphaned line anchor for :99", report.Errors[1])
+	}
+	if report.Errors[2].Anchor != ":10-20" || !strings.Contains(report.Errors[2].Detail, "orphaned line anchor") {
+		t.Errorf("third error = %+v, want orphaned line anchor for :10-20", report.Errors[2])
+	}
+}

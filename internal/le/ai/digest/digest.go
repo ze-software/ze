@@ -85,12 +85,20 @@ const (
 	// AnchorPattern is a code anchor with a code-like extension. Its optional
 	// line specification is one line, a range, or a comma-separated list.
 	AnchorPattern = `^(?P<path>[A-Za-z0-9_][\w./-]*\.(?:go|py|md|yang|sh|mk|ya?ml|json|txt|proto|c|h|tmpl|html))(?::(?P<lines>\d+(?:-\d+)?(?:,\d+(?:-\d+)?)*))?$`
+	// MalformedCommaAnchorPattern matches a code anchor whose line separator was
+	// mangled into a comma (`file.go,123`), which AnchorPattern would silently skip.
+	MalformedCommaAnchorPattern = `^[A-Za-z0-9_][\w./-]*\.(?:go|py|md|yang|sh|mk|ya?ml|json|txt|proto|c|h|tmpl|html),\d+(?:-\d+)?(?:,\d+(?:-\d+)?)*$`
+	// OrphanedLineAnchorPattern matches a bare `:123` or `:123-140` token with no
+	// filename, which cannot be checked against any file and rots silently.
+	OrphanedLineAnchorPattern = `^:\d+(?:-\d+)?$`
 )
 
 var (
-	baseRe     = regexp.MustCompile(BasePattern)
-	backtickRe = regexp.MustCompile(BacktickPattern)
-	anchorRe   = regexp.MustCompile(AnchorPattern)
+	baseRe                 = regexp.MustCompile(BasePattern)
+	backtickRe             = regexp.MustCompile(BacktickPattern)
+	anchorRe               = regexp.MustCompile(AnchorPattern)
+	malformedCommaAnchorRe = regexp.MustCompile(MalformedCommaAnchorPattern)
+	orphanedLineAnchorRe   = regexp.MustCompile(OrphanedLineAnchorPattern)
 	// baseSepRe splits a header's subtree list the way the script's re.split
 	// did: on any run of commas and whitespace.
 	baseSepRe = regexp.MustCompile(`[,\s]+`)
@@ -443,7 +451,33 @@ func checkDigest(tree, name string, res *resolver) ([]Problem, []Resolution, err
 		}
 		resolved = append(resolved, *resolution)
 	}
+	problems = append(problems, malformedAnchorsIn(relDigest, text)...)
 	return problems, resolved, nil
+}
+
+// malformedAnchorsIn reports backtick tokens that look like damaged line
+// anchors (`file.go,123` or orphaned `:123`) so they cannot evade AnchorPattern
+// and rot silently.
+func malformedAnchorsIn(relDigest, text string) []Problem {
+	var problems []Problem
+	for _, match := range backtickRe.FindAllStringSubmatch(text, -1) {
+		token := strings.TrimSpace(match[1])
+		switch {
+		case malformedCommaAnchorRe.MatchString(token):
+			problems = append(problems, Problem{
+				Digest: relDigest,
+				Anchor: token,
+				Detail: "malformed line anchor (comma after filename); use `file:line` or a bare filename",
+			})
+		case orphanedLineAnchorRe.MatchString(token):
+			problems = append(problems, Problem{
+				Digest: relDigest,
+				Anchor: token,
+				Detail: "orphaned line anchor without filename; attach it to `file:line` or remove the line number",
+			})
+		}
+	}
+	return problems
 }
 
 // checkBareAnchor judges an anchor with no line number.

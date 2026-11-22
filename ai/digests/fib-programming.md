@@ -109,15 +109,15 @@ Route wins in a protocol, then gets programmed in the kernel:
 8. **fib-kernel installs.** `fibKernel.processEvent`
    (`internal/plugins/fib/kernel/fibkernel.go`) dispatches each entry by
    `c.Action.Verb()` (`internal/core/bgp/routeaction/routeaction.go`: Install/Replace/Remove)
-   to `addChange`/`replaceChange`/`delChange` (`fibkernel.go`, `:223`, `:235`), using
+   to `addChange`/`replaceChange`/`delChange` (`fibkernel.go`), using
    the `richRouteBackend` path (`internal/plugins/fib/kernel/richroute.go`) whenever the
    entry carries labels/ECMP/SRv6/backup/table-ID (`hasRichFields`, `fibkernel.go`), or
    the plain prefix+next-hop path otherwise. The Linux backend programs via netlink tagged
-   `RTPROT_ZE=250` (`internal/plugins/fib/kernel/backend_linux.go`, `addRoute:51`,
-   `replaceRoute:71`, `delRoute:59`); labels are validated first
+   `RTPROT_ZE=250` (`internal/plugins/fib/kernel/backend_linux.go`, `addRoute`,
+   `replaceRoute`, `delRoute`); labels are validated first
    (`mplsfib.ValidateOutLabels`, `internal/core/mplsfib/label.go`). Failures raise a `fib-sync-failure` report
    and track the prefix as pending for a 30s `fib-programming-lag` warning
-   (`fibkernel.go`, `:359`). A fast-reroute backup is not programmed: `buildRichRoute`
+   (`fibkernel.go`). A fast-reroute backup is not programmed: `buildRichRoute`
    (`nexthop_linux.go`) sends the primary path(s) alone, because Linux has no standby
    multipath member and refuses `RTNH_F_LINKDOWN` from userspace; `reportBackupsLocked`
    (`backup_report.go`) keeps one `doctor-fib-backup-not-programmed` warning while any

@@ -21,7 +21,7 @@ package.
 
 ## Flow
 1. **Startup: resolve config, build dispatcher + command source.** `runYANGConfig` resolves MCP
-   listen addresses from CLI flag / env var / YANG config (`main.go`, `:408-414`). It
+   listen addresses from CLI flag / env var / YANG config (`main.go`). It
    then builds the MCP-surface command dispatcher
    `mcpDispatch := serverDispatcher(apiServer, audit.MCP)` (`main.go`) and the neutral
    command-metadata closure `commandMetaSource(apiServer)` (`main.go`, defined
@@ -48,7 +48,7 @@ package.
    once from `yangloader.DefaultLoader()` (`command_meta.go`).
 4. **Single HTTP entry point, POST only.** `Streamable.ServeHTTP` (`streamable.go`) serves
    the metadata document of RFC 9728 unauthenticated, and ahead of the Origin gate
-   (`streamable.go`, handler at `:305`). It then gates every other path by `originAllowed`
+   (`streamable.go`). It then gates every other path by `originAllowed`
    (`streamable.go`), with a 403 on a bad Origin. It 404s a wrong sub-path
    (`streamable.go`), and switches on method (`streamable.go`): POST to `handlePOST`,
    and OPTIONS to `handleEndpointPreflight` (`streamable.go`). **Everything else, GET and
@@ -108,7 +108,7 @@ package.
    - `tools/list` to `allTools` (`streamable_tools.go`). <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
    - `tools/call` to `callTool`. <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
    - `tasks/get|update|cancel`.
-   - `resources/list|read` (`resources.go`, `:157`).
+   - `resources/list|read` (`resources.go`).
 
    `tasks/list` and `tasks/result` were REMOVED (MCP 2026-07-28 changelog major 6), and they now
    reach the default arm: 404 + `-32601`. `initialize` is recognized only to return a diagnostic
@@ -166,7 +166,7 @@ package.
     `pluginserver.CommandContext{Surface: "mcp", ...}` (`main_servers.go`) and calls
     `pluginserver.Dispatcher.Dispatch` (`main_servers.go`). That is the identical dispatcher
     path CLI/SSH/web use, so MCP calls get the same authorization and accounting. The result is
-    wrapped as MCP content (`TextResult`/`ErrResult`, `tools.go`, `:796`).
+    wrapped as MCP content (`TextResult`/`ErrResult`, `tools.go`).
 14. **Result envelope.** Every successful handler returns through `ok`
     (`streamable_tools.go`). `ok` copies the handler's map and stamps two fields the revision
     requires on every result: `resultType: "complete"` (`streamable_tools.go`) and
@@ -344,7 +344,7 @@ package.
   test is "did the handler set one", not a list of known values.
 - **Header names are matched case-insensitively, header values exactly.** `http.Header.Get`
   supplies the name lookup. The value comparisons in `validateStandardHeaders`
-  (`headers.go`, `:152`) are deliberately exact, per the specification's Case Sensitivity
+  (`headers.go`) are deliberately exact, per the specification's Case Sensitivity
   clause.
 - **The `=?base64?` sentinel is standard Base64 WITH padding, not base64url**, and the markers are
   case-sensitive (`headers.go`). A value not in sentinel form is used verbatim, so an
@@ -382,7 +382,7 @@ package.
   under `internal/test/cli/`) is an HTTP client, not a stdio bridge.
 - **Command dispatch is shared, not MCP-private.** `mcpDispatch` reaches the exact same
   `pluginserver.Dispatcher.Dispatch` the CLI/SSH/web surfaces call, tagged only by
-  `Surface: audit.MCP` (`main_servers.go`, `:50`). Authorization, YANG validation, and
+  `Surface: audit.MCP` (`main_servers.go`). Authorization, YANG validation, and
   accounting are enforced once in the shared dispatcher, and they are not duplicated in the MCP
   layer.
 - **Serving a `ui://` asset and ADVERTISING a panel are two different gates, and only the

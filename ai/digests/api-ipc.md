@@ -38,11 +38,11 @@ runtime request, see the gotcha below.
    which `appendPipeList` (`api/invocation.go`) writes after the parameters. Construction
    waits for the engine's selected typed declaration. Convenience routes
    (`GET /api/v1/peers/*`, `/rib/*`, `/system/*`)
-   build a fixed command string directly (e.g. `rest/server.go`, `:578`, `:620`) instead of
+   build a fixed command string directly (e.g. `rest/server.go`) instead of
    accepting one from the client.
 3. **gRPC entry.** `zeServiceImpl.Execute` (`grpc/server.go`) builds the same domain
    request via `fromProtoExecuteRequest` (`grpc/convert.go`); auth interceptors
-   (`authUnaryInterceptor`, `grpc/server.go`; `checkAuth`, `:436`) inject username/read-only
+   (`authUnaryInterceptor`, `grpc/server.go`; `checkAuth`) inject username/read-only
    into the context before the handler runs.
 4. **Engine gate + execute.** Both transports call `APIEngine.Execute` (`engine.go`): a
    read-only caller (`CallerIdentity.ReadOnly`; `CallerIdentity` is now an alias of
@@ -73,10 +73,8 @@ runtime request, see the gotcha below.
    to the shared `command.MatchInvocationPath` (`internal/component/command/invocation_match.go`), to extract
    inline typed selectors (e.g. `send bgp <selector> update ...`) against YANG-derived `ArgDef`s.
    Matched selectors are copied onto the context by `applyExtractedSelectors`
-   (`internal/component/plugin/server/command.go`, called at `:554`).
-7. **Builtin path.** On a match: authorization (`isAuthorized`, `internal/component/plugin/server/command.go`, checked at
-   `:565`), then two-phase YANG arg validation (`command.ValidateArgs`, `internal/component/command/argbind.go`, called
-   at `:574`), then `matchedCmd.Handler(ctx, args)` (`internal/component/plugin/server/command.go`). Example: `peer <sel>
+   (`internal/component/plugin/server/command.go`).
+7. **Builtin path.** On a match: authorization (`isAuthorized`, `internal/component/plugin/server/command.go`), then two-phase YANG arg validation (`command.ValidateArgs`, `internal/component/command/argbind.go`), then `matchedCmd.Handler(ctx, args)` (`internal/component/plugin/server/command.go`). Example: `peer <sel>
    update text next-hop ... nlri add ...` resolves to `handleUpdate`
    (`internal/component/bgp/plugins/cmd/update/update_text.go`, registered with
    `WireMethod: "ze-bgp:peer-update"` at `internal/component/bgp/plugins/cmd/update/update_text.go`), which dispatches by encoding
@@ -121,7 +119,7 @@ runtime request, see the gotcha below.
 12. **Plugin side.** The plugin's own `MuxConn.readLoop` (`pkg/plugin/rpc/mux.go`) reads a line via
     `Conn.readFrame` (`pkg/plugin/rpc/conn.go`), splits the `#<id>` prefix from `<verb> [<payload>]`
     (`pkg/plugin/rpc/mux.go`); since the verb is a method name (not `ok`/`error`) it is an inbound
-    request, pushed non-blocking onto `Requests()` (`pkg/plugin/rpc/mux.go`, channel defined `:44`). The
+    request, pushed non-blocking onto `Requests()` (`pkg/plugin/rpc/mux.go`). The
     plugin SDK's event loop reads it and runs the plugin's registered command handler
     (`Plugin.answerExecuteCommand`, `pkg/plugin/sdk/sdk_dispatch.go`). The reply is an
     ANSWER SEQUENCE written through `Conn.AnswerWriter` (`pkg/plugin/rpc/conn.go`). A `plugin.Records` payload becomes one line
@@ -163,7 +161,7 @@ runtime request, see the gotcha below.
     `internal/component/plugin/server/handler.go`), e.g. `monitor event` was registered
     as `pluginserver.StreamEventMonitor` (`internal/component/plugin/server/event_monitor.go`)
     by `internal/component/bgp/plugins/cmd/monitor/monitor.go`, then runs it in a goroutine
-    (`cmd/ze/hub/api.go`) writing into an `apiStreamLineWriter` (`cmd/ze/hub/api.go`, `Write` at `:201`) that
+    (`cmd/ze/hub/api.go`) writing into an `apiStreamLineWriter` (`cmd/ze/hub/api.go`, `Write`) that
     buffers partial writes and emits one channel message per full line (max 1 MiB/line,
     `cmd/ze/hub/api.go`).
 17. **Delivery.** REST relays each channel line as an SSE frame, `data: <line>\n\n`
@@ -177,18 +175,17 @@ runtime request, see the gotcha below.
 18. Config edit routes (`/api/v1/config/sessions/*`, gRPC `ZeConfigService`) never touch
     `api.APIEngine`/`Dispatcher`, they call `api.ConfigSessionManager` (`config_session.go`)
     directly: `Enter` creates a per-user session wrapping a `ConfigEditor`
-    (`:23`) built by the daemon's `ConfigEditorFactory`; `Set`/`Delete`/`Diff` (`:172`,
-    `:211`, `:221`) mutate the session's candidate tree; `Commit` runs the
+    built by the daemon's `ConfigEditorFactory`; `Set`/`Delete`/`Diff` mutate the session's candidate tree; `Commit` runs the
     `ConfigValidationHook` then either the `ConfigCommitHook` (daemon reload path,
     wired at `cmd/ze/hub/api.go`) or a plain `Editor.Save()`. Idle sessions are reaped by
-    `RunCleanup`/`CleanExpired` (`config_session.go`, `:101`) on `DefaultSessionTimeout`
-    (30 min, `:57`).
+    `RunCleanup`/`CleanExpired` (`config_session.go`) on `DefaultSessionTimeout`
+    (30 min).
 
 **E. `internal/core/ipc`'s actual (narrow) role**
 
-19. `ParseMethod`/`FormatMethod` (`method.go`, `:52`) convert between the wire form
-    `module:rpc-name` and its parts; the only production callers are
-    `internal/component/plugin/server/schema.go` and `:171`, which label RPCs in the
+19. `ParseMethod`/`FormatMethod` (`method.go`) convert between the wire form
+    `module:rpc-name` and its parts; the only production caller is
+    `internal/component/plugin/server/schema.go`, which labels RPCs in the
     plugin schema registry for introspection/YANG display, not for dispatch.
 20. `RPCDispatcher.Register` (`dispatch.go`) is called once per builtin RPC at startup
     (`internal/component/plugin/server/server.go`) with a `wrapHandler`-adapted
@@ -228,7 +225,7 @@ runtime request, see the gotcha below.
   tests; `MapResponse` (`message.go`) and the `DispatchResult`/`DispatchError` types it
   builds are likewise only constructed inside the `ipc` package and in `dispatch_test.go`/
   `message_test.go`. Confirmed by a whole-repo grep: `s.rpcDispatcher` (`internal/component/plugin/server/server.go`) is
-  referenced only in `server.go` itself (construction `:161`, one `Register` loop `:201`), 
+  referenced only in `server.go` itself (construction and one `Register` loop),
   no code path ever calls `.Dispatch()` on it. Every real request (REST, gRPC, SSH/CLI,
   plugin-to-plugin) routes through `plugin/server.Dispatcher.Dispatch` (token parser,
   `internal/component/plugin/server/command.go`), not through this wire-method exact-match dispatcher. Treat

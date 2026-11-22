@@ -22,7 +22,7 @@ The bidirectional message layer between the ze engine and its plugins. Every plu
 | `internal/component/plugin/all/all.go` | Generated composition root; blank imports trigger each plugin's `init()` registration |
 | `internal/component/plugin/registration.go` | `PluginRegistry`: Stage-1 command/family/capability conflict detection |
 | `internal/component/plugin/server/startup.go` | 5-stage RPC startup; wires bridge before the Stage-5 OK, switches `PluginConn` to bridge transport |
-| `internal/component/plugin/server/dispatch.go` | Plugin→engine RPC dispatch (socket `:79` + direct `:366`), `deliverEvent` fan-out `:199`, `wireBridgeDispatch` `:522` |
+| `internal/component/plugin/server/dispatch.go` | Plugin→engine RPC dispatch (socket + direct), `deliverEvent` fan-out, `wireBridgeDispatch` |
 | `internal/component/plugin/server/dispatch_registry.go` | Unified engine-op registry: `engineOp`, `engineOps`, `lookupEngineOp`, `serveEngineOpJSON`/`serveEngineOpDirect` -- JSON, Direct, and typed-bridge wiring all derive from one entry per op |
 | `internal/component/plugin/server/engine_event.go` | Engine-side typed subscribers; `Server.Emit`/`Subscribe` (EventBus impl), `EmitEngineEvent` |
 | `internal/component/plugin/process/delivery.go` | Per-process delivery goroutine; `sendBatch` picks bridge-structured / bridge-text / socket |

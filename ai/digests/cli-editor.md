@@ -73,10 +73,10 @@ to in-process registry handlers.
    tokenizes, `matchBuiltinTokens` finds the longest builtin **YANG-path** prefix (inline typed
    selectors extracted), runs authz + `command.ValidateArgs`, then `matchedCmd.Handler(ctx, args)`.
    Builtins are registered under their YANG path by `LoadBuiltins`/`LoadBuiltinsWithAliases`
-   (`server/command.go,72`): `name := wireToPath[reg.WireMethod]`; read-only class from
+   (`server/command.go`): `name := wireToPath[reg.WireMethod]`; read-only class from
    `IsReadOnlyPath` (`server/command.go`).
 7. **Commit → reactor.** `commit` → `cmdCommit`/`cmdCommitSession`
-   (`model_commands_commit.go,255`): `validator.ValidateTransition` blocks on **errors AND
+   (`model_commands_commit.go`): `validator.ValidateTransition` blocks on **errors AND
    warnings**, then `commitSaveAndReload`/`commitCandidateAndReload` (`:197,221`) →
    `editor.StageCandidate` → `editor.NotifyReload()` (`editor.go`) invokes the wired
    `onReload` = `reloadAfterCommit` (`cmd/ze/hub/main.go`) → `doReload(apiServer, eng, ...)`;
@@ -86,7 +86,7 @@ to in-process registry handlers.
    (`cmd/ze/ze_core_dispatch.go`). A YANG verb (`isYANGVerb`, `ze_core_dispatch.go`) →
    `cmdutil.RunCommand` (`cmd/ze/internal/cmdutil/cmdutil.go`), which validates against the
    YANG verb tree, tries local handlers, then routes daemon commands through `cli.Run` (SSH).
-   Non-verbs → `registry.LookupRoot`/`LookupLocal` (`registry.go,312`) in-process handlers,
+   Non-verbs → `registry.LookupRoot`/`LookupLocal` (`registry.go`) in-process handlers,
    or a config-file path → `hub.Run`.
 
 ## Key files
@@ -148,7 +148,7 @@ the editor does not infer live reload versus offline promotion from a store.
   `commit now`; `commit now force` skips warnings but still blocks on errors; `commit
   confirmed <N>` arms an auto-rollback countdown (answered by `commit accept` / `commit abort`)
   and is not supported in session mode. One grammar: `contract.ParseCommit`.
-  Session commit does conflict detection (LIVE/STALE, `:286`). Transactional path fires only when
+  Session commit does conflict detection (LIVE/STALE). Transactional path fires only when
   `HasReloadNotifier()`, `StageCandidate` → `NotifyReload` → `MarkCommittedContent`; a reload
   error clears the candidate (`storage.ClearCandidate`) and reports failure. No notifier =
   offline save, status "committed (daemon not running)".

@@ -67,7 +67,7 @@ DHCP/link-failover/IPv6-RA handlers in this same package.
 7. **Netlink backend execution.** Every `Backend` call above dispatches to
    `internal/plugins/iface/netlink`'s `netlinkBackend` (`backend_linux.go`), which wraps
    `github.com/vishvananda/netlink`: `CreateDummy`/`CreateVeth`/`CreateBridge`/`CreateVLAN` issue
-   `netlink.LinkAdd` + `LinkSetUp` with delete-on-failure rollback (`manage_linux.go,65,95,110`);
+   `netlink.LinkAdd` + `LinkSetUp` with delete-on-failure rollback (`manage_linux.go`);
    `AddAddress`/`RemoveAddress`/`AddAddressP2P` call `netlink.AddrAdd`/`AddrDel`, the P2P variant
    setting `IFA_LOCAL`/`IFA_ADDRESS` separately (`204,222,244`); `SetMTU`/`SetAdminUp`/
    `SetAdminDown` wrap `LinkSetMTU`/`LinkSetUp`/`LinkSetDown` (`388,405`). The `vpp` backend
@@ -90,7 +90,7 @@ DHCP/link-failover/IPv6-RA handlers in this same package.
    matched by public key keep their handshake state. `wireguardSpecEqual` (`config_apply.go`,
    an unordered peer-set comparison) skips the whole call when nothing changed.
 10. **PPPoE client sub-flow.** `reconcilePPPoEClients` (`pppoe_client.go`, called from
-    `iface/register.go` and `:604`) diffs `cfg.PPPoEClient` against the active client map by name
+    `iface/register.go`) diffs `cfg.PPPoEClient` against the active client map by name
     and config fields (`pppoeClientConfigChanged`, `355`), stopping removed/changed clients and
     starting new ones via `NewPPPoEClient(...).Start()` (`104,118`). `PPPoEClient.run` (`183`)
     loops `runSession` (`226`) with exponential reconnect backoff (`ReconnectDelay`, `215`):
@@ -125,7 +125,7 @@ DHCP/link-failover/IPv6-RA handlers in this same package.
     add/remove-interface and add/remove-address `tx.ConfigOperation` steps for dummy/veth/bridge
     only (`ifaceTypeSupportsOperations`, `287`), so the transaction coordinator can apply,
     settle, and roll back them independently of a whole-config commit;
-    `OnConfigOperationApply`/`Rollback` (`iface/register.go,652`) journal each op separately from
+    `OnConfigOperationApply`/`Rollback` (`iface/register.go`) journal each op separately from
     the whole-config journal built in step 8.
 
 ## Key files
@@ -152,7 +152,7 @@ DHCP/link-failover/IPv6-RA handlers in this same package.
 - **Phase order matters.** Tunnels are created before bridges (a bridge member block can name a
   fresh gretap tunnel) and bridges before Phase 2 property application; Phase 2c (admin-up) runs
   after every property is set but before Phase 3/4 addresses, since DHCP/PPP need the link up
-  first (`config_apply.go,721-724`).
+  first (`config_apply.go`).
 - **`reconcileMu` is a deliberate serialization point.** `applyConfig`'s Phase 3/4, the vpp-ready
   worker, and the registry-change worker all call `reconcileOnReadyWithJournal` against the same
   `Backend` and the same `desiredState()` (which unconditionally re-merges the full live address
@@ -173,7 +173,7 @@ DHCP/link-failover/IPv6-RA handlers in this same package.
   `reconcileOnReadyWithJournal` to `(nil, true)` rather than recording a failure; only the vpp
   backend ever returns it (netlink never does).
 - **PPPoE and DHCP reconcile after, not during, the interface journal.** Both run only once
-  `applyConfig`/the reload journal have committed (`iface/register.go,602-613`), so a rolled-
+  `applyConfig`/the reload journal have committed (`iface/register.go`), so a rolled-
   back interface config never leaves a PPPoE session or DHCP client running against a spec that
   was undone.
 

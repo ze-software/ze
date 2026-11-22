@@ -39,7 +39,7 @@ install/read-back therefore does not establish an operator-usable VPP tunnel.
 3. **Config → reconcile.** On each config push, `parseIPsecSections` (`engine/register.go`,
    `config.go`) converts SDK JSON to a `config.Tree` (`config.TreeFromPluginMap`)
    and parses `ipsec.IPsecConfig` (peers, IKE/ESP groups). The first config with peers
-   starts a `UDPTransport` on `:500` (`engine/register.go`) and one on `:4500` for
+   starts a `UDPTransport` on `UDP 500` (`engine/register.go`) and one on `UDP 4500` for
    NAT-T (RFC 3948) (`engine/register.go`), each with its own read goroutine
    (`go tr.Run()`, `go dispatchInbound(...)` / `dispatchNATTInbound(...)`).
    `reconcilePeers` (`engine/register.go`, `reconcile.go`) then diffs desired vs.

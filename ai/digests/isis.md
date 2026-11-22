@@ -41,7 +41,7 @@ IS-IS is a native link-state IGP (ISO/IEC 10589, RFC 1195/5301/5305/5308) implem
    then `refreshConnectedPrefixes` (`redist_wiring.go`) and an initial `e.originate()`
    (`server.go`) so an idle adjacency set still produces fragment 0.
 4. **PDU dispatch.** `dispatcher.dispatch` (`server.go`) reads the 5-bit PDU type at
-   `offPDUType` (`server.go,100`), authenticates via the optional `verify` hook installed by
+   `offPDUType` (`server.go`), authenticates via the optional `verify` hook installed by
    `auth_wiring.go` (a failed check drops the frame before any adjacency/LSDB/SNP
    processing), then calls the registered handler. IIH types route to `e.handleIIH`
    (`server.go`) which maps `rf.IfIndex` to a `*circuit.Circuit` and calls `c.Receive(SNPA,
@@ -67,7 +67,7 @@ IS-IS is a native link-state IGP (ISO/IEC 10589, RFC 1195/5301/5305/5308) implem
 7. **Session transition → reaction.** `buildCircuit` (`circuits.go`) installs transition
    hooks (`circuits.go`): on Up, `publishAdjMetrics` → `e.runElection(c)` (DIS,
    broadcast-only) → `e.originate()` → `e.onAdjacencyUpFlood` (P2P initial CSNP,
-   `flooding_wiring.go,296`); on Down, the same minus the initial CSNP. This is the "Wiring
+   `flooding_wiring.go`); on Down, the same minus the initial CSNP. This is the "Wiring
    Test": adjacency Up/Down → DIS re-elect → own-LSP origination → flood arm.
 8. **DIS election (broadcast circuits only).** `Circuit.RunElection` (`circuit/dis.go`)
    gathers candidates (`circuit/dis.go`, local + Up LAN neighbors) and calls
@@ -112,10 +112,10 @@ IS-IS is a native link-state IGP (ISO/IEC 10589, RFC 1195/5301/5305/5308) implem
     every `floodInterval`=5s) drains SRM per circuit/level via `floodCircuitLevel`
     (`lsdb/flooding.go`), leaving SRM set until an ack clears it (a true resend bumps
     `ze_isis_srm_resends_total`). CSNP/PSNP synchronize LSDBs: `buildCSNPs`/`ReceiveCSNP`
-    (`lsdb/snp.go,224`) reconcile a neighbor's TLV-9 list against the LSDB per entry
+    (`lsdb/snp.go`) reconcile a neighbor's TLV-9 list against the LSDB per entry
     (`reconcileCSNPEntry`, `lsdb/snp.go`) and per gap range (`reconcileCSNPRange`,
     `lsdb/snp.go`, recording a per-circuit `pendingReq` for an unheld LSP,
-    `lsdb/snp.go`); `buildPSNP`/`ReceivePSNP` (`lsdb/snp.go,378`) ack SSN-flagged
+    `lsdb/snp.go`); `buildPSNP`/`ReceivePSNP` (`lsdb/snp.go`) ack SSN-flagged
     entries and request pending ones. The DIS sources the LAN CSNP (`lanCSNPTick`,
     `dis_wiring.go`, every 10s); a P2P circuit gets one initial CSNP at adjacency-Up
     (`InitialCSNP`, `lsdb/snp.go`, `flooding_wiring.go`) plus a slower periodic one
@@ -125,13 +125,13 @@ IS-IS is a native link-state IGP (ISO/IEC 10589, RFC 1195/5301/5305/5308) implem
     (`spf/computer.go`), which debounces (`DefaultDebounce`=200ms, `spf/computer.go`) a
     burst of changes into one `Run` per level.
 14. **SPF run.** `Computer.Run` (`spf/computer.go`) calls `BuildGraph` (`spf/graph.go`,
-    reads the LSDB once via the `Source` interface at `spf_wiring.go,128`, merging TLV
+    reads the LSDB once via the `Source` interface at `spf_wiring.go`, merging TLV
     22/135/132 across an originator's fragments) then `Compute` (`spf/spf.go`, Dijkstra
     with a binary heap; ECMP first-hops merged at equal cost, `spf/spf.go`; an overloaded
     node's outgoing edges are never relaxed, `spf/spf.go`). `BuildRoutes`
     (`spf/route.go`) attaches each reachable node's TLV 135 prefixes at
     node-distance+prefix-metric, resolves next-hops via `engineNextHopResolver`/`V6`
-    (`spf_wiring.go,217`, reading the live adjacency table's `Snapshot()`), and arbitrates
+    (`spf_wiring.go`, reading the live adjacency table's `Snapshot()`), and arbitrates
     a multi-level-reachable prefix by RFC 5308 sec 5 preference (`preferenceRank`,
     `spf/route.go`: L1-up > L2-up > L2-down > L1-down).
 15. **Inter-level leak + install.** `LeakPrefixes` (`spf/leak.go`) computes the RFC 2966
@@ -139,13 +139,13 @@ IS-IS is a native link-state IGP (ISO/IEC 10589, RFC 1195/5301/5305/5308) implem
     (`spf_wiring.go`, `lsdb_wiring.go`), which re-originates only on a real change (the
     leaked-down bit makes the loop a fixpoint). `Installer.Apply` (`spf/install.go`) diffs
     the new route set against the previous one (`DiffRoutes`, `spf/route.go`) and calls
-    `loc.InsertForward`/`loc.Remove` (`spf/install.go,210`) on the shared Loc-RIB with
+    `loc.InsertForward`/`loc.Remove` (`spf/install.go`) on the shared Loc-RIB with
     `AdminDistance`=115 (`spf/install.go`); sysrib/fibkernel consume the Loc-RIB downstream
     exactly as the BGP RIB does, IS-IS owns no second FIB path.
 16. **Redistribution import/export.** `OnStarted` wires `isisredistribute.NewConsumer(eng)`
     (`register.go`) as the engine's `LSPInjector`; `Consumer.InjectRoute`
     (`redistribute/consumer.go`) validates the prefix and calls
-    `e.SetRedistPrefix`/`SetRedistPrefixV6` (`redist_wiring.go,78`) then `e.Originate()`
+    `e.SetRedistPrefix`/`SetRedistPrefixV6` (`redist_wiring.go`) then `e.Originate()`
     (`redist_wiring.go`, bumps `ze_isis_lsp_reoriginations_total` and calls
     `e.originate()`) so an imported connected/static/BGP route becomes a TLV 135/236 entry
     merged into `levelState` (`lsdb_wiring.go`). The reverse direction:

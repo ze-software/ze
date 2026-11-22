@@ -31,7 +31,7 @@ channel and unit to a kernel session handle before handing borrowed frames to PP
    `pppoe/server.go`, see `pppoe/ratelimit.go`), matches Service-Name
    (`pppoe/server.go`), generates an HMAC cookie (`GenerateCookie`, `pppoe/cookie.go`),
    builds and sends PADO (`BuildPADO`, `pppoe/discovery.go`; `sendFrame`,
-   `pppoe/server.go,243`).
+   `pppoe/server.go`).
 4. **PADR -> PADS + admitted session.** `handlePADR` (`pppoe/server.go`) verifies the cookie
    (`VerifyCookie`, `pppoe/cookie.go`) and service name, dedups a retransmitted PADR by MAC
    against an existing `StateDiscovery` session (`pppoe/server.go`), allocates a session ID
@@ -63,7 +63,7 @@ channel and unit to a kernel session handle before handing borrowed frames to PP
    (`ParseMessageHeader`, `reactor.go`), pre-validates a `TunnelID==0` packet as a
    well-formed SCCRQ before any tunnel is allocated (`parseSCCRQ`, `reactor.go`), then
    `locateTunnelLocked` finds/creates the tunnel and runs RFC 2661 tie-breaking
-   (`reactor.go,719`).
+   (`reactor.go`).
 9. **Tunnel FSM.** `L2TPTunnel.Process` (`tunnel_fsm.go`) feeds the payload through the
    reliable-delivery engine (`engine.OnReceive`, `tunnel_fsm.go`) and dispatches each
    in-order message via `handleMessage` (`tunnel_fsm.go`): `MsgSCCRQ` ->
@@ -124,14 +124,14 @@ channel and unit to a kernel session handle before handing borrowed frames to PP
     session's lifetime (`session_run.go`), then either short-circuits via proxy LCP
     (`EvaluateProxyLCP`, `session_run.go`) straight to `LCPStateOpened`, or drives the
     RFC 1661 FSM from `Initial` through `ReqSent`/`AckSent` (`LCPDoTransition`,
-    `session_run.go,188`). Every received frame is dispatched by `handleFrame`
+    `session_run.go`). Every received frame is dispatched by `handleFrame`
     (`session_run.go`) -> `handleLCPPacket` (`session_run.go`), which maps the LCP
     code to an FSM event (`codeToEvent`, `session_run.go`) and drives `performAction`
     (`session_run.go`) for each resulting wire action (SCR/SCA/SCN/STR/STA/SCJ/SER).
 16. **LCP Opened -> auth -> NCP.** On the transition into `LCPStateOpened`
-    (`session_run.go,820` for the normal path; `session_run.go` for the proxy path),
+    (`session_run.go` for the normal path; `session_run.go` for the proxy path),
     the session calls `afterLCPOpen` (`session_run.go`), which runs `runAuthPhase`
-    (`session_run.go,518`) then `runNCPPhase` (`session_run.go`; `ncp.go`) before
+    (`session_run.go`) then `runNCPPhase` (`session_run.go`; `ncp.go`) before
     activating the per-session handle. MTU precedes `Connect`; receive MRU and
     admin-up follow it. The kernel handle translates those calls to the existing
     interface operations and `/dev/ppp` ioctls. Its distinct Opened reader wakes
@@ -154,7 +154,7 @@ channel and unit to a kernel session handle before handing borrowed frames to PP
 19. **NCP (IPCP/IPv6CP).** `runNCPPhase` (`ncp.go`) emits `EventIPRequest` per enabled
     family and awaits the handler's decision in `awaitIPDecision` (`ncp.go`,
     `requestIPCPAddresses` at `ncp.go`), then drives each family's FSM via
-    `startNCP`/`handleNCPPacket` (`ncp.go,330`). On IPCP `Opened`, `onNCPOpened`
+    `startNCP`/`handleNCPPacket` (`ncp.go`). On IPCP `Opened`, `onNCPOpened`
     (`ncp.go`) programs typed local/peer addresses through the session handle and emits
     `EventSessionIPAssigned` (`ncp.go`). When one family's NCP leaves Opened
     while LCP stays up, its TLD withdraws the family from pppN and
@@ -207,7 +207,7 @@ the kernel unit's disconnect/EOF drain still fences reconnection.
     defines `SessionUp`/`SessionDown`/`SessionIPAssigned`/`SessionRateChange`/
     `SessionAuthResult` (`subscriber/events/events.go`) as the cross-access-type
     EventBus namespace (`"subscriber"`) both transports emit on
-    (e.g. `pppoe/subsystem.go,351,368`; `subscriber_bridge.go,99,131`).
+    (e.g. `pppoe/subsystem.go`; `subscriber_bridge.go`).
 23. **RADIUS accounting.** `radiusAcct.subscribeEventBus` (`plugins/authradius/acct.go`)
     subscribes **only** to `l2tpevents.SessionIPAssigned`/`SessionDown`, NOT the shared
     `subscriber` namespace, so accounting fires for L2TP sessions only, even though the
@@ -328,7 +328,7 @@ the kernel unit's disconnect/EOF drain still fences reconnection.
 - **`AuthHandler`/`PoolHandler`/`ShaperHandler` are also package-level singletons**
   (`subscriber/handler_registry.go`), set once by whichever auth/pool/shaper plugin's
   `init()` runs; only one of each can be registered process-wide. L2TP's own
-  `RegisterAuthHandler`/`RegisterPoolHandler` (`l2tp/handler_registry.go,79`) are thin adapters
+  `RegisterAuthHandler`/`RegisterPoolHandler` (`l2tp/handler_registry.go`) are thin adapters
   that delegate to the same subscriber-level singleton (`l2tp/handler_registry.go`): plugins
   written against the older L2TP-typed API still work unchanged.
 - **`subscriberBridge` requires a non-nil EventBus.** L2TP's subsystem only builds the bridge
@@ -346,9 +346,9 @@ the kernel unit's disconnect/EOF drain still fences reconnection.
   `l2tp.CapturedSession.Teardown` (`coa.go`) yet. The gap is known and still open.
 - **Registry values are always copies.** `Registry.Add` copies `*Session` into the map
   (`subscriber/registry.go`) and `Get`/`All` return value copies
-  (`subscriber/registry.go,44-51`); mutating a `Session` obtained from the registry
+  (`subscriber/registry.go`); mutating a `Session` obtained from the registry
   never mutates the stored entry: callers must `Add` again to persist a change (see
-  `subscriber_bridge.go,129` doing exactly that after mutating a local copy).
+  `subscriber_bridge.go` doing exactly that after mutating a local copy).
 - **One reader per chan fd.** `pppSession.run` starts exactly one `readFrames` goroutine
   before LCP begins (`ppp/session_run.go`) specifically so auth and NCP phases, which
   read from the same `framesIn` channel rather than the raw fd, cannot race a second reader

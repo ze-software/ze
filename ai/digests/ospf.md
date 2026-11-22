@@ -191,7 +191,7 @@ other lock held. Entry points are `registerOSPF` (`register.go`, plugin registra
   LSDB keyed by instance/AF. A cross-instance adjacency cannot form because `dispatcher.dispatch`
   discards a non-matching Instance ID before any ISM/NSM/LSDB code runs (`dispatcher.go`).
 - **Gate order at dispatch.** Instance ID, then area, then authentication -- all BEFORE the packet
-  handler (`dispatcher.go,92,98`). A packet failing any gate never reaches `iface`/`neighbor`/`lsdb`
+  handler (`dispatcher.go`). A packet failing any gate never reaches `iface`/`neighbor`/`lsdb`
   code, so a bad-auth or wrong-area Hello cannot influence the ISM/NSM even indirectly.
 - **SPF debounce, not per-LSA recompute.** `TriggerArea` only arms/re-arms an `AfterFunc`
   (`spf/computer.go`); a burst of LSDB changes inside the current delay window does not
@@ -205,7 +205,7 @@ other lock held. Entry points are `registerOSPF` (`register.go`, plugin registra
   (RFC 3623 §2/2.1), but SPF still runs and `Routes()`/`Snapshot()` show the computed set even though
   nothing was installed -- do not read "SPF ran" as "FIB changed" during a graceful restart.
 - **Self-LSA origination is idempotent per tick.** `existingSelfBodyUnchanged`
-  (`lsdb/origination.go,681`) skips re-install and re-flood when the encoded Router-LSA body is
+  (`lsdb/origination.go`) skips re-install and re-flood when the encoded Router-LSA body is
   byte-identical to the last self-instance, so the 1-second retransmit-tick call to
   `originateSelfLSAs` (`instance.go`) does not churn the sequence number on every tick.
 - **Flood-back exception.** RFC 2328 §13.3: a DR re-floods a received LSA back out the receiving

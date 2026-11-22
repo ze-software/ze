@@ -22,34 +22,34 @@ capabilities so a same-context forward stays a raw byte passthrough.
 2. **Lazy sections.** First accessor triggers `WireUpdate.ensureParsed` →
    `wire.ParseUpdateSections` (`internal/component/bgp/wireu/wire_update.go`,
    `internal/core/bgp/wire/update_sections.go`), which stores only offsets. `Withdrawn`/
-   `Attrs`/`NLRI` return zero-copy sub-slices of the payload (`update_sections.go,137,151`).
+   `Attrs`/`NLRI` return zero-copy sub-slices of the payload (`update_sections.go`).
 3. **Attribute index.** `WireUpdate.Attrs` builds `attribute.NewAttributesWire(attrBytes, ctxID)`
-   once (`wire_update.go,119`); that constructor walks the section eagerly and stores one
+   once (`wire_update.go`); that constructor walks the section eagerly and stores one
    6-byte `Span` per attribute plus a 256-bit presence set (`attribute/span.go`), so the
    index is immutable and `Has`/`GetRaw`/`Count` take no lock at all
-   (`internal/core/bgp/attribute/wire.go,155`). `GetRaw` returns a slice into `packed`, no
+   (`internal/core/bgp/attribute/wire.go`). `GetRaw` returns a slice into `packed`, no
    parse, no copy. Only `Get`/`All`/`ForEach` lock, and only to fill the parsed-value side
    table (`attribute/wire.go`). The receive path publishes the base after every branch
    that rewrites the body (`reactor/session_validation.go`, `publishBase`).
 4. **Pool dedup (RIB store side).** `storage.ParseAttributes` iterates the attr wire with
    `attribute.NewAttrIterator` and interns each value into its per-type pool
    (`pool.Origin.Intern(value)`, …), bundling the 12 non-AS_PATH handles and keeping AS_PATH
-   separate (`internal/component/bgp/plugins/rib/storage/attrparse.go,62,152,169`). The
+   separate (`internal/component/bgp/plugins/rib/storage/attrparse.go`). The
    `pool.*` vars are `attrpool.Pool` instances (`internal/component/bgp/plugins/rib/pool/attributes.go`).
    `Pool.Intern` → `shard.intern` dedups by content: an existing live entry bumps refcount;
    a new value is copied once into the shard buffer with refcount 1
-   (`internal/component/bgp/attrpool/pool.go,300`).
+   (`internal/component/bgp/attrpool/pool.go`).
 
 **Path 2, API/build → attribute building → Update → wire bytes.**
 1. **Build into scratch.** `UpdateBuilder.BuildUnicast` (from a pool-backed builder,
    `message.GetUpdateBuilder`) assembles typed attributes in a fixed array, sorts by type
    code, and writes them into the builder's reusable `scratch` via `ub.alloc()` +
-   `attribute.WriteAttributesOrdered` (`internal/component/bgp/message/update_build.go,220,372`,
+   `attribute.WriteAttributesOrdered` (`internal/component/bgp/message/update_build.go`,
    `internal/core/bgp/attribute/origin.go`). It returns a `*message.Update` whose
    `PathAttributes`/`NLRI` **alias** the scratch buffer (`update_build.go`).
 2. **Attr write is buffer-first.** Each attribute writes into the caller's buffer with
    `WriteTo(buf, off) int`; header+value helpers are `WriteAttrToWithLen` and the context
-   variant `WriteAttrToWithContext` (`internal/core/bgp/attribute/attribute.go,256`).
+   variant `WriteAttrToWithContext` (`internal/core/bgp/attribute/attribute.go`).
 3. **Message → bytes.** `Update.WriteTo(buf, off, ctx)` writes the 19-byte header then uses
    skip-and-backfill for the length field before copying the three sections
    (`internal/component/bgp/message/update.go`); `message.PackTo` is the allocating
@@ -57,11 +57,11 @@ capabilities so a same-context forward stays a raw byte passthrough.
 4. **Forward decision.** `buildFwdBody` keeps the raw passthrough when source and destination
    `ContextID` match (`peerWire.Payload()` reused, RFC 8654 oversize handled by
    `wireu.SplitWireUpdate`); on mismatch it parses and re-encodes via
-   `fwdUpdateForDestination` (`internal/component/bgp/reactor/forward_body.go,47,64,82`).
+   `fwdUpdateForDestination` (`internal/component/bgp/reactor/forward_body.go`).
    The `fwdPool` per-peer worker then writes the wire bytes to the peer's buffered TCP writer
    (`internal/component/bgp/reactor/forward_pool.go`). Context re-encode at the attribute
    layer is `AttributesWire.PackFor(destCtxID)`, returns `packed` unchanged when IDs match,
-   else one-alloc `packWithContext` (`attribute/wire.go,274`).
+   else one-alloc `packWithContext` (`attribute/wire.go`).
 
 ## Key files
 | File | Role |
