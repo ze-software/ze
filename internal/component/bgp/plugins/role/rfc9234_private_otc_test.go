@@ -48,8 +48,9 @@ func TestRFC9234PrivateOTCDoesNotLeavePublicEgress(t *testing.T) {
 }
 
 // TestPrivateOTCBoundaryPreservesOtherSessions distinguishes the boundary
-// from unconditional rejection: public upstream OTC, interior/private
-// sessions and withdrawal-only bodies keep their received OTC unchanged.
+// from unconditional rejection: Internet-facing local OTC, public upstream OTC,
+// interior/private sessions and withdrawal-only bodies keep their received OTC unchanged.
+// RFC requirement: RFC9234-5-9 positive -- on public-to-public eBGP egress, routes carrying the Internet-facing ASN or an already-set public upstream OTC, as well as interior/private and withdrawal-only sessions, are accepted with OTC preserved unchanged.
 func TestPrivateOTCBoundaryPreservesOtherSessions(t *testing.T) {
 	clearFilterState(t)
 	setFilterState(map[string]*peerRoleConfig{"10.0.0.2": {role: roleProvider}}, nil)
@@ -61,6 +62,7 @@ func TestPrivateOTCBoundaryPreservesOtherSessions(t *testing.T) {
 		ibgp    bool
 		declare bool
 	}{
+		{"internet-facing local OTC", 64497, 64498, 64497, false, true},
 		{"public upstream OTC", 64497, 64498, 64496, false, true},
 		{"private destination", 64497, 65001, 65000, false, true},
 		{"private local AS", 65001, 64498, 65000, false, true},
@@ -108,6 +110,7 @@ func TestPrivateOTCBoundaryPreservesOtherSessions(t *testing.T) {
 
 // TestPublicOTCBoundaryStillStampsUnmarkedRoutes keeps the existing positive
 // behavior as an explicit control for the new refusal.
+// RFC requirement: RFC9234-5-9 positive -- an unmarked route advertised on public-to-public eBGP egress is accepted and stamped with the Internet-facing local ASN.
 func TestPublicOTCBoundaryStillStampsUnmarkedRoutes(t *testing.T) {
 	clearFilterState(t)
 	setFilterState(map[string]*peerRoleConfig{"10.0.0.2": {role: roleProvider}}, nil)
@@ -126,5 +129,16 @@ func TestPublicOTCBoundaryStillStampsUnmarkedRoutes(t *testing.T) {
 	}
 	if got := binary.BigEndian.Uint32(ops[0].Buf); got != dest.LocalAS {
 		t.Errorf("stamp ASN %d, want Internet-facing ASN %d", got, dest.LocalAS)
+	}
+	fields := `{"peer-address":"10.0.0.2","local-as":64497,"peer-as":64498,"ibgp":false}`
+	out, err := evaluateRoleFilter(otcForkedRoute(otcEgressFilterName, payload, fields))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.Action != sdk.FilterModify {
+		t.Fatalf("forked unmarked export verdict %v, want modify", out.Action)
+	}
+	if len(out.Sets) != 1 || out.Sets[0].Field != fieldOTC.String() || string(out.Sets[0].Value) != "64497" {
+		t.Errorf("forked unmarked export sets = %+v, want single otc=64497", out.Sets)
 	}
 }

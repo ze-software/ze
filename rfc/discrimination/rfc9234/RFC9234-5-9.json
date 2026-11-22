@@ -5,9 +5,42 @@
     "unit": "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampLocalASN",
     "unit-sha": "b8153ce5d86bfade",
     "claim-sha": "470526e9ec4b0f99",
-    "route": "mutant",
+    "route": "revert",
     "producer": "internal/component/bgp/plugins/role/otc.go::OTCEgressFilter",
-    "producer-sha": "d97369eea02981d4",
-    "break": "line 680: \"dest.LocalAS\" -\u003e \"dest.PeerAS\""
+    "producer-sha": "eba230a46517de1d",
+    "break": "body of OTCEgressFilter replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9234-5-9",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/role/rfc9234_private_otc_test.go::TestPrivateOTCBoundaryPreservesOtherSessions",
+    "unit-sha": "8a5608042253e8c6",
+    "claim-sha": "637b85086e9eb7bf",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/role/otc.go::privateOTCLeavesPublicAS",
+    "producer-sha": "3e50ea2446ab721f",
+    "break": "body of privateOTCLeavesPublicAS replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9234-5-9",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/role/rfc9234_private_otc_test.go::TestPublicOTCBoundaryStillStampsUnmarkedRoutes",
+    "unit-sha": "8687a68da2f625d9",
+    "claim-sha": "e624ce8985e1c931",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/role/otc.go::OTCEgressFilter",
+    "producer-sha": "eba230a46517de1d",
+    "break": "body of OTCEgressFilter replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9234-5-9",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/role/rfc9234_private_otc_test.go::TestRFC9234PrivateOTCDoesNotLeavePublicEgress",
+    "unit-sha": "ec2fbcf4ecf8f9ac",
+    "claim-sha": "2d2f7b7c981a5126",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/role/otc.go::privateOTCLeavesPublicAS",
+    "producer-sha": "3e50ea2446ab721f",
+    "break": "body of privateOTCLeavesPublicAS replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
