@@ -1,0 +1,175 @@
+# Question: Does `ze config validate` accept symmetric short-lived + per-family
+# long-lived GR config (including GR-phase skip without short-lived), emit the
+# expected JSON tree, and refuse uncarried long-lived families, out-of-range
+# stale-time, and deleted legacy leaves through the real CLI binary?
+# Why a unit test cannot decide it: unit tests exercise LoadConfig and
+# refuseUncarriedGRFamilies directly, not `ze config validate`'s wiring of
+# ze-graceful-restart.yang and bgp-gr's InProcessConfigVerifier.
+
+stdin=valid:terminator=EOF_VALID
+bgp {
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer peer1 {
+		connection {
+			remote { ip 10.0.0.1; }
+			local { ip 192.0.2.1; }
+		}
+		session {
+			asn { local 65001; remote 65002; }
+			router-id 1.2.3.4;
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				ipv6/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart {
+					short-lived {
+						restart-time 120;
+						family {
+							ipv4/unicast
+						}
+					}
+					long-lived {
+						family {
+							ipv4/unicast 3600
+							ipv6/unicast 86400
+						}
+					}
+				}
+			}
+		}
+		attach process gr { send [ update ]; }
+	}
+	peer skip_gr {
+		connection {
+			remote { ip 10.0.0.2; }
+			local { ip 192.0.2.1; }
+		}
+		session {
+			asn { local 65001; remote 65003; }
+			router-id 1.2.3.4;
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart {
+					long-lived {
+						family {
+							ipv4/unicast 0
+						}
+					}
+				}
+			}
+		}
+		attach process gr { send [ update ]; }
+	}
+}
+EOF_VALID
+
+stdin=uncarried:terminator=EOF_UNCARRIED
+bgp {
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer peer1 {
+		connection {
+			remote { ip 10.0.0.1; }
+			local { ip 192.0.2.1; }
+		}
+		session {
+			asn { local 65001; remote 65002; }
+			router-id 1.2.3.4;
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart {
+					long-lived {
+						family {
+							ipv6/unicast 3600
+						}
+					}
+				}
+			}
+		}
+		attach process gr { send [ update ]; }
+	}
+}
+EOF_UNCARRIED
+
+stdin=legacy:terminator=EOF_LEGACY
+bgp {
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer peer1 {
+		connection {
+			remote { ip 10.0.0.1; }
+			local { ip 192.0.2.1; }
+		}
+		session {
+			asn { local 65001; remote 65002; }
+			router-id 1.2.3.4;
+			capability {
+				graceful-restart {
+					long-lived-stale-time 3600
+				}
+			}
+		}
+		attach process gr { send [ update ]; }
+	}
+}
+EOF_LEGACY
+
+stdin=bad_stale_time:terminator=EOF_BAD_STALE
+bgp {
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer peer1 {
+		connection {
+			remote { ip 10.0.0.1; }
+			local { ip 192.0.2.1; }
+		}
+		session {
+			asn { local 65001; remote 65002; }
+			router-id 1.2.3.4;
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart {
+					long-lived {
+						family {
+							ipv4/unicast 16777216
+						}
+					}
+				}
+			}
+		}
+		attach process gr { send [ update ]; }
+	}
+}
+EOF_BAD_STALE
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=valid
+expect=exit:code=0
+cmd=foreground:seq=2:exec=ze cli -c "show config dump - | json":stdin=valid
+expect=exit:code=0
+expect=stdout:pattern="stale-time": "3600"
+expect=stdout:pattern="stale-time": "86400"
+cmd=foreground:seq=3:exec=ze config validate -:stdin=uncarried
+expect=exit:code=1
+expect=stdout:contains=ipv6/unicast
+cmd=foreground:seq=4:exec=ze config validate -:stdin=legacy
+expect=exit:code=1
+expect=stdout:contains=unknown field in graceful-restart
+cmd=foreground:seq=5:exec=ze config validate -:stdin=bad_stale_time
+expect=exit:code=1
+expect=stdout:contains=16777216

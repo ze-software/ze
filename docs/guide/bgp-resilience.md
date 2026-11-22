@@ -32,8 +32,14 @@ bgp {
         session {
             capability {
                 graceful-restart {
-                    restart-time 120
-                    long-lived-stale-time 3600
+                    short-lived {
+                        restart-time 120
+                    }
+                    long-lived {
+                        family {
+                            ipv4/unicast 3600
+                        }
+                    }
                 }
             }
         }

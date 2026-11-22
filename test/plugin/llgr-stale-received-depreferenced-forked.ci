@@ -53,7 +53,7 @@ bgp {
    asn { local 65000; remote 65000; }
    router-id 1.2.3.4
    family { ipv4/unicast { prefix { maximum 10000; } } }
-   capability { graceful-restart { restart-time 120; long-lived-stale-time 3600; } }
+   capability { graceful-restart { short-lived { restart-time 120; } long-lived { family { ipv4/unicast 3600; } } } }
   }
   attach process bgp-gr { receive [ open state eor ]; send [ update ]; }
   attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }

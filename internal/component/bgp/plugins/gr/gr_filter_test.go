@@ -64,9 +64,9 @@ func judgeBoth(t *testing.T, tc *llgrCase) {
 
 // TestLLGRProceduresAreRequiredInsertions proves the declaration half of
 // AC-13 (spec-filter-wire-6): the ingress step is inserted on the peer whose
-// long-lived-stale-time makes Ze advertise LLGR, the egress step on every
-// peer's export list while one peer sets it (scope any-peer: keyed on the
-// route's source), both required with the RFC 9494 Section 4.3 reason, both
+// graceful-restart long-lived family makes Ze advertise LLGR, the egress step
+// on every peer's export list while one peer sets it (scope any-peer: keyed on
+// the route's source), both required with the RFC 9494 Section 4.3 reason, both
 // served by the plugin, and only the egress step opts into the stale
 // readvertise rail. Method: read the declaration functions both
 // registrations use.
@@ -81,8 +81,8 @@ func TestLLGRProceduresAreRequiredInsertions(t *testing.T) {
 		_, served := decls[ins.Filter]
 		assert.True(t, served, "%s is a filter the plugin declares", ins.Filter)
 		assert.True(t, ins.Required, "%s is required", ins.Filter)
-		assert.Equal(t, []string{"session", "capability", "graceful-restart", "long-lived-stale-time"}, ins.Config)
-		assert.Empty(t, ins.Values, "the leaf present, whatever it holds")
+		assert.Equal(t, []string{"session", "capability", "graceful-restart", "long-lived", "family"}, ins.Config)
+		assert.Empty(t, ins.Values, "the family list present, whatever families it holds")
 		assert.True(t, strings.Contains(ins.Reason, `"that has advertised the Long-Lived Graceful Restart Capability to a neighbor MUST perform"`),
 			"the reason quotes RFC 9494 Section 4.3: %s", ins.Reason)
 		switch ins.Filter {

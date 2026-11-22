@@ -1,5 +1,5 @@
 # Valid config: graceful-restart-llgr.ci with bgp-gr forked
-# (spec-filter-wire-6-stage-filters AC-13): long-lived-stale-time (RFC 9494)
+# (spec-filter-wire-6-stage-filters AC-13): graceful-restart long-lived family (RFC 9494)
 # validates with bgp-gr configured as an external process, its LLGR
 # insertions placed and no out-of-process refusal reported.
 stdin=config:terminator=EOF_CONF
@@ -42,8 +42,14 @@ bgp {
 			router-id 1.2.3.4
 			capability {
 				graceful-restart {
-					restart-time 120
-					long-lived-stale-time 3600
+					short-lived {
+						restart-time 120
+					}
+					long-lived {
+						family {
+							ipv4/unicast 3600
+						}
+					}
 				}
 			}
 		}
@@ -58,5 +64,5 @@ cmd=foreground:seq=1:exec=ze config validate -:stdin=config
 expect=exit:code=0
 cmd=foreground:seq=2:exec=ze cli -c "show config dump - | json":stdin=config
 expect=exit:code=0
-expect=stdout:pattern="long-lived-stale-time": "3600"
+expect=stdout:pattern="stale-time": "3600"
 expect=stdout:pattern="run": "ze plugin bgp-gr"

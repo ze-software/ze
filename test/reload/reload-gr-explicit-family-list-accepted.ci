@@ -58,9 +58,11 @@ bgp {
 			}
 			capability {
 				graceful-restart {
-					restart-time 120
-					family {
-						name ipv4/unicast
+					short-lived {
+						restart-time 120
+						family {
+							ipv4/unicast
+						}
 					}
 				}
 			}
@@ -103,9 +105,11 @@ bgp {
 			}
 			capability {
 				graceful-restart {
-					restart-time 120
-					family {
-						name ipv4/unicast
+					short-lived {
+						restart-time 120
+						family {
+							ipv4/unicast
+						}
 					}
 				}
 			}

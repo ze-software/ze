@@ -40,7 +40,9 @@ bgp {
 			capability {
 				asn4 enable
 				graceful-restart {
-					restart-time 120
+					short-lived {
+						restart-time 120
+					}
 				}
 			}
 			family ipv4/unicast {

@@ -83,7 +83,7 @@ func TestCreateBgpPeerReachesTheReactorFromTheCommandLine(t *testing.T) {
 	assert.Equal(t, "true", treeValue(t, tree, "connection", "local", "accept"))
 	assert.Equal(t, "enable", treeValue(t, tree, "session", "family", "ipv4/unicast"))
 	assert.Equal(t, "enable", treeValue(t, tree, "session", "family", "ipv6/unicast"))
-	assert.Equal(t, "120", treeValue(t, tree, "session", "capability", "graceful-restart", "restart-time"))
+	assert.Equal(t, "120", treeValue(t, tree, "session", "capability", "graceful-restart", "short-lived", "restart-time"))
 	assert.Equal(t, "false", treeValue(t, tree, "behavior", "group-updates"))
 
 	processes, ok := tree["attach"].(map[string]any)["process"].(map[string]any)

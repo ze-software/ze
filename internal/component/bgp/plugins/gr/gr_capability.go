@@ -18,7 +18,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
@@ -80,38 +79,41 @@ const grFamilyMax = 63
 // reserved and MUST be set to zero by the sender and ignored by the receiver".
 const grForwardStateClear = 0x00
 
-// grFamilyNode is the presence container under "graceful-restart" that names
-// the address families the capability carries, and grFamilyNameLeaf is the
-// leaf-list inside it.
+// grShortLivedNode and grLongLivedNode are the two symmetric phase containers
+// under "graceful-restart": short-lived governs code 64 (RFC 4724) and
+// long-lived governs code 71 (RFC 9494). Both hold a keyed "family" list.
 const (
-	grFamilyNode     = "family"
-	grFamilyNameLeaf = "name"
+	grShortLivedNode  = "short-lived"
+	grLongLivedNode   = "long-lived"
+	grFamilyNode      = "family"
+	grRestartTimeLeaf = "restart-time"
+	grStaleTimeLeaf   = "stale-time"
 )
 
 // parseGRCapValue extracts a GR capability hex value from a capability map's
 // "graceful-restart" entry. Returns "" if no GR config is present.
 //
 // sessionFamilies are the address families the session carries, in the form
-// collectPeerFamilies returns. Each one becomes a tuple, unless the "family"
-// container narrows the set, because a capability that lists none says the
-// opposite of what Ze means by it. A family the RIB plugin cannot store is
-// left out of either set with a warning, and when none is left the capability
-// is still sent with no tuple, so the peer still runs its Receiving Speaker
-// procedures and End-of-RIB still applies.
+// collectPeerFamilies returns. When the "short-lived" container is absent,
+// code 64 carries Restart Time 0 and zero family tuples, which RFC 4724
+// Section 3 reads as a Receiving Speaker preserving nothing of its own and
+// RFC 9494 Section 4.1 uses to skip the conventional GR phase when long-lived
+// is configured. When "short-lived" is present, every session family becomes a
+// tuple unless its "family" list narrows the set. A family the RIB plugin
+// cannot store is left out with a warning, and when none is left the
+// capability is still sent with no tuple, so Receiving Speaker procedures and
+// End-of-RIB still apply.
 //
 // Caller MUST run refuseUncarriedGRFamilies over the same document first. That
-// walk is where a "family" container the session cannot carry is refused, and
-// it is the reason this function needs no error return: every name it reads
-// has already been checked against the peer's own family list.
+// walk is where an uncarried family under short-lived or long-lived is refused,
+// and it is the reason this function needs no error return.
 //
 // RFC 4724 Section 3: "When a sender of this capability does not include any
 // <AFI, SAFI> in the capability, it means that the sender is not capable of
 // preserving its forwarding state during BGP restart, but supports procedures
 // for the Receiving Speaker (as defined in Section 4.2 of this document). In
 // that case, the value of the "Restart Time" field advertised by the sender is
-// irrelevant". Ze runs those Receiving Speaker procedures and lists its
-// families as well, so the Restart Time it advertises means something unless
-// the operator asks for that signal with an empty "family" container.
+// irrelevant".
 func parseGRCapValue(capMap map[string]any, peerAddr string, sessionFamilies []string) string {
 	if capMap == nil {
 		return ""
@@ -121,23 +123,33 @@ func parseGRCapValue(capMap map[string]any, peerAddr string, sessionFamilies []s
 		return ""
 	}
 
-	families := grAdvertisedFamilies(grData, sessionFamilies)
+	shortData, hasShort := grData[grShortLivedNode].(map[string]any)
+	if !hasShort {
+		// RFC 4724 Section 3: "When a sender of this capability does not
+		// include any <AFI, SAFI> in the capability, it means that the sender
+		// is not capable of preserving its forwarding state during BGP
+		// restart, but supports procedures for the Receiving Speaker (as
+		// defined in Section 4.2 of this document)."
+		// RFC 9494 Section 4.1: "if support for conventional Graceful Restart
+		// is not desired for the session, the conventional GR phase can be
+		// skipped by omitting all AFIs/SAFIs from the GR Capability,
+		// advertising a Restart Time of zero, or both."
+		return "0000"
+	}
+
+	families := grAdvertisedFamilies(shortData, sessionFamilies)
 
 	restartTime := uint16(grRestartTimeDefault)
-	if rtVal, ok := grData["restart-time"]; ok {
-		switch v := rtVal.(type) {
-		case float64:
-			restartTime = uint16(v)
-		case string:
-			if parsed, err := strconv.ParseUint(v, 10, 16); err == nil {
+	if rtVal, exists := shortData[grRestartTimeLeaf]; exists {
+		if parsed, ok := configvalue.Int(rtVal); ok && parsed >= 0 {
+			if parsed > grRestartTimeMax {
+				logger().Warn("graceful-restart short-lived restart-time exceeds 12-bit max, clamping",
+					"code", codeDoctorBGPGRCapability, "peer", peerAddr, "value", parsed)
+				restartTime = grRestartTimeMax
+			} else {
 				restartTime = uint16(parsed)
 			}
 		}
-	}
-
-	if restartTime > grRestartTimeMax {
-		logger().Warn("restart-time exceeds 12-bit max, clamping", "peer", peerAddr, "value", restartTime)
-		restartTime = grRestartTimeMax
 	}
 
 	// RFC 4724 Section 3: Restart Flags (4 bits) then Restart Time (12 bits).
@@ -150,13 +162,13 @@ func parseGRCapValue(capMap map[string]any, peerAddr string, sessionFamilies []s
 	for _, name := range families {
 		if tuples == grFamilyMax {
 			logger().Warn("graceful-restart family list truncated at the RFC 4724 maximum",
-				"peer", peerAddr, "maximum", grFamilyMax, "configured", len(families))
+				"code", codeDoctorBGPGRCapability, "peer", peerAddr, "maximum", grFamilyMax, "configured", len(families))
 			break
 		}
 		fam, ok := family.LookupFamily(name)
 		if !ok {
 			logger().Warn("graceful-restart skips an address family the family index does not know",
-				"peer", peerAddr, "family", name)
+				"code", codeDoctorBGPGRCapability, "peer", peerAddr, "family", name)
 			continue
 		}
 		// RFC 4724 Section 4: "A BGP speaker MAY advertise the Graceful
@@ -170,7 +182,7 @@ func parseGRCapValue(capMap map[string]any, peerAddr string, sessionFamilies []s
 		// external plugin registers at runtime may not, and is left out.
 		if !nlrisplit.Supported(fam) {
 			logger().Warn("graceful-restart omits an address family the RIB cannot store",
-				"peer", peerAddr, "family", name)
+				"code", codeDoctorBGPGRCapability, "peer", peerAddr, "family", name)
 			continue
 		}
 		// RFC 4724 Section 3: "The AFI and SAFI, taken in combination,
@@ -188,44 +200,24 @@ func parseGRCapValue(capMap map[string]any, peerAddr string, sessionFamilies []s
 }
 
 // grAdvertisedFamilies answers which address families the code-64 capability
-// names for this peer.
+// names when the short-lived container is present. When its "family" list is
+// absent, every family the session carries is advertised; when present, only
+// the listed keys (sorted by configvalue.ListEntries) are advertised.
 //
-// The "family" container carries presence, so it has three states and they are
-// three different answers. A bare leaf-list could tell only two of them apart,
-// because "the operator wrote no name" and "the operator wrote nothing" both
-// arrive as an empty list.
-//
-//	absent            every family the session carries
-//	present, empty    no family at all
-//	present, filled   exactly the families named
-//
-// RFC 4724 Section 3: "When a sender of this capability does not include any
-// <AFI, SAFI> in the capability, it means that the sender is not capable of
-// preserving its forwarding state during BGP restart, but supports procedures
-// for the Receiving Speaker (as defined in Section 4.2 of this document)." The
-// empty container is how an operator asks for that signal, so it stays
-// reachable and stays off the default.
-//
-// The container governs code 64 alone. extractLLGRCapabilities (gr_llgr.go)
-// reads the same collectPeerFamilies answer and this function never narrows
-// it, because RFC 9494 Section 4.1 says "the conventional GR phase can be
-// skipped by omitting all AFIs/SAFIs from the GR Capability, advertising a
-// Restart Time of zero, or both". A family in code 71 and not in code 64 is
-// that documented request rather than a defect: RFC 9494 Section 4.2 deems its
-// "GR Restart Time ... zero", so only the LLGR procedures run for it. Making
-// one container narrow both lists would take that request away with nothing
-// left to ask for it.
-//
-// A container that is not a map reads here as absent, and that answer is
-// unreachable: the config lowering writes every container as a map
-// ((*Tree).toMap, internal/component/config/tree.go), and
-// refuseUncarriedGRFamilies refuses any other shape before this runs.
-func grAdvertisedFamilies(grData map[string]any, sessionFamilies []string) []string {
-	famData, ok := grData[grFamilyNode].(map[string]any)
-	if !ok {
+// This governs code 64 alone. parseLLGRCapValue (gr_llgr.go) reads the sibling
+// "long-lived" container instead, so code 64 and code 71 family memberships
+// stay independent (RFC 9494 Section 4.1, Section 4.2).
+func grAdvertisedFamilies(shortData map[string]any, sessionFamilies []string) []string {
+	raw, exists := shortData[grFamilyNode]
+	if !exists {
 		return sessionFamilies
 	}
-	return configvalue.LeafList(famData[grFamilyNameLeaf])
+	entries := configvalue.ListEntries(raw)
+	names := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		names = append(names, entry.Key)
+	}
+	return names
 }
 
 // refuseUncarriedGRSections runs the graceful-restart family check over every
@@ -302,31 +294,73 @@ func grCapabilityFor(peerMap, groupMap map[string]any) map[string]any {
 	return configjson.GetCapability(groupMap)
 }
 
-// refusePeerGRFamilies checks the "graceful-restart family" container of one
-// capability map against the families the session carries.
+// refusePeerGRFamilies checks both the "short-lived family" list and the
+// "long-lived family" list of one capability map against the families the
+// session carries, and checks each long-lived entry's stale-time.
 func refusePeerGRFamilies(capMap map[string]any, peerAddr string, sessionFamilies []string) error {
 	grData, ok := capMap[grConfigName].(map[string]any)
 	if !ok {
 		return nil
 	}
-	node, ok := grData[grFamilyNode]
-	if !ok {
+	if err := refusePeerPhaseFamilies(grData, grShortLivedNode, peerAddr, sessionFamilies, false); err != nil {
+		return err
+	}
+	return refusePeerPhaseFamilies(grData, grLongLivedNode, peerAddr, sessionFamilies, true)
+}
+
+// refusePeerPhaseFamilies checks one phase container ("short-lived" or
+// "long-lived") under graceful-restart: every listed family must be carried by
+// the session, and when requireStaleTime is true (long-lived), each entry must
+// carry a valid stale-time in 0..16777215.
+func refusePeerPhaseFamilies(grData map[string]any, phase, peerAddr string, sessionFamilies []string, requireStaleTime bool) error {
+	phaseRaw, exists := grData[phase]
+	// refuse-by-default: guards refusePeerGRFamilies -- absent phase container means the operator left that phase unconfigured
+	if !exists {
 		return nil
 	}
-	famData, ok := node.(map[string]any)
+	phaseData, ok := phaseRaw.(map[string]any)
 	if !ok {
-		return fmt.Errorf("peer %s: graceful-restart family arrived as %T, and the config lowering writes a container as a map",
-			peerAddr, node)
+		return fmt.Errorf("peer %s: graceful-restart %s arrived as %T, and the config lowering writes a container as a map",
+			peerAddr, phase, phaseRaw)
 	}
-
-	for _, name := range configvalue.LeafList(famData[grFamilyNameLeaf]) {
-		if slices.Contains(sessionFamilies, name) {
+	famRaw, exists := phaseData[grFamilyNode]
+	// refuse-by-default: guards refusePeerGRFamilies -- absent family list means default (short-lived) or off (long-lived)
+	if !exists {
+		return nil
+	}
+	if _, isMap := famRaw.(map[string]any); !isMap {
+		return fmt.Errorf("peer %s: graceful-restart %s family arrived as %T, and the config lowering writes a list as a map",
+			peerAddr, phase, famRaw)
+	}
+	for _, entry := range configvalue.ListEntries(famRaw) {
+		if !slices.Contains(sessionFamilies, entry.Key) {
+			return fmt.Errorf(
+				"peer %s: graceful-restart %s family names %q, and the peer carries %s: "+
+					"add %q to the peer's family list, or remove it from graceful-restart %s family",
+				peerAddr, phase, entry.Key, strings.Join(sessionFamilies, ", "), entry.Key, phase)
+		}
+		if !requireStaleTime {
 			continue
 		}
-		return fmt.Errorf(
-			"peer %s: graceful-restart family names %q, and the peer carries %s: "+
-				"add %q to the peer's family list, or remove it from graceful-restart family",
-			peerAddr, name, strings.Join(sessionFamilies, ", "), name)
+		llst, valid := configvalue.Int(entry.Fields[grStaleTimeLeaf])
+		if !valid {
+			return fmt.Errorf(
+				"peer %s: graceful-restart %s family %q requires stale-time in 0..%d: "+
+					"set stale-time to a value in 0..%d seconds",
+				peerAddr, phase, entry.Key, llgrStaleTimeMax, llgrStaleTimeMax)
+		}
+		if llst < 0 {
+			return fmt.Errorf(
+				"peer %s: graceful-restart %s family %q stale-time %d is negative: "+
+					"set stale-time to a value in 0..%d seconds",
+				peerAddr, phase, entry.Key, llst, llgrStaleTimeMax)
+		}
+		if llst > llgrStaleTimeMax {
+			return fmt.Errorf(
+				"peer %s: graceful-restart %s family %q stale-time %d exceeds 24-bit max %d: "+
+					"set stale-time to a value in 0..%d seconds",
+				peerAddr, phase, entry.Key, llst, llgrStaleTimeMax, llgrStaleTimeMax)
+		}
 	}
 	return nil
 }
@@ -339,6 +373,7 @@ func refusePeerGRFamilies(capMap map[string]any, peerAddr string, sessionFamilie
 // carries.
 func extractGRCapabilities(jsonStr string) []sdk.CapabilityDecl {
 	bgpSubtree, ok := configjson.ParseBGPSubtree(jsonStr)
+	// refuse-by-default: guards grCapabilities -- a config section without a bgp subtree declares no GR capabilities
 	if !ok {
 		logger().Warn("invalid JSON in bgp config")
 		return nil

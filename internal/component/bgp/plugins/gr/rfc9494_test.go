@@ -14,11 +14,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// configWithLLST is a peer config carrying both restart-time and long-lived-stale-time.
-const configWithLLST = `{"bgp":{"peer":{"192.168.1.1":{"session":{"capability":{"graceful-restart":{"restart-time":120,"long-lived-stale-time":3600}}}}}}}`
+// configWithLLST is a peer config carrying short-lived GR and per-family long-lived LLGR.
+const configWithLLST = `{"bgp":{"peer":{"192.168.1.1":{"session":{"capability":{"graceful-restart":{"short-lived":{"restart-time":120},"long-lived":{"family":{"ipv4/unicast":{"stale-time":3600}}}}}}}}}}`
 
-// configGROnly is a peer config carrying graceful-restart without long-lived-stale-time.
-const configGROnly = `{"bgp":{"peer":{"192.168.1.1":{"session":{"capability":{"graceful-restart":{"restart-time":120}}}}}}}`
+// configGROnly is a peer config carrying short-lived graceful-restart without long-lived.
+const configGROnly = `{"bgp":{"peer":{"192.168.1.1":{"session":{"capability":{"graceful-restart":{"short-lived":{"restart-time":120}}}}}}}}`
 
 // TestRFC9494_LLGRCapDeclaredWithGRCap verifies the LLGR capability is only ever
 // declared together with the Graceful Restart capability.
@@ -47,17 +47,17 @@ func TestRFC9494_LLGRCapDeclaredWithGRCap(t *testing.T) {
 // TestRFC9494_NoLLGRCapWithoutGRContainer verifies code 71 is not emitted when the
 // graceful-restart container (the source of code 64) is absent.
 //
-// VALIDATES: a long-lived-stale-time outside the graceful-restart container declares nothing.
+// VALIDATES: a long-lived block outside the graceful-restart container declares nothing.
 // PREVENTS: an LLGR-only declaration reaching the OPEN message.
 //
-// RFC requirement: RFC9494-3.1-1 negative -- with long-lived-stale-time placed outside the
+// RFC requirement: RFC9494-3.1-1 negative -- with long-lived placed outside the
 // "graceful-restart" container, parseLLGRCapValue returns "" at its grData type assertion
-// (internal/component/bgp/plugins/gr/gr_llgr.go:124-127), so neither code 71 nor code 64 is
+// (internal/component/bgp/plugins/gr/gr_llgr.go), so neither code 71 nor code 64 is
 // declared: there is no configuration shape that yields LLGR without GR.
 func TestRFC9494_NoLLGRCapWithoutGRContainer(t *testing.T) {
 	t.Parallel()
 
-	jsonStr := `{"bgp":{"peer":{"192.168.1.1":{"session":{"capability":{"long-lived-stale-time":3600}}}}}}`
+	jsonStr := `{"bgp":{"peer":{"192.168.1.1":{"session":{"capability":{"long-lived":{"family":{"ipv4/unicast":{"stale-time":3600}}}}}}}}}`
 
 	assert.Empty(t, extractLLGRCapabilities(jsonStr), "no LLGR capability without the graceful-restart container")
 	assert.Empty(t, extractGRCapabilities(jsonStr), "no GR capability either")
@@ -112,15 +112,15 @@ func TestRFC9494_FlagsReservedBitsIgnoredOnReceive(t *testing.T) {
 
 // TestRFC9494_LLGRNotEnabledByDefault verifies LLGR stays off until it is configured.
 //
-// VALIDATES: graceful-restart without long-lived-stale-time declares no LLGR capability,
-// and the YANG leaf carries no default value.
+// VALIDATES: graceful-restart without long-lived family entries declares no LLGR capability,
+// and the YANG stale-time leaf carries no default value.
 // PREVENTS: LLGR turning itself on for every GR-enabled peer.
 //
 // RFC requirement: RFC9494-5-1 positive -- LLGR is off unless configured: parseLLGRCapValue
-// returns "" when the long-lived-stale-time key is absent
-// (internal/component/bgp/plugins/gr/gr_llgr.go:130-133), and the ze-graceful-restart YANG
-// leaf long-lived-stale-time declares no default (unlike restart-time, which defaults to 120),
-// so nothing supplies a value on the operator's behalf.
+// returns "" when long-lived family entries are absent
+// (internal/component/bgp/plugins/gr/gr_llgr.go), and the ze-graceful-restart YANG
+// leaf stale-time under long-lived > family declares no default (unlike restart-time, which
+// defaults to 120), so nothing supplies a value on the operator's behalf.
 func TestRFC9494_LLGRNotEnabledByDefault(t *testing.T) {
 	t.Parallel()
 
@@ -128,22 +128,22 @@ func TestRFC9494_LLGRNotEnabledByDefault(t *testing.T) {
 	assert.Len(t, extractGRCapabilities(configGROnly), 1, "GR itself is configured")
 
 	model := GetYANG()
-	idx := strings.Index(model, "leaf long-lived-stale-time")
-	require.Positive(t, idx, "YANG model declares the long-lived-stale-time leaf")
-	end := strings.Index(model[idx:], "\n        }")
+	idx := strings.Index(model, "leaf stale-time")
+	require.Positive(t, idx, "YANG model declares the stale-time leaf under long-lived family")
+	end := strings.Index(model[idx:], "\n                    }")
 	require.Positive(t, end, "leaf block is delimited")
 	leafBlock := model[idx : idx+end]
-	assert.NotContains(t, leafBlock, "default", "long-lived-stale-time has no default value")
+	assert.NotContains(t, leafBlock, "default", "stale-time has no default value")
 }
 
 // TestRFC9494_LLGREnabledByExplicitConfig verifies the affirmative configuration works.
 //
-// VALIDATES: an explicit long-lived-stale-time declares code 71 with that LLST on the wire.
+// VALIDATES: an explicit long-lived family entry declares code 71 with that LLST on the wire.
 // PREVENTS: a broken extractor being mistaken for "off by default".
 //
 // RFC requirement: RFC9494-5-1 negative -- the contrast to the default state: with an explicit
-// long-lived-stale-time, parseLLGRCapValue builds the 7-byte tuple and extractLLGRCapabilities
-// emits the code-71 declaration (internal/component/bgp/plugins/gr/gr_llgr.go:158-177, :209-214),
+// long-lived family entry, parseLLGRCapValue builds the 7-byte tuple and extractLLGRCapabilities
+// emits the code-71 declaration (internal/component/bgp/plugins/gr/gr_llgr.go),
 // proving the absent declaration above comes from the missing configuration, not from a
 // capability that can never be produced.
 func TestRFC9494_LLGREnabledByExplicitConfig(t *testing.T) {

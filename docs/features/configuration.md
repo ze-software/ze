@@ -171,7 +171,7 @@ Cluster ID defaults to Router ID per RFC 4456 Section 7.
 | ADD-PATH | `add-path` | Per-family send/receive/both |
 | Extended Message | `extended-message` | enable / disable / require / refuse; absent means not advertised |
 | Extended Next Hop | `nexthop` | Per-family AFI mapping |
-| Graceful Restart | `graceful-restart` | restart-time (0-4095s), long-lived-stale-time (0-16777215s) |
+| Graceful Restart | `graceful-restart` | `short-lived` (`restart-time` 0-4095s, optional `family`), `long-lived` (`family` with per-family `stale-time` 0-16777215s) |
 | Role | `role` | provider / rs / rs-client / customer / peer |
 | Role Strict | `role/strict` | true / false |
 

@@ -1,4 +1,4 @@
-# Valid config: graceful-restart with long-lived-stale-time (RFC 9494)
+# Valid config: graceful-restart with graceful-restart long-lived family (RFC 9494)
 stdin=config:terminator=EOF_CONF
 bgp {
 	filter {
@@ -26,8 +26,14 @@ bgp {
 			router-id 1.2.3.4
 			capability {
 				graceful-restart {
-					restart-time 120
-					long-lived-stale-time 3600
+					short-lived {
+						restart-time 120
+					}
+					long-lived {
+						family {
+							ipv4/unicast 3600
+						}
+					}
 				}
 			}
 		}

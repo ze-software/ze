@@ -26,7 +26,7 @@ bgp {
  rpki { cache-server 127.0.0.1 { trusted-network true; port $PORT2; } action { invalid reject; not-found reject; } }
  peer source {
   connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.2; connect false; } }
-  session { asn { local 65000; remote 65001; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart { restart-time 120; } } }
+  session { asn { local 65000; remote 65001; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart { short-lived { restart-time 120; } } } }
   behavior { group-updates disable; }
   filter { import { final accept; } export { final accept; } }
   attach process gr { receive [ open state eor ]; send [ update ]; }

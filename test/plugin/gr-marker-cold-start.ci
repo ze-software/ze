@@ -56,7 +56,9 @@ bgp {
 			}
 			capability {
 				graceful-restart {
-					restart-time 120
+					short-lived {
+						restart-time 120
+					}
 				}
 			}
 		}

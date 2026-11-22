@@ -42,18 +42,19 @@ func grPayload(t *testing.T, sections []sdk.ConfigSection) (string, bool) {
 // OPEN, or an explicit family list whose payload a session edit rewrites.
 func TestGRCapabilityExtractorRegistered(t *testing.T) {
 	oneFamily := []string{"ipv4/unicast"}
-	explicit := "\t\t\t\t\tfamily {\n\t\t\t\t\t\tname ipv4/unicast\n\t\t\t\t\t}\n"
+	defaultShort := "\t\t\t\t\tshort-lived { }\n"
+	explicit := "\t\t\t\t\tshort-lived {\n\t\t\t\t\t\tfamily {\n\t\t\t\t\t\t\tipv4/unicast\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n"
 
-	before, ok := grPayload(t, grReloadSections(t, oneFamily, ""))
+	before, ok := grPayload(t, grReloadSections(t, oneFamily, defaultShort))
 	if !ok {
 		t.Fatal("the startup config declares no graceful-restart for peer1")
 	}
-	after, ok := grPayload(t, grReloadSections(t, twoFamilies, ""))
+	after, ok := grPayload(t, grReloadSections(t, twoFamilies, defaultShort))
 	if !ok {
 		t.Fatal("a session family edit declares no graceful-restart for peer1")
 	}
 	if after == before {
-		t.Errorf("a session family added with no graceful-restart family list still declares %q", after)
+		t.Errorf("a session family added with no short-lived family list still declares %q", after)
 	}
 
 	explicitBefore, ok := grPayload(t, grReloadSections(t, oneFamily, explicit))
@@ -64,7 +65,7 @@ func TestGRCapabilityExtractorRegistered(t *testing.T) {
 		t.Errorf("a session family added beside an explicit family list changed the payload %q to %q", explicitBefore, explicitAfter)
 	}
 
-	uncarried := grReloadSections(t, oneFamily, "\t\t\t\t\tfamily {\n\t\t\t\t\t\tname ipv6/unicast\n\t\t\t\t\t}\n")
+	uncarried := grReloadSections(t, oneFamily, "\t\t\t\t\tshort-lived {\n\t\t\t\t\t\tfamily {\n\t\t\t\t\t\t\tipv6/unicast\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n")
 	if refuseUncarriedGRSections(uncarried) == nil {
 		t.Error("gr's own verify accepted a graceful-restart family the session does not carry")
 	}

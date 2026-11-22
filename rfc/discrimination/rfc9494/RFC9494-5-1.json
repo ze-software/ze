@@ -26,21 +26,21 @@
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_LLGREnabledByExplicitConfig",
     "unit-sha": "0d7039fc2d78e8c8",
-    "claim-sha": "dcb7fd7166826f35",
+    "claim-sha": "02866b43c29dd579",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr_llgr.go::parseLLGRCapValue",
-    "producer-sha": "dbbe3944820d41e0",
+    "producer-sha": "317009a6c8051332",
     "break": "body of parseLLGRCapValue replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9494-5-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_LLGRNotEnabledByDefault",
-    "unit-sha": "950fe7860493c223",
-    "claim-sha": "9efb8e1d1179f642",
+    "unit-sha": "35d26e2f4ef7b17e",
+    "claim-sha": "0ca9ebb8dc035864",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr_llgr.go::parseLLGRCapValue",
-    "producer-sha": "dbbe3944820d41e0",
+    "producer-sha": "317009a6c8051332",
     "break": "body of parseLLGRCapValue replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

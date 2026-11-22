@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/config"
 )
 
 // migrateNeighborOutput parses one ExaBGP config and answers the serialized
@@ -104,5 +106,41 @@ func TestMigrateGracefulRestartTimeFromHoldTime(t *testing.T) {
 				"\tcapability {\n\t\t" + tt.gr + "\n\t}\n}\n"
 			requireLine(t, migrateNeighborOutput(t, input), "graceful-restart", tt.want)
 		})
+	}
+}
+
+// TestMigratedGracefulRestartContainerUsesShortLived verifies container-form
+// graceful-restart migration writes restart-time inside short-lived rather than
+// the removed top-level restart-time leaf.
+//
+// VALIDATES: migratedCapabilityContainer moves top-level restart-time into
+// short-lived and fills ExaBGP's hold-time default into short-lived when absent.
+// PREVENTS: ze exabgp migrate emitting legacy top-level restart-time rejected by YANG.
+func TestMigratedGracefulRestartContainerUsesShortLived(t *testing.T) {
+	neighbor := config.NewTree()
+	neighbor.Set("hold-time", "90")
+
+	withTime := config.NewTree()
+	withTime.Set("restart-time", "120")
+	gotWithTime := migratedCapabilityContainer(neighbor, capabilityGracefulRestart, withTime)
+	if _, stale := gotWithTime.Get("restart-time"); stale {
+		t.Fatal("top-level restart-time must be removed from graceful-restart")
+	}
+	shortWithTime := gotWithTime.GetContainer("short-lived")
+	if shortWithTime == nil {
+		t.Fatal("expected short-lived container")
+	}
+	if val, ok := shortWithTime.Get("restart-time"); !ok || val != "120" {
+		t.Fatalf("short-lived restart-time = %q (%v), want 120", val, ok)
+	}
+
+	withoutTime := config.NewTree()
+	gotDefault := migratedCapabilityContainer(neighbor, capabilityGracefulRestart, withoutTime)
+	shortDefault := gotDefault.GetContainer("short-lived")
+	if shortDefault == nil {
+		t.Fatal("expected short-lived container for default time")
+	}
+	if val, ok := shortDefault.Get("restart-time"); !ok || val != "90" {
+		t.Fatalf("short-lived restart-time = %q (%v), want 90", val, ok)
 	}
 }

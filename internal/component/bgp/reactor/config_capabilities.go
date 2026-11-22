@@ -131,7 +131,7 @@ func parseCapabilitiesFromTree(tree map[string]any, ps *PeerSettings) error {
 		applyCapMode(rrMode, capability.CodeRouteRefresh, ps)
 	}
 
-	// Graceful restart — block capability with optional mode key.
+	// Graceful restart — block capability with optional mode key and nested short-lived container.
 	if grMap, ok := mapMap(capMap, "graceful-restart"); ok {
 		grMode := capModeEnable
 		if v, ok := mapString(grMap, "mode"); ok {
@@ -147,8 +147,10 @@ func parseCapabilitiesFromTree(tree map[string]any, ps *PeerSettings) error {
 			ps.RawCapabilityConfig = make(map[string]map[string]string)
 		}
 		ps.RawCapabilityConfig["graceful-restart"] = make(map[string]string)
-		if v, ok := mapString(grMap, "restart-time"); ok {
-			ps.RawCapabilityConfig["graceful-restart"]["restart-time"] = v
+		if shortMap, ok := mapMap(grMap, "short-lived"); ok {
+			if v, ok := mapString(shortMap, "restart-time"); ok {
+				ps.RawCapabilityConfig["graceful-restart"]["restart-time"] = v
+			}
 		}
 	}
 

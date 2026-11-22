@@ -35,35 +35,34 @@ var twoFamilies = []string{"ipv4/unicast", "ipv6/unicast"}
 // configuration." The container is that configuration.
 func TestGRCapabilityFamilyContainerNarrowsTheCapability(t *testing.T) {
 	payload := grPayloadForConfig(t, grConfig(twoFamilies,
-		"\t\t\t\t\tfamily {\n\t\t\t\t\t\tname ipv6/unicast\n\t\t\t\t\t}\n"))
+		"\t\t\t\t\tshort-lived {\n\t\t\t\t\t\tfamily {\n\t\t\t\t\t\t\tipv6/unicast\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n"))
 
 	// 0078      Restart Flags 0, Restart Time 120 seconds (the YANG default)
 	// 0002 01 00  AFI 2 (IPv6), SAFI 1 (unicast), F bit clear
 	assert.Equal(t, "007800020100", payload,
-		"the capability names the one family the container asked for")
+		"the capability names the one family the short-lived list asked for")
 }
 
-// TestGRCapabilityEmptyFamilyContainerNamesNoFamily is the answer a bare
-// leaf-list could not give. The operator wrote the container and named nothing
-// in it, which is not the same as writing nothing at all.
+// TestGRCapabilityEmptyFamilyContainerNamesNoFamily proves that omitting
+// short-lived inside graceful-restart advertises code 64 with Restart Time 0
+// and no address family tuples (Receiving Speaker / helper-only).
 //
 // RFC 4724 Section 3: "When a sender of this capability does not include any
 // <AFI, SAFI> in the capability, it means that the sender is not capable of
 // preserving its forwarding state during BGP restart, but supports procedures
 // for the Receiving Speaker (as defined in Section 4.2 of this document)."
-// That signal stays reachable, and it stays off the default.
 func TestGRCapabilityEmptyFamilyContainerNamesNoFamily(t *testing.T) {
-	payload := grPayloadForConfig(t, grConfig(twoFamilies, "\t\t\t\t\tfamily {\n\t\t\t\t\t}\n"))
+	payload := grPayloadForConfig(t, grConfig(twoFamilies, ""))
 
-	// 0078 alone: Restart Flags 0, Restart Time 120 seconds, and no tuple.
-	assert.Equal(t, "0078", payload,
-		"the container is present and empty, so the capability names no address family")
+	// 0000 alone: Restart Flags 0, Restart Time 0 seconds, and no tuple.
+	assert.Equal(t, "0000", payload,
+		"without short-lived, the capability names no address family and Restart Time 0")
 }
 
 // TestGRCapabilityRefusesAFamilyTheSessionDoesNotCarry is the refusal. The
-// peer carries ipv4/unicast, the container names ipv6/unicast, and the
-// configuration is rejected with the offending family in the message rather
-// than dropped quietly.
+// peer carries ipv4/unicast, the short-lived family list names ipv6/unicast,
+// and the configuration is rejected with the offending family in the message
+// rather than dropped quietly.
 //
 // RFC 4724 Section 3 scopes a tuple to routes "advertised with the same AFI
 // and SAFI", so the tuple would promise the peer that Ze retains routes the
@@ -75,7 +74,7 @@ func TestGRCapabilityEmptyFamilyContainerNamesNoFamily(t *testing.T) {
 // daemon rather than running it without Graceful Restart.
 func TestGRCapabilityRefusesAFamilyTheSessionDoesNotCarry(t *testing.T) {
 	section := deliverBGPSection(t, grConfig([]string{"ipv4/unicast"},
-		"\t\t\t\t\tfamily {\n\t\t\t\t\t\tname ipv6/unicast\n\t\t\t\t\t}\n"))
+		"\t\t\t\t\tshort-lived {\n\t\t\t\t\t\tfamily {\n\t\t\t\t\t\t\tipv6/unicast\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n"))
 
 	err := refuseUncarriedGRFamilies(section)
 
@@ -128,7 +127,7 @@ func grSessionBody(families []string, gracefulRestartBody, indent string) string
 func TestGRCapabilityCarriesTheFamiliesInheritedFromTheGroup(t *testing.T) {
 	payload := grPayloadForConfig(t, grGroupConfig(
 		[]string{"ipv6/unicast"}, []string{"ipv4/unicast"},
-		"", "\t\t\t\t\trestart-time 120\n"))
+		"", "\t\t\t\t\tshort-lived {\n\t\t\t\t\t\trestart-time 120\n\t\t\t\t\t}\n"))
 
 	// 0078      Restart Flags 0, Restart Time 120 seconds
 	// 0001 01 00  AFI 1 (IPv4), SAFI 1 (unicast), from the peer
@@ -143,7 +142,7 @@ func TestGRCapabilityCarriesTheFamiliesInheritedFromTheGroup(t *testing.T) {
 func TestGRCapabilityAcceptsAFamilyTheGroupContributes(t *testing.T) {
 	section := deliverBGPSection(t, grGroupConfig(
 		[]string{"ipv6/unicast"}, []string{"ipv4/unicast"},
-		"", "\t\t\t\t\tfamily {\n\t\t\t\t\t\tname ipv6/unicast\n\t\t\t\t\t}\n"))
+		"", "\t\t\t\t\tshort-lived {\n\t\t\t\t\t\tfamily {\n\t\t\t\t\t\t\tipv6/unicast\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n"))
 
 	require.NoError(t, refuseUncarriedGRFamilies(section),
 		"the peer carries ipv6/unicast through its group, so naming it is correct")
@@ -158,6 +157,7 @@ func TestGRCapabilityOmitsADisabledFamily(t *testing.T) {
 		"\t\t\t\tipv4/unicast { }\n" +
 		"\t\t\t\tipv6/unicast { mode disable; }\n" +
 		"\t\t\t}\n\t\t\tcapability {\n\t\t\t\tgraceful-restart {\n" +
+		"\t\t\t\t\tshort-lived { }\n" +
 		"\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n}\n"
 
 	payload := grPayloadForConfig(t, text)
@@ -174,7 +174,7 @@ func TestGRCapabilityRefusesADisabledFamily(t *testing.T) {
 		"\t\t\t\tipv4/unicast { }\n" +
 		"\t\t\t\tipv6/unicast { mode disable; }\n" +
 		"\t\t\t}\n\t\t\tcapability {\n\t\t\t\tgraceful-restart {\n" +
-		"\t\t\t\t\tfamily {\n\t\t\t\t\t\tname ipv6/unicast\n\t\t\t\t\t}\n" +
+		"\t\t\t\t\tshort-lived {\n\t\t\t\t\t\tfamily {\n\t\t\t\t\t\t\tipv6/unicast\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n" +
 		"\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n}\n"
 
 	err := refuseUncarriedGRFamilies(deliverBGPSection(t, text))
@@ -191,8 +191,8 @@ func TestGRCapabilityRefusesADisabledFamily(t *testing.T) {
 func TestGRCapabilityGroupContainerIsNotRefusedForAnOverridingPeer(t *testing.T) {
 	text := grGroupConfig(
 		nil, []string{"ipv4/unicast"},
-		"\t\t\t\tfamily {\n\t\t\t\t\tname ipv6/unicast\n\t\t\t\t}\n",
-		"\t\t\t\t\t\trestart-time 300\n")
+		"\t\t\t\tshort-lived {\n\t\t\t\t\tfamily {\n\t\t\t\t\t\tipv6/unicast\n\t\t\t\t\t}\n\t\t\t\t}\n",
+		"\t\t\t\t\t\tshort-lived {\n\t\t\t\t\t\t\trestart-time 300\n\t\t\t\t\t\t}\n")
 
 	section := deliverBGPSection(t, text)
 

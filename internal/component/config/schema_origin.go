@@ -63,7 +63,7 @@ func checkFilterInsertionPath(pluginName, owner string, ins *rpc.FilterInsertion
 	}
 	// The node the condition names is judged, not the first word: a plugin's
 	// module may augment a node another module defines (bgp-gr's
-	// long-lived-stale-time sits under bgp's session capability), and it is
+	// long-lived family list sits under bgp's session capability), and it is
 	// the named node's presence that the plugin's config sets.
 	if definer != owner {
 		return insertionPathError(pluginName, ins.Filter, "conditions on "+strings.Join(path, " ")+

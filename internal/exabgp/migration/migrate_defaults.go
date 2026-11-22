@@ -81,16 +81,29 @@ func migratedCapabilityValue(neighbor *config.Tree, field, value string) string 
 }
 
 // migratedCapabilityContainer copies a capability ExaBGP states in container
-// form. A graceful-restart container that names no restart-time gets
-// ExaBGP's, for the reason migratedCapabilityValue gives.
+// form. A graceful-restart container places restart-time under short-lived (Ze's
+// ze-graceful-restart.yang shape) and fills in ExaBGP's hold-time default when
+// none was stated, for the reason migratedCapabilityValue gives.
 func migratedCapabilityContainer(neighbor *config.Tree, field string, container *config.Tree) *config.Tree {
 	migrated := container.Clone()
 	if field != capabilityGracefulRestart {
 		return migrated
 	}
-	if _, ok := migrated.Get("restart-time"); ok {
+	shortLived := migrated.GetContainer("short-lived")
+	if shortLived == nil {
+		shortLived = config.NewTree()
+		migrated.SetContainer("short-lived", shortLived)
+	}
+	if rt, ok := migrated.Get("restart-time"); ok {
+		migrated.Delete("restart-time")
+		if _, hasShortRT := shortLived.Get("restart-time"); !hasShortRT {
+			shortLived.Set("restart-time", rt)
+		}
 		return migrated
 	}
-	migrated.Set("restart-time", exabgpGracefulRestartTime(neighbor))
+	if _, ok := shortLived.Get("restart-time"); ok {
+		return migrated
+	}
+	shortLived.Set("restart-time", exabgpGracefulRestartTime(neighbor))
 	return migrated
 }

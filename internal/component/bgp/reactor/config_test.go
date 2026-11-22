@@ -454,7 +454,14 @@ func TestParsePeerCapabilityASN4Disabled(t *testing.T) {
 func TestParsePeerCapabilityGracefulRestart(t *testing.T) {
 	tree := map[string]any{
 		"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.1"}, "local": map[string]any{"ip": "auto"}},
-		"session":    map[string]any{"asn": map[string]any{"remote": "65001"}, "capability": map[string]any{"graceful-restart": map[string]any{"restart-time": "120"}}},
+		"session": map[string]any{
+			"asn": map[string]any{"remote": "65001"},
+			"capability": map[string]any{
+				"graceful-restart": map[string]any{
+					"short-lived": map[string]any{"restart-time": "120"},
+				},
+			},
+		},
 	}
 
 	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
@@ -1884,9 +1891,9 @@ func TestParseGracefulRestartWithMode(t *testing.T) {
 		wantRequired []capability.Code
 		wantRefused  []capability.Code
 	}{
-		{"GR require", map[string]any{"mode": "require", "restart-time": "120"}, []capability.Code{capability.CodeGracefulRestart}, nil},
+		{"GR require", map[string]any{"mode": "require", "short-lived": map[string]any{"restart-time": "120"}}, []capability.Code{capability.CodeGracefulRestart}, nil},
 		{"GR refuse", map[string]any{"mode": "refuse"}, nil, []capability.Code{capability.CodeGracefulRestart}},
-		{"GR no mode means enable", map[string]any{"restart-time": "120"}, nil, nil},
+		{"GR no mode means enable", map[string]any{"short-lived": map[string]any{"restart-time": "120"}}, nil, nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

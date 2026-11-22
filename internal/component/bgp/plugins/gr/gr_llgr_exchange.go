@@ -43,11 +43,11 @@ func (gp *grPlugin) connectionCurrentLocked(source grSource) bool {
 // session. It returns nil when no family is left, which is the answer "the LLGR
 // procedures do not apply to this peer". The caller MUST hold gp.mu.
 //
-// Ze declares code 71 for a family only when the operator configured
-// long-lived-stale-time for that peer (extractLLGRCapabilities), so the families in
-// Ze's own OPEN are the affirmative configuration RFC 9494 asks for, as the session
-// actually carries it: a reload that changed the config does not change what this
-// session exchanged.
+// Ze declares code 71 for a family only when the operator configured that
+// family under graceful-restart long-lived family (extractLLGRCapabilities),
+// so the families in Ze's own OPEN are the affirmative configuration RFC 9494
+// asks for, as the session actually carries it: a reload that changed the
+// config does not change what this session exchanged.
 func (gp *grPlugin) exchangedLLGRLocked(source grSource) *llgrPeerCap {
 	received := gp.peerLLGRCaps[source.owner]
 	if received == nil {

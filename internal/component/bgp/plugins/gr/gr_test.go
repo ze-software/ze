@@ -28,44 +28,51 @@ func TestExtractGRCapabilities_ParseBGPConfig(t *testing.T) {
 	}{
 		{
 			name:        "valid_restart_time_120",
-			json:        `{"bgp":{"peer":{"192.168.1.1":{"session":{"capability":{"graceful-restart":{"restart-time":120}}}}}}}`,
+			json:        `{"bgp":{"peer":{"192.168.1.1":{"session":{"capability":{"graceful-restart":{"short-lived":{"restart-time":120}}}}}}}}`,
 			wantPeer:    "192.168.1.1",
 			wantPayload: "007800010100",
 			wantParsed:  true,
 		},
 		{
 			name:        "valid_restart_time_zero",
-			json:        `{"bgp":{"peer":{"10.0.0.1":{"session":{"capability":{"graceful-restart":{"restart-time":0}}}}}}}`,
+			json:        `{"bgp":{"peer":{"10.0.0.1":{"session":{"capability":{"graceful-restart":{"short-lived":{"restart-time":0}}}}}}}}`,
 			wantPeer:    "10.0.0.1",
 			wantPayload: "000000010100",
 			wantParsed:  true,
 		},
 		{
 			name:        "valid_restart_time_max_4095",
-			json:        `{"bgp":{"peer":{"127.0.0.1":{"session":{"capability":{"graceful-restart":{"restart-time":4095}}}}}}}`,
+			json:        `{"bgp":{"peer":{"127.0.0.1":{"session":{"capability":{"graceful-restart":{"short-lived":{"restart-time":4095}}}}}}}}`,
 			wantPeer:    "127.0.0.1",
 			wantPayload: "0fff00010100",
 			wantParsed:  true,
 		},
 		{
 			name:        "clamped_above_max_4096",
-			json:        `{"bgp":{"peer":{"127.0.0.1":{"session":{"capability":{"graceful-restart":{"restart-time":4096}}}}}}}`,
+			json:        `{"bgp":{"peer":{"127.0.0.1":{"session":{"capability":{"graceful-restart":{"short-lived":{"restart-time":4096}}}}}}}}`,
 			wantPeer:    "127.0.0.1",
 			wantPayload: "0fff00010100", // Clamped to max 12-bit value
 			wantParsed:  true,
 		},
 		{
 			name:        "clamped_above_max_65535",
-			json:        `{"bgp":{"peer":{"127.0.0.1":{"session":{"capability":{"graceful-restart":{"restart-time":65535}}}}}}}`,
+			json:        `{"bgp":{"peer":{"127.0.0.1":{"session":{"capability":{"graceful-restart":{"short-lived":{"restart-time":65535}}}}}}}}`,
 			wantPeer:    "127.0.0.1",
 			wantPayload: "0fff00010100", // Clamped to max 12-bit value
 			wantParsed:  true,
 		},
 		{
-			name:        "default_restart_time_when_missing",
-			json:        `{"bgp":{"peer":{"192.168.1.1":{"session":{"capability":{"graceful-restart":{}}}}}}}`,
+			name:        "default_restart_time_when_short_lived_empty",
+			json:        `{"bgp":{"peer":{"192.168.1.1":{"session":{"capability":{"graceful-restart":{"short-lived":{}}}}}}}}`,
 			wantPeer:    "192.168.1.1",
 			wantPayload: "007800010100", // Default 120 per RFC 4724
+			wantParsed:  true,
+		},
+		{
+			name:        "helper_only_when_short_lived_absent",
+			json:        `{"bgp":{"peer":{"192.168.1.1":{"session":{"capability":{"graceful-restart":{}}}}}}}`,
+			wantPeer:    "192.168.1.1",
+			wantPayload: "0000", // Receiving Speaker only: Restart Time 0, no family tuples
 			wantParsed:  true,
 		},
 		{
@@ -124,21 +131,21 @@ func TestExtractGRCapabilities_CapabilityDecl(t *testing.T) {
 	}{
 		{
 			name:        "single_peer_120",
-			json:        `{"bgp":{"peer":{"192.168.1.1":{"session":{"capability":{"graceful-restart":{"restart-time":120}}}}}}}`,
+			json:        `{"bgp":{"peer":{"192.168.1.1":{"session":{"capability":{"graceful-restart":{"short-lived":{"restart-time":120}}}}}}}}`,
 			wantLen:     1,
 			wantPayload: "007800010100",
 			wantPeer:    "192.168.1.1",
 		},
 		{
 			name:        "single_peer_max_4095",
-			json:        `{"bgp":{"peer":{"10.0.0.1":{"session":{"capability":{"graceful-restart":{"restart-time":4095}}}}}}}`,
+			json:        `{"bgp":{"peer":{"10.0.0.1":{"session":{"capability":{"graceful-restart":{"short-lived":{"restart-time":4095}}}}}}}}`,
 			wantLen:     1,
 			wantPayload: "0fff00010100",
 			wantPeer:    "10.0.0.1",
 		},
 		{
 			name:        "single_peer_zero",
-			json:        `{"bgp":{"peer":{"127.0.0.1":{"session":{"capability":{"graceful-restart":{"restart-time":0}}}}}}}`,
+			json:        `{"bgp":{"peer":{"127.0.0.1":{"session":{"capability":{"graceful-restart":{"short-lived":{"restart-time":0}}}}}}}}`,
 			wantLen:     1,
 			wantPayload: "000000010100",
 			wantPeer:    "127.0.0.1",
@@ -192,7 +199,7 @@ func TestExtractGRCapabilities_WireFormat(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			json := fmt.Sprintf(
-				`{"bgp":{"peer":{"192.168.1.1":{"session":{"capability":{"graceful-restart":{"restart-time":%d}}}}}}}`,
+				`{"bgp":{"peer":{"192.168.1.1":{"session":{"capability":{"graceful-restart":{"short-lived":{"restart-time":%d}}}}}}}}`,
 				tt.restartTime,
 			)
 			caps := extractGRCapabilities(json)
@@ -209,8 +216,8 @@ func TestExtractGRCapabilities_WireFormat(t *testing.T) {
 // PREVENTS: Only first peer being extracted when multiple peers have GR config.
 func TestExtractGRCapabilities_MultiplePeers(t *testing.T) {
 	json := `{"bgp":{"peer":{
-		"192.168.1.1":{"session":{"capability":{"graceful-restart":{"restart-time":120}}}},
-		"10.0.0.1":{"session":{"capability":{"graceful-restart":{"restart-time":60}}}}
+		"192.168.1.1":{"session":{"capability":{"graceful-restart":{"short-lived":{"restart-time":120}}}}},
+		"10.0.0.1":{"session":{"capability":{"graceful-restart":{"short-lived":{"restart-time":60}}}}}
 	}}}`
 
 	caps := extractGRCapabilities(json)
@@ -445,9 +452,9 @@ func TestRunCLIDecode(t *testing.T) {
 // PREVENTS: Group-level GR capability suppressing per-peer overrides.
 func TestExtractGRCapabilities_GroupPeerOverride(t *testing.T) {
 	jsonStr := `{"bgp":{"group":{"transit":{
-		"session":{"capability":{"graceful-restart":{"restart-time":"120"}}},
+		"session":{"capability":{"graceful-restart":{"short-lived":{"restart-time":"120"}}}},
 		"peer":{
-			"10.0.0.1":{"session":{"capability":{"graceful-restart":{"restart-time":"300"}}}},
+			"10.0.0.1":{"session":{"capability":{"graceful-restart":{"short-lived":{"restart-time":"300"}}}}},
 			"10.0.0.2":{"peer-as":65002}
 		}
 	}}}}`
@@ -478,19 +485,22 @@ func TestExtractRestartCapabilities_DynamicTemplate(t *testing.T) {
 		"group":{"ix":{
 			"connection":{"remote":{"ip":"dynamic","range":["192.0.2.0/24"]}},
 			"session":{"family":{"ipv4/unicast":{}},"capability":{"graceful-restart":{
-				"restart-time":120,"long-lived-stale-time":7200
+				"short-lived":{"restart-time":120},
+				"long-lived":{"family":{"ipv4/unicast":{"stale-time":7200}}}
 			}}},
 			"peer":{"member":{
 				"connection":{"remote":{"ip":"192.0.2.1"}},
 				"session":{"capability":{"graceful-restart":{
-					"restart-time":300,"long-lived-stale-time":3600
+					"short-lived":{"restart-time":300},
+					"long-lived":{"family":{"ipv4/unicast":{"stale-time":3600}}}
 				}}}
 			}}
 		}},
 		"peer":{"ix":{
 			"connection":{"remote":{"ip":"198.51.100.1"}},
 			"session":{"family":{"ipv4/unicast":{}},"capability":{"graceful-restart":{
-				"restart-time":60,"long-lived-stale-time":1800
+				"short-lived":{"restart-time":60},
+				"long-lived":{"family":{"ipv4/unicast":{"stale-time":1800}}}
 			}}}
 		}}
 	}}`
@@ -666,7 +676,7 @@ func TestDecodeLLGR_TrailingBytes(t *testing.T) {
 // which the plugin declares for the OPEN through its capability extractor.
 func TestExtractLLGRCapabilities_Basic(t *testing.T) {
 	t.Parallel()
-	jsonStr := `{"bgp":{"peer":{"192.168.1.1":{"session":{"capability":{"graceful-restart":{"restart-time":120,"long-lived-stale-time":3600}}}}}}}`
+	jsonStr := `{"bgp":{"peer":{"192.168.1.1":{"session":{"capability":{"graceful-restart":{"short-lived":{"restart-time":120},"long-lived":{"family":{"ipv4/unicast":{"stale-time":3600}}}}}}}}}}`
 	caps := extractLLGRCapabilities(jsonStr)
 	require.Len(t, caps, 1)
 	assert.Equal(t, uint8(71), caps[0].Code)
@@ -684,15 +694,15 @@ func TestExtractLLGRCapabilities_Basic(t *testing.T) {
 
 // TestExtractLLGRCapabilities_NoLLGR verifies no cap 71 without LLST config.
 //
-// VALIDATES: extractLLGRCapabilities returns nil when no LLST configured.
+// VALIDATES: extractLLGRCapabilities returns nil when no long-lived family is configured.
 // PREVENTS: Spurious LLGR capability advertised when not configured.
 //
 // RFC requirement: RFC9494-4-1 negative -- the advertisement is conditional on being configured
-// for LLGR: with no long-lived-stale-time, parseLLGRCapValue returns "" and no code-71
-// CapabilityDecl is produced (internal/component/bgp/plugins/gr/gr_llgr.go:130-133, :205-207).
+// for LLGR: with no graceful-restart long-lived family entries, parseLLGRCapValue returns ""
+// and no code-71 CapabilityDecl is produced (internal/component/bgp/plugins/gr/gr_llgr.go).
 func TestExtractLLGRCapabilities_NoLLGR(t *testing.T) {
 	t.Parallel()
-	jsonStr := `{"bgp":{"peer":{"192.168.1.1":{"session":{"capability":{"graceful-restart":{"restart-time":120}}}}}}}`
+	jsonStr := `{"bgp":{"peer":{"192.168.1.1":{"session":{"capability":{"graceful-restart":{"short-lived":{"restart-time":120}}}}}}}}`
 	caps := extractLLGRCapabilities(jsonStr)
 	assert.Empty(t, caps)
 }
@@ -767,7 +777,7 @@ func TestDecodeLLGR_BoundaryLengths(t *testing.T) {
 // PREVENTS: LLST overflow in 3-byte wire encoding.
 func TestExtractLLGRCapabilities_LLSTClamping(t *testing.T) {
 	t.Parallel()
-	jsonStr := `{"bgp":{"peer":{"192.168.1.1":{"session":{"capability":{"graceful-restart":{"restart-time":120,"long-lived-stale-time":20000000}}}}}}}`
+	jsonStr := `{"bgp":{"peer":{"192.168.1.1":{"session":{"capability":{"graceful-restart":{"short-lived":{"restart-time":120},"long-lived":{"family":{"ipv4/unicast":{"stale-time":20000000}}}}}}}}}}`
 	caps := extractLLGRCapabilities(jsonStr)
 	require.Len(t, caps, 1)
 	// Decode the payload to verify clamped LLST
@@ -785,7 +795,7 @@ func TestExtractLLGRCapabilities_LLSTClamping(t *testing.T) {
 // PREVENTS: Group config silently ignored or peer override not applied.
 func TestExtractLLGRCapabilities_GroupOverride(t *testing.T) {
 	t.Parallel()
-	jsonStr := `{"bgp":{"group":{"transit":{"session":{"capability":{"graceful-restart":{"restart-time":120,"long-lived-stale-time":7200}}},"peer":{"10.0.0.1":{"session":{"capability":{"graceful-restart":{"restart-time":120,"long-lived-stale-time":3600}}}},"10.0.0.2":{"peer-as":65002}}}}}}`
+	jsonStr := `{"bgp":{"group":{"transit":{"session":{"capability":{"graceful-restart":{"short-lived":{"restart-time":120},"long-lived":{"family":{"ipv4/unicast":{"stale-time":7200}}}}}},"peer":{"10.0.0.1":{"session":{"capability":{"graceful-restart":{"short-lived":{"restart-time":120},"long-lived":{"family":{"ipv4/unicast":{"stale-time":3600}}}}}}},"10.0.0.2":{"peer-as":65002}}}}}}`
 
 	caps := extractLLGRCapabilities(jsonStr)
 	require.Len(t, caps, 2, "both peers should get LLGR capabilities")

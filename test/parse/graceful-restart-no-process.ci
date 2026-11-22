@@ -17,7 +17,7 @@ bgp {
 			}
 			router-id 1.2.3.4
 			capability {
-				graceful-restart { restart-time 120; }
+				graceful-restart { short-lived { restart-time 120; } }
 			}
 		}
 	}

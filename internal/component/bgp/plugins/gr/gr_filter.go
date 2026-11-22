@@ -40,7 +40,7 @@ const (
 	llgrEgressPriority = 150
 	// llgrRequiredReason is the text verify prints when an operator names,
 	// moves or deactivates an LLGR member.
-	llgrRequiredReason = "a peer's long-lived-stale-time makes Ze advertise the Long-Lived Graceful Restart Capability, and " +
+	llgrRequiredReason = "a peer's graceful-restart long-lived family makes Ze advertise the Long-Lived Graceful Restart Capability, and " +
 		`RFC 9494 Section 4.3 says a speaker "that has advertised the Long-Lived Graceful Restart Capability to a neighbor MUST perform" ` +
 		"its procedures for the routes of that neighbor"
 	// communityNoExportText and localPrefZeroText are the RFC 9494 Section
@@ -52,9 +52,9 @@ const (
 	communityLLGRStaleText = `"65535:6"`
 )
 
-// llgrConfig is the config condition both insertions share: the leaf whose
-// presence makes Ze advertise the LLGR Capability (code 71) to the peer.
-var llgrConfig = []string{"session", "capability", grConfigName, "long-lived-stale-time"}
+// llgrConfig is the config condition both insertions share: the per-family
+// list whose presence makes Ze advertise the LLGR Capability (code 71) to the peer.
+var llgrConfig = []string{"session", "capability", grConfigName, grLongLivedNode, grFamilyNode}
 
 // grFilterDecls declares the two procedures. It has two readers and MUST
 // stay one function: register.go puts it on registry.Registration.Filters
@@ -96,10 +96,10 @@ func grFilterDecls() []sdk.FilterDecl {
 }
 
 // grInsertions places the ingress step on every peer whose config sets
-// long-lived-stale-time, and the egress step on every peer's export list
-// while any peer sets it: the egress procedure is keyed on the route's
-// source, the neighbor Ze advertised the capability to, and acts toward
-// every destination. Both are required. Like grFilterDecls it has two
+// graceful-restart long-lived family, and the egress step on every peer's
+// export list while any peer sets it: the egress procedure is keyed on the
+// route's source, the neighbor Ze advertised the capability to, and acts
+// toward every destination. Both are required. Like grFilterDecls it has two
 // readers and MUST stay one function.
 func grInsertions() []rpc.FilterInsertion {
 	return []rpc.FilterInsertion{

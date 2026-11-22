@@ -536,3 +536,59 @@ func (lab *llgrClockLab) Query(_ context.Context, peer string, command []string,
 	}
 	return fmt.Sprintf(`{"prefix":%q,"paths":[{"valid":true,"peer":{"peerId":"10.254.7.2"},"aspath":{"string":"65001 65004"},"community":{"list":[%s]}}]}`, prefix, communities), nil
 }
+
+// TestLLGRPerFamilyFRROutput checks the per-family FRR capability parsers for
+// bgp-llgr-per-family-frr against FRR 10.7.1's JSON and text schemas.
+//
+// VALIDATES: code 64 JSON addressFamiliesByPeer must carry both ipv4Unicast and
+// ipv6Unicast while code 71 text carries IPv4 Unicast alone; code 71 carrying
+// IPv6 Unicast too is rejected.
+// PREVENTS: a vacuous interop checker that accepts all-family code 71 output or
+// parses a non-FRR text shape.
+func TestLLGRPerFamilyFRROutput(t *testing.T) {
+	const validJSON = `{"172.30.0.2":{"neighborCapabilities":{"gracefulRestart":"advertisedAndReceived","addressFamiliesByPeer":{"ipv4Unicast":{},"ipv6Unicast":{}}}}}`
+	for _, tc := range []struct {
+		name, output string
+		valid        bool
+	}{
+		{"dual-family-gr-json", validJSON, true},
+		{"missing-v6-in-gr-json", strings.Replace(validJSON, `,"ipv6Unicast":{}`, "", 1), false},
+		{"missing-v4-in-gr-json", strings.Replace(validJSON, `"ipv4Unicast":{},`, "", 1), false},
+		{"one-way-gr-json", strings.Replace(validJSON, "advertisedAndReceived", "advertised", 1), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := llgrPerFamilyFRRGRJSON(tc.output, "172.30.0.2")
+			if (err == nil) != tc.valid {
+				t.Fatalf("valid=%v err=%v", tc.valid, err)
+			}
+		})
+	}
+
+	const validText = "" +
+		"    Long-lived Graceful Restart: advertised and received\n" +
+		"      Address families by peer:\n" +
+		"           IPv4 Unicast\n" +
+		"    Route refresh: advertised and received\n" +
+		"    Graceful Restart Capability: advertised and received\n" +
+		"      Remote Restart timer is 120 seconds\n" +
+		"      Address families by peer:\n" +
+		"        IPv4 Unicast(not preserved)\n" +
+		"        IPv6 Unicast(not preserved)\n"
+
+	for _, tc := range []struct {
+		name, output string
+		valid        bool
+	}{
+		{"v4-only-llgr-text", validText, true},
+		{"both-families-in-llgr-refused", strings.Replace(validText, "    Route refresh:", "           IPv6 Unicast\n    Route refresh:", 1), false},
+		{"missing-v4-in-llgr", strings.Replace(validText, "           IPv4 Unicast\n", "", 1), false},
+		{"missing-llgr-section", "    Route refresh: advertised and received\n", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := llgrPerFamilyFRRText(tc.output)
+			if (err == nil) != tc.valid {
+				t.Fatalf("valid=%v err=%v", tc.valid, err)
+			}
+		})
+	}
+}

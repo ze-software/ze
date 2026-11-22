@@ -58,7 +58,7 @@ bgp {
 			asn { local 1; remote 1; }
 			router-id 1.2.3.4
 			family { ipv4/unicast { prefix { maximum 10000; } } }
-			capability { graceful-restart { restart-time 120; long-lived-stale-time 60; } }
+			capability { graceful-restart { short-lived { restart-time 120; } long-lived { family { ipv4/unicast 60; } } } }
 		}
 		behavior { group-updates disable; }
 		timer { connect-retry 30; }
@@ -76,7 +76,7 @@ bgp {
 			asn { local 1; remote 1; }
 			router-id 1.2.3.4
 			family { ipv4/unicast { prefix { maximum 10000; } } }
-			capability { graceful-restart { restart-time 120; long-lived-stale-time 60; } }
+			capability { graceful-restart { short-lived { restart-time 120; } long-lived { family { ipv4/unicast 60; } } } }
 		}
 		behavior { group-updates disable; }
 		timer { connect-retry 30; }

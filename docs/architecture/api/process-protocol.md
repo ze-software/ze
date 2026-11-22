@@ -753,7 +753,7 @@ YANG is not compiled, `docs/plugin-development/schema.md`), and, for a plugin
 compiled into ze, a path naming a node another module defines: a
 compiled-in plugin conditions only on config its own YANG module adds, an
 augment of another module's node included (`bgp-gr`'s
-`session capability graceful-restart long-lived-stale-time`), so its member
+`session capability graceful-restart long-lived family`), so its member
 lands only where config it owns is set. A third-party
 plugin, started by the operator's `plugin external` entry, may condition on any
 compiled path. Config load judges a compiled-in plugin's insertions by the same

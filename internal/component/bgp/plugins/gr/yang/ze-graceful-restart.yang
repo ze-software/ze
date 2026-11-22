@@ -8,8 +8,12 @@ module ze-graceful-restart {
 
     description
         "Graceful Restart capability plugin for Ze (RFC 4724, code 64;
-         RFC 9494, code 71). Configures per-peer restart-time for BGP
-         graceful restart and long-lived-stale-time for LLGR.";
+         RFC 9494, code 71). Configures per-peer short-lived (GR) and
+         per-family long-lived (LLGR) graceful restart.";
+
+    revision 2026-11-22 {
+        description "Split graceful-restart into symmetric short-lived and long-lived containers with per-family LLGR stale times.";
+    }
 
     revision 2026-09-20 {
         description "graceful-restart > family names the address families the code-64 capability carries.";
@@ -24,68 +28,92 @@ module ze-graceful-restart {
         container graceful-restart {
             presence "Graceful Restart capability enabled";
             description "The container carries presence, so writing it makes Ze send the Graceful Restart capability,
-                code 64, to this peer. Ze names every address family the peer carries in that capability, unless the
-                family container below narrows the set, so the peer
-                retains Ze's routes for those families while the session is down (RFC 4724 Section 4.2). The
-                families are the ones the session negotiates, so they include what the peer inherits from its
-                group and exclude any family entry written 'mode disable'. The Forwarding State bit of each
-                family is set at connection time rather than here: it says the routes were still being forwarded
-                while Ze was down, which is true when Ze restarted and the forwarding plane kept them. A
+                code 64, to this peer. With no short-lived container, code 64 carries Restart Time 0 and no address
+                family tuple, which RFC 4724 Section 3 reads as a Receiving Speaker that preserves nothing of its own
+                and RFC 9494 Section 4.1 uses to skip the conventional GR phase when long-lived is configured. A
                 container on the peer replaces the container on the group rather than adding to it.";
-            ze:help "Graceful Restart capability configuration.";
+            ze:help "Graceful Restart capability configuration (codes 64 and 71).";
 
-            leaf restart-time {
-                type uint16 {
-                    range "0..4095";
+            container short-lived {
+                presence "Conventional Graceful Restart phase enabled";
+                description "Enables the conventional Graceful Restart phase (RFC 4724, code 64) for this peer. Ze
+                    names every address family the peer carries in code 64 unless the family list below narrows the
+                    set, so the peer retains Ze's routes while the session is down (RFC 4724 Section 4.2). The
+                    Forwarding State bit is set at connection time when the forwarding plane kept Ze's routes across a
+                    restart. Omitting this container sends code 64 with Restart Time 0 and no family tuples.";
+                ze:help "Conventional Graceful Restart phase (RFC 4724, code 64).";
+
+                leaf restart-time {
+                    type uint16 {
+                        range "0..4095";
+                    }
+                    units "seconds";
+                    default "120";
+                    description
+                        "The value is what Ze advertises to the peer. It does not set the timer Ze runs when the peer
+                        restarts: that timer takes the Restart Time the peer itself advertised. Ze deletes every stale
+                        route of the peer when that timer expires, unless the peer also negotiated LLGR.";
+                    ze:help "Restart Time in seconds (RFC 4724 Section 3, 0..4095).";
                 }
-                units "seconds";
-                default "120";
-                description
-                    "The value is what Ze advertises to the peer. It does not set the timer Ze runs when the peer
-                    restarts: that timer takes the Restart Time the peer itself advertised. Ze deletes every stale
-                    route of the peer when that timer expires, unless the peer also negotiated LLGR.";
-                ze:help "Restart Time in seconds (RFC 4724 Section 3).
-                         Maximum value is 4095 (12-bit field).";
+
+                list family {
+                    key "name";
+                    description "Narrows the address families Ze names in the Graceful Restart capability, code 64.
+                        When absent, code 64 names every family the peer carries. When present, code 64 names only the
+                        listed families. Every listed family must be one the peer's session carries, and Ze omits any
+                        family the RIB plugin cannot store with a warning (RFC 4724 Section 4). This list governs code
+                        64 alone and never affects code 71.";
+                    ze:help "Address families Ze names in the GR capability (code 64).";
+
+                    leaf name {
+                        type zt:address-family;
+                        ze:validate "registered-address-family";
+                        description "RFC 4724 Section 4: 'The presence and the setting of the Forwarding State bit
+                            for an address family depend upon the actual forwarding state and configuration.' The
+                            value must name a family the peer's own family list carries. Ze refuses the configuration
+                            otherwise, because RFC 4724 Section 3 scopes a tuple to routes advertised with the same
+                            AFI and SAFI.";
+                        ze:help "Address family for code 64 (e.g. ipv4/unicast).";
+                    }
+                }
             }
 
-            container family {
-                presence "The capability names exactly the listed address families";
-                description "The container carries presence, and the three states differ. No container is the
-                    default: the capability names every address family the peer carries. The container with one
-                    name or more: the capability names those families and no other. The container with no name:
-                    the capability names no family at all, which RFC 4724 Section 3 reads as a speaker that
-                    supports the Receiving Speaker procedures and preserves nothing of its own. The container
-                    governs the Graceful Restart capability, code 64, and never the Long-Lived Graceful Restart
-                    capability, code 71: RFC 9494 Section 4.1 says 'the conventional GR phase can be skipped by
-                    omitting all AFIs/SAFIs from the GR Capability', so a family in code 71 and not in code 64
-                    is how an operator asks for LLGR with no GR phase. In every state the capability names only
-                    families the RIB plugin can store, because RFC 4724 Section 4 lets a speaker list a family
-                    only when it can preserve it across a restart: a family it cannot store is left out with a
-                    warning, and the capability is still sent when none is left.";
-                ze:help "Address families Ze names in the Graceful Restart capability.";
+            container long-lived {
+                description "Configures the Long-Lived Graceful Restart capability (RFC 9494, code 71) per address
+                    family. Nested inside graceful-restart so code 71 is never advertised without code 64 (RFC 9494
+                    Section 4.1). LLGR is off by default and requires an explicit family entry with a stale-time for
+                    each AFI/SAFI (RFC 9494 Section 5).";
+                ze:help "Long-Lived Graceful Restart phase (RFC 9494, code 71).";
 
-                leaf-list name {
-                    type zt:address-family;
-                    ze:validate "registered-address-family";
-                    description "RFC 4724 Section 4: 'The presence and the setting of the Forwarding State bit
-                        for an address family depend upon the actual forwarding state and configuration.' The
-                        value must name a family the peer's own family list carries. Ze refuses the
-                        configuration otherwise, because RFC 4724 Section 3 scopes a tuple to routes 'advertised
-                        with the same AFI and SAFI', and a session that carries no such route cannot keep the
-                        promise the tuple makes.";
-                    ze:help "Address family the capability names (e.g. ipv4/unicast).";
-                }
-            }
+                list family {
+                    key "name";
+                    description "Address families advertised in the Long-Lived Graceful Restart capability, code 71,
+                        each with its own 24-bit Long-Lived Stale Time (RFC 9494 Section 3.1). Every listed family must
+                        be one the peer's session carries. Families absent from this list are omitted from code 71 and
+                        do not run LLGR procedures even if the remote peer advertises them (RFC 9494 Section 5).";
+                    ze:help "Per-family LLGR stale time configuration (code 71).";
 
-            leaf long-lived-stale-time {
-                type uint32 {
-                    range "0..16777215";
+                    leaf name {
+                        type zt:address-family;
+                        ze:validate "registered-address-family";
+                        description "Address family enabled for Long-Lived Graceful Restart. Must match an address
+                            family negotiated on this peer's session (including families inherited from its group and
+                            excluding entries with mode disable).";
+                        ze:help "Address family for code 71 (e.g. ipv4/unicast).";
+                    }
+
+                    leaf stale-time {
+                        type uint32 {
+                            range "0..16777215";
+                        }
+                        units "seconds";
+                        mandatory true;
+                        description "Long-Lived Stale Time in seconds for this address family (RFC 9494 Section 3.1).
+                            The field is 24 bits, so the maximum value is 16777215 (about 194 days). Zero advertises
+                            LLGR capability support for this family with a zero-second stale period.";
+                        ze:help "Long-Lived Stale Time in seconds (0..16777215).";
+                    }
                 }
-                units "seconds";
-                description "Long-Lived Stale Time in seconds (RFC 9494 Section 3). When this leaf is set, Ze advertises the LLGR
-                    capability (code 71). The maximum value is 16777215, because the field is 24 bits, which is about
-                    194 days. Ze applies the value to every negotiated address family of the peer.";
-                ze:help "Long-Lived Stale Time for the peer, in seconds (RFC 9494 Section 3).";
             }
         }
     }

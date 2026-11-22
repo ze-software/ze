@@ -11,10 +11,11 @@ import (
 	"fmt"
 	"io"
 	"slices"
-	"strconv"
 
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
+	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -117,60 +118,99 @@ func formatLLGRText(r *llgrResult) string {
 	return sb.String()
 }
 
+// llgrStaleTimeMax is the largest value the 24-bit Long-Lived Stale Time field
+// holds (RFC 9494 Section 3.1).
+const llgrStaleTimeMax = 16777215
+
+// llgrFamilyMax bounds the code-71 tuple list to a single RFC 5492 capability
+// TLV: each tuple is 7 octets and Capability Length is 1 octet (max 255), so at
+// most 36 tuples (252 octets) fit without truncating the length byte.
+const llgrFamilyMax = 36
+
 // parseLLGRCapValue extracts LLGR capability hex from a capability map's
-// "graceful-restart" entry. Returns "" if no LLGR config (no long-lived-stale-time).
-// RFC 9494: LLGR capability code 71 encodes per-family LLST as 7-byte tuples.
-func parseLLGRCapValue(capMap map[string]any, peerAddr string, families []string) string {
+// "graceful-restart" -> "long-lived" -> "family" list. Returns "" when no
+// per-family LLGR entry is configured.
+//
+// RFC 9494 Section 3.1: "If the LLGR capability is advertised, the Graceful
+// Restart capability [RFC4724] MUST also be advertised; see Section 4.1."
+// Reading from capMap["graceful-restart"] structurally guarantees code 71 is
+// never declared without code 64.
+//
+// RFC 9494 Section 5: "Implementations MUST NOT enable these procedures by
+// default. They MUST require affirmative configuration per AFI/SAFI in order
+// to enable them." Only families explicitly listed under long-lived > family
+// are encoded into code 71, each with its own Long-Lived Stale Time.
+func parseLLGRCapValue(capMap map[string]any, peerAddr string) string {
 	if capMap == nil {
 		return ""
 	}
 	grData, ok := capMap[grConfigName].(map[string]any)
+	// refuse-by-default: guards extractLLGRCapabilities -- absent graceful-restart container declares no code 71
+	if !ok {
+		return ""
+	}
+	longData, ok := grData[grLongLivedNode].(map[string]any)
+	// refuse-by-default: guards extractLLGRCapabilities -- absent long-lived container means LLGR is off for this peer
 	if !ok {
 		return ""
 	}
 
-	// Check for long-lived-stale-time (LLST)
-	llstRaw, ok := grData["long-lived-stale-time"]
-	if !ok {
+	entries := configvalue.ListEntries(longData[grFamilyNode])
+	if len(entries) == 0 {
 		return ""
-	}
-
-	var llst uint32
-	switch v := llstRaw.(type) {
-	case float64:
-		llst = uint32(v)
-	case string:
-		if parsed, err := strconv.ParseUint(v, 10, 32); err == nil {
-			llst = uint32(parsed)
-		}
-	}
-
-	// RFC 9494: LLST is 24-bit (max 16777215)
-	if llst > 16777215 {
-		logger().Warn("long-lived-stale-time exceeds 24-bit max, clamping",
-			"peer", peerAddr, "value", llst)
-		llst = 16777215
-	}
-
-	// Build hex payload: 7 bytes per family tuple
-	// Apply the same LLST to all negotiated families
-	if len(families) == 0 {
-		families = []string{"ipv4/unicast"}
 	}
 
 	var buf []byte
-	for _, fam := range families {
-		f, ok := family.LookupFamily(fam)
+	tuples := 0
+	for _, entry := range entries {
+		if tuples == llgrFamilyMax {
+			logger().Warn("graceful-restart long-lived family list truncated at the RFC 5492 capability length maximum",
+				"code", codeDoctorBGPGRCapability, "peer", peerAddr, "maximum", llgrFamilyMax, "configured", len(entries))
+			break
+		}
+		f, ok := family.LookupFamily(entry.Key)
 		if !ok {
+			logger().Warn("graceful-restart long-lived skips an unknown address family",
+				"code", codeDoctorBGPGRCapability, "peer", peerAddr, "family", entry.Key)
 			continue
 		}
-		// AFI (2 bytes) + SAFI (1 byte) + Flags (1 byte: F-bit=1) + LLST (3 bytes)
+		if !nlrisplit.Supported(f) {
+			logger().Warn("graceful-restart long-lived omits an address family the RIB cannot store",
+				"code", codeDoctorBGPGRCapability, "peer", peerAddr, "family", entry.Key)
+			continue
+		}
+
+		llstVal, ok := configvalue.Int(entry.Fields[grStaleTimeLeaf])
+		if !ok {
+			logger().Warn("graceful-restart long-lived skips family with non-integer stale-time",
+				"code", codeDoctorBGPGRCapability, "peer", peerAddr, "family", entry.Key)
+			continue
+		}
+		if llstVal < 0 {
+			logger().Warn("graceful-restart long-lived skips family with negative stale-time",
+				"code", codeDoctorBGPGRCapability, "peer", peerAddr, "family", entry.Key, "value", llstVal)
+			continue
+		}
+
+		// RFC 9494 Section 3.1: Long-Lived Stale Time is a 24-bit field (max 16777215).
+		var llst uint32
+		if llstVal > llgrStaleTimeMax {
+			logger().Warn("graceful-restart long-lived stale-time exceeds 24-bit max, clamping",
+				"code", codeDoctorBGPGRCapability, "peer", peerAddr, "family", entry.Key, "value", llstVal)
+			llst = llgrStaleTimeMax
+		} else {
+			llst = uint32(llstVal)
+		}
+
+		// RFC 9494 Section 3.1: each tuple is 7 bytes:
+		// AFI (2 bytes) + SAFI (1 byte) + Flags (1 byte: F-bit=1, reserved=0) + LLST (3 bytes).
 		buf = append(buf,
 			byte(f.AFI>>8), byte(f.AFI),
 			byte(f.SAFI),
-			0x80, // F-bit set (forwarding state preserved)
+			0x80, // F-bit set (forwarding state preserved); bits 1-7 MUST be zero
 			byte(llst>>16), byte(llst>>8), byte(llst),
 		)
+		tuples++
 	}
 
 	if len(buf) == 0 {
@@ -184,7 +224,12 @@ func parseLLGRCapValue(capMap map[string]any, peerAddr string, families []string
 const llgrCapCode = 71
 
 // extractLLGRCapabilities extracts LLGR capability declarations from BGP config.
-// Returns CapabilityDecl entries for code 71 (one per peer that has LLGR configured).
+// Returns CapabilityDecl entries for code 71 (one per peer whose effective
+// graceful-restart container configures at least one long-lived family).
+//
+// Uses grCapabilityFor so peer/group precedence matches extractGRCapabilities
+// and refuseUncarriedGRFamilies: a peer's graceful-restart container replaces
+// its group's container rather than merging with it.
 func extractLLGRCapabilities(jsonStr string) []sdk.CapabilityDecl {
 	bgpSubtree, ok := configjson.ParseBGPSubtree(jsonStr)
 	if !ok {
@@ -194,19 +239,7 @@ func extractLLGRCapabilities(jsonStr string) []sdk.CapabilityDecl {
 	var caps []sdk.CapabilityDecl
 
 	configjson.ForEachPeer(bgpSubtree, func(peerAddr string, peerMap, groupMap map[string]any, origin configjson.PeerOrigin) {
-		families := collectPeerFamilies(peerMap, groupMap)
-
-		peerCapValue := parseLLGRCapValue(configjson.GetCapability(peerMap), peerAddr, families)
-
-		var groupCapValue string
-		if groupMap != nil {
-			groupCapValue = parseLLGRCapValue(configjson.GetCapability(groupMap), peerAddr, families)
-		}
-
-		capValue := groupCapValue
-		if peerCapValue != "" {
-			capValue = peerCapValue
-		}
+		capValue := parseLLGRCapValue(grCapabilityFor(peerMap, groupMap), peerAddr)
 		if capValue == "" {
 			return
 		}
@@ -309,10 +342,12 @@ func collectPeerFamilies(peerMap, groupMap map[string]any) []string {
 // not a map, and `ipv4/unicast disable;` is written exactly that way.
 func sessionFamilyEntries(m map[string]any) map[string]any {
 	session, ok := m["session"].(map[string]any)
+	// refuse-by-default: guards collectPeerFamilies -- peer without a session block carries no explicit family entries
 	if !ok {
 		return nil
 	}
 	entries, ok := session["family"].(map[string]any)
+	// refuse-by-default: guards collectPeerFamilies -- session without a family list falls back to the implicit family
 	if !ok {
 		return nil
 	}

@@ -314,7 +314,9 @@ bgp {
                 asn4 enable;
                 route-refresh enable;
                 graceful-restart {
-                    restart-time 120;
+                    short-lived {
+                        restart-time 120;
+                    }
                 }
                 add-path {
                     direction send/receive;
@@ -343,7 +345,10 @@ bgp {
 	grCap := cap.GetContainer("graceful-restart")
 	require.NotNil(t, grCap)
 
-	val, _ = grCap.Get("restart-time")
+	shortLived := grCap.GetContainer("short-lived")
+	require.NotNil(t, shortLived)
+
+	val, _ = shortLived.Get("restart-time")
 	require.Equal(t, "120", val)
 
 	addPath := cap.GetContainer("add-path")
@@ -553,4 +558,90 @@ bgp {
 	val, ok = asnContainer.Get("local")
 	require.True(t, ok)
 	require.Equal(t, "65000", val)
+}
+
+// TestResolveBGPTreePeerGracefulRestartReplacesGroup verifies that a peer's
+// graceful-restart container replaces its group's container wholesale rather
+// than deep-merging short-lived and long-lived children from the group.
+//
+// VALIDATES: ResolveBGPTree matches grCapabilityFor and ze-graceful-restart.yang
+// so filter insertion and reactor capability parsing see the same precedence.
+// PREVENTS: a peer overriding graceful-restart inheriting group long-lived
+// (forcing LLGR filters) or group short-lived (breaking GR-phase skip).
+func TestResolveBGPTreePeerGracefulRestartReplacesGroup(t *testing.T) {
+	input := `
+bgp {
+	router-id 1.2.3.4;
+	session { asn { local 65000; } }
+	group gr_group {
+		session {
+			asn { remote 65001; }
+			family { ipv4/unicast { } }
+			capability {
+				graceful-restart {
+					short-lived { restart-time 120; }
+					long-lived { family { ipv4/unicast 7200; } }
+				}
+			}
+		}
+		peer short_only {
+			connection { remote { ip 10.0.0.1; } }
+			session {
+				capability {
+					graceful-restart {
+						short-lived { restart-time 60; }
+					}
+				}
+			}
+		}
+		peer long_only {
+			connection { remote { ip 10.0.0.2; } }
+			session {
+				capability {
+					graceful-restart {
+						long-lived { family { ipv4/unicast 3600; } }
+					}
+				}
+			}
+		}
+		peer inherits_both {
+			connection { remote { ip 10.0.0.3; } }
+		}
+	}
+}
+`
+	schema, err := config.YANGSchema()
+	require.NoError(t, err)
+	tree, err := config.NewParser(schema).Parse(input)
+	require.NoError(t, err)
+
+	resolved, err := ResolveBGPTree(tree)
+	require.NoError(t, err)
+	peers, ok := resolved["peer"].(map[string]any)
+	require.True(t, ok)
+
+	grOf := func(name string) map[string]any {
+		t.Helper()
+		p, ok := peers[name].(map[string]any)
+		require.True(t, ok)
+		sess, ok := p["session"].(map[string]any)
+		require.True(t, ok)
+		caps, ok := sess["capability"].(map[string]any)
+		require.True(t, ok)
+		gr, ok := caps["graceful-restart"].(map[string]any)
+		require.True(t, ok)
+		return gr
+	}
+
+	shortGR := grOf("short_only")
+	require.Contains(t, shortGR, "short-lived")
+	require.NotContains(t, shortGR, "long-lived", "peer graceful-restart replaces group container, so group long-lived must not leak")
+
+	longGR := grOf("long_only")
+	require.Contains(t, longGR, "long-lived")
+	require.NotContains(t, longGR, "short-lived", "peer graceful-restart replaces group container, so group short-lived must not leak")
+
+	bothGR := grOf("inherits_both")
+	require.Contains(t, bothGR, "short-lived")
+	require.Contains(t, bothGR, "long-lived")
 }

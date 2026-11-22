@@ -10,7 +10,7 @@
     "internal/component/bgp/reactor/reactor_notify.go::Reactor.notifyOneMessage": "2782d0bd2a6ecfe6",
     "internal/component/bgp/reactor/session_negotiate.go::negotiateWith": "e57fad37a400239c"
   },
-  "note": "Independent producer-change maintenance rejudgment (2026-11-22): preserve ENFORCED and all 16 tag bindings / 9 code-map producers at the previous bounded scope. Independently inspected RFC 9494 Sections 4.3-4.4, bestpath.go::compareBeforeMED, bestpath.go::comparePairWithReason, rib_commands.go::extractCandidate, reactor_notify.go::Reactor.notifyMessageReceiverFrom and Reactor.notifyOneMessage, and the RIB and reactor LLGR tests. Working-tree change in compareBeforeMED (and comparePairWithReason) only inserts RFC 7611 Section 3 compareAcceptOwn(a, b) after Step 1 (LOCAL_PREF) and before compareAIGP/AS_PATH; Step 0 (stale-level depreference against storage.DepreferenceThreshold) and Step 1 (LOCAL_PREF) are byte-identical to HEAD, so any LLGR-stale route is still eliminated at Step 0 before LOCAL_PREF or ACCEPT_OWN is reached, while two LLGR-stale routes tie at Step 0 and proceed to normal tiebreaking per RFC 9494 Section 4.4. Also inspected the already-landed HEAD changes in reactor_notify.go (commits 44411d90c3, ed129f9e85: captured *Session / ConnectionID and RS-client filtered-retention continuation args) and the shifted file SHA of rfc9494_llgr_ingress_meta_test.go (helper receiveThroughIngress updated with clock: source.clock; both tagged unit SHAs are byte-identical): session.localLLGR.Load() -> src.LLGRAdvertised -> ingress routeMeta delivery is unchanged. All other 6 cited producer functions and all 16 tagged unit SHAs are unchanged. This is a source maintenance rejudgment only: no tests or discrimination replays were run by this auditor, and the existing compareBeforeMED (and reactor_notify) revert records in rfc/discrimination/rfc9494/RFC9494-4.3-1.json still carry prior producer SHAs until main renews them. Prior scope limitations remain in full (self-attach and reactor metadata revert records prove producer reachability only, not normal-return semantic mutation; daemon negative uses paired guard mutation provenance; no whole-RFC conformance or egress replay/retention credit is claimed).",
+  "note": "Independent re-audit against RFC 9494 Sections 4.3-4.4 after updating LLGR config syntax in test/plugin/llgr-stale-received-depreferenced.ci (line 51: short-lived { restart-time 120; } long-lived { family { ipv4/unicast 3600; } }) and gr_filter.go llgrConfig path (session > capability > graceful-restart > long-lived > family). Verified insertForPeer/resolvedPath (filter_insertion.go) matches llgrConfig on peer llgr (inserting bgp-gr:llgr-ingress) and does not match peer plain (graceful-restart disable), while evaluateLLGRIngress and llgrStaleFromSource are byte-identical and all other 14 tagged Go test units and all 9 cited producer functions are unchanged by this GR/LLGR config refactor. The .ci test's BGP UPDATE wire hex, peer topology, and exact stderr assertions (10.0.0.0/8 best ::1 by stale-level positive; 10.1.0.0/16 best ::1 by local-preference negative) are unchanged. Bounded scope and prior limitations remain in full (no tests or discrimination replays were run by this auditor; test/plugin/llgr-stale-received-depreferenced.ci unit-sha and any prior producer-sha entries in rfc/discrimination/rfc9494/RFC9494-4.3-1.json require renewal by main before ./le rfc check).",
   "requirement_sha": "1168b7e095abe221",
   "tests": {
     "internal/component/bgp/plugins/gr/rfc9494_gr_ingress_test.go::TestLLGRIngressFilter_MarksReceivedStale": "ccda16eb9f58cec3",
@@ -27,8 +27,8 @@
     "internal/component/bgp/reactor/rfc9494_llgr_ingress_meta_test.go::TestRFC9494ReceivedEventNoLLGRSessionStaysFresh": "521a3da89dd99dd2",
     "internal/component/bgp/reactor/rfc9494_llgr_trigger_test.go::TestRFC9494NegotiateWithKeysOnAdvertisedLLGR": "e390429a1895e749",
     "internal/component/bgp/reactor/rfc9494_llgr_trigger_test.go::TestRFC9494NegotiateWithKeysOnAdvertisedLLGR#2": "e390429a1895e749",
-    "test/plugin/llgr-stale-received-depreferenced.ci": "691947c9a0064851",
-    "test/plugin/llgr-stale-received-depreferenced.ci#2": "691947c9a0064851"
+    "test/plugin/llgr-stale-received-depreferenced.ci": "518e5c0a132285c1",
+    "test/plugin/llgr-stale-received-depreferenced.ci#2": "518e5c0a132285c1"
   },
   "units": {
     "internal/component/bgp/plugins/gr/rfc9494_gr_ingress_test.go::TestLLGRIngressFilter_MarksReceivedStale": "81975bcfca055113",
@@ -45,8 +45,8 @@
     "internal/component/bgp/reactor/rfc9494_llgr_ingress_meta_test.go::TestRFC9494ReceivedEventNoLLGRSessionStaysFresh": "abcb46ba4bad5fd8",
     "internal/component/bgp/reactor/rfc9494_llgr_trigger_test.go::TestRFC9494NegotiateWithKeysOnAdvertisedLLGR": "97b2ca6fc483a7c4",
     "internal/component/bgp/reactor/rfc9494_llgr_trigger_test.go::TestRFC9494NegotiateWithKeysOnAdvertisedLLGR#2": "97b2ca6fc483a7c4",
-    "test/plugin/llgr-stale-received-depreferenced.ci": "691947c9a0064851",
-    "test/plugin/llgr-stale-received-depreferenced.ci#2": "691947c9a0064851"
+    "test/plugin/llgr-stale-received-depreferenced.ci": "518e5c0a132285c1",
+    "test/plugin/llgr-stale-received-depreferenced.ci#2": "518e5c0a132285c1"
   },
   "verdict": "enforced"
 }

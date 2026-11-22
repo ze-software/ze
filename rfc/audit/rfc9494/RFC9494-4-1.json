@@ -1,13 +1,13 @@
 {
-  "note": "RFC 9494 Section 4: \"If a BGP speaker is configured to support the procedures of this document, it MUST use BGP Capabilities Advertisement [RFC5492] to advertise the Long-Lived Graceful Restart Capability.\" Re-judged 2026-10-15 after the positive tag's claim was reworded (body unchanged): extractLLGRCapabilities is declared through grCapabilities, the plugin's BGPCapabilityExtractor (gr_capability.go), which the claim now names. TestExtractLLGRCapabilities_Basic fails unless extractLLGRCapabilities emits one Code 71 hex declaration for the peer whose payload decodes to LLST 3600. Negative: TestExtractLLGRCapabilities_NoLLGR asserts no declaration without long-lived-stale-time. Proven at the plugin's capability-declaration boundary; the hand-off to the OPEN is not asserted in these units.",
+  "note": "Independent re-audit against RFC 9494 Section 4 ('If a BGP speaker is configured to support the procedures of this document, it MUST use BGP Capabilities Advertisement [RFC5492] to advertise the Long-Lived Graceful Restart Capability') after updating test inputs to graceful-restart > short-lived and long-lived > family. Positive TestExtractLLGRCapabilities_Basic drives extractLLGRCapabilities (wired into grCapabilities via DeclareCapabilitiesFrom) with ipv4/unicast stale-time 3600 and asserts one CapabilityDecl with Code 71, hex encoding, peer 192.168.1.1, and payload decoding to one family with LLST 3600. Negative TestExtractLLGRCapabilities_NoLLGR passes short-lived-only config and asserts an empty declaration slice. Both units carry current extractLLGRCapabilities revert records (producer-sha f3f24d396d6d7969). Bounded to the plugin capability-declaration boundary; OPEN wire framing is not asserted in these units.",
   "requirement_sha": "782fe0ebbd4ddd96",
   "tests": {
-    "internal/component/bgp/plugins/gr/gr_test.go::TestExtractLLGRCapabilities_Basic": "9d4a0ac4c3819c96",
-    "internal/component/bgp/plugins/gr/gr_test.go::TestExtractLLGRCapabilities_NoLLGR": "9d4a0ac4c3819c96"
+    "internal/component/bgp/plugins/gr/gr_test.go::TestExtractLLGRCapabilities_Basic": "fcbc23a7e94aeb8b",
+    "internal/component/bgp/plugins/gr/gr_test.go::TestExtractLLGRCapabilities_NoLLGR": "fcbc23a7e94aeb8b"
   },
   "units": {
-    "internal/component/bgp/plugins/gr/gr_test.go::TestExtractLLGRCapabilities_Basic": "2c7f0a6205e371ea",
-    "internal/component/bgp/plugins/gr/gr_test.go::TestExtractLLGRCapabilities_NoLLGR": "909ab972491c4265"
+    "internal/component/bgp/plugins/gr/gr_test.go::TestExtractLLGRCapabilities_Basic": "d8fbed203d93ca00",
+    "internal/component/bgp/plugins/gr/gr_test.go::TestExtractLLGRCapabilities_NoLLGR": "085e6a7a8a133158"
   },
   "verdict": "enforced"
 }

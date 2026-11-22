@@ -3,44 +3,44 @@
     "rid": "RFC4724-4-4",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/gr/rfc4724_gr_capability_test.go::TestRFC4724GRCapabilityClaimsNoFamilyItDoesNotCarry",
-    "unit-sha": "0961b72e389886b0",
+    "unit-sha": "869e09c6dd308c15",
     "claim-sha": "e53359c07bab6278",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr_capability.go::parseGRCapValue",
-    "producer-sha": "4fad0526f2fcaa5a",
+    "producer-sha": "a3291e8e472c81e7",
     "break": "body of parseGRCapValue replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4724-4-4",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/gr/rfc4724_gr_capability_test.go::TestRFC4724GRCapabilityListsTheFamiliesOfTheSession",
-    "unit-sha": "54c0ede9da31256b",
+    "unit-sha": "eae51b03f60d05dc",
     "claim-sha": "f8cb2866fb968d9a",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr_capability.go::parseGRCapValue",
-    "producer-sha": "4fad0526f2fcaa5a",
+    "producer-sha": "a3291e8e472c81e7",
     "break": "body of parseGRCapValue replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4724-4-4",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/gr/rfc4724_rib_families_test.go::TestRFC4724GRCapabilityKeepsEveryFamilyTheRIBStores",
-    "unit-sha": "ecc70f522348be44",
+    "unit-sha": "04f4c1dd2433ed10",
     "claim-sha": "7104a9249f4641af",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr_capability.go::parseGRCapValue",
-    "producer-sha": "4fad0526f2fcaa5a",
+    "producer-sha": "a3291e8e472c81e7",
     "break": "body of parseGRCapValue replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4724-4-4",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/gr/rfc4724_rib_families_test.go::TestRFC4724GRCapabilityOmitsAFamilyNoRIBStores",
-    "unit-sha": "0cf180df0e575bf0",
+    "unit-sha": "3f310d6ac60b6d1d",
     "claim-sha": "8379e58370351e68",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr_capability.go::parseGRCapValue",
-    "producer-sha": "4fad0526f2fcaa5a",
+    "producer-sha": "a3291e8e472c81e7",
     "break": "body of parseGRCapValue replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

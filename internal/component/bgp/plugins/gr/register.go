@@ -11,6 +11,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // grPluginName is the registration name of this plugin, and the name an
@@ -47,6 +48,7 @@ var (
 var fieldStale = policy.MustRegisterField("stale", policy.RouteView{})
 
 func init() {
+	registerGRDoctorCodes()
 	policyview.MustRegisterMetadata(fieldStale, policyview.MetadataOctet)
 	resolveLLGRReaders()
 
@@ -88,8 +90,18 @@ func init() {
 		// Only a refusal does this: a failure to DELIVER the configuration
 		// leaves ze running (configRefusalIsFatal,
 		// internal/component/plugin/server/startup.go).
-		FatalOnConfigError: true,
-		RunEngine:          runGRPlugin,
+		FatalOnConfigError:      true,
+		InProcessConfigVerifier: refuseUncarriedGRSections,
+		DoctorChecks: []registry.DoctorCheckDef{{
+			Name:         "bgp-gr-capability",
+			Phase:        rpc.DoctorPhasePostConfig,
+			Order:        2135,
+			Dependencies: []string{"config-tree"},
+			Platforms:    []string{"any"},
+			Codes:        []string{codeDoctorBGPGRCapability},
+			Check:        checkGRCapabilityConfig,
+		}},
+		RunEngine: runGRPlugin,
 		InProcessDecoder: func(input, output *bytes.Buffer) int {
 			return RunDecodeMode(input, output)
 		},

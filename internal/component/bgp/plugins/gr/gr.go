@@ -6,9 +6,9 @@
 // Detail: gr_consecutive.go — consecutive restarts during the LLGR period (RFC 9494 Section 4.2)
 //
 // Package gr implements a Graceful Restart plugin for ze (RFC 4724, RFC 9494).
-// It receives per-peer GR config (restart-time, long-lived-stale-time) during
-// Stage 2, registers GR (code 64) and LLGR (code 71) capabilities per-peer
-// during Stage 3, and implements Receiving Speaker procedures during the event loop.
+// It receives per-peer GR config (short-lived, long-lived) during Stage 2,
+// registers GR (code 64) and LLGR (code 71) capabilities per-peer during Stage 3,
+// and implements Receiving Speaker procedures during the event loop.
 //
 // Event subscriptions: open (received), state, eor.
 // Inter-plugin coordination: DispatchCommand → bgp-rib retain-routes/release-routes/mark-stale/purge-stale.
@@ -170,11 +170,11 @@ func runGRPlugin(conn net.Conn) int {
 	// refusal as a daemon that will not start at the next boot.
 	p.OnConfigVerify(refuseUncarriedGRSections)
 
-	// The per-peer restart-time and long-lived-stale-time declaration runs
-	// after OnConfigure. A reload's config-verify answer carries the
-	// candidate's declaration, a session family edit on a peer with no
-	// graceful-restart family list included, and the engine installs it when
-	// the reload applies (sdk.Plugin.DeclareCapabilitiesFrom).
+	// The per-peer short-lived and long-lived declaration runs after OnConfigure.
+	// A reload's config-verify answer carries the candidate's declaration, a
+	// session family edit on a peer with no short-lived family list included,
+	// and the engine installs it when the reload applies
+	// (sdk.Plugin.DeclareCapabilitiesFrom).
 	p.DeclareCapabilitiesFrom(grCapabilities)
 	// Every leaf gr reads either reaches that declaration or is checked by
 	// refuseUncarriedGRSections, so an accepted reload leaves gr nothing to

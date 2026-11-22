@@ -155,47 +155,26 @@
   },
   {
     "rid": "RFC9494-4.3-1",
-    "polarity": "negative",
+    "polarity": "positive",
     "unit": "test/plugin/llgr-stale-received-depreferenced.ci",
-    "unit-sha": "0c1deb05326d2aa0",
-    "claim-sha": "4817d51e5f553564",
-    "route": "mutant",
-    "producer": "internal/component/bgp/plugins/gr/gr_ingress.go::llgrStaleFromSource",
-    "producer-sha": "9b1cbde96e36aaec",
-    "break": "line 56: \"!src.LLGRAdvertised\" -\u003e \"false /* MUTATION-APPLIED: ignore advertised LLGR capability */\"",
-    "citation": "expect=stderr:contains=OK: llgr received 10.1.0.0/16 best ::1 by local-preference",
-    "paired": [
-      {
-        "producer": "internal/component/bgp/config/filter_insertion.go::insertForPeer",
-        "producer-sha": "2fd0f0642cc45599",
-        "break": "line 171: \"if !holds {\" -\u003e \"if !holds \u0026\u0026 ins.Filter != \\\"bgp-gr:llgr-ingress\\\" { /* MUTATION-APPLIED: bypass only the LLGR ingress insertion guard */\""
-      }
-    ],
-    "solo": [
-      {
-        "producer": "internal/component/bgp/plugins/gr/gr_ingress.go::llgrStaleFromSource",
-        "break": "line 56: \"!src.LLGRAdvertised\" -\u003e \"false /* MUTATION-APPLIED: ignore advertised LLGR capability */\"",
-        "seconds": 20,
-        "green": "timing: 616:1.6s"
-      },
-      {
-        "producer": "internal/component/bgp/config/filter_insertion.go::insertForPeer",
-        "break": "line 171: \"if !holds {\" -\u003e \"if !holds \u0026\u0026 ins.Filter != \\\"bgp-gr:llgr-ingress\\\" { /* MUTATION-APPLIED: bypass only the LLGR ingress insertion guard */\"",
-        "seconds": 25,
-        "green": "timing: 616:1.6s"
-      }
-    ]
+    "unit-sha": "6262aa5834af626f",
+    "claim-sha": "f7f3335d230ce342",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/gr/gr_filter.go::evaluateLLGRIngress",
+    "producer-sha": "3d6f42608c5a449d",
+    "break": "body of evaluateLLGRIngress replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+    "citation": "expect=stderr:contains=OK: llgr received 10.0.0.0/8 best ::1 by stale-level"
   },
   {
     "rid": "RFC9494-4.3-1",
-    "polarity": "positive",
+    "polarity": "negative",
     "unit": "test/plugin/llgr-stale-received-depreferenced.ci",
-    "unit-sha": "0c1deb05326d2aa0",
-    "claim-sha": "f7f3335d230ce342",
-    "route": "mutant",
-    "producer": "internal/component/bgp/plugins/gr/gr_filter.go::evaluateLLGRIngress",
-    "producer-sha": "3d6f42608c5a449d",
-    "break": "line 144: \"!llgrStaleFromSource(filterapi.PeerFilterInfo{LLGRAdvertised: session.llgrAdvertised}, route.Raw())\" -\u003e \"!llgrStaleFromSource(filterapi.PeerFilterInfo{LLGRAdvertised: session.llgrAdvertised}, route.Raw()) || true /* MUTATION-APPLIED: runtime ingress never marks LLGR stale */\"",
-    "citation": "expect=stderr:contains=OK: llgr received 10.0.0.0/8 best ::1 by stale-level"
+    "unit-sha": "6262aa5834af626f",
+    "claim-sha": "4817d51e5f553564",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/gr/gr_ingress.go::llgrStaleFromSource",
+    "producer-sha": "9b1cbde96e36aaec",
+    "break": "body of llgrStaleFromSource replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
+    "citation": "expect=stderr:contains=OK: llgr received 10.1.0.0/16 best ::1 by local-preference"
   }
 ]

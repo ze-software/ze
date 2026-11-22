@@ -3,5 +3,6 @@ package bgp
 
 func init() {
 	specialCheckers[scenarioGracefulRestartFRR] = checkLLGRIndependentFRR
+	specialCheckers["bgp-llgr-per-family-frr"] = checkLLGRPerFamilyFRR
 	speakerRunners[llgrSourceOracle] = runLLGRSource
 }

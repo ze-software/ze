@@ -1,0 +1,17 @@
+{
+  "code": {
+    "internal/component/bgp/plugins/gr/gr_llgr.go::parseLLGRCapValue": "20cfd52752ed4a04",
+    "internal/component/bgp/plugins/gr/gr_llgr_exchange.go::exchangedLLGRLocked": "44febc20518d56cc"
+  },
+  "note": "Independent re-audit against RFC 9494 Section 5 ('They MUST require affirmative configuration per AFI/SAFI in order to enable them') after hardening parseLLGRCapValue with llgrFamilyMax = 36 (36 * 7 = 252 <= 255 octets), !nlrisplit.Supported(f) omission with warning, and refuse-by-default annotations. Both new guards only omit RIB-unsupported or overflow tuples (never emit unconfigured families or merge per-family LLSTs), and ipv4/unicast and ipv6/unicast are RIB-supported and below the 36-tuple cap so neither confounds positive or negative assertions. Both tagged units in rfc9494_llgr_per_family_test.go are byte-identical (new sibling TestLLGRDefensiveValidationAndTupleCap appended below them): positive TestRFC9494_PerFamilyLLGRConfigPositive drives LoadConfig -> ToPluginMap -> ExtractConfigSubtree -> refuseUncarriedGRFamilies -> extractLLGRCapabilities, proving dual-family single-entry exclusion of ipv6/unicast and exact boundary LLST hex 0001018000000000020180ffffff (0 and 16777215); negative TestRFC9494_PerFamilyLLGRConfigNegative proves short-lived-only and empty long-lived { } emit no code 71, and unconfigured ipv6/unicast is omitted from code 71 and purged (no ffff0006) on structured helper session drop even when remote advertises both families. Both units carry current parseLLGRCapValue revert records (317009a6c8051332; exchangedLLGRLocked discrimination is recorded under RFC9494-5-1). Scope boundary: config-to-declaration and structured helper event path; reactor OPEN assembly and JSON event path are not asserted in these two units.",
+  "requirement_sha": "4e1028432967a8d4",
+  "tests": {
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_per_family_test.go::TestRFC9494_PerFamilyLLGRConfigNegative": "c7834558519867d4",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_per_family_test.go::TestRFC9494_PerFamilyLLGRConfigPositive": "c7834558519867d4"
+  },
+  "units": {
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_per_family_test.go::TestRFC9494_PerFamilyLLGRConfigNegative": "2ef55c774108a7f7",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_per_family_test.go::TestRFC9494_PerFamilyLLGRConfigPositive": "fd0a0e670e7f3aa4"
+  },
+  "verdict": "enforced"
+}

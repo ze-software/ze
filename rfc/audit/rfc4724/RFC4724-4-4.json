@@ -1,17 +1,17 @@
 {
-  "note": "Re-judged 2026-10-02 (BGP c29 judge), owner rulings 7 and 8(a). parseGRCapValue now lists a family only when nlrisplit.Supported (the RIB plugin, a hard Dependency of bgp-gr resolved by ResolveDependencies at autoload, can store and re-send it). Negative TestRFC4724GRCapabilityOmitsAFamilyNoRIBStores registers ipv4/rib-less (SAFI 241, no splitter, preconditions asserted) and pins 007800010100 for the session list and 0078 (capability still sent, no tuple) for a configured list naming only it, each with the Warn carrying peer and family; HEAD negative ClaimsNoFamilyItDoesNotCarry keeps the uncarried-family refusal. Positives: TestRFC4724GRCapabilityKeepsEveryFamilyTheRIBStores (ipv4/flow + ipv4/unicast, 00780001850000010100, no Warn) and ListsTheFamiliesOfTheSession (exact two-tuple payload). Four observed-red records (revert parseGRCapValue); author probe inverting the condition reds all four, and the pre-fix run reds only the negative, so the pair discriminates the condition itself.",
+  "note": "Independent re-audit against RFC 4724 Section 4 ('A BGP speaker MAY advertise the Graceful Restart Capability for an address family to its peer if it has the ability to preserve its forwarding state for the address family when BGP restarts') after moving code-64 parameters into graceful-restart > short-lived. parseGRCapValue (gr_capability.go) emits '0000' when short-lived is absent, and when short-lived is present lists carried session families (or short-lived > family subset) gated by family.LookupFamily and nlrisplit.Supported(fam) with F-bit clear at config time (restartFlagsFor sets F on restart). All 4 tagged tests drive the full production config chain (LoadConfig -> ToPluginMap -> ExtractConfigSubtree -> refuseUncarriedGRFamilies -> extractGRCapabilities): positives TestRFC4724GRCapabilityListsTheFamiliesOfTheSession ('012c0001010000020100') and TestRFC4724GRCapabilityKeepsEveryFamilyTheRIBStores ('00780001850000010100', empty warnings); negatives TestRFC4724GRCapabilityClaimsNoFamilyItDoesNotCarry ('007800020100', no uncarried ipv4 tuple, F=0) and TestRFC4724GRCapabilityOmitsAFamilyNoRIBStores (runtime ipv4/rib-less SAFI 241 with !nlrisplit.Supported omitted with Warn naming peer and family, yielding '007800010100' for session list and '0078' for configured list naming only it). All 4 units carry current parseGRCapValue revert records (producer-sha a3291e8e472c81e7) in rfc/discrimination/rfc4724/RFC4724-4-4.json.",
   "requirement_sha": "e75e23c1c2e8a7b7",
   "tests": {
-    "internal/component/bgp/plugins/gr/rfc4724_gr_capability_test.go::TestRFC4724GRCapabilityClaimsNoFamilyItDoesNotCarry": "5d2cd72abe79a738",
-    "internal/component/bgp/plugins/gr/rfc4724_gr_capability_test.go::TestRFC4724GRCapabilityListsTheFamiliesOfTheSession": "5d2cd72abe79a738",
-    "internal/component/bgp/plugins/gr/rfc4724_rib_families_test.go::TestRFC4724GRCapabilityKeepsEveryFamilyTheRIBStores": "f7dddb8375cb8b7c",
-    "internal/component/bgp/plugins/gr/rfc4724_rib_families_test.go::TestRFC4724GRCapabilityOmitsAFamilyNoRIBStores": "f7dddb8375cb8b7c"
+    "internal/component/bgp/plugins/gr/rfc4724_gr_capability_test.go::TestRFC4724GRCapabilityClaimsNoFamilyItDoesNotCarry": "82a99286c782e1ed",
+    "internal/component/bgp/plugins/gr/rfc4724_gr_capability_test.go::TestRFC4724GRCapabilityListsTheFamiliesOfTheSession": "82a99286c782e1ed",
+    "internal/component/bgp/plugins/gr/rfc4724_rib_families_test.go::TestRFC4724GRCapabilityKeepsEveryFamilyTheRIBStores": "d109e77d758a3b48",
+    "internal/component/bgp/plugins/gr/rfc4724_rib_families_test.go::TestRFC4724GRCapabilityOmitsAFamilyNoRIBStores": "d109e77d758a3b48"
   },
   "units": {
-    "internal/component/bgp/plugins/gr/rfc4724_gr_capability_test.go::TestRFC4724GRCapabilityClaimsNoFamilyItDoesNotCarry": "4035e6d18bdb61eb",
-    "internal/component/bgp/plugins/gr/rfc4724_gr_capability_test.go::TestRFC4724GRCapabilityListsTheFamiliesOfTheSession": "2490057e784184d3",
-    "internal/component/bgp/plugins/gr/rfc4724_rib_families_test.go::TestRFC4724GRCapabilityKeepsEveryFamilyTheRIBStores": "98577b935a086f0c",
-    "internal/component/bgp/plugins/gr/rfc4724_rib_families_test.go::TestRFC4724GRCapabilityOmitsAFamilyNoRIBStores": "3094c882236d7e06"
+    "internal/component/bgp/plugins/gr/rfc4724_gr_capability_test.go::TestRFC4724GRCapabilityClaimsNoFamilyItDoesNotCarry": "cfd415c651ef576f",
+    "internal/component/bgp/plugins/gr/rfc4724_gr_capability_test.go::TestRFC4724GRCapabilityListsTheFamiliesOfTheSession": "f149bccfd0c663e5",
+    "internal/component/bgp/plugins/gr/rfc4724_rib_families_test.go::TestRFC4724GRCapabilityKeepsEveryFamilyTheRIBStores": "59d44a1b141ffbf9",
+    "internal/component/bgp/plugins/gr/rfc4724_rib_families_test.go::TestRFC4724GRCapabilityOmitsAFamilyNoRIBStores": "aeb5d6c24a6b1d1b"
   },
   "verdict": "enforced"
 }

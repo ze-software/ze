@@ -7,18 +7,18 @@
     "claim-sha": "e88f570827587527",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr_llgr.go::extractLLGRCapabilities",
-    "producer-sha": "5e2ede5080554e41",
+    "producer-sha": "f3f24d396d6d7969",
     "break": "body of extractLLGRCapabilities replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9494-3.1-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_NoLLGRCapWithoutGRContainer",
-    "unit-sha": "07a39113067f91a1",
-    "claim-sha": "edfd973d595b73d5",
+    "unit-sha": "be5c1fe4fd496812",
+    "claim-sha": "ca6579e20d2ab947",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr_llgr.go::extractLLGRCapabilities",
-    "producer-sha": "5e2ede5080554e41",
+    "producer-sha": "f3f24d396d6d7969",
     "break": "body of extractLLGRCapabilities replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

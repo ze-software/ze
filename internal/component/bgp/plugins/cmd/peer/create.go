@@ -275,7 +275,7 @@ func setGracefulRestart(tree map[string]any, value string) error {
 	if err != nil || seconds > 4095 {
 		return fmt.Errorf("a graceful restart time is 0 to 4095 seconds, got %q", value)
 	}
-	treeReach(tree, "session", "capability", "graceful-restart")["restart-time"] = value
+	treeReach(tree, "session", "capability", "graceful-restart", "short-lived")["restart-time"] = value
 	return nil
 }
 

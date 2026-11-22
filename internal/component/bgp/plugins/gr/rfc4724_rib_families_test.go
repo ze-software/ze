@@ -68,7 +68,7 @@ func TestRFC4724GRCapabilityOmitsAFamilyNoRIBStores(t *testing.T) {
 
 	t.Run("session-families", func(t *testing.T) {
 		warnings := captureGRWarnings(t)
-		payload := grPayloadForConfig(t, grConfig([]string{"ipv4/unicast", ribLessFamily}, ""))
+		payload := grPayloadForConfig(t, grConfig([]string{"ipv4/unicast", ribLessFamily}, "\t\t\t\t\tshort-lived { }\n"))
 		// 0078       Restart Flags 0, Restart Time 120 seconds (the YANG default)
 		// 0001 01 00 AFI 1 (IPv4), SAFI 1 (unicast), F bit clear
 		assert.Equal(t, "007800010100", payload, "only the family the RIB stores is listed")
@@ -79,7 +79,7 @@ func TestRFC4724GRCapabilityOmitsAFamilyNoRIBStores(t *testing.T) {
 	t.Run("configured-family-no-rib-stores", func(t *testing.T) {
 		warnings := captureGRWarnings(t)
 		payload := grPayloadForConfig(t, grConfig([]string{"ipv4/unicast", ribLessFamily},
-			"\t\t\t\t\tfamily {\n\t\t\t\t\t\tname [ "+ribLessFamily+" ];\n\t\t\t\t\t}\n"))
+			"\t\t\t\t\tshort-lived {\n\t\t\t\t\t\tfamily {\n\t\t\t\t\t\t\t"+ribLessFamily+"\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n"))
 		assert.Equal(t, "0078", payload, "the capability is sent with no tuple")
 		assert.Contains(t, warnings.String(), "peer=peer1", "the warning names the peer")
 		assert.Contains(t, warnings.String(), "family="+ribLessFamily, "the warning names the dropped family")
@@ -100,7 +100,7 @@ func TestRFC4724GRCapabilityKeepsEveryFamilyTheRIBStores(t *testing.T) {
 	require.True(t, known, "precondition: the family index knows ipv4/flow")
 	require.True(t, nlrisplit.Supported(fam), "precondition: a splitter frames ipv4/flow")
 
-	payload := grPayloadForConfig(t, grConfig([]string{"ipv4/unicast", "ipv4/flow"}, ""))
+	payload := grPayloadForConfig(t, grConfig([]string{"ipv4/unicast", "ipv4/flow"}, "\t\t\t\t\tshort-lived { }\n"))
 	// 0078       Restart Flags 0, Restart Time 120 seconds
 	// 0001 85 00 AFI 1 (IPv4), SAFI 133 (flow), F bit clear
 	// 0001 01 00 AFI 1 (IPv4), SAFI 1 (unicast), F bit clear

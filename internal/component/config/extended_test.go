@@ -118,7 +118,7 @@ bgp {
 
 // TestFlagWithBlock verifies flag with block still works.
 //
-// VALIDATES: "graceful-restart { restart-time 120; }" parses.
+// VALIDATES: "graceful-restart { short-lived { restart-time 120; } }" parses.
 //
 // PREVENTS: Breaking block syntax.
 func TestFlagWithBlock(t *testing.T) {
@@ -137,7 +137,9 @@ bgp {
             }
             capability {
                 graceful-restart {
-                    restart-time 120
+                    short-lived {
+                        restart-time 120
+                    }
                 }
             }
         }
@@ -158,7 +160,10 @@ bgp {
 	gr := cap.GetContainer("graceful-restart")
 	require.NotNil(t, gr)
 
-	val, ok := gr.Get("restart-time")
+	shortLived := gr.GetContainer("short-lived")
+	require.NotNil(t, shortLived)
+
+	val, ok := shortLived.Get("restart-time")
 	require.True(t, ok)
 	require.Equal(t, "120", val)
 }

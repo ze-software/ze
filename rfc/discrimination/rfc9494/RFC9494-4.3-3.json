@@ -168,7 +168,7 @@
     "rid": "RFC9494-4.3-3",
     "polarity": "positive",
     "unit": "test/plugin/llgr-egress-state-unloaded.ci",
-    "unit-sha": "ef6beec83c075d50",
+    "unit-sha": "780e4ef81f2ae1d3",
     "claim-sha": "33b4cccfae137595",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr_egress.go::LLGREgressFilter",

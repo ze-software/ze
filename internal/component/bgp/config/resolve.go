@@ -32,6 +32,16 @@ var cumulativePaths = map[string]bool{
 	"filter/egress/community/strip":  true,
 }
 
+// replacePaths lists config container paths where a peer-level container replaces
+// its group-level container wholesale instead of deep-merging key by key.
+// ze-graceful-restart.yang and grCapabilityFor specify that a peer writing
+// graceful-restart replaces its group's graceful-restart for both short-lived
+// and long-lived phases, so filter insertion and reactor config parsing must see
+// the same precedence.
+var replacePaths = map[string]bool{
+	"session/capability/graceful-restart": true,
+}
+
 // ResolveBGPTree resolves peer-group inheritance and returns the bgp block as map[string]any.
 // Resolution applies 3 layers per peer (in precedence order):
 //  1. BGP-level globals (local-as, router-id from the bgp block)
@@ -544,6 +554,10 @@ func deepMergeAt(dst, src map[string]any, cumulative map[string]bool, prefix str
 			// which every sibling then inherited: the group map reaches each
 			// member as layer 2 (ResolveBGPTree), so it is shared by
 			// construction (AC-6b, spec-fixit-peer-process-event-filter).
+			dst[k] = deepCopyMap(srcMap)
+			continue
+		}
+		if replacePaths[path] {
 			dst[k] = deepCopyMap(srcMap)
 			continue
 		}

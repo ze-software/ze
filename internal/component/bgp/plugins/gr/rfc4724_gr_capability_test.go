@@ -106,7 +106,7 @@ func grPayloadForConfig(t *testing.T, text string) string {
 // families ipv4/unicast and ipv6/unicast.
 func TestRFC4724GRCapabilityListsTheFamiliesOfTheSession(t *testing.T) {
 	payload := grPayloadForConfig(t,
-		grConfig([]string{"ipv4/unicast", "ipv6/unicast"}, "\t\t\t\t\trestart-time 300\n"))
+		grConfig([]string{"ipv4/unicast", "ipv6/unicast"}, "\t\t\t\t\tshort-lived {\n\t\t\t\t\t\trestart-time 300\n\t\t\t\t\t}\n"))
 
 	// 012c      Restart Flags 0, Restart Time 300 seconds
 	// 0001 01 00  AFI 1 (IPv4), SAFI 1 (unicast), F bit clear
@@ -134,7 +134,7 @@ func TestRFC4724GRCapabilityListsTheFamiliesOfTheSession(t *testing.T) {
 // restartFlagsFor (internal/component/bgp/reactor/peer_gr_flags.go), and only
 // inside the restart window; this payload is what a cold start sends.
 func TestRFC4724GRCapabilityClaimsNoFamilyItDoesNotCarry(t *testing.T) {
-	payload := grPayloadForConfig(t, grConfig([]string{"ipv6/unicast"}, ""))
+	payload := grPayloadForConfig(t, grConfig([]string{"ipv6/unicast"}, "\t\t\t\t\tshort-lived { }\n"))
 
 	// 0078      Restart Flags 0, Restart Time 120 seconds (the YANG default)
 	// 0002 01 00  AFI 2 (IPv6), SAFI 1 (unicast), F bit clear

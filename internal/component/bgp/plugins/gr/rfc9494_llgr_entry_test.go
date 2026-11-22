@@ -33,7 +33,7 @@ func rfc9494Down(t testing.TB, gp *grPlugin, structured bool) {
 }
 
 // declareLocalLLGR records that the explicit original source's own OPEN carried the LLGR Capability
-// for families, which is what the operator's long-lived-stale-time puts there. Without
+// for families, which is what the operator's graceful-restart long-lived family puts there. Without
 // it a received LLGR family is ignored (RFC 9494 Section 5, exchangedLLGRLocked).
 func declareLocalLLGR(gp *grPlugin, source grSource, families ...family.Family) {
 	declared := make(map[family.Family]bool, len(families))

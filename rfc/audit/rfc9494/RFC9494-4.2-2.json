@@ -11,8 +11,8 @@
   "tests": {
     "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnSessionDown_ZeroGR_ZeroLLST": "9f3429deeea442b3",
     "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnTimerExpired_WithLLGR": "9f3429deeea442b3",
-    "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494BothTimesZeroRetainsNothing": "a8e84939edc430d3",
-    "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494RestartTimeThenLongLivedStaleTime": "a8e84939edc430d3",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494BothTimesZeroRetainsNothing": "daf0c8e328bcc53f",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494RestartTimeThenLongLivedStaleTime": "daf0c8e328bcc53f",
     "internal/component/bgp/plugins/gr/rfc9494_omitted_gr_family_test.go::TestLLGROmittedGRFamilyReadvertisementDoesNotDelaySiblingExpiry": "9cc72000bded0832",
     "internal/component/bgp/plugins/gr/rfc9494_omitted_gr_family_test.go::TestLLGROmittedGRFamilyRetainsRealRIB": "9cc72000bded0832",
     "internal/component/bgp/plugins/gr/rfc9494_omitted_gr_family_test.go::TestLLGROmittedGRFamilyTimerSurvivesConventionalEntry": "9cc72000bded0832",

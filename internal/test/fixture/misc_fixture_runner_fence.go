@@ -70,7 +70,7 @@ bgp {
    asn { local 1; remote 1; }
    router-id 10.20.30.40;
    family { ipv4/unicast { prefix { maximum 10000; } } }
-   capability { graceful-restart { restart-time 120; } }
+   capability { graceful-restart { short-lived { restart-time 120; } } }
   }
   attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
  }

@@ -67,8 +67,14 @@ bgp {
 			}
 			capability {
 				graceful-restart {
-					restart-time 1
-					long-lived-stale-time 60
+					short-lived {
+						restart-time 1
+					}
+					long-lived {
+						family {
+							ipv4/unicast 60
+						}
+					}
 				}
 			}
 		}

@@ -3,7 +3,7 @@
     "rid": "RFC4724-3-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/gr/gr_test.go::TestExtractGRCapabilities_CapabilityDecl",
-    "unit-sha": "3eea94ddc3612839",
+    "unit-sha": "ddbc4847fc3f8a71",
     "claim-sha": "01270ca707e75517",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/gr/gr_capability.go::extractGRCapabilities",

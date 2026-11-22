@@ -91,7 +91,7 @@ bgp {
                 ipv4/unicast { prefix { maximum 10000; } }
             }
             capability {
-                graceful-restart { restart-time 60; }
+                graceful-restart { short-lived { restart-time 60; } }
                 add-path { direction receive; family { ipv4/unicast; } }
             }
         }

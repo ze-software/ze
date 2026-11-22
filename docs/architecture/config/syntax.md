@@ -1399,9 +1399,14 @@ capability {
 ```
 capability {
     graceful-restart {
-        mode require;              # Reject peers without GR
-        restart-time 120;
-        long-lived-stale-time 3600;  # RFC 9494 LLGR period (0-16777215 seconds)
+        short-lived {
+            restart-time 120;
+        }
+        long-lived {
+            family {
+                ipv4/unicast 3600;   # RFC 9494 per-family LLGR period (0-16777215 seconds)
+            }
+        }
     }
 }
 ```
