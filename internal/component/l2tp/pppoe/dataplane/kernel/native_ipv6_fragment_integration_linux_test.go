@@ -2,8 +2,9 @@
 
 // Design: docs/architecture/l2tp/bng-5-pppoe.md -- original IPv6 carrier custody
 // Related: native_ipv6_carrier_fixture_integration_linux_test.go -- real PPPoE wire
-// RFC 8200 Section 4.5 -- see rfc/short/rfc8200.md
-// Additive current-API TDD input. These tests do not activate a kernel patch.
+// Related: native_ipv6_fragment_readiness_r2_integration_linux_test.go -- FIFO and route readiness
+// RFC 8200 Section 4.5 -- fragment reassembly, text in rfc/full/rfc8200.txt
+// Additive current-API tests. These tests do not activate a kernel patch.
 package kernel
 
 import (
@@ -33,7 +34,9 @@ func TestNativeIPv6FragmentUseful(t *testing.T) {
 	if !userns.Enter(t) {
 		return
 	}
+	nativeV6FragmentOrdering(t)
 	f := newNativeV6Fixture(t)
+	nativeV6FragmentIngress(t, f.route, f.access.Device())
 	opened, endpoint := f.open(t, 821)
 	nativeV6FragmentGlobal(t, f, opened)
 	carrier := nativeV6Acquire(t, opened)
@@ -42,6 +45,7 @@ func TestNativeIPv6FragmentUseful(t *testing.T) {
 	before := nativeV6FragmentCounters(t)
 	body := nativeV6FragmentUDP(92)
 	endpoint.inject(t, nativeV6FragmentPacket(t, 0x10203040, body, 0, 16, true, true))
+	nativeV6FragmentBarrier(t, carrier, endpoint, 120)
 	nativeV6FragmentQueued(t, before)
 	endpoint.inject(t, nativeV6FragmentPacket(t, 0x10203040, body, 16, len(body), false, true))
 	nativeV6FragmentRead(t, carrier, 92)
@@ -56,7 +60,9 @@ func TestNativeIPv6FragmentDistinctOwners(t *testing.T) {
 	if !userns.Enter(t) {
 		return
 	}
+	nativeV6FragmentOrdering(t)
 	f := newNativeV6Fixture(t)
+	nativeV6FragmentIngress(t, f.route, f.access.Device())
 	first, firstEndpoint := f.open(t, 822)
 	second, secondEndpoint := f.open(t, 823)
 	if first.Dataplane().Identity().NativeIndex == second.Dataplane().Identity().NativeIndex {
@@ -71,6 +77,7 @@ func TestNativeIPv6FragmentDistinctOwners(t *testing.T) {
 	before := nativeV6FragmentCounters(t)
 	body := nativeV6FragmentUDP(96)
 	firstEndpoint.inject(t, nativeV6FragmentPacket(t, 0x20304050, body, 0, 16, true, false))
+	nativeV6FragmentBarrier(t, firstCarrier, firstEndpoint, 121)
 	nativeV6FragmentQueued(t, before)
 	secondEndpoint.inject(t, nativeV6FragmentPacket(t, 0x20304050, body, 16, len(body), false, false))
 	nativeV6FragmentRequests(t, before.requests+2)
@@ -95,7 +102,9 @@ func TestNativeIPv6FragmentRetiredOwner(t *testing.T) {
 	if !userns.Enter(t) {
 		return
 	}
+	nativeV6FragmentOrdering(t)
 	f := newNativeV6Fixture(t)
+	nativeV6FragmentIngress(t, f.route, f.access.Device())
 	opened, endpoint := f.open(t, 824)
 	nativeV6FragmentGlobal(t, f, opened)
 	carrier := nativeV6Acquire(t, opened)
@@ -103,6 +112,7 @@ func TestNativeIPv6FragmentRetiredOwner(t *testing.T) {
 	before := nativeV6FragmentCounters(t)
 	body := nativeV6FragmentUDP(102)
 	endpoint.inject(t, nativeV6FragmentPacket(t, 0x30405060, body, 0, 16, true, false))
+	nativeV6FragmentBarrier(t, carrier, endpoint, 122)
 	nativeV6FragmentQueued(t, before)
 	replacement := f.retire(t, opened)
 	nativeV6FragmentEthernetGlobal(t, f.route, replacement.link)
@@ -131,7 +141,9 @@ func TestNativeIPv6FragmentRename(t *testing.T) {
 	if !userns.Enter(t) {
 		return
 	}
+	nativeV6FragmentOrdering(t)
 	f := newNativeV6Fixture(t)
+	nativeV6FragmentIngress(t, f.route, f.access.Device())
 	opened, endpoint := f.open(t, 825)
 	nativeV6FragmentGlobal(t, f, opened)
 	carrier := nativeV6Acquire(t, opened)
@@ -139,8 +151,10 @@ func TestNativeIPv6FragmentRename(t *testing.T) {
 	before := nativeV6FragmentCounters(t)
 	body := nativeV6FragmentUDP(107)
 	endpoint.inject(t, nativeV6FragmentPacket(t, 0x40506070, body, 0, 16, true, false))
+	nativeV6FragmentBarrier(t, carrier, endpoint, 123)
 	nativeV6FragmentQueued(t, before)
 	replacement := f.rename(t, opened)
+	nativeV6FragmentIngress(t, f.route, replacement.link.Attrs().Name)
 	replacement.useful(t, 108)
 	endpoint.inject(t, nativeV6FragmentPacket(t, 0x40506070, body, 16, len(body), false, false))
 	nativeV6FragmentRead(t, carrier, 107)
@@ -155,6 +169,7 @@ func TestNativeIPv6FragmentOrdinaryEthernet(t *testing.T) {
 	if !userns.Enter(t) {
 		return
 	}
+	nativeV6FragmentOrdering(t)
 	nativeV6Defaults(t)
 	route, err := netlink.NewHandle(unix.NETLINK_ROUTE)
 	if err != nil {
@@ -167,6 +182,7 @@ func TestNativeIPv6FragmentOrdinaryEthernet(t *testing.T) {
 	before := nativeV6FragmentCounters(t)
 	body := nativeV6FragmentUDP(112)
 	replacement.endpoint.inject(t, nativeV6FragmentPacket(t, 0x50607080, body, 0, 16, true, true))
+	nativeV6FragmentReplacementBarrier(t, replacement, 124)
 	nativeV6FragmentQueued(t, before)
 	replacement.endpoint.inject(t, nativeV6FragmentPacket(t, 0x50607080, body, 16, len(body), false, true))
 	nativeV6FragmentReplacementRead(t, replacement, 112)
@@ -187,38 +203,26 @@ func nativeV6FragmentGlobal(t *testing.T, f *nativeV6Fixture, opened dataplane.O
 	if err != nil {
 		t.Fatal(err)
 	}
-	nativeV6FragmentAddress(t, f.route, link)
+	nativeV6FragmentTupleReady(t, f.route, link)
 }
 
 func nativeV6FragmentEthernetGlobal(t *testing.T, route *netlink.Handle, link netlink.Link) {
 	t.Helper()
+	nativeV6FragmentIngress(t, route, link.Attrs().Name)
 	address, err := netlink.ParseAddr("2001:db8:6::1/128")
 	if err != nil {
 		t.Fatal(err)
 	}
 	address.Flags = unix.IFA_F_NODAD
-	if err := route.AddrAdd(link, address); err != nil {
-		t.Fatal(err)
-	}
-	nativeV6FragmentAddress(t, route, link)
-}
-
-func nativeV6FragmentAddress(t *testing.T, route *netlink.Handle, link netlink.Link) {
-	t.Helper()
-	addresses, err := route.AddrList(link, netlink.FAMILY_V6)
+	peer, err := netlink.ParseAddr("2001:db8:6::2/128")
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, address := range addresses {
-		if !address.IP.Equal(net.ParseIP("2001:db8:6::1")) {
-			continue
-		}
-		if address.Flags&unix.IFA_F_TENTATIVE != 0 {
-			t.Fatal("global IPv6 fragment destination is tentative")
-		}
-		return
+	address.Peer = peer.IPNet
+	if err := route.AddrAdd(link, address); err != nil {
+		t.Fatal(err)
 	}
-	t.Fatal("global IPv6 fragment destination is absent from the actual device")
+	nativeV6FragmentTupleReady(t, route, link)
 }
 
 func nativeV6FragmentUDP(marker byte) []byte {
@@ -372,7 +376,7 @@ func nativeV6FragmentCounters(t *testing.T) nativeV6FragmentState {
 		t.Fatal(err)
 	}
 	values := make(map[string]uint64)
-	for _, line := range strings.Split(string(data), "\n") {
+	for line := range strings.SplitSeq(string(data), "\n") {
 		fields := strings.Fields(line)
 		if len(fields) != 2 {
 			continue
@@ -400,7 +404,7 @@ func nativeV6FragmentCounters(t *testing.T) nativeV6FragmentState {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, line := range strings.Split(string(data), "\n") {
+	for line := range strings.SplitSeq(string(data), "\n") {
 		fields := strings.Fields(line)
 		if len(fields) < 3 {
 			continue
@@ -423,6 +427,9 @@ func nativeV6FragmentCounters(t *testing.T) nativeV6FragmentState {
 
 func nativeV6FragmentQueued(t *testing.T, before nativeV6FragmentState) {
 	t.Helper()
+	// Caller first received its later useful UDP barrier on the pinned FIFO
+	// receive path. These counters then require the earlier retained queue
+	// to remain present; allocation alone is not an insertion acknowledgment.
 	nativeV6FragmentPoll(t, func(actual nativeV6FragmentState) bool {
 		if actual.requests < before.requests+1 {
 			return false

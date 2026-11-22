@@ -92,8 +92,7 @@ func nativeV6FragmentOrdering(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fields := strings.Split(strings.TrimSpace(string(mask)), ",")
-	for _, field := range fields {
+	for field := range strings.SplitSeq(strings.TrimSpace(string(mask)), ",") {
 		value, err := strconv.ParseUint(field, 16, 32)
 		if err != nil {
 			t.Fatal(err)
@@ -237,7 +236,8 @@ func nativeV6FragmentTuplePresent(t *testing.T, addresses []netlink.Addr) bool {
 }
 
 func nativeV6FragmentRoutePresent(routes []netlink.Route, table, kind int, address string) bool {
-	for _, route := range routes {
+	for i := range routes {
+		route := &routes[i]
 		if route.Table != table {
 			continue
 		}
