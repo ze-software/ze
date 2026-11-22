@@ -209,6 +209,36 @@ Identifiers. No configuration leaf chooses the subtypes: an operator switch
 could only write a record whose layout contradicts its bytes, or drop the Path
 Identifiers that keep two paths apart. `request mrt dump-rib` and the routes
 interval both run `Component.DumpRIB`, which serializes snapshots.
+
+The NLRI of a RIB_GENERIC or RIB_GENERIC_ADDPATH record is the NLRI an UPDATE
+carries for the route, for every family. RFC 6396 Section 4.3.3 gives the
+field no layout of its own ("The NLRI information is specific to the AFI and
+SAFI values."), so a parser reads it as that family's NLRI, and a record that
+held the RIB's stored key would be misread wherever the key leaves a field
+out. The snapshot therefore walks the wire form (`PeerRIB.IterateFamilyWire`),
+never the stored key:
+
+| Family | What the stored key leaves out | Where the walk gets it back |
+|--------|--------------------------------|-----------------------------|
+| Labeled unicast (SAFI 4) | the label stack: the route is keyed by its bare prefix | the label side-data of the path, written back with `nlri.WriteLabeledNLRI`, the same function that rebuilds the NLRI of a re-advertised route |
+| VPN, EVPN and the other non-CIDR families | labels, ESI, gateway (`storage.RouteKey`) | the NLRI each path was received with, which storage keeps beside the key |
+| FlowSpec, FlowSpec VPN | the length-field form the rule was received in, when it is not the canonical one the key uses | the same per-path record: the rule is written as received |
+
+Labeled unicast storage holds 20-bit label values, so a record's label entries
+carry a zero Rsrv field whatever the peer sent there; RFC 8277 Section 2.3
+has a receiver ignore that field. A labeled route whose label stack is not
+bound yet, the instant between the two steps of its ingest, has no labeled
+NLRI and is left out of the snapshot, which then reads as one taken before
+that announcement arrived.
+<!-- source: internal/component/bgp/plugins/rib/storage/familyrib_wire.go -- PeerRIB.IterateFamilyWire, FamilyRIB.IterateWire, FamilyRIB.labeledWireNLRI -->
+<!-- source: internal/component/bgp/plugins/rib/storage/familyrib_opaque.go -- RouteKey, FamilyRIB.iterateOpaque -->
+<!-- source: internal/core/bgp/nlri/helpers.go -- WriteLabeledNLRI -->
+<!-- source: internal/component/bgp/plugins/rib/rib_recovery.go -- recoveryCandidateWithLabels -->
+<!-- test: internal/component/bgp/plugins/rib/rfc8050_mrt_dump_labeled_test.go TestRFC8050MRTDumpLabeledGenericWithoutAddPath -->
+<!-- test: internal/component/bgp/plugins/rib/rfc8050_mrt_dump_labeled_test.go TestRFC8050MRTDumpLabeledGenericWithAddPath -->
+<!-- test: internal/component/bgp/plugins/rib/mrt_dump_wire_nlri_test.go TestMRTDumpLabeledUnicastLabelStack -->
+<!-- test: internal/component/bgp/plugins/rib/mrt_dump_wire_nlri_test.go TestMRTDumpVPNKeepsLabelAndRouteDistinguisher -->
+<!-- test: internal/component/bgp/plugins/rib/mrt_dump_wire_nlri_test.go TestMRTDumpLabeledUnicastWithoutLabelStackIsLeftOut -->
 <!-- source: internal/component/bgp/plugins/rib/rib_mrt.go -- dumpRIBForMRT, mrtPrefixFamily -->
 <!-- source: internal/plugins/mrt/dump.go -- Component.writeTableDumpV2, ribSubtypeFor, Component.DumpRIB -->
 <!-- source: internal/mrt/encode.go -- WriteRIBGenericHeaderAddPath -->

@@ -593,9 +593,12 @@ func (r *FamilyRIB) Len() int {
 
 // IterateEntry calls fn for each route with its NLRI bytes and RouteEntry.
 // Under ADD-PATH every (prefix, path-id) pair yields a separate callback.
-// For non-CIDR families the nlriBytes passed to fn is the stored route key,
-// framed with its path identifier under ADD-PATH, and is valid for the duration
-// of that callback only. Callbacks MUST copy if they need to retain it.
+// For non-CIDR families the nlriBytes passed to fn is the wire route the path
+// was received with (iterateOpaque), framed with its path identifier under
+// ADD-PATH, and is valid for the duration of that callback only. Callbacks
+// MUST copy if they need to retain it. For labeled unicast it is the bare
+// prefix the route is keyed by, with no label stack: IterateWire rebuilds the
+// NLRI an UPDATE carries (familyrib_wire.go).
 func (r *FamilyRIB) IterateEntry(fn func(nlriBytes []byte, entry RouteEntry) bool) {
 	r.iterateEntry(fn, false)
 }

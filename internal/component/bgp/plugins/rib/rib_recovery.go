@@ -253,18 +253,20 @@ func recoveryCandidateWithLabels(fam family.Family, prefix netip.Prefix, best *C
 	if prefix.IsValid() {
 		var scratch [cidrKeyOctetsMax]byte
 		cidr := candidateNLRI(best, prefix, scratch[:])
-		if fam.SAFI == family.SAFIMPLSLabel {
+		if fam.SAFI == family.SAFIMPLSLabel && len(labels) > 0 {
 			head := 0
 			if best.AddPath {
 				head = 4
 			}
 			raw = make([]byte, len(cidr)+3*len(labels))
 			copy(raw[:head], cidr[:head])
-			raw[head] = byte(int(cidr[head]) + 24*len(labels))
 			// RFC 8277 Section 2.2: Length counts the label stack and prefix.
-			// Labels occupy [head+1:head+1+3*N], then the prefix bytes follow.
-			n := nlri.WriteLabelValues(raw, head+1, labels)
-			copy(raw[head+1+n:], cidr[head+1:])
+			// nlri.WriteLabeledNLRI is the one declaration of that layout, which
+			// the storage walk shares (storage.FamilyRIB.IterateWire). A winner
+			// with no label stack resolved keeps its bare prefix, as it always did.
+			if _, ok := nlri.WriteLabeledNLRI(raw, head, cidr[head:], labels); !ok {
+				return ribevents.RecoveryRoute{}, fmt.Errorf("recovery: %s prefix %s with %d labels does not fit one labeled NLRI", fam, prefix, len(labels))
+			}
 		} else {
 			raw = bytes.Clone(cidr)
 		}

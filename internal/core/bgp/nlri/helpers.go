@@ -99,3 +99,64 @@ func WriteLabelValues(buf []byte, off int, labels []uint32) int {
 	}
 	return len(labels) * 3
 }
+
+// labeledNLRILengthBitsMax is the largest value the one-octet Length field of
+// a labeled NLRI holds (RFC 8277 Section 2.2: "The Length field consists of a
+// single octet.").
+const labeledNLRILengthBitsMax = 255
+
+// LabeledNLRIOctetsMax is the longest labeled unicast NLRI WriteLabeledNLRI
+// writes: the Length octet and the 255 bits it can count, rounded up.
+const LabeledNLRIOctetsMax = 1 + (labeledNLRILengthBitsMax+7)/8
+
+// LabeledNLRILabelsMax is the deepest label stack a labeled NLRI holds: each
+// label takes 24 of the 255 bits the Length field can count.
+const LabeledNLRILabelsMax = labeledNLRILengthBitsMax / 24
+
+// WriteLabeledNLRI writes at buf[off:] the labeled unicast NLRI (SAFI 4) that
+// binds a label stack to a prefix, as an UPDATE carries it, and returns the
+// octets written. It is the inverse of nlrisplit.ExtractLabels, and the one
+// declaration of this layout for a caller that holds the two parts apart.
+//
+// prefixNLRI is [prefix length (1, bits)][prefix (ceil(bits/8))], with no Path
+// Identifier: under ADD-PATH the caller writes the identifier ahead of off.
+// labels are 20-bit label values, top of stack first.
+//
+// RFC 8277 Section 2.3 (Section 2.2 is the same layout with one label):
+//
+//	off+0       Length (1): the bits that follow, 24 per label plus the prefix's
+//	off+1       N entries of 3 octets: Label (20 bits), Rsrv (3 bits), S (1 bit)
+//	off+1+3N    Prefix, ceil(prefix bits / 8) octets
+//
+// RFC 8277 Section 2.3: "Note that for each label, the length is increased by
+// 24 bits (20 bits in the Label field, plus 3 bits in the Rsrv field, plus 1 S
+// bit)." WriteLabelValues writes Rsrv as zero and S on the last entry alone.
+//
+// It answers false, having written nothing, for an empty stack, a prefixNLRI
+// shorter than its own prefix length, a Length past 255 bits, and a buf too
+// short: none of them is a labeled NLRI this function can write whole.
+func WriteLabeledNLRI(buf []byte, off int, prefixNLRI []byte, labels []uint32) (int, bool) {
+	if len(labels) == 0 {
+		return 0, false
+	}
+	if len(prefixNLRI) == 0 {
+		return 0, false
+	}
+	prefixBits := int(prefixNLRI[0])
+	lengthBits := prefixBits + 24*len(labels)
+	if lengthBits > labeledNLRILengthBitsMax {
+		return 0, false
+	}
+	prefixOctets := PrefixBytes(prefixBits)
+	if len(prefixNLRI) < 1+prefixOctets {
+		return 0, false
+	}
+	octets := 1 + 3*len(labels) + prefixOctets
+	if len(buf) < off+octets {
+		return 0, false
+	}
+	buf[off] = byte(lengthBits)
+	labelOctets := WriteLabelValues(buf, off+1, labels)
+	copy(buf[off+1+labelOctets:], prefixNLRI[1:1+prefixOctets])
+	return octets, true
+}

@@ -101,8 +101,15 @@ func (r *RIBManager) dumpRIBForMRT(visitor registry.RIBDumpVisitor) {
 			onAddPath := addPath && visitor.OnRouteAddPath != nil
 			cidr := mrtPrefixFamily(fam)
 			// Snapshot route entries under short per-family lock, then process outside.
+			// The walk is the wire one: RFC 6396 Section 4.3.3 says of RIB_GENERIC
+			// "It consists of an AFI, Subsequent AFI (SAFI), and a single NLRI
+			// entry.  The NLRI information is specific to the AFI and SAFI values."
+			// A parser therefore reads the field as the NLRI of that AFI and SAFI,
+			// so a labeled unicast route is written with its label stack (RFC 8277
+			// Section 2.3), which the stored key leaves out, and never as a bare
+			// prefix whose Length a labeled parser would read as label bits.
 			var routes []routeSnap
-			s.rib.IterateFamily(fam, func(nlriBytes []byte, entry storage.RouteEntry) bool {
+			s.rib.IterateFamilyWire(fam, func(nlriBytes []byte, entry storage.RouteEntry) bool {
 				cp := make([]byte, len(nlriBytes))
 				copy(cp, nlriBytes)
 				routes = append(routes, routeSnap{nlri: cp, entry: entry})
@@ -116,13 +123,15 @@ func (r *RIBManager) dumpRIBForMRT(visitor registry.RIBDumpVisitor) {
 				if len(attrBuf) == 0 {
 					continue
 				}
-				// Stored key, every family:
+				// What the wire walk yields, every family:
 				//
 				//   ADD-PATH:  [Path Identifier (4, big-endian)][NLRI ...]
 				//   otherwise: [NLRI ...]
 				//
-				// and the NLRI of an IPv4/IPv6 unicast or multicast family is
-				// [prefix length (1, bits)][prefix (ceil(bits/8))]. The Path
+				// where NLRI is the one an UPDATE carries for the route. For an
+				// IPv4/IPv6 unicast or multicast family it is
+				// [prefix length (1, bits)][prefix (ceil(bits/8))]; for labeled
+				// unicast it is [Length (1, bits)][labels (3 each)][prefix]. The Path
 				// Identifier is peeled for every ADD-PATH family, so the writer places
 				// it where the subtype puts it: in the RIB Entry (subtypes 8 to 11) or
 				// back in front of the NLRI (subtype 12).
@@ -132,9 +141,9 @@ func (r *RIBManager) dumpRIBForMRT(visitor registry.RIBDumpVisitor) {
 				var pathID uint32
 				if addPath {
 					if len(nlri) < 4 {
-						// Storage frames every ADD-PATH key with its Path Identifier
-						// (FamilyRIB.buildNLRIBytes, appendFramedKey), so this key is a
-						// storage defect. Writing it would record bytes its subtype
+						// Storage frames every ADD-PATH NLRI with its Path Identifier
+						// (FamilyRIB.buildNLRIBytes, appendFramedKey, labeledWireNLRI),
+						// so this one is a storage defect. Writing it would record bytes its subtype
 						// contradicts; it is counted and reported once per dump.
 						skipped.noPathID++
 						continue
@@ -192,7 +201,10 @@ func (s *mrtSkippedRoutes) report() {
 // mrtPrefixFamily reports whether fam is written under an RFC 6396 Section
 // 4.3.2 AFI/SAFI-specific RIB subtype, whose header splits the NLRI into a
 // prefix length and a prefix: IPv4 or IPv6, unicast or multicast. Every other
-// family is written as RIB_GENERIC (Section 4.3.3) with its whole NLRI.
+// family is written as RIB_GENERIC (Section 4.3.3) with its whole NLRI, the one
+// an UPDATE carries: labeled unicast with its label stack, VPN with its labels
+// and Route Distinguisher, EVPN with its labels, ESI and gateway
+// (storage.FamilyRIB.IterateWire).
 func mrtPrefixFamily(fam family.Family) bool {
 	// RFC 6396 Section 4.3 names subtypes for unicast and multicast alone.
 	//exhaustive:ignore

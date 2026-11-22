@@ -2,6 +2,28 @@
   {
     "rid": "RFC8050-4.2-1",
     "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc8050_mrt_dump_labeled_test.go::TestRFC8050MRTDumpLabeledGenericWithAddPath",
+    "unit-sha": "468fc7a24443a044",
+    "claim-sha": "f55dddffc5bf3012",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/storage/familyrib_wire.go::FamilyRIB.labeledWireNLRI",
+    "producer-sha": "778b5b529850a929",
+    "break": "body of FamilyRIB.labeledWireNLRI replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8050-4.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc8050_mrt_dump_labeled_test.go::TestRFC8050MRTDumpLabeledGenericWithoutAddPath",
+    "unit-sha": "189a439caa9e3e9e",
+    "claim-sha": "f30fb1094fe8e02a",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/storage/familyrib_wire.go::FamilyRIB.labeledWireNLRI",
+    "producer-sha": "778b5b529850a929",
+    "break": "body of FamilyRIB.labeledWireNLRI replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8050-4.2-1",
+    "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rib/rfc8050_mrt_dump_path_test.go::TestRFC8050MRTDumpGenericWithAddPath",
     "unit-sha": "41bb1e03da384518",
     "claim-sha": "b7025f34878a83ff",

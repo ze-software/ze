@@ -4,6 +4,7 @@ package pool
 
 import (
 	"encoding/binary"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/bgp/attrpool"
 )
@@ -34,17 +35,27 @@ func InternLabels(labels []uint32) attrpool.Handle {
 // ResolveLabels retrieves the label stack for a handle.
 // Returns nil for InvalidHandle.
 func ResolveLabels(h attrpool.Handle) []uint32 {
+	return AppendLabels(nil, h)
+}
+
+// AppendLabels appends to dst the label stack h names, top of stack first, and
+// returns the extended slice. It appends nothing for InvalidHandle and for a
+// handle the pool cannot read, so a caller reads "no label stack" from an
+// unchanged length. A dst with room for the stack makes the call allocate
+// nothing, which is what a walk over a whole table needs (the MRT snapshot,
+// storage.PeerRIB.IterateFamilyWire); ResolveLabels is the owned-copy form.
+func AppendLabels(dst []uint32, h attrpool.Handle) []uint32 {
 	if !h.IsValid() {
-		return nil
+		return dst
 	}
 	data, err := Labels.Get(h)
-	if err != nil || len(data) == 0 {
-		return nil
+	if err != nil {
+		return dst
 	}
-	n := len(data) / 4
-	labels := make([]uint32, n)
-	for i := range n {
-		labels[i] = binary.LittleEndian.Uint32(data[i*4:])
+	entries := len(data) / 4
+	dst = slices.Grow(dst, entries)
+	for i := range entries {
+		dst = append(dst, binary.LittleEndian.Uint32(data[i*4:]))
 	}
-	return labels
+	return dst
 }
