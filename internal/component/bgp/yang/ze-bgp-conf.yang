@@ -144,6 +144,52 @@ module ze-bgp-conf {
             }
         }
 
+        list aggregate {
+            key "prefix";
+            description "Configured BGP route aggregation (RFC 4271 Section 9.2.2.2 and RFC 9774 Section 5.2).
+                When one or more more-specific selected BGP routes exist in Loc-RIB under this prefix, Ze
+                synthesizes a single aggregate route according to RFC 4271 Section 9.2.2.2: routes with
+                different MULTI_EXIT_DISC attributes are not aggregated; ORIGIN takes the worst of
+                INCOMPLETE, EGP, then IGP; differing NEXT_HOPs resolve to a local speaker interface address;
+                ATOMIC_AGGREGATE is inherited from any contributor or attached when brief aggregation omits
+                AS numbers; contributing AGGREGATOR attributes are discarded; and AGGREGATOR, when enabled,
+                carries this speaker's own local AS and BGP Router ID (RFC 4271 Section 5.1.7). Brief
+                aggregation omits AS_SETs per RFC 9774 Section 3, and brief-origin-as truncates the AS_PATH
+                after the right-most instance of the configured origin AS per RFC 9774 Section 5.2.";
+            ze:help "Synthesize an aggregate BGP route from more-specific selected routes.";
+
+            leaf prefix {
+                type zt:ip-prefix;
+                description "The IPv4 or IPv6 aggregate CIDR prefix to synthesize when more-specific selected routes exist.";
+                ze:help "Aggregate CIDR prefix.";
+            }
+
+            leaf next-hop {
+                type zt:ip-address;
+                description "Local speaker interface address used as NEXT_HOP when contributing routes carry
+                    different NEXT_HOP attributes (RFC 4271 Section 9.2.2.2). Must match an interface address
+                    on this BGP speaker; when omitted, Ze selects a local session or interface address for the
+                    family or, for IPv4, the BGP Router ID.";
+                ze:help "Local interface next-hop for the aggregate when contributors differ.";
+            }
+
+            leaf aggregator {
+                type boolean;
+                default true;
+                description "Attach the AGGREGATOR attribute (RFC 4271 Section 5.1.7) containing this speaker's
+                    own local AS number and BGP Router ID. Set false to omit AGGREGATOR.";
+                ze:help "Attach this speaker's AGGREGATOR attribute (default true).";
+            }
+
+            leaf brief-origin-as {
+                type zt:asn;
+                description "Desired origin AS for consistent brief aggregation (RFC 9774 Section 5.2).
+                    When set, Ze truncates the aggregated AS_PATH immediately after the right-most instance
+                    of this AS number so the aggregate announces a consistent origin AS without using AS_SET.";
+                ze:help "Origin AS after whose right-most instance the aggregate AS_PATH is truncated.";
+            }
+        }
+
 
         container session {
             description "A group value overrides this global value, and a peer value overrides the group value. The

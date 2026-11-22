@@ -1,0 +1,14 @@
+{
+  "note": "Re-judged against RFC 4271 Section 9.2.2.2: \"ATOMIC_AGGREGATE: If at least one of the routes to be aggregated has ATOMIC_AGGREGATE path attribute, then the aggregated route SHALL have this attribute as well.\" TestRFC4271RouteAggregationNextHopAtomicAndAggregator isolates contributor ATOMIC_AGGREGATE inheritance by holding contributor AS_PATHs identical ([65010]), proving absence of AttrAtomicAggregate on BestChange and update-text when no contributor carries it (negative), and exact count 1 with length 0 on BestChange wire bytes plus `atomic-aggregate` in the dispatched update-text command when one contributor carries it (positive). ParseUpdateText encodes atomic-aggregate into batch.Wire which planBatchAttrs preserves on wire UPDATEs. Both positive and negative discrimination records in rfc/discrimination/rfc4271/RFC4271-9.2.2.2-4.json are current (producer-disable revert records).",
+  "requirement_sha": "b55132a9f17bfdb3",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go::TestRFC4271RouteAggregationNextHopAtomicAndAggregator": "dfaf849d76f88dd6",
+    "internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go::TestRFC4271RouteAggregationNextHopAtomicAndAggregator#2": "dfaf849d76f88dd6"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go::TestRFC4271RouteAggregationNextHopAtomicAndAggregator": "2c8ac6d69a3ea075",
+    "internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go::TestRFC4271RouteAggregationNextHopAtomicAndAggregator#2": "2c8ac6d69a3ea075"
+  },
+  "upgrade_reason": "Updated aggregate.go and TestRFC4271RouteAggregationNextHopAtomicAndAggregator now dispatch peer update-text commands and assert wire AttrAtomicAggregate count (0 vs 1) with exact RFC 4271 Section 4.3 length 0 on BestChange.Attributes plus presence/absence of atomic-aggregate in dispatched update-text commands under identical contributor AS_PATHs.",
+  "verdict": "enforced"
+}

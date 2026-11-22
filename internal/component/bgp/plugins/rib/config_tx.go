@@ -28,6 +28,7 @@ type ribConfig struct {
 	distances         map[string]uint8
 	selectionDeferral time.Duration
 	expectedPeers     []netip.Addr
+	aggregates        aggregateConfig
 }
 
 // unconfiguredRIB is what the rib runs before any config: one best path, no
@@ -115,6 +116,11 @@ func parseRIBConfigSections(cfg ribConfig, sections []sdk.ConfigSection) (ribCon
 		if err != nil {
 			return ribConfig{}, false, err
 		}
+		// RFC 4271 Section 9.2.2.2, Section 5.1.7; RFC 9774 Section 5.2
+		cfg.aggregates, err = parseAggregateConfig(bgpCfg)
+		if err != nil {
+			return ribConfig{}, false, err
+		}
 		return cfg, true, nil
 	}
 	if readDistances {
@@ -143,6 +149,13 @@ func (r *RIBManager) installConfig(cfg ribConfig, recordsNotation bool) error {
 	previousRedirect := r.flowSpecRedirectCfg.Load()
 	redirect := cfg.redirect
 	r.flowSpecRedirectCfg.Store(&redirect)
+	previousAggregates := r.aggregateCfg.Load()
+	var nextAggregates *aggregateConfig
+	if len(cfg.aggregates.Rules) > 0 {
+		aggCopy := cfg.aggregates
+		nextAggregates = &aggCopy
+	}
+	r.aggregateCfg.Store(nextAggregates)
 	if cfg.selectionDeferral > 0 {
 		if r.selectionDefer.arm(r.deferClock(), cfg.selectionDeferral, cfg.expectedPeers, r.reselectDeferredFamily, r.emitSelectionComplete) {
 			r.emitSelectionDeferred(cfg.selectionDeferral)
@@ -165,6 +178,10 @@ func (r *RIBManager) installConfig(cfg ribConfig, recordsNotation bool) error {
 	// without any UPDATE, so they are recomputed here.
 	if previousRedirect == nil || !reflect.DeepEqual(*previousRedirect, redirect) {
 		r.reconcileFlowSpecs()
+	}
+	// RFC 4271 Section 9.2.2.2: recompute synthesized aggregates when rules change.
+	if !reflect.DeepEqual(previousAggregates, nextAggregates) {
+		r.recomputeAllAggregates()
 	}
 	return nil
 }

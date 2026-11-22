@@ -1,0 +1,14 @@
+{
+  "note": "Re-judged against RFC 4271 Section 9.2.2.2: \"Routes that have different MULTI_EXIT_DISC attributes SHALL NOT be aggregated.\" aggregateCheckMED rejects differing explicit MED values and present-vs-absent MED, and preserves identical MED (or absence). TestRFC4271RouteAggregationMEDAndOrigin isolates MED with identical ORIGIN, AS_PATH and NEXT_HOP, proving matching MED=50 and both-absent MED install in Loc-RIB, emit wire AttrMED=50 (or omit it) on BestChange, and dispatch `nlri add` update-text commands, while differing MED (50 vs 80) and present-vs-absent MED withdraw from Loc-RIB, emit BestChangeWithdraw, and dispatch `nlri del`. Concurrency fixes (aggregatePublishMu and sh.mu held around replayPath) are in place. Both positive and negative discrimination records in rfc/discrimination/rfc4271/RFC4271-9.2.2.2-1.json are current (noting they are revert/body-panic producer-disable records rather than normal-return semantic mutants; also note peer-up replayAggregatesToPeer in rib.go:1562,1668 is gated on !ordinaryDestination).",
+  "requirement_sha": "78780bd81895d19e",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go::TestRFC4271RouteAggregationMEDAndOrigin": "dfaf849d76f88dd6",
+    "internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go::TestRFC4271RouteAggregationMEDAndOrigin#2": "dfaf849d76f88dd6"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go::TestRFC4271RouteAggregationMEDAndOrigin": "168cdea770669be0",
+    "internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go::TestRFC4271RouteAggregationMEDAndOrigin#2": "168cdea770669be0"
+  },
+  "upgrade_reason": "Updated aggregate.go and TestRFC4271RouteAggregationMEDAndOrigin now wire peer update-text announce/withdraw dispatch, serialize publish under aggregatePublishMu, hold sh.mu around replayPath in gatherAggregateContributors, assert Loc-RIB install/withdrawal, wire AttrMED=50 and absent-MED on BestChange and dispatched update-text commands, and record both positive and negative discrimination proofs in rfc/discrimination/rfc4271/RFC4271-9.2.2.2-1.json.",
+  "verdict": "enforced"
+}

@@ -1,0 +1,14 @@
+{
+  "note": "Re-judged against RFC 9774 Section 5.2: \"To ensure a consistent BGP origin AS is announced for aggregate BGP routes for implementations of \\\"brief\\\" BGP aggregation, the implementation MUST be configured to truncate the AS_PATH after the right-most instance of the desired origin AS for the aggregate.\" aggregateBriefASPath finds the right-most instance of rule.BriefOriginAS in the common leading AS_SEQUENCE (truncating all subsequent ASes and marking excluded for ATOMIC_AGGREGATE), supports speaker.LocalAS by emitting an empty AS_PATH that eBGP announcement prepends with the local AS, and refuses synthesis when the desired origin AS is absent. parseASPath4ForAggregate stops immediately on any non-AS_SEQUENCE segment. TestRFC9774ConsistentBriefAggregationTruncatesAfterRightMostOriginAS proves: without brief-origin-as, shared trailing 65030 is kept ([65010,65020,65010,65030]); with brief-origin-as=65010, wire AS_PATH on BestChange (fully decoded as AS_SEQUENCE only) and dispatched update-text command truncate after right-most 65010 to [65010,65020,65010] with length-0 ATOMIC_AGGREGATE and stay stable when p2 withdraws (Appendix B); with brief-origin-as=65000 (local AS), wire AS_PATH is empty with ATOMIC_AGGREGATE (paired with reactor eBGP local-AS prepend verification); and absent origin AS (65999) or origin AS behind AS_SET (65020) suppresses aggregation. Both positive and negative discrimination records in rfc/discrimination/rfc9774/RFC9774-5.2-1.json are current (producer-disable revert records).",
+  "requirement_sha": "d5a86b3fcfd3a01a",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go::TestRFC9774ConsistentBriefAggregationTruncatesAfterRightMostOriginAS": "dfaf849d76f88dd6",
+    "internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go::TestRFC9774ConsistentBriefAggregationTruncatesAfterRightMostOriginAS#2": "dfaf849d76f88dd6"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go::TestRFC9774ConsistentBriefAggregationTruncatesAfterRightMostOriginAS": "7ad340e6df51c0f2",
+    "internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go::TestRFC9774ConsistentBriefAggregationTruncatesAfterRightMostOriginAS#2": "7ad340e6df51c0f2"
+  },
+  "upgrade_reason": "Fixed parseASPath4ForAggregate to stop at non-AS_SEQUENCE segments instead of concatenating across AS_SET boundaries, wired peer update-text dispatch and eBGP local-AS prepending, updated TestRFC9774ConsistentBriefAggregationTruncatesAfterRightMostOriginAS with shared trailing AS 65030 after the right-most 65010, Appendix B single-vs-multiple stability, full wire AS_PATH decoding, AS_SET boundary refusal, and local-AS empty path + ATOMIC_AGGREGATE checks, and refreshed rfc/extraction/rfc9774.json.",
+  "verdict": "enforced"
+}

@@ -1,0 +1,14 @@
+{
+  "note": "Re-judged against RFC 4271 Section 9.2.2.2: \"AGGREGATOR: Any AGGREGATOR attributes from the routes to be aggregated MUST NOT be included in the aggregated route.\" aggregateAggregatorAttributes explicitly discards all contributor AGGREGATOR and AS4_AGGREGATOR attributes and emits only this speaker's own AGGREGATOR when enabled. TestRFC4271RouteAggregationNextHopAtomicAndAggregator supplies contributors carrying both AttrAggregator (65111:192.0.2.111) and AttrAS4Aggregator (4200000111:192.0.2.112), proving exact count 0 for both on BestChange.Attributes and no `aggregator` in update-text when aggregator=false, and exact count 1 (speaker-own 65000:198.51.100.1 only) plus count 0 for AttrAS4Aggregator and absence of contributor ASN 65111 in update-text when aggregator=true. Both positive and negative discrimination records in rfc/discrimination/rfc4271/RFC4271-9.2.2.2-5.json target aggregateAggregatorAttributes (producer-disable revert records).",
+  "requirement_sha": "6c66756e7d532a6e",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go::TestRFC4271RouteAggregationNextHopAtomicAndAggregator": "dfaf849d76f88dd6",
+    "internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go::TestRFC4271RouteAggregationNextHopAtomicAndAggregator#2": "dfaf849d76f88dd6"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go::TestRFC4271RouteAggregationNextHopAtomicAndAggregator": "2c8ac6d69a3ea075",
+    "internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go::TestRFC4271RouteAggregationNextHopAtomicAndAggregator#2": "2c8ac6d69a3ea075"
+  },
+  "upgrade_reason": "Added aggregateAggregatorAttributes receiving contributors with parsed ContributorAggregator (AttrAggregator and AttrAS4Aggregator), updated TestRFC4271RouteAggregationNextHopAtomicAndAggregator to assert exact AttrAggregator count (0 when aggregator=false, 1 matching only speaker-own when aggregator=true) and AttrAS4Aggregator count 0 on BestChange.Attributes and update-text commands with contributors carrying both types, and refreshed discrimination proofs to target aggregateAggregatorAttributes.",
+  "verdict": "enforced"
+}

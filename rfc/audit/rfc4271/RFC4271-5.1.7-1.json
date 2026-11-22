@@ -1,0 +1,16 @@
+{
+  "note": "Re-judged against RFC 4271 Section 5.1.7: \"A BGP speaker that performs route aggregation MAY add the AGGREGATOR attribute, which SHALL contain its own AS number and IP address.\" On the RIB side, aggregateOwnAggregator and TestRFC4271RouteAggregationNextHopAtomicAndAggregator prove that aggregator=true emits speaker-own (65000, 198.51.100.1) \u2014 distinct from localIFv4 (198.51.100.10) and contributor AGGREGATORs \u2014 on BestChange.Attributes (length 8) and dispatched update-text commands, while aggregator=false omits AGGREGATOR and missing speaker local-as/router-id suppresses rather than forging a bogus AGGREGATOR. On the reactor wire side, planBatchAttrs (reactor_api_batch.go:1767-1795) handles both Builder-backed (batch.Attrs) and wire-backed `update text` (batch.Wire with APIContextID, srcASN4=true) aggregates, and TestRFC4271AggregateWireEncodingFor2Byte4ByteEBGPAndIPv6 verifies both subtests produce 8-byte AGGREGATOR toward 4-byte peers, 6-byte AGGREGATOR (no AS4_AGGREGATOR) toward 2-byte peers for 16-bit ASNs, and 6-byte AGGREGATOR (AS_TRANS) + 8-byte AS4_AGGREGATOR toward 2-byte peers for 32-bit ASNs > 65535. rib.go:1603,1711 also replays active aggregates to ordinary peers on peer-up. All three discrimination records in rfc/discrimination/rfc4271/RFC4271-5.1.7-1.json (RIB positive/negative on aggregateOwnAggregator, reactor positive on reactorAPIAdapter.planBatchAttrs) are current (producer-disable revert records).",
+  "requirement_sha": "6c77ddbfc979868e",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go::TestRFC4271RouteAggregationNextHopAtomicAndAggregator": "dfaf849d76f88dd6",
+    "internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go::TestRFC4271RouteAggregationNextHopAtomicAndAggregator#2": "dfaf849d76f88dd6",
+    "internal/component/bgp/reactor/rfc4271_aggregate_wire_test.go::TestRFC4271AggregateWireEncodingFor2Byte4ByteEBGPAndIPv6": "ef6861680762b62b"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go::TestRFC4271RouteAggregationNextHopAtomicAndAggregator": "2c8ac6d69a3ea075",
+    "internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go::TestRFC4271RouteAggregationNextHopAtomicAndAggregator#2": "2c8ac6d69a3ea075",
+    "internal/component/bgp/reactor/rfc4271_aggregate_wire_test.go::TestRFC4271AggregateWireEncodingFor2Byte4ByteEBGPAndIPv6": "d6cb31bc8b87e6eb"
+  },
+  "upgrade_reason": "Fixed planBatchAttrs (internal/component/bgp/reactor/reactor_api_batch.go:1782-1795) to transcode 8-byte wire-backed AttrAggregator in batch.Wire (srcASN4 && !facts.asn4) to 6-byte 2-octet AGGREGATOR (+ AS4_AGGREGATOR when ASN > 65535) for 2-byte peers, added wire-update-text (batch.Wire with APIContextID) and builder subtests in TestRFC4271AggregateWireEncodingFor2Byte4ByteEBGPAndIPv6 tagged for RFC4271-5.1.7-1 positive with a discrimination record targeting reactorAPIAdapter.planBatchAttrs, and fixed rib.go handleStructuredState/handleState to replay aggregates on peer-up for ordinary peers too.",
+  "verdict": "enforced"
+}

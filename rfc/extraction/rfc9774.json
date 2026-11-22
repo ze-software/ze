@@ -54,7 +54,7 @@
       "id": "5.2",
       "sites": 1,
       "disposition": "walked",
-      "reason": "Consistent brief aggregation. Its MUST (5.2:1) and its SHOULD to attach ATOMIC_AGGREGATE bind an aggregating implementation; Ze implements no aggregation, so 5.2:1 maps to RFC9774-5.2-1, which carries {gap}."
+      "reason": "Consistent brief aggregation. Its MUST (5.2:1) maps to RFC9774-5.2-1, implemented in internal/component/bgp/plugins/rib/aggregate.go (aggregateBriefASPath, brief-origin-as in ze-bgp-conf.yang)."
     },
     {
       "id": "6",
@@ -66,13 +66,13 @@
       "id": "6.1",
       "sites": 1,
       "disposition": "walked",
-      "reason": "Its MUST (6.1:1) binds an operator that aggregates; excluded as feature-out-of-scope with 5.2:1."
+      "reason": "Its MUST (6.1:1) binds network operators ('When aggregating prefixes, network operators MUST use consistent brief aggregation'), not the BGP speaker software."
     },
     {
       "id": "6.2",
       "sites": 0,
       "disposition": "walked",
-      "reason": "SHOULD NOT and SHOULD on announcing an aggregate to contributing ASes; recommendations conditional on aggregation, which Ze does not implement. No MUST-level site."
+      "reason": "SHOULD NOT and SHOULD on announcing an aggregate to contributing ASes; recommendations on operator export policy. No MUST-level site."
     },
     {
       "id": "6.3",
@@ -182,14 +182,14 @@
       "quote": "To ensure a consistent BGP origin AS is announced for aggregate BGP routes for implementations of \"brief\" BGP aggregation, the implementation MUST be configured to truncate the AS_PATH after the right-most instance of the desired origin AS for the aggregate.",
       "disposition": "mapped",
       "mapped-to": "RFC9774-5.2-1",
-      "reason": "Carried verbatim by RFC9774-5.2-1 with {gap}. The owner decision of 2026-10-18 scoped the RFC 9774 spec's work (spec-bgp-rfc9774-as-set-deprecation, Key Design Decisions); it did not decline aggregation as a feature, so the absent aggregation of an implemented RFC is owed work and counts as a gap, after the first release. Ze has no aggregation code: the AS_PATH parsers (ParseASPathText, internal/core/bgp/attribute/text.go) build only AS_SEQUENCE."
+      "reason": "Carried verbatim by RFC9774-5.2-1 and implemented by bgp-rib consistent brief aggregation (internal/component/bgp/plugins/rib/aggregate.go::aggregateBriefASPath, configured via bgp/aggregate/brief-origin-as)."
     },
     {
       "id": "6.1:1",
       "quote": "When aggregating prefixes, network operators MUST use consistent brief aggregation as described in Section 5.2.",
       "disposition": "excluded",
-      "excluded-kind": "feature-out-of-scope",
-      "reason": "Binds an operator \"When aggregating prefixes\", which needs an aggregation feature in the speaker. RFC 4271 Section 9.1 makes route aggregation optional: \"Route aggregation and information reduction can optionally be performed within this phase.\" Owner decision 2026-10-18 scoped this work to RFC 9774 and not to an aggregation feature (spec-bgp-rfc9774-as-set-deprecation, Key Design Decisions). Ze has no aggregation code: the AS_PATH parsers (ParseASPathText, internal/core/bgp/attribute/text.go) build only AS_SEQUENCE."
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds network operators configuring aggregation policy rather than BGP speaker protocol behavior; the speaker mechanism it relies on is RFC9774-5.2-1."
     }
   ],
   "register-reason": "Standards Track, with an RFC 2119 key-words section at 2 and capitalised MUST and MUST NOT keywords in sections 3, 5.2 and 6.1. The derivation grades the source 'rfc2119' and the sign-off claims exactly that grade."

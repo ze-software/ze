@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC4271-5.1.7-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go::TestRFC4271RouteAggregationNextHopAtomicAndAggregator",
+    "unit-sha": "734d1350da255f53",
+    "claim-sha": "2735491707d3cf53",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/aggregate.go::aggregateOwnAggregator",
+    "producer-sha": "76e38e70a6a717b9",
+    "break": "body of aggregateOwnAggregator replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-5.1.7-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go::TestRFC4271RouteAggregationNextHopAtomicAndAggregator",
+    "unit-sha": "734d1350da255f53",
+    "claim-sha": "f945a4445354d50c",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/aggregate.go::aggregateOwnAggregator",
+    "producer-sha": "76e38e70a6a717b9",
+    "break": "body of aggregateOwnAggregator replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-5.1.7-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_aggregate_wire_test.go::TestRFC4271AggregateWireEncodingFor2Byte4ByteEBGPAndIPv6",
+    "unit-sha": "272797336c837868",
+    "claim-sha": "cc09acb9492c1721",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/reactor_api_batch.go::reactorAPIAdapter.planBatchAttrs",
+    "producer-sha": "9b9701055243ba16",
+    "break": "body of reactorAPIAdapter.planBatchAttrs replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

@@ -730,6 +730,10 @@ func (r *RIBManager) emitPurgedWithdraws(pending map[family.Family][]bestChangeE
 				continue
 			}
 			publishBestChanges([]bestChangeEntry{withdrawn}, fam)
+			if withdrawn.Prefix.IsValid() && r.aggregateCfg.Load() != nil {
+				// RFC 4271 Section 9.2.2.2
+				r.recomputeAggregatesForPrefix(fam, withdrawn.Prefix)
+			}
 		}
 	}
 }
@@ -844,6 +848,16 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 // peer writers MUST release peerMu before waiting for any bestPrev shard.
 func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, addPath, withdraw bool, forward locrib.ForwardHandle) (bestChangeEntry, bool) {
 	defer r.reportAdvertiseAfterElection()
+	// RFC 4271 Section 9.2.2.2: recompute configured aggregates after releasing
+	// the per-prefix shard lock when a contributing CIDR prefix changes.
+	var aggregatePfx netip.Prefix
+	if r.aggregateCfg.Load() != nil {
+		defer func() {
+			if aggregatePfx.IsValid() {
+				r.recomputeAggregatesForPrefix(fam, aggregatePfx)
+			}
+		}()
+	}
 	if ribevents.IsFlowSpec(fam) {
 		r.reconcileFlowSpecs()
 		return bestChangeEntry{}, false
@@ -884,6 +898,7 @@ func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, a
 		if !prefixOK {
 			return bestChangeEntry{}, false
 		}
+		aggregatePfx = pfx
 	}
 	if !cidr {
 		var keyScratch [nlrisplit.PrefixKeyScratchSize]byte
@@ -1918,6 +1933,8 @@ func (r *RIBManager) collectBestPaths() map[family.Family][]bestChangeEntry {
 			changesByFamily[fam] = changes
 		}
 	}
+
+	r.appendActiveAggregateReplayEntries(changesByFamily)
 
 	logger().Info("best-path replay collected", "families", len(changesByFamily))
 	return changesByFamily

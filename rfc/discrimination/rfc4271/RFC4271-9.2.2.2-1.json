@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-9.2.2.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go::TestRFC4271RouteAggregationMEDAndOrigin",
+    "unit-sha": "3c88c4a4a8102db7",
+    "claim-sha": "cc589f67bcb6b9d5",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/aggregate.go::aggregateCheckMED",
+    "producer-sha": "ae63913188828f50",
+    "break": "body of aggregateCheckMED replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-9.2.2.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go::TestRFC4271RouteAggregationMEDAndOrigin",
+    "unit-sha": "3c88c4a4a8102db7",
+    "claim-sha": "f8e4518cf4a4821b",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/aggregate.go::aggregateCheckMED",
+    "producer-sha": "ae63913188828f50",
+    "break": "body of aggregateCheckMED replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

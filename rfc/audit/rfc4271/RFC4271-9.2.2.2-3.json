@@ -1,0 +1,14 @@
+{
+  "note": "Re-judged against RFC 4271 Section 9.2.2.2: \"NEXT_HOP: When aggregating routes that have different NEXT_HOP attributes, the NEXT_HOP attribute of the aggregated route SHALL identify an interface on the BGP speaker that performs the aggregation.\" aggregateNextHop and isLocalSpeakerAddress now accept only addresses present in localAddrs (no RouterID fallback). TestRFC4271RouteAggregationNextHopAtomicAndAggregator separates localIFv4 (198.51.100.10) and localIFv6 (2001:db8:fe::10) from routerID (198.51.100.1), proving identical NEXT_HOP preservation (negative), resolution of differing IPv4 and IPv6 NEXT_HOPs to localIFv4/localIFv6 across Loc-RIB, BestChange wire AttrNextHop, collectBestPaths replay, and update-text commands (plus reactor MP_REACH_NLRI IPv6 next-hop encoding in TestRFC4271AggregateWireEncodingFor2Byte4ByteEBGPAndIPv6), and refusal of non-interface router-id, remote IP, and empty localAddrs. Both positive and negative discrimination records in rfc/discrimination/rfc4271/RFC4271-9.2.2.2-3.json are current (producer-disable revert records).",
+  "requirement_sha": "78e1732c34f7b400",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go::TestRFC4271RouteAggregationNextHopAtomicAndAggregator": "dfaf849d76f88dd6",
+    "internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go::TestRFC4271RouteAggregationNextHopAtomicAndAggregator#2": "dfaf849d76f88dd6"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go::TestRFC4271RouteAggregationNextHopAtomicAndAggregator": "2c8ac6d69a3ea075",
+    "internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go::TestRFC4271RouteAggregationNextHopAtomicAndAggregator#2": "2c8ac6d69a3ea075"
+  },
+  "upgrade_reason": "Removed the non-interface speaker.RouterID fallback from aggregateNextHop and isLocalSpeakerAddress, unconfounded TestRFC4271RouteAggregationNextHopAtomicAndAggregator with distinct localIFv4 (198.51.100.10), localIFv6 (2001:db8:fe::10), and routerID (198.51.100.1), added refusal checks for non-interface router-id, remote next-hop, and empty localAddrs, and added IPv6 aggregate MP_REACH_NLRI / Loc-RIB / collectBestPaths coverage plus reactor wire encoding test.",
+  "verdict": "enforced"
+}

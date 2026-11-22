@@ -1764,7 +1764,34 @@ func (a *reactorAPIAdapter) planBatchAttrs(plan *announceAttrs, batch bgptypes.N
 		if attr.Code() == attribute.AttrLocalPref && !localPrefAllowed {
 			continue // Section 5.1.5, above
 		}
+		if attr.Code() == attribute.AttrAggregator {
+			// RFC 4271 Section 5.1.7; RFC 6793 Section 4.2.2: encode AGGREGATOR in
+			// the destination peer's AS width (6 octets for 2-octet peers, 8 octets
+			// for 4-octet peers) and emit AS4_AGGREGATOR when a 4-octet ASN exceeds
+			// 65535 toward a 2-octet peer.
+			plan.add(attr, dstCtx)
+			if !facts.asn4 {
+				if agg, ok := attr.(*attribute.Aggregator); ok && agg.ASN > 65535 {
+					plan.add(&attribute.AS4Aggregator{ASN: agg.ASN, Address: agg.Address}, nil)
+				}
+			}
+			continue
+		}
 		plan.add(attr, nil)
+	}
+	if srcASN4 && !facts.asn4 {
+		// RFC 4271 Section 5.1.7; RFC 6793 Section 4.2.2: wire-backed batches
+		// (including `update text` via ParseUpdateText -> DispatchNLRIGroups)
+		// carry 4-octet AGGREGATOR in base. Transcode to 6-octet AGGREGATOR
+		// (with AS_TRANS + AS4_AGGREGATOR when ASN > 65535) for 2-octet peers.
+		if _, _, aggRaw, found := attribute.AttrFind(base, attribute.AttrAggregator); found && len(aggRaw) == 8 {
+			if agg, err := attribute.ParseAggregator(aggRaw, true); err == nil {
+				plan.add(agg, dstCtx)
+				if agg.ASN > 65535 {
+					plan.add(&attribute.AS4Aggregator{ASN: agg.ASN, Address: agg.Address}, nil)
+				}
+			}
+		}
 	}
 	if rewrittenASPath != nil {
 		plan.add(rewrittenASPath, dstCtx)

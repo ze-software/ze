@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9774-5.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go::TestRFC9774ConsistentBriefAggregationTruncatesAfterRightMostOriginAS",
+    "unit-sha": "15cc4ec7d3890f3f",
+    "claim-sha": "fabf50f0009c4ab9",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/aggregate.go::aggregateBriefASPath",
+    "producer-sha": "77e4e0c14cbe107d",
+    "break": "body of aggregateBriefASPath replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9774-5.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_aggregate_test.go::TestRFC9774ConsistentBriefAggregationTruncatesAfterRightMostOriginAS",
+    "unit-sha": "15cc4ec7d3890f3f",
+    "claim-sha": "04772abcd54bb67e",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/aggregate.go::aggregateBriefASPath",
+    "producer-sha": "77e4e0c14cbe107d",
+    "break": "body of aggregateBriefASPath replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

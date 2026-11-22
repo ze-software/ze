@@ -510,6 +510,22 @@ type RIBManager struct {
 	// check everywhere, the draft's default.
 	flowSpecRedirectCfg atomic.Pointer[flowSpecRedirectConfig]
 
+	// aggregateCfg holds the configured RFC 4271 Section 9.2.2.2 / RFC 9774
+	// Section 5.2 route aggregation rules and local speaker identity. nil when
+	// no aggregates are configured, keeping the hot path zero-alloc.
+	aggregateCfg atomic.Pointer[aggregateConfig]
+	// aggregatePublishMu serializes aggregate recomputation and publication
+	// (Loc-RIB, BestChange, and peer UPDATE dispatch) so concurrent shard
+	// updates cannot publish or withdraw out of order.
+	aggregatePublishMu sync.Mutex
+	// aggregateMu guards activeAggregates for concurrent snapshot reads.
+	aggregateMu      sync.Mutex
+	activeAggregates map[netip.Prefix]*synthesizedAggregate
+	// localAddrsFn supplies the speaker's local interface addresses for
+	// RFC 4271 Section 9.2.2.2 NEXT_HOP resolution. Nil defaults to
+	// systemLocalInterfaceAddrs.
+	localAddrsFn func() []netip.Addr
+
 	// peerMu protects the peer-keyed maps ONLY: ribInPool (and bgpPeers), ribOut, peerUp,
 	// peerMeta, retainedPeers, grState. bestPrev is sharded (see
 	// bestprev_shard.go) and has its own per-shard locks. bestPathInterner
@@ -1527,6 +1543,7 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 	// unreachable and delayed every fresh session's EOR by 2.5s.
 	// See ai/rules/evidence.md (the zero-value trap).
 	cameUp := false
+	peerBecameUp := isUp && !wasUp
 	var replayGroups []replayGroup
 	purgePeer := false
 	var sourceKeys []affectedPrefix
@@ -1538,7 +1555,7 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 		delete(r.retainedPeers, peerOwner)
 	}
 
-	if isUp && !wasUp {
+	if peerBecameUp {
 		delete(r.retainedPeers, peerOwner)
 		// Ordinary destinations replay current selection through their captured
 		// worker, including on attach. Legacy attached observers have no replay
@@ -1582,6 +1599,9 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 	// to say "nothing to replay, proceed".
 	if cameUp {
 		r.replayRoutesWithCursor(se.PeerAddress, replayGroups, se.InitialReplay)
+	}
+	if peerBecameUp && se.Reason != rpc.ReasonAttached {
+		r.replayAggregatesToPeer(se.PeerAddress)
 	}
 }
 
@@ -1632,6 +1652,7 @@ func (r *RIBManager) handleState(event *Event) {
 	// See handleStructuredState for why the transition is tracked explicitly
 	// rather than inferred from replayGroups != nil.
 	cameUp := false
+	peerBecameUp := isUp && !wasUp
 	var replayGroups []replayGroup
 	purgePeer := false
 	var sourceKeys []affectedPrefix
@@ -1643,7 +1664,7 @@ func (r *RIBManager) handleState(event *Event) {
 		delete(r.retainedPeers, peerOwner)
 	}
 
-	if isUp && !wasUp {
+	if peerBecameUp {
 		// Peer came up - clear retain flag (fresh session replaces stale state).
 		// Ordinary output and legacy attached observers use neither this
 		// SENT-history replay nor its readiness (see handleStructuredState).
@@ -1686,6 +1707,9 @@ func (r *RIBManager) handleState(event *Event) {
 	// with zero groups (see handleStructuredState).
 	if cameUp {
 		r.replayRoutesWithCursor(event.GetPeerAddress(), replayGroups, event.InitialReplay)
+	}
+	if peerBecameUp && event.Reason != rpc.ReasonAttached {
+		r.replayAggregatesToPeer(event.GetPeerAddress())
 	}
 }
 
