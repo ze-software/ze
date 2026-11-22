@@ -18,6 +18,7 @@ import (
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 
+	"github.com/ze-software/ze/internal/component/iface"
 	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 )
 
@@ -45,6 +46,14 @@ type controlSocketNativeRequest struct {
 
 func controlSocketNativeUnit(t *testing.T, name string) (*pppkernel.CreatedUnit, netlink.Link) {
 	t.Helper()
+	unit, _, link := controlSocketNativeUnitWithBackend(t, name)
+	return unit, link
+}
+
+// controlSocketNativeUnitWithBackend also returns the creation backend, which
+// BindNativeOperations requires for the same unit's guarded link writes.
+func controlSocketNativeUnitWithBackend(t *testing.T, name string) (*pppkernel.CreatedUnit, iface.Backend, netlink.Link) {
+	t.Helper()
 	prerequisite, err := os.OpenFile("/dev/ppp", os.O_RDWR, 0)
 	if err != nil {
 		if !*createdUnitControlRequired {
@@ -60,7 +69,7 @@ func controlSocketNativeUnit(t *testing.T, name string) (*pppkernel.CreatedUnit,
 	if err := prerequisite.Close(); err != nil {
 		t.Fatal(err)
 	}
-	unit, _, link := createdUnitNative(t, name)
+	unit, backend, link := createdUnitNative(t, name)
 	// Independent fixture admission only. The production method must perform
 	// its own query in the same original-file borrow as constructor43.
 	reply := controlSocketNativeOwner{abi: 1, index: int32(unit.Identity().NativeIndex), unit: int32(unit.UnitNumber())}
@@ -84,7 +93,7 @@ func controlSocketNativeUnit(t *testing.T, name string) (*pppkernel.CreatedUnit,
 	if reply.features&(1<<9) == 0 {
 		t.Fatal("running kernel lacks the positive complete original-unit control bit9; foundation12 is insufficient")
 	}
-	return unit, link
+	return unit, backend, link
 }
 
 func controlSocketNativeReadOwner(fd int, owner *controlSocketNativeOwner) error {

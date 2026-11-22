@@ -5,7 +5,9 @@ PRIVATE SOURCE ONLY. Pinned Linux v7.3 + frozen 0012/0012a/0013a.
 No constructor dispatch, capability bit 9, Go change, build or native proof.
 Requires coordinated 13C IPv6-only/option/sockmap restrictions and actual
 PMTU/redirect route-writer guards before activation. Unowned sockets retain
-native selection, checksum, extension, copy, error and PMTU behavior.
+native selection, checksum, extension, copy, error and PMTU behavior, except
+that UDP queueing now keeps a PPP receipt (through ppp_control_scrub) where it
+reset every extension, so recvmsg can check it; such an skb is not stateless.
 
 --- a/net/ipv6/udp.c
 +++ b/net/ipv6/udp.c
@@ -566,7 +568,29 @@ native selection, checksum, extension, copy, error and PMTU behavior.
  #include <linux/skbuff.h>
  #include <linux/proc_fs.h>
  #include <linux/seq_file.h>
-@@ -2018,10 +2019,18 @@
+@@ -1550,6 +1551,10 @@
+  * We need to preserve secpath, if present, to eventually process
+  * IP_CMSG_PASSSEC at recvmsg() time.
+  *
++ * We also preserve a PPP control receipt, if present: an owned IPv6
++ * control socket checks it at recvmsg() time. An skb that keeps one is
++ * not stateless, so its consumer releases the receipt's owner reference.
++ *
+  * Other extensions can be cleared.
+  */
+ static bool udp_try_make_stateless(struct sk_buff *skb)
+@@ -1558,8 +1563,8 @@
+ 		return true;
+ 
+ 	if (!secpath_exists(skb)) {
+-		skb_ext_reset(skb);
+-		return true;
++		ppp_control_scrub(skb);
++		return !skb_has_extensions(skb);
+ 	}
+ 
+ 	return false;
+@@ -2018,10 +2023,18 @@
  	int err;
  
  try_again:
@@ -587,7 +611,7 @@ native selection, checksum, extension, copy, error and PMTU behavior.
  
 --- /dev/null
 +++ b/include/net/ppp_control_rx.h
-@@ -0,0 +1,99 @@
+@@ -0,0 +1,102 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +#ifndef _NET_PPP_CONTROL_RX_H
 +#define _NET_PPP_CONTROL_RX_H
@@ -620,7 +644,10 @@ native selection, checksum, extension, copy, error and PMTU behavior.
 +
 +/* Before queueing, dev is the actual ingress device. After queueing UDP
 + * overwrites it with accounting scratch, and other queues clear it.
-+ * Those readers MUST use the retained native receipt, not dereference dev.
++ * Those readers MUST use the receipt, not dereference dev. UDP queueing
++ * keeps it only because udp_try_make_stateless() scrubs through
++ * ppp_control_scrub(); a reset of every extension there would erase it
++ * and drop every datagram queued to an owned socket.
 + */
 +static inline bool
 +ppp_control_rx_match(const struct sock *sk, const struct sk_buff *skb,

@@ -531,7 +531,13 @@ It does not read the queued packet's device field: UDP reuses that storage for
 accounting scratch. Invalid peeked datagrams are removed through their native
 queue-accounting path; a retired owned socket returns ESTALE before delivering
 an old queue entry. The common UDP receive actor receives the same check.
-<!-- source: gokrazy/kernel/patches/0013b-ppp-control-ipv6-receive.patch -- ppp_control_rx_match, udpv6_recvmsg, rawv6_recvmsg, udp_read_skb -->
+UDP keeps the receipt only because its enqueue scrubs extensions through
+`ppp_control_scrub` instead of resetting them all. A datagram that still carries
+the receipt is then not marked stateless, so consuming it releases the
+receipt's owner reference. Linux 7.3's own reset there erased the receipt, so
+every datagram queued to an owned UDP6 socket was dropped at receive-copy.
+<!-- source: gokrazy/kernel/patches/0013b-ppp-control-ipv6-receive.patch -- ppp_control_rx_match, udpv6_recvmsg, rawv6_recvmsg, udp_read_skb, udp_try_make_stateless -->
+<!-- test: internal/component/l2tp/ppp/kernel/created_unit_control_socket_receive_integration_linux_test.go TestCreatedUnitControlSocketNativeUDP6ReceivesPeerDatagram -->
 
 Received ICMP errors preserve their RX receipt through the native error clone.
 Fresh local errors and path-MTU notifications receive a TX receipt from the
