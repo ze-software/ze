@@ -1,5 +1,7 @@
 # lint contract not applied
 
+Captured: 2026-11-22 check internal/le/repo.CheckAddedGoStyle proof internal/le/repo.TestCheckAddedGoStyleReproducesHistoricalViolations
+
 A test or helper changes in a way that violates an existing lint contract. The
 contract is correct, and the failure is fixed at the source rather than bypassed.
 

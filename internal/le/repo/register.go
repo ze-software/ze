@@ -8,6 +8,7 @@ package repo
 import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/le/commit/changecheck"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
@@ -38,4 +39,10 @@ func init() {
 	// registers the command. A claim whose command never registered is red, so
 	// the count cannot fall for a tool nothing can reach.
 
+	// `./le commit create` judges gofmt and newly added Go style patterns
+	// across every harness, not only Claude Write/Edit hooks.
+	changecheck.Register(changecheck.Check{
+		Name:  goStyleCheckName,
+		Judge: CheckAddedGoStyle,
+	})
 }

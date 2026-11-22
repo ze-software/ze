@@ -692,7 +692,7 @@ func declaredSymbols(tree string, changed []string) ([]symbol, error) {
 		if strings.Contains(filepath.ToSlash(rel), "/testdata/") {
 			continue
 		}
-		if !strings.HasPrefix(rel, "internal/") && !strings.HasPrefix(rel, "cmd/") {
+		if !strings.HasPrefix(rel, "internal/") && !strings.HasPrefix(rel, "cmd/") && !strings.HasPrefix(rel, "pkg/") {
 			continue
 		}
 		pathname := filepath.Join(tree, filepath.FromSlash(rel))
