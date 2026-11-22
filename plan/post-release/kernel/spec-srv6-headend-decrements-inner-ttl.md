@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-31 |
+| Updated | 2026-11-22 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -34,11 +34,12 @@ Goal: a packet Ze's headend encapsulates leaves with its inner TTL or Hop Limit
 decremented once, and one arriving with TTL 1 is not encapsulated, on Ze's
 kernel; the test runs where that kernel runs. Thomas settled the design at the
 design gate: Ze's kernel gains `CONFIG_IPV6_SEG6_LWTUNNEL` (landed outside this
-spec in commit d9e984c08f); patch 0003 gives the
-seg6 L3 modes output redirect only, the MPLS lwtunnel model; a behavioural
-`kernelcap` probe in the shape of `kernelcap.MPLSIPMTU` tells `ze doctor` what a
-stock kernel does; and a refused install names the missing kernel feature (Key
-Design Decisions).
+spec in commit d9e984c08f); patch 0014 (`0014-seg6-forward-ttl.patch`, renumbered
+from 0003 after `0003-xfrm-state-scope.patch`..`0013da-ppp-control-current-namespace.patch`
+landed in `series`) gives the seg6 L3 modes output redirect only, the MPLS
+lwtunnel model; a behavioural `kernelcap` probe in the shape of
+`kernelcap.MPLSIPMTU` tells `ze doctor` what a stock kernel does; and a refused
+install names the missing kernel feature (Key Design Decisions).
 
 ## Required Reading
 
@@ -71,13 +72,13 @@ Design Decisions).
 
 **Key insights:** (minimal context to resume after compaction)
 - Ze's runtime kernel carries seg6 since commit d9e984c08f, done outside this spec on the owner's decision: `gokrazy/kernel/runtime.config` requests `CONFIG_IPV6_SEG6_LWTUNNEL=y` and `gokrazy/kernel/runtime.require` pins it. Before that commit the build config read `# CONFIG_IPV6_SEG6_LWTUNNEL is not set`, so the TTL test had only ever run on the stock Ubuntu runner kernel. No `kernelcap` capability names seg6 yet.
-  → Constraint: this spec adds only `CONFIG_IPV6_SEG6_FORWARD_TTL` (patch 0003's marker) to the runtime config and require manifest.
+  → Constraint: this spec adds only `CONFIG_IPV6_SEG6_FORWARD_TTL` (patch 0014's marker) to the runtime config and require manifest.
 - Cause, read in linux-7.3 `net/ipv6/seg6_iptunnel.c`: `seg6_build_state` sets `LWTUNNEL_STATE_INPUT_REDIRECT` for every mode and `OUTPUT_REDIRECT` for every non-L2 mode. Input redirect replaces `ip_forward` with `lwtunnel_input`, so `seg6_input` -> `seg6_input_core` -> `seg6_do_srh` -> `__seg6_do_srh_encap` runs and nothing checks or decrements the inner TTL. IPv6 inner: `__seg6_do_srh_encap` copies the outer hop limit from the inner and only the outer is decremented by `ip6_forward`; its comment claiming decapsulation overwrites the inner hop limit is false (`seg6_local.c` has no hop-limit code). IPv4 inner: outer hop limit from `ip6_dst_hoplimit`, inner TTL untouched, TTL 1 forwarded.
 - MPLS lwtunnel sets only `XMIT_REDIRECT` (`mpls_build_state`, `net/mpls/mpls_iptunnel.c`), so forwarded traffic passes `ip_forward` first.
   → Decision (proposed): for the L3 modes (encap, encap.red, inline) drop `INPUT_REDIRECT` and keep `OUTPUT_REDIRECT`, so forwarded packets go through `ip_forward`/`ip6_forward` (one decrement, Time Exceeded to the real sender, FORWARD hook) and then `lwtunnel_output` -> `seg6_output`. L2 modes keep input redirect (no TTL in an Ethernet frame). Upstream master has no change here (fetched 2026-10-30).
 - RFC 8986 Section 4: "An implementation of the pseudocode is compliant as long as the externally observable wire protocol is as described by the pseudocode." Section 5.1 S05 "Decrement inner IPv6 Hop Limit or IPv4 TTL". Section 5.2 is an optimisation of 5.1 and inherits S05. RFC 2473 Section 3.1 ties the decrement to forwarding, so locally originated packets owe none.
 - FRR (`zebra/rt_netlink.c` `fill_seg6ipt_encap`) relies entirely on the kernel and has the same defect; BIRD 3.1.9 installs no seg6 encap; freeRtr encapsulates before its TTL decrement; VPP decrements the inner header itself. No implementation offers a fix to copy.
-- Precedent for the patch, probe and doctor shape: `gokrazy/kernel/patches/0002-mpls-ip-mtu.patch` (+ `series`, applied by `applyPatches` in `internal/appliance/kernelbuilder/worker.go`), Kconfig symbol `CONFIG_MPLS_IP_MTU` in `runtime.require`/`runtime.config`, the `kernelcap.Capability` enrolment in `internal/plugins/fib/kernel/kernelcap_linux.go`, the probe `kernelcap.MPLSIPMTU` in `internal/component/kernelcap/probe_linux.go`, diagnostic codes in `internal/core/diagnostic/codes.go`, limitation entry LL-MPLS-FORWARD-NO-PMTU in `docs/architecture/linux-limitations.md`.
+- Precedent for the patch, probe and doctor shape: `gokrazy/kernel/patches/0002-mpls-ip-mtu.patch` (+ `series`, applied by `applyPatches` in `internal/appliance/kernelbuilder/worker.go`), Kconfig symbol `CONFIG_MPLS_IP_MTU` in `runtime.require`/`runtime.config`, the `kernelcap.Capability` enrolment in `internal/plugins/fib/kernel/kernelcap_linux.go`, the probe `kernelcap.MPLSIPMTU` in `internal/component/kernelcap/probe_linux.go`, owning-package diagnostic codes in `internal/plugins/fib/kernel/register_doctor_codes.go`, AppArmor probe rules in `internal/component/kernelcap/apparmor.go`, and limitation entry LL-MPLS-FORWARD-NO-PMTU in `docs/architecture/linux-limitations.md`.
 - The test runs on the stock kernel in `evidence-nightly.yml` job `integration`, and on Ze's amd64 kernel in `qemu-nightly.yml` (the qemu all-tests list includes `./internal/plugins/fib/kernel/...`). It has no IPv6-inner variant and no TTL 1 case. Ze's arm64 kernel builds natively on the Mac with `./ze-host appliance kernel --target runtime --arch arm64`.
 
 ## Current Behavior (MANDATORY)
@@ -110,7 +111,35 @@ Design Decisions).
 **Behavior to change:** (only what the user asked for)
 - On Ze's kernel, a forwarded IPv4 or IPv6 packet that matches a seg6 encap route leaves with its inner TTL or Hop Limit lowered by one, and one that arrives with TTL or Hop Limit 1 is not encapsulated: the sender gets ICMP Time Exceeded.
 - Consequences of the forward path that come with it, each asserted or recorded: the FORWARD netfilter hook and the XFRM forward policy now see the inner packet; a DF-set IPv4 packet (or any IPv6 packet) larger than the route MTU minus the seg6 headroom is answered with ICMP Fragmentation Needed or Packet Too Big to the real sender; the outer Hop Limit of an IPv4-inner packet is `ip6_dst_hoplimit` of the IPv4 route without the old extra decrement (64, was 63); the first-SID lookup moves from `ip6_route_input` (with the ingress interface) to `ip6_route_output` (no interface).
-- A kernel without seg6, or with seg6 but without patch 0003, is named by `ze doctor`, the startup gate, `ze config validate`, and the FIB install error.
+- A kernel without seg6, or with seg6 but without patch 0014, is named by `ze doctor`, the startup gate, `ze config validate`, and the FIB install error.
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Kernel patch series and require manifest | `gokrazy/kernel/patches/series`, `gokrazy/kernel/runtime.config`, `gokrazy/kernel/runtime.require`, `internal/appliance/kernelbuilder/worker.go` (`applyPatches`), `internal/appliance/kernelreq_enrolled_linux_test.go` | Applies carried patches on Linux 7.3 (`0001`..`0013da`), pins required `=y` Kconfig symbols before compile (already pins `CONFIG_IPV6_SEG6_LWTUNNEL`), and verifies enrolled kernelcap symbols are pinned | extends: adds `0014-seg6-forward-ttl.patch` and pins its marker `CONFIG_IPV6_SEG6_FORWARD_TTL` in `runtime.config` and `runtime.require` |
+| Kernel capability enrolment and throwaway-namespace probe | `internal/component/kernelcap` (`MustRegister`, `Evaluate`, `Refuse`, `ProbeAll`, `InThrowawayNetworkNamespace`, `remountSysctlWritable`, `stepFailed`), `internal/plugins/fib/kernel/kernelcap_linux.go` (`transitMTUCapability`) | Enrols degrading and refusing kernel capabilities once per owning package and answers `ze doctor`, `ze doctor kernel-capabilities`, startup gate, reload, and `ze config validate` | extends: enrols `srv6-encap` and `srv6-forward-ttl` with `Degrades` in `fib/kernel/kernelcap_linux.go`, adds `SRv6InUse` in `predicate.go`, and adds the memoized TUN behavioural probe in `probe_srv6_linux.go` |
+| Docker kernel-probe AppArmor profile and denial classifier | `internal/component/kernelcap/apparmor.go` (`ProbeAppArmorProfile`, `ProcSysWriteDenies`), `internal/component/kernelcap/policy_linux.go` (`stepFailed`) | Grants `ze-kernel-probe` the private `/proc/sys` mounts and write access solely to `/proc/sys/net/mpls/platform_labels`, and `stepFailed` hardcodes `MPLSPlatformLabelsPath()` in its denied reason | extends (departs from MPLS-only profile): widens `ProbeAppArmorProfile` to admit the three IPv4/IPv6 forwarding sysctls beside `net/mpls/platform_labels` and parameterizes `stepFailed` by the probe's sysctl path(s) |
+| Docker host kernel preflight container and TUN device helper | `internal/le/interoplab/kernelcheck.go` (`kernelProbeContainer`), `internal/le/interoplab/tundevice.go` (`TUNDevice`, `TUNDeviceArguments`) | `kernelProbeContainer` runs `/ze doctor --json kernel-capabilities` in `alpine:3.24.3` with `--cap-add NET_ADMIN --cap-add SYS_ADMIN --network none` (and `--security-opt apparmor=ze-kernel-probe`), without `/dev/net/tun`; `tundevice.go` is the single shared declaration of `--device /dev/net/tun` | extends: `kernelProbeContainer` appends `TUNDeviceArguments` from `tundevice.go` so the SRv6 TUN probe can open `/dev/net/tun` inside Docker without duplicating the device flag |
+| Owning-package doctor diagnostic code registry | `internal/plugins/fib/kernel/register_doctor_codes.go` (`doctorDiagnosticCodes`, `diagnostic.Register`) | Registers all `fib-kernel` doctor codes (`doctor-mpls-*`, `doctor-fib-*`) in the owning plugin package instead of `internal/core/diagnostic/codes.go` | extends: adds the four `doctor-srv6-*` codes beside the MPLS capability codes |
+| Kernel FIB SEG6 route builder | `internal/plugins/fib/kernel/nexthop_linux.go` (`buildRichRoute`, `buildRouteEncap`, `buildSEG6Encap`, `addRichRoute`, `replaceRichRoute`) | Encodes a Service SID as `netlink.SEG6Encap` in encap mode ahead of any MPLS labels and sends it through netlink | extends: preserves the exact netlink encoding and wraps `EOPNOTSUPP` on SEG6 routes with an operator error naming `CONFIG_IPV6_SEG6_LWTUNNEL` and `ze doctor` |
+| Linux limitations register | `docs/architecture/linux-limitations.md` (`LL-*` entries, checked by `TestLinuxLimitsCheckedAtShippedVersions`) | Records verified stock Linux behaviors with kernel source evidence and re-check rules | extends: adds verified entry `LL-SEG6-HEADEND-NO-TTL-DECREMENT` at Linux 7.3 |
+
+## Design documents
+
+| Document | Section | Derived from | Binding statement | Verdict | How this design stands against it |
+|----------|---------|--------------|-------------------|---------|-----------------------------------|
+| `ai/doors/system.md` | The core knows nothing, and everything registers | the door every change reads; the door covering `internal/component/kernelcap/*` | "It never needs an edit to a switch, a factory, a field list, a help string or a completion table elsewhere (`ai/rules/principles.md`, `ai/patterns/registration.md`)." | agrees | `fib/kernel` registers `srv6-encap`, `srv6-forward-ttl`, and their four doctor codes from its own `init()` functions (`kernelcap_linux.go`, `register_doctor_codes.go`); no central list or switch is edited |
+| `ai/doors/forwarding.md` | Who depends on it from outside | the door covering `internal/plugins/fib/kernel/*` | "Ze owns only what it marked. It owns routes by `rtm_protocol` (`internal/core/rtproto`, `FIBKernel` 250, `Static` 251)" | agrees | `buildSEG6Encap`, `rtprotZE` ownership, and `buildRichRoute` encoding stay unchanged; `addRichRoute`/`replaceRichRoute` only wrap an `EOPNOTSUPP` refusal, and the probe runs inside a throwaway network namespace |
+| `ai/doors/le-tooling.md` | Boundaries | the door covering `test/ui/doctor-srv6-kernelcap.ci` and `internal/le/interoplab/kernelcheck.go` | "**A `.ci` that needs a Linux kernel feature carries `option=needs-linux`** and runs in the QEMU VM (`ai/rules/platform-linux.md`)." | agrees | `test/ui/doctor-srv6-kernelcap.ci` carries `option=needs-linux` (matching `test/ui/doctor-l2tp-kernelcap.ci`), because `kernelcap_linux.go` is Linux-only (`//go:build linux`) and no `srv6-*` capability is enrolled off Linux; the real datapath and namespace probe tests live in `*_integration_linux_test.go` (`//go:build integration && linux`) |
+| `docs/architecture/doctor-and-health-checks.md` | Kernel capabilities: one enrolment, three callers | `// Design:` and anchor of `internal/plugins/fib/kernel/kernelcap_linux.go`, `register_doctor_codes.go`, `internal/component/kernelcap/*`; page this spec modifies | "The verdict is produced at read time, in the process that answers doctor (the daemon when it answers, the operator's own process otherwise), and it keeps no memory of a start." | departs | The SRv6 probe memoizes its first definitive (`present`/`absent`) kernel verdict for the process life (A-6: `IPV6_SEG6_LWTUNNEL` and patch 0014 are compiled-in bools that cannot change without reboot), and widens `ProbeAppArmorProfile` beyond `/proc/sys/net/mpls/platform_labels` to also permit the three SRv6 forwarding sysctls; this page is updated in Phase 5 |
+| `docs/architecture/mpls/mpls-kernel.md` | On a kernel without the patch | anchored to `internal/plugins/fib/kernel/kernelcap_linux.go` and `nexthop_linux.go`; page this spec modifies | "Ze's `ze-kernel-probe` profile grants exactly those steps, and the Docker kernel check runs its probe under it." | departs | `ze-kernel-probe` (`ProbeAppArmorProfile`) now grants the MPLS label-space write plus the three IPv4/IPv6 forwarding sysctl writes needed by the SRv6 probe (still least-privilege, no `unconfined`); this sentence in `mpls-kernel.md` is updated in Phase 5 |
+| `docs/architecture/testing/interop.md` | The Docker host kernel check | `// Design:` and anchor of `internal/le/interoplab/kernelcheck.go`; page this spec modifies | "A capability enrolled later is required of every Docker host with no le change." | departs | `kernelcheck.go` still discovers `srv6-encap` and `srv6-forward-ttl` automatically from `ze doctor --json kernel-capabilities`, but departs from the "no le change" and no-character-device assumptions by appending `TUNDeviceArguments` (`--device /dev/net/tun` from `tundevice.go`) to `kernelProbeContainer` so the SRv6 TUN probe can open `/dev/net/tun` inside Docker; this section is updated in Phase 5 |
+| `plan/release/validation/spec-fib-depth.md` | Current Behavior (MANDATORY) | `// Design:` page of `internal/plugins/fib/kernel/nexthop_linux.go` | "Single-path route installation still works (ECMP is additive)" | agrees | `buildRichRoute`, `buildMultiPath`, `buildRouteEncap`, and `buildSEG6Encap` preserve the exact single-path and ECMP netlink encoding; only `EOPNOTSUPP` error wrapping is added on SEG6 install failure |
+| `docs/architecture/core-design.md` | FIB Kernel | anchored to `internal/plugins/fib/kernel/nexthop_linux.go` | "When `BestChangeEntry` carries rich fields (route type, metric, table ID, ECMP paths, MPLS labels, or SRv6 SID), the backend dispatches to `richRouteBackend` which builds a full `netlink.Route` with `RTN_BLACKHOLE`/`RTN_UNREACHABLE`/`RTN_PROHIBIT` type, `Priority` from metric, per-route `Table`, `MultiPath` for ECMP, `MPLSEncap` for MPLS lwtunnel, and `SEG6Encap` for SRv6." | agrees | The `richRouteBackend` dispatch and `SEG6Encap` structure remain unchanged; the patch fixes how Linux forwards packets matching that `SEG6Encap` route |
+| `docs/architecture/fib/fib-depth-4-srv6.md` | Kernel backend | anchored to `internal/plugins/fib/kernel/nexthop_linux.go`; `// Design:` of `srv6_integration_linux_test.go`; page this spec modifies | "The seg6 encapsulation needs `CONFIG_IPV6_SEG6_LWTUNNEL`, which Ze's runtime kernel builds in and its require manifest pins. A kernel without it refuses the route with EOPNOTSUPP from `lwtunnel_valid_encap_type` (`net/core/lwtunnel.c`, Linux 7.3)." | agrees | Extends this section with patch 0014 (`CONFIG_IPV6_SEG6_FORWARD_TTL`), inner TTL/Hop Limit decrement and forward-path consequences, the `EOPNOTSUPP` refusal message, and the two `ze doctor` capabilities |
+| `docs/architecture/ospf/ospf-ext-6-ti-lfa.md` | Decisions | anchored to `internal/plugins/fib/kernel/nexthop_linux.go` | "" | silent | This page documents OSPF LFA/TI-LFA backup next-hops and why `buildRichRoute` skips `r.Backup`; this spec touches neither backup handling nor OSPF |
+| `docs/architecture/linux-limitations.md` | How an entry is written | page this spec modifies | "Each entry is a `###` heading that holds its id, followed by these fields:" | agrees | Adds `LL-SEG6-HEADEND-NO-TTL-DECREMENT` with Kind `kernel`, Effect `constrains design`, Status `verified`, Checked `Linux 7.3`, quoted kernel source evidence, Re-check, and Ze meanwhile |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -135,13 +164,28 @@ Design Decisions).
 | Component -> kernel (probe) | throwaway network and mount namespace, sysctl writes, rtnetlink, one packet through a TUN device | No |
 | Kernel builder -> kernel tree | `applyPatches` (`internal/appliance/kernelbuilder/worker.go`) applies `series`; the require manifest is checked against the resolved `.config` before the compile | No |
 
+### Changed-Wire Census
+
+No BGP wire format, RPC wire format, or netlink route-encoding wire format changes: `buildSEG6Encap` emits the exact same `RTA_ENCAP_TYPE=LWTUNNEL_ENCAP_SEG6` / `SEG6_IPTUNNEL_SRH` encap-mode netlink request, and no BGP UPDATE bytes change. The only observable wire change is on the forwarded IPv4/IPv6 data-plane packet leaving a patched Linux headend (inner IPv4 TTL or IPv6 Hop Limit decremented once per RFC 8986 Section 5.1 S05, and ICMP Time Exceeded / Fragmentation Needed / Packet Too Big returned to the sender on expiry or PMTU exceedance).
+
+**Search evidence:** searched `SEG6` and `seg6` across `internal/`, `gokrazy/`, `test/`, and `docs/` (`grep -rn "SEG6\|seg6" internal/ gokrazy/ test/ docs/`). Positive control: `internal/plugins/fib/kernel/nexthop_linux.go` (`buildSEG6Encap`) and `gokrazy/kernel/runtime.config` (`CONFIG_IPV6_SEG6_LWTUNNEL=y`). Only one netlink writer exists in Ze (`buildSEG6Encap`); VPP uses `sr.SrSteeringAddDel` (`internal/plugins/fib/vpp/srv6.go`) and already decrements the inner TTL/Hop Limit in VPP itself.
+
+| Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
+|------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
+| rtnetlink `RTM_NEWROUTE` (`LWTUNNEL_ENCAP_SEG6`) | writer | `internal/plugins/fib/kernel/nexthop_linux.go` (`buildSEG6Encap`, `buildRichRoute`) | Only Ze netlink SEG6 writer; unit tests `rfc9252_nexthop_srv6_linux_test.go`, `nexthop_metadata_linux_test.go` | preserve byte-identical encoding; wrap `EOPNOTSUPP` refusal in `addRichRoute`/`replaceRichRoute` |
+| rtnetlink `RTM_NEWROUTE` (`LWTUNNEL_ENCAP_SEG6`) | writer (probe) | `internal/component/kernelcap/probe_srv6_linux.go` (new) | Probe installs a throwaway-namespace encap route matching `buildSEG6Encap` | new consumer of the same kernel netlink ABI |
+| rtnetlink `RTM_NEWROUTE` (`LWTUNNEL_ENCAP_SEG6`) | reader | Linux kernel `net/ipv6/seg6_iptunnel.c` (`seg6_build_state`), patched by `gokrazy/kernel/patches/0014-seg6-forward-ttl.patch` | Reads `SEG6_IPTUNNEL_SRH`; L3 modes switch from `INPUT_REDIRECT\|OUTPUT_REDIRECT` to `OUTPUT_REDIRECT` only | preserve netlink ABI; change forwarding hook behavior on Ze's kernel |
+| Forwarded IPv6+SRH+IPv4/IPv6 wire packet | writer | Linux kernel `ip_forward`/`ip6_forward` -> `seg6_output_core` -> `__seg6_do_srh_encap` | Patched path decrements inner TTL/Hop Limit once before encapsulation and sends ICMP on TTL 1 or DF+MTU exceedance | change on Ze's kernel to satisfy RFC 8986 Section 5.1 S05; stock kernel preserved as documented limitation |
+| Forwarded IPv6+SRH+IPv4/IPv6 wire packet | reader | External SRv6 transit/egress routers and `internal/plugins/fib/kernel/srv6_integration_linux_test.go` (`TestFIBServiceSIDEncapsulationOnWire` and new tests) | Integration test captures egress Ethernet frame and asserts inner TTL/Hop Limit and ICMP responses | update integration tests to cover IPv4/IPv6 inner, TTL 1, DF MTU, and stock-kernel probe branch |
+
 ### Integration Points
 - `kernelcap.MustRegister` from `internal/plugins/fib/kernel/kernelcap_linux.go` - two new `kernelcap.Capability` values beside `transitMTUCapability`.
 - `internal/component/kernelcap/predicate.go` - new `SRv6InUse`, built on the same `fib { kernel { } }` check as `MPLSInUse`.
-- `internal/component/kernelcap/probe_linux.go` and `probe_other.go` - the new probe beside `MPLSIPMTU`, reusing `InThrowawayNetworkNamespace`, `remountSysctlWritable` and `stepFailed`.
-- `internal/core/diagnostic/codes.go` - four codes and their registry entries.
+- `internal/component/kernelcap/probe_srv6_linux.go` and `probe_other.go` - the new probe beside `MPLSIPMTU`, reusing `InThrowawayNetworkNamespace`, `remountSysctlWritable` and `stepFailed`.
+- `internal/component/kernelcap/apparmor.go` - `ProbeAppArmorProfile` extended so the Docker probe container can write the three IPv4/IPv6 forwarding sysctls inside its throwaway namespace.
+- `internal/plugins/fib/kernel/register_doctor_codes.go` - four codes and their registry entries registered via `diagnostic.Register`.
 - `addRichRoute` / `replaceRichRoute` in `internal/plugins/fib/kernel/nexthop_linux.go` - the refusal wrap.
-- `gokrazy/kernel/patches/series` - patch 0003 after 0002.
+- `gokrazy/kernel/patches/series` - patch `0014-seg6-forward-ttl.patch` after `0013da-ppp-control-current-namespace.patch`.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -151,7 +195,7 @@ Design Decisions).
 | No duplicated functionality (extends existing, does not recreate) | Yes | Reuses `InThrowawayNetworkNamespace`, `remountSysctlWritable`, `stepFailed`, the `evaluateOne` messages and the `ze.test.kernelcap.force` override |
 | Zero-copy preserved where applicable (refs, not copies) | N-A | No Ze datapath changes; the probe builds one packet once |
 | Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | Two `kernelcap.MustRegister` calls in the owning plugin's `init()`; no shared enumeration is edited |
-| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | Yes | Searched: `kernelcap.Enrolled`, `ProbeAll` and `KernelSymbols` (derive from the registry), `internal/le/interoplab/kernelcheck.go` (reads `ProbeAll` rows), `internal/core/diagnostic/codes.go` (each code declared once with its entry). The implementer repeats the search for `srv6-encap` and `srv6-forward-ttl` |
+| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | Yes | Searched: `kernelcap.Enrolled`, `ProbeAll` and `KernelSymbols` (derive from the registry), `internal/le/interoplab/kernelcheck.go` (reads `ProbeAll` rows), `internal/plugins/fib/kernel/register_doctor_codes.go` (owning-package `diagnostic.Register`). The implementer repeats the search for `srv6-encap` and `srv6-forward-ttl` |
 
 ## Risks & Assumptions
 
@@ -170,7 +214,7 @@ Design Decisions).
 | A-3 | `ip_dst_mtu_maybe_forward` / `ip6_dst_mtu_maybe_forward` subtract `lwtunnel_headroom` (`include/net/ip.h`, `include/net/ip6_route.h`), so the forward path now answers an oversized DF-set IPv4 or IPv6 packet with ICMP to the real sender | linux-7.3 headers above, `ip_forward` `ip_exceeds_mtu`, `ip6_forward` | no PMTU signal, or a wrong MTU value in the ICMP | AC-6 | unvalidated |
 | A-4 | A Service SID can reach the kernel FIB from any BGP peer: IBGP always accepts the SRv6 Prefix-SID (`accept-srv6-prefix-sid` description, `ze-bgp-conf.yang`), so `SRv6InUse` cannot narrow below "kernel FIB and a BGP peer or group" | `internal/component/bgp/yang/ze-bgp-conf.yang`, `internal/core/rib/routeinstall/sink.go` carries `SRv6SID` | a narrower predicate would hide the warning on a router that installs SRv6 | read `routeinstall/sink.go` and the family set that carries a Service SID during Phase 3; `TestSRv6InUse` | unvalidated |
 | A-5 | A TUN device can be created in the throwaway namespace (`CONFIG_TUN=y` in `gokrazy/kernel/runtime.config`; `/dev/net/tun` present on the appliance and on the CI runners) and needs only CAP_NET_ADMIN | `runtime.config`, `kernelcap` probe precedent | the probe answers unknown on hosts without `/dev/net/tun` (some containers) | the probe maps a missing `/dev/net/tun` to unknown with that reason; `TestSRv6ProbeClassification` | unvalidated |
-| A-6 | One probe packet is enough: a definitive verdict (present or absent) is a property of the running kernel and does not change while the process lives, because `IPV6_SEG6_LWTUNNEL` is a bool built into `ipv6` and patch 0003 is compiled in | `net/ipv6/Kconfig` `config IPV6_SEG6_LWTUNNEL` is `bool` | a cached absent survives a kernel change, which needs a reboot anyway | `TestSRv6ProbeMemoizesDefinitiveVerdict` | unvalidated |
+| A-6 | One probe packet is enough: a definitive verdict (present or absent) is a property of the running kernel and does not change while the process lives, because `IPV6_SEG6_LWTUNNEL` is a bool built into `ipv6` and patch 0014 is compiled in | `net/ipv6/Kconfig` `config IPV6_SEG6_LWTUNNEL` is `bool` | a cached absent survives a kernel change, which needs a reboot anyway | `TestSRv6ProbeMemoizesDefinitiveVerdict` | unvalidated |
 | A-7 | Ze's runtime kernel builds with `CONFIG_IPV6_SEG6_LWTUNNEL=y`: it depends on `IPV6` and selects `LWTUNNEL`, `DST_CACHE`, `IPV6_MULTIPLE_TABLES`, all already `=y` | `net/ipv6/Kconfig`; `runtime.config` has `CONFIG_LWTUNNEL=y`, `CONFIG_IPV6_MULTIPLE_TABLES=y` | the require manifest refuses the build | `./ze-host appliance kernel --target runtime --arch arm64` on the Mac; the manifest check before the compile | confirmed 2026-10-31: the arm64 runtime build from a tree holding d9e984c08f passed the require check and its config reads `CONFIG_IPV6_SEG6_LWTUNNEL=y`; in a guest booted on that vmlinuz `TestFIBServiceSIDEncapsulationOnWire` installed the route, captured the encapsulated packet and failed only on the inner TTL (expected 0x3f, actual 0x40), the defect this spec owns |
 | A-8 | A DF-clear IPv4 packet larger than the route MTU minus the headroom is dropped after encapsulation both before and after the patch, because `dst->output` is `lwtunnel_output`, which skips `ip_finish_output` and its fragmentation | linux-7.3 `lwtunnel_set_redirect`, `ip_forward` (`ip_exceeds_mtu` returns false for DF clear) | the patch changes DF-clear handling and an AC is missing | measured once by the AC-6 test with DF clear, result written into Design Insights | unvalidated |
 
@@ -185,6 +229,8 @@ Design Decisions).
 | R-6 | Adding two enrolments changes `internal/le/interoplab/kernelcheck.go` `DockerKernelRoute`: a stock-kernel Docker host now reads `srv6-forward-ttl` absent | interop runs move from Docker to Ze's VM | expected: META requires lab hosts to run Ze's kernel; named in the commit body |
 | R-7 | Enabling `IPV6_SEG6_LWTUNNEL` also builds `seg6_local` and the seg6 sysctls into Ze's kernel | new attack surface for SRH packets | `net.ipv6.conf.*.seg6_enabled` defaults to 0, so SRH packets addressed to the router are still dropped; Ze installs no seg6local route |
 
+| R-8 | `ProbeAppArmorProfile` (`internal/component/kernelcap/apparmor.go`) currently allows writes only to `/proc/sys/net/mpls/platform_labels`, so under Docker's `ze-kernel-probe` profile the SRv6 probe's writes to `net.ipv4.ip_forward`, `net.ipv6.conf.all.forwarding`, and `net.ipv4.conf.all.send_redirects` would fail with `EACCES` (`denied`) | `ze doctor kernel-capabilities` inside a Docker container answers `denied` for `srv6-*` | Extend `ProbeAppArmorProfile` in `apparmor.go` to admit those three `/proc/sys` paths beside `net/mpls/platform_labels` and unit-test the generated profile |
+
 ## Blast Radius
 
 <!-- What a wrong landing costs, and how to get out. A reviewer reads this first. -->
@@ -192,7 +238,7 @@ Design Decisions).
 |----------|--------|
 | What breaks if this is wrong? | SRv6 service traffic through Ze's kernel is dropped or mis-encapsulated (a kernel patch defect), or a start, reload or `ze doctor` run reports a false warning (a probe defect). The probe never refuses a start: both new capabilities degrade |
 | How is it reverted? | One revert per commit: the kernel config and patch commit (needs a kernel rebuild and a reboot of the appliance), the probe commit, the test commit. No config migration, nothing on the BGP wire |
-| Who else touches this path? | `gokrazy/kernel/` (any kernel bump or config spec), `internal/plugins/fib/kernel/` (MPLS transit MTU, ownership), `internal/component/kernelcap/` (every enrolment), `internal/core/diagnostic/codes.go` (every component). Check `git status` for foreign hunks in these files before each commit |
+| Who else touches this path? | `gokrazy/kernel/` (any kernel bump or config spec), `internal/plugins/fib/kernel/` (MPLS transit MTU, ownership, doctor codes), `internal/component/kernelcap/` (every enrolment, AppArmor probe profile). Check `git status` for foreign hunks in these files before each commit |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -211,21 +257,22 @@ Design Decisions).
 
 ## Acceptance Criteria
 
-<!-- Define BEFORE implementation. Each row is a testable assertion, stated as
-     observable behavior, never as the mechanism used to reach it. -->
-| AC ID | Input / Condition | Expected Behavior |
-|-------|-------------------|-------------------|
-| AC-1 | Ze's kernel, a Service SID route for 192.0.2.0/24, an IPv4 packet with TTL 64 forwarded to 192.0.2.20 | The packet on the egress link is IPv6 + SRH + IPv4 with inner TTL 63 and inner addresses and payload unchanged; the outer Hop Limit is the egress interface hop limit (64 by default) |
-| AC-2 | Ze's kernel, a Service SID route for an IPv6 prefix, an IPv6 packet with Hop Limit 64 forwarded into it | The egress packet is IPv6 + SRH (next header IPv6) + IPv6 with inner Hop Limit 63, inner addresses and payload unchanged; the outer Hop Limit is 63 |
-| AC-3 | Ze's kernel, the AC-1 route, an IPv4 packet with TTL 1 | The sender receives ICMP Time Exceeded (type 11, code 0) quoting its packet; no encapsulated packet appears on the egress link within the capture window |
-| AC-4 | Ze's kernel, the AC-2 route, an IPv6 packet with Hop Limit 1 | The sender receives ICMPv6 Time Exceeded (type 3, code 0); no encapsulated packet appears on the egress link |
-| AC-5 | A stock kernel with seg6 but without patch 0003 (the Ubuntu runner in evidence-nightly) | AC-1 to AC-4 tests read the probe, assert the unpatched behaviour (inner TTL unchanged, TTL 1 encapsulated), log the verdict, and pass; on a release ending in `-ze` they assert AC-1 to AC-4 and never take the stock branch |
-| AC-6 | Ze's kernel, the AC-1 route on a 1500-byte link, a DF-set IPv4 packet that fits 1500 but not 1500 minus the seg6 headroom | The sender receives ICMP Fragmentation Needed whose next-hop MTU is 1500 minus the headroom; nothing is encapsulated. The same test with DF clear records what the kernel does (A-8) |
-| AC-7 | The kernelcap probe in a fresh network namespace | On a `-ze` release both `srv6-encap` and `srv6-forward-ttl` answer present; on a stock kernel with seg6, `srv6-encap` present and `srv6-forward-ttl` absent; on a kernel without seg6, both absent; never unknown where the test has CAP_SYS_ADMIN and `/dev/net/tun` |
-| AC-8 | `ze doctor --json config <file>` with `fib { kernel { } }`, a BGP peer, and forced `srv6-forward-ttl=absent,srv6-encap=unknown` | Output holds `doctor-srv6-forward-ttl-not-decremented` naming the kernel feature, what is lost and the remedy, and `doctor-srv6-encap-unknown`; exit code 0 (both are warnings); the forced override is named |
-| AC-9 | A config without `fib { kernel { } }` or without any BGP peer | No `srv6-*` row, and the probe does not run |
-| AC-10 | A Service SID route installed on a kernel without seg6 | The FIB sync report and the log say the kernel has no SRv6 encapsulation (`CONFIG_IPV6_SEG6_LWTUNNEL`), that the route was not installed, and name the fix (run Ze's kernel or a kernel with that option, and `ze doctor` to confirm) |
-| AC-11 | Ze's kernel build | `runtime.require` pins `CONFIG_IPV6_SEG6_FORWARD_TTL` beside the `CONFIG_IPV6_SEG6_LWTUNNEL` pin commit d9e984c08f added; the resolved config holds both `=y`; `TestEnrolledKernelSymbolsAreInRuntimeRequire` passes with the two new enrolments |
+<!-- Define BEFORE implementation. Each row states positive observable behavior,
+     never only the mechanism or the absence of the defect. Name what remains
+     permitted and why; if there are no permitted survivors, state the reason. -->
+| AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
+|-------|-------------------|-------------------|-----------------------------|
+| AC-1 | Ze's kernel, a Service SID route for 192.0.2.0/24, an IPv4 packet with TTL 64 forwarded to 192.0.2.20 | The packet on the egress link is IPv6 + SRH + IPv4 with inner TTL 63 and inner addresses and payload unchanged; the outer Hop Limit is the egress interface hop limit (64 by default) | Locally originated IPv4 packets over the same route keep their TTL un-decremented because RFC 2473 Section 3.1 ties the decrement to forwarding |
+| AC-2 | Ze's kernel, a Service SID route for an IPv6 prefix, an IPv6 packet with Hop Limit 64 forwarded into it | The egress packet is IPv6 + SRH (next header IPv6) + IPv6 with inner Hop Limit 63, inner addresses and payload unchanged; the outer Hop Limit is 63 | Outer Hop Limit following the decremented inner value (63) stays permitted because RFC 8986 S03 fixes no outer value and RFC 2473 Section 6.3 is lowercase should; locally originated IPv6 packets owe no decrement |
+| AC-3 | Ze's kernel, the AC-1 route, an IPv4 packet with TTL 1 | The sender receives ICMP Time Exceeded (type 11, code 0) quoting its packet, and no encapsulated packet appears on the egress link within the capture window | Packets with TTL >= 2 remain encapsulated and forwarded normally (covered by AC-1); no TTL-1 encapsulated survivor is permitted because RFC 1812/RFC 8986 forbid forwarding expired packets |
+| AC-4 | Ze's kernel, the AC-2 route, an IPv6 packet with Hop Limit 1 | The sender receives ICMPv6 Time Exceeded (type 3, code 0), and no encapsulated packet appears on the egress link | Packets with Hop Limit >= 2 remain encapsulated and forwarded normally (covered by AC-2); no Hop-Limit-1 encapsulated survivor is permitted because RFC 8200/RFC 8986 forbid forwarding expired packets |
+| AC-5 | A stock kernel with seg6 but without patch 0014 (the Ubuntu runner in evidence-nightly) | AC-1 to AC-4 tests read the probe, assert the unpatched behaviour (inner TTL unchanged, TTL 1 encapsulated), log the verdict, and pass; on a release ending in `-ze` they assert AC-1 to AC-4 and never take the stock branch | Stock kernels retain upstream Linux behavior because Ze cannot patch a host kernel it did not build; `-ze` kernels permit no unpatched survivor |
+| AC-6 | Ze's kernel, the AC-1 route on a 1500-byte link, a DF-set IPv4 packet that fits 1500 but not 1500 minus the seg6 headroom | The sender receives ICMP Fragmentation Needed whose next-hop MTU is 1500 minus the headroom, and no encapsulated packet appears on the egress link; the same test with DF clear records what the kernel does (A-8) | DF-set packets at or below 1500 minus headroom remain encapsulated and forwarded; DF-clear oversized behavior is preserved as measured (A-8) because fragmentation across `lwtunnel_output` is out of scope |
+| AC-7 | The kernelcap probe in a fresh network namespace | On a `-ze` release both `srv6-encap` and `srv6-forward-ttl` answer present; on a stock kernel with seg6, `srv6-encap` present and `srv6-forward-ttl` absent; on a kernel without seg6, both absent; never unknown where the test has CAP_SYS_ADMIN and `/dev/net/tun` | `unknown` and `denied` remain permitted on unprivileged or policy-confined hosts where namespaces or `/dev/net/tun` cannot be opened, so Ze warns rather than failing closed on host probe limits |
+| AC-8 | `ze doctor --json config <file>` with `fib { kernel { } }`, a BGP peer, and forced `srv6-forward-ttl=absent,srv6-encap=unknown` | Output holds `doctor-srv6-forward-ttl-not-decremented` naming the kernel feature, what is lost and the remedy, and `doctor-srv6-encap-unknown`; exit code 0 (both are warnings); the forced override is named | Daemon startup and config validation remain permitted (exit 0, warning severity) because both capabilities declare `Degrades` and a stock kernel still forwards SRv6 |
+| AC-9 | A config without `fib { kernel { } }` or without any BGP peer | `ze doctor --json config <file>` exits 0 and emits a valid JSON readiness report (`"ready": true` and its other configured checks) while omitting all `srv6-*` rows and skipping the SRv6 probe | Other unrelated doctor checks for the config remain active; `srv6-*` rows stay absent because `SRv6InUse` is false |
+| AC-10 | A Service SID route installed on a kernel without seg6 | The FIB sync report and the log say the kernel has no SRv6 encapsulation (`CONFIG_IPV6_SEG6_LWTUNNEL`), that the route was not installed, and name the fix (run Ze's kernel or a kernel with that option, and `ze doctor` to confirm) | Non-SEG6 routes (plain IP, MPLS) keep their unmodified netlink error paths and continue installing normally |
+| AC-11 | Ze's kernel build | `runtime.require` pins `CONFIG_IPV6_SEG6_FORWARD_TTL` beside the `CONFIG_IPV6_SEG6_LWTUNNEL` pin commit d9e984c08f added; the resolved config holds both `=y`; `TestEnrolledKernelSymbolsAreInRuntimeRequire` passes with the two new enrolments; `ProbeAppArmorProfile` admits the probe's three `/proc/sys` writes | Seg6 L2 modes (`l2encap`, `l2encap.red`) keep `INPUT_REDIRECT` because Ethernet frames carry no IP TTL/Hop Limit |
 
 ## End-to-End User Stories
 
@@ -274,7 +321,7 @@ Design Decisions).
 | `TestFIBServiceSIDOversizedDFAnswersFragmentationNeeded` | `internal/plugins/fib/kernel/srv6_integration_linux_test.go` | AC-6, and the DF-clear measurement for A-8 | |
 | `TestSRv6Integration_ProbeAnswersFromAFreshNamespace` | `internal/plugins/fib/kernel/srv6probe_integration_linux_test.go` | AC-7, in the shape of `TestMPLSIntegration_ProbeAnswersFromAFreshNamespace` (`-ze` release wants present) | |
 
-The scoped run is `./le job run label srv6-ttl command go test` with the feature tag set plus `integration` (`docs/contributing/running-commands.md`, "A bare `go test` is not `./le test unit`") over `./internal/plugins/fib/kernel/`, `./internal/component/kernelcap/` and `./internal/appliance/`; `./le verify changed` judges the closing commits. The integration tests run on the stock kernel in `evidence-nightly.yml` job `integration` and on Ze's amd64 kernel in `qemu-nightly.yml`. Ze's arm64 kernel builds natively on the Mac with `./ze-host appliance kernel --target runtime --arch arm64`. The discrimination walk for AC-1 to AC-4 is: build Ze's kernel without patch 0003, see the four tests fail on the `-ze` branch, restore the patch, see them pass, and record both runs in the spec.
+The scoped run is `./le job run label srv6-ttl command go test` with the feature tag set plus `integration` (`docs/contributing/running-commands.md`, "A bare `go test` is not `./le test unit`") over `./internal/plugins/fib/kernel/`, `./internal/component/kernelcap/` and `./internal/appliance/`. The integration tests run on the stock kernel in `evidence-nightly.yml` job `integration` and on Ze's amd64 kernel in `qemu-nightly.yml`. Ze's arm64 kernel builds natively on the Mac with `./ze-host appliance kernel --target runtime --arch arm64` (and amd64 on Linux with `./le appliance kernel --target runtime --arch amd64`). The discrimination walk for AC-1 to AC-4 is: build Ze's kernel without patch 0014, see the four tests fail on the `-ze` branch, restore the patch, see them pass, and record both runs in the spec.
 
 ### Interop Tests (Scope: protocol)
 <!-- REQUIRED when wire-visible behavior changes. See
@@ -288,24 +335,29 @@ The scoped run is `./le job run label srv6-ttl command go test` with the feature
 <!-- MUST include feature code (internal/*, cmd/*), not only test files.
      Check each file's // Design: annotation: if the change alters behavior the
      referenced architecture doc describes, list that doc here too. -->
-- `gokrazy/kernel/runtime.config` - `CONFIG_IPV6_SEG6_FORWARD_TTL=y` in the SRv6 block commit d9e984c08f added, saying why (patch 0003's marker)
+- `gokrazy/kernel/runtime.config` - `CONFIG_IPV6_SEG6_FORWARD_TTL=y` in the SRv6 block commit d9e984c08f added, saying why (patch 0014's marker)
 - `gokrazy/kernel/runtime.require` - pin `CONFIG_IPV6_SEG6_FORWARD_TTL` beside the existing `CONFIG_IPV6_SEG6_LWTUNNEL` pin
-- `gokrazy/kernel/patches/series` - add `0003-seg6-forward-ttl.patch` after `0002-mpls-ip-mtu.patch`
+- `gokrazy/kernel/patches/series` - add `0014-seg6-forward-ttl.patch` after `0013da-ppp-control-current-namespace.patch`
 - `internal/plugins/fib/kernel/kernelcap_linux.go` - enrol `srv6-encap` and `srv6-forward-ttl`
+- `internal/plugins/fib/kernel/register_doctor_codes.go` - `codeDoctorSRv6EncapUnavailable`, `codeDoctorSRv6EncapUnknown`, `codeDoctorSRv6ForwardTTLNotDecremented`, `codeDoctorSRv6ForwardTTLUnknown` and their `doctorDiagnosticCodes` entries (title, description naming LL-SEG6-HEADEND-NO-TTL-DECREMENT, remedy)
 - `internal/plugins/fib/kernel/nexthop_linux.go` - `addRichRoute` / `replaceRichRoute` wrap an `EOPNOTSUPP` for a SEG6 encap with the user-facing error (AC-10); comment on `buildSEG6Encap` names the kernel requirement
 - `internal/component/kernelcap/predicate.go` - `SRv6InUse`
+- `internal/component/kernelcap/apparmor.go` - extend `ProbeAppArmorProfile` so the Docker probe container can write the three IPv4/IPv6 forwarding sysctls inside its throwaway namespace
+- `internal/component/kernelcap/policy_linux.go` - parameterize `stepFailed` by the probe's sysctl path(s) so a denied SRv6 probe names the forwarding sysctls rather than `MPLSPlatformLabelsPath()`
+- `internal/le/interoplab/kernelcheck.go` - pass `--device /dev/net/tun` in `kernelProbeContainer` so Docker's `ze doctor kernel-capabilities` probe can open `/dev/net/tun`
 - `internal/component/kernelcap/probe_other.go` - non-Linux `SRv6Encap` / `SRv6ForwardTTL` answering unknown, as `MPLSIPMTU` does there
-- `internal/core/diagnostic/codes.go` - `CodeDoctorSRv6EncapUnavailable`, `CodeDoctorSRv6EncapUnknown`, `CodeDoctorSRv6ForwardTTLNotDecremented`, `CodeDoctorSRv6ForwardTTLUnknown` and their entries (title, description naming LL-SEG6-HEADEND-NO-TTL-DECREMENT, remedy)
 - `internal/plugins/fib/kernel/srv6_integration_linux_test.go` - probe branch in the existing test, four new tests
 - `internal/plugins/fib/kernel/kernelcap_codes_linux_test.go` - two new tests
 - `internal/component/kernelcap/predicate_test.go` - `TestSRv6InUse`
 - `docs/architecture/linux-limitations.md` - entry LL-SEG6-HEADEND-NO-TTL-DECREMENT
 - `docs/architecture/fib/fib-depth-4-srv6.md` - "Kernel backend": kernel requirement, inner TTL, forward-path consequences, doctor codes
-- `docs/architecture/doctor-and-health-checks.md` - the two new rows if the page lists enrolments
+- `docs/architecture/doctor-and-health-checks.md` - document the two new enrolments, process-lifetime memoization of compiled-in kernel probes, and the widened `ze-kernel-probe` AppArmor sysctl grants
+- `docs/architecture/mpls/mpls-kernel.md` - update the `ze-kernel-probe` sentence to reflect the shared probe profile's MPLS + SRv6 sysctl grants
+- `docs/architecture/testing/interop.md` - document `--device /dev/net/tun` in "The Docker host kernel check"
 - `docs/features/srv6.md` - "Linux Kernel": kernel requirement, inner TTL on Ze's kernel versus a stock kernel, the doctor codes
 
 ## Files to Create
-- `gokrazy/kernel/patches/0003-seg6-forward-ttl.patch` - the `seg6_build_state` flag change, the corrected comment in `__seg6_do_srh_encap`, and the `config IPV6_SEG6_FORWARD_TTL` marker (`def_bool y`, `depends on IPV6_SEG6_LWTUNNEL`) in `net/ipv6/Kconfig`; header in the 0002 shape: RFC 8986 Section 5.1 S05 quoted, RFC 2473 Section 3.1, the MPLS precedent, the forward-path consequences (R-1, R-2, A-3), "Based on Linux v7.3"
+- `gokrazy/kernel/patches/0014-seg6-forward-ttl.patch` - the `seg6_build_state` flag change, the corrected comment in `__seg6_do_srh_encap`, and the `config IPV6_SEG6_FORWARD_TTL` marker (`def_bool y`, `depends on IPV6_SEG6_LWTUNNEL`) in `net/ipv6/Kconfig`; header in the 0002 shape: RFC 8986 Section 5.1 S05 quoted, RFC 2473 Section 3.1, the MPLS precedent, the forward-path consequences (R-1, R-2, A-3), "Based on Linux v7.3"
 - `internal/component/kernelcap/probe_srv6_linux.go` - the probe
 - `internal/component/kernelcap/probe_srv6_linux_test.go` - classification and memo tests
 - `internal/plugins/fib/kernel/srv6probe_integration_linux_test.go` - AC-7
@@ -334,7 +386,7 @@ The scoped run is `./le job run label srv6-ttl command go test` with the feature
 | Functional test for new RPC/API | N-A | No RPC; the doctor rows are covered by `test/ui/doctor-srv6-kernelcap.ci` |
 | Pipe completeness | N-A | No new output command |
 | Env var registration | N-A | Reuses `ze.test.kernelcap.force`; no new variable |
-| Doctor check for runtime dependencies | Yes | Kernel feature: two enrolments in `internal/plugins/fib/kernel/kernelcap_linux.go`, four codes in `internal/core/diagnostic/codes.go`, `TestSRv6ProbeClassification`, `TestSRv6CapabilityCodesRegistered`, `test/ui/doctor-srv6-kernelcap.ci` |
+| Doctor check for runtime dependencies | Yes | Kernel feature: two enrolments in `internal/plugins/fib/kernel/kernelcap_linux.go`, four codes in `internal/plugins/fib/kernel/register_doctor_codes.go`, `TestSRv6ProbeClassification`, `TestSRv6CapabilityCodesRegistered`, `test/ui/doctor-srv6-kernelcap.ci` |
 | Prometheus counters/metrics | No | The probe is a one-shot answer shown by `ze doctor`; the install refusal already raises `reportCodeFIBSyncFailure` |
 | BGP family surface (new SAFI / capability / attribute) | N-A | No BGP change |
 
@@ -344,9 +396,9 @@ The scoped run is `./le job run label srv6-ttl command go test` with the feature
      files you changed. Any factual doc change carries a source anchor. -->
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | No `features/<id>.md` declaration covers SRv6, so no level changes. `docs/features/srv6.md` "Linux Kernel" (anchored to `nexthop_linux.go`) gains: the kernel needs `CONFIG_IPV6_SEG6_LWTUNNEL`, and only Ze's kernel (patch 0003) lowers the inner TTL; a stock kernel forwards with the inner TTL unchanged, and `ze doctor` says so. The other anchors the audit lists (`docs/architecture/core-design.md`, `docs/guide/mpls.md`, `docs/guide/ipsec.md`, `docs/guide/redistribution.md`, `docs/guide/vpp.md`, `docs/architecture/bgp/as112-coordination.md`) mention changed files for other symbols and stay unaffected |
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | No `features/<id>.md` declaration covers SRv6, so no level changes. `docs/features/srv6.md` "Linux Kernel" (anchored to `nexthop_linux.go`) gains: the kernel needs `CONFIG_IPV6_SEG6_LWTUNNEL`, and only Ze's kernel (patch 0014) lowers the inner TTL; a stock kernel forwards with the inner TTL unchanged, and `ze doctor` says so. The other anchors the audit lists (`docs/architecture/core-design.md`, `docs/guide/mpls.md`, `docs/guide/ipsec.md`, `docs/guide/redistribution.md`, `docs/guide/vpp.md`, `docs/architecture/bgp/as112-coordination.md`) mention changed files for other symbols and stay unaffected |
 | 2 | Config syntax changed? | No | - |
-| 3 | CLI command added/changed? | No | `ze doctor` output gains rows through the enrolment; the codes are listed by `ze show diagnostic` from `codes.go` |
+| 3 | CLI command added/changed? | No | `ze doctor` output gains rows through the enrolment; the codes are listed by `ze show diagnostic` from `register_doctor_codes.go` |
 | 4 | API/RPC added/changed? | No | - |
 | 5 | Plugin added/changed? | No | The fib kernel plugin gains enrolments, not a surface |
 | 6 | Has a user guide page? | No | No SRv6 guide page exists |
@@ -359,8 +411,58 @@ The scoped run is `./le job run label srv6-ttl command go test` with the feature
 | 13 | Route metadata keys added/changed? | No | - |
 | 14 | Prometheus counters added/changed? | No | - |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | Two kernel capability enrolments: check `docs/guide/status.md` and `docs/features/plugins.md` for a list of kernel capabilities and add the rows if one exists |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `docs/features/ai-first.md` (declared by `internal/core/diagnostic/codes.go`): unaffected, it describes the code registry, not individual codes. `plan/release/validation/spec-fib-depth.md` (declared by `nexthop_linux.go` and `richroute.go`): a live spec, unaffected, it describes the encap builders whose request this spec keeps unchanged. `docs/architecture/fib/fib-depth-4-srv6.md` anchors `nexthop_linux.go` `buildSEG6Encap`: updated (row 12). Re-run `./le spec citation anchors spec plan/post-release/kernel/spec-srv6-headend-decrements-inner-ttl.md` at implementation |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `plan/release/validation/spec-fib-depth.md` (declared by `nexthop_linux.go` and `richroute.go`): a live spec, unaffected, it describes the encap builders whose request this spec keeps unchanged. `docs/architecture/fib/fib-depth-4-srv6.md` anchors `nexthop_linux.go` `buildSEG6Encap`: updated (row 12). `docs/architecture/doctor-and-health-checks.md` declared by `kernelcap_linux.go`, `register_doctor_codes.go`, `predicate.go`, `apparmor.go`: updated (row 12). `docs/guide/ospf.md` and `docs/guide/plugins.md` mention `nexthop_linux.go` for OSPF/plugin context and stay unaffected. Re-run `./le spec citation anchors spec plan/post-release/kernel/spec-srv6-headend-decrements-inner-ttl.md` at implementation |
 | 17 | Existing docs show config/CLI/API examples for this area? | No | No SRv6 example shows the inner TTL |
+
+## Design presentation
+
+### What changes
+
+Ze's runtime Linux kernel gains patch `0014-seg6-forward-ttl.patch` (marker `CONFIG_IPV6_SEG6_FORWARD_TTL=y` pinned in `gokrazy/kernel/runtime.require`), which removes `LWTUNNEL_STATE_INPUT_REDIRECT` from the L3 seg6 lwtunnel modes (`encap`, `encap.red`, `inline`) while keeping `OUTPUT_REDIRECT` and preserving `INPUT_REDIRECT` for L2 modes. Forwarded IPv4 and IPv6 packets matching an SRv6 Service SID route therefore traverse `ip_forward` / `ip6_forward` before `seg6_output_core`, decrementing the inner TTL/Hop Limit once, sending ICMP Time Exceeded on TTL/Hop Limit 1, enforcing PMTU minus seg6 headroom on DF-set IPv4 and IPv6, and honouring FORWARD netfilter/XFRM hooks. At runtime, `fib-kernel` enrols two degrading kernel capabilities (`srv6-encap`, `srv6-forward-ttl`) backed by one memoized throwaway-namespace TUN probe, `ProbeAppArmorProfile` grants the three `/proc/sys` forwarding writes under Docker, `addRichRoute`/`replaceRichRoute` wrap `EOPNOTSUPP` on SEG6 routes with an operator-facing message naming `CONFIG_IPV6_SEG6_LWTUNNEL` and `ze doctor`, and the SRv6 integration tests verify Ze's kernel while taking the probed stock-kernel branch on unpatched runners.
+
+### Before and after
+
+1. **Forwarded IPv4 packet (TTL 64) through an SRv6 Service SID route on Ze's kernel:**
+   - Before: leaves encapsulated as IPv6 + SRH + IPv4 with inner TTL `64` (unchanged); `TestFIBServiceSIDEncapsulationOnWire` fails (`expected 0x3f, actual 0x40`).
+   - After: leaves encapsulated as IPv6 + SRH + IPv4 with inner TTL `63` and outer Hop Limit `64`; `TestFIBServiceSIDEncapsulationOnWire` and IPv6-inner variant pass.
+2. **Forwarded IPv4/IPv6 packet with TTL/Hop Limit 1 through an SRv6 Service SID route on Ze's kernel:**
+   - Before: encapsulated and forwarded onto the egress link with inner TTL/Hop Limit still `1`.
+   - After: not encapsulated; headend answers the sender with ICMP Time Exceeded (type 11 code 0) or ICMPv6 Time Exceeded (type 3 code 0).
+3. **`ze doctor --json config <file>` on a stock kernel with seg6 (`fib { kernel { } }` + BGP peer):**
+   - Before: reports no SRv6 capability finding while forwarded packets violate RFC 8986 Section 5.1 S05.
+   - After: exits `0` (degrading warning) with `doctor-srv6-forward-ttl-not-decremented` naming `CONFIG_IPV6_SEG6_FORWARD_TTL`, `LL-SEG6-HEADEND-NO-TTL-DECREMENT`, what is lost, and the remedy (run Ze's kernel or a kernel with patch 0014).
+4. **Service SID route install on a kernel without `CONFIG_IPV6_SEG6_LWTUNNEL`:**
+   - Before: logs raw netlink `FIB add failed: operation not supported`.
+   - After: logs and raises `reportCodeFIBSyncFailure` naming the prefix, missing `CONFIG_IPV6_SEG6_LWTUNNEL`, and the fix (run Ze's kernel or a kernel built with `CONFIG_IPV6_SEG6_LWTUNNEL`, confirm with `ze doctor`).
+
+### Alternatives set aside
+
+| Alternative | Why set aside |
+|-------------|---------------|
+| Decrement and check inner TTL inside `seg6_input_core` / `__seg6_do_srh_encap` | Re-implements `ip_forward`/`ip6_forward` (TTL expiry ICMP with source selection, PMTU check, FORWARD hook, XFRM forward policy, counters) inside seg6 and drifts from the kernel's forwarding path |
+| Steer Service SID prefixes through a VRF detour before encapsulation | Costs a VRF device and routing table per headend, changes Ze's install model, and leaves default-table seg6 broken |
+| Detect patch 0014 by reading `/proc/config.gz` or a sysfs marker | Requires `CONFIG_IKCONFIG_PROC`, misses distribution kernels carrying an equivalent fix under no Ze symbol, and checks a build flag instead of actual forwarding behavior |
+| Refuse startup when `srv6-encap` is absent | `SRv6InUse` must match any BGP peer on the kernel FIB (IBGP always accepts Prefix-SID), so refusing would block plain non-SRv6 BGP routers on kernels without seg6 |
+
+### Documents departed from
+
+1. **`docs/architecture/doctor-and-health-checks.md` — `Kernel capabilities: one enrolment, three callers`:**
+   - Current statement (lines 541-543): `"The verdict is produced at read time, in the process that answers doctor (the daemon when it answers, the operator's own process otherwise), and it keeps no memory of a start."` And (lines 531-535): `ProbeAppArmorProfile` replaces the `/proc/sys` write deny with `"a chain that leaves only /proc/sys/net/mpls/platform_labels writable"`.
+   - After this work: the section states that probes for compiled-in boolean kernel features (`srv6-encap`, `srv6-forward-ttl`) may memoize a definitive `present`/`absent` verdict for the process life (never `unknown`/`denied`) because only a reboot can change the answer, while module-loadable/sysctl probes continue probing at read time; and `ze-kernel-probe` allows `/proc/sys/net/mpls/platform_labels` plus the three SRv6 forwarding sysctls (`net.ipv4.ip_forward`, `net.ipv6.conf.all.forwarding`, `net.ipv4.conf.all.send_redirects`).
+2. **`docs/architecture/mpls/mpls-kernel.md` — `On a kernel without the patch`:**
+   - Current statement (lines 227-228): `"Ze's \`ze-kernel-probe\` profile grants exactly those steps, and the Docker kernel check runs its probe under it."`
+   - After this work: the sentence states that `ze-kernel-probe` grants the private `/proc/sys` mounts and the exact sysctl writes needed by Ze's namespace probes (MPLS `platform_labels` and the SRv6 forwarding sysctls).
+3. **`docs/architecture/testing/interop.md` — `The Docker host kernel check`:**
+   - Current statement (lines 1288-1295, 1403-1405): `"A capability enrolled later is required of every Docker host with no le change."`, pins `docker run --rm --cap-add NET_ADMIN --cap-add SYS_ADMIN --network none` with no `--device`, and notes `"because the Docker host kernel check below cannot see a character device."`
+   - After this work: the section documents that `kernelProbeContainer` passes `TUNDeviceArguments` (`--device /dev/net/tun`, from `internal/le/interoplab/tundevice.go`) so the SRv6 TUN behavioural probe can run inside the probe container (while `/dev/ppp` stays in each PPP lab's own preflight).
+
+### Choices for Thomas
+
+| # | Choice | Options | Decision |
+|---|--------|---------|----------|
+| C-1 | Patch numbering in `gokrazy/kernel/patches/series` | (a) `0014-seg6-forward-ttl.patch` (next free slot after `0013da-ppp-control-current-namespace.patch`, replacing the obsolete `0003` slot now held by `0003-xfrm-state-scope.patch`) (Recommended); (b) insert at `0006-seg6-forward-ttl.patch` | pending |
+| C-2 | Docker `ze-kernel-probe` AppArmor profile extension (`apparmor.go`) and `--device /dev/net/tun` (`kernelcheck.go`) | (a) Extend `ProbeAppArmorProfile` to allow the probe's three `/proc/sys` forwarding writes beside `net/mpls/platform_labels`, parameterize `stepFailed`, and pass `--device /dev/net/tun` in `kernelProbeContainer` (updating `doctor-and-health-checks.md`, `mpls-kernel.md`, `interop.md`) (Recommended); (b) leave `ze-kernel-probe` MPLS-only and avoid TUN/sysctl writes in Docker | pending |
+| C-3 | Process-lifetime memoization of definitive SRv6 probe verdicts (`doctor-and-health-checks.md` departure) | (a) Keep A-6 memoization for `present`/`absent` (one namespace+TUN probe per process; `unknown`/`denied` always re-probed) and document the compiled-in exception in `doctor-and-health-checks.md` (Recommended); (b) drop memoization and run the throwaway-namespace TUN probe on every start, reload, validate, and doctor call | pending |
 
 ## Implementation Steps
 
@@ -370,23 +472,23 @@ The scoped run is `./le job run label srv6-ttl command go test` with the feature
      (write test -> fail -> implement -> pass) and ends with a self-critical
      review; fix what it finds before starting the next phase. -->
 
-1. **Phase: Wiring (MANDATORY FIRST)** -- the two enrolments with a stub probe that answers unknown, `SRv6InUse`, the four codes, and the failing tests
+1. **Phase: Wiring (MANDATORY FIRST)** -- the two enrolments with a stub probe that answers unknown, `SRv6InUse`, the four codes in `register_doctor_codes.go`, and the failing tests
    - Tests: `TestSRv6CapabilityCodesRegistered`, `TestSRv6CapabilitiesDegrade`, `TestSRv6InUse`, `test/ui/doctor-srv6-kernelcap.ci` (passes on forced answers), `TestEnrolledKernelSymbolsAreInRuntimeRequire` (fails until Phase 2 pins the symbols)
-   - Files: `kernelcap_linux.go`, `predicate.go`, `codes.go`, `probe_srv6_linux.go` stub, `probe_other.go`
+   - Files: `kernelcap_linux.go`, `register_doctor_codes.go`, `predicate.go`, `probe_srv6_linux.go` stub, `probe_other.go`
    - Verify: `ze doctor` shows the rows from the entry point; the stub answers unknown
-2. **Phase: Kernel config and patch** -- write `0003-seg6-forward-ttl.patch`, add it to `series`, set and pin `CONFIG_IPV6_SEG6_FORWARD_TTL`
-   - Tests: the require manifest check, then the kernel build `./ze-host appliance kernel --target runtime --arch arm64` on the Mac; `TestEnrolledKernelSymbolsAreInRuntimeRequire` passes
-   - Files: `gokrazy/kernel/patches/0003-seg6-forward-ttl.patch`, `series`, `runtime.config`, `runtime.require`
+2. **Phase: Kernel config and patch** -- write `0014-seg6-forward-ttl.patch`, add it to `series`, set and pin `CONFIG_IPV6_SEG6_FORWARD_TTL`
+   - Tests: the require manifest check, then the kernel build (`./le appliance kernel --target runtime --arch amd64` on Linux or `./ze-host appliance kernel --target runtime --arch arm64` on Mac); `TestEnrolledKernelSymbolsAreInRuntimeRequire` passes
+   - Files: `gokrazy/kernel/patches/0014-seg6-forward-ttl.patch`, `series`, `runtime.config`, `runtime.require`
    - Verify: the patch applies to v7.3 through `applyPatches`; the resolved config holds both `=y`. Commit this phase on its own
-3. **Phase: Probe and install refusal** -- the behavioural probe (Probe procedure above), the memo, the `EOPNOTSUPP` wrap
-   - Tests: `TestSRv6ProbeClassification`, `TestSRv6ProbeMemoizesDefinitiveVerdict`, `TestSEG6InstallRefusalNamesKernelFeature`, `TestSRv6Integration_ProbeAnswersFromAFreshNamespace`
-   - Files: `probe_srv6_linux.go`, `probe_srv6_linux_test.go`, `nexthop_linux.go`, `nexthop_seg6_refusal_linux_test.go`, `srv6probe_integration_linux_test.go`
+3. **Phase: Probe, AppArmor grant, and install refusal** -- the behavioural probe (Probe procedure above), the memo, `ProbeAppArmorProfile` multi-path deny chain, `stepFailed` sysctl parameterization, `TUNDeviceArguments` in `kernelProbeContainer`, and the `EOPNOTSUPP` wrap
+   - Tests: `TestSRv6ProbeClassification`, `TestSRv6ProbeMemoizesDefinitiveVerdict`, `TestSEG6InstallRefusalNamesKernelFeature`, `TestSRv6Integration_ProbeAnswersFromAFreshNamespace`, AppArmor profile test
+   - Files: `probe_srv6_linux.go`, `probe_srv6_linux_test.go`, `apparmor.go`, `policy_linux.go`, `kernelcheck.go`, `nexthop_linux.go`, `nexthop_seg6_refusal_linux_test.go`, `srv6probe_integration_linux_test.go`
    - Verify: unit tests fail on the stub, pass on the probe; the integration test answers absent on the stock host kernel. Validate A-4, A-5, A-6
 4. **Phase: Datapath tests** -- the probe branch in the existing test and the four new tests
    - Tests: `TestFIBServiceSIDEncapsulationOnWire`, `TestFIBServiceSIDEncapsulationIPv6InnerOnWire`, `TestFIBServiceSIDExpiringTTLAnswersTimeExceeded`, `TestFIBServiceSIDExpiringHopLimitAnswersTimeExceeded`, `TestFIBServiceSIDOversizedDFAnswersFragmentationNeeded`
    - Files: `srv6_integration_linux_test.go`
-   - Verify: on Ze's kernel in a QEMU guest, red with patch 0003 removed from `series`, green with it; record both runs here (discrimination). Validate A-1, A-3, A-8
-5. **Phase: Documentation** -- the limitation entry, `fib-depth-4-srv6.md`, `docs/features/srv6.md`, `doctor-and-health-checks.md`
+   - Verify: on Ze's kernel in a QEMU guest, red with patch 0014 removed from `series`, green with it; record both runs here (discrimination). Validate A-1, A-3, A-8
+5. **Phase: Documentation** -- the limitation entry, `fib-depth-4-srv6.md`, `docs/features/srv6.md`, `doctor-and-health-checks.md`, `mpls-kernel.md`, and `interop.md`
    - Tests: `./le doc check all`
    - Files: the docs in Files to Modify
    - Verify: every factual paragraph carries a source anchor; the page and the code agree
@@ -403,9 +505,9 @@ The scoped run is `./le job run label srv6-ttl command go test` with the feature
 | Correctness | The patch touches only the flag assignment in `seg6_build_state` (plus the comment and the Kconfig marker); L2 modes keep `INPUT_REDIRECT`; the probe compares the inner TTL, never the outer; the probe's route request is the one `buildSEG6Encap` sends |
 | Naming | Subsystems `srv6-encap` and `srv6-forward-ttl` (lower-kebab); codes `doctor-srv6-encap-unavailable`, `doctor-srv6-encap-unknown`, `doctor-srv6-forward-ttl-not-decremented`, `doctor-srv6-forward-ttl-unknown`; Kconfig marker `IPV6_SEG6_FORWARD_TTL` |
 | Data flow | The fib kernel plugin owns the enrolments; `kernelcap` holds only probe and predicate; the forwarding owner never runs the namespace probe (it holds no CAP_SYS_ADMIN) |
-| Rule: `ai/rules/user-facing-errors.md` | Each doctor description and the install refusal say what is wrong, why (the kernel lacks seg6 or patch 0003), and the exact fix (run Ze's kernel, or build with `CONFIG_IPV6_SEG6_LWTUNNEL` and the patch; confirm with `ze doctor`) |
+| Rule: `ai/rules/user-facing-errors.md` | Each doctor description and the install refusal say what is wrong, why (the kernel lacks seg6 or patch 0014), and the exact fix (run Ze's kernel, or build with `CONFIG_IPV6_SEG6_LWTUNNEL` and the patch; confirm with `ze doctor`) |
 | Rule: `ai/rules/rfc-compliance.md` | The patch header and the Go comments quote RFC 8986 Section 5.1 S05 byte-exact from `rfc/full/rfc8986.txt` |
-| Rule: `ai/rules/interop-and-goal-validation.md` | The red run with patch 0003 removed is recorded for AC-1 to AC-4 |
+| Rule: `ai/rules/interop-and-goal-validation.md` | The red run with patch 0014 removed is recorded for AC-1 to AC-4 |
 
 ### Deliverables Checklist
 
@@ -413,10 +515,10 @@ The scoped run is `./le job run label srv6-ttl command go test` with the feature
      verification method. -->
 | Deliverable | Verification method |
 |-------------|---------------------|
-| Patch 0003 in the series | `grep 0003-seg6-forward-ttl.patch gokrazy/kernel/patches/series` |
+| Patch 0014 in the series | `grep 0014-seg6-forward-ttl.patch gokrazy/kernel/patches/series` |
 | Marker symbol set and pinned | `grep -n "IPV6_SEG6_FORWARD_TTL" gokrazy/kernel/runtime.config gokrazy/kernel/runtime.require` |
 | Two enrolments | `grep -n "srv6-encap\|srv6-forward-ttl" internal/plugins/fib/kernel/kernelcap_linux.go` |
-| Four codes | `grep -n "doctor-srv6-" internal/core/diagnostic/codes.go` |
+| Four codes | `grep -n "doctor-srv6-" internal/plugins/fib/kernel/register_doctor_codes.go` |
 | Unit tests pass | scoped `./le job run label srv6-ttl command go test` over `./internal/component/kernelcap/`, `./internal/plugins/fib/kernel/`, `./internal/appliance/` |
 | Doctor functional test passes | `./le test functional` with the single test `doctor-srv6-kernelcap` |
 | Datapath tests on Ze's kernel | qemu-nightly run, or a local QEMU guest on Ze's kernel, with the red and green runs pasted here |
@@ -454,7 +556,7 @@ The scoped run is `./le job run label srv6-ttl command go test` with the feature
      governing surface under ai/rules/planning.md. A problem-class journal row
      is appropriate only when no surface governs the lesson yet; closure alone
      requires no lesson artifact. -->
-- The false comment in `__seg6_do_srh_encap` ("decapsulation will overwrite inner hlim with outer hlim") is the root of the upstream defect: `seg6_local.c` holds no hop-limit code, so no decapsulator restores anything. Patch 0003 corrects the comment.
+- The false comment in `__seg6_do_srh_encap` ("decapsulation will overwrite inner hlim with outer hlim") is the root of the upstream defect: `seg6_local.c` holds no hop-limit code, so no decapsulator restores anything. Patch 0014 corrects the comment.
 - After the patch the seg6 input functions (`seg6_input`, `seg6_input_core`, `seg6_input_route`, `cache_input`) serve only the L2 modes. The patch leaves them in place: removing them is an upstream refactor, not this fix.
 - The forward path brings PMTU signalling to the headend for free (A-3): today an oversized packet is encapsulated, then refused by `ip6_forward` on the outer, whose Packet Too Big goes to the headend's own address, so the sender never learns.
 - Because `ze doctor kernel-capabilities` reports not ready when any enrolment is absent, a stock kernel now reports `srv6-forward-ttl` absent there; lab hosts run Ze's kernel (`ai/META-DECISIONS.md`, "Test systems and labs").
@@ -470,7 +572,7 @@ The scoped run is `./le job run label srv6-ttl command go test` with the feature
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | Enable `CONFIG_IPV6_SEG6_LWTUNNEL` in Ze's runtime kernel and pin it (owner, design gate) | Leave it off and refuse SRv6 on Ze's kernel | Ze installs H.Encaps for RFC 9252 service routes; without the option no Service SID installs on the kernel Ze ships |
-| Patch 0003 follows the MPLS lwtunnel model: L3 modes (encap, encap.red, inline) set `OUTPUT_REDIRECT` only, L2 modes keep `INPUT_REDIRECT` (owner, design gate) | (a) Decrement and check the inner TTL inside `seg6_input_core` or the encap helpers. Rejected: it re-implements in seg6 what `ip_forward` / `ip6_forward` already do (TTL check, ICMP to the real sender with the right source, MTU check, FORWARD hook, XFRM forward policy, counters), each of which would need its own copy, and the copies drift. (b) A VRF detour (steer the prefix into a VRF whose route carries the encap, so the packet is forwarded once before encapsulation). Rejected: it costs a VRF device and table per headend, changes Ze's install model, and still leaves the default-table install wrong for every other user | One flag change moves forwarded traffic onto the path every other forwarded packet takes; `mpls_build_state` already proves the shape (`LWTUNNEL_STATE_XMIT_REDIRECT` only). RFC 8986 Section 4 judges only the observable wire result |
+| Patch 0014 follows the MPLS lwtunnel model: L3 modes (encap, encap.red, inline) set `OUTPUT_REDIRECT` only, L2 modes keep `INPUT_REDIRECT` (owner, design gate) | (a) Decrement and check the inner TTL inside `seg6_input_core` or the encap helpers. Rejected: it re-implements in seg6 what `ip_forward` / `ip6_forward` already do (TTL check, ICMP to the real sender with the right source, MTU check, FORWARD hook, XFRM forward policy, counters), each of which would need its own copy, and the copies drift. (b) A VRF detour (steer the prefix into a VRF whose route carries the encap, so the packet is forwarded once before encapsulation). Rejected: it costs a VRF device and table per headend, changes Ze's install model, and still leaves the default-table install wrong for every other user | One flag change moves forwarded traffic onto the path every other forwarded packet takes; `mpls_build_state` already proves the shape (`LWTUNNEL_STATE_XMIT_REDIRECT` only). RFC 8986 Section 4 judges only the observable wire result |
 | Runtime detection is a behavioural probe: encapsulate one forwarded packet in a throwaway namespace and read its inner TTL (owner, design gate) | A Kconfig-symbol probe (read `/proc/config.gz` or a sysfs marker for `IPV6_SEG6_FORWARD_TTL`). Rejected: `/proc/config.gz` needs `CONFIG_IKCONFIG_PROC`, a distribution kernel may carry an equivalent fix under no symbol, and a symbol proves a build option, not the forwarding result | The probe measures the behaviour the RFC requires, on the running kernel, the way `kernelcap.MPLSIPMTU` measures the MTU attribute |
 | The patch adds a marker `config IPV6_SEG6_FORWARD_TTL` (`def_bool y`), used only by `runtime.require` and as the `Kernel` name of the `srv6-forward-ttl` enrolment | Use `CONFIG_IPV6_SEG6_LWTUNNEL` as the `Kernel` name of both enrolments | `evaluateOne` prints "the kernel holds no <Kernel>"; with the shared name a stock kernel with seg6 would read "holds no CONFIG_IPV6_SEG6_LWTUNNEL", which is false. The marker also makes a build without the patch fail before the compile, as `CONFIG_MPLS_IP_MTU` does. Runtime never reads it |
 | Two enrolments, `srv6-encap` and `srv6-forward-ttl`, answered by one memoized probe run | One enrolment with one verdict | The two faults have different remedies (no seg6 at all, versus seg6 without the patch) and different losses; one run keeps the cost to one namespace and one packet |
@@ -513,7 +615,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test (N-A when Scope is tooling or docs, which delete that section)
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] The targeted tests for what changed pass: the scoped package tests, the component groups and functional suites `./le repo changed scope print both` reaches, and `./le verify changed` over the closing commits (`/ze-close` step 6f). The full verification is Thomas's release check: no agent runs it, and one that is owed is handed to him as its exact command. A red there gets a fix commit
+- [ ] The targeted tests for what changed pass, run in the main checkout by the main thread: the scoped package tests, the component groups and functional suites `./le repo changed scope print both` reaches. No agent runs any `./le verify` command: GitHub CI verifies the pushed commit, and the full verification is Thomas's release check. A red CI reports gets a fix commit
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
