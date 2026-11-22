@@ -30,6 +30,8 @@ import (
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/network"
 	"github.com/ze-software/ze/internal/core/observation"
+	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/rtproto"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -1187,10 +1189,11 @@ func runEngine(conn net.Conn) int {
 	return 0
 }
 
-// permissionRemediation is appended to an interface apply failure that the
-// kernel refused for want of privilege, so the returned error carries the
-// corrective action and not just the syscall text (ai/rules/cli.md:
-// an error must say what failed, why, and what to do next).
+// privilegeWhy is the why of the operator error joinApplyErrors returns for an
+// interface apply failure that the kernel refused for want of privilege. Its
+// fix is privilege.CapabilityRemedy("CAP_NET_ADMIN"), so the operator reads the
+// corrective action that fits how this ze was started, and not just the
+// syscall text (ai/rules/user-facing-errors.md).
 //
 // Interface work is netlink RTM_NEWLINK/RTM_NEWADDR, which the kernel gates on
 // CAP_NET_ADMIN. An unprivileged ze therefore fails EVERY interface operation
@@ -1199,7 +1202,7 @@ func runEngine(conn net.Conn) int {
 // (internal/core/privilege/check_linux.go, CheckPrivileges) is logged at debug
 // only and shown in show doctor as information, so this error is the one place
 // the interface impact is reported.
-const permissionRemediation = " (interface configuration needs CAP_NET_ADMIN: run ze as root, or grant the binary the capability with `setcap cap_net_admin+ep <path-to-ze>`)"
+const privilegeWhy = "interface configuration needs CAP_NET_ADMIN, which this ze process does not hold, so the kernel refused the change"
 
 // lacksPrivilege reports whether any apply error was the kernel refusing the
 // operation for want of privilege. netlink returns EPERM, and some paths EACCES;
@@ -1223,19 +1226,27 @@ func lacksPrivilege(errs []error) bool {
 // error crosses an RPC boundary as text). One error is wrapped whole; several
 // name the count and wrap the first, which keeps the message bounded while
 // still carrying evidence. Every error is logged individually above regardless.
+//
+// When any error is the kernel refusing for want of privilege (lacksPrivilege),
+// the answer is an operator error: the prefix and the missing permission on the
+// first line, privilegeWhy followed by the cause on the second, and
+// privilege.CapabilityRemedy("CAP_NET_ADMIN") alone on the fix line.
 func joinApplyErrors(prefix string, errs []error) error {
 	log := loggerPtr.Load()
 	for _, e := range errs {
 		log.Warn(prefix, "err", e)
 	}
-	hint := ""
+	cause := errs[0]
+	if len(errs) > 1 {
+		cause = fmt.Errorf("%d errors, first: %w", len(errs), errs[0])
+	}
 	if lacksPrivilege(errs) {
-		hint = permissionRemediation
+		// The remedy depends on how this ze was started: the systemd unit
+		// repair under ze.service, a restart holding the capability otherwise.
+		return opererr.Wrap(cause, prefix+": Ze has no permission to configure interfaces",
+			privilegeWhy, privilege.CapabilityRemedy("CAP_NET_ADMIN"))
 	}
-	if len(errs) == 1 {
-		return fmt.Errorf("%s: %w%s", prefix, errs[0], hint)
-	}
-	return fmt.Errorf("%s: %d errors, first: %w%s", prefix, len(errs), errs[0], hint)
+	return fmt.Errorf("%s: %w", prefix, cause)
 }
 
 // DHCPStopper is the subset of ifacedhcp.DHCPClient needed by the

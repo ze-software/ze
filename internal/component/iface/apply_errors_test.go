@@ -6,6 +6,9 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+
+	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/privilege"
 )
 
 // permErr rebuilds the error shape the production apply path actually produces
@@ -25,32 +28,94 @@ func permErr(errno syscall.Errno) error {
 }
 
 // VALIDATES: an apply failure the kernel refused for want of privilege returns
-// an error carrying the corrective action (CAP_NET_ADMIN), the offending object,
-// and the underlying reason.
+// an operator error carrying what failed, the offending object, the underlying
+// reason, why (interface configuration needs CAP_NET_ADMIN), and the corrective
+// action privilege.CapabilityRemedy gives for how this ze was started: the
+// systemd unit repair under ze.service, a process remedy naming CAP_NET_ADMIN
+// and no systemd command otherwise.
 // PREVENTS: the operator-facing regression -- an unprivileged ze aborted startup
 // reporting only "operation not permitted" with no statement of which privilege
-// was missing or how to grant it (ai/rules/cli.md leg 3).
+// was missing or how to grant it -- and a remedy that does not fit the process,
+// such as a systemd command for a ze the unit did not start
+// (ai/rules/user-facing-errors.md).
+//
+// Method: fix the service membership with privilege.SetServiceMembershipForTest,
+// so the test does not depend on how the test process was started, then pin the
+// whole rendered text, which also proves the fix is alone on the last line.
+// Not parallel: the membership is process-wide.
 func TestJoinApplyErrorsAddsPermissionRemediation(t *testing.T) {
-	for _, errno := range []syscall.Errno{syscall.EPERM, syscall.EACCES} {
-		err := joinApplyErrors("interface config", []error{permErr(errno)})
-		if err == nil {
-			t.Fatalf("errno %v: joinApplyErrors = nil, want an error", errno)
-		}
-		got := err.Error()
-		for _, want := range []string{
-			"interface config", // what failed
-			"zdiag0",           // the offending object
-			"CAP_NET_ADMIN",    // what to do next
-			"setcap",           // ... and how
-		} {
-			if !strings.Contains(got, want) {
-				t.Errorf("errno %v: error missing %q\ngot: %s", errno, want, got)
+	const why = "interface configuration needs CAP_NET_ADMIN, which this ze process does not hold, so the kernel refused the change"
+	for _, tc := range []struct {
+		name       string
+		membership privilege.ServiceMembership
+		membErr    error
+		fix        string
+		absent     []string
+	}{
+		{
+			name:       "ze.service",
+			membership: privilege.MembershipZeService,
+			fix:        "sudo systemctl stop ze && sudo ze install systemd --force --start",
+		},
+		{
+			name:       "other process",
+			membership: privilege.MembershipOther,
+			fix: "restart ze as root, or holding CAP_NET_ADMIN: grant it as an ambient capability" +
+				" from whatever starts ze, or run sudo setcap cap_net_admin+ep on the ze binary",
+			absent: []string{"systemctl", "ze install systemd"},
+		},
+		{
+			name:       "unknown membership",
+			membership: privilege.MembershipUnknown,
+			membErr:    errors.New("no cgroup v2 line"),
+			fix: "Ze could not tell whether it runs under ze.service (no cgroup v2 line); " +
+				"restart ze as root, or holding CAP_NET_ADMIN: grant it as an ambient capability" +
+				" from whatever starts ze, or run sudo setcap cap_net_admin+ep on the ze binary",
+			absent: []string{"systemctl", "ze install systemd"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Cleanup(privilege.SetServiceMembershipForTest(tc.membership, tc.membErr))
+			for _, errno := range []syscall.Errno{syscall.EPERM, syscall.EACCES} {
+				cause := permErr(errno)
+				err := joinApplyErrors("interface config", []error{cause})
+				if err == nil {
+					t.Fatalf("errno %v: joinApplyErrors = nil, want an error", errno)
+				}
+				got := err.Error()
+				want := "interface config: Ze has no permission to configure interfaces\n" +
+					why + ": " + cause.Error() + "\n" +
+					"fix: " + tc.fix
+				if got != want {
+					t.Errorf("errno %v: error text\ngot:  %q\nwant: %q", errno, got, want)
+				}
+				for _, part := range []string{
+					"interface config", // what failed
+					"zdiag0",           // the offending object
+					"CAP_NET_ADMIN",    // why, and what to grant
+				} {
+					if !strings.Contains(got, part) {
+						t.Errorf("errno %v: error missing %q\ngot: %s", errno, part, got)
+					}
+				}
+				for _, part := range tc.absent {
+					if strings.Contains(got, part) {
+						t.Errorf("errno %v: error offers %q to a ze outside ze.service\ngot: %s", errno, part, got)
+					}
+				}
+				var operErr *opererr.Error
+				if !errors.As(err, &operErr) {
+					t.Fatalf("errno %v: joinApplyErrors = %T, want *opererr.Error", errno, err)
+				}
+				if operErr.Fix() != tc.fix {
+					t.Errorf("errno %v: Fix() = %q, want %q", errno, operErr.Fix(), tc.fix)
+				}
+				// The cause must stay reachable for errors.Is, not just be pasted in.
+				if !errors.Is(err, errno) {
+					t.Errorf("errno %v: errors.Is lost the cause; got %v", errno, err)
+				}
 			}
-		}
-		// The cause must stay reachable for errors.Is, not just be pasted in.
-		if !errors.Is(err, errno) {
-			t.Errorf("errno %v: errors.Is lost the cause; got %v", errno, err)
-		}
+		})
 	}
 }
 

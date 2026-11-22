@@ -80,9 +80,10 @@ func withTierCause(own, tierCause error) error {
 //	error: config-path plugin startup failed: plugin interface failed during startup at stage Config
 //
 // which names no offending object, no reason, and no corrective action, while
-// the real cause (`interface config: dummy zdiag0 create: iface: create dummy
-// "zdiag0": operation not permitted (interface configuration needs
-// CAP_NET_ADMIN: ...)`) was logged at Debug level and discarded. Wrapping keeps
+// the real cause (`interface config: Ze has no permission to configure
+// interfaces`, then `interface configuration needs CAP_NET_ADMIN, ...: dummy
+// zdiag0 create: iface: create dummy "zdiag0": operation not permitted`, then
+// the fix line) was logged at Debug level and discarded. Wrapping keeps
 // the chain intact for errors.Is/errors.As as well as for the text
 // (ai/rules/cli.md: wrap the cause and add context; never drop it).
 //

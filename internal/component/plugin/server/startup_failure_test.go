@@ -27,7 +27,13 @@ func TestStartupFailureErrorWrapsCause(t *testing.T) {
 	proc := process.NewProcess(plugin.PluginConfig{Name: "interface"})
 	proc.SetStage(plugin.StageConfig)
 
-	cause := errors.New(`interface config: dummy zdiag0 create: iface: create dummy "zdiag0": operation not permitted (interface configuration needs CAP_NET_ADMIN: run ze as root, or grant the binary the capability with ` + "`setcap cap_net_admin+ep <path-to-ze>`" + `)`)
+	// The text iface's joinApplyErrors renders for a ze outside ze.service
+	// (internal/component/iface/apply_errors_test.go pins it).
+	cause := errors.New("interface config: Ze has no permission to configure interfaces\n" +
+		"interface configuration needs CAP_NET_ADMIN, which this ze process does not hold, so the kernel refused the change: " +
+		`dummy zdiag0 create: iface: create dummy "zdiag0": operation not permitted` + "\n" +
+		"fix: restart ze as root, or holding CAP_NET_ADMIN: grant it as an ambient capability" +
+		" from whatever starts ze, or run sudo setcap cap_net_admin+ep on the ze binary")
 	proc.SetStartupError(cause)
 
 	err := startupFailureError(proc)
