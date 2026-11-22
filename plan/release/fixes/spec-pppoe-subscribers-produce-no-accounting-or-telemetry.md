@@ -9,7 +9,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-09 |
+| Updated | 2026-11-22 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -26,6 +26,19 @@ that: `buildAcctPacket`, which puts real Acct-Input-Octets, Acct-Output-Octets,
 the packet counts and the RFC 2869 Gigawords into every Accounting-Request; the
 `l2tpStatsPoller`, which publishes `ze_l2tp_session_rx_bytes_total` and its
 siblings; and `show l2tp session traffic`.
+
+**Amended 2026-11-22: accounting octets come from the session's original PPP
+unit, never from an interface name.** A name does not survive a rename of the
+original `pppN` and does not refuse a name another subscriber reused, so a
+record read by name can bill another session's traffic. L2TP accounting no
+longer reads `iface.GetStats` (`38267f5e0c`): the PPP layer measures the
+original unit, the IP-assigned event carries the baseline, and the
+network-qualified session capture gives the live reading and the terminal
+measurement. On the kernel data plane, PPPoE accounting uses the same
+creation-bound counter reader, through the PPP-captured baseline and terminal
+samples. On the VPP data plane, it uses the session handle's counters
+(`plan/post-release/features/spec-pppoe-vpp-dataplane.md`, AC-17). The
+paragraph above describes the 2026-09-09 tree.
 
 Two wires reach only L2TP. `(*radiusAcct).subscribeEventBus`
 (`internal/component/l2tp/plugins/authradius/acct.go`) subscribes to
@@ -113,6 +126,17 @@ and a counter Ze could not read is never reported as a zero.
 - The stats poller enumerates the subscriber registry rather than the L2TP reactor list, so a PPPoE session appears in the per-session series.
 - A failed counter read omits the octet and packet attributes rather than sending zeros, and says so.
 
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where | What it does today | This spec |
+|-----------|-------|--------------------|-----------|
+| Shared subscriber record and registry | `subscriber.Session`, `subscriber.DefaultRegistry` (`l2tp/subscriber/session.go`) | Both access types register a session with its access type and identity | Extends: accounting and the poller enumerate it |
+| Subscriber event family | `subevents.SessionUp`, `SessionIPAssigned`, `SessionDown` (`l2tp/subscriber/events/events.go`) | PPPoE emits it; accounting does not subscribe | Extends: accounting subscribes |
+| Original-unit counter capture | PPP network counters (`l2tp/ppp/network_counters.go`: the baseline in the IP-assigned event, the live reading, `TerminalCounters`), read by `authradius` `liveDelta` and `terminalDelta` since `38267f5e0c` | L2TP accounting reads only the session's original PPP unit; a failed or missing measurement omits the counters | Extends: PPPoE accounting octets come from the same capture, never from a name |
+| Counters-omitted finding | `doctor-radius-accounting-counters`, under the `l2tp-radius-accounting` doctor check (`authradius`) | A record sent without counters raises a finding with its cause | Extends: a PPPoE record without counters raises the same finding (AC-7) |
+| Interface statistics with baseline | `iface.GetStats`, `(*baselineStore).applyBaseline` | Reads netdev statistics by interface name | Not the accounting source. The poller's use is as the 2026-09-09 design recorded |
+| VPP session handle counters | `plan/post-release/features/spec-pppoe-vpp-dataplane.md`, AC-17 | Not built | The octet source for a VPP session |
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
@@ -122,7 +146,7 @@ and a counter Ze could not read is never reported as a zero.
 ### Transformation Path
 1. The access layer registers the session and emits `subevents.SessionUp`, then `SessionIPAssigned` once addresses are negotiated.
 2. The accounting plugin's subscription starts an accounting session and sends Start.
-3. On the interim timer and at teardown, `buildAcctPacket` reads `iface.GetStats` for the session's PPP interface, baseline-corrected, and encodes the RADIUS attributes.
+3. On the interim timer and at teardown, `buildAcctPacket` takes the session's counters from its original PPP unit, never by interface name, minus the baseline PPP captured when the network started, and encodes the RADIUS attributes. On the kernel data plane the Interim reads the creation-bound counter reader live and the Stop uses PPP's terminal measurement, taken before the unit closes. On the VPP data plane both come from the session handle's counters.
 4. Independently, the stats poller walks the registry on its interval and publishes the Prometheus series per session.
 5. `subevents.SessionDown` stops accounting and sends the Stop record with the terminate cause.
 
@@ -131,7 +155,7 @@ and a counter Ze could not read is never reported as a zero.
 |----------|-----|----------|
 | Access layer → subscriber registry | `subscriber.DefaultRegistry` add and get, already done by both access types | No |
 | Access layer → accounting plugin | The `subscriber` event namespace over the plugin event bus | No |
-| Ze → kernel | `iface.GetStats` reading the `pppN` netdev statistics over netlink | No |
+| Ze → kernel | Accounting: the PPP layer's original-unit counter reader and its captured samples. The poller: `iface.GetStats` | No |
 | Ze → RADIUS server | Accounting-Request UDP, attributes built by `buildAcctPacket` | No |
 | Ze → operator | The Prometheus series and the existing traffic command | No |
 
@@ -139,7 +163,8 @@ and a counter Ze could not read is never reported as a zero.
 - `(*radiusAcct).subscribeEventBus` (`acct.go`) - the one subscription change.
 - `newL2TPStatsPoller` (`internal/component/l2tp/metrics.go`) - its source becomes the registry; its name stops being accurate and is decided in phase 1.
 - `subscriber.DefaultRegistry` - the enumeration both consumers move onto.
-- `iface.GetStats` and `applyBaseline` - unchanged, and already access-type-neutral.
+- The PPP original-unit counter capture (`l2tp/ppp/network_counters.go`) - the accounting source for both access types; accounting never reads `iface.GetStats`.
+- `iface.GetStats` and `applyBaseline` - unchanged; not an accounting source.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -167,7 +192,7 @@ and a counter Ze could not read is never reported as a zero.
 | R-2 | The poller walking the registry publishes a series for a session that has no `pppN` yet, so a gauge appears at zero and then jumps | A new session shows a zero sample before its first real one | The poller skips a session with an empty PPP interface rather than publishing zero, which is the same rule as the accounting fix |
 | R-3 | Per-session Prometheus labels already include username and IP, so a busy concentrator with thousands of sessions multiplies cardinality when PPPoE joins | Scrape size and series count grow with subscriber count | The label set is reviewed while this work touches it, and any reduction is a deliberate, recorded decision rather than a side effect. A series per subscriber is a design choice worth restating, not inheriting |
 | R-4 | The Stop record for PPPoE carries no Acct-Terminate-Cause, or the wrong one, because the PPPoE teardown reasons do not map onto the L2TP ones | The interop scenario's Stop record carries cause 0 | The mapping is written explicitly from the PPPoE teardown reasons, and a test asserts one cause per teardown path |
-| R-6 | The Stop record's counters are read from `pppN` after the unit fd that keeps it alive was closed, so the read fails or returns nothing and AC-4 degrades into AC-7 on every operator-cleared session | read 2026-10-28: `Driver.StopSession` closes files before waiting on `done`, and `run`'s defer sends `EventSessionDown` after; `TestPPPoEStopSessionStopCarriesFinalCounters` | the PPP session reads its final counters before it closes its files and carries them in the session-down; accounting uses them and never reads a gone interface |
+| R-6 | The Stop record's counters are read from `pppN` after the unit fd that keeps it alive was closed, so the read fails or returns nothing and AC-4 degrades into AC-7 on every operator-cleared session | read 2026-10-28: `Driver.StopSession` closes files before waiting on `done`, and `run`'s defer sends `EventSessionDown` after; `TestPPPoEStopSessionStopCarriesFinalCounters` | the PPP session reads its final counters before it closes its files and carries them in the session-down; accounting uses them and never reads a gone interface. Built in the PPP layer as of 2026-11-22: `captureNetworkTerminal` (`l2tp/ppp/network_counters.go`) puts the original unit's terminal measurement in the session-down, and L2TP accounting awaits it (`38267f5e0c`) |
 | R-5 | Omitting the octet attributes on a read failure is read by a billing system as a zero anyway, so the fix changes nothing observable | The interop scenario cannot tell the two apart | The record also carries an explicit signal the operator can see, and the counter-read failure is logged and counted; the decision on which signal is taken in phase 3 with the RFC text in hand |
 
 ## Blast Radius
@@ -192,12 +217,12 @@ and a counter Ze could not read is never reported as a zero.
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | A PPPoE subscriber completes authentication and address assignment | An Accounting-Request with Acct-Status-Type Start is sent, carrying the same identity attributes an L2TP Start carries |
-| AC-2 | That subscriber passes traffic and the interim timer fires | An Interim-Update carries Acct-Input-Octets, Acct-Output-Octets, Acct-Input-Packets and Acct-Output-Packets with the values `iface.GetStats` reports, baseline-corrected |
+| AC-2 | That subscriber passes traffic and the interim timer fires | An Interim-Update carries Acct-Input-Octets, Acct-Output-Octets, Acct-Input-Packets and Acct-Output-Packets with the values read from the session's original PPP unit (kernel: the creation-bound counter reader; VPP: the session handle's counters), never by interface name, minus the baseline PPP captured when the network started |
 | AC-3 | That subscriber's counters exceed 2^32 octets | Acct-Input-Gigawords and Acct-Output-Gigawords appear, and the octet attributes carry the remainder, exactly as they do for L2TP |
 | AC-4 | That subscriber is torn down | A Stop record carries the final counters, Acct-Session-Time, and an Acct-Terminate-Cause derived from the PPPoE teardown reason. The final counters are read before the PPP unit fd closes and travel with the session-down, because `Driver.StopSession` (`l2tp/ppp/manager.go`) calls `closeFiles` before `pppSession.run`'s deferred `EventSessionDown` is sent, and that event is delivered asynchronously, so `pppN` can be gone by the time a consumer reads it (R-6). Every teardown path is covered: PADT, LCP Terminate, operator clear through `StopSession`, and the session and idle timeouts |
 | AC-5 | A PPPoE session is live when the stats poller runs | The per-session Prometheus series carry that session's counters and uptime, with the same series names an L2TP session produces |
 | AC-6 | An L2TP subscriber, before and after this change | Its accounting records and its metric samples are unchanged |
-| AC-7 | `iface.GetStats` returns an error for a session's interface | The octet and packet attributes are omitted from the record rather than sent as zero, the failure is logged with the interface name, and a counter records it |
+| AC-7 | The counter read of a session's original PPP unit fails, or PPP's baseline or terminal measurement is unavailable | The octet and packet attributes are omitted from the record rather than sent as zero, the failure is logged with the session's identity, and a counter records it |
 | AC-8 | A session whose PPP interface is still empty when the poller runs | No series is published for it, rather than a series of zeros |
 | AC-9 | A PPPoE session and an L2TP session live at once | Both appear, and neither's counters are attributed to the other |
 

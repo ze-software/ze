@@ -33,7 +33,7 @@ validation limits below. The VPP provider is composed; it is not fully accepted.
 | Provider history defect | Repaired in `0c93a81fd2` (2026-11-22). `Settle` keeps a delayed settlement's causes and matched NACK; physical close joins instead of overwriting; a response the write itself received is still returned once and not retained. The model root and both genuine ACK/NACK roots went red to green. |
 | IPv6 | The arm64 kernel `cddff82e255fc9a7010a79d5237a733463569f495ae483b60962455788fb3884` and image `f92054020556fb26` passed four constructor models and thirteen genuine API roots. Carrier adopted 2026-11-22 (resume step 3): the kernel session carrier opens its ICMPv6 and UDPv6 sockets from the original unit, and the name-based path is deleted. On amd64 runtime tree `2b23af13` all nine `TestNativeIPv6Carrier*` roots pass, and so does the whole `pppoe/dataplane/kernel` package. The adoption also repaired kernel patch `0013b` for UDP6 receive. Fragment ownership is accepted (resume step 4, `169eccfa2c`): the five fragment roots pass on `2b23af13`, the package passes 47/0/0, and the name-based carrier cut turns the ownership roots red. Complete subscriber acceptance remains open. |
 | PCI override prerequisite | The Go reader and doctor reject ambiguous legacy override state and preserve exact raw bytes/errors. The `driver_override_raw` kernel patch `0006` is not enrolled. Do not claim managed NIC restoration is accepted on the current kernel from the Go model results. |
-| Final gates | Owed: accounting (the L2TP session owns it), scoped lint, documentation checks, independent review, discrimination, and real VPP forwarding, restart, interop and scale. Keep this spec in phase 2/7 until those requirements are actually met. |
+| Final gates | L2TP accounting counts the original unit (`38267f5e0c`) and AC-24 route receipt is proven (`0a92e78161`); resume step 5 lists what remains of accounting and who owns it. Owed: the accounting admission design and the name-based shaper (Owned journal rows), scoped lint, documentation checks, independent review, discrimination, and real VPP forwarding, restart, interop and scale. AC-8 waits on `spec-l2tp-ipv6-subscriber`. Keep this spec in phase 2/7 until those requirements are actually met. |
 
 ### Retirement causal cuts — 2026-11-22
 
@@ -113,8 +113,29 @@ and this record before editing; their changes can supersede this snapshot.
    `CreatedUnit.nativeRetirementPending` treats a failed original close as no
    retirement proof, so `NativeReleasePending` stays true after the writer and
    the tracked duplicate close. The retirement controls and causal cuts in the
-   checkpoint prove it, and the retained-duplicate failure is resolved. The
-   server/client wiring this step also named is not covered by that evidence.
+   checkpoint prove it, and the retained-duplicate failure is resolved.
+   Server wiring, proven in `2c9fbd7770`: `TestServerNativeIPv6CarrierFollowsOriginalUnit`
+   and `TestServerNativeIPv6TeardownReleasesOriginalUnit` run a real PPPoE
+   server session (production discovery dispatch, `newInterfaceServer` over
+   the prepared netlink access, `ppp.NewProductionDriver`, a scripted
+   subscriber). Carrier: after the original `pppN` is renamed and a dummy
+   takes its name, the RA and a DHCPv6 Reply still arrive on the session, and
+   no RA or DHCPv6 server frame reaches the dummy. Teardown: PADT, released
+   cleanup, then the original index is gone. Both pass in the Ze guest on
+   runtime tree `2b23af13` (`job-pppoe-v6-guest-e504a046.log`). Cuts: a
+   name-based carrier (the carrier files from before `c63d11d484` plus
+   `session_ops.go`, as a build overlay) turns the carrier root red and leaves
+   teardown green (`job-pppoe-v6-cut-guest-0a433bba.log`); a retirement that
+   never completes turns teardown red and leaves the carrier green
+   (`job-pppoe-v6-cutrel-guest-e7aadaf7.log`). Logs are under
+   `tmp/session/2026-11-22-203554/scratch/`. The release seal and its retained
+   duplicate have no production caller, correctly: only a transport with
+   remote rate operations owes the seal, and production has none (the comment
+   that said otherwise is corrected). The PPPoE client has no IPv6 carrier:
+   the kernel's `accept_ra` takes the RA, and DHCPv6 is the iface DHCP client,
+   by name. Its native release runs its own path, proven by
+   `TestNativeCPEConsumerKeepsOriginalAcrossNameReplacement`. L2TP shares the
+   session and driver layers, not the construction.
 3. **Packet acceptance:** done 2026-11-22. The old carrier's useful
    renamed-original failure was observed first: on runtime tree `6db1b4aa`
    `TestNativeIPv6CarrierOriginalTraffic` passed and the other eight
@@ -152,13 +173,54 @@ and this record before editing; their changes can supersede this snapshot.
    (`job-frag-cut-guest-ae0a386b.log`). This run is also the carrier
    adoption's causal cut on the fixed kernel. Logs are under
    `tmp/session/2026-11-22-183517/scratch/`.
-5. **Accounting and finishing checks:** the L2TP session owns current counter,
-   authentication and accounting continuation. Its latest report has counter R6
-   committed in `1a6b966648`, with fourteen isolated race roots and all 658
-   reached PPP package groups passing. Accounting and route receipt work
-   remain open. Root still owes scoped race/lint, docs and final independent
-   review of the socket/carrier/provider changes. No whole-tree verification
-   or push is authorized by this checkpoint.
+5. **Accounting and finishing checks:** counter R6 is committed in
+   `1a6b966648`. Accounting done 2026-11-22 in `38267f5e0c`: RADIUS
+   accounting (`authradius`) reads counters only from the session's original
+   PPP unit, through the L2TP network-qualified capture. The Start baseline
+   comes from the IP-assigned payload, each Interim from the live reading, and
+   the Stop from the terminal measurement, awaited off the publication
+   callback (on a peer CDN, an admin clear or a timer the Down is published
+   before PPP measures). A missing measurement omits the counters, never sends
+   zero, and raises `doctor-radius-accounting-counters`. Evidence: the
+   package passes; the guest `.ci` tests `radius-acct-wire`,
+   `slow-accounting-control`, `session-stopccn-cascade` and
+   `session-clear-leaves-no-subscriber` pass; three cuts are red; four RFC
+   records are re-taken; every test change is judged. Route receipt (AC-24)
+   done in `0a92e78161`: `TestServerNativeIPv6FramedRouteOwnedByOriginalUnit`
+   installs a PAP Framed-IPv6-Route on the original unit, keeps it across the
+   rename, and withdraws it exactly at IPv6CP close while an operator route to
+   the same prefix stays. It passes in the guest, and the cut "no intent
+   recorded before the native add" is red
+   (`job-pppoe-cutroute-guest-d52c06a3.log`). Remaining, each with its owner:
+   - (a) PPPoE subscribers send no RADIUS accounting at all:
+     `plan/release/fixes/spec-pppoe-subscribers-produce-no-accounting-or-telemetry.md`,
+     amended 2026-11-22 to count the original unit, never a name.
+   - (b) `ClaimAccountingAssignment` and `AccountingAdmission`
+     (`ppp/auth_admission.go`) have no production caller, so no accounting
+     capacity is reserved before Accept. It needs a design; this spec owns it
+     (`invariant-enforced-by-an-absent-call-site.md`, 2026-11-22, Owned
+     journal rows).
+   - (c) The L2TP idle timeout reads sysfs by name and reads a failure as
+     idle: `zero-value-as-valid-answer.md`, 2026-10-28, owned by
+     `spec-lifecycle-invariants`.
+   - (d) PPPoE has no Idle-Timeout or Session-Timeout. The VPP part of AC-17
+     stays in this spec.
+   - (e) AC-8 on the kernel data plane: production starts the IPv6 service
+     with no prefix allocator (`afterLCPOpenIPv6Service` passes nil to
+     `startIPv6Service`, and `GetPrefixHandler` has no production caller), so
+     a DHCPv6 Request gets no answer and a Solicit gets NoPrefixAvail; no
+     PPPoE or L2TP subscriber can obtain IA_PD. The server tests above
+     exposed it. `spec-l2tp-ipv6-subscriber` owes the wiring, and
+     `unwired-feature.md` (2026-08-30) records it. This spec's AC-8 waits on
+     it.
+   - (f) The kernel subscriber shaper applies tc by interface name, against
+     "Native PPP writes" above
+     (`identifier-reused-after-its-owner-is-gone.md`, 2026-11-22, Owned
+     journal rows).
+
+   Root still owes scoped race/lint, docs and final independent review of
+   the socket/carrier/provider changes. No whole-tree verification or push is
+   authorized by this checkpoint.
 
 CONTROL6 tests now run on the amd64 runtime tree `2b23af13`, built by QEMU
 (cache `~/.cache/ze/runtime-kernel/7.3-runtime-amd64-runtime-qemu-2b23af13-5d7f6651`).
@@ -942,6 +1004,8 @@ parallel packages.
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `test-against-broken-path.md` | 2026-11-20 | The product-ipv6 lab config uses a pool field (`ipv6-na`) Ze has never had; owed under G-4 and AC-8 |
+| `identifier-reused-after-its-owner-is-gone.md` | 2026-11-22 | The kernel subscriber shaper applies and restores tc by `pppN` name (PPPoE handler registry, L2TP session events); owed under AC-26 and "Native PPP writes" |
+| `invariant-enforced-by-an-absent-call-site.md` | 2026-11-22 | `ClaimAccountingAssignment` and `AccountingAdmission` have no production caller: no accounting capacity is reserved before Accept |
 
 The earlier row this spec found (`validate-accepts-what-start-refuses.md`, 2026-10-28) is owned by `plan/release/fixes/spec-pppoe-refuse-vpp-backend.md`.
 
