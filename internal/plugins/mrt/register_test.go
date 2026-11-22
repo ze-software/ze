@@ -64,12 +64,12 @@ func TestParseConfigRoutesNoIntervalNotActive(t *testing.T) {
 }
 
 func TestParseConfigPeerFilterAndFlags(t *testing.T) {
-	cfg := mustParse(t, `{"updates":{"file":"/x","interval":1},"peer-filter":["10.0.0.1","2001:db8::1"],"extended-timestamp":true,"add-path":true}`)
+	cfg := mustParse(t, `{"updates":{"file":"/x","interval":1},"peer-filter":["10.0.0.1","2001:db8::1"],"extended-timestamp":true}`)
 	if len(cfg.PeerFilter) != 2 || cfg.PeerFilter[0] != "10.0.0.1" {
 		t.Errorf("PeerFilter = %v, want [10.0.0.1 2001:db8::1]", cfg.PeerFilter)
 	}
-	if !cfg.ExtendedTimestamp || !cfg.AddPath {
-		t.Errorf("flags: extTS=%v addPath=%v, want both true", cfg.ExtendedTimestamp, cfg.AddPath)
+	if !cfg.ExtendedTimestamp {
+		t.Errorf("flags: extTS=%v, want true", cfg.ExtendedTimestamp)
 	}
 }
 

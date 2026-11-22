@@ -28,6 +28,7 @@ Key encoder functions:
 - `WriteBGP4MPMessage` / `WriteBGP4MPStateChange` -- BGP4MP records
 - `WriteTableDumpV2Header` -- sequence + prefix for AFI-specific subtypes
 - `WriteRIBGenericHeader` -- sequence + AFI/SAFI + NLRI
+- `WriteRIBGenericHeaderAddPath` -- sequence + AFI/SAFI + Path Identifier + NLRI (RIB_GENERIC_ADDPATH)
 
 `WritePeerIndexTable` rejects a non-UTF-8 or overlength view name before writing
 any bytes and returns `(count, error)`. The decoder rejects non-UTF-8 names too.
@@ -185,15 +186,44 @@ facts does not change this independent header-preservation contract.
 <!-- source: internal/component/bgp/plugins/rib/rib_mrt.go -- appendWireAttr, appendOtherAttrsWire -->
 <!-- test: internal/component/bgp/plugins/rib/partial_mrt_test.go TestReceivedPartialSurvivesMRTSnapshot -->
 
+### RIB snapshot subtypes
+
+The RIB states how each route is stored and the writer never guesses it. The
+snapshot walk (`dumpRIBForMRT`) reads the ADD-PATH state negotiated for each
+peer's family and calls `OnRouteAddPath` for a route of a family stored with
+ADD-PATH and `OnRoute` for any other; the callback is the fact. In both the
+Path Identifier is peeled from the NLRI, and the writer places it where the
+subtype declares it:
+
+| Route | Subtype | Path Identifier |
+|-------|---------|-----------------|
+| IPv4/IPv6 unicast or multicast, no ADD-PATH | 2 to 5 | none |
+| IPv4/IPv6 unicast or multicast, ADD-PATH | 8 to 11 | in the RIB Entry, after Originated Time (RFC 8050 Section 4.1) |
+| any other family, no ADD-PATH | 6, RIB_GENERIC | none |
+| any other family, ADD-PATH | 12, RIB_GENERIC_ADDPATH | ahead of the NLRI in the header; the RIB Entry is unchanged (RFC 8050 Section 4.2) |
+
+Each record holds one RIB entry, so two peers of one prefix that differ in
+ADD-PATH state never share a record whose subtype contradicts one of them, and
+two paths of one prefix from one peer stay two records with their own Path
+Identifiers. No configuration leaf chooses the subtypes: an operator switch
+could only write a record whose layout contradicts its bytes, or drop the Path
+Identifiers that keep two paths apart. `request mrt dump-rib` and the routes
+interval both run `Component.DumpRIB`, which serializes snapshots.
+<!-- source: internal/component/bgp/plugins/rib/rib_mrt.go -- dumpRIBForMRT, mrtPrefixFamily -->
+<!-- source: internal/plugins/mrt/dump.go -- Component.writeTableDumpV2, ribSubtypeFor, Component.DumpRIB -->
+<!-- source: internal/mrt/encode.go -- WriteRIBGenericHeaderAddPath -->
+<!-- test: internal/component/bgp/plugins/rib/rfc8050_mrt_dump_path_test.go TestRFC8050MRTDumpMixedAddPathState -->
+
 ### Features
 
 - strftime filename rotation with `%N` table name substitution (BIRD)
 - Per-peer filtering (OpenBGPD)
 - Direction filtering: in/out (OpenBGPD)
 - Extended timestamps: BGP4MP_ET (FRR, OpenBGPD)
-- Add-path aware: UPDATE subtypes follow negotiated ADD-PATH for the actual
-  AFI/SAFI and direction, not another family's negotiation. The `add-path`
-  setting affects RIB snapshots only; it cannot relabel captured BGP bytes.
+- Add-path aware, with no setting: RIB snapshot subtypes follow the ADD-PATH
+  state each route was stored under (see "RIB snapshot subtypes" below), and
+  UPDATE subtypes follow negotiated ADD-PATH for the actual AFI/SAFI and
+  direction, not another family's negotiation.
   The raw observer receives complete original BGP messages before receive-side
   semantic validation and after successful outbound transport acceptance.
   Synthetic treat-as-withdraw messages stay on the semantic callback and never

@@ -134,9 +134,6 @@ func runEngine(conn net.Conn) int {
 			return nil
 		}
 		comp := New(*cfg, log)
-		if cb := registry.GetRIBDumpCallback(); cb != nil {
-			comp.ribDumper = cb
-		}
 		comp.Start(getEventBus())
 		activeComp.Store(comp)
 		log.Info("mrt configured")
@@ -193,7 +190,7 @@ func runEngine(conn net.Conn) int {
 			if comp == nil {
 				return "mrt not configured", nil, nil
 			}
-			comp.dumpRIB()
+			comp.DumpRIB()
 			return "rib dump triggered", nil, nil
 		default:
 			return "", nil, nil
@@ -234,7 +231,6 @@ func ParseConfig(data json.RawMessage) (*Config, error) {
 
 	var raw struct {
 		ExtendedTimestamp *bool    `json:"extended-timestamp"`
-		AddPath           *bool    `json:"add-path"`
 		PeerFilter        []string `json:"peer-filter"`
 		Direction         string   `json:"direction"`
 		Updates           *struct {
@@ -257,9 +253,6 @@ func ParseConfig(data json.RawMessage) (*Config, error) {
 	cfg := &Config{}
 	if raw.ExtendedTimestamp != nil {
 		cfg.ExtendedTimestamp = *raw.ExtendedTimestamp
-	}
-	if raw.AddPath != nil {
-		cfg.AddPath = *raw.AddPath
 	}
 	cfg.PeerFilter = raw.PeerFilter
 	if raw.Direction != "" && raw.Direction != "both" {

@@ -68,11 +68,22 @@ type MessageCallback interface {
 type RIBDumpVisitor struct {
 	// OnPeer is called once per peer. Returns the peer index for route entries.
 	OnPeer func(peerAddr string, peerASN uint32, bgpID [4]byte, isIPv6 bool) uint16
-	// OnRoute is called for each route when OnRouteAddPath is nil. attrs contains full wire-format path attributes.
+	// The callback a provider calls for a route IS the route's ADD-PATH state:
+	// the provider holds that fact (the state negotiated for the peer's family,
+	// which decides how its stored NLRI is framed) and a consumer never guesses
+	// it. In both callbacks prefix never carries a Path Identifier, attrs holds
+	// full wire-format path attributes, and prefixLen is the bit length of an
+	// IPv4 or IPv6 unicast or multicast prefix and 0 for any other family, whose
+	// prefix is then its whole NLRI.
+	//
+	// OnRoute is REQUIRED, like OnPeer. It receives each route of a family the
+	// peer stores without ADD-PATH. A visitor that leaves OnRouteAddPath nil is
+	// a prefix-only observer: it receives every route here, an ADD-PATH route
+	// with its Path Identifier dropped.
 	OnRoute func(peerIndex uint16, afi, safi uint16, prefixLen uint8, prefix []byte, attrs []byte)
-	// OnRouteAddPath, when non-nil, receives each route together with its RFC 7911
-	// Path Identifier (0 when ADD-PATH is not active for the family).
-	// RFC 8050 Section 4.1.
+	// OnRouteAddPath, when non-nil, receives each route of a family the peer
+	// stores with ADD-PATH (RFC 7911), with its Path Identifier. The MRT writer
+	// sets it, and records each such route under an RFC 8050 ADD-PATH subtype.
 	OnRouteAddPath func(peerIndex uint16, afi, safi uint16, pathID uint32, prefixLen uint8, prefix []byte, attrs []byte)
 }
 

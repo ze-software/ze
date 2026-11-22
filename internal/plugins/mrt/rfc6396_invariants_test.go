@@ -57,9 +57,10 @@ func TestRFC6396NoTableDumpV1Emitted(t *testing.T) {
 // RFC 6396 Appendix B.1: "The message string encoding MUST follow the UTF-8
 // transformation format [RFC3629]."
 //
-// RFC requirement: RFC6396-B.1-1 positive -- every MRT record written across
-// RIB snapshots, BGP4MP messages, and BGP4MP state changes has Type >= 11
-// (TypeOSPFv2) and never emits deprecated informational types 0..4.
+// RFC requirement: RFC6396-B.1-1 positive -- on the default configuration (no
+// extended timestamp) a one-route RIB snapshot, one BGP4MP state change and one
+// BGP4MP KEEPALIVE are each written with Type >= 11 (TypeOSPFv2), never a
+// deprecated informational type 0..4.
 func TestRFC6396NoDeprecatedInformationalTypesEmitted(t *testing.T) {
 	t.Parallel()
 

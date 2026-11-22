@@ -30,6 +30,7 @@ type Component struct {
 	allMsgs   *asyncWriter   // BGP4MP all messages + state changes (async)
 	routes    *mrtfmt.Writer // TABLE_DUMP_V2 periodic RIB snapshots (sync, own goroutine)
 	ribDumper registry.RIBDumpCallback
+	dumpMu    sync.Mutex // serializes DumpRIB: the dump command and ribDumpLoop
 
 	stopCh chan struct{}
 	wg     sync.WaitGroup
@@ -45,6 +46,9 @@ func New(cfg Config, logger *slog.Logger) *Component {
 		config: cfg,
 		logger: logger,
 		stopCh: make(chan struct{}),
+		// The BGP RIB plugin registers the snapshot provider from its own
+		// init(); nil when no RIB is linked, and DumpRIB then writes nothing.
+		ribDumper: registry.GetRIBDumpCallback(),
 	}
 	if len(cfg.PeerFilter) > 0 {
 		c.peerSet = make(map[netip.Addr]struct{}, len(cfg.PeerFilter))
@@ -289,7 +293,7 @@ func (c *Component) ribDumpLoop() {
 		case <-c.stopCh:
 			return
 		case <-ticker.C:
-			c.dumpRIB()
+			c.DumpRIB()
 		}
 	}
 }

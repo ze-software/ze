@@ -3,13 +3,19 @@
 package rib
 
 import (
+	"context"
 	"encoding/binary"
+	"log/slog"
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/bgp/attrpool"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/report"
 )
 
 var activeManager atomic.Pointer[RIBManager]
@@ -76,6 +82,9 @@ func (r *RIBManager) dumpRIBForMRT(visitor registry.RIBDumpVisitor) {
 	}
 
 	attrBuf := make([]byte, 0, 4096)
+	// Runs after the walk, with no peer or family lock held.
+	var skipped mrtSkippedRoutes
+	defer skipped.report()
 	for i := range snaps {
 		s := &snaps[i]
 		peerIdx := peerIndices[i]
@@ -85,7 +94,12 @@ func (r *RIBManager) dumpRIBForMRT(visitor registry.RIBDumpVisitor) {
 
 		for _, fam := range s.rib.Families() {
 			// Read before IterateFamily: PeerRIB.IsAddPath takes the lock the walk holds.
+			// It is the ADD-PATH state negotiated for this peer's family, the one
+			// fact that says how every stored key of the family is framed, and the
+			// visitor callback chosen below hands it to the writer.
 			addPath := s.rib.IsAddPath(fam)
+			onAddPath := addPath && visitor.OnRouteAddPath != nil
+			cidr := mrtPrefixFamily(fam)
 			// Snapshot route entries under short per-family lock, then process outside.
 			var routes []routeSnap
 			s.rib.IterateFamily(fam, func(nlriBytes []byte, entry storage.RouteEntry) bool {
@@ -102,37 +116,92 @@ func (r *RIBManager) dumpRIBForMRT(visitor registry.RIBDumpVisitor) {
 				if len(attrBuf) == 0 {
 					continue
 				}
-				// RFC 8050 Section 4.1: "This adds a field to the RIB Entries record to
-				// store the Path Identifier when used with the RIB_IPV4_UNICAST_ADDPATH,
-				// RIB_IPV4_MULTICAST_ADDPATH, RIB_IPV6_UNICAST_ADDPATH, and
-				// RIB_IPV6_MULTICAST_ADDPATH subtypes."
-				// For ADD-PATH unicast families PeerRIB keys carry the 4-octet big-endian
-				// Path Identifier ahead of [prefixLen, prefix...]; peel it so the MRT
-				// TABLE_DUMP_V2 writer stores the route's real Path Identifier and clean prefix.
+				// Stored key, every family:
+				//
+				//   ADD-PATH:  [Path Identifier (4, big-endian)][NLRI ...]
+				//   otherwise: [NLRI ...]
+				//
+				// and the NLRI of an IPv4/IPv6 unicast or multicast family is
+				// [prefix length (1, bits)][prefix (ceil(bits/8))]. The Path
+				// Identifier is peeled for every ADD-PATH family, so the writer places
+				// it where the subtype puts it: in the RIB Entry (subtypes 8 to 11) or
+				// back in front of the NLRI (subtype 12).
+				// RFC 8050 Section 2: "In order to support Path Identifier
+				// information as defined in [RFC7911], new subtypes need to be added."
+				nlri := rt.nlri
 				var pathID uint32
+				if addPath {
+					if len(nlri) < 4 {
+						// Storage frames every ADD-PATH key with its Path Identifier
+						// (FamilyRIB.buildNLRIBytes, appendFramedKey), so this key is a
+						// storage defect. Writing it would record bytes its subtype
+						// contradicts; it is counted and reported once per dump.
+						skipped.noPathID++
+						continue
+					}
+					pathID = binary.BigEndian.Uint32(nlri[:4])
+					nlri = nlri[4:]
+				}
 				var prefixLen uint8
-				var prefix []byte
-				switch {
-				case (fam.AFI == 1 || fam.AFI == 2) && (fam.SAFI == 1 || fam.SAFI == 2) && addPath && len(rt.nlri) > 4:
-					pathID = binary.BigEndian.Uint32(rt.nlri[:4])
-					prefixLen = rt.nlri[4]
-					prefix = rt.nlri[5:]
-				case (fam.AFI == 1 || fam.AFI == 2) && (fam.SAFI == 1 || fam.SAFI == 2) && !addPath && len(rt.nlri) > 0:
-					prefixLen = rt.nlri[0]
-					prefix = rt.nlri[1:]
-				default:
-					// RFC 8050 Section 4.2: RIB_GENERIC_ADDPATH retains the Path Identifier
-					// inside the raw NLRI blob rather than in the RIB Entry.
-					prefix = rt.nlri
+				prefix := nlri
+				if cidr {
+					if len(nlri) == 0 {
+						skipped.noPrefixLength++
+						continue
+					}
+					prefixLen = nlri[0]
+					prefix = nlri[1:]
 				}
-				if visitor.OnRouteAddPath != nil {
+				// RFC 8050 Section 4.1
+				if onAddPath {
 					visitor.OnRouteAddPath(peerIdx, afi, safi, pathID, prefixLen, prefix, attrBuf)
-				} else if visitor.OnRoute != nil {
-					visitor.OnRoute(peerIdx, afi, safi, prefixLen, prefix, attrBuf)
+					continue
 				}
+				visitor.OnRoute(peerIdx, afi, safi, prefixLen, prefix, attrBuf)
 			}
 		}
 	}
+}
+
+// mrtSkippedRoutes counts the routes one MRT snapshot left out because their
+// stored key cannot be a valid NLRI of their family: an ADD-PATH key shorter
+// than its 4-octet Path Identifier, or a unicast or multicast key with no
+// prefix length. Storage never builds either, so each is a Ze defect. A dump
+// can walk a whole table, so the walk counts and reports once.
+type mrtSkippedRoutes struct {
+	noPathID       int
+	noPrefixLength int
+}
+
+// report logs one warning and raises one recent-event report for the dump,
+// and does nothing when the dump skipped no route. The pointer receiver makes
+// a deferred call read the counts at return, not at the defer statement.
+func (s *mrtSkippedRoutes) report() {
+	if s.noPathID+s.noPrefixLength == 0 {
+		return
+	}
+	failure := opererr.New("The MRT RIB snapshot left out routes whose stored key is not a valid NLRI of their family",
+		"The dump file lacks those routes: writing them would record bytes their TABLE_DUMP_V2 subtype contradicts, and the RIB never stores such a key, so this is a Ze defect",
+		"Report this as a Ze defect with this log line, then request mrt dump-rib after a restart")
+	logger().LogAttrs(context.Background(), slog.LevelWarn, failure.Problem(),
+		failure.LogAttrs(slog.String("code", diagnostic.CodeDoctorRecentEvents),
+			slog.Int("without-path-id", s.noPathID), slog.Int("without-prefix-length", s.noPrefixLength))...)
+	report.RaiseError("bgp-rib", diagnostic.CodeDoctorRecentEvents, "request mrt dump-rib", failure.Error())
+}
+
+// mrtPrefixFamily reports whether fam is written under an RFC 6396 Section
+// 4.3.2 AFI/SAFI-specific RIB subtype, whose header splits the NLRI into a
+// prefix length and a prefix: IPv4 or IPv6, unicast or multicast. Every other
+// family is written as RIB_GENERIC (Section 4.3.3) with its whole NLRI.
+func mrtPrefixFamily(fam family.Family) bool {
+	// RFC 6396 Section 4.3 names subtypes for unicast and multicast alone.
+	//exhaustive:ignore
+	switch fam.SAFI {
+	case family.SAFIUnicast, family.SAFIMulticast:
+	default:
+		return false
+	}
+	return fam.AFI == family.AFIIPv4 || fam.AFI == family.AFIIPv6
 }
 
 // reconstructWireAttrs rebuilds full BGP path attribute bytes from pooled handles.

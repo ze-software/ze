@@ -105,7 +105,14 @@ func localSubtype(subtype uint16) uint16 {
 	return subtype
 }
 
-func (c *Component) dumpRIB() {
+// DumpRIB writes one TABLE_DUMP_V2 snapshot of the RIB to the routes stream:
+// what `request mrt dump-rib` and the routes interval run. It writes nothing
+// when the routes stream is not configured or no RIB provider is registered.
+// Safe for concurrent use: the command and the interval loop can both call it,
+// and dumpMu keeps one snapshot's records together in the file.
+func (c *Component) DumpRIB() {
+	c.dumpMu.Lock()
+	defer c.dumpMu.Unlock()
 	if c.routes == nil {
 		return
 	}
@@ -123,12 +130,11 @@ func (c *Component) dumpRIB() {
 func (c *Component) writeTableDumpV2() {
 	now := time.Now()
 	ts := uint32(now.Unix())
-	addPath := c.config.AddPath
 	hdrSize := c.headerSize()
 
 	// Single DumpRIB call: OnPeer collects peers, the PEER_INDEX_TABLE is
-	// written on the first OnRoute call (all peers have been enumerated by
-	// then), and subsequent OnRoute calls write RIB entries.
+	// written on the first route callback (all peers have been enumerated by
+	// then), and every route callback writes one RIB record.
 	// RFC 6396 Section 4.3.1: PEER_INDEX_TABLE MUST precede RIB entries.
 	pb := getBuf()
 	defer bufPool.Put(pb)
@@ -137,22 +143,23 @@ func (c *Component) writeTableDumpV2() {
 	var seq uint32
 	pitWritten := false
 
-	writeRoute := func(peerIndex, afi, safi uint16, pathID uint32, prefixLen uint8, prefix, attrs []byte) {
+	// writeRoute writes one route as one record holding one RIB entry, so the
+	// subtype of every record matches the route it holds even when peers of
+	// one prefix differ in ADD-PATH state. addPath is the route's own state,
+	// known only from the visitor callback the RIB chose; prefix never carries
+	// the Path Identifier.
+	//
+	// RFC 8050 Section 2: "In order to support Path Identifier information as
+	// defined in [RFC7911], new subtypes need to be added."
+	writeRoute := func(addPath bool, peerIndex, afi, safi uint16, pathID uint32, prefixLen uint8, prefix, attrs []byte) {
 		if !pitWritten {
 			pitWritten = true
 			c.writePeerIndexTable(hdrSize, now, peers)
 		}
 
 		seq++
-		// RFC 8050 Section 4.1: "This adds a field to the RIB Entries record to
-		// store the Path Identifier when used with the RIB_IPV4_UNICAST_ADDPATH,
-		// RIB_IPV4_MULTICAST_ADDPATH, RIB_IPV6_UNICAST_ADDPATH, and
-		// RIB_IPV6_MULTICAST_ADDPATH subtypes."
-		// RFC 8050 Section 4.2: RIB_GENERIC_ADDPATH carries the Path Identifier
-		// inside the NLRI field of the header, not in the RIB Entry.
 		subtype := ribSubtypeFor(afi, safi, addPath)
 		generic := subtype == mrtfmt.TDV2RIBGeneric || subtype == mrtfmt.TDV2RIBGenericAP
-		entryAddPath := addPath && !generic
 		entry := mrtfmt.RIBEntry{
 			PeerIndex:  peerIndex,
 			OrigTime:   ts,
@@ -160,18 +167,32 @@ func (c *Component) writeTableDumpV2() {
 			Attributes: attrs,
 		}
 
-		needed := hdrSize + 4 + 3 + len(prefix) + 2 + 8 + 2 + len(attrs) + 4
+		// header + seq(4) + AFI(2) + SAFI(1) + Path ID(4) + NLRI or prefix
+		// length(1) + prefix + entry count(2) + peer index(2) + time(4) +
+		// Path ID(4) + attribute length(2) + attributes
+		needed := hdrSize + 4 + 3 + 4 + 1 + len(prefix) + 2 + 2 + 4 + 4 + 2 + len(attrs)
 		buf := pb.b
 		if needed > len(buf) {
 			buf = make([]byte, needed)
 		}
 
 		var msgLen int
-		if generic {
+		switch subtype {
+		case mrtfmt.TDV2RIBGenericAP:
+			// RFC 8050 Section 4.2
+			msgLen = mrtfmt.WriteRIBGenericHeaderAddPath(buf, hdrSize, seq, afi, uint8(safi), pathID, prefix)
+		case mrtfmt.TDV2RIBGeneric:
 			msgLen = mrtfmt.WriteRIBGenericHeader(buf, hdrSize, seq, afi, uint8(safi), prefix)
-		} else {
+		default:
 			msgLen = mrtfmt.WriteRIBHeader(buf, hdrSize, seq, prefixLen, prefix)
 		}
+		// RFC 8050 Section 4.1: "This adds a field to the RIB Entries record to
+		// store the Path Identifier when used with the RIB_IPV4_UNICAST_ADDPATH,
+		// RIB_IPV4_MULTICAST_ADDPATH, RIB_IPV6_UNICAST_ADDPATH, and
+		// RIB_IPV6_MULTICAST_ADDPATH subtypes."
+		// RFC 8050 Section 4.2: "For clarity, the RIB Entries in this subtype are
+		// not redefined."
+		entryAddPath := addPath && !generic
 		msgLen += mrtfmt.WriteRIBEntries(buf, hdrSize+msgLen, []mrtfmt.RIBEntry{entry}, entryAddPath)
 		writeHeader(buf, c.config.ExtendedTimestamp, now, mrtfmt.TypeTableDumpV2, subtype, msgLen)
 
@@ -198,10 +219,15 @@ func (c *Component) writeTableDumpV2() {
 			peers = append(peers, pe)
 			return idx
 		},
+		// The RIB calls OnRoute for a route of a family stored without ADD-PATH
+		// and OnRouteAddPath for one stored with it (registry.RIBDumpVisitor), so
+		// the subtype follows the state each route was stored under.
 		OnRoute: func(peerIndex, afi, safi uint16, prefixLen uint8, prefix, attrs []byte) {
-			writeRoute(peerIndex, afi, safi, 0, prefixLen, prefix, attrs)
+			writeRoute(false, peerIndex, afi, safi, 0, prefixLen, prefix, attrs)
 		},
-		OnRouteAddPath: writeRoute,
+		OnRouteAddPath: func(peerIndex, afi, safi uint16, pathID uint32, prefixLen uint8, prefix, attrs []byte) {
+			writeRoute(true, peerIndex, afi, safi, pathID, prefixLen, prefix, attrs)
+		},
 	}
 	c.ribDumper.DumpRIB(visitor)
 

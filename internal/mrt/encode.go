@@ -98,6 +98,31 @@ func WriteRIBGenericHeader(buf []byte, off int, seq uint32, afi uint16, safi uin
 	return off - start
 }
 
+// WriteRIBGenericHeaderAddPath writes the RIB_GENERIC_ADDPATH (subtype 12)
+// header: the RIB_GENERIC header whose NLRI is framed with its Path
+// Identifier, the way the ADD-PATH session carried it (RFC 7911 Section 3).
+//
+//	0      4     6      7                11
+//	+------+-----+------+-----------------+-----------
+//	| Seq  | AFI | SAFI | Path Identifier | NLRI ...
+//	+------+-----+------+-----------------+-----------
+//
+// RFC 8050 Section 4.2: "These fields continue to encapsulate the raw and additional-path-
+// enabled AFI/SAFI/NLRI in the record, and the raw attributes in the RIB Entries."
+func WriteRIBGenericHeaderAddPath(buf []byte, off int, seq uint32, afi uint16, safi uint8, pathID uint32, nlri []byte) int {
+	start := off
+	be.PutUint32(buf[off:], seq)
+	off += 4
+	be.PutUint16(buf[off:], afi)
+	off += 2
+	buf[off] = safi
+	off++
+	be.PutUint32(buf[off:], pathID)
+	off += 4
+	off += copy(buf[off:], nlri)
+	return off - start
+}
+
 func WriteRIBEntry(buf []byte, off int, e *RIBEntry) int {
 	start := off
 	be.PutUint16(buf[off:], e.PeerIndex)

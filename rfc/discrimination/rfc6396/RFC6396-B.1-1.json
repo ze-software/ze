@@ -4,7 +4,7 @@
     "polarity": "positive",
     "unit": "internal/plugins/mrt/rfc6396_invariants_test.go::TestRFC6396NoDeprecatedInformationalTypesEmitted",
     "unit-sha": "0428e961350395f9",
-    "claim-sha": "57db64b0253a00db",
+    "claim-sha": "06e9352fd8642646",
     "route": "revert",
     "producer": "internal/plugins/mrt/dump.go::Component.bgp4mpTypeSubtypeFor",
     "producer-sha": "68ffc4dacf9eec3d",

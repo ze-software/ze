@@ -294,7 +294,7 @@ func packageLiterals(owner string) (map[string]bool, error) {
 
 // isLiteralSeparator splits a literal into the names it can carry. The quote
 // characters matter: a config field read through a struct tag appears in the
-// AST as the backquoted literal `json:"add-path"`, so without them the whole
+// AST as the backquoted literal `json:"extended-timestamp"`, so without them the whole
 // mrt module read as unconsumed.
 func isLiteralSeparator(r rune) bool {
 	switch r {

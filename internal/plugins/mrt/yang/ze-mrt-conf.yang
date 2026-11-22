@@ -41,8 +41,10 @@ module ze-mrt-conf {
     }
 
     container mrt {
-        description "The container holds the extended-timestamp switch, the add-path
-                     switch, the peer filter, the direction, and the three dump streams.";
+        description "The container holds the extended-timestamp switch, the peer
+                     filter, the direction, and the three dump streams. No leaf
+                     chooses the ADD-PATH subtypes of RFC 8050: each record follows
+                     the ADD-PATH state negotiated for the family it holds.";
         ze:help "MRT dump configuration.";
 
         leaf extended-timestamp {
@@ -55,17 +57,6 @@ module ze-mrt-conf {
                  three streams at once.";
             ze:help "Use BGP4MP_ET (type 17) with microsecond resolution
                      instead of BGP4MP (type 16).";
-        }
-
-        leaf add-path {
-            type boolean;
-            default false;
-            description
-                "The default is false. When true, TABLE_DUMP_V2 snapshots use
-                 the ADD-PATH RIB subtypes of RFC 8050. BGP4MP and BGP4MP_ET
-                 message subtypes always follow the direction-specific negotiated
-                 ADD-PATH state of the UPDATE family, independently of this leaf.";
-            ze:help "Use ADD-PATH subtypes for RIB snapshots.";
         }
 
         leaf-list peer-filter {
@@ -114,7 +105,10 @@ module ze-mrt-conf {
         container routes {
             description "Each dump writes one PEER_INDEX_TABLE record, and then the RIB
                          entries for every address family. Ze writes them as
-                         TABLE_DUMP_V2 records.";
+                         TABLE_DUMP_V2 records, one route in each. A route of a
+                         family whose peer negotiated ADD-PATH is written under the
+                         ADD-PATH subtype of RFC 8050 with its Path Identifier; any
+                         other route under the base subtype of RFC 6396.";
             ze:help
                 "Periodic RIB snapshots, written as TABLE_DUMP_V2 records.";
 

@@ -2,6 +2,28 @@
   {
     "rid": "RFC8050-4.2-1",
     "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc8050_mrt_dump_path_test.go::TestRFC8050MRTDumpGenericWithAddPath",
+    "unit-sha": "41bb1e03da384518",
+    "claim-sha": "b7025f34878a83ff",
+    "route": "revert",
+    "producer": "internal/plugins/mrt/dump.go::ribSubtypeFor",
+    "producer-sha": "d397ca7f64c50d5f",
+    "break": "body of ribSubtypeFor replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8050-4.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc8050_mrt_dump_path_test.go::TestRFC8050MRTDumpGenericWithoutAddPath",
+    "unit-sha": "dceccae6f0f6a2a1",
+    "claim-sha": "17327446992c3bac",
+    "route": "revert",
+    "producer": "internal/plugins/mrt/dump.go::ribSubtypeFor",
+    "producer-sha": "d397ca7f64c50d5f",
+    "break": "body of ribSubtypeFor replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8050-4.2-1",
+    "polarity": "positive",
     "unit": "internal/mrt/mrt_test.go::TestRIBGenericAddPathRoundTrip",
     "unit-sha": "5b483cd50dfbc9b9",
     "claim-sha": "a80bb5fa72dff1b2",

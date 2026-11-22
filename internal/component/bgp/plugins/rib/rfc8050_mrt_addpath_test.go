@@ -17,10 +17,12 @@ import (
 	mrtfmt "github.com/ze-software/ze/internal/mrt"
 )
 
-// TestRFC8050MRTSnapshotPreservesPathIDs verifies that dumpRIBForMRT extracts
-// each ADD-PATH route's 4-octet Path Identifier and clean prefix so two paths
-// for the same prefix from one peer are distinguishable in TABLE_DUMP_V2
-// RIB_IPV4_UNICAST_ADDPATH entries.
+// TestRFC8050MRTSnapshotPreservesPathIDs verifies that dumpRIBForMRT hands each
+// route of a family stored with ADD-PATH to OnRouteAddPath with its 4-octet
+// Path Identifier and clean prefix, so two paths for the same prefix from one
+// peer are distinguishable in TABLE_DUMP_V2 ADD-PATH entries, and hands each
+// route of a family stored without ADD-PATH to OnRoute, never to
+// OnRouteAddPath.
 //
 // RFC 8050 Section 4.1: "This adds a field to the RIB Entries record to store
 // the Path Identifier when used with the RIB_IPV4_UNICAST_ADDPATH,
@@ -30,9 +32,10 @@ import (
 // VALIDATES: two ADD-PATH paths for 203.0.113.0/24 (path IDs 7 and 42) from
 // one peer survive dumpRIBForMRT and TABLE_DUMP_V2 encoding/decoding with
 // their exact Path Identifiers and /24 prefix; a non-ADD-PATH peer's route
-// reports pathID 0 and its clean /24 prefix.
-// PREVENTS: writing zero PathIDs or passing the PathID bytes as prefixLen
-// during MRT RIB snapshots.
+// arrives on OnRoute alone with its clean prefix.
+// PREVENTS: writing zero PathIDs, passing the PathID bytes as prefixLen, or
+// handing a route to the callback of the other ADD-PATH state during MRT RIB
+// snapshots.
 //
 // RFC requirement: RFC8050-4.1-1 positive -- dumpRIBForMRT supplies each
 // ADD-PATH route's exact Path Identifier (7 and 42) and clean prefix to
@@ -40,8 +43,8 @@ import (
 // (RIB_IPV4_UNICAST_ADDPATH, RIB_IPV4_MULTICAST_ADDPATH,
 // RIB_IPV6_UNICAST_ADDPATH, and RIB_IPV6_MULTICAST_ADDPATH).
 // RFC requirement: RFC8050-4.1-1 negative -- routes from non-ADD-PATH
-// unicast and multicast families report PathID 0 and clean prefixes without
-// stripping prefix bytes.
+// unicast and multicast families arrive on OnRoute, never on OnRouteAddPath,
+// with clean prefixes without stripping prefix bytes.
 func TestRFC8050MRTSnapshotPreservesPathIDs(t *testing.T) {
 	t.Parallel()
 
@@ -101,30 +104,32 @@ func TestRFC8050MRTSnapshotPreservesPathIDs(t *testing.T) {
 					require.Equal(t, uint16(tc.fam.AFI), afi)
 					require.Equal(t, uint16(tc.fam.SAFI), safi)
 					require.Equal(t, tc.prefixLen, prefixLen)
-					switch peerAddrs[peerIndex] {
-					case apPeer.String():
-						require.Equal(t, tc.prefix, prefix)
-						buf := make([]byte, 512)
-						off := mrtfmt.WriteRIBHeader(buf, 0, 1, prefixLen, prefix)
-						off += mrtfmt.WriteRIBEntries(buf, off, []mrtfmt.RIBEntry{{PeerIndex: peerIndex, PathID: pathID, Attributes: attrs}}, true)
-						rec, err := mrtfmt.DecodeRIBRecord(tc.apSubtype, buf[:off])
-						require.NoError(t, err)
-						require.Len(t, rec.Entries, 1)
-						require.Equal(t, pathID, rec.Entries[0].PathID)
-						apPathIDs[rec.Entries[0].PathID] = true
-					case plainPeer.String():
-						require.Zero(t, pathID)
-						require.Equal(t, tc.plainPfx, prefix)
-						plainCount++
-					default:
-						t.Fatalf("unexpected peer index %d", peerIndex)
-					}
+					require.Equal(t, apPeer.String(), peerAddrs[peerIndex],
+						"only the ADD-PATH peer's routes may arrive on OnRouteAddPath")
+					require.Equal(t, tc.prefix, prefix)
+					buf := make([]byte, 512)
+					off := mrtfmt.WriteRIBHeader(buf, 0, 1, prefixLen, prefix)
+					off += mrtfmt.WriteRIBEntries(buf, off, []mrtfmt.RIBEntry{{PeerIndex: peerIndex, PathID: pathID, Attributes: attrs}}, true)
+					rec, err := mrtfmt.DecodeRIBRecord(tc.apSubtype, buf[:off])
+					require.NoError(t, err)
+					require.Len(t, rec.Entries, 1)
+					require.Equal(t, pathID, rec.Entries[0].PathID)
+					apPathIDs[rec.Entries[0].PathID] = true
+				},
+				OnRoute: func(peerIndex, afi, safi uint16, prefixLen uint8, prefix, _ []byte) {
+					require.Equal(t, uint16(tc.fam.AFI), afi)
+					require.Equal(t, uint16(tc.fam.SAFI), safi)
+					require.Equal(t, tc.prefixLen, prefixLen)
+					require.Equal(t, plainPeer.String(), peerAddrs[peerIndex],
+						"only the non-ADD-PATH peer's routes may arrive on OnRoute")
+					require.Equal(t, tc.plainPfx, prefix)
+					plainCount++
 				},
 			})
 
 			require.Equal(t, map[uint32]bool{7: true, 42: true}, apPathIDs,
 				"both ADD-PATH routes for %s must retain their distinct Path IDs", tc.name)
-			require.Equal(t, 1, plainCount, "non-ADD-PATH control route for %s must dump cleanly with pathID 0", tc.name)
+			require.Equal(t, 1, plainCount, "non-ADD-PATH control route for %s must dump cleanly on OnRoute", tc.name)
 		})
 	}
 }

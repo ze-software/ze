@@ -65,7 +65,7 @@ func TestRFC6396MRTAbbreviatesMPReachNLRI(t *testing.T) {
 	var dumpedAttrs []byte
 	r.dumpRIBForMRT(registry.RIBDumpVisitor{
 		OnPeer: func(string, uint32, [4]byte, bool) uint16 { return 0 },
-		OnRouteAddPath: func(_, afi, safi uint16, _ uint32, prefixLen uint8, prefix, attrs []byte) {
+		OnRoute: func(_, afi, safi uint16, prefixLen uint8, prefix, attrs []byte) {
 			require.Equal(t, uint16(2), afi)
 			require.Equal(t, uint16(1), safi)
 			require.Equal(t, uint8(48), prefixLen)
