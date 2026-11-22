@@ -159,6 +159,12 @@ tmpfs=stages.script:terminator=EOF_SCRIPT
 await-file established
 reload config2.conf
 has show bgp peer list => 192.0.2.2
+# The helper is a forked process whose first line reaches the bridge whenever
+# the machine lets it start, before or after the reload. The EOR and its route
+# are the two UPDATEs: this fences the shutdown behind the route, which the
+# peer expects, and shows the session and the bridge still carry it after the
+# reload.
+has show bgp peer 127.0.0.1 detail => "updates-sent":2,
 say BRIDGE-RR-ACCEPTED: reload applied
 EOF_SCRIPT
 
