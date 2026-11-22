@@ -22,6 +22,7 @@ import (
 type ribConfig struct {
 	maximumPaths      uint32
 	relaxASPath       bool
+	acceptOwn         bool
 	blackhole         map[configjson.PeerConfigKey]blackholeConfig
 	notation          asn.Notation
 	redirect          flowSpecRedirectConfig
@@ -100,6 +101,11 @@ func parseRIBConfigSections(cfg ribConfig, sections []sdk.ConfigSection) (ribCon
 		if err != nil {
 			return ribConfig{}, false, err
 		}
+		// RFC 7611 Section 2.3: ACCEPT_OWN config defaults to disabled (false).
+		cfg.acceptOwn, err = extractAcceptOwnConfig(bgpCfg)
+		if err != nil {
+			return ribConfig{}, false, err
+		}
 		cfg.blackhole, err = parseBlackholeConfig(bgpCfg)
 		if err != nil {
 			return ribConfig{}, false, err
@@ -140,10 +146,12 @@ func (r *RIBManager) installConfig(cfg ribConfig, recordsNotation bool) error {
 	}
 	rulesChanged := r.maximumPaths.Load() != cfg.maximumPaths ||
 		r.relaxASPath.Load() != cfg.relaxASPath ||
+		r.acceptOwn.Load() != cfg.acceptOwn ||
 		!r.sameBlackholeRules(cfg.blackhole)
 
 	r.maximumPaths.Store(cfg.maximumPaths)
 	r.relaxASPath.Store(cfg.relaxASPath)
+	r.acceptOwn.Store(cfg.acceptOwn)
 	blackhole := cfg.blackhole
 	r.blackholeCfg.Store(&blackhole)
 	previousRedirect := r.flowSpecRedirectCfg.Load()

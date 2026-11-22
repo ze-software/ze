@@ -1746,13 +1746,15 @@ func (r *RIBManager) candidateAdmitted(fam family.Family, peerRIB *storage.PeerR
 // unrecorded entries: that zero is not promoted into source authority.
 func (r *RIBManager) extractCandidate(fam family.Family, owner uint64, peerAddr netip.Addr, peerStr string, entry storage.RouteEntry) *Candidate {
 	c := &Candidate{
-		origin:     candidateOriginFor(entry),
-		storeOwner: owner,
-		PeerAddr:   peerStr,
-		PeerIP:     peerAddr,
-		PeerOwner:  entry.SourcePeerOwner(),
-		LocalPref:  100, // RFC 4271 default
-		IGPCost:    ^uint64(0),
+		origin:           candidateOriginFor(entry),
+		storeOwner:       owner,
+		Family:           fam,
+		AcceptOwnEnabled: r.acceptOwn.Load(),
+		PeerAddr:         peerStr,
+		PeerIP:           peerAddr,
+		PeerOwner:        entry.SourcePeerOwner(),
+		LocalPref:        100, // RFC 4271 default
+		IGPCost:          ^uint64(0),
 	}
 
 	// Protocol metadata comes from this exact containing observation. The
@@ -1763,6 +1765,8 @@ func (r *RIBManager) extractCandidate(fam family.Family, owner uint64, peerAddr 
 	}
 
 	b := entry.GetBundle()
+	// RFC 7611 Section 3: record ACCEPT_OWN community presence for VPN-IP selection.
+	c.HasAcceptOwn = entryHasAcceptOwn(b)
 
 	if b.HasLocalPref() {
 		if data, err := pool.LocalPref.Get(b.LocalPref); err == nil {

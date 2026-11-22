@@ -496,6 +496,10 @@ type RIBManager struct {
 	// Populated from bgp/multipath/relax-as-path in the Stage 2 configure callback.
 	relaxASPath atomic.Bool
 
+	// acceptOwn enables RFC 7611 ACCEPT_OWN handling (default false per Section 2.3).
+	// Populated from bgp/accept-own in the Stage 2 configure callback.
+	acceptOwn atomic.Bool
+
 	// blackholeCfg holds the RFC 7999 honoring configuration, keyed by peer
 	// remote IP and resolved across the bgp, group and peer levels in the Stage
 	// 2 configure callback. A nil pointer or a missing key means the peer never

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7611-3-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc7611_accept_own_test.go::TestRFC7611DecisionStepOnlyForVPNIPRoutes",
+    "unit-sha": "8c93cb9f0fb1fcc9",
+    "claim-sha": "dca34be77b990a3e",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_accept_own_config.go::compareAcceptOwn",
+    "producer-sha": "af3a3fff9b51052d",
+    "break": "body of compareAcceptOwn replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7611-3-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc7611_accept_own_test.go::TestRFC7611DecisionStepOnlyForVPNIPRoutes",
+    "unit-sha": "8c93cb9f0fb1fcc9",
+    "claim-sha": "454469408fd0a3ff",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_accept_own_config.go::compareAcceptOwn",
+    "producer-sha": "af3a3fff9b51052d",
+    "break": "body of compareAcceptOwn replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

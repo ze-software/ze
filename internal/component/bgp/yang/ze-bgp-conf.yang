@@ -76,6 +76,16 @@ module ze-bgp-conf {
             ze:help "How Ze writes an AS number in the output an operator reads.";
         }
 
+        leaf accept-own {
+            type boolean;
+            default false;
+            description "RFC 7611 Section 2.3: controls BGP ACCEPT_OWN (65535:1, 0xFFFF0001) handling
+                and the Section 3 VPN-IP best-path preference step. Defaults to false (disabled) per
+                RFC 7611 Section 2.3. When disabled, no special acceptance or decision-process step
+                is applied; Section 2.2 non-RD receive discard still applies.";
+            ze:help "Enable RFC 7611 ACCEPT_OWN community handling (disabled by default).";
+        }
+
         container multipath {
             description "The container holds maximum-paths and relax-as-path. When maximum-paths is more than 1, Ze
                 mirrors the equal-cost siblings of the best path into the shared Loc-RIB. The sysrib component

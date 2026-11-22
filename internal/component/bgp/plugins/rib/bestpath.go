@@ -25,6 +25,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/attrpool"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -39,6 +40,7 @@ type BestStep uint8
 const (
 	BestStepStale        BestStep = iota // 0 -- stale-level depreference (pre-RFC)
 	BestStepLocalPref                    // 1 -- highest LOCAL_PREF
+	BestStepAcceptOwn                    // RFC 7611 Section 3 -- ACCEPT_OWN preference (VPN-IP only)
 	BestStepAIGP                         // received AIGP plus distance to next hop
 	BestStepASPathLen                    // 2 -- shortest AS_PATH
 	BestStepOrigin                       // 3 -- lowest Origin (IGP < EGP < INCOMPLETE)
@@ -60,6 +62,8 @@ func (s BestStep) String() string {
 		return "stale-level"
 	case BestStepLocalPref:
 		return "local-preference"
+	case BestStepAcceptOwn:
+		return "accept-own"
 	case BestStepAIGP:
 		return "aigp"
 	case BestStepASPathLen:
@@ -124,6 +128,9 @@ type Candidate struct {
 	IGPCost            uint64           // resolved interior distance; max when unavailable
 	AIGP               uint64           // first received AIGP metric (not accumulated)
 	HasAIGP            bool             // metric presence is distinct from metric zero
+	Family             family.Family    // route address family (RFC 7611 Section 3 VPN-IP gate)
+	HasAcceptOwn       bool             // route carries ACCEPT_OWN well-known community (0xFFFF0001)
+	AcceptOwnEnabled   bool             // bgp accept-own enabled by configuration (default false)
 	OriginatorIP       netip.Addr       // ORIGINATOR_ID or Router ID (RFC 4456, zero-alloc comparison)
 	ClusterListEntries uint16           // CLUSTER_ID count in the CLUSTER_LIST (RFC 4456 Section 9; 0 when the attribute is absent)
 	StaleLevel         uint8            // Route staleness level (0=fresh; plugin-defined higher levels)
@@ -254,6 +261,10 @@ func multipathEqual(a, b *Candidate, relaxASPath bool) bool {
 	if a.LocalPref != b.LocalPref {
 		return false
 	}
+	// RFC 7611 Section 3: ACCEPT_OWN preference (VPN-IP only, when enabled).
+	if compareAcceptOwn(a, b) != 0 {
+		return false
+	}
 	if compareAIGP(a, b) != 0 || a.IGPCost != b.IGPCost {
 		return false
 	}
@@ -364,6 +375,11 @@ func compareBeforeMED(a, b *Candidate) (int, BestStep) {
 			return -1, BestStepLocalPref
 		}
 		return 1, BestStepLocalPref
+	}
+
+	// RFC 7611 Section 3: apply ACCEPT_OWN preference after LOCAL_PREF for VPN-IP routes only.
+	if cmp := compareAcceptOwn(a, b); cmp != 0 {
+		return cmp, BestStepAcceptOwn
 	}
 
 	// RFC 7311 Section 4.1: apply AIGP after LOCAL_PREF and before AS_PATH.
@@ -535,6 +551,14 @@ func comparePairWithReason(a, b *Candidate) (int, BestStep, string) {
 			return -1, BestStepLocalPref, reason
 		}
 		return 1, BestStepLocalPref, reason
+	}
+
+	// RFC 7611 Section 3: ACCEPT_OWN preference after LOCAL_PREF for VPN-IP routes only.
+	if cmp := compareAcceptOwn(a, b); cmp != 0 {
+		if cmp < 0 {
+			return cmp, BestStepAcceptOwn, "accept-own true vs false"
+		}
+		return cmp, BestStepAcceptOwn, "accept-own false vs true"
 	}
 
 	if cmp := compareAIGP(a, b); cmp != 0 {

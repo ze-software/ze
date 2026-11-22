@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7611-2.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc7611_accept_own_test.go::TestRFC7611AcceptOwnConfigDefaultsDisabled",
+    "unit-sha": "84725e0d0da6fbe3",
+    "claim-sha": "49f4b06525c5af6b",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_accept_own_config.go::extractAcceptOwnConfig",
+    "producer-sha": "193c82df15a493b4",
+    "break": "body of extractAcceptOwnConfig replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7611-2.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc7611_accept_own_test.go::TestRFC7611AcceptOwnConfigDefaultsDisabled",
+    "unit-sha": "84725e0d0da6fbe3",
+    "claim-sha": "f10877efb80bc720",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_accept_own_config.go::extractAcceptOwnConfig",
+    "producer-sha": "193c82df15a493b4",
+    "break": "body of extractAcceptOwnConfig replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

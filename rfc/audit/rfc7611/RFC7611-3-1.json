@@ -1,0 +1,18 @@
+{
+  "code": {
+    "internal/component/bgp/plugins/rib/bestpath.go::compareBeforeMED": "e475cbde55db8cc0",
+    "internal/component/bgp/plugins/rib/rib_accept_own_config.go::compareAcceptOwn": "666c112f6e544082",
+    "internal/component/bgp/plugins/rib/rib_accept_own_config.go::isVPNIPFamily": "f67a95f84ca9ef0a"
+  },
+  "note": "Independent audit against RFC 7611 Section 3 (post-LOCAL_PREF ACCEPT_OWN preference step MUST only be invoked for RFC 4364 VPN-IP routes, never for imported IP routes in a VRF). Source review confirms extractCandidate is the sole production Candidate constructor, isVPNIPFamily strictly gates on SAFI 128 (SAFIVPN) with AFI IPv4 or IPv6 only, and compareAcceptOwn sits immediately after Step 1 LOCAL_PREF and before compareAIGP/Step 2 AS_PATH across compareBeforeMED, comparePairWithReason, and multipathEqual. TestRFC7611DecisionStepOnlyForVPNIPRoutes covers both polarities with bgp/accept-own enabled: positive tests both ipv4/vpn and ipv6/vpn, proving an ACCEPT_OWN route with tied LOCAL_PREF beats a shorter-AS_PATH candidate in SelectBest, explains as BestStepAcceptOwn in SelectBestExplain, excludes the non-ACCEPT_OWN sibling in SelectMultipath, and still loses to a higher LOCAL_PREF=200 non-ACCEPT_OWN candidate (confirming placement after LOCAL_PREF); negative tests ipv4/unicast, ipv6/unicast (representing imported IP routes in a VRF), and l2vpn/evpn with ACCEPT_OWN directly in RIB storage, proving the step is not invoked (shorter AS_PATH wins in SelectBest and SelectBestExplain as BestStepASPathLen, and equal-attribute paths remain multipath siblings). Both discrimination records in rfc/discrimination/rfc7611/RFC7611-3-1.json are body-panic reverts on compareAcceptOwn (proving producer reachability, not normal-return semantic mutation); semantic enforcement is established by source review.",
+  "requirement_sha": "b8ebb191f6c30e26",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc7611_accept_own_test.go::TestRFC7611DecisionStepOnlyForVPNIPRoutes": "8ab2f031a1ad42c3",
+    "internal/component/bgp/plugins/rib/rfc7611_accept_own_test.go::TestRFC7611DecisionStepOnlyForVPNIPRoutes#2": "8ab2f031a1ad42c3"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc7611_accept_own_test.go::TestRFC7611DecisionStepOnlyForVPNIPRoutes": "de0ea7621014f4b3",
+    "internal/component/bgp/plugins/rib/rfc7611_accept_own_test.go::TestRFC7611DecisionStepOnlyForVPNIPRoutes#2": "de0ea7621014f4b3"
+  },
+  "verdict": "enforced"
+}
