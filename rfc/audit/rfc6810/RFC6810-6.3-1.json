@@ -1,9 +1,9 @@
 {
   "code": {
-    "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU": "c65a3114342e282e",
+    "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU": "4e2e1822df356d21",
     "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.syncOnce": "536ea897312fa900"
   },
-  "note": "Independent rejudgment 2026-11-15. Following a Cache Reset, RFC 6810 Section 6.3 says: 'If there are no more preferred caches, it MUST issue a Reset Query and get an entire new load from the cache.' The diagrams and Section 5 define these as version-0 PDUs. Current handlePDU refuses a version-0 Cache Reset rather than entering its Cache Reset recovery branch; its version-negotiation branch rejects version 0, and syncOnce never retries below rtrVersionMin=1. An initial unsupported version and a version change within an established response now have distinct errors, but neither reaches version-0 recovery. The version-1/2 whole-set replacement path does not meet the version-0 exchange. No test carries this id; its declared version-0 gap remains unimplemented.",
+  "note": "Independent rejudgment 2026-11-22 after Router Key (type 9) handling was added to RTRSession.handlePDU. RFC 6810 Section 6.3 requires that on Cache Reset, if there are no more preferred caches, the router MUST issue a Reset Query and get an entire new load from the cache in protocol version 0. Current handlePDU still rejects a version-0 Cache Reset before entering its pduCacheReset branch (rtrVersionMin=1), rejects version-0 downgrade in its code-4 branch, and syncOnce retries only versions 1 through 2. Adding pduRouterKey staging does not reach version-0 Cache Reset recovery. No test carries this id; the declared version-0 gap remains unimplemented.",
   "requirement_sha": "ffe9f790aa8a5991",
   "verdict": "unimplemented"
 }

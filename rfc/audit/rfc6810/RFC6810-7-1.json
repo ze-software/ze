@@ -1,9 +1,9 @@
 {
   "code": {
-    "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU": "c65a3114342e282e",
+    "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU": "4e2e1822df356d21",
     "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.syncOnce": "536ea897312fa900"
   },
-  "note": "Independent rejudgment 2026-11-15. RFC 6810 Section 7 states: 'Caches and routers MUST implement unprotected transport over TCP using a port, rpki-rtr (323); see Section 12.' The same section defines the persistent transport as the carrier of this document's binary PDUs, whose Section 5.1 protocol version is 0. Ze has the TCP transport and default port 323, but current handlePDU still rejects initial version-0 data and refuses a version-0 downgrade; syncOnce never establishes a version below rtrVersionMin=1. A TCP connection that cannot exchange the defined version-0 protocol does not discharge this version-0 transport obligation. The new response-identity checks and later-version TCP tests add no version-0 support. No test carries this id. Under the existing router-role version-0 gap, the verdict remains unimplemented, not not-applicable or enforced.",
+  "note": "Independent rejudgment 2026-11-22 after Router Key (type 9) handling was added to RTRSession.handlePDU. RFC 6810 Section 7 requires unprotected TCP transport on port rpki-rtr (323) carrying this document's version-0 binary PDUs. Ze implements unprotected TCP defaulting to port 323, but current handlePDU still rejects initial version-0 PDUs and refuses version-0 downgrade (rtrVersionMin=1), and syncOnce never establishes a version below 1. Adding pduRouterKey handling in handlePDU adds no version-0 protocol support. No test carries this id; the row remains unimplemented.",
   "requirement_sha": "de4bab7f792829e2",
   "verdict": "unimplemented"
 }

@@ -35,20 +35,23 @@ const (
 
 // PDU fixed lengths.
 const (
-	pduHeaderLen      = 8
-	pduSerialQueryLen = 12
-	pduResetQueryLen  = 8
-	pduIPv4PrefixLen  = 20
-	pduIPv6PrefixLen  = 32
-	pduEndOfDataLen   = 24
-	pduASPAFixedLen   = 12 // Header (8) and Customer AS (4).
+	pduHeaderLen       = 8
+	pduSerialQueryLen  = 12
+	pduResetQueryLen   = 8
+	pduIPv4PrefixLen   = 20
+	pduIPv6PrefixLen   = 32
+	pduEndOfDataLen    = 24
+	pduASPAFixedLen    = 12 // Header (8) and Customer AS (4).
+	pduRouterKeyMinLen = 33 // Header (8) + SKI (20) + ASN (4) + >=1 byte SPKI.
 )
 
 // RTR error codes (RFC 8210 Section 12, draft-ietf-sidrops-8210bis Section 12).
 const (
-	errInternalError      uint16 = 1
-	errNoDataAvail        uint16 = 2
-	errUnsupportedVersion uint16 = 4
+	errInternalError         uint16 = 1
+	errNoDataAvail           uint16 = 2
+	errUnsupportedVersion    uint16 = 4
+	errWithdrawUnknown       uint16 = 6
+	errDuplicateAnnouncement uint16 = 7
 )
 
 // pduTypeName names a PDU type the way RFC 8210 Section 5 and

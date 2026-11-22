@@ -161,6 +161,15 @@ func rtrResponseErrorCode(hdr rTRHeader, err error) (uint16, bool) {
 			return 9, true
 		}
 		return 0, true
+	case errors.Is(err, errRtrDuplicateRouterKey):
+		// RFC 8210 Section 5.10 / Section 12: Error Code 7 ("Duplicate Announcement Received", fatal).
+		return errDuplicateAnnouncement, true
+	case errors.Is(err, errRtrUnknownRouterKeyWithdraw):
+		// RFC 8210 Section 12: Error Code 6 ("Withdrawal of Unknown Record", fatal).
+		return errWithdrawUnknown, true
+	case hdr.Type == pduRouterKey:
+		// RFC 8210 Section 12: malformed Router Key PDU carries Corrupt Data (0).
+		return 0, true
 	}
 	return 0, false
 }
@@ -196,6 +205,7 @@ func (s *RTRSession) revokeResponseData(err error, code uint16) func() {
 	s.pendingDels = nil
 	s.pendingASPAs = nil
 	s.pendingASPADels = nil
+	s.clearRouterKeysLocked()
 	lease, generation := s.dataLeaseLocked(), s.dataGeneration
 	s.mu.Unlock()
 	// RFC 8210 Section 5.1; draft-ietf-sidrops-8210bis Section 12.

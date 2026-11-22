@@ -1,0 +1,13 @@
+{
+  "note": "RFC 8210 Section 5.10 requires implementations to compare Subject Public Key values as well as SKIs when detecting duplicate Router Key PDUs. TestRFC8210RouterKeyDuplicateComparesSPKIAndSKI exercises real TCP RTR sessions over RTRSession.syncOnce -> handlePDU -> parseRouterKeyPDU -> applyStagedRouterKey (which keys on {SKI [20]byte, ASN uint32, SPKI string}). Positive covers both v1 and v2: announces two Router Keys sharing the same SKI and ASN with distinct SPKIs, a third with a different SKI and identical SPKI/ASN, and a fourth with a different ASN and identical SKI/SPKI, asserting clean sync, io.EOF (no Error Report), all 4 keys retained, and an incremental withdrawal removing only the matching {SKI, ASN, SPKI} while preserving its colliding-SKI sibling. Negative proves true duplicate detection on identical {SKI, ASN, SPKI} both within one sync and across a subsequent incremental Serial Query sync, asserting errRtrDuplicateRouterKey, exact Error Report code 7 encapsulating the offending Router Key PDU, and session close. Both polarities carry verified revert discrimination records against applyStagedRouterKey.",
+  "requirement_sha": "faf91b733a38d7eb",
+  "tests": {
+    "internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go::TestRFC8210RouterKeyDuplicateComparesSPKIAndSKI": "0e65fbe121acb927",
+    "internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go::TestRFC8210RouterKeyDuplicateComparesSPKIAndSKI#2": "0e65fbe121acb927"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go::TestRFC8210RouterKeyDuplicateComparesSPKIAndSKI": "87c97c73d4b52a9f",
+    "internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go::TestRFC8210RouterKeyDuplicateComparesSPKIAndSKI#2": "87c97c73d4b52a9f"
+  },
+  "verdict": "enforced"
+}

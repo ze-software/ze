@@ -1,9 +1,9 @@
 {
   "code": {
-    "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU": "c65a3114342e282e",
+    "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU": "4e2e1822df356d21",
     "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.syncOnce": "536ea897312fa900"
   },
-  "note": "Independent rejudgment 2026-11-15. After No Data Available, RFC 6810 Section 6.4 requires: 'If no other caches are available, the router MUST issue periodic Reset Queries until it gets a new usable load from the cache.' The protocol version in this RFC is 0. handlePDU can read an Error Report with that header version before a response is established and set fullSync after No Data Available, but it never adopts version 0: its code-4 downgrade branch refuses values below rtrVersionMin=1, and syncOnce permits only versions 1 through 2. Any subsequent Reset Query therefore remains version 1 or 2, not this RFC's query, and no version-0 load can become usable. The new Error Report suppression and fatal-cleanup behavior do not close that gap. No test carries this id. The row remains unimplemented rather than receiving credit for later-version recovery tests.",
+  "note": "Independent rejudgment 2026-11-22 after Router Key (type 9) handling was added to RTRSession.handlePDU. RFC 6810 Section 6.4 requires that after No Data Available, if no other caches are available, the router MUST issue periodic Reset Queries until it gets a new usable load from the cache in protocol version 0. While handlePDU accepts a version-0 Error Report header before response establishment, it never adopts version 0 (rtrVersionMin=1) and syncOnce never retries below version 1, so subsequent Reset Queries stay v1/v2 and no version-0 load can succeed. Adding pduRouterKey staging does not change version-0 support. No test carries this id; the row remains unimplemented.",
   "requirement_sha": "584bb4830ad685a3",
   "verdict": "unimplemented"
 }

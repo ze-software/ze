@@ -1,0 +1,13 @@
+{
+  "note": "RFC 8210 Section 5.11 requires that when an error is generic (e.g., Internal Error) and not associated with the PDU to which it is responding, the Erroneous PDU field MUST be empty and the Length of Encapsulated PDU field MUST be zero. TestRFC8210GenericErrorReportHasEmptyErroneousPDU tests both polarities over live TCP RTR sessions. Positive triggers a genuine generic Internal Error (panic in onROAChange after valid Cache Response, IPv4 Prefix, and End of Data) through readLoop -> reportInternalError -> writeErrorReport(..., errInternalError, nil) and asserts exact 16-byte wire length (empty Erroneous PDU), PDU type 10, error code 1, header length 16, Length of Encapsulated PDU == 0, and Length of Error Text == 0. Negative triggers a PDU-associated protocol error (unrecognized version 99 in Cache Response) through readLoop -> handleResponseError -> writeErrorReport(..., errUnsupportedVersion, pduBuf) and asserts total length 16+len(badResp), Length of Encapsulated PDU == len(badResp), and exact encapsulation of badResp, ruling out a writer that vacuously drops encapsulated PDUs. reportInternalError is the sole generic Error Report emitter in rpki; both polarities carry verified revert discrimination records.",
+  "requirement_sha": "f17954f6b1e01bd2",
+  "tests": {
+    "internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go::TestRFC8210GenericErrorReportHasEmptyErroneousPDU": "0e65fbe121acb927",
+    "internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go::TestRFC8210GenericErrorReportHasEmptyErroneousPDU#2": "0e65fbe121acb927"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go::TestRFC8210GenericErrorReportHasEmptyErroneousPDU": "62696f68f2b08924",
+    "internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go::TestRFC8210GenericErrorReportHasEmptyErroneousPDU#2": "62696f68f2b08924"
+  },
+  "verdict": "enforced"
+}

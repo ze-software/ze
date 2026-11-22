@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8210-5.11-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go::TestRFC8210GenericErrorReportHasEmptyErroneousPDU",
+    "unit-sha": "fe82724b735fdd8a",
+    "claim-sha": "85735bbeac34d1de",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/panic_guard.go::RTRSession.reportInternalError",
+    "producer-sha": "bf3c732dd00ffd1d",
+    "break": "body of RTRSession.reportInternalError replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8210-5.11-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go::TestRFC8210GenericErrorReportHasEmptyErroneousPDU",
+    "unit-sha": "fe82724b735fdd8a",
+    "claim-sha": "c9000ddf4d3a73e8",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handleResponseError",
+    "producer-sha": "18d5f48fc3dbc0ac",
+    "break": "body of RTRSession.handleResponseError replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

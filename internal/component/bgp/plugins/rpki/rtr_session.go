@@ -87,6 +87,11 @@ type RTRSession struct {
 	pendingASPAs    []ASPARecord
 	pendingASPADels []uint32
 
+	// activeRouterKeys holds committed RFC 8210 Section 5.10 Router Keys for this session;
+	// stagedRouterKeys holds the in-flight key set between Cache Response and End of Data.
+	activeRouterKeys map[routerKeyRecord]struct{}
+	stagedRouterKeys map[routerKeyRecord]struct{}
+
 	mu             sync.Mutex
 	stopCh         <-chan struct{}
 	cache          *ROACache
@@ -596,6 +601,7 @@ func (s *RTRSession) handlePDU(hdr rTRHeader, buf []byte) (bool, error) {
 		s.pendingDels = nil
 		s.pendingASPAs = nil
 		s.pendingASPADels = nil
+		s.stagedRouterKeys = nil
 		s.mu.Unlock()
 		return false, nil
 
@@ -734,7 +740,15 @@ func (s *RTRSession) handlePDU(hdr rTRHeader, buf []byte) (bool, error) {
 		return false, nil
 
 	case pduRouterKey:
-		// Router Key PDU (Type 9) - for BGPsec, skip for now.
+		// RFC 8210 Section 5.10: parse Router Key PDU and detect duplicates
+		// comparing Subject Public Key values as well as SKIs and ASNs.
+		rec, announce, err := parseRouterKeyPDU(buf)
+		if err != nil {
+			return false, err
+		}
+		if err := s.applyStagedRouterKey(rec, announce); err != nil {
+			return false, err
+		}
 		return false, nil
 	}
 
@@ -818,6 +832,7 @@ func (s *RTRSession) applyEndOfData(params endOfDataParams, received time.Time) 
 	}
 	s.pendingASPAs = nil
 	s.pendingASPADels = nil
+	s.commitRouterKeysLocked(applied.fullSync)
 	s.dataGeneration = lease.generation
 	lease.renewLocked(received, s.expireInterval)
 	return applied, nil

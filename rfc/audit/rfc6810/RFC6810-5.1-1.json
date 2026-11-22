@@ -1,9 +1,9 @@
 {
   "code": {
-    "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU": "c65a3114342e282e",
+    "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU": "4e2e1822df356d21",
     "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.syncOnce": "536ea897312fa900"
   },
-  "note": "Independent rejudgment 2026-11-15 after the RTR response-identity and sequence changes. RFC 6810 Section 5.1 defines Protocol Version as 'currently 0' and says of Max Length: 'This MUST NOT be less than the Prefix Length element.' The current handlePDU still refuses an initial version-0 Prefix PDU before parseIPv4Prefix or parseIPv6Prefix; its Error Report code-4 branch refuses an advertised version below rtrVersionMin=1, and syncOnce retries only the supported version range 1 through 2. No version-0 Prefix exchange reaches the shared length validator. The new response-identity check can classify a version change within an established response as error 8 instead of initial unsupported-version error 4; it does not enable version 0. This row has no tagged tests and remains an owed version-0 implementation gap. Shared version-1/2 parser behavior gives this row no enforcement credit.",
+  "note": "Independent rejudgment 2026-11-22 after Router Key (type 9) handling was added to RTRSession.handlePDU. RFC 6810 Section 5.1 defines Protocol Version as 0 and states of Max Length: 'This MUST NOT be less than the Prefix Length element.' Current handlePDU still refuses initial version-0 data PDUs before parseIPv4Prefix or parseIPv6Prefix because rtrVersionMin remains 1 (rtr_pdu.go); its Unsupported Protocol Version branch refuses downgrade below rtrVersionMin=1, and syncOnce retries only versions 1 through 2. Adding pduRouterKey staging (a v1/v2 PDU unassigned in v0) does not enable version 0. No test carries this id; the row remains an owed version-0 implementation gap with no credit from v1/v2 parser behavior.",
   "requirement_sha": "66e805741a47791a",
   "verdict": "unimplemented"
 }

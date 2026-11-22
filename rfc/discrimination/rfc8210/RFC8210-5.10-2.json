@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8210-5.10-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go::TestRFC8210RouterKeyDuplicateComparesSPKIAndSKI",
+    "unit-sha": "81db9b6e03f0d487",
+    "claim-sha": "cc729f2b58248ffd",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_router_key.go::RTRSession.applyStagedRouterKey",
+    "producer-sha": "266722d290015b3d",
+    "break": "body of RTRSession.applyStagedRouterKey replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8210-5.10-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rpki/rfc8210_router_key_error_report_test.go::TestRFC8210RouterKeyDuplicateComparesSPKIAndSKI",
+    "unit-sha": "81db9b6e03f0d487",
+    "claim-sha": "98562748ebeed662",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_router_key.go::RTRSession.applyStagedRouterKey",
+    "producer-sha": "266722d290015b3d",
+    "break": "body of RTRSession.applyStagedRouterKey replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

@@ -1,9 +1,9 @@
 {
   "code": {
-    "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU": "c65a3114342e282e",
+    "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU": "4e2e1822df356d21",
     "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.syncOnce": "536ea897312fa900"
   },
-  "note": "Independent rejudgment 2026-11-15. RFC 6810 Section 6.1 requires: 'To limit the length of time a cache must keep the data necessary to generate incremental updates, a router MUST send either a Serial Query or a Reset Query no less frequently than once an hour.' Section 6.2 repeats the hourly obligation. These are version-0 queries in this RFC. New sessions still begin at rtrVersionMax=2; current handlePDU can lower the session version only to a cache-advertised supported version at least rtrVersionMin=1, and syncOnce bounds retries to that supported range. A version-0 cache cannot establish the protocol session being polled. The response-identity and fatal-cleanup repairs add no version-0 query or polling path. This untagged row remains an owed implementation gap; cache-signalled Refresh/Retry behavior in version-1/2 sessions proves neither version-0 operation nor this fixed-hour requirement.",
+  "note": "Independent rejudgment 2026-11-22 after Router Key (type 9) handling was added to RTRSession.handlePDU. RFC 6810 Sections 6.1 and 6.2 require the router to send either a Serial Query or a Reset Query no less frequently than once an hour using version-0 PDUs. New sessions still open at rtrVersionMax=2, handlePDU refuses any downgrade below rtrVersionMin=1, and syncOnce retries only versions 1 through 2. Adding pduRouterKey staging in handlePDU introduces no version-0 query or polling path. No test carries this id; this row remains an owed version-0 implementation gap.",
   "requirement_sha": "07837f0e5c3e77ff",
   "verdict": "unimplemented"
 }
