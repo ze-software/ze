@@ -287,8 +287,13 @@ func TestNativeOwnerGuardAddress6(t *testing.T) {
 	nativeOwnerAddressCase(t, unix.AF_INET6, "2001:db8:90::1/128", "2001:db8:90::2/128")
 }
 
-// TestNativeOwnerGuardBridgeSetlinkRefused drives the AF_BRIDGE dispatch path,
-// proving a guard cannot be ignored while an unguarded control changes learning.
+// TestNativeOwnerGuardBridgeSetlinkRefused drives the AF_BRIDGE dispatch path.
+// VALIDATES: an AF_BRIDGE SETLINK carrying IFLA_OWNER_FD is refused with
+// EOPNOTSUPP before br_setlink, while unguarded SETLINKs change learning.
+// PREVENTS: an owner-tagged bridge write clearing learning on a foreign port.
+// Ze's runtime kernel builds no CONFIG_BRIDGE_VLAN_FILTERING (no Ze producer
+// uses it), so every VLAN write fails with EOPNOTSUPP and the port carries no
+// victim VLAN; that assertion returns with spec-iface-bridge-vlan-filtering.
 func TestNativeOwnerGuardBridgeSetlinkRefused(t *testing.T) {
 	if !userns.Enter(t) {
 		return
@@ -297,7 +302,13 @@ func TestNativeOwnerGuardBridgeSetlinkRefused(t *testing.T) {
 }
 
 // TestNativeOwnerGuardBridgeDellinkRefused requires the same refusal before
-// AF_BRIDGE DELLINK dispatch; a SETLINK learning control proves the port is useful.
+// AF_BRIDGE DELLINK dispatch.
+// VALIDATES: the AF_BRIDGE DELLINK that succeeds without IFLA_OWNER_FD is
+// refused with EOPNOTSUPP once the owner fd is added, so only the guard refuses.
+// PREVENTS: an owner-tagged DELLINK reaching br_dellink on a foreign port.
+// The request carries no IFLA_AF_SPEC: without CONFIG_BRIDGE_VLAN_FILTERING a
+// VLAN delete fails with EOPNOTSUPP on its own, indistinguishable from the
+// guard. The victim VLAN returns with spec-iface-bridge-vlan-filtering.
 func TestNativeOwnerGuardBridgeDellinkRefused(t *testing.T) {
 	if !userns.Enter(t) {
 		return
@@ -607,11 +618,18 @@ func nativeOwnerSend(socket int, request *nl.NetlinkRequest) error {
 	return errors.New("native guarded write received no matching ACK within eight messages")
 }
 
-func nativeOwnerLinkRequest(command, family, fd, index int) *nl.NetlinkRequest {
+// nativeOwnerLinkHeader builds an ifinfomsg request with no attribute, the
+// unguarded form a control sends.
+func nativeOwnerLinkHeader(command, family, index int) *nl.NetlinkRequest {
 	request := nl.NewNetlinkRequest(command, unix.NLM_F_ACK)
 	message := nl.NewIfInfomsg(family)
 	message.Index = int32(index)
 	request.AddData(message)
+	return request
+}
+
+func nativeOwnerLinkRequest(command, family, fd, index int) *nl.NetlinkRequest {
+	request := nativeOwnerLinkHeader(command, family, index)
 	request.AddData(nl.NewRtAttr(nativeOwnerLinkAttr, nl.Uint32Attr(uint32(int32(fd)))))
 	return request
 }
@@ -791,39 +809,36 @@ func nativeOwnerBridgeCase(t *testing.T, command int) {
 		}
 		nativeOwnerLearning(t, port, enabled)
 	}
-	if err := netlink.BridgeVlanAdd(port, 123, false, false, false, false); err != nil {
-		t.Fatal(err)
-	}
-	if err := netlink.BridgeVlanDel(port, 123, false, false, false, false); err != nil {
-		t.Fatalf("unguarded bridge DELLINK positive control: %v", err)
-	}
-	if nativeOwnerVLAN(t, port, 123) {
-		t.Fatal("unguarded bridge DELLINK left its VLAN installed")
-	}
-	if err := netlink.BridgeVlanAdd(port, 123, false, false, false, false); err != nil {
-		t.Fatal(err)
-	}
-	if !nativeOwnerVLAN(t, port, 123) {
-		t.Fatal("native bridge victim VLAN is not installed")
-	}
+	// No VLAN is installed: Ze's runtime kernel builds no
+	// CONFIG_BRIDGE_VLAN_FILTERING, and br_private.h then stubs every bridge
+	// VLAN add and delete to -EOPNOTSUPP.
 	request := nativeOwnerLinkRequest(command, unix.AF_BRIDGE, fixture.fd, port.Attrs().Index)
 	if command == unix.RTM_SETLINK {
 		info := nl.NewRtAttr(unix.IFLA_PROTINFO|unix.NLA_F_NESTED, nil)
 		info.AddRtAttr(nl.IFLA_BRPORT_LEARNING, []byte{0})
 		request.AddData(info)
 	} else {
-		info := nl.NewRtAttr(unix.IFLA_AF_SPEC, nil)
-		vlan := &nl.BridgeVlanInfo{Vid: 123}
-		info.AddRtAttr(nl.IFLA_BRIDGE_VLAN_INFO, vlan.Serialize())
-		request.AddData(info)
+		// The errno control: the same DELLINK without IFLA_OWNER_FD reaches
+		// br_dellink, which returns 0 when the request has no IFLA_AF_SPEC. The
+		// guarded request below differs only by the owner fd, which neither
+		// rtnl_bridge_dellink nor br_dellink reads, so its EOPNOTSUPP is the guard's.
+		control := nativeOwnerLinkHeader(command, unix.AF_BRIDGE, port.Attrs().Index)
+		if err := fixture.send(control); err != nil {
+			t.Fatalf("unguarded bridge DELLINK positive control: %v", err)
+		}
+		nativeOwnerBridgePort(t, port, bridge, "unguarded bridge DELLINK control")
 	}
 	nativeOwnerErrno(t, fixture.send(request), unix.EOPNOTSUPP)
+	nativeOwnerBridgePort(t, port, bridge, "guarded bridge request")
+}
+
+// nativeOwnerBridgePort requires the port to keep learning on and its master,
+// the state every bridge control and guarded request must leave unchanged.
+func nativeOwnerBridgePort(t *testing.T, port, bridge netlink.Link, sender string) {
+	t.Helper()
 	nativeOwnerLearning(t, port, true)
-	if !nativeOwnerVLAN(t, port, 123) {
-		t.Fatal("guarded bridge request changed victim VLAN membership")
-	}
 	if got := nativeOwnerLink(t, port).Attrs().MasterIndex; got != bridge.Attrs().Index {
-		t.Fatalf("guarded bridge request changed port master to %d", got)
+		t.Fatalf("%s changed port master to %d, want %d", sender, got, bridge.Attrs().Index)
 	}
 }
 
@@ -836,18 +851,4 @@ func nativeOwnerLearning(t *testing.T, port netlink.Link, want bool) {
 	if info.Learning != want {
 		t.Fatalf("native bridge learning=%v, want %v", info.Learning, want)
 	}
-}
-
-func nativeOwnerVLAN(t *testing.T, port netlink.Link, vid uint16) bool {
-	t.Helper()
-	all, err := netlink.BridgeVlanList()
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, info := range all[int32(port.Attrs().Index)] {
-		if info.Vid == vid {
-			return true
-		}
-	}
-	return false
 }

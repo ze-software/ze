@@ -102,6 +102,7 @@ no bridge VLAN filtering or QinQ model"). The anycast gateway case of
 | AC-3 | VLAN filtering removed | Bridge forwards as before, per-port VLAN entries gone | None |
 | AC-4 | A member VLAN list on a non-VLAN-aware bridge | Verify refuses naming the leaf | None |
 | AC-5 | `backend vpp` | Commit refused with the YANG path, unless VPP's bridge-domain VLAN tag rewrite can match exactly | None |
+| AC-6 | `CONFIG_BRIDGE_VLAN_FILTERING` enrolled in the runtime kernel for this feature | `nativeOwnerBridgeCase` (`internal/component/l2tp/ppp/kernel/native_owner_guard_integration_linux_test.go`) again installs a victim VLAN and asserts it survives the guarded AF_BRIDGE SETLINK and DELLINK refusals, restoring the assertion removed on 2026-11-22 because the kernel then lacked the option | None |
 
 ## End-to-End User Stories
 
