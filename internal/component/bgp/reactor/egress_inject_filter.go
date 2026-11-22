@@ -92,6 +92,12 @@ func (r *Reactor) exportFilterFromFacts(peer *Peer, facts *peerForwardFacts, pen
 			return withdrawals == nil, withdrawals, nil
 		}
 	}
+	// RFC 8671 Section 5.2: emit pre-policy Adj-RIB-Out candidate before export policy runs.
+	nhUnknown := prePolicyNextHopUnknownForFacts(facts)
+	if !nhUnknown {
+		nhUnknown = prePolicyNextHopUnknownInBody(body)
+	}
+	r.emitPrePolicyAdjRIBOut(peer, facts, body, facts.sendCtxID, nhUnknown)
 	// Final-only decisions run without transport or text formatting. Withdrawals
 	// survive rejection so an already advertised route can leave the peer.
 	if hasActiveFilter(facts.exportPolicy, directionExport) {

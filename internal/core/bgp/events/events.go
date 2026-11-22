@@ -10,7 +10,8 @@ const Namespace = "bgp"
 // BGP event types.
 const (
 	EventUpdate             = "update"
-	EventUpdateFiltered     = "update-filtered" // RFC 7947 Section 2.1: route-server client UPDATE denied on ingress, retained in Adj-RIB-In
+	EventUpdateFiltered     = "update-filtered"       // RFC 7947 Section 2.1: route-server client UPDATE denied on ingress, retained in Adj-RIB-In
+	EventUpdatePrePolicyOut = "update-pre-policy-out" // RFC 8671 Section 5.2: pre-policy Adj-RIB-Out candidate UPDATE before outbound policy
 	EventOpen               = "open"
 	EventNotification       = "notification"
 	EventKeepalive          = "keepalive"

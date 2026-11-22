@@ -54,6 +54,15 @@ type RawMessage struct {
 	// Section 2.1). FilterStep names the denying ingress step.
 	Filtered   bool
 	FilterStep string
+
+	// PrePolicyOut is true when this UPDATE carries a destination peer's
+	// pre-policy Adj-RIB-Out candidate before outbound policy runs (RFC 8671
+	// Section 5.2). PrePolicyNextHopUnknown is true when the transmission next
+	// hop is not yet determined at pre-policy phase completion (e.g. next-hop-self
+	// or eBGP local-IP rewrite), so BMP encodes unknown mandatory attributes as
+	// zero or empty length.
+	PrePolicyOut            bool
+	PrePolicyNextHopUnknown bool
 }
 
 // IsAsyncSafe reports whether this message's RawBytes can be safely used after

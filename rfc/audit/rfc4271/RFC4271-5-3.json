@@ -1,10 +1,10 @@
 {
   "code": {
-    "internal/component/bgp/plugins/rib/rib_mrt.go::RIBManager.dumpRIBForMRT": "170aa860f023ae6c",
+    "internal/component/bgp/plugins/rib/rib_mrt.go::RIBManager.dumpRIBForMRT": "51ad50986ea8a641",
     "internal/component/bgp/plugins/rib/rib_mrt.go::appendOtherAttrsWire": "2ae0b4403840f92f",
     "internal/component/bgp/plugins/rib/rib_mrt.go::reconstructWireAttrs": "9da158eb07d44ffd",
-    "internal/component/bgp/plugins/rib/rib_recovery.go::recoveryCandidateWithLabels": "4f320b4b2f5216c3",
-    "internal/component/bgp/plugins/rib/rib_structured.go::RIBManager.handleReceivedStructured": "4a9a6abe53dd0a12",
+    "internal/component/bgp/plugins/rib/rib_recovery.go::recoveryCandidateWithLabels": "d3f7d263618c6a20",
+    "internal/component/bgp/plugins/rib/rib_structured.go::RIBManager.handleReceivedStructured": "81946e425c3f321a",
     "internal/component/bgp/plugins/rib/storage/attrparse.go::ParseAttributes": "71009053831fdaa1",
     "internal/component/bgp/plugins/rib/storage/attrparse.go::appendOtherAttr": "e521bc9608801b33",
     "internal/component/bgp/plugins/rib/storage/familyrib.go::RouteEntry.ToWireBytes": "8cadd86f29d2c170",
@@ -17,7 +17,7 @@
     "internal/component/bgp/reactor/forward_order_regression_test.go::forwardSocketBarrier": "618de7ec0f4b855f",
     "internal/component/bgp/reactor/partial_session_wire_test.go": "aa6fc74114965046",
     "internal/component/bgp/reactor/policy_test_helpers_test.go": "814704b2c1d5600a",
-    "internal/component/bgp/reactor/reactor_api_forward.go::reactorAPIAdapter.forwardUpdateSection": "63e741b709f5278f",
+    "internal/component/bgp/reactor/reactor_api_forward.go::reactorAPIAdapter.forwardUpdateSection": "ddcc8feca5b50907",
     "internal/component/bgp/reactor/relay_payload.go::writeRelayPayload": "1cf474653f15e1eb",
     "internal/component/bgp/reactor/relay_recovery_test.go::lowLiveDepart": "88f036bb479dd2a4",
     "internal/component/bgp/reactor/rfc4271_partial_unknown_session_wire_test.go": "0fbaf498cd6f9b49",
@@ -57,7 +57,7 @@
     "internal/core/bgp/attribute/rfc4271_test.go::partialFlagsOf": "df9c8712335d2491",
     "internal/test/fixture/plugin_fixture_13.go": "723d0abb5c2ed591"
   },
-  "note": "Independent re-judgment after 381e927417, which changed RIBManager.dumpRIBForMRT to pick each route's visitor callback from the family's ADD-PATH state. The MRT snapshot is not passing a path to other BGP peers, and that commit changed neither reconstructWireAttrs nor appendOtherAttrsWireForMRT, so attribute flags in the dump are as before. 562bc0139d changed no UPDATE path (its writeMessageHeld step applies to NOTIFICATION only). The other units on the stale list changed in other commits (writeUpdateBody in 735771cf03, negotiated family admission on raw UPDATE writes; reconstructWireAttrs, rib_recovery, rib_structured, storage/routeentry.go, forwardUpdateSection) and none of them is a negative this row lacks. The verdict stays weak for its recorded reason, which no change touched: every tag on RFC4271-5-3 is positive, the row has neither a negative test nor a {single-polarity} annotation (./le rfc check reports \"has no negative test\"), so no test ties the Partial stamp to the clause's condition (accepted AND passed AND unrecognized AND transitive optional) against the case just outside it. The positive covers listed in the tests map remain as the prior verdict describes them.",
+  "note": "Independent re-judgment after adding emitPrePolicyAdjRIBOut in reactorAPIAdapter.forwardUpdateSection (reactor_api_forward.go) for RFC 8671 Section 5.2 and unresolvedNextHops withdrawal cleanup in RIBManager.handleReceivedStructured (rib_structured.go, commit 04c75f30c3). Neither change touches attribute parsing, unrecognized transitive optional attribute retention, or Partial bit setting/preservation: emitPrePolicyAdjRIBOut copies sourceWire.Payload() read-only for BMP pre-policy Adj-RIB-Out observation without mutating sourceWire, mods, or the transmitted UPDATE payload; handleReceivedStructured only purges unresolvedNextHops when a peer's RIB empties on withdrawal. All six tagged tests and their positive covers remain unchanged, and the verdict stays weak for the same recorded reason: every tag on RFC4271-5-3 is positive, with neither a negative test nor a {single-polarity} annotation.",
   "requirement_sha": "2dab45ab8a6541f7",
   "tests": {
     "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271PartialBitPreservedOnUnknownTransitive": "d8b54efb525e6be8",

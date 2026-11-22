@@ -921,6 +921,10 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 		// treatments collects the forwarding treatments the destination's
 		// export chain set (egressStepResult.treatments).
 		var treatments uint8
+		// RFC 8671 Section 5.2: emit pre-policy Adj-RIB-Out candidate before export policy runs.
+		if !mods.IsWithdraw() {
+			a.r.emitPrePolicyAdjRIBOut(peer, facts, sourceWire.Payload(), sourceWire.SourceCtxID(), prePolicyNextHopUnknownForFacts(facts))
+		}
 		if len(a.r.orderedEgressSteps) > 0 && !mods.IsWithdraw() {
 			destFilter := facts.filterInfo
 			suppressed := false

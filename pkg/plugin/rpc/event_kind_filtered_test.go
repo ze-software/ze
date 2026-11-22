@@ -26,6 +26,17 @@ func TestEventKindUpdateFilteredRoundTrips(t *testing.T) {
 	require.NoError(t, got.UnmarshalText(raw))
 	assert.Equal(t, EventKindUpdateFiltered, got)
 
+	assert.Less(t, EventKindUpdatePrePolicyOut, EventKindCount)
+	assert.Equal(t, "update-pre-policy-out", EventKindUpdatePrePolicyOut.String())
+
+	rawPre, err := EventKindUpdatePrePolicyOut.MarshalText()
+	require.NoError(t, err)
+	assert.Equal(t, "update-pre-policy-out", string(rawPre))
+
+	var gotPre EventKind
+	require.NoError(t, gotPre.UnmarshalText(rawPre))
+	assert.Equal(t, EventKindUpdatePrePolicyOut, gotPre)
+
 	_, err = EventKindUnspecified.MarshalText()
 	assert.Error(t, err, "unspecified ordinal 0 must refuse to marshal")
 

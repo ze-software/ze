@@ -167,6 +167,16 @@ module ze-bmp-conf {
                     ze:help "Which routes to stream: pre-policy (Adj-RIB-In), post-policy (Adj-RIB-Out, RFC 8671), or all";
                 }
 
+                leaf adj-rib-out-pre-policy {
+                    type boolean;
+                    default false;
+                    description "Stream pre-policy Adj-RIB-Out candidate UPDATEs (RFC 8671 Section 5.2) with per-peer
+                        flags O=1 and L=0 before outbound policy runs, encoding unknown mandatory attributes such as
+                        next hop as zero or empty length. A change to the leaf bounces every monitored peer with a
+                        Peer Down and a Peer Up per RFC 8671 Section 7.2.";
+                    ze:help "Stream pre-policy Adj-RIB-Out Route Monitoring messages (O=1, L=0, RFC 8671 Section 5.2)";
+                }
+
                 leaf route-mirroring {
                     type boolean;
                     default false;

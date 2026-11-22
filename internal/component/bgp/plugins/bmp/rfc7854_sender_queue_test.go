@@ -477,7 +477,7 @@ func TestConfigureConcurrentWithEventDeliveryIsRaceFree(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Go(func() {
 		for i := range 400 {
-			bp.setSenderPolicy(policyFor(i), i%2 == 0)
+			bp.setSenderPolicy(policyFor(i), i%2 == 1, i%2 == 0)
 		}
 	})
 	wg.Go(func() {
@@ -489,7 +489,7 @@ func TestConfigureConcurrentWithEventDeliveryIsRaceFree(t *testing.T) {
 
 	// The last write must be the one that stuck: a snapshot read cannot leave
 	// the fields holding a mix of two configurations.
-	bp.setSenderPolicy("post-policy", true)
+	bp.setSenderPolicy("post-policy", true, true)
 	bp.mu.RLock()
 	gotPolicy, gotMirror := bp.routeMonitorPolicy, bp.routeMirroring
 	bp.mu.RUnlock()

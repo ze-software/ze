@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8671-5.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc8671_pre_policy_out_test.go::TestRFC8671PrePolicyAdjRIBOutNormalizesUnknownMandatoryAttrs",
+    "unit-sha": "024806697768213b",
+    "claim-sha": "087cdd49696d07b6",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/bmp_pre_policy_out.go::normalizePrePolicyAdjRIBOutBody",
+    "producer-sha": "e278df2c21917ba2",
+    "break": "body of normalizePrePolicyAdjRIBOutBody replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8671-5.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/bmp/rfc8671_pre_policy_out_test.go::TestRFC8671PrePolicyAdjRIBOutPreservesKnownMandatoryAttrsAndWithdrawals",
+    "unit-sha": "45df6ce4cf5e1057",
+    "claim-sha": "027fba48d01dc3c8",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/bmp_pre_policy_out.go::normalizePrePolicyAdjRIBOutBody",
+    "producer-sha": "e278df2c21917ba2",
+    "break": "body of normalizePrePolicyAdjRIBOutBody replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

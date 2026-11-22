@@ -1,0 +1,22 @@
+{
+  "code": {
+    "internal/component/bgp/plugins/bmp/bmp_events.go::BMPPlugin.handleSenderPrePolicyOut": "4298002434183b75",
+    "internal/component/bgp/plugins/bmp/bmp_pre_policy_out.go::appendMPReachEmptyNextHop": "569f81d072537d78",
+    "internal/component/bgp/plugins/bmp/bmp_pre_policy_out.go::normalizePrePolicyAdjRIBOutBody": "3ca5dccd202eb576",
+    "internal/component/bgp/plugins/bmp/bmp_replay.go::BMPPlugin.cacheAdjUpdate": "a40b89f0e27ddecb",
+    "internal/component/bgp/reactor/pre_policy_adj_out.go::Reactor.emitPrePolicyAdjRIBOut": "36414671e4725d67",
+    "internal/component/bgp/reactor/pre_policy_adj_out.go::prePolicyNextHopUnknownForFacts": "e437bdc4e4986f96",
+    "internal/component/bgp/reactor/pre_policy_adj_out.go::prePolicyNextHopUnknownInBody": "c9ed7b7ed1b7a6cd"
+  },
+  "note": "Independent audit against RFC 8671 Section 5.2 ('All mandatory attributes, such as next hop, MUST be either zero or have an empty length if they are unknown at the pre-policy phase completion.'). Production code normalizes pre-policy Adj-RIB-Out announcements in normalizePrePolicyAdjRIBOutBody (invoked both on the live handleSenderPrePolicyOut path and on cacheAdjUpdate before snapshot caching): missing ORIGIN (code 1) and AS_PATH (code 2) are emitted with empty length 0; missing, non-4-byte, or nextHopUnknown IPv4 NEXT_HOP (code 3) for inline NLRI is encoded as 0.0.0.0 (4 zero octets); MP_REACH_NLRI (code 14) with nextHopUnknown encodes Next Hop Network Address Length as 0 (empty length) via appendMPReachEmptyNextHop while preserving AFI/SAFI, reserved=0, and NLRI verbatim; withdrawal-only and End-of-RIB UPDATEs are returned unchanged. In the reactor, emitPrePolicyAdjRIBOut marks PrePolicyNextHopUnknown when transmission-time next-hop rewriting applies (nhSelfWithheld or nhMode != nhModeNone) or when an injected body already carries an unknown/zero next hop. Positive test TestRFC8671PrePolicyAdjRIBOutNormalizesUnknownMandatoryAttrs drives the live BMP sender pipe and replay primeSender across four subtests covering unknown IPv4 NEXT_HOP zeroing to 0.0.0.0 (preserving known ORIGIN/AS_PATH/NLRI), missing ORIGIN/AS_PATH/NEXT_HOP synthesis as empty/zero, unknown IPv6 MP_REACH_NLRI next hop encoded with empty length 0, and replayed snapshot normalization. Negative test TestRFC8671PrePolicyAdjRIBOutPreservesKnownMandatoryAttrsAndWithdrawals proves known IPv4 and IPv6 mandatory attributes are conveyed byte-for-byte verbatim when nextHopUnknown is false and withdrawal-only UPDATEs gain no fabricated mandatory attributes. Discrimination records in rfc/discrimination/rfc8671/RFC8671-5.2-2.json prove whole-producer dependency on normalizePrePolicyAdjRIBOutBody; source inspection confirms exact byte/length discrimination across all subtests.",
+  "requirement_sha": "f664efe918e6b3f0",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc8671_pre_policy_out_test.go::TestRFC8671PrePolicyAdjRIBOutNormalizesUnknownMandatoryAttrs": "0de1712b8ebf48d2",
+    "internal/component/bgp/plugins/bmp/rfc8671_pre_policy_out_test.go::TestRFC8671PrePolicyAdjRIBOutPreservesKnownMandatoryAttrsAndWithdrawals": "0de1712b8ebf48d2"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc8671_pre_policy_out_test.go::TestRFC8671PrePolicyAdjRIBOutNormalizesUnknownMandatoryAttrs": "0bc9e5d5fe826126",
+    "internal/component/bgp/plugins/bmp/rfc8671_pre_policy_out_test.go::TestRFC8671PrePolicyAdjRIBOutPreservesKnownMandatoryAttrsAndWithdrawals": "cf0acd669d8172ed"
+  },
+  "verdict": "enforced"
+}

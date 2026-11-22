@@ -67,6 +67,9 @@ func (cache *updateEnvelopeCache) wrap(peer *plugin.PeerInfo, message *bgptypes.
 	if message.Filtered {
 		eventName = bgpevents.EventUpdateFiltered
 	}
+	if message.PrePolicyOut {
+		eventName = bgpevents.EventUpdatePrePolicyOut
+	}
 	encoded, err := json.Marshal(rpc.EventEnvelope{
 		Namespace: bgpevents.Namespace, Event: eventName,
 		Payload: payload, Metadata: cache.metadata,

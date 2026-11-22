@@ -273,13 +273,15 @@ type BMPPlugin struct {
 	// apply that is closing another listener.
 	maxSessions atomic.Uint32
 
-	// Sender state. All three are protected by mu: the sender set and the two
+	// Sender state. All four are protected by mu: the sender set and the three
 	// config leaves are written on the configure path and read on the plugin's
 	// event-delivery goroutine, which snapshots them together (see
 	// handleStructuredEvent).
-	senders            []*senderSession
-	routeMonitorPolicy string // one of policyPrePolicy, policyPostPolicy, policyAll
-	routeMirroring     bool
+	senders             []*senderSession
+	routeMonitorPolicy  string // one of policyPrePolicy, policyPostPolicy, policyAll
+	adjRIBOutPrePolicy  bool
+	routeMirroring      bool
+	prePolicyOutDropped atomic.Uint64
 
 	// Loc-RIB monitoring state (RFC 9069, PeerType=3). locRIBUnsub is the
 	// best-change EventBus unsubscribe (nil when not subscribed). locRIBUp
@@ -510,6 +512,7 @@ func (bp *BMPPlugin) registerCallbacks() {
 	p.SetStartupSubscriptions([]string{
 		"state",
 		"update direction received", "update direction sent",
+		"update-pre-policy-out direction sent",
 		"open direction received", "open direction sent",
 		"notification direction received", "notification direction sent",
 		"keepalive direction received", "keepalive direction sent",

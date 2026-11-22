@@ -73,7 +73,7 @@ func ParseEvent(data []byte) (*Event, error) {
 	}
 	var receipt bgptypes.UpdateReceipt
 	enveloped := wrapper.Namespace == bgpevents.Namespace &&
-		(wrapper.Event == bgpevents.EventUpdate || wrapper.Event == bgpevents.EventUpdateFiltered)
+		(wrapper.Event == bgpevents.EventUpdate || wrapper.Event == bgpevents.EventUpdateFiltered || wrapper.Event == bgpevents.EventUpdatePrePolicyOut)
 	if enveloped {
 		decoded, err := bgptypes.ParseUpdateReceipt(wrapper.Metadata)
 		if err != nil {
@@ -121,8 +121,8 @@ func ParseEvent(data []byte) (*Event, error) {
 	jsonKey := bgpPayload.Type
 	if jsonKey == "" && bgpPayload.Message != nil && bgpPayload.Message.Type != rpc.EventKindUnspecified {
 		jsonKey = bgpPayload.Message.Type.String()
-		// For "sent" and "update-filtered" types, the nested data is under "update".
-		if bgpPayload.Message.Type == rpc.EventKindSent || bgpPayload.Message.Type == rpc.EventKindUpdateFiltered {
+		// For "sent", "update-filtered", and "update-pre-policy-out" types, the nested data is under "update".
+		if bgpPayload.Message.Type == rpc.EventKindSent || bgpPayload.Message.Type == rpc.EventKindUpdateFiltered || bgpPayload.Message.Type == rpc.EventKindUpdatePrePolicyOut {
 			jsonKey = "update"
 		}
 	}
@@ -155,9 +155,9 @@ func ParseEvent(data []byte) (*Event, error) {
 	}
 
 	// Preserve the event type parsed from the outer envelope.
-	if bgpPayload.Message != nil && bgpPayload.Message.Type == rpc.EventKindUpdateFiltered {
-		event.Type = rpc.EventKindUpdateFiltered.String()
-		event.TypeKind = rpc.EventKindUpdateFiltered
+	if bgpPayload.Message != nil && (bgpPayload.Message.Type == rpc.EventKindUpdateFiltered || bgpPayload.Message.Type == rpc.EventKindUpdatePrePolicyOut) {
+		event.Type = bgpPayload.Message.Type.String()
+		event.TypeKind = bgpPayload.Message.Type
 	} else if jsonKey != "" {
 		event.Type = jsonKey
 		var ek rpc.EventKind
@@ -177,7 +177,7 @@ func ParseEvent(data []byte) (*Event, error) {
 	}
 	if enveloped {
 		kind := event.GetEventType()
-		if kind != rpc.EventKindUpdate && kind != rpc.EventKindUpdateFiltered {
+		if kind != rpc.EventKindUpdate && kind != rpc.EventKindUpdateFiltered && kind != rpc.EventKindUpdatePrePolicyOut {
 			if kind != rpc.EventKindSent {
 				return nil, fmt.Errorf("BGP UPDATE envelope carries a non-UPDATE payload")
 			}

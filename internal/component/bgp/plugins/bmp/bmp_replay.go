@@ -32,10 +32,11 @@ const (
 var errAdjReplayLimit = errors.New("bmp: Adj-RIB replay storage exhausted")
 
 type adjRouteKey struct {
-	family family.Family
-	pathID uint32
-	prefix string // Normalized opaque NLRI identity, not a printable prefix.
-	sent   bool
+	family       family.Family
+	pathID       uint32
+	prefix       string // Normalized opaque NLRI identity, not a printable prefix.
+	sent         bool
+	prePolicyOut bool
 }
 
 // adjRoute owns NLRI bytes and shares immutable attributes with routes learned
@@ -71,7 +72,16 @@ func (bp *BMPPlugin) cacheAdjUpdate(se *rpc.StructuredEvent) error {
 		return nil
 	}
 	wu := msg.WireUpdate
-	if wu == nil {
+	if se.EventType == rpc.EventKindUpdatePrePolicyOut {
+		var ctxID bgpctx.ContextID
+		if wu != nil {
+			ctxID = wu.SourceCtxID()
+		}
+		// RFC 8671 Section 5.2: normalize unknown mandatory attributes before
+		// caching so replayed pre-policy Adj-RIB-Out routes match the live stream.
+		normalized := normalizePrePolicyAdjRIBOutBody(msg.RawBytes, msg.PrePolicyNextHopUnknown)
+		wu = wireu.NewWireUpdate(normalized, ctxID)
+	} else if wu == nil {
 		wu = wireu.NewWireUpdate(msg.RawBytes, 0)
 	}
 	revision := st.routeRevision
@@ -122,13 +132,14 @@ func (bp *BMPPlugin) cacheAdjSections(st *peerUpState, se *rpc.StructuredEvent, 
 	if st.routes == nil {
 		st.routes = make(map[adjRouteKey]*adjRoute)
 	}
+	prePolicyOut := se.EventType == rpc.EventKindUpdatePrePolicyOut
 	// RFC 4271 Section 4.3: an NLRI present in both fields is processed
 	// "as though the prefix were not contained in the WITHDRAWN ROUTES."
-	if err := bp.cacheAdjNLRIs(st, family.IPv4Unicast, se.Direction, withdrawn, ctx, nil); err != nil {
+	if err := bp.cacheAdjNLRIs(st, family.IPv4Unicast, se.Direction, prePolicyOut, withdrawn, ctx, nil); err != nil {
 		return err
 	}
 	if mpUnreach != nil {
-		if err := bp.cacheAdjNLRIs(st, mpUnreach.Family(), se.Direction, mpUnreach.WithdrawnBytes(), ctx, nil); err != nil {
+		if err := bp.cacheAdjNLRIs(st, mpUnreach.Family(), se.Direction, prePolicyOut, mpUnreach.WithdrawnBytes(), ctx, nil); err != nil {
 			return err
 		}
 	}
@@ -171,17 +182,17 @@ func (bp *BMPPlugin) cacheAdjSections(st *peerUpState, se *rpc.StructuredEvent, 
 		}
 	}
 	legacy := adjRoute{peer: peer, attrs: base}
-	if err := bp.cacheAdjNLRIs(st, family.IPv4Unicast, se.Direction, nlri, ctx, &legacy); err != nil {
+	if err := bp.cacheAdjNLRIs(st, family.IPv4Unicast, se.Direction, prePolicyOut, nlri, ctx, &legacy); err != nil {
 		return err
 	}
 	if mpReach != nil {
 		multiprotocol := adjRoute{peer: peer, attrs: base, nextHop: slices.Clone(mpReach.NextHopBytes()), mp: true}
-		return bp.cacheAdjNLRIs(st, mpReach.Family(), se.Direction, mpReach.NLRIBytes(), ctx, &multiprotocol)
+		return bp.cacheAdjNLRIs(st, mpReach.Family(), se.Direction, prePolicyOut, mpReach.NLRIBytes(), ctx, &multiprotocol)
 	}
 	return nil
 }
 
-func (bp *BMPPlugin) cacheAdjNLRIs(st *peerUpState, fam family.Family, direction rpc.MessageDirection, data []byte, ctx *bgpctx.EncodingContext, announcement *adjRoute) error {
+func (bp *BMPPlugin) cacheAdjNLRIs(st *peerUpState, fam family.Family, direction rpc.MessageDirection, prePolicyOut bool, data []byte, ctx *bgpctx.EncodingContext, announcement *adjRoute) error {
 	if len(data) == 0 {
 		return nil
 	}
@@ -212,7 +223,13 @@ func (bp *BMPPlugin) cacheAdjNLRIs(st *peerUpState, fam family.Family, direction
 			failed = err
 			return true
 		}
-		key := adjRouteKey{family: fam, pathID: pathID, prefix: string(identity), sent: direction == rpc.DirectionSent}
+		key := adjRouteKey{
+			family:       fam,
+			pathID:       pathID,
+			prefix:       string(identity),
+			sent:         direction == rpc.DirectionSent,
+			prePolicyOut: prePolicyOut,
+		}
 		old := st.routes[key]
 		if old != nil && announcement != nil {
 			if old.mp == announcement.mp && bytes.Equal(old.attrs, announcement.attrs) &&
@@ -261,17 +278,23 @@ func (bp *BMPPlugin) forgetAdjRoutes(st *peerUpState) {
 // replayPeerLocked writes the snapshot and closes every negotiated family,
 // including an empty one, for each selected direction. Caller MUST hold both
 // eventMu and ss.writeMu; it MUST NOT send EOR when any replay write failed.
-func (bp *BMPPlugin) replayPeerLocked(ss *senderSession, st *peerUpState, policy string) error {
+func (bp *BMPPlugin) replayPeerLocked(ss *senderSession, st *peerUpState, policy string, prePolicyOut bool) error {
 	if st.replayErr != nil {
 		return st.replayErr
 	}
 	for key, route := range st.routes {
-		direction := rpc.DirectionReceived
-		if key.sent {
-			direction = rpc.DirectionSent
-		}
-		if !policyStreams(policy, direction) {
-			continue
+		if key.prePolicyOut {
+			if !prePolicyOut {
+				continue
+			}
+		} else {
+			direction := rpc.DirectionReceived
+			if key.sent {
+				direction = rpc.DirectionSent
+			}
+			if !policyStreams(policy, direction) {
+				continue
+			}
 		}
 		if err := ss.writeAdjRouteLocked(key.family, route); err != nil {
 			return err
@@ -308,6 +331,18 @@ func (bp *BMPPlugin) replayPeerLocked(ss *senderSession, st *peerUpState, policy
 		for _, fam := range families {
 			// RFC 7854 Section 3.3: "Once it has sent all the routes for a
 			// given peer, it MUST send an End-of-RIB message for that peer".
+			if err := ss.writeRouteMonitoringLocked(peer, msgtype.TypeUPDATE, buildEndOfRIBBody(fam)); err != nil {
+				return err
+			}
+		}
+	}
+	if prePolicyOut {
+		// RFC 8671 Section 5.2: "The L flag MUST be set to 0 to indicate pre-policy."
+		peer := st.peer
+		peer.Flags &^= PeerFlagL
+		peer.Flags |= PeerFlagO
+		peer.TimestampSec, peer.TimestampUsec = 0, 0
+		for _, fam := range families {
 			if err := ss.writeRouteMonitoringLocked(peer, msgtype.TypeUPDATE, buildEndOfRIBBody(fam)); err != nil {
 				return err
 			}

@@ -482,9 +482,17 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 // eventKindForMessage selects the EventKind for a RawMessage. A route-server
 // client UPDATE denied on ingress rides EventKindUpdateFiltered so only
 // subscribers asking for update-filtered receive it (RFC 7947 Section 2.1).
+// A destination peer's pre-policy Adj-RIB-Out candidate rides
+// EventKindUpdatePrePolicyOut so only BMP pre-policy Adj-RIB-Out receives it
+// (RFC 8671 Section 5.2).
 func eventKindForMessage(msg *bgptypes.RawMessage) rpc.EventKind {
-	if msg.Type == msgtype.TypeUPDATE && msg.Filtered {
-		return rpc.EventKindUpdateFiltered
+	if msg.Type == msgtype.TypeUPDATE {
+		if msg.Filtered {
+			return rpc.EventKindUpdateFiltered
+		}
+		if msg.PrePolicyOut {
+			return rpc.EventKindUpdatePrePolicyOut
+		}
 	}
 	return messageTypeToEventKind(msg.Type)
 }

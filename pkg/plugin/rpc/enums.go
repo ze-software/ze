@@ -351,17 +351,18 @@ func (e *CapEncoding) UnmarshalText(data []byte) error {
 }
 
 const (
-	wireUp             = "up"
-	wireDown           = "down"
-	wireUpdate         = "update"
-	wireUpdateFiltered = "update-filtered"
-	wireOpen           = "open"
-	wireNotification   = "notification"
-	wireKeepalive      = "keepalive"
-	wireRefresh        = "refresh"
-	wireState          = "state"
-	wireEOR            = "eor"
-	wireNegotiated     = "negotiated"
+	wireUp                 = "up"
+	wireDown               = "down"
+	wireUpdate             = "update"
+	wireUpdateFiltered     = "update-filtered"
+	wireUpdatePrePolicyOut = "update-pre-policy-out"
+	wireOpen               = "open"
+	wireNotification       = "notification"
+	wireKeepalive          = "keepalive"
+	wireRefresh            = "refresh"
+	wireState              = "state"
+	wireEOR                = "eor"
+	wireNegotiated         = "negotiated"
 )
 
 // EventKind is the typed BGP event kind carried by StructuredEvent.EventType.
@@ -369,36 +370,38 @@ const (
 type EventKind uint8
 
 const (
-	EventKindUnspecified    EventKind = 0
-	EventKindUpdate         EventKind = 1
-	EventKindOpen           EventKind = 2
-	EventKindNotification   EventKind = 3
-	EventKindKeepalive      EventKind = 4
-	EventKindRefresh        EventKind = 5
-	EventKindState          EventKind = 6
-	EventKindEOR            EventKind = 7
-	EventKindBoRR           EventKind = 8
-	EventKindEoRR           EventKind = 9
-	EventKindSent           EventKind = 10
-	EventKindNegotiated     EventKind = 11
-	EventKindUpdateFiltered EventKind = 12
-	EventKindCount          EventKind = 13
+	EventKindUnspecified        EventKind = 0
+	EventKindUpdate             EventKind = 1
+	EventKindOpen               EventKind = 2
+	EventKindNotification       EventKind = 3
+	EventKindKeepalive          EventKind = 4
+	EventKindRefresh            EventKind = 5
+	EventKindState              EventKind = 6
+	EventKindEOR                EventKind = 7
+	EventKindBoRR               EventKind = 8
+	EventKindEoRR               EventKind = 9
+	EventKindSent               EventKind = 10
+	EventKindNegotiated         EventKind = 11
+	EventKindUpdateFiltered     EventKind = 12
+	EventKindUpdatePrePolicyOut EventKind = 13
+	EventKindCount              EventKind = 14
 )
 
 var eventKindStrings = [EventKindCount]string{
-	EventKindUnspecified:    wireUnspecified,
-	EventKindUpdate:         wireUpdate,
-	EventKindOpen:           wireOpen,
-	EventKindNotification:   wireNotification,
-	EventKindKeepalive:      wireKeepalive,
-	EventKindRefresh:        wireRefresh,
-	EventKindState:          wireState,
-	EventKindEOR:            wireEOR,
-	EventKindBoRR:           "borr",
-	EventKindEoRR:           "eorr",
-	EventKindSent:           wireSent,
-	EventKindNegotiated:     wireNegotiated,
-	EventKindUpdateFiltered: wireUpdateFiltered,
+	EventKindUnspecified:        wireUnspecified,
+	EventKindUpdate:             wireUpdate,
+	EventKindOpen:               wireOpen,
+	EventKindNotification:       wireNotification,
+	EventKindKeepalive:          wireKeepalive,
+	EventKindRefresh:            wireRefresh,
+	EventKindState:              wireState,
+	EventKindEOR:                wireEOR,
+	EventKindBoRR:               "borr",
+	EventKindEoRR:               "eorr",
+	EventKindSent:               wireSent,
+	EventKindNegotiated:         wireNegotiated,
+	EventKindUpdateFiltered:     wireUpdateFiltered,
+	EventKindUpdatePrePolicyOut: wireUpdatePrePolicyOut,
 }
 
 func (k EventKind) String() string {
@@ -423,6 +426,8 @@ func (k *EventKind) UnmarshalText(data []byte) error {
 		*k = EventKindUpdate
 	case wireUpdateFiltered:
 		*k = EventKindUpdateFiltered
+	case wireUpdatePrePolicyOut:
+		*k = EventKindUpdatePrePolicyOut
 	case wireOpen:
 		*k = EventKindOpen
 	case wireNotification:

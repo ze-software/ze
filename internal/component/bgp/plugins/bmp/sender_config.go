@@ -34,6 +34,7 @@ const statisticsTimeoutOff = "0"
 type senderConfig struct {
 	Collectors            map[string]collectorConfig `json:"collector"`
 	RouteMonitoringPolicy string                     `json:"route-monitoring-policy"`
+	AdjRIBOutPrePolicy    string                     `json:"adj-rib-out-pre-policy"` // RFC 8671 Section 5.2 pre-policy Adj-RIB-Out (O=1, L=0)
 	RouteMirroring        string                     `json:"route-mirroring"`
 	StatisticsTimeout     string                     `json:"statistics-timeout"`
 	LocRIB                string                     `json:"loc-rib"` // RFC 9069 Loc-RIB monitoring (PeerType=3)
@@ -153,10 +154,11 @@ func defaultSenderConfig() *senderConfig {
 // failure mode is a fifth sender leaf that this struct does not carry, and one
 // constructor is the one place a reader has to check for it.
 type senderBehavior struct {
-	policy     string
-	mirroring  bool
-	locRIB     bool
-	statistics string
+	policy             string
+	adjRIBOutPrePolicy bool
+	mirroring          bool
+	locRIB             bool
+	statistics         string
 }
 
 // identityChanged reports whether a reload moved the router's own identity.
@@ -193,10 +195,11 @@ func identityChanged(previous, current *senderConfig) bool {
 // interval (setStatisticsTimeout).
 func behaviorOf(cfg *senderConfig) senderBehavior {
 	return senderBehavior{
-		policy:     cfg.RouteMonitoringPolicy,
-		mirroring:  cfg.RouteMirroring == yangTrue,
-		locRIB:     cfg.LocRIB == yangTrue,
-		statistics: cfg.StatisticsTimeout,
+		policy:             cfg.RouteMonitoringPolicy,
+		adjRIBOutPrePolicy: cfg.AdjRIBOutPrePolicy == yangTrue,
+		mirroring:          cfg.RouteMirroring == yangTrue,
+		locRIB:             cfg.LocRIB == yangTrue,
+		statistics:         cfg.StatisticsTimeout,
 	}
 }
 
@@ -268,7 +271,7 @@ func (bp *BMPPlugin) applySenderConfig(previous, current *senderConfig) {
 	// above tests, so an identity change never takes it.
 	bp.setLocalIdentity(current.identity)
 
-	bp.setSenderPolicy(current.RouteMonitoringPolicy, current.RouteMirroring == yangTrue)
+	bp.setSenderPolicy(current.RouteMonitoringPolicy, current.AdjRIBOutPrePolicy == yangTrue, current.RouteMirroring == yangTrue)
 
 	// The leaf is seconds (`units "seconds"` in ze-bmp-conf.yang) and zero is
 	// its default, which asks for no periodic report. parseUint16 falls back to
@@ -369,11 +372,12 @@ func (bp *BMPPlugin) syncSenders(cfg *senderConfig) []*senderSession {
 // Both are published in ONE write lock because handleStructuredEvent snapshots
 // them together: an event must be processed under a single configuration, never
 // under the policy from one and the mirroring flag from the next.
-func (bp *BMPPlugin) setSenderPolicy(policy string, mirroring bool) {
+func (bp *BMPPlugin) setSenderPolicy(policy string, adjRIBOutPrePolicy, mirroring bool) {
 	bp.mu.Lock()
 	defer bp.mu.Unlock()
 
 	bp.routeMonitorPolicy = policy
+	bp.adjRIBOutPrePolicy = adjRIBOutPrePolicy
 	bp.routeMirroring = mirroring
 }
 

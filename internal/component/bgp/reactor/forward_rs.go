@@ -499,6 +499,10 @@ func reactorForwardRSSectionResult(r *Reactor, update *ReceivedUpdate, wire *wir
 		// (egressStepResult.treatments); a chain that did not run sets none.
 		var treatments uint8
 		var policyRemovals [][]byte
+		// RFC 8671 Section 5.2: emit pre-policy Adj-RIB-Out candidate before export policy runs.
+		if !mods.IsWithdraw() {
+			r.emitPrePolicyAdjRIBOut(peer, facts, wire.Payload(), wire.SourceCtxID(), prePolicyNextHopUnknownForFacts(facts))
+		}
 		if facts.exportChainActive && !mods.IsWithdraw() {
 			res := r.runEgressPolicyChain(facts.exportPolicy, facts.addrStr, facts.peerAS, facts.localAS, !facts.isEBGP,
 				policyview.ExportSession(facts.filterInfo, srcFilter, srcKnown, filterapi.ExportExplicit).WithExportMetadata(update.Meta), wire)

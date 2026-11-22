@@ -85,10 +85,11 @@ func (bp *BMPPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
 	senders := bp.senders
 	mirroring := bp.routeMirroring
 	policy := bp.routeMonitorPolicy
+	prePolicyOut := bp.adjRIBOutPrePolicy
 	statistics := bp.statisticsInterval > 0
 	bp.mu.RUnlock()
 
-	if se.EventType == rpc.EventKindUpdate {
+	if se.EventType == rpc.EventKindUpdate || se.EventType == rpc.EventKindUpdatePrePolicyOut {
 		if err := bp.cacheAdjUpdate(se); err != nil {
 			bp.replayFailure(se, err, senders)
 			return
@@ -110,6 +111,10 @@ func (bp *BMPPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
 		bp.handleSenderUpdate(se, senders, policyStreams(policy, se.Direction), statistics)
 		if mirroring {
 			bp.handleSenderMirror(se, senders)
+		}
+	case rpc.EventKindUpdatePrePolicyOut:
+		if prePolicyOut {
+			bp.handleSenderPrePolicyOut(se, senders)
 		}
 	case rpc.EventKindNotification, rpc.EventKindKeepalive, rpc.EventKindRefresh:
 		if mirroring {
@@ -380,7 +385,7 @@ func (bp *BMPPlugin) primeSender(ss *senderSession) {
 		}
 	}
 	for _, st := range bp.peerUps {
-		if err := bp.replayPeerLocked(ss, st, bp.routeMonitorPolicy); err != nil {
+		if err := bp.replayPeerLocked(ss, st, bp.routeMonitorPolicy, bp.adjRIBOutPrePolicy); err != nil {
 			bp.mu.RUnlock()
 			ss.abortAdjReplay(err)
 			return
@@ -441,6 +446,7 @@ func (bp *BMPPlugin) bounceMonitoredPeers(senders []*senderSession) {
 		delete(bp.dedupCount, address)
 	}
 	policy := bp.routeMonitorPolicy
+	prePolicyOut := bp.adjRIBOutPrePolicy
 	bp.mu.Unlock()
 
 	if len(states) == 0 {
@@ -462,7 +468,7 @@ func (bp *BMPPlugin) bounceMonitoredPeers(senders []*senderSession) {
 				ss.abortAdjReplay(err)
 				break
 			}
-			if err := bp.replayPeerLocked(ss, st, policy); err != nil {
+			if err := bp.replayPeerLocked(ss, st, policy, prePolicyOut); err != nil {
 				ss.abortAdjReplay(err)
 				break
 			}
@@ -489,6 +495,7 @@ func (bp *BMPPlugin) handleSenderState(se *rpc.StructuredEvent, senders []*sende
 		bp.mu.RLock()
 		st := bp.peerUps[se.PeerAddress]
 		policy := bp.routeMonitorPolicy
+		prePolicyOut := bp.adjRIBOutPrePolicy
 		bp.mu.RUnlock()
 		if st == nil {
 			logger().Warn("bmp: OPEN cache miss for peer, skipping Peer Up", "peer", se.PeerAddress)
@@ -499,7 +506,7 @@ func (bp *BMPPlugin) handleSenderState(se *rpc.StructuredEvent, senders []*sende
 			ss.writeMu.Lock()
 			if err := ss.writePeerUpLocked(st.peer, st.localAddr, st.localPort, st.remotePort, st.sentOpen, st.recvOpen, nil); err != nil {
 				logger().Debug("bmp: sender peer up failed", "collector", ss.name, "error", err)
-			} else if err := bp.replayPeerLocked(ss, st, policy); err != nil {
+			} else if err := bp.replayPeerLocked(ss, st, policy, prePolicyOut); err != nil {
 				ss.abortAdjReplay(err)
 			}
 			ss.writeMu.Unlock()
@@ -622,6 +629,69 @@ func (bp *BMPPlugin) handleSenderUpdate(se *rpc.StructuredEvent, senders []*send
 			logger().Debug("bmp: sender route monitoring failed", "collector", ss.name, "error", err)
 		}
 	}
+}
+
+// handleSenderPrePolicyOut streams an RFC 8671 Section 5.2 pre-policy
+// Adj-RIB-Out Route Monitoring message (O=1, L=0) to all collectors,
+// normalizing unknown mandatory attributes (such as next hop) to zero or empty
+// length.
+func (bp *BMPPlugin) handleSenderPrePolicyOut(se *rpc.StructuredEvent, senders []*senderSession) {
+	msg, ok := se.RawMessage.(*bgptypes.RawMessage)
+	if !ok {
+		return
+	}
+	if msg == nil {
+		return
+	}
+	if msg.RawBytes == nil {
+		return
+	}
+	body := normalizePrePolicyAdjRIBOutBody(msg.RawBytes, msg.PrePolicyNextHopUnknown)
+	if bp.duplicatePrePolicyOut(se.PeerAddress, withdrawsRoutes(body), body) {
+		return
+	}
+	peer, err := peerHeaderFromEvent(se)
+	if err != nil {
+		bp.prePolicyOutDropped.Add(1)
+		return
+	}
+	for _, ss := range senders {
+		if err := ss.writeRouteMonitoring(peer, msg.Type, body); err != nil {
+			bp.prePolicyOutDropped.Add(1)
+			logger().Warn("bmp: sender pre-policy adj-rib-out failed", "code", codeBMPUnreachable, "collector", ss.name, "error", err)
+		}
+	}
+}
+
+func (bp *BMPPlugin) duplicatePrePolicyOut(address string, withdraws bool, rawBytes []byte) bool {
+	if bp.dedupState == nil {
+		return false
+	}
+	if bp.dedupHasher == nil {
+		bp.dedupHasher = fnv.New64a()
+	}
+	bp.dedupHasher.Reset()
+	bp.dedupHasher.Write(rawBytes) //nolint:errcheck // hash.Hash.Write never returns an error
+	key := dedupKeyPrePolicyOut(bp.dedupHasher.Sum64())
+
+	bp.mu.Lock()
+	defer bp.mu.Unlock()
+
+	seen, ok := bp.dedupState[address]
+	if !ok {
+		seen = make(map[uint64]struct{})
+		bp.dedupState[address] = seen
+	}
+	if _, duplicate := seen[key]; duplicate {
+		return true
+	}
+	if withdraws {
+		clear(seen)
+	}
+	if len(seen) < maxDedupPerPeer {
+		seen[key] = struct{}{}
+	}
+	return false
 }
 
 // withdrawsRoutes reports whether an UPDATE body retracts anything: a non-empty
@@ -810,9 +880,12 @@ func peerHeaderFromEvent(se *rpc.StructuredEvent) (PeerHeader, error) {
 		ph.Flags |= PeerFlagV
 	}
 
-	// RFC 8671: set O flag for Adj-RIB-Out (sent direction).
-	// Also set L flag (post-policy) since sent updates have passed export policy.
-	if se.Direction == rpc.DirectionSent {
+	// RFC 8671 Section 5.2: "The L flag MUST be set to 0 to indicate pre-policy."
+	// RFC 8671 Section 5.1: "The L flag MUST be set to 1 to indicate post-policy."
+	if se.EventType == rpc.EventKindUpdatePrePolicyOut {
+		ph.Flags |= PeerFlagO
+		ph.Flags &^= PeerFlagL
+	} else if se.Direction == rpc.DirectionSent {
 		ph.Flags |= PeerFlagO | PeerFlagL
 	}
 
