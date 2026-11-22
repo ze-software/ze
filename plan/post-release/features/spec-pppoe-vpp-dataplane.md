@@ -31,9 +31,9 @@ validation limits below. The VPP provider is composed; it is not fully accepted.
 | Current scoped evidence | All eight consumer package/race runs passed before the final diagnostic/projection additions. Their final focused tests, CPE SDK diagnostics and eight override-fidelity roots passed together in `job-unit-pkg-66932b38.log`. These are host results, not genuine Linux fault acceptance. |
 | Native validation still owed | The CPE fault, CPE registry and native access consumers now run and pass on the host Ze Linux 7.3 kernel under race (2026-11-22, `bc776b7a2f`: five judged fixture defects corrected). Retirement controls done 2026-11-22. These pass under host race and in the Ze guest: the five logical roots L1-L5 `TestSessionNativeReleaseProjection{RetainsOriginalCloseFailure,JoinsOriginalBorrow,RetainsDuplicateCloseFailure,IgnoresNamespaceHistory,PendingSealDefersSettlement}`, the three genuine roots `...{FailedOriginalClose,ConfirmedOriginalClose,PendingSealDefersLocalSettlement}`, the corrected original-duplicate fixture `TestCreatedUnitNativeRetirementJoinsRetainedOriginalDuplicate` and the genuine borrow root. The eight causal cuts are in "Retirement causal cuts" below. |
 | Provider history defect | Repaired in `0c93a81fd2` (2026-11-22). `Settle` keeps a delayed settlement's causes and matched NACK; physical close joins instead of overwriting; a response the write itself received is still returned once and not retained. The model root and both genuine ACK/NACK roots went red to green. |
-| IPv6 | The arm64 kernel `cddff82e255fc9a7010a79d5237a733463569f495ae483b60962455788fb3884` and image `f92054020556fb26` passed four constructor models and thirteen genuine API roots. Carrier adopted 2026-11-22 (resume step 3): the kernel session carrier opens its ICMPv6 and UDPv6 sockets from the original unit, and the name-based path is deleted. On amd64 runtime tree `2b23af13` all nine `TestNativeIPv6Carrier*` roots pass, and so does the whole `pppoe/dataplane/kernel` package. The adoption also repaired kernel patch `0013b` for UDP6 receive. Fragment acceptance (resume step 4, now unblocked) and complete subscriber acceptance remain open. |
+| IPv6 | The arm64 kernel `cddff82e255fc9a7010a79d5237a733463569f495ae483b60962455788fb3884` and image `f92054020556fb26` passed four constructor models and thirteen genuine API roots. Carrier adopted 2026-11-22 (resume step 3): the kernel session carrier opens its ICMPv6 and UDPv6 sockets from the original unit, and the name-based path is deleted. On amd64 runtime tree `2b23af13` all nine `TestNativeIPv6Carrier*` roots pass, and so does the whole `pppoe/dataplane/kernel` package. The adoption also repaired kernel patch `0013b` for UDP6 receive. Fragment ownership is accepted (resume step 4, `169eccfa2c`): the five fragment roots pass on `2b23af13`, the package passes 47/0/0, and the name-based carrier cut turns the ownership roots red. Complete subscriber acceptance remains open. |
 | PCI override prerequisite | The Go reader and doctor reject ambiguous legacy override state and preserve exact raw bytes/errors. The `driver_override_raw` kernel patch `0006` is not enrolled. Do not claim managed NIC restoration is accepted on the current kernel from the Go model results. |
-| Final gates | Owed: the fragment draft promotion (resume step 4), accounting (the L2TP session owns it), scoped lint, documentation checks, independent review, discrimination, and real VPP forwarding, restart, interop and scale. Keep this spec in phase 2/7 until those requirements are actually met. |
+| Final gates | Owed: accounting (the L2TP session owns it), scoped lint, documentation checks, independent review, discrimination, and real VPP forwarding, restart, interop and scale. Keep this spec in phase 2/7 until those requirements are actually met. |
 
 ### Retirement causal cuts — 2026-11-22
 
@@ -136,14 +136,22 @@ and this record before editing; their changes can supersede this snapshot.
    and the whole `pppoe/dataplane/kernel` package passes 42/0/0
    (`job-pppoe-dp-guest-fixed-b7ce7151.log`). These logs are under
    `tmp/session/2026-11-22-183517/scratch/`.
-4. **Fragment draft (unblocked by step 3):** `internal/component/l2tp/pppoe/dataplane/kernel/testdata/ppp-ipv6-fragments-draft/`
-   retains the complete reviewed packet: original five-root source, R2 helper,
-   exact graft and producer evidence. Read its README and R2 companion first;
-   both source files and the graft are required. It is outside compilation and
-   has not run. It covers useful global reassembly, distinct owners, retirement,
-   rename and ordinary Ethernet with actual FIFO/readiness prerequisites.
-   Promote and remove the draft packet in the same commit; a setup failure is
-   never ownership discrimination.
+4. **Fragment draft:** done 2026-11-22 in `169eccfa2c`. The five roots
+   `TestNativeIPv6Fragment{Useful,DistinctOwners,RetiredOwner,Rename,OrdinaryEthernet}`
+   and the R2 helper were promoted unchanged from the reviewed draft, with the
+   graft applied and only lint edits. The draft directory
+   `internal/component/l2tp/pppoe/dataplane/kernel/testdata/ppp-ipv6-fragments-draft/`
+   was removed. In the Ze guest on runtime tree `2b23af13` all five pass, and
+   the whole `pppoe/dataplane/kernel` package passes 47/0/0
+   (`job-pppoe-dp-frag-guest-b7ce7151.log`). Discrimination: for one build,
+   the carrier's four product files went back to their name-based versions
+   from before `c63d11d484`. `DistinctOwners` and `RetiredOwner` then received
+   another owner's datagram, `Rename` never admitted the renamed original, and
+   all eight carrier ownership roots went red. `Useful`, `OrdinaryEthernet` and
+   `TestNativeIPv6CarrierOriginalTraffic` stayed green
+   (`job-frag-cut-guest-ae0a386b.log`). This run is also the carrier
+   adoption's causal cut on the fixed kernel. Logs are under
+   `tmp/session/2026-11-22-183517/scratch/`.
 5. **Accounting and finishing checks:** the L2TP session owns current counter,
    authentication and accounting continuation. Its latest report has counter R6
    committed in `1a6b966648`, with fourteen isolated race roots and all 658
