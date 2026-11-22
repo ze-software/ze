@@ -27,6 +27,20 @@ func TestHeroKeyPointsUseApprovedTicks(t *testing.T) {
 			strings.Contains(rule.body, `content: "✓"`) && strings.Contains(rule.body, "color: #87d5fa") {
 			tick = true
 		}
+		// The ruled tick colour holds in every theme: any rule that reaches the
+		// tick and states a colour of its own must state #87d5fa, so an override
+		// for one theme, a breakpoint or a more specific selector goes red.
+		for _, selector := range rule.selectors {
+			if !heroTickSelector(selector) {
+				continue
+			}
+			for _, declaration := range cssDeclarations(rule.body) {
+				if !heroTickColorKept(declaration) {
+					t.Errorf("%s: %q sets %s: %s, but the owner ruled the hero tick #87d5fa in every theme",
+						rule.file, selector, declaration[0], declaration[1])
+				}
+			}
+		}
 		if slices.Contains(rule.selectors, ".site-home .hero-start-points span") &&
 			strings.Contains(rule.body, "white-space: nowrap") {
 			nowrap = true
@@ -35,6 +49,42 @@ func TestHeroKeyPointsUseApprovedTicks(t *testing.T) {
 	if !tick || !nowrap {
 		t.Errorf("hero key points need a shared blue tick and an unbroken label: tick=%t nowrap=%t", tick, nowrap)
 	}
+}
+
+// heroTickSelector reports whether a selector styles the hero key-point tick,
+// whatever theme, state or extra qualifier it adds.
+func heroTickSelector(selector string) bool {
+	return strings.Contains(selector, "hero-start-points") && strings.Contains(selector, ":before")
+}
+
+// heroTickColorKept reports whether one declaration on a tick rule keeps the
+// ruled colour. The text fill may follow the colour (currentColor) or name it;
+// every other property is outside the ruling.
+func heroTickColorKept(declaration [2]string) bool {
+	value := strings.ToLower(declaration[1])
+	switch declaration[0] {
+	case "color":
+		return value == "#87d5fa"
+	case "-webkit-text-fill-color":
+		return value == "currentcolor" || value == "#87d5fa"
+	}
+	return true
+}
+
+// cssDeclarations splits a rule body into property and value pairs, the
+// property lower-cased, both trimmed.
+func cssDeclarations(body string) [][2]string {
+	var declarations [][2]string
+	for declaration := range strings.SplitSeq(body, ";") {
+		property, value, found := strings.Cut(declaration, ":")
+		if !found {
+			continue
+		}
+		declarations = append(declarations, [2]string{
+			strings.ToLower(strings.TrimSpace(property)), strings.TrimSpace(value),
+		})
+	}
+	return declarations
 }
 
 // The approved capability treatment keeps the generated inventory and useful

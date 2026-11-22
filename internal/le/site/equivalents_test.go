@@ -303,6 +303,65 @@ func TestAStaleCuratedCommandStopsTheBuild(t *testing.T) {
 	}
 }
 
+// VALIDATES: a vendor command citing a source its vendor's documentation list
+// does not define stops the build, and the refusal names the entry, the command
+// and the id.
+//
+// sourceLinks drops an id it cannot find, so without this check the detail page
+// publishes a "verified" badge with no source behind it. The second document
+// proves the check is per vendor: an id another vendor defines is no evidence.
+func TestAnUndefinedSourceStopsTheBuild(t *testing.T) {
+	for name, ref := range map[string]string{"undefined": "vyos-missing", "another vendor's": "junos-route"} {
+		t.Run(name, func(t *testing.T) {
+			paths := commandSurfacePaths(t)
+			path := filepath.Join(paths.Output, filepath.FromSlash(equivalentsFile))
+			mapping := `{"schema-version":1,
+				"vendors":{
+					"junos-mx":{"label":"Juniper Junos MX","documentation":[{"id":"junos-route","label":"show route","url":"https://example.net/junos"}]},
+					"vyos":{"label":"VyOS","documentation":[{"id":"vyos-cli","label":"CLI","url":"https://example.net/vyos"}]}},
+				"entries":[{"id":"uncited","category":"BGP","intent":"Show peers","ze":["show bgp"],
+					"vendors":{"vyos":[{"command":"show bgp summary","mode":"operational","confidence":"verified","source-refs":["` + ref + `"]}]}}]}`
+			if err := os.WriteFile(path, []byte(mapping), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			_, err := renderCommandEquivalents(paths)
+			if err == nil {
+				t.Fatalf("a command citing the %s source %q was published rather than refused", name, ref)
+			}
+			for _, want := range []string{"uncited", "show bgp summary", ref, "documentation"} {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("the refusal omits %q: %v", want, err)
+				}
+			}
+		})
+	}
+}
+
+// VALIDATES: a command citing a document its vendor defines is published.
+//
+// The counterpart of TestAnUndefinedSourceStopsTheBuild: the same mapping with a
+// defined id builds, so the refusal above is the source check and not the
+// fixture.
+func TestADefinedSourceIsPublished(t *testing.T) {
+	paths := commandSurfacePaths(t)
+	path := filepath.Join(paths.Output, filepath.FromSlash(equivalentsFile))
+	if err := os.WriteFile(path, []byte(`{"schema-version":1,
+		"vendors":{"vyos":{"label":"VyOS","documentation":[{"id":"vyos-cli","label":"CLI","url":"https://example.net/vyos"}]}},
+		"entries":[{"id":"cited","category":"BGP","intent":"Show peers","ze":["show bgp"],
+			"vendors":{"vyos":[{"command":"show bgp summary","mode":"operational","confidence":"verified","source-refs":["vyos-cli"]}]}}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := renderCommandEquivalents(paths); err != nil {
+		t.Fatalf("a command citing a defined source was refused: %v", err)
+	}
+	page := readArtifact(t, paths.Output, equivalentsDirectory+"/show-bgp/"+pageIndexFile)
+	if !strings.Contains(page, `href="https://example.net/vyos"`) {
+		t.Error("the detail page does not link the cited source")
+	}
+}
+
 // VALIDATES: the routes these producers claim are exactly the published ones,
 // and the arithmetic AC-1 counts lands where the phase says it does.
 //

@@ -212,10 +212,12 @@ func jsonFieldKeys(document []byte, field string) ([]string, error) {
 
 // validate refuses a mapping the pages cannot render honestly.
 //
-// The two checks that matter are the ones a reader cannot make: a Ze path the
+// The checks that matter are the ones a reader cannot make: a Ze path the
 // binary no longer has, which would publish a migration hint for a command
-// nobody can run, and a confidence level nothing names, which would publish an
-// unlabelled badge where the evidence belongs.
+// nobody can run; a confidence level nothing names, which would publish an
+// unlabelled badge where the evidence belongs; and a source id the vendor's
+// documentation list does not define, which the detail page would drop in
+// silence and so publish a confidence badge with none of its evidence.
 func (mapping *equivalentMapping) validate(commands []catalogCommand) error {
 	if mapping.SchemaVersion != 1 {
 		return fmt.Errorf("the vendor command map states schema-version %d, want 1", mapping.SchemaVersion)
@@ -247,7 +249,31 @@ func (mapping *equivalentMapping) validate(commands []catalogCommand) error {
 					return fmt.Errorf("vendor map entry %s: %s command %q states the unknown confidence %q",
 						entry.ID, vendor, row.Command, row.Confidence)
 				}
+				if err := mapping.checkSourceRefs(entry.ID, vendor, &row); err != nil {
+					return err
+				}
 			}
+		}
+	}
+	return nil
+}
+
+// checkSourceRefs refuses a vendor command that cites a document its vendor's
+// documentation list does not define. sourceLinks renders only the documents it
+// finds, so an undefined id would otherwise leave the command's confidence badge
+// standing with no source behind it.
+func (mapping *equivalentMapping) checkSourceRefs(entryID, vendor string, row *equivalentCommand) error {
+	documents := mapping.Vendors[vendor].Documentation
+	for _, ref := range row.SourceRefs {
+		defined := slices.ContainsFunc(documents, func(document equivalentSourceDoc) bool {
+			return document.ID == ref
+		})
+		if !defined {
+			return fmt.Errorf("vendor map entry %s: %s command %q cites the source %q, which the %s "+
+				"documentation list in %s does not define, so its detail page would show the confidence "+
+				"badge without the evidence; add a document with that id under vendors.%s.documentation, "+
+				"or cite a defined document that covers the command and set the confidence to what it supports",
+				entryID, vendor, row.Command, ref, vendor, equivalentsFile, vendor)
 		}
 	}
 	return nil

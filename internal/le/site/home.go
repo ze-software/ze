@@ -35,11 +35,8 @@ const (
 	homeManagementStart = "0:36"
 )
 
-// The homepage's two data files, under website/data/.
-const (
-	audienceDataFile = "audience.json"
-	whatsNewDataFile = "whats-new.json"
-)
+// audienceDataFile is the homepage's data file, under website/data/.
+const audienceDataFile = "audience.json"
 
 // homeTeasers and homeUpdateTags bound the two lists the momentum band shows.
 // Both bounds are the page's, not the data's: a fourth teaser pushes the proof
@@ -49,7 +46,7 @@ const (
 	homeUpdateTags = 4
 )
 
-// homeSummaryRunes bounds summaries in the "Latest news" band and weekly cards.
+// homeSummaryRunes bounds the summaries on the homepage's update report cards.
 // The homepage leaves the full introduction to the linked article.
 const homeSummaryRunes = 108
 
@@ -85,27 +82,6 @@ type audienceLink struct {
 	Href     string `json:"href"`
 	Label    string `json:"label"`
 	Sublabel string `json:"sublabel"`
-}
-
-// whatsNewData is website/data/whats-new.json: the band's heading, its "all
-// updates" link, and the one freeform note an author writes by hand.
-//
-// The other two slots are generated from the newest article and the newest
-// week, so this file carries only what nothing else can answer.
-type whatsNewData struct {
-	Title string        `json:"title"`
-	Link  *audienceLink `json:"link"`
-	Note  *whatsNewNote `json:"note"`
-}
-
-// whatsNewNote is the hand-written slot of the band. Dropping the whole object
-// renders the band with its two generated slots.
-type whatsNewNote struct {
-	Label    string        `json:"label"`
-	Category string        `json:"category"`
-	Title    string        `json:"title"`
-	Body     string        `json:"body"`
-	Link     *audienceLink `json:"link"`
 }
 
 // renderHome publishes the homepage and its Markdown mirror.
@@ -528,59 +504,6 @@ func homeFeatureOverview(features featureData) string {
 			Str(" features →</a></article>\n")
 	}
 	return overview.String()
-}
-
-// whatsNewBand renders the three slots above the proof strip: the newest
-// article, the newest weekly update, and the note an author wrote.
-//
-// A slot with nothing to show is dropped rather than rendered empty, and a band
-// with no slot at all renders nothing, so a checkout with no article still
-// publishes a homepage.
-func whatsNewBand(data *whatsNewData, articles []blogArticle, weeks []changeWeek) (string, error) {
-	var items []string
-	if len(articles) != 0 {
-		newest := articles[0]
-		items = append(items, whatsNewItem("Engineering note", newest.cardCategory(),
-			blogDirectory+"/"+newest.Slug+"/", newest.Title, clipSummary(newest.Description)))
-	}
-	if len(weeks) != 0 {
-		newest := weeks[0]
-		intro := newest.Intro
-		if intro == "" {
-			intro = "Recent development changes."
-		}
-		items = append(items, whatsNewItem("Recently shipped", newest.cardCategory(),
-			newest.route(), newest.label(), clipSummary(intro)))
-	}
-	if note := data.Note; note != nil {
-		href := data.Link.Href
-		if note.Link != nil {
-			href = note.Link.Href
-		}
-		category, err := cardCategory(note.Category)
-		if err != nil {
-			return "", fmt.Errorf("news note %q: %w", note.Title, err)
-		}
-		items = append(items, whatsNewItem(note.Label, category, href, note.Title, clipSummary(note.Body)))
-	}
-	if len(items) == 0 {
-		return "", nil
-	}
-	return "            <section class=\"whats-new reveal\" aria-labelledby=\"whats-new-title\">\n" +
-		"                <div class=\"whats-new-head\">\n" +
-		"                    <h2 id=\"whats-new-title\">" + html.EscapeString(data.Title) + "</h2>\n" +
-		"                    <a href=\"" + html.EscapeString(data.Link.Href) + "\">" +
-		html.EscapeString(data.Link.Label) + "</a>\n" +
-		"                </div>\n" + strings.Join(items, "\n") + "\n            </section>\n", nil
-}
-
-// whatsNewItem renders one slot of the Latest news band.
-func whatsNewItem(label, category, href, title, summary string) string {
-	return "                <article class=\"whats-new-item cat-" + category + "\">\n" +
-		"                    <span class=\"whats-new-label\">" + html.EscapeString(label) + "</span>\n" +
-		"                    <h3><a href=\"" + html.EscapeString(href) + "\">" + html.EscapeString(title) + "</a></h3>\n" +
-		"                    <p>" + html.EscapeString(summary) + "</p>\n" +
-		"                </article>"
 }
 
 // blogTeaserCards renders the three newest weekly updates as cards.

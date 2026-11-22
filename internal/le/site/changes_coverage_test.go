@@ -37,14 +37,8 @@ func TestUpdateCoverageReachesEverySurface(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	news, err := whatsNewBand(&whatsNewData{Link: &audienceLink{Href: "project/changes/", Label: "All updates"}}, nil, weeks)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for name, surface := range map[string]string{"teasers": blogTeaserCards(weeks), "news": news} {
-		if !strings.Contains(surface, label) {
-			t.Errorf("%s omits coverage", name)
-		}
+	if !strings.Contains(blogTeaserCards(weeks), label) {
+		t.Error("teasers omit coverage")
 	}
 	page := readArtifact(t, paths.Output, changesDirectory+"/2026-10-12/index.html")
 	for _, want := range []string{"Update report · 2 weeks", `<meta name="description" content="` + label, `<title>` + label + " - Ze</title>"} {

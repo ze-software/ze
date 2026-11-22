@@ -11,6 +11,8 @@ Ze has two formats for testing its interfaces. A `.wb` file drives the web inter
 <!-- source: ../main/internal/component/cli/testing/expect.go -- editor expectations -->
 <!-- source: ../main/internal/test/cli/cmd_editor.go -- editor test CLI -->
 
+There is no `.wt` parser in the current tree. Web tests use `.wb`; editor tests use `.et`.
+
 ## Browser tests
 
 A `.wb` file is a short browser script. The runner starts Ze, opens an isolated `agent-browser` session, runs actions, waits for browser activity to settle, and evaluates expectations against the rendered page. The point is to test the behavior after templates, HTMX, handlers, and client-visible state have all interacted.

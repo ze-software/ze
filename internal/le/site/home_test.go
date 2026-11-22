@@ -33,8 +33,6 @@ func homeFixture(t *testing.T) Paths {
 
 	copyFixture(t, filepath.Join("testdata", "published-audience.json"),
 		filepath.Join(source, "data", audienceDataFile))
-	copyFixture(t, filepath.Join("testdata", "published-whats-new.json"),
-		filepath.Join(source, "data", whatsNewDataFile))
 	copyFixture(t, filepath.Join("testdata", "published-features.json"),
 		filepath.Join(source, "data", featuresDataFile))
 	copyDeclarations(t, root)
@@ -958,7 +956,7 @@ func readDemoJSON(t *testing.T, path string, value any) {
 // percentage changed population on 2026-10-31, from every MUST row of the
 // walked RFCs Ze implements to the MUST rows Ze and the OS owe, so the card
 // says what the earlier figure counted beside the new one
-// (spec-rfc-figures-sectioned-presentation AC-15; ai/rules/rfc-compliance.md:
+// (spec-rfc-figures-sectioned-presentation AC-15; ai/rules/rfc-conformance.md:
 // a correction names what the earlier figure counted).
 //
 // Method: render the homepage fixture and read the card's visible text.

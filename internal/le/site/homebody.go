@@ -167,7 +167,7 @@ const homeTemplate = `        <div class="site-home">
             <section id="try" class="home-section-panel home-section-panel-try" aria-labelledby="try-title">
                 <div class="section-head reveal cat-meta">
                     <h2 id="try-title">Getting started with Ze.</h2>
-                    <p>Run the <a href="guides/quickstart/">two-peer BGP quickstart</a> by hand, or ask Claude Code or Codex to run it with Ze’s bundled skill. Works on a Linux or macOS development host with Go and Git.</p>
+                    <p>Run the <a href="guides/quickstart/">two-peer BGP quickstart</a> by hand, or ask Claude Code or Codex to run it with Ze’s bundled skill. Both paths start on a Linux lab host with Go and Git.</p>
                 </div>
                 <div class="terminal-panel reveal">
                     <div class="terminal" aria-label="Quick start commands">
@@ -176,7 +176,7 @@ const homeTemplate = `        <div class="site-home">
                             <h3 class="terminal-title">By hand</h3>
                         </div>
                         <div class="terminal-body">
-                            <pre><code><span class="term-comment"># build from source (first run compiles bin/ze)</span>
+                            <pre><code><span class="term-comment"># build from source</span>
 <span class="term-prompt">$</span> <span class="term-cmd">git clone</span> https://github.com/ze-software/ze.git
 <span class="term-prompt">$</span> <span class="term-cmd">cd</span> ze &amp;&amp; ./ze version
 
@@ -189,7 +189,7 @@ const homeTemplate = `        <div class="site-home">
 <span class="term-prompt">$</span> ./ze <span class="term-cmd">start</span> lab/r1/ze.conf
 <span class="term-prompt">$</span> ./ze <span class="term-cmd">start</span> lab/r2/ze.conf
 
-<span class="term-comment"># inspect received routes (expects 198.51.100.0/24 on r1)</span>
+<span class="term-comment"># inspect received routes from a third terminal</span>
 <span class="term-prompt">$</span> ZE_SSH_PASSWORD=lab ./ze <span class="term-cmd">cli</span> --remote 127.0.0.1:2221 --user lab -c "show bgp rib | received"</code></pre>
                         </div>
                     </div>
@@ -367,7 +367,7 @@ Keep the logs if a check fails.</code></pre>
                     <div><span class="index4-badge">By use case</span><h3>Start with the role you have in mind.</h3>
                         <p>Inspect the requirements and remaining gaps for your network role, alongside the feature maturity information.</p></div>
                     <div class="index4-role-actions"><a class="button" href="quality/rfc-compliance/profiles/">See completion by use case →</a>
-                        <a href="compare/">Compare with BIRD, FRR and VyOS</a><a href="performance/">BGP benchmarks</a><a href="quality/">How Ze is tested</a></div>
+                        <a href="compare/">Compare with BIRD, FRR and VyOS</a><a href="performance/">BGP benchmarks</a><a href="quality/">How Ze is tested</a><a href="#why-ze">Watch the configuration demo</a></div>
                 </div>
                 <div class="index4-evidence-top">
                     <article class="index4-metric-panel" aria-labelledby="index4-rfc-title">
@@ -448,10 +448,10 @@ Keep the logs if a check fails.</code></pre>
                 <div class="interop-strip" aria-label="Implementations Ze is tested against">
                     <span class="interop-strip-label concept-evidence">Tested against</span>
                     <div class="interop-groups">
-                        <span class="interop-group"><b>BGP</b><a class="concept-software" href="labs/bgp-interop/">FRR</a><a class="concept-software" href="labs/bgp-interop/">BIRD</a><a class="concept-software" href="labs/bgp-interop/">GoBGP</a><a class="concept-software" href="labs/bgp-interop/">OpenBGPd</a><a class="concept-software" href="labs/bgp-interop/">FreeRtr</a><a class="concept-software" href="labs/bgp-interop/">RustyBGP</a><a class="concept-software" href="labs/bgp-interop/">rustbgpd</a><a class="concept-software" href="features/exabgp-compatibility/">ExaBGP</a></span>
+                        <span class="interop-group"><b>BGP</b><a class="concept-software" href="labs/bgp-interop/">FRR</a><a class="concept-software" href="labs/bgp-interop/">BIRD</a><a class="concept-software" href="labs/bgp-interop/">GoBGP</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">OpenBGPd</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">FreeRtr</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">RustyBGP</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">rustbgpd</a><a class="concept-software" href="features/exabgp-compatibility/">ExaBGP</a></span>
                         <span class="interop-group"><b>BGP support</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">StayRTR</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">pmacct</a></span>
                         <span class="interop-group"><b>VPN</b><a class="concept-software" href="labs/ipsec-interop/">strongSwan</a></span>
-                        <span class="interop-group"><b>Access</b><a class="concept-software" href="labs/pppoe-interop/">accel-ppp</a><a class="concept-software" href="labs/l2tp-interop/">xl2tpd</a><a class="concept-software" href="labs/l2tp-interop/">kl2tpd</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">FreeRADIUS</a></span>
+                        <span class="interop-group"><b>Access</b><a class="concept-software" href="labs/pppoe-interop/">accel-ppp</a><a class="concept-software" href="labs/l2tp-interop/">xl2tpd</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">kl2tpd</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">FreeRADIUS</a></span>
                         <span class="interop-group"><b>Redundancy</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">keepalived</a></span>
                     </div>
                 </div>
