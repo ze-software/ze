@@ -8,10 +8,21 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/events"
 )
+
+// noInsertingPluginLoaded sets, through the plugin server's setting, a daemon
+// that runs no compiled-in plugin, so config load places no declared filter
+// insertion and gives no filter owner a peer's state. Unset, LoadedPlugins
+// answers unknown and every compiled-in plugin's insertions are placed (the
+// offline widest set).
+func noInsertingPluginLoaded(t *testing.T) {
+	t.Helper()
+	t.Cleanup(registry.SetRuntimeLoadedPlugins(func() []string { return nil }))
+}
 
 // graphFromConfig runs the whole config path a running daemon runs -- parse,
 // ResolveBGPTree's group merge, PeersFromTree, then the index build -- and hands
@@ -76,6 +87,7 @@ func fedBy(g *pluginserver.DeliveryGraph, eventType string, dir events.Direction
 // PREVENTS: an implementation that drops the group's list entirely, which passes
 // a test asserting only the member's half.
 func TestGraphMemberListReplacesGroupList(t *testing.T) {
+	noInsertingPluginLoaded(t)
 	g := graphFromConfig(t, `
 plugin {
     external looking-glass {
@@ -152,6 +164,7 @@ bgp {
 // PREVENTS: a group-configured fleet going silent the moment delivery consults
 // the index.
 func TestGraphInheritsGroupAttachBlock(t *testing.T) {
+	noInsertingPluginLoaded(t)
 	g := graphFromConfig(t, `
 bgp {
     router-id 10.0.0.1;
@@ -396,6 +409,7 @@ func TestStoryOneProducesItsDeliveryTable(t *testing.T) {
 // the program is fed, `send` is what it may originate.
 // PREVENTS: the two lists being read as one relationship.
 func TestStoryTwoProducesItsTwoIndependentDirections(t *testing.T) {
+	noInsertingPluginLoaded(t)
 	g := graphFromConfig(t, `
 plugin {
     external policy-engine {

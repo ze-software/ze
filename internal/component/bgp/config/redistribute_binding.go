@@ -5,6 +5,7 @@
 package bgpconfig
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 
@@ -43,23 +44,18 @@ const (
 )
 
 // wireRedistributeDelivery derives Loc-RIB delivery for redistribution,
-// FlowSpec authorization and AIGP selection. Explicit incomplete feature
-// bindings are refused. Only destination-BGP rules grant forwarding authority.
+// FlowSpec authorization and AIGP selection. An explicit binding keeps what
+// the operator wrote; requireSelectionFeeds refuses one that starves a feature.
+// Only destination-BGP rules grant forwarding authority.
 func wireRedistributeDelivery(tree *config.Tree, settings []*reactor.PeerSettings) error {
 	rules, err := config.ExtractRedistributeRules(tree)
 	if err != nil {
 		return err
 	}
 
-	flowSpec := false
-	aigp := false
-	for _, peer := range settings {
-		aigp = aigp || peer.AIGPEnabled()
-		peerFlowSpec, err := hasFlowSpecFamily(peer)
-		if err != nil {
-			return err
-		}
-		flowSpec = flowSpec || peerFlowSpec
+	flowSpec, aigp, err := selectionFeatures(settings)
+	if err != nil {
+		return err
 	}
 	locRIB, orchestrator := false, false
 	for i := range rules {
@@ -88,25 +84,57 @@ func wireRedistributeDelivery(tree *config.Tree, settings []*reactor.PeerSetting
 			return err
 		}
 	}
-	if flowSpec {
-		if err := requireRIBDelivery(plugins, settings, "FlowSpec authorization", true); err != nil {
-			return err
-		}
-	}
-	if aigp {
-		// AIGP's RFC default enables selection processing, not ordinary transit.
-		// Every peer must feed update-received and state to the selecting RIB;
-		// transit send grants remain judged by validateDissemination.
-		if err := requireRIBDelivery(plugins, settings, "AIGP selection", false); err != nil {
-			return err
-		}
-	}
 	if orchestrator {
 		if err := grantEveryPeer(plugins, settings, bgpredist.OrchestratorPlugin, orchestratorReceive, orchestratorSend); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// selectionFeatures answers whether any peer enables a feature whose
+// selecting RIB must see every peer's candidates: a FlowSpec family, or AIGP.
+func selectionFeatures(settings []*reactor.PeerSettings) (bool, bool, error) {
+	flowSpec, aigp := false, false
+	for _, peer := range settings {
+		aigp = aigp || peer.AIGPEnabled()
+		peerFlowSpec, err := hasFlowSpecFamily(peer)
+		if err != nil {
+			return false, false, err
+		}
+		flowSpec = flowSpec || peerFlowSpec
+	}
+	return flowSpec, aigp, nil
+}
+
+// requireSelectionFeeds refuses an explicit attach block that grants the
+// selecting RIB less than FlowSpec authorization or AIGP selection needs.
+// wireRedistributeDelivery derived the complete feed on every other peer, so
+// only a block the operator wrote can fail here, and Ze never widens it. Both
+// features are judged, so each refusal reaches the operator in one answer.
+func requireSelectionFeeds(tree *config.Tree, settings []*reactor.PeerSettings) error {
+	flowSpec, aigp, err := selectionFeatures(settings)
+	if err != nil {
+		return err
+	}
+	if !flowSpec && !aigp {
+		return nil
+	}
+	plugins, err := config.ExtractPluginsFromTree(tree)
+	if err != nil {
+		return err
+	}
+	var refusals []error
+	if flowSpec {
+		refusals = append(refusals, requireRIBDelivery(plugins, settings, "FlowSpec authorization", true))
+	}
+	if aigp {
+		// AIGP's RFC default enables selection processing, not ordinary transit.
+		// Every peer must feed update-received and state to the selecting RIB;
+		// transit send grants remain judged by validateDissemination.
+		refusals = append(refusals, requireRIBDelivery(plugins, settings, "AIGP selection", false))
+	}
+	return errors.Join(refusals...)
 }
 
 // grantEveryPeer adds one derived binding to every peer the config builds. The

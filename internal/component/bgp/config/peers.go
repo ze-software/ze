@@ -7,6 +7,7 @@
 package bgpconfig
 
 import (
+	"errors"
 	"fmt"
 	"net/netip"
 	"slices"
@@ -58,25 +59,54 @@ func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 // remembered is what left an IXP route server's dynamic members with no policy
 // at all: until 2026-08-13 no import-policy assignment was reachable from the
 // dynamic path, so no prefix, AS-path, community or IRR filter ever ran for them.
+//
+// The selecting-RIB feed check and the dissemination gate judge the same
+// explicit attach blocks for different features, so one restrictive block can
+// fail both. Each refusal names its own completing line, and both are
+// reported, so the operator fixes every refusal in one edit.
 func peersAndDynamicGroups(tree *config.Tree) ([]*reactor.PeerSettings, []*reactor.DynamicGroupConfig, error) {
-	peers, groups, err := peerPopulationsFromTree(tree)
+	peers, groups, err := buildPeerPopulations(tree)
 	if err != nil {
 		return nil, nil, err
 	}
-	settings := append([]*reactor.PeerSettings(nil), peers...)
-	for _, group := range groups {
-		settings = append(settings, group.Settings)
-	}
-	if err := validateDissemination(tree, settings); err != nil {
+	settings := populationSettings(peers, groups)
+	feeds := requireSelectionFeeds(tree, settings)
+	dissemination := validateDissemination(tree, settings)
+	if err := errors.Join(feeds, dissemination); err != nil {
 		return nil, nil, err
 	}
 	return peers, groups, nil
 }
 
-// peerPopulationsFromTree runs the shared full peer walk. Runtime callers
-// resolve ownership against authenticated declarations after this pure build;
-// offline callers use peersAndDynamicGroups to check compiled declarations.
+// peerPopulationsFromTree runs the shared full peer walk and refuses a config
+// whose explicit binding starves a selecting-RIB feed. Runtime callers resolve
+// ownership against authenticated declarations after this build; offline
+// callers use peersAndDynamicGroups to check compiled declarations too.
 func peerPopulationsFromTree(tree *config.Tree) ([]*reactor.PeerSettings, []*reactor.DynamicGroupConfig, error) {
+	peers, groups, err := buildPeerPopulations(tree)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := requireSelectionFeeds(tree, populationSettings(peers, groups)); err != nil {
+		return nil, nil, err
+	}
+	return peers, groups, nil
+}
+
+// populationSettings answers the statically configured peers followed by each
+// dynamic group's template: every settings value a binding check judges.
+func populationSettings(peers []*reactor.PeerSettings, groups []*reactor.DynamicGroupConfig) []*reactor.PeerSettings {
+	settings := make([]*reactor.PeerSettings, 0, len(peers)+len(groups))
+	settings = append(settings, peers...)
+	for _, group := range groups {
+		settings = append(settings, group.Settings)
+	}
+	return settings
+}
+
+// buildPeerPopulations is the peer walk both entry points share. It derives
+// the feature bindings and leaves judging their completeness to its callers.
+func buildPeerPopulations(tree *config.Tree) ([]*reactor.PeerSettings, []*reactor.DynamicGroupConfig, error) {
 	// A daemon may configure another subsystem alone. Absence is an empty BGP
 	// population, not permission to invent a bgp block in its running tree.
 	if tree.GetContainer("bgp") == nil {

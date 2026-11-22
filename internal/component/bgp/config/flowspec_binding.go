@@ -62,7 +62,7 @@ func requireRIBDelivery(plugins []plugin.PluginConfig, peers []*reactor.PeerSett
 			break
 		}
 		if !complete {
-			return fmt.Errorf("peer %s: %s requires process %q to receive update-received and state from every BGP peer; remove the restrictive attach binding or grant those events", peer.Name, feature, process)
+			return fmt.Errorf("peer %s: %s requires process %q to receive update-received and state from every BGP peer; remove the restrictive attach block, or complete it with `attach process %s { receive [ update-received state ]; }`", peer.Name, feature, process, process)
 		}
 	}
 	return nil

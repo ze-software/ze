@@ -185,10 +185,15 @@ must still authenticate and recheck the running process lifetime. This
 declaration gate refuses partial explicit source or destination attachments at
 validate, commit and start, with the configured instance and a completed attach
 line. A complete destination also needs a complete source on that same
-instance. The gate does not change legacy derived bindings or plugin loading;
+instance. An explicit block that also grants the selecting RIB less than
+FlowSpec authorization or AIGP selection needs fails a second check, and
+validation reports both refusals together, each with its completing line, so
+one edit fixes every one. The gate does not change legacy derived bindings or plugin loading;
 the broader explicit-configuration ruling below remains separate work.
 <!-- source: internal/component/plugin/server/dissemination_validate.go -- ValidateDisseminationBindings -->
 <!-- source: internal/component/bgp/config/dissemination.go -- validateDissemination -->
+<!-- source: internal/component/bgp/config/peers.go -- peersAndDynamicGroups -->
+<!-- source: internal/component/bgp/config/redistribute_binding.go -- requireSelectionFeeds -->
 <!-- source: pkg/plugin/rpc/dissemination.go -- DisseminationDecl -->
 <!-- source: internal/component/plugin/server/dissemination.go -- DisseminationOwner, ResolveDisseminationOwner, disseminationForPlugin -->
 <!-- source: internal/component/bgp/reactor/config.go -- parseProcessBindingsFromTree, EnsureProcessBinding, GrantImplicitReceive -->

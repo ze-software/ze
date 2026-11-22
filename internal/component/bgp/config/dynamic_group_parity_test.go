@@ -153,6 +153,7 @@ policy {
 // the field it lands in, which is the point: the next reader gets the field name
 // rather than a report from an operator.
 func TestDynamicGroupTemplateMatchesAStaticPeer(t *testing.T) {
+	noInsertingPluginLoaded(t)
 	schema, err := config.YANGSchema()
 	require.NoError(t, err)
 	tree, err := config.NewParser(schema).Parse(parityConfig)
