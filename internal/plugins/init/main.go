@@ -90,7 +90,7 @@ func Run(args []string) int {
 					{Name: "Line 5: name", Desc: "(default: hostname)"},
 					{Name: "Line 6: hub address", Desc: "(--managed only) host:port of the hub; empty to name it at the first start"},
 					{Name: "Line 7: hub token", Desc: "(--managed only) this client's secret on the hub, 32 characters or more"},
-					{Name: "Then: one line per device", Desc: "(--confirm only) for each discovered interface the config can hold, in 'ze interface scan' order: yes or y writes it, no, n or an empty line leaves it out"},
+					{Name: "Then: one line per device", Desc: "(--confirm only) for each discovered interface the config can hold, in 'ze interface scan' order: yes or y writes it, no or n leaves it out; any other line, an empty one included, is not accepted and the same interface is asked again"},
 				}},
 				{Title: "Options", Entries: []helpfmt.HelpEntry{
 					{Name: flagManaged, Desc: "Enable managed (fleet) mode"},
@@ -101,7 +101,7 @@ func Run(args []string) int {
 					{Name: "--web-cert <addr>", Desc: "Generate TLS certificate for web server (e.g. 0.0.0.0:8080)"},
 					{Name: "--web-cert-name <host>", Desc: "Extra DNS name for TLS certificate SAN (e.g. router.example.com)"},
 					{Name: "--seed", Desc: "Create a blob artifact for appliance builders; skip build-host interface discovery"},
-					{Name: flagConfirm, Desc: "Ask about each discovered interface and write only the ones answered yes; without it every discovered interface is written. Refused with --seed, --managed and --from, which write no discovered interface"},
+					{Name: flagConfirm, Desc: "Ask about each discovered interface and write only the ones answered yes; only yes, y, no or n answers, and anything else is asked again; without it every discovered interface is written. Refused with --seed, --managed and --from, which write no discovered interface"},
 					{Name: "--from <source>", Desc: "Import a blob artifact (database.zefs) from a local path or a URL (" + schemes + ") into the live store; a local blob is retired as .replaced-<date>, a fetched copy is removed; reads no credentials"},
 					{Name: "--sha256 <hex>", Desc: "Check the --from source against this SHA-256 before a key is written"},
 				}},
@@ -766,7 +766,10 @@ func writeInitialConfig(store storage.Storage, host, port string, profile initPr
 			Str(" (after ze start, 'ze interface scan --config' prints them)\n").StdErr() //nolint:errcheck // command diagnostic
 		status.Str("wrote initial config")
 	case profile == initDiscoverConfirmed:
-		confirmed, err := confirmInterfaces(scanner, promptW, discovered)
+		// An answer that is not accepted is noted on stderr, beside the
+		// prompts and the refusal, on a pipe too: stdout carries the status
+		// line a script reads.
+		confirmed, err := confirmInterfaces(scanner, promptW, os.Stderr, discovered)
 		if err != nil {
 			return err
 		}
@@ -835,12 +838,14 @@ func discoverInterfaces() ([]iface.DiscoveredInterface, error) {
 // hold (iface.Emits), whether to write it, and answers the names of the
 // devices confirmed. Every device is asked about, the loopback included: a
 // device written into the config is one a root ze manages, and the SSH
-// listener binds its address without a loopback entry. One line answers one
-// device, in discovery order. The prompts go to promptW, nil when stdin is
-// piped, so a script feeds the same lines a terminal user types.
-func confirmInterfaces(scanner *bufio.Scanner, promptW io.Writer, discovered []iface.DiscoveredInterface) (map[string]bool, error) {
+// listener binds its address without a loopback entry. Devices are asked in
+// discovery order, each until it gets an explicit answer (readAnswer). The
+// prompts go to promptW, nil when stdin is piped, and the notice for an answer
+// not accepted goes to noticeW whether or not stdin is piped, so a script
+// feeds the same lines a terminal user types and sees the same notices.
+func confirmInterfaces(scanner *bufio.Scanner, promptW, noticeW io.Writer, discovered []iface.DiscoveredInterface) (map[string]bool, error) {
 	if promptW != nil {
-		fmt.Fprint(promptW, "ze manages each interface written into the config once it starts. Answer yes to write it, no or Enter to leave it out.\n") //nolint:errcheck // terminal prompt
+		fmt.Fprint(promptW, "ze manages each interface written into the config once it starts. Answer yes or y to write it, no or n to leave it out.\n") //nolint:errcheck // terminal prompt
 	}
 	confirmed := make(map[string]bool, len(discovered))
 	for i := range discovered {
@@ -850,10 +855,7 @@ func confirmInterfaces(scanner *bufio.Scanner, promptW io.Writer, discovered []i
 		}
 		var device textbuf.Buffer
 		describeDevice(&device, di)
-		if promptW != nil {
-			fmt.Fprint(promptW, device.String(), ": write it into the config? yes/no [no]: ") //nolint:errcheck // terminal prompt
-		}
-		yes, err := readAnswer(scanner, device.String())
+		yes, err := readAnswer(scanner, promptW, noticeW, device.String())
 		if err != nil {
 			return nil, err
 		}
@@ -888,29 +890,54 @@ func describeDevice(b *textbuf.Buffer, di *iface.DiscoveredInterface) {
 	}
 }
 
-// readAnswer reads the operator's answer about device: true for yes or y,
-// false for no, n or an empty line, compared without case. Any other answer
-// is refused, and so is input that ends before the question is answered: a
+// readAnswer asks about device on promptW (nil when stdin is piped) and reads
+// the operator's answer: true for yes or y, false for no or n, compared
+// without case. Only an explicit answer decides: any other line, an empty one
+// included, is not accepted, so readAnswer writes one notice line to noticeW
+// naming the accepted answers and asks about the same device again, reading
+// the next line. Input that ends before an accepted answer is refused: a
 // device is never decided for the operator.
-func readAnswer(scanner *bufio.Scanner, device string) (bool, error) {
-	if !scanner.Scan() {
-		if err := scanner.Err(); err != nil {
-			return false, fmt.Errorf("read the answer for %s: %w", device, err)
+//
+// The end of input is told from an empty line at the scanner: Scan answers
+// false only when no line is left (end of file or a read error), while an
+// empty line is a successful Scan with empty text. readLine, which answers ""
+// for both, is not used here. The loop is bounded by the input: each pass
+// consumes one line, and the end of input returns.
+func readAnswer(scanner *bufio.Scanner, promptW, noticeW io.Writer, device string) (bool, error) {
+	for {
+		if promptW != nil {
+			fmt.Fprint(promptW, device, ": write it into the config? yes/no: ") //nolint:errcheck // terminal prompt
 		}
-		return false, opererr.New("ze init "+flagConfirm+" got no answer for "+device,
-			"the input ended before every discovered interface was answered, and ze init decides none for you: give one line per interface, yes or no",
-			"ze init "+flagConfirm)
+		if !scanner.Scan() {
+			if err := scanner.Err(); err != nil {
+				return false, fmt.Errorf("read the answer for %s: %w", device, err)
+			}
+			return false, opererr.New("ze init "+flagConfirm+" got no answer for "+device,
+				"the input ended before every discovered interface was answered, and ze init decides none for you: give one line per interface, yes or no",
+				"ze init "+flagConfirm)
+		}
+		answer := strings.TrimSpace(scanner.Text())
+		switch strings.ToLower(answer) {
+		case "yes", "y":
+			return true, nil
+		case "no", "n":
+			return false, nil
+		}
+		writeNotAccepted(noticeW, answer, device)
 	}
-	answer := strings.TrimSpace(scanner.Text())
-	switch strings.ToLower(answer) {
-	case "yes", "y":
-		return true, nil
-	case "", "no", "n":
-		return false, nil
+}
+
+// writeNotAccepted writes the one line that tells the operator answer does
+// not decide device, and what to type instead.
+func writeNotAccepted(noticeW io.Writer, answer, device string) {
+	var notice textbuf.Buffer
+	if answer == "" {
+		notice.Str("an empty line")
+	} else {
+		notice.Str(strconv.Quote(answer))
 	}
-	return false, opererr.New("the answer "+strconv.Quote(answer)+" for "+device+" is not yes or no",
-		"ze init accepts yes, y, no, n, or an empty line for no, and never guesses another answer",
-		"ze init "+flagConfirm)
+	notice.Str(" is not an answer for ").Str(device).Str(": type yes or y to write it, or no or n to leave it out\n")
+	noticeW.Write(notice.Bytes()) //nolint:errcheck // command diagnostic
 }
 
 // readLine reads a single line from the scanner, trimming whitespace.

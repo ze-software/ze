@@ -2747,13 +2747,17 @@ yes. Each question names the kind and the device, then its MAC address, the brid
 it is a member of, and its kernel alias, the hints that say which program owns it:
 
 ```
-veth veth1a2b (mac 0e:00:00:00:00:02, member of docker0, alias "container web"): write it into the config? yes/no [no]:
+veth veth1a2b (mac 0e:00:00:00:00:02, member of docker0, alias "container web"): write it into the config? yes/no:
 ```
 
-`yes` or `y` writes the device, and `no`, `n` or an empty line leaves it out. Piped input
-gives one line per device in `ze interface scan` order, after the five credential lines.
-Any other answer, and input that ends before every device is answered, is refused and no
-store is written. The status line then reads `discovered <n> interface(s), wrote the <m>
+Only an explicit answer decides: `yes` or `y` writes the device, and `no` or `n` leaves it
+out, in any case. There is no default. An empty line, or any other answer, is not
+accepted: `ze init` prints one line on stderr naming the answers it takes and asks about
+the same device again, until it gets one of the four. Piped input gives one line per
+answer in `ze interface scan` order, after the five credential lines, and a line that is
+not accepted is read the same way: the notice is printed and the next line answers the
+same device. Input that ends before every device is answered is refused and no store is
+written. The status line then reads `discovered <n> interface(s), wrote the <m>
 confirmed into the initial config`. `--confirm` is refused with `--seed`, `--managed` and
 `--from`, which write no discovered interface.
 

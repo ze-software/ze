@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -148,7 +149,7 @@ func TestZeInitConfirmWritesOnlyConfirmed(t *testing.T) {
 		}
 	}
 	asked := prompts.String()
-	if got := strings.Count(asked, ": write it into the config? yes/no [no]: "); got != 4 {
+	if got := strings.Count(asked, ": write it into the config? yes/no: "); got != 4 {
 		t.Errorf("asked %d questions, want 4 (every device but the tunnel):\n%s", got, asked)
 	}
 	if strings.Contains(asked, "gre1") {
@@ -157,7 +158,7 @@ func TestZeInitConfirmWritesOnlyConfirmed(t *testing.T) {
 	if want := `veth veth1a2b (mac 0e:00:00:00:00:02, member of docker0, alias "container web"): write it`; !strings.Contains(asked, want) {
 		t.Errorf("the veth question does not show its owner hints, want %q in:\n%s", want, asked)
 	}
-	if want := "[no]: loopback lo: write it"; !strings.Contains(asked, want) {
+	if want := "yes/no: loopback lo: write it"; !strings.Contains(asked, want) {
 		t.Errorf("the loopback question is not %q:\n%s", want, asked)
 	}
 	if want := "discovered 5 interface(s), wrote the 2 confirmed into the initial config with the SSH listener on 127.0.0.1:2222\n"; !strings.Contains(out, want) {
@@ -165,20 +166,187 @@ func TestZeInitConfirmWritesOnlyConfirmed(t *testing.T) {
 	}
 }
 
-// VALIDATES: an empty answer leaves the device out, as the prompt's [no]
-// says, so every device refused writes no interface block at all.
-func TestZeInitConfirmEmptyAnswerIsNo(t *testing.T) {
+// VALIDATES: every device answered no or n writes no interface block at all.
+func TestZeInitConfirmEveryNoWritesNoInterface(t *testing.T) {
 	fixedDiscovery(t, hostDevices(), nil)
 	dir := t.TempDir()
-	code, out := runConfirm(t, strings.NewReader(credentials+"\n\n\n\n"), nil, dir)
+	code, out := runConfirm(t, strings.NewReader(credentials+"no\nn\nN\nNO\n"), nil, dir)
 	if code != 0 {
 		t.Fatalf("ze init --confirm exit = %d, want 0", code)
 	}
 	if interfaces := writtenInterfaces(t, dir); interfaces != "" {
-		t.Fatalf("empty answers wrote interfaces:\n%s", interfaces)
+		t.Fatalf("no answers wrote interfaces:\n%s", interfaces)
 	}
 	if want := "discovered 5 interface(s), wrote the 0 confirmed"; !strings.Contains(out, want) {
 		t.Errorf("status line is not %q:\n%s", want, out)
+	}
+}
+
+// eth0Question is how ze init --confirm names hostDevices' ethernet.
+const eth0Question = "ethernet eth0 (mac 52:54:00:00:00:01)"
+
+// VALIDATES: an empty line, and any line that is not yes, y, no or n, decides
+// nothing: ze init writes one notice per such line naming the accepted
+// answers, asks about the same device again, and takes the next explicit
+// answer, on a pipe and on a terminal alike. The notice goes to stderr, never
+// to the stdout a script reads.
+// PREVENTS: an empty line read as no, or an unclear answer decided for the
+// operator; and a re-asked question that moves on to the next device.
+func TestZeInitConfirmAsksAgainUntilExplicit(t *testing.T) {
+	tests := []struct {
+		name       string
+		unaccepted []string
+		final      string
+		written    bool
+	}{
+		{"empty line then yes", []string{""}, "yes", true},
+		{"empty line then n", []string{""}, "n", false},
+		{"unclear lines then yes", []string{"", "maybe", "yess"}, "yes", true},
+		{"unclear lines then n", []string{"", "maybe", "yess"}, "n", false},
+	}
+	for _, tt := range tests {
+		for _, terminal := range []bool{false, true} {
+			name := tt.name + " piped"
+			if terminal {
+				name = tt.name + " terminal"
+			}
+			t.Run(name, func(t *testing.T) {
+				fixedDiscovery(t, hostDevices(), nil)
+				dir := t.TempDir()
+				// docker0 no, then eth0 the unaccepted lines and the final
+				// answer, then lo and veth1a2b no.
+				answers := "no\n" + strings.Join(tt.unaccepted, "\n") + "\n" + tt.final + "\nno\nno\n"
+				var prompts bytes.Buffer
+				var promptW io.Writer
+				if terminal {
+					promptW = &prompts
+				}
+				var code int
+				var out string
+				errOut := captureFile(t, &os.Stderr, func() {
+					code, out = runConfirm(t, strings.NewReader(credentials+answers), promptW, dir)
+				})
+				if code != 0 {
+					t.Fatalf("ze init --confirm exit = %d, want 0; stderr:\n%s", code, errOut)
+				}
+				interfaces := writtenInterfaces(t, dir)
+				if got := strings.Contains(interfaces, "    ethernet eth0 {\n"); got != tt.written {
+					t.Errorf("eth0 written = %v after the final answer %q, want %v:\n%s", got, tt.final, tt.written, interfaces)
+				}
+				for _, device := range []string{"docker0", "loopback", "veth1a2b"} {
+					if strings.Contains(interfaces, device) {
+						t.Errorf("%s was answered no but is in the config:\n%s", device, interfaces)
+					}
+				}
+				if got := strings.Count(errOut, " is not an answer for "+eth0Question+": type yes or y to write it, or no or n to leave it out\n"); got != len(tt.unaccepted) {
+					t.Errorf("wrote %d notices for eth0, want one per unaccepted line (%d):\n%s", got, len(tt.unaccepted), errOut)
+				}
+				if got := strings.Count(errOut, "an empty line is not an answer for "+eth0Question); got != 1 {
+					t.Errorf("the empty line is noted %d times, want 1:\n%s", got, errOut)
+				}
+				for _, line := range tt.unaccepted[1:] {
+					if want := strconv.Quote(line) + " is not an answer for " + eth0Question; !strings.Contains(errOut, want) {
+						t.Errorf("stderr does not name the unaccepted %q, want %q:\n%s", line, want, errOut)
+					}
+				}
+				if got := strings.Count(errOut, " is not an answer for "); got != len(tt.unaccepted) {
+					t.Errorf("wrote %d notices in all, want %d, none for another device:\n%s", got, len(tt.unaccepted), errOut)
+				}
+				if strings.Contains(out, "is not an answer") {
+					t.Errorf("a notice reached stdout, which a script reads:\n%s", out)
+				}
+				if !terminal {
+					return
+				}
+				asked := prompts.String()
+				if got := strings.Count(asked, eth0Question+": write it into the config? yes/no: "); got != len(tt.unaccepted)+1 {
+					t.Errorf("asked about eth0 %d times, want once plus once per unaccepted line (%d):\n%s", got, len(tt.unaccepted)+1, asked)
+				}
+				if got := strings.Count(asked, ": write it into the config? yes/no: "); got != len(tt.unaccepted)+4 {
+					t.Errorf("asked %d questions in all, want %d:\n%s", got, len(tt.unaccepted)+4, asked)
+				}
+			})
+		}
+	}
+}
+
+// VALIDATES: input that ends after only unaccepted lines refuses the whole
+// init before a store exists, naming the device still unanswered, after one
+// notice per unaccepted line.
+// PREVENTS: the loop spinning on the end of input, or reading the end of
+// input as an empty line and deciding the device.
+func TestZeInitConfirmRefusesInputEndingUnanswered(t *testing.T) {
+	fixedDiscovery(t, hostDevices(), nil)
+	dir := t.TempDir()
+	var code int
+	errOut := captureFile(t, &os.Stderr, func() {
+		code, _ = runConfirm(t, strings.NewReader(credentials+"no\n\nmaybe\nyess\n"), nil, dir)
+	})
+	if code == 0 {
+		t.Fatal("ze init --confirm accepted input that ended with eth0 unanswered")
+	}
+	if want := "got no answer for " + eth0Question; !strings.Contains(errOut, want) {
+		t.Errorf("stderr does not say %q:\n%s", want, errOut)
+	}
+	if !strings.Contains(errOut, "\nfix: ze init --confirm") {
+		t.Errorf("stderr does not end with the command that asks again:\n%s", errOut)
+	}
+	if got := strings.Count(errOut, " is not an answer for "+eth0Question); got != 3 {
+		t.Errorf("wrote %d notices, want 3, one per unaccepted line:\n%s", got, errOut)
+	}
+	assertNoStore(t, dir)
+}
+
+// VALIDATES: readAnswer takes yes, y, Y, no, n and N each as an explicit
+// answer with no notice; reads past every unaccepted line, an empty one
+// included, writing one notice each and asking again; and refuses when the
+// input ends, rather than reading the end as an empty line.
+func TestReadAnswerAsksAgain(t *testing.T) {
+	for _, tt := range []struct {
+		line string
+		yes  bool
+	}{{"yes", true}, {"y", true}, {"Y", true}, {"no", false}, {"n", false}, {"N", false}} {
+		var notices bytes.Buffer
+		yes, err := readAnswer(bufio.NewScanner(strings.NewReader(tt.line+"\n")), nil, &notices, "loopback lo")
+		if err != nil {
+			t.Fatalf("readAnswer(%q) refused: %v", tt.line, err)
+		}
+		if yes != tt.yes {
+			t.Errorf("readAnswer(%q) = %v, want %v", tt.line, yes, tt.yes)
+		}
+		if notices.Len() != 0 {
+			t.Errorf("readAnswer(%q) wrote a notice for an accepted answer: %q", tt.line, notices.String())
+		}
+	}
+
+	var prompts, notices bytes.Buffer
+	yes, err := readAnswer(bufio.NewScanner(strings.NewReader("\nok\nY\nno\n")), &prompts, &notices, "loopback lo")
+	if err != nil {
+		t.Fatalf("readAnswer refused an explicit answer after unaccepted lines: %v", err)
+	}
+	if !yes {
+		t.Error("readAnswer did not take the Y after the unaccepted lines")
+	}
+	if want := "an empty line is not an answer for loopback lo: type yes or y to write it, or no or n to leave it out\n" +
+		`"ok" is not an answer for loopback lo: type yes or y to write it, or no or n to leave it out` + "\n"; notices.String() != want {
+		t.Errorf("notices are\n%q\nwant\n%q", notices.String(), want)
+	}
+	if got := strings.Count(prompts.String(), "loopback lo: write it into the config? yes/no: "); got != 3 {
+		t.Errorf("asked %d times, want 3 (once, then once per unaccepted line):\n%s", got, prompts.String())
+	}
+
+	for _, input := range []string{"", "\n", "ok\n", "\n\n\n"} {
+		notices.Reset()
+		_, err := readAnswer(bufio.NewScanner(strings.NewReader(input)), nil, &notices, "loopback lo")
+		if err == nil {
+			t.Fatalf("readAnswer(%q) decided an answer from input that ended unanswered", input)
+		}
+		if !strings.Contains(err.Error(), "got no answer for loopback lo") {
+			t.Errorf("readAnswer(%q) refused with %v, want the end of input named", input, err)
+		}
+		if got, want := strings.Count(notices.String(), " is not an answer for "), strings.Count(input, "\n"); got != want {
+			t.Errorf("readAnswer(%q) wrote %d notices, want %d", input, got, want)
+		}
 	}
 }
 
@@ -206,9 +374,9 @@ func TestZeInitConfirmKeepsSharedAddressNotUnique(t *testing.T) {
 	}
 }
 
-// VALIDATES: an answer that is neither yes nor no, and input that ends before
-// every device is answered, are refused before a store exists, naming the
-// device and the accepted answers.
+// VALIDATES: input that ends before every device is answered, after an
+// explicit answer or after a line that is not accepted, is refused before
+// a store exists, naming the device still unanswered.
 // PREVENTS: a device decided for the operator by a guess.
 func TestZeInitConfirmRefusesUnclearAnswers(t *testing.T) {
 	tests := []struct {
@@ -216,7 +384,7 @@ func TestZeInitConfirmRefusesUnclearAnswers(t *testing.T) {
 		answers string
 		want    string
 	}{
-		{"not yes or no", "no\nmaybe\n", `the answer "maybe" for ethernet eth0 (mac 52:54:00:00:00:01) is not yes or no`},
+		{"input ends after an unaccepted line", "no\nmaybe\n", "got no answer for ethernet eth0 (mac 52:54:00:00:00:01)"},
 		{"input ends", "no\nyes\n", "got no answer for loopback lo"},
 	}
 	for _, tt := range tests {
@@ -241,14 +409,16 @@ func TestZeInitConfirmRefusesUnclearAnswers(t *testing.T) {
 	}
 }
 
-// VALIDATES: readAnswer accepts yes, y, no, n and an empty line in any case,
-// and names the accepted answers when it refuses another.
+// VALIDATES: readAnswer accepts yes, y, no and n in any case, and an
+// answer that is not one of them is not accepted: it writes a notice
+// naming the accepted answers and reads on, so input that ends there is
+// refused.
 func TestReadAnswer(t *testing.T) {
 	for _, tt := range []struct {
 		line string
 		yes  bool
-	}{{"yes", true}, {"Y", true}, {" YES ", true}, {"no", false}, {"N", false}, {"", false}} {
-		yes, err := readAnswer(bufio.NewScanner(strings.NewReader(tt.line+"\n")), "loopback lo")
+	}{{"yes", true}, {"Y", true}, {" YES ", true}, {"y", true}, {"no", false}, {"N", false}, {"n", false}} {
+		yes, err := readAnswer(bufio.NewScanner(strings.NewReader(tt.line+"\n")), nil, io.Discard, "loopback lo")
 		if err != nil {
 			t.Fatalf("readAnswer(%q) refused: %v", tt.line, err)
 		}
@@ -256,12 +426,13 @@ func TestReadAnswer(t *testing.T) {
 			t.Errorf("readAnswer(%q) = %v, want %v", tt.line, yes, tt.yes)
 		}
 	}
-	_, err := readAnswer(bufio.NewScanner(strings.NewReader("ok\n")), "loopback lo")
+	var notices bytes.Buffer
+	_, err := readAnswer(bufio.NewScanner(strings.NewReader("ok\n")), nil, &notices, "loopback lo")
 	if err == nil {
 		t.Fatal(`readAnswer("ok") accepted it`)
 	}
-	if !strings.Contains(err.Error(), "yes, y, no, n, or an empty line for no") {
-		t.Errorf("the refusal does not name the accepted answers: %v", err)
+	if !strings.Contains(notices.String(), "type yes or y to write it, or no or n to leave it out") {
+		t.Errorf("the notice does not name the accepted answers: %q", notices.String())
 	}
 }
 

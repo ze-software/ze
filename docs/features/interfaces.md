@@ -382,11 +382,15 @@ program owns (`docker0`, `br-*`, `virbr0`, container veths, `wg-quick` devices),
 root ze then manages each of them. `ze init --confirm` asks about each device the config
 can hold, the loopback included, and writes only the ones answered yes. Each question
 shows the device's kind and name, its MAC address, the bridge or bond it is a member of,
-and its kernel alias: the hints that name the program that owns it. One line answers one
-device, in the order `ze interface scan` lists them: `yes` or `y` writes it, and `no`, `n`
-or an empty line leaves it out. Any other answer, and input that ends before every device
-is answered, is refused before the store is published, so a script works the same as a
-terminal. When discovery fails, `--confirm` asks nothing and `ze init` warns as it does
+and its kernel alias: the hints that name the program that owns it. Devices are asked in
+the order `ze interface scan` lists them, and only an explicit answer decides: `yes` or `y`
+writes the device, and `no` or `n` leaves it out, in any case. The prompt shows no default.
+An empty line or any other answer is not accepted: `ze init` writes one notice line on
+stderr naming the four answers and asks about the same device again, reading the next
+line, until it gets one of them. Input that ends before every device is answered is
+refused before the store is published. A script works the same as a terminal: on a pipe a
+line that is not accepted is consumed and noted, and the next line answers the same
+device. When discovery fails, `--confirm` asks nothing and `ze init` warns as it does
 without the flag. `--confirm` is refused with `--seed`, `--managed` and `--from`, which
 write no discovered interface.
 
@@ -394,7 +398,7 @@ A kept ethernet's selector is still judged against every discovered device: when
 NICs report one factory address and only one is kept, the kept entry binds by `os-name`,
 because a `mac { match }` on that address would name both devices and refuse the commit.
 
-<!-- source: internal/plugins/init/main.go -- runInitPublished, writeInitialConfig, profileFromFlags, confirmInterfaces, describeDevice, readAnswer -->
+<!-- source: internal/plugins/init/main.go -- runInitPublished, writeInitialConfig, profileFromFlags, confirmInterfaces, describeDevice, readAnswer, writeNotAccepted -->
 <!-- source: internal/component/iface/emit.go -- Emits, EmitConfigKept -->
 
 <!-- source: internal/component/iface/discover.go -- DiscoverInterfaces, infoToZeType -->
@@ -488,6 +492,7 @@ device appears, and a config is validated on machines that will never run it.
 | Decision | It forbids | Source | Date |
 |----------|------------|--------|------|
 | `ze init` claims every discovered device by default, including the ones another program owns. `ze init --confirm` asks about each discovered device and writes only the ones the operator confirms | Leaving a discovered device out of the default `ze init` config by kind, membership, alias or any other ownership guess; asking about devices without `--confirm`; writing a device `--confirm` did not get a yes for | plan/records/ruling-ze-init-claims-discovered-devices.md | 2026-11-22 |
+| `ze init --confirm` takes only an explicit answer: `yes`, `y`, `no` or `n`. Anything else, an empty line included, is not accepted, and the same device is asked again | A default answer, an empty line read as no, refusing the whole init over an answer that is not accepted, and moving on to the next device before an explicit answer | plan/records/ruling-ze-init-claims-discovered-devices.md | 2026-11-22 |
 
 ## Key Design Decisions
 

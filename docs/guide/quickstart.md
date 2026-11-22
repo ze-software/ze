@@ -150,7 +150,8 @@ printf 'admin\nREPLACE_WITH_A_STRONG_PASSWORD\n' | ./ze init
 The initial config holds every interface discovery finds, including the ones another
 program owns, such as Docker's `docker0`. To decide one by one, run `./ze init --confirm`:
 after the node name it asks about each interface, and writes only the ones you answer
-`yes` (an empty answer means no).
+`yes`. Only `yes`, `y`, `no` or `n` answers: an empty line or anything else asks
+the same question again.
 <!-- source: internal/plugins/init/main.go -- confirmInterfaces, readAnswer -->
 
 Initialization creates a private `database/` tree in the selected folder.
