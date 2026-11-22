@@ -20,5 +20,27 @@
     "producer": "internal/component/bgp/reactor/peer_initial_sync.go::Peer.sendInitialRoutes",
     "producer-sha": "ebd1b2220bda7912",
     "break": "body of Peer.sendInitialRoutes replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4724-3-5",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4724_rbit_update_delay_test.go::TestRFC4724RestartStateBitClearPeerIsWaitedForUnderUpdateDelay",
+    "unit-sha": "51acc18f4cf121de",
+    "claim-sha": "95e2a1d034da04a2",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/update_delay.go::updateDelayHold.trackLocked",
+    "producer-sha": "fc2bdfdf4c318343",
+    "break": "body of updateDelayHold.trackLocked replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4724-3-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4724_rbit_update_delay_test.go::TestRFC4724RestartStateBitPeerIsNotWaitedForUnderUpdateDelay",
+    "unit-sha": "86d8293b4a8b1fdb",
+    "claim-sha": "0e21ab985b76fd32",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/update_delay.go::updateDelayHold.trackLocked",
+    "producer-sha": "fc2bdfdf4c318343",
+    "break": "body of updateDelayHold.trackLocked replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
