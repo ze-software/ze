@@ -2,7 +2,11 @@
 
 // Design: docs/architecture/l2tp/followup-l2tp-call.md -- realm relay handoff (LAC role)
 //
-// Opening /dev/ppp needs the host grant `./le setup install` applies (its
+// The test runs unprivileged in a user, network and mount namespace of its own
+// (userns.Enter). Linux ppp_open refuses with EPERM an opener without
+// CAP_NET_ADMIN in its user namespace, whatever the device's mode, and root of
+// that namespace holds it. The device's owner and group are unmapped there, so
+// the open still needs the dip group grant `./le setup install` applies (its
 // `ppp-access` step), hence the integration tag, as in
 // internal/component/l2tp/bridge_integration_linux_test.go.
 
@@ -14,9 +18,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/component/l2tp/ppp"
-
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // TestInterruptibleReaderWakesOnDevPPP proves the quiesce wake on the real
@@ -33,10 +38,17 @@ import (
 // PREVENTS: QuiesceSession hanging on a real channel while it passes on a
 // pipe.
 func TestInterruptibleReaderWakesOnDevPPP(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	dev, err := os.OpenFile("/dev/ppp", os.O_RDWR, 0)
 	if err != nil {
-		t.Fatalf("open /dev/ppp read-write: %v; grant it with `./le setup install` "+
-			"(step ppp-access), then log in again so the group dip membership applies", err)
+		t.Fatalf("cannot open /dev/ppp read-write: %v\n"+
+			"This test runs as root of its own user namespace, which holds the CAP_NET_ADMIN "+
+			"Linux requires to open /dev/ppp, so the device's group grant is missing: "+
+			"/dev/ppp must be group dip, mode 0660, and you must be in dip.\n"+
+			"Grant it, then log in again so the dip membership applies:\n"+
+			"./le setup install", err)
 	}
 	fd, err := unix.Dup(int(dev.Fd()))
 	if err != nil {

@@ -18,12 +18,19 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // A real unit cannot be allocated again while its pending release retains the
 // owner file. Both real poll-backed readers must nevertheless finish. Confirmed
 // release then permits the same unit number, with none of the old birth alias.
+// It runs in a user, network and mount namespace of its own (userns.Enter),
+// whose root holds the CAP_NET_ADMIN Linux ppp_open requires of the opener;
+// the unit and its pppN link live in that private network namespace.
 func TestKernelNativeReleasePinsRealUnitBirth(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	channelFD, err := openDevPPP()
 	if err != nil {
 		t.Fatal(err)

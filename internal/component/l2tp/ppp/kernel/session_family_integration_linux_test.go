@@ -9,11 +9,18 @@ import (
 	"unsafe"
 
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // A fresh, task-owned real PPP unit proves that each protocol's installed mode
 // changes independently. This is ioctl state evidence, not channel packet proof.
+// It runs in a user, network and mount namespace of its own (userns.Enter),
+// whose root holds the CAP_NET_ADMIN Linux ppp_open requires of the opener.
 func TestKernelNCPRealUnitModes(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	fd, err := openDevPPP()
 	if err != nil {
 		t.Fatal(err)

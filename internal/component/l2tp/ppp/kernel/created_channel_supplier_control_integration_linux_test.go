@@ -139,7 +139,7 @@ func TestOriginalPPPChannelSupplierNativeUnregisterBetweenQueryAndCapture(t *tes
 
 func supplierCaptureNativeFiles(t *testing.T) (*os.File, *os.File, *os.File, func() error) {
 	t.Helper()
-	links := []*netlink.Dummy{{Name: "zc-capture-src"}, {Name: "zc-capture-other"}}
+	links := []*netlink.Dummy{{Name: "zc-capture-src"}, {Name: "zc-capture-oth"}}
 	owned := [2]bool{}
 	for index, link := range links {
 		if err := netlink.LinkAdd(link); err != nil {
