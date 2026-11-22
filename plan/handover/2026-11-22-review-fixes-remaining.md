@@ -54,22 +54,39 @@ Each already failed in another session's log before this work started.
 | `TestDoReloadRadiusRemovalLateBindFailurePreservesAccounting` | cmd/ze/hub | "accounting record did not arrive"; not investigated |
 | `TestTheHomepageRFCCardSaysWhatTheOldFigureCounted`, `TestADetailPageStatesWhatAnUndeclaredCommandTakes` | internal/le/site | named as reds by 770170950a |
 
-## Found and not fixed
+## Open findings, second round
 
-Each needs a design of its own; none has a journal row yet.
+Thomas ordered the ten open findings closed. Seven are closed in code:
 
-| Item | Where |
-|------|-------|
-| A reconnect that arrives while the Restart-Time-expiry LLGR entry is still being applied stops the entry: the routes stay at stale level 1 without LLGR_STALE, and NO_LLGR routes stay retained, until End-of-RIB, LLST expiry or the next session-down (audit: RFC9494-4.2-4 and 4.2-5 weak). `TestGRReconnectRevokesHeldLLGREntryTail` pins the revocation, so finishing the entry on reconnect changes a tested behaviour | `llgrFamilyActive` in gr_state.go |
-| No tagged test of RFC4724-4.2-11 covers more than one retained connection; tagging `TestRFC9494ConsecutiveRestartEORDeletesEveryConnectionsStaleRoutes` with a proof record would close it | gr tests |
-| RFC 9494 4.2 counts a family as synchronized when the Selection_Deferral_Timer expires; Ze has no such timer | gr plugin; rfc4724 gaps 4.1-5, 4.1-8 |
-| A commit-driven reload is not cancelled at daemon stop | hub, `commitReloads.close()` |
-| Labeled unicast (SAFI 4) is dumped as RIB_GENERIC with the label stripped | rib storage side-data, mrt |
-| The break-glass recovery grant is still revoked by any user's credential change | aaa, `rfc8907_*` tests |
-| `checkKeyFilePermissions` refuses every symlinked key file under root | breaks secret mounts made of symlinks |
-| Plaintext remote MCP with auth disables MCP with a warning; gNMI refuses to boot | boot guard |
-| The refusal-advice commit gate matches message wording | `CheckRefusalAdvice` in `internal/le/commit/refusal_advice.go` |
-| Negatives of RFC4724-3-5 and RFC4360-6-1 miss their clause's condition | need selection deferral, a looping-policy refusal |
+| Finding | Commit |
+|---------|--------|
+| A reconnect during the LLGR entry stopped it, leaving routes without LLGR_STALE | 21587224da |
+| RFC4724-4.2-11 had no tagged test with more than one retained connection | 21587224da |
+| Labeled unicast dumped to MRT without its label stack | fe57accc2f |
+| A commit-driven reload was not cancelled at daemon stop | e0fa3307fc |
+| The break-glass grant was revoked by any user's credential change | e0fa3307fc |
+| Every symlinked MCP key file was refused | e0fa3307fc |
+| Plaintext remote MCP only warned where gNMI refused to boot | e0fa3307fc |
+| RFC4724-3-5's negative missed its condition (new tagged pair) | e5302c6d4b |
+
+Found and fixed on the way: no hook refused `git cherry-pick`
+(bf127d164a); `ze config validate` printed findings without their fix
+(e0fa3307fc).
+
+Still open, each waiting on a decision of Thomas's:
+
+| Finding | Where it is homed | The decision |
+|---------|-------------------|--------------|
+| RFC 9494 4.2 synchronization when the Selection_Deferral_Timer expires (helper side) | `plan/post-release/features/spec-gr-advanced.md` Q-1; journal `plan/journal/state-released-only-by-a-message-the-peer-may-never-send.md` | Which local bound: FRR and BIRD differ |
+| RFC4360-6-1: "The Extended Community attribute MUST NOT be used to modify the BGP best path selection algorithm in a way that leads to forwarding loops." | the row stays `{partial}` | Whether it binds the operator who writes policy |
+| The refusal-advice commit gate matches message wording | its replacement (typed fix lines judged by the guards themselves) needs a spec, likely an amendment to `spec-gates-share-one-semantic-population.md` | Delete the wording gate now or after the spec; whether the retired-names sweep counts as a check of what a thing is |
+
+Another session is building RFC 4724 restarting-speaker selection
+deferral, uncommitted and under no spec; its edit of
+`rfc/short/rfc4724.md` claims all 26 MUST-level requirements proven.
+spec-gr-advanced notes it for review.
+
+The two root-only key-file tests skip without root and were not run.
 
 ## For Thomas
 
