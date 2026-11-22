@@ -40,8 +40,8 @@ func TestIKESocketBypassRefusalIsReportedByDoctor(t *testing.T) {
 		if !strings.HasPrefix(f.Message, want.socket+" at "+want.address) || !strings.Contains(f.Message, want.cause) {
 			t.Fatalf("finding %d does not name the socket, its address and the kernel's answer: %q", i, f.Message)
 		}
-		if f.Fix != ikeSocketBypassFix {
-			t.Fatalf("finding %d's fix is %q, want %q", i, f.Fix, ikeSocketBypassFix)
+		if f.Fix != transport.BypassFix() {
+			t.Fatalf("finding %d's fix is %q, want %q", i, f.Fix, transport.BypassFix())
 		}
 	}
 	if findings := checkIKESocketBypass(nil); len(findings) != 0 {

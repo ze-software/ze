@@ -33,7 +33,7 @@ func mobikeSocketNotSharedFailure(peer, host string) *opererr.Error {
 			"socket between addresses only while the dataplane can migrate a tunnel and the ze.test.ike.port test "+
 			"override is unset, and that answer changed after this peer's session opened. Unset ze.test.ike.port if "+
 			"it is set, then restart Ze so every socket follows one decision",
-		spdInstallFixRestart)
+		spdInstallFixRestart())
 }
 
 // reportMobikeSocketNotShared logs failure at Error under its doctor code and raises it

@@ -42,17 +42,11 @@ var applicationOverrideCheckDecl = rpc.DoctorCheckDecl{
 	Codes: []string{diagnostic.CodeDoctorIPsecOverrideGuard, diagnostic.CodeDoctorIPsecSocketPolicy},
 }
 
-// Fix lines of the override findings.
-const (
-	// overrideGuardFixRestart starts ze again, whose first apply attaches the guard
-	// afresh before any IKE socket opens.
-	overrideGuardFixRestart = spdInstallFixRestart
-	// socketPolicyFixList lists every IPsec policy, the per-socket ones flagged, so the
-	// operator can match a foreign one to the application that set it: the kernel
-	// does not say which process owns it, and only that application's restart removes
-	// it.
-	socketPolicyFixList = "ze show vpn ipsec dataplane policy"
-)
+// socketPolicyFixList is the fix line of a foreign per-socket policy: it lists every
+// IPsec policy, the per-socket ones flagged, so the operator can match a foreign one to
+// the application that set it: the kernel does not say which process owns it, and only
+// that application's restart removes it.
+const socketPolicyFixList = "ze show vpn ipsec dataplane policy"
 
 // answerApplicationOverride answers ipsec-application-override from the engine's
 // process (applicationOverrideCheckDecl).
@@ -121,7 +115,9 @@ func overrideGuardDiagnostic(why string) rpc.DoctorCheckDiagnostic {
 		Message: "The IPsec application-override guard is not attached (" + why + "), so applications can " +
 			"override the SPD. Something detached it or Ze's load failed. Restart ze with the command below; " +
 			"if this persists, run `ze show doctor` again and read the attach error.",
-		Fix: overrideGuardFixRestart,
+		// The restart starts ze again, whose first apply attaches the guard afresh
+		// before any IKE socket opens.
+		Fix: spdInstallFixRestart(),
 	}
 }
 

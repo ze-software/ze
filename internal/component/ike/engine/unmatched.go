@@ -245,10 +245,12 @@ func installUnmatchedEntries(dp dataplane.Dataplane, action dataplane.SPAction, 
 // is not such a refusal: the backend keeps it as the lookup's final entry and answers
 // success (dataplane policyOwners.yieldFinal). What is left is a peer's template-free
 // allow on the wildcard, which no Child SA builds and the ledger refuses to install.
+// A restart rebuilds the SPD, worded for this process by spdInstallFixRestart.
 func catchAllInstallHint(cause error) string {
 	if _, owned := errors.AsType[*dataplane.PolicyOwnedError](cause); owned {
 		return "the kernel was not asked: Ze's own record names another entry on the catch-all's selector, one that passes traffic " +
-			"and so cannot stand in for the catch-all; this is a Ze defect to report, and `ze signal restart` rebuilds the SPD"
+			"and so cannot stand in for the catch-all; this is a Ze defect to report, and a restart of Ze rebuilds the SPD: " +
+			spdInstallFixRestart()
 	}
 	return "the daemon needs CAP_NET_ADMIN and a kernel with XFRM (CONFIG_XFRM_USER) to hold it"
 }
@@ -273,7 +275,7 @@ func unmatchedStartRefusal(action dataplane.SPAction, cause error) *opererr.Erro
 	}
 	why += ". A start never refuses the IPsec block, so Ze installed the rest of the configuration and every catch-all entry the dataplane accepted. " +
 		"Remove the cause the dataplane names (the daemon needs CAP_NET_ADMIN and a kernel with XFRM), then restart Ze"
-	return opererr.Wrap(cause, problem, why, spdInstallFixRestart)
+	return opererr.Wrap(cause, problem, why, spdInstallFixRestart())
 }
 
 // Wrappers may expose this optional interface even when their wrapped backend does

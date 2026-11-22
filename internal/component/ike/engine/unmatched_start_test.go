@@ -92,8 +92,8 @@ func TestUnmatchedInstallFailureAtStartIsReportedByDoctor(t *testing.T) {
 			if strings.Contains(finding.Message, "\n") {
 				t.Fatalf("the finding spans several lines: %q", finding.Message)
 			}
-			if finding.Fix != spdInstallFixRestart {
-				t.Fatalf("the finding's fix is %q, want %q", finding.Fix, spdInstallFixRestart)
+			if finding.Fix != spdInstallFixRestart() {
+				t.Fatalf("the finding's fix is %q, want %q", finding.Fix, spdInstallFixRestart())
 			}
 
 			// The negative: the same refusal on a reload is still a refused apply.
@@ -200,8 +200,8 @@ func TestInterfaceSPDCatchAllInstallFailureAtStartIsReportedByDoctor(t *testing.
 	if !strings.Contains(finding.Message, "operation not permitted") {
 		t.Fatalf("the finding does not carry the dataplane's answer: %q", finding.Message)
 	}
-	if finding.Fix != spdInstallFixRestart {
-		t.Fatalf("the finding's fix is %q, want %q", finding.Fix, spdInstallFixRestart)
+	if finding.Fix != spdInstallFixRestart() {
+		t.Fatalf("the finding's fix is %q, want %q", finding.Fix, spdInstallFixRestart())
 	}
 
 	// The negative: the same refusal on a reload is still a refused apply.
@@ -328,8 +328,8 @@ func TestInterfaceSPDExemptionInstallFailureIsReportedByDoctor(t *testing.T) {
 	if !strings.Contains(finding.Message, "XFRM interface vti0") || !strings.Contains(finding.Message, "operation not permitted") {
 		t.Fatalf("the finding does not name vti0 and the dataplane's answer: %q", finding.Message)
 	}
-	if finding.Fix != spdInstallFixRestart {
-		t.Fatalf("the finding's fix is %q, want %q", finding.Fix, spdInstallFixRestart)
+	if finding.Fix != spdInstallFixRestart() {
+		t.Fatalf("the finding's fix is %q, want %q", finding.Fix, spdInstallFixRestart())
 	}
 
 	// The negative: once a retry places the exemption, nothing is reported.

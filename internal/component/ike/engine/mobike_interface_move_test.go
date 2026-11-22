@@ -214,9 +214,9 @@ func TestInterfaceMoveWithoutTheSharedSocketReportsTheCause(t *testing.T) {
 		t.Fatalf("the restart raised %d report-bus issues, want 1: %+v", len(raiser.issues), raiser.issues)
 	}
 	issue := raiser.issues[0]
-	if issue.Code != code || issue.Severity != rpc.ReportError || issue.Fix != spdInstallFixRestart {
+	if issue.Code != code || issue.Severity != rpc.ReportError || issue.Fix != spdInstallFixRestart() {
 		t.Fatalf("the raised issue is %s/%s with fix %q, want %s/%s with fix %q",
-			issue.Severity, issue.Code, issue.Fix, rpc.ReportError, code, spdInstallFixRestart)
+			issue.Severity, issue.Code, issue.Fix, rpc.ReportError, code, spdInstallFixRestart())
 	}
 }
 

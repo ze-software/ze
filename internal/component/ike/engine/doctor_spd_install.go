@@ -128,7 +128,7 @@ func answerSPDInstall(s *ikeEngineState) []rpc.DoctorCheckDiagnostic {
 			Code:     diagnostic.CodeDoctorIPsecSPDUndoIncomplete,
 			Severity: severityError,
 			Message:  message,
-			Fix:      spdInstallFixRestart,
+			Fix:      spdInstallFixRestart(),
 		})
 	}
 	return out

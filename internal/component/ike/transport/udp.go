@@ -16,6 +16,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/probe"
 )
 
@@ -190,9 +191,19 @@ func (t *UDPTransport) exemptFromIPsec(localAddr string, bypass func(*net.UDPCon
 	}
 	t.logger.Warn("ike: could not exempt the IKE socket from IPsec; under `vpn ipsec unmatched discard`, "+
 		"or a traffic selector covering the peer's IKE address, the SPD captures ze's own IKE and the "+
-		"tunnel cannot be rekeyed or torn down. Run ze with CAP_NET_ADMIN on a kernel with CONFIG_XFRM, "+
-		"then restart it: ze signal restart",
+		"tunnel cannot be rekeyed or torn down. "+BypassFix(),
 		"code", diagnostic.CodeDoctorIPsecIKESocketBypass, "address", localAddr, "error", t.bypassErr)
+}
+
+// BypassFix answers the fix for a socket whose BypassError is not nil. The bypass is
+// set when a socket opens, so only a socket opened again carries it: the fix is a
+// restart once the cause is gone. `ze signal restart` exits without starting a new
+// process, so privilege.RestartRemedy words the restart for this process: systemctl
+// only under ze.service, the stop-and-start steps otherwise. The Warn line above and
+// the engine's ipsec-ike-socket-bypass doctor finding both call it, so the two say the
+// same thing. Safe for concurrent use.
+func BypassFix() string {
+	return "Run ze with CAP_NET_ADMIN on a kernel with CONFIG_XFRM, then restart it: " + privilege.RestartRemedy()
 }
 
 // BypassError answers why the kernel refused this socket its per-socket IPsec bypass

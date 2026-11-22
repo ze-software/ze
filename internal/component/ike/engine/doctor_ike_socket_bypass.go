@@ -18,10 +18,6 @@ import (
 // the doctor callback's dispatch.
 const ikeSocketBypassCheckName = "ipsec-ike-socket-bypass" //nolint:gosec // G101: a doctor check name, not a credential
 
-// ikeSocketBypassFix is the command that clears the finding once its cause is gone: the
-// bypass is set when a socket opens, so only a socket opened again carries it.
-const ikeSocketBypassFix = "Run ze with CAP_NET_ADMIN on a kernel with CONFIG_XFRM, then restart it: ze signal restart" //nolint:gosec // G101: an operator fix command, not a credential
-
 // ikeSocketBypassCheckDecl declares the check at the runtime phase, so show doctor asks
 // the engine's own process: the IKE sockets whose outcome it reads are opened and held
 // there, internal and forked alike (ai/rules/plugins.md).
@@ -92,9 +88,15 @@ func (s *ikeEngineState) ikeSocketBypassFailuresRead(read func(*transport.UDPTra
 	return out
 }
 
-// checkIKESocketBypass turns each refused bypass into its finding.
+// checkIKESocketBypass turns each refused bypass into its finding. Its fix is the
+// transport's own (transport.BypassFix), the one the socket's Warn line names: the
+// bypass is set when a socket opens, so only a socket opened again carries it.
 func checkIKESocketBypass(failures []ikeSocketBypassFailure) []rpc.DoctorCheckDiagnostic {
 	out := make([]rpc.DoctorCheckDiagnostic, 0, len(failures))
+	if len(failures) == 0 {
+		return out
+	}
+	fix := transport.BypassFix()
 	for _, f := range failures {
 		socket := "IKE socket"
 		if f.natT {
@@ -107,7 +109,7 @@ func checkIKESocketBypass(failures []ikeSocketBypassFailure) []rpc.DoctorCheckDi
 				"per-socket bypass (" + f.cause + "). Under `vpn ipsec unmatched discard`, or a traffic " +
 				"selector covering a peer's IKE address, the SPD captures Ze's own IKE on it and the tunnel " +
 				"cannot be negotiated, rekeyed or torn down.",
-			Fix: ikeSocketBypassFix,
+			Fix: fix,
 		})
 	}
 	return out

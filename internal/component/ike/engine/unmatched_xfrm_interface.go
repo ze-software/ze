@@ -444,7 +444,7 @@ func interfaceExemptionRefusal(entry *xfrmInterfaceEntry, cause error) *opererr.
 		"Under `unmatched discard` that traffic meets the node-wide catch-all and is dropped, so the tunnel bound to "+
 			entry.iface+" carries none of it. The next commit or address change retries the entry. "+
 			"Remove the cause the dataplane names (the daemon needs CAP_NET_ADMIN), then restart Ze",
-		spdInstallFixRestart)
+		spdInstallFixRestart())
 }
 
 // recordInterfaceCatchAllAtStart is what the daemon's start does with the interfaces
@@ -477,7 +477,7 @@ func interfaceCatchAllStartRefusal(name string, cause error) *opererr.Error {
 			"The final discard entry that ensures it is a SHOULD (Section 4.4.1). "+
 			"A start never refuses the IPsec block, so Ze installed the rest of the configuration and no entry hands traffic on to that interface. "+
 			"Remove the cause the dataplane names (the daemon needs CAP_NET_ADMIN), then restart Ze",
-		spdInstallFixRestart)
+		spdInstallFixRestart())
 }
 
 // A namespace FWD default also closes every if_id's forward lookup. An explicit

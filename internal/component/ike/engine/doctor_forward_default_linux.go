@@ -31,7 +31,7 @@ func answerForwardDefault(_ *ikeEngineState) []rpc.DoctorCheckDiagnostic {
 			failure = opererr.Wrap(err, "Ze cannot inspect the forwarding default its IPsec policies need",
 				"The current forwarding disposition is unknown, so forwarded traffic may meet weaker protection than "+
 					"the IPsec configuration states. A restart reads the namespace default again and claims it for the "+
-					"configuration, and names the cause if the read fails again.", spdInstallFixRestart)
+					"configuration, and names the cause if the read fails again.", spdInstallFixRestart())
 		}
 		return forwardDefaultFinding(failure)
 	}

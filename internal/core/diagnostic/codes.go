@@ -1456,7 +1456,9 @@ var builtinCodes = append([]CodeMeta{
 			"configuration, and logged the refusal at Error. Under `discard` the default discard is NOT in " +
 			"force: traffic no SPD entry matches is passed in the clear by the kernel instead of being " +
 			"discarded (RFC 4301 Section 4.4.1). The usual cause is a daemon without CAP_NET_ADMIN or a kernel " +
-			"without XFRM (CONFIG_XFRM_USER). Remove the cause, then restart Ze: ze signal restart. A commit that " +
+			"without XFRM (CONFIG_XFRM_USER). Remove the cause, then restart Ze: the finding's fix gives the " +
+			"restart for this process, a systemd command only when ze runs under ze.service, otherwise the " +
+			"steps for a ze started another way. A commit that " +
 			"changes `vpn ipsec` installs the catch-all again too, and is refused if the dataplane still refuses " +
 			"it. The same holds for the final entry of each XFRM interface a peer binds with `vti bind`, " +
 			"which is always a discard: the finding then names the interface whose default discard is not in " +
@@ -1472,8 +1474,9 @@ var builtinCodes = append([]CodeMeta{
 			"The dataplane refused one, so that traffic meets the node-wide catch-all and is dropped: the tunnel " +
 			"carries none of it. The entry fails closed, so no commit is refused for it. The next commit or " +
 			"address change retries it, and the finding clears when it goes in. The usual cause is a daemon " +
-			"without CAP_NET_ADMIN. Remove the cause, then restart Ze: ze signal restart. The doctor finding " +
-			"names the interface, the direction and the dataplane's answer.",
+			"without CAP_NET_ADMIN. Remove the cause, then restart Ze. The doctor finding names the interface, " +
+			"the direction and the dataplane's answer, and its fix gives the restart for this process: a " +
+			"systemd command only when ze runs under ze.service, otherwise the steps for a ze started another way.",
 		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-spd-exemption-missing"},
 	},
 	{
@@ -1502,7 +1505,9 @@ var builtinCodes = append([]CodeMeta{
 			"an entry and the dataplane refused to remove its previous form, which still acts on its " +
 			"traffic. Traffic that entry names meets the wrong disposition until the SPD is rebuilt. " +
 			"The doctor finding names the direction, the selector, the priority and the dataplane's " +
-			"answer. Restart the daemon so it installs the running configuration whole: ze signal restart.",
+			"answer. Restart the daemon so it installs the running configuration whole: the finding's fix " +
+			"gives the restart for this process, a systemd command only when ze runs under ze.service, " +
+			"otherwise the steps for a ze started another way.",
 		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-spd-undo-incomplete"},
 	},
 	{
@@ -1515,7 +1520,9 @@ var builtinCodes = append([]CodeMeta{
 			"unmatched discard`, or a traffic selector covering the peer's IKE address, the SPD " +
 			"captures Ze's own IKE and the tunnel cannot be negotiated, rekeyed or torn down. The " +
 			"doctor finding names the socket and the kernel's answer. Run ze with CAP_NET_ADMIN on a " +
-			"kernel with CONFIG_XFRM, then restart it: ze signal restart.",
+			"kernel with CONFIG_XFRM, then restart it: the finding's fix gives the restart for this " +
+			"process, a systemd command only when ze runs under ze.service, otherwise the steps for a ze " +
+			"started another way.",
 		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-ike-socket-bypass"},
 	},
 	{
@@ -1674,8 +1681,9 @@ var builtinCodes = append([]CodeMeta{
 			"address instead: its tunnel carries no traffic until it renegotiates. Ze shares the socket only while " +
 			"the dataplane can migrate a tunnel and the ze.test.ike.port test override is unset, and that answer " +
 			"changed after the peer's session opened. This is an ERROR event, raised once per peer and move. " +
-			"Remedy: unset ze.test.ike.port if it is set, then restart Ze with `ze signal restart` so every " +
-			"socket follows one decision.",
+			"Remedy: unset ze.test.ike.port if it is set, then restart Ze so every socket follows one " +
+			"decision. The event's fix gives the restart for this process: a systemd command only when ze " +
+			"runs under ze.service, otherwise the steps for a ze started another way.",
 		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-mobike-socket-not-shared"},
 		RelatedCodes: []string{CodeDoctorIPsecMOBIKEUnavailable},
 	},

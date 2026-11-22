@@ -222,8 +222,8 @@ func TestSPDInstallRefusedAtStartIsReportedByDoctor(t *testing.T) {
 	if !strings.Contains(finding.Message, "drop") || !strings.Contains(finding.Message, errSPDRefusedByTest.Error()) {
 		t.Fatalf("the finding does not name the entry and the dataplane's answer: %q", finding.Message)
 	}
-	if finding.Fix != spdInstallFixRestart {
-		t.Fatalf("the finding's fix is %q, want %q", finding.Fix, spdInstallFixRestart)
+	if finding.Fix != spdInstallFixRestart() {
+		t.Fatalf("the finding's fix is %q, want %q", finding.Fix, spdInstallFixRestart())
 	}
 
 	dp.refuse = nil

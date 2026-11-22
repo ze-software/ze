@@ -23,6 +23,7 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/privilege"
 )
 
 // spdPolicyParams turns one operator-authored SPD entry into its out and in policies,
@@ -369,18 +370,22 @@ func spdPortMatch(p ipsec.PortSelector) dataplane.PortMatch {
 	return dataplane.ExactPortMatch(p.Port)
 }
 
-// Fix lines of an operator entry the dataplane refused (spdInstallRefusal).
-const (
-	// spdInstallFixCommit retries a refused reload: the running entries were kept, so
-	// committing again after the cause is gone installs the edit.
-	spdInstallFixCommit = "commit"
-	// spdInstallFixRestart retries an entry the start could not install. A reload
-	// reaches the engine only when `vpn` changed, so an untouched configuration is
-	// installed again by a restart, or by any commit that changes `vpn ipsec`. It is
-	// also the fix of a divergence (spdDivergence): only a restart rebuilds a selector
-	// no later commit rewrites.
-	spdInstallFixRestart = "ze signal restart"
-)
+// spdInstallFixCommit is the fix line of an operator entry the dataplane refused on a
+// reload (spdInstallRefusal): the running entries were kept, so committing again after
+// the cause is gone installs the edit.
+const spdInstallFixCommit = "commit"
+
+// spdInstallFixRestart answers the fix line that retries an entry the start could not
+// install. A reload reaches the engine only when `vpn` changed, so an untouched
+// configuration is installed again by a restart, or by any commit that changes
+// `vpn ipsec`. It is also the fix of a divergence (spdDivergence): only a restart
+// rebuilds a selector no later commit rewrites. `ze signal restart` exits without
+// starting a new process, so privilege.RestartRemedy words the restart for this
+// process: systemctl only under ze.service, the stop-and-start steps otherwise. Safe
+// for concurrent use.
+func spdInstallFixRestart() string {
+	return privilege.RestartRemedy()
+}
 
 // spdDivergenceKind names how a reconcile left one selector of the dataplane holding a
 // form the running configuration does not mean. Zero names no way, so a record that
@@ -548,7 +553,7 @@ func installSPDPoliciesAtStart(dp dataplane.Dataplane, next map[string]ipsec.SPD
 				log.Debug("ike: spd policies unavailable on this platform", "error", err)
 				return next, nil, spdReconcile{}
 			}
-			refusal = spdInstallRefusal(name, next[name], &entries[i], err, spdInstallFixRestart)
+			refusal = spdInstallRefusal(name, next[name], &entries[i], err, spdInstallFixRestart())
 			break
 		}
 		if refusal == nil {

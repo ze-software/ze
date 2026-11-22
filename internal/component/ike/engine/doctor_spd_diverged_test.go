@@ -58,8 +58,8 @@ func wantOneDivergence(t *testing.T, findings []rpc.DoctorCheckDiagnostic, prefi
 	if !strings.Contains(f.Message, prefix) || !strings.Contains(f.Message, cause.Error()) || !strings.Contains(f.Message, "dir out") {
 		t.Fatalf("the finding does not name the direction, the selector %s and the dataplane's answer: %q", prefix, f.Message)
 	}
-	if f.Fix != spdInstallFixRestart {
-		t.Fatalf("the finding's fix is %q, want %q", f.Fix, spdInstallFixRestart)
+	if f.Fix != spdInstallFixRestart() {
+		t.Fatalf("the finding's fix is %q, want %q", f.Fix, spdInstallFixRestart())
 	}
 }
 

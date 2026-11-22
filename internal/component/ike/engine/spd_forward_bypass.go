@@ -190,7 +190,8 @@ func spdForwardBypassRefusal(p ipsec.SPDPolicy, gatherErr, heldErr error) *opere
 	}
 	if gatherErr != nil {
 		why += ". Ze could not read whether this kernel reassembles forwarded fragments first. Once that read " +
-			"answers again, a commit that changes vpn ipsec, or a restart (ze signal restart), applies the answer"
+			"answers again, a commit that changes vpn ipsec applies the answer, and so does a restart of Ze: " +
+			spdInstallFixRestart()
 	}
 	if heldErr != nil {
 		why += ". Ze could not read this host's addresses, so it cannot tell whether the local prefix is one of them"

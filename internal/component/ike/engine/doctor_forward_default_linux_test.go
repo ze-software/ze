@@ -127,7 +127,7 @@ func TestForwardDefaultFailureIsAnErrorOnEverySurface(t *testing.T) {
 	dp := &forwardDefaultDoctorDP{spdDP: newSPDDP(), enabled: true, failure: errors.New("test: netlink dump refused")}
 	loadESPFormBackend(t, dp)
 	findings := answer(nil)
-	if len(findings) != 1 || findings[0].Severity != severityError || findings[0].Fix != spdInstallFixRestart ||
+	if len(findings) != 1 || findings[0].Severity != severityError || findings[0].Fix != spdInstallFixRestart() ||
 		!strings.Contains(findings[0].Message, "netlink dump refused") {
 		t.Fatalf("a plain backend failure is not an error finding with the restart fix: %+v", findings)
 	}

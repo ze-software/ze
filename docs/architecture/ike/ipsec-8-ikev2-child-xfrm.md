@@ -992,7 +992,7 @@ in force. The start installs the catch-all through `installUnmatchedAtStart`,
 which tries every entry and keeps each one the dataplane accepts; `assertUnmatched`
 logs the refusal at Error, records no discard in force, and the `ipsec-spd-install`
 check reports it under `doctor-ipsec-spd-catch-all-missing` with the dataplane's
-answer and `ze signal restart`. The final entry of a bound XFRM interface follows
+answer and the restart for this process (`spdInstallFixRestart`, worded by `privilege.RestartRemedy`: systemctl only under ze.service, the stop-and-start steps otherwise). The final entry of a bound XFRM interface follows
 the same rule: `recordInterfaceCatchAllAtStart` logs and records each interface
 whose catch-all the backend refused, under the same code, the finding saying that
 interface's default discard is not in force, and no exemption hands it traffic. An
@@ -1661,7 +1661,7 @@ accepted reload cannot remove an entry's previous form) is logged and answered
 as a divergence of its selector (`spdReconcile`); `recordSPDReconcile` keeps it
 until a later reconcile settles that selector, and `ipsec-spd-install` reports
 it under `doctor-ipsec-spd-undo-incomplete` with its direction, selector,
-priority, the backend's answer and `ze signal restart`. A
+priority, the backend's answer and the same restart (`spdInstallFixRestart`). A
 platform with no XFRM (`isXFRMUnsupported`) refuses nothing, since no dataplane
 exists to hold an entry. `verifySPDOrder` (`spd_order.go`) refuses at commit two
 operator entries, or an entry and a policy-based peer at its `policy-priority`

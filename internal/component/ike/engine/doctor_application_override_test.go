@@ -107,8 +107,8 @@ func TestDoctorApplicationOverride(t *testing.T) {
 			for _, d := range diags {
 				switch d.Code {
 				case diagnostic.CodeDoctorIPsecOverrideGuard:
-					if d.Fix != overrideGuardFixRestart {
-						t.Errorf("guard finding fix = %q, want %q", d.Fix, overrideGuardFixRestart)
+					if d.Fix != spdInstallFixRestart() {
+						t.Errorf("guard finding fix = %q, want %q", d.Fix, spdInstallFixRestart())
 					}
 				case diagnostic.CodeDoctorIPsecSocketPolicy:
 					if d.Fix != socketPolicyFixList {

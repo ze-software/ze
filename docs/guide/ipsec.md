@@ -1562,14 +1562,14 @@ so the traffic a discard entry names stays dropped while the edit lands. The
 configuration the daemon starts with is never refused: an entry the kernel
 refuses at start is left out, logged at Error, and reported by `ze doctor`
 (`ipsec-spd-install`, code `doctor-ipsec-spd-install-refused`) with
-`ze signal restart` as the retry; any commit that changes `vpn ipsec` retries it
+a restart of Ze (`sudo systemctl restart ze` under ze.service, otherwise `ze signal stop`, then start ze again the way it was started) as the retry; any commit that changes `vpn ipsec` retries it
 too. When the kernel also refuses a step that puts things back (the old form of
 an entry after a refused commit, or a half written before the refusal), or a
 commit cannot remove the old form of an entry it changed or removed, the kernel
 is left holding something the running configuration does not: `ze doctor`
 reports it under the same check, code `doctor-ipsec-spd-undo-incomplete`, with
 the direction, the prefixes, the priority and the kernel's answer, until a
-commit rewrites that entry or `ze signal restart` rebuilds the SPD. A tie the start finds is installed as it stands, logged at Error, and
+commit rewrites that entry or a restart of Ze rebuilds the SPD. A tie the start finds is installed as it stands, logged at Error, and
 reported by `ze doctor` under `config-plugin-verify`.
 
 These rules are refused at commit rather than approximated at install time,
@@ -1829,7 +1829,7 @@ with its socket. `show vpn ipsec dataplane policy` lists each one with SPD
 without `CAP_NET_ADMIN`, or the kernel lacks `CONFIG_XFRM`), Ze keeps the socket
 and `ze doctor` reports it under `ipsec-ike-socket-bypass`, code
 `doctor-ipsec-ike-socket-bypass`: run ze with `CAP_NET_ADMIN` on a kernel with
-`CONFIG_XFRM`, then `ze signal restart`. Ze's SPD entries appear on the first apply,
+`CONFIG_XFRM`, then restart Ze: `sudo systemctl restart ze` under ze.service, otherwise `ze signal stop`, then start ze again the way it was started. Ze's SPD entries appear on the first apply,
 the catch-all first. The catch-all is re-asserted on every apply. When the
 engine stops, every tunnel is torn down first, then your `policy` entries are
 removed, and the catch-all goes last, so no Ze entry is ever in
@@ -1851,7 +1851,7 @@ never refused for it: Ze installs every catch-all entry the kernel accepts and
 the rest of the block, logs the failure at Error, and `ze doctor`
 (`ipsec-spd-install`, code `doctor-ipsec-spd-catch-all-missing`) says the
 catch-all, under `discard` the default discard, is not in force, with the
-kernel's answer and `ze signal restart` as the retry. The one exception is the
+kernel's answer and a restart of Ze (`sudo systemctl restart ze` under ze.service, otherwise `ze signal stop`, then start ze again the way it was started) as the retry. The one exception is the
 VPP backend:
 
 | Situation | `discard` | `bypass` |
@@ -1859,7 +1859,7 @@ VPP backend:
 | The VPP backend, which holds no entry bound to no interface | Refused at commit. A configuration the daemon starts with is not verified, so a start with `unmatched` unset (or `discard`) runs without the discard instead: installing the entry fails, the daemon logs it at Error and `ze doctor` reports the default discard not in force. Fix: `set vpn ipsec unmatched bypass` in the configuration file, then start again | Accepted; no entry is installed, and the traffic crosses in the clear. This is an open RFC 4301 gap on VPP |
 | A build off Linux, or a kernel without XFRM | Refused at commit; a start runs without the entry and reports it, as in the row above | A commit is refused; a start runs without the entry, logs it at Error and `ze doctor` reports it. Fix: run Ze on a Linux kernel with XFRM (`CONFIG_XFRM_USER`) |
 | No dataplane loaded (the daemon logged that the load failed) | Refused at commit, and a start fails: the configure step returns the error | The apply fails, at start too. Fix: the cause the daemon logged |
-| The install itself fails when the configuration is applied, which includes a daemon without `CAP_NET_ADMIN`: it can open the XFRM socket, so the commit check passes, and the kernel refuses the install | A commit fails with the error and is not reported applied. A start installs every entry the kernel accepts, logs the failure at Error, and `ze doctor` reports that the default discard is not in force | Same as `discard`, the finding naming the bypass entry. Fix: give the daemon `CAP_NET_ADMIN`, then `ze signal restart` |
+| The install itself fails when the configuration is applied, which includes a daemon without `CAP_NET_ADMIN`: it can open the XFRM socket, so the commit check passes, and the kernel refuses the install | A commit fails with the error and is not reported applied. A start installs every entry the kernel accepts, logs the failure at Error, and `ze doctor` reports that the default discard is not in force | Same as `discard`, the finding naming the bypass entry. Fix: give the daemon `CAP_NET_ADMIN`, then a restart of Ze (`sudo systemctl restart ze` under ze.service, otherwise `ze signal stop`, then start ze again the way it was started) |
 | Before the first configuration is applied, and after the engine stops | The IPsec engine holds no SPD entry and no SA, so it is not acting as an IPsec implementation and no packet is looked up in an SPD of its own; the kernel passes traffic as it does with no IPsec configured. Two exceptions: an entry the engine could not remove on stop keeps the catch-all beneath it (the warning names both), and OSPFv3 authentication with manual keys installs its own SAs and policies with no catch-all, an open RFC 4301 gap | Same |
 
 The catch-all is installed before the `policy` entries, the peers and the

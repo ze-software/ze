@@ -780,10 +780,13 @@ never leaves one behind, because a refused entry refuses the commit. It reports
 first, under `doctor-ipsec-spd-catch-all-missing`, an SPD catch-all the start
 could not install whole (`assertUnmatched`): the finding says the catch-all, under
 `discard` the default discard, is not in force, with the dataplane's answer and
-`ze signal restart`; the reload whose catch-all goes in clears it. Under `doctor-ipsec-spd-exemption-missing` it reports each bound XFRM
+the restart for this process (`spdInstallFixRestart`, which is
+`privilege.RestartRemedy`: `sudo systemctl restart ze` only under ze.service,
+otherwise `ze signal stop` and a start the way ze was started, because
+`ze signal restart` exits without starting a new process); the reload whose catch-all goes in clears it. Under `doctor-ipsec-spd-exemption-missing` it reports each bound XFRM
 interface with an if_id 0 exemption the last install pass could not place
 (`interfaceExemptionRefused`, rebuilt by every pass at start, reload or address
-event), with the direction, the dataplane's answer and `ze signal restart`; the
+event), with the direction, the dataplane's answer and the same restart; the
 pass that places the exemption clears it. No commit is refused for it, because
 the entry fails closed. The same
 check reports, under `doctor-ipsec-spd-undo-incomplete`, each selector at which
@@ -793,11 +796,13 @@ policy, or an accepted reload that could not remove an entry's previous form.
 Each reconcile answers what it left selector by selector (`spdReconcile`), and
 `recordSPDReconcile` folds it into the engine's record: a selector a later
 reconcile settles is cleared, and one no later reconcile touches stays reported
-until `ze signal restart` rebuilds the SPD. `ipsec-ike-socket-bypass` is a
+until the same restart rebuilds the SPD. `ipsec-ike-socket-bypass` is a
 fourth: it reports each IKE socket the engine holds whose per-socket IPsec
 bypass the kernel refused, which the transport records when it opens the socket
 (`exemptFromIPsec`, read through `BypassError`), with
-`doctor-ipsec-ike-socket-bypass` and the capability-and-restart fix.
+`doctor-ipsec-ike-socket-bypass` and the capability-and-restart fix
+(`transport.BypassFix`, which the socket's Warn line names too, its restart
+worded by `privilege.RestartRemedy`).
 None of these checks probes the host: the TUN device outcome is recorded by the apply
 (`recordESPFormTUN`), because opening `/dev/net/tun` may create the node, and
 the fast path's readiness is likewise recorded at apply (`recordESPFormFastPath`)
@@ -1072,9 +1077,10 @@ A site is covered when its code is one that a doctor check declares. The
 gate reads the covered codes from the same parsed source the sites come from,
 never from the registries linked into `le`: every composite literal of a
 doctor check declaration type (`diagnostic.DoctorCheck`,
-`registry.DoctorCheckDef`, `rpc.DoctorCheckDecl` and its SDK alias, and
+`registry.DoctorCheckDef`, `rpc.DoctorCheckDecl` and its SDK alias,
 `kernelcap.Capability`, whose check `kernel-capability-<Subsystem>` declares
-its `CodeAbsent` and `CodeUnknown`), whatever registers it, and every
+its `CodeAbsent` and `CodeUnknown`, and `vpp.StartupRuntime`, whose check
+`vpp-startup-<name>` declares its `Code`), whatever registers it, and every
 `diagnostic.EventCode` literal, whose code is declared by each
 `diagnostic.DoctorCheck` literal that sets `DeclaresEventCodes: true` (see
 "Event codes" below). Each code in its
@@ -1620,9 +1626,13 @@ finished within the restart's bound, either because it waits for a call the
 stopped process made into ze or because it is still running. Its fix is the
 restart, run again once that cleanup has finished. The row names the last
 resort as what it is: a restart of the ze daemon, which ends every call a
-plugin made into it (`systemctl restart ze` under systemd; `ze signal restart`
-writes the graceful-restart marker and shuts ze down, so ze comes back only
-under a supervisor).
+plugin made into it, worded for this process by `privilege.RestartRemedy`:
+`sudo systemctl restart ze` only when ze runs under ze.service; otherwise
+`ze signal stop`, then a start the way ze was started (`ze start`, or
+`ze start <config-file>`), prefixed, when membership cannot be read, by a
+sentence saying Ze could not tell. `ze signal restart` is never offered: it
+writes the graceful-restart marker and exits without starting a new process,
+so ze comes back only under a supervisor.
 `RemoveProcess` and `ReportCrash` also clear the ordinary warnings the plugin
 raised through `report-issue` (`report.ClearSource` of its name), because only
 the plugin could clear them. A warning reserved by a retained daemon resource
