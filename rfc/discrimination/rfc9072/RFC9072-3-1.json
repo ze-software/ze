@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9072-3-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc9072_non255_len_test.go::TestRFC9072ExtendedDetectionByNonExtOPType",
+    "unit-sha": "d7b5565f7c35f042",
+    "claim-sha": "64560837248036a1",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/open.go::UnpackOpen",
+    "producer-sha": "c96f0cbff011b5ff",
+    "break": "body of UnpackOpen replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9072-3-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc9072_non255_len_test.go::TestRFC9072ExtendedDetectionByNonExtOPType",
+    "unit-sha": "d7b5565f7c35f042",
+    "claim-sha": "65dbd2ce049b7808",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/open.go::UnpackOpen",
+    "producer-sha": "c96f0cbff011b5ff",
+    "break": "body of UnpackOpen replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

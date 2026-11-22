@@ -252,21 +252,24 @@ func TestOpenUnpackExtendedParams(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			// RFC 9072 Section 2: "If the Non-Ext OP Len is not 255, the
-			// Non-Ext OP Type field and the Extended Opt. Parm. Length field
-			// SHOULD be treated as part of the original Optional Parameters."
-			// A standard OPEN with optLen=4 where first param byte is 0xFF
-			// must NOT be misinterpreted as extended format.
-			name: "standard format - first param byte 0xFF not misread as extended",
+			// RFC 9072 Section 3: "It is not considered a fatal error to receive an
+			// OPEN message whose (non-extended) Optional Parameters Length value is
+			// not 255 and whose first Optional Parameter type code is 255 -- in this
+			// case, the encoding of this specification MUST be used for decoding the
+			// message."
+			name: "extended format - non-255 Non-Ext OP Len with 0xFF Non-Ext OP Type",
 			data: []byte{
 				0x04,       // Version
 				0xFD, 0xE9, // AS
 				0x00, 0xB4, // Hold Time
 				0xC0, 0xA8, 0x01, 0x01, // BGP ID
-				0x04,                   // Opt Params Len = 4 (NOT 255)
-				0xFF, 0x02, 0x01, 0x02, // Params: first byte happens to be 0xFF
+				0x04,       // Non-Ext OP Len = 4 (non-zero, NOT 255; ignored once 0xFF seen)
+				0xFF,       // Non-Ext OP Type = 255 (extended format indicator)
+				0x00, 0x06, // Extended Opt Params Len = 6
+				0x02, 0x00, 0x03, 0x01, 0x02, 0x00, // Param with 2-byte length
 			},
-			wantOptLen: 4,
+			wantOptLen:   6,
+			wantExtended: true,
 		},
 		{
 			// Boundary: data[9]=0xFF, data[10]=0xFF, but only 11 bytes total.

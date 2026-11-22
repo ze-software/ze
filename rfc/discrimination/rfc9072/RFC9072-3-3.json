@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9072-3-3",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/capability/rfc9072_type255_test.go::TestRFC9072Type255NonIndicatorRejected",
+    "unit-sha": "0fef950dc5c51a69",
+    "claim-sha": "23f77d95e9c13f69",
+    "route": "revert",
+    "producer": "internal/core/bgp/capability/optional_params.go::ParseFromOptionalParams",
+    "producer-sha": "acca6d4466780cf0",
+    "break": "body of ParseFromOptionalParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9072-3-3",
+    "polarity": "negative",
+    "unit": "internal/core/bgp/capability/rfc9072_type255_test.go::TestRFC9072Type255NonIndicatorRejected",
+    "unit-sha": "0fef950dc5c51a69",
+    "claim-sha": "a8d7b2ddc9b302bf",
+    "route": "revert",
+    "producer": "internal/core/bgp/capability/optional_params.go::ParseFromOptionalParams",
+    "producer-sha": "acca6d4466780cf0",
+    "break": "body of ParseFromOptionalParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

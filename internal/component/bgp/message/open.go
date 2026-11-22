@@ -229,28 +229,23 @@ func UnpackOpen(data []byte) (*Open, error) {
 	// RFC 4271 Section 4.2 - Optional Parameters Length field
 	optLen := int(data[9])
 
-	// RFC 9072 Section 2 - Check for extended format
-	// Non-Ext OP Len must be 255 (reserved marker, not valid as standard length).
-	// "If the Non-Ext OP Len is not 255, the Non-Ext OP Type field and the
-	// Extended Opt. Parm. Length field SHOULD be treated as part of the original
-	// Optional Parameters."
-	//
-	// KNOWN GAP, RFC9072-2-5, 2-6 and 3-1. The test below is on the Non-Ext OP
-	// LEN, and RFC 9072 puts it on the Non-Ext OP TYPE. Section 2: "if the
-	// one-octet Optional Parameters Length field ... is non-zero, a BGP speaker
-	// MUST use the value of the octet following [it] ... If the value of the
-	// 'Non-Ext OP Type' field is 255, then the encoding described above is used."
-	// Section 3 is explicit about the case this refuses: "It is not considered a
-	// fatal error to receive an OPEN message whose (non-extended) Optional
-	// Parameters Length value is not 255 and whose first Optional Parameter type
-	// code is 255 -- in this case, the encoding of this specification MUST be
-	// used for decoding the message."
-	//
-	// Changing it means correcting a subtest of TestOpenUnpackExtendedParams
-	// (open_test.go) that asserts the opposite and cites a sentence absent from
-	// RFC 9072. That subtest carries an RFC9072-2-2 tag, so the correction needs
-	// the owner's approval (`./le rfc approve`) before it can be made.
-	if optLen == 255 && len(data) > 10 && data[10] == ExtendedParamMarker {
+	// RFC 9072 Section 2: "In parsing an OPEN message, if the one-octet Optional
+	// Parameters Length field (labeled "Non-Ext OP Len." in Figure 1) is non-zero,
+	// a BGP speaker MUST use the value of the octet following the one-octet
+	// Optional Parameters Length field (labeled "Non-Ext OP Type" in Figure 1) to
+	// determine both the encoding of the Optional Parameters length and the size
+	// of the Parameter Length field of individual Optional Parameters.  If the
+	// value of the "Non-Ext OP Type" field is 255, then the encoding described
+	// above is used for the Optional Parameters length.  Otherwise, the encoding
+	// defined in [RFC4271] is used."
+	// RFC 9072 Section 2: "it MUST be ignored on receipt once the use of the
+	// extended format is determined positively by inspection of the Non-Extended
+	// Optional Parameters Type (Non-Ext OP Type) field."
+	// RFC 9072 Section 3: "It is not considered a fatal error to receive an OPEN
+	// message whose (non-extended) Optional Parameters Length value is not 255
+	// and whose first Optional Parameter type code is 255 -- in this case, the
+	// encoding of this specification MUST be used for decoding the message."
+	if optLen != 0 && len(data) > 10 && data[10] == ExtendedParamMarker {
 		// Extended format: need at least 4 bytes after fixed fields
 		// (Non-Ext OP Len + Non-Ext OP Type + Extended Length)
 		if len(data) < 13 {
