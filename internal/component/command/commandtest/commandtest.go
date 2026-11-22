@@ -9,6 +9,8 @@ import "github.com/ze-software/ze/internal/component/command"
 
 // Must answers def, and panics when the constructor that produced it refused.
 // A test's definition is literal data, so a refusal is a defect in the test.
+//
+//nolint:gocritic // hugeParam: the constructors answer (ArgDef, error) by value, and Must takes that pair whole.
 func Must(def command.ArgDef, err error) command.ArgDef {
 	if err != nil {
 		panic("BUG: test argument definition refused: " + err.Error())

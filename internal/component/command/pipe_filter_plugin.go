@@ -166,10 +166,10 @@ func pluginPipeFilterCollision(path string, set pipeFilterSet) error {
 	}
 	var tb textbuf.Buffer
 	tb.Quoted(path).Str(" already holds the pipe operations ").Str(held.filterNames()).Str(" of ")
-	if holder := pipeFilterRegistry.ownerOf(path); holder != "" {
-		tb.Str("plugin ").Quoted(holder)
-	} else {
+	if holder := pipeFilterRegistry.ownerOf(path); holder == "" {
 		tb.Str("a compiled-in command")
+	} else {
+		tb.Str("plugin ").Quoted(holder)
 	}
 	return errors.New(tb.Str(", so it cannot also hold ").Str(set.filterNames()).String())
 }

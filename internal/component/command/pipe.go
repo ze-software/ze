@@ -1701,7 +1701,7 @@ func processStreamPipes(input, sessionFormat string, saveAllowed bool) (cmd stri
 	}, flags, saves, ""
 }
 
-var _ = env.MustRegister(env.EnvEntry{Key: "ze.cli.format", Type: "string", Default: pipeNameText, Description: "Default CLI output format (text, table, json, yaml, ndjson)"})
+var _ = env.MustRegister(env.EnvEntry{Key: "ze.cli.format", Type: env.TypeString, Default: pipeNameText, Description: "Default CLI output format (text, table, json, yaml, ndjson)"})
 
 // configuredDefault returns the default pipe format to use when the input has no
 // explicit format pipe.

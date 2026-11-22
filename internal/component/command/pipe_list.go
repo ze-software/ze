@@ -36,6 +36,14 @@ type PipeListElement struct {
 	Args []string `json:"args,omitempty"`
 }
 
+// The JSON Schema words PipeListSchema repeats: the keywords naming a value's
+// type and its description, and the type name of a string value.
+const (
+	schemaKeyType        = "type"
+	schemaKeyDescription = "description"
+	schemaTypeString     = "string"
+)
+
 // PipeListSchema answers the JSON Schema of the pipe list. The MCP tool input
 // schema and the OpenAPI document both publish it, so it is built here once.
 // Every call answers a fresh value: the caller puts it into a schema it owns.
@@ -43,21 +51,21 @@ type PipeListElement struct {
 // json.Marshal always encodes.
 func PipeListSchema() map[string]any {
 	return map[string]any{
-		"type": "array",
-		"description": "Pipe operations to apply to the answer, in order, as if typed after the command " +
+		schemaKeyType: "array",
+		schemaKeyDescription: "Pipe operations to apply to the answer, in order, as if typed after the command " +
 			"(`| name args`). Each name is one of the command's pipe operations: " +
 			"`show command help <command>` lists them, and any other name is refused.",
 		"items": map[string]any{
-			"type": "object",
+			schemaKeyType: "object",
 			"properties": map[string]any{
 				PipeListKeyName: map[string]any{
-					"type":        "string",
-					"description": "A pipe operation of the command, such as count or match",
+					schemaKeyType:        schemaTypeString,
+					schemaKeyDescription: "A pipe operation of the command, such as count or match",
 				},
 				PipeListKeyArguments: map[string]any{
-					"type":        "array",
-					"items":       map[string]any{"type": "string"},
-					"description": "The operation's argument words; each element is one word, whatever it holds",
+					schemaKeyType:        "array",
+					"items":              map[string]any{schemaKeyType: schemaTypeString},
+					schemaKeyDescription: "The operation's argument words; each element is one word, whatever it holds",
 				},
 			},
 			"required": []string{PipeListKeyName},
@@ -67,7 +75,7 @@ func PipeListSchema() map[string]any {
 
 // DecodePipeList reads the pipe list from its JSON form, as REST execute and a
 // derived MCP tool receive it. An absent list (no bytes, or JSON null) answers
-// nil. A key an element does not define is refused, never ignored: a misspelt
+// nil. A key an element does not define is refused, never ignored: a misspelled
 // `args` would otherwise drop the arguments and run the operation without
 // them.
 func DecodePipeList(raw []byte) ([]PipeListElement, error) {

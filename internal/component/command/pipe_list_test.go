@@ -13,10 +13,10 @@ import (
 // declared and refused, never trimmed, when an element carries a key the
 // element does not define.
 //
-// Method: a list with a name and args, JSON null, no bytes, a misspelt args
+// Method: a list with a name and args, JSON null, no bytes, a misspelled args
 // key, and a list followed by more JSON.
 //
-// MUTATION: drop DisallowUnknownFields; the misspelt key decodes to an
+// MUTATION: drop DisallowUnknownFields; the misspelled key decodes to an
 // element with no arguments and no error.
 func TestDecodePipeListReadsStrictly(t *testing.T) {
 	chain, err := DecodePipeList([]byte(`[{"name":"received"},{"name":"match","args":["a b","c|d"]}]`))
