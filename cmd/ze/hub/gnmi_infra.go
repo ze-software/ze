@@ -10,6 +10,7 @@ package hub
 import (
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/env"
 )
 
@@ -19,8 +20,9 @@ import (
 // always-on so the boot-time management-listener guard can see gNMI's
 // (address, token) pair before anything binds, and the gated builder calls the
 // SAME function so exactly one resolver exists (no drift between what the guard
-// classifies and what actually binds). The guard does not read cert files, so
-// the gated builder alone asks zeconfig.GNMITLSPaths for the TLS pair.
+// classifies and what actually binds). gnmiMgmtListener additionally consults
+// zeconfig.GNMITLSPaths to check whether both TLS paths are configured, while
+// Serve loads and parses the cert files before binding.
 func resolveGNMIListeners(tree *zeconfig.Tree) (addr, token string, enabled bool) {
 	addr = env.Get("ze.gnmi.listen")
 	token = env.Get("ze.gnmi.token")
@@ -58,6 +60,35 @@ func resolveGNMIListeners(tree *zeconfig.Tree) (addr, token string, enabled bool
 	return addr, token, enabled
 }
 
+// tlsPathsConfigured reports whether both a certificate path and a private-key
+// path are configured. A half-named pair is never valid TLS.
+func tlsPathsConfigured(certFile, keyFile string) bool {
+	if certFile == "" {
+		return false
+	}
+	return keyFile != ""
+}
+
+// gnmiMgmtListener builds the boot-time management-listener guard declaration
+// for gNMI when gNMI is enabled. Non-loopback gNMI listeners require both
+// authentication (token) and TLS (both cert and key paths).
+func gnmiMgmtListener(tree *zeconfig.Tree) (mgmtListener, bool) {
+	addr, token, enabled := resolveGNMIListeners(tree)
+	if !enabled {
+		return mgmtListener{}, false
+	}
+	certFile, keyFile := zeconfig.GNMITLSPaths(tree)
+	return mgmtListener{
+		service:       "gNMI",
+		addrs:         []string{addr},
+		authenticated: token != "",
+		remedy:        "set ze.gnmi.token (or environment.gnmi token), or bind to 127.0.0.1/::1 only",
+		requireTLS:    true,
+		tlsConfigured: tlsPathsConfigured(certFile, keyFile),
+		tlsRemedy:     "set ze.gnmi.tls.cert and ze.gnmi.tls.key (or environment.gnmi tls cert and key), or bind to 127.0.0.1/::1 only",
+	}, true
+}
+
 // gnmiServer is the always-on view of a built gNMI server. The real
 // *gnmi.Server stays behind the ze_gnmi-gated implementation.
 type gnmiServer interface {
@@ -72,6 +103,7 @@ type gnmiBuildInputs struct {
 	Store             storage.Storage
 	ConfigPath        string
 	ReloadAfterCommit func() error
+	Recorder          audit.Recorder
 }
 
 // gnmiBuild builds and starts gNMI, returning an opaque handle. Nil means

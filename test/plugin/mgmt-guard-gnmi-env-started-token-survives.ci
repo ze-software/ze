@@ -25,14 +25,20 @@ stdin=ze-bgp:terminator=EOF_CONF
 environment {
 	gnmi {
 		# Neither `enabled true` nor a `server` block: ze.gnmi.enabled above
-		# starts the listener, ze.gnmi.listen says where, and this token is the
-		# only thing standing between the guard and a refusal.
+		# starts the listener, ze.gnmi.listen says where, and this token and
+		# TLS pair are what stand between the guard and a refusal.
 		token s3cret-env-started-token
+		tls {
+			cert mgmt-guard-gnmi-env.pem
+			key mgmt-guard-gnmi-env.key
+		}
 	}
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=20s
+cmd=foreground:seq=1:exec=le test fixture config-refusal/tls mgmt-guard-gnmi-env.pem mgmt-guard-gnmi-env.key
+expect=exit:code=0
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
 await=stderr:contains=gNMI server listening on
 expect=stderr:pattern=gNMI server listening on .*:19343
 reject=stderr:pattern=refusing to start gNMI

@@ -17,6 +17,8 @@ import (
 	"net"
 	"net/netip"
 	"os"
+
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 // mgmtListener is one management surface's declaration for the boot-time
@@ -28,6 +30,9 @@ type mgmtListener struct {
 	addrs         []string // resolved listen addresses ("host:port" or bare host)
 	authenticated bool     // true when a token / users / real auth-mode gates every request
 	remedy        string   // actionable fix printed on refusal (never a secret)
+	requireTLS    bool     // true when non-loopback listeners MUST also configure TLS
+	tlsConfigured bool     // true when TLS material is configured for the listener
+	tlsRemedy     string   // actionable fix printed when requireTLS fails (never a secret)
 }
 
 // listenAddrIsNonLoopback reports whether a single listen address binds to a
@@ -50,45 +55,98 @@ func listenAddrIsNonLoopback(addr string) bool {
 }
 
 // checkMgmtListeners refuses to start when any declared management surface binds
-// non-loopback without authentication. It prints one error per offending
-// listener (service, address, remedy) and returns true (refused); the caller
-// returns a non-zero exit code before anything binds. An authenticated surface
-// is passed regardless of address; a loopback-only surface is passed regardless
-// of auth. The refusal message never prints a token or other secret.
+// non-loopback without authentication, or binds non-loopback without TLS when
+// requireTLS is set. It prints one error per offending listener (service,
+// address, remedy) and returns true (refused); the caller returns a non-zero
+// exit code before anything binds. An authenticated surface (with TLS when
+// requireTLS is true) is passed regardless of address; a loopback-only surface
+// is passed regardless of auth or TLS. The refusal message never prints a token
+// or other secret.
 func checkMgmtListeners(listeners []mgmtListener) bool {
 	refused := false
 	for _, l := range listeners {
-		if l.authenticated {
+		if !l.authenticated {
+			if checkMgmtListenerAuth(l) {
+				refused = true
+			}
+		}
+		if l.requireTLS {
+			if !l.tlsConfigured {
+				if checkMgmtListenerTLS(l) {
+					refused = true
+				}
+			}
+		}
+	}
+	return refused
+}
+
+func checkMgmtListenerAuth(l mgmtListener) bool {
+	// An unauthenticated surface with no resolved addresses cannot be shown
+	// to be loopback-only, so it must not pass by iterating zero times --
+	// that is the empty-set trap in ai/rules/evidence.md, and it
+	// is exactly how an insecure web server reached 0.0.0.0:3443 past this
+	// guard (the builder filled the default afterwards). Every declaration
+	// site resolves its addresses first and declares only when the surface
+	// will actually bind, so reaching here means the declaration is wrong.
+	if len(l.addrs) == 0 {
+		err := opererr.New(
+			fmt.Sprintf("refusing to start %s: declared unauthenticated with no resolved listen address", l.service),
+			"the listener address could not be verified as loopback-only",
+			"resolve the listener address before declaring it, or bind explicitly to 127.0.0.1/::1",
+		)
+		fmt.Fprintln(os.Stderr, err.Error())
+		return true
+	}
+	refused := false
+	for _, addr := range l.addrs {
+		if !listenAddrIsNonLoopback(addr) {
 			continue
 		}
-		// An unauthenticated surface with no resolved addresses cannot be shown
-		// to be loopback-only, so it must not pass by iterating zero times --
-		// that is the empty-set trap in ai/rules/evidence.md, and it
-		// is exactly how an insecure web server reached 0.0.0.0:3443 past this
-		// guard (the builder filled the default afterwards). Every declaration
-		// site resolves its addresses first and declares only when the surface
-		// will actually bind, so reaching here means the declaration is wrong.
-		if len(l.addrs) == 0 {
-			fmt.Fprintf(os.Stderr,
-				"error: refusing to start %s: declared unauthenticated with no resolved listen address\n",
-				l.service)
-			fmt.Fprintf(os.Stderr,
-				"  BUG: resolve the address before declaring it, or do not declare a surface that binds nothing\n")
-			refused = true
+		fix := l.remedy
+		if fix == "" {
+			fix = "configure authentication, or bind to 127.0.0.1/::1 only"
+		}
+		err := opererr.New(
+			fmt.Sprintf("refusing to start %s on non-loopback listener %q without authentication", l.service, addr),
+			"non-loopback management listeners must authenticate callers",
+			fix,
+		)
+		fmt.Fprintln(os.Stderr, err.Error())
+		refused = true
+	}
+	return refused
+}
+
+func checkMgmtListenerTLS(l mgmtListener) bool {
+	// Same fail-closed empty-set rule as checkMgmtListenerAuth: an unencrypted
+	// surface that requires TLS off-loopback cannot prove it is loopback-only
+	// when it carries no resolved listen address.
+	if len(l.addrs) == 0 {
+		err := opererr.New(
+			fmt.Sprintf("refusing to start %s: declared without TLS and with no resolved listen address", l.service),
+			"the listener address could not be verified as loopback-only",
+			"resolve the listener address before declaring it, or bind explicitly to 127.0.0.1/::1",
+		)
+		fmt.Fprintln(os.Stderr, err.Error())
+		return true
+	}
+	refused := false
+	for _, addr := range l.addrs {
+		if !listenAddrIsNonLoopback(addr) {
 			continue
 		}
-		for _, addr := range l.addrs {
-			if !listenAddrIsNonLoopback(addr) {
-				continue
-			}
-			fmt.Fprintf(os.Stderr,
-				"error: refusing to start %s on non-loopback listener %q without authentication\n",
-				l.service, addr)
-			if l.remedy != "" {
-				fmt.Fprintf(os.Stderr, "  %s\n", l.remedy)
-			}
-			refused = true
+		fix := l.tlsRemedy
+		if fix == "" {
+			fix = "configure a TLS certificate and key, or bind to 127.0.0.1/::1 only"
 		}
+		err := opererr.New(
+			fmt.Sprintf("refusing to start %s on non-loopback listener %q without TLS", l.service, addr),
+			"non-loopback management listeners must encrypt credentials and configuration traffic",
+			fix,
+		)
+		fmt.Fprintln(os.Stderr, err.Error())
+		refused = true
 	}
 	return refused
 }

@@ -6,14 +6,14 @@ Ze keeps a local structured audit log for operator actions that change state or 
 
 | Action | Surfaces |
 |--------|----------|
-| `config-commit` | SSH/CLI config editor, web config editor, REST config sessions, gRPC config sessions |
+| `config-commit` | SSH/CLI config editor, web config editor, REST config sessions, gRPC config sessions, gNMI Set |
 | `config-discard` | SSH/CLI config editor, web config editor (the Discard button, the web terminal and the CLI bar, `discard <path>` included), REST config sessions, gRPC config sessions. A `rollback` in the SSH editor or the web terminal also writes one |
 | `config-download` | web `GET /config/download` |
 | `config-upload` | web `POST /config/upload`, once the uploaded config is applied |
 | `daemon-reload` | SIGHUP, and `request reload` through the daemon on any surface |
 | `data-key-change` | `delete data key` and `update data key` through the daemon on any surface, which `ze data rm` and `ze data write` also send while ze runs |
 | `data-config-import` | `update data config` through the daemon on any surface, which `ze data import` also sends while ze runs. The detail holds the name and the placeholder in place of the content |
-| `auth-fail` | SSH, web, REST, gRPC, MCP |
+| `auth-fail` | SSH, web, REST, gRPC, gNMI, MCP |
 
 Each entry has `timestamp`, `actor`, `remote-addr`, `surface`, `action`, `detail`, and `outcome` fields. `detail` carries the config diff for commit and discard records when Ze has one.
 
@@ -42,6 +42,8 @@ that user.
 <!-- source: internal/component/web/cli.go -- HandleCLICommandWithAuthorizerAndAudit, dispatchCLICommand, discardAuditDetail -->
 <!-- source: internal/component/api/rest/server.go -- REST config and auth-fail audit recording -->
 <!-- source: internal/component/api/grpc/server.go -- gRPC config and auth-fail audit recording -->
+<!-- source: internal/component/gnmi/server.go -- gNMI auth-fail audit recording -->
+<!-- source: internal/component/gnmi/set.go -- gNMI config-commit audit recording -->
 <!-- source: internal/component/mcp/audit.go -- MCP auth-fail audit recording -->
 <!-- source: internal/component/plugin/server/command.go -- recordCommandAudit -->
 <!-- source: internal/component/config/storage/cli/register_data_rpc.go -- data-key-delete AuditAction -->
@@ -84,7 +86,7 @@ The response is structured data with `entries` and `count`. Filters can be combi
 
 Web config mutations now use the same profile authorizer as SSH, API, and MCP command dispatch. A read-only user can still open `/show/` pages, but `POST /config/set/`, add, delete, rename, commit, and discard are denied before the draft is changed.
 
-REST and gRPC without a configured token or per-user authenticator use the built-in `api` identity in read-only mode. Read commands work. Command writes and config sessions return 403.
+REST and gRPC without a configured token or per-user authenticator use the built-in `api` identity in read-only mode. Read commands work. Command writes and config sessions return 403. Likewise, unauthenticated loopback gNMI allows `Capabilities`, `Get`, and `Subscribe`, and refuses `Set` with `PermissionDenied`.
 
 <!-- source: internal/component/web/handler_config.go -- authorizeWebConfigMutation -->
 <!-- source: internal/component/api/engine.go -- read-only caller enforcement -->

@@ -11,12 +11,14 @@ import (
 	"time"
 
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 
 	"github.com/ze-software/ze/internal/component/api"
 	zeconfig "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -26,9 +28,22 @@ const gnmiUsername = "gnmi"
 // Set applies config modifications atomically via a ConfigSessionManager.
 // All updates, replaces, and deletes in a single SetRequest are applied
 // within one config session and committed together.
+//
+// An unauthenticated loopback server (Token == "") is read-only and refuses
+// Set with codes.PermissionDenied, matching REST and gRPC. Committed sets
+// record an audit.ActionConfigCommit entry under audit.GNMI.
 func (s *Server) Set(ctx context.Context, req *gpb.SetRequest) (*gpb.SetResponse, error) {
 	if s.metrics != nil {
 		s.metrics.requestsTotal.With("Set").Inc()
+	}
+
+	if s.config.Token == "" {
+		s.recordError("Set", codes.PermissionDenied)
+		return nil, status.Error(codes.PermissionDenied, opererr.New(
+			"read-only gNMI caller cannot modify configuration without authentication",
+			"unauthenticated loopback gNMI permits read operations only",
+			"set environment gnmi token <token>",
+		).Error())
 	}
 
 	if s.sessions == nil {
@@ -45,7 +60,11 @@ func (s *Server) Set(ctx context.Context, req *gpb.SetRequest) (*gpb.SetResponse
 	schema, err := s.configSchema()
 	if err != nil {
 		s.recordError("Set", codes.Unavailable)
-		return nil, status.Errorf(codes.Unavailable, "config schema not available: %v", err)
+		return nil, status.Error(codes.Unavailable, opererr.Wrap(err,
+			"config schema not available",
+			"gNMI Set cannot validate paths without the loaded YANG schema",
+			"run ze doctor to inspect schema load errors",
+		).Error())
 	}
 
 	sessionID, err := s.sessions.Enter(gnmiUsername)
@@ -68,7 +87,11 @@ func (s *Server) Set(ctx context.Context, req *gpb.SetRequest) (*gpb.SetResponse
 		segments, pathErr := pathToSegments(schema, del)
 		if pathErr != nil {
 			s.recordError("Set", codes.InvalidArgument)
-			return nil, status.Errorf(codes.InvalidArgument, "delete path: %v", pathErr)
+			return nil, status.Error(codes.InvalidArgument, opererr.Wrap(pathErr,
+				"invalid gNMI delete path",
+				"the delete path does not match the loaded YANG schema",
+				"verify the path against show yang",
+			).Error())
 		}
 		if len(segments) == 0 {
 			s.recordError("Set", codes.InvalidArgument)
@@ -77,7 +100,11 @@ func (s *Server) Set(ctx context.Context, req *gpb.SetRequest) (*gpb.SetResponse
 		deleteErr := s.sessions.DeleteSegments(gnmiUsername, sessionID, segments)
 		if deleteErr != nil {
 			s.recordError("Set", codes.InvalidArgument)
-			return nil, status.Errorf(codes.InvalidArgument, "delete %s: %v", pathString(segments), deleteErr)
+			return nil, status.Error(codes.InvalidArgument, opererr.Wrap(deleteErr,
+				"delete "+pathString(segments)+" failed",
+				"the configuration session rejected the delete operation",
+				"inspect the active configuration with show configuration",
+			).Error())
 		}
 		results = append(results, &gpb.UpdateResult{
 			Path: del,
@@ -107,6 +134,13 @@ func (s *Server) Set(ctx context.Context, req *gpb.SetRequest) (*gpb.SetResponse
 		})
 	}
 
+	// Best-effort audit diff matching REST/gRPC; commit audit still records
+	// with empty detail if Diff fails.
+	detail, _ := s.sessions.Diff(&api.ConfigDiffRequest{ //nolint:errcheck // best-effort audit diff; matches REST/gRPC commit audit
+		Username:  gnmiUsername,
+		SessionID: sessionID,
+	})
+
 	commitErr := s.sessions.Commit(&api.ConfigCommitRequest{
 		Username:  gnmiUsername,
 		SessionID: sessionID,
@@ -116,6 +150,20 @@ func (s *Server) Set(ctx context.Context, req *gpb.SetRequest) (*gpb.SetResponse
 		return nil, status.Errorf(codes.Aborted, "commit: %v", commitErr)
 	}
 	committed = true
+
+	auditEntry := audit.Entry{
+		Actor:   gnmiUsername,
+		Surface: audit.GNMI,
+		Action:  audit.ActionConfigCommit,
+		Detail:  detail,
+		Outcome: audit.OutcomeSuccess,
+	}
+	if p, ok := peer.FromContext(ctx); ok {
+		if p.Addr != nil {
+			auditEntry.RemoteAddr = p.Addr.String()
+		}
+	}
+	s.recordAudit(auditEntry)
 
 	ts := time.Now().UnixNano()
 	if s.notifier != nil {

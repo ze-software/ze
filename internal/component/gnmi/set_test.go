@@ -144,7 +144,7 @@ func TestGNMISetCommitsConfigSession(t *testing.T) {
 	sessions := api.NewConfigSessionManager(func() (api.ConfigEditor, error) {
 		return editor, nil
 	})
-	srv := NewServer(Config{}, nil, sessions, nil, nil)
+	srv := NewServer(Config{Token: "test-secret"}, nil, sessions, nil, nil)
 
 	_, err := srv.Set(t.Context(), &gpb.SetRequest{
 		Update: []*gpb.Update{{
@@ -179,7 +179,7 @@ func TestSetUpdateRefusalIsInvalidArgument(t *testing.T) {
 	sessions := api.NewConfigSessionManager(func() (api.ConfigEditor, error) {
 		return editor, nil
 	})
-	srv := NewServer(Config{}, nil, sessions, nil, nil)
+	srv := NewServer(Config{Token: "test-secret"}, nil, sessions, nil, nil)
 
 	_, err := srv.Set(t.Context(), &gpb.SetRequest{
 		Update: []*gpb.Update{{

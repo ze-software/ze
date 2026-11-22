@@ -15,11 +15,13 @@ import (
 	"crypto/subtle"
 	"fmt"
 	"net"
+	"net/netip"
 	"sync"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
@@ -28,7 +30,9 @@ import (
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	yangloader "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -55,14 +59,17 @@ func LookupServer() *Server {
 
 // Config holds gNMI server configuration.
 //
-// CertFile and KeyFile name the PEM files of the TLS transport. Both empty
-// serves gRPC without TLS. Naming either one asks for TLS, and Serve then
-// serves TLS or nothing: it never falls back to clear text (tls.go).
+// Non-loopback listeners MUST configure both Token and TLS (CertFile and
+// KeyFile). Loopback listeners (127.0.0.0/8, ::1) may omit TLS and Token; when
+// Token is empty, the server is read-only and refuses Set with PermissionDenied.
+// Naming either CertFile or KeyFile asks for TLS, and Serve then serves TLS or
+// nothing: it never falls back to clear text (tls.go).
 type Config struct {
-	ListenAddr string
-	Token      string
-	CertFile   string
-	KeyFile    string
+	ListenAddr    string
+	Token         string
+	CertFile      string
+	KeyFile       string
+	AuditRecorder audit.Recorder
 }
 
 // tlsNamed reports whether the config names any TLS material, so the
@@ -75,20 +82,54 @@ func (c *Config) tlsNamed() bool {
 	return c.KeyFile != ""
 }
 
+// listenAddrIsLoopback reports whether addr parses to a literal loopback IP
+// (127.0.0.0/8 or ::1). Fail-closed: wildcards (0.0.0.0, ::, :port), DNS names
+// including "localhost", empty hosts, and unparseable strings classify as
+// non-loopback, matching the boot-time management-listener guard.
+func listenAddrIsLoopback(addr string) bool {
+	host := addr
+	if h, _, err := net.SplitHostPort(addr); err == nil {
+		host = h
+	}
+	ip, err := netip.ParseAddr(host)
+	if err != nil {
+		return false
+	}
+	return ip.IsLoopback()
+}
+
+// checkGNMIListenAddr enforces defense-in-depth on non-loopback gNMI listeners,
+// matching gRPC's checkGRPCListenAddr: every non-loopback listener MUST gate
+// requests with Token and encrypt the transport with TLS so credentials and
+// configuration never cross the network in clear text.
+func checkGNMIListenAddr(cfg Config) error {
+	if listenAddrIsLoopback(cfg.ListenAddr) {
+		return nil
+	}
+	if cfg.Token == "" {
+		return fmt.Errorf("gnmi: non-loopback listen address %q requires authentication (set environment gnmi token or ze.gnmi.token)", cfg.ListenAddr)
+	}
+	if !cfg.tlsNamed() {
+		return fmt.Errorf("gnmi: non-loopback listen address %q requires TLS (set environment gnmi tls cert/key or ze.gnmi.tls.cert/key)", cfg.ListenAddr)
+	}
+	return nil
+}
+
 // Server implements the gNMI gRPC service.
 type Server struct {
 	gpb.UnimplementedGNMIServer
 
-	config   Config
-	tree     func() *zeconfig.Tree
-	sessions *api.ConfigSessionManager
-	loader   func() (*yangloader.Resolved, error)
-	notifier *ChangeNotifier
-	srv      *grpc.Server
-	listener net.Listener
-	mu       sync.Mutex
-	stopped  bool
-	metrics  *gnmiMetrics
+	config        Config
+	tree          func() *zeconfig.Tree
+	sessions      *api.ConfigSessionManager
+	loader        func() (*yangloader.Resolved, error)
+	notifier      *ChangeNotifier
+	auditRecorder audit.Recorder
+	srv           *grpc.Server
+	listener      net.Listener
+	mu            sync.Mutex
+	stopped       bool
+	metrics       *gnmiMetrics
 
 	modelsOnce sync.Once
 	models     []*gpb.ModelData
@@ -151,11 +192,12 @@ const moduleSetKeeperName = "the gNMI server's config schema and model list"
 func NewServer(cfg Config, tree func() *zeconfig.Tree, sessions *api.ConfigSessionManager, loader func() (*yangloader.Resolved, error), notifier *ChangeNotifier) *Server {
 	yangloader.KeepsModuleSet(moduleSetKeeperName)
 	return &Server{
-		config:   cfg,
-		tree:     tree,
-		sessions: sessions,
-		loader:   loader,
-		notifier: notifier,
+		config:        cfg,
+		tree:          tree,
+		sessions:      sessions,
+		loader:        loader,
+		notifier:      notifier,
+		auditRecorder: cfg.AuditRecorder,
 	}
 }
 
@@ -171,6 +213,12 @@ func (s *Server) SetMetricsRegistry(reg metrics.Registry) {
 
 // Serve starts the gNMI gRPC server on the configured address.
 func (s *Server) Serve(ctx context.Context) error {
+	// Refuse non-loopback listeners without authentication and TLS before
+	// loading credentials or opening any socket.
+	if err := checkGNMIListenAddr(s.config); err != nil {
+		return err
+	}
+
 	// One chain per kind, the panic boundary first: grpc-go runs a chain's
 	// first interceptor outermost, and places a plain UnaryInterceptor outside
 	// any chain, so a separate option would leave auth unguarded.
@@ -272,25 +320,63 @@ func (s *Server) recordError(rpc string, code codes.Code) {
 	}
 }
 
+func (s *Server) recordAudit(entry audit.Entry) {
+	if s.auditRecorder == nil {
+		return
+	}
+	if err := s.auditRecorder.Record(entry); err != nil {
+		logger.Warn("gNMI audit record failed", "code", "doctor-audit-record-failed", "action", entry.Action, "actor", entry.Actor, "error", err)
+	}
+}
+
+// recordAuthFailure writes an auth-fail audit entry for a rejected bearer
+// token. An opaque bearer token carries no trustworthy actor name, so no part
+// of the rejected credential is written into the audit log.
+func (s *Server) recordAuthFailure(ctx context.Context) {
+	entry := audit.Entry{
+		Surface: audit.GNMI,
+		Action:  audit.ActionAuthFail,
+		Outcome: audit.OutcomeDenied,
+	}
+	if p, ok := peer.FromContext(ctx); ok {
+		if p.Addr != nil {
+			entry.RemoteAddr = p.Addr.String()
+		}
+	}
+	s.recordAudit(entry)
+}
+
 func (s *Server) checkAuth(ctx context.Context) error {
 	if s.config.Token == "" {
 		return nil
 	}
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
+		s.recordAuthFailure(ctx)
 		return status.Error(codes.Unauthenticated, "missing metadata")
 	}
 	vals := md.Get("authorization")
 	if len(vals) == 0 {
+		s.recordAuthFailure(ctx)
 		return status.Error(codes.Unauthenticated, "missing authorization")
 	}
 	const prefix = "Bearer "
-	if len(vals[0]) <= len(prefix) || vals[0][:len(prefix)] != prefix {
+	if len(vals[0]) <= len(prefix) {
+		s.recordAuthFailure(ctx)
 		return status.Error(codes.Unauthenticated, "invalid authorization format")
+	}
+	if vals[0][:len(prefix)] != prefix {
+		s.recordAuthFailure(ctx)
+		return status.Error(codes.Unauthenticated, opererr.New(
+			"invalid authorization format",
+			"gNMI authentication requires a Bearer token header",
+			"pass authorization metadata formatted as 'Bearer <token>'",
+		).Error())
 	}
 	got := sha256.Sum256([]byte(vals[0][len(prefix):]))
 	want := sha256.Sum256([]byte(s.config.Token))
 	if subtle.ConstantTimeCompare(got[:], want[:]) != 1 {
+		s.recordAuthFailure(ctx)
 		return status.Error(codes.Unauthenticated, "invalid token")
 	}
 	return nil

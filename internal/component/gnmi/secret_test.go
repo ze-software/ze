@@ -198,7 +198,7 @@ func TestSetEchoesSecretsEncoded(t *testing.T) {
 		return editor, nil
 	})
 	notifier := NewChangeNotifier()
-	srv := NewServer(Config{}, nil, sessions, nil, notifier)
+	srv := NewServer(Config{Token: "test-secret"}, nil, sessions, nil, notifier)
 	ch := notifier.Subscribe()
 	t.Cleanup(func() { notifier.Unsubscribe(ch) })
 

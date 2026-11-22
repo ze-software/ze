@@ -44,6 +44,7 @@ const (
 const (
 	API    = "api"
 	CLI    = "cli"
+	GNMI   = "gnmi"
 	GRPC   = "grpc"
 	MCP    = "mcp"
 	REST   = "rest"

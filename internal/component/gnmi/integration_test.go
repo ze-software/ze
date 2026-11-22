@@ -7,6 +7,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
@@ -183,7 +184,7 @@ func TestGNMISetWiring(t *testing.T) {
 	sessions := api.NewConfigSessionManager(func() (api.ConfigEditor, error) {
 		return editor, nil
 	})
-	srv := NewServer(Config{ListenAddr: "127.0.0.1:0"}, nil, sessions, nil, nil)
+	srv := NewServer(Config{ListenAddr: "127.0.0.1:0", Token: "test-secret"}, nil, sessions, nil, nil)
 	startTestServer(t, srv)
 
 	conn, err := grpc.NewClient(srv.Address(), grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -193,7 +194,8 @@ func TestGNMISetWiring(t *testing.T) {
 	t.Cleanup(func() { conn.Close() }) //nolint:errcheck // test cleanup
 
 	client := gpb.NewGNMIClient(conn)
-	resp, err := client.Set(t.Context(), &gpb.SetRequest{
+	authCtx := metadata.AppendToOutgoingContext(t.Context(), "authorization", "Bearer test-secret")
+	resp, err := client.Set(authCtx, &gpb.SetRequest{
 		Update: []*gpb.Update{{
 			Path: &gpb.Path{Elem: []*gpb.PathElem{
 				{Name: "bgp"},

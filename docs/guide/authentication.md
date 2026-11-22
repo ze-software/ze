@@ -389,7 +389,7 @@ listener. The guard runs before any covered listener binds:
 |---------|------------------------------------------------|
 | Web in insecure mode | Disable insecure mode and configure users |
 | MCP | Configure a bearer token or another authenticated `auth-mode` |
-| gNMI | Configure `ze.gnmi.token` or `environment.gnmi token` |
+| gNMI | Configure `ze.gnmi.token` (or `environment.gnmi token`) and TLS (`ze.gnmi.tls.cert`/`key` or `environment.gnmi tls`) |
 | REST and gRPC API | Configure an API token, run `ze init`, or configure a `system.authentication.user` |
 
 Literal addresses in `127.0.0.0/8` and `::1` count as loopback. Wildcard

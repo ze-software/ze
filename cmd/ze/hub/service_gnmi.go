@@ -75,10 +75,11 @@ func gnmiBuildImpl(in *gnmiBuildInputs) gnmiServer {
 	// here left an empty PEM on a read error, and the server then served clear
 	// text over a config that asked for TLS.
 	gnmiCfg := zegnmi.Config{
-		ListenAddr: gnmiAddr,
-		Token:      gnmiToken,
-		CertFile:   gnmiTLSCert,
-		KeyFile:    gnmiTLSKey,
+		ListenAddr:    gnmiAddr,
+		Token:         gnmiToken,
+		CertFile:      gnmiTLSCert,
+		KeyFile:       gnmiTLSKey,
+		AuditRecorder: in.Recorder,
 	}
 
 	gnmiCtx, gnmiCancel := context.WithCancel(context.Background())
