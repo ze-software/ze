@@ -19,6 +19,7 @@ import (
 	_ "github.com/ze-software/ze/internal/component/plugin/all"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/statestore"
 )
 
@@ -85,6 +86,12 @@ bgp {
 // local route refuses too and the daemon route names the local command to
 // run instead (show bgp encode with no route reads standard input, which only
 // the local process has): that difference is by design, and it is logged.
+// The answer may differ only where both routes exit non-zero, the daemon
+// route refused with no payload, and the fix line of its refusal is exactly
+// `ze` and the daemon input's words once quoting is removed (show plugin
+// conformance run starts the program the command line names, which the
+// daemon refuses to do for a remote caller): that is the same by-design
+// deferral, and it is logged too.
 func TestLocalCommandDaemonMatchesLocal(t *testing.T) {
 	// The commands run for real, and some write state (delete debug profile
 	// name opens debug.zefs in the working directory); a directory of the
@@ -297,6 +304,10 @@ func matchRoutes(t *testing.T, d *pluginserver.Dispatcher, input, daemonInput st
 		t.Errorf("%q: local exit %d (stderr %q), daemon error %v: one route answered and the other refused", input, localCode, localWritten, dispatchErr)
 		return
 	}
+	if dispatchErr != nil && remoteAnswer == "" && matchDefersToLocal(remoteRefusal, daemonInput) {
+		t.Logf("%q: the daemon route defers to the local command, by design\nlocal:  %q\ndaemon: %q", input, localWritten, remoteRefusal)
+		return
+	}
 	if strings.TrimRight(localAnswer, "\n") != strings.TrimRight(remoteAnswer, "\n") {
 		t.Errorf("%q: answers differ under | json, first at byte %d\nlocal:  %s\ndaemon: %s", input, matchFirstDifference(localAnswer, remoteAnswer), matchAround(localAnswer, remoteAnswer), matchAround(remoteAnswer, localAnswer))
 	}
@@ -307,6 +318,54 @@ func matchRoutes(t *testing.T, d *pluginserver.Dispatcher, input, daemonInput st
 		}
 		t.Errorf("%q: refusals differ\nlocal:  %q\ndaemon: %q", input, localWritten, remoteRefusal)
 	}
+}
+
+// matchDefersToLocal answers whether refusal is an operator error whose fix,
+// its last line after the "fix: " label, is exactly the local command for
+// daemonInput: `ze` and the input's words, once the quoting the fix puts
+// around a value is removed. A fix that adds anything (an environment prefix,
+// a sentence around the command, a trailing word) is not the deferral.
+func matchDefersToLocal(refusal, daemonInput string) bool {
+	rendered, err := opererr.FromRendered(strings.TrimRight(refusal, "\n"))
+	if err != nil {
+		return false
+	}
+	fix := rendered.Fix()
+	if strings.Contains(fix, "\n") {
+		return false
+	}
+	words, closed := matchUnquotedWords(fix)
+	if !closed {
+		return false
+	}
+	return slices.Equal(words, append([]string{"ze"}, strings.Fields(daemonInput)...))
+}
+
+// matchUnquotedWords splits a fix line into the words it names, removing the
+// Go quoting around a quoted word. It answers false for a quote that does not
+// close, so a malformed fix is never read as the local command.
+func matchUnquotedWords(line string) ([]string, bool) {
+	var words []string
+	rest := strings.TrimLeft(line, " ")
+	for rest != "" {
+		if rest[0] != '"' {
+			word, after, _ := strings.Cut(rest, " ")
+			words = append(words, word)
+			rest = strings.TrimLeft(after, " ")
+			continue
+		}
+		quoted, err := strconv.QuotedPrefix(rest)
+		if err != nil {
+			return nil, false
+		}
+		value, err := strconv.Unquote(quoted)
+		if err != nil {
+			return nil, false
+		}
+		words = append(words, strings.Fields(value)...)
+		rest = strings.TrimLeft(rest[len(quoted):], " ")
+	}
+	return words, true
 }
 
 // matchArtifact runs a command that produces a file on both routes, the way

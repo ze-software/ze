@@ -80,8 +80,22 @@ func init() {
 // process. A daemon that started a program a remote caller named would run
 // that caller's command under the daemon's identity, which nothing
 // authorizes. refuseRemoteCaller is that gate, and the one place to lift it.
+//
+// A call whose run string no single token gave is refused first, on every
+// route in the same words: it starts nothing anywhere, so the remote gate
+// has nothing to add, and an empty run string is never carried into a
+// refusal or a check. No token filled the command leaf, or several
+// positional words were typed and the validator does not guess which one is
+// the run string (ValidatedArgs.Value).
 func dataConformance(validated command.ValidatedArgs) command.LocalAnswer {
-	run, _ := validated.Value(leafCommand)
+	run, found := validated.Value(leafCommand)
+	if !found {
+		return command.LocalRefusal(ExitNoRun, command.LocalErrorLine(opererr.New(
+			"show plugin conformance run needs the run string as one quoted token",
+			"the words after run gave no single run string, so no program was named and nothing was started. "+
+				"Quote a run string that holds a space, and give the plugin name after the keyword name",
+			`ze show plugin conformance run "<run string>" name <plugin-name>`)))
+	}
 	if refusal := refuseRemoteCaller(validated.Route(), run); refusal != nil {
 		return command.LocalRefusal(ExitNoRun, command.LocalErrorLine(refusal))
 	}

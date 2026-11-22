@@ -201,6 +201,13 @@ code 2. The refusal gives the reason and the command to run in your own shell
 on the host that holds the program.
 <!-- source: internal/component/plugin/conformance/register.go -- refuseRemoteCaller -->
 
+The run string is one token, so quote it when it holds a space. When the words
+after `run` give no single run string, for example two unquoted words, every
+route refuses with code 2 and starts nothing. The refusal is the same locally
+and through the daemon, and it names the command to type:
+`ze show plugin conformance run "<run string>" name <plugin-name>`.
+<!-- source: internal/component/plugin/conformance/register.go -- dataConformance -->
+
 ## Unit Testing with `net.Pipe`
 
 The SDK is designed for testability. Use `net.Pipe()` to create a connected pair of

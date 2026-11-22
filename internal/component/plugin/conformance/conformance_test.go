@@ -236,9 +236,14 @@ func TestRunRefusesARunThatCannotHappen(t *testing.T) {
 // process with a refusal that names the reason and the local command.
 // PREVENTS: the daemon starting a program a remote caller named.
 func TestTheCommandRefusesEveryRouteButTheLocalOne(t *testing.T) {
+	validated, err := command.ValidateArgs([]string{"exit 0"}, conformanceArgDefs(t), nil)
+	require.NoError(t, err)
+	run, found := validated.Value(leafCommand)
+	require.True(t, found, "the input must carry a run string, so the remote gate is what refuses it")
+	require.Equal(t, "exit 0", run)
 	for name, answer := range map[string]command.LocalAnswer{
-		"remote":   command.AnswerRemote(dataConformance, command.ValidatedArgs{}),
-		"unmarked": dataConformance(command.ValidatedArgs{}),
+		"remote":   command.AnswerRemote(dataConformance, validated),
+		"unmarked": dataConformance(validated),
 	} {
 		t.Run(name, func(t *testing.T) {
 			assert.Nil(t, answer.Payload)
@@ -251,6 +256,58 @@ func TestTheCommandRefusesEveryRouteButTheLocalOne(t *testing.T) {
 	require.NoError(t, refuseRemoteCaller(command.RouteLocal, "exit 0"))
 	require.Error(t, refuseRemoteCaller(command.RouteRemote, "exit 0"))
 	require.Error(t, refuseRemoteCaller(command.RouteUnspecified, "exit 0"))
+}
+
+// VALIDATES: a call whose run string no single token gave (no token, or
+// several positional words the validator does not assign) is refused in the
+// same words on the local, the remote and the unmarked route, with a fix that
+// names the run string and gives the plugin name by keyword.
+// PREVENTS: the command carrying on with an empty run string, whose refusals
+// named `run ""` as the fix and read differently on the local and the daemon
+// route.
+func TestTheCommandRefusesAnUnreadRunStringOnEveryRoute(t *testing.T) {
+	several, err := command.ValidateArgs([]string{"x", "ze-match-no-such-word"}, conformanceArgDefs(t), nil)
+	require.NoError(t, err)
+	_, found := several.Value(leafCommand)
+	require.False(t, found, "several positional words must leave the run string unassigned")
+	for input, validated := range map[string]command.ValidatedArgs{
+		"no token":      {},
+		"several words": several,
+	} {
+		t.Run(input, func(t *testing.T) {
+			answers := map[string]command.LocalAnswer{
+				"local":    command.AnswerLocal(dataConformance, validated),
+				"remote":   command.AnswerRemote(dataConformance, validated),
+				"unmarked": dataConformance(validated),
+			}
+			want := answers["local"].Diagnostic
+			require.NotEmpty(t, want)
+			for route, answer := range answers {
+				assert.Nil(t, answer.Payload, route)
+				assert.Equal(t, ExitNoRun, answer.Code, route)
+				assert.Equal(t, want, answer.Diagnostic, route)
+				assert.Contains(t, answer.Diagnostic,
+					"\nfix: ze show plugin conformance run \"<run string>\" name <plugin-name>\n", route)
+				assert.NotContains(t, answer.Diagnostic, `run ""`, route)
+				assert.NotContains(t, answer.Diagnostic, "the daemon starts no program a remote caller names", route)
+				assert.NotContains(t, answer.Diagnostic, "it starts the program named on the command line", route)
+			}
+		})
+	}
+}
+
+// conformanceArgDefs declares the two leaves of the command's YANG node
+// (ze-plugin-show-cmd.yang): command, mandatory, and name, each a string of
+// the declared length.
+func conformanceArgDefs(t *testing.T) []command.ArgDef {
+	t.Helper()
+	run, err := command.NewStringArg(leafCommand, []command.UintRange{{Min: 1, Max: 4096}}, nil,
+		command.ArgOptions{Mandatory: true})
+	require.NoError(t, err)
+	name, err := command.NewStringArg(leafName, []command.UintRange{{Min: 1, Max: 128}}, nil,
+		command.ArgOptions{})
+	require.NoError(t, err)
+	return []command.ArgDef{run, name}
 }
 
 // VALIDATES: the default plugin name is the file name of the program.
