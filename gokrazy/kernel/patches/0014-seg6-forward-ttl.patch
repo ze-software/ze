@@ -1,0 +1,102 @@
+From: Ze kernel maintainers
+Subject: [PATCH] ipv6: seg6: forward L3 lwtunnel modes through ip_forward/ip6_forward
+
+RFC 8986 Section 5.1 (H.Encaps) requires:
+
+  "S05.   Decrement inner IPv6 Hop Limit or IPv4 TTL"
+  "The received packet is encapsulated unmodified (with the exception of
+  the IPv4 TTL or IPv6 Hop Limit that is decremented as described in
+  [RFC2473])."
+
+RFC 2473 Section 3.1 ties the decrement to forwarding, so locally
+originated packets owe no decrement while forwarded packets must have
+their inner IPv4 TTL or IPv6 Hop Limit checked and decremented before
+encapsulation.
+
+Today seg6_build_state() sets LWTUNNEL_STATE_INPUT_REDIRECT for every
+mode, which bypasses ip_forward()/ip6_forward() and sends forwarded
+packets directly to seg6_input_core(). Nothing checks or decrements the
+inner TTL or Hop Limit; packets arriving with TTL or Hop Limit 1 are
+encapsulated and forwarded, and the comment in __seg6_do_srh_encap()
+claiming decapsulation overwrites the inner Hop Limit with the outer
+Hop Limit is false (seg6_local.c has no hop-limit copy).
+
+Follow the MPLS lwtunnel precedent (mpls_build_state() sets only
+LWTUNNEL_STATE_XMIT_REDIRECT): keep LWTUNNEL_STATE_INPUT_REDIRECT for
+the L2 modes (l2encap, l2encap.red, which carry Ethernet frames with no
+IP TTL) and set only LWTUNNEL_STATE_OUTPUT_REDIRECT for the L3 modes
+(encap, encap.red, inline). Forwarded L3 packets then traverse
+ip_forward()/ip6_forward() before reaching lwtunnel_output() and
+seg6_output_core(), giving one decrement and ICMP Time Exceeded to the
+sender on expiry while leaving locally originated traffic unchanged.
+
+Forward-path consequences:
+- The first-SID lookup moves from ip6_route_input() (which uses the
+  ingress interface) to ip6_route_output() (output routing without iif).
+- The FORWARD netfilter hook and XFRM forward policy now see the inner
+  packet before encapsulation.
+- ip_dst_mtu_maybe_forward() and ip6_dst_mtu_maybe_forward() subtract
+  lwtunnel_headroom(), so oversized DF-set IPv4 or IPv6 packets now
+  signal PMTU (Fragmentation Needed / Packet Too Big) minus headroom to
+  the sender.
+
+CONFIG_IPV6_SEG6_FORWARD_TTL identifies this capability to the runtime
+kernel manifest; it has no alternate datapath or disable switch.
+
+Based on Linux v7.3.
+
+--- a/net/ipv6/Kconfig
++++ b/net/ipv6/Kconfig
+@@ -296,6 +296,10 @@
+ 	  processing of SRv6 packets based on their active segment.
+ 
+ 	  If unsure, say N.
++
++config IPV6_SEG6_FORWARD_TTL
++	def_bool y
++	depends on IPV6_SEG6_LWTUNNEL
+ 
+ config IPV6_SEG6_HMAC
+ 	bool "IPv6: Segment Routing HMAC support"
+--- a/net/ipv6/seg6_iptunnel.c
++++ b/net/ipv6/seg6_iptunnel.c
+@@ -165,10 +165,12 @@
+ 	skb_mac_header_rebuild(skb);
+ 	hdr = ipv6_hdr(skb);
+ 
+-	/* inherit tc, flowlabel and hlim
+-	 * hlim will be decremented in ip6_forward() afterwards and
+-	 * decapsulation will overwrite inner hlim with outer hlim
+-	 */
++	/* Inherit tc, flowlabel and hlim for IPv6 inner packets. Forwarded L3
++	 * packets reach seg6_output_core() via ip_forward()/ip6_forward(),
++	 * which already checked and decremented the inner TTL or Hop Limit
++	 * (RFC 8986 Section 5.1 S05); locally originated packets owe no
++	 * decrement (RFC 2473 Section 3.1).
++	 */
+ 
+ 	if (skb->protocol == htons(ETH_P_IPV6)) {
+ 		ip6_flow_hdr(hdr, ip6_tclass(ip6_flowinfo(inner_hdr)),
+@@ -843,12 +845,18 @@
+ 	}
+ 
+ 	newts->type = LWTUNNEL_ENCAP_SEG6;
+-	newts->flags |= LWTUNNEL_STATE_INPUT_REDIRECT;
+ 
+-	if (tuninfo->mode != SEG6_IPTUN_MODE_L2ENCAP &&
+-	    tuninfo->mode != SEG6_IPTUN_MODE_L2ENCAP_RED)
+-		newts->flags |= LWTUNNEL_STATE_OUTPUT_REDIRECT;
++	/* Forwarded L3 packets must traverse ip_forward()/ip6_forward() so
++	 * the inner TTL or Hop Limit is checked and decremented once before
++	 * encapsulation (RFC 8986 Section 5.1 S05); L2 modes carry Ethernet
++	 * frames with no IP TTL and keep input redirect.
++	 */
++	if (tuninfo->mode == SEG6_IPTUN_MODE_L2ENCAP ||
++	    tuninfo->mode == SEG6_IPTUN_MODE_L2ENCAP_RED)
++		newts->flags |= LWTUNNEL_STATE_INPUT_REDIRECT;
++	else
++		newts->flags |= LWTUNNEL_STATE_OUTPUT_REDIRECT;
+ 
+ 	newts->headroom = seg6_lwt_headroom(tuninfo);
+ 
+ 	*ts = newts;
