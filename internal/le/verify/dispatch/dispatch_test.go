@@ -24,30 +24,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command/registry"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
-
-	// verifyengine links areas under repo and under the namespaces below, and
-	// Dispatch refuses a first word with no summary, so the repo and site
-	// areas and every namespace package are linked, as the composition root links
-	// them.
-	_ "github.com/ze-software/ze/internal/le/ai"
-	_ "github.com/ze-software/ze/internal/le/arch"
-	_ "github.com/ze-software/ze/internal/le/build"
-	_ "github.com/ze-software/ze/internal/le/chaos"
-	_ "github.com/ze-software/ze/internal/le/cli"
-	_ "github.com/ze-software/ze/internal/le/config"
-	_ "github.com/ze-software/ze/internal/le/data"
-	_ "github.com/ze-software/ze/internal/le/doc"
-	_ "github.com/ze-software/ze/internal/le/go"
-	_ "github.com/ze-software/ze/internal/le/lab"
-	_ "github.com/ze-software/ze/internal/le/plugin"
-	_ "github.com/ze-software/ze/internal/le/repo"
-	_ "github.com/ze-software/ze/internal/le/setup/docker"
-	_ "github.com/ze-software/ze/internal/le/site"
-	_ "github.com/ze-software/ze/internal/le/spec"
-	_ "github.com/ze-software/ze/internal/le/test"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
-	_ "github.com/ze-software/ze/internal/le/web"
-	_ "github.com/ze-software/ze/internal/le/yang"
 )
 
 const probeRoot = "verify-dispatch-probe"
@@ -156,6 +133,13 @@ func probeAnswer(args []string) (any, int) {
 func TestMain(m *testing.M) {
 	if len(os.Args) > 1 && os.Args[1] == "le" {
 		registerProbe()
+		// verifyengine and test/runner link areas under repo ("repo changed",
+		// "repo feature-tags"), and Dispatch refuses a first word with no
+		// summary. Declare the namespace summary here instead of blank-importing
+		// internal/le/repo (which drags in internal/le/site -> internal/test/fixture
+		// -> internal/le/verify -> internal/le/verify/dispatch in a cycle).
+		leroot.RegisterNamespace("repo", "repository hygiene and generation",
+			"Repository areas linked transitively by verify/dispatch tests.")
 		// A stage runs inside its verify's job slot. The probe stands in for
 		// one with no verify above it, so its line is run with no slot rather
 		// than admitted against the checkout this test runs in.

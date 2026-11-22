@@ -86,13 +86,31 @@ func TestCreatedUnitRetirementRejectsCompletedOwnerCopy(t *testing.T) {
 	if err := unit.Close(); err != nil {
 		t.Fatal(err)
 	}
-	copy := *unit //nolint:govet // Deliberately copy the complete idle owner to prove the self-identity boundary.
+	copied := CreatedUnit{
+		closed:               unit.closed,
+		closeErr:             unit.closeErr,
+		nativeOperations:     unit.nativeOperations,
+		nativeNamespaceStart: unit.nativeNamespaceStart,
+		retirement:           unit.retirement,
+		ready:                unit.ready,
+		attempted:            unit.attempted,
+		file:                 unit.file,
+		self:                 unit.self,
+		backend:              unit.backend,
+		namespace:            unit.namespace,
+		sessionClaim:         unit.sessionClaim,
+		creationRejection:    unit.creationRejection,
+		identity:             unit.identity,
+		number:               unit.number,
+		readCounters:         unit.readCounters,
+		poll:                 unit.poll,
+	}
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	if err := copy.WaitNativePPPUnitRetired(ctx); err == nil {
+	if err := copied.WaitNativePPPUnitRetired(ctx); err == nil {
 		t.Fatal("copied completed owner supplied retirement authority")
 	}
-	if err := copy.WithDescriptor(func(int) error { return nil }); err == nil {
+	if err := copied.WithDescriptor(func(int) error { return nil }); err == nil {
 		t.Fatal("copied completed owner lent the original descriptor")
 	}
 	if err := unit.WaitNativePPPUnitRetired(ctx); err != nil {

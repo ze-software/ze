@@ -19,9 +19,17 @@ func envelopeFor(t *testing.T, payload string) string {
 // discrimination, is consumed by the DOWN that takes it, and that a later
 // verdict replaces an earlier one rather than adding to it.
 func TestLedgerRecordTake(t *testing.T) {
+	const (
+		peer1Owner = uint64(1)
+		peer1Conn  = uint64(11)
+		peer2Owner = uint64(2)
+		peer2Conn  = uint64(22)
+	)
 	var ledger Ledger
-	ledger.Begin("192.0.2.1")
-	payload, err := Encode("192.0.2.1", []family.Family{family.IPv4Unicast})
+	if err := ledger.Begin(peer1Owner, peer1Conn); err != nil {
+		t.Fatal(err)
+	}
+	payload, err := Encode(peer1Owner, peer1Conn, "192.0.2.1", []family.Family{family.IPv4Unicast})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,23 +40,37 @@ func TestLedgerRecordTake(t *testing.T) {
 	if err := ledger.Record(envelope); err != nil {
 		t.Fatal(err)
 	}
-	if retained := ledger.Take("192.0.2.2"); retained[family.IPv4Unicast] {
+	other, err := ledger.Take(peer2Owner, peer2Conn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if other[family.IPv4Unicast] {
 		t.Fatal("another source inherited retention")
 	}
-	retained := ledger.Take("192.0.2.1")
+	retained, err := ledger.Take(peer1Owner, peer1Conn)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !retained[family.IPv4Unicast] {
 		t.Fatal("recorded family not retained")
 	}
 	if retained[family.IPv6Unicast] {
 		t.Fatal("unretained family inherited peer-wide retention")
 	}
-	if again := ledger.Take("192.0.2.1"); again[family.IPv4Unicast] {
+	again, err := ledger.Take(peer1Owner, peer1Conn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again[family.IPv4Unicast] {
 		t.Fatal("a taken verdict answered a second DOWN")
 	}
 
-	ledger.Begin("192.0.2.1")
-	first, _ := Encode("192.0.2.1", []family.Family{family.IPv4Unicast}) //nolint:errcheck // same input encoded above
-	empty, _ := Encode("192.0.2.1", nil)                                 //nolint:errcheck // an empty verdict encodes
+	nextConn := peer1Conn + 1
+	if err := ledger.Begin(peer1Owner, nextConn); err != nil {
+		t.Fatal(err)
+	}
+	first, _ := Encode(peer1Owner, nextConn, "192.0.2.1", []family.Family{family.IPv4Unicast}) //nolint:errcheck // same input encoded above
+	empty, _ := Encode(peer1Owner, nextConn, "192.0.2.1", nil)                                 //nolint:errcheck // an empty verdict encodes
 	for _, step := range []string{first, empty} {
 		env, ok := Accepts(envelopeFor(t, step))
 		if !ok {
@@ -58,7 +80,11 @@ func TestLedgerRecordTake(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if retained := ledger.Take("192.0.2.1"); retained[family.IPv4Unicast] {
+	replaced, err := ledger.Take(peer1Owner, nextConn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if replaced[family.IPv4Unicast] {
 		t.Fatal("an empty verdict did not replace the earlier one")
 	}
 }
@@ -66,23 +92,33 @@ func TestLedgerRecordTake(t *testing.T) {
 // TestLedgerRefusesBadVerdict proves a verdict naming an unknown family or no
 // peer is refused whole and leaves the recorded verdict untouched.
 func TestLedgerRefusesBadVerdict(t *testing.T) {
+	const (
+		peerOwner = uint64(1)
+		peerConn  = uint64(11)
+	)
 	var ledger Ledger
-	ledger.Begin("192.0.2.1")
-	good, _ := Encode("192.0.2.1", []family.Family{family.IPv4Unicast}) //nolint:errcheck // a fixed input encodes
+	if err := ledger.Begin(peerOwner, peerConn); err != nil {
+		t.Fatal(err)
+	}
+	good, _ := Encode(peerOwner, peerConn, "192.0.2.1", []family.Family{family.IPv4Unicast}) //nolint:errcheck // a fixed input encodes
 	env, _ := Accepts(envelopeFor(t, good))
 	if err := ledger.Record(env); err != nil {
 		t.Fatal(err)
 	}
 	for _, payload := range []string{
-		`{"peer-address":"192.0.2.1","families":["ipv4/unicast","nonsense/none"]}`,
-		`{"peer-address":"","families":[]}`,
+		`{"peer-owner":1,"connection-id":"11","peer-address":"192.0.2.1","families":["ipv4/unicast","nonsense/none"]}`,
+		`{"peer-owner":1,"connection-id":"11","peer-address":"","families":[]}`,
 		`[1,2]`,
 	} {
 		if err := ledger.Record(rpc.EventEnvelope{Namespace: Namespace, Event: EventType, Payload: []byte(payload)}); err == nil {
 			t.Fatalf("payload %s accepted", payload)
 		}
 	}
-	if retained := ledger.Take("192.0.2.1"); !retained[family.IPv4Unicast] {
+	retained, err := ledger.Take(peerOwner, peerConn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !retained[family.IPv4Unicast] {
 		t.Fatal("a refused verdict changed the recorded one")
 	}
 }
