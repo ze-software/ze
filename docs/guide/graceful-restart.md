@@ -173,12 +173,20 @@ connection or a different configured Peer at the same address.
 Retention uses the existing active GR state and original source leases. Family
 cleanup can empty that cycle before LLGR's next operation; its active state
 remains until explicit release, safety expiry or replacement by a new current
-cycle. There is no completed-source ledger. Cleanup joins captured selected
+cycle. A replacement keeps, as earlier connections of the new cycle, the
+connections of the old one that still own a route. This happens when a peer in
+its LLGR period reconnects and drops again before End-of-RIB. The
+`retain-routes` answer lists them under `earlier-connections`, as decimal
+strings, and the list is empty for a first restart. An earlier connection
+stays addressable by its own `owner` and `connection` until it is released,
+even after a family purge has removed its last route. There is no
+completed-source ledger. Cleanup joins captured selected
 output and original lease releases before answering; a refused join reports the
 unfinished work. The public peer-wide commands below retain their operator
 scope.
 <!-- source: internal/component/bgp/plugins/rib/rib_source_commands.go -- ribSourceCommands, retainPhysicalSourceCommand, markPhysicalSourceCommand -->
-<!-- source: internal/component/bgp/plugins/rib/rib_source_mutation.go -- removePhysicalSource, expirePhysicalSource -->
+<!-- source: internal/component/bgp/plugins/rib/rib_source_mutation.go -- removePhysicalSource, expirePhysicalSource, retainPhysicalStateLocked, earlierRetainedLocked -->
+<!-- source: internal/component/bgp/plugins/rib/rib_source_commands.go -- retainedSourceAnswer -->
 
 Likewise, `request bgp rib mark-stale <peer> <restart-time> [level [family]]`
 remains peer-wide when the family is omitted. GR supplies the particular
@@ -357,7 +365,9 @@ LLGR is only active for a family when both OPENs of the session list it in their
 3. **During LLGR** -- LLGR-stale routes lose to any non-stale route in best-path selection. Between two LLGR-stale routes, normal tiebreaking applies.
 4. **LLST timer expires** -- stale routes for that family are purged
 5. **Peer reconnects during LLGR** -- standard RFC 4724 procedures apply; families with F-bit=0 or missing from the new OPEN are purged. A family whose LLGR period has begun must also pass the new LLGR Capability: if that capability clears the family's F bit, omits the family, or is absent, the family's stale routes are purged at once, whatever the GR Capability says (RFC 9494 Section 4.2). A family still in its conventional GR period is judged by the GR Capability alone. A configuration with a Restart Time of zero therefore keeps its stale routes across a reconnect only when the new GR Capability also lists the family with its F bit set
-<!-- source: internal/component/bgp/plugins/gr/gr_state.go -- onSessionReestablished, reconnectKeepsFamily -->
+6. **Peer drops again before End-of-RIB** -- a family whose LLST timer is running keeps that timer, unchanged, and keeps its stale routes (RFC 9494 Section 4.2: "in the case of consecutive restarts, the previously marked stale routes MUST NOT be deleted before the timer for the Long-Lived Stale Time expires."). The routes the second session delivered for that family are retained too: they are raised to stale level 2 and get LLGR_STALE at once, and those carrying NO_LLGR are deleted. They start no Restart Time period of their own. When the timer expires, or a later session sends End-of-RIB for the family, the stale routes of every connection are deleted. A family still in its conventional GR period follows RFC 4724 instead: its previously stale routes are deleted at the second drop and the routes of the second session start a new Restart Time
+<!-- source: internal/component/bgp/plugins/gr/gr_state.go -- onSessionReestablished, reconnectKeepsFamily, onSessionDownPlan -->
+<!-- source: internal/component/bgp/plugins/gr/gr_consecutive.go -- restalePreservedLLGR, dispatchRetained, recordEarlierRetained -->
 
 The LLST expiry uses the time in the **remote peer's received OPEN**, not the
 `long-lived-stale-time` Ze advertises from its local configuration. Different
@@ -597,6 +607,21 @@ The `request bgp rib source` commands carry `owner N connection C` to target the
 original received routes. These identifiers narrow existing rights and grant
 no additional permission. A successor's EOR removes the original connection's
 retained stale routes; a delayed original release does not erase fresh routes.
+
+After a consecutive restart during the LLGR period, one retained cycle holds
+routes of more than one connection: the stale routes an earlier connection
+delivered and the later one did not refresh, and the routes the later one
+delivered. The RIB names the earlier connections in its `retain-routes`
+answer. GR then sends each purge and each release once per connection, the
+earlier ones first, and the `validation-cleanup` event with it, so every store
+keyed by connection is told about each one. At the second drop the NO_LLGR
+deletion and the LLGR_STALE attachment also go to each connection, because a
+reconnect cancels an LLGR entry that is still being dispatched and can leave
+the earlier routes without the community. Stale marking goes to the latest
+connection only: the earlier routes were marked when their own connection
+went down. If the answer names no list, GR keeps
+addressing every connection the cycle already held and logs a warning.
+<!-- source: internal/component/bgp/plugins/gr/gr_consecutive.go -- retainedConnections, dispatchRetained, recordEarlierRetained, earlierConnections -->
 
 The `bgp-gr/retention` event carries `peer-owner` as an unsigned integer and
 `connection-id` as a decimal unsigned integer string. The forwarding owner's

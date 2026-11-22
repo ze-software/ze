@@ -48,7 +48,10 @@ func newGRWithRealRIB(t *testing.T) (*grPlugin, *realGRRIB) {
 	r.receipt = engine.IssueSource(source.peer(), source.owner)
 	gp, _ := newRecordedGRPlugin()
 	gp.recordSentLLGR(source, nil)
-	gp.dispatchHook = func(command string, args ...string) { r.command(command, args...) }
+	// The RIB's own answer reaches the plugin, which reads the retain-routes
+	// one. A test that sets dispatchHook afterwards takes the commands instead.
+	gp.dispatchHook = nil
+	gp.answerHook = func(command string, args ...string) json.RawMessage { return r.command(command, args...) }
 	t.Cleanup(func() {
 		gp.state.removePeer(source.grPeer)
 		// This explicit operator cleanup is deliberately peer-wide within the
@@ -149,7 +152,12 @@ func (r *realGRRIB) routes(prefix string) []map[string]any {
 	var data struct {
 		Routes []map[string]any `json:"routes"`
 	}
-	require.NoError(r.t, json.Unmarshal(r.command("show bgp rib", "received", "prefix", prefix), &data))
+	raw, err := r.engine.ExecutePeerPipe(r.ctx, "show bgp rib", nil, "*", []rpc.PipeOperation{
+		{Name: "received"},
+		{Name: "prefix", Args: []string{prefix}},
+	})
+	require.NoError(r.t, err)
+	require.NoError(r.t, json.Unmarshal(raw, &data))
 	return data.Routes
 }
 

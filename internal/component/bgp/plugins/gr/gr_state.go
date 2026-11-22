@@ -153,6 +153,11 @@ func (m *grStateManager) retainedSource(source grSource) (grSource, bool) {
 // llgrFamilyActive answers whether this original connection still owns a
 // family's LLST timer. Safe for concurrent use. Callers MUST check after each
 // blocking entry RPC before dispatching the next mutation.
+// llgrFamilyActive answers whether this original connection still owns a
+// pre-reconnect LLGR entry cycle for fam. Once a successor session has
+// re-established (reestablishedConnectionID != 0), an in-flight LLGR entry
+// tail from before reconnect must not continue mutating or readvertising
+// routes on the re-established session.
 func (m *grStateManager) llgrFamilyActive(source grSource, fam family.Family) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -161,6 +166,9 @@ func (m *grStateManager) llgrFamilyActive(source grSource, fam family.Family) bo
 		return false
 	}
 	if state.source.connectionID != source.connectionID {
+		return false
+	}
+	if state.reestablishedConnectionID != 0 {
 		return false
 	}
 	_, active := state.llgrFamilies[fam]
@@ -195,11 +203,21 @@ func (m *grStateManager) onSessionDown(source grSource, cap *grPeerCap, llgrCap 
 
 // sessionDownPlan describes the RIB actions a session-down transition requires.
 type sessionDownPlan struct {
-	activated           bool
-	prevSource          grSource
-	purgeAllPrevious    bool
-	purgePreviousFams   []family.Family
-	markStaleFams       []family.Family // non-nil when LLGR families stay preserved and only new families get GR mark-stale
+	activated         bool
+	prevSource        grSource
+	purgeAllPrevious  bool
+	purgePreviousFams []family.Family
+	// markStaleFams lists the families that start a conventional GR period or
+	// enter LLGR at this DOWN while other families stay in their LLGR period;
+	// each gets a per-family GR mark-stale. It is read only when
+	// preservedLLGRActive is set, and is nil when this DOWN starts no such
+	// family.
+	markStaleFams []family.Family
+	// preservedLLGRFams lists, sorted, the families whose LLST timer keeps
+	// running across this DOWN. The routes the ended connection delivered for
+	// them are retained too, so the caller marks them LLGR-stale. Nil unless
+	// preservedLLGRActive is set.
+	preservedLLGRFams   []family.Family
 	preservedLLGRActive bool
 	completeDown        func()
 }
@@ -222,6 +240,9 @@ func (m *grStateManager) onSessionDownDeferred(source grSource, cap *grPeerCap, 
 // RFC 9494 Section 4.2 rules across consecutive restarts:
 //   - Running LLST timers and their LLGR-stale routes are preserved untouched
 //     (not purged, not reset or updated) until expiry or synchronization (EOR).
+//     The state's source becomes the connection that just ended; the earlier
+//     connections whose stale routes survive are the RIB's to name, and the
+//     plugin addresses each one (grPlugin.dispatchRetained).
 //   - Families whose LLST timer expired during an unsynchronized reconnect are
 //     excluded from retention and purged immediately on reset.
 //   - Conventional GR-only stale families from a prior cycle are purged per
@@ -345,6 +366,11 @@ func (m *grStateManager) onSessionDownPlan(source grSource, cap *grPeerCap, llgr
 			state.restartDeadline = time.Time{}
 		}
 		plan.markStaleFams = append(newGRFamilies, immediate...)
+		plan.preservedLLGRFams = make([]family.Family, 0, len(preservedLLGR))
+		for fam := range preservedLLGR {
+			plan.preservedLLGRFams = append(plan.preservedLLGRFams, fam)
+		}
+		slices.SortFunc(plan.preservedLLGRFams, func(a, b family.Family) int { return cmp.Compare(a.String(), b.String()) })
 	} else {
 		state = &grPeerState{
 			source:        source,

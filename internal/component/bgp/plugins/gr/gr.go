@@ -3,6 +3,7 @@
 // RFC: rfc/short/rfc9494.md
 // Detail: gr_state.go — GR state machine (per-peer timers, stale family tracking)
 // Detail: gr_llgr.go — LLGR capability decode, config extraction, CLI decode (RFC 9494)
+// Detail: gr_consecutive.go — consecutive restarts during the LLGR period (RFC 9494 Section 4.2)
 //
 // Package gr implements a Graceful Restart plugin for ze (RFC 4724, RFC 9494).
 // It receives per-peer GR config (restart-time, long-lived-stale-time) during
@@ -22,7 +23,6 @@ import (
 	"io"
 	"log/slog"
 	"net"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -105,6 +105,18 @@ type grPlugin struct {
 	// (exchangedLLGRLocked, gr_llgr_exchange.go). A nil map reads as "nothing declared".
 	sentLLGRFamilies map[uint64]grSentLLGR
 	state            *grStateManager // RFC 4724 Receiving Speaker state machine
+	// earlierRetained holds, per peer owner, the earlier connections whose
+	// stale routes the current retained cycle still holds after a consecutive
+	// restart during the LLGR period (gr_consecutive.go). Guarded by mu; a nil
+	// map and a missing owner both read as "no earlier connection".
+	earlierRetained map[uint64]grEarlierRetained
+
+	// answerHook, when non-nil and dispatchHook is nil, answers a dispatched
+	// command in tests with the registered RIB's own answer, in place of the
+	// dispatch-command RPC. Production leaves it nil. It exists because the
+	// retain-routes answer is read (recordEarlierRetained), which a hook that
+	// returns nothing cannot supply.
+	answerHook func(command string, args ...string) json.RawMessage
 
 	// dispatchHook, when non-nil, intercepts dispatchCommand for test
 	// inspection instead of issuing the dispatch-command RPC. Production
@@ -269,29 +281,30 @@ func (gp *grPlugin) wireStateCallbacks() {
 		}
 		famStr := fam.String()
 		// 1. Delete routes with NO_LLGR community
-		gp.dispatchSource(source, "request bgp rib source delete-with-community", "family", famStr, "community", "ffff0007")
+		gp.removeNoLLGR(source, famStr)
 		if !gp.state.llgrFamilyActive(source, fam) {
 			return
 		}
 		// 2. Attach LLGR_STALE community to remaining stale routes
-		gp.dispatchSource(source, "request bgp rib source attach-community", "family", famStr, "community", "ffff0006")
+		gp.attachLLGRStale(source, famStr)
 		if !gp.state.llgrFamilyActive(source, fam) {
 			return
 		}
 		// 3. Raise stale level to 2 (depreference threshold) via mark-stale
 		// with restart-time=0 (no new timer needed, LLST timer handles expiry).
-		gp.dispatchSource(source, "request bgp rib source mark-stale", "restart-time", "0", "stale-level", "2", "family", famStr)
+		gp.markLLGRStale(source, famStr)
 	}
 	gp.state.onLLGREntryDone = func(source grSource, families []family.Family) {
-		for _, fam := range families {
-			gp.dispatchCommand("clear bgp rib out-excluding-owner", "owner", strconv.FormatUint(source.owner, 10), "family", fam.String())
-		}
+		gp.readvertiseLLGR(source, families)
 	}
+	// RFC 9494 Section 4.2: the expiry and the release reach every connection
+	// the cycle retains, not only the one that ended last.
 	gp.state.onLLGRFamilyExpired = func(source grSource, fam family.Family) {
-		gp.dispatchSource(source, "request bgp rib source purge-stale", "family", fam.String())
+		gp.dispatchRetained(source, "request bgp rib source purge-stale", "family", fam.String())
 	}
 	gp.state.onLLGRComplete = func(source grSource) {
-		gp.dispatchSource(source, "request bgp rib source release-routes")
+		gp.dispatchRetained(source, "request bgp rib source release-routes")
+		gp.forgetEarlierRetained(source)
 	}
 }
 
@@ -458,9 +471,15 @@ func (gp *grPlugin) extractGRCaps(source grSource, data []byte, foundGR bool) bo
 // RFC 9494 Section 4.2: "After the session goes down, and before the session is
 // re-established, the stale routes for an AFI/SAFI MUST be retained."
 // Retention starts before the forwarding owner handles peer-down.
-func (gp *grPlugin) retainPeerFamilies(source grSource) {
+//
+// previous is every connection the cycle this DOWN continues already retained
+// (nil for a DOWN that continues none). The RIB's answer says which of them
+// still own routes, and that answer becomes the record of the earlier
+// connections this cycle addresses (recordEarlierRetained).
+func (gp *grPlugin) retainPeerFamilies(source grSource, previous []grSource) {
 	families := gp.state.retainedFamilies(source)
 	if len(families) == 0 {
+		gp.dropEarlierRetained(source.owner)
 		return
 	}
 	args := make([]string, 2, 2+len(families))
@@ -469,7 +488,8 @@ func (gp *grPlugin) retainPeerFamilies(source grSource) {
 	for _, fam := range families {
 		args = append(args, fam.String())
 	}
-	gp.dispatchSource(source, "request bgp rib source retain-routes", args...)
+	answer, applied := gp.dispatchSourceAnswer(source, "request bgp rib source retain-routes", args...)
+	gp.recordEarlierRetained(source, previous, answer, applied)
 }
 
 // handleStructuredState processes a structured state event.
@@ -510,25 +530,40 @@ func (gp *grPlugin) handleStructuredState(source grSource, state rpc.SessionStat
 		gp.mu.Unlock()
 
 		plan := gp.state.onSessionDownPlan(source, cap, llgrCap, normalProcedures)
+		// Read before this DOWN's retention replaces the record: the
+		// connections the continued cycle retained, the one that ended before
+		// this one included.
+		var previous []grSource
+		if plan.preservedLLGRActive {
+			previous = gp.retainedConnections(plan.prevSource)
+		}
 		if plan.purgeAllPrevious {
-			gp.dispatchSource(plan.prevSource, "request bgp rib source purge-stale")
+			gp.dispatchRetained(plan.prevSource, "request bgp rib source purge-stale")
 		} else {
 			for _, fam := range plan.purgePreviousFams {
-				gp.dispatchSource(plan.prevSource, "request bgp rib source purge-stale", "family", fam.String())
+				gp.dispatchRetained(plan.prevSource, "request bgp rib source purge-stale", "family", fam.String())
 			}
 		}
 		if plan.activated {
 			// RFC 9494 Section 4.2.
-			gp.retainPeerFamilies(source)
+			gp.retainPeerFamilies(source, previous)
 			if plan.preservedLLGRActive {
-				// Families already in LLGR keep their stale-level=2 and LLGR_STALE
-				// community; only newly-stale non-LLGR families get level-1 GR marking.
+				// The stale routes of the earlier connections keep their
+				// stale-level 2 and LLGR_STALE community. Families that start a
+				// period at this DOWN get the level-1 GR marking first, because
+				// each mark replaces the RIB's safety timer and the LLGR marking
+				// below must be the one that leaves none armed.
 				for _, fam := range plan.markStaleFams {
-					gp.dispatchSource(source, "request bgp rib source mark-stale", "restart-time", strconv.FormatUint(uint64(cap.RestartTime), 10), "family", fam.String())
+					gp.dispatchSource(source, "request bgp rib source mark-stale", "restart-time", textbuf.StringUint16(cap.RestartTime), "family", fam.String())
 				}
+				// RFC 4724 Section 4.2, RFC 9494 Section 4.2.
+				gp.restalePreservedLLGR(source, plan.preservedLLGRFams)
 			} else {
-				gp.dispatchSource(source, "request bgp rib source mark-stale", "restart-time", strconv.FormatUint(uint64(cap.RestartTime), 10))
+				gp.dispatchSource(source, "request bgp rib source mark-stale", "restart-time", textbuf.StringUint16(cap.RestartTime))
 			}
+		} else {
+			// Nothing is retained, so no earlier connection is either.
+			gp.dropEarlierRetained(source.owner)
 		}
 		// RFC 4724 Section 4.2, RFC 9494 Section 4.2.
 		// Retain and mark stale before GR expiry or immediate LLGR entry.
@@ -556,7 +591,7 @@ func (gp *grPlugin) handleStructuredState(source grSource, state rpc.SessionStat
 
 		retainedSource, purged, _ := gp.state.onSessionReestablished(source, newCap, newLLGRCap)
 		for _, fam := range purged {
-			gp.dispatchSource(retainedSource, "request bgp rib source purge-stale", "family", fam.String())
+			gp.dispatchRetained(retainedSource, "request bgp rib source purge-stale", "family", fam.String())
 		}
 	case rpc.SessionStateUnspecified, rpc.SessionStateCount:
 		// These states do not change graceful-restart state.
@@ -741,8 +776,9 @@ func (gp *grPlugin) handleEOREvent(source grSource, payload map[string]any) {
 
 	retainedSource, shouldPurge := gp.state.onEORReceived(source, fam)
 	if shouldPurge {
-		// RFC 4724: purge only stale routes for this family (selective, not nuclear)
-		gp.dispatchSource(retainedSource, "request bgp rib source purge-stale", "family", famStr)
+		// RFC 4724: purge only stale routes for this family (selective, not
+		// nuclear), from every connection the retained cycle holds.
+		gp.dispatchRetained(retainedSource, "request bgp rib source purge-stale", "family", famStr)
 		logger().Debug("gr: EOR received, purging stale routes", "peer", source, "family", famStr)
 	}
 }
@@ -759,7 +795,8 @@ func (gp *grPlugin) onTimerExpired(source grSource) {
 // releaseRoutes tells bgp-rib to release (delete) retained routes for a peer.
 // Also prunes the cached peer capabilities since GR/LLGR is fully complete.
 func (gp *grPlugin) releaseRoutes(source grSource) {
-	gp.dispatchSource(source, "request bgp rib source release-routes")
+	gp.dispatchRetained(source, "request bgp rib source release-routes")
+	gp.forgetEarlierRetained(source)
 	gp.mu.Lock()
 	defer gp.mu.Unlock()
 	// The RPC can finish after OPEN/UP of a successor. Its original scope
@@ -820,42 +857,73 @@ func (gp *grPlugin) emitRetention(source grSource) {
 // original owner and physical connection. Callers MUST supply newGRSource's result, never an address
 // lookup. The RIB owns target validation; this value grants no authority.
 func (gp *grPlugin) dispatchSource(source grSource, command string, tail ...string) {
-	args := []string{"owner", strconv.FormatUint(source.owner, 10), "connection", strconv.FormatUint(source.connectionID, 10)}
+	gp.dispatchSourceAnswer(source, command, tail...)
+}
+
+// dispatchSourceAnswer is dispatchSource for the one caller that reads the
+// RIB's answer. False means the command was not applied, and the answer is
+// then empty; an applied command dispatched through dispatchHook also answers
+// empty, which its reader MUST treat as "not said", never as "none".
+func (gp *grPlugin) dispatchSourceAnswer(source grSource, command string, tail ...string) (json.RawMessage, bool) {
+	args := []string{"owner", textbuf.StringUint(source.owner), "connection", textbuf.StringUint(source.connectionID)}
 	args = append(args, tail...)
-	if gp.sdk == nil && gp.dispatchHook == nil {
-		return
+	if !gp.dispatches() {
+		return nil, false
 	}
 	if !gp.prepareValidationCleanup(source, command, tail) {
-		return
+		return nil, false
 	}
-	gp.dispatchCommand(command, args...)
+	return gp.dispatchCommandAnswer(command, args...)
+}
+
+// dispatches answers whether a dispatched command can reach anything: the
+// engine, or one of the two test hooks. A source-only unit has none.
+func (gp *grPlugin) dispatches() bool {
+	if gp.sdk != nil {
+		return true
+	}
+	if gp.dispatchHook != nil {
+		return true
+	}
+	return gp.answerHook != nil
 }
 
 // dispatchCommand sends a command to the engine for inter-plugin coordination.
 // The result distinguishes applied cleanup from a refusal; the state machine
 // still proceeds, and passive validation notification requires applied success.
 func (gp *grPlugin) dispatchCommand(command string, args ...string) bool {
+	_, applied := gp.dispatchCommandAnswer(command, args...)
+	return applied
+}
+
+// dispatchCommandAnswer is dispatchCommand with the answer the command gave.
+// The answer is empty when the command was not applied and when dispatchHook
+// took it.
+func (gp *grPlugin) dispatchCommandAnswer(command string, args ...string) (json.RawMessage, bool) {
 	if gp.dispatchHook != nil {
 		gp.dispatchHook(command, args...)
-		return true
+		return nil, true
+	}
+	if gp.answerHook != nil {
+		return gp.answerHook(command, args...), true
 	}
 	if gp.sdk == nil {
-		return false // No production command was applied without an SDK.
+		return nil, false // No production command was applied without an SDK.
 	}
 	ctx := context.Background()
-	status, _, err := gp.sdk.DispatchCommandArgs(ctx, command, args, "")
+	status, answer, err := gp.sdk.DispatchCommandArgs(ctx, command, args, "")
 	if err != nil {
 		logger().Warn("gr: dispatch failed", "command", command, "args", args, "err", err)
-		return false
+		return nil, false
 	}
 	if status != "done" {
 		gp.reportValidationCleanupFailure(sourceCommandSubject(command, args), errGRSourceCommandRefused)
-		return false
+		return nil, false
 	}
 	{
 		logger().Debug("gr: dispatch ok", "command", command, "args", args, "status", status)
 	}
-	return true
+	return answer, true
 }
 
 // grResultToPeerCap converts a decoded GR wire result to the state machine's

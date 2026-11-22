@@ -283,7 +283,14 @@ type peerMetadata struct {
 type peerGRState struct {
 	// source narrows this active cycle to its immutable original connection.
 	// A nil source belongs only to the explicit peer-wide operator commands.
-	source      *ribPhysicalSource
+	source *ribPhysicalSource
+	// earlier lists the connections of earlier retained cycles of this peer
+	// that still owned routes when source was retained (a consecutive restart
+	// during the LLGR period). Their routes stay retained, and the GR plugin
+	// addresses each one by its own connection, so each stays a known source
+	// until it is released. Bounded by the previous cycle's connections that
+	// still owned a route (earlierRetainedLocked); nil for a first restart.
+	earlier     []uint64
 	StaleAt     time.Time   // when routes were marked stale (disconnect time)
 	RestartTime uint16      // peer's negotiated restart time in seconds
 	ExpiresAt   time.Time   // StaleAt + RestartTime

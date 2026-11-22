@@ -2,6 +2,17 @@
   {
     "rid": "RFC9494-4.2-4",
     "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/gr/rfc9494_llgr_consecutive_rib_test.go::TestRFC9494ConsecutiveRestartMarksTheLaterConnectionsRoutes",
+    "unit-sha": "642156cc8943a279",
+    "claim-sha": "c2452ef4e7c36c86",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/gr/gr_consecutive.go::grPlugin.restalePreservedLLGR",
+    "producer-sha": "68fca5111a3367d6",
+    "break": "body of grPlugin.restalePreservedLLGR replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9494-4.2-4",
+    "polarity": "positive",
     "unit": "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod",
     "unit-sha": "ce7d142fb07f8071",
     "claim-sha": "c43b8764c6917013",

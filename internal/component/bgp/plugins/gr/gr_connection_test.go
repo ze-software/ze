@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -178,6 +179,7 @@ func TestGRReconnectRevokesHeldLLGREntryTail(t *testing.T) {
 	gp.emitHook = func(string) {}
 	entered, release, joined := make(chan struct{}), make(chan struct{}), make(chan struct{})
 	var once sync.Once
+	var holdEntryOnce sync.Once
 	var mu sync.Mutex
 	var commands [][]string
 	gp.dispatchHook = func(command string, args ...string) {
@@ -185,8 +187,13 @@ func TestGRReconnectRevokesHeldLLGREntryTail(t *testing.T) {
 		commands = append(commands, append([]string{command}, args...))
 		mu.Unlock()
 		if command == "request bgp rib source delete-with-community" {
-			close(entered)
-			<-release
+			// Only the first one is the old connection's LLGR entry, which this
+			// test holds. The successor's own DOWN sends the command again for
+			// the routes it retains (RFC 9494 Section 4.2), and those pass.
+			holdEntryOnce.Do(func() {
+				close(entered)
+				<-release
+			})
 		}
 	}
 	grConnectionOpen(t, gp, old, true)

@@ -21,6 +21,7 @@ func (gp *grPlugin) onPeerRemoved(source grPeer) {
 	delete(gp.peerCaps, source.owner)
 	delete(gp.peerLLGRCaps, source.owner)
 	delete(gp.sentLLGRFamilies, source.owner)
+	delete(gp.earlierRetained, source.owner)
 	gp.mu.Unlock()
 
 	if m := grMetricsPtr.Load(); m != nil {

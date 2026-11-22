@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"net/netip"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
 	"github.com/ze-software/ze/internal/core/diagnostic"
@@ -37,11 +38,45 @@ func (source ribPhysicalSource) ownsState(state *peerGRState) bool {
 	return *state.source == source
 }
 
+// retainsEarlier answers whether source is an earlier connection whose routes
+// this cycle still retains. A nil state retains none. Caller MUST hold peerMu.
+func (state *peerGRState) retainsEarlier(source ribPhysicalSource) bool {
+	if state == nil {
+		return false
+	}
+	if state.source == nil {
+		return false
+	}
+	if state.source.owner != source.owner {
+		return false
+	}
+	return slices.Contains(state.earlier, source.connection)
+}
+
+// forgetEarlier ends an earlier connection's place in this cycle once the GR
+// plugin has released it. A nil state holds none. Caller MUST hold peerMu.
+func (state *peerGRState) forgetEarlier(source ribPhysicalSource) {
+	if !state.retainsEarlier(source) {
+		return
+	}
+	state.earlier = slices.DeleteFunc(slices.Clone(state.earlier), func(connection uint64) bool {
+		return connection == source.connection
+	})
+}
+
 // physicalSourceKnownLocked recognizes only live metadata, the existing active
-// GR cycle, or an actually held received reference. It stores no completed
-// source identities. Caller MUST hold peerMu.
+// GR cycle and the earlier connections it still retains, or an actually held
+// received reference. It stores no completed source identities. Caller MUST
+// hold peerMu.
 func (r *RIBManager) physicalSourceKnownLocked(source ribPhysicalSource) bool {
-	if source.ownsState(r.grState[source.owner]) {
+	state := r.grState[source.owner]
+	if source.ownsState(state) {
+		return true
+	}
+	// An earlier connection of a consecutive restart can be emptied one family
+	// at a time; its later family purge then removes nothing, which is an
+	// answer of zero and never an unknown source.
+	if state.retainsEarlier(source) {
 		return true
 	}
 	if metadata := r.peerMeta[source.owner]; metadata != nil {
@@ -70,10 +105,40 @@ func (r *RIBManager) physicalSourceHasRoutesLocked(source ribPhysicalSource) boo
 	return false
 }
 
+// earlierRetainedLocked returns the connections of the previous retained cycle
+// that still own a route of this peer, oldest first: the routes a consecutive
+// restart leaves retained beside the new connection's. A connection with no
+// route left is dropped, so the result is bounded by the previous cycle's own
+// list plus one. Caller MUST hold peerMu.
+func (r *RIBManager) earlierRetainedLocked(previous *peerGRState) []uint64 {
+	if previous == nil {
+		return nil
+	}
+	if previous.source == nil {
+		return nil // A peer-wide operator cycle names no connection.
+	}
+	var earlier []uint64
+	for _, connection := range append(slices.Clone(previous.earlier), previous.source.connection) {
+		if r.physicalSourceHasRoutesLocked(ribPhysicalSource{owner: previous.source.owner, connection: connection}) {
+			earlier = append(earlier, connection)
+		}
+	}
+	return earlier
+}
+
 // retainPhysicalStateLocked creates only a current retained cycle. An old
 // connection cannot replace a successor's prepared state. A new current
-// connection replaces an empty old cycle; unresolved output stays on its
-// original existing lease rather than in GR history. Caller MUST hold peerMu.
+// connection replaces the old cycle and keeps, as earlier connections, the
+// ones that still own routes: the GR plugin purged what a consecutive restart
+// ends before it sent this retention, so what remains is what it still
+// retains. Unresolved output stays on its original existing lease rather than
+// in GR history. Caller MUST hold peerMu.
+//
+// RFC 9494 Section 4.2: "However, in the case of consecutive
+// restarts, the previously marked stale routes MUST NOT be deleted
+// before the timer for the Long-Lived Stale Time expires."
+// Refusing this retention would leave the peer unretained at its DOWN, which
+// releases every route it owns, the earlier connection's stale ones included.
 func (r *RIBManager) retainPhysicalStateLocked(source ribPhysicalSource) (*peerGRState, error) {
 	if r.stopping {
 		return nil, sourceCommandRefused("The RIB is stopping")
@@ -89,15 +154,9 @@ func (r *RIBManager) retainPhysicalStateLocked(source ribPhysicalSource) (*peerG
 	if metadata.ConnectionID != source.connection {
 		return nil, sourceCommandRefused("The retention command does not name the current original connection")
 	}
-	if previous != nil {
-		if previous.source != nil {
-			if r.physicalSourceHasRoutesLocked(*previous.source) {
-				return nil, sourceCommandRefused("A previous retained physical connection still owns routes")
-			}
-		}
-		r.stopGRExpiryLocked(previous)
-	}
-	current := &peerGRState{source: &source}
+	earlier := r.earlierRetainedLocked(previous)
+	r.stopGRExpiryLocked(previous)
+	current := &peerGRState{source: &source, earlier: earlier}
 	r.grState[source.owner] = current
 	return current, nil
 }
@@ -202,6 +261,10 @@ func (r *RIBManager) removePhysicalSource(source ribPhysicalSource, selected *fa
 			delete(r.grState, source.owner)
 			delete(r.retainedPeers, source.owner)
 		}
+	}
+	if complete {
+		// A released earlier connection is no longer part of the cycle.
+		state.forgetEarlier(source)
 	}
 	if routes := r.bgpPeers[source.owner]; routes != nil {
 		if routes.Len() == 0 {

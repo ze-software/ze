@@ -2,6 +2,28 @@
   {
     "rid": "RFC9494-4.2-3",
     "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/gr/rfc9494_llgr_consecutive_rib_test.go::TestRFC9494ConsecutiveRestartExpiryDeletesEveryConnectionsRoutes",
+    "unit-sha": "4246e5ce08c04122",
+    "claim-sha": "a7ec15290be2b9f6",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/gr/gr_consecutive.go::grPlugin.dispatchRetained",
+    "producer-sha": "ea6094d0fc0e5043",
+    "break": "body of grPlugin.dispatchRetained replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9494-4.2-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/gr/rfc9494_llgr_consecutive_rib_test.go::TestRFC9494ConsecutiveRestartExpiryDeletesEveryConnectionsRoutes",
+    "unit-sha": "4246e5ce08c04122",
+    "claim-sha": "fb2b7739b1261cae",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/gr/gr_consecutive.go::grPlugin.dispatchRetained",
+    "producer-sha": "ea6094d0fc0e5043",
+    "break": "body of grPlugin.dispatchRetained replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9494-4.2-3",
+    "polarity": "positive",
     "unit": "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494DelayedDownPreservesLLSTDeadlines",
     "unit-sha": "13d82eebe099a8c7",
     "claim-sha": "72f66edb8f5ecdb7",

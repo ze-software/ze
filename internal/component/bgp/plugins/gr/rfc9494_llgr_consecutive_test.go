@@ -66,10 +66,28 @@ func TestRFC9494ConsecutiveRestartPreservesLLGRStaleRoutes(t *testing.T) {
 			cmds = nil
 			mu.Unlock()
 
-			// Advance 4s, then trigger a consecutive session drop before LLST expires.
+			// Advance 4s. The peer then reconnects on a new connection, 42, and that
+			// connection drops before End-of-RIB and before LLST expires: a second
+			// DOWN of connection 41 itself cannot happen. cmds was cleared above,
+			// before connection 42 comes up, so the reconnect is checked too.
 			<-time.After(4 * time.Second)
 			synctest.Wait()
-			rfc9494Down(t, gp, true)
+			src42 := grFixtureSource(t, testPeer, 701, 42)
+			gp.peerCaps[701] = &grPeerCap{connectionID: 42, Families: []grCapFamily{famIPv4}}
+			gp.peerLLGRCaps[701] = &llgrPeerCap{
+				connectionID: 42,
+				Families:     []llgrCapFamily{{Family: family.IPv4Unicast, ForwardState: true, LLST: 10}},
+			}
+			declareLocalLLGR(gp, src42, family.IPv4Unicast)
+			require.NoError(t, gp.handleStructuredEvent(&rpc.StructuredEvent{
+				PeerAddress: testPeer, PeerOwner: 701, ConnectionID: 42,
+				EventType: rpc.EventKindState, State: rpc.SessionStateUp,
+			}))
+			synctest.Wait()
+			require.NoError(t, gp.handleStructuredEvent(&rpc.StructuredEvent{
+				PeerAddress: testPeer, PeerOwner: 701, ConnectionID: 42,
+				EventType: rpc.EventKindState, State: rpc.SessionStateDown, Reason: rpc.ReasonTCPFailure,
+			}))
 			synctest.Wait()
 
 			mu.Lock()
@@ -77,10 +95,15 @@ func TestRFC9494ConsecutiveRestartPreservesLLGRStaleRoutes(t *testing.T) {
 			mu.Unlock()
 			for _, c := range duringDrop {
 				assert.NotContains(t, c, "purge-stale", "consecutive drop during LLGR must not purge LLGR-stale routes")
-				assert.NotContains(t, c, "mark-stale", "consecutive drop must not downgrade already-LLGR family to level 1")
+				// RFC 4724 Section 4.2 requires the routes connection 42 delivered
+				// to be marked stale; the mark must be the LLGR level, never level 1.
+				if strings.Contains(c, "mark-stale") {
+					assert.Contains(t, c, "stale-level 2", "consecutive drop must not downgrade already-LLGR family to level 1")
+				}
 			}
 			assert.True(t, gp.state.peerActive(src))
-			assert.True(t, gp.state.familyRetained(src, family.IPv4Unicast))
+			// The retained cycle is addressed by the connection that ended last.
+			assert.True(t, gp.state.familyRetained(src42, family.IPv4Unicast))
 
 			// Negative: once the remaining 6s of the original 10s LLST elapse, purge-stale fires.
 			<-time.After(6 * time.Second)
@@ -95,6 +118,8 @@ func TestRFC9494ConsecutiveRestartPreservesLLGRStaleRoutes(t *testing.T) {
 				}
 			}
 			assert.True(t, hasPurge, "LLST expiry must purge ipv4/unicast stale routes")
+			assert.Contains(t, afterExpiry, "request bgp rib source purge-stale owner 701 connection 41 family ipv4/unicast",
+				"LLST expiry must reach the stale routes connection 41 delivered")
 			assert.False(t, gp.state.peerActive(src))
 		})
 	})
@@ -106,8 +131,12 @@ func TestRFC9494ConsecutiveRestartPreservesLLGRStaleRoutes(t *testing.T) {
 			require.True(t, plan1.activated)
 			require.False(t, plan1.purgeAllPrevious)
 
-			// Second drop without LLGR must purge the prior conventional-GR stale routes.
-			plan2 := mgr.onSessionDownPlan(grFixtureSource(t, testPeer, 701, 41), testCap(120, famIPv4), nil, false)
+			// The peer reconnects on connection 42, which drops before End-of-RIB.
+			// That second drop, without LLGR, must purge the prior conventional-GR
+			// stale routes.
+			_, purged, _ := mgr.onSessionReestablished(grFixtureSource(t, testPeer, 701, 42), testCap(120, famIPv4), nil)
+			require.Empty(t, purged)
+			plan2 := mgr.onSessionDownPlan(grFixtureSource(t, testPeer, 701, 42), testCap(120, famIPv4), nil, false)
 			require.True(t, plan2.activated)
 			assert.True(t, plan2.purgeAllPrevious, "conventional GR consecutive restart must purge prior stale routes")
 			mgr.removePeer(grFixtureSource(t, testPeer, 701, 41).grPeer)

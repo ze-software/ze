@@ -86,22 +86,45 @@ func TestGROwnerEventsKeepSameAddressSibling(t *testing.T) {
 }
 
 // Timer.Stop cannot retract an already running callback. Hold that captured
-// callback, run the actual reconnect transition, then release its old body.
+// callback for a family whose LLST timer is stopped on reconnect (purged
+// because the new LLGR capability omits it while a sibling family keeps the
+// peer state alive), run the actual reconnect transition, then release its old
+// body. Under RFC 9494 Section 4.2, surviving families keep their LLST timers
+// running until EOR, whereas purged families have their timers stopped on
+// reconnect; a queued callback from a stopped timer must be a no-op.
 // MUTATION: omit the active-family LLST callback check after reconnect.
 func TestGRReconnectRevokesQueuedLLSTCallback(t *testing.T) {
 	source, err := newGRSource("192.0.2.241", 1231, 2231)
 	require.NoError(t, err)
 	manager := newGRStateManager(nil)
-	gr := &grPeerCap{connectionID: source.connectionID, Families: []grCapFamily{{Family: family.IPv4Unicast, ForwardState: true}}}
-	llgr := &llgrPeerCap{connectionID: source.connectionID, Families: []llgrCapFamily{{Family: family.IPv4Unicast, ForwardState: true, LLST: 3600}}}
+	var expiredCalls []family.Family
+	manager.onLLGRFamilyExpired = func(_ grSource, fam family.Family) {
+		expiredCalls = append(expiredCalls, fam)
+	}
+	gr := &grPeerCap{
+		connectionID: source.connectionID,
+		Families: []grCapFamily{
+			{Family: family.IPv4Unicast, ForwardState: true},
+			{Family: family.IPv6Unicast, ForwardState: true},
+		},
+	}
+	llgr := &llgrPeerCap{
+		connectionID: source.connectionID,
+		Families: []llgrCapFamily{
+			{Family: family.IPv4Unicast, ForwardState: true, LLST: 3600},
+			{Family: family.IPv6Unicast, ForwardState: true, LLST: 3600},
+		},
+	}
 	require.True(t, manager.onSessionDown(source, gr, llgr, false))
 	state := manager.peers[source.owner]
 	require.Contains(t, state.llgrFamilies, family.IPv4Unicast)
+	require.Contains(t, state.llgrFamilies, family.IPv6Unicast)
 	t.Cleanup(func() { manager.removePeer(source.grPeer) })
 	entered, release, joined := make(chan struct{}), make(chan struct{}), make(chan struct{})
 	var once sync.Once
 	t.Cleanup(func() { once.Do(func() { close(release) }); <-joined })
-	// A one-shot test timer holds the exact production callback's captured cycle.
+	// A one-shot test timer holds the exact production callback's captured cycle
+	// for ipv4/unicast, which reconnect will purge and stop.
 	time.AfterFunc(0, func() {
 		close(entered)
 		<-release
@@ -116,16 +139,24 @@ func TestGRReconnectRevokesQueuedLLSTCallback(t *testing.T) {
 	fresh, err := newGRSource(source.peer(), source.owner, 2232)
 	require.NoError(t, err)
 	successorGR := &grPeerCap{connectionID: fresh.connectionID, Families: gr.Families}
-	successorLLGR := &llgrPeerCap{connectionID: fresh.connectionID, Families: llgr.Families}
+	// Omit ipv4/unicast from successor LLGR so reconnect stops its LLST timer
+	// and purges it while keeping ipv6/unicast (and its running LLST timer)
+	// retained on the peer state per RFC 9494 Section 4.2.
+	successorLLGR := &llgrPeerCap{
+		connectionID: fresh.connectionID,
+		Families:     []llgrCapFamily{{Family: family.IPv6Unicast, ForwardState: true, LLST: 3600}},
+	}
 	_, purged, _ := manager.onSessionReestablished(fresh, successorGR, successorLLGR)
-	require.Empty(t, purged)
-	require.Empty(t, state.llgrFamilies)
+	require.Equal(t, []family.Family{family.IPv4Unicast}, purged)
+	require.NotContains(t, state.llgrFamilies, family.IPv4Unicast)
+	require.Contains(t, state.llgrFamilies, family.IPv6Unicast)
 	once.Do(func() { close(release) })
 	select {
 	case <-joined:
 	case <-t.Context().Done():
 		t.Fatal("captured LLST callback did not join")
 	}
+	require.Empty(t, expiredCalls, "a canceled old timer cannot fire LLGR family expiry after reconnect")
 	require.True(t, manager.peerActive(source), "a canceled old timer cannot discard the retained reconnect survivor")
-	require.Equal(t, []family.Family{family.IPv4Unicast}, manager.retainedFamilies(source))
+	require.Equal(t, []family.Family{family.IPv6Unicast}, manager.retainedFamilies(source))
 }

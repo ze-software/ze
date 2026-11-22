@@ -35,7 +35,11 @@ those identifiers do not mint source rights. A release or purge command's
 success joins the original captured output and source lease release. Partial
 mutation followed by a failed join is an error with completion still owed, not
 successful cleanup; the replacement physical connection cannot settle it.
-<!-- source: internal/component/bgp/plugins/rib/rib_source_commands.go -- ribSourceCommands -->
+The `retain-routes` answer carries `earlier-connections`: the earlier
+connections of the same Peer whose routes stay retained beside the named one
+after a consecutive restart, as decimal strings, empty for a first restart.
+GR addresses each of them with its own purge and release.
+<!-- source: internal/component/bgp/plugins/rib/rib_source_commands.go -- ribSourceCommands, retainedSourceAnswer -->
 <!-- source: internal/component/bgp/plugins/rib/rib_source_mutation.go -- removePhysicalSource -->
 
 **Purpose:** Document Ze's plugin communication protocol and process lifecycle.
