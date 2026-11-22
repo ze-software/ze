@@ -1,5 +1,5 @@
 // Design: docs/guide/gnmi.md -- TLS: the transport serves TLS or nothing
-// Related: tls.go -- tlsRestart, the restart every TLS fix line ends on
+// Related: tls.go -- thenRestart, the restart every TLS fix line ends on
 
 package gnmi
 

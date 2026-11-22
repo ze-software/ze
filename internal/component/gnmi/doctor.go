@@ -112,7 +112,7 @@ func gnmiTLSRefusalFinding(err error) diagnostic.Diagnostic {
 			Code:     CodeDoctorGNMITLSMaterial,
 			Severity: diagnostic.SeverityError,
 			Message:  "gNMI not started: its TLS material does not load: " + err.Error(),
-			Fix:      "point " + tlsCertSetting + " and " + tlsKeySetting + " at a readable PEM pair" + tlsRestart(),
+			Fix:      "point " + tlsCertSetting + " and " + tlsKeySetting + " at a readable PEM pair" + thenRestart(),
 		}
 	}
 	var help textbuf.Buffer
@@ -144,14 +144,14 @@ func gnmiTLSExpiryFindings(certFile string) []diagnostic.Diagnostic {
 			Message:  "gNMI TLS certificate file " + certFile + " cannot be read",
 			Help:     tlsNoClearText + ": " + err.Error(),
 			Path:     certFile,
-			Fix:      "restore " + certFile + " or point " + tlsCertSetting + " at a readable PEM file" + tlsRestart(),
+			Fix:      "restore " + certFile + " or point " + tlsCertSetting + " at a readable PEM file" + thenRestart(),
 		}}
 	}
 	diags := diagnostic.DoctorCertExpiry(gnmiDoctorService, certFile, certPEM)
 	for i := range diags {
 		diags[i].Code = CodeDoctorGNMITLSMaterial
 		diags[i].Fix = "replace " + certFile + " with a certificate inside its validity window, or point " +
-			tlsCertSetting + " at one" + tlsRestart()
+			tlsCertSetting + " at one" + thenRestart()
 	}
 	return diags
 }

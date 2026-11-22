@@ -45,7 +45,7 @@ func (s *Server) Set(ctx context.Context, req *gpb.SetRequest) (*gpb.SetResponse
 		return nil, status.Error(codes.PermissionDenied, opererr.New(
 			"read-only gNMI caller cannot modify configuration without authentication",
 			"this gNMI server has no token, so it serves reads only, and only on loopback",
-			"set environment gnmi token <token>, commit, then run ze signal restart",
+			"set environment gnmi token <token>, commit"+thenRestart(),
 		).Error())
 	}
 

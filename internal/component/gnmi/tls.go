@@ -16,19 +16,21 @@ import (
 // The fix lines name both spellings of each setting: the config leaf and the
 // environment variable that overrides it (hub service_gnmi.go reads both).
 // Serve reads the files once, when gNMI starts, so the change takes a restart
-// (tlsRestart).
+// (thenRestart).
 const (
 	tlsCertSetting = "environment gnmi tls cert (or ze.gnmi.tls.cert)"
 	tlsKeySetting  = "environment gnmi tls key (or ze.gnmi.tls.key)"
 	tlsNoClearText = "the config asks gNMI for TLS, and gNMI never serves its token and config in clear text"
 )
 
-// tlsRestart answers the tail of every TLS fix line: the restart that makes
-// Serve read the files again. `ze signal restart` exits without starting a new
-// process, so privilege.RestartRemedy words the restart for this process:
-// systemctl only under ze.service, the stop-and-start steps otherwise. Safe
-// for concurrent use.
-func tlsRestart() string {
+// thenRestart answers the tail of every fix line whose change gNMI reads only
+// when it starts: the TLS files Serve loads, and the token Set's read-only
+// refusal asks for (gNMI is built once at daemon start, and a reload does not
+// rebuild it). `ze signal restart` exits without starting a new process, so
+// privilege.RestartRemedy words the restart for this process: systemctl only
+// under ze.service, the stop-and-start steps otherwise. Safe for concurrent
+// use.
+func thenRestart() string {
 	return ", then restart ze: " + privilege.RestartRemedy()
 }
 
@@ -45,13 +47,13 @@ func loadTLSCredentials(certFile, keyFile string) (credentials.TransportCredenti
 		return nil, opererr.New(
 			"gNMI not started: TLS key file "+keyFile+" is set without a certificate file",
 			tlsNoClearText+", and TLS needs both files",
-			"set "+tlsCertSetting+" to the certificate of that key"+tlsRestart())
+			"set "+tlsCertSetting+" to the certificate of that key"+thenRestart())
 	}
 	if keyFile == "" {
 		return nil, opererr.New(
 			"gNMI not started: TLS certificate file "+certFile+" is set without a key file",
 			tlsNoClearText+", and TLS needs both files",
-			"set "+tlsKeySetting+" to the private key of that certificate"+tlsRestart())
+			"set "+tlsKeySetting+" to the private key of that certificate"+thenRestart())
 	}
 
 	certPEM, err := os.ReadFile(certFile) //nolint:gosec // operator-configured certificate path
@@ -59,14 +61,14 @@ func loadTLSCredentials(certFile, keyFile string) (credentials.TransportCredenti
 		return nil, opererr.Wrap(err,
 			"gNMI not started: TLS certificate file "+certFile+" cannot be read",
 			tlsNoClearText,
-			"restore "+certFile+" or point "+tlsCertSetting+" at a readable PEM file"+tlsRestart())
+			"restore "+certFile+" or point "+tlsCertSetting+" at a readable PEM file"+thenRestart())
 	}
 	keyPEM, err := os.ReadFile(keyFile) //nolint:gosec // operator-configured private-key path
 	if err != nil {
 		return nil, opererr.Wrap(err,
 			"gNMI not started: TLS key file "+keyFile+" cannot be read",
 			tlsNoClearText,
-			"restore "+keyFile+" or point "+tlsKeySetting+" at a readable PEM file"+tlsRestart())
+			"restore "+keyFile+" or point "+tlsKeySetting+" at a readable PEM file"+thenRestart())
 	}
 
 	cert, err := tls.X509KeyPair(certPEM, keyPEM)
@@ -75,7 +77,7 @@ func loadTLSCredentials(certFile, keyFile string) (credentials.TransportCredenti
 			"gNMI not started: TLS certificate file "+certFile+" and key file "+keyFile+" are not a valid pair",
 			tlsNoClearText,
 			"replace them with a PEM certificate and its matching private key, or correct "+
-				tlsCertSetting+" and "+tlsKeySetting+tlsRestart())
+				tlsCertSetting+" and "+tlsKeySetting+thenRestart())
 	}
 	return credentials.NewTLS(&tls.Config{
 		Certificates: []tls.Certificate{cert},

@@ -264,7 +264,13 @@ configuration valid: router.conf
 
 Warnings:
   warning: peer transit-a: RFC 8212: this EBGP peer has no import policy, so Ze uses none of the routes it receives from it; to exchange routes, run `set bgp peer transit-a filter import final accept`, then `commit now`
+    fix: set bgp peer transit-a filter import final accept
 ```
+
+Every finding that carries a fix prints it on a line of its own under the
+message, after `fix:`. A finding that also says why it matters prints that line
+first, as an operator error does: problem, why, then the fix.
+<!-- source: internal/component/config/cli/cmd_validate.go -- writeFindingDetail -->
 
 Validation also warns when an IBGP peer has an eligible ordinary selecting
 owner and no export policy. Ze sends that peer no routes learned from other
@@ -1082,12 +1088,14 @@ would start it again, because the late cleanup would remove what a new process
 registered under the same name. Once the call returns, the restart works
 again. A call that never returns ends only when ze restarts, so the answer and
 the `doctor-plugin-stopped` row name the restart once the call has returned,
-and `ze signal restart` if it never does.
+and a restart of the ze daemon if it never does: `sudo systemctl restart ze`
+only when ze runs under ze.service, otherwise `ze signal stop`, then a start
+the way ze was started.
 
 Each refusal the command itself answers says why and names the command that
 helps: `ze show doctor`, except for the missing server (`ze start`), a pending
 removal (`ze request reload`), an unfinished cleanup (the restart once the
-call has returned, or `ze signal restart`), and a self-restart or a
+call has returned, or that restart of the ze daemon), and a self-restart or a
 transaction in flight, which name the same restart command to run again.
 
 In the interactive CLI (SSH and `ze cli`), Tab after `request plugin restart`

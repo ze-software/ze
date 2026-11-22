@@ -16,6 +16,7 @@ import (
 
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	yangloader "github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/core/privilege"
 )
 
 // TestCheckAuthRefusalsNameReasonAndFix: every Unauthenticated answer says what
@@ -78,20 +79,56 @@ func TestCheckAuthRefusalsNameReasonAndFix(t *testing.T) {
 
 // TestSetRefusalWithoutTokenNamesRestart: a tokenless server refuses Set, and
 // its fix says the token takes effect only after a restart, because a reload
-// does not rebuild gNMI.
+// does not rebuild gNMI. The restart is the one for this process:
+// `sudo systemctl restart ze` under ze.service, and the stop-and-start steps
+// (ze signal stop, then ze start) for a ze started another way, with no
+// systemctl. Neither names `ze signal restart`, which exits without starting a
+// new process.
 //
-// VALIDATES: the read-only refusal names the whole fix.
+// VALIDATES: the read-only refusal names the whole fix, under each membership
+// fixed through privilege.SetServiceMembershipForTest.
 // PREVENTS: an operator setting the token, committing, and meeting the same
-// refusal with no hint that gNMI still runs with the boot settings.
+// refusal with no hint that gNMI still runs with the boot settings; and an
+// operator whose ze runs outside a supervisor told to run a command that stops
+// ze and leaves it stopped.
 func TestSetRefusalWithoutTokenNamesRestart(t *testing.T) {
-	srv := NewServer(Config{ListenAddr: "127.0.0.1:0"},
-		treeFunc(zeconfig.NewTree()), nil, yangloader.DefaultLoader, nil)
-	_, err := srv.Set(t.Context(), &gpb.SetRequest{})
-	st, ok := status.FromError(err)
-	if !ok || st.Code() != codes.PermissionDenied {
-		t.Fatalf("Set = %v, want PermissionDenied", err)
+	refusal := func(t *testing.T) string {
+		t.Helper()
+		srv := NewServer(Config{ListenAddr: "127.0.0.1:0"},
+			treeFunc(zeconfig.NewTree()), nil, yangloader.DefaultLoader, nil)
+		_, err := srv.Set(t.Context(), &gpb.SetRequest{})
+		st, ok := status.FromError(err)
+		if !ok || st.Code() != codes.PermissionDenied {
+			t.Fatalf("Set = %v, want PermissionDenied", err)
+		}
+		return st.Message()
 	}
-	if !strings.HasSuffix(st.Message(), "fix: set environment gnmi token <token>, commit, then run ze signal restart") {
-		t.Errorf("message = %q, want the token-then-restart fix on its last line", st.Message())
-	}
+
+	t.Run("ze.service", func(t *testing.T) {
+		t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipZeService, nil))
+		const want = "fix: set environment gnmi token <token>, commit, then restart ze: sudo systemctl restart ze"
+		if msg := refusal(t); !strings.HasSuffix(msg, want) {
+			t.Errorf("message = %q, want the token-then-restart fix %q on its last line", msg, want)
+		}
+	})
+	t.Run("other", func(t *testing.T) {
+		t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipOther, nil))
+		msg := refusal(t)
+		lines := strings.Split(msg, "\n")
+		fix := lines[len(lines)-1]
+		if !strings.HasPrefix(fix, "fix: set environment gnmi token <token>, commit, then restart ze: ") {
+			t.Errorf("message = %q, want the token-then-restart fix on its last line", msg)
+		}
+		if strings.Contains(msg, "systemctl") {
+			t.Errorf("outside ze.service the message names systemctl: %q", msg)
+		}
+		if strings.Contains(msg, "ze signal restart") {
+			t.Errorf("the message names ze signal restart, which leaves ze stopped: %q", msg)
+		}
+		for _, want := range []string{"ze signal stop", "ze start"} {
+			if !strings.Contains(fix, want) {
+				t.Errorf("outside ze.service the fix does not name %q: %q", want, fix)
+			}
+		}
+	})
 }

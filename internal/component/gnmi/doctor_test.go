@@ -93,7 +93,7 @@ func TestGNMITLSMaterial(t *testing.T) {
 		if diags[0].Message != refusal.Problem() {
 			t.Errorf("message = %q, want the refusal's problem %q", diags[0].Message, refusal.Problem())
 		}
-		if !strings.HasSuffix(diags[0].Fix, tlsRestart()) {
+		if !strings.HasSuffix(diags[0].Fix, thenRestart()) {
 			t.Errorf("fix %q does not end on the restart", diags[0].Fix)
 		}
 	})
