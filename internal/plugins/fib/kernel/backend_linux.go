@@ -18,11 +18,11 @@ import (
 	"net"
 	"net/netip"
 
-	"github.com/ze-software/ze/internal/component/kernelcap"
-	"github.com/ze-software/ze/internal/core/rtproto"
-
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/component/kernelcap"
+	"github.com/ze-software/ze/internal/core/rtproto"
 )
 
 // rtprotZE is the custom rtm_protocol ID used for FIB-kernel routes.
@@ -30,9 +30,31 @@ import (
 // RFC 3549 Section 3.1.1: protocol field in rtmsg.
 const rtprotZE = rtproto.FIBKernel
 
+// netlinkHandle is the subset of *netlink.Handle used by netlinkBackend.
+// *netlink.Handle satisfies it directly; unit tests substitute a fake to drive
+// kernel errnos (such as EOPNOTSUPP on a kernel without CONFIG_IPV6_SEG6_LWTUNNEL)
+// without privilege.
+type netlinkHandle interface {
+	replayRouteOperations
+	RouteAdd(route *netlink.Route) error
+	RouteReplace(route *netlink.Route) error
+	RouteDel(route *netlink.Route) error
+	RouteList(link netlink.Link, family int) ([]netlink.Route, error)
+	RouteListFiltered(family int, filter *netlink.Route, filterMask uint64) ([]netlink.Route, error)
+	RouteGetWithOptions(destination net.IP, options *netlink.RouteGetOptions) ([]netlink.Route, error)
+	LinkByName(name string) (netlink.Link, error)
+	LinkByIndex(index int) (netlink.Link, error)
+	RuleList(family int) ([]netlink.Rule, error)
+	RuleAdd(rule *netlink.Rule) error
+	RuleDel(rule *netlink.Rule) error
+	Close()
+}
+
+var _ netlinkHandle = (*netlink.Handle)(nil)
+
 // netlinkBackend programs routes via Linux netlink.
 type netlinkBackend struct {
-	handle   *netlink.Handle
+	handle   netlinkHandle
 	contexts mplsContextState
 	// transitMTU is the kernel's answer to whether an AF_MPLS route may carry
 	// a path MTU. Guarded by contexts.mu; Unspecified until the first transit
@@ -122,7 +144,7 @@ func ownedRouteKey(prefix string, tableID uint32) (*netlink.Route, error) {
 // withdraw sysrib sends next finds nothing. The route is gone, which is what
 // the withdraw asked for, so reporting fib-sync-failure for it would be false
 // (the precedent is the mpls context route removal in mplscontext_linux.go).
-func delOwnedRoute(h *netlink.Handle, route *netlink.Route) error {
+func delOwnedRoute(h netlinkHandle, route *netlink.Route) error {
 	if err := h.RouteDel(route); err != nil && !errors.Is(err, unix.ESRCH) {
 		return err
 	}

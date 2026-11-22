@@ -1286,20 +1286,28 @@ throwaway container and reads its answer:
 
 ```bash
 docker run --rm --cap-add NET_ADMIN --cap-add SYS_ADMIN --network none \
+  --device /dev/net/tun \
   -v <staged ze>:/ze:ro alpine:3.24.3 /ze doctor --json kernel-capabilities
 ```
 
 `ze doctor kernel-capabilities` probes every capability a package enrolls in
 `internal/component/kernelcap`, with configuration ignored
-(`docs/architecture/doctor-and-health-checks.md`). A capability enrolled later
-is required of every Docker host with no le change. `NET_ADMIN` lets the
-netlink probes ask; `SYS_ADMIN` lets the xfrm-interface probe unshare a network
-namespace. Without it that row reads `unknown`, which also refuses.
+(`docs/architecture/doctor-and-health-checks.md`). New capability enrollments
+are picked up automatically from that output, while container device grants stay
+in `kernelProbeContainer`. `NET_ADMIN` lets the netlink probes ask, and
+`SYS_ADMIN` lets namespace probes unshare a network namespace.
+`TUNDeviceArguments` (`--device /dev/net/tun`, from
+`internal/le/interoplab/tundevice.go`) lets the SRv6 behavioral probe open a TUN
+device inside Docker. Without those grants a probe answers `unknown`, which also
+refuses.
+
+<!-- source: internal/le/interoplab/kernelcheck.go -- kernelProbeContainer -->
+<!-- source: internal/le/interoplab/tundevice.go -- TUNDeviceArguments -->
 
 On a daemon whose `docker info` security options list `name=apparmor`, the
 probe container runs under Ze's AppArmor profile instead of `docker-default`
-(`--security-opt apparmor=ze-kernel-probe`): docker-default denies the MPLS
-transit MTU probe's mount and its `/proc/sys` write, and that row would read
+(`--security-opt apparmor=ze-kernel-probe`): docker-default denies the namespace
+probes' private `/proc/sys` mount and sysctl writes, and those rows would read
 `denied` (owner D-7: the host is set up for Ze, never unconfined). On a Linux
 client whose `/sys/kernel/security/apparmor/profiles` lacks the profile, the
 check refuses before any container starts and names
@@ -1402,7 +1410,7 @@ grants ze and its LAC the same two and FreeRADIUS neither.
 
 The `/dev/ppp` half of those preflights is declared once, in
 `internal/le/interoplab/pppdevice.go`, because the Docker host kernel check
-below cannot see a character device. Each lab still runs one preflight
+below passes only `/dev/net/tun` and does not attach `/dev/ppp`. Each lab still runs one preflight
 container: it puts `PPPDeviceProbe` (the line printing `DEV_PPP=ok` or
 `DEV_PPP=missing`) first in its `sh -c` command and adds its own probes, parses
 the output with `ParsePreflight`, takes the device entry of its refusal from
@@ -1413,9 +1421,10 @@ only when Docker's stderr names `/dev/ppp`.
 
 <!-- source: internal/le/interoplab/pppdevice.go -- PPPDeviceArguments, PPPDeviceProbe, ParsePreflight, PPPDeviceMissing, PPPPreflightRunRefusal -->
 
-The TUN clone device every lab Ze running IPsec holds is declared once too,
-as `TUNDevice` and `TUNDeviceArguments` in `internal/le/interoplab/tundevice.go`;
-the IPsec lab's ze and the home-CPE lab's CPE take it from there. It has no
+The TUN clone device is declared once too, as `TUNDevice` and
+`TUNDeviceArguments` in `internal/le/interoplab/tundevice.go`. The kernel probe
+container (`kernelProbeContainer`), the IPsec lab's ze, and the home-CPE lab's
+CPE all take it from there. It has no
 preflight: Ze's kernel builds `tun` in (`CONFIG_TUN=y`,
 `gokrazy/kernel/runtime.config`), so a Docker host on Ze's kernel always has
 the node, and on any other host Docker refuses the container start with an

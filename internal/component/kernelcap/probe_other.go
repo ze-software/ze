@@ -3,9 +3,10 @@
 // Design: docs/architecture/doctor-and-health-checks.md -- the kernel capability tier
 // Overview: probe.go -- the shared /proc root and the forced-answer override
 //
-// XFRM and AF_MPLS are Linux dataplanes. Off Linux ze installs neither, so no
-// capability enrolls here (the owners' registration files are Linux-only) and
-// these probes exist for the readers that ask outside the enrolment.
+// XFRM, AF_MPLS and seg6 LWTUNNEL are Linux dataplanes. Off Linux ze installs
+// none of them, so no capability enrolls here (the owners' registration files
+// are Linux-only) and these probes exist for the readers that ask outside the
+// enrolment.
 //
 // The answer is cannot-determine rather than absent. Absent is a refusal, and
 // refusing a developer's `ze` on a laptop for a kernel table this build never
@@ -32,5 +33,15 @@ func MPLS() Result {
 
 // MPLSIPMTU reports cannot-determine off Linux.
 func MPLSIPMTU() Result {
+	return Result{State: StateUnknown, Reason: errNotLinux}
+}
+
+// SRv6Encap reports cannot-determine off Linux.
+func SRv6Encap() Result {
+	return Result{State: StateUnknown, Reason: errNotLinux}
+}
+
+// SRv6ForwardTTL reports cannot-determine off Linux.
+func SRv6ForwardTTL() Result {
 	return Result{State: StateUnknown, Reason: errNotLinux}
 }

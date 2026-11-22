@@ -310,17 +310,33 @@ Routes with SRv6 SID are installed with SEG6 lightweight tunnel encapsulation:
 ip route add <prefix> via <nexthop> encap seg6 mode encap segs <SID>
 ```
 
-Implemented via `netlink.SEG6Encap` in `buildRichRoute`. A valid SRv6 Service SID
-selects IPv6 encapsulation even when the NLRI carries labels. Those fields can
-contain transposed SID bits and are not MPLS forwarding labels.
+Implemented with `netlink.SEG6Encap` in `buildRichRoute` and `buildSEG6Encap`. A
+valid SRv6 Service SID selects IPv6 encapsulation even when the NLRI carries
+labels. Those fields can contain transposed SID bits and are not MPLS forwarding
+labels.
+<!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- buildRichRoute, buildSEG6Encap -->
 
-The kernel needs `CONFIG_IPV6_SEG6_LWTUNNEL`. Ze's runtime kernel builds it in,
-and `gokrazy/kernel/runtime.require` fails the kernel build if it stops
-resolving to `=y`. A kernel without it refuses the install with EOPNOTSUPP.
-Linux's seg6 encapsulation does not lower the inner TTL or Hop Limit, which
-RFC 8986 Section 5.1 H.Encaps requires; that gap is open.
-<!-- source: gokrazy/kernel/runtime.config -- CONFIG_IPV6_SEG6_LWTUNNEL -->
-<!-- source: gokrazy/kernel/runtime.require -- CONFIG_IPV6_SEG6_LWTUNNEL -->
+The kernel needs `CONFIG_IPV6_SEG6_LWTUNNEL`. Ze's runtime kernel builds it in
+and carries `gokrazy/kernel/patches/0014-seg6-forward-ttl.patch`
+(`CONFIG_IPV6_SEG6_FORWARD_TTL=y`), and `gokrazy/kernel/runtime.require` pins
+both. On Ze's kernel, forwarded packets traverse `ip_forward` or `ip6_forward`
+before encapsulation. The inner IPv4 TTL or IPv6 Hop Limit decrements once
+(RFC 8986 Section 5.1 H.Encaps S05), and expiry at 1 returns ICMP Time
+Exceeded.
+
+On a stock kernel with seg6 but without patch 0014, forwarded packets leave with
+their inner TTL or Hop Limit unchanged (`LL-SEG6-HEADEND-NO-TTL-DECREMENT` in
+`docs/architecture/linux-limitations.md`). `ze doctor` reports that gap as a
+warning under `doctor-srv6-forward-ttl-not-decremented`, and reports missing
+`CONFIG_IPV6_SEG6_LWTUNNEL` under `doctor-srv6-encap-unavailable`. On a kernel
+without `CONFIG_IPV6_SEG6_LWTUNNEL`, an install fails with an error naming the
+prefix, the missing option, and `ze doctor`.
+<!-- source: gokrazy/kernel/runtime.config -- CONFIG_IPV6_SEG6_LWTUNNEL, CONFIG_IPV6_SEG6_FORWARD_TTL -->
+<!-- source: gokrazy/kernel/runtime.require -- CONFIG_IPV6_SEG6_LWTUNNEL, CONFIG_IPV6_SEG6_FORWARD_TTL -->
+<!-- source: gokrazy/kernel/patches/0014-seg6-forward-ttl.patch -- seg6_build_state, CONFIG_IPV6_SEG6_FORWARD_TTL -->
+<!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- addRichRoute, replaceRichRoute, wrapSEG6InstallError -->
+<!-- source: internal/plugins/fib/kernel/kernelcap_linux.go -- srv6EncapCapability, srv6ForwardTTLCapability -->
+<!-- source: internal/plugins/fib/kernel/register_doctor_codes.go -- doctorDiagnosticCodes -->
 
 ### VPP
 

@@ -1,0 +1,102 @@
+# Test: ze doctor --json reports SRv6 kernel capability warnings on the kernel FIB
+# Spec: plan/post-release/kernel/spec-srv6-headend-decrements-inner-ttl.md AC-8, AC-9
+# VALIDATES: the fib-kernel plugin's two SRv6 kernel capability enrolments
+# (srv6-encap for CONFIG_IPV6_SEG6_LWTUNNEL; srv6-forward-ttl for
+# CONFIG_IPV6_SEG6_FORWARD_TTL) are reachable from the user entry point when
+# `fib { kernel { } }` and a BGP peer are configured, degrade at WARNING
+# severity (exit 0), name their kernel features and forced override, and are
+# skipped completely when no BGP block is configured.
+# PREVENTS: an unpatched stock kernel silently forwarding SRv6 packets without
+# decrementing the inner TTL/Hop Limit, or an unrelated non-BGP router being
+# probed or warned about SRv6.
+#
+# The probes are FORCED so both branches (absent and unknown) are reached on
+# any host regardless of its kernel. The enrolments are Linux-only
+# (internal/plugins/fib/kernel/kernelcap_linux.go), so off Linux ze doctor
+# emits no srv6-* row at all.
+#
+# environment/ntp is enabled so the exit code reflects only the checks under
+# test (on Ze's own system a disabled NTP client is doctor-clock-no-sync at
+# ERROR severity; an enabled client with no server reports nothing).
+option=needs-linux
+
+option=env:var=ze.test.kernelcap.force:value=srv6-forward-ttl=absent,srv6-encap=unknown
+
+tmpfs=srv6.conf:terminator=EOF_CONF
+fib {
+    kernel {
+    }
+}
+bgp {
+    filter {
+        import {
+            final accept
+        }
+        export {
+            final accept
+        }
+    }
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+    peer peer1 {
+        connection {
+            local {
+                ip 127.0.0.1
+            }
+            remote {
+                ip 192.0.2.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+            family {
+                ipv4/unicast {
+                    prefix {
+                        maximum 10000
+                    }
+                }
+            }
+        }
+    }
+}
+environment {
+    ntp {
+        enabled true
+    }
+}
+EOF_CONF
+
+tmpfs=no-bgp.conf:terminator=EOF_NO_BGP
+fib {
+    kernel {
+    }
+}
+environment {
+    ntp {
+        enabled true
+    }
+}
+EOF_NO_BGP
+
+cmd=foreground:seq=1:exec=ze doctor --json config srv6.conf
+expect=exit:code=0
+expect=stdout:contains=doctor-srv6-forward-ttl-not-decremented
+expect=stdout:contains=CONFIG_IPV6_SEG6_FORWARD_TTL
+expect=stdout:contains=LL-SEG6-HEADEND-NO-TTL-DECREMENT
+expect=stdout:contains=doctor-srv6-encap-unknown
+expect=stdout:contains=CONFIG_IPV6_SEG6_LWTUNNEL
+expect=stdout:contains=ze.test.kernelcap.force
+reject=stdout:contains=doctor-srv6-encap-unavailable
+
+cmd=foreground:seq=2:exec=ze doctor --json config no-bgp.conf
+expect=exit:code=0
+expect=stdout:contains="ready": true
+reject=stdout:contains=doctor-srv6-
+reject=stdout:contains=srv6-encap
+reject=stdout:contains=srv6-forward-ttl

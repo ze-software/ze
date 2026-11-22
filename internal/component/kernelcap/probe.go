@@ -1,6 +1,7 @@
 // Design: docs/architecture/doctor-and-health-checks.md -- the kernel capability tier
 // Overview: kernelcap.go -- the enrolment these probes answer for
 // Detail: probe_linux.go -- the native netlink and procfs reads
+// Detail: probe_srv6_linux.go -- the throwaway-namespace SRv6 TUN probe
 // Detail: probe_other.go -- the answer off Linux, where neither capability exists
 // Detail: probe_force_zetest.go -- the forced-answer variable, zetest builds only
 // Detail: probe_force_shipped.go -- a shipped build reads no forced answer
@@ -63,11 +64,46 @@ func ProcPath(parts ...string) string {
 	return filepath.Join(all...)
 }
 
+const (
+	procSysDir = "sys"
+	procNetDir = "net"
+)
+
 // MPLSPlatformLabelsPath names the sysctl the kernel creates when it holds an
 // AF_MPLS forwarding table. Exported so the fib kernel backend writes the same
 // path the probe reads.
 func MPLSPlatformLabelsPath() string {
-	return ProcPath("sys", "net", "mpls", "platform_labels")
+	return ProcPath(procSysDir, procNetDir, "mpls", "platform_labels")
+}
+
+// srv6IPv4ForwardPath names the IPv4 forwarding sysctl the SRv6 probe enables
+// inside its throwaway network namespace.
+func srv6IPv4ForwardPath() string {
+	return ProcPath(procSysDir, procNetDir, "ipv4", "ip_forward")
+}
+
+// srv6IPv6ForwardPath names the IPv6 forwarding sysctl the SRv6 probe enables
+// inside its throwaway network namespace so an unpatched kernel's seg6_input
+// path forwards the encapsulated outer IPv6 packet back out the TUN device.
+func srv6IPv6ForwardPath() string {
+	return ProcPath(procSysDir, procNetDir, "ipv6", "conf", "all", "forwarding")
+}
+
+// srv6IPv4SendRedirectsPath names the IPv4 redirect sysctl the SRv6 probe
+// disables inside its throwaway network namespace so single-TUN forwarding does
+// not emit ICMP redirects alongside the encapsulated probe packet.
+func srv6IPv4SendRedirectsPath() string {
+	return ProcPath(procSysDir, procNetDir, "ipv4", "conf", "all", "send_redirects")
+}
+
+// srv6ProbeSysctlPaths returns the three sysctl paths the SRv6 probe writes
+// inside its throwaway network namespace, in write order.
+func srv6ProbeSysctlPaths() []string {
+	return []string{
+		srv6IPv4ForwardPath(),
+		srv6IPv6ForwardPath(),
+		srv6IPv4SendRedirectsPath(),
+	}
 }
 
 // probe answers for one enrolled capability: the forced answer when the test

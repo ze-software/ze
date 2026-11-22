@@ -766,6 +766,44 @@ For a `library` entry, read the module in the module cache:
 
 <!-- source: internal/plugins/fib/kernel/mplsentry_linux.go -- transitRouteMTU, askTransitMTU -->
 
+### LL-SEG6-HEADEND-NO-TTL-DECREMENT
+
+- **Kind:** kernel
+- **Effect:** constrains design
+- **Status:** verified
+- **Checked:** Linux 7.3, 2026-11-22
+- **Limitation:** Stock Linux `seg6_build_state` sets
+  `LWTUNNEL_STATE_INPUT_REDIRECT` on L3 modes (`encap`, `encap.red`,
+  `inline`). Forwarded packets therefore bypass `ip_forward` and
+  `ip6_forward`. Packets leave with their inner IPv4 TTL or IPv6 Hop Limit
+  unchanged, and a packet with TTL or Hop Limit 1 is encapsulated instead of
+  answered with ICMP Time Exceeded.
+- **Blocks:** RFC 8986 Section 5.1 H.Encaps S05 ("Decrement inner IPv6 Hop
+  Limit or IPv4 TTL") on stock kernels.
+- **Evidence:** `net/ipv6/seg6_iptunnel.c` `seg6_build_state` sets
+  `newts->flags |= LWTUNNEL_STATE_INPUT_REDIRECT;` unconditionally before
+  checking the mode. `__seg6_do_srh_encap` carries the false comment
+  `"decapsulation will overwrite inner hlim with outer hlim"` (after
+  `"hlim will be decremented in ip6_forward() afterwards"`), while
+  `net/ipv6/seg6_local.c` contains no hop-limit overwrite.
+- **Re-check:** read `seg6_build_state` in `net/ipv6/seg6_iptunnel.c` at the
+  new kernel version. Lift this entry if L3 modes drop
+  `LWTUNNEL_STATE_INPUT_REDIRECT` or otherwise check and decrement the inner
+  TTL and send ICMP Time Exceeded. Then confirm whether
+  `gokrazy/kernel/patches/0014-seg6-forward-ttl.patch` still applies or is no
+  longer needed.
+- **Ze meanwhile:** Ze's runtime kernel carries
+  `gokrazy/kernel/patches/0014-seg6-forward-ttl.patch` with marker
+  `CONFIG_IPV6_SEG6_FORWARD_TTL=y` pinned in `gokrazy/kernel/runtime.require`.
+  The `fib-kernel` plugin enrolls degrading capabilities `srv6-encap` and
+  `srv6-forward-ttl`, probed behaviorally in a throwaway namespace
+  (`kernelcap.SRv6Encap`, `kernelcap.SRv6ForwardTTL`).
+
+<!-- source: gokrazy/kernel/patches/0014-seg6-forward-ttl.patch -- seg6_build_state, __seg6_do_srh_encap, CONFIG_IPV6_SEG6_FORWARD_TTL -->
+<!-- source: gokrazy/kernel/runtime.require -- CONFIG_IPV6_SEG6_FORWARD_TTL -->
+<!-- source: internal/plugins/fib/kernel/kernelcap_linux.go -- srv6EncapCapability, srv6ForwardTTLCapability -->
+<!-- source: internal/component/kernelcap/probe_srv6_linux.go -- SRv6Encap, SRv6ForwardTTL -->
+
 ### LL-IPV6-NO-RP-FILTER
 
 - **Kind:** kernel

@@ -36,12 +36,57 @@ with IPv4 gateways are rejected. An unusable member rejects the route update,
 so the kernel never receives a silently reduced group.
 
 The seg6 encapsulation needs `CONFIG_IPV6_SEG6_LWTUNNEL`, which Ze's runtime
-kernel builds in and its require manifest pins. A kernel without it refuses
-the route with EOPNOTSUPP from `lwtunnel_valid_encap_type`
-(`net/core/lwtunnel.c`, Linux 7.3).
+kernel builds in and `gokrazy/kernel/runtime.require` pins. A kernel without it
+refuses the route with `EOPNOTSUPP` from `lwtunnel_valid_encap_type`
+(`net/core/lwtunnel.c`, Linux 7.3). `addRichRoute` and `replaceRichRoute` pass
+install errors through `wrapSEG6InstallError`. On a Service SID route, it
+rewrites `EOPNOTSUPP` into an operator error naming the prefix,
+`CONFIG_IPV6_SEG6_LWTUNNEL`, and `ze doctor`. Non-SEG6 routes keep their
+original netlink error.
 
-<!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- buildSEG6Encap, buildRichRoute -->
-<!-- source: gokrazy/kernel/runtime.require -- CONFIG_IPV6_SEG6_LWTUNNEL -->
+<!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- buildSEG6Encap, buildRichRoute, addRichRoute, replaceRichRoute, wrapSEG6InstallError -->
+<!-- source: gokrazy/kernel/runtime.require -- CONFIG_IPV6_SEG6_LWTUNNEL, CONFIG_IPV6_SEG6_FORWARD_TTL -->
+
+On a stock Linux kernel, `seg6_build_state` sets `LWTUNNEL_STATE_INPUT_REDIRECT`
+on L3 modes, so forwarded packets skip `ip_forward` and `ip6_forward`
+(`LL-SEG6-HEADEND-NO-TTL-DECREMENT` in
+`docs/architecture/linux-limitations.md`). Ze's runtime kernel carries
+`gokrazy/kernel/patches/0014-seg6-forward-ttl.patch` (marker
+`CONFIG_IPV6_SEG6_FORWARD_TTL=y`), which sets only
+`LWTUNNEL_STATE_OUTPUT_REDIRECT` on L3 modes (`encap`, `encap.red`, `inline`)
+and keeps `LWTUNNEL_STATE_INPUT_REDIRECT` on L2 modes. Forwarded IPv4 and IPv6
+packets then pass through `ip_forward` or `ip6_forward` before
+`seg6_output_core`. They leave with their inner TTL or Hop Limit decremented
+once (RFC 8986 Section 5.1 S05). A packet with TTL or Hop Limit 1 returns ICMP
+Time Exceeded instead of encapsulation.
+
+Moving forwarded L3 traffic onto the forward path brings three effects. First,
+the first-SID lookup uses `ip6_route_output` (output routing with no ingress
+interface) instead of `ip6_route_input`. Second, the FORWARD netfilter hook and
+XFRM forward policy inspect the inner packet before encapsulation. Third,
+`ip_dst_mtu_maybe_forward` and `ip6_dst_mtu_maybe_forward` subtract the seg6
+headroom, so oversized DF-set IPv4 or IPv6 packets return ICMP Fragmentation
+Needed or Packet Too Big to the sender. Locally originated traffic already took
+`seg6_output` and owes no decrement (RFC 2473 Section 3.1).
+
+<!-- source: gokrazy/kernel/patches/0014-seg6-forward-ttl.patch -- seg6_build_state, __seg6_do_srh_encap, CONFIG_IPV6_SEG6_FORWARD_TTL -->
+
+`fib-kernel` enrolls two degrading kernel capabilities for SRv6: `srv6-encap`
+(`CONFIG_IPV6_SEG6_LWTUNNEL`) and `srv6-forward-ttl`
+(`CONFIG_IPV6_SEG6_FORWARD_TTL`). Both trigger when `SRv6InUse` sees
+`fib { kernel { } }` with at least one BGP peer or peer group. A shared
+behavioral probe (`kernelcap.SRv6Encap`, `kernelcap.SRv6ForwardTTL`) installs a
+seg6 route and forwards one marked packet through a TUN device in a throwaway
+namespace. `ze doctor` reports missing or unknown support as warnings under
+`doctor-srv6-encap-unavailable`, `doctor-srv6-encap-unknown`,
+`doctor-srv6-forward-ttl-not-decremented` (naming
+`LL-SEG6-HEADEND-NO-TTL-DECREMENT`), and `doctor-srv6-forward-ttl-unknown`, and
+never refuses startup.
+
+<!-- source: internal/plugins/fib/kernel/kernelcap_linux.go -- srv6EncapCapability, srv6ForwardTTLCapability -->
+<!-- source: internal/plugins/fib/kernel/register_doctor_codes.go -- doctorDiagnosticCodes -->
+<!-- source: internal/component/kernelcap/predicate.go -- SRv6InUse -->
+<!-- source: internal/component/kernelcap/probe_srv6_linux.go -- SRv6Encap, SRv6ForwardTTL -->
 
 ## VPP backend
 

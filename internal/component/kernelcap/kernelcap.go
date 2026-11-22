@@ -13,10 +13,14 @@
 // reported: an absent feature nobody asked for is not a fault.
 //
 // This is the ze doctor tier of docs/architecture/doctor-and-health-checks.md,
-// not a fourth one. The verdict is produced at read time, in the reader's own
-// process, and it keeps no memory of a start. It cannot move into the plugin
-// setup registry, whose records are written before main() and therefore cannot
-// see the configuration this verdict depends on.
+// not a fourth one. The verdict is produced in the process that answers doctor
+// (the daemon when it answers, the operator's own process otherwise). It cannot
+// move into the plugin setup registry, whose records are written before main()
+// and therefore cannot see the configuration this verdict depends on. Probes
+// for module-loadable or sysctl-backed capabilities run at read time with no
+// memory of a start; probes for compiled-in boolean kernel features
+// (srv6-encap, srv6-forward-ttl) memoize their first definitive present or
+// absent verdict for the process life and never memoize unknown or denied.
 
 // Package kernelcap enrolls the kernel features a configured subsystem cannot
 // work without, so ze doctor reports a missing one, the daemon refuses to

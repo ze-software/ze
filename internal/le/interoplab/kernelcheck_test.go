@@ -800,3 +800,19 @@ func TestKernelCheckRouteNamesDockerHostSetup(t *testing.T) {
 		t.Errorf("linux route changed:\n%s", got)
 	}
 }
+
+// VALIDATES: kernelProbeContainer passes --device /dev/net/tun (from
+// TUNDeviceArguments) so the SRv6 behavioral probe can open /dev/net/tun inside
+// the Docker host kernel check container, both with and without AppArmor.
+// PREVENTS: the SRv6 probe answering unknown inside Docker because /dev/net/tun
+// was omitted from the probe container argv.
+func TestDockerKernelProbePassesTUNDevice(t *testing.T) {
+	want := strings.Join(TUNDeviceArguments(), " ")
+	for _, appArmor := range []bool{false, true} {
+		container := kernelProbeContainer(kernelCheckZe, appArmor)
+		joined := strings.Join(container.Arguments, " ")
+		if !strings.Contains(joined, want) {
+			t.Errorf("appArmor=%v: probe arguments %q lack %q", appArmor, joined, want)
+		}
+	}
+}

@@ -443,7 +443,7 @@ and two functions. `InUse` reads the parsed config tree. `Probe` reads the host.
 
 <!-- source: internal/component/kernelcap/kernelcap.go -- Capability, MustRegister, Evaluate, Refuse -->
 <!-- source: internal/component/ike/engine/kernelcap_linux.go -- the ipsec enrolment -->
-<!-- source: internal/plugins/fib/kernel/kernelcap_linux.go -- the mpls and mpls-transit-mtu enrolments -->
+<!-- source: internal/plugins/fib/kernel/kernelcap_linux.go -- mpls, mpls-transit-mtu, srv6-encap, srv6-forward-ttl -->
 <!-- source: internal/component/ike/dataplane/kernelcap_linux.go -- xfrmKernelCapabilities -->
 
 The XFRM backend enrols what it needs beyond the netlink socket, all with
@@ -510,10 +510,26 @@ as it was. It also needs `CAP_SYS_ADMIN`, and a mount namespace in which
 `/proc/sys` is writable; the method is
 `docs/architecture/mpls/mpls-kernel.md`, "On a kernel without the patch".
 
+`fib-kernel` also enrolls `srv6-encap` (`CONFIG_IPV6_SEG6_LWTUNNEL`) and
+`srv6-forward-ttl` (`CONFIG_IPV6_SEG6_FORWARD_TTL`), both with `Degrades`.
+`SRv6InUse` activates them when `fib { kernel { } }` is configured with at least
+one BGP peer or peer group, because IBGP always accepts Prefix-SID attributes.
+One shared behavioral probe (`kernelcap.SRv6Encap`, `kernelcap.SRv6ForwardTTL`)
+answers both inside `InThrowawayNetworkNamespace`. It remounts `/proc/sys`
+writable and sets `net.ipv4.ip_forward`, `net.ipv6.conf.all.forwarding`, and
+`net.ipv4.conf.all.send_redirects`. It then installs a seg6 encap route on a TUN
+device and inspects the inner TTL of one forwarded packet. Missing
+`/dev/net/tun` or `CAP_SYS_ADMIN` answers `unknown`, and a confining policy
+refusal answers `denied`.
+
+<!-- source: internal/plugins/fib/kernel/kernelcap_linux.go -- srv6EncapCapability, srv6ForwardTTLCapability -->
+<!-- source: internal/component/kernelcap/predicate.go -- SRv6InUse -->
+<!-- source: internal/component/kernelcap/probe_srv6_linux.go -- SRv6Encap, SRv6ForwardTTL, askSRv6InThrowawayNamespace -->
+
 A security policy confining ze can refuse those steps. Docker's
 `docker-default` AppArmor profile does both: `deny mount,` refuses the private
-mount namespace, and `deny @{PROC}/sys/[^k]** w,` refuses the label-space
-write. A step that fails with `EACCES` while `/proc/self/attr/apparmor/current`
+mount namespace, and `deny @{PROC}/sys/[^k]** w,` refuses those sysctl writes.
+A step that fails with `EACCES` while `/proc/self/attr/apparmor/current`
 (or `/proc/self/attr/current`) names a label other than `unconfined` reads
 `denied`, not `unknown`: its reason names the module and the label, the step
 and the grant. The module is AppArmor for the AppArmor file and for a
@@ -529,20 +545,31 @@ SELinux.
 with no confining label. Ze ships the grant for AppArmor only, so under any
 other module the reason names the steps the host's policy must grant and no
 Ze profile. The AppArmor grant is the profile `ze-kernel-probe`
-(`kernelcap.ProbeAppArmorProfile`): docker-default with `deny mount,` replaced
-by exactly the three mounts the probe makes and the `/proc/sys` write deny
-replaced by a chain that leaves only `/proc/sys/net/mpls/platform_labels`
-writable. On a Docker host `./le setup docker kernel apparmor` loads it
+(`kernelcap.ProbeAppArmorProfile`). It takes `docker-default`, replaces
+`deny mount,` with the three private `/proc/sys` mounts, and replaces the
+`/proc/sys` write deny through `procSysWriteDeniesMulti`. That trie leaves only
+`/proc/sys/net/mpls/platform_labels` and the three SRv6 forwarding sysctls
+(`net.ipv4.ip_forward`, `net.ipv6.conf.all.forwarding`, and
+`net.ipv4.conf.all.send_redirects`) writable. `stepFailedFor` names the failing
+probe's sysctl paths in a `denied` reason. On a Docker host
+`./le setup docker kernel apparmor` loads it
 (`docs/architecture/testing/interop.md`, "The Docker host kernel check").
 
-<!-- source: internal/component/kernelcap/policy_linux.go -- stepFailed, readConfiningPolicy, classifyLabel -->
-<!-- source: internal/component/kernelcap/apparmor.go -- ProbeAppArmorProfile -->
+<!-- source: internal/component/kernelcap/policy_linux.go -- stepFailed, stepFailedFor, readConfiningPolicy, classifyLabel -->
+<!-- source: internal/component/kernelcap/apparmor.go -- ProbeAppArmorProfile, procSysWriteDeniesMulti, probeSysctlKeepPaths -->
 
-This is the `ze doctor` tier of the table above, not a fourth one. The verdict is
-produced at read time, in the process that answers doctor (the daemon when it
-answers, the operator's own process otherwise), and it keeps no memory of a
-start. It cannot move into the setup registry, whose records are written before
-`main()` and therefore cannot see the configuration this verdict depends on.
+This is the `ze doctor` tier of the table above, not a fourth one. The verdict
+is produced in the process that answers doctor (the daemon when it answers, the
+operator's own process otherwise). It cannot move into the setup registry, whose
+records are written before `main()` and therefore cannot see the configuration
+this verdict depends on. Most probes evaluate at read time with no memory of a
+start, because modules can load or sysctls can change. Probes for compiled-in
+boolean kernel features (`srv6-encap`, `srv6-forward-ttl`) memoize a definitive
+`present` or `absent` verdict for the process life (`runSRv6ProbeMemoized`),
+because only a reboot can change it. `unknown` and `denied` verdicts are never
+memoized.
+
+<!-- source: internal/component/kernelcap/probe_srv6_linux.go -- runSRv6ProbeMemoized, isDefinitiveSRv6Verdict -->
 
 `ProbeAll` asks the other question: does this kernel hold every enrolled
 feature, whatever the configuration uses. It probes each enrolment with `InUse`

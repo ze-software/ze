@@ -5,13 +5,17 @@ package fibkernel
 import "github.com/ze-software/ze/internal/core/diagnostic"
 
 const (
-	codeDoctorMPLSTransitMTUUnenforced = "doctor-mpls-transit-mtu-unenforced"
-	codeDoctorMPLSTransitMTUUnknown    = "doctor-mpls-transit-mtu-unknown"
-	codeDoctorMPLSTTLPropagateOff      = "doctor-mpls-ttl-propagate-off"
-	codeDoctorMPLSTTLPropagateUnknown  = "doctor-mpls-ttl-propagate-unknown"
-	codeDoctorMPLSUnavailable          = "doctor-mpls-unavailable"
-	codeDoctorMPLSUnknown              = "doctor-mpls-unknown"
-	exampleDoctorJSON                  = "ze doctor --json"
+	codeDoctorMPLSTransitMTUUnenforced     = "doctor-mpls-transit-mtu-unenforced"
+	codeDoctorMPLSTransitMTUUnknown        = "doctor-mpls-transit-mtu-unknown"
+	codeDoctorMPLSTTLPropagateOff          = "doctor-mpls-ttl-propagate-off"
+	codeDoctorMPLSTTLPropagateUnknown      = "doctor-mpls-ttl-propagate-unknown"
+	codeDoctorMPLSUnavailable              = "doctor-mpls-unavailable"
+	codeDoctorMPLSUnknown                  = "doctor-mpls-unknown"
+	codeDoctorSRv6EncapUnavailable         = "doctor-srv6-encap-unavailable"
+	codeDoctorSRv6EncapUnknown             = "doctor-srv6-encap-unknown"
+	codeDoctorSRv6ForwardTTLNotDecremented = "doctor-srv6-forward-ttl-not-decremented"
+	codeDoctorSRv6ForwardTTLUnknown        = "doctor-srv6-forward-ttl-unknown"
+	exampleDoctorJSON                      = "ze doctor --json"
 )
 
 // codeKernelNexthop names a kernel without nexthop objects.
@@ -68,6 +72,34 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 		Description:  "The MPLS capability probe (/proc/sys/net/mpls/platform_labels, under the root named by ze.test.doctor.procfs-root) could not be read, so ze cannot tell whether the kernel holds an AF_MPLS forwarding table. This is reported rather than passed over in silence: a check that cannot be evaluated is not a check that succeeded. It is a WARNING and it does not refuse a start, because refusing on a probe ze could not read would stop a router whose kernel is fine. Remedy: check the permissions on /proc/sys/net/mpls and the path above it. An ABSENT probe is not this code -- it means the kernel holds no AF_MPLS table, it reports doctor-mpls-unavailable, and that one does refuse the start.",
 		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-mpls-unknown"},
 		RelatedCodes: []string{codeDoctorMPLSUnavailable},
+	},
+	{
+		Code:         codeDoctorSRv6EncapUnavailable,
+		Title:        "SRv6 seg6 kernel encapsulation unavailable",
+		Description:  "BGP runs on the kernel FIB, and the kernel refuses seg6 lwtunnel encapsulation routes (RTA_ENCAP_TYPE LWTUNNEL_ENCAP_SEG6) with EOPNOTSUPP because it was built without CONFIG_IPV6_SEG6_LWTUNNEL. Plain IP routes still install and forward, but any BGP route carrying an SRv6 Service SID (RFC 9252) cannot be programmed into the kernel FIB and fails when installation is attempted. This is a WARNING and it does not refuse a start, because a BGP router on the kernel FIB may carry no SRv6 Service SID routes. Remedy: run ze's appliance kernel, or a Linux kernel built with CONFIG_IPV6_SEG6_LWTUNNEL=y, and run `ze doctor` to confirm.",
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-srv6-encap-unavailable"},
+		RelatedCodes: []string{codeDoctorSRv6EncapUnknown, codeDoctorSRv6ForwardTTLNotDecremented},
+	},
+	{
+		Code:         codeDoctorSRv6EncapUnknown,
+		Title:        "SRv6 seg6 kernel encapsulation support unknown",
+		Description:  "ze could not determine whether the kernel supports seg6 lwtunnel encapsulation routes (CONFIG_IPV6_SEG6_LWTUNNEL). The behavioral probe installs a test route and forwards one packet inside a throwaway network namespace using /dev/net/tun, which needs CAP_NET_ADMIN, CAP_SYS_ADMIN, and access to /dev/net/tun; an unprivileged `ze doctor` run or a container without /dev/net/tun cannot run it. This is a WARNING and never refuses a start. Remedy: run `ze doctor` as root on a host with /dev/net/tun available.",
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-srv6-encap-unknown"},
+		RelatedCodes: []string{codeDoctorSRv6EncapUnavailable, codeDoctorSRv6ForwardTTLUnknown},
+	},
+	{
+		Code:         codeDoctorSRv6ForwardTTLNotDecremented,
+		Title:        "SRv6 headend does not decrement inner TTL or Hop Limit",
+		Description:  "BGP runs on the kernel FIB, and the kernel supports seg6 lwtunnel encapsulation but forwards packets through seg6_input without passing ip_forward or ip6_forward (Linux limitation LL-SEG6-HEADEND-NO-TTL-DECREMENT, docs/architecture/linux-limitations.md): it is a stock kernel without CONFIG_IPV6_SEG6_FORWARD_TTL, which ze's own runtime kernel adds with gokrazy/kernel/patches/0014-seg6-forward-ttl.patch. SRv6 Service SID routes still install and encapsulate traffic, but forwarded packets leave with their inner IPv4 TTL or IPv6 Hop Limit unchanged (violating RFC 8986 Section 5.1 S05), packets arriving with TTL or Hop Limit 1 are encapsulated instead of answered with ICMP Time Exceeded, and the headend skips IPv4/IPv6 forward PMTU and FORWARD hooks. This is a WARNING and it does not refuse a start. Remedy: run ze's appliance kernel, or a Linux kernel built with CONFIG_IPV6_SEG6_LWTUNNEL=y and gokrazy/kernel/patches/0014-seg6-forward-ttl.patch, and run `ze doctor` to confirm.",
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-srv6-forward-ttl-not-decremented"},
+		RelatedCodes: []string{codeDoctorSRv6ForwardTTLUnknown, codeDoctorSRv6EncapUnavailable},
+	},
+	{
+		Code:         codeDoctorSRv6ForwardTTLUnknown,
+		Title:        "SRv6 headend inner TTL decrement support unknown",
+		Description:  "ze could not determine whether the kernel decrements the inner IPv4 TTL or IPv6 Hop Limit on forwarded SRv6 seg6 encapsulation routes (CONFIG_IPV6_SEG6_FORWARD_TTL, gokrazy/kernel/patches/0014-seg6-forward-ttl.patch). The behavioral probe forwards one packet through a seg6 encap route inside a throwaway network namespace using /dev/net/tun, which needs CAP_NET_ADMIN, CAP_SYS_ADMIN, and access to /dev/net/tun; an unprivileged `ze doctor` run or a container without /dev/net/tun cannot complete it. This is a WARNING and never refuses a start. Remedy: run `ze doctor` as root on a host with /dev/net/tun available.",
+		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-srv6-forward-ttl-unknown"},
+		RelatedCodes: []string{codeDoctorSRv6ForwardTTLNotDecremented, codeDoctorSRv6EncapUnknown},
 	},
 }
 

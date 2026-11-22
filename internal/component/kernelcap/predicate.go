@@ -2,9 +2,10 @@
 // Overview: kernelcap.go -- the enrolment these predicates are registered with
 //
 // One predicate for each enrolled subsystem, and one declaration of each.
-// MPLSInUse, MPLSTransitMTUInUse and IPsecInUse answer the same question for
-// every reader, so a refusal, a doctor row and a listener bind cannot disagree
-// about whether a subsystem is configured (owner decision 6, 2026-08-14).
+// MPLSInUse, MPLSTransitMTUInUse, SRv6InUse and IPsecInUse answer the same
+// question for every reader, so a refusal, a doctor row and a listener bind
+// cannot disagree about whether a subsystem is configured (owner decision 6,
+// 2026-08-14).
 
 package kernelcap
 
@@ -14,10 +15,25 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 )
 
+const listPeer = "peer"
+
 // labeledFamilies are the BGP family names that mean MPLS forwarding, and
 // therefore that the kernel needs an AF_MPLS table. Package-level so the test
 // that pins them against a parsed config reads the same list the predicate does.
 var labeledFamilies = []string{"ipv4/mpls-label", "ipv6/mpls-label", "ipv4/mpls-vpn", "ipv6/mpls-vpn"}
+
+// hasKernelFIB reports whether tree configures the Linux kernel FIB backend
+// (`fib { kernel { } }`).
+func hasKernelFIB(tree *config.Tree) bool {
+	if tree == nil {
+		return false
+	}
+	fib := tree.GetContainer("fib")
+	if fib == nil {
+		return false
+	}
+	return fib.GetContainer("kernel") != nil
+}
 
 // MPLSInUse reports whether the configuration asks the LINUX KERNEL to forward
 // MPLS: a labeled BGP family on a peer or on a group, LDP, RSVP-TE, or a
@@ -28,14 +44,7 @@ var labeledFamilies = []string{"ipv4/mpls-label", "ipv6/mpls-label", "ipv4/mpls-
 // own MPLS and must never be refused for a kernel table it does not use. A
 // plain BGP-over-kernel config imposes no labels and is not gated either.
 func MPLSInUse(tree *config.Tree) bool {
-	if tree == nil {
-		return false
-	}
-	fib := tree.GetContainer("fib")
-	if fib == nil {
-		return false
-	}
-	if fib.GetContainer("kernel") == nil {
+	if !hasKernelFIB(tree) {
 		return false
 	}
 	return mplsConfigured(tree)
@@ -50,6 +59,28 @@ func MPLSTransitMTUInUse(tree *config.Tree) bool {
 		return false
 	}
 	return tree.GetContainer("rsvp-te") != nil
+}
+
+// SRv6InUse reports whether the configuration can install an SRv6 Service SID
+// route on the Linux kernel FIB: `fib { kernel { } }` plus at least one BGP
+// peer or peer group.
+//
+// IBGP always accepts the SRv6 Prefix-SID attribute (ze-bgp-conf.yang,
+// `accept-srv6-prefix-sid`), so any BGP peer or group on the kernel FIB can
+// install a seg6 encapsulation route. The backend gate comes first so another
+// FIB backend (such as VPP) is never probed for the kernel seg6 dataplane.
+func SRv6InUse(tree *config.Tree) bool {
+	if !hasKernelFIB(tree) {
+		return false
+	}
+	bgp := tree.GetContainer("bgp")
+	if bgp == nil {
+		return false
+	}
+	if len(bgp.GetListOrdered(listPeer)) > 0 {
+		return true
+	}
+	return len(bgp.GetListOrdered("group")) > 0
 }
 
 // mplsConfigured reports whether any MPLS-forwarding config is present,
@@ -130,7 +161,7 @@ func sessionLabeled(container *config.Tree) bool {
 // ipv4/mpls-label { ... }` parses to a list ENTRY whose key is the family, so
 // GetContainer("family") is nil for it and the loop below would be unreachable.
 func peersLabeled(container *config.Tree) bool {
-	for _, peer := range container.GetListOrdered("peer") {
+	for _, peer := range container.GetListOrdered(listPeer) {
 		if sessionLabeled(peer.Value) {
 			return true
 		}
@@ -166,5 +197,5 @@ func IPsecInUse(tree *config.Tree) bool {
 	if siteToSite == nil {
 		return false
 	}
-	return len(siteToSite.GetListOrdered("peer")) > 0
+	return len(siteToSite.GetListOrdered(listPeer)) > 0
 }

@@ -3,6 +3,7 @@
 // Design: docs/architecture/doctor-and-health-checks.md -- the kernel capability tier
 // Related: apparmor.go -- ProbeAppArmorProfile, the grant a denied reason names
 // Related: probe_linux.go -- the MPLS probe steps classified here
+// Related: probe_srv6_linux.go -- the SRv6 probe steps classified here
 //
 // A probe step can fail because the kernel lacks the feature, because ze lacks
 // a capability, or because a security policy confining ze refused the step.
@@ -124,11 +125,20 @@ func readLabel(path string) string {
 	return label
 }
 
-// stepFailed answers the result for a probe step that failed with err: denied
-// when the kernel refused it with EACCES and a policy confines this process,
-// unknown otherwise. A denied reason names the policy, and under AppArmor the
-// profile that grants the probe its steps, and wraps err.
+// stepFailed answers the result for an MPLS probe step that failed with err.
 func stepFailed(err error) Result {
+	return stepFailedFor(err, MPLSPlatformLabelsPath())
+}
+
+// stepFailedFor answers the result for a probe step that failed with err:
+// denied when the kernel refused it with EACCES and a policy confines this
+// process, unknown otherwise. A denied reason names the policy, the sysctl
+// paths the probe writes, and under AppArmor the profile that grants the probe
+// its steps, and wraps err.
+func stepFailedFor(err error, paths ...string) Result {
+	if len(paths) == 0 {
+		panic("BUG: stepFailedFor called without sysctl paths")
+	}
 	if !errors.Is(err, unix.EACCES) {
 		return Result{State: StateUnknown, Reason: err}
 	}
@@ -136,14 +146,15 @@ func stepFailed(err error) Result {
 	if policy.module == securityModuleUnspecified {
 		return Result{State: StateUnknown, Reason: err}
 	}
+	writePaths := strings.Join(paths, ", ")
 	if policy.module != securityModuleAppArmor {
 		// Ze ships an AppArmor profile only, so a refusal under another module
 		// names the steps to grant in that module's policy, not Ze's profile.
 		return Result{State: StateDenied, Reason: fmt.Errorf("%w; %s refused it; the probe needs a mount of /proc/sys in a private mount namespace"+
 			" and the write to %s, which this host's policy must grant",
-			err, policy, MPLSPlatformLabelsPath())}
+			err, policy, writePaths)}
 	}
 	return Result{State: StateDenied, Reason: fmt.Errorf("%w; %s refused it; the probe needs a mount of /proc/sys in a private mount namespace"+
 		" and the write to %s, which Ze's AppArmor profile %s grants",
-		err, policy, MPLSPlatformLabelsPath(), ProbeAppArmorProfileName)}
+		err, policy, writePaths, ProbeAppArmorProfileName)}
 }

@@ -225,8 +225,9 @@ instead. A container under Docker's `docker-default` AppArmor profile, which
 denies `mount` and writes under `/proc/sys/net`, cannot make the copy or size
 the label space, and the row reads `denied`, naming the profile and the grant
 (`docs/architecture/doctor-and-health-checks.md`). Ze's `ze-kernel-probe`
-profile grants exactly those steps, and the Docker kernel check runs its probe
-under it.
+profile grants the private `/proc/sys` mounts and the exact sysctl writes that
+Ze's namespace probes need (MPLS `platform_labels` and the three SRv6 forwarding
+sysctls). The Docker kernel check runs its probe under it.
 
 A push metric is also a hazard on an older kernel. A forwarded IPv4 packet on a
 push route is bounded by `ip_dst_mtu_maybe_forward`: `RTAX_MTU` minus the
@@ -259,6 +260,7 @@ fragments IPv6, so an oversized IPv6 datagram is answered with Packet Too Big.
 
 <!-- source: internal/component/kernelcap/probe_linux.go -- MPLSIPMTU, MPLSIPMTUInThisNamespace, classifyMPLSIPMTU -->
 <!-- source: internal/component/kernelcap/namespace_linux.go -- InThrowawayNetworkNamespace -->
+<!-- source: internal/component/kernelcap/apparmor.go -- ProbeAppArmorProfile, probeSysctlKeepPaths -->
 <!-- source: internal/plugins/fib/kernel/mplsentry_linux.go -- transitRouteMTU, askTransitMTU -->
 <!-- source: internal/plugins/fib/kernel/kernelcap_linux.go -- transitMTUCapability -->
 <!-- source: internal/core/mplsfib/events.go -- Entry.PathMTU -->

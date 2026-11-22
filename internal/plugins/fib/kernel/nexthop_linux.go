@@ -7,16 +7,19 @@
 package fibkernel
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"net"
 	"net/netip"
 
-	"github.com/ze-software/ze/internal/component/iface"
-	"github.com/ze-software/ze/internal/component/sysrib/events"
-
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/sysrib/events"
+	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // maxNetlinkInt is the largest value this build can carry in one of the netlink
@@ -37,7 +40,7 @@ func (n *netlinkBackend) addRichRoute(r RichRoute) error {
 	if needsLabelSpace(r) {
 		ensureLabelSpace()
 	}
-	return n.handle.RouteAdd(route)
+	return wrapSEG6InstallError(r.Prefix, route, n.handle.RouteAdd(route))
 }
 
 func (n *netlinkBackend) delRichRoute(prefix netip.Prefix, tableID uint32) error {
@@ -58,7 +61,55 @@ func (n *netlinkBackend) replaceRichRoute(r RichRoute) error {
 	if needsLabelSpace(r) {
 		ensureLabelSpace()
 	}
-	return n.replaceOwnedRoute(route)
+	return wrapSEG6InstallError(r.Prefix, route, n.replaceOwnedRoute(route))
+}
+
+// routeHasSEG6Encap reports whether route or any of its multipath members
+// carries a Linux seg6 lwtunnel encapsulation. Checking the built netlink
+// route ensures routes that dropped Encap (such as discard routes) are never
+// misclassified as SEG6 installs.
+func routeHasSEG6Encap(route *netlink.Route) bool {
+	if route == nil {
+		return false
+	}
+	if _, ok := route.Encap.(*netlink.SEG6Encap); ok {
+		return true
+	}
+	for _, member := range route.MultiPath {
+		if member == nil {
+			continue
+		}
+		if _, ok := member.Encap.(*netlink.SEG6Encap); ok {
+			return true
+		}
+	}
+	return false
+}
+
+// wrapSEG6InstallError turns a kernel EOPNOTSUPP on a netlink route carrying
+// SEG6 encapsulation into an operator error naming the prefix,
+// CONFIG_IPV6_SEG6_LWTUNNEL, that the route was not installed, and ze doctor.
+// Routes without SEG6 encapsulation (such as MPLS, plain IP, or discard routes)
+// and other errnos pass through unchanged.
+func wrapSEG6InstallError(prefix netip.Prefix, route *netlink.Route, err error) error {
+	if err == nil {
+		return nil
+	}
+	if !routeHasSEG6Encap(route) {
+		return err
+	}
+	if !errors.Is(err, unix.EOPNOTSUPP) {
+		return err
+	}
+	var problem textbuf.Buffer
+	problem.Str("SRv6 Service SID route for ").Prefix(prefix).
+		Str(" was not installed: kernel has no SRv6 encapsulation")
+	return opererr.Wrap(
+		err,
+		problem.String(),
+		"The running Linux kernel lacks CONFIG_IPV6_SEG6_LWTUNNEL, so lwtunnel refused the seg6 encap route. Run Ze's kernel or a kernel built with CONFIG_IPV6_SEG6_LWTUNNEL, then confirm with ze doctor",
+		"ze doctor",
+	)
 }
 
 func needsLabelSpace(r RichRoute) bool {
@@ -320,6 +371,13 @@ func buildMPLSEncap(labels []uint32) *netlink.MPLSEncap {
 
 const seg6IptunModeEncap = 1
 
+// buildSEG6Encap builds a Linux seg6 lwtunnel encapsulation in H.Encaps mode
+// (RFC 8986 Section 5.1: "S05.   Decrement inner IPv6 Hop Limit or IPv4 TTL").
+// The kernel requires CONFIG_IPV6_SEG6_LWTUNNEL to accept the route (otherwise
+// lwtunnel_valid_encap_type returns EOPNOTSUPP, which addRichRoute and
+// replaceRichRoute wrap via wrapSEG6InstallError), and Ze's patch
+// 0014-seg6-forward-ttl.patch (CONFIG_IPV6_SEG6_FORWARD_TTL) to decrement the
+// inner TTL or Hop Limit on forwarded packets.
 func buildSEG6Encap(sid netip.Addr) *netlink.SEG6Encap {
 	ip6 := sid.As16()
 	return &netlink.SEG6Encap{

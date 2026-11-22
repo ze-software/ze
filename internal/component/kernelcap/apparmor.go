@@ -1,22 +1,24 @@
 // Design: docs/architecture/doctor-and-health-checks.md -- the kernel capability tier
-// Related: probe_linux.go -- remountSysctlWritable and the label-space write this profile grants
+// Related: probe_linux.go -- remountSysctlWritable and the MPLS label-space write this profile grants
+// Related: probe_srv6_linux.go -- the SRv6 forwarding sysctl writes this profile grants
 // Related: policy_linux.go -- the denied answer, whose reason names this profile
 // Related: ../../le/interoplab/kernelcheck.go -- the probe container that runs under it
 //
 // Docker confines every container it starts with its docker-default AppArmor
 // profile, generated from github.com/moby/profiles/apparmor template.go
 // (apparmor/v0.2.2, the version moby master pins at 9fabd6dfbb92 on
-// 2026-10-10). Two of its rules stop the MPLS transit MTU probe: `deny mount,`
-// refuses the private mount namespace in which the probe makes /proc/sys
-// writable, and `deny @{PROC}/sys/[^k]** w,` refuses the label-space write that
-// an allowed mount would still meet. AppArmor applies a deny over every allow,
-// so no profile that keeps either line can grant the probe. This is the profile
-// Ze ships for its probe container instead: docker-default with those two rules
-// replaced by exactly the steps the probe takes.
+// 2026-10-10). Two of its rules stop Ze's throwaway-namespace probes:
+// `deny mount,` refuses the private mount namespace in which the probes make
+// /proc/sys writable, and `deny @{PROC}/sys/[^k]** w,` refuses the sysctl
+// writes that an allowed mount would still meet. AppArmor applies a deny over
+// every allow, so no profile that keeps either line can grant the probes. This
+// is the profile Ze ships for its probe container instead: docker-default with
+// those two rules replaced by exactly the steps the probes take.
 
 package kernelcap
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -108,6 +110,12 @@ func DockerDefaultProfile(name, procSys, mounts string) string {
 	return text.String()
 }
 
+const (
+	procSysDenyPrefix   = "  deny @{PROC}/sys/"
+	procSysDenyWildcard = "** w,\n"
+	procSysDenyLonger   = "{?,/}** w,\n"
+)
+
 // ProcSysWriteDenies answers the deny rules that refuse every write under
 // /proc/sys but those under keep, relative to /proc/sys. AppArmor has no "deny
 // all but", so the denies are a chain over keep: one rule for each position,
@@ -126,22 +134,125 @@ func ProcSysWriteDenies(keep string) string {
 			}
 			width, admits = end+1, keep[i+1:i+end]
 		}
-		text.Str("  deny @{PROC}/sys/").Str(keep[:i]).Str("[^").Str(admits).Str("]** w,\n")
+		text.Str(procSysDenyPrefix).Str(keep[:i]).Str("[^").Str(admits).Str("]").Str(procSysDenyWildcard)
 		i += width
 	}
 	if !strings.HasSuffix(keep, "/") {
-		text.Str("  deny @{PROC}/sys/").Str(keep).Str("{?,/}** w,\n")
+		text.Str(procSysDenyPrefix).Str(keep).Str(procSysDenyLonger)
 	}
 	return text.String()
+}
+
+type procSysTrieEdge struct {
+	ch   byte
+	node *procSysTrieNode
+}
+
+type procSysTrieNode struct {
+	dir      bool
+	children []procSysTrieEdge
+}
+
+func (n *procSysTrieNode) child(ch byte) *procSysTrieNode {
+	for i := range n.children {
+		if n.children[i].ch == ch {
+			return n.children[i].node
+		}
+	}
+	next := &procSysTrieNode{}
+	n.children = append(n.children, procSysTrieEdge{ch: ch, node: next})
+	return next
+}
+
+// procSysWriteDeniesMulti answers the AppArmor deny rules that refuse every
+// write under /proc/sys except the exact relative paths in keeps. It builds a
+// byte-trie over the sorted unique paths: at each prefix node with child bytes
+// cs it emits `deny @{PROC}/sys/<prefix>[^<cs>]** w,`, and at each file leaf
+// (a keep without a trailing `/`) it emits `deny @{PROC}/sys/<prefix>{?,/}** w,`.
+// A keep ending in `/` admits the whole directory subtree. An empty keeps slice
+// denies every write under /proc/sys.
+func procSysWriteDeniesMulti(keeps []string) string {
+	if len(keeps) == 0 {
+		return procSysDenyPrefix + procSysDenyWildcard
+	}
+	sorted := slices.Clone(keeps)
+	slices.Sort(sorted)
+	sorted = slices.Compact(sorted)
+
+	root := &procSysTrieNode{}
+	maxLen := 0
+	for _, keep := range sorted {
+		if keep == "" {
+			panic("BUG: procSysWriteDeniesMulti received an empty keep path")
+		}
+		if strings.ContainsAny(keep, "[]*?{}^-\\,") {
+			panic("BUG: procSysWriteDeniesMulti keep " + keep + " holds AppArmor glob metacharacters")
+		}
+		if len(keep) > maxLen {
+			maxLen = len(keep)
+		}
+		cur := root
+		for i := range len(keep) {
+			cur = cur.child(keep[i])
+		}
+		if strings.HasSuffix(keep, "/") {
+			cur.dir = true
+		}
+	}
+
+	var text textbuf.Buffer
+	prefix := make([]byte, 0, maxLen)
+	emitProcSysTrieDenies(&text, prefix, root)
+	return text.String()
+}
+
+// emitProcSysTrieDenies emits the deny chain for node. Recursion depth is
+// bounded by the length of the longest path in keeps.
+func emitProcSysTrieDenies(text *textbuf.Buffer, prefix []byte, node *procSysTrieNode) {
+	if node.dir {
+		return
+	}
+	if len(node.children) == 0 {
+		text.Str(procSysDenyPrefix).Str(string(prefix)).Str(procSysDenyLonger)
+		return
+	}
+	text.Str(procSysDenyPrefix).Str(string(prefix)).Str("[^")
+	for i := range node.children {
+		text.Byte(node.children[i].ch)
+	}
+	text.Str("]").Str(procSysDenyWildcard)
+	for i := range node.children {
+		emitProcSysTrieDenies(text, append(prefix, node.children[i].ch), node.children[i].node)
+	}
+}
+
+// probeSysctlKeepPaths returns the /proc/sys-relative paths that Ze's
+// throwaway-namespace capability probes write to, sorted. Derived from the
+// probes' own ProcPath helpers so the AppArmor grant and the probes cannot
+// drift.
+func probeSysctlKeepPaths() []string {
+	prefix := ProcPath(procSysDir) + "/"
+	srv6Paths := srv6ProbeSysctlPaths()
+	paths := make([]string, 0, 1+len(srv6Paths))
+	paths = append(paths, strings.TrimPrefix(MPLSPlatformLabelsPath(), prefix))
+	for _, p := range srv6Paths {
+		paths = append(paths, strings.TrimPrefix(p, prefix))
+	}
+	slices.Sort(paths)
+	return paths
 }
 
 // ProbeAppArmorProfile answers the text of the ze-kernel-probe profile, ready
 // for apparmor_parser.
 //
-// Under /proc/sys it denies every write but the probe's own label-space write,
-// through ProcSysWriteDenies over MPLSPlatformLabelsPath, so the grant and the
-// probe name one path.
+// Under /proc/sys it denies every write except the four sysctls Ze's
+// throwaway-namespace probes write (MPLS platform_labels and the three SRv6
+// forwarding sysctls), through procSysWriteDeniesMulti over the probes' own
+// path helpers so the grant and the probes name one set of paths.
 func ProbeAppArmorProfile() string {
-	keep := strings.TrimPrefix(MPLSPlatformLabelsPath(), ProcPath("sys")+"/")
-	return DockerDefaultProfile(ProbeAppArmorProfileName, ProcSysWriteDenies(keep), probeMountRules)
+	return DockerDefaultProfile(
+		ProbeAppArmorProfileName,
+		procSysWriteDeniesMulti(probeSysctlKeepPaths()),
+		probeMountRules,
+	)
 }

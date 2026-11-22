@@ -272,14 +272,16 @@ func StagedZePath(root string, binaries []LabBinary) string {
 
 // kernelProbeContainer is the probe container. It grants NET_ADMIN
 // for the netlink probes and SYS_ADMIN for the probes that unshare a network
-// namespace, and gives the container its own network so nothing it creates
-// reaches the host's. On a daemon applying AppArmor it runs under Ze's profile,
-// because docker-default denies the MPLS probe's mount and sysctl write (D-7).
-// It runs through RunOneShot, so it carries the owner labels and a canceled
-// probe is removed by name.
+// namespace, gives the container its own network so nothing it creates
+// reaches the host's, and passes /dev/net/tun (TUNDeviceArguments) for the
+// SRv6 TUN behavioral probe. On a daemon applying AppArmor it runs under Ze's
+// profile, because docker-default denies the probes' /proc/sys mount and
+// sysctl writes (D-7). It runs through RunOneShot, so it carries the owner
+// labels and a canceled probe is removed by name.
 func kernelProbeContainer(zePath string, appArmor bool) OneShotContainer {
-	arguments := make([]string, 0, 8)
+	arguments := make([]string, 0, 10)
 	arguments = append(arguments, "--cap-add", "NET_ADMIN", "--cap-add", "SYS_ADMIN", "--network", "none")
+	arguments = append(arguments, TUNDeviceArguments()...)
 	if appArmor {
 		arguments = append(arguments, "--security-opt", "apparmor="+kernelcap.ProbeAppArmorProfileName)
 	}
