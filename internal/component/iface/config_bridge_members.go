@@ -19,7 +19,8 @@ import (
 //
 // Each member binds through targets: an ethernet entry through its selector,
 // a VLAN unit through its parent's. An unbound member is skipped with a
-// warning, as every unbound setting defers. A refused step is answered by
+// warning, as every unbound setting defers, and a member already in its
+// bridge is skipped with no step (portInBridge). A refused step is answered by
 // record, whose result the caller returns: stopped is true exactly when it ran.
 func enslaveBridgeMembers(cfg *ifaceConfig, targets interfaceTargets, units bool, b Backend,
 	journal *sdk.Journal, record func(string, error) ([]error, bool),
@@ -40,6 +41,13 @@ func enslaveBridgeMembers(cfg *ifaceConfig, targets interfaceTargets, units bool
 				continue
 			}
 			bridge := e.Name
+			// A port already in this bridge gets no step: enslaving it
+			// again needs CAP_NET_ADMIN for a change that changes nothing,
+			// and the undo would take out of the bridge a port this apply
+			// did not put in.
+			if portInBridge(b, bridge, port) {
+				continue
+			}
 			if err := applyBackendStep(journal, func() error {
 				return b.BridgeAddPort(bridge, port)
 			}, func() error {

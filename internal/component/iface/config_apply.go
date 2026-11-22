@@ -518,8 +518,9 @@ func unitQoSKey(iface, label string) string {
 }
 
 // indexUnitQoS returns the resolved QoS maps of every unit of cfg, by
-// unitQoSKey. A nil cfg (the boot apply) yields an empty index, so every
-// existing VLAN is programmed with the maps the config gives it.
+// unitQoSKey. A nil cfg (the boot apply) yields an empty index, so an existing
+// VLAN whose maps the backend cannot read is programmed with the maps the
+// config gives it (vlanQoSNeedsWrite).
 func indexUnitQoS(cfg *ifaceConfig) map[string]unitQoS {
 	index := map[string]unitQoS{}
 	for _, e := range allIfaceEntries(cfg) {
@@ -1270,13 +1271,26 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 		}); err != nil {
 			return record("bridge "+e.Name+" create", err)
 		}
-		oldSTP := !e.STP
-		if err := applyBackendStep(journal, func() error {
-			return b.BridgeSetSTP(e.Name, e.STP)
-		}, func() error {
-			return b.BridgeSetSTP(e.Name, oldSTP)
-		}); err != nil {
-			return record("bridge "+e.Name+" stp", err)
+		// STP is written only when the bridge reports another state. A host
+		// bridge ze did not make (docker0) already holds what an absent stp
+		// leaf asks for, and the write needs CAP_NET_ADMIN for a change that
+		// changes nothing. A state that was not read is written, and the undo
+		// puts back only a state that was read.
+		stpHeld := BridgeSTPUnreported
+		if held := linkFacts(b, e.Name); held != nil {
+			stpHeld = held.BridgeSTP
+		}
+		if stpHeld != BridgeSTPFor(e.STP) {
+			if err := applyBackendStep(journal, func() error {
+				return b.BridgeSetSTP(e.Name, e.STP)
+			}, func() error {
+				if stpHeld == BridgeSTPUnreported {
+					return nil
+				}
+				return b.BridgeSetSTP(e.Name, stpHeld == BridgeSTPOn)
+			}); err != nil {
+				return record("bridge "+e.Name+" stp", err)
+			}
 		}
 		// The members are enslaved in Phase 2a, not here: a member names
 		// another interface, and the map that turns a logical name into a
@@ -1416,20 +1430,30 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 		device, _ := deviceFor(devices, e.Name)
 		if e.MTU > 0 {
 			oldMTU := 0
-			if info, err := b.GetLink(device); err == nil {
-				oldMTU = info.MTU
+			if held := linkFacts(b, device); held != nil {
+				oldMTU = held.MTU
 			}
-			// Read before the parent changes: lowering it makes Linux cap
-			// every VLAN above it, so afterwards the old VLAN MTU is gone.
+			// The parent is written only when it holds another MTU, so an
+			// unread MTU (0) is written. Its VLANs are read either way: the
+			// Phase 2 loop below can still change one, and this step carries
+			// every VLAN's undo (applyVLANMTU). Read before the parent
+			// changes: lowering it makes Linux cap every VLAN above it, so
+			// afterwards the old VLAN MTU is gone.
+			parentWrite := oldMTU != e.MTU
 			oldVLANMTUs := readVLANMTUs(b, device, e.Units)
 			if err := applyBackendStep(journal, func() error {
-				return b.SetMTU(device, e.MTU)
-			}, func() error {
-				if oldMTU <= 0 {
+				if !parentWrite {
 					return nil
 				}
-				if err := b.SetMTU(device, oldMTU); err != nil {
-					return err
+				return b.SetMTU(device, e.MTU)
+			}, func() error {
+				if parentWrite {
+					if oldMTU <= 0 {
+						return nil
+					}
+					if err := b.SetMTU(device, oldMTU); err != nil {
+						return err
+					}
 				}
 				return restoreVLANMTUs(b, oldVLANMTUs)
 			}); err != nil {
@@ -1438,16 +1462,25 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 			}
 		}
 		if e.MACAddress != "" {
-			oldMAC, _ := b.GetMACAddress(device)
-			if err := applyBackendStep(journal, func() error {
-				return b.SetMACAddress(device, e.MACAddress)
-			}, func() error {
-				if oldMAC == "" {
-					return nil
+			// Written only when the device holds another address. A MAC
+			// that cannot be read is "" here, which matches no configured
+			// address, so it is written and the undo has nothing to restore.
+			oldMAC, macErr := b.GetMACAddress(device)
+			if macErr != nil {
+				logUnreadState(device, macErr)
+				oldMAC = ""
+			}
+			if !sameMAC(oldMAC, e.MACAddress) {
+				if err := applyBackendStep(journal, func() error {
+					return b.SetMACAddress(device, e.MACAddress)
+				}, func() error {
+					if oldMAC == "" {
+						return nil
+					}
+					return b.SetMACAddress(device, oldMAC)
+				}); err != nil {
+					return record(device+" set mac", err)
 				}
-				return b.SetMACAddress(device, oldMAC)
-			}); err != nil {
-				return record(device+" set mac", err)
 			}
 		}
 		applyOffloads(device, e.Offload)
@@ -1498,11 +1531,19 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 				// it here, and the undo writes the previous maps back.
 				if !created {
 					previousQoS, known := previousUnitQoS[unitQoSKey(e.Name, u.Label)]
-					if !known || !previousQoS.equal(u) {
+					held := linkFacts(b, vlanName)
+					if vlanQoSNeedsWrite(held, previousQoS, known, u) {
+						// The undo restores the maps the VLAN was read to
+						// hold, and the previous config's where they were
+						// not read.
+						undoQoS := previousQoS
+						if heldQoS, read := heldVLANQoS(held); read {
+							undoQoS = heldQoS
+						}
 						if err := applyBackendStep(journal, func() error {
 							return b.UpdateVLANQoSMap(vlanName, u.IngressQoSMap, u.EgressQoSMap)
 						}, func() error {
-							return b.UpdateVLANQoSMap(vlanName, previousQoS.ingress, previousQoS.egress)
+							return b.UpdateVLANQoSMap(vlanName, undoQoS.ingress, undoQoS.egress)
 						}); err != nil {
 							return record("vlan "+vlanName+" qos map", err)
 						}
@@ -1623,9 +1664,19 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 			continue
 		}
 		device, _ := deviceFor(devices, e.Name)
+		// The administrative state decides, never the operational one: a
+		// bridge with no carrier is administratively up and operationally
+		// down, and bringing it up again needs CAP_NET_ADMIN for a change
+		// that changes nothing. A device already up gets no step, so the
+		// undo cannot bring down what this apply did not bring up. An
+		// unread state is written, and only a device read as down is put
+		// back down.
 		wasDown := false
-		if info, err := b.GetLink(device); err == nil {
-			wasDown = info.State != "" && info.State != "up" && info.State != "UP"
+		if held := linkFacts(b, device); held != nil {
+			if held.AdminState == AdminStateUp {
+				continue
+			}
+			wasDown = held.AdminState == AdminStateDown
 		}
 		if err := applyBackendStep(journal, func() error {
 			return b.SetAdminUp(device)
@@ -1938,11 +1989,17 @@ func readVLANMTUs(b Backend, device string, units []unitEntry) []vlanMTU {
 }
 
 // restoreVLANMTUs writes back the MTUs readVLANMTUs read. It MUST run after
-// the parent's old MTU is back, so a VLAN can rise to its old value. Every
-// VLAN is attempted, and the failures are returned together.
+// the parent's old MTU is back, so a VLAN can rise to its old value. A VLAN
+// read to hold its old MTU already gets no write. Every other VLAN is
+// attempted, and the failures are returned together.
 func restoreVLANMTUs(b Backend, held []vlanMTU) error {
 	var errs []error
 	for _, v := range held {
+		if now := linkFacts(b, v.name); now != nil {
+			if now.MTU == v.mtu {
+				continue
+			}
+		}
 		if err := b.SetMTU(v.name, v.mtu); err != nil {
 			errs = append(errs, err)
 		}

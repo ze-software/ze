@@ -2198,6 +2198,7 @@ type fakeBackend struct {
 	bridgePorts    []bridgePortCall  // ordered log of BridgeAddPort + BridgeDelPort calls
 	rpf6Calls      [][]RPFCheck      // ordered log of ReplaceIPv6RPF sets (rpf6_test.go)
 	rpf4Calls      [][]RPFCheck      // ordered log of ReplaceIPv4RPF sets (rpf4_test.go)
+	stpSet         map[string]bool   // bridge -> STP state recorded by BridgeSetSTP
 }
 
 // The two membership operations a bridge can be asked for.
@@ -2253,6 +2254,10 @@ type fakeIface struct {
 	masterIndex int
 	mtu         int
 	state       string
+	// stp is the spanning-tree state the bridge reports. The zero value is
+	// BridgeSTPUnreported, so a bridge seeded or created without it is
+	// written, as one a backend cannot read.
+	stp BridgeSTP
 }
 
 func (b *fakeBackend) ensureMaps() {
@@ -2305,6 +2310,13 @@ func (b *fakeBackend) CreateVeth(name, peerName string) error {
 
 func (b *fakeBackend) CreateBridge(name string) error {
 	b.ensureMaps()
+	// The kernel refuses a bridge that exists (EEXIST) and keeps it, its
+	// index, ports and STP state included. A fake that rebuilt it gave every
+	// apply over an existing bridge a fresh index, so its ports read as
+	// members of none and its state as unread.
+	if _, exists := b.ifaces[name]; exists {
+		return fmt.Errorf("bridge %s: file exists", name)
+	}
 	b.created[name] = true
 	// A bridge carries a kernel index of its own, because a port names its
 	// bridge by index (IFLA_MASTER) and an index of zero reads as "no master".
@@ -2637,7 +2649,7 @@ func (b *fakeBackend) ListInterfaces() ([]InterfaceInfo, error) {
 		// (show_linux.go). The resolver reads it back as the device a logical
 		// name resolved to, so a fake that left it empty made every Resolve in
 		// a unit test answer with no device.
-		info := InterfaceInfo{Name: f.name, OsName: f.name, Type: f.linkType, MAC: f.mac, PermanentMAC: f.permMAC, Alias: f.alias, ParentIndex: f.parentIndex, MasterIndex: f.masterIndex, MTU: f.mtu, Index: f.index, State: f.state}
+		info := b.linkInfo(f)
 		if addrs, ok := b.addrs[f.name]; ok {
 			for _, a := range addrs {
 				// b.addrs stores full CIDR strings (what AddAddress received,
@@ -2679,8 +2691,32 @@ func (b *fakeBackend) GetLink(name string) (*InterfaceInfo, error) {
 	// with the name and type alone made the apply path read MTU 0 and an empty
 	// state for every device, so its MTU undo and its admin-state undo were
 	// no-ops no test could see.
-	return &InterfaceInfo{Name: f.name, OsName: f.name, Type: f.linkType, MAC: f.mac, PermanentMAC: f.permMAC,
-		Alias: f.alias, ParentIndex: f.parentIndex, MasterIndex: f.masterIndex, MTU: f.mtu, Index: f.index, State: f.state}, nil
+	info := b.linkInfo(f)
+	return &info, nil
+}
+
+// linkInfo is the link projection GetLink and ListInterfaces share. The admin
+// state follows state: "up" and "down" are read states, and a device seeded
+// or created with no state reports none, as a backend that cannot read it
+// does, so the apply writes it. A VLAN reports the maps the fake holds for it,
+// read like the netlink backend's (a VLAN with none holds none).
+func (b *fakeBackend) linkInfo(f fakeIface) InterfaceInfo {
+	info := InterfaceInfo{Name: f.name, OsName: f.name, Type: f.linkType, MAC: f.mac, PermanentMAC: f.permMAC,
+		Alias: f.alias, ParentIndex: f.parentIndex, MasterIndex: f.masterIndex, MTU: f.mtu, Index: f.index, State: f.state,
+		BridgeSTP: f.stp}
+	switch f.state {
+	case LinkStateUp:
+		info.AdminState = AdminStateUp
+	case LinkStateDown:
+		info.AdminState = AdminStateDown
+	}
+	if f.linkType == "vlan" {
+		spec := b.vlans[f.name]
+		info.IngressQoSMap = spec.IngressQoSMap
+		info.EgressQoSMap = spec.EgressQoSMap
+		info.QoSMapsRead = true
+	}
+	return info
 }
 
 // BridgeAddPort records the call and then models what a live kernel does with
@@ -2718,7 +2754,22 @@ func (b *fakeBackend) BridgeDelPort(port string) error {
 	}
 	return nil
 }
-func (b *fakeBackend) BridgeSetSTP(_ string, _ bool) error { return nil }
+
+// BridgeSetSTP records the write and leaves the bridge holding the state it
+// was sent, which GetLink then reports.
+func (b *fakeBackend) BridgeSetSTP(name string, enabled bool) error {
+	f, ok := b.ifaces[name]
+	if !ok {
+		return fmt.Errorf("iface: bridge stp: bridge %q not found", name)
+	}
+	if b.stpSet == nil {
+		b.stpSet = make(map[string]bool)
+	}
+	b.stpSet[name] = enabled
+	f.stp = BridgeSTPFor(enabled)
+	b.ifaces[name] = f
+	return nil
+}
 
 func (b *fakeBackend) SetupMirror(srcIface, dstIface string, ingress, egress bool) error {
 	b.mirrorCalls = append(b.mirrorCalls, mirrorCall{

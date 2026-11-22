@@ -204,6 +204,55 @@ type InterfaceInfo struct {
 	// (IEEE 802.1Q PCP, 0-7). nil when unconfigured.
 	IngressQoSMap map[uint32]uint32 `json:"ingress-qos-map,omitempty"` // received PCP -> internal priority
 	EgressQoSMap  map[uint32]uint32 `json:"egress-qos-map,omitempty"`  // internal priority -> transmitted PCP
+	// QoSMapsRead is true when the backend read a VLAN's two QoS maps into
+	// IngressQoSMap and EgressQoSMap, so a nil map means the VLAN holds none.
+	// Where it is false a nil map means nothing, and the apply MUST NOT take
+	// it as an empty installed map.
+	QoSMapsRead bool `json:"-"`
+	// AdminState is the administrative state (IFF_UP on Linux, ADMIN_UP on
+	// VPP) the backend read. State is the operational one, and the two
+	// differ: a bridge with no carrier is administratively up and
+	// operationally down. The apply decides whether to bring a device up from
+	// this field, never from State.
+	AdminState AdminState `json:"-"`
+	// BridgeSTP is the spanning-tree state a bridge reports, read so the apply
+	// writes STP only when it differs. BridgeSTPUnreported on every other
+	// link kind and from a backend that does not read it.
+	BridgeSTP BridgeSTP `json:"-"`
+}
+
+// AdminState is a device's administrative state as a backend read it. The
+// zero value is AdminStateUnreported: a backend that did not read it says so,
+// and a reader MUST NOT take that as either state.
+type AdminState uint8
+
+// The AdminState values.
+const (
+	AdminStateUnreported AdminState = iota
+	AdminStateUp
+	AdminStateDown
+)
+
+// BridgeSTP is a bridge's spanning-tree state as a backend read it. The zero
+// value is BridgeSTPUnreported, so a backend that did not read it cannot be
+// taken to report STP off.
+type BridgeSTP uint8
+
+// The BridgeSTP values. BridgeSTPOn covers the kernel's own STP and a
+// user-space one (stp_state 1 and 2): the kernel treats a request to enable
+// STP as satisfied by either (net/bridge/br_stp_if.c br_stp_set_enabled).
+const (
+	BridgeSTPUnreported BridgeSTP = iota
+	BridgeSTPOff
+	BridgeSTPOn
+)
+
+// BridgeSTPFor returns the BridgeSTP value that means enabled.
+func BridgeSTPFor(enabled bool) BridgeSTP {
+	if enabled {
+		return BridgeSTPOn
+	}
+	return BridgeSTPOff
 }
 
 // The InterfaceInfo.State values the kernel and VPP backends report. The

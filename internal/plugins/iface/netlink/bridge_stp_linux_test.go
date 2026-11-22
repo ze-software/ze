@@ -7,11 +7,14 @@ package ifacenetlink
 
 import (
 	"errors"
+	"strings"
 	"syscall"
 	"testing"
 
 	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/component/iface"
 )
 
 // bridgeLinkInfo decodes the attributes that follow a struct ifinfomsg in an
@@ -37,7 +40,9 @@ func bridgeLinkInfo(attrs []byte) (string, []syscall.NetlinkRouteAttr, error) {
 		for _, entry := range info {
 			switch entry.Attr.Type {
 			case nl.IFLA_INFO_KIND:
-				kind = string(entry.Value)
+				// The kernel's answer carries the kind NUL-terminated
+				// (nla_put_string); Ze's request carries it bare.
+				kind = strings.TrimSuffix(string(entry.Value), "\x00")
 			case nl.IFLA_INFO_DATA:
 				data, err = nl.ParseRouteAttr(entry.Value)
 				if err != nil {
@@ -122,6 +127,63 @@ func TestBridgeSTPRequest(t *testing.T) {
 			}
 			if got != tc.want {
 				t.Errorf("IFLA_BR_STP_STATE %d, want %d", got, tc.want)
+			}
+		})
+	}
+}
+
+// bridgeLinkAttrs builds the attributes that follow struct ifinfomsg in an
+// RTM_NEWLINK answer: IFLA_LINKINFO with the given IFLA_INFO_KIND bytes and,
+// when data is not nil, an IFLA_INFO_DATA carrying it.
+func bridgeLinkAttrs(kind []byte, data *nl.RtAttr) []byte {
+	linkInfo := nl.NewRtAttr(unix.IFLA_LINKINFO, nil)
+	linkInfo.AddRtAttr(nl.IFLA_INFO_KIND, kind)
+	if data != nil {
+		linkInfo.AddChild(data)
+	}
+	return linkInfo.Serialize()
+}
+
+// stpData builds an IFLA_INFO_DATA holding IFLA_BR_STP_STATE as a u32.
+func stpData(state uint32) *nl.RtAttr {
+	data := nl.NewRtAttr(nl.IFLA_INFO_DATA, nil)
+	data.AddRtAttr(unix.IFLA_BR_STP_STATE, nl.Uint32Attr(state))
+	return data
+}
+
+// TestBridgeSTPFromAttrs checks the read of a bridge's STP state from a link
+// answer. VALIDATES: 0 reads as off, 1 (kernel STP) and 2 (user-space STP)
+// as on, the kind read with and without its NUL, and every answer that
+// cannot be read (another kind, no data, no attribute, a short value, no
+// IFLA_LINKINFO) as unreported, never as off. PREVENTS: an unread STP state
+// taken for one that matches an absent stp leaf, which would skip a write the
+// bridge needs. Method: build each answer's attributes and decode them.
+func TestBridgeSTPFromAttrs(t *testing.T) {
+	kindNUL := nl.ZeroTerminated(linkTypeBridge)
+	kindBare := nl.NonZeroTerminated(linkTypeBridge)
+	short := nl.NewRtAttr(nl.IFLA_INFO_DATA, nil)
+	short.AddRtAttr(unix.IFLA_BR_STP_STATE, []byte{1})
+	noSTP := nl.NewRtAttr(nl.IFLA_INFO_DATA, nil)
+	noSTP.AddRtAttr(unix.IFLA_BR_HELLO_TIME, nl.Uint32Attr(200))
+	for _, tc := range []struct {
+		name  string
+		attrs []byte
+		want  iface.BridgeSTP
+	}{
+		{"off", bridgeLinkAttrs(kindNUL, stpData(0)), iface.BridgeSTPOff},
+		{"kernel stp", bridgeLinkAttrs(kindNUL, stpData(1)), iface.BridgeSTPOn},
+		{"user-space stp", bridgeLinkAttrs(kindNUL, stpData(2)), iface.BridgeSTPOn},
+		{"kind without NUL", bridgeLinkAttrs(kindBare, stpData(0)), iface.BridgeSTPOff},
+		{"request ze sends", bridgeSTPRequest(42, true).Serialize()[unix.SizeofNlMsghdr+unix.SizeofIfInfomsg:], iface.BridgeSTPOn},
+		{"not a bridge", bridgeLinkAttrs(nl.ZeroTerminated("dummy"), stpData(0)), iface.BridgeSTPUnreported},
+		{"no data", bridgeLinkAttrs(kindNUL, nil), iface.BridgeSTPUnreported},
+		{"no stp attribute", bridgeLinkAttrs(kindNUL, noSTP), iface.BridgeSTPUnreported},
+		{"short value", bridgeLinkAttrs(kindNUL, short), iface.BridgeSTPUnreported},
+		{"no linkinfo", nl.NewRtAttr(unix.IFLA_MTU, nl.Uint32Attr(1500)).Serialize(), iface.BridgeSTPUnreported},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := bridgeSTPFromAttrs(tc.attrs); got != tc.want {
+				t.Errorf("bridgeSTPFromAttrs = %d, want %d", got, tc.want)
 			}
 		})
 	}

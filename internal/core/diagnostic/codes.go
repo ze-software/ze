@@ -81,6 +81,7 @@ const (
 	CodeDoctorIfaceOwnedDeviceCleanup              = "doctor-iface-owned-device-cleanup"
 	CodeDoctorIfaceOwnedDeviceReconcile            = "doctor-iface-owned-device-reconcile"
 	CodeDoctorIfaceBackendClose                    = "doctor-iface-backend-close"
+	CodeDoctorIfaceStateUnread                     = "doctor-iface-state-unread"
 	CodeDoctorFirewallContributedTables            = "doctor-firewall-contributed-tables"
 	CodeDoctorL2TPUnavailable                      = "doctor-l2tp-unavailable"
 	CodeDoctorL2TPUnknown                          = "doctor-l2tp-unknown"
@@ -955,6 +956,12 @@ var builtinCodes = append([]CodeMeta{
 		Title:       "Interface backend did not close cleanly",
 		Description: "When the interface component stopped, closing its backend (the netlink sockets, or the connection to VPP) failed. The kernel or VPP keeps what was programmed; only the backend's own handles may not have been released. The next start opens a fresh backend. The event names the backend's answer; a repeat on every stop points at the backend itself, such as a VPP that no longer answers.",
 		Examples:    []string{exampleShowDoctor, exampleShowErrors, "ze show diagnostic doctor-iface-backend-close"},
+	},
+	{
+		Code:        CodeDoctorIfaceStateUnread,
+		Title:       "Interface state not read before its configuration was applied",
+		Description: "Before it writes a link setting (MTU, admin state, bridge STP, bridge membership, VLAN QoS maps), ze reads the device's current state and writes only what differs. For this interface the read failed, so ze wrote the configured values without knowing whether they were already in place. The warning names the interface and the backend's answer, which is the cause. The apply itself reports any write that fails, so a configuration that applied is in place. Run `ze show interface name <interface> detail` to read the device's state again; the warning clears when a later apply reads that interface's state, and at the next ze start. A backend that is not ready yet, or a device the read does not find by its name, raises no warning.",
+		Examples:    []string{exampleShowDoctor, exampleShowWarnings, "ze show interface name eth0 detail", "ze show diagnostic doctor-iface-state-unread"},
 	},
 	{
 		Code:        "doctor-iface-ra-forwarding",

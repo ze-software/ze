@@ -17,6 +17,8 @@ import (
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/component/iface"
 )
 
 // Counter dumps are bounded in time and memory even when links churn faster
@@ -50,6 +52,9 @@ type counterState struct {
 type counterLink struct {
 	link       netlink.Link
 	generation uint64
+	// bridgeSTP is read from the same answer as link, because the library's
+	// Bridge does not carry IFLA_BR_STP_STATE (bridgeSTPFromAttrs).
+	bridgeSTP iface.BridgeSTP
 }
 
 type counterDump struct {
@@ -279,7 +284,11 @@ func (s *counterSource) consume(dump *counterDump, message syscall.NetlinkMessag
 		if len(dump.links) >= counterLinksMax {
 			return errors.New("counter dump interface limit exceeded")
 		}
-		dump.links = append(dump.links, counterLink{link: link, generation: state.generation})
+		entry := counterLink{link: link, generation: state.generation}
+		if link.Type() == linkTypeBridge {
+			entry.bridgeSTP = bridgeSTPFromAttrs(message.Data[unix.SizeofIfInfomsg:])
+		}
+		dump.links = append(dump.links, entry)
 	}
 	return nil
 }

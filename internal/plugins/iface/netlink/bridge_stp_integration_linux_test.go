@@ -13,6 +13,7 @@ import (
 	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
 
+	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/test/userns"
 )
 
@@ -54,8 +55,10 @@ func kernelBridgeSTPState(t *testing.T, index int) uint32 {
 // private network namespace, then reads the bridge back from the kernel over
 // rtnetlink.
 // VALIDATES: BridgeSetSTP changes the kernel's IFLA_BR_STP_STATE in the
-// caller's namespace, both ways, and refuses a link that is not a bridge or
-// does not exist, naming the device.
+// caller's namespace, both ways, GetLink reads back the same state the
+// kernel reports (the read the apply compares before it writes), and
+// BridgeSetSTP refuses a link that is not a bridge or does not exist, naming
+// the device.
 // PREVENTS: STP written through /sys, which a container mounts read-only and
 // which shows another namespace's devices (the home CPE interop-topology lab
 // failed at startup on exactly that write).
@@ -89,18 +92,36 @@ func TestBridgeSetSTPKernel(t *testing.T) {
 	if got := kernelBridgeSTPState(t, index); got != 0 {
 		t.Fatalf("new bridge reports STP state %d, want 0 before any change", got)
 	}
+	// The apply decides whether to write STP from GetLink, so the backend's
+	// own read must agree with the kernel's answer at each step.
+	backendSTP := func(want iface.BridgeSTP) {
+		t.Helper()
+		info, err := backend.GetLink(bridge)
+		if err != nil {
+			t.Fatalf("GetLink(%s): %v", bridge, err)
+		}
+		if info.BridgeSTP != want {
+			t.Fatalf("GetLink reports BridgeSTP %d, want %d", info.BridgeSTP, want)
+		}
+		if info.AdminState != iface.AdminStateUp {
+			t.Fatalf("GetLink reports AdminState %d for a bridge CreateBridge set up, want up", info.AdminState)
+		}
+	}
+	backendSTP(iface.BridgeSTPOff)
 	if err := backend.BridgeSetSTP(bridge, true); err != nil {
 		t.Fatalf("BridgeSetSTP(true): %v", err)
 	}
 	if got := kernelBridgeSTPState(t, index); got != 1 {
 		t.Fatalf("after BridgeSetSTP(true) the kernel reports STP state %d, want 1", got)
 	}
+	backendSTP(iface.BridgeSTPOn)
 	if err := backend.BridgeSetSTP(bridge, false); err != nil {
 		t.Fatalf("BridgeSetSTP(false): %v", err)
 	}
 	if got := kernelBridgeSTPState(t, index); got != 0 {
 		t.Fatalf("after BridgeSetSTP(false) the kernel reports STP state %d, want 0", got)
 	}
+	backendSTP(iface.BridgeSTPOff)
 
 	const dummy = "ze-br-stp-dum"
 	if err := backend.CreateDummy(dummy); err != nil {

@@ -221,6 +221,48 @@ partial device behind, and the undo deletes only the devices the apply created.
 <!-- source: internal/component/iface/config_apply.go — applyConfig create steps, interfaceExists -->
 <!-- source: internal/component/iface/backend.go — Backend.GetLink -->
 
+### Writing only what differs
+
+An interface in the config can name a device ze did not make and whose
+settings already match, such as a Docker host bridge `docker0` with no `stp`
+leaf. Each apply reads the device's current state and writes a link setting
+only when the device holds another value, so an unprivileged ze applies such
+a config: every one of these writes needs CAP_NET_ADMIN, even one that changes
+nothing.
+
+| Setting | Read from | Skipped when |
+|---------|-----------|--------------|
+| Bridge STP | `GetLink`, the bridge's `IFLA_BR_STP_STATE` | the bridge reports the state the `stp` leaf asks for (absent means off; kernel or user-space STP both count as on) |
+| MTU | `GetLink` | the device holds the configured MTU (VLAN units already compared) |
+| MAC address | `GetMACAddress` | the device holds the same address, whatever its spelling |
+| Admin state | `GetLink`, the administrative state (`IFF_UP`), never the operational one | the device is administratively up, with or without a carrier |
+| Bridge member | `GetLink` of the bridge and the port | the port is already a member of that bridge |
+| VLAN QoS maps | `GetLink` of the VLAN | the VLAN holds maps that program the same translation (an entry at 0 equals an absent one) |
+| `dhcp-auto` interface up | `GetLink` | the interface is administratively up |
+
+A state that cannot be read is written, never taken for one that matches, and
+a backend that does not report a setting (the VPP backend reports no STP state
+and no QoS maps) keeps writing it. A failed read of a device's link state is
+logged at warning and raised on the report bus under
+`doctor-iface-state-unread`, so `show doctor` names the device, the backend's
+answer and `ze show interface name <device> detail`; a later apply whose read
+of that device answers clears it. A backend that is not ready yet (the VPP
+startup path) and a device the read does not find by its name are logged at
+debug only, because the write that follows reports them. A skipped setting adds no step to the apply
+journal, so a failed commit does not undo with a write what it did not change:
+the bridge keeps its STP state and its ports, and a device that was up stays
+up. A write that is needed still fails without CAP_NET_ADMIN, with the
+capability named in the error.
+
+Devices are still created on every apply, and a create refused for a device
+that existed is ignored, as above. A wireguard device's keys and peers are
+written on the first apply after start.
+
+<!-- source: internal/component/iface/config_apply_held.go -- linkFacts, logUnreadState, sameMAC, vlanQoSNeedsWrite, portInBridge, adminUpHeld -->
+<!-- source: internal/component/iface/config_apply.go -- applyConfigPass STP, MTU, MAC, QoS and admin steps -->
+<!-- source: internal/plugins/iface/netlink/bridge_linux.go -- bridgeSTPFromAttrs -->
+<!-- source: internal/plugins/iface/netlink/show_linux.go -- linkToInfo AdminState, QoSMapsRead -->
+
 ### Unnumbered IPv4 units
 
 A unit can borrow the IPv4 address of another interface instead of holding a
@@ -325,7 +367,8 @@ Subscribers -- BGP reactor (starts/stops listeners on address changes)
 ## Interface Discovery
 
 During `ze init`, Ze discovers OS network interfaces and generates initial configuration
-entries. The `DiscoverInterfaces` function enumerates interfaces via `ListInterfaces`
+entries, written after the SSH listener the CLI reaches the daemon through. The
+`DiscoverInterfaces` function enumerates interfaces via `ListInterfaces`
 (netlink on Linux, stdlib on other platforms) and classifies each by Ze type: ethernet,
 bridge, veth, dummy, or loopback. On Linux, the netlink `device` type maps to ethernet
 (except `lo`, which maps to loopback). Results are sorted by type then name.
@@ -334,7 +377,7 @@ A managed client (`ze init --managed`) and an appliance seed (`ze init --seed`) 
 discovery and write no initial config: the managed client takes its first config from
 its hub, and the appliance discovers on the device at first boot.
 
-<!-- source: internal/plugins/init/main.go -- runInitPublished -->
+<!-- source: internal/plugins/init/main.go -- runInitPublished, writeInitialConfig -->
 
 <!-- source: internal/component/iface/discover.go -- DiscoverInterfaces, infoToZeType -->
 

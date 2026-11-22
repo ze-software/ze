@@ -372,8 +372,10 @@ func (b *vppBackendImpl) populateNameMap() error {
 // single State field.
 func detailsToInfo(d *interfaces.SwInterfaceDetails) iface.InterfaceInfo {
 	state := iface.LinkStateDown
+	adminState := iface.AdminStateDown
 	if d.Flags&interface_types.IF_STATUS_API_FLAG_ADMIN_UP != 0 {
 		state = iface.LinkStateUp
+		adminState = iface.AdminStateUp
 	}
 	mtu := 0
 	if len(d.Mtu) > 0 {
@@ -392,6 +394,7 @@ func detailsToInfo(d *interfaces.SwInterfaceDetails) iface.InterfaceInfo {
 		Index:       int(d.SwIfIndex),
 		Type:        d.Type.String(),
 		State:       state,
+		AdminState:  adminState,
 		MTU:         mtu,
 		MAC:         net.HardwareAddr(d.L2Address[:]).String(),
 		ParentIndex: int(d.SupSwIfIndex),

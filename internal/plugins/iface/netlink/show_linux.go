@@ -61,6 +61,7 @@ func (b *netlinkBackend) ListInterfaces() ([]iface.InterfaceInfo, error) {
 	for _, link := range links {
 		info := linkToInfo(link.link)
 		info.CounterGeneration = link.generation
+		info.BridgeSTP = link.bridgeSTP
 		addrs, err := addrList(link.link)
 		if err != nil {
 			return nil, fmt.Errorf("iface: list interfaces: %w", err)
@@ -118,6 +119,7 @@ func (b *netlinkBackend) readLink(name string) (netlink.Link, iface.InterfaceInf
 	}
 	info := linkToInfo(links[0].link)
 	info.CounterGeneration = links[0].generation
+	info.BridgeSTP = links[0].bridgeSTP
 	return links[0].link, info, nil
 }
 
@@ -129,14 +131,21 @@ func linkToInfo(link netlink.Link) iface.InterfaceInfo {
 	} else if attrs.OperState == netlink.OperUnknown && (attrs.Flags&net.FlagUp != 0) {
 		state = iface.LinkStateUp
 	}
+	// IFF_UP is the administrative state, which OperState does not carry: a
+	// bridge with no port up is IFF_UP and operationally down.
+	adminState := iface.AdminStateDown
+	if attrs.Flags&net.FlagUp != 0 {
+		adminState = iface.AdminStateUp
+	}
 	info := iface.InterfaceInfo{
-		Name:    attrs.Name,
-		OsName:  attrs.Name,
-		Index:   attrs.Index,
-		Type:    link.Type(),
-		State:   state,
-		MTU:     attrs.MTU,
-		Promisc: attrs.Promisc > 0,
+		Name:       attrs.Name,
+		OsName:     attrs.Name,
+		Index:      attrs.Index,
+		Type:       link.Type(),
+		State:      state,
+		AdminState: adminState,
+		MTU:        attrs.MTU,
+		Promisc:    attrs.Promisc > 0,
 	}
 	if len(attrs.HardwareAddr) > 0 {
 		info.MAC = attrs.HardwareAddr.String()
@@ -162,6 +171,10 @@ func linkToInfo(link netlink.Link) iface.InterfaceInfo {
 		info.ParentIndex = attrs.ParentIndex
 		info.IngressQoSMap = vlan.IngressQosMap
 		info.EgressQoSMap = vlan.EgressQosMap
+		// The library parses both maps from every VLAN answer
+		// (IFLA_VLAN_INGRESS_QOS, IFLA_VLAN_EGRESS_QOS), and an absent
+		// attribute is a VLAN that holds no map.
+		info.QoSMapsRead = true
 	}
 	// Owned macvlans carry their parent's index; expose it so the reconcile
 	// drift check can detect a re-parented device and operators can see which

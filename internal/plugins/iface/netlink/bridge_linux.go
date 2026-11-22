@@ -7,6 +7,7 @@ package ifacenetlink
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
@@ -76,6 +77,72 @@ func (b *netlinkBackend) BridgeSetSTP(bridgeName string, enabled bool) error {
 			"check the current state with: ip -d link show %s", bridgeName, err, bridgeName)
 	}
 	return nil
+}
+
+// bridgeSTPFromAttrs reads the STP state of a bridge from the attributes that
+// follow struct ifinfomsg in an RTM_NEWLINK answer. The kernel puts
+// IFLA_BR_STP_STATE in every bridge's IFLA_INFO_DATA (net/bridge/br_netlink.c
+// br_fill_info), with the same layout bridgeSTPRequest sends. vishvananda's
+// Bridge does not parse it, so it is read here from the raw answer the link
+// snapshot already holds.
+//
+// Anything it cannot read answers BridgeSTPUnreported, never BridgeSTPOff:
+// a link that is not a bridge, a malformed attribute, an absent one. The
+// apply then writes the configured state rather than take an unread state
+// for one that matches.
+func bridgeSTPFromAttrs(attrs []byte) iface.BridgeSTP {
+	top, err := nl.ParseRouteAttr(attrs)
+	if err != nil {
+		return iface.BridgeSTPUnreported
+	}
+	for _, attr := range top {
+		if attr.Attr.Type != unix.IFLA_LINKINFO {
+			continue
+		}
+		return bridgeSTPFromLinkInfo(attr.Value)
+	}
+	return iface.BridgeSTPUnreported
+}
+
+// bridgeSTPFromLinkInfo reads IFLA_BR_STP_STATE from the nested IFLA_LINKINFO
+// of a link whose IFLA_INFO_KIND is "bridge".
+func bridgeSTPFromLinkInfo(linkInfo []byte) iface.BridgeSTP {
+	entries, err := nl.ParseRouteAttr(linkInfo)
+	if err != nil {
+		return iface.BridgeSTPUnreported
+	}
+	var kind string
+	var data []byte
+	for _, entry := range entries {
+		switch entry.Attr.Type {
+		case nl.IFLA_INFO_KIND:
+			// The kernel sends the kind NUL-terminated (nla_put_string).
+			kind = strings.TrimSuffix(string(entry.Value), "\x00")
+		case nl.IFLA_INFO_DATA:
+			data = entry.Value
+		}
+	}
+	if kind != linkTypeBridge {
+		return iface.BridgeSTPUnreported
+	}
+	if data == nil {
+		return iface.BridgeSTPUnreported
+	}
+	brAttrs, err := nl.ParseRouteAttr(data)
+	if err != nil {
+		return iface.BridgeSTPUnreported
+	}
+	for _, attr := range brAttrs {
+		if attr.Attr.Type != unix.IFLA_BR_STP_STATE {
+			continue
+		}
+		if len(attr.Value) != 4 {
+			return iface.BridgeSTPUnreported
+		}
+		// 0 is BR_NO_STP; 1 (kernel) and 2 (user space) are both on.
+		return iface.BridgeSTPFor(nl.NativeEndian().Uint32(attr.Value) != 0)
+	}
+	return iface.BridgeSTPUnreported
 }
 
 // bridgeSTPRequest builds the RTM_NEWLINK change request that sets the STP
