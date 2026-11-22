@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC4486-4-10",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/session_prefix_test.go::TestPrefixNotificationDataCarriesTheConfiguredUpperBound",
+    "unit-sha": "ef012b4dd5a4655d",
+    "claim-sha": "bb4380e06fc98dac",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_prefix.go::buildPrefixNotification",
+    "producer-sha": "8eb9d5f941a7abff",
+    "break": "body of buildPrefixNotification replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

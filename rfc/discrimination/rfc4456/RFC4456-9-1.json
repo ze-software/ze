@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4456-9-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_ClusterListLength",
+    "unit-sha": "c4ff37e276596865",
+    "claim-sha": "fcbef2ab2742af35",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/bestpath.go::compareAfterMED",
+    "producer-sha": "fa57a0666742b0a5",
+    "break": "body of compareAfterMED replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4456-9-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_ClusterListLength",
+    "unit-sha": "c4ff37e276596865",
+    "claim-sha": "9c53e3ac80fa1fbc",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/bestpath.go::compareAfterMED",
+    "producer-sha": "fa57a0666742b0a5",
+    "break": "body of compareAfterMED replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

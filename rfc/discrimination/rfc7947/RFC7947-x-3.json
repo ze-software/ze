@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7947-x-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/forward_med_test.go::TestForwardKeepsMEDForRouteServerClient",
+    "unit-sha": "5ac28600b17ab65b",
+    "claim-sha": "1bbbf860c349fde2",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_med.go::applyFactsMED",
+    "producer-sha": "7a8d013aec5b5395",
+    "break": "body of applyFactsMED replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

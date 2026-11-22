@@ -20,5 +20,27 @@
     "producer": "internal/component/bgp/message/notification.go::CheckNotificationData",
     "producer-sha": "15b7b5dbb483d122",
     "break": "body of CheckNotificationData replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8654-5-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc8654_notification_limit_test.go::TestRFC8654NotificationToPeerWithoutExtendedMessage",
+    "unit-sha": "6258666b955c3313",
+    "claim-sha": "53c3535071a8cc52",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_write.go::Session.notificationWithinPeerLimit",
+    "producer-sha": "3543bce6c1f1d87c",
+    "break": "body of Session.notificationWithinPeerLimit replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8654-5-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc8654_notification_limit_test.go::TestRFC8654NotificationToPeerWithoutExtendedMessage",
+    "unit-sha": "6258666b955c3313",
+    "claim-sha": "d3acace6b5109335",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_write.go::Session.notificationWithinPeerLimit",
+    "producer-sha": "3543bce6c1f1d87c",
+    "break": "body of Session.notificationWithinPeerLimit replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

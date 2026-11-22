@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7854-x-11",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderTermination",
+    "unit-sha": "42339d8d9201cdef",
+    "claim-sha": "0e750ec913ebb8c3",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/sender.go::senderSession.sendTermination",
+    "producer-sha": "5a1234493f73fc4f",
+    "break": "body of senderSession.sendTermination replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

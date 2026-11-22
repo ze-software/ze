@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-9.1.2-5",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/loopdetect/rfc4271_loop_test.go::TestDetectASLoop",
+    "unit-sha": "8c5bc4278bf0ac4a",
+    "claim-sha": "9f34b7f9de0824ff",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/loopdetect/loop.go::LoopIngress",
+    "producer-sha": "7eaf23f9a5dc95c3",
+    "break": "body of LoopIngress replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-9.1.2-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/loopdetect/rfc4271_loop_test.go::TestDetectASLoop_NotPresent",
+    "unit-sha": "d625c0d3ca901e8e",
+    "claim-sha": "7df7cf90769acf1e",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/loopdetect/loop.go::LoopIngress",
+    "producer-sha": "7eaf23f9a5dc95c3",
+    "break": "body of LoopIngress replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]
