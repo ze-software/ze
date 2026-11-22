@@ -1288,6 +1288,15 @@ the retained duplicate has no successful close result. Separate namespace or
 write history does not retain a unit whose physical retirement is confirmed.
 The status query performs no native operation and never retries a failed close.
 <!-- source: internal/component/l2tp/ppp/kernel/session_release.go -- session.NativeReleasePending -->
+
+Session teardown waits for that status. The PPP driver closes the session
+handle, then records the owner as released only when `NativeReleasePending`
+is false. Until then the attempt's cleanup status reports the owner as not
+released and `HasPendingNativeRelease` stays true. The driver keeps the owner
+in its owner table, with any native-release budget reservation, for the
+bounded retry that the reload sweep runs.
+<!-- source: internal/component/l2tp/ppp/native_release_budget.go -- Driver.closeSessionOwnerLocked, Driver.releaseRetiredOwnerLocked, Driver.HasPendingNativeRelease, Driver.RetryPendingNativeRelease -->
+<!-- source: internal/component/l2tp/ppp/session_cleanup.go -- SessionAttempt.CleanupStatus -->
 <!-- source: internal/component/l2tp/ppp/kernel/created_unit_retirement.go -- CreatedUnit.nativeRetirementPending -->
 
 The provider never closes the unit on the caller's behalf. Native withdrawal

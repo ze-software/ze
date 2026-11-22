@@ -12,9 +12,12 @@ import (
 )
 
 // BindNativeReleaseSeal retains one unborrowed reference to the exact PPP unit.
-// The factory calls it before transferring the handle or issuing a remote
-// operation. Duplicating the unit retains its open file description, so closing
-// the borrowed streams does not unregister the interface before the seal agrees.
+// A transport that performs remote rate operations MUST bind its admitted
+// policy's seal here before the first such operation. No production transport
+// performs remote rate operations today, so no production caller binds a seal
+// and Close releases the original unit without one. Duplicating the unit
+// retains its open file description, so closing the borrowed streams does not
+// unregister the interface before the seal agrees.
 func (s *session) BindNativeReleaseSeal(seal ppp.NativeReleaseSeal) error {
 	if nilSessionDependency(seal) {
 		return errors.New("ppp: native release requires an admitted policy seal")
@@ -101,8 +104,9 @@ func nativeBirthTag(seal ppp.NativeReleaseSeal) (tag string, err error) {
 	return tag, nil
 }
 
-// NativeReleaseBound permits reservation only after the factory confirmed birth
-// and retained the exact native unit, while this handle remains open.
+// NativeReleaseBound permits reservation only after BindNativeReleaseSeal
+// confirmed birth and retained the exact native unit, while this handle
+// remains open.
 func (s *session) NativeReleaseBound() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
