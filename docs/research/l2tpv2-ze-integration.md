@@ -866,8 +866,26 @@ reads, RA and DHCPv6 writes, and one idempotent close. Read cancellation keeps
 the write path available: the owner joins the DHCPv6 and solicitation workers,
 sends the final RA, then closes the carrier. A carrier borrowing a PPP frame
 endpoint must never close that endpoint or start a second reader of it.
-The kernel carrier owns dedicated ICMPv6 and UDPv6 sockets on the created
-interface; its cancellation changes only the read deadline.
+The kernel carrier owns dedicated ICMPv6 and UDPv6 sockets that the session's
+original PPP unit creates through `CreatedUnit.OpenIPv6ControlSocket`, inside
+that unit's original namespace. No interface name or index lookup grants them:
+the kernel binds each socket to the original device and refuses it once the
+unit retires, so a renamed original keeps its carrier and a replacement that
+takes the old name neither receives from nor sends through it. The UDPv6
+socket binds port 547 with `SO_REUSEADDR`, and both multicast joins pass
+interface zero, which the kernel resolves to the original device. A session
+without a genuine original unit refuses to open a carrier. Its cancellation
+changes only the read deadline.
+<!-- source: internal/component/l2tp/ppp/kernel/session.go -- session.OpenIPv6Carrier -->
+<!-- source: internal/component/l2tp/ppp/kernel/ipv6_linux.go -- openIPv6Carrier, openOriginalIPv6Conn, configureRASocket, openDHCPSocket -->
+
+The carrier names no zone. Solicitation admission compares the receiving
+device index the kernel reports with the unit's captured native index; the
+zone Go derives from a received scope is a current interface name and decides
+nothing. A DHCPv6 peer is returned without a zone, a reply that names a zone is
+refused, and Router Advertisements go to `ff02::1` with neither zone nor
+interface index, so the socket's binding selects the original device.
+<!-- source: internal/component/l2tp/ppp/kernel/ipv6.go -- ipv6Carrier.ReadRS, ipv6Carrier.WriteRA, ipv6Carrier.ReadDHCPv6, ipv6Carrier.WriteDHCPv6 -->
 
 The kernel carrier's ordinary `Close` keeps its first result, including failures.
 `RetryIPv6CarrierCleanup(ctx)` reconciles only its original failed socket owners;
@@ -911,8 +929,8 @@ unregisters the queues and wakes reads; only the session closes the endpoint.
 <!-- source: internal/component/l2tp/pppoe/dataplane/vpp/ipv6_carrier.go -- ipv6Carrier.Close, ipv6Carrier.WriteRA, ipv6Carrier.WriteDHCPv6 -->
 <!-- source: internal/component/l2tp/pppoe/dataplane/vpp/socket.go -- controlSocket.Read -->
 
-Solicitation admission checks the received interface and Hop Limit before it
-signals the RA scheduler. The shared body validator checks the type, code,
+Solicitation admission checks the received interface index and Hop Limit
+before it signals the RA scheduler. The shared body validator checks the type, code,
 minimum length and bounded option lengths, and rejects a source link-layer
 option with an unspecified source. Reserved fields, unknown options and
 options defined for other ND messages remain accepted. The kernel ICMPv6

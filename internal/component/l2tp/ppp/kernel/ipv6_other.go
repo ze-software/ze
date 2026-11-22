@@ -11,6 +11,6 @@ import (
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 )
 
-func openIPv6Carrier(context.Context, string) (ppp.IPv6Carrier, error) {
+func openIPv6Carrier(context.Context, *CreatedUnit, int) (ppp.IPv6Carrier, error) {
 	return nil, errors.New("PPP kernel IPv6 carrier requires Linux")
 }

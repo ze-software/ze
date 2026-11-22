@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/netip"
 	"sync"
 
@@ -643,13 +644,46 @@ func (s *session) Counters() (ppp.SessionCounters, error) {
 	}
 	return counters, nil
 }
+
+// OpenIPv6Carrier opens the carrier from the session's original PPP unit,
+// never from its interface name: a renamed original keeps the carrier, and a
+// replacement that takes the old name never reaches it. The session lock is
+// not held over the open. A carrier opened while the session closed is closed
+// here; one whose cleanup fails is returned with the error and the caller
+// MUST retain it for RetryIPv6CarrierCleanup.
 func (s *session) OpenIPv6Carrier(ctx context.Context) (ppp.IPv6Carrier, error) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	if s.closed {
+		s.mu.Unlock()
 		return nil, io.ErrClosedPipe
 	}
-	return openIPv6Carrier(ctx, s.identity.InterfaceName)
+	unit, index := s.originalNativeUnit(), s.identity.NativeIndex
+	s.mu.Unlock()
+	if unit == nil {
+		// Only a private logical session fixture holds no genuine unit.
+		return nil, errors.New("ppp: session has no original unit for its IPv6 carrier")
+	}
+	if index == 0 {
+		return nil, errors.New("ppp: session IPv6 carrier has no captured native index")
+	}
+	if index > math.MaxInt32 {
+		return nil, errors.New("ppp: session IPv6 carrier index exceeds native width")
+	}
+	carrier, err := openIPv6Carrier(ctx, unit, int(index))
+	s.mu.Lock()
+	live := !s.closed && s.originalNativeUnit() == unit
+	s.mu.Unlock()
+	if live {
+		return carrier, err
+	}
+	err = errors.Join(io.ErrClosedPipe, err)
+	if carrier == nil {
+		return nil, err
+	}
+	if closeErr := carrier.Close(); closeErr != nil {
+		return carrier, errors.Join(err, closeErr)
+	}
+	return nil, err
 }
 
 var _ ppp.FrameChannel = (*session)(nil)

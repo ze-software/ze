@@ -41,7 +41,7 @@ func TestIPv6CarrierRecoveryRetriesOnlyItsFailedProviderSocket(t *testing.T) {
 	ra := newRecoverableIPv6RA()
 	ra.failure = cause
 	dhcp := &carrierTestDHCP{carrierTestSocket: newCarrierTestSocket()}
-	carrier := newIPv6Carrier(ra, dhcp, "ppp7", 7)
+	carrier := newIPv6Carrier(ra, dhcp, 7)
 	if err := carrier.Close(); !errors.Is(err, cause) {
 		t.Fatalf("actual first Close=%v", err)
 	}
@@ -98,7 +98,7 @@ func TestIPv6CarrierPartialAcquisitionRetainsFailedCleanupOwner(t *testing.T) {
 			ra.failure = cause
 			dhcp := &carrierTestDHCP{carrierTestSocket: newCarrierTestSocket()}
 			calls := 0
-			carrier, err := acquireIPv6Carrier(t.Context(), "ppp7", 7,
+			carrier, err := acquireIPv6Carrier(t.Context(), 7,
 				func(context.Context) (raSocket, error) {
 					if phase == "RA partial" {
 						return ra, setup
@@ -164,7 +164,7 @@ func TestIPv6CarrierOpaqueClosedErrorRemainsUnconfirmed(t *testing.T) {
 	ra := &carrierTestRA{carrierTestSocket: newCarrierTestSocket()}
 	ra.closeErr = net.ErrClosed
 	dhcp := &carrierTestDHCP{carrierTestSocket: newCarrierTestSocket()}
-	carrier := newIPv6Carrier(ra, dhcp, "ppp7", 7)
+	carrier := newIPv6Carrier(ra, dhcp, 7)
 	if err := carrier.Close(); !errors.Is(err, net.ErrClosed) {
 		t.Fatal(err)
 	}

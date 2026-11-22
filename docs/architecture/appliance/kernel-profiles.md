@@ -564,8 +564,20 @@ session/carrier adapter owns any `net.FilePacketConn` conversion and cleanup.
 <!-- source: internal/component/l2tp/ppp/kernel/created_unit_control_socket.go -- CreatedUnit.OpenIPv6ControlSocket, IPv6ControlSocketKind -->
 <!-- source: internal/component/l2tp/ppp/kernel/created_unit_control_socket_linux.go -- CreatedUnit.openIPv6ControlSocket, validateCreatedUnitControlOwner -->
 
+The kernel session's IPv6 carrier is that adapter and the constructor's only
+production caller. Inside one `WithOriginalNamespace` call it opens the ICMPv6
+socket and the UDPv6 socket, sets `SO_REUSEADDR` and binds port 547 on the
+UDPv6 descriptor, converts each with `net.FilePacketConn`, and closes every
+returned file, on partial failure too. Its multicast joins pass interface
+zero, which `ppp_control_mc_idev` resolves to the retained original device.
+The carrier resolves no interface name and sets no `SO_BINDTODEVICE`: the
+constructor's own device binding is the only device selection, and there is
+no fallback to name-bound sockets.
+<!-- source: internal/component/l2tp/ppp/kernel/ipv6_linux.go -- openIPv6Carrier, openOriginalIPv6Conn, prepareDHCPSocket -->
+<!-- source: gokrazy/kernel/patches/0013c-ppp-control-ipv6-transmit.patch -- ppp_control_mc_idev, __ipv6_sock_mc_join -->
+
 Constructor and option tests cover this file API and its refusal boundaries.
-Actual carrier packets, multicast cleanup and fragment isolation require their
+Carrier packets, multicast cleanup and fragment isolation require their
 separate native tests before shared PPP acceptance is complete.
 
 ## Runtime requirements

@@ -27,7 +27,7 @@ func TestIPv6CarrierReconcilesOnlyItsConcreteClosedLinuxSocket(t *testing.T) {
 		t.Fatal(err)
 	}
 	ra := &carrierTestRA{carrierTestSocket: newCarrierTestSocket()}
-	carrier := newIPv6Carrier(ra, owner, "ppp7", 7)
+	carrier := newIPv6Carrier(ra, owner, 7)
 	if err := carrier.Close(); !errors.Is(err, net.ErrClosed) {
 		t.Fatalf("actual closed Go owner=%v", err)
 	}

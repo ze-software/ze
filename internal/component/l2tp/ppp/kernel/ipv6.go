@@ -1,5 +1,5 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- kernel IPv6 control carrier
-// Related: ipv6_linux.go -- socket creation in the session's kernel interface
+// Related: ipv6_linux.go -- socket creation from the session's original PPP unit
 
 package kernel
 
@@ -34,10 +34,12 @@ type dhcpSocket interface {
 // ipv6Carrier owns two dedicated sockets. The service joins both read workers
 // before Close; independent read locks keep deadline cancellation scoped to the
 // worker that requested it. Close is safe for concurrent use and idempotent.
+// The kernel binds both sockets to the original unit's device, so the carrier
+// holds no interface name and never names a zone: ifindex is the unit's
+// captured native index, compared only with receive metadata.
 type ipv6Carrier struct {
 	ra       raSocket
 	dhcp     dhcpSocket
-	ifname   string
 	ifindex  int
 	raRead   sync.Mutex
 	dhcpRead sync.Mutex
@@ -46,8 +48,8 @@ type ipv6Carrier struct {
 
 var _ ppp.IPv6Carrier = (*ipv6Carrier)(nil)
 
-func newIPv6Carrier(ra raSocket, dhcp dhcpSocket, ifname string, ifindex int) *ipv6Carrier {
-	return &ipv6Carrier{ra: ra, dhcp: dhcp, ifname: ifname, ifindex: ifindex,
+func newIPv6Carrier(ra raSocket, dhcp dhcpSocket, ifindex int) *ipv6Carrier {
+	return &ipv6Carrier{ra: ra, dhcp: dhcp, ifindex: ifindex,
 		cleanup: &ipv6SocketCleanup{ra: ra, dhcp: ipv6DHCPCleanupOwner(dhcp)}}
 }
 
@@ -55,7 +57,7 @@ func newIPv6Carrier(ra raSocket, dhcp dhcpSocket, ifname string, ifindex int) *i
 // to acquire DHCPv6 closes RA and preserves both the setup and close failures.
 // Failed cleanup returns a non-usable carrier with the error. The caller MUST
 // retain that owner until its exact cleanup is confirmed.
-func acquireIPv6Carrier(ctx context.Context, ifname string, ifindex int, openRA func(context.Context) (raSocket, error), openDHCP func(context.Context) (dhcpSocket, error)) (ppp.IPv6Carrier, error) { //nolint:unparam // ipv6_linux.go passes the real interface name; only the tests, linted alone off Linux, pass "ppp7".
+func acquireIPv6Carrier(ctx context.Context, ifindex int, openRA func(context.Context) (raSocket, error), openDHCP func(context.Context) (dhcpSocket, error)) (ppp.IPv6Carrier, error) {
 	ra, err := openRA(ctx)
 	if err != nil {
 		return failedIPv6Acquisition(ra, nil, err)
@@ -64,7 +66,7 @@ func acquireIPv6Carrier(ctx context.Context, ifname string, ifindex int, openRA 
 	if err != nil {
 		return failedIPv6Acquisition(ra, dhcp, err)
 	}
-	return newIPv6Carrier(ra, dhcp, ifname, ifindex), nil
+	return newIPv6Carrier(ra, dhcp, ifindex), nil
 }
 
 func (c *ipv6Carrier) ReadRS(ctx context.Context) error {
@@ -88,17 +90,14 @@ func (c *ipv6Carrier) ReadRS(ctx context.Context) error {
 		if control == nil {
 			continue
 		}
+		// The kernel reports the receiving device's index. The peer's zone
+		// is a name Go derives from that index, so it decides nothing.
 		if control.IfIndex != c.ifindex {
 			continue
 		}
 		peer, ok := address.(*net.IPAddr)
 		if !ok {
 			return errors.New("PPP solicitation socket returned a non-IP peer")
-		}
-		if peer.Zone != "" {
-			if peer.Zone != c.ifname {
-				continue
-			}
 		}
 		source, ok := netip.AddrFromSlice(peer.IP)
 		if !ok {
@@ -110,9 +109,12 @@ func (c *ipv6Carrier) ReadRS(ctx context.Context) error {
 	}
 }
 
+// WriteRA sends to all-nodes with neither a zone nor an interface index: the
+// socket's kernel binding selects the original device, and a zone name would
+// be resolved against whichever device holds that name now.
 func (c *ipv6Carrier) WriteRA(payload []byte, hopLimit int) error {
-	control := &ipv6.ControlMessage{IfIndex: c.ifindex, HopLimit: hopLimit}
-	peer := &net.IPAddr{IP: net.IPv6linklocalallnodes, Zone: c.ifname}
+	control := &ipv6.ControlMessage{HopLimit: hopLimit}
+	peer := &net.IPAddr{IP: net.IPv6linklocalallnodes}
 	n, err := c.ra.WriteTo(payload, control, peer)
 	if err != nil {
 		return err
@@ -147,17 +149,10 @@ func (c *ipv6Carrier) ReadDHCPv6(ctx context.Context, payload []byte) (int, neti
 	if addressPort.Addr().Is4In6() {
 		return 0, netip.AddrPort{}, errors.New("PPP DHCPv6 socket returned an IPv4-mapped peer")
 	}
-	if peer.Zone != "" {
-		if peer.Zone != c.ifname {
-			return 0, netip.AddrPort{}, errors.New("PPP DHCPv6 peer belongs to another interface")
-		}
-	}
-	if addressPort.Addr().IsLinkLocalUnicast() {
-		if peer.Zone == "" {
-			addressPort = netip.AddrPortFrom(addressPort.Addr().WithZone(c.ifname), addressPort.Port())
-		}
-	}
-	return n, addressPort, nil
+	// The kernel delivers only the original device's traffic to this socket.
+	// Go names the zone from the receive scope through its interface-name
+	// cache; that name is no authority, so the reply address carries none.
+	return n, netip.AddrPortFrom(addressPort.Addr().WithZone(""), addressPort.Port()), nil
 }
 
 func (c *ipv6Carrier) WriteDHCPv6(payload []byte, peer netip.AddrPort) (int, error) {
@@ -170,15 +165,10 @@ func (c *ipv6Carrier) WriteDHCPv6(payload []byte, peer netip.AddrPort) (int, err
 	if peer.Addr().Is4In6() {
 		return 0, errors.New("PPP DHCPv6 reply has an IPv4-mapped peer")
 	}
+	// A zone is resolved by interface name, which may now belong to another
+	// device. The socket's kernel binding selects the original device.
 	if peer.Addr().Zone() != "" {
-		if peer.Addr().Zone() != c.ifname {
-			return 0, errors.New("PPP DHCPv6 reply belongs to another interface")
-		}
-	}
-	if peer.Addr().IsLinkLocalUnicast() {
-		if peer.Addr().Zone() == "" {
-			peer = netip.AddrPortFrom(peer.Addr().WithZone(c.ifname), peer.Port())
-		}
+		return 0, errors.New("PPP DHCPv6 reply names an interface zone; the session's original unit selects the device")
 	}
 	return c.dhcp.WriteTo(payload, net.UDPAddrFromAddrPort(peer))
 }
