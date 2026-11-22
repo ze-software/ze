@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4724-3-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4724_rbit_no_wait_test.go::TestRFC4724PeerRestartStateBitDoesNotDelayInitialRoutes",
+    "unit-sha": "fcb86ab04d83909f",
+    "claim-sha": "a1cb9f639e2c210a",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer_initial_sync.go::Peer.sendInitialRoutes",
+    "producer-sha": "ebd1b2220bda7912",
+    "break": "body of Peer.sendInitialRoutes replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4724-3-5",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4724_rbit_no_wait_test.go::TestRFC4724PeerRestartStateBitDoesNotDelayInitialRoutes",
+    "unit-sha": "fcb86ab04d83909f",
+    "claim-sha": "fef02f34d2325023",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer_initial_sync.go::Peer.sendInitialRoutes",
+    "producer-sha": "ebd1b2220bda7912",
+    "break": "body of Peer.sendInitialRoutes replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

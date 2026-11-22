@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9234-6-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/role/rfc9234_complex_peering_test.go::TestRFC9234ComplexPeeringGuidanceAndRolelessSession",
+    "unit-sha": "289f9664834f491e",
+    "claim-sha": "32eba41229eb27da",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/role/role.go::GetYANG",
+    "producer-sha": "3912b890376d6abf",
+    "break": "body of GetYANG replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9234-6-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/role/rfc9234_complex_peering_test.go::TestRFC9234ComplexPeeringGuidanceAndRolelessSession",
+    "unit-sha": "289f9664834f491e",
+    "claim-sha": "97504125571bff0b",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/role/config.go::parseRoleContainer",
+    "producer-sha": "20f5c52a5388f2af",
+    "break": "body of parseRoleContainer replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

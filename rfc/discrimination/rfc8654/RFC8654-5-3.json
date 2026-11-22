@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8654-5-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc8654_notification_limit_test.go::TestRFC8654NotificationMaxLengthNonExtended",
+    "unit-sha": "204869abdb59dd77",
+    "claim-sha": "84bfbd18f7f62449",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/notification.go::Notification.Len",
+    "producer-sha": "12cebcb8db7ea3ff",
+    "break": "body of Notification.Len replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8654-5-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc8654_notification_limit_test.go::TestRFC8654NotificationMaxLengthNonExtended",
+    "unit-sha": "204869abdb59dd77",
+    "claim-sha": "fcbbbf7227d19ccc",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/notification.go::CheckNotificationData",
+    "producer-sha": "15b7b5dbb483d122",
+    "break": "body of CheckNotificationData replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4360-6-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc4360_bestpath_test.go::TestRFC4360ExtendedCommunitiesDoNotAlterBestPath",
+    "unit-sha": "0f2647048e44bce4",
+    "claim-sha": "f0302833ffb6128e",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/bestpath.go::comparePair",
+    "producer-sha": "1c7a1fc9c4f27ccb",
+    "break": "body of comparePair replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4360-6-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc4360_bestpath_test.go::TestRFC4360ExtendedCommunitiesDoNotAlterBestPath",
+    "unit-sha": "0f2647048e44bce4",
+    "claim-sha": "7aaeb5a57e6eb14e",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/bestpath.go::comparePair",
+    "producer-sha": "1c7a1fc9c4f27ccb",
+    "break": "body of comparePair replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

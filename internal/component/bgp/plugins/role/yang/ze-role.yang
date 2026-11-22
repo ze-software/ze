@@ -36,7 +36,9 @@ module ze-role {
     grouping role-config {
         container role {
             description "The container turns on the role rules for this peer. A peer with no role container sends no
-                Role capability, and Ze accepts whatever role the peer declares.";
+                Role capability, and Ze accepts whatever role the peer declares. RFC 9234 Section 6: Roles MUST NOT
+                be configured on an eBGP session with a Complex peering relationship; omit the role container on a
+                Complex peering session or segregate it into multiple eBGP sessions with normal relationships.";
             ze:help "RFC 9234 BGP Role configuration";
 
             leaf import {
