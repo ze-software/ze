@@ -917,10 +917,13 @@ func TestOnEORReceived_DuringLLGR_LastFamily(t *testing.T) {
 	assert.False(t, mgr.peerActive(grFixtureSource(t, testPeer, 701, 41)), "peer should no longer be active")
 }
 
-// TestConsecutiveRestart_DuringLLGR verifies new session drop while in LLGR.
+// TestConsecutiveRestart_DuringLLGR verifies consecutive session drop while in LLGR.
 //
-// VALIDATES: New session drop during LLGR cleans old LLGR state and starts fresh.
-// PREVENTS: LLST timers from old cycle interfering with new GR cycle.
+// VALIDATES: RFC 9494 Section 4.2 -- a consecutive session drop while an LLST
+// timer is running preserves the running LLGR state without re-entering LLGR
+// or restarting the timer.
+// PREVENTS: deleting LLGR-stale routes or resetting a running LLST timer before
+// synchronization (EoR).
 func TestConsecutiveRestart_DuringLLGR(t *testing.T) {
 	t.Parallel()
 
@@ -935,8 +938,9 @@ func TestConsecutiveRestart_DuringLLGR(t *testing.T) {
 	mgr.onSessionDown(grFixtureSource(t, testPeer, 701, 41), cap, llgrCapIPv4, false)
 	assert.Equal(t, 1, llgrCount, "first LLGR entry")
 
-	// New session drop during LLGR (consecutive restart)
+	// Consecutive session drop while ipv4/unicast already has a running LLST timer:
+	// must NOT re-enter LLGR or reset the running timer (RFC 9494 Section 4.2).
 	mgr.onSessionDown(grFixtureSource(t, testPeer, 701, 41), cap, llgrCapIPv4, false)
-	assert.Equal(t, 2, llgrCount, "second LLGR entry after consecutive restart")
+	assert.Equal(t, 1, llgrCount, "consecutive drop must not re-enter LLGR while LLST timer is running")
 	assert.True(t, mgr.peerActive(grFixtureSource(t, testPeer, 701, 41)), "peer should still be active")
 }

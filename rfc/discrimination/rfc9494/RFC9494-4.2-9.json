@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9494-4.2-9",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/gr/rfc9494_llgr_consecutive_test.go::TestRFC9494LLSTTimerNotUpdatedUntilSynchronized",
+    "unit-sha": "6f9a38c2dc39ba37",
+    "claim-sha": "5dea27625cc56411",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/gr/gr_state.go::grStateManager.onSessionDownPlan",
+    "producer-sha": "febb9d555c7c26e2",
+    "break": "body of grStateManager.onSessionDownPlan replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9494-4.2-9",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/gr/rfc9494_llgr_consecutive_test.go::TestRFC9494LLSTTimerNotUpdatedUntilSynchronized",
+    "unit-sha": "6f9a38c2dc39ba37",
+    "claim-sha": "5db85e64d12277ba",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/gr/gr_state.go::grStateManager.onEORReceived",
+    "producer-sha": "fe118f2199c3950b",
+    "break": "body of grStateManager.onEORReceived replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

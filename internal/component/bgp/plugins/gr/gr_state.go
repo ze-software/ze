@@ -57,8 +57,16 @@ type grPeerState struct {
 	inLLGR bool
 
 	// llgrFamilies tracks families currently in LLGR period with active LLST timers.
-	// Only populated when inLLGR is true.
+	// Populated while at least one family has a running LLST timer, including
+	// across session re-establishment until that family's EOR arrives (RFC 9494 §4.2).
 	llgrFamilies map[family.Family]*time.Timer
+
+	// llstExpiredDuringSync tracks families whose LLST timer expired after
+	// session re-establishment while still awaiting EOR. If the session resets
+	// again before EOR arrives for such a family, RFC 9494 Section 4.2 requires
+	// any remaining routes for that family to be removed immediately rather
+	// than retained for another GR/LLGR cycle.
+	llstExpiredDuringSync map[family.Family]bool
 
 	// llgrCap holds the LLGR capability from the peer's last OPEN.
 	// Used during GR->LLGR transition to determine per-family LLST.
@@ -185,6 +193,17 @@ func (m *grStateManager) onSessionDown(source grSource, cap *grPeerCap, llgrCap 
 	return activated
 }
 
+// sessionDownPlan describes the RIB actions a session-down transition requires.
+type sessionDownPlan struct {
+	activated           bool
+	prevSource          grSource
+	purgeAllPrevious    bool
+	purgePreviousFams   []family.Family
+	markStaleFams       []family.Family // non-nil when LLGR families stay preserved and only new families get GR mark-stale
+	preservedLLGRActive bool
+	completeDown        func()
+}
+
 // onSessionDownDeferred prepares retention without firing transition callbacks.
 // The caller MUST invoke the returned completion, when non-nil, AFTER dispatching
 // the session-down sequence (purge the previous cycle's stale routes, retain,
@@ -195,29 +214,102 @@ func (m *grStateManager) onSessionDown(source grSource, cap *grPeerCap, llgrCap 
 // re-established, the stale routes for an AFI/SAFI MUST be retained."
 // The original GR deadline includes time spent dispatching the sequence.
 func (m *grStateManager) onSessionDownDeferred(source grSource, cap *grPeerCap, llgrCap *llgrPeerCap, wasNotification bool) (bool, func()) {
+	plan := m.onSessionDownPlan(source, cap, llgrCap, wasNotification)
+	return plan.activated, plan.completeDown
+}
+
+// onSessionDownPlan computes the session-down state transition while enforcing
+// RFC 9494 Section 4.2 rules across consecutive restarts:
+//   - Running LLST timers and their LLGR-stale routes are preserved untouched
+//     (not purged, not reset or updated) until expiry or synchronization (EOR).
+//   - Families whose LLST timer expired during an unsynchronized reconnect are
+//     excluded from retention and purged immediately on reset.
+//   - Conventional GR-only stale families from a prior cycle are purged per
+//     RFC 4724 Section 4.2.
+func (m *grStateManager) onSessionDownPlan(source grSource, cap *grPeerCap, llgrCap *llgrPeerCap, wasNotification bool) sessionDownPlan {
 	m.mu.Lock()
+
+	prev := m.peers[source.owner]
+	var plan sessionDownPlan
+	if prev != nil {
+		plan.prevSource = prev.source
+	}
 
 	// No GR capability or NOTIFICATION -> standard BGP (no route retention)
 	if cap == nil || wasNotification {
+		if prev != nil {
+			plan.purgeAllPrevious = true
+		}
 		m.clearPeerLocked(source.grPeer)
 		m.mu.Unlock()
-		return false, nil
+		return plan
 	}
 
-	// RFC 4724 Section 4.2: consecutive restart -- delete previously stale
-	m.clearPeerLocked(source.grPeer)
+	// Partition any prior retained cycle: running LLST timers survive a
+	// consecutive restart untouched (RFC 9494 §4.2), expired-during-sync
+	// families must be purged immediately and excluded from new retention,
+	// and conventional GR families are purged per RFC 4724 §4.2.
+	var preservedLLGR map[family.Family]*time.Timer
+	var expiredDuringSync map[family.Family]bool
+	if prev != nil {
+		if prev.restartTimer != nil {
+			prev.restartTimer.Stop()
+			prev.restartTimer = nil
+		}
+		prev.restartDeadline = time.Time{}
+
+		if len(prev.llgrFamilies) > 0 {
+			preservedLLGR = prev.llgrFamilies
+			plan.preservedLLGRActive = true
+		}
+		if len(prev.llstExpiredDuringSync) > 0 {
+			expiredDuringSync = prev.llstExpiredDuringSync
+		}
+
+		if len(preservedLLGR) == 0 && len(expiredDuringSync) == 0 {
+			// Plain RFC 4724 consecutive restart: purge previous cycle cleanly.
+			plan.purgeAllPrevious = true
+			delete(m.peers, source.owner)
+			prev = nil
+		} else {
+			for fam := range prev.staleFamilies {
+				if _, kept := preservedLLGR[fam]; !kept {
+					plan.purgePreviousFams = append(plan.purgePreviousFams, fam)
+				}
+			}
+			for fam := range expiredDuringSync {
+				plan.purgePreviousFams = append(plan.purgePreviousFams, fam)
+			}
+		}
+	}
 
 	// RFC 9494 Section 4.2: "If the Graceful Restart Capability that was received
 	// does not list all AFIs/SAFIs supported by the session, then the GR Restart
 	// Time shall be deemed zero for those AFIs/SAFIs that are not listed."
 	downAt := time.Now()
-	staleFamilies := make(map[family.Family]bool, len(cap.Families))
-	for _, f := range cap.Families {
-		staleFamilies[f.Family] = true
+	staleFamilies := make(map[family.Family]bool, len(cap.Families)+len(preservedLLGR))
+	for fam := range preservedLLGR {
+		staleFamilies[fam] = true
 	}
+
+	var newGRFamilies []family.Family
+	for _, f := range cap.Families {
+		if expiredDuringSync[f.Family] {
+			continue
+		}
+		if _, kept := preservedLLGR[f.Family]; kept {
+			continue
+		}
+		staleFamilies[f.Family] = true
+		newGRFamilies = append(newGRFamilies, f.Family)
+	}
+
 	var immediate []family.Family
 	if llgrCap != nil {
 		for _, f := range llgrCap.Families {
+			if expiredDuringSync[f.Family] {
+				continue
+			}
 			if staleFamilies[f.Family] {
 				continue
 			}
@@ -230,22 +322,44 @@ func (m *grStateManager) onSessionDownDeferred(source grSource, cap *grPeerCap, 
 	}
 
 	if len(staleFamilies) == 0 {
+		delete(m.peers, source.owner)
 		m.mu.Unlock()
-		return false, nil
+		return plan
 	}
 
-	state := &grPeerState{
-		source:        source,
-		staleFamilies: staleFamilies,
-		llgrCap:       llgrCap,
-	}
-	if len(cap.Families) > 0 {
-		state.restartDeadline = downAt.Add(time.Duration(cap.RestartTime) * time.Second)
+	var state *grPeerState
+	if prev != nil && len(preservedLLGR) > 0 {
+		// Reuse prev in place so running LLST timer closures (which guard on
+		// owner == state) remain authoritative for the preserved families.
+		state = prev
+		state.source = source
+		state.reestablishedConnectionID = 0
+		state.staleFamilies = staleFamilies
+		state.llgrFamilies = preservedLLGR
+		state.llstExpiredDuringSync = nil
+		state.inLLGR = true
+		state.llgrCap = llgrCap
+		if len(newGRFamilies) > 0 {
+			state.restartDeadline = downAt.Add(time.Duration(cap.RestartTime) * time.Second)
+		} else {
+			state.restartDeadline = time.Time{}
+		}
+		plan.markStaleFams = append(newGRFamilies, immediate...)
+	} else {
+		state = &grPeerState{
+			source:        source,
+			staleFamilies: staleFamilies,
+			llgrCap:       llgrCap,
+		}
+		if len(newGRFamilies) > 0 {
+			state.restartDeadline = downAt.Add(time.Duration(cap.RestartTime) * time.Second)
+		}
+		m.peers[source.owner] = state
 	}
 
-	m.peers[source.owner] = state
 	m.mu.Unlock()
-	return true, func() {
+	plan.activated = true
+	plan.completeDown = func() {
 		var pending *llgrPendingActions
 		if len(immediate) > 0 {
 			m.mu.Lock()
@@ -273,6 +387,7 @@ func (m *grStateManager) onSessionDownDeferred(source grSource, cap *grPeerCap, 
 			pending.fire()
 		}
 	}
+	return plan
 }
 
 // startRestartTimer completes session-down only after the RIB has marked routes
@@ -358,11 +473,9 @@ func (m *grStateManager) onSessionReestablished(source grSource, newCap *grPeerC
 		state.restartTimer = nil
 	}
 
-	// Stop all LLST timers if in LLGR
-	m.stopLLSTTimersLocked(state)
-
-	// No GR cap in new OPEN -> purge all
+	// No GR cap in new OPEN -> stop all LLST timers and purge all
 	if newCap == nil {
+		m.stopLLSTTimersLocked(state)
 		purged := m.allStaleFamiliesLocked(state)
 		m.deletePeerLocked(source.grPeer)
 		return retainedSource, purged, wasInLLGR
@@ -388,22 +501,32 @@ func (m *grStateManager) onSessionReestablished(source grSource, newCap *grPeerC
 		}
 	}
 
+	// RFC 9494 Section 4.2: "However, the timer continues to run once the
+	// session has re-established. The timer is neither stopped nor updated
+	// until the EoR marker is received for the relevant AFI/SAFI from the
+	// peer." Only families purged immediately on reconnect have their LLST
+	// timer stopped here.
 	var purged []family.Family
 	for fam := range state.staleFamilies {
 		// RFC 4724 Section 4.2, RFC 9494 Section 4.2.
 		if reconnectKeepsFamily(fam, grForwarding, llgrForwarding, inLLGRPeriod) {
 			continue
 		}
+		if timer, active := state.llgrFamilies[fam]; active {
+			timer.Stop()
+			delete(state.llgrFamilies, fam)
+		}
 		purged = append(purged, fam)
 		delete(state.staleFamilies, fam)
 	}
 
-	// Update LLGR cap for potential future LLGR cycle
+	// Update LLGR cap for potential future LLGR cycle; preserve inLLGR while
+	// any surviving family's LLST timer is still running.
 	state.llgrCap = newLLGRCap
-	state.inLLGR = false
+	state.inLLGR = len(state.llgrFamilies) > 0
 
-	// If all families purged, GR/LLGR is complete
-	if len(state.staleFamilies) == 0 {
+	// If all families purged and none expired during sync, GR/LLGR is complete.
+	if len(state.staleFamilies) == 0 && len(state.llstExpiredDuringSync) == 0 {
 		m.deletePeerLocked(source.grPeer)
 	}
 
@@ -454,22 +577,25 @@ func (m *grStateManager) onEORReceived(source grSource, fam family.Family) (grSo
 		return grSource{}, false
 	}
 	retainedSource := state.source
-	if !state.staleFamilies[fam] {
+	wasStale := state.staleFamilies[fam]
+	wasExpiredDuringSync := state.llstExpiredDuringSync[fam]
+	if !wasStale && !wasExpiredDuringSync {
 		return grSource{}, false
 	}
 
 	delete(state.staleFamilies, fam)
+	delete(state.llstExpiredDuringSync, fam)
 
-	// Stop LLST timer for this family if in LLGR
-	if state.inLLGR {
-		if timer, ok := state.llgrFamilies[fam]; ok {
-			timer.Stop()
-			delete(state.llgrFamilies, fam)
-		}
+	// Stop LLST timer for this family if still running (RFC 9494 Section 4.2:
+	// timer runs until EoR is received for the relevant AFI/SAFI).
+	if timer, active := state.llgrFamilies[fam]; active {
+		timer.Stop()
+		delete(state.llgrFamilies, fam)
+		state.inLLGR = len(state.llgrFamilies) > 0
 	}
 
-	// All families received EOR -> GR/LLGR complete
-	if len(state.staleFamilies) == 0 {
+	// All families synchronized -> GR/LLGR complete
+	if len(state.staleFamilies) == 0 && len(state.llstExpiredDuringSync) == 0 {
 		if state.restartTimer != nil {
 			state.restartTimer.Stop()
 		}
@@ -477,7 +603,7 @@ func (m *grStateManager) onEORReceived(source grSource, fam family.Family) (grSo
 		m.deletePeerLocked(source.grPeer)
 	}
 
-	return retainedSource, true
+	return retainedSource, wasStale
 }
 
 // llgrPendingActions collects callbacks to fire after releasing the state manager lock.
@@ -681,24 +807,38 @@ func (m *grStateManager) handleLLSTExpired(source grSource, fam family.Family, o
 		m.mu.Unlock()
 		return
 	}
+	expiredSource := state.source
 	delete(state.staleFamilies, fam)
 	delete(state.llgrFamilies, fam)
 
+	syncing := state.reestablishedConnectionID != 0
+	if syncing {
+		// RFC 9494 Section 4.2: "If the timer expires during synchronization
+		// with the peer, any stale routes that the peer has not refreshed are
+		// removed. If the session subsequently resets prior to becoming
+		// synchronized, any remaining routes (for the AFI/SAFI whose LLST timer
+		// expired) MUST be removed immediately."
+		if state.llstExpiredDuringSync == nil {
+			state.llstExpiredDuringSync = make(map[family.Family]bool)
+		}
+		state.llstExpiredDuringSync[fam] = true
+	}
+
 	state.inLLGR = len(state.llgrFamilies) > 0
-	lastFamily := len(state.staleFamilies) == 0
+	lastFamily := !syncing && len(state.staleFamilies) == 0 && len(state.llstExpiredDuringSync) == 0
 	if lastFamily {
 		m.deletePeerLocked(source.grPeer)
 	}
 
 	m.mu.Unlock()
 
-	logger().Info("LLST timer expired", "peer", source, "family", fam, "last", lastFamily)
+	logger().Info("LLST timer expired", "peer", expiredSource, "family", fam, "last", lastFamily, "syncing", syncing)
 
 	if m.onLLGRFamilyExpired != nil {
-		m.onLLGRFamilyExpired(source, fam)
+		m.onLLGRFamilyExpired(expiredSource, fam)
 	}
 	if lastFamily && m.onLLGRComplete != nil {
-		m.onLLGRComplete(source)
+		m.onLLGRComplete(expiredSource)
 	}
 }
 

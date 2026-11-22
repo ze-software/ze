@@ -508,20 +508,31 @@ func (gp *grPlugin) handleStructuredState(source grSource, state rpc.SessionStat
 		llgrCap := gp.exchangedLLGRLocked(source)
 		gp.mu.Unlock()
 
-		previous, hadPrevious := gp.state.retainedSource(source)
-		activated, completeDown := gp.state.onSessionDownDeferred(source, cap, llgrCap, normalProcedures)
-		if hadPrevious {
-			gp.dispatchSource(previous, "request bgp rib source purge-stale")
+		plan := gp.state.onSessionDownPlan(source, cap, llgrCap, normalProcedures)
+		if plan.purgeAllPrevious {
+			gp.dispatchSource(plan.prevSource, "request bgp rib source purge-stale")
+		} else {
+			for _, fam := range plan.purgePreviousFams {
+				gp.dispatchSource(plan.prevSource, "request bgp rib source purge-stale", "family", fam.String())
+			}
 		}
-		if activated {
+		if plan.activated {
 			// RFC 9494 Section 4.2.
 			gp.retainPeerFamilies(source)
-			gp.dispatchSource(source, "request bgp rib source mark-stale", "restart-time", strconv.FormatUint(uint64(cap.RestartTime), 10))
+			if plan.preservedLLGRActive {
+				// Families already in LLGR keep their stale-level=2 and LLGR_STALE
+				// community; only newly-stale non-LLGR families get level-1 GR marking.
+				for _, fam := range plan.markStaleFams {
+					gp.dispatchSource(source, "request bgp rib source mark-stale", "restart-time", strconv.FormatUint(uint64(cap.RestartTime), 10), "family", fam.String())
+				}
+			} else {
+				gp.dispatchSource(source, "request bgp rib source mark-stale", "restart-time", strconv.FormatUint(uint64(cap.RestartTime), 10))
+			}
 		}
 		// RFC 4724 Section 4.2, RFC 9494 Section 4.2.
 		// Retain and mark stale before GR expiry or immediate LLGR entry.
-		if completeDown != nil {
-			completeDown()
+		if plan.completeDown != nil {
+			plan.completeDown()
 		}
 
 	case rpc.SessionStateUp:
