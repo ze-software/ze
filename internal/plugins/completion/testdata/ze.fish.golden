@@ -175,7 +175,7 @@ end
 # __ze_subcmd_path preserves local flags and values for the shared parser.
 # Only the global flags handled before a command are removed here.
 function __ze_subcmd_path
-    set -l cmd (commandline -xpc)
+    set -l cmd (commandline -opc)
     set -l skip_next 0
     set -l found 0
     for word in $cmd[2..]

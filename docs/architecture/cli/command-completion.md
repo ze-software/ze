@@ -374,6 +374,13 @@ was replaced by direct verb dispatch and only prints where to go instead.
 bash, zsh and nushell reach a typed verb through the same default arm as a
 root. fish has a rule for `show` only, and no script offers a verb other than
 `show` as a first word.
+
+The fish script reads the command line with `commandline -opc` in every
+helper: the completed tokens of the current process, unquoted and unescaped,
+with empty tokens kept. fish 3.x and 4.x both accept `-o`; fish 4.0 deprecated
+it in favor of `-x` (`--tokens-expanded`) but did not remove it, and `-x` does
+not exist before 4.0, so a script using it fails on every completion under
+fish 3.7.
 <!-- source: internal/plugins/completion/words.go -- completionTree -->
 <!-- source: internal/plugins/completion/root_commands.go -- shellRootCommands -->
 <!-- source: internal/plugins/completion/root_commands.go -- shellRootsWithSubVerbs, fishRootSubVerbLines -->
