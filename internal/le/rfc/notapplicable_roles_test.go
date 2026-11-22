@@ -488,3 +488,64 @@ func TestNotApplicableBoundRoleNamesAParty(t *testing.T) {
 		}
 	}
 }
+
+// VALIDATES: AC-35, AC-36 -- the narrow document-author evidence route admits
+// both the restrictive-subject document form (RFC 7606 Section 8) and the
+// passive-document complement form (RFC 5492 Section 4) without loosening
+// subjectBreakers for protocol speaker obligations; nearby receiver obligations
+// (RFC 5492 Section 4's multiple Capabilities Optional Parameters) and speaker
+// obligations naming a document remain refused.
+// METHOD: parseAnnotation over the verbatim RFC 7606 Section 8 and RFC 5492
+// Section 4 sentences plus negative controls.
+func TestNotApplicableDocumentAuthorForms(t *testing.T) {
+	const (
+		rfc7606Sec8 = "A document that specifies a new BGP attribute MUST provide specifics regarding what constitutes an error for that attribute and how that error is to be handled."
+		rfc5492Sec4 = "Processing of these capability instances is specific to the Capability Code and MUST be described in the document introducing the new capability."
+		rfc5492Mult = "However, for backward compatibility, a BGP speaker MUST be prepared to receive an OPEN message that contains multiple Capabilities Optional Parameters, each of which contains one or more capabilities TLVs."
+	)
+	if !strings.Contains(squashWhitespace(realRFCText(t, "rfc7606")), rfc7606Sec8) {
+		t.Fatalf("rfc/full/rfc7606.txt no longer carries %q", rfc7606Sec8)
+	}
+	if !strings.Contains(squashWhitespace(realRFCText(t, "rfc5492")), rfc5492Sec4) {
+		t.Fatalf("rfc/full/rfc5492.txt no longer carries %q", rfc5492Sec4)
+	}
+	if !strings.Contains(squashWhitespace(realRFCText(t, "rfc5492")), rfc5492Mult) {
+		t.Fatalf("rfc/full/rfc5492.txt no longer carries %q", rfc5492Mult)
+	}
+
+	accepted := []struct{ name, quote, bound string }{
+		{"restrictive-subject binds a document", rfc7606Sec8, "a document"},
+		{"restrictive-subject binds specification document", rfc7606Sec8, "specification document"},
+		{"restrictive-subject specification noun", "A specification defining a new option MUST state its wire format.", "a specification"},
+		{"passive-document binds the document", rfc5492Sec4, "the document"},
+		{"passive-document binds document author", rfc5492Sec4, "document author"},
+		{"passive-document by specification", "Error recovery for the extension MUST be specified by a specification introducing it.", "a specification"},
+	}
+	for _, one := range accepted {
+		t.Run("accept/"+one.name, func(t *testing.T) {
+			if _, err := parseAnnotation(`not-applicable: "`+one.quote+`"; binds `+one.bound+`; ze is a BGP speaker, not a specification document`, "fixture", registerUpperCase); err != nil {
+				t.Errorf("refused valid document-author form: %v", err)
+			}
+		})
+	}
+
+	refused := []struct{ name, quote, bound string }{
+		{"RFC 5492 nearby receiver obligation", rfc5492Mult, "a document"},
+		{"speaker obligation referencing a document", "A BGP speaker MUST accept routes as described in the document.", "a document"},
+		{"protocol actor before passive document", "A client MUST be described in the document introducing the extension.", "a document"},
+		{"non-specification passive verb", "The field MUST be set in the document introducing the extension.", "a document"},
+		{"protocol subject with restrictive clause", "A speaker that specifies a new BGP attribute MUST validate it.", "a document"},
+		{"compound subject with comma before document", "A speaker, or a document that specifies a new attribute, MUST state errors.", "a document"},
+		{"mismatched noun specification vs document", rfc7606Sec8, "a specification"},
+		{"mismatched noun document vs specification", "A specification defining a new option MUST state its wire format.", "a document"},
+		{"non-document role on restrictive form", rfc7606Sec8, "a route reflector"},
+		{"generic actor on document sentence", rfc7606Sec8, "a speaker"},
+	}
+	for _, one := range refused {
+		t.Run("refuse/"+one.name, func(t *testing.T) {
+			if _, err := parseAnnotation(`not-applicable: "`+one.quote+`"; binds `+one.bound+`; ze does not do this`, "fixture", registerUpperCase); err == nil {
+				t.Errorf("accepted disallowed quote %q binding %q", one.quote, one.bound)
+			}
+		})
+	}
+}

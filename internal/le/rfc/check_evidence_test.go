@@ -940,3 +940,78 @@ func TestGoListLinkedRefusesAnUnreadableFlavor(t *testing.T) {
 		t.Errorf("a tree with no flavor file answered %q, want one fix naming the glob", refusal)
 	}
 }
+
+// VALIDATES: AC-37 -- every source and role guard remains active on the
+// document-author evidence route: missing RFC text, wrong section, incomplete
+// sentence / dropped condition, borrowed obligation, altered level, generic
+// actor, and a role Ze declares it fills are each refused, while complete real
+// RFC 7606 Section 8 and RFC 5492 Section 4 rows pass.
+// METHOD: (*evidenceReader).gap and ParseSummaryText against real RFC texts
+// copied into temporary fixture trees.
+func TestDocumentAuthorEvidenceGuards(t *testing.T) {
+	const (
+		rfc7606Quote = "A document that specifies a new BGP attribute MUST provide specifics regarding what constitutes an error for that attribute and how that error is to be handled."
+		rfc5492Quote = "Processing of these capability instances is specific to the Capability Code and MUST be described in the document introducing the new capability."
+	)
+	tree := t.TempDir()
+	writeFixtureFiles(t, tree, map[string]string{
+		"rfc/full/rfc7606.txt": realRFCText(t, "rfc7606"),
+		"rfc/full/rfc5492.txt": realRFCText(t, "rfc5492"),
+	})
+
+	row7606 := evidenceRow(t, "RFC7606-8-1", "8", `not-applicable: "`+rfc7606Quote+`"; binds a document; ze is a BGP speaker and authors no BGP attribute specification`)
+	row7606.RFC, row7606.Text, row7606.Level = "rfc7606", rfc7606Quote+" (§8)", levelMust
+	if missing, lacks := newEvidenceReader(tree).gap(&row7606); lacks {
+		t.Fatalf("valid RFC7606-8-1 document-author row refused: %s", missing)
+	}
+
+	row5492 := evidenceRow(t, "RFC5492-4-3", "4", `not-applicable: "`+rfc5492Quote+`"; binds the document; ze is a BGP speaker and authors no capability specification`)
+	row5492.RFC, row5492.Text, row5492.Level = "rfc5492", rfc5492Quote+" (§4)", levelMust
+	if missing, lacks := newEvidenceReader(tree).gap(&row5492); lacks {
+		t.Fatalf("valid RFC5492-4-3 document-author row refused: %s", missing)
+	}
+
+	// Missing RFC source text.
+	if missing, lacks := newEvidenceReader(t.TempDir()).gap(&row7606); !lacks || !strings.Contains(missing, "not in this repository") {
+		t.Errorf("missing source answered (%q, %v), want missing-source refusal", missing, lacks)
+	}
+
+	// Wrong section.
+	wrongSec := row7606
+	wrongSec.Section = "7"
+	if missing, lacks := newEvidenceReader(tree).gap(&wrongSec); !lacks || !strings.Contains(missing, "section 8") {
+		t.Errorf("wrong section answered (%q, %v), want section mismatch refusal", missing, lacks)
+	}
+
+	// Incomplete sentence / dropped condition.
+	incomplete := evidenceRow(t, "RFC7606-8-1", "8", `not-applicable: "A document that specifies a new BGP attribute MUST provide specifics"; binds a document; ze writes no spec`)
+	incomplete.RFC, incomplete.Text, incomplete.Level = "rfc7606", rfc7606Quote+" (§8)", levelMust
+	if missing, lacks := newEvidenceReader(tree).gap(&incomplete); !lacks || !strings.Contains(missing, "not a whole sentence") {
+		t.Errorf("incomplete sentence answered (%q, %v), want whole-sentence refusal", missing, lacks)
+	}
+
+	// Borrowed obligation (different row text from the quoted sentence).
+	borrowed := row5492
+	borrowed.Text = "A BGP speaker MUST be prepared to receive an OPEN message that contains multiple Capabilities Optional Parameters (§4)"
+	if missing, lacks := newEvidenceReader(tree).gap(&borrowed); !lacks || !strings.Contains(missing, "not the row's own obligation sentence") {
+		t.Errorf("borrowed obligation answered (%q, %v), want own-obligation refusal", missing, lacks)
+	}
+
+	// Altered level (row at SHOULD quoting a MUST sentence).
+	altered := row7606
+	altered.Level = levelShould
+	if missing, lacks := newEvidenceReader(tree).gap(&altered); !lacks || !strings.Contains(missing, "the row's level is SHOULD") {
+		t.Errorf("altered level answered (%q, %v), want level mismatch refusal", missing, lacks)
+	}
+
+	// Generic actor refused at parse time.
+	if _, err := parseAnnotation(`not-applicable: "`+rfc7606Quote+`"; binds a speaker; ze is not one`, "fixture", registerUpperCase); err == nil || !strings.Contains(err.Error(), "a word for any party") {
+		t.Errorf("generic actor answered %v, want generic refusal", err)
+	}
+
+	// Role Ze fills refused by checkNotApplicableRoles.
+	selfRow := "- [ ] [RFC9999-8-1] [MUST] " + rfc7606Quote + ` (§8) {not-applicable: "` + rfc7606Quote + `"; binds a document; ze fills this}`
+	if _, err := ParseSummaryText(fixtureWithZeRoles(t, "document", selfRow), selftestStem, selftestSummaryRel, registerByNumber(selftestStem)); err == nil || !strings.Contains(err.Error(), "declares ze is 'document'") {
+		t.Errorf("role ze fills answered %v, want Ze roles refusal", err)
+	}
+}

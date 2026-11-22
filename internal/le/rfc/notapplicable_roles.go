@@ -70,6 +70,39 @@ var scopingNegations = []string{"not", "no", "except", "unless", "other than", "
 // and the party it binds is its subject: the words before the first keyword.
 var bcp14Keywords = append(gatedLevelNames(), advisoryLevelNames()...)
 
+// documentNouns are the nouns that name an IETF specification document itself,
+// never a running protocol speaker. Used exclusively by documentAuthorAccepted.
+const documentNouns = "document documents specification specifications"
+
+// documentAuthorRoles is the closed set of normalized bound roles (roleKey)
+// accepted by the narrow document-author evidence form.
+var documentAuthorRoles = []string{
+	"document",
+	"specification",
+	"document author",
+	"specification author",
+	"specification document",
+}
+
+// documentRestrictiveOpeners are the words that immediately follow a
+// documentNouns subject to open its restrictive clause ("A document that
+// specifies...", "A specification introducing...").
+const documentRestrictiveOpeners = "that which introducing defining specifying describing"
+
+// documentPassiveVerbs are the passive participles that immediately follow
+// "<KEYWORD> be" in a document-author obligation ("MUST be described in the
+// document..."). Action verbs on protocol state ("set", "sent", "prepared")
+// are excluded so no speaker obligation can pass through this form.
+const documentPassiveVerbs = "described specified defined documented stated detailed"
+
+// documentPassiveDeterminers are the optional determiners allowed before the
+// document noun in "<KEYWORD> be <verb> in|by [<det>] <documentNoun>".
+const documentPassiveDeterminers = "a an the each any that"
+
+// documentProtocolActors supplements genericRoleWords when rejecting protocol
+// actors from the subject of a passive-document obligation.
+const documentProtocolActors = "client clients server servers reflector reflectors relay relays agent agents proxy proxies daemon daemons collector collectors resolver resolvers validator validators"
+
 // notApplicableShapes names the two quotes a {not-applicable} row may carry,
 // for every refusal of a quote of neither shape.
 const notApplicableShapes = "A {not-applicable} quote is one of two shapes: the row's own obligation sentence, whose subject is the bound role, or a sentence of the cited section with no BCP 14 keyword that scopes it to the role with apply, applies, applicable, only, solely, limited to or restricted to. "
@@ -79,7 +112,8 @@ const notApplicableShapes = "A {not-applicable} quote is one of two shapes: the 
 // format. Keywords are read in the register of the row's RFC
 // (KeywordRegisterOf), so a lowercase-register row's lowercase "must" is one. A
 // quote holding a BCP 14 keyword is shape (a), the row's own obligation
-// sentence, and its subject must be the bound role (subjectRefusal), unless a
+// sentence, and its subject must be the bound role (subjectRefusal), unless it
+// matches the narrow document-author form (documentAuthorAccepted) or a
 // lowercase-register row names the role from a sentence of another section
 // (roleSentenceRefusal); the check that it is the row's own sentence needs the
 // row and runs in (*evidenceReader).gap. A quote with no keyword is shape (b),
@@ -100,6 +134,9 @@ func boundRoleRefusal(quote, bound string, role roleSentence, register KeywordRe
 	}
 	refusal, refused := subjectRefusal(quote[:at], keyword, bound)
 	if role.sentence == "" {
+		if refused && documentAuthorAccepted(quote, at, keyword, bound) {
+			return "", false
+		}
 		return refusal, refused
 	}
 	if !refused {
@@ -109,6 +146,108 @@ func boundRoleRefusal(quote, bound string, role roleSentence, register KeywordRe
 			Str(" sentence. ").String(), true
 	}
 	return roleSentenceRefusal(role, bound, register)
+}
+
+// documentAuthorAccepted answers whether quote is a narrow document-author
+// obligation whose bound role names the defining document or specification
+// rather than any protocol speaker. Two closed grammatical shapes are admitted
+// without loosening subjectBreakers for protocol roles:
+//
+//  1. Restrictive-subject document form: the subject before keyword holds no
+//     comma, opens (after leading determiners) with a documentNouns word
+//     immediately followed by a documentRestrictiveOpeners word (e.g., RFC 7606
+//     Section 8: "A document that specifies a new BGP attribute MUST...").
+//  2. Passive-document complement form: the text before keyword names no
+//     protocol actor (neither genericRoleWords nor documentProtocolActors), and
+//     the tokens immediately after keyword are "be <documentPassiveVerbs>
+//     (in|by) [<det>] <documentNouns>" (e.g., RFC 5492 Section 4: "...MUST be
+//     described in the document introducing the new capability.").
+func documentAuthorAccepted(quote string, at int, keyword, bound string) bool {
+	boundKey := roleKey(bound)
+	if !slices.Contains(documentAuthorRoles, boundKey) {
+		return false
+	}
+	before := quote[:at]
+	if documentRestrictiveSubject(before, boundKey) {
+		return true
+	}
+	after := quote[at+len(keyword):]
+	return documentPassiveComplement(before, after, boundKey)
+}
+
+// documentAuthorMatchesNoun checks that boundKey agrees with the document noun
+// ("document"/"documents" vs "specification"/"specifications") that the quoted
+// sentence actually uses. "specification document" matches either.
+func documentAuthorMatchesNoun(boundKey, noun string) bool {
+	singular := singularLetters(noun)
+	switch boundKey {
+	case "document", "document author":
+		return singular == "document"
+	case "specification", "specification author":
+		return singular == "specification"
+	case "specification document":
+		return singular == "document" || singular == "specification"
+	default:
+		return false
+	}
+}
+
+// documentRestrictiveSubject checks form (1) of documentAuthorAccepted.
+func documentRestrictiveSubject(before, boundKey string) bool {
+	if strings.ContainsRune(before, ',') {
+		return false
+	}
+	words := roleTokens(before)
+	determiners := strings.Fields(roleDeterminers)
+	for len(words) > 0 && slices.Contains(determiners, words[0]) {
+		words = words[1:]
+	}
+	if len(words) < 2 {
+		return false
+	}
+	if !slices.Contains(strings.Fields(documentNouns), words[0]) {
+		return false
+	}
+	if !slices.Contains(strings.Fields(documentRestrictiveOpeners), words[1]) {
+		return false
+	}
+	return documentAuthorMatchesNoun(boundKey, words[0])
+}
+
+// documentPassiveComplement checks form (2) of documentAuthorAccepted.
+func documentPassiveComplement(before, after, boundKey string) bool {
+	beforeWords := roleTokens(before)
+	generic := strings.Fields(genericRoleWords)
+	actors := strings.Fields(documentProtocolActors)
+	for _, w := range beforeWords {
+		if slices.Contains(generic, w) || slices.Contains(actors, w) {
+			return false
+		}
+	}
+	afterWords := roleTokens(after)
+	if len(afterWords) < 4 {
+		return false
+	}
+	if afterWords[0] != "be" {
+		return false
+	}
+	if !slices.Contains(strings.Fields(documentPassiveVerbs), afterWords[1]) {
+		return false
+	}
+	if afterWords[2] != "in" && afterWords[2] != "by" {
+		return false
+	}
+	idx := 3
+	if idx < len(afterWords) && slices.Contains(strings.Fields(documentPassiveDeterminers), afterWords[idx]) {
+		idx++
+	}
+	if idx >= len(afterWords) {
+		return false
+	}
+	if !slices.Contains(strings.Fields(documentNouns), afterWords[idx]) {
+		return false
+	}
+	return documentAuthorMatchesNoun(boundKey, afterWords[idx])
 }
 
 // roleSentence is the sentence of another section a lowercase-register

@@ -1,0 +1,6 @@
+{
+  "no_code_path": "RFC 5492 Section 4 states: 'Processing of these capability instances is specific to the Capability Code and MUST be described in the document introducing the new capability.' After permitting multiple capability instances with different values in the preceding sentence, the MUST binds the specification document introducing a new BGP capability, not a BGP speaker. Ze's declared role in rfc/short/rfc5492.md is 'BGP speaker'; Ze authors no BGP capability specification, so no reachable code path can satisfy or violate this requirement.",
+  "note": "Independent audit (2026-11-22) against rfc/full/rfc5492.txt Section 4, rfc/short/rfc5492.md, and rfc/extraction/rfc5492.json (site 4:2). The row's verbatim text, [MUST] level, Ze roles ('BGP speaker'), and {not-applicable} annotation accurately reflect a document-author obligation. Speaker runtime obligations for multiple capability instances and parameters remain covered by RFC5492-4-1 and RFC5492-4-2, and per-capability semantics belong to each capability's own RFC. No tests tag RFC5492-4-3.",
+  "requirement_sha": "206d7e3579ab8678",
+  "verdict": "not-applicable"
+}

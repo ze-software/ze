@@ -2,14 +2,14 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Priority | P1 |
 | Release reason | A route server must retain the required pre-policy received population independently of policy rejection. |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
-| Handoff | verify |
-| Updated | 2026-08-30 |
+| Phase | Phase 1: wiring and filtered-update event emission |
+| Handoff | - |
+| Updated | 2026-11-22 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -22,43 +22,48 @@ RFC 7947 Section 2.1 opens with an obligation Ze does not meet:
 > from the route server's Loc-RIB or Loc-RIBs, due to filters configured for the
 > purpose of implementing routing policy."
 
-`notifyMessageReceiver` (`internal/component/bgp/reactor/reactor_notify.go`) runs
+`notifyOneMessage` (`internal/component/bgp/reactor/reactor_notify.go`) runs
 the ordered ingress step loop and returns as soon as a step denies the route. That
 return sits AHEAD of the plugin dispatch that feeds `handleReceivedStructured`
 (`internal/component/bgp/plugins/adj_rib_in/rib.go`) and ahead of
-`reactorForwardRS`. A denied UPDATE therefore never reaches the Adj-RIB-In at all,
-so the store holds the post-policy population where the RFC requires the
-pre-policy one.
+`reactorForwardRS`. Furthermore, for mixed UPDATEs (carrying withdrawals plus
+denied announcements), `filter_ordered.go::ingressPolicyWithdrawals` returns
+`accept=true` with a withdrawal-only `modifiedPayload`, discarding the denied
+announcements before dispatch, and a denied replacement of a previously accepted
+route leaves the stale accepted route selected in Loc-RIB and Adj-RIB-Out.
 
 The path is reachable by DEFAULT, not only by operator configuration. `LoopIngress`
 (`internal/component/bgp/reactor/filter/loop.go`) denies on the local AS appearing
 in AS_PATH, on the local Router ID in ORIGINATOR_ID, and on the local Router ID in
 CLUSTER_LIST. The per-peer import chain (`runIngressPolicyChain`) denies on
-operator policy.
+operator policy (including absent EBGP import policy under RFC 8212).
 
 Thomas ruled on 2026-08-30 that Ze inserts into the Adj-RIB-In FIRST, before the
 filter verdict is honored, for route-server client peers, marking the stored entry
-filtered. He did not choose the narrower reading under which Section 2.1 governs
-only the route server's own per-client policy.
-
-The spec carries a second, smaller deliverable: two declared LEVELS in
-`rfc/short/rfc7947.md` are wrong about their own source, and Thomas ruled they are
-corrected under their existing ids.
-
-The downstream extraction programme is
-`plan/release/validation/spec-rfcgate-6-supported-extraction-signoff.md`. This spec
-supplies its RFC 7947 implementation and sign-off; that programme's completion
-is not a prerequisite for this change.
+filtered. On 2026-11-22 he approved revising this spec to match the live codebase:
+1. Keep `RFC7947-x-4` (`[SHOULD]`) and `RFC7947-x-5` (`[SHOULD]`, already proven in
+   both polarities) untouched in `rfc/short/rfc7947.md`; `RFC7947-2.1-1` and
+   `rfc/extraction/rfc7947.json` already exist in the tree.
+2. Capture original pre-policy UPDATE bytes and policy disposition before
+   `ingressPolicyWithdrawals` projection, and withdraw previously accepted routes
+   from Loc-RIB / Adj-RIB-Out when replaced by a denied UPDATE.
+3. Store an independent `ImportFiltered` mark (separate from RPKI `Ineligible`)
+   on `RawRoute` and gate `walkReplayRoutes`, `replayPathCommand`, and
+   `routeEligible`.
+4. Enforce an explicit unique-retained-population bound (replacing the disproven
+   offered-count assumption).
+5. Split the orthogonal 2026-11-16 selected-path replay ordering proposal into
+   `plan/release/fixes/spec-bgp-selected-path-replay-ordering.md`.
 
 ### Goals
 
 | # | Goal |
 |---|------|
-| G-1 | A route-server client's denied UPDATE is held in that peer's Adj-RIB-In, marked filtered, so Ze satisfies RFC 7947 Section 2.1 |
-| G-2 | A filtered entry is never re-advertised, on the live rail or on the peer-up replay rail, so the policy decision still holds |
+| G-1 | A route-server client's denied UPDATE (full denial, mixed-UPDATE denied announcement, or denied replacement) is held in that peer's Adj-RIB-In, marked import-filtered, so Ze satisfies RFC 7947 Section 2.1 |
+| G-2 | An import-filtered entry is never selected or re-advertised (live rail, bulk/paged replay, single-path replay, or after RPKI validation acceptance), and a denied replacement withdraws any previously accepted version from Loc-RIB and recipients |
 | G-3 | An operator can tell a filtered entry from an accepted one at the CLI, on every pipe rendering |
-| G-4 | `RFC7947-x-4` and `RFC7947-x-5` declare the strength their own RFC text states |
-| G-5 | `rfc/extraction/rfc7947.json` reaches a landed sign-off with no open site |
+| G-4 | Retained entries (accepted + import-filtered) are bounded by unique retained keys against the configured prefix maximum, unaffected by unmatched withdrawals |
+| G-5 | `RFC7947-2.1-1` leaves `{gap}` and passes `./le rfc check` with positive and negative discrimination proofs |
 
 ### Non-goals
 
@@ -264,147 +269,24 @@ The existing SHOULD levels and gap annotations for `RFC7947-x-4` and
 `RFC7947-x-5` are unchanged by this test batch. No extraction sign-off or
 discrimination record is created for these defect probes.
 
-## Selected-path replay ordering investigation: 2026-11-16
+## Selected-path replay ordering investigation: 2026-11-16 (split out 2026-11-22)
 
-This is an unapproved design proposal, not an implemented repair or a test
-result. It addresses only delayed selected-path responses. The decision to
-disable route-server raw-import rewrites that introduce new native keys is
-unchanged; the received store must still retain the complete original input and its
-independent policy disposition. Invalidation cannot be attached only to the
-accepted post-import publication or the denial return branch.
-
-| Existing producer | Ordering consequence |
-|-------------------|----------------------|
-| `ribevents.RelayReplayPath`, `adj_rib_in.replayPathCommand` | Reads one explicitly named source path, then separately relays its answer. This is not a global best-path certificate. Missing paths answer a withdrawal with no received generation |
-| `forwardValidationWire`, `AdjRIBInManager.routeEligible`, `adjOutWrite.allow` | An old received MsgID can become an ineligible withdrawal; ordinary forwarded withdrawal ownership deliberately ignores that MsgID. A stale announcement must be discarded, not converted into authority to remove the newer same-source path |
-| `receivePublicationCut.wait`, `drainReceiveStore` | Publication completion must precede the store's applied-event drain. The latter alone covers only events already queued and neither operation fences a delayed response's later enqueue |
-| `recoveryAdmission.admit`, `adjOutOwed.noteAnnouncer` | Cold recovery has record/epoch/withdrawal-mover protection. Announcement movement deliberately allows the current decision then re-owes the key. That convergence contract is not a strict stale-response rejection guard |
-| `routeServer.replayValidation`, `routeReflector.runValidation` | RS currently performs the query synchronously on its live source worker; RR already has a separate joined validation worker. A slow query must not become a waiting item in the destination forward worker |
-| `fwdPool.dispatchOverflow`, native RS pending gates | A fully prepared group can enter the existing destination FIFO without waiting for its writer. Native forwarding checks overflow/channel debt and cannot overtake that admitted group |
-
-### Proposed smallest complete receipt
-
-Use one short-lived ticket per active source-path/destination query, linked to
-the existing source publication lifetime and destination Adj-RIB-Out lifetime.
-The ticket holds canonical native identity, ADD-PATH presence/value, captured
-source and destination Session identities, source generation/policy epoch,
-the captured destination owner/revision or explicit absence, and completion
-state. It retains no route population or attribute history. Sparse indices
-contain only active tickets and disappear when their requests settle. Reuse
-`fwdPathKeyFor` and registered framing/key functions. The typed-NLRI held map
-covers only body-judged families, prefix sets exist only for configured
-installed-count families, and the AIGP maps cover only AIGP paths: none is a
-general received-version inventory to extend for this purpose.
-Admit at most one active cold query per authenticated calling process, matching
-the single cold worker each current replay owner needs; a concurrent extra
-request receives an explicit busy refusal. Thus arbitrary requested keys cannot
-allocate an unbounded ticket set while responses are delayed.
-
-1. Register before the drain/query. Original received UPDATEs must advance
-   the source publication frontier before testing for an active ticket set,
-   then invalidate matching tickets before import, projection, selection or
-   either forwarding rail. Include withdrawals whose key currently has no
-   owner. Registration publishes the optional ticket set before sampling its
-   drain cut: an UPDATE that missed that set is already in the cut; a later
-   one sees and invalidates it. This handshake requires explicit race tests.
-   EOR/stale-generation retirement invalidates affected-family tickets; source
-   session and policy changes retain their existing identity fences.
-2. Wait for the captured publication cut, then use `drainReceiveStore` and
-   query the captured live store owner. Do not hold publication, source
-   dispatch, destination write/table or forward-worker locks during either
-   drain, RPC, eligibility lookup or export-filter execution. Preserve the
-   store process/connection identity across the drain and response.
-3. Prepare through ordinary eligibility, reflection/export and ownership
-   machinery. A source-pinned answer cannot replace a foreign or explicit
-   local owner merely because its source ticket is current: preserve that
-   owner or submit the candidate to the existing RIB election. A withdrawal
-   can act only on the captured matching source owner. Neither a zero MsgID
-   nor an absent entry supplies broader authority.
-4. Immediately before FIFO admission, compare the live source ticket under
-   its short publication lock and enqueue the fully owned prepared group
-   through `dispatchOverflow` before releasing that lock. No waiting
-   placeholder is queued. If newer original input won the lock, refuse the
-   old answer; otherwise subsequent input follows the admitted group through
-   the existing channel/overflow gates. Keep normal forwarding's lock order
-   (`aigp.dispatch` before `validationForwardMu`); never acquire these locks
-   while holding the ticket lock.
-5. Keep the destination ticket through final write admission and completion.
-   Under the existing `writeMu` then `adjOut.mu` order, reject it if any
-   intervening same-key decision changed its captured ownership/absence.
-   Invalidate on another source, local takeover, recovery/selection output
-   and validation withdrawal, including unheld withdrawals and owed merges,
-   rather than only committed advertisements. This sticky invalidation
-   prevents announce/withdraw/absence ABA. Unrelated keys do not invalidate
-   the ticket. The ordinary final eligibility/election rules still apply;
-   the original lookup does not lease a future RPKI or best-path verdict.
-6. Completion callbacks only publish a bounded result; they must not remove
-   ticket indices inline because stopped-pool admission can invoke them
-   synchronously under the source ticket lock. The cold owner unregisters
-   the exact ticket after locks are released, on every success, supersession,
-   cancellation and failure path. A later ticket for the same key must never
-   be removed by an earlier request's cleanup.
-
-### Cold owner, cancellation and truthful completion
-
-RS needs a separate lifecycle-owned, coalescing validation worker using the
-existing RR validation-queue pattern. Its source worker flushes prior live
-work, hands off the key without waiting and continues its live FIFO. RR reuses
-its existing worker. Both callbacks continue to enqueue and return; neither
-queries/drains the receive store on its SDK callback loop. The SDK serializes
-ordinary callbacks, so waiting there for its own applied-event barrier would
-deadlock. The source-policy callback's separate joined worker is the existing
-example of a truthful deferred response, not an extra route executor to reuse.
-
-The engine query operation must have one registered typed/JSON contract and
-return only after its own query and guarded admission/completion outcome, not
-immediately after handing work to a queue. Distinguish applied, superseded,
-refused and canceled outcomes. A superseded snapshot is not a forwarded route
-or completed peer-up page; the cold owner coalesces a fresh request or returns
-that explicit incomplete outcome. Settling validation/source-policy work must
-join this cold queue as well as the ordinary source FIFO. A hot key is retried
-after other pending keys, rather than monopolizing the worker.
-
-Tickets have the caller deadline and both captured session lifetimes. Peer
-retirement first seals admission and cancels linked tickets; the lifecycle
-joins their cold work only after releasing peer/session/write locks and waking
-the existing queue-disposal path. Cancel and join the plugin cold worker before
-releasing its plugin connection. No caller waits from the SDK callback loop,
-the destination forward worker or a recovery admission. A canceled queued
-item retains its canceled ticket until disposal, so it cannot write after its
-caller has reported failure. This lifecycle wiring is part of the proposal,
-not something the present `drainReceiveStore` helper already supplies.
-`fwdItem.done` alone is a release signal, not proof that output succeeded: the
-ticket needs the final writer's guarded decision and flush result before its
-completion can report applied. A verified unchanged current route may settle
-without another advertisement; a failed or superseded write may not.
-
-### Required deterministic probes before approval
-
-| Boundary | Required observations |
-|----------|-----------------------|
-| Delayed old announcement or missing-path answer | Hold the old response; complete newer same-source replacement or withdrawal; release it and require no overwrite, deletion or resurrection |
-| Foreign and local takeover | While the response is held, install another source's winner or explicit local route; old replay must spare its bytes and ownership |
-| No new source UPDATE | Apply validation withdrawal or another selected winner, join its actual destination decision, then release the old answer; the old source receipt must not restore it |
-| Absence ABA | Begin absent, announce and withdraw while the query is held, finish absent, then release old announcement; it must stay absent, including an unheld withdrawal |
-| Native/FIFO order and independence | Pause query without a forward-worker placeholder; unrelated destination traffic and cold recovery must complete. Exercise both registration/frontier race orders and a native live update racing guarded enqueue |
-| Lifecycle/completeness | Cancel before enqueue and after queue admission; retire/rebuild each endpoint and replace the store connection; join owners and require explicit incomplete outcomes, no late write and no retained ticket |
-| Both transports | Drive the same callback, drain, delayed answer and completion assertions through DirectBridge and forked RPC; retain useful current replay and unrelated-key controls |
-
-No producer, test, public API, RFC summary or conformance record was changed
-for this investigation. The spec remains in design and this proposal requires
-independent design review and actual TDD before implementation.
+The 2026-11-16 delayed selected-path replay ticket/cold-worker proposal is
+orthogonal to RFC 7947 Section 2.1 pre-policy retention and has been split into
+its own spec (`plan/release/fixes/spec-bgp-selected-path-replay-ordering.md`,
+owner approval 2026-11-22).
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `buildReplayRoutes` is the ONLY path by which an Adj-RIB-In entry becomes an advertisement | `gopls references` on the store field: the only non-test readers are `installStructuredNLRIs`, `removeStructuredNLRIs`, `installComplexNLRIs`, `removeComplexNLRIs`, `handleStructuredState`, `handleReceived`, `handleState`, `buildReplayRoutes`, `status`, `show`, and the promote and expire paths in `rib_validation.go`. Only `buildReplayRoutes` produces `rpc.StoredRoute` | a filtered route leaks on a second, unguarded rail | `TestBuildReplayRoutesOmitsFilteredEntries` plus the interop scenario's negative assertion | unvalidated |
-| A-2 | The per-family prefix maximum bounds the filtered population, because `checkPrefixLimits` runs before the filter chain | the session read loop in `session_read.go` calls it ahead of `notifyMessageReceiver` | the Adj-RIB-In of an rs-client peer is unbounded and a hostile client can exhaust memory with routes that are all denied | `TestFilteredRoutesCountAgainstThePrefixMaximum`, driving a peer past its configured maximum with denied UPDATEs only | unvalidated |
-| A-3 | A family configured to count only INSTALLED prefixes still counts a denied UPDATE, because the count is taken before the verdict exists | the two counting modes are settled inside `checkPrefixLimits` (`session_prefix.go`), which the filter verdict never reaches | the bound in A-2 does not hold for that mode, and the spec owes an explicit cap on the filtered population | reading `collectPrefixSections` and `restoreInstalledPrefixCounts` at the producer, then a boundary test | unvalidated |
+| A-1 | `walkReplayRoutes`, `replayPathCommand`, and `routeEligible` are the ONLY paths by which an Adj-RIB-In entry becomes an advertisement or eligible path | Source inspection of `adj_rib_in/{rib.go,rib_replay_path.go,rib_eligibility.go,rib_validation.go}` | a filtered route leaks on an unguarded rail or is un-filtered by RPKI validation | `TestBuildReplayRoutesOmitsFilteredEntries`, `TestRFC7947ReceivedValidationCannotAcceptPolicyDenial`, and `TestRFC7947FilteredReceivedExcludedFromSelection` | unvalidated |
+| A-2 | Unique retained keys per source peer (accepted + import-filtered) must be bounded independently of offered-withdrawal subtraction | 2026-11-15 counterexample: unmatched withdrawal B decrements offered count while retained denied A stays in memory | a hostile rs-client can exceed its configured prefix maximum using unmatched withdrawals | Unique-retained-population boundary test (AC-15) | unvalidated |
+| A-3 | A denied replacement of a previously accepted route must emit a withdrawal for that replaced prefix on the accepted rail (Loc-RIB / forwarding) while retaining the new denied bytes marked filtered in Adj-RIB-In | `TestRFC7947FilteredReplacementClearsSelectedRoute` and `TestRFC7947ReceivedDeniedReplacementSupersedesOldBytes` | stale accepted path remains selected and advertised to clients | Both existing probes passing | unvalidated |
 | A-4 | No existing consumer reads `show bgp adj-rib-in` route objects by exact key set | `plan/journal/gate-excludes-part-of-its-population.md` records `med-removal-before-decision` parsing this command's shape; adding keys removes none | a functional fixture goes red on an added key | grep the functional suite for the command, then read each hit's assertions | unvalidated |
-| A-5 | `RFC7947-x-4` and `RFC7947-x-5` carry no test tags today, so lowering their level orphans nothing | both rows are unticked with no annotation, and `evaluate` reports an unknown RID for a tag naming a requirement that does not exist | a tagged test loses its gate silently | `./le rfc check` before and after, comparing the gated population | unvalidated |
-| A-6 | bgp-rs takes no delivery of the new event type, so its forward-target selection and its replay cut are unchanged | `rs/server.go` subscribes to update received, open received, state and refresh; a new type reaches only a subscriber | the route server forwards a filtered route, which is the leak G-2 exists to prevent | `TestRouteServerTakesNoDeliveryOfFilteredUpdates` plus the interop negative | unvalidated |
+| A-5 | `RFC7947-x-4` and `RFC7947-x-5` are already at `[SHOULD]` in `rfc/short/rfc7947.md`, and `RFC7947-2.1-1` + `rfc/extraction/rfc7947.json` already exist | Verified 2026-11-22 against `rfc/short/rfc7947.md` and `rfc/extraction/rfc7947.json` | unnecessary or harmful level downgrade | `./le rfc check` before and after | confirmed |
+| A-6 | bgp-rs takes no delivery of the new event type, so its forward-target selection and its replay cut are unchanged | `rs/server.go` subscribes to update received, open received, state and refresh; a new type reaches only a subscriber | the route server forwards a filtered route, which is the leak G-2 exists to prevent | `TestRouteServerTakesNoDeliveryOfFilteredUpdates` plus `TestRFC7947FilteredReceivedExcludedFromSelection` | unvalidated |
 | A-7 | The ingest-position contract is not disturbed by a second event kind carrying a MessageID | `noteIngested` publishes the position bgp-rs's cut is compared against, and a filtered UPDATE also has a MessageID | the peer-up cut advances past routes the live rail will not deliver, and the replay omits them: both rails silent | `TestIngestPositionAdvancesOnFilteredUpdates`, asserting the cut and the replay agree | unvalidated |
 
 ### Risks
@@ -455,10 +337,11 @@ independent design review and actual TDD before implementation.
 | AC-9 | `show bgp adj-rib-in status` on a store holding both populations | The answer reports the filtered count separately, and `total-routes` still counts every entry |
 | AC-10 | A config names the filtered receive token in an attach process block | The config loads, and completion offers the token |
 | AC-11 | A config names a misspelling of that token | The config is refused, naming the token and listing the valid names |
-| AC-12 | `./le rfc check` runs on the tree | `RFC7947-2.1-1` exists at MUST with a positive and a negative tagged test, and the check is clean |
-| AC-13 | `rfc/short/rfc7947.md` is read | `RFC7947-x-4` reads SHOULD and `RFC7947-x-5` reads MAY; each has a `Correction 2026-08-30:` paragraph naming its id in backticks and quoting the RFC sentence that states the lower strength |
-| AC-14 | `./le rfc extraction report` runs | rfc7947 is reported signed, with no site carrying a null disposition |
-| AC-15 | An `rs-client true` peer with a configured prefix maximum of N sends N+1 denied prefixes | The session is torn down with Cease and the Maximum Number of Prefixes Reached subcode, exactly as it is for accepted prefixes |
+| AC-12 | `./le rfc check` runs on the tree | `RFC7947-2.1-1` leaves `{gap}`, has positive and negative tagged tests with verified discrimination records, and `rfc7947` passes `./le rfc check` cleanly |
+| AC-13 | `rfc/short/rfc7947.md` existing advisory rows | `RFC7947-x-4` and `RFC7947-x-5` remain untouched at `[SHOULD]` (already corrected and proven; superseded 2026-11-22) |
+| AC-14 | `./le rfc extraction report` runs | `rfc/extraction/rfc7947.json` remains signed with Section 2.1 mapped to `RFC7947-2.1-1` |
+| AC-15 | An `rs-client true` peer with a configured prefix maximum of N sends denied A, unmatched withdrawal B, then denied C (with N=1) | Unique retained entries (accepted + import-filtered) never exceed N; replacing an existing key does not consume a second slot, withdrawing a held key releases its slot, and an accepted control can occupy the released slot |
+| AC-16 | Mixed UPDATEs and denied replacements on an `rs-client true` peer | A mixed UPDATE removes withdrawn keys and retains denied announcements marked import-filtered; a denied replacement of a previously accepted/selected route stores the new bytes marked import-filtered AND withdraws the previously accepted path from Loc-RIB, live recipients, and both replay rails; later RPKI valid verdicts cannot un-filter an import-filtered entry |
 
 ## End-to-End User Stories
 

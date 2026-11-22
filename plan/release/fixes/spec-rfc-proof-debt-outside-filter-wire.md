@@ -2,15 +2,15 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | protocol \| tooling |
 | Priority | P1 |
 | Release reason | A release profile needs every mandatory requirement covered, and a requirement counts as covered only when a recorded break proved its test goes red (`ai/META-DECISIONS.md`, "Goal and scope"). Every row below is a requirement whose proof or audit verdict `./le rfc check` no longer accepts, so the public ledger carries it as unproven until the debt is paid |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | D-2 document-author evidence, D-1 raw VPNv6 family admission, remaining host proof debt |
 | Handoff | - |
-| Updated | 2026-11-21 |
+| Updated | 2026-11-22 |
 
 Scope is tooling and protocol. The proof-debt work re-takes discrimination
 records, re-judges audit verdicts, and adds the two RFC 4271 negative tests
@@ -18,15 +18,19 @@ of AC-32; it changes no product behaviour. A product defect an audit or a
 re-take exposes is fixed under `ai/rules/completion.md`, inside this spec,
 because it blocks the verdict.
 
-Two items this spec carries are designs, not debt, and the owner kept both
-here (D-1 and D-2, decided 2026-11-21): AC-27 (raw VPNv6 family admission,
-which may change what a BGP sender emits) and AC-35 to AC-39
-(document-author evidence, which changes the exclusion rules). The spec is
-therefore back in `design` until both designs are presented and approved.
-AC-27 brings protocol scope: it owes the BGP engine door's constraints, a
-design read against FRR's and BIRD's source, and a wire and interop test.
-The proof-debt ACs need no design and may keep running while the two
-designs are prepared; neither design item is implemented before approval.
+Two items this spec carries are designs kept here by D-1 and D-2 (2026-11-21)
+and approved by Thomas on 2026-11-22:
+- **AC-27 (D-1, approved 2026-11-22):** Enforce `negotiated.SupportsFamily(fam)`
+  on valid raw UPDATE writes (`SendRawMessage` / `writeOriginatedRawUpdate`),
+  following the RFC 8212 / RFC 7607 precedent in `session_write.go`, and document
+  the rule in `docs/architecture/api/update-syntax.md`.
+- **AC-35..AC-39 (D-2, approved 2026-11-22):** Keep `subjectBreakers` strict in
+  `internal/le/rfc/notapplicable_roles.go` and add a dedicated, closed
+  document-author evidence shape (parallel to `roleSentenceRefusal`) that admits
+  `{not-applicable}` for a document/specification role only when the quote is the
+  row's complete sentence in the cited section, explicitly names a document or
+  specification as subject or passive agent, holds zero protocol-actor words, and
+  carries an independent audit confirming no runtime code path exists.
 
 ## Task
 
@@ -54,21 +58,19 @@ independent auditor.
 
 ### The live set
 
-The set is whatever `./le rfc check` names. It was read on 2026-11-19 over the
-working tree at HEAD c0ecf3f3b7: 414 violations. Every "met" and "open" below
-is settled against that run, never against a handover or a commit message, and
-the counts are that run's snapshot, recorded to size the work.
+The set is whatever `./le rfc check` names. Refreshed on 2026-11-22 over the
+working tree (down from 414 violations on 2026-11-19 to 270 violations; after
+`cf5b241072` GR/MRT re-audits, 14 fewer STALE and 2 fewer SHIFTED):
 
-| Class | Lines | Owner |
-|-------|-------|-------|
-| Discrimination records that no longer verify, all unit-changed (30 revert, 2 mutant) | 32 | AC-28, by class in AC-40 to AC-47 |
-| SHIFTED audit verdicts, 11 stems | 39 | AC-29 |
-| STALE audit verdicts, 47 stems | 165 | AC-30, with AC-7, AC-8 and AC-16 inside it |
+| Class | Lines (2026-11-22) | Owner |
+|-------|--------------------|-------|
+| Discrimination records that no longer verify: 10 Linux-guest (AC-40 RFC4861 ×9, AC-44 RFC4659 ×1), 5 RFC 9252 SRv6 (AC-45), 1 RFC 7606-5.1-1 negative (AC-47). AC-41, AC-42, AC-43, AC-46, AC-48, and RFC8955-6-5 are already MET | 16 | AC-28, AC-40, AC-44, AC-45, AC-47 |
+| SHIFTED audit verdicts, 17 stems | 54 | AC-29 |
+| STALE audit verdicts, 45 stems (rfc4271 41, rfc5176 24, rfc4301 11, ...) | 177 | AC-30, with AC-7, AC-8 and AC-16 inside it |
 | RFC4271-5-3 and RFC4271-5-4 with no negative test | 2 | AC-32 |
 | RFC9252-3.3-2 partial scope with no current verified break, both polarities | 2 | AC-32, cleared by the AC-45 re-take |
 | RFC7752-3.4-1 and RFC9552-5.5-1, partial scope missing a negative | 2 | AC-33 |
-| rfc2181 (168 lines), rfc7871 (2), rfc7535 (1): another session's uncommitted DNS summaries, extractions and tags | 171 | AC-33 |
-| `internal/component/ike/engine/spd_forward_integration_linux_test.go` naming marker, committed in 0c283fffc6 by the IPsec work | 1 | AC-33 |
+| RFC7871-11.2-1 missing negative (DNS resolver work) | 1 | AC-33 |
 
 What earlier work already paid, so the sizes above are not the handover's:
 

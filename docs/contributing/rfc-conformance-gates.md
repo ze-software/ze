@@ -314,6 +314,35 @@ quotation marks cannot carry. Such a row has two honest outlets: quote a
 scoping sentence of the cited section, or record the row as `{gap: ...}` and
 test it. A refused honest row is never forced into a different exclusion kind.
 
+One narrow specialization of shape (a) exists for **document-author
+obligations** (`documentAuthorAccepted` in
+`internal/le/rfc/notapplicable_roles.go`, owner ruling 2026-11-22), whose
+obligations bind the author of a future IETF specification rather than any
+running protocol speaker and therefore cannot be tested at runtime:
+
+- The bound role (`roleKey`) must be in the closed set `document`,
+  `specification`, `document author`, `specification author`, or
+  `specification document`, matching the noun the quoted sentence uses.
+- **Restrictive-subject document form:** the subject before the first BCP 14
+  keyword holds no comma, opens (after leading determiners) with `document(s)`
+  or `specification(s)`, and continues immediately with a restrictive opener
+  (`that`, `which`, `introducing`, `defining`, `specifying`, `describing`) —
+  for example RFC 7606 Section 8 (`"A document that specifies a new BGP
+  attribute MUST..."`).
+- **Passive-document complement form:** the text before the first BCP 14
+  keyword names no protocol actor (neither `genericRoleWords` nor
+  `documentProtocolActors`), and the tokens immediately after the keyword match
+  `be (described|specified|defined|documented|stated|detailed) (in|by) [<det>]
+  (document|documents|specification|specifications)` — for example RFC 5492
+  Section 4 (`"...MUST be described in the document introducing the new
+  capability."`).
+- Every existing source, section, whole-sentence, own-obligation, level,
+  generic-role, and `Ze roles` check still applies unchanged. Protocol speaker
+  obligations that merely mention a document (e.g. `"A BGP speaker MUST accept
+  ... as described in the document"`, `"The field MUST be set in the
+  document"`) and nearby receiver obligations remain refused; `subjectBreakers`
+  is unchanged for protocol roles.
+
 ```
 | Ze roles | BGP speaker, route server |
 - [ ] [RFC9999-2-1] [MUST] A route reflector MUST send the widget before it sends any frame that depends on it (§2) {not-applicable: "A route reflector MUST send the widget before it sends any frame that depends on it."; binds a route reflector; ze reflects no route, so the reflector's order binds nothing it does}
