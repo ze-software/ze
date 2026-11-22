@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	zeconfig "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/network"
 )
 
 func TestListenAddrIsNonLoopback(t *testing.T) {
@@ -38,10 +39,10 @@ func TestListenAddrIsNonLoopback(t *testing.T) {
 		"garbage", // unparseable -> fail closed
 	}
 	for _, addr := range loopback {
-		assert.Falsef(t, listenAddrIsNonLoopback(addr), "%q should classify as loopback", addr)
+		assert.Falsef(t, !network.ListenAddrIsLoopback(addr), "%q should classify as loopback", addr)
 	}
 	for _, addr := range nonLoopback {
-		assert.Truef(t, listenAddrIsNonLoopback(addr), "%q should classify as non-loopback", addr)
+		assert.Truef(t, !network.ListenAddrIsLoopback(addr), "%q should classify as non-loopback", addr)
 	}
 }
 
@@ -231,7 +232,7 @@ func TestResolveWebListenersClosesTheGuardHole(t *testing.T) {
 	t.Run("enabled with no address resolves to the non-loopback default", func(t *testing.T) {
 		got := resolveWebListeners(true, nil)
 		assert.Equal(t, []string{defaultWebListen}, got)
-		assert.True(t, listenAddrIsNonLoopback(defaultWebListen),
+		assert.True(t, !network.ListenAddrIsLoopback(defaultWebListen),
 			"the default must be non-loopback, which is why it has to be resolved before the guard")
 	})
 

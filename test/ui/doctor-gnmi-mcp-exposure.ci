@@ -4,8 +4,12 @@
 # ValidateSemantics; gNMI had a Validate that no entry point called, so doctor
 # answered "ready" for a config the daemon refuses to start on. Both codes must
 # now appear for one config that exposes both.
+# Also: a non-loopback gNMI listener WITH a token but WITHOUT TLS is reported,
+# with the TLS refusal alone, because the daemon refuses to boot on it too.
 # PREVENTS: an operator validating a config clean, deploying it, and finding out
 # at boot that the daemon will not start.
+# Why a .ci: the question is what the `ze doctor` binary prints for a config
+# file, through its real command line and check registry.
 
 tmpfs=exposed.conf:refused=config-mcp-invalid:terminator=EOF_CONF
 environment {
@@ -24,7 +28,26 @@ environment {
 }
 EOF_CONF
 
+tmpfs=token-no-tls.conf:refused=config-gnmi-invalid:terminator=EOF_TOKEN_CONF
+environment {
+    gnmi {
+        enabled true
+        token s3cret-token
+        server main {
+            ip 0.0.0.0
+            port 19339
+        }
+    }
+}
+EOF_TOKEN_CONF
+
 cmd=foreground:seq=1:exec=ze doctor --json config exposed.conf
 expect=stdout:contains=config-gnmi-invalid
 expect=stdout:contains=config-mcp-invalid
-expect=stdout:contains=environment.gnmi: non-loopback listener requires token
+expect=stdout:pattern=9339.{0,4} without authentication
+
+cmd=foreground:seq=2:exec=ze doctor --json config token-no-tls.conf
+expect=stdout:pattern=19339.{0,4} without TLS
+expect=stdout:contains=set environment gnmi tls cert
+reject=stdout:pattern=19339.{0,4} without authentication
+reject=stdout:contains=s3cret-token

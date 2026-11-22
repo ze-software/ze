@@ -39,10 +39,13 @@ func (s *Server) Set(ctx context.Context, req *gpb.SetRequest) (*gpb.SetResponse
 
 	if s.config.Token == "" {
 		s.recordError("Set", codes.PermissionDenied)
+		// gNMI is built once at daemon start and a reload does not rebuild it
+		// (cmd/ze/hub gnmiReloadNotify only notifies subscribers), so a token
+		// set now takes effect only after a restart: the fix says so.
 		return nil, status.Error(codes.PermissionDenied, opererr.New(
 			"read-only gNMI caller cannot modify configuration without authentication",
-			"unauthenticated loopback gNMI permits read operations only",
-			"set environment gnmi token <token>",
+			"this gNMI server has no token, so it serves reads only, and only on loopback",
+			"set environment gnmi token <token>, commit, then run ze signal restart",
 		).Error())
 	}
 

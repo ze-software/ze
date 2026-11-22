@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/ze-software/ze/internal/component/config"
 )
 
 // gnmiExposedConfig binds gNMI to every interface with no token: unauthenticated
@@ -50,6 +52,50 @@ func TestValidateFlagsGnmiExposure(t *testing.T) {
 
 	assert.NotContains(t, validationCodes(t, gnmiLoopbackConfig), "config-gnmi-invalid",
 		"a loopback gNMI listener exposes nothing off-box")
+}
+
+// gnmiTokenNoTLSConfig authenticates gNMI with a token on every interface but
+// names no TLS: the daemon refuses to boot on it, because the token and the
+// config would cross the network in clear text.
+const gnmiTokenNoTLSConfig = `environment {
+	gnmi {
+		enabled true
+		token s3cret-token
+	}
+}`
+
+// gnmiTokenTLSConfig is the same listener with both TLS files named.
+const gnmiTokenTLSConfig = `environment {
+	gnmi {
+		enabled true
+		token s3cret-token
+		tls {
+			cert /etc/ze/gnmi.crt
+			key /etc/ze/gnmi.key
+		}
+	}
+}`
+
+// TestValidateFlagsGnmiTokenWithoutTLS drives the TLS half of the gNMI rule
+// from the `ze config validate` entry point.
+//
+// VALIDATES: `ze config validate` refuses a token-only non-loopback gNMI
+// listener, as boot does, and names the TLS fix; the same listener with both
+// TLS files passes.
+// PREVENTS: a config that validates clean and exits 1 at boot.
+func TestValidateFlagsGnmiTokenWithoutTLS(t *testing.T) {
+	result := runValidation(gnmiTokenNoTLSConfig, "test.conf")
+	assert.False(t, result.Valid, "a token-only 0.0.0.0 gNMI listener must make the config invalid")
+	found := false
+	for i := range result.Diagnostics {
+		if result.Diagnostics[i].Code == "config-gnmi-invalid" && result.Diagnostics[i].Fix == config.GNMITLSFix {
+			found = true
+		}
+	}
+	assert.True(t, found, "the refusal must carry the TLS fix, got %+v", result.Diagnostics)
+
+	assert.NotContains(t, validationCodes(t, gnmiTokenTLSConfig), "config-gnmi-invalid",
+		"a token with both TLS files secures a 0.0.0.0 gNMI listener")
 }
 
 // TestValidateGnmiExposureFailsValidation pins the exit-code consequence: the

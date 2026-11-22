@@ -6,34 +6,30 @@ package config
 import (
 	"errors"
 	"fmt"
-	"net/netip"
 	"net/url"
 	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/network"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var (
-	errEnvironmentMcpBindRemoteRequiresAuth      = errors.New("environment.mcp: bind-remote requires auth-mode != none")
-	errEnvironmentMcpAuthModeBearerRequires      = errors.New("environment.mcp: auth-mode=bearer requires token")
-	errEnvironmentMcpAuthModeBearerRequiresTLS   = errors.New("environment.mcp: auth-mode=bearer requires tls.cert and tls.key on non-loopback listeners")
-	errEnvironmentMcpAuthModeBearerList          = errors.New("environment.mcp: auth-mode=bearer-list requires at least one identity")
+	errEnvironmentMcpBindRemoteRequiresAuth        = errors.New("environment.mcp: bind-remote requires auth-mode != none")
+	errEnvironmentMcpAuthModeBearerRequires        = errors.New("environment.mcp: auth-mode=bearer requires token")
+	errEnvironmentMcpAuthModeBearerRequiresTLS     = errors.New("environment.mcp: auth-mode=bearer requires tls.cert and tls.key on non-loopback listeners")
+	errEnvironmentMcpAuthModeBearerList            = errors.New("environment.mcp: auth-mode=bearer-list requires at least one identity")
 	errEnvironmentMcpAuthModeBearerListRequiresTLS = errors.New("environment.mcp: auth-mode=bearer-list requires tls.cert and tls.key on non-loopback listeners")
-	errEnvironmentMcpIdentityEntryMissingName    = errors.New("environment.mcp: identity entry missing name")
-	errEnvironmentMcpAuthModeOauthRequires       = errors.New("environment.mcp: auth-mode=oauth requires oauth.authorization-server")
-	errEnvironmentMcpAuthModeOauthRequires2      = errors.New("environment.mcp: auth-mode=oauth requires oauth.audience")
-	errEnvironmentMcpAuthModeOauthRequires3      = errors.New("environment.mcp: auth-mode=oauth requires tls.cert and tls.key on non-loopback listeners")
-	errEnvironmentMcpTlsCertSetWithout           = errors.New("environment.mcp.tls: cert set without key")
-	errEnvironmentMcpTlsKeySetWithout            = errors.New("environment.mcp.tls: key set without cert")
-
-	// Names both sources of the token because this check reads a config FILE and
-	// cannot see the daemon's environment: a deployment that supplies the token
-	// through ze.gnmi.token boots fine and is still reported here.
-	errEnvironmentGnmiNonLoopbackRequiresToken = errors.New("environment.gnmi: non-loopback listener requires token (set the token leaf, or ze.gnmi.token in the daemon environment)")
+	errEnvironmentMcpIdentityEntryMissingName      = errors.New("environment.mcp: identity entry missing name")
+	errEnvironmentMcpAuthModeOauthRequires         = errors.New("environment.mcp: auth-mode=oauth requires oauth.authorization-server")
+	errEnvironmentMcpAuthModeOauthRequires2        = errors.New("environment.mcp: auth-mode=oauth requires oauth.audience")
+	errEnvironmentMcpAuthModeOauthRequires3        = errors.New("environment.mcp: auth-mode=oauth requires tls.cert and tls.key on non-loopback listeners")
+	errEnvironmentMcpTlsCertSetWithout             = errors.New("environment.mcp.tls: cert set without key")
+	errEnvironmentMcpTlsKeySetWithout              = errors.New("environment.mcp.tls: key set without cert")
 )
 
 // loaderLogger is the config loader subsystem logger (lazy initialization).
@@ -71,10 +67,19 @@ type ServerEndpoint struct {
 	Port string // Listen port
 }
 
-// Listen returns host:port.
+// Listen returns host:port in the form net.Listen and net.SplitHostPort read:
+// an IPv6 host is bracketed ("[::1]:9339", "[fe80::1%eth0]:9339"). Joined
+// without brackets, "::1:9339" parses as no address at all, so every reader
+// that classifies or binds it (the management-listener guard, gNMI Serve, the
+// listeners themselves) took a loopback IPv6 listener for a non-loopback one
+// or failed to bind it. A host that already carries its brackets is kept
+// as written.
 func (e ServerEndpoint) Listen() string {
 	var tb textbuf.Buffer
-	return tb.Str(e.Host).Byte(':').Str(e.Port).String()
+	if strings.HasPrefix(e.Host, "[") {
+		return tb.Str(e.Host).Byte(':').Str(e.Port).String()
+	}
+	return tb.HostPort(e.Host, e.Port).String()
 }
 
 // extractServerList reads the `server` list under a service container and
@@ -237,19 +242,14 @@ type MCPListenConfig struct {
 }
 
 // anyEndpointNonLoopback reports whether at least one endpoint binds to a
-// non-loopback address. It is THE non-loopback rule for this package: every
-// service's AnyListenerNonLoopback delegates here so exactly one definition of
-// "reachable from off-box" exists, and the hub's boot guard
-// (cmd/ze/hub/mgmt_guard.go listenAddrIsNonLoopback) mirrors it exactly.
-//
-// Fail-closed: a host that does not parse as an IP address (`localhost`, any
-// unresolvable name, an empty host) counts as non-loopback, so an operator
-// cannot smuggle remote reachability through a DNS name.
-// netip.Addr.IsLoopback covers the full 127.0.0.0/8 range and ::1.
+// non-loopback address. Every service's AnyListenerNonLoopback delegates here,
+// and the answer for each endpoint comes from network.ListenAddrIsLoopback, the
+// one definition of "reachable from off-box" the hub's boot guard reads too.
+// It fails closed: a host that is not a literal loopback IP counts as
+// non-loopback.
 func anyEndpointNonLoopback(servers []ServerEndpoint) bool {
 	for _, s := range servers {
-		addr, err := netip.ParseAddr(s.Host)
-		if err != nil || !addr.IsLoopback() {
+		if !network.ListenAddrIsLoopback(s.Host) {
 			return true
 		}
 	}
@@ -657,21 +657,68 @@ func (c GNMIListenConfig) AnyListenerNonLoopback() bool {
 	return anyEndpointNonLoopback(c.Servers)
 }
 
-// Validate returns a non-nil error when the gNMI config would expose an
-// unauthenticated management surface: a non-loopback listener (including the
-// 0.0.0.0:9339 default synthesized by ExtractGNMIConfig) with no token. gNMI's
-// interceptors are installed only when a token is set and checkAuth allows on
-// an empty token, so a tokenless non-loopback bind is an unauthenticated
-// read+write config surface. Called by ValidateSemantics (which `ze doctor`
-// reaches through checkSemanticValidation) and by `ze config validate`, so the
-// exposure is reported offline as well as refused at boot; the hub
-// management-listener guard refuses the resolved (env-or-YANG) gNMI bind.
-// Fail-closed per the exact-or-reject rule (`ai/rules/protocol.md`).
-func (c GNMIListenConfig) Validate() error {
-	if c.AnyListenerNonLoopback() && c.Token == "" {
-		return errEnvironmentGnmiNonLoopbackRequiresToken
+// GNMIAuthFix and GNMITLSFix are the commands that close each gNMI exposure.
+// The boot guard (cmd/ze/hub gnmi_infra.go), gNMI's own Serve refusal, `ze
+// config validate` and `ze doctor` all print them through GNMIExposure, so the
+// four surfaces name the same fix.
+const (
+	GNMIAuthFix = "set environment gnmi token <token>"
+	GNMITLSFix  = "set environment gnmi tls cert <cert.pem> and set environment gnmi tls key <key.pem>"
+)
+
+// GNMIExposure is the input of the one exposure rule (network.Exposure) for a
+// gNMI listener: a non-loopback gNMI listener MUST authenticate with a token
+// AND serve TLS. tokenSet is whether a token gates every request; tlsSet is
+// whether the TLS material is configured.
+func GNMIExposure(addrs []string, tokenSet, tlsSet bool) network.Exposure {
+	return network.Exposure{
+		Service:       "gNMI",
+		Addrs:         addrs,
+		Authenticated: tokenSet,
+		AuthFix:       GNMIAuthFix,
+		RequireTLS:    true,
+		TLSConfigured: tlsSet,
+		TLSFix:        GNMITLSFix,
 	}
-	return nil
+}
+
+// Refusals answers every exposure the config file asks for, one operator error
+// per breach, from the same rule the daemon refuses to boot on
+// (GNMIExposure). A tokenless loopback listener is read-only (gNMI refuses Set
+// without a token), so it passes; a non-loopback listener needs a token and
+// both TLS files.
+//
+// It reads the config FILE alone. A deployment that supplies the token or the
+// TLS files through ze.gnmi.token or ze.gnmi.tls.cert and ze.gnmi.tls.key in
+// the daemon's environment boots and is still reported here; `ze doctor`
+// judges the resolved listener as the daemon binds it (gnmi-tls-material).
+func (c GNMIListenConfig) Refusals() []*opererr.Error {
+	addrs := make([]string, 0, len(c.Servers))
+	for _, s := range c.Servers {
+		addrs = append(addrs, s.Listen())
+	}
+	tlsSet := c.TLS.Cert != ""
+	if tlsSet {
+		tlsSet = c.TLS.Key != ""
+	}
+	return GNMIExposure(addrs, c.Token != "", tlsSet).Refusals()
+}
+
+// Validate returns every exposure Refusals finds, joined, or nil. Called by
+// ValidateSemantics (which `ze doctor` reaches through checkSemanticValidation)
+// and by `ze config validate`, so a config the daemon refuses to boot on is
+// refused offline as well. Fail-closed per the exact-or-reject rule
+// (`ai/rules/protocol.md`).
+func (c GNMIListenConfig) Validate() error {
+	refusals := c.Refusals()
+	if len(refusals) == 0 {
+		return nil
+	}
+	errs := make([]error, 0, len(refusals))
+	for _, r := range refusals {
+		errs = append(errs, r)
+	}
+	return errors.Join(errs...)
 }
 
 // ExtractGNMISettings returns the authentication and transport settings of an
@@ -707,8 +754,8 @@ func ExtractGNMIConfig(tree *Tree) (GNMIListenConfig, bool) {
 
 // GNMIStarts answers whether gNMI starts: ze.gnmi.enabled is set, or the
 // config block asks for a listener. It is the one answer to that question,
-// read by the hub resolver that binds gNMI (cmd/ze/hub gnmi_infra.go
-// resolveGNMIListeners) and by the gnmi-tls-material doctor check, so the
+// read by ResolveGNMIListener, the resolver the hub binds gNMI with, and by
+// the gnmi-tls-material doctor check, so the
 // check never judges a listener the daemon would not start.
 func GNMIStarts(tree *Tree) bool {
 	if env.IsEnabled("ze.gnmi.enabled") {
@@ -716,6 +763,50 @@ func GNMIStarts(tree *Tree) bool {
 	}
 	_, ok := ExtractGNMIConfig(tree)
 	return ok
+}
+
+// ResolveGNMIListener resolves the gNMI enable flag, effective listen address,
+// and token from env vars and the config tree, applying the precedence and
+// 0.0.0.0:9339 default the gated builder (cmd/ze/hub service_gnmi.go) binds
+// with. The boot-time management-listener guard (cmd/ze/hub gnmiMgmtListener),
+// the gated builder and the gnmi-tls-material doctor check all call this ONE
+// resolver, so what the guard and doctor classify is what actually binds. Each
+// reads GNMITLSPaths beside it for the TLS pair.
+func ResolveGNMIListener(tree *Tree) (addr, token string, enabled bool) {
+	addr = env.Get("ze.gnmi.listen")
+	token = env.Get("ze.gnmi.token")
+
+	// Two questions, deliberately asked separately (see ExtractGNMISettings).
+	//
+	// START comes from ze.gnmi.enabled or from a config block that asks for a
+	// listener, so `enabled false` still means "config does not start gNMI".
+	// This question answers nothing else: a dormant block never turns itself
+	// into a listener. GNMIStarts is its one answer, which the
+	// gnmi-tls-material doctor check reads too.
+	enabled = GNMIStarts(tree)
+	// SETTINGS (token, and the address the block names) apply whenever the block
+	// exists, whatever said START. Gating them on `enabled` discarded the
+	// operator's instruction when ze.gnmi.enabled started the server: the daemon
+	// then refused to boot naming the token the operator had written, served an
+	// unauthenticated gNMI Set surface on loopback, or bound the 0.0.0.0:9339
+	// default over the loopback address the block named (ai/rules/protocol.md).
+	if settings, ok := ExtractGNMISettings(tree); ok {
+		if token == "" {
+			token = settings.Token
+		}
+		if enabled && addr == "" {
+			if len(settings.Servers) > 0 {
+				addr = settings.Servers[0].Listen()
+			}
+		}
+	}
+
+	// No block at all, so nothing named an address: bind the same default
+	// extractServerList synthesizes for a block that names no server.
+	if enabled && addr == "" {
+		addr = "0.0.0.0:9339"
+	}
+	return addr, token, enabled
 }
 
 // GNMITLSPaths answers the certificate and key paths gNMI serves, each one

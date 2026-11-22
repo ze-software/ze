@@ -11,54 +11,7 @@ import (
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/audit"
-	"github.com/ze-software/ze/internal/core/env"
 )
-
-// resolveGNMIListeners resolves the gNMI enable flag, effective listen address,
-// and token from env vars and the config tree, applying the same precedence and
-// 0.0.0.0:9339 default the gated builder (service_gnmi.go) uses to bind. It is
-// always-on so the boot-time management-listener guard can see gNMI's
-// (address, token) pair before anything binds, and the gated builder calls the
-// SAME function so exactly one resolver exists (no drift between what the guard
-// classifies and what actually binds). gnmiMgmtListener additionally consults
-// zeconfig.GNMITLSPaths to check whether both TLS paths are configured, while
-// Serve loads and parses the cert files before binding.
-func resolveGNMIListeners(tree *zeconfig.Tree) (addr, token string, enabled bool) {
-	addr = env.Get("ze.gnmi.listen")
-	token = env.Get("ze.gnmi.token")
-
-	// Two questions, deliberately asked separately (see ExtractGNMISettings).
-	//
-	// START comes from ze.gnmi.enabled or from a config block that asks for a
-	// listener, so `enabled false` still means "config does not start gNMI".
-	// This question answers nothing else: a dormant block never turns itself
-	// into a listener. zeconfig.GNMIStarts is its one answer, which the
-	// gnmi-tls-material doctor check reads too.
-	enabled = zeconfig.GNMIStarts(tree)
-	// SETTINGS (token, and the address the block names) apply whenever the block
-	// exists, whatever said START. Gating them on `enabled` discarded the
-	// operator's instruction when ze.gnmi.enabled started the server: the daemon
-	// then refused to boot naming the token the operator had written, served an
-	// unauthenticated gNMI Set surface on loopback, or bound the 0.0.0.0:9339
-	// default over the loopback address the block named (ai/rules/protocol.md).
-	if settings, ok := zeconfig.ExtractGNMISettings(tree); ok {
-		if token == "" {
-			token = settings.Token
-		}
-		if enabled && addr == "" {
-			if addrs := endpointsToAddrs(settings.Servers); len(addrs) > 0 {
-				addr = addrs[0]
-			}
-		}
-	}
-
-	// No block at all, so nothing named an address: bind the same default
-	// extractServerList synthesizes for a block that names no server.
-	if enabled && addr == "" {
-		addr = "0.0.0.0:9339"
-	}
-	return addr, token, enabled
-}
 
 // tlsPathsConfigured reports whether both a certificate path and a private-key
 // path are configured. A half-named pair is never valid TLS.
@@ -73,7 +26,7 @@ func tlsPathsConfigured(certFile, keyFile string) bool {
 // for gNMI when gNMI is enabled. Non-loopback gNMI listeners require both
 // authentication (token) and TLS (both cert and key paths).
 func gnmiMgmtListener(tree *zeconfig.Tree) (mgmtListener, bool) {
-	addr, token, enabled := resolveGNMIListeners(tree)
+	addr, token, enabled := zeconfig.ResolveGNMIListener(tree)
 	if !enabled {
 		return mgmtListener{}, false
 	}
@@ -82,10 +35,10 @@ func gnmiMgmtListener(tree *zeconfig.Tree) (mgmtListener, bool) {
 		service:       "gNMI",
 		addrs:         []string{addr},
 		authenticated: token != "",
-		remedy:        "set ze.gnmi.token (or environment.gnmi token), or bind to 127.0.0.1/::1 only",
+		remedy:        zeconfig.GNMIAuthFix,
 		requireTLS:    true,
 		tlsConfigured: tlsPathsConfigured(certFile, keyFile),
-		tlsRemedy:     "set ze.gnmi.tls.cert and ze.gnmi.tls.key (or environment.gnmi tls cert and key), or bind to 127.0.0.1/::1 only",
+		tlsRemedy:     zeconfig.GNMITLSFix,
 	}, true
 }
 

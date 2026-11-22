@@ -1,6 +1,6 @@
 // Design: ai/rules/plugins.md -- ze_gnmi compile-out seam
 //
-// resolveGNMIListeners is always-on: the boot-time management-listener guard
+// zeconfig.ResolveGNMIListener is always-on: the boot-time management-listener guard
 // reads it before anything binds, and the gated builder calls the same function
 // to bind. These tests pin the two questions it asks the config tree apart.
 
@@ -64,7 +64,7 @@ func TestResolveGNMIListenersKeepsTokenFromDisabledBlock(t *testing.T) {
 	setGNMIEnv(t, "ze.gnmi.listen", "")
 	setGNMIEnv(t, "ze.gnmi.token", "")
 
-	addr, token, enabled := resolveGNMIListeners(disabledGNMIBlockTokenOnly(t))
+	addr, token, enabled := zeconfig.ResolveGNMIListener(disabledGNMIBlockTokenOnly(t))
 
 	assert.True(t, enabled, "ze.gnmi.enabled starts gNMI")
 	assert.Equal(t, "gnmi-s3cret", token, "the block's token must survive `enabled false`")
@@ -90,7 +90,7 @@ func TestResolveGNMIListenersKeepsAddressFromDisabledBlock(t *testing.T) {
 	setGNMIEnv(t, "ze.gnmi.listen", "")
 	setGNMIEnv(t, "ze.gnmi.token", "")
 
-	addr, token, enabled := resolveGNMIListeners(disabledGNMIBlockWithToken(t))
+	addr, token, enabled := zeconfig.ResolveGNMIListener(disabledGNMIBlockWithToken(t))
 
 	assert.True(t, enabled)
 	assert.Equal(t, "127.0.0.1:9339", addr, "the block's server must survive `enabled false`")
@@ -105,7 +105,7 @@ func TestResolveGNMIListenersDormantBlockStartsNothing(t *testing.T) {
 	setGNMIEnv(t, "ze.gnmi.listen", "")
 	setGNMIEnv(t, "ze.gnmi.token", "")
 
-	addr, token, enabled := resolveGNMIListeners(disabledGNMIBlockWithToken(t))
+	addr, token, enabled := zeconfig.ResolveGNMIListener(disabledGNMIBlockWithToken(t))
 
 	assert.False(t, enabled, "`enabled false` starts no gNMI listener")
 	assert.Empty(t, addr, "a dormant block supplies no address to bind")
@@ -122,7 +122,7 @@ func TestResolveGNMIListenersKeepsTokenWithEnvListenAddress(t *testing.T) {
 	setGNMIEnv(t, "ze.gnmi.listen", "127.0.0.1:19339")
 	setGNMIEnv(t, "ze.gnmi.token", "")
 
-	addr, token, enabled := resolveGNMIListeners(disabledGNMIBlockWithToken(t))
+	addr, token, enabled := zeconfig.ResolveGNMIListener(disabledGNMIBlockWithToken(t))
 
 	assert.True(t, enabled)
 	assert.Equal(t, "127.0.0.1:19339", addr, "the env address wins over the block's server")
@@ -146,7 +146,7 @@ func TestResolveGNMIListenersPrecedenceUnchanged(t *testing.T) {
 	srv.Set("port", "9339")
 	gnmi.AddListEntry("server", "main", srv)
 
-	addr, token, enabled := resolveGNMIListeners(tree)
+	addr, token, enabled := zeconfig.ResolveGNMIListener(tree)
 
 	assert.True(t, enabled, "an enabled block starts gNMI without any env var")
 	assert.Equal(t, "10.0.0.1:9339", addr, "an enabled block supplies its own address")
@@ -159,7 +159,7 @@ func TestResolveGNMIListenersDisabledByDefault(t *testing.T) {
 	setGNMIEnv(t, "ze.gnmi.listen", "")
 	setGNMIEnv(t, "ze.gnmi.token", "")
 
-	addr, token, enabled := resolveGNMIListeners(zeconfig.NewTree())
+	addr, token, enabled := zeconfig.ResolveGNMIListener(zeconfig.NewTree())
 
 	assert.False(t, enabled)
 	assert.Empty(t, addr)

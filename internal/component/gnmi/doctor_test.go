@@ -93,8 +93,8 @@ func TestGNMITLSMaterial(t *testing.T) {
 		if diags[0].Message != refusal.Problem() {
 			t.Errorf("message = %q, want the refusal's problem %q", diags[0].Message, refusal.Problem())
 		}
-		if !strings.Contains(diags[0].Fix, "ze signal restart") {
-			t.Errorf("fix %q does not name the restart", diags[0].Fix)
+		if !strings.HasSuffix(diags[0].Fix, tlsRestart()) {
+			t.Errorf("fix %q does not end on the restart", diags[0].Fix)
 		}
 	})
 
@@ -182,6 +182,62 @@ func TestGNMITLSMaterial(t *testing.T) {
 
 		if diags := runGNMITLSCheck(nil); len(diags) != 0 {
 			t.Errorf("nil tree: got %d findings, want none: %+v", len(diags), diags)
+		}
+	})
+}
+
+// TestGNMIExposureFromEnvironment drives the check over a gNMI that only the
+// environment starts and places, which the config semantics check cannot see.
+//
+// VALIDATES: ze.gnmi.enabled with a token and no TLS on the 0.0.0.0:9339
+// default gives exactly the boot guard's TLS refusal, with its fix; the same
+// listener on loopback gives none; a config whose own block already breaks the
+// rule is left to config-gnmi-invalid, so the fault is not reported twice.
+// PREVENTS: `ze doctor` answering ready while the daemon exits 1 at boot.
+func TestGNMIExposureFromEnvironment(t *testing.T) {
+	envStarted := func(t *testing.T, listen string) {
+		t.Helper()
+		clearGNMIEnv(t)
+		t.Setenv("ze.gnmi.enabled", "true")
+		t.Setenv("ze.gnmi.token", "s3cret-token")
+		t.Setenv("ze.gnmi.listen", listen)
+		env.ResetCache()
+	}
+
+	t.Run("non-loopback with token and no TLS", func(t *testing.T) {
+		envStarted(t, "")
+		diags := runGNMITLSCheck(nil)
+		if len(diags) != 1 {
+			t.Fatalf("got %d findings, want the TLS refusal alone: %+v", len(diags), diags)
+		}
+		if diags[0].Code != diagnostic.CodeDoctorGNMITLSMaterial {
+			t.Errorf("code = %q, want %q", diags[0].Code, diagnostic.CodeDoctorGNMITLSMaterial)
+		}
+		if !strings.Contains(diags[0].Message, `"0.0.0.0:9339" without TLS`) {
+			t.Errorf("message = %q, want the boot refusal's problem", diags[0].Message)
+		}
+		if diags[0].Fix != zeconfig.GNMITLSFix {
+			t.Errorf("fix = %q, want %q", diags[0].Fix, zeconfig.GNMITLSFix)
+		}
+		if strings.Contains(diags[0].Message+diags[0].Help+diags[0].Fix, "s3cret-token") {
+			t.Error("the finding leaks the token")
+		}
+	})
+
+	t.Run("loopback with token and no TLS", func(t *testing.T) {
+		envStarted(t, "127.0.0.1:9339")
+		if diags := runGNMITLSCheck(nil); len(diags) != 0 {
+			t.Errorf("loopback: got %d findings, want none: %+v", len(diags), diags)
+		}
+	})
+
+	t.Run("file exposure left to config-gnmi-invalid", func(t *testing.T) {
+		clearGNMIEnv(t)
+		t.Setenv("ze.gnmi.token", "")
+		t.Setenv("ze.gnmi.listen", "")
+		env.ResetCache()
+		if diags := runGNMITLSCheck(gnmiTLSTree(true, "", "")); len(diags) != 0 {
+			t.Errorf("file exposure: got %d findings, want none here: %+v", len(diags), diags)
 		}
 	})
 }

@@ -33,7 +33,9 @@ import (
 
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	zemcp "github.com/ze-software/ze/internal/component/mcp"
+	"github.com/ze-software/ze/internal/core/network"
 	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/privilege"
 )
 
 // mcpService adapts *mcpServerHandle to the Service interface. The handle
@@ -220,7 +222,7 @@ func checkMCPRemoteTLS(mode zemcp.AuthMode, useTLS bool, addrs []string) error {
 		return nil
 	}
 	for _, addr := range addrs {
-		if listenAddrIsNonLoopback(addr) {
+		if !network.ListenAddrIsLoopback(addr) {
 			return fmt.Errorf("auth-mode=%s requires tls.cert and tls.key on non-loopback listener %s", mode, addr)
 		}
 	}
@@ -347,12 +349,12 @@ func loadMCPTLSConfig(certFile, keyFile string) (*tls.Config, error) {
 	if certFile == "" {
 		return nil, opererr.New("MCP TLS key file "+keyFile+" is set without a certificate file",
 			"MCP serves HTTPS only with both files, and never falls back to plain HTTP",
-			"set environment mcp tls cert to the certificate of that key, then run ze signal restart")
+			"set environment mcp tls cert to the certificate of that key, then restart ze: "+privilege.RestartRemedy())
 	}
 	if keyFile == "" {
 		return nil, opererr.New("MCP TLS certificate file "+certFile+" is set without a key file",
 			"MCP serves HTTPS only with both files, and never falls back to plain HTTP",
-			"set environment mcp tls key to the private key of that certificate, then run ze signal restart")
+			"set environment mcp tls key to the private key of that certificate, then restart ze: "+privilege.RestartRemedy())
 	}
 	if err := checkKeyFilePermissions(keyFile); err != nil {
 		return nil, err

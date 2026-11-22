@@ -652,12 +652,13 @@ func TestAcceptedLocalIdentityAdvancesGenerationForChangedCredentials(t *testing
 // to aaa.UserCredential: the field count below fails the moment the struct
 // grows, so whoever adds the field decides whether a change to it must revoke.
 func TestSameLocalCredentialReadsEveryField(t *testing.T) {
-	// The five fields this test covers: Name, Hash, Profiles and PublicKeys
-	// below, and LocalGeneration, which is deliberately excluded. A sixth field
-	// fails here rather than reaching production unread. Counted by reflection
-	// because an unkeyed literal, which would fail at compile time instead, is
-	// what `go vet` composites refuses for a struct from another package.
-	require.Equal(t, 5, reflect.TypeFor[aaa.UserCredential]().NumField(),
+	// The six fields this test covers: Name, Hash, Profiles and PublicKeys
+	// below, and LocalGeneration and UserGeneration, the two stamps, which are
+	// deliberately excluded. A seventh field fails here rather than reaching
+	// production unread. Counted by reflection because an unkeyed literal,
+	// which would fail at compile time instead, is what `go vet` composites
+	// refuses for a struct from another package.
+	require.Equal(t, 6, reflect.TypeFor[aaa.UserCredential]().NumField(),
 		"aaa.UserCredential grew a field: decide whether a change to it must revoke a live session, then extend sameLocalCredential and this test")
 
 	accepted := aaa.UserCredential{
@@ -674,6 +675,11 @@ func TestSameLocalCredentialReadsEveryField(t *testing.T) {
 	restamped.LocalGeneration = accepted.LocalGeneration + 1
 	assert.True(t, sameLocalCredential(accepted, restamped),
 		"LocalGeneration is the stamp this comparison decides and must not be read")
+
+	userRestamped := accepted
+	userRestamped.UserGeneration = accepted.UserGeneration + 1
+	assert.True(t, sameLocalCredential(accepted, userRestamped),
+		"UserGeneration is the per-user stamp this comparison decides and must not be read")
 
 	changes := []struct {
 		field  string

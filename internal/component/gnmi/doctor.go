@@ -41,11 +41,11 @@ var gnmiTLSDoctorCheck = diagnostic.DoctorCheck{
 	Check:        checkGNMITLSMaterial,
 }
 
-// checkGNMITLSMaterial reports on the TLS pair gNMI would serve: a half pair,
-// a file that cannot be read, a pair that does not load, and a certificate
-// outside or near the end of its validity window. It reports nothing when
-// gNMI does not start or names no TLS material, because Serve then loads
-// nothing.
+// checkGNMITLSMaterial reports on the listener and TLS pair gNMI would serve:
+// a non-loopback listener the daemon refuses to boot without a token or TLS
+// (gnmiExposureFindings), a half pair, a file that cannot be read, a pair that
+// does not load, and a certificate outside or near the end of its validity
+// window. It reports nothing when gNMI does not start.
 //
 // The runner asserts the tree's type before any check runs (doctorTree,
 // internal/component/doctor/registry.go), so the only other value is no tree
@@ -58,13 +58,47 @@ func checkGNMITLSMaterial(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagno
 	}
 	certFile, keyFile := zeconfig.GNMITLSPaths(tree)
 	named := Config{CertFile: certFile, KeyFile: keyFile}
+	diags := gnmiExposureFindings(tree, named.tlsNamed())
 	if !named.tlsNamed() {
-		return nil
+		return diags
 	}
 	if _, err := loadTLSCredentials(certFile, keyFile); err != nil {
-		return []diagnostic.Diagnostic{gnmiTLSRefusalFinding(err)}
+		return append(diags, gnmiTLSRefusalFinding(err))
 	}
-	return gnmiTLSExpiryFindings(certFile)
+	return append(diags, gnmiTLSExpiryFindings(certFile)...)
+}
+
+// gnmiExposureFindings reports the boot refusal of the listener the daemon
+// would bind: a non-loopback address without a token, or without TLS. It
+// judges the RESOLVED listener (zeconfig.ResolveGNMIListener, the resolver the
+// hub binds with), so an exposure that only the environment creates, such as
+// ze.gnmi.enabled or ze.gnmi.listen, is reported too. The rule and the words
+// are the boot guard's (zeconfig.GNMIExposure).
+//
+// When the config file's own gNMI block already breaks that rule, the config
+// semantics check reports it under config-gnmi-invalid, so this check stays
+// silent rather than tell the operator about one fault twice. tlsNamed counts
+// one named TLS file as TLS, as Serve does: loadTLSCredentials reports a half
+// pair below.
+func gnmiExposureFindings(tree *zeconfig.Tree, tlsNamed bool) []diagnostic.Diagnostic {
+	if fileCfg, ok := zeconfig.ExtractGNMIConfig(tree); ok {
+		if len(fileCfg.Refusals()) > 0 {
+			return nil
+		}
+	}
+	addr, token, _ := zeconfig.ResolveGNMIListener(tree)
+	refusals := zeconfig.GNMIExposure([]string{addr}, token != "", tlsNamed).Refusals()
+	diags := make([]diagnostic.Diagnostic, 0, len(refusals))
+	for _, r := range refusals {
+		diags = append(diags, diagnostic.Diagnostic{
+			Code:     diagnostic.CodeDoctorGNMITLSMaterial,
+			Severity: diagnostic.SeverityError,
+			Message:  r.Problem(),
+			Help:     r.Why(),
+			Fix:      r.Fix(),
+		})
+	}
+	return diags
 }
 
 // gnmiTLSRefusalFinding turns the refusal Serve would return into the finding:
@@ -78,7 +112,7 @@ func gnmiTLSRefusalFinding(err error) diagnostic.Diagnostic {
 			Code:     diagnostic.CodeDoctorGNMITLSMaterial,
 			Severity: diagnostic.SeverityError,
 			Message:  "gNMI not started: its TLS material does not load: " + err.Error(),
-			Fix:      "point " + tlsCertSetting + " and " + tlsKeySetting + " at a readable PEM pair" + tlsRestart,
+			Fix:      "point " + tlsCertSetting + " and " + tlsKeySetting + " at a readable PEM pair" + tlsRestart(),
 		}
 	}
 	var help textbuf.Buffer
@@ -110,14 +144,14 @@ func gnmiTLSExpiryFindings(certFile string) []diagnostic.Diagnostic {
 			Message:  "gNMI TLS certificate file " + certFile + " cannot be read",
 			Help:     tlsNoClearText + ": " + err.Error(),
 			Path:     certFile,
-			Fix:      "restore " + certFile + " or point " + tlsCertSetting + " at a readable PEM file" + tlsRestart,
+			Fix:      "restore " + certFile + " or point " + tlsCertSetting + " at a readable PEM file" + tlsRestart(),
 		}}
 	}
 	diags := diagnostic.DoctorCertExpiry(gnmiDoctorService, certFile, certPEM)
 	for i := range diags {
 		diags[i].Code = diagnostic.CodeDoctorGNMITLSMaterial
 		diags[i].Fix = "replace " + certFile + " with a certificate inside its validity window, or point " +
-			tlsCertSetting + " at one" + tlsRestart
+			tlsCertSetting + " at one" + tlsRestart()
 	}
 	return diags
 }

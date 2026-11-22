@@ -26,16 +26,18 @@ func ValidateSemantics(tree *Tree) []diagnostic.Diagnostic {
 		}
 	}
 
-	// gNMI serves Get AND Set, and its interceptors are installed only when a
-	// token is set, so a tokenless non-loopback listener is an unauthenticated
-	// config-mutation surface. The boot guard refuses it; this reports the same
-	// exposure offline so `ze doctor` and `ze config validate` see it too.
+	// A non-loopback gNMI listener needs a token and TLS, or the daemon refuses
+	// to boot (GNMIExposure, the one rule the boot guard applies). This reports
+	// each exposure offline, one finding per breach, so `ze doctor` and `ze
+	// config validate` see what boot would refuse.
 	if gnmiCfg, ok := ExtractGNMIConfig(tree); ok {
-		if err := gnmiCfg.Validate(); err != nil {
+		for _, refusal := range gnmiCfg.Refusals() {
 			diags = append(diags, diagnostic.Diagnostic{
 				Code:     diagnostic.CodeConfigGNMIInvalid,
 				Severity: diagnostic.SeverityError,
-				Message:  err.Error(),
+				Message:  refusal.Problem(),
+				Help:     refusal.Why(),
+				Fix:      refusal.Fix(),
 			})
 		}
 	}

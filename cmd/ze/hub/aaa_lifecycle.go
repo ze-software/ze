@@ -219,19 +219,24 @@ func publishAcceptedLocalIdentity(state *acceptedLocalIdentityState) {
 // and writes it into the state and into every credential the state carries.
 // The caller MUST hold publishLocalIdentity.
 //
-// The generation exists for two consumers:
-//   - aaa.acceptedGenerationAuthorizer, the break-glass grant a `ze init`
+// It stamps two generations, one fact each:
+//   - the SET generation (state.generation, UserCredential.LocalGeneration),
+//     for aaa.acceptedGenerationAuthorizer, the break-glass grant a `ze init`
 //     bootstrap admin's live session holds
-//     (internal/component/aaa/login_profiles.go, AuthorizerForResult).
-//   - web.SessionStore.validateToken, which checks a locally anchored
-//     ze-session cookie's recorded LocalGeneration against the live local user
-//     entry (internal/component/web/auth.go) so rotating a local user's password
-//     immediately invalidates open browser sessions.
+//     (internal/component/aaa/login_profiles.go, AuthorizerForResult). It
+//     advances when any local credential changes.
+//   - the per-USER generation (UserCredential.UserGeneration), for
+//     web.SessionStore.validateToken, which checks a locally anchored
+//     ze-session cookie against the live entry of ITS user
+//     (internal/component/web/auth.go). It advances only when that user's own
+//     record changes, so changing one user's password, adding a user or adding
+//     another user's SSH key logs nobody else out, while a change to the
+//     session user's own password, profiles or keys revokes the session.
 //
-// Both are valid only while their generation is the accepted one, so advancing
-// the counter revokes sessions granted under the previous credential set.
+// Each grant is valid only while its generation is the accepted one, so
+// advancing a counter revokes the sessions granted under the previous record.
 //
-// So the counter tracks the LOCAL CREDENTIAL SET, not the configuration. A
+// So the set counter tracks the LOCAL CREDENTIAL SET, not the configuration. A
 // candidate whose credentials equal the accepted ones keeps their number.
 // Advancing on every reload made an operator's own config commit revoke the
 // session that issued it: the commit reloaded, the generation moved, and the
@@ -243,8 +248,10 @@ func publishAcceptedLocalIdentity(state *acceptedLocalIdentityState) {
 // admin, a demoted profile list, a revoked public key).
 func stampLocalIdentityGeneration(state *acceptedLocalIdentityState) {
 	state.generation = localIdentityGenerationFor(state.users)
+	accepted := acceptedLocalIdentity.Load()
 	for i := range state.users {
 		state.users[i].LocalGeneration = state.generation
+		state.users[i].UserGeneration = localUserGenerationFor(accepted, state.users[i])
 	}
 	state.apiAuthentication = buildAPIAuthentication(
 		state.users,
@@ -261,6 +268,33 @@ func localIdentityGenerationFor(users []aaa.UserCredential) uint64 {
 		return accepted.generation
 	}
 
+	return localIdentityGeneration.Add(1)
+}
+
+// localUserGenerationFor returns the accepted per-user generation of user when
+// the accepted state holds exactly one record of that name with the same
+// credentials, and a fresh number otherwise. The number comes from the same
+// counter as the set generation, so it is never reused: a user removed and
+// added again with the same password does not revive a session the removal
+// revoked. A name that appears twice in the accepted state gets a fresh number:
+// the pairing is ambiguous, and revoking fails closed. The caller MUST hold
+// publishLocalIdentity.
+func localUserGenerationFor(accepted *acceptedLocalIdentityState, user aaa.UserCredential) uint64 {
+	if accepted != nil {
+		var previous aaa.UserCredential
+		matches := 0
+		for _, candidate := range accepted.users {
+			if candidate.Name == user.Name {
+				previous = candidate
+				matches++
+			}
+		}
+		if matches == 1 {
+			if sameLocalCredential(previous, user) {
+				return previous.UserGeneration
+			}
+		}
+	}
 	return localIdentityGeneration.Add(1)
 }
 
@@ -296,9 +330,9 @@ func sameLocalCredentials(accepted, candidate []aaa.UserCredential) bool {
 	return len(unmatched) == 0
 }
 
-// sameLocalCredential compares the two records of one user. LocalGeneration is
-// excluded: it is the stamp this comparison decides, so reading it here would
-// compare a record against itself.
+// sameLocalCredential compares the two records of one user. LocalGeneration and
+// UserGeneration are excluded: they are the stamps this comparison decides, so
+// reading them here would compare a record against itself.
 //
 // Every other field of aaa.UserCredential is read. A field added to that struct
 // and not added here would stop revoking a live session on a change nobody

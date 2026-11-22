@@ -15,6 +15,7 @@ import (
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/infra"
 	zepki "github.com/ze-software/ze/internal/component/pki"
+	"github.com/ze-software/ze/internal/core/network"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -599,7 +600,7 @@ func checkServiceExposure(name string, addrs []string, authenticated, known bool
 		return nil
 	}
 	for _, addr := range addrs {
-		if listenAddrIsNonLoopback(addr) {
+		if !network.ListenAddrIsLoopback(addr) {
 			return fmt.Errorf("%s listener %q cannot serve a non-loopback address without authentication", name, addr)
 		}
 	}

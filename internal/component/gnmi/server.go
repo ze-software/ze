@@ -13,9 +13,9 @@ import (
 	"context"
 	"crypto/sha256"
 	"crypto/subtle"
+	"errors"
 	"fmt"
 	"net"
-	"net/netip"
 	"sync"
 
 	"google.golang.org/grpc"
@@ -82,37 +82,23 @@ func (c *Config) tlsNamed() bool {
 	return c.KeyFile != ""
 }
 
-// listenAddrIsLoopback reports whether addr parses to a literal loopback IP
-// (127.0.0.0/8 or ::1). Fail-closed: wildcards (0.0.0.0, ::, :port), DNS names
-// including "localhost", empty hosts, and unparseable strings classify as
-// non-loopback, matching the boot-time management-listener guard.
-func listenAddrIsLoopback(addr string) bool {
-	host := addr
-	if h, _, err := net.SplitHostPort(addr); err == nil {
-		host = h
-	}
-	ip, err := netip.ParseAddr(host)
-	if err != nil {
-		return false
-	}
-	return ip.IsLoopback()
-}
-
-// checkGNMIListenAddr enforces defense-in-depth on non-loopback gNMI listeners,
-// matching gRPC's checkGRPCListenAddr: every non-loopback listener MUST gate
-// requests with Token and encrypt the transport with TLS so credentials and
-// configuration never cross the network in clear text.
+// checkGNMIListenAddr enforces defense-in-depth on non-loopback gNMI listeners
+// with the one rule the boot guard, `ze config validate` and `ze doctor` apply
+// (zeconfig.GNMIExposure): every non-loopback listener MUST gate requests with
+// Token and encrypt the transport with TLS, so credentials and configuration
+// never cross the network in clear text. Naming one TLS file counts as asking
+// for TLS here: loadTLSCredentials then refuses the half pair with its own
+// message, so Serve never falls back to clear text.
 func checkGNMIListenAddr(cfg Config) error {
-	if listenAddrIsLoopback(cfg.ListenAddr) {
+	refusals := zeconfig.GNMIExposure([]string{cfg.ListenAddr}, cfg.Token != "", cfg.tlsNamed()).Refusals()
+	if len(refusals) == 0 {
 		return nil
 	}
-	if cfg.Token == "" {
-		return fmt.Errorf("gnmi: non-loopback listen address %q requires authentication (set environment gnmi token or ze.gnmi.token)", cfg.ListenAddr)
+	errs := make([]error, 0, len(refusals))
+	for _, r := range refusals {
+		errs = append(errs, r)
 	}
-	if !cfg.tlsNamed() {
-		return fmt.Errorf("gnmi: non-loopback listen address %q requires TLS (set environment gnmi tls cert/key or ze.gnmi.tls.cert/key)", cfg.ListenAddr)
-	}
-	return nil
+	return errors.Join(errs...)
 }
 
 // Server implements the gNMI gRPC service.
@@ -346,6 +332,23 @@ func (s *Server) recordAuthFailure(ctx context.Context) {
 	s.recordAudit(entry)
 }
 
+// The refusals checkAuth answers share one reason and one fix. Each names what
+// was wrong with the request, and a wrong token is only said not to match:
+// never whether it was close, nor anything about the configured token beyond
+// the fact that the server requires one, which the Unauthenticated code
+// already tells the caller. Each problem keeps its historic first words
+// ("missing authorization", "invalid token"), which gNMI clients and
+// gnmic_docker_test.go match on.
+const (
+	gnmiAuthWhy = "this gNMI server accepts only requests that carry its bearer token"
+	gnmiAuthFix = "send gRPC metadata 'authorization: Bearer <token>' with the token set by environment gnmi token on the router"
+)
+
+// gnmiAuthRefusal answers one Unauthenticated refusal with its reason and fix.
+func gnmiAuthRefusal(problem string) error {
+	return status.Error(codes.Unauthenticated, opererr.New(problem, gnmiAuthWhy, gnmiAuthFix).Error())
+}
+
 func (s *Server) checkAuth(ctx context.Context) error {
 	if s.config.Token == "" {
 		return nil
@@ -353,31 +356,27 @@ func (s *Server) checkAuth(ctx context.Context) error {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		s.recordAuthFailure(ctx)
-		return status.Error(codes.Unauthenticated, "missing metadata")
+		return gnmiAuthRefusal("missing metadata: the gNMI request carries no gRPC metadata")
 	}
 	vals := md.Get("authorization")
 	if len(vals) == 0 {
 		s.recordAuthFailure(ctx)
-		return status.Error(codes.Unauthenticated, "missing authorization")
+		return gnmiAuthRefusal("missing authorization: the gNMI request carries no authorization metadata")
 	}
 	const prefix = "Bearer "
 	if len(vals[0]) <= len(prefix) {
 		s.recordAuthFailure(ctx)
-		return status.Error(codes.Unauthenticated, "invalid authorization format")
+		return gnmiAuthRefusal("invalid authorization format: expected 'Bearer <token>'")
 	}
 	if vals[0][:len(prefix)] != prefix {
 		s.recordAuthFailure(ctx)
-		return status.Error(codes.Unauthenticated, opererr.New(
-			"invalid authorization format",
-			"gNMI authentication requires a Bearer token header",
-			"pass authorization metadata formatted as 'Bearer <token>'",
-		).Error())
+		return gnmiAuthRefusal("invalid authorization format: expected 'Bearer <token>'")
 	}
 	got := sha256.Sum256([]byte(vals[0][len(prefix):]))
 	want := sha256.Sum256([]byte(s.config.Token))
 	if subtle.ConstantTimeCompare(got[:], want[:]) != 1 {
 		s.recordAuthFailure(ctx)
-		return status.Error(codes.Unauthenticated, "invalid token")
+		return gnmiAuthRefusal("invalid token: the bearer token does not match this server's token")
 	}
 	return nil
 }

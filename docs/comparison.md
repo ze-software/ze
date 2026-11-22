@@ -386,7 +386,7 @@ The other ten daemons are marked `Unclear` because this claim was not checked
 against their source. Several of them expose no comparable management plane, so
 `Unclear` here says the comparison was not made, not that the guard is missing
 from something that needs one.
-<!-- source: cmd/ze/hub/mgmt_guard.go -- checkMgmtListeners, listenAddrIsNonLoopback -->
+<!-- source: cmd/ze/hub/mgmt_guard.go -- checkMgmtListeners --> <!-- source: internal/core/network/exposure.go -- ListenAddrIsLoopback, Exposure.Refusals -->
 <!-- source: cmd/ze/hub/main.go -- mgmtListeners declaration sites, exit on refusal -->
 <!-- source: internal/component/web/yang/ze-web-conf.yang -- leaf certificate -->
 

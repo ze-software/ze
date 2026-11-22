@@ -19,6 +19,16 @@ func gnmiTree(host, token string) *Tree {
 	return tree
 }
 
+// gnmiTreeTLS is gnmiTree with both TLS files named, the only form a
+// non-loopback gNMI listener boots with.
+func gnmiTreeTLS(host, token string) *Tree {
+	tree := gnmiTree(host, token)
+	tls := tree.GetContainer("environment").GetContainer("gnmi").GetOrCreateContainer("tls")
+	tls.Set("cert", "/etc/ze/gnmi.crt")
+	tls.Set("key", "/etc/ze/gnmi.key")
+	return tree
+}
+
 // gnmiFlagged reports whether ValidateSemantics emitted config-gnmi-invalid for
 // the tree. The entry point is deliberate: doctor reaches gNMI exposure only
 // through ValidateSemantics, never through GNMIListenConfig.Validate directly.
@@ -52,9 +62,17 @@ func TestValidateSemanticsFlagsGNMI(t *testing.T) {
 		}
 	})
 
-	t.Run("non-loopback with token is clean", func(t *testing.T) {
-		if gnmiFlagged(gnmiTree("0.0.0.0", "s3cret")) {
-			t.Fatal("an authenticated gNMI listener must not be flagged")
+	t.Run("non-loopback with token and TLS is clean", func(t *testing.T) {
+		if gnmiFlagged(gnmiTreeTLS("0.0.0.0", "s3cret")) {
+			t.Fatal("an authenticated gNMI listener serving TLS must not be flagged")
+		}
+	})
+
+	// The daemon refuses a non-loopback gNMI listener without TLS even when a
+	// token authenticates it, so the semantic check must flag it too.
+	t.Run("non-loopback with token but no TLS is flagged", func(t *testing.T) {
+		if !gnmiFlagged(gnmiTree("0.0.0.0", "s3cret")) {
+			t.Fatal("expected config-gnmi-invalid for a 0.0.0.0 gNMI listener with a token and no TLS")
 		}
 	})
 

@@ -71,6 +71,11 @@ environment {
 
 Environment variable overrides: `ze.mcp.listen=ip:port`, `ze.mcp.enabled=true`, `ze.mcp.token=<secret>`. Defaults to `127.0.0.1:8080` (security: local-only unless explicitly overridden via `ze.mcp.listen`). Bearer token auth available via `--mcp-token` flag, `ze.mcp.token` env var, or the config `token` leaf.
 
+A token is not enough for a listener off loopback. With `auth-mode` `bearer`, `bearer-list` or `oauth` (a token alone selects `bearer`), a non-loopback listener also needs TLS: set `tls cert` and `tls key` in the `environment mcp` block. `ze config validate` refuses such a listener without TLS, and the daemon starts with MCP disabled and logs the reason. With `auth-mode bearer-list`, an identity that lists `scopes` may call only what they grant (an identity with no scopes is not restricted): `mcp.read` allows read-only commands and `ze_reference`, `mcp.write` allows commands that change state and provider tools, and `mcp.admin` allows everything, including any tool with no scope rule of its own. `mcp.write` does not include `mcp.read`, so an identity that both reads and writes lists both.
+<!-- source: internal/component/mcp/streamable_tools.go -- enforcesIdentityScopes, identityHasToolScope, checkHandcraftedScope, checkProviderScope -->
+<!-- source: internal/component/config/loader_extract.go -- MCPListenConfig.Validate -->
+<!-- source: cmd/ze/hub/service_mcp.go -- checkMCPRemoteTLS, startMCPServer -->
+
 ## AI Command Reference
 
 ```

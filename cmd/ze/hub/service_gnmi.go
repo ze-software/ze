@@ -56,7 +56,7 @@ func gnmiBuildImpl(in *gnmiBuildInputs) gnmiServer {
 	// builder agree on exactly the (address, token) pair that binds. The TLS
 	// pair comes from zeconfig.GNMITLSPaths, which the gnmi-tls-material
 	// doctor check reads too, so doctor judges the pair this builder loads.
-	gnmiAddr, gnmiToken, gnmiEnabled := resolveGNMIListeners(in.Tree)
+	gnmiAddr, gnmiToken, gnmiEnabled := zeconfig.ResolveGNMIListener(in.Tree)
 	gnmiTLSCert, gnmiTLSKey := zeconfig.GNMITLSPaths(in.Tree)
 
 	// The extra-listener warning belongs to the ADDRESS question: only a block

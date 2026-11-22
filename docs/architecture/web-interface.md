@@ -395,14 +395,20 @@ Reuses SSH user database (`[]ssh.UserConfig`). Two mechanisms:
 Session tokens: 32 bytes from `crypto/rand`, hex-encoded. Cookie: `Secure`, `HttpOnly`, `SameSite=Strict`. One session per user, 24h TTL.
 
 A session also ends when the running configuration stops declaring its user or
-rotates local credentials. The session records both which backend authenticated
-it (`AuthResult.Source`) and the accepted local credential generation
-(`AuthResult.LocalGeneration`), and `validateToken` re-checks a session the
-LOCAL backend granted against the live local user list and its current
-`LocalGeneration` on every request. An operator removed or whose password is
-rotated by a reload loses an open browser tab at once, with no restart and no
-wait for the TTL, while unrelated configuration reloads that leave local
-credentials unchanged keep the session valid. A session a remote backend
+changes that user's own credentials. The session records both which backend
+authenticated it (`AuthResult.Source`) and the accepted generation of its own
+user's record (`AuthResult.UserGeneration`), and `validateToken` re-checks a
+session the LOCAL backend granted against the live local user list and that
+user's current `UserGeneration` on every request. The hub advances a user's
+generation only when that user's password hash, profiles or SSH keys change
+(`stampLocalIdentityGeneration`, `cmd/ze/hub/aaa_lifecycle.go`). An operator
+who is removed, or whose password or profiles a reload changes, loses an open
+browser tab at once, with no restart and no wait for the TTL. A reload that
+changes only other users (a new user, another user's password or SSH key) or
+nothing local at all keeps the session valid, so the admin whose commit adds a
+user is not logged out by it.
+<!-- source: internal/component/web/auth.go -- localUserSessionStatus, validateToken -->
+<!-- source: cmd/ze/hub/aaa_lifecycle.go -- stampLocalIdentityGeneration, localUserGenerationFor --> A session a remote backend
 granted (RADIUS, TACACS+) is not checked against the local list, because that
 list never granted it.
 

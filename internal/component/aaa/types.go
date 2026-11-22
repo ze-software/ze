@@ -37,8 +37,14 @@ type UserCredential struct {
 	Profiles   []string
 	PublicKeys []SSHPublicKey
 	// LocalGeneration identifies the accepted local credential generation that
-	// produced this record. It is runtime-only and never loaded from config.
+	// produced this record: it changes when ANY local user's credentials
+	// change. It is runtime-only and never loaded from config.
 	LocalGeneration uint64
+	// UserGeneration identifies the accepted generation of THIS user's own
+	// record (hash, profiles, public keys): it changes only when this user's
+	// record changes, and a user added again after removal gets a new one. It
+	// is runtime-only and never loaded from config.
+	UserGeneration uint64
 }
 
 // BuildParams is the data passed to every backend factory at Build time.
@@ -139,6 +145,10 @@ type AuthResult struct {
 	// local credential generation is accepted (e.g. on password rotation),
 	// including when authentication and publication overlap.
 	LocalGeneration uint64
+	// UserGeneration is copied from the matched local credential. It makes a
+	// locally anchored web session expire when its own user's credentials or
+	// profiles change, and survive a change to any other user.
+	UserGeneration uint64
 	// Authorizer is the authorization view for this authentication result.
 	// Transports carry it with the session or request so another login that uses
 	// the same username cannot change this result's authorization.

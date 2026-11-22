@@ -123,13 +123,13 @@ type webSession struct {
 	// one against it would log out every remote-backend operator on the next
 	// request.
 	LocalAnchored bool
-	// LocalGeneration records the accepted local credential generation that
-	// granted this session (AuthResult.LocalGeneration). validateToken checks
-	// that the live local user entry still carries this generation so rotating
-	// a local user's password (or changing local credentials) immediately
-	// invalidates open browser cookies, while unrelated config reloads leave
-	// the generation and session intact.
-	LocalGeneration uint64
+	// UserGeneration records the accepted generation of this session's own
+	// user record that granted it (AuthResult.UserGeneration). validateToken
+	// checks that the live entry of that user still carries it, so a change to
+	// the user's own password, profiles or SSH keys immediately invalidates the
+	// open browser cookie, while a reload that changes only other users, or
+	// nothing local at all, leaves the session intact.
+	UserGeneration uint64
 }
 
 // localSessionStatus classifies the live-user check for a locally anchored
@@ -193,8 +193,7 @@ func NewSessionStore(localUsers func() ([]authz.UserConfig, error)) *SessionStor
 }
 
 // localUserSessionStatus reports whether the live local user list still
-// declares username at the local credential generation that granted the
-// session.
+// declares username at the per-user generation that granted the session.
 //
 // An unreadable list is an ERROR, never a "no". The two are indistinguishable
 // to a caller that gets a bare false, and only one of them may keep a session
@@ -222,7 +221,7 @@ func (s *SessionStore) localUserSessionStatus(username string, generation uint64
 			continue
 		}
 		foundUser = true
-		if u.LocalGeneration == generation {
+		if u.UserGeneration == generation {
 			return localSessionValid, nil
 		}
 	}
@@ -239,8 +238,8 @@ func (s *SessionStore) localUserSessionStatus(username string, generation uint64
 //
 // result decides three things and is the sole input for all of them: the authz
 // profile names carried on the session, whether the local user list may later
-// revoke it (AuthResult.GrantedByLocalBackend), and the local credential
-// generation that granted it (AuthResult.LocalGeneration). Taking the anchor
+// revoke it (AuthResult.GrantedByLocalBackend), and the generation of its own
+// user record that granted it (AuthResult.UserGeneration). Taking the anchor
 // and generation from result rather than re-reading the user list is what makes
 // them the authenticator's answer instead of a guess about it: the store cannot
 // observe the instant the authenticator answered, and a reload landing after it
@@ -261,13 +260,13 @@ func (s *SessionStore) createSession(username string, result authz.AuthResult) (
 	}
 
 	session := &webSession{
-		Username:        username,
-		Token:           token,
-		CreatedAt:       time.Now(),
-		Profiles:        result.Profiles,
-		Authorizer:      result.Authorizer,
-		LocalAnchored:   result.GrantedByLocalBackend(),
-		LocalGeneration: result.LocalGeneration,
+		Username:       username,
+		Token:          token,
+		CreatedAt:      time.Now(),
+		Profiles:       result.Profiles,
+		Authorizer:     result.Authorizer,
+		LocalAnchored:  result.GrantedByLocalBackend(),
+		UserGeneration: result.UserGeneration,
 	}
 	s.sessions[token] = session
 	s.users[username] = token
@@ -309,7 +308,7 @@ func (s *SessionStore) validateToken(token string) *webSession {
 		return session
 	}
 
-	status, err := s.localUserSessionStatus(session.Username, session.LocalGeneration)
+	status, err := s.localUserSessionStatus(session.Username, session.UserGeneration)
 	if err != nil {
 		// Deny rather than serve: a session granted by the local user list
 		// cannot be renewed against a list that cannot be read.
@@ -325,7 +324,7 @@ func (s *SessionStore) validateToken(token string) *webSession {
 		logger.Info("session refused: the running configuration no longer declares this user",
 			"username", session.Username)
 	case localSessionGenerationChanged:
-		logger.Info("session refused: local credentials changed since login",
+		logger.Info("session refused: this user's credentials or profiles changed since login",
 			"username", session.Username)
 	case localSessionUnspecified:
 		panic("BUG: localUserSessionStatus returned unspecified without error")

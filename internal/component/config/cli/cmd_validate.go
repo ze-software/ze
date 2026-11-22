@@ -562,12 +562,20 @@ func runValidationUnanswered(input, path string, unanswered *config.DaemonUnansw
 		}
 	}
 
-	// gNMI semantic validation: a non-loopback listener with no token accepts
-	// unauthenticated Get and Set. The daemon refuses to boot on it, so
-	// validation must report it rather than let the operator find out at start.
+	// gNMI semantic validation: a non-loopback listener needs a token and TLS.
+	// The daemon refuses to boot without them (config.GNMIExposure, the rule the
+	// boot guard applies), so validation reports each exposure, with its reason
+	// and fix, rather than let the operator find out at start.
 	if gnmiCfg, ok := config.ExtractGNMIConfig(tree); ok {
-		if verr := gnmiCfg.Validate(); verr != nil {
-			result.addError("config-gnmi-invalid", verr.Error())
+		for _, refusal := range gnmiCfg.Refusals() {
+			result.Valid = false
+			result.Diagnostics = append(result.Diagnostics, diagnostic.Diagnostic{
+				Code:     "config-gnmi-invalid",
+				Severity: diagnostic.SeverityError,
+				Message:  refusal.Problem(),
+				Help:     refusal.Why(),
+				Fix:      refusal.Fix(),
+			})
 		}
 	}
 

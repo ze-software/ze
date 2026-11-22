@@ -27,7 +27,7 @@ import (
 var errServerNotReady = errors.New("server not ready")
 
 // API non-loopback classification is now handled by the shared boot-time guard
-// (mgmt_guard.go: listenAddrIsNonLoopback + checkMgmtListeners), which the API
+// (network.ListenAddrIsLoopback + mgmt_guard.go checkMgmtListeners), which the API
 // server's listener declaration in runYANGConfig feeds. The former
 // apiHasNonLoopback helper was folded into that single classifier so exactly
 // one non-loopback rule exists across every management surface.
