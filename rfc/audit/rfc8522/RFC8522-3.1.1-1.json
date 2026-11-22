@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC8522MandatoryCommands proves both polarities: positive pingCases executes IPv4, IPv6 (protocol=2,1), and DNS hostname (example.com) asserting StatusOK, jsendSuccess, exact min/avg/max, rate 100, and non-empty rfc8522OutputText; negative badPing rejects protocol mismatch and invalid host with StatusBadRequest and jsendError.",
+  "requirement_sha": "82a78e98d1a60496",
+  "tests": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522MandatoryCommands": "4f54f2501362e7df",
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522MandatoryCommands#2": "4f54f2501362e7df"
+  },
+  "units": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522MandatoryCommands": "c8d2a301ba39ceae",
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522MandatoryCommands#2": "c8d2a301ba39ceae"
+  },
+  "verdict": "enforced"
+}

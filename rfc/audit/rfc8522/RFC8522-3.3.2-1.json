@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC8522MandatoryCommands proves both polarities: positive recDetails (GET /v1/routers/0) asserts StatusOK, jsendSuccess, detailsData[\"name\"] == testRFC8522Hostname, and detailsData[\"id\"] == 0; negative badRouter rejects /v1/routers/1, /v1/routers/abc, and /v1/routers/0/extra with StatusBadRequest and jsendError.",
+  "requirement_sha": "bff36ed856c5c998",
+  "tests": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522MandatoryCommands": "4f54f2501362e7df",
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522MandatoryCommands#2": "4f54f2501362e7df"
+  },
+  "units": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522MandatoryCommands": "c8d2a301ba39ceae",
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522MandatoryCommands#2": "c8d2a301ba39ceae"
+  },
+  "verdict": "enforced"
+}

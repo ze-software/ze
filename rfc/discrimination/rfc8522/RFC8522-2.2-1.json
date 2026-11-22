@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC8522-2.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/lg/handler_rfc8522_test.go::TestRFC8522RandomParameterIgnored",
+    "unit-sha": "37e177f3553e870a",
+    "claim-sha": "f3e7862a36bcfd39",
+    "route": "revert",
+    "producer": "internal/component/lg/handler_rfc8522.go::parseRFC8522Query",
+    "producer-sha": "b45c01268c28683d",
+    "break": "body of parseRFC8522Query replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

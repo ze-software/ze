@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC8522WellKnownPrefixAndRejections proves both polarities: positive recPing verifies allowlisted GET /.well-known/looking-glass/v1/ping/192.0.2.1 returns StatusOK and dispatches exact router command \"show ping 192.0.2.1\", while negative rejected cases (unknown commands, POST, shell/pipe/space injection) return StatusBadRequest with jsendError and len(calls) == 0.",
+  "requirement_sha": "b31938d699a143b3",
+  "tests": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522WellKnownPrefixAndRejections": "4f54f2501362e7df",
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522WellKnownPrefixAndRejections#2": "4f54f2501362e7df"
+  },
+  "units": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522WellKnownPrefixAndRejections": "627d40edd72fb0dd",
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522WellKnownPrefixAndRejections#2": "627d40edd72fb0dd"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC8522JSendEnvelopeAndTiming proves both polarities: positive recOK (ping) and recRouteOK (show route) assert StatusOK and jsendSuccess via assertJSendKeys, while negative recFail, recMiss (jsendFail) and recClient/recAuth/recServerErr/recRouter/recTimeout (jsendError) confirm non-success outcomes do not set status to success.",
+  "requirement_sha": "51a432792cd45d53",
+  "tests": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming": "4f54f2501362e7df",
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming#2": "4f54f2501362e7df"
+  },
+  "units": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming": "3a6c8f5620ae9128",
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming#2": "3a6c8f5620ae9128"
+  },
+  "verdict": "enforced"
+}

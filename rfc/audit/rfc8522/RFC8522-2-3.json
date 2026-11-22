@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC8522WellKnownPrefixAndRejections proves both polarities: positive recPing dispatches exclusively through CommandDispatcher with no Location redirect and recErr verifies backend errors return StatusBadGateway without leaking errRFC8522TestEngineFailed; negative upRec rejects Upgrade: websocket with StatusBadRequest, jsendError, and len(calls) == 0.",
+  "requirement_sha": "4aba6937c2af7c95",
+  "tests": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522WellKnownPrefixAndRejections": "4f54f2501362e7df",
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522WellKnownPrefixAndRejections#2": "4f54f2501362e7df"
+  },
+  "units": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522WellKnownPrefixAndRejections": "627d40edd72fb0dd",
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522WellKnownPrefixAndRejections#2": "627d40edd72fb0dd"
+  },
+  "verdict": "enforced"
+}

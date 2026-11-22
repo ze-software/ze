@@ -7,6 +7,7 @@ package lg
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -48,6 +49,8 @@ type lgHandlerCase struct {
 	// carries a canceled context, so the capture holds what the handler emits
 	// before it returns rather than blocking on a ticker.
 	Stream bool
+	// TLS sets a synthetic TLS connection state on the request for HTTPS-only routes.
+	TLS bool
 	// Rewrites normalize a volatile span. Each one names its producer.
 	Rewrites []golden.Rewrite
 }
@@ -58,6 +61,13 @@ type lgHandlerCase struct {
 var lgServerTimeRewrite = golden.Rewrite{
 	Pattern:     regexp.MustCompile(`("(?:current_server|server_time)": ")[^"]*"`),
 	Replacement: `${1}<TIME>"`,
+}
+
+// lgRFC8522TimeRewrite normalizes the per-request UTC timestamp and wallclock
+// runtime written by rfc8522BaseData (handler_rfc8522.go).
+var lgRFC8522TimeRewrite = golden.Rewrite{
+	Pattern:     regexp.MustCompile(`("performed_at":")[^"]*(".*?"runtime":)[0-9.]+`),
+	Replacement: `${1}<TIME>${2}<RUNTIME>`,
 }
 
 // lgHandlerGoldenCases requests every route registerRoutes wires. The route
@@ -124,6 +134,11 @@ var lgHandlerGoldenCases = []lgHandlerCase{
 	// so both answers are response bytes an operator receives.
 	{Name: "gated-peers-authorized", Method: http.MethodGet, Target: "/lg/peers", Auth: "Bearer " + lgToken},
 	{Name: "gated-peers-unauthorized", Method: http.MethodGet, Target: "/lg/peers", Gated: true},
+
+	// RFC 8522 Looking Glass Command Set (/.well-known/looking-glass).
+	{Name: "rfc8522-bare", Method: http.MethodGet, Target: "/.well-known/looking-glass"},
+	{Name: "rfc8522-routers", Method: http.MethodGet, Target: "/.well-known/looking-glass/v1/routers", TLS: true,
+		Rewrites: []golden.Rewrite{lgRFC8522TimeRewrite}},
 }
 
 // TestLGHandlerGoldenOutput captures the response bytes of a real request to
@@ -210,6 +225,7 @@ func newLGGoldenServer(t *testing.T, token string) *LGServer {
 		ListenAddrs: []string{"127.0.0.1:0"},
 		Dispatch:    mockDispatch(),
 		Token:       token,
+		Hostname:    "golden-lg.example.net",
 	})
 	if err != nil {
 		t.Fatalf("new lg server: %v", err)
@@ -238,6 +254,10 @@ func lgGoldenRequest(t *testing.T, c lgHandlerCase) *http.Request {
 
 	if c.HTMX {
 		req.Header.Set("HX-Request", "true")
+	}
+
+	if c.TLS {
+		req.TLS = &tls.ConnectionState{Version: tls.VersionTLS13}
 	}
 
 	if c.Stream {

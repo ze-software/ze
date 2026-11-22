@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC8522JSendEnvelopeAndTiming proves both polarities: positive recFail (0% ping) and recMiss (missing route) assert StatusOK, jsendFail, bounded performed_at/runtime, format text/plain, and non-empty rfc8522OutputText; negative recOK and recRouteOK confirm succeeding commands return jsendSuccess rather than jsendFail.",
+  "requirement_sha": "c40cd4b03db1ccc1",
+  "tests": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming": "4f54f2501362e7df",
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming#2": "4f54f2501362e7df"
+  },
+  "units": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming": "3a6c8f5620ae9128",
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming#2": "3a6c8f5620ae9128"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,12 @@
+{
+  "note": "TestRFC8522JSendEnvelopeAndTiming verifies real elapsed wallclock runtime >= 0.01s on a 15ms delayed command (slowSrv/recSlow) and >= 0.015s on a 20ms timeout (recTimeout/timeoutData); {single-polarity: positive} is justified because rfc8522BaseData unconditionally computes wallclock seconds from start.",
+  "requirement_sha": "a0d2a8cea1d16fab",
+  "tests": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming": "4f54f2501362e7df"
+  },
+  "units": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming": "3a6c8f5620ae9128"
+  },
+  "upgrade_reason": "TestRFC8522JSendEnvelopeAndTiming was already verified strong; the prior weak verdict was solely because {single-polarity: positive} in rfc/short/rfc8522.md sat before a trailing suffix and was unparsed. rfc/short/rfc8522.md line 92 now places {single-polarity: positive; ...} cleanly at EOL.",
+  "verdict": "enforced"
+}

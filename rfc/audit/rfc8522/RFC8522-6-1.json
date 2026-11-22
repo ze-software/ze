@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC8522RequiresHTTPS exercises real TCP listeners in both polarities on the identical path /.well-known/looking-glass/v1/routers: positive startTLSTestServer over HTTPS asserts StatusOK and jsendSuccess; negative startTestServer over plaintext HTTP asserts StatusBadRequest, jsendError, and an error message naming HTTPS.",
+  "requirement_sha": "ebaa99c41bdfd370",
+  "tests": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522RequiresHTTPS": "4f54f2501362e7df",
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522RequiresHTTPS#2": "4f54f2501362e7df"
+  },
+  "units": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522RequiresHTTPS": "02b8c5e1dc1fa585",
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522RequiresHTTPS#2": "02b8c5e1dc1fa585"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8522-3.1.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/lg/handler_rfc8522_test.go::TestRFC8522MandatoryCommands",
+    "unit-sha": "157703f0e6d89bba",
+    "claim-sha": "43d124dde52c29a4",
+    "route": "revert",
+    "producer": "internal/component/lg/handler_rfc8522.go::LGServer.handleRFC8522Ping",
+    "producer-sha": "514936a347c2acfc",
+    "break": "body of LGServer.handleRFC8522Ping replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8522-3.1.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/lg/handler_rfc8522_test.go::TestRFC8522MandatoryCommands",
+    "unit-sha": "157703f0e6d89bba",
+    "claim-sha": "42f5dd140c4a4b22",
+    "route": "revert",
+    "producer": "internal/component/lg/handler_rfc8522.go::LGServer.handleRFC8522Ping",
+    "producer-sha": "514936a347c2acfc",
+    "break": "body of LGServer.handleRFC8522Ping replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

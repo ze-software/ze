@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8522-2.3.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming",
+    "unit-sha": "0ee7b0334b8d3839",
+    "claim-sha": "165380b8566dc7b0",
+    "route": "revert",
+    "producer": "internal/component/lg/handler_rfc8522.go::writeRFC8522Error",
+    "producer-sha": "ecbb0156148cc802",
+    "break": "body of writeRFC8522Error replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8522-2.3.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming",
+    "unit-sha": "0ee7b0334b8d3839",
+    "claim-sha": "723cbd605876b1b0",
+    "route": "revert",
+    "producer": "internal/component/lg/handler_rfc8522.go::writeRFC8522Success",
+    "producer-sha": "c6cfd9a4b4ee7cb7",
+    "break": "body of writeRFC8522Success replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

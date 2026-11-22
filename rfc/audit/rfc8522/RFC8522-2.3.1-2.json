@@ -1,0 +1,12 @@
+{
+  "note": "TestRFC8522JSendEnvelopeAndTiming verifies non-null data object on recOK and recRouteOK via assertJSendKeys, assertRequiredDataFields, router, format, and non-empty rfc8522OutputText; {single-polarity: positive} is justified because writeRFC8522Success and rfc8522BaseData unconditionally emit a data object.",
+  "requirement_sha": "89b9c95dc2120d03",
+  "tests": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming": "4f54f2501362e7df"
+  },
+  "units": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming": "3a6c8f5620ae9128"
+  },
+  "upgrade_reason": "TestRFC8522JSendEnvelopeAndTiming was already verified strong; the prior weak verdict was solely because {single-polarity: positive} in rfc/short/rfc8522.md sat before a trailing suffix and was unparsed. rfc/short/rfc8522.md line 90 now places {single-polarity: positive; ...} cleanly at EOL.",
+  "verdict": "enforced"
+}

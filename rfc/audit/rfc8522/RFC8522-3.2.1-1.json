@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC8522MandatoryCommands proves both polarities: positive recRoute4, recRoute6, and recLookup assert StatusOK, jsendSuccess, and route prefix/gateway in rfc8522OutputText, while recMissing and recLookupMissing return jsendFail; negative badRoute rejects malformed address and protocol mismatch with StatusBadRequest and jsendError.",
+  "requirement_sha": "5f70b5ae9969ba35",
+  "tests": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522MandatoryCommands": "4f54f2501362e7df",
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522MandatoryCommands#2": "4f54f2501362e7df"
+  },
+  "units": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522MandatoryCommands": "c8d2a301ba39ceae",
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522MandatoryCommands#2": "c8d2a301ba39ceae"
+  },
+  "verdict": "enforced"
+}

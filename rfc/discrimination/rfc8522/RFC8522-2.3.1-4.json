@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC8522-2.3.1-4",
+    "polarity": "positive",
+    "unit": "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming",
+    "unit-sha": "0ee7b0334b8d3839",
+    "claim-sha": "afc2044da1fee7ce",
+    "route": "revert",
+    "producer": "internal/component/lg/handler_rfc8522.go::rfc8522BaseData",
+    "producer-sha": "afeaf1cae2f1af15",
+    "break": "body of rfc8522BaseData replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

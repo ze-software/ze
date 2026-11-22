@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8522-6.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/lg/handler_rfc8522_test.go::TestRFC8522RateLimiting",
+    "unit-sha": "81d592efd227f6d3",
+    "claim-sha": "85c9753578d0de51",
+    "route": "revert",
+    "producer": "internal/component/lg/handler_rfc8522.go::rfc8522RateLimiter.allow",
+    "producer-sha": "46e3c28cf563b723",
+    "break": "body of rfc8522RateLimiter.allow replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8522-6.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/lg/handler_rfc8522_test.go::TestRFC8522RateLimiting",
+    "unit-sha": "81d592efd227f6d3",
+    "claim-sha": "036162c8497497ec",
+    "route": "revert",
+    "producer": "internal/component/lg/handler_rfc8522.go::rfc8522RateLimiter.allow",
+    "producer-sha": "46e3c28cf563b723",
+    "break": "body of rfc8522RateLimiter.allow replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

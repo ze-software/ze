@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC8522JSendEnvelopeAndTiming proves both polarities across all three RFC 8522 Section 2.3.3 codes: positive recClient returns StatusBadRequest (400), recServerErr via writeRFC8522JSON returns StatusInternalServerError (500) with jsendError, and recRouter returns StatusBadGateway (502); negative recOK returns StatusOK (200).",
+  "requirement_sha": "65d42c67413f0b9d",
+  "tests": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming": "4f54f2501362e7df",
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming#2": "4f54f2501362e7df"
+  },
+  "units": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming": "3a6c8f5620ae9128",
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming#2": "3a6c8f5620ae9128"
+  },
+  "verdict": "enforced"
+}

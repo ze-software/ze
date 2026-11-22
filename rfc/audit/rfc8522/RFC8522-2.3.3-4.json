@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC8522JSendEnvelopeAndTiming proves both polarities: positive recTimeout (runtime=0.02) asserts StatusGatewayTimeout (504) with jsendError and timeout message; negative recRouter confirms non-timeout router dispatch failure returns StatusBadGateway (502) rather than 504.",
+  "requirement_sha": "2eedc2112680dad8",
+  "tests": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming": "4f54f2501362e7df",
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming#2": "4f54f2501362e7df"
+  },
+  "units": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming": "3a6c8f5620ae9128",
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming#2": "3a6c8f5620ae9128"
+  },
+  "verdict": "enforced"
+}

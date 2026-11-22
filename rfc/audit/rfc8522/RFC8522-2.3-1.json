@@ -1,0 +1,12 @@
+{
+  "note": "TestRFC8522JSendEnvelopeAndTiming verifies Content-Type application/json and strict JSend top-level keys via decodeJSend and assertJSendKeys across success, fail, 400, 401 (authSrv/recAuth), 500 (writeRFC8522JSON), 502, and 504; {single-polarity: positive} is justified because all RFC 8522 emitters unconditionally write JSend JSON.",
+  "requirement_sha": "3f75884c1455bda9",
+  "tests": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming": "4f54f2501362e7df"
+  },
+  "units": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming": "3a6c8f5620ae9128"
+  },
+  "upgrade_reason": "TestRFC8522JSendEnvelopeAndTiming was already verified strong; the prior weak verdict was solely because {single-polarity: positive} in rfc/short/rfc8522.md sat before a trailing suffix and was unparsed. rfc/short/rfc8522.md line 87 now places {single-polarity: positive; ...} cleanly at EOL.",
+  "verdict": "enforced"
+}

@@ -36,6 +36,10 @@ func bearerAuth(token string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !bearerTokenMatches(r.Header.Get("Authorization"), want) {
 			w.Header().Set("WWW-Authenticate", `Bearer realm="looking glass"`)
+			if isRFC8522Path(r.URL.Path) {
+				writeRFC8522Error(w, http.StatusUnauthorized, "unauthorized", nil)
+				return
+			}
 			writeJSONError(w, http.StatusUnauthorized, "unauthorized")
 			return
 		}

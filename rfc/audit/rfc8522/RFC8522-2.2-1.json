@@ -1,0 +1,12 @@
+{
+  "note": "TestRFC8522RandomParameterIgnored verifies empty, alphanumeric, and special-character random/RANDOM values return StatusOK, jsendSuccess, identical payload fields via reflect.DeepEqual against baseData, and exact \"show ping 192.0.2.1\" dispatch; {single-polarity: positive} is justified because parseRFC8522Query ignores all values of random unconditionally.",
+  "requirement_sha": "15591973db517982",
+  "tests": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522RandomParameterIgnored": "4f54f2501362e7df"
+  },
+  "units": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522RandomParameterIgnored": "6efdea6d8326dc91"
+  },
+  "upgrade_reason": "TestRFC8522RandomParameterIgnored was already verified strong; the prior weak verdict was solely because {single-polarity: positive} in rfc/short/rfc8522.md sat before a trailing suffix and was unparsed. rfc/short/rfc8522.md line 86 now places {single-polarity: positive; ...} cleanly at EOL.",
+  "verdict": "enforced"
+}

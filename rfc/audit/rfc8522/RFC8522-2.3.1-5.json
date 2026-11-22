@@ -1,0 +1,12 @@
+{
+  "note": "TestRFC8522JSendEnvelopeAndTiming verifies extra fields min, avg, max, rate (recOK), routers (recRouters), and id, name (recDetails) are placed inside data and never at top level (assertJSendKeys enforces len(body) == 2); {single-polarity: positive} is justified because writeRFC8522Success and writeRFC8522Fail emit a fixed two-key top-level object.",
+  "requirement_sha": "2ede2194d0cbc386",
+  "tests": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming": "4f54f2501362e7df"
+  },
+  "units": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming": "3a6c8f5620ae9128"
+  },
+  "upgrade_reason": "TestRFC8522JSendEnvelopeAndTiming was already verified strong; the prior weak verdict was solely because {single-polarity: positive} in rfc/short/rfc8522.md line 93 sat before a trailing suffix and contained nested braces. Line 93 now places {single-polarity: positive; ...} cleanly at EOL without nested braces.",
+  "verdict": "enforced"
+}

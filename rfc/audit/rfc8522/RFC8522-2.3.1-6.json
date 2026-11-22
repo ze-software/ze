@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC8522JSendEnvelopeAndTiming proves both polarities: positive recOK, recRouteOK, recFail, and recMiss assert StatusOK (200); negative recClient (400), recRouter (502), and recTimeout (504) confirm error responses do not return HTTP 200.",
+  "requirement_sha": "2e6f455c6152ae4a",
+  "tests": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming": "4f54f2501362e7df",
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming#2": "4f54f2501362e7df"
+  },
+  "units": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming": "3a6c8f5620ae9128",
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming#2": "3a6c8f5620ae9128"
+  },
+  "verdict": "enforced"
+}

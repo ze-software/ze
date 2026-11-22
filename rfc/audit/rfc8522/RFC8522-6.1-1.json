@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC8522RateLimiting proves both polarities and per-client-IP isolation: positive rfc8522RequestFrom confirms requests within the per-IP limit and from a distinct client IP (recOther) return StatusOK and jsendSuccess; negative rec3 confirms the 3rd request from the throttled IP returns StatusTooManyRequests (429) with jsendError.",
+  "requirement_sha": "cef09e2b8a37d204",
+  "tests": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522RateLimiting": "4f54f2501362e7df",
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522RateLimiting#2": "4f54f2501362e7df"
+  },
+  "units": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522RateLimiting": "0dc511df42bd45dd",
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522RateLimiting#2": "0dc511df42bd45dd"
+  },
+  "verdict": "enforced"
+}

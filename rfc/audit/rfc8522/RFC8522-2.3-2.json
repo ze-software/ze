@@ -1,0 +1,12 @@
+{
+  "note": "TestRFC8522JSendEnvelopeAndTiming verifies status values jsendSuccess, jsendFail, and jsendError across all response categories via assertJSendKeys; {single-polarity: positive} is justified because all RFC 8522 response writers emit status solely from that closed three-value set.",
+  "requirement_sha": "7cebeb5bc4c45180",
+  "tests": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming": "4f54f2501362e7df"
+  },
+  "units": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522JSendEnvelopeAndTiming": "3a6c8f5620ae9128"
+  },
+  "upgrade_reason": "TestRFC8522JSendEnvelopeAndTiming was already verified strong; the prior weak verdict was solely because {single-polarity: positive} in rfc/short/rfc8522.md sat before a trailing suffix and was unparsed. rfc/short/rfc8522.md line 88 now places {single-polarity: positive; ...} cleanly at EOL.",
+  "verdict": "enforced"
+}

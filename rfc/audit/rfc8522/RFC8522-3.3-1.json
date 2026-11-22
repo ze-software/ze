@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC8522MandatoryCommands proves both polarities: positive recRouters, recDetails (routers/0), and recCmd (asserting command, href, description, arguments on every cmdList entry plus ping and show route) return StatusOK and jsendSuccess; negative badRouter rejects /v1/routers/1, /v1/routers/abc, /v1/routers/0/extra, and /v1/cmd/extra with StatusBadRequest and jsendError.",
+  "requirement_sha": "1d598576bade34cf",
+  "tests": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522MandatoryCommands": "4f54f2501362e7df",
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522MandatoryCommands#2": "4f54f2501362e7df"
+  },
+  "units": {
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522MandatoryCommands": "c8d2a301ba39ceae",
+    "internal/component/lg/handler_rfc8522_test.go::TestRFC8522MandatoryCommands#2": "c8d2a301ba39ceae"
+  },
+  "verdict": "enforced"
+}

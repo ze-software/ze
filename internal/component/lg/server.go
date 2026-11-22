@@ -38,6 +38,7 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -109,6 +110,16 @@ type LGConfig struct {
 	// replaces the list on a running server.
 	NextHopRanges map[netip.Prefix]string
 
+	// Hostname is the router name published by the RFC 8522 Looking Glass API
+	// (/.well-known/looking-glass/v1/routers and data.router). Empty falls
+	// back to os.Hostname(), then "ze".
+	Hostname string
+
+	// RFC8522RateLimitPerMin caps requests per client IP per minute on the
+	// RFC 8522 API (/.well-known/looking-glass/). Zero selects
+	// defaultRFC8522RateLimitPerMin.
+	RFC8522RateLimitPerMin int
+
 	// Logger is the structured logger for the LG server.
 	// If nil, the package-level lg logger is used.
 	Logger *slog.Logger
@@ -149,6 +160,13 @@ type LGServer struct {
 	// sees the old list or the new one. A nil pointer names nothing: it is
 	// the state of a server no list was stored in.
 	nextHopRanges atomic.Pointer[nextHopRanges]
+
+	// hostname is the router hostname published by RFC 8522 endpoints. Written
+	// once in NewLGServer and immutable thereafter.
+	hostname string
+
+	// rfc8522Limiter bounds per-client-IP request rate on the RFC 8522 API.
+	rfc8522Limiter *rfc8522RateLimiter
 }
 
 // NewLGServer creates a new looking glass HTTP server from the given configuration.
@@ -193,18 +211,29 @@ func NewLGServer(cfg LGConfig) (*LGServer, error) {
 		return nil, rangesErr
 	}
 
+	hostname := strings.TrimSpace(cfg.Hostname)
+	if hostname == "" {
+		if h, hostErr := os.Hostname(); hostErr == nil && strings.TrimSpace(h) != "" {
+			hostname = strings.TrimSpace(h)
+		} else {
+			hostname = "ze"
+		}
+	}
+
 	mux := http.NewServeMux()
 	configured := append([]string(nil), cfg.ListenAddrs...)
 
 	s := &LGServer{
-		mux:        mux,
-		configured: configured,
-		listeners:  make(map[string]net.Listener),
-		ready:      make(chan struct{}),
-		logger:     log,
-		useTLS:     cfg.TLS,
-		tlsCfg:     tlsCfg,
-		dispatch:   cfg.Dispatch,
+		mux:            mux,
+		configured:     configured,
+		listeners:      make(map[string]net.Listener),
+		ready:          make(chan struct{}),
+		logger:         log,
+		useTLS:         cfg.TLS,
+		tlsCfg:         tlsCfg,
+		dispatch:       cfg.Dispatch,
+		hostname:       hostname,
+		rfc8522Limiter: newRFC8522RateLimiter(cfg.RFC8522RateLimitPerMin),
 		server: &http.Server{
 			// Addr is informational; multi-listener serving uses Serve(ln).
 			Addr: configured[0],
@@ -379,6 +408,10 @@ func (s *LGServer) registerRoutes() error {
 	s.mux.HandleFunc("/api/looking-glass/", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSONError(w, http.StatusNotFound, "unknown API endpoint")
 	})
+
+	// RFC 8522 Section 2: Looking Glass Command Set under /.well-known/looking-glass.
+	s.mux.HandleFunc("/.well-known/looking-glass", s.handleRFC8522)
+	s.mux.HandleFunc("/.well-known/looking-glass/", s.handleRFC8522)
 
 	return nil
 }
@@ -631,10 +664,15 @@ func (s *LGServer) Shutdown(ctx context.Context) error {
 // (plan/journal/zero-value-as-valid-answer.md, 2026-09-20). Callers MUST
 // handle the error; ask does that for every page and endpoint.
 func (s *LGServer) query(cmd string) (string, error) {
+	return s.queryCtx(context.Background(), cmd)
+}
+
+// queryCtx dispatches a command with the caller's context and returns the JSON answer.
+func (s *LGServer) queryCtx(ctx context.Context, cmd string) (string, error) {
 	// The looking glass is public and read-only: dispatch with a zero-value
 	// caller identity (no username/remote-addr; the injected dispatcher supplies
 	// the fixed surface). Render the typed response to its JSON string here.
-	result, err := s.dispatch.JSON(context.Background(), plugin.CallerIdentity{}, cmd)
+	result, err := s.dispatch.JSON(ctx, plugin.CallerIdentity{}, cmd)
 	defer result.TransportComplete()
 	if err != nil {
 		s.logger.Warn("dispatch error", "command", cmd, "error", err)
@@ -677,6 +715,8 @@ type engineFailure struct {
 	// refusal is the envelope's own message, set only when envelope is true.
 	// It is the engine's verdict on the request, never a transport error.
 	refusal string
+	// timedOut is true when the caller context deadline expired during dispatch.
+	timedOut bool
 }
 
 // engineLogFix is the fix every engine failure names. ask and query log the
@@ -733,8 +773,26 @@ func (f *engineFailure) message() string {
 // reply that is not a JSON object, and a reply that is the engine's error
 // envelope.
 func (s *LGServer) ask(command string) (map[string]any, *engineFailure) {
-	output, err := s.query(command)
+	return s.askCtx(context.Background(), command)
+}
+
+// askCtx dispatches one command with ctx and returns the parsed JSON answer or
+// the failure that stands in place of one.
+func (s *LGServer) askCtx(ctx context.Context, command string) (map[string]any, *engineFailure) {
+	output, err := s.queryCtx(ctx, command)
 	if err != nil {
+		isTimeout := errors.Is(err, context.DeadlineExceeded)
+		if !isTimeout {
+			isTimeout = errors.Is(ctx.Err(), context.DeadlineExceeded)
+		}
+		if isTimeout {
+			return nil, &engineFailure{
+				status:   http.StatusGatewayTimeout,
+				command:  command,
+				class:    failureEngineError,
+				timedOut: true,
+			}
+		}
 		return nil, &engineFailure{status: http.StatusBadGateway, command: command, class: failureEngineError}
 	}
 
