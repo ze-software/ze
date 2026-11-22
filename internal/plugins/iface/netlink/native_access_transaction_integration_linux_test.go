@@ -524,6 +524,10 @@ type nativeVLANForwardingSocket struct {
 	mac   [6]byte
 }
 
+// nativeVLANForwardingTestEtherType is the local experimental ethertype
+// (IEEE 802 0x88B5) every forwarding test frame carries.
+const nativeVLANForwardingTestEtherType = 0x88b5
+
 func nativeVLANForwardingTestSocket(t *testing.T, name string) nativeVLANForwardingSocket {
 	t.Helper()
 	link, err := netlink.LinkByName(name)
@@ -533,8 +537,10 @@ func nativeVLANForwardingTestSocket(t *testing.T, name string) nativeVLANForward
 	if len(link.Attrs().HardwareAddr) != 6 {
 		t.Fatal("native survivor has no Ethernet MAC")
 	}
+	// Bound to the test frames' own ethertype: with ETH_P_ALL the fresh VLAN
+	// devices' IPv6 MLD/ND chatter used up the receive budget below.
 	var encoded [2]byte
-	binary.BigEndian.PutUint16(encoded[:], unix.ETH_P_ALL)
+	binary.BigEndian.PutUint16(encoded[:], nativeVLANForwardingTestEtherType)
 	protocol := nl.NativeEndian().Uint16(encoded[:])
 	fd, err := unix.Socket(unix.AF_PACKET, unix.SOCK_RAW|unix.SOCK_CLOEXEC|unix.SOCK_NONBLOCK, int(protocol))
 	if err != nil {
@@ -559,8 +565,7 @@ func nativeVLANForwardingTestFrame(t *testing.T, sender, receiver nativeVLANForw
 	frame := make([]byte, 60)
 	copy(frame[:6], receiver.mac[:])
 	copy(frame[6:12], sender.mac[:])
-	frame[12] = 0x88
-	frame[13] = 0xb5
+	binary.BigEndian.PutUint16(frame[12:14], nativeVLANForwardingTestEtherType)
 	frame[14] = ordinal
 	raw, err := sender.file.SyscallConn()
 	if err != nil {
@@ -583,7 +588,8 @@ func nativeVLANForwardingTestFrame(t *testing.T, sender, receiver nativeVLANForw
 		t.Fatal(err)
 	}
 	// The receiver is bound to the opposite VLAN device, not the sender's socket.
-	// Ignore at most eight unrelated kernel frames; exact payload proves delivery.
+	// Ignore at most eight other frames of the test ethertype; exact payload
+	// proves delivery.
 	for range 8 {
 		buffer := make([]byte, 2048)
 		var count int
@@ -796,6 +802,12 @@ func TestNativeAccessLateEchoAllowsOnlyOriginalAbsenceRetirement(t *testing.T) {
 			entered <- transaction
 			<-release
 		}
+		// The first name validation in a process loads the reserved names from
+		// the YANG schema; a daemon does it at config validation. Done here, it
+		// keeps that load out of the 50 ms budget the CREATE turn is given.
+		if err := iface.ValidateIfaceName("lateecho0"); err != nil {
+			t.Fatal(err)
+		}
 		ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
 		defer cancel()
 		answer = make(chan error, 1)
@@ -808,6 +820,8 @@ func TestNativeAccessLateEchoAllowsOnlyOriginalAbsenceRetirement(t *testing.T) {
 		}()
 		select {
 		case original = <-entered:
+		case err := <-answer:
+			t.Fatalf("original CREATE ended before its reader: %v", err)
 		case <-time.After(nativeVLANTransactionTestGuard):
 			t.Fatal("original CREATE did not reach its actual reader")
 		}

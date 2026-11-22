@@ -8,8 +8,8 @@ package ifacenetlink
 import (
 	"context"
 	"errors"
-	"io"
 	"log/slog"
+	"net"
 	"net/netip"
 	"os"
 	"sync"
@@ -367,8 +367,11 @@ type cpeNativeFaultFixture struct {
 	cleanupReleaseOnce sync.Once
 	ackReleaseOnce     sync.Once
 	expectPending      bool
-	secondBackend      chan *cpeNativeFaultBackend
-	restart            chan struct{}
+	// settledHistory is the one cause a test's delayed Settle returned. The
+	// released original's cleanup and Stop then carry it and nothing else.
+	settledHistory error
+	secondBackend  chan *cpeNativeFaultBackend
+	restart        chan struct{}
 }
 
 func startCPENativeFault(t *testing.T, fault cpeNativeFault, expectedPending bool) *cpeNativeFaultFixture {
@@ -419,26 +422,42 @@ func newCPENativeFault(t *testing.T, fault cpeNativeFault, expectedPending, stan
 	}
 	go func() { h.peerDone <- cpeFaultPeer(ctx, peer, fault, epochs, h.restart, h.peerReady) }()
 	if standalone {
+		// The dialer resolves its source interface through the process
+		// backend before it reaches h.backend; a registry run loads it from
+		// config. Registered first, it closes after the client stops.
+		if err := iface.LoadBackend("netlink"); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() {
+			if err := iface.CloseBackend(); err != nil {
+				t.Error(err)
+			}
+		})
 		h.client = iface.NewPPPoEClient(iface.PPPoEClientConfig{Name: "faultwan", SourceInterface: "zcf0",
 			Username: "subscriber", AuthSecret: "secret", MTU: 1400, RoutePriority: 73,
 			Timing: iface.PPPoEClientTiming{LCPRestartTimer: 3 * time.Second, LCPMaxConfigure: 10, LCPMaxFailure: 5,
 				IPv6CPRestartTimer: 3 * time.Second, KeepaliveInterval: 30 * time.Second, KeepaliveFailures: 3,
-				ReconnectDelayMin: time.Second, ReconnectDelayMax: time.Second}}, h.dialer, slog.New(slog.NewTextHandler(io.Discard, nil)))
+				ReconnectDelayMin: time.Second, ReconnectDelayMax: time.Second}}, h.dialer, slog.New(slog.NewTextHandler(t.Output(), nil)))
 	}
 	t.Cleanup(func() {
 		h.releaseACK()
 		h.releaseCleanup()
 		if h.client != nil {
 			err := h.client.Stop()
-			if h.expectPending {
+			switch {
+			case h.expectPending:
 				if !errors.Is(err, iface.ErrNativePPPPending) {
 					t.Errorf("real failed Close lost custody: %v", err)
 				}
 				if !errors.Is(err, unix.EPERM) {
 					t.Errorf("real failed Close lost syscall cause: %v", err)
 				}
-			} else if err != nil {
-				t.Error(err)
+			case h.settledHistory == nil:
+				if err != nil {
+					t.Error(err)
+				}
+			default:
+				cpeFaultRequireHistory(t, err, h.settledHistory, "client Stop")
 			}
 		}
 		cancel()
@@ -566,7 +585,7 @@ func cpeFaultWaitInstalled(t *testing.T, h *cpeNativeFaultFixture) *pppoeac.Sess
 		}
 		for i := range routes {
 			route := &routes[i]
-			if route.Dst == nil {
+			if cpeFaultDefaultDestination(route.Dst) {
 				if route.Gw.String() == "192.0.2.1" {
 					if route.Priority == 73 {
 						routeReady = true
@@ -585,4 +604,57 @@ func cpeFaultWaitInstalled(t *testing.T, h *cpeNativeFaultFixture) *pppoeac.Sess
 			t.Fatal("useful real CPE address/default route missing")
 		}
 	}
+}
+
+// cpeFaultDefaultDestination reports the IPv4 default destination in either
+// form: netlink v1.3.1 decodes a route without RTA_DST as 0.0.0.0/0, as
+// iproute2 does, so a dumped default route never has a nil Dst.
+func cpeFaultDefaultDestination(destination *net.IPNet) bool {
+	if destination == nil {
+		return true
+	}
+	ones, bits := destination.Mask.Size()
+	return destination.IP.IsUnspecified() && ones == 0 && bits == 32
+}
+
+// cpeFaultRequireHistory requires a released original's cleanup result to hold
+// no pending custody and no cause other than the delayed settlement's history.
+func cpeFaultRequireHistory(t *testing.T, err, history error, what string) {
+	t.Helper()
+	if errors.Is(err, iface.ErrNativePPPPending) {
+		t.Errorf("%s of a settled original retained custody: %v", what, err)
+	}
+	if !errors.Is(err, history) {
+		t.Errorf("%s of a settled original lost its settlement history %v: %v", what, history, err)
+	}
+	if !cpeFaultOnlyCauses(err, history) {
+		t.Errorf("%s of a settled original reported a cause beyond its settlement history: %v", what, err)
+	}
+}
+
+// cpeFaultOnlyCauses walks every branch of err to its leaves and reports
+// whether each leaf is one of causes. A nil err has no cause beyond them.
+func cpeFaultOnlyCauses(err error, causes ...error) bool {
+	if err == nil {
+		return true
+	}
+	switch wrapped := err.(type) { //nolint:errorlint // walking the tree itself, not testing for a cause.
+	case interface{ Unwrap() []error }:
+		for _, child := range wrapped.Unwrap() {
+			if !cpeFaultOnlyCauses(child, causes...) {
+				return false
+			}
+		}
+		return true
+	case interface{ Unwrap() error }:
+		if inner := wrapped.Unwrap(); inner != nil {
+			return cpeFaultOnlyCauses(inner, causes...)
+		}
+	}
+	for _, cause := range causes {
+		if errors.Is(err, cause) {
+			return true
+		}
+	}
+	return false
 }

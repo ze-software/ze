@@ -251,6 +251,7 @@ func TestNativeCPEUncertainACKSettlesOriginalWithoutResend(t *testing.T) {
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("terminal ACK erased original wait history: %v", err)
 	}
+	h.settledHistory = context.Canceled
 	h.backend.writer.mu.Lock()
 	pending, sequence := h.backend.writer.pending != nil, h.backend.writer.sequence
 	h.backend.writer.mu.Unlock()
@@ -267,9 +268,7 @@ func TestNativeCPEUncertainACKSettlesOriginalWithoutResend(t *testing.T) {
 		t.Fatal("settlement pretended the live socket was closed")
 	}
 	h.releaseCleanup()
-	if err := cpeFaultWaitResult(t, h, h.dialer.firstCleanup); err != nil {
-		t.Fatalf("settled actual original cleanup: %v", err)
-	}
+	cpeFaultRequireHistory(t, cpeFaultWaitResult(t, h, h.dialer.firstCleanup), context.Canceled, "settled actual original cleanup")
 	cpeFaultWait(t, h.ctx, h.backend.backendDone, "original backend closure missing")
 	if err := h.backend.unit.WaitNativePPPUnitRetired(h.ctx); err != nil {
 		t.Fatalf("actual original not physically retired: %v", err)
@@ -373,13 +372,12 @@ func TestNativeCPEChangedResultUncertaintyNeverAcknowledgesSequence(t *testing.T
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("settled real change erased receive history: %v", err)
 	}
+	h.settledHistory = context.Canceled
 	if h.backend.sends.Load() != sends {
 		t.Fatal("changed native request was resent")
 	}
 	h.releaseCleanup()
-	if err := cpeFaultWaitResult(t, h, h.dialer.firstCleanup); err != nil {
-		t.Fatal(err)
-	}
+	cpeFaultRequireHistory(t, cpeFaultWaitResult(t, h, h.dialer.firstCleanup), context.Canceled, "settled changed original cleanup")
 	cpeFaultWait(t, h.ctx, h.backend.backendDone, "changed original backend never completed")
 	if h.dialer.appliedSeq.Load() == change.Seq {
 		t.Fatal("cleanup acknowledged the uncertain result")
