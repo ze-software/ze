@@ -3,14 +3,18 @@ package ribevents
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // A provider cannot turn missing processing evidence into route absence or
 // eligibility. Known lag is one whole unanswered request, then normal answers.
 func TestEligibilityMinimumNeedsAuthoritativeOriginalProgress(t *testing.T) {
-	input := EligibilityRequest{Queries: []EligibilityQuery{{Route: ValidationRoute{PeerOwner: 7, ConnectionID: 9}, AfterMsgID: 11}}}
+	family.RegisterTestFamilies()
+	input := EligibilityRequest{Queries: []EligibilityQuery{{Route: ValidationRoute{PeerOwner: 7, ConnectionID: 9, Family: family.IPv4Unicast}, AfterMsgID: 11}}}
 	raw, err := json.Marshal(input)
 	require.NoError(t, err)
 	asked := 0

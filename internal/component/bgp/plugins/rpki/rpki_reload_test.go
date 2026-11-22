@@ -102,21 +102,23 @@ func TestRPKIReloadRetainsAndRevalidatesReceivedRoutes(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := adj.DeliverStructured([]any{&rpc.StructuredEvent{
-		EventType: rpc.EventKindUpdate, PeerAddress: "192.0.2.1", PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000,
+		EventType: rpc.EventKindUpdate, PeerAddress: "192.0.2.1", PeerOwner: 1, ConnectionID: 1,
+		PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000,
 		PeerName: "customer", PeerGroup: "customers", MessageID: 10,
 		RawMessage: &bgptypes.RawMessage{MessageID: 10, RawBytes: body, WireUpdate: wu, AttrsWire: attrs},
 	}}); err != nil {
 		t.Fatal(err)
 	}
-	key := ribevents.ValidationRoute{Peer: netip.MustParseAddr("192.0.2.1"), Family: family.IPv4Unicast,
-		Prefix: netip.MustParsePrefix("192.0.2.0/24")}
+	key := ribevents.ValidationRoute{Peer: netip.MustParseAddr("192.0.2.1"), PeerOwner: 1, ConnectionID: 1,
+		Family: family.IPv4Unicast, Prefix: netip.MustParsePrefix("192.0.2.0/24")}
 	reject := *accept
 	reject.OriginInvalidAction = ASPAPolicyReject
 	if err := rp.replaceConfig(accept, &reject); err != nil {
 		t.Fatal(err)
 	}
 	assertRPKIReloadRoute(t, ctx, adj, key, false, ValidationInvalid, hex.EncodeToString(body[4:28]))
-	stale := validationRequest{peerAddr: "192.0.2.1", family: "ipv4/unicast", prefix: "192.0.2.0/24",
+	stale := validationRequest{peerAddr: "192.0.2.1", source: rpkiSource{owner: 1, connection: 1},
+		family: "ipv4/unicast", prefix: "192.0.2.0/24",
 		msgID: 10, state: ValidationInvalid, aspaState: aspaStateNone, originAS: 64501,
 		generation: rp.validationGeneration.Load()}
 	disabled := &rpkiConfig{}
@@ -395,14 +397,14 @@ func receiveRPKIReloadRoute(t *testing.T, adj *rpc.DirectBridge) (ribevents.Vali
 		t.Fatal(err)
 	}
 	if err := adj.DeliverStructured([]any{&rpc.StructuredEvent{
-		EventType: rpc.EventKindUpdate, PeerAddress: "192.0.2.1", PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000,
-		MessageID:  10,
+		EventType: rpc.EventKindUpdate, PeerAddress: "192.0.2.1", PeerOwner: 1, ConnectionID: 1,
+		PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000, MessageID: 10,
 		RawMessage: &bgptypes.RawMessage{MessageID: 10, RawBytes: body, WireUpdate: wu, AttrsWire: attrs},
 	}}); err != nil {
 		t.Fatal(err)
 	}
-	return ribevents.ValidationRoute{Peer: netip.MustParseAddr("192.0.2.1"), Family: family.IPv4Unicast,
-		Prefix: netip.MustParsePrefix("192.0.2.0/24")}, hex.EncodeToString(attrs.Packed())
+	return ribevents.ValidationRoute{Peer: netip.MustParseAddr("192.0.2.1"), PeerOwner: 1, ConnectionID: 1,
+		Family: family.IPv4Unicast, Prefix: netip.MustParsePrefix("192.0.2.0/24")}, hex.EncodeToString(attrs.Packed())
 }
 
 func rpkiReloadCallback(t *testing.T, ctx context.Context, bridge *rpc.DirectBridge, method string, input any, wantError bool) {

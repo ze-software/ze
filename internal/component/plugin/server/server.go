@@ -109,11 +109,11 @@ type Server struct {
 
 	eventRing *EventRing // Global event history ring (diag-2)
 
-	running            atomic.Bool
-	lifecycleMu        sync.Mutex  // Serializes Start, final startup publication and terminal Stop admission.
-	stopEntered        atomic.Bool // Reentrant Stop never waits for its own engine.
-	releaseReplayFence func()      // Owned runtime lookup; Stop MUST release it. Guarded by lifecycleMu.
-	stopping           atomic.Bool // Full teardown only; a drain still records real plugin exits.
+	running             atomic.Bool
+	lifecycleMu         sync.Mutex  // Serializes Start, final startup publication and terminal Stop admission.
+	stopEntered         atomic.Bool // Reentrant Stop never waits for its own engine.
+	releaseRuntimeSeams []func()    // Owned runtime lookups; Stop MUST release them. Guarded by lifecycleMu.
+	stopping            atomic.Bool // Full teardown only; a drain still records real plugin exits.
 
 	loadedPlugins   map[string]bool // tracks all plugins loaded across startup phases
 	loadedPluginsMu sync.Mutex      // protects loadedPlugins
@@ -881,20 +881,22 @@ func (s *Server) StartWithContext(ctx context.Context) error {
 	// plugin declares that at Stage 1 and appears in no compile-time registry,
 	// so this server is the only thing that can answer for it
 	// (declaresSessionReady, events.go).
-	registry.SetRuntimeSessionReady(s.declaresSessionReady)
-	s.releaseReplayFence = registry.SetRuntimeReplayFence(s.declaresReplayFence)
-	// The replay fence asks the same alias question (registry.FencesLiveForwards).
-	registry.SetRuntimeRegistryNames(s.processRegistryNames)
-	// A config reload judges a chain naming an external filter against what
-	// that plugin declared at Stage 1 (D-10).
-	registry.SetRuntimeFilterDeclarations(s.declaredFilters)
-	// Config load inserts the members a third-party plugin declared at
-	// Stage 1, which no compiled registration carries
-	// (spec-filter-wire-6-stage-filters A-12).
-	registry.SetRuntimeFilterInsertions(s.thirdPartyFilterInsertions)
-	// Config load places a compiled-in plugin's insertions only where this
-	// daemon runs that plugin.
-	registry.SetRuntimeLoadedPlugins(s.loadedPluginNames)
+	s.releaseRuntimeSeams = []func(){
+		registry.SetRuntimeSessionReady(s.declaresSessionReady),
+		registry.SetRuntimeReplayFence(s.declaresReplayFence),
+		// The replay fence asks the same alias question (registry.FencesLiveForwards).
+		registry.SetRuntimeRegistryNames(s.processRegistryNames),
+		// A config reload judges a chain naming an external filter against what
+		// that plugin declared at Stage 1 (D-10).
+		registry.SetRuntimeFilterDeclarations(s.declaredFilters),
+		// Config load inserts the members a third-party plugin declared at
+		// Stage 1, which no compiled registration carries
+		// (spec-filter-wire-6-stage-filters A-12).
+		registry.SetRuntimeFilterInsertions(s.thirdPartyFilterInsertions),
+		// Config load places a compiled-in plugin's insertions only where this
+		// daemon runs that plugin.
+		registry.SetRuntimeLoadedPlugins(s.loadedPluginNames),
+	}
 
 	// Start plugin phases asynchronously (non-blocking)
 	// Phase 1: Explicit plugins
@@ -991,11 +993,13 @@ func (s *Server) Stop() {
 		s.lifecycleMu.Unlock()
 		return
 	}
-	releaseReplayFence := s.releaseReplayFence
-	s.releaseReplayFence = nil
+	releaseSeams := s.releaseRuntimeSeams
+	s.releaseRuntimeSeams = nil
 	s.lifecycleMu.Unlock()
-	if releaseReplayFence != nil {
-		releaseReplayFence()
+	for _, release := range releaseSeams {
+		if release != nil {
+			release()
+		}
 	}
 	finishProcessLifetime := s.sealProcessAdmission()
 	defer finishProcessLifetime()

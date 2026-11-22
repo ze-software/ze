@@ -24,9 +24,11 @@ func TestRPKIReloadReceiverRestoresUngatedSelection(t *testing.T) {
 	// after those assertions and cannot make them pass.
 	t.Cleanup(func() { ribevents.RegisterValidationLookup(nil, nil) })
 	route := ribevents.ValidationRoute{
-		Peer:   netip.MustParseAddr("192.0.2.1"),
-		Family: family.IPv4Unicast,
-		Prefix: netip.MustParsePrefix("192.0.2.0/24"),
+		Peer:         netip.MustParseAddr("192.0.2.1"),
+		PeerOwner:    1,
+		ConnectionID: 1,
+		Family:       family.IPv4Unicast,
+		Prefix:       netip.MustParsePrefix("192.0.2.0/24"),
 	}
 	if !ribevents.RouteEligible(route, 10) {
 		t.Fatal("ungated route is ineligible before the fixture starts")

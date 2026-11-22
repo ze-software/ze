@@ -6,12 +6,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"testing"
+
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/bgp"
 	"github.com/ze-software/ze/internal/component/bgp/retention"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
-	"testing"
 )
 
 func retainedRPKIUp(t *testing.T, rp *rPKIPlugin, rail string, source rpkiSource) {
@@ -93,10 +95,25 @@ func TestRPKIRetainedCacheChangeAndCleanupBothRails(t *testing.T) {
 			rp.cache.Replace([]VRP{makeVRP("10.0.0.0/16", 24, 300)})
 			rp.handleROAChange()
 			decisions = rp.buildDecisions(drainRequests(rp.validateCh))
-			rpkiOwnerDecisionSources(t, decisions, map[rpkiSource]uint64{fresh: 74, sibling: 73})
-			for _, decision := range decisions {
-				require.Equal(t, ValidationValid, decision.ValState)
+			require.Len(t, decisions, 2)
+			type wantRoute struct {
+				prefix string
+				msgID  uint64
 			}
+			got := make(map[rpkiSource]wantRoute, len(decisions))
+			for _, decision := range decisions {
+				require.Equal(t, rpkiOwnerAddress, decision.PeerAddr)
+				require.Equal(t, uint32(0), decision.PathID, "native zero is an actual identifier")
+				require.Equal(t, ValidationValid, decision.ValState)
+				got[rpkiSource{owner: decision.PeerOwner, connection: decision.ConnectionID}] = wantRoute{
+					prefix: decision.Prefix,
+					msgID:  decision.MsgID,
+				}
+			}
+			require.Equal(t, map[rpkiSource]wantRoute{
+				fresh:   {prefix: "10.0.1.0/24", msgID: 74},
+				sibling: {prefix: "10.0.0.0/24", msgID: 73},
+			}, got)
 		})
 	}
 }

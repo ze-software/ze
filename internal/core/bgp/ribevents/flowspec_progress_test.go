@@ -5,21 +5,26 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/stretchr/testify/require"
 	"net/netip"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // Known lag never becomes a negative path verdict on either provider rail. An
 // unrelated instance, a larger foreign message and malformed tail grant none.
 func TestFlowSpecMinimumKeepsWholePendingOnLocalAndCommandRails(t *testing.T) {
+	family.RegisterTestFamilies()
+	fs := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
 	previous := flowSpecLookup.Load()
 	defer flowSpecLookup.Store(previous)
 	priorDispatch := gateDispatch.Load()
 	defer gateDispatch.Store(priorDispatch)
 	for _, remote := range []bool{false, true} {
 		t.Run(map[bool]string{false: "local", true: "command-json"}[remote], func(t *testing.T) {
-			key := ValidationRoute{Peer: netip.MustParseAddr("192.0.2.7"), PeerOwner: 7, ConnectionID: 9}
+			key := ValidationRoute{Peer: netip.MustParseAddr("192.0.2.7"), PeerOwner: 7, ConnectionID: 9, Family: fs}
 			processed := uint64(10)
 			lookups := 0
 			progress := func(route ValidationRoute, min uint64) (bool, error) {
@@ -56,7 +61,7 @@ func TestFlowSpecMinimumKeepsWholePendingOnLocalAndCommandRails(t *testing.T) {
 			require.Empty(t, answer.Routes)
 			require.Zero(t, lookups)
 			malformed := input
-			malformed.Queries = append(append([]FlowSpecQuery(nil), input.Queries...), FlowSpecQuery{Operation: FlowSpecPathOf, Route: ValidationRoute{Peer: key.Peer, PeerOwner: 8}, AfterMsgID: 1000})
+			malformed.Queries = append(append([]FlowSpecQuery(nil), input.Queries...), FlowSpecQuery{Operation: FlowSpecPathOf, Route: ValidationRoute{Peer: key.Peer, PeerOwner: 8, Family: fs}, AfterMsgID: 1000})
 			_, err = LookupFlowSpecRequest(t.Context(), malformed)
 			require.Error(t, err, "lagged first item cannot mask malformed original tail")
 			require.Zero(t, lookups)

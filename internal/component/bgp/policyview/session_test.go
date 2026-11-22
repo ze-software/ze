@@ -13,6 +13,8 @@ import (
 func sessionPeer() filterapi.PeerFilterInfo {
 	return filterapi.PeerFilterInfo{
 		Address:        netip.MustParseAddr("192.0.2.1"),
+		PeerOwner:      17,
+		ConnectionID:   29,
 		PeerAS:         65001,
 		LocalAS:        65000,
 		Name:           "edge",

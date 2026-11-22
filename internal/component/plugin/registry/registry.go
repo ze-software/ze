@@ -494,7 +494,7 @@ var (
 	// Nil until the server installs it, and nil in binaries without a plugin
 	// server. With no seam, SignalsSessionReady uses a matching compiled
 	// registration's value; an unknown name answers false.
-	runtimeSessionReady func(process string) bool
+	runtimeSessionReady *sessionReadyLookup
 
 	// runtimeReplayFence reads the current authenticated Process directly.
 	// The server owns declaration lifetime; this seam stores no declaration.
@@ -505,7 +505,7 @@ var (
 	// ["bgp-rs"]), for compiled implementation metadata such as RS fast-path
 	// participation. The plugin server installs it beside
 	// runtimeSessionReady. Nil resolves no names for compiled metadata lookup.
-	runtimeRegistryNames func(process string) []string
+	runtimeRegistryNames *registryNamesLookup
 
 	// builtinFamilies maps family names to source names for engine-builtin families
 	// (e.g., ipv4/unicast) that are not registered through the plugin system.
@@ -1217,6 +1217,14 @@ func RequiresPeerUpBarrier(name string) bool {
 	return reg.PeerUpBarrier
 }
 
+type sessionReadyLookup struct {
+	query func(process string) bool
+}
+
+type registryNamesLookup struct {
+	query func(process string) []string
+}
+
 // SignalsSessionReady reads the current server's Process declaration when its
 // runtime seam is installed. This rule applies even when the process name also
 // names a compiled registration. Without a server seam, compiled metadata keeps
@@ -1227,7 +1235,7 @@ func SignalsSessionReady(name string) bool {
 	runtime := runtimeSessionReady
 	mu.RUnlock()
 	if runtime != nil {
-		return runtime(name)
+		return runtime.query(name)
 	}
 	if reg == nil {
 		return false
@@ -1238,25 +1246,51 @@ func SignalsSessionReady(name string) bool {
 // SetRuntimeSessionReady installs the current server's readiness lookup for
 // every process name. The server MUST read its current Process and MUST NOT lend
 // compiled readiness to an external program. Passing nil restores compiled-only
-// static answers. Safe after Seal; the registry mutex is not held during lookup.
+// static answers. The caller MUST run the returned release when its server stops;
+// release leaves a newer server's lookup in place. Safe after Seal; the registry
+// mutex is not held during lookup.
 // It is a runtime seam, callable after Seal.
-func SetRuntimeSessionReady(fn func(process string) bool) {
+func SetRuntimeSessionReady(fn func(process string) bool) func() {
+	var publication *sessionReadyLookup
+	if fn != nil {
+		publication = &sessionReadyLookup{query: fn}
+	}
 	mu.Lock()
-	defer mu.Unlock()
-	runtimeSessionReady = fn
+	runtimeSessionReady = publication
+	mu.Unlock()
+	return func() {
+		mu.Lock()
+		defer mu.Unlock()
+		if runtimeSessionReady == publication {
+			runtimeSessionReady = nil
+		}
+	}
 }
 
 // SetRuntimeRegistryNames installs the seam that resolves a process name to
 // the registry names its config uses, so a declaration made by a compile-time
 // Registration reaches a process the operator attached under an alias
 // (FencesLiveForwards). Called once at server startup; nil removes it.
+// The caller MUST run the returned release when its server stops; release leaves
+// a newer server's lookup in place.
 //
 // It is a runtime seam, callable after Seal: the plugin server starts after
 // the registry is sealed.
-func SetRuntimeRegistryNames(fn func(process string) []string) {
+func SetRuntimeRegistryNames(fn func(process string) []string) func() {
+	var publication *registryNamesLookup
+	if fn != nil {
+		publication = &registryNamesLookup{query: fn}
+	}
 	mu.Lock()
-	defer mu.Unlock()
-	runtimeRegistryNames = fn
+	runtimeRegistryNames = publication
+	mu.Unlock()
+	return func() {
+		mu.Lock()
+		defer mu.Unlock()
+		if runtimeRegistryNames == publication {
+			runtimeRegistryNames = nil
+		}
+	}
 }
 
 // rpcHandlers holds RPC method handlers registered by plugins via AddRPCHandlers.
@@ -1591,15 +1625,26 @@ func Reset() {
 	runtimeSessionReady = nil
 	runtimeReplayFence = nil
 	runtimeRegistryNames = nil
+	filterDeclarations.mu.Lock()
+	filterDeclarations.declared = nil
+	filterDeclarations.insertions = nil
+	filterDeclarations.loaded = nil
+	filterDeclarations.mu.Unlock()
 }
 
 // RegistrySnapshot holds a complete copy of the registry state for test save/restore.
 type RegistrySnapshot struct {
-	plugins          map[string]*Registration
-	setupResults     map[string]SetupResult
-	rpcHandlers      map[string]func(json.RawMessage) (any, error)
-	eventBusInstance ze.EventBus
-	ntpSyncProvider  NTPSyncProvider
+	plugins              map[string]*Registration
+	setupResults         map[string]SetupResult
+	rpcHandlers          map[string]func(json.RawMessage) (any, error)
+	eventBusInstance     ze.EventBus
+	ntpSyncProvider      NTPSyncProvider
+	runtimeSessionReady  *sessionReadyLookup
+	runtimeReplayFence   *replayFenceLookup
+	runtimeRegistryNames *registryNamesLookup
+	runtimeDeclared      *filterDeclaredLookup
+	runtimeInsertions    *filterInsertionsLookup
+	runtimeLoaded        *loadedPluginsLookup
 	// sealed is the seal state the snapshot was taken under, so a test that
 	// seals and restores leaves the registry open to the next test.
 	sealed bool
@@ -1617,9 +1662,17 @@ func Snapshot() RegistrySnapshot {
 	maps.Copy(sr, setupResults)
 	rh := make(map[string]func(json.RawMessage) (any, error), len(rpcHandlers))
 	maps.Copy(rh, rpcHandlers)
+	filterDeclarations.mu.RLock()
+	declared := filterDeclarations.declared
+	insertions := filterDeclarations.insertions
+	loaded := filterDeclarations.loaded
+	filterDeclarations.mu.RUnlock()
 	return RegistrySnapshot{
 		plugins: ps, setupResults: sr, rpcHandlers: rh,
 		eventBusInstance: eventBusInstance, ntpSyncProvider: ntpSyncProvider,
+		runtimeSessionReady: runtimeSessionReady, runtimeReplayFence: runtimeReplayFence,
+		runtimeRegistryNames: runtimeRegistryNames,
+		runtimeDeclared:      declared, runtimeInsertions: insertions, runtimeLoaded: loaded,
 		sealed: sealed,
 	}
 }
@@ -1633,6 +1686,14 @@ func Restore(snap RegistrySnapshot) {
 	rpcHandlers = snap.rpcHandlers
 	eventBusInstance = snap.eventBusInstance
 	ntpSyncProvider = snap.ntpSyncProvider
+	runtimeSessionReady = snap.runtimeSessionReady
+	runtimeReplayFence = snap.runtimeReplayFence
+	runtimeRegistryNames = snap.runtimeRegistryNames
+	filterDeclarations.mu.Lock()
+	filterDeclarations.declared = snap.runtimeDeclared
+	filterDeclarations.insertions = snap.runtimeInsertions
+	filterDeclarations.loaded = snap.runtimeLoaded
+	filterDeclarations.mu.Unlock()
 	sealed = snap.sealed
 	// Rebuild filterTypes from the restored plugins slice.
 	filterTypes = make(map[string]string)
@@ -1946,7 +2007,7 @@ func processDeclares(name string, declared func(*Registration) bool) bool {
 	}
 	// Resolved outside mu: the seam reads the process manager, and a nested
 	// read lock deadlocks behind a waiting writer.
-	for _, implName := range resolve(name) {
+	for _, implName := range resolve.query(name) {
 		mu.RLock()
 		impl := plugins[implName]
 		mu.RUnlock()

@@ -199,7 +199,8 @@ type rPKIPlugin struct {
 	validateCh chan validationRequest
 
 	// stopCh signals all background goroutines to stop.
-	stopCh chan struct{}
+	stopCh   chan struct{}
+	stopOnce sync.Once
 
 	// active is true when at least one cache server is CONFIGURED. It says that RPKI is in
 	// play, which is what the per-prefix work in handleEvent/handleStructuredUpdate and the
@@ -317,6 +318,13 @@ func pipeDecls() []sdk.PipeDecl {
 	}}
 }
 
+// closeStopCh closes stopCh once. Safe for concurrent use.
+func (rp *rPKIPlugin) closeStopCh() {
+	rp.stopOnce.Do(func() {
+		close(rp.stopCh)
+	})
+}
+
 // runRPKIPlugin runs the bgp-rpki plugin using the SDK RPC protocol.
 func runRPKIPlugin(conn net.Conn) int {
 	logger().Debug("bgp-rpki plugin starting")
@@ -338,7 +346,7 @@ func runRPKIPlugin(conn net.Conn) int {
 	var workerWg sync.WaitGroup
 	workerWg.Go(rp.validationWorker)
 	defer func() {
-		close(rp.stopCh)
+		rp.closeStopCh()
 		// The cache group runs on its own generation channel, which rp.stopCh does not
 		// reach, so the group is stopped and waited for by name.
 		rp.stopSessions()
@@ -1422,7 +1430,8 @@ func (rp *rPKIPlugin) handleASPAChange(changedCustomers []uint32) {
 	defer rp.validationMu.Unlock()
 	changed := rp.aspaTracker.revalidate(rp.aspaCache, changedCustomers)
 	affected := make(map[rpkiUpdateKey]struct{})
-	for _, rt := range changed {
+	for i := range changed {
+		rt := &changed[i]
 		current, ok := rp.originTracker.updateASPA(rp.cache, rt.key, rt.msgID, rt.aspaState)
 		if !ok {
 			continue

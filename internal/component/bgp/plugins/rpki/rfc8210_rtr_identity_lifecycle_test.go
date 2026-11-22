@@ -37,7 +37,7 @@ import (
 func TestRTRTLSSerialResponseSessionIDMismatch(t *testing.T) {
 	for _, mismatch := range []bool{false, true} {
 		t.Run(map[bool]string{false: "matching ID", true: "changed Cache Response ID"}[mismatch], func(t *testing.T) {
-			response, end := rtrIdentityResponse(0x1234, 2)
+			response, end := rtrIdentityResponse(2)
 			if mismatch {
 				binary.BigEndian.PutUint16(response[2:4], 0x1235)
 				binary.BigEndian.PutUint16(end[2:4], 0x1235)
@@ -78,7 +78,7 @@ func TestRTRTLSSerialResponseSessionIDMismatch(t *testing.T) {
 func TestRTRTLSEndOfDataSessionIDMismatch(t *testing.T) {
 	for _, mismatch := range []bool{false, true} {
 		t.Run(map[bool]string{false: "matching ID", true: "changed End of Data ID"}[mismatch], func(t *testing.T) {
-			response, end := rtrIdentityResponse(0x1234, 2)
+			response, end := rtrIdentityResponse(2)
 			if mismatch {
 				binary.BigEndian.PutUint16(end[2:4], 0x1235)
 			}
@@ -122,7 +122,7 @@ func TestRTRTLSEndOfDataSessionIDMismatch(t *testing.T) {
 func TestRTRTLSSupportedVersionCannotChangeWithinResponse(t *testing.T) {
 	for _, stage := range []string{"unchanged", "prefix", "end of data"} {
 		t.Run(stage, func(t *testing.T) {
-			response, end := rtrIdentityResponse(0x1234, 2)
+			response, end := rtrIdentityResponse(2)
 			prefix := rtrIdentityPrefix(3)
 			if stage == "prefix" {
 				prefix[0] = rtrVersionMax
@@ -166,7 +166,7 @@ func TestRFC8210DifferentVersionSameSessionIDIsSeparateSession(t *testing.T) {
 	for _, diffVersion := range []bool{false, true} {
 		name := map[bool]string{false: "same version same Session ID", true: "different version same Session ID"}[diffVersion]
 		t.Run(name, func(t *testing.T) {
-			response, end := rtrIdentityResponse(0x1234, 2)
+			response, end := rtrIdentityResponse(2)
 			prefix := rtrIdentityPrefix(3)
 			if diffVersion {
 				response[0], prefix[0], end[0] = rtrVersionMax, rtrVersionMax, rtrVersionMax
@@ -212,7 +212,7 @@ func newRTRIdentitySession(t *testing.T, delta []byte) (*RTRSession, <-chan rtrI
 	require.True(t, ok)
 	observed := make(chan rtrIdentityObservation, 2)
 	done := make(chan struct{})
-	response, end := rtrIdentityResponse(0x1234, 1)
+	response, end := rtrIdentityResponse(1)
 	base := slices.Concat(response, rtrIdentityPrefix(2), end)
 	go func() {
 		defer close(done)
@@ -265,7 +265,8 @@ func rtrIdentityExchange(conn net.Conn, config *tls.Config, reply []byte) rtrIde
 	return rtrIdentityObservation{query: query, report: report, err: err}
 }
 
-func rtrIdentityResponse(id uint16, serial uint32) ([]byte, []byte) {
+func rtrIdentityResponse(serial uint32) ([]byte, []byte) {
+	const id uint16 = 0x1234
 	response, end := cacheResponsePDU(), endOfDataPDU()
 	response[0], end[0] = rtrVersionMin, rtrVersionMin
 	binary.BigEndian.PutUint16(response[2:4], id)

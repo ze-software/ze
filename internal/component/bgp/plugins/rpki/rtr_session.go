@@ -535,33 +535,40 @@ func (s *RTRSession) readLoop(conn net.Conn) (readErr error) {
 			done, err = s.handlePDU(hdr, pduBuf)
 		}
 		if err != nil {
-			// RFC 8210 Sections 5.1, 5.11, 7, and 12.
-			if code, classified := rtrResponseErrorCode(hdr, err); classified {
-				// RFC 8210 Section 5.1; draft-ietf-sidrops-8210bis Section 12.
-				if notify := s.revokeResponseData(err, code); notify != nil {
-					// MUST close before the joined callbacks, which can wait for
-					// route revalidation. Defers run in reverse registration order.
-					defer notify()
-					defer conn.Close() //nolint:errcheck // The protocol or write error remains authoritative; close releases the failed transport.
-				}
-				// RFC 8210 Section 5.11: "An Error Report PDU MUST NOT be sent for an Error Report PDU."
-				if hdr.Type != pduErrorRpt {
-					report := make([]byte, 16+len(pduBuf))
-					n := writeErrorReport(report, s.version, code, pduBuf)
-					if deadlineErr := conn.SetWriteDeadline(time.Now().Add(5 * time.Second)); deadlineErr != nil {
-						return errors.Join(err, deadlineErr)
-					}
-					if _, writeErr := conn.Write(report[:n]); writeErr != nil {
-						return errors.Join(err, writeErr)
-					}
-				}
-			}
-			return err
+			return s.handleResponseError(conn, hdr, pduBuf, err)
 		}
 		if done {
 			return nil
 		}
 	}
+}
+
+// handleResponseError classifies a stream or PDU failure, revokes cached data
+// when required, sends an Error Report PDU (except for an Error Report PDU),
+// and closes the transport before running any joined revalidation callbacks.
+func (s *RTRSession) handleResponseError(conn net.Conn, hdr rTRHeader, pduBuf []byte, err error) error {
+	// RFC 8210 Sections 5.1, 5.11, 7, and 12.
+	if code, classified := rtrResponseErrorCode(hdr, err); classified {
+		// RFC 8210 Section 5.1; draft-ietf-sidrops-8210bis Section 12.
+		if notify := s.revokeResponseData(err, code); notify != nil {
+			// MUST close before the joined callbacks, which can wait for
+			// route revalidation. Defers run in reverse registration order.
+			defer notify()
+			defer conn.Close() //nolint:errcheck // The protocol or write error remains authoritative; close releases the failed transport.
+		}
+		// RFC 8210 Section 5.11: "An Error Report PDU MUST NOT be sent for an Error Report PDU."
+		if hdr.Type != pduErrorRpt {
+			report := make([]byte, 16+len(pduBuf))
+			n := writeErrorReport(report, s.version, code, pduBuf)
+			if deadlineErr := conn.SetWriteDeadline(time.Now().Add(5 * time.Second)); deadlineErr != nil {
+				return errors.Join(err, deadlineErr)
+			}
+			if _, writeErr := conn.Write(report[:n]); writeErr != nil {
+				return errors.Join(err, writeErr)
+			}
+		}
+	}
+	return err
 }
 
 // handlePDU processes a single RTR PDU. Returns true when session sync is complete.

@@ -104,20 +104,6 @@ func (t *aSPATracker) Remove(key routeKey, msgID uint64) {
 	delete(t.routes, key)
 }
 
-func (t *aSPATracker) removePeer(peerAddr string, source rpkiSource) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	for key, route := range t.routes {
-		if key.peerAddr == peerAddr {
-			if key.source != source {
-				continue
-			}
-			t.removeFromIndexLocked(route)
-			delete(t.routes, key)
-		}
-	}
-}
-
 // removeOwner is terminal Peer removal, not a physical DOWN wildcard.
 // The caller MUST supply the original nonzero owner from the removed event.
 func (t *aSPATracker) removeOwner(owner uint64) {

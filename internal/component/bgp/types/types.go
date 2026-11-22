@@ -312,13 +312,24 @@ type NLRIBatch struct {
 	// OriginRetirement belongs only to a genuine accepted timer/tag entry.
 	// It carries no wire input and cannot be supplied by request metadata.
 	OriginRetirement *plugin.OriginRetirement `json:"-"`
-	Family           family.Family            // AFI/SAFI for all NLRIs
 	NLRIs            []nlri.NLRI              // NLRIs to announce or withdraw
 	// RecoverySource marks source-DOWN reconciliation; zero source means
 	// ordinary API withdrawal. The RIB supplies replacement selection, and the
 	// writer owes a key only where the source's ended session owns it.
-	RecoverySource      netip.Addr
-	RecoverySourceOwner uint64 // original configured Peer; address is metadata
+	RecoverySource netip.Addr
+	// NextHop is the next-hop policy. An announce resolves it per destination
+	// peer; a withdraw reads an EXPLICIT address only, to restate it as the RFC
+	// 4271 Section 5.1.3 NEXT_HOP attribute where the family carries one.
+	NextHop           RouteNextHop
+	InitialSourcePeer string
+	// Attrs and Wire are the attribute block the caller named, and a withdraw
+	// carries them exactly as an announce does. RFC 4760 Section 4: "An UPDATE
+	// message that contains the MP_UNREACH_NLRI is not required to carry any
+	// other path attributes", so a caller that names none is sent a bare
+	// MP_UNREACH_NLRI and a caller that names some is sent them.
+	Attrs               *attribute.Builder        // Attribute builder (for new routes)
+	Wire                *attribute.AttributesWire // Wire passthrough (for forwarding)
+	RecoverySourceOwner uint64                    // original configured Peer; address is metadata
 	// RecoveryGeneration is the forward generation (reactor Peer.forwardGeneration)
 	// of the source session whose end the departure answers, as the peer-down
 	// event carried it (session-generation). The writer owes only keys the
@@ -326,12 +337,6 @@ type NLRIBatch struct {
 	// behind a reconnect never owes a newer session's route, which graceful
 	// restart may retain. Set exactly when RecoverySource is; never zero there.
 	RecoveryGeneration uint64
-	// RestoreConfigured gives back a configured route: a withdrawn NLRI that
-	// the peer's static config also announces is not withdrawn, the configured
-	// route is sent in its place. It is ExaBGP's withdraw_owner, which the
-	// ExaBGP bridge asks for when a script that replaced a configured route
-	// exits (docs/architecture/exabgp-bridge.md). Withdrawals only.
-	RestoreConfigured bool
 	// SentOwnerMessage fences automatic sent replay and cleanup against the
 	// exact advertisement captured by the RIB before dispatch. A replacement
 	// owner or destination session MUST NOT inherit that operation.
@@ -342,13 +347,8 @@ type NLRIBatch struct {
 	// InitialReplay authorizes intentional peer-up replay on precisely the
 	// session whose state event issued this receipt. Exactly one origin form
 	// is required: explicit local, or the captured stable source and path.
-	InitialReplay        uint64
-	InitialLocal         bool
-	InitialSourcePeer    string
-	InitialSourceID      uint32
-	InitialSourceOwner   uint64
-	InitialSourcePath    uint32
-	InitialSourceAddPath bool
+	InitialReplay      uint64
+	InitialSourceOwner uint64
 	// InitialSourceMessage is the source route's received message ID. A
 	// forwarded initial replay MUST carry it; a local one MUST NOT.
 	InitialSourceMessage uint64
@@ -358,22 +358,22 @@ type NLRIBatch struct {
 	// OriginAdmissionID is an opaque accepted record, never source authority.
 	// It MUST remain bound to OriginOwner across queued operation drains.
 	OriginAdmissionID uint64
-	// NextHop is the next-hop policy. An announce resolves it per destination
-	// peer; a withdraw reads an EXPLICIT address only, to restate it as the RFC
-	// 4271 Section 5.1.3 NEXT_HOP attribute where the family carries one.
-	NextHop RouteNextHop
-	// Attrs and Wire are the attribute block the caller named, and a withdraw
-	// carries them exactly as an announce does. RFC 4760 Section 4: "An UPDATE
-	// message that contains the MP_UNREACH_NLRI is not required to carry any
-	// other path attributes", so a caller that names none is sent a bare
-	// MP_UNREACH_NLRI and a caller that names some is sent them.
-	Attrs *attribute.Builder        // Attribute builder (for new routes)
-	Wire  *attribute.AttributesWire // Wire passthrough (for forwarding)
+	InitialSourceID   uint32
+	InitialSourcePath uint32
 	// OriginAS, when nonzero, originates the route as a virtual router with this
 	// AS: AS_PATH is [OriginAS] to iBGP peers and [localAS, OriginAS] to eBGP
 	// peers (normal export prepend). Distinct from a verbatim `as-path` (route
 	// server transparency). Zero uses the legacy default AS_PATH synthesis.
 	OriginAS uint32
+	Family   family.Family // AFI/SAFI for all NLRIs
+	// RestoreConfigured gives back a configured route: a withdrawn NLRI that
+	// the peer's static config also announces is not withdrawn, the configured
+	// route is sent in its place. It is ExaBGP's withdraw_owner, which the
+	// ExaBGP bridge asks for when a script that replaced a configured route
+	// exits (docs/architecture/exabgp-bridge.md). Withdrawals only.
+	RestoreConfigured    bool
+	InitialLocal         bool
+	InitialSourceAddPath bool
 	// Stale is the LLGR stale level (RFC 9494) carried from the RIB
 	// readvertise producer (meta["stale"]). When >0, AnnounceNLRIBatch runs the
 	// registered readvertise egress filters per destination peer so stale routes

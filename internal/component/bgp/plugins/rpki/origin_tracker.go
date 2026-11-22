@@ -81,19 +81,6 @@ func (t *originTracker) Remove(key routeKey, msgID uint64) {
 	delete(t.routes, key)
 }
 
-func (t *originTracker) removePeer(peerAddr string, source rpkiSource) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	for key := range t.routes {
-		if key.peerAddr == peerAddr {
-			if key.source != source {
-				continue
-			}
-			delete(t.routes, key)
-		}
-	}
-}
-
 // removeOwner is terminal Peer removal. The caller MUST supply the original
 // nonzero owner; ordinary DOWN instead removes one exact original connection.
 func (t *originTracker) removeOwner(owner uint64) {

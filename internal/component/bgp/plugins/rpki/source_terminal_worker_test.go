@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/bgp/retention"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -62,7 +63,7 @@ func TestRPKICopiedWorkerBatchHonorsSourceCleanupBothTransports(t *testing.T) {
 					captured := rpkiOwnerDecisionTransport(t, rp, bridge, transport, 1)
 					var workers sync.WaitGroup
 					workers.Go(rp.validationWorker)
-					t.Cleanup(func() { releaseWorker(); close(rp.stopCh); workers.Wait() })
+					t.Cleanup(func() { releaseWorker(); rp.closeStopCh(); workers.Wait() })
 					ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 					defer cancel()
 					select {
@@ -100,9 +101,10 @@ func TestRPKICopiedWorkerBatchHonorsSourceCleanupBothTransports(t *testing.T) {
 	}
 }
 
-// terminalRPKIHeldTransport serves exactly two actual worker requests. Its
-// first BatchValidate is held before answering; the useful follow-up is free.
-// Closing connections and releasing the first request MUST precede the join.
+// terminalRPKIHeldTransport serves the two actual worker BatchValidate requests
+// and the follow-up feed's EmitEvent. The first BatchValidate is held before
+// answering; the useful follow-up is free. Closing connections and releasing
+// the first request MUST precede the join.
 func terminalRPKIHeldTransport(t *testing.T, rp *rPKIPlugin, bridge *rpc.DirectBridge, transport string) (<-chan []rpc.ValidationDecision, func(), <-chan struct{}) {
 	t.Helper()
 	captured := make(chan []rpc.ValidationDecision, 2)
@@ -126,36 +128,47 @@ func terminalRPKIHeldTransport(t *testing.T, rp *rPKIPlugin, bridge *rpc.DirectB
 	finished := make(chan error, 1)
 	go func() {
 		connection := rpc.NewConn(engine, engine)
-		for requestNumber := range 2 {
+		batchCount := 0
+		emitCount := 0
+		for batchCount < 2 || emitCount < 1 {
 			request, err := connection.ReadRequest(ctx)
 			if err != nil {
 				finished <- err
 				return
 			}
-			if request.Method != rpc.MethodBatchValidate {
-				finished <- fmt.Errorf("unexpected worker request %s", request.Method)
-				return
-			}
-			var input rpc.BatchValidateInput
-			if err := json.Unmarshal(request.Params, &input); err != nil {
-				finished <- err
-				return
-			}
-			captured <- input.Decisions
-			if requestNumber == 0 {
-				select {
-				case <-release:
-				case <-ctx.Done():
-					finished <- ctx.Err()
+			switch request.Method {
+			case rpc.MethodBatchValidate:
+				var input rpc.BatchValidateInput
+				if err := json.Unmarshal(request.Params, &input); err != nil {
+					finished <- err
 					return
 				}
-			}
-			if err := connection.SendResult(ctx, request.ID, &rpc.BatchValidateResult{Accepted: len(input.Decisions)}); err != nil {
-				finished <- err
+				captured <- input.Decisions
+				if batchCount == 0 {
+					select {
+					case <-release:
+					case <-ctx.Done():
+						finished <- ctx.Err()
+						return
+					}
+				}
+				if err := connection.SendResult(ctx, request.ID, &rpc.BatchValidateResult{Accepted: len(input.Decisions)}); err != nil {
+					finished <- err
+					return
+				}
+				if batchCount == 0 {
+					close(settled)
+				}
+				batchCount++
+			case rpc.MethodEmitEvent:
+				if err := connection.SendResult(ctx, request.ID, &rpc.EmitEventOutput{Delivered: 1}); err != nil {
+					finished <- err
+					return
+				}
+				emitCount++
+			default:
+				finished <- fmt.Errorf("unexpected worker request %s", request.Method)
 				return
-			}
-			if requestNumber == 0 {
-				close(settled)
 			}
 		}
 		finished <- nil
@@ -287,7 +300,7 @@ func TestRPKISourceCleanupJoinsAdmittedBatchValidateBothTransports(t *testing.T)
 				workers.Go(rp.validationWorker)
 				// Each caller cleanup also releases the held validation request before
 				// joining its dispatcher. This owner closes and joins the actual worker.
-				t.Cleanup(func() { releaseRPC(); close(rp.stopCh); workers.Wait() })
+				t.Cleanup(func() { releaseRPC(); rp.closeStopCh(); workers.Wait() })
 				decisions := rpkiOwnerNext(t, captured)
 				rpkiOwnerDecisionSources(t, decisions, map[rpkiSource]uint64{old: 71, sibling: 72})
 				caller, admitted, completed := terminalRPKICleanupCaller(t, cleanup, releaseRPC)

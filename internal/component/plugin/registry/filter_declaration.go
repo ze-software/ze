@@ -146,6 +146,18 @@ func compileFilterDeclaration(pluginName string, f *rpc.FilterDecl) (DeclaredFil
 	return d, nil
 }
 
+type filterDeclaredLookup struct {
+	query func(process string) ([]DeclaredFilter, bool)
+}
+
+type filterInsertionsLookup struct {
+	query func() []ProcessFilterInsertions
+}
+
+type loadedPluginsLookup struct {
+	query func() []string
+}
+
 // filterDeclarations holds the two seams of filter declarations: the judge,
 // filled from init() by the subsystem that runs filters, and the runtime
 // answer, filled by the plugin server, which owns the running processes.
@@ -154,13 +166,13 @@ func compileFilterDeclaration(pluginName string, f *rpc.FilterDecl) (DeclaredFil
 var filterDeclarations struct {
 	mu       sync.RWMutex
 	check    func(pluginName string, declared []DeclaredFilter) error
-	declared func(process string) ([]DeclaredFilter, bool)
+	declared *filterDeclaredLookup
 	// insertions answers the Stage 1 insertions of the running processes
 	// no compiled registration describes (SetRuntimeFilterInsertions).
-	insertions func() []ProcessFilterInsertions
+	insertions *filterInsertionsLookup
 	// loaded answers the registry names of the plugins this daemon runs
 	// (SetRuntimeLoadedPlugins).
-	loaded func() []string
+	loaded *loadedPluginsLookup
 }
 
 // SetFilterDeclarationCheck installs the judge of Stage 1 filter
@@ -228,10 +240,21 @@ func CheckFilterDeclarations(pluginName string, filters []rpc.FilterDecl) error 
 //
 // It is a runtime seam, callable after Seal: the plugin server starts after
 // the registry is sealed.
-func SetRuntimeFilterDeclarations(fn func(process string) ([]DeclaredFilter, bool)) {
+func SetRuntimeFilterDeclarations(fn func(process string) ([]DeclaredFilter, bool)) func() {
+	var publication *filterDeclaredLookup
+	if fn != nil {
+		publication = &filterDeclaredLookup{query: fn}
+	}
 	filterDeclarations.mu.Lock()
-	defer filterDeclarations.mu.Unlock()
-	filterDeclarations.declared = fn
+	filterDeclarations.declared = publication
+	filterDeclarations.mu.Unlock()
+	return func() {
+		filterDeclarations.mu.Lock()
+		defer filterDeclarations.mu.Unlock()
+		if filterDeclarations.declared == publication {
+			filterDeclarations.declared = nil
+		}
+	}
 }
 
 // RuntimeFilterDeclarations answers the filters a running process declared at
@@ -244,7 +267,7 @@ func RuntimeFilterDeclarations(process string) ([]DeclaredFilter, bool) {
 	if declared == nil {
 		return nil, false
 	}
-	return declared(process)
+	return declared.query(process)
 }
 
 // ProcessFilterInsertions is the filter insertions one running process
@@ -262,10 +285,21 @@ type ProcessFilterInsertions struct {
 //
 // It is a runtime seam, callable after Seal: the plugin server starts after
 // the registry is sealed.
-func SetRuntimeFilterInsertions(fn func() []ProcessFilterInsertions) {
+func SetRuntimeFilterInsertions(fn func() []ProcessFilterInsertions) func() {
+	var publication *filterInsertionsLookup
+	if fn != nil {
+		publication = &filterInsertionsLookup{query: fn}
+	}
 	filterDeclarations.mu.Lock()
-	defer filterDeclarations.mu.Unlock()
-	filterDeclarations.insertions = fn
+	filterDeclarations.insertions = publication
+	filterDeclarations.mu.Unlock()
+	return func() {
+		filterDeclarations.mu.Lock()
+		defer filterDeclarations.mu.Unlock()
+		if filterDeclarations.insertions == publication {
+			filterDeclarations.insertions = nil
+		}
+	}
 }
 
 // RuntimeFilterInsertions answers the Stage 1 filter insertions of the
@@ -280,7 +314,7 @@ func RuntimeFilterInsertions() []ProcessFilterInsertions {
 	if insertions == nil {
 		return nil
 	}
-	return insertions()
+	return insertions.query()
 }
 
 // SetRuntimeLoadedPlugins installs the seam that answers the registry names
@@ -291,10 +325,21 @@ func RuntimeFilterInsertions() []ProcessFilterInsertions {
 //
 // It is a runtime seam, callable after Seal: the plugin server starts after
 // the registry is sealed.
-func SetRuntimeLoadedPlugins(fn func() []string) {
+func SetRuntimeLoadedPlugins(fn func() []string) func() {
+	var publication *loadedPluginsLookup
+	if fn != nil {
+		publication = &loadedPluginsLookup{query: fn}
+	}
 	filterDeclarations.mu.Lock()
-	defer filterDeclarations.mu.Unlock()
-	filterDeclarations.loaded = fn
+	filterDeclarations.loaded = publication
+	filterDeclarations.mu.Unlock()
+	return func() {
+		filterDeclarations.mu.Lock()
+		defer filterDeclarations.mu.Unlock()
+		if filterDeclarations.loaded == publication {
+			filterDeclarations.loaded = nil
+		}
+	}
 }
 
 // LoadedPlugins answers the registry names of the plugins this daemon runs.
@@ -308,5 +353,5 @@ func LoadedPlugins() (names []string, known bool) {
 	if loaded == nil {
 		return nil, false
 	}
-	return loaded(), true
+	return loaded.query(), true
 }

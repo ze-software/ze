@@ -49,6 +49,9 @@ func TestSentObservationOrdersCapturedDeliveryBeforeRemoval(t *testing.T) {
 				if kind == rpc.EventKindUpdate {
 					inventory[owner] = true
 				}
+				if kind == rpc.EventKindSent {
+					inventory[owner] = true
+				}
 				if kind == rpc.EventKindState && state == rpc.SessionStateDown {
 					delete(inventory, owner)
 				}
@@ -233,7 +236,7 @@ func sentObservationServer(t *testing.T, ctx context.Context, native bool, consu
 				conn = struct{ net.Conn }{conn}
 			}
 			p := sdk.NewWithConn(name, conn)
-			p.SetStartupSubscriptionsIn(bgpevents.Namespace, []string{"state", "update-sent"}, nil, "full")
+			p.SetStartupSubscriptionsIn(bgpevents.Namespace, []string{"state", "update direction sent"}, nil, "full")
 			p.OnEvent(func(payload string) error {
 				event, err := bgp.ParseEvent([]byte(payload))
 				if err != nil {

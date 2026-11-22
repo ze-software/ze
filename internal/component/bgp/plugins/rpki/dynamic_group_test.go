@@ -62,7 +62,7 @@ func groupMemberPlugin(t *testing.T) (*rPKIPlugin, *rpc.DirectBridge) {
 		stopCh:        make(chan struct{}),
 	}
 	rp.active.Store(true)
-	t.Cleanup(func() { close(rp.stopCh) })
+	t.Cleanup(rp.closeStopCh)
 	return rp, bridge
 }
 

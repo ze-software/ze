@@ -345,10 +345,20 @@ func TestRPKINamedBlackholeKeepsOriginalSession(t *testing.T) {
 		t.Run(rail, func(t *testing.T) {
 			rp, _ := rpkiOwnerPlugin(t)
 			policies := map[configjson.PeerConfigKey]peerActionSet{
-				{ID: "left"}: {OriginInvalid: resolvedAction{Action: ASPAPolicyReject}, BlackholeExempt: true,
-					BlackholeCommunities: []attribute.Community{attribute.Community(65001<<16 | 666)}},
-				{ID: "right"}: {OriginInvalid: resolvedAction{Action: ASPAPolicyReject}, BlackholeExempt: true,
-					BlackholeCommunities: []attribute.Community{attribute.Community(65002<<16 | 666)}},
+				{ID: "left"}: {
+					OriginInvalid:        resolvedAction{Action: ASPAPolicyReject},
+					ASPAUnknown:          resolvedAction{Action: ASPAPolicyAccept},
+					ASPAMode:             aspaDownstream,
+					BlackholeExempt:      true,
+					BlackholeCommunities: []attribute.Community{attribute.Community(65001<<16 | 666)},
+				},
+				{ID: "right"}: {
+					OriginInvalid:        resolvedAction{Action: ASPAPolicyReject},
+					ASPAUnknown:          resolvedAction{Action: ASPAPolicyAccept},
+					ASPAMode:             aspaDownstream,
+					BlackholeExempt:      true,
+					BlackholeCommunities: []attribute.Community{attribute.Community(65002<<16 | 666)},
+				},
 			}
 			rp.perPeerActions.Store(&policies)
 			wire := wireu.NewWireUpdate(rpkiOwnerBody(), bgpctx.APIContextID)

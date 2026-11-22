@@ -29,7 +29,7 @@ func TestRTRTLSResponseRequiresCacheResponse(t *testing.T) {
 	for _, withResponse := range []bool{true, false} {
 		name := map[bool]string{true: "complete response", false: "missing Cache Response"}[withResponse]
 		t.Run(name, func(t *testing.T) {
-			response, end := rtrIdentityResponse(0x1234, 2)
+			response, end := rtrIdentityResponse(2)
 			delta := slices.Concat(rtrIdentityPrefix(3), end)
 			if withResponse {
 				delta = slices.Concat(response, delta)
@@ -90,10 +90,10 @@ func TestRTRTLSUnknownInitialResponseVersionKeepsSerialBase(t *testing.T) {
 			address, ok := listener.Addr().(*net.TCPAddr)
 			require.True(t, ok)
 
-			baseResponse, baseEnd := rtrIdentityResponse(0x1234, 1)
+			baseResponse, baseEnd := rtrIdentityResponse(1)
 			basePrefix := rtrIdentityPrefix(2)
 			baseResponse[0], basePrefix[0], baseEnd[0] = 2, 2, 2
-			response, end := rtrIdentityResponse(0x1234, 2)
+			response, end := rtrIdentityResponse(2)
 			prefix := rtrIdentityPrefix(3)
 			response[0], prefix[0], end[0] = version, 2, 2
 			observed := make(chan rtrIdentityObservation, 2)
@@ -175,7 +175,7 @@ func TestRTRTLSUnknownInitialResponseVersionKeepsSerialBase(t *testing.T) {
 // PREVENTS: retaining a fatal v2 cache's VRPs or ASPAs, using the received PDU's
 // version to choose cleanup, or answering an Error Report to perform cleanup.
 func TestRTRTLSV2FatalErrorsFlushPublishedBase(t *testing.T) {
-	response, end := rtrIdentityResponse(0x1234, 2)
+	response, end := rtrIdentityResponse(2)
 	prefix := rtrIdentityPrefix(3)
 	response[0], prefix[0], end[0] = 2, 2, 2
 	changedVersion := slices.Clone(prefix)
@@ -394,7 +394,7 @@ func newRTRV2SequenceSession(t *testing.T, replies ...[]byte) (*RTRSession, <-ch
 // Draft-ietf-sidrops-8210bis Section 8.1: Cache Response starts the payload
 // sequence and End of Data completes the Reset Query.
 func rtrV2SequenceLoad(octet byte, customer, provider uint32) []byte {
-	response, end := rtrIdentityResponse(0x1234, 1)
+	response, end := rtrIdentityResponse(1)
 	prefix := rtrIdentityPrefix(octet)
 	response[0], prefix[0], end[0] = 2, 2, 2
 	return slices.Concat(response, prefix, aspaPDU(customer, provider), end)
