@@ -1067,12 +1067,49 @@ func TestStreamableLoopbackOriginAcceptedWhenAllowListEmpty(t *testing.T) {
 		"http://[::1]",
 		"http://[::1]:3000",
 		"https://[::1]:8443",
-		"null",
 	}
 	for _, origin := range cases {
 		t.Run(origin, func(t *testing.T) {
 			if status := postOrigin(t, hs, origin); status != http.StatusOK {
 				t.Fatalf("loopback default-allowlist %q: status = %d, want 200", origin, status)
+			}
+		})
+	}
+}
+
+// TestStreamableNullOriginRejectedByDefault verifies that Origin: null is
+// rejected on both OPTIONS preflight and POST /mcp when AllowedOrigins is empty.
+//
+// VALIDATES: opaque "null" origins from sandboxed iframes or data: URIs cannot
+// bypass the loopback default allowlist.
+// PREVENTS: cross-origin DNS-rebinding and CORS bypass via <iframe sandbox>.
+func TestStreamableNullOriginRejectedByDefault(t *testing.T) {
+	hs, cleanup := newTestStreamable(t, StreamableConfig{})
+	defer cleanup()
+
+	for _, origin := range []string{"null", "NULL"} {
+		t.Run("POST_"+origin, func(t *testing.T) {
+			if status := postOrigin(t, hs, origin); status != http.StatusForbidden {
+				t.Fatalf("POST with Origin %q: status = %d, want 403", origin, status)
+			}
+		})
+		t.Run("OPTIONS_"+origin, func(t *testing.T) {
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodOptions, hs.URL+Endpoint, http.NoBody)
+			if err != nil {
+				t.Fatalf("new request: %v", err)
+			}
+			req.Header.Set("Origin", origin)
+			req.Header.Set("Access-Control-Request-Method", http.MethodPost)
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				t.Fatalf("OPTIONS request: %v", err)
+			}
+			defer resp.Body.Close() //nolint:errcheck // test cleanup
+			if resp.StatusCode != http.StatusForbidden {
+				t.Fatalf("OPTIONS with Origin %q: status = %d, want 403", origin, resp.StatusCode)
+			}
+			if acao := resp.Header.Get("Access-Control-Allow-Origin"); acao != "" {
+				t.Fatalf("OPTIONS with Origin %q echoed Access-Control-Allow-Origin=%q", origin, acao)
 			}
 		})
 	}
@@ -1136,7 +1173,7 @@ func TestStreamableIsLoopbackOrigin(t *testing.T) {
 		{"http://[::1]", true},
 		{"http://[::1]:8080", true},
 		{"https://[::1]", true},
-		{"null", true},
+		{"null", false},
 		{"http://example.com", false},
 		{"https://192.168.1.1", false},
 		{"https://127.0.0.1.evil.com", false},

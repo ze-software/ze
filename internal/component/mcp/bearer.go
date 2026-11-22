@@ -85,7 +85,8 @@ func (a bearerAuthenticator) Authenticate(r *http.Request) (Identity, *authError
 // via SHA-256 hashes so ConstantTimeCompare's length-mismatch shortcut
 // cannot leak token-length information either.
 type bearerListAuthenticator struct {
-	entries []bearerListEntry
+	entries        []bearerListEntry
+	requiredScopes []string
 }
 
 type bearerListEntry struct {
@@ -127,7 +128,20 @@ func (a bearerListAuthenticator) Authenticate(r *http.Request) (Identity, *authE
 		}
 	}
 	entry := a.entries[matchIdx]
-	return Identity{Name: entry.name, Scopes: entry.scopes}, nil
+	id := Identity{Name: entry.name, Scopes: entry.scopes}
+	for _, required := range a.requiredScopes {
+		if !id.HasScope(required) {
+			return Identity{}, &authError{
+				Status:           http.StatusForbidden,
+				Scheme:           authSchemeBearer,
+				Realm:            mcpRealm,
+				ErrorCode:        "insufficient_scope",
+				ErrorDescription: "required scope missing",
+				Scope:            joinScopes(a.requiredScopes),
+			}
+		}
+	}
+	return id, nil
 }
 
 const mcpRealm = "ze-mcp"
@@ -145,7 +159,10 @@ func buildAuthenticator(mode AuthMode, cfg StreamableConfig) authenticator {
 		for i, id := range cfg.BearerList {
 			entries[i] = bearerListEntry{name: id.Name, hash: hashToken(id.Token), scopes: id.Scopes}
 		}
-		return bearerListAuthenticator{entries: entries}
+		return bearerListAuthenticator{
+			entries:        entries,
+			requiredScopes: cfg.OAuth.RequiredScopes,
+		}
 	case AuthNone, AuthUnspecified, AuthOAuth:
 		// OAuth is dispatched separately by buildAuthForMode in production.
 		return noneAuthenticator{}

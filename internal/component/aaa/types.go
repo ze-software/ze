@@ -135,7 +135,8 @@ type AuthResult struct {
 	// which would be a different question taken at a different instant.
 	Source string
 	// LocalGeneration is copied from the matched local credential. It makes a
-	// recovery authorizer expire after a newer identity generation is accepted,
+	// recovery authorizer and locally anchored web sessions expire after a newer
+	// local credential generation is accepted (e.g. on password rotation),
 	// including when authentication and publication overlap.
 	LocalGeneration uint64
 	// Authorizer is the authorization view for this authentication result.

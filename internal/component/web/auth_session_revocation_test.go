@@ -380,3 +380,81 @@ func TestValidateTokenReadsTheListPerRequest(t *testing.T) {
 	assert.Equal(t, before+3, live.reads,
 		"every request must ask the live list, so a reload lands without a restart")
 }
+
+// TestSessionCookieInvalidatedOnPasswordRotation verifies that advancing a
+// local user's LocalGeneration (as publishAcceptedLocalIdentity does when a
+// password hash changes) immediately invalidates existing ze-session cookies,
+// while an unrelated reload keeping the same LocalGeneration leaves the cookie
+// valid.
+//
+// VALIDATES: S5 -- local user password rotation invalidates existing web
+// session cookies without waiting for the 24h TTL.
+// PREVENTS: a stolen or pre-rotation session cookie staying valid after an
+// operator rotates a local account's password.
+func TestSessionCookieInvalidatedOnPasswordRotation(t *testing.T) {
+	oldHash, err := bcrypt.GenerateFromPassword([]byte("old-pass"), bcrypt.MinCost)
+	require.NoError(t, err)
+	newHash, err := bcrypt.GenerateFromPassword([]byte("new-pass"), bcrypt.MinCost)
+	require.NoError(t, err)
+
+	live := &liveUserList{users: []authz.UserConfig{
+		{Name: "alice", Hash: string(oldHash), LocalGeneration: 1},
+	}}
+	authenticator := &authz.LocalAuthenticator{UsersFunc: live.read}
+	store := NewSessionStore(live.read)
+
+	login := loginHandler(store, authenticator, noopRenderer)
+	protected := authMiddleware(store, authenticator, noopRenderer, okHandler())
+
+	oldToken := loginForCookie(t, login, "alice", "old-pass")
+	require.Equal(t, http.StatusOK, getWithCookie(t, protected, oldToken),
+		"cookie must work before any reload")
+
+	// Unrelated config reload: credentials and LocalGeneration stay at 1.
+	live.set(authz.UserConfig{Name: "alice", Hash: string(oldHash), LocalGeneration: 1})
+	assert.Equal(t, http.StatusOK, getWithCookie(t, protected, oldToken),
+		"an unrelated config reload with unchanged LocalGeneration must keep the session valid")
+
+	// Password rotation: hash changes and LocalGeneration advances to 2.
+	live.set(authz.UserConfig{Name: "alice", Hash: string(newHash), LocalGeneration: 2})
+	assert.Equal(t, http.StatusUnauthorized, getWithCookie(t, protected, oldToken),
+		"existing ze-session cookie must be rejected immediately after password rotation")
+	assert.Nil(t, store.validateToken(oldToken),
+		"the rotated-out session must be invalidated in the store")
+
+	// Logging in with the rotated password issues a fresh cookie at generation 2.
+	newToken := loginForCookie(t, login, "alice", "new-pass")
+	assert.Equal(t, http.StatusOK, getWithCookie(t, protected, newToken),
+		"fresh cookie issued after password rotation must work")
+}
+
+// TestRemoteBackendSessionSurvivesLocalGenerationChange verifies that a session
+// authenticated by a remote backend (RADIUS/TACACS+) is not invalidated when
+// the local credential generation advances.
+//
+// VALIDATES: S5 -- local credential generation checks apply only to sessions
+// granted by the local backend.
+func TestRemoteBackendSessionSurvivesLocalGenerationChange(t *testing.T) {
+	hash, err := bcrypt.GenerateFromPassword([]byte("local-pass"), bcrypt.MinCost)
+	require.NoError(t, err)
+
+	live := &liveUserList{users: []authz.UserConfig{
+		{Name: "alice", Hash: string(hash), LocalGeneration: 1},
+	}}
+	store := NewSessionStore(live.read)
+
+	session, err := store.createSession("alice", authz.AuthResult{
+		Authenticated: true,
+		Profiles:      []string{"admin"},
+		Source:        "tacacs",
+	})
+	require.NoError(t, err)
+	require.False(t, session.LocalAnchored)
+
+	// Local credentials rotate and advance generation.
+	live.set(authz.UserConfig{Name: "alice", Hash: string(hash), LocalGeneration: 2})
+
+	got := store.validateToken(session.Token)
+	require.NotNil(t, got, "local generation change must not revoke a remote-backend session")
+	assert.Equal(t, "alice", got.Username)
+}

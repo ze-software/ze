@@ -19,6 +19,16 @@ import (
 	"strings"
 )
 
+// Well-known MCP scope tokens enforced on bearer-list identities that declare
+// a non-empty scope list. ScopeRead authorizes read-only tools/commands,
+// ScopeWrite authorizes mutating tools/commands, and ScopeAdmin authorizes
+// both.
+const (
+	ScopeRead  = "mcp.read"
+	ScopeWrite = "mcp.write"
+	ScopeAdmin = "mcp.admin"
+)
+
 // AuthMode enumerates MCP authentication strategies.
 //
 // Zero value is AuthUnspecified (invalid) so uninitialised configurations

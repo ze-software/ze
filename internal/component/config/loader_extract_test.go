@@ -741,6 +741,105 @@ func TestMCPTLSPairValidationAllModes(t *testing.T) {
 	}
 }
 
+// TestMCPConfigValidate_RemoteBearerRequiresTLS verifies that non-loopback MCP
+// listeners using bearer or bearer-list require both tls.cert and tls.key,
+// while loopback listeners remain valid without TLS and remote listeners with
+// TLS are accepted.
+//
+// VALIDATES: static bearer credentials are never transmitted in cleartext over
+// a non-loopback network listener.
+// PREVENTS: bearer / bearer-list remote configs passing offline validation
+// without TLS.
+func TestMCPConfigValidate_RemoteBearerRequiresTLS(t *testing.T) {
+	loopback := []ServerEndpoint{{Host: "127.0.0.1", Port: "8080"}}
+	remote := []ServerEndpoint{{Host: "192.0.2.1", Port: "8443"}}
+	tlsPair := MCPTLSConfig{Cert: "/etc/ze/mcp.pem", Key: "/etc/ze/mcp.key"}
+	identities := []MCPIdentity{{Name: "alice", Token: "alice-secret"}}
+
+	cases := []struct {
+		name    string
+		cfg     MCPListenConfig
+		wantErr string
+	}{
+		{
+			name:    "bearer remote without TLS rejects",
+			cfg:     MCPListenConfig{Servers: remote, BindRemote: true, AuthMode: "bearer", Token: "secret"},
+			wantErr: "auth-mode=bearer requires tls.cert and tls.key on non-loopback listeners",
+		},
+		{
+			name:    "bearer remote with cert only rejects",
+			cfg:     MCPListenConfig{Servers: remote, BindRemote: true, AuthMode: "bearer", Token: "secret", TLS: MCPTLSConfig{Cert: "/etc/ze/mcp.pem"}},
+			wantErr: "auth-mode=bearer requires tls.cert and tls.key on non-loopback listeners",
+		},
+		{
+			name:    "bearer remote with key only rejects",
+			cfg:     MCPListenConfig{Servers: remote, BindRemote: true, AuthMode: "bearer", Token: "secret", TLS: MCPTLSConfig{Key: "/etc/ze/mcp.key"}},
+			wantErr: "auth-mode=bearer requires tls.cert and tls.key on non-loopback listeners",
+		},
+		{
+			name:    "bearer loopback without TLS ok",
+			cfg:     MCPListenConfig{Servers: loopback, AuthMode: "bearer", Token: "secret"},
+			wantErr: "",
+		},
+		{
+			name:    "bearer remote with TLS ok",
+			cfg:     MCPListenConfig{Servers: remote, BindRemote: true, AuthMode: "bearer", Token: "secret", TLS: tlsPair},
+			wantErr: "",
+		},
+		{
+			name:    "bearer-list remote without TLS rejects",
+			cfg:     MCPListenConfig{Servers: remote, BindRemote: true, AuthMode: "bearer-list", Identities: identities},
+			wantErr: "auth-mode=bearer-list requires tls.cert and tls.key on non-loopback listeners",
+		},
+		{
+			name:    "bearer-list remote with cert only rejects",
+			cfg:     MCPListenConfig{Servers: remote, BindRemote: true, AuthMode: "bearer-list", Identities: identities, TLS: MCPTLSConfig{Cert: "/etc/ze/mcp.pem"}},
+			wantErr: "auth-mode=bearer-list requires tls.cert and tls.key on non-loopback listeners",
+		},
+		{
+			name:    "bearer-list remote with key only rejects",
+			cfg:     MCPListenConfig{Servers: remote, BindRemote: true, AuthMode: "bearer-list", Identities: identities, TLS: MCPTLSConfig{Key: "/etc/ze/mcp.key"}},
+			wantErr: "auth-mode=bearer-list requires tls.cert and tls.key on non-loopback listeners",
+		},
+		{
+			name:    "bearer-list loopback without TLS ok",
+			cfg:     MCPListenConfig{Servers: loopback, AuthMode: "bearer-list", Identities: identities},
+			wantErr: "",
+		},
+		{
+			name:    "bearer-list remote with TLS ok",
+			cfg:     MCPListenConfig{Servers: remote, BindRemote: true, AuthMode: "bearer-list", Identities: identities, TLS: tlsPair},
+			wantErr: "",
+		},
+		{
+			name: "oauth remote with cert only rejects",
+			cfg: MCPListenConfig{
+				Servers:    remote,
+				BindRemote: true,
+				AuthMode:   "oauth",
+				OAuth: MCPOAuthConfig{
+					AuthorizationServer: "https://as.example/",
+					Audience:            "https://mcp.example/",
+				},
+				TLS: MCPTLSConfig{Cert: "/etc/ze/mcp.pem"},
+			},
+			wantErr: "auth-mode=oauth requires tls.cert and tls.key on non-loopback listeners",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.cfg.Validate()
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.wantErr)
+		})
+	}
+}
+
 // TestMCPAuthModesMatchTheModel ties the auth modes Validate enforces to the
 // enumeration the model offers an operator.
 //

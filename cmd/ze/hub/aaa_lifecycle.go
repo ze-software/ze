@@ -219,11 +219,17 @@ func publishAcceptedLocalIdentity(state *acceptedLocalIdentityState) {
 // and writes it into the state and into every credential the state carries.
 // The caller MUST hold publishLocalIdentity.
 //
-// The generation exists for ONE consumer: aaa.acceptedGenerationAuthorizer, the
-// break-glass grant a `ze init` bootstrap admin's live session holds
-// (internal/component/aaa/login_profiles.go, AuthorizerForResult). That grant is
-// valid only while its generation is the accepted one, so advancing the counter
-// revokes every session already holding it, silently and mid-request.
+// The generation exists for two consumers:
+//   - aaa.acceptedGenerationAuthorizer, the break-glass grant a `ze init`
+//     bootstrap admin's live session holds
+//     (internal/component/aaa/login_profiles.go, AuthorizerForResult).
+//   - web.SessionStore.validateToken, which checks a locally anchored
+//     ze-session cookie's recorded LocalGeneration against the live local user
+//     entry (internal/component/web/auth.go) so rotating a local user's password
+//     immediately invalidates open browser sessions.
+//
+// Both are valid only while their generation is the accepted one, so advancing
+// the counter revokes sessions granted under the previous credential set.
 //
 // So the counter tracks the LOCAL CREDENTIAL SET, not the configuration. A
 // candidate whose credentials equal the accepted ones keeps their number.

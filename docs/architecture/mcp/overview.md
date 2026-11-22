@@ -104,7 +104,7 @@ legacy HTTP+SSE one that does not host the endpoint) and `-32021` becomes HTTP
 | `Mcp-Name` | Client -> server | Required for `tools/call` and `prompts/get` (mirror `params.name`) and for `resources/read` (mirrors `params.uri`). Which field applies follows the request type: `CallToolRequest` and `GetPromptRequest` carry `name`, only `ReadResourceRequest` carries `uri`. Ze decodes the `=?base64?...?=` sentinel, then compares | <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 | `Mcp-Param-{Name}` | Client -> server | Ze annotates no tool parameter with `x-mcp-header`, so no `Mcp-Param-*` header has a body field to compare against. The character half of the rule is still enforced: a value carrying octets RFC 9110 does not permit in a field value is rejected |
 | `Content-Type: application/json` | Client -> server (POST) | Required when present. CSRF guard: rejects `text/plain` form submissions from browsers |
-| `Origin` | Client -> server | Validated against `StreamableConfig.AllowedOrigins`. An empty allowlist accepts only loopback-shaped origins. A non-matching origin is rejected with 403 first, before every other check on the endpoint path |
+| `Origin` | Client -> server | Validated against `StreamableConfig.AllowedOrigins`. An empty allowlist accepts only loopback-shaped origins (`localhost`, `127.0.0.1`, `[::1]`) and rejects `Origin: null` unless explicitly allowlisted. A non-matching origin is rejected with 403 first, before every other check on the endpoint path |
 | `Authorization: Bearer <token>` | Client -> server | Checked on **every** request, per the configured auth mode |
 | `Mcp-Session-Id`, `Last-Event-ID` | — | Not minted, not required, not echoed. Neither appears in the CORS allow-list or expose-list |
 
@@ -383,6 +383,16 @@ accepts every request with a zero `Identity`. That is why `le chaos run`, which
 configures no token and no auth mode, reaches the same uniform path as every
 other caller. It is not a carve-out.
 
+In `bearer-list` mode, an identity with a non-empty `scope` list is gated on
+`tools/call` before synchronous dispatch or background task creation: `mcp.read`
+authorizes read-only tools and commands (`CommandInfo.ReadOnly`, `ze_reference`),
+`mcp.write` authorizes mutating tools and commands, and `mcp.admin` authorizes
+both. Insufficient scope returns HTTP `403 Forbidden` with an RFC 6750
+`WWW-Authenticate: Bearer ... error="insufficient_scope"` challenge and records
+an audit denial. An identity with an empty `scope` list imposes no per-tool
+scope restriction. When `RequiredScopes` is also configured, authentication
+rejects identities missing any required scope with HTTP `403`.
+
 `AuthMode.String` renders every declared mode, including `AuthUnspecified`;
 an unnamed internal value raises a BUG assertion. `NewStreamable` still
 infers `none` or `bearer` for an unspecified configuration. Unknown
@@ -414,10 +424,15 @@ Each address gets its own `net.Listener`. All are served by one `http.Server`
 whose handler is the `*zemcp.Streamable`. A configured certificate/key pair
 wraps the listeners with TLS 1.2 or later. Naming either file asks for TLS:
 a half-named pair, or a pair `loadMCPTLSConfig` cannot load, disables the MCP
-listener, which never falls back to plain HTTP. Bind is all-or-nothing: if any
-listener fails, the already-bound listeners are
-closed. Shutdown calls `http.Server.Shutdown`, and the caller must also call
-`Close` on the handler so the task-registry GC goroutine exits.
+listener, which never falls back to plain HTTP. `checkKeyFilePermissions`
+refuses symlinks, non-regular files, and key files with any group or other
+permission bits (`0o077`) for every user including `root`. Authenticated modes
+(`bearer`, `bearer-list`, `oauth`) require TLS whenever any listener binds off
+loopback, enforced at config validation, startup (`startMCPServer`), and live
+address migration (`mcpServerHandle.Reconfigure`). Bind is all-or-nothing: if
+any listener fails, the already-bound listeners are closed. Shutdown calls
+`http.Server.Shutdown`, and the caller must also call `Close` on the handler so
+the task-registry GC goroutine exits.
 
 ## Auto-Generated Tools
 

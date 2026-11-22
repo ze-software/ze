@@ -1,10 +1,13 @@
 package mcp
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/component/plugin"
 )
 
 // -----------------------------------------------------------------------------
@@ -198,7 +201,7 @@ func TestStreamable_BearerListIdentityOnEveryRequest(t *testing.T) {
 	hs, cleanup := newTestStreamable(t, StreamableConfig{
 		AuthMode: AuthBearerList,
 		BearerList: []BearerListEntry{
-			{Name: "alice", Token: "alice-token", Scopes: []string{"mcp.read"}},
+			{Name: "alice", Token: "alice-token", Scopes: []string{"mcp.read", "mcp.write"}},
 			{Name: "bob", Token: "bob-token"},
 		},
 		// the inline `demo cmd` literal is replaced by the shared
@@ -345,5 +348,183 @@ func TestStreamable_BearerListReAuthsOnEverySubsequentRequest(t *testing.T) {
 	status, _ := postRaw(t, hs, body, headers)
 	if status != http.StatusUnauthorized {
 		t.Fatalf("follow-up without Authorization = %d, want 401", status)
+	}
+}
+
+// TestBearerListAuthenticator_RequiredScopes verifies that when RequiredScopes
+// are configured on a bearer-list authenticator, an identity missing any
+// required scope is rejected with 403 insufficient_scope.
+//
+// VALIDATES: S4 -- bearer-list enforces configured RequiredScopes consistently
+// with OAuth.
+// PREVENTS: an identity lacking required scopes authenticating when
+// RequiredScopes are configured.
+func TestBearerListAuthenticator_RequiredScopes(t *testing.T) {
+	a := bearerListAuthenticator{
+		entries: []bearerListEntry{
+			{name: "admin", hash: hashToken("admin-token"), scopes: []string{ScopeRead, ScopeAdmin}},
+			{name: "reader", hash: hashToken("reader-token"), scopes: []string{ScopeRead}},
+			{name: "empty", hash: hashToken("empty-token")},
+		},
+		requiredScopes: []string{ScopeRead, ScopeAdmin},
+	}
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, Endpoint, http.NoBody)
+	req.Header.Set("Authorization", "Bearer admin-token")
+	id, aerr := a.Authenticate(req)
+	if aerr != nil {
+		t.Fatalf("admin token rejected: %v", aerr)
+	}
+	if id.Name != "admin" {
+		t.Fatalf("identity = %q, want admin", id.Name)
+	}
+
+	for _, tok := range []string{"reader-token", "empty-token"} {
+		t.Run(tok, func(t *testing.T) {
+			r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, Endpoint, http.NoBody)
+			r.Header.Set("Authorization", "Bearer "+tok)
+			_, err := a.Authenticate(r)
+			if err == nil {
+				t.Fatalf("token %q missing required scope was accepted", tok)
+			}
+			if err.Status != http.StatusForbidden {
+				t.Fatalf("status = %d, want 403", err.Status)
+			}
+			if err.ErrorCode != "insufficient_scope" {
+				t.Fatalf("error_code = %q, want insufficient_scope", err.ErrorCode)
+			}
+			if !strings.Contains(err.WWWAuthenticate(), `scope="mcp.read mcp.admin"`) {
+				t.Fatalf("WWW-Authenticate = %q, want required scopes", err.WWWAuthenticate())
+			}
+		})
+	}
+}
+
+// TestStreamable_BearerListScopeEnforcement verifies per-identity mcp.read,
+// mcp.write, and mcp.admin scope enforcement on tools/call across generated
+// tools, task-required tools, ze_reference, and ze_execute.
+//
+// VALIDATES: S4 -- bearer-list per-identity scopes gate read vs mutating tool
+// calls (including NotReadOnly show commands and task-required mutating tools)
+// and return HTTP 403 with RFC 6750 insufficient_scope on denial before any
+// command is dispatched.
+// PREVENTS: a read-only bearer-list identity invoking mutating commands or
+// minting mutating background tasks.
+func TestStreamable_BearerListScopeEnforcement(t *testing.T) {
+	dispatched := 0
+	commands := func() ([]CommandInfo, error) {
+		return []CommandInfo{
+			{Name: "show bgp rib", ShortHelp: "Show RIB", ReadOnly: true},
+			{Name: "show bgp peer detail", ShortHelp: "Show peer detail", ReadOnly: true, TakesSelector: true},
+			{Name: "show config artifact source", ShortHelp: "Show raw source", ReadOnly: false},
+			{Name: "send bgp update", ShortHelp: "Send update", ReadOnly: false, TaskSupport: TaskSupportRequired},
+		}, nil
+	}
+	srv, err := NewStreamable(StreamableConfig{
+		AuthMode: AuthBearerList,
+		BearerList: []BearerListEntry{
+			{Name: "reader", Token: "reader-token", Scopes: []string{ScopeRead}},
+			{Name: "writer", Token: "writer-token", Scopes: []string{ScopeWrite}},
+			{Name: "both", Token: "both-token", Scopes: []string{ScopeRead, ScopeWrite}},
+			{Name: "admin", Token: "admin-token", Scopes: []string{ScopeAdmin}},
+			{Name: "other", Token: "other-token", Scopes: []string{"custom.other"}},
+			{Name: "unscoped", Token: "unscoped-token"},
+		},
+		Commands: commands,
+		Dispatch: func(_ context.Context, _ plugin.CallerIdentity, cmd string) (*plugin.Response, error) {
+			dispatched++
+			return plugin.NewResponse(plugin.StatusDone, plugin.Map{"cmd": cmd}), nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewStreamable: %v", err)
+	}
+	defer srv.Close()
+
+	call := func(t *testing.T, token, caps, toolName, argsJSON string) *httptest.ResponseRecorder {
+		t.Helper()
+		paramsJSON := `{"name":"` + toolName + `","arguments":` + argsJSON + `}`
+		body, params := buildMCPBody(t, 1, methodToolsCall, caps, paramsJSON)
+		headers := mcpHeaders(methodToolsCall, params)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, Endpoint, strings.NewReader(body))
+		for k, v := range headers {
+			req.Header.Set(k, v)
+		}
+		req.Header.Set("Authorization", "Bearer "+token)
+		w := httptest.NewRecorder()
+		srv.ServeHTTP(w, req)
+		return w
+	}
+
+	cases := []struct {
+		name       string
+		token      string
+		caps       string
+		tool       string
+		args       string
+		wantStatus int
+		wantScope  string
+	}{
+		// reader (mcp.read only)
+		{"reader allowed read-only generated tool", "reader-token", capsNone, "ze_show_bgp", `{"action":"rib"}`, http.StatusOK, ""},
+		{"reader allowed ze_reference", "reader-token", capsNone, "ze_reference", `{}`, http.StatusOK, ""},
+		{"reader allowed ze_execute read-only", "reader-token", capsNone, "ze_execute", `{"command":"show bgp rib"}`, http.StatusOK, ""},
+		{"reader allowed ze_execute read-only with selector", "reader-token", capsNone, "ze_execute", `{"command":"show bgp peer 192.0.2.1 detail"}`, http.StatusOK, ""},
+		{"reader allowed ze_execute read-only with pipe", "reader-token", capsNone, "ze_execute", `{"command":"show bgp rib | count"}`, http.StatusOK, ""},
+		{"reader denied mutating generated tool", "reader-token", capsNone, "ze_send", `{"action":"bgp update"}`, http.StatusForbidden, ScopeWrite},
+		{"reader denied mutating task-required tool", "reader-token", capsTasks, "ze_send", `{"action":"bgp update"}`, http.StatusForbidden, ScopeWrite},
+		{"reader denied NotReadOnly show generated tool", "reader-token", capsNone, "ze_show_config", `{"action":"artifact source"}`, http.StatusForbidden, ScopeWrite},
+		{"reader denied ze_execute mutating", "reader-token", capsNone, "ze_execute", `{"command":"send bgp update"}`, http.StatusForbidden, ScopeWrite},
+		{"reader denied ze_execute NotReadOnly show", "reader-token", capsNone, "ze_execute", `{"command":"show config artifact source"}`, http.StatusForbidden, ScopeWrite},
+		{"reader denied ze_execute unrecognized command", "reader-token", capsNone, "ze_execute", `{"command":"show mystery"}`, http.StatusForbidden, ScopeWrite},
+		{"reader denied ze_execute pipe save", "reader-token", capsNone, "ze_execute", `{"command":"show bgp rib | save /tmp/x"}`, http.StatusForbidden, ScopeWrite},
+
+		// writer (mcp.write only)
+		{"writer allowed mutating generated tool", "writer-token", capsNone, "ze_send", `{"action":"bgp update"}`, http.StatusOK, ""},
+		{"writer allowed ze_execute mutating", "writer-token", capsNone, "ze_execute", `{"command":"send bgp update"}`, http.StatusOK, ""},
+		{"writer denied read-only generated tool", "writer-token", capsNone, "ze_show_bgp", `{"action":"rib"}`, http.StatusForbidden, ScopeRead},
+		{"writer denied ze_reference", "writer-token", capsNone, "ze_reference", `{}`, http.StatusForbidden, ScopeRead},
+
+		// both (mcp.read + mcp.write)
+		{"both allowed read-only", "both-token", capsNone, "ze_show_bgp", `{"action":"rib"}`, http.StatusOK, ""},
+		{"both allowed mutating", "both-token", capsNone, "ze_send", `{"action":"bgp update"}`, http.StatusOK, ""},
+
+		// admin (mcp.admin satisfies both read and write)
+		{"admin allowed read-only", "admin-token", capsNone, "ze_show_bgp", `{"action":"rib"}`, http.StatusOK, ""},
+		{"admin allowed mutating", "admin-token", capsNone, "ze_send", `{"action":"bgp update"}`, http.StatusOK, ""},
+		{"admin allowed ze_reference", "admin-token", capsNone, "ze_reference", `{}`, http.StatusOK, ""},
+
+		// unrelated custom scope denies both read and write
+		{"other denied read-only", "other-token", capsNone, "ze_show_bgp", `{"action":"rib"}`, http.StatusForbidden, ScopeRead},
+		{"other denied mutating", "other-token", capsNone, "ze_send", `{"action":"bgp update"}`, http.StatusForbidden, ScopeWrite},
+
+		// empty scope list imposes no scope restriction
+		{"unscoped allowed read-only", "unscoped-token", capsNone, "ze_show_bgp", `{"action":"rib"}`, http.StatusOK, ""},
+		{"unscoped allowed mutating", "unscoped-token", capsNone, "ze_send", `{"action":"bgp update"}`, http.StatusOK, ""},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			before := dispatched
+			w := call(t, tc.token, tc.caps, tc.tool, tc.args)
+			if w.Code != tc.wantStatus {
+				t.Fatalf("status = %d, want %d (body=%s)", w.Code, tc.wantStatus, w.Body.String())
+			}
+			if tc.wantStatus == http.StatusForbidden {
+				if dispatched != before {
+					t.Fatalf("command was dispatched despite 403 scope denial")
+				}
+				wa := w.Header().Get("WWW-Authenticate")
+				if !strings.Contains(wa, `error="insufficient_scope"`) {
+					t.Fatalf("WWW-Authenticate = %q, want error=\"insufficient_scope\"", wa)
+				}
+				if !strings.Contains(wa, `scope="`+tc.wantScope+`"`) {
+					t.Fatalf("WWW-Authenticate = %q, want scope=%q", wa, tc.wantScope)
+				}
+				if cc := w.Header().Get("Cache-Control"); cc != "no-store" {
+					t.Fatalf("Cache-Control = %q, want no-store", cc)
+				}
+			}
+		})
 	}
 }

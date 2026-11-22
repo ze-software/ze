@@ -16,7 +16,10 @@ import (
 	"maps"
 	"net/http"
 	"slices"
+	"strings"
 
+	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -265,6 +268,9 @@ func (s *Streamable) callTool(ctx context.Context, req *request, scope requestSc
 	if err := json.Unmarshal(req.Params, &params); err != nil {
 		return s.fail(req.ID, rpcInvalidParams, tb.Str("invalid params: ").Err(err).String())
 	}
+	if denied := s.checkToolCallScope(req, scope, params); denied != nil {
+		return denied
+	}
 	// Provider mode: delegate directly. A provider supplies its own tool set
 	// with no YANG behind it. No descriptor can therefore carry
 	// `ze:task-support`, and the server-directed rule below has nothing to
@@ -407,6 +413,239 @@ func (s *Streamable) findGeneratedTool(name string) (string, map[string]bool, bo
 	return "", nil, false, nil
 }
 
+// enforcesIdentityScopes reports whether per-identity tool scopes apply to this
+// request. Only AuthBearerList identities that declare at least one scope are
+// scope-gated here; identities with an empty scope list retain full access per
+// the optional `scope` leaf-list in ze-mcp-conf.yang, and OAuth enforces its
+// configured required-scopes at authentication time.
+func (s *Streamable) enforcesIdentityScopes(id Identity) bool {
+	if s.authMode != AuthBearerList {
+		return false
+	}
+	return len(id.Scopes) > 0
+}
+
+func requiredScopeForReadOnly(readOnly bool) string {
+	if readOnly {
+		return ScopeRead
+	}
+	return ScopeWrite
+}
+
+func identityHasToolScope(id Identity, required string) bool {
+	if id.HasScope(ScopeAdmin) {
+		return true
+	}
+	return id.HasScope(required)
+}
+
+func scopeDeniedError(required string) *authError {
+	return &authError{
+		Status:           http.StatusForbidden,
+		Scheme:           authSchemeBearer,
+		Realm:            mcpRealm,
+		ErrorCode:        "insufficient_scope",
+		ErrorDescription: "insufficient scope: requires " + required,
+		Scope:            required,
+	}
+}
+
+// checkToolCallScope verifies that a scope-restricted bearer-list identity
+// holds the scope required by the requested tool call (mcp.read for read-only
+// tools/commands, mcp.write for mutating tools/commands, or mcp.admin for
+// both). Runs before both synchronous dispatch and background task creation.
+// Returns nil when the call is permitted.
+func (s *Streamable) checkToolCallScope(req *request, scope requestScope, params callParams) *response {
+	if !s.enforcesIdentityScopes(scope.Identity) {
+		return nil
+	}
+	if s.cfg.Provider != nil {
+		if !identityHasToolScope(scope.Identity, ScopeWrite) {
+			return &response{authErr: scopeDeniedError(ScopeWrite)}
+		}
+		return nil
+	}
+	if params.Name == "ze_reference" {
+		if !identityHasToolScope(scope.Identity, ScopeRead) {
+			return &response{authErr: scopeDeniedError(ScopeRead)}
+		}
+		return nil
+	}
+	if params.Name == toolNameExecute {
+		return s.checkExecuteToolScope(req, scope, params.Arguments)
+	}
+	if s.cfg.Commands != nil {
+		return s.checkGeneratedToolScope(req.ID, scope.Identity, params.Name, params.Arguments)
+	}
+	return nil
+}
+
+// checkExecuteToolScope resolves the command string ze_execute will run
+// (including MRTR inputResponses) and checks its read-only classification
+// against the caller's scopes before dispatch.
+func (s *Streamable) checkExecuteToolScope(req *request, scope requestScope, args json.RawMessage) *response {
+	var input struct {
+		Command string `json:"command"`
+	}
+	if err := json.Unmarshal(args, &input); err != nil {
+		// Malformed arguments will be rejected by the handler without dispatch.
+		return nil
+	}
+	probe := &server{
+		caps:           scope.Capabilities,
+		inputResponses: decodeInputResponses(req.Params),
+	}
+	cmd, outcome := probe.resolveExecuteCommand(input.Command)
+	switch outcome {
+	case inputAccepted:
+		var infos []CommandInfo
+		if s.cfg.Commands != nil {
+			var err error
+			infos, err = s.cfg.Commands()
+			if err != nil {
+				return s.fail(req.ID, rpcInternalError, opererr.Wrap(err,
+					"command metadata unavailable",
+					"MCP could not read the registered command catalog for scope authorization",
+					"run ze doctor to inspect daemon plugin registration",
+				).Error())
+			}
+		}
+		required := requiredScopeForReadOnly(isCommandReadOnly(cmd, infos))
+		if !identityHasToolScope(scope.Identity, required) {
+			return &response{authErr: scopeDeniedError(required)}
+		}
+		return nil
+	case inputMissing:
+		if !identityHasToolScope(scope.Identity, ScopeRead) {
+			if !identityHasToolScope(scope.Identity, ScopeWrite) {
+				return &response{authErr: scopeDeniedError(ScopeRead)}
+			}
+		}
+		return nil
+	case inputDeclined, inputCanceled, inputMalformed:
+		return nil
+	default:
+		panic("BUG: unknown execute input outcome")
+	}
+}
+
+// checkGeneratedToolScope resolves the exact action of a generated tool and
+// checks its CommandInfo.ReadOnly flag against the caller's scopes.
+func (s *Streamable) checkGeneratedToolScope(id *json.RawMessage, caller Identity, tool string, args json.RawMessage) *response {
+	infos, err := s.cfg.Commands()
+	if err != nil {
+		return s.fail(id, rpcInternalError, opererr.Wrap(err,
+			"command metadata unavailable",
+			"MCP could not read the registered command catalog for scope authorization",
+			"run ze doctor to inspect daemon plugin registration",
+		).Error())
+	}
+	skip := handcraftedNames()
+	groups := groupCommands(infos)
+	for _, g := range groups {
+		if skip[toolName(g.prefix)] {
+			continue
+		}
+		if toolName(g.prefix) != tool {
+			continue
+		}
+		var input struct {
+			Action string `json:"action"`
+		}
+		_ = json.Unmarshal(args, &input) //nolint:errcheck // malformed args fall through to action check below
+		for _, a := range g.actions {
+			if a.name == input.Action {
+				required := requiredScopeForReadOnly(a.readOnly)
+				if !identityHasToolScope(caller, required) {
+					return &response{authErr: scopeDeniedError(required)}
+				}
+				return nil
+			}
+		}
+		hasReadOnly := false
+		anyAllowed := false
+		for _, a := range g.actions {
+			if a.readOnly {
+				hasReadOnly = true
+			}
+			if identityHasToolScope(caller, requiredScopeForReadOnly(a.readOnly)) {
+				anyAllowed = true
+			}
+		}
+		if !anyAllowed {
+			return &response{authErr: scopeDeniedError(requiredScopeForReadOnly(hasReadOnly))}
+		}
+		return nil
+	}
+	return nil
+}
+
+// isCommandReadOnly reports whether a raw ze_execute command string is
+// read-only. When the registered command list is available, it matches against
+// CommandInfo so show commands explicitly marked NotReadOnly (e.g. secret or
+// artifact reads) are classified as non-read-only, and unrecognized commands
+// fail closed. When no command lister is wired (standalone tests), it falls
+// back to command.IsReadOnlyVerb.
+func isCommandReadOnly(cmd string, infos []CommandInfo) bool {
+	tokens := strings.Fields(cmd)
+	if len(tokens) == 0 {
+		return false
+	}
+	if pipeIdx := slices.Index(tokens, "|"); pipeIdx >= 0 {
+		for _, after := range tokens[pipeIdx+1:] {
+			if strings.EqualFold(after, "save") {
+				return false
+			}
+		}
+		tokens = tokens[:pipeIdx]
+		if len(tokens) == 0 {
+			return false
+		}
+	}
+	if len(infos) > 0 {
+		bestLen := -1
+		bestReadOnly := false
+		for _, info := range infos {
+			infoTokens := strings.Fields(info.Name)
+			if !matchCommandTokens(tokens, infoTokens, info.TakesSelector) {
+				continue
+			}
+			if len(infoTokens) > bestLen {
+				bestLen = len(infoTokens)
+				bestReadOnly = info.ReadOnly
+			}
+		}
+		if bestLen >= 0 {
+			return bestReadOnly
+		}
+		return false
+	}
+	return command.IsReadOnlyVerb(tokens[0])
+}
+
+func matchCommandTokens(cmdTokens, infoTokens []string, takesSelector bool) bool {
+	if len(infoTokens) == 0 {
+		return false
+	}
+	if len(cmdTokens) >= len(infoTokens) && slices.Equal(cmdTokens[:len(infoTokens)], infoTokens) {
+		return true
+	}
+	if !takesSelector {
+		return false
+	}
+	peerIdx := slices.Index(infoTokens, peerKeyword)
+	if peerIdx < 0 {
+		return false
+	}
+	if len(cmdTokens) < len(infoTokens)+1 {
+		return false
+	}
+	if !slices.Equal(cmdTokens[:peerIdx+1], infoTokens[:peerIdx+1]) {
+		return false
+	}
+	return slices.Equal(cmdTokens[peerIdx+2:len(infoTokens)+1], infoTokens[peerIdx+1:])
+}
+
 // parseTaskID extracts the taskId field from JSON-RPC params (MCP camelCase).
 func parseTaskID(raw json.RawMessage) (string, error) {
 	var m map[string]any
@@ -520,6 +759,9 @@ func (s *Streamable) tasksCancel(scope requestScope, req *request) *response {
 func (s *Streamable) createTask(req *request, scope requestScope, remoteAddr string, params callParams) *response {
 	if !scope.Capabilities.Tasks {
 		return s.failMissingTasksCapability(req.ID)
+	}
+	if denied := s.checkToolCallScope(req, scope, params); denied != nil {
+		return denied
 	}
 
 	// Resolve the tool BEFORE the task entry is allocated (finding #1: do not

@@ -214,14 +214,18 @@ func canonicalOrigin(raw string) (string, error) {
 // isLoopbackOrigin returns true for origin values that resolve to loopback.
 // Canonicalises via canonicalOrigin so IPv6 literals, trailing slashes, and
 // default ports produce the same match as the allowlist-set path.
+//
+// The opaque "null" origin is deliberately excluded: sandboxed iframes and
+// data: URIs from arbitrary untrusted origins send Origin: null, so treating
+// it as loopback would bypass CORS and DNS-rebinding protection. An operator
+// who explicitly needs "null" must list it in AllowedOrigins.
 func isLoopbackOrigin(origin string) bool {
 	key, err := canonicalOrigin(origin)
 	if err != nil {
 		return false
 	}
 	switch key {
-	case "null",
-		"http://localhost", "https://localhost",
+	case "http://localhost", "https://localhost",
 		"http://127.0.0.1", "https://127.0.0.1",
 		"http://[::1]", "https://[::1]":
 		return true

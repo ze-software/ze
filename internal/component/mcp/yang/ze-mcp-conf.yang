@@ -103,8 +103,10 @@ comparison tells an attacker nothing about the value.";
 
                 leaf-list scope {
                     type string;
-                    description "This leaf-list is optional. An empty leaf-list carries no
-scope.";
+                    description "This leaf-list is optional. When non-empty, Ze enforces
+the identity's scopes on tools/call: mcp.read authorizes read-only tools and commands,
+mcp.write authorizes mutating tools and commands, and mcp.admin authorizes both.
+Insufficient scope returns HTTP 403. An empty leaf-list imposes no scope restriction.";
                     ze:help "Scopes Ze carries on a request this identity authenticates.";
                 }
             }
@@ -145,9 +147,9 @@ list. An empty leaf-list accepts any valid token.";
             }
 
             container tls {
-                description "This container is required when auth-mode is oauth and a listen
-endpoint is not a loopback address. ze config verify rejects a config that leaves the
-cert leaf empty in that case, and one that sets cert without key.";
+                description "This container is required when auth-mode is bearer, bearer-list,
+or oauth and a listen endpoint is not a loopback address. ze config verify rejects a config
+that leaves cert or key empty in that case, and one that sets cert without key.";
                 ze:help "TLS certificate that serves the MCP endpoint over HTTPS.";
 
                 leaf cert {
@@ -165,10 +167,10 @@ cert leaf empty in that case, and one that sets cert without key.";
                 leaf key {
                     type string;
                     ze:sensitive;
-                    description "Ze refuses a key file that group or other can read, and refuses
-                                 a symbolic link, when it runs as a user other than root. The
-                                 MCP server does not start in that case. Under root Ze reads the
-                                 file whatever its mode, because root reads every file anyway.";
+                    description "Ze refuses a key file that grants any permission to group or
+                                 other, and refuses a symbolic link or non-regular file, for
+                                 every user including root. The MCP server does not start in
+                                 that case.";
                     ze:help "Path to PEM-encoded private-key file.";
                 }
             }

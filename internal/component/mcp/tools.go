@@ -125,6 +125,7 @@ type action struct {
 	shortHelp     string           // one-line summary, offered in the action enum
 	description   string           // long explanation, carried by the tool description
 	full          string           // full command path for dispatch
+	readOnly      bool             // true if read-only command
 	params        []ParamInfo      // typed parameters from YANG (nil = generic arguments only)
 	taskSupport   TaskSupportLevel // from YANG ze:task-support
 	uiResource    *UIResourceInfo  // from YANG ze:ui-resource
@@ -151,6 +152,7 @@ func newAction(cmd CommandInfo, prefix string) action {
 		shortHelp:     cmd.ShortHelp,
 		description:   cmd.Description,
 		full:          cmd.Name,
+		readOnly:      cmd.ReadOnly,
 		params:        cmd.Params,
 		taskSupport:   cmd.TaskSupport,
 		uiResource:    cmd.UIResource,
@@ -935,6 +937,7 @@ type response struct {
 	Error   *rpcError        `json:"error,omitempty"`
 
 	completion *plugin.RenderedResponse
+	authErr    *authError
 }
 
 type rpcError struct {

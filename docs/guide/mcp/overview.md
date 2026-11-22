@@ -59,9 +59,9 @@ MCP supports four authentication modes selected by `environment.mcp.auth-mode`:
 | Mode | Use case | Config |
 |------|----------|--------|
 | `none` | Loopback dev / tunnel-only deployments | No extra leaves |
-| `bearer` | Single shared secret, one trusted caller | `token` leaf |
-| `bearer-list` | Per-identity tokens, many callers, per-identity scopes | `identity[]` list |
-| `oauth` | OAuth 2.1 resource server, external AS manages identities | `oauth` container + TLS |
+| `bearer` | Single shared secret, one trusted caller | `token` leaf (+ TLS on non-loopback) |
+| `bearer-list` | Per-identity tokens, many callers, per-identity scopes | `identity[]` list (+ TLS on non-loopback) |
+| `oauth` | OAuth 2.1 resource server, external AS manages identities | `oauth` container (+ TLS on non-loopback) |
 
 Identity is established per request: every POST presents its own credential and
 every POST is checked. There is no session identifier that can serve as a second
@@ -109,7 +109,13 @@ environment {
 ```
 
 Each identity's token is compared constant-time. The matching entry's name and
-scopes become the authenticated identity for that one request. Changing an
+scopes become the authenticated identity for that one request. When an identity
+declares one or more `scope` entries, Ze enforces them on `tools/call` before
+running any command or starting a background task: `mcp.read` authorizes
+read-only tools and commands, `mcp.write` authorizes mutating tools and
+commands, and `mcp.admin` authorizes both. A call lacking the required scope
+returns HTTP `403` with `WWW-Authenticate: Bearer ... error="insufficient_scope"`.
+An identity with no `scope` entries imposes no scope restriction. Changing an
 identity, its token or its scopes requires a daemon restart.
 
 ### oauth (OAuth 2.1 resource server)
@@ -170,10 +176,10 @@ only the older appended discovery path cannot be used with this configuration.
 
 <!-- source: internal/component/mcp/as_metadata.go -- fetchASMetadata, asMetadataURL -->
 
-`ze config validate` rejects internally inconsistent configurations (oauth
-without TLS on a remote bind, oauth without authorization-server, bind-remote
-without auth, etc.) before the daemon starts. See
-[`rules/exact-or-reject.md`](../../../ai/rules/protocol.md) for the
+`ze config validate` rejects internally inconsistent configurations (`bearer`,
+`bearer-list`, or `oauth` without TLS on a remote bind, `oauth` without
+`authorization-server`, `bind-remote` without auth, etc.) before the daemon
+starts. See [`rules/exact-or-reject.md`](../../../ai/rules/protocol.md) for the
 contract.
 
 RFC 9728 metadata: when `auth-mode oauth`, the server publishes a document

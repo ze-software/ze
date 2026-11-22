@@ -511,6 +511,13 @@ func (s *Streamable) handlePOST(w http.ResponseWriter, r *http.Request) {
 		ClientInfo:      meta.ClientInfo,
 	}
 	resp := s.runMethod(r.Context(), scope, &req, r.RemoteAddr)
+	if resp != nil {
+		if resp.authErr != nil {
+			recordMCPAuthFailure(s.cfg.AuditRecorder, r.RemoteAddr)
+			writeAuthError(w, resp.authErr)
+			return
+		}
+	}
 	writeJSONResponseStatus(w, httpStatusForDispatch(resp), resp)
 }
 

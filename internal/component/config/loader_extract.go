@@ -18,15 +18,17 @@ import (
 )
 
 var (
-	errEnvironmentMcpBindRemoteRequiresAuth   = errors.New("environment.mcp: bind-remote requires auth-mode != none")
-	errEnvironmentMcpAuthModeBearerRequires   = errors.New("environment.mcp: auth-mode=bearer requires token")
-	errEnvironmentMcpAuthModeBearerList       = errors.New("environment.mcp: auth-mode=bearer-list requires at least one identity")
-	errEnvironmentMcpIdentityEntryMissingName = errors.New("environment.mcp: identity entry missing name")
-	errEnvironmentMcpAuthModeOauthRequires    = errors.New("environment.mcp: auth-mode=oauth requires oauth.authorization-server")
-	errEnvironmentMcpAuthModeOauthRequires2   = errors.New("environment.mcp: auth-mode=oauth requires oauth.audience")
-	errEnvironmentMcpAuthModeOauthRequires3   = errors.New("environment.mcp: auth-mode=oauth requires tls.cert and tls.key on non-loopback listeners")
-	errEnvironmentMcpTlsCertSetWithout        = errors.New("environment.mcp.tls: cert set without key")
-	errEnvironmentMcpTlsKeySetWithout         = errors.New("environment.mcp.tls: key set without cert")
+	errEnvironmentMcpBindRemoteRequiresAuth      = errors.New("environment.mcp: bind-remote requires auth-mode != none")
+	errEnvironmentMcpAuthModeBearerRequires      = errors.New("environment.mcp: auth-mode=bearer requires token")
+	errEnvironmentMcpAuthModeBearerRequiresTLS   = errors.New("environment.mcp: auth-mode=bearer requires tls.cert and tls.key on non-loopback listeners")
+	errEnvironmentMcpAuthModeBearerList          = errors.New("environment.mcp: auth-mode=bearer-list requires at least one identity")
+	errEnvironmentMcpAuthModeBearerListRequiresTLS = errors.New("environment.mcp: auth-mode=bearer-list requires tls.cert and tls.key on non-loopback listeners")
+	errEnvironmentMcpIdentityEntryMissingName    = errors.New("environment.mcp: identity entry missing name")
+	errEnvironmentMcpAuthModeOauthRequires       = errors.New("environment.mcp: auth-mode=oauth requires oauth.authorization-server")
+	errEnvironmentMcpAuthModeOauthRequires2      = errors.New("environment.mcp: auth-mode=oauth requires oauth.audience")
+	errEnvironmentMcpAuthModeOauthRequires3      = errors.New("environment.mcp: auth-mode=oauth requires tls.cert and tls.key on non-loopback listeners")
+	errEnvironmentMcpTlsCertSetWithout           = errors.New("environment.mcp.tls: cert set without key")
+	errEnvironmentMcpTlsKeySetWithout            = errors.New("environment.mcp.tls: key set without cert")
 
 	// Names both sources of the token because this check reads a config FILE and
 	// cannot see the daemon's environment: a deployment that supplies the token
@@ -282,6 +284,14 @@ func (c MCPListenConfig) Validate() error {
 		if c.Token == "" {
 			return errEnvironmentMcpAuthModeBearerRequires
 		}
+		if c.AnyListenerNonLoopback() {
+			if c.TLS.Cert == "" {
+				return errEnvironmentMcpAuthModeBearerRequiresTLS
+			}
+			if c.TLS.Key == "" {
+				return errEnvironmentMcpAuthModeBearerRequiresTLS
+			}
+		}
 	case mcpAuthBearerList:
 		if len(c.Identities) == 0 {
 			return errEnvironmentMcpAuthModeBearerList
@@ -308,6 +318,14 @@ func (c MCPListenConfig) Validate() error {
 			seenNames[id.Name] = true
 			seenTokens[id.Token] = true
 		}
+		if c.AnyListenerNonLoopback() {
+			if c.TLS.Cert == "" {
+				return errEnvironmentMcpAuthModeBearerListRequiresTLS
+			}
+			if c.TLS.Key == "" {
+				return errEnvironmentMcpAuthModeBearerListRequiresTLS
+			}
+		}
 	case mcpAuthOAuth:
 		if c.OAuth.AuthorizationServer == "" {
 			return errEnvironmentMcpAuthModeOauthRequires
@@ -324,8 +342,13 @@ func (c MCPListenConfig) Validate() error {
 		if err := validateMCPOAuthURL(c.OAuth.Audience); err != nil {
 			return fmt.Errorf("environment.mcp.oauth.audience: %w", err)
 		}
-		if c.AnyListenerNonLoopback() && c.TLS.Cert == "" {
-			return errEnvironmentMcpAuthModeOauthRequires3
+		if c.AnyListenerNonLoopback() {
+			if c.TLS.Cert == "" {
+				return errEnvironmentMcpAuthModeOauthRequires3
+			}
+			if c.TLS.Key == "" {
+				return errEnvironmentMcpAuthModeOauthRequires3
+			}
 		}
 	}
 	if c.TLS.Cert != "" {
@@ -398,8 +421,9 @@ func ExtractMCPSettings(tree *Tree) (MCPListenConfig, bool) {
 // With BindRemote=false the loopback clamp forces every server entry to
 // 127.0.0.1. With BindRemote=true the operator-configured ip is preserved.
 // Runtime-fatal inconsistencies (auth-mode oauth without authorization-server,
-// bind-remote without auth, oauth without TLS) are reported by Validate, which
-// the verifier calls. Extraction itself never rewrites to "best guess".
+// bind-remote without auth, remote authenticated listeners without TLS) are
+// reported by Validate, which the verifier calls. Extraction itself never
+// rewrites to "best guess".
 //
 // ok=true means "config asks for an MCP listener". It deliberately does NOT
 // mean "these are the auth settings" -- see ExtractMCPSettings for that half.

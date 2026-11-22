@@ -394,7 +394,17 @@ Reuses SSH user database (`[]ssh.UserConfig`). Two mechanisms:
 
 Session tokens: 32 bytes from `crypto/rand`, hex-encoded. Cookie: `Secure`, `HttpOnly`, `SameSite=Strict`. One session per user, 24h TTL.
 
-A session also ends when the running configuration stops declaring its user. The session records which backend authenticated it (`AuthResult.Source`), and `validateToken` re-checks a session the LOCAL backend granted against the credentials the running configuration declares right now, on every request. An operator removed by a reload loses an open browser tab at once, with no restart and no wait for the TTL. A session a remote backend granted (RADIUS, TACACS+) is not checked against the local list, because that list never granted it.
+A session also ends when the running configuration stops declaring its user or
+rotates local credentials. The session records both which backend authenticated
+it (`AuthResult.Source`) and the accepted local credential generation
+(`AuthResult.LocalGeneration`), and `validateToken` re-checks a session the
+LOCAL backend granted against the live local user list and its current
+`LocalGeneration` on every request. An operator removed or whose password is
+rotated by a reload loses an open browser tab at once, with no restart and no
+wait for the TTL, while unrelated configuration reloads that leave local
+credentials unchanged keep the session valid. A session a remote backend
+granted (RADIUS, TACACS+) is not checked against the local list, because that
+list never granted it.
 
 <!-- source: internal/component/web/auth.go -- SessionStore.validateToken, webSession -->
 <!-- source: cmd/ze/hub/main_servers.go -- liveLocalUsers, liveConfigUsers -->

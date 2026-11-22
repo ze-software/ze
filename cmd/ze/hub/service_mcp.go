@@ -176,10 +176,55 @@ type mcpServerHandle struct {
 	Server    *http.Server
 	Handler   *zemcp.Streamable
 	useTLS    bool
+	authMode  zemcp.AuthMode
 	listeners map[string]net.Listener
 	bound     []string
 	mu        sync.RWMutex
 	stopped   bool
+}
+
+// effectiveMCPAuthMode mirrors NewStreamable's mode inference so startup and
+// listener reconfiguration enforce TLS against the mode the handler actually
+// runs.
+func effectiveMCPAuthMode(cfg zemcp.StreamableConfig) zemcp.AuthMode {
+	if cfg.AuthMode != zemcp.AuthUnspecified {
+		return cfg.AuthMode
+	}
+	if cfg.Token != "" {
+		return zemcp.AuthBearer
+	}
+	return zemcp.AuthNone
+}
+
+// mcpAuthModeRequiresRemoteTLS reports whether mode sends credentials that
+// require TLS whenever any listener binds off loopback.
+func mcpAuthModeRequiresRemoteTLS(mode zemcp.AuthMode) bool {
+	switch mode {
+	case zemcp.AuthBearer, zemcp.AuthBearerList, zemcp.AuthOAuth:
+		return true
+	case zemcp.AuthNone, zemcp.AuthUnspecified:
+		return false
+	default:
+		// Open caller-supplied mode: NewStreamable rejects unknown values.
+		return false
+	}
+}
+
+// checkMCPRemoteTLS refuses non-loopback listen addresses when TLS is disabled
+// for an authenticated MCP mode.
+func checkMCPRemoteTLS(mode zemcp.AuthMode, useTLS bool, addrs []string) error {
+	if useTLS {
+		return nil
+	}
+	if !mcpAuthModeRequiresRemoteTLS(mode) {
+		return nil
+	}
+	for _, addr := range addrs {
+		if listenAddrIsNonLoopback(addr) {
+			return fmt.Errorf("auth-mode=%s requires tls.cert and tls.key on non-loopback listener %s", mode, addr)
+		}
+	}
+	return nil
 }
 
 // startMCPServer creates and starts an MCP HTTP server bound to every entry
@@ -195,7 +240,9 @@ type mcpServerHandle struct {
 // PEM-encoded certificate and key file paths supplied, or does not start.
 // Setting one without the other is a config error that
 // MCPListenConfig.Validate rejects at verify time; loadMCPTLSConfig refuses
-// it here too, so a half-named pair never serves plain HTTP.
+// it here too, so a half-named pair never serves plain HTTP. Authenticated
+// modes (bearer, bearer-list, oauth) refuse to bind non-loopback addresses
+// without TLS.
 //
 // Speaks the MCP 2026-07-28 Streamable HTTP profile: POST-only and stateless,
 // with per-request metadata, headers and authentication, and no handshake,
@@ -203,6 +250,18 @@ type mcpServerHandle struct {
 func startMCPServer(addrs []string, dispatch zemcp.CommandDispatcher, commands zemcp.CommandLister, mcpCfg zemcp.StreamableConfig, tlsCert, tlsKey string) *mcpServerHandle {
 	if len(addrs) == 0 {
 		fmt.Fprintln(os.Stderr, "warning: MCP server disabled: no listen addresses")
+		return nil
+	}
+
+	useTLS := tlsCert != "" || tlsKey != ""
+	mode := effectiveMCPAuthMode(mcpCfg)
+	if err := checkMCPRemoteTLS(mode, useTLS, addrs); err != nil {
+		opErr := opererr.Wrap(err,
+			"warning: MCP server disabled",
+			"non-loopback authenticated MCP listeners require TLS",
+			"configure environment.mcp tls cert and key, or bind MCP to 127.0.0.1/::1 only",
+		)
+		fmt.Fprintln(os.Stderr, opErr.Error())
 		return nil
 	}
 
@@ -216,7 +275,6 @@ func startMCPServer(addrs []string, dispatch zemcp.CommandDispatcher, commands z
 		return nil
 	}
 
-	useTLS := tlsCert != "" || tlsKey != ""
 	srv := &http.Server{
 		// Addr is informational; multi-listener serving uses Serve(ln).
 		Addr:              addrs[0],
@@ -271,6 +329,7 @@ func startMCPServer(addrs []string, dispatch zemcp.CommandDispatcher, commands z
 		Server:    srv,
 		Handler:   handler,
 		useTLS:    useTLS,
+		authMode:  mode,
 		listeners: lnMap,
 		bound:     bound,
 	}
@@ -280,9 +339,10 @@ func startMCPServer(addrs []string, dispatch zemcp.CommandDispatcher, commands z
 // with TLS 1.2 minimum. Cert chains are supported (stdlib X509KeyPair).
 //
 // Refuses key files whose permissions grant any access to group or other
-// (mode bits & 0o077 != 0) when ze is running as non-root. Defense in depth:
-// a world-readable private key on a shared host is a misconfiguration the
-// daemon should catch at startup, not a runtime quirk to document.
+// (mode bits & 0o077 != 0) or that are symlinks/non-regular files, for every
+// user including root. Defense in depth: a world- or group-readable private
+// key on a shared host exposes the key to unprivileged local users even when
+// the daemon itself runs as root.
 func loadMCPTLSConfig(certFile, keyFile string) (*tls.Config, error) {
 	if certFile == "" {
 		return nil, opererr.New("MCP TLS key file "+keyFile+" is set without a certificate file",
@@ -308,9 +368,11 @@ func loadMCPTLSConfig(certFile, keyFile string) (*tls.Config, error) {
 }
 
 // checkKeyFilePermissions rejects private-key files that are readable by
-// group or other (mode bits & 0o077 != 0) or that are symlinks. Only
-// enforced when running as a non-root user -- root can already read any
-// file and the check is cosmetic in that case.
+// group or other (mode bits & 0o077 != 0), are symlinks, or are not regular
+// files. Enforced for every user including root: running as root does not
+// prevent unprivileged local users from reading a world- or group-readable
+// key file, and symlinks would let a parent-directory writer redirect root's
+// read.
 //
 // Symlinks are rejected outright: an attacker who can write to the
 // key-file's parent directory could otherwise swap a strict-perm symlink
@@ -318,9 +380,6 @@ func loadMCPTLSConfig(certFile, keyFile string) (*tls.Config, error) {
 // the 0o077 mask. Refusing symlinks forces the operator to store the key
 // as a regular file in a root-only directory.
 func checkKeyFilePermissions(keyFile string) error {
-	if os.Geteuid() == 0 {
-		return nil
-	}
 	info, err := os.Lstat(keyFile)
 	if err != nil {
 		return fmt.Errorf("stat key file %q: %w", keyFile, err)
@@ -390,6 +449,10 @@ func (h *mcpServerHandle) Reconfigure(ctx context.Context, newAddrs []string) er
 
 	if h.stopped {
 		return errors.New("MCP server has been shut down")
+	}
+
+	if err := checkMCPRemoteTLS(h.authMode, h.useTLS, newAddrs); err != nil {
+		return fmt.Errorf("MCP reconfigure: %w", err)
 	}
 
 	_, toAdd, toRemove := mcpListenerDiff(h.bound, newAddrs)

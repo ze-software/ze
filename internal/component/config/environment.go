@@ -64,7 +64,7 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.oauth.authorization-server", Type: env.TypeString, Description: "OAuth 2.1 authorization server URL (auth-mode=oauth)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.oauth.audience", Type: env.TypeString, Description: "Canonical URL identifying this MCP resource (RFC 8707; auth-mode=oauth)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.oauth.required-scopes", Type: env.TypeString, Description: "Space-separated scopes required on every accepted token (auth-mode=oauth)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.tls.cert", Type: env.TypeString, Description: "PEM certificate file path (required for auth-mode=oauth on non-loopback)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.tls.cert", Type: env.TypeString, Description: "PEM certificate file path (required on non-loopback listeners for bearer, bearer-list, and oauth)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.tls.key", Type: env.TypeString, Description: "PEM private-key file path", Secret: true})
 
 	// API (REST + gRPC).

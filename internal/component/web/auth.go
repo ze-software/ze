@@ -123,7 +123,25 @@ type webSession struct {
 	// one against it would log out every remote-backend operator on the next
 	// request.
 	LocalAnchored bool
+	// LocalGeneration records the accepted local credential generation that
+	// granted this session (AuthResult.LocalGeneration). validateToken checks
+	// that the live local user entry still carries this generation so rotating
+	// a local user's password (or changing local credentials) immediately
+	// invalidates open browser cookies, while unrelated config reloads leave
+	// the generation and session intact.
+	LocalGeneration uint64
 }
+
+// localSessionStatus classifies the live-user check for a locally anchored
+// web session. Zero is Unspecified so a missed branch cannot read as valid.
+type localSessionStatus uint8
+
+const (
+	localSessionUnspecified localSessionStatus = iota
+	localSessionValid
+	localSessionUserRemoved
+	localSessionGenerationChanged
+)
 
 // SessionStore manages active user sessions. It maps session tokens to
 // webSession objects and enforces one session per user by tracking the current
@@ -174,7 +192,9 @@ func NewSessionStore(localUsers func() ([]authz.UserConfig, error)) *SessionStor
 	}
 }
 
-// localUserDeclared reports whether the live local user list declares username.
+// localUserSessionStatus reports whether the live local user list still
+// declares username at the local credential generation that granted the
+// session.
 //
 // An unreadable list is an ERROR, never a "no". The two are indistinguishable
 // to a caller that gets a bare false, and only one of them may keep a session
@@ -182,32 +202,34 @@ func NewSessionStore(localUsers func() ([]authz.UserConfig, error)) *SessionStor
 //
 // COST: this runs on every request that carries an anchored session, not only
 // at login. validateToken calls it, so each `/fragment/*` and `/show/` request
-// pays the hub's liveLocalUsers chain: one RLock and a shallow copy of the
-// `system` root (config.Provider.Root), a walk of `authentication/user` that
-// allocates one UserConfig slice plus a key slice per user
-// (infra.ExtractAuthUsers), and one more slice and map to merge the power users
-// (mergeAuthUsers). ExtractAuthUsers then SORTS, by name, the users and each
-// user's public keys: its callers merge and log the result, and the map form it
-// reads has no order to give them. No I/O and no parse. The sort is over the
-// configured users, so it costs what a handful of names costs. Web requests are
-// human-paced and this is not one of the paths ai/rules/performance.md governs,
-// so the cost is accepted and NOT cached: a cache is the snapshot the
+// pays the hub's liveLocalUsers chain: one atomic load of the accepted local
+// identity slice (liveAcceptedLocalUsers). No I/O and no parse. Web requests
+// are human-paced and this is not one of the paths ai/rules/performance.md
+// governs, so the cost is accepted and NOT cached: a cache is the snapshot the
 // per-request re-check exists to delete. Measure first if that ever changes,
 // and any cache needs the reload to invalidate it.
-func (s *SessionStore) localUserDeclared(username string) (bool, error) {
+func (s *SessionStore) localUserSessionStatus(username string, generation uint64) (localSessionStatus, error) {
 	if s.localUsers == nil {
-		return false, errNoLocalUserSource
+		return localSessionUnspecified, errNoLocalUserSource
 	}
 	users, err := s.localUsers()
 	if err != nil {
-		return false, fmt.Errorf("reading the live local user list: %w", err)
+		return localSessionUnspecified, fmt.Errorf("reading the live local user list: %w", err)
 	}
+	foundUser := false
 	for _, u := range users {
-		if u.Name == username {
-			return true, nil
+		if u.Name != username {
+			continue
+		}
+		foundUser = true
+		if u.LocalGeneration == generation {
+			return localSessionValid, nil
 		}
 	}
-	return false, nil
+	if foundUser {
+		return localSessionGenerationChanged, nil
+	}
+	return localSessionUserRemoved, nil
 }
 
 // createSession generates a new session for the given username from the result
@@ -215,13 +237,14 @@ func (s *SessionStore) localUserDeclared(username string) (bool, error) {
 // previous session is invalidated first. The session token is 32 bytes from
 // crypto/rand, hex-encoded to 64 characters.
 //
-// result decides two things and is the sole input for both: the authz profile
-// names carried on the session, and whether the local user list may later
-// revoke it (AuthResult.GrantedByLocalBackend). Taking the second from the
-// result rather than re-reading the user list is what makes the anchor the
-// authenticator's answer instead of a guess about it: the store cannot observe
-// the instant the authenticator answered, and a reload landing after it made
-// the guess wrong in both directions (webSession.LocalAnchored).
+// result decides three things and is the sole input for all of them: the authz
+// profile names carried on the session, whether the local user list may later
+// revoke it (AuthResult.GrantedByLocalBackend), and the local credential
+// generation that granted it (AuthResult.LocalGeneration). Taking the anchor
+// and generation from result rather than re-reading the user list is what makes
+// them the authenticator's answer instead of a guess about it: the store cannot
+// observe the instant the authenticator answered, and a reload landing after it
+// made the guess wrong in both directions (webSession.LocalAnchored).
 func (s *SessionStore) createSession(username string, result authz.AuthResult) (*webSession, error) {
 	token, err := generateToken()
 	if err != nil {
@@ -238,12 +261,13 @@ func (s *SessionStore) createSession(username string, result authz.AuthResult) (
 	}
 
 	session := &webSession{
-		Username:      username,
-		Token:         token,
-		CreatedAt:     time.Now(),
-		Profiles:      result.Profiles,
-		Authorizer:    result.Authorizer,
-		LocalAnchored: result.GrantedByLocalBackend(),
+		Username:        username,
+		Token:           token,
+		CreatedAt:       time.Now(),
+		Profiles:        result.Profiles,
+		Authorizer:      result.Authorizer,
+		LocalAnchored:   result.GrantedByLocalBackend(),
+		LocalGeneration: result.LocalGeneration,
 	}
 	s.sessions[token] = session
 	s.users[username] = token
@@ -254,17 +278,19 @@ func (s *SessionStore) createSession(username string, result authz.AuthResult) (
 }
 
 // validateToken returns the session associated with the given token, or nil
-// if the token is not valid, has expired (older than sessionTTL), or belongs to
-// a user the running configuration no longer declares. A session that fails any
-// of these is invalidated automatically.
+// if the token is not valid, has expired (older than sessionTTL), belongs to
+// a user the running configuration no longer declares, or was granted under an
+// earlier local credential generation (e.g. before a password rotation). A
+// session that fails any of these is invalidated automatically.
 //
-// The last check is what makes deleting a user take effect. A cookie is
-// credential material this middleware accepted BEFORE the reload, so testing
-// only the 24h TTL left a removed operator with full config-edit rights in an
+// The last two checks are what make deleting a user or rotating a password take
+// effect immediately. A cookie is credential material this middleware accepted
+// BEFORE the reload, so testing only the 24h TTL left a removed operator or an
+// attacker holding a pre-rotation cookie with full config-edit rights in an
 // open tab for the rest of that day, while the reload reported success (AC-10).
 // It is read per request from the same live list the local authenticator
 // answers from, so the cookie path and the password path cannot disagree about
-// who exists.
+// who exists or which credential generation is current.
 func (s *SessionStore) validateToken(token string) *webSession {
 	s.mu.RLock()
 	session := s.sessions[token]
@@ -283,18 +309,28 @@ func (s *SessionStore) validateToken(token string) *webSession {
 		return session
 	}
 
-	declared, err := s.localUserDeclared(session.Username)
-	switch {
-	case err != nil:
+	status, err := s.localUserSessionStatus(session.Username, session.LocalGeneration)
+	if err != nil {
 		// Deny rather than serve: a session granted by the local user list
 		// cannot be renewed against a list that cannot be read.
 		logger.Warn("session refused: cannot read the live local user list",
 			"username", session.Username, "error", err)
-	case !declared:
+		s.invalidateSession(session)
+		return nil
+	}
+	switch status {
+	case localSessionValid:
+		return session
+	case localSessionUserRemoved:
 		logger.Info("session refused: the running configuration no longer declares this user",
 			"username", session.Username)
+	case localSessionGenerationChanged:
+		logger.Info("session refused: local credentials changed since login",
+			"username", session.Username)
+	case localSessionUnspecified:
+		panic("BUG: localUserSessionStatus returned unspecified without error")
 	default:
-		return session
+		panic("BUG: unknown localSessionStatus")
 	}
 
 	s.invalidateSession(session)

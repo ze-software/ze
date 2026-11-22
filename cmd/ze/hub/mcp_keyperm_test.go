@@ -94,3 +94,67 @@ func TestCheckKeyFilePermissions_RejectsNonRegular(t *testing.T) {
 		t.Fatalf("error should mention regular file, got: %v", err)
 	}
 }
+
+// TestCheckKeyFilePermissions_EnforcedForAllUsers runs unconditionally (no
+// root skip) to verify symlink, non-regular, and group/other permission checks
+// apply regardless of process UID.
+//
+// VALIDATES: S7 -- checkKeyFilePermissions enforces symlink and 0o077 mode
+// checks even when running as root.
+// PREVENTS: root daemons accepting world- or group-readable private keys or
+// attacker-controlled symlinks.
+func TestCheckKeyFilePermissions_EnforcedForAllUsers(t *testing.T) {
+	dir := t.TempDir()
+
+	strictModes := []os.FileMode{0o600, 0o400}
+	for _, mode := range strictModes {
+		path := filepath.Join(dir, "strict-"+mode.String()+".key")
+		if err := os.WriteFile(path, []byte("dummy"), mode); err != nil {
+			t.Fatalf("write %04o key: %v", mode, err)
+		}
+		if err := os.Chmod(path, mode); err != nil {
+			t.Fatalf("chmod %04o key: %v", mode, err)
+		}
+		if err := checkKeyFilePermissions(path); err != nil {
+			t.Fatalf("strict mode %04o rejected: %v", mode, err)
+		}
+	}
+
+	looseModes := []os.FileMode{0o640, 0o604, 0o644, 0o610}
+	for _, mode := range looseModes {
+		path := filepath.Join(dir, "loose-"+mode.String()+".key")
+		if err := os.WriteFile(path, []byte("dummy"), 0o600); err != nil {
+			t.Fatalf("write %04o key: %v", mode, err)
+		}
+		if err := os.Chmod(path, mode); err != nil {
+			t.Fatalf("chmod %04o key: %v", mode, err)
+		}
+		err := checkKeyFilePermissions(path)
+		if err == nil {
+			t.Fatalf("expected rejection for mode %04o key file", mode)
+		}
+		if !strings.Contains(err.Error(), "group/other permissions") {
+			t.Fatalf("mode %04o error = %v, want group/other permissions", mode, err)
+		}
+	}
+
+	realKey := filepath.Join(dir, "target.key")
+	if err := os.WriteFile(realKey, []byte("dummy"), 0o600); err != nil {
+		t.Fatalf("write target key: %v", err)
+	}
+	link := filepath.Join(dir, "symlink.key")
+	if err := os.Symlink(realKey, link); err != nil {
+		t.Fatalf("symlink: %v", err)
+	}
+	if err := checkKeyFilePermissions(link); err == nil || !strings.Contains(err.Error(), "symlink") {
+		t.Fatalf("symlink error = %v, want symlink rejection", err)
+	}
+
+	sub := filepath.Join(dir, "dirkey")
+	if err := os.Mkdir(sub, 0o700); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := checkKeyFilePermissions(sub); err == nil || !strings.Contains(err.Error(), "regular file") {
+		t.Fatalf("directory error = %v, want regular file rejection", err)
+	}
+}
