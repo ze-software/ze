@@ -17,9 +17,10 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// validationEmitTimeout bounds one validation-change hand-off to the engine.
-// The engine enqueues to each subscriber and answers, so only a dead engine
-// connection reaches it.
+// validationEmitTimeout bounds one emitted validation frame: the engine
+// enqueues it to each subscriber and answers, so only a dead engine connection
+// reaches it. It is per frame, never per hand-off: a whole table is many
+// frames, and a live engine acknowledging each one in turn is never cut off.
 const validationEmitTimeout = 30 * time.Second
 
 // validationRouteKey is the store key of the route a selection query names:
@@ -335,17 +336,23 @@ func (err *validationEmissionError) Unwrap() error { return err.cause }
 // emitValidationEvent hands ordered canonical arrays to the engine through the
 // SDK on both transports. Small batches keep one ordinary Marshal; large ones
 // call each existing route MarshalJSON once and transfer each chunk's ownership
-// to its event string. DirectBridge may queue that string beyond its ACK.
+// to its event string. DirectBridge may queue that string beyond its ACK. A
+// frame carries at most ribevents.FrameEntriesMax routes, and each frame gets
+// its own validationEmitTimeout.
 func (r *AdjRIBInManager) emitValidationEvent(changes []ribevents.ValidationRoute) error {
+	return r.emitValidationFrames(validationEmitTimeout, changes)
+}
+
+// emitValidationFrames is emitValidationEvent with its per-frame deadline
+// named, so a test proves the bound without waiting validationEmitTimeout.
+func (r *AdjRIBInManager) emitValidationFrames(frameTimeout time.Duration, changes []ribevents.ValidationRoute) error {
 	if len(changes) == 0 {
 		return nil
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), validationEmitTimeout)
-	defer cancel()
 	input := rpc.EmitEventInput{Namespace: ribevents.Namespace, EventType: ribevents.EventValidationChange}
 	budget := input.CanonicalPayloadBudget()
 	singleFrame := len(changes) == 1
-	if !singleFrame {
+	if !singleFrame && len(changes) <= ribevents.FrameEntriesMax {
 		singleFrame = validationArrayFits(changes, budget)
 	}
 	if singleFrame {
@@ -353,15 +360,12 @@ func (r *AdjRIBInManager) emitValidationEvent(changes []ribevents.ValidationRout
 		if err != nil {
 			return &validationEmissionError{cause: fmt.Errorf("encode validation-change: %w", err)}
 		}
-		return r.emitValidationChunk(ctx, string(payload), 0)
+		return r.emitValidationChunk(frameTimeout, string(payload), 0)
 	}
 	start, end := 0, 0
 	var pending []byte
 	var payload textbuf.Buffer
 	for start < len(changes) {
-		if err := ctx.Err(); err != nil {
-			return &validationEmissionError{acknowledged: start, cause: err}
-		}
 		if pending == nil {
 			var err error
 			pending, err = changes[end].MarshalJSON()
@@ -398,9 +402,12 @@ func (r *AdjRIBInManager) emitValidationEvent(changes []ribevents.ValidationRout
 			if payload.Len()+1 > budget {
 				break // An indivisible row goes to the actual writer alone.
 			}
+			if end-start == ribevents.FrameEntriesMax {
+				break // The subscriber's work per frame stays bounded.
+			}
 		}
 		payload.Byte(']')
-		if err := r.emitValidationChunk(ctx, payload.String(), start); err != nil {
+		if err := r.emitValidationChunk(frameTimeout, payload.String(), start); err != nil {
 			return err
 		}
 		start = end
@@ -427,7 +434,10 @@ func validationArrayFits(changes []ribevents.ValidationRoute, budget int) bool {
 	return true
 }
 
-func (r *AdjRIBInManager) emitValidationChunk(ctx context.Context, event string, acknowledged int) error {
+// emitValidationChunk hands one frame to the engine under a deadline of its own.
+func (r *AdjRIBInManager) emitValidationChunk(frameTimeout time.Duration, event string, acknowledged int) error {
+	ctx, cancel := context.WithTimeout(context.Background(), frameTimeout)
+	defer cancel()
 	if _, err := r.plugin.EmitEvent(ctx, ribevents.Namespace, ribevents.EventValidationChange, "", "", event); err != nil {
 		return &validationEmissionError{acknowledged: acknowledged, cause: fmt.Errorf("emit validation-change: %w", err)}
 	}

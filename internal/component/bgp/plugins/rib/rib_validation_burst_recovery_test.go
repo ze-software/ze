@@ -138,8 +138,10 @@ func TestDisableValidationBurstRecoversActualSelection(t *testing.T) {
 	if admitted != routes {
 		t.Fatalf("admission delivered %d/%d pending-path notifications", admitted, routes)
 	}
-	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
-	defer cancel()
+	ctx, cancel := context.WithCancelCause(t.Context())
+	defer cancel(nil)
+	stall := time.AfterFunc(30*time.Second, func() { cancel(errors.New("disable delivered no frame for 30 s")) })
+	defer stall.Stop()
 	seen := make([]bool, routes)
 	delivered := 0
 	frames := 0
@@ -171,14 +173,15 @@ func TestDisableValidationBurstRecoversActualSelection(t *testing.T) {
 	// The registered internal receiver still owns the real lookup. Its event
 	// hand-off traverses the forked SDK framing before the selecting consumer.
 	bridge.SetEmitEvent(func(namespace, eventType, direction, peer, event string) (int, error) {
+		stall.Reset(30 * time.Second)
 		return wire.plugin.EmitEvent(ctx, namespace, eventType, direction, peer, event)
 	})
 	if err := ctx.Err(); err != nil {
-		t.Fatalf("disable deadline expired before its command started: %v", err)
+		t.Fatalf("disable deadline expired before its command started: %v (cause: %v)", err, context.Cause(ctx))
 	}
 	answer, err := bridge.ExecuteCommand(ctx, "disable-burst", "request bgp adj-rib-in disable-validation", nil, "", nil)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("disable failed: %v (cause: %v)", err, context.Cause(ctx))
 	}
 	if answer.Status != rpc.StatusDone {
 		t.Fatalf("disable status=%q", answer.Status)

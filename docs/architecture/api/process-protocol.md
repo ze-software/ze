@@ -3464,13 +3464,19 @@ HTML-escaped canonical JSON in both that request and a singleton enveloped
 The emit-event envelope carries no event receipt metadata; the BGP receive producer's
 metadata has a separate ownership contract. The receive store's validation
 arrays and the forked BGP RIB's best-change, redistribution and validation
-batches use this budget. Each chunk keeps the original event shape and replay
-metadata, and one hand-off deadline covers all chunks. A failed chunk stops the
+batches use this budget, and also cut a chunk at `ribevents.FrameEntriesMax`
+entries, because a subscriber handles a chunk's entries before the next one
+is sent and its work per chunk must stay bounded. Each chunk keeps the original event shape and replay
+metadata, and each chunk carries a deadline of its own: a dead engine
+connection fails the hand-off within one chunk's deadline, while a live engine
+acknowledging a whole family chunk by chunk is never cut off by the family's
+size. A failed chunk stops the
 hand-off; no chunk is retried by the framing layer. An indivisible value that
 does not meet the conservative proof is left to the actual writer and its
 actual ID, not declared unencodable from the proof alone.
 <!-- source: pkg/plugin/rpc/event_frame_size.go -- EmitEventInput.CanonicalPayloadBudget -->
 <!-- source: internal/component/bgp/plugins/rib/rib_event_sdk.go -- sdkEventBus.Emit, sdkEventArray, sdkEventChunkEnd -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_eligibility.go -- emitValidationFrames, emitValidationChunk -->
 
 
 ### Subscription Namespace

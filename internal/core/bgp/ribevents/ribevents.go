@@ -206,6 +206,14 @@ type BestChangeEntry struct {
 	BackupOnLink    bool   `json:"-"`
 }
 
+// FrameEntriesMax bounds the entries one emitted frame of a split batch
+// carries: best-change, redistribution and validation-change alike. A
+// subscriber that handles a frame before acknowledging it does work per
+// entry, and the byte budget alone (about 100k validation routes in one 16 MiB
+// frame) would let that work outlast the per-frame emit deadline. A frame ends
+// at whichever of the byte budget and this count it reaches first.
+const FrameEntriesMax = 4096
+
 // BestChangeBatch is the payload of (bgp-rib, best-change). One batch is
 // emitted per (protocol, family) combination. IsReplay() distinguishes a
 // full-table replay batch from an incremental change batch.

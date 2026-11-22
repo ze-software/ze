@@ -13,7 +13,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
@@ -191,7 +190,7 @@ func burstSDKBus(t *testing.T, consume func(rpc.EmitEventInput) error) *sdkEvent
 	pluginEnd, engineEnd := net.Pipe()
 	plugin := sdk.NewWithConn("rib-burst-test", pluginEnd)
 	engine := rpc.NewMuxConn(rpc.NewConn(engineEnd, engineEnd))
-	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
+	ctx, cancel := context.WithCancel(t.Context())
 	var worker sync.WaitGroup
 	worker.Go(func() {
 		for request := range engine.Requests() {

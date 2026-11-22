@@ -1862,9 +1862,12 @@ subscribers. A replay request on either hop (`bgp-rib/replay-request`,
 subscriptions on both transports (`dispatchReplayRequest`), never through a
 bus subscription.
 The adapter splits oversized best-change, redistribution and validation batches
-by the same encoded-frame bound, preserving the original batch metadata and
+by the same encoded-frame bound and at most `ribevents.FrameEntriesMax`
+entries per frame, preserving the original batch metadata and
 entry order. One emission's chunks remain together, including during replay,
-and one timeout covers the hand-off. Ordinary small payloads keep their single
+and each chunk has its own timeout, so only a dead engine connection reaches
+it and a whole family is never cut off by its size. Ordinary small payloads
+keep their single
 marshal. Larger validation arrays encode each route once into bounded owning
 strings. The SDK adapter encodes its whole typed batch once, then cuts only
 between complete entries in the existing canonical array, retaining its

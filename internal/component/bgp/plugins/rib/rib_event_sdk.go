@@ -23,9 +23,10 @@ import (
 	"github.com/ze-software/ze/pkg/ze"
 )
 
-// sdkEventEmitTimeout bounds one event hand-off to the engine. The engine
-// enqueues to each subscriber and answers, so only a dead engine connection
-// reaches it.
+// sdkEventEmitTimeout bounds one emitted frame: the engine enqueues it to each
+// subscriber and answers, so only a dead engine connection reaches it. It is
+// per frame, never per hand-off: a whole family is many frames, and a live
+// engine acknowledging each one in turn is never cut off mid-family.
 const sdkEventEmitTimeout = 30 * time.Second
 
 // errSDKBusSubscribe is the refusal a forked RIB's bus gives a subscriber:
@@ -47,29 +48,33 @@ type sdkEventBus struct {
 var _ ze.EventBus = (*sdkEventBus)(nil)
 
 // Emit preserves each domain batch's shape while cutting oversized payloads
-// into ordered frames. One timeout covers the whole hand-off. An acknowledged
+// into ordered frames. Each frame gets its own sdkEventEmitTimeout, so a dead
+// engine connection fails the hand-off within one frame's deadline while a
+// live engine is never cut off by the size of the family. An acknowledged
 // prefix is never retried when a later chunk fails.
 func (b *sdkEventBus) Emit(namespace, eventType string, payload any) (int, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), sdkEventEmitTimeout)
-	defer cancel()
+	return b.emitFrames(sdkEventEmitTimeout, namespace, eventType, payload)
+}
+
+// emitFrames is Emit with its per-frame deadline named, so a test proves the
+// bound without waiting sdkEventEmitTimeout.
+func (b *sdkEventBus) emitFrames(frameTimeout time.Duration, namespace, eventType string, payload any) (int, error) {
 	b.emitMu.Lock()
 	defer b.emitMu.Unlock()
-	if err := ctx.Err(); err != nil {
-		return 0, err
-	}
 	event, err := sdkEventPayload(payload)
 	if err != nil {
 		return 0, fmt.Errorf("encode %s/%s: %w", namespace, eventType, err)
 	}
 	input := rpc.EmitEventInput{Namespace: namespace, EventType: eventType, Event: event}
-	if sdkEventEntries(payload) < 2 {
+	entries := sdkEventEntries(payload)
+	if entries < 2 {
 		// Unknown shapes and indivisible values keep the actual writer's
 		// decision, not a refusal inferred from a widest-ID size proof.
-		return b.emitSDKEvent(ctx, &input)
+		return b.emitSDKEvent(frameTimeout, &input)
 	}
 	budget := input.CanonicalPayloadBudget()
-	if len(event) <= budget {
-		return b.emitSDKEvent(ctx, &input)
+	if len(event) <= budget && entries <= ribevents.FrameEntriesMax {
+		return b.emitSDKEvent(frameTimeout, &input)
 	}
 	open, close, err := sdkEventArray(payload, event)
 	if err != nil {
@@ -78,16 +83,13 @@ func (b *sdkEventBus) Emit(namespace, eventType string, payload any) (int, error
 	prefix, suffix := event[:open+1], event[close:]
 	available := budget - len(prefix) - len(suffix)
 	if available <= 0 {
-		return b.emitSDKEvent(ctx, &input)
+		return b.emitSDKEvent(frameTimeout, &input)
 	}
 	contents := event[open+1 : close]
 	delivered := 0
 	var chunk textbuf.Buffer
 	for start := 0; start < len(contents); {
-		if err := ctx.Err(); err != nil {
-			return delivered, err
-		}
-		end := sdkEventChunkEnd(contents, start, available)
+		end := sdkEventChunkEnd(contents, start, available, ribevents.FrameEntriesMax)
 		size := len(prefix) + end - start + len(suffix)
 		if size > rpc.MaxMessageSize {
 			return delivered, fmt.Errorf("event has %d canonical JSON bytes before RPC framing, beyond the %d-byte frame ceiling", size, rpc.MaxMessageSize)
@@ -95,7 +97,7 @@ func (b *sdkEventBus) Emit(namespace, eventType string, payload any) (int, error
 		// String transfers ownership. A queued DirectBridge subscriber may
 		// still read this payload after the emission has been acknowledged.
 		input.Event = chunk.Reset(size).Str(prefix).Str(contents[start:end]).Str(suffix).String()
-		count, err := b.emitSDKEvent(ctx, &input)
+		count, err := b.emitSDKEvent(frameTimeout, &input)
 		if err != nil {
 			return delivered, err
 		}
@@ -108,7 +110,10 @@ func (b *sdkEventBus) Emit(namespace, eventType string, payload any) (int, error
 	return delivered, nil
 }
 
-func (b *sdkEventBus) emitSDKEvent(ctx context.Context, input *rpc.EmitEventInput) (int, error) {
+// emitSDKEvent hands one frame to the engine under a deadline of its own.
+func (b *sdkEventBus) emitSDKEvent(frameTimeout time.Duration, input *rpc.EmitEventInput) (int, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), frameTimeout)
+	defer cancel()
 	delivered, err := b.plugin.EmitEvent(ctx, input.Namespace, input.EventType, "", "", input.Event)
 	if err != nil {
 		return delivered, fmt.Errorf("emit %s/%s: %w", input.Namespace, input.EventType, err)
@@ -218,11 +223,14 @@ func sdkEventArrayClose(event string, open int) (int, error) {
 
 // sdkEventChunkEnd cuts only between complete canonical entries. An indivisible
 // entry wider than the conservative budget travels alone to the actual writer.
-// The walk is bounded by contents and never decodes or re-encodes a route.
-func sdkEventChunkEnd(contents string, start, budget int) int {
+// The walk is bounded by contents and never decodes or re-encodes a route. A
+// chunk ends at entriesMax entries even when bytes remain, so a subscriber's
+// work per frame stays bounded.
+func sdkEventChunkEnd(contents string, start, budget, entriesMax int) int {
 	depth := 0
 	quoted := false
 	last := start
+	entries := 0
 	for i := start; i < len(contents); i++ {
 		if quoted {
 			if contents[i] == '\\' {
@@ -252,6 +260,10 @@ func sdkEventChunkEnd(contents string, start, budget int) int {
 				return i
 			}
 			last = i
+			entries++ // The entry this comma closes.
+			if entries == entriesMax {
+				return i
+			}
 		}
 	}
 	if len(contents)-start > budget {
