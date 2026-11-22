@@ -189,7 +189,7 @@ start").
 ## Steps
 
 1. **Read the spec:** Run `./le spec current` to find this session's spec. If empty, use the spec named in the conversation and claim it with `./le spec claim <spec-name>`. Resolve its actual path through `./le spec status`, then read that path.
-   - If `claim` exits 3, the WIP cap refused it: too many specs are already in-progress. That is a decision for the user, not something to route around. Show them the list it printed and ask whether to close one first or raise `ZE_SPEC_WIP_CAP`. Do NOT edit the spec's Status by hand to skip the check.
+   - If `claim` exits 3, the WIP cap refused it: too many specs are already in-progress. The WIP cap is lowered as specs close and never raised (`ai/META-DECISIONS.md`). Show the user the list it printed and close an in-progress spec first (only a spec whose work is already committed may use `ZE_SPEC_WIP_CAP` solely to close it). Do NOT edit the spec's Status by hand to skip the check.
    - If `claim` exits 2 with `refusing to start`, the design has no approval of Thomas matching the spec as it stands. Nothing is implemented: the main session presents the design through `/ze-spec` Step 4 and Thomas approves it from his terminal (`docs/contributing/spec-workflow.md`, "Design approval").
 2. **Update spec status (BLOCKING -- do this FIRST, before any other work):**
    Edit the spec file NOW: set `Status` to `in-progress`, `Phase` to `1/N`, `Updated` to today.

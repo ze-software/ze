@@ -18,21 +18,22 @@ own fan-out. Do not wrap the whole skill in a single agent. That buries the
 parallel lenses one level down and costs exactly the independence they exist to
 provide (`ai/rules/planning.md`).
 
-Launch the agents this skill defines, all in ONE message, with
-`subagent_type: ze-work`. Every lens here implements its own fix at step
-4, so none of them can be `ze-read`, which holds no Edit. `ze-work` costs about
-6k fewer startup tokens per agent than the default
-(`ai/rules/context-economy.md`).
-You do not need to ask permission to spawn them
+Launch the 4 hypothesis investigation agents in ONE message with
+`subagent_type: ze-read` on the **strongest tier** (`ai/META-DECISIONS.md`:
+unexplained defect root-cause investigation runs on the strongest tier). Using
+`ze-read` for parallel diagnosis prevents 4 concurrent writers from clobbering
+the same failing package with conflicting unverified patches. Once the winning
+root-cause diagnosis is confirmed against source, spawn ONE `ze-work` agent to
+apply the `[source]` fix. You do not need to ask permission to spawn them
 (`ai/INSTRUCTIONS.md`, STANDING REQUEST).
 
-A lens agent edits and runs nothing: the Bash hook refuses a test, build, lint
-or formatter from a subagent. Each lens ends its report with an `Owed
-commands` list: the exact rerun line, what it proves and the result it
-expects. You run those reruns yourself, one at a time, after reading
-`./le job report` (`/ze-verify` step 1), and you commit the fix once they
-passed. On a red, resume that lens with the failure lines, or brief a fresh
-fix agent when the lens waited more than five minutes.
+Neither `ze-read` nor `ze-work` runs tests, builds, lint, or formatters: the
+Bash hook refuses them from a subagent. The `ze-work` fix agent ends its report
+with an `Owed commands` list: the exact rerun line, what it proves and the
+result it expects. You run those reruns yourself, one at a time, after reading
+`./le job report` (`/ze-verify` step 1), and you commit the fix once they pass.
+On a red, resume that fix agent with the failure lines, or brief a fresh fix
+agent when it waited more than five minutes.
 
 ## Steps
 
@@ -57,7 +58,7 @@ fix agent when the lens waited more than five minutes.
    - Read the relevant source code.
    - Produce a Diagnosis: **symptom**, **root cause traced to the exact function** where behavior diverges from intent (cite it — no guessing), the **owning layer**, **two candidate fixes labeled `[workaround]` vs `[source]`**, and one line on **why the workaround is wrong**.
    - If the failure is a check/validation rejecting the input, answer the three-way question: is the check wrong, is the input wrong, or is the check's data/config incomplete?
-   - **Only then** implement the `[source]` fix at the owning layer.
+   - **Only then** report the winning Diagnosis to the main thread; the main thread spawns ONE `ze-work` agent to implement the `[source]` fix at the owning layer (avoiding concurrent multi-agent edits to the same failing files).
    - List as owed the rerun of only the failing test, expected green with the fix: the one Go test as `./le test unit pkg path <dir>/ run <regex>`, or the one `.ci` selection (`ai/rules/pre-release.md`). The main thread runs it.
 6. **Confirm the fix is at the source, not the symptom:** before accepting any fix, re-read its Diagnosis. If the change makes the test pass by editing the test, renaming a symbol, or special-casing the failing input rather than correcting the traced root cause, reject it and return to step 5. Changing a test to match broken code is never the fix (`ai/rules/testing.md`).
 7. **Update the pages the fix made wrong, in this diff (BLOCKING, `ai/rules/documentation.md`):** the pages are the ones step 3 read. Two things get repaired here. A page the fix made wrong, and a page step 3 found wrong about the code. Neither waits for closure.

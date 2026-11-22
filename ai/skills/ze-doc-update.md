@@ -98,26 +98,18 @@ docs(wiki): sync wiki with <old-short>..<new-short> (<N> commits)
 New pages: <list if any>.
 
 Updated <N> existing pages covering: <feature list>.
-
-Co-Authored-By: Claude <model> <noreply@anthropic.com>
 ```
 
 Run the generated commit script yourself.
 
-18. **Push, and keep the history linear.** The wiki has one line of commits and
-no merge commits. Another machine may have pushed its own sync while yours was
-running, so `git push` can be rejected as a non-fast-forward. Fetch and rebase
-onto `origin/master`; never merge. The wiki lives on branch `github`, which
-tracks `refs/heads/master`, so the rebase is `git rebase origin/master` and the
-push is a plain `git push`.
+15. **Push only when Thomas explicitly ordered it, and keep the wiki history linear.** The wiki has one line of commits and no merge commits. Never run a direct `git push` on your own initiative (`ai/rules/git-safety.md`). When Thomas authorizes the wiki push, fetch and rebase onto `origin/master` first (never merge; the wiki branch `github` tracks `refs/heads/master`), then hand him the exact push command or use the authorized push route:
 
 ```bash
 git -C ../wiki fetch origin
 git -C ../wiki rebase origin/master
-git -C ../wiki push
 ```
 
-17. **In-tree docs/ changes** are in the main repo working tree. Do not commit them; the user handles that separately (or via `/ze-commit`). Report which `docs/` files were changed so the user knows.
+16. **In-tree `docs/` changes** are in the main repo working tree. Do not commit them unless part of the task; report which `docs/` files were changed so the user knows.
 
 ## Rules
 
@@ -127,9 +119,9 @@ git -C ../wiki push
 - **`.source-commit` is bumped LAST.** Bumping it claims all intermediate commits are documented.
 - **Preserve existing content.** Only add or modify sections relevant to the delta.
 - **Match the wiki's tone.** Pre-alpha banner, short paragraphs, tables for reference, code blocks for config examples. No em dashes.
-- **Be exhaustive.** Check every page in the checklist (step 7). A feature that only updates the topic page but not feature-inventory.md, plugins.md, status.md, and command-reference.md is incomplete.
+- **Be exhaustive.** Check every page in the checklist (step 10). A feature that only updates the topic page but not feature-inventory.md, plugins.md, status.md, and command-reference.md is incomplete.
 - **The wiki history is linear.** Never merge into it, and never flatten it. When the remote has moved, rebase your sync commits onto `origin/master` and resolve each page against the source rather than by taking a side.
-- **llms files are generated, never hand-edited.** Always regenerate with `go run bin/gen-llms-txt.go` after all edits.
+- **llms files are generated, never hand-edited.** Always regenerate with `CGO_ENABLED=0 go run bin/gen-llms-txt.go` after all edits (run in the main thread).
 
 ## Scope Decisions
 

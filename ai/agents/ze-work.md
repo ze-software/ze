@@ -22,11 +22,14 @@ not counted, and the calls that write the state file still pass. Never trim an a
 criterion, park a defect, or weaken a test to fit (`ai/rules/completion.md`,
 `ai/rules/context-economy.md`).
 
-**You hold no LSP tool, so every symbol question goes to `gopls` from Bash.**
+**You hold no LSP tool, so every symbol question and pre-handback Go type-check goes to `gopls` from Bash.**
 This is the second of the two routes `ai/rules/context-economy.md` names, not a
 missing capability: same server, same answers. `gopls symbols <file>` maps a
-file and costs about a tenth of reading it. Never read a whole file to hunt for
-a symbol, and never report that you cannot look.
+file and costs about a tenth of reading it. Before you hand back `Owed commands`
+after editing Go, run `gopls check <edited-files>` to catch syntax, import,
+type, and interface errors locally in one turn instead of bouncing through the
+main thread. Never read a whole file to hunt for a symbol, and never report that
+you cannot look.
 
 **You run no test, build, vet, lint, formatter, compile check or generator,
 and no `./le job run` or `./le rfc record`.** The main thread schedules heavy

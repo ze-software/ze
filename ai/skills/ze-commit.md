@@ -18,11 +18,10 @@ See also: `/ze-commit-check` (commit with verification only when needed)
    exact files are known, do not rediscover them. If not, inspect only a concise
    changed-file list needed to avoid staging unrelated work. Ask one narrow
    question only when files cannot be safely classified.
-2. **Style gate (only when the scope carries a `.go` file):** A bounded check,
-   never a review. Run it, then proceed.
+2. **Style gate (only when the scope carries a `.go` file AND the user did not already order an immediate commit):** Per `ai/META-DECISIONS.md`, when the user explicitly asks for a commit, prepare the script and run it without re-running reviews or gates. Otherwise run this bounded check on ONLY the commit's `.go` files (never every dirty `.go` file in the shared checkout):
 
    ```bash
-   git diff -U0 HEAD -- '*.go' | grep -nE '^\+.*\bpanic\('
+   git diff -U0 HEAD -- <scoped .go files> | grep -nE '^\+.*\bpanic\('
    ```
 
    For each hit, trace the input back to its source. A state that only a Ze defect
@@ -67,7 +66,7 @@ See also: `/ze-commit-check` (commit with verification only when needed)
 - Never include documentation changes unless they're part of the task.
 - Protect unrelated work: include only explicit paths. Ask one narrow question if scope cannot be determined from context and the concise file list.
 - Same system = one commit. Disjoint systems = separate commit scripts.
-- Never suggest, ask about, or hint at committing. Complete ALL work first. The user decides when.
+- Commit coherent finished increments as they complete (`ai/META-DECISIONS.md`); do not hold finished work for the end of the session or split into trivial commits.
 
 ## Done when
 

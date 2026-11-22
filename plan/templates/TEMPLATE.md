@@ -253,7 +253,7 @@ repository, such as a peer or a third-party plugin, is still a row.
      the test FAILS when the behavior under test is reverted. -->
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `NN-feature-peer` | `test/interop/scenarios/` | [FRR/BIRD/GoBGP/strongSwan] | [protocol behavior validated] | |
+| `feature-peer` | `test/interop/scenarios/` | [FRR/BIRD/GoBGP/strongSwan] | [protocol behavior validated] | |
 
 ## Files to Modify
 <!-- MUST include feature code (internal/*, cmd/*), not only test files.

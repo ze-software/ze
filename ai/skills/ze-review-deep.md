@@ -1,6 +1,6 @@
 ---
 name: ze-review-deep
-description: Exhaustive review of changes by about nine parallel agents, one per aspect. Runs in the main thread and costs many agents. Use before landing significant work or when asked for a deep review; /ze-review is the quick pass.
+description: Exhaustive review of changes by up to eleven parallel agents, one per aspect. Runs in the main thread and costs many agents. Use before landing significant work or when asked for a deep review; /ze-review is the quick pass.
 ---
 
 # Deep Review
@@ -16,10 +16,12 @@ own fan-out. Do not wrap the whole skill in a single agent. That buries the
 parallel lenses one level down and costs exactly the independence they exist to
 provide (`ai/rules/planning.md`).
 
-Launch the agents this skill defines, all in ONE message, using the session's model unless the user requests another.
-Never trade their model down for cost; cut their NUMBER instead
-(`ai/rules/planning.md`). You do not need to ask permission to spawn them
-(`ai/INSTRUCTIONS.md`, STANDING REQUEST).
+Launch the selected lens agents in ONE message, each with `subagent_type: ze-read`
+on the **development tier** (`ai/META-DECISIONS.md`: review runs on the
+development tier, never on a cheaper tier than development tier, and the spawn
+always names the tier rather than inheriting blindly). Never trade their model
+down for cost; cut their NUMBER instead (`ai/rules/planning.md`). You do not
+need to ask permission to spawn them (`ai/INSTRUCTIONS.md`, STANDING REQUEST).
 
 The lens agents read and run nothing heavy. `./le test weakened check` is a
 light action and stays theirs. A test rerun, a lint or another heavy gate a
@@ -37,8 +39,23 @@ When the argument contains agent names (e.g., "security", "logic", "concurrency"
 
 ## Model Selection
 
-Use the session's available model unless the user requests another. Each reviewer
-must have a context independent of the author (`ai/rules/planning.md`).
+Run every lens on the **development tier** (`ai/META-DECISIONS.md`, "Delegate to
+subagents") unless the user explicitly asks for another tier. Each reviewer must
+have a context independent of the author (`ai/rules/planning.md`).
+
+## Agent Preamble (`{AGENT_PREAMBLE}`)
+
+Paste this preamble into every selected agent prompt in place of `{AGENT_PREAMBLE}`:
+
+```
+You are an independent read-only reviewer (`ze-read`). Read the actual changed
+files and their producing functions -- never judge from the diff hunk or comments
+alone (`ai/rules/evidence.md`). Cite file and symbol for every finding (no bare
+line numbers in prose). Report only real defects, security gaps, contract
+violations, or missing proofs; label speculative items as PLAUSIBLE and test-only
+hygiene as NOTE. Do NOT edit files or run tests, builds, or lint; list any
+verification command needed under `Owed commands`.
+```
 
 ## Steps
 

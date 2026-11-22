@@ -187,7 +187,8 @@ func Run(args []string) int {
     // ...
     default:
         if s := suggest.Command(args[0], candidates); s != "" {
-            fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", s)
+            var tb textbuf.Buffer
+            tb.Str("hint: did you mean '").Str(s).Str("'?\n").StdErr()
         }
         usage(); return 1
     }
@@ -211,22 +212,24 @@ func cmd<Name>(args []string) int {
     dryRun := fs.Bool("dry-run", false, "preview changes")
 
     fs.Usage = func() {
-        fmt.Fprintf(os.Stderr, "Usage: ze <domain> <sub> [options] <required-arg>\n\n")
-        fmt.Fprintf(os.Stderr, "Options:\n")
+        var tb textbuf.Buffer
+        tb.Str("Usage: ze <domain> <sub> [options] <required-arg>\n\nOptions:\n").StdErr()
         fs.PrintDefaults()
-        fmt.Fprintf(os.Stderr, "\nExamples:\n  ze <domain> <sub> example.conf\n")
+        tb.Reset().Str("\nExamples:\n  ze <domain> <sub> example.conf\n").StdErr()
     }
 
     if err := fs.Parse(args); err != nil { return exitError }
     if fs.NArg() < 1 {
-        fmt.Fprintf(os.Stderr, "error: requires <file>\n")
+        var tb textbuf.Buffer
+        tb.Str("error: requires <file>\n").StdErr()
         fs.Usage()
         return exitError
     }
 
     // Implementation...
     if err != nil {
-        fmt.Fprintf(os.Stderr, "error: %v\n", err)
+        var tb textbuf.Buffer
+        tb.Str("error: ").Str(err.Error()).Byte('\n').StdErr()
         return exitError
     }
     return exitOK
@@ -319,7 +322,7 @@ registers its YANG module. The command-contract gate
 |------|--------|
 | Exit codes | `0` = success, `1` = general error, `2` = file not found |
 | Exit constants | `const exitOK = 0; const exitError = 1` (or 2 for file I/O) |
-| Errors | Always to stderr: `fmt.Fprintf(os.Stderr, "error: %v\n", err)` |
+| Errors | Always to stderr via `textbuf.Buffer`: `tb.Str("error: ").Str(err.Error()).Byte('\n').StdErr()` |
 | No os.Exit() | Return exit code from handler. Never call `os.Exit()` in a handler |
 | Suggest | Unknown subcommand: `suggest.Command(arg, candidates)` + hint to stderr |
 | Help | Handle `help`, `-h`, `--help` at parent level BEFORE dispatch |

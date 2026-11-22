@@ -26,7 +26,7 @@ See also: `/ze-debrief` (current session state), `/ze-status` (cross-project att
    - Exact new text
    - Maximum 5 edits per handoff. If more remain, note "Phase 2 needed after these edits."
 5. **Determine verification command:** What to run after the edits to confirm they work.
-6. **Present the handoff** using this format:
+6. **Write and commit the handoff in `plan/handover/`** (`ai/META-DECISIONS.md`: a handover lives in `plan/handover/` and is committed in the turn it is written, never only in chat or a session directory). Name it `plan/handover/YYYY-MM-DD-<slug>.md` so concurrent sessions never collide on numeric prefixes, commit it through `./le commit create`, and present a concise link and summary using this format:
 
 ```
 ## Handoff
@@ -60,12 +60,12 @@ EDIT 2: [file:lines]
 
 ## Rules
 
-- Do NOT edit anything. Generate the document only.
+- Write only the handover file under `plan/handover/` and commit it via `./le commit create`; do NOT edit product code or unrelated files.
 - Each edit must be self-contained -- no "update similarly", spell it out.
-- Line numbers from current file state, not original.
+- Cite files and symbols (not bare line numbers) in prose; keep exact line numbers only inside fenced code blocks if quoting tool output (`ai/rules/writing.md`).
 - Maximum 5 edits. Split into phases if more remain.
 - Include what this spec will not do, so the next session knows what was intentionally left and which spec now owns it.
 
 ## Done when
 
-Done when the handoff is presented in the format above, with at most five self-contained edits and a verification command, and nothing was edited.
+Done when the handover file is written under `plan/handover/`, committed via `./le commit create`, and presented with its path, SHA, at most five self-contained edits, and a verification command.

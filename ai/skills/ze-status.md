@@ -56,10 +56,10 @@ Generate the attention list by checking these conditions in order:
 |-----------|---------------|------------------|
 | Spec with `Status \| done` | "[spec] passed its gate but was never closed -- closure violation" | `/ze-close` (step 6 prepares the two closure commits) |
 | Spec listed by `./le spec status closure list` | "[spec] completed but not closed" | `/ze-close` (step 6 prepares the two closure commits) |
-| `./le spec wip` count over `ZE_SPEC_WIP_CAP` | "N specs in flight (cap M) -- no new spec can be started" | `/ze-close` the stalest, or agree a new cap with the user |
+| `./le spec wip` count over `ZE_SPEC_WIP_CAP` | "N specs in flight (cap M) -- no new spec can be started" | `/ze-close` the stalest in-progress spec (WIP cap is never raised) |
 | Tests failing | "N test failures in last run" | `/ze-debug` |
 | Spec in-progress with uncommitted changes | "Uncommitted work on [spec]" | `/ze-verify` then `/ze-commit` |
-| Spec in skeleton/design status | "[spec] needs implementation" | `/ze-implement` |
+| Spec in skeleton/design status | "[spec] needs design and approval" | `/ze-spec` |
 | Spec blocked | "[spec] blocked on [dependency]" | Check dependency |
 | A **Work Not Done** row naming a spec that is not on disk | "[spec] routes N items at a spec nobody wrote" | Write the spec in the bucket that item belongs to |
 | No spec selected but specs exist | "No spec selected" | `/ze-spec` to resume or create |

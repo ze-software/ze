@@ -71,7 +71,8 @@ func init() {
     }
 
     if err := registry.Register(reg); err != nil {
-        fmt.Fprintf(os.Stderr, "%s: registration failed: %v\n", reg.Name, err)
+        var tb textbuf.Buffer
+        tb.Str(reg.Name).Str(": registration failed: ").Str(err.Error()).Byte('\n').StdErr()
         os.Exit(1)
     }
 }

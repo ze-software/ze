@@ -31,7 +31,7 @@ no execution: prose, spec bookkeeping, a blocked hand-back.
    never a review. Run it, then proceed.
 
    ```bash
-   git diff -U0 HEAD -- '*.go' | grep -nE '^\+.*\bpanic\('
+   git diff -U0 HEAD -- <scoped .go files> | grep -nE '^\+.*\bpanic\('
    ```
 
    For each hit, trace the input back to its source. A state that only a Ze defect
@@ -95,7 +95,7 @@ no execution: prose, spec bookkeeping, a blocked hand-back.
 - Never include documentation changes unless they're part of the task.
 - Protect unrelated work: include only explicit paths. Ask one narrow question if scope cannot be determined from context and the concise file list.
 - Same system = one commit. Disjoint systems = separate commit scripts.
-- Never suggest, ask about, or hint at committing. Complete ALL work first. The user decides when.
+- Commit coherent finished increments as they complete (`ai/META-DECISIONS.md`); do not hold finished work for the end of the session or split into trivial commits.
 
 ## Done when
 

@@ -137,7 +137,7 @@ phase itself.
     | Config/YANG/parser | `docs/guide/configuration.md`, `docs/architecture/config/syntax.md`, and any guide examples use accepted syntax |
     | CLI command/output | `docs/guide/command-reference.md` and command docs match handler grammar/output |
     | API/RPC/event/send type | `docs/architecture/api/commands.md`, `docs/architecture/api/process-protocol.md`, and plugin docs match types/handlers |
-    | Plugin registration/inventory | Runtime inventory docs match registry or `bin/ze show plugin list` output |
+    | Plugin registration/inventory | Runtime inventory docs match registry or the live daemon `show plugin list` output |
     | Architecture/data flow | Relevant `docs/architecture/*` claims match current source and have source anchors |
     | Metrics | Telemetry docs list metric names and labels |
     | New feature, native action, or verification gate | `ai/INDEX.md` keyword + task rows updated; `docs/architecture/` if the decision is structural; `ai/rules/repo-maintenance.md` if a new hook/gate. Per `ai/rules/repo-maintenance.md`. A feature that cannot be found from `ai/INDEX.md` or a discovery surface is an ISSUE. |
@@ -232,7 +232,7 @@ phase itself.
 | A refusal, error answer, `Warn`/`Error` log line, report-bus raise, or doctor check | `user-facing-errors.md` -- every operator refusal is an `opererr` error whose fix is the exact command on its last line, a daemon error answer goes through `plugin.OperatorErrorResponse`, and context lands on line 1 with no repeated prefix; every `Warn`/`Error` line and raise names a declared doctor code under `code` (no other value under that key, a transient problem also raised), and a line reporting nothing wrong is `Info`/`Debug`. A doctor finding carries `Fix`, and the check sits at the phase whose process holds what it reads: live daemon state at `runtime` only, a plugin's runtime check answered by its own `OnDoctorCheck`, no bind probe judging a port its own daemon holds (`docs/architecture/doctor-and-health-checks.md`). Read the diff for each; the gates catch only part of it |
 | Any changed Go file | `docs/contributing/ze-go-style.md` -- the style pass below |
 
-    **Style pass (every changed Go file).** These six are judgement calls that no linter and no other step in this review makes. Each maps to a section of `docs/contributing/ze-go-style.md`.
+    **Style pass (every changed Go file).** These seven are judgement calls that no linter and no other step in this review makes. Each maps to a section of `docs/contributing/ze-go-style.md`.
 
     | Ask | Report unless |
     |-----|---------------|
