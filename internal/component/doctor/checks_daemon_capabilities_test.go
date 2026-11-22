@@ -70,8 +70,8 @@ func TestDaemonCapabilitiesCheck(t *testing.T) {
 				t.Fatalf("diagnostics = %v, want one", diags)
 			}
 			d := diags[0]
-			if d.Code != diagnostic.CodeDoctorDaemonCapabilityMissing || d.Severity != diagnostic.SeverityInfo {
-				t.Errorf("code %q severity %q, want %q info", d.Code, d.Severity, diagnostic.CodeDoctorDaemonCapabilityMissing)
+			if d.Code != codeDoctorDaemonCapabilityMissing || d.Severity != diagnostic.SeverityInfo {
+				t.Errorf("code %q severity %q, want %q info", d.Code, d.Severity, codeDoctorDaemonCapabilityMissing)
 			}
 			if !readyOf(diags) {
 				t.Errorf("the inventory row made the box not ready")

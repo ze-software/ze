@@ -4,7 +4,11 @@
 
 package doctor
 
-import "github.com/ze-software/ze/internal/core/diagnostic"
+import (
+	"github.com/ze-software/ze/internal/component/plugin/ipc"
+	"github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+)
 
 // doctorDependencyConfigTree is the dependency a check declares when it reads
 // the config tree.
@@ -24,7 +28,7 @@ func init() {
 		Component:    componentPlugin,
 		Dependencies: []string{doctorDependencyConfigTree},
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
-		Codes:        []string{diagnostic.CodeDoctorPluginConnectBackRefused},
+		Codes:        []string{ipc.ConnectBackRefusedCode},
 		Check:        checkExternalPluginNames,
 	})
 	// The in-process check reads the plugins the loaded config starts and
@@ -48,7 +52,7 @@ func init() {
 		Component:    componentPlugin,
 		Dependencies: []string{doctorDependencyManagedServer},
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
-		Codes:        []string{diagnostic.CodeDoctorManagedListenerUnbound},
+		Codes:        []string{server.CodeDoctorManagedListenerUnbound},
 		Check:        checkManagedListenerUnbound,
 	})
 	registerOrExit(diagnostic.DoctorCheck{
@@ -58,7 +62,7 @@ func init() {
 		Component:    componentPlugin,
 		Dependencies: []string{doctorDependencyManagedServer},
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
-		Codes:        []string{diagnostic.CodeDoctorManagedClientRejected},
+		Codes:        []string{server.CodeDoctorManagedClientRejected},
 		Check:        checkManagedClientRejected,
 	})
 }

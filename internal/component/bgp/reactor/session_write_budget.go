@@ -12,7 +12,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 )
 
@@ -78,8 +77,8 @@ func (s *Session) reportWriteBudgetExpiry(budget time.Duration) {
 	peerAddr := s.settings.Address.String()
 	sessionLogger().Warn("BGP session closed: the peer accepted no data for the write budget; ze connects to it again by itself",
 		"peer", peerAddr, "budget", budget,
-		"fix", writeBudgetExpiryFix, "code", diagnostic.CodeDoctorBGPPeerNotReading)
-	report.RaiseErrorFix(reportSourceBGP, diagnostic.CodeDoctorBGPPeerNotReading, peerAddr,
+		"fix", writeBudgetExpiryFix, "code", codeDoctorBGPPeerNotReading)
+	report.RaiseErrorFix(reportSourceBGP, codeDoctorBGPPeerNotReading, peerAddr,
 		"BGP session closed: peer "+peerAddr+" accepted no data for "+budget.String()+
 			", the write budget; ze connects to it again by itself",
 		writeBudgetExpiryFix, map[string]any{"budget": budget.String()})

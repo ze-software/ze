@@ -10,8 +10,6 @@ import (
 	"fmt"
 	"net/netip"
 	"sync"
-
-	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 var (
@@ -347,7 +345,7 @@ func (d *Driver) reportNativeReleaseFailure(session *pppSession, err error) {
 func (d *Driver) publishNativeReleaseFailure(session *pppSession, err error) {
 	session.reportSessionCleanupFailure(session.dataplane, err)
 	d.logger.Warn("ppp: native session close reported an error",
-		"code", diagnostic.CodeDoctorPPPCleanup, "subscriber-id", session.subscriberID,
+		"code", CodeDoctorPPPCleanup, "subscriber-id", session.subscriberID,
 		"error", err, "fix", CleanupFailureFix)
 }
 

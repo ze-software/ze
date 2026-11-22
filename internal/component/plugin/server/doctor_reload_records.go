@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/plugin/process"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 // RemovalUnrecovered is one plugin a refused reload removed whose restore
@@ -84,7 +83,7 @@ func (s *Server) removalsUnrecovered() []RemovalUnrecovered {
 // record itself is attempt.recoveryErr, which the doctor check reads.
 func logRemovalUnrecovered(plugin string, err error) {
 	logger().Error("plugin removal recovery failed; the plugin stays removed until a reload retries it",
-		"code", diagnostic.CodeDoctorPluginRemovalUnrecovered, "plugin", plugin, "error", err)
+		"code", CodeDoctorPluginRemovalUnrecovered, "plugin", plugin, "error", err)
 }
 
 // capabilityRestoreRecord holds the latest capability restore failure since
@@ -100,7 +99,7 @@ type capabilityRestoreRecord struct {
 // (process.BoundDoctorDetail), because the chain can carry a plugin's answer.
 func (r *capabilityRestoreRecord) failed(err error) {
 	logger().Error("config tx: restore plugin capabilities failed after a refused reload",
-		"code", diagnostic.CodeDoctorPluginCapabilitiesNotRestored, "error", err)
+		"code", CodeDoctorPluginCapabilitiesNotRestored, "error", err)
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.failure = []CapabilityRestoreFailure{{Err: process.BoundDoctorDetail(err.Error()), Time: time.Now().UTC()}}

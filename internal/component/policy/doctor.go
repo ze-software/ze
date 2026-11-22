@@ -27,7 +27,7 @@ var igpImportDoctorCheck = diagnostic.DoctorCheck{
 	Component:    PluginName,
 	Dependencies: []string{"loc-rib"},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{diagnostic.CodeDoctorPolicyIGPImportHidesNextHop},
+	Codes:        []string{codeDoctorPolicyIGPImportHidesNextHop},
 	Check:        checkIGPImportHidesNextHop,
 }
 
@@ -192,7 +192,8 @@ func hidesNextHopDiagnostic(h hiddenIGPPath, nextHop netip.Addr, route netip.Pre
 		Str(", or stop originating it in the IGP; `show rib candidates prefix ").
 		Str(h.prefix.String()).Str("` shows the hidden path")
 	return diagnostic.Diagnostic{
-		Code:     diagnostic.CodeDoctorPolicyIGPImportHidesNextHop,
+		Code:     codeDoctorPolicyIGPImportHidesNextHop,
+		Fix:      "show rib candidates " + h.prefix.String(),
 		Severity: diagnostic.SeverityWarning,
 		Message:  tb.String(),
 		Help:     help.String(),

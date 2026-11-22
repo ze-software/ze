@@ -9,7 +9,6 @@ import (
 	"time"
 
 	plugin "github.com/ze-software/ze/internal/component/plugin"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 )
 
@@ -126,7 +125,7 @@ func waitForNotifyDropped(t *testing.T, client string) report.Issue {
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
 		for _, issue := range report.Errors(0) {
-			if issue.Code == diagnostic.CodeDoctorManagedClientNotifyDropped && issue.Subject == client {
+			if issue.Code == CodeDoctorManagedClientNotifyDropped && issue.Subject == client {
 				return issue
 			}
 		}

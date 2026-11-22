@@ -65,8 +65,8 @@ func TestDNSSourceDoctorFindings(t *testing.T) {
 	empty := snapshot
 	empty.Router.Servers = nil
 	emptyFindings := dnsSourceFindings(empty, healthy)
-	if got := findingCodes(emptyFindings); !slices.Equal(got, []string{diagnostic.CodeDoctorDNSSourceEmpty}) {
-		t.Errorf("empty router selection: findings %v, want [%s]", got, diagnostic.CodeDoctorDNSSourceEmpty)
+	if got := findingCodes(emptyFindings); !slices.Equal(got, []string{CodeDoctorDNSSourceEmpty}) {
+		t.Errorf("empty router selection: findings %v, want [%s]", got, CodeDoctorDNSSourceEmpty)
 	} else if emptyFindings[0].Fix != "show system dns" || strings.Contains(emptyFindings[0].Message, "run ") {
 		t.Errorf("empty router selection: message %q fix %q, want the fix %q on its own field", emptyFindings[0].Message, emptyFindings[0].Fix, "show system dns")
 	}
@@ -82,8 +82,8 @@ func TestDNSSourceDoctorFindings(t *testing.T) {
 	silent := snapshot
 	silent.Router.ReceivedInterfaces = []string{"eth0", "wan9"}
 	got := dnsSourceFindings(silent, healthy)
-	if !slices.Equal(findingCodes(got), []string{diagnostic.CodeDoctorDNSSourceInterfaceSilent}) {
-		t.Fatalf("silent interface: findings %v, want [%s]", findingCodes(got), diagnostic.CodeDoctorDNSSourceInterfaceSilent)
+	if !slices.Equal(findingCodes(got), []string{CodeDoctorDNSSourceInterfaceSilent}) {
+		t.Fatalf("silent interface: findings %v, want [%s]", findingCodes(got), CodeDoctorDNSSourceInterfaceSilent)
 	}
 	if want := routerDNSSourcePath + ": received-interface wan9 holds no learned resolver, so the list never selects from it"; got[0].Message != want {
 		t.Errorf("silent interface message = %q, want %q", got[0].Message, want)
@@ -97,8 +97,8 @@ func TestDNSSourceDoctorFindings(t *testing.T) {
 	elsewhere.Serves = []netip.Addr{netip.MustParseAddr("192.0.2.254")}
 	unserved := []dnssource.Publication{healthy[0], {Consumer: "dns-resolver", Selections: []dnssource.ConsumerSelection{elsewhere}}}
 	got = dnsSourceFindings(snapshot, unserved)
-	if !slices.Equal(findingCodes(got), []string{diagnostic.CodeDoctorDNSSourceSelfUnserved}) {
-		t.Fatalf("self unserved: findings %v, want [%s]", findingCodes(got), diagnostic.CodeDoctorDNSSourceSelfUnserved)
+	if !slices.Equal(findingCodes(got), []string{CodeDoctorDNSSourceSelfUnserved}) {
+		t.Fatalf("self unserved: findings %v, want [%s]", findingCodes(got), CodeDoctorDNSSourceSelfUnserved)
 	}
 	if want := "service dhcp-server subnet dns-source (192.0.2.0/24): hands out 192.0.2.1 through self, and no service dns-resolver listener answers on it"; got[0].Message != want {
 		t.Errorf("self unserved message = %q, want %q", got[0].Message, want)
@@ -111,8 +111,8 @@ func TestDNSSourceDoctorFindings(t *testing.T) {
 	// and answers nobody, so the self address is unserved and its received
 	// list, which nothing uses, owes no empty finding.
 	disabled := []dnssource.Publication{healthy[0], {Consumer: "dns-resolver", Selections: []dnssource.ConsumerSelection{}}}
-	if got := findingCodes(dnsSourceFindings(snapshot, disabled)); !slices.Equal(got, []string{diagnostic.CodeDoctorDNSSourceSelfUnserved}) {
-		t.Errorf("disabled resolver: findings %v, want [%s]", got, diagnostic.CodeDoctorDNSSourceSelfUnserved)
+	if got := findingCodes(dnsSourceFindings(snapshot, disabled)); !slices.Equal(got, []string{CodeDoctorDNSSourceSelfUnserved}) {
+		t.Errorf("disabled resolver: findings %v, want [%s]", got, CodeDoctorDNSSourceSelfUnserved)
 	}
 }
 

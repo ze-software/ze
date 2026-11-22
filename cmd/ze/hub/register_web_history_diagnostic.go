@@ -21,10 +21,10 @@ const (
 )
 
 func init() {
-	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: diagnostic.CodeDoctorWebCleanupOverdue}); err != nil {
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorWebCleanupOverdue}); err != nil {
 		panic("BUG: web cleanup event registration refused: " + err.Error())
 	}
-	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: diagnostic.CodeDoctorWebNetworkCleanup}); err != nil {
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorWebNetworkCleanup}); err != nil {
 		panic("BUG: web network cleanup event registration refused: " + err.Error())
 	}
 }
@@ -34,7 +34,7 @@ func init() {
 // as a network failure. Safe for concurrent use.
 func reportWebNetworkCleanupFailure(err error) {
 	const message = "Web network cleanup reported a failure. Admitted handlers have finished, and command-history cleanup still runs. Inspect recent web.server errors to locate the cause."
-	report.RaiseErrorFixOnce(webCleanupEventSource, diagnostic.CodeDoctorWebNetworkCleanup, webNetworkCleanupEventSubject,
+	report.RaiseErrorFixOnce(webCleanupEventSource, codeDoctorWebNetworkCleanup, webNetworkCleanupEventSubject,
 		message, webCleanupEventFix, webCleanupEventWindow)
-	slogutil.Logger("web.server").Error(message, "code", diagnostic.CodeDoctorWebNetworkCleanup, "fix", webCleanupEventFix, "error", err)
+	slogutil.Logger("web.server").Error(message, "code", codeDoctorWebNetworkCleanup, "fix", webCleanupEventFix, "error", err)
 }

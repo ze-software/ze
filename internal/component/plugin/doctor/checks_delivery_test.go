@@ -50,7 +50,7 @@ func TestDoctorClassChecks(t *testing.T) {
 		snapshot := &server.DoctorSnapshot{Plugins: []server.PluginDoctorState{runningState("late", process.DoctorRecord{
 			CommandRefusals: []process.CommandRefusal{{Command: "show alpha", Owner: "first", Reason: "already registered by process: first"}},
 		})}}
-		row := oneRow(t, commandRefusalRows(snapshot), diagnostic.CodeDoctorPluginCommandNotRegistered,
+		row := oneRow(t, commandRefusalRows(snapshot), server.CodeDoctorPluginCommandNotRegistered,
 			diagnostic.SeverityWarning, "late", "show alpha", "first")
 		if !strings.Contains(row.Fix, "first") {
 			t.Fatalf("fix %q does not name the conflicting plugin", row.Fix)
@@ -60,14 +60,14 @@ func TestDoctorClassChecks(t *testing.T) {
 		snapshot := &server.DoctorSnapshot{Plugins: []server.PluginDoctorState{runningState("sub", process.DoctorRecord{
 			SubscriptionDrops: []process.SubscriptionDrop{{Cause: process.SubscriptionDropUnknownNamespace, Namespace: "nope"}},
 		})}}
-		oneRow(t, subscriptionDropRows(snapshot), diagnostic.CodeDoctorPluginSubscriptionDropped,
+		oneRow(t, subscriptionDropRows(snapshot), server.CodeDoctorPluginSubscriptionDropped,
 			diagnostic.SeverityError, "sub", "unknown event namespace", "nope")
 	})
 	t.Run("AC-15 delivery disagreement", func(t *testing.T) {
 		snapshot := &server.DoctorSnapshot{DeliveryDisagreements: []server.DeliveryDisagreement{{
 			Process: "watcher", Reason: "event delivery: the plugin declared events and no peer attaches it",
 		}}}
-		row := oneRow(t, deliveryDisagreementRows(snapshot), diagnostic.CodeDoctorPluginDeliveryDisagreement,
+		row := oneRow(t, deliveryDisagreementRows(snapshot), server.CodeDoctorPluginDeliveryDisagreement,
 			diagnostic.SeverityWarning, "watcher")
 		if !strings.Contains(row.Fix, "attach process") {
 			t.Fatalf("fix %q does not name the attach process change", row.Fix)
@@ -75,7 +75,7 @@ func TestDoctorClassChecks(t *testing.T) {
 	})
 	t.Run("AC-16 claim unbacked", func(t *testing.T) {
 		snapshot := &server.DoctorSnapshot{UnbackedClaims: []server.UnbackedClaim{{Role: "peer-up-replay", Claimants: []string{"bgp-rs"}}}}
-		oneRow(t, unbackedClaimRows(snapshot), diagnostic.CodeDoctorPluginClaimUnbacked,
+		oneRow(t, unbackedClaimRows(snapshot), server.CodeDoctorPluginClaimUnbacked,
 			diagnostic.SeverityError, "peer-up-replay", "bgp-rs")
 	})
 	t.Run("AC-17 post-startup undelivered", func(t *testing.T) {
@@ -84,7 +84,7 @@ func TestDoctorClassChecks(t *testing.T) {
 			runningState("starting", process.DoctorRecord{PostStartup: process.PostStartupPending}),
 			runningState("fresh", process.DoctorRecord{}),
 		}}
-		oneRow(t, postStartupRows(snapshot), diagnostic.CodeDoctorPluginPostStartupUndelivered,
+		oneRow(t, postStartupRows(snapshot), server.CodeDoctorPluginPostStartupUndelivered,
 			diagnostic.SeverityError, "missed", "connection closed")
 	})
 	t.Run("AC-18 panic", func(t *testing.T) {
@@ -100,19 +100,19 @@ func TestDoctorClassChecks(t *testing.T) {
 			}}),
 			runningState("fine", process.DoctorRecord{Delivery: process.DeliveryWindowSummary{Window: process.DeliveryWindow}}),
 		}}
-		oneRow(t, deliveryFailedRows(snapshot), diagnostic.CodeDoctorPluginDeliveryFailed,
+		oneRow(t, deliveryFailedRows(snapshot), process.CodeDoctorPluginDeliveryFailed,
 			diagnostic.SeverityWarning, "slow", "2", "501ms", "broken pipe")
 	})
 	t.Run("AC-20 stderr relay stopped is an event code", func(t *testing.T) {
-		if !slices.Contains(diagnostic.EventCodes(), diagnostic.CodeDoctorPluginStderrRelayStopped) {
-			t.Fatalf("%s is not a registered event code, so recent-events does not declare it", diagnostic.CodeDoctorPluginStderrRelayStopped)
+		if !slices.Contains(diagnostic.EventCodes(), process.CodeDoctorPluginStderrRelayStopped) {
+			t.Fatalf("%s is not a registered event code, so recent-events does not declare it", process.CodeDoctorPluginStderrRelayStopped)
 		}
 	})
 	t.Run("AC-21 enricher unavailable", func(t *testing.T) {
 		state := runningState("enrich", process.DoctorRecord{})
 		state.Enrichers = []server.EnricherFailure{{Command: "show peer", Key: "extra", Registration: true, Error: "duplicate key"}}
 		snapshot := &server.DoctorSnapshot{Plugins: []server.PluginDoctorState{state}}
-		oneRow(t, enricherRows(snapshot), diagnostic.CodeDoctorPluginEnricherUnavailable,
+		oneRow(t, enricherRows(snapshot), server.CodeDoctorPluginEnricherUnavailable,
 			diagnostic.SeverityWarning, "enrich", "show peer", "extra")
 	})
 	t.Run("AC-22 config unapplied", func(t *testing.T) {
@@ -122,7 +122,7 @@ func TestDoctorClassChecks(t *testing.T) {
 				ConfigCommit: process.ConfigCommit{Transaction: "tx-9", Error: "deadline exceeded"},
 			})},
 		}
-		row := oneRow(t, configUnappliedRows(snapshot), diagnostic.CodeDoctorPluginConfigUnapplied,
+		row := oneRow(t, configUnappliedRows(snapshot), server.CodeDoctorPluginConfigUnapplied,
 			diagnostic.SeverityWarning, "rib", "tx-9", "deadline exceeded")
 		if want := process.RestartCommand("rib"); row.Fix != want {
 			t.Fatalf("fix %q, want %q", row.Fix, want)
@@ -149,6 +149,6 @@ func TestDoctorClassChecks(t *testing.T) {
 // warning under its own code.
 // PREVENTS: no row read as "no plugin has the problem".
 func TestDeliveryChecksAnswerNotPublished(t *testing.T) {
-	rows := snapshotCheck(diagnostic.CodeDoctorPluginDeliveryFailed, deliveryFailedRows)(diagnostic.DoctorCheckContext{})
-	oneRow(t, rows, diagnostic.CodeDoctorPluginDeliveryFailed, diagnostic.SeverityWarning, "cannot")
+	rows := snapshotCheck(process.CodeDoctorPluginDeliveryFailed, deliveryFailedRows)(diagnostic.DoctorCheckContext{})
+	oneRow(t, rows, process.CodeDoctorPluginDeliveryFailed, diagnostic.SeverityWarning, "cannot")
 }

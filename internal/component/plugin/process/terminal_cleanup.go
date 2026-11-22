@@ -12,7 +12,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -172,7 +171,7 @@ func (p *Process) captureTerminalStderr(line string) {
 			cause = value
 		}
 	}
-	if code != diagnostic.CodeDoctorPluginCleanup {
+	if code != codeDoctorPluginCleanup {
 		return
 	}
 	if cause == "" {
@@ -221,7 +220,7 @@ func (p *Process) finishTerminalCleanup(success bool, status string) {
 			if cleanup.streamFailure == "" {
 				if err := cleanup.owner.Close(); err != nil {
 					logger().Error("plugin cleanup reservation could not close", "plugin", cleanup.name,
-						"error", err, "code", diagnostic.CodeDoctorPluginCleanup)
+						"error", err, "code", codeDoctorPluginCleanup)
 				}
 				return
 			}
@@ -238,7 +237,7 @@ func (p *Process) finishTerminalCleanup(success bool, status string) {
 	} else {
 		cause.WriteString(cleanup.cause)
 	}
-	episode, err := cleanup.owner.NewEpisode(diagnostic.CodeDoctorPluginCleanup,
+	episode, err := cleanup.owner.NewEpisode(codeDoctorPluginCleanup,
 		report.FitResourceWarningCause(cause.String()), "ze show warnings", map[string]any{"process": p.config.Name})
 	if err == nil {
 		if cleanup.streamFailure != "" {
@@ -250,7 +249,7 @@ func (p *Process) finishTerminalCleanup(success bool, status string) {
 	}
 	if err != nil {
 		logger().Error("plugin cleanup warning could not publish", "plugin", cleanup.name,
-			"error", err, "code", diagnostic.CodeDoctorPluginCleanup)
+			"error", err, "code", codeDoctorPluginCleanup)
 	}
 }
 

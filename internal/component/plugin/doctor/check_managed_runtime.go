@@ -36,7 +36,7 @@ func checkManagedListenerUnbound(_ diagnostic.DoctorCheckContext) []diagnostic.D
 			Str(", so managed clients of that server block cannot connect")
 		fix.Str("free ").Str(unbound.Addr).Str(" or give the server block another ip and port, then restart ze")
 		rows = append(rows, diagnostic.Diagnostic{
-			Code:     diagnostic.CodeDoctorManagedListenerUnbound,
+			Code:     server.CodeDoctorManagedListenerUnbound,
 			Severity: diagnostic.SeverityError,
 			Message:  message.String(),
 			Fix:      fix.String(),
@@ -90,7 +90,7 @@ func managedRejectedRow(rejection server.ManagedClientRejection) diagnostic.Diag
 		fix.Str("ze show warnings")
 	}
 	return diagnostic.Diagnostic{
-		Code:     diagnostic.CodeDoctorManagedClientRejected,
+		Code:     server.CodeDoctorManagedClientRejected,
 		Severity: diagnostic.SeverityWarning,
 		Message:  message.String(),
 		Fix:      fix.String(),

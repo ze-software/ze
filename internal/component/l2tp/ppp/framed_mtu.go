@@ -8,7 +8,6 @@ package ppp
 import (
 	"time"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -79,11 +78,11 @@ func (s *pppSession) reportFramedMTUBlocksIPv6() {
 		Str(" is below 1280, the IPv6 minimum; IPv6CP does not start for this session")
 	text := problem.String()
 	s.logger.Warn("ppp: "+text+". Correct the subscriber's RADIUS profile, or send a Framed-MTU of at least 1280 for IPv6 service",
-		"code", diagnostic.CodeDoctorRADIUSFramedMTU, "framed-mtu", s.authenticatedFramedMTU)
+		"code", CodeDoctorRADIUSFramedMTU, "framed-mtu", s.authenticatedFramedMTU)
 	subject := s.authenticatedUsername
 	if subject == "" {
 		subject = framedMTUNoSubject
 	}
-	report.RaiseErrorFixOnce(framedMTUReportSource, diagnostic.CodeDoctorRADIUSFramedMTU,
+	report.RaiseErrorFixOnce(framedMTUReportSource, CodeDoctorRADIUSFramedMTU,
 		diagnosticSubject(subject), report.FitMessage(text), framedMTUFix, framedMTUEventWindow)
 }

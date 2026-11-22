@@ -11,6 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	zeplugin "github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/diagnostic"
@@ -46,7 +47,7 @@ func checkPluginFatalStop(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagno
 		var message textbuf.Buffer
 		message.Str("cannot read why ze last stopped, so a fatal plugin stop would go unreported: ").Err(err)
 		return []diagnostic.Diagnostic{{
-			Code:     diagnostic.CodeDoctorPluginFatalStop,
+			Code:     server.CodeDoctorPluginFatalStop,
 			Severity: diagnostic.SeverityWarning,
 			Message:  message.String(),
 			Fix:      "ze data list",
@@ -124,7 +125,7 @@ func fatalStopRow(entry *server.LastStopEntry) diagnostic.Diagnostic {
 			Str(", then change that plugin's configuration and start ze")
 	}
 	return diagnostic.Diagnostic{
-		Code:     diagnostic.CodeDoctorPluginFatalStop,
+		Code:     server.CodeDoctorPluginFatalStop,
 		Severity: diagnostic.SeverityError,
 		Message:  message.String(),
 		Fix:      fix.String(),
@@ -140,7 +141,7 @@ func cleanupLateRow(entry *server.LastStopEntry) diagnostic.Diagnostic {
 		Str(" finished its cleanup, so state it installs may remain: ").Str(entry.Detail)
 	fix.Str("journalctl -u ze --until ").Str(at).Str(" | grep ").Str(entry.Plugin)
 	return diagnostic.Diagnostic{
-		Code:     diagnostic.CodeDoctorPluginStopCleanupLate,
+		Code:     process.CodeDoctorPluginStopCleanupLate,
 		Severity: diagnostic.SeverityWarning,
 		Message:  message.String(),
 		Fix:      fix.String(),
@@ -160,7 +161,7 @@ func shutdownOrderRow(entry *server.LastStopEntry) diagnostic.Diagnostic {
 		fix = "journalctl -u ze --until " + at
 	}
 	return diagnostic.Diagnostic{
-		Code:     diagnostic.CodeDoctorPluginShutdownOrder,
+		Code:     process.CodeDoctorPluginShutdownOrder,
 		Severity: diagnostic.SeverityWarning,
 		Message:  message.String(), Fix: fix,
 	}
@@ -177,7 +178,7 @@ func schemaRefusedRow(entry *server.LastStopEntry) diagnostic.Diagnostic {
 	message.Str("ze refused to start at ").Str(at).
 		Str(" because it refused a YANG module an external plugin declared: ").Str(entry.Detail)
 	return diagnostic.Diagnostic{
-		Code:     diagnostic.CodeDoctorPluginSchemaRefused,
+		Code:     server.CodeDoctorPluginSchemaRefused,
 		Severity: diagnostic.SeverityError,
 		Message:  message.String(),
 		Fix:      schemaStopFix(entry, at),
@@ -195,7 +196,7 @@ func schemaUndeclaredRow(entry *server.LastStopEntry) diagnostic.Diagnostic {
 		Str(" on a configuration name no schema defines, and it held no config schema of external plugin ").
 		Quoted(entry.Plugin).Str(", so a section written for that plugin is such a name: ").Str(entry.Detail)
 	return diagnostic.Diagnostic{
-		Code:     diagnostic.CodeDoctorPluginSchemaUndeclared,
+		Code:     server.CodeDoctorPluginSchemaUndeclared,
 		Severity: diagnostic.SeverityError,
 		Message:  message.String(),
 		Fix:      schemaStopFix(entry, at),
@@ -280,7 +281,7 @@ func autoloadRow(err error) diagnostic.Diagnostic {
 		fix = refusal.Fix()
 	}
 	return diagnostic.Diagnostic{
-		Code:     diagnostic.CodeDoctorPluginAutoloadUnresolved,
+		Code:     codeDoctorPluginAutoloadUnresolved,
 		Severity: diagnostic.SeverityError,
 		Message:  message.String(),
 		Fix:      fix,

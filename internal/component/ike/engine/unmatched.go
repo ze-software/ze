@@ -13,7 +13,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 )
 
@@ -257,7 +256,7 @@ func catchAllInstallHint(cause error) string {
 
 // unmatchedStartRefusal is the operator error for a catch-all the start could not
 // install whole: the Error log line and the ipsec-spd-install doctor finding both
-// carry it, under diagnostic.CodeDoctorIPsecSPDCatchAllMissing. cause is what
+// carry it, under codeDoctorIPsecSPDCatchAllMissing. cause is what
 // installUnmatchedAtStart answered.
 //
 // The fix is a restart: a reload reaches the engine only when `vpn` changed, so the
@@ -424,7 +423,7 @@ func warnImplicitDiscardAtStart(cfg *ipsec.IPsecConfig, log *slog.Logger) {
 	}
 	log.Error("ike: "+implicitDiscardInForceText,
 		"bypass-entries", countBypassEntries(cfg),
-		"code", diagnostic.CodeDoctorIPsecImplicitDiscard)
+		"code", codeDoctorIPsecImplicitDiscard)
 }
 
 // implicitDiscardInForce reports whether cfg runs the discard catch-all only because

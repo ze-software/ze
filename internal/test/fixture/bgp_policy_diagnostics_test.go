@@ -16,7 +16,7 @@ func TestBGPPolicyDiagnosticsReportOracleKeepsExternalControl(t *testing.T) {
 		Severity: diagnostic.SeverityWarning,
 		Message:  "peer C: no routes learned from other peers. Local announcements remain permitted",
 		Fix:      "set bgp peer C filter export final accept"}
-	e := diagnostic.Diagnostic{Code: diagnostic.CodeDoctorBGPRFC8212NoPolicy,
+	e := diagnostic.Diagnostic{Code: codeDoctorBGPRFC8212NoPolicy,
 		Severity: diagnostic.SeverityWarning, Message: "peer E: RFC 8212: no export policy",
 		Fix: "set bgp peer E filter export final accept"}
 	report := diagnostic.NewDoctorResult(false, []diagnostic.Diagnostic{c, e})

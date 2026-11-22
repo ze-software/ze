@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/subscriberid"
 )
@@ -51,7 +50,7 @@ func TestKernelCleanupWarningClearsAfterExactDeleteRetry(t *testing.T) {
 			require.Len(t, warnings, 1, "the original cleanup failure must reach runtime doctor")
 			warning := warnings[0]
 			require.Equal(t, ppp.CleanupReportSource, warning.Source)
-			require.Equal(t, diagnostic.CodeDoctorPPPCleanup, warning.Code)
+			require.Equal(t, ppp.CodeDoctorPPPCleanup, warning.Code)
 			require.Contains(t, warning.Message, "unconfirmed")
 			require.Equal(t, "ze show warnings", warning.Fix)
 			require.Equal(t, failure.Error(), warning.Detail["error"])

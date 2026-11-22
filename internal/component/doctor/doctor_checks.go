@@ -57,7 +57,7 @@ var doctorOwnedChecks = []diagnostic.DoctorCheck{{
 	Component:    doctorOwnComponent,
 	Dependencies: []string{doctorDependencyStorage},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{diagnostic.CodeDoctorStorageRecoveryPending},
+	Codes:        []string{codeDoctorStorageRecoveryPending},
 	Check:        doctorCheckRecoveryPending,
 }, {
 	Name:         "machine-id",
@@ -66,7 +66,7 @@ var doctorOwnedChecks = []diagnostic.DoctorCheck{{
 	Component:    doctorOwnComponent,
 	Dependencies: []string{doctorDependencyStorage, doctorDependencyFilesystem},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{diagnostic.CodeDoctorMachineIDMissing},
+	Codes:        []string{codeDoctorMachineIDMissing},
 	Check:        doctorCheckMachineID,
 }, {
 	Name:         "random-seed",
@@ -75,7 +75,7 @@ var doctorOwnedChecks = []diagnostic.DoctorCheck{{
 	Component:    doctorOwnComponent,
 	Dependencies: []string{doctorDependencyFilesystem},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{diagnostic.CodeDoctorRandomSeed},
+	Codes:        []string{codeDoctorRandomSeed},
 	Check:        doctorCheckRandomSeed,
 }, {
 	// The persistent storage of an appliance, smaller than its disk. The host
@@ -91,7 +91,7 @@ var doctorOwnedChecks = []diagnostic.DoctorCheck{{
 	Component:    doctorOwnComponent,
 	Dependencies: []string{doctorDependencyPersistentStorage},
 	Platforms:    []string{host.PlatformGokrazy.String()},
-	Codes:        []string{diagnostic.CodeDoctorStorageNotGrown},
+	Codes:        []string{codeDoctorStorageNotGrown},
 	Check:        doctorCheckStorageGrown,
 }, {
 	// The missing-config twin of kernel-modules. The runner called
@@ -124,7 +124,7 @@ var doctorOwnedChecks = []diagnostic.DoctorCheck{{
 	Component:    doctorOwnComponent,
 	Dependencies: []string{doctorDependencyFilesystem},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{diagnostic.CodeDoctorDiskSpace},
+	Codes:        []string{codeDoctorDiskSpace},
 	Check:        doctorCheckDiskSpace,
 }, {
 	Name:         "clock-skew",
@@ -133,7 +133,7 @@ var doctorOwnedChecks = []diagnostic.DoctorCheck{{
 	Component:    doctorOwnComponent,
 	Dependencies: []string{"clock"},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{diagnostic.CodeDoctorClockSkew},
+	Codes:        []string{codeDoctorClockSkew},
 	Check:        doctorCheckClockSkew,
 }, {
 	// The four AS112 coordination checks read BGP config and AS112 config
@@ -147,7 +147,7 @@ var doctorOwnedChecks = []diagnostic.DoctorCheck{{
 	Component:    doctorOwnComponent,
 	Dependencies: []string{doctorDependencyConfig},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{diagnostic.CodeDoctorAS112WatchdogMissingWithdraw},
+	Codes:        []string{codeDoctorAS112WatchdogMissingWithdraw},
 	Check:        doctorCheckAS112WatchdogWithdraw,
 }, {
 	Name:         "as112-global-origin-coordination",
@@ -156,7 +156,7 @@ var doctorOwnedChecks = []diagnostic.DoctorCheck{{
 	Component:    doctorOwnComponent,
 	Dependencies: []string{doctorDependencyConfig},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{diagnostic.CodeDoctorAS112GlobalOriginUncoordinated},
+	Codes:        []string{codeDoctorAS112GlobalOriginUncoordinated},
 	Check:        doctorCheckAS112GlobalOriginCoordination,
 }, {
 	Name:         "as112-redistribute-origin-coordination",
@@ -165,7 +165,7 @@ var doctorOwnedChecks = []diagnostic.DoctorCheck{{
 	Component:    doctorOwnComponent,
 	Dependencies: []string{doctorDependencyConfig},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{diagnostic.CodeDoctorAS112RedistributeOriginUncoordinated},
+	Codes:        []string{codeDoctorAS112RedistributeOriginUncoordinated},
 	Check:        doctorCheckAS112RedistributeOriginCoordination,
 }, {
 	Name:         "as112-redistribute-not-imported",
@@ -174,7 +174,7 @@ var doctorOwnedChecks = []diagnostic.DoctorCheck{{
 	Component:    doctorOwnComponent,
 	Dependencies: []string{doctorDependencyConfig},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{diagnostic.CodeDoctorAS112RedistributeNotImported},
+	Codes:        []string{codeDoctorAS112RedistributeNotImported},
 	Check:        doctorCheckAS112RedistributeNotImported,
 }, {
 	Name:         "writable-destinations",
@@ -183,7 +183,7 @@ var doctorOwnedChecks = []diagnostic.DoctorCheck{{
 	Component:    doctorOwnComponent,
 	Dependencies: []string{doctorDependencyFilesystem},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{diagnostic.CodeDoctorWriteDestination},
+	Codes:        []string{codeDoctorWriteDestination},
 	Check:        doctorCheckWritableDestinations,
 }, {
 	// The judgement over the platform the runner resolved. The resolution
@@ -197,7 +197,7 @@ var doctorOwnedChecks = []diagnostic.DoctorCheck{{
 	Component:    doctorOwnComponent,
 	Dependencies: []string{"platform"},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{diagnostic.CodeDoctorPlatformUnknown, diagnostic.CodeDoctorPlatformPerm, diagnostic.CodeDoctorPlatformContainerRO},
+	Codes:        []string{codeDoctorPlatformUnknown, codeDoctorPlatformPerm, codeDoctorPlatformContainerRO},
 	Check:        checkPlatform,
 }, {
 	// Every configured listen endpoint, from every service, probed for a bind.
@@ -212,14 +212,14 @@ var doctorOwnedChecks = []diagnostic.DoctorCheck{{
 	Dependencies: []string{"network"},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
 	Codes: []string{
-		diagnostic.CodeDoctorListenUnavailable,
-		diagnostic.CodeDoctorListenerSetUnknown,
+		codeDoctorListenUnavailable,
+		codeDoctorListenerSetUnknown,
 		diagnostic.CodeDoctorBGPListen,
-		diagnostic.CodeDoctorBFDPort,
-		diagnostic.CodeDoctorIPsecListen,
-		diagnostic.CodeDoctorTFTPListen,
-		diagnostic.CodeDoctorImageListen,
-		diagnostic.CodeDoctorNTPListen,
+		codeDoctorBFDPort,
+		codeDoctorIPsecListen,
+		codeDoctorTFTPListen,
+		codeDoctorImageListen,
+		codeDoctorNTPListen,
 	},
 	Check: doctorCheckListeners,
 }, {
@@ -233,7 +233,7 @@ var doctorOwnedChecks = []diagnostic.DoctorCheck{{
 	Component:    doctorOwnComponent,
 	Dependencies: []string{doctorDependencyConfig, "plugin-registry"},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{diagnostic.CodeDoctorConfigClaimsUnavailable, diagnostic.CodeDoctorConfigRootUnclaimed},
+	Codes:        []string{codeDoctorConfigClaimsUnavailable, codeDoctorConfigRootUnclaimed},
 	Check:        doctorCheckConfigClaims,
 }}
 

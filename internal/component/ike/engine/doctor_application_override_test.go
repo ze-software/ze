@@ -14,7 +14,6 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -67,8 +66,8 @@ func TestDoctorApplicationOverride(t *testing.T) {
 	attached := dataplane.OverrideGuardState{Status: dataplane.OverrideGuardAttached}
 	detached := dataplane.OverrideGuardState{Status: dataplane.OverrideGuardDetached}
 
-	warn := "warning:" + diagnostic.CodeDoctorIPsecSocketPolicy
-	fail := "error:" + diagnostic.CodeDoctorIPsecOverrideGuard
+	warn := "warning:" + codeDoctorIPsecSocketPolicy
+	fail := "error:" + codeDoctorIPsecOverrideGuard
 	for _, tc := range []struct {
 		name     string
 		override ipsec.ApplicationOverride
@@ -106,11 +105,11 @@ func TestDoctorApplicationOverride(t *testing.T) {
 			}
 			for _, d := range diags {
 				switch d.Code {
-				case diagnostic.CodeDoctorIPsecOverrideGuard:
+				case codeDoctorIPsecOverrideGuard:
 					if d.Fix != spdInstallFixRestart() {
 						t.Errorf("guard finding fix = %q, want %q", d.Fix, spdInstallFixRestart())
 					}
-				case diagnostic.CodeDoctorIPsecSocketPolicy:
+				case codeDoctorIPsecSocketPolicy:
 					if d.Fix != socketPolicyFixList {
 						t.Errorf("socket-policy finding fix = %q, want %q", d.Fix, socketPolicyFixList)
 					}
@@ -186,7 +185,7 @@ func TestDoctorReportsRefusedDeny(t *testing.T) {
 				t.Fatal("deny applied with a guard the backend refused")
 			}
 			diags := checkIPsecApplicationOverride(registry.DoctorCheckContext{})
-			if got, want := diagnosticCodes(diags), "error:"+diagnostic.CodeDoctorIPsecOverrideGuard; got != want {
+			if got, want := diagnosticCodes(diags), "error:"+codeDoctorIPsecOverrideGuard; got != want {
 				t.Fatalf("diagnostics = %q, want %q (%v)", got, want, diags)
 			}
 			for _, part := range tc.contains {
@@ -270,7 +269,7 @@ func TestDoctorSPDWritersReadsProc(t *testing.T) {
 	t.Cleanup(func() { procRoot = previous })
 	setAppliedOverride(t, ipsec.ApplicationOverrideAllow)
 	diags := checkIPsecSPDWriters(registry.DoctorCheckContext{})
-	if len(diags) != 1 || diags[0].Code != diagnostic.CodeDoctorIPsecSPDWriter || diags[0].Severity != severityWarning ||
+	if len(diags) != 1 || diags[0].Code != codeDoctorIPsecSPDWriter || diags[0].Severity != severityWarning ||
 		!strings.Contains(diags[0].Message, "Processes 150 (zebra), 200 (charon) hold CAP_NET_ADMIN") {
 		t.Fatalf("the check answered %v, want one warning naming 150 (zebra) and 200 (charon)", diags)
 	}
@@ -293,8 +292,8 @@ func TestDoctorSPDWritersReportsUnreadableProc(t *testing.T) {
 
 	procRoot = filepath.Join(t.TempDir(), "absent")
 	diags := checkIPsecSPDWriters(registry.DoctorCheckContext{})
-	if len(diags) != 1 || diags[0].Code != diagnostic.CodeDoctorIPsecSPDWriterUnknown || diags[0].Severity != severityWarning {
-		t.Fatalf("a missing /proc answered %v, want one %s warning", diags, diagnostic.CodeDoctorIPsecSPDWriterUnknown)
+	if len(diags) != 1 || diags[0].Code != codeDoctorIPsecSPDWriterUnknown || diags[0].Severity != severityWarning {
+		t.Fatalf("a missing /proc answered %v, want one %s warning", diags, codeDoctorIPsecSPDWriterUnknown)
 	}
 	for _, want := range []string{"reading " + procRoot + " failed", "cannot tell", "mount -o remount,hidepid=0 /proc"} {
 		if !strings.Contains(diags[0].Message, want) {
@@ -319,8 +318,8 @@ func TestDoctorSPDWritersReportsUnreadableProc(t *testing.T) {
 	}
 	procRoot = root
 	diags = checkIPsecSPDWriters(registry.DoctorCheckContext{})
-	if len(diags) != 1 || diags[0].Code != diagnostic.CodeDoctorIPsecSPDWriterUnknown ||
+	if len(diags) != 1 || diags[0].Code != codeDoctorIPsecSPDWriterUnknown ||
 		!strings.Contains(diags[0].Message, "Linux hides under "+root+": 1)") {
-		t.Fatalf("one hidden process answered %v, want one %s warning counting 1", diags, diagnostic.CodeDoctorIPsecSPDWriterUnknown)
+		t.Fatalf("one hidden process answered %v, want one %s warning counting 1", diags, codeDoctorIPsecSPDWriterUnknown)
 	}
 }

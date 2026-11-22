@@ -21,14 +21,14 @@ func TestPPPCleanupDoctorRuntimeEntry(t *testing.T) {
 	report.ResetForTest()
 	t.Cleanup(report.ResetForTest)
 	diagnostic.RegisterBuiltinCodes()
-	if diagnostic.Lookup(diagnostic.CodeDoctorPPPCleanup) == nil {
+	if diagnostic.Lookup(ppp.CodeDoctorPPPCleanup) == nil {
 		t.Fatal("cleanup code has no explanation")
 	}
 	ppp.ReportCleanupFailure(ppp.SessionIdentity{InterfaceName: "ppp7", NativeIndex: 9}, ppp.CleanupSession,
 		fmt.Errorf("delete interface: %w", errors.New("backend unavailable")))
 	var own []diagnostic.Diagnostic
 	for _, finding := range doctor.RunRuntimeChecks(nil, nil) {
-		if finding.Code == diagnostic.CodeDoctorPPPCleanup {
+		if finding.Code == ppp.CodeDoctorPPPCleanup {
 			own = append(own, finding)
 		}
 	}
@@ -105,7 +105,7 @@ func TestPPPCleanupDoctorKeepsEvictionUncertainty(t *testing.T) {
 	if len(findings) != 1 {
 		t.Fatalf("eviction appeared recovered: %+v", findings)
 	}
-	if findings[0].Code != diagnostic.CodeDoctorPPPCleanup {
+	if findings[0].Code != ppp.CodeDoctorPPPCleanup {
 		t.Fatalf("eviction code = %+v", findings)
 	}
 	if !strings.Contains(findings[0].Message, "report bus") {

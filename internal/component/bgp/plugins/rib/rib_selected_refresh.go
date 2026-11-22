@@ -8,7 +8,6 @@ import (
 	"iter"
 	"net/netip"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -415,7 +414,7 @@ func (r *RIBManager) queueSelectedRefresh(peer string, owner, session uint64, el
 	}
 	if err != nil {
 		logger().Warn("ordinary refresh was refused", "peer", peer, "session", session, "error", err,
-			"code", diagnostic.CodeDoctorBGPSelectedOutput, "fix", "ze show bgp rib status")
+			"code", codeDoctorBGPSelectedOutput, "fix", "ze show bgp rib status")
 	}
 }
 
@@ -429,7 +428,7 @@ func (r *RIBManager) replayLegacyRefresh(peer string, owner uint64, fam family.F
 	_, err := parsePeerAddr(peer)
 	if err != nil {
 		logger().Warn("refresh event dropped", "error", err,
-			"code", diagnostic.CodeDoctorBGPSelectedOutput, "fix", "ze show bgp rib status")
+			"code", codeDoctorBGPSelectedOutput, "fix", "ze show bgp rib status")
 		return
 	}
 	r.peerMu.RLock()

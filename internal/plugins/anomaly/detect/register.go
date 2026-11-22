@@ -92,7 +92,7 @@ func init() {
 			Order:        770,
 			Dependencies: []string{"config-loaded"},
 			Platforms:    []string{"any"},
-			Codes:        []string{"doctor-anomaly-detect-no-feature-source"},
+			Codes:        []string{codeDoctorAnomalyDetectNoFeatureSource},
 			Check:        checkFeatureSource,
 		}},
 	}

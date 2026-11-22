@@ -97,7 +97,7 @@ func TestDoctorIPsecForwardDefaultReadsTheLiveChecker(t *testing.T) {
 				}
 				return
 			}
-			if len(findings) != 1 || findings[0].Code != diagnostic.CodeDoctorIPsecForwardDefault ||
+			if len(findings) != 1 || findings[0].Code != codeDoctorIPsecForwardDefault ||
 				findings[0].Severity != severityError || findings[0].Fix != "test-inspect-forward-default" ||
 				!strings.Contains(findings[0].Message, "namespace cannot be read") || !strings.Contains(findings[0].Message, "disposition is unknown") {
 				t.Fatalf("live failure lost its operator problem/why/fix: %+v", findings)
@@ -140,7 +140,7 @@ func TestForwardDefaultFailureIsAnErrorOnEverySurface(t *testing.T) {
 	var logged bytes.Buffer
 	removeUnmatched(removal, slog.New(slog.NewTextHandler(&logged, nil)), nil)
 	out := logged.String()
-	if !strings.Contains(out, "level=ERROR") || !strings.Contains(out, "code="+diagnostic.CodeDoctorIPsecForwardDefault) {
+	if !strings.Contains(out, "level=ERROR") || !strings.Contains(out, "code="+codeDoctorIPsecForwardDefault) {
 		t.Fatalf("the failed removal is not logged at Error under its doctor code:\n%s", out)
 	}
 	if strings.Contains(out, "level=WARN") {
@@ -167,7 +167,7 @@ func TestForwardDefaultRemovalFailureRaisesOneEventAndRetries(t *testing.T) {
 		t.Fatalf("failed removal: issues=%d releases=%d", len(raiser.issues), dp.releases)
 	}
 	issue := raiser.issues[0]
-	if issue.Code != diagnostic.CodeDoctorIPsecForwardDefault || issue.Severity != rpc.ReportError ||
+	if issue.Code != codeDoctorIPsecForwardDefault || issue.Severity != rpc.ReportError ||
 		issue.Subject != "namespace-forward-default" || !strings.HasPrefix(issue.Fix, "sudo ") ||
 		!strings.Contains(issue.Message, "retains the namespace") {
 		t.Fatalf("restoration event lost its cause or fix: %+v", issue)

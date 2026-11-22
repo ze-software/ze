@@ -99,7 +99,7 @@ func TestWriteBudgetExpiryLogsOneCodedWarning(t *testing.T) {
 		}
 		var record map[string]any
 		require.NoError(t, json.Unmarshal([]byte(line), &record), "log line: %s", line)
-		if record["code"] == diagnostic.CodeDoctorBGPPeerNotReading {
+		if record["code"] == codeDoctorBGPPeerNotReading {
 			coded = append(coded, record)
 		}
 	}
@@ -136,14 +136,14 @@ func TestWriteBudgetExpiryRaisesOneEvent(t *testing.T) {
 	require.Len(t, events, 1, "one close raises one event")
 	event := events[0]
 	require.Equal(t, reportSourceBGP, event.Source)
-	require.Equal(t, diagnostic.CodeDoctorBGPPeerNotReading, event.Code)
+	require.Equal(t, codeDoctorBGPPeerNotReading, event.Code)
 	require.Equal(t, "192.0.2.1", event.Subject)
 	require.Equal(t, writeBudgetExpiryFix, event.Fix)
 	require.LessOrEqual(t, len(writeBudgetExpiryFix), report.FixMax, "the bus refuses a longer fix")
 	require.Equal(t, budgetShort.String(), event.Detail["budget"])
 	require.Contains(t, event.Message, "192.0.2.1")
 	require.Contains(t, event.Message, budgetShort.String())
-	require.Contains(t, diagnostic.EventCodes(), diagnostic.CodeDoctorBGPPeerNotReading,
+	require.Contains(t, diagnostic.EventCodes(), codeDoctorBGPPeerNotReading,
 		"the reactor must register the code it raises, or show doctor reports it under no code of its own")
 }
 
@@ -174,7 +174,7 @@ func TestWriteFailureOtherThanBudgetIsNotAnExpiry(t *testing.T) {
 	require.NotErrorIs(t, closeCause(p.session), ErrWriteBudgetExpired,
 		"a closed connection is not a write budget expiry")
 	for _, event := range report.Errors(0) {
-		require.NotEqual(t, diagnostic.CodeDoctorBGPPeerNotReading, event.Code)
+		require.NotEqual(t, codeDoctorBGPPeerNotReading, event.Code)
 	}
 }
 
@@ -251,10 +251,10 @@ func TestRequestDeadlineIsNotABudgetExpiry(t *testing.T) {
 	require.NotErrorIs(t, closeCause(p.session), ErrWriteBudgetExpired,
 		"the request's deadline is not the write budget")
 	for _, event := range report.Errors(0) {
-		require.NotEqual(t, diagnostic.CodeDoctorBGPPeerNotReading, event.Code,
+		require.NotEqual(t, codeDoctorBGPPeerNotReading, event.Code,
 			"no budget passed, so the peer is not reported as one that stopped reading")
 	}
-	require.Empty(t, closeRecordsWith(closeLogRecords(t, sink), "code", diagnostic.CodeDoctorBGPPeerNotReading),
+	require.Empty(t, closeRecordsWith(closeLogRecords(t, sink), "code", codeDoctorBGPPeerNotReading),
 		"log:\n%s", sink.String())
 }
 
@@ -382,7 +382,7 @@ func TestBudgetExpiryInForwardFlushLogsOnce(t *testing.T) {
 	}
 
 	records := closeLogRecords(t, sink)
-	require.Len(t, closeRecordsWith(records, "code", diagnostic.CodeDoctorBGPPeerNotReading), 1,
+	require.Len(t, closeRecordsWith(records, "code", codeDoctorBGPPeerNotReading), 1,
 		"the expiry has its coded line; log:\n%s", sink.String())
 	require.Empty(t, closeRecordsWith(records, "msg", "forward flush failed; destination session retired"),
 		"the coded line is the record of this close; log:\n%s", sink.String())

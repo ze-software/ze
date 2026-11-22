@@ -131,7 +131,7 @@ func TestCrashAndRelayEventsWithLongTextStillRaise(t *testing.T) {
 	pm.ReportCrash("p1", ExitedWith("an unreaped exit: "+long), "ignore")
 	raiseRelayStopped("p1", errors.New(long))
 
-	for _, code := range []string{diagnostic.CodeDoctorPluginCrashed, diagnostic.CodeDoctorPluginStderrRelayStopped} {
+	for _, code := range []string{diagnostic.CodeDoctorPluginCrashed, CodeDoctorPluginStderrRelayStopped} {
 		event, ok := raisedError(code, "p1")
 		if !ok {
 			t.Errorf("no %s event for a cause longer than the bus message bound", code)

@@ -59,7 +59,7 @@ func init() {
 			Order:        722,
 			Dependencies: []string{pluginName},
 			Platforms:    []string{"any"},
-			Codes:        []string{"doctor-geodns-port-unavailable"},
+			Codes:        []string{codeDoctorGeoDNSPortUnavailable},
 			Check:        checkGeoDNSListenCapability,
 		},
 		{

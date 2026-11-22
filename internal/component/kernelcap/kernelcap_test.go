@@ -359,7 +359,7 @@ func TestForcedAnswerReplacesTheNamedProbe(t *testing.T) {
 			alphaCodes := 0
 			for i := range diags {
 				if !strings.HasPrefix(diags[i].Code, "doctor-alpha-") &&
-					diags[i].Code != diagnostic.CodeDoctorKernelCapabilityForced {
+					diags[i].Code != CodeDoctorKernelCapabilityForced {
 					continue
 				}
 				alphaCodes++
@@ -404,8 +404,8 @@ func TestForcedDeniedReachesBothReaders(t *testing.T) {
 	if len(diags) != 1 {
 		t.Fatalf("got %d diagnostics, want 1: %+v", len(diags), diags)
 	}
-	if diags[0].Code != diagnostic.CodeDoctorKernelCapabilityDenied {
-		t.Errorf("code is %q, want %q", diags[0].Code, diagnostic.CodeDoctorKernelCapabilityDenied)
+	if diags[0].Code != codeDoctorKernelCapabilityDenied {
+		t.Errorf("code is %q, want %q", diags[0].Code, codeDoctorKernelCapabilityDenied)
 	}
 	if !strings.Contains(diags[0].Message, forceEnv) {
 		t.Errorf("the diagnostic does not name %s: %s", forceEnv, diags[0].Message)
@@ -439,7 +439,7 @@ func TestForcedAnswerListAndMisspellings(t *testing.T) {
 func assertForcedPresentDiagnostic(t *testing.T, diags []diagnostic.Diagnostic) {
 	t.Helper()
 	for i := range diags {
-		if diags[i].Code != diagnostic.CodeDoctorKernelCapabilityForced {
+		if diags[i].Code != CodeDoctorKernelCapabilityForced {
 			continue
 		}
 		if diags[i].Severity != diagnostic.SeverityWarning {
@@ -447,7 +447,7 @@ func assertForcedPresentDiagnostic(t *testing.T, diags []diagnostic.Diagnostic) 
 		}
 		return
 	}
-	t.Errorf("a forced present produced no %s diagnostic: %+v", diagnostic.CodeDoctorKernelCapabilityForced, diags)
+	t.Errorf("a forced present produced no %s diagnostic: %+v", CodeDoctorKernelCapabilityForced, diags)
 }
 
 // VALIDATES: AC-15 and AC-16 (D-7). A probe the host's security policy denied
@@ -465,8 +465,8 @@ func TestDeniedCapabilityNamesThePolicyAndStarts(t *testing.T) {
 	if len(diags) != 1 {
 		t.Fatalf("got %d diagnostics, want 1: %+v", len(diags), diags)
 	}
-	if diags[0].Code != diagnostic.CodeDoctorKernelCapabilityDenied {
-		t.Errorf("code is %q, want %q", diags[0].Code, diagnostic.CodeDoctorKernelCapabilityDenied)
+	if diags[0].Code != codeDoctorKernelCapabilityDenied {
+		t.Errorf("code is %q, want %q", diags[0].Code, codeDoctorKernelCapabilityDenied)
 	}
 	if diags[0].Severity != diagnostic.SeverityWarning {
 		t.Errorf("severity is %q, want warning", diags[0].Severity)

@@ -16,7 +16,6 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -45,7 +44,7 @@ func checkIPsecNoPMTUDisc(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiag
 		// rather than read as "no df-bit copy peer affected", the convention of the
 		// ddos flowspec orphan-record check.
 		return []rpc.DoctorCheckDiagnostic{{
-			Code:     diagnostic.CodeDoctorIPsecNoPMTUDisc,
+			Code:     codeDoctorIPsecNoPMTUDisc,
 			Severity: severityWarning,
 			Message:  "vpn ipsec: this doctor run holds no parsed configuration, so it cannot say whether a df-bit copy peer has its IPv4 tunnel header written with DF clear; the command below prints the running configuration, whose df-bit copy peers are affected when `sysctl net.ipv4.ip_no_pmtu_disc` is not 0",
 			Fix:      "show config running",
@@ -79,7 +78,8 @@ func checkIPsecNoPMTUDisc(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiag
 			Join(peers, ", ").
 			Str(" with DF clear. Check that /proc is mounted, then run `sysctl net.ipv4.ip_no_pmtu_disc`: any value but 0 clears DF on those SAs.")
 		return []rpc.DoctorCheckDiagnostic{{
-			Code:     diagnostic.CodeDoctorIPsecNoPMTUDisc,
+			Code:     codeDoctorIPsecNoPMTUDisc,
+			Fix:      "sysctl net.ipv4.ip_no_pmtu_disc",
 			Severity: severityWarning,
 			Message:  tb.String(),
 		}}
@@ -96,7 +96,8 @@ func checkIPsecNoPMTUDisc(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiag
 		Str("Fix: `set sysctl setting net.ipv4.ip_no_pmtu_disc value 0` and commit, or set those peers to `df-bit clear` ").
 		Str("if clear is what they need. New Child SAs take the change; rekey or restart the tunnels to apply it to the SAs already up.")
 	return []rpc.DoctorCheckDiagnostic{{
-		Code:     diagnostic.CodeDoctorIPsecNoPMTUDisc,
+		Code:     codeDoctorIPsecNoPMTUDisc,
+		Fix:      "sysctl -w net.ipv4.ip_no_pmtu_disc=0",
 		Severity: severityWarning,
 		Message:  tb.String(),
 	}}

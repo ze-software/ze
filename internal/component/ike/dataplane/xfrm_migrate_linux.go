@@ -17,7 +17,6 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/kernelcap"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -388,7 +387,7 @@ func (b *xfrmMobikeBackend) followMove(spi uint32, watched bool, from netip.Addr
 		"Ze keeps the move. Clearing the peer that holds the SA, with "+ESPFormFixClearPeer+"<name>, "+
 		"installs a new Child SA that is received in both forms; the listing shows each peer's inbound SPI",
 		"spi", spi, "local", from, "new-local", target.local, "error", err,
-		"fix", ESPFormFixListSAs, "code", diagnostic.CodeDoctorIPsecESPFormFastPath)
+		"fix", ESPFormFixListSAs, "code", CodeDoctorIPsecESPFormFastPath)
 }
 
 // xfrmMigrationIPv4 answers a MOBIKE move's new address as the IPv4 address the

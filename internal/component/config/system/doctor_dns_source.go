@@ -25,9 +25,9 @@ const dnsSourceDoctorCheckName = "dns-source-selection"
 
 // dnsSourceDoctorCodes are the codes checkDNSSourceSelections emits.
 var dnsSourceDoctorCodes = []string{
-	diagnostic.CodeDoctorDNSSourceEmpty,
-	diagnostic.CodeDoctorDNSSourceInterfaceSilent,
-	diagnostic.CodeDoctorDNSSourceSelfUnserved,
+	CodeDoctorDNSSourceEmpty,
+	CodeDoctorDNSSourceInterfaceSilent,
+	CodeDoctorDNSSourceSelfUnserved,
 }
 
 // dnsSourceDoctorCheck is the runtime doctor check over every dns-source
@@ -77,21 +77,21 @@ func dnsSourceFindings(snapshot dnssource.Snapshot, consumers []dnssource.Public
 	for i := range selections {
 		selection := &selections[i]
 		if len(selection.Servers) == 0 && slices.Contains(selection.Sources, dnssource.ClassReceived) {
-			diags = append(diags, dnsSourceWarning(diagnostic.CodeDoctorDNSSourceEmpty, selection,
+			diags = append(diags, dnsSourceWarning(CodeDoctorDNSSourceEmpty, selection,
 				"the list names received and selected no resolver, so this consumer offers none", dnsSourceFixShow))
 		}
 		for _, name := range selection.ReceivedInterfaces {
 			if interfaceHoldsRecord(snapshot.Records, name) {
 				continue
 			}
-			diags = append(diags, dnsSourceWarning(diagnostic.CodeDoctorDNSSourceInterfaceSilent, selection,
+			diags = append(diags, dnsSourceWarning(CodeDoctorDNSSourceInterfaceSilent, selection,
 				"received-interface "+name+" holds no learned resolver, so the list never selects from it", dnsSourceFixShow))
 		}
 		for _, self := range selection.Self {
 			if slices.Contains(served, self) {
 				continue
 			}
-			diags = append(diags, dnsSourceWarning(diagnostic.CodeDoctorDNSSourceSelfUnserved, selection,
+			diags = append(diags, dnsSourceWarning(CodeDoctorDNSSourceSelfUnserved, selection,
 				"hands out "+self.String()+" through self, and no service dns-resolver listener answers on it",
 				"set service dns-resolver listener <name> ip "+self.String()))
 		}

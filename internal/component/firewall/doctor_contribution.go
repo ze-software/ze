@@ -37,7 +37,7 @@ var contributionDoctorCheck = diagnostic.DoctorCheck{
 	Component:    reportSourceFirewall,
 	Dependencies: []string{"plugin-firewall-tables"},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{diagnostic.CodeDoctorFirewallContributedTables},
+	Codes:        []string{codeDoctorFirewallContributedTables},
 	Check:        checkContributedTables,
 }
 
@@ -60,10 +60,10 @@ func checkContributedTables(diagnostic.DoctorCheckContext) []diagnostic.Diagnost
 	}
 	// An evicted warning is unknown state, never evidence the tables are
 	// right.
-	status, reason := report.HealthProbeDegraded(diagnostic.CodeDoctorFirewallContributedTables)()
+	status, reason := report.HealthProbeDegraded(codeDoctorFirewallContributedTables)()
 	if status != health.StatusHealthy {
 		return []diagnostic.Diagnostic{{
-			Code: diagnostic.CodeDoctorFirewallContributedTables, Severity: diagnostic.SeverityWarning,
+			Code: codeDoctorFirewallContributedTables, Severity: diagnostic.SeverityWarning,
 			Message: "the state of the plugin-contributed firewall tables is unknown: " + reason,
 			Fix:     contributionInspect,
 		}}

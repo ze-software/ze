@@ -94,7 +94,7 @@ func collectSchemaListeners(tree *config.Tree) ([]serviceListener, error) {
 			network:  ep.Protocol,
 			host:     ep.IP.String(),
 			port:     textbuf.StringUint16(ep.Port),
-			code:     diagnostic.CodeDoctorListenUnavailable,
+			code:     codeDoctorListenUnavailable,
 			severity: diagnostic.SeverityWarning,
 			freebind: ep.Freebind,
 		}
@@ -188,7 +188,8 @@ func listenerProbeFinding(tb *textbuf.Buffer, l serviceListener, err error) diag
 func listenerSetUnknown(cause error) diagnostic.Diagnostic {
 	var tb textbuf.Buffer
 	return diagnostic.Diagnostic{
-		Code:     diagnostic.CodeDoctorListenerSetUnknown,
+		Code:     codeDoctorListenerSetUnknown,
+		Fix:      "ze doctor",
 		Severity: diagnostic.SeverityError,
 		Message: tb.Str("listeners: cannot work out which listen addresses to check: ").Err(cause).
 			Str(". No web, SSH, gNMI, API or other schema-declared listener was checked. ").
@@ -250,7 +251,7 @@ func dedupeListeners(listeners []serviceListener) []serviceListener {
 	result := make([]serviceListener, 0, len(listeners))
 	for _, l := range listeners {
 		if l.code == "" {
-			l.code = diagnostic.CodeDoctorListenUnavailable
+			l.code = codeDoctorListenUnavailable
 		}
 		if l.severity == "" {
 			l.severity = diagnostic.SeverityWarning
@@ -312,7 +313,7 @@ func extractBFDListeners(tree *config.Tree) []serviceListener {
 	if !configEnabled(bfd, true) {
 		return nil
 	}
-	return []serviceListener{udpListener("bfd", "3784", diagnostic.CodeDoctorBFDPort)}
+	return []serviceListener{udpListener("bfd", "3784", codeDoctorBFDPort)}
 }
 
 func extractIPsecListeners(tree *config.Tree) []serviceListener {
@@ -323,8 +324,8 @@ func extractIPsecListeners(tree *config.Tree) []serviceListener {
 		return nil
 	}
 	return []serviceListener{
-		udpListener("ipsec", "500", diagnostic.CodeDoctorIPsecListen),
-		udpListener("ipsec", "4500", diagnostic.CodeDoctorIPsecListen),
+		udpListener("ipsec", "500", codeDoctorIPsecListen),
+		udpListener("ipsec", "4500", codeDoctorIPsecListen),
 	}
 }
 
@@ -333,7 +334,7 @@ func extractTFTPListeners(tree *config.Tree) []serviceListener {
 	if !configEnabled(tftp, false) {
 		return nil
 	}
-	return []serviceListener{udpListener("tftp", "69", diagnostic.CodeDoctorTFTPListen)}
+	return []serviceListener{udpListener("tftp", "69", codeDoctorTFTPListen)}
 }
 
 func extractImageListeners(tree *config.Tree) []serviceListener {
@@ -341,7 +342,7 @@ func extractImageListeners(tree *config.Tree) []serviceListener {
 	if !configEnabled(image, false) {
 		return nil
 	}
-	return []serviceListener{tcpListener("image-server", "0.0.0.0", valueOrDefault(image, "listen-port", "80"), diagnostic.CodeDoctorImageListen)}
+	return []serviceListener{tcpListener("image-server", "0.0.0.0", valueOrDefault(image, "listen-port", "80"), codeDoctorImageListen)}
 }
 
 func extractNTPListeners(tree *config.Tree) []serviceListener {
@@ -349,7 +350,7 @@ func extractNTPListeners(tree *config.Tree) []serviceListener {
 	if !configEnabled(ntp, false) {
 		return nil
 	}
-	return []serviceListener{udpListener("ntp", "123", diagnostic.CodeDoctorNTPListen)}
+	return []serviceListener{udpListener("ntp", "123", codeDoctorNTPListen)}
 }
 
 func forcedDoctorCode(code, configured string) bool {

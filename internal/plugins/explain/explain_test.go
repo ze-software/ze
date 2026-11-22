@@ -111,6 +111,7 @@ func TestExplainUnknownDiagnostic(t *testing.T) {
 	assert.Equal(t, 1, unknown.Code)
 	assert.Nil(t, unknown.Payload)
 	assert.Contains(t, unknown.Diagnostic, "error: unknown diagnostic code: nonexistent-code\n")
+	assert.Contains(t, unknown.Diagnostic, "that feature is not in this build")
 	assert.Contains(t, unknown.Diagnostic, "valid codes: ")
 }
 

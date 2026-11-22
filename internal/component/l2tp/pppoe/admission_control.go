@@ -10,7 +10,6 @@ import (
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 // sessionForAttempt selects the original transport admission. The canonical ID
@@ -167,7 +166,7 @@ func (s *Subsystem) finishRejectedAdmission(server *InterfaceServer, session *Se
 		}
 		server.sessions.mu.Unlock()
 		s.logger.Warn("pppoe: refused PPP admission cleanup is not confirmed",
-			"code", diagnostic.CodeDoctorPPPCleanup, "fix", ppp.CleanupFailureFix,
+			"code", ppp.CodeDoctorPPPCleanup, "fix", ppp.CleanupFailureFix,
 			"subscriber", event.Attempt.SubscriberID(), "status", status, "error", err)
 		return
 	}

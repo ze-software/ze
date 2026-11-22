@@ -14,7 +14,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -98,7 +97,7 @@ func TestRIBSourceLeaseFailureStaysScoped(t *testing.T) {
 	require.False(t, s.reportFailures(t.Context()))
 	findings := s.doctorFailures()
 	require.Len(t, findings, 1)
-	require.Equal(t, diagnostic.CodeDoctorBGPSelectedOutput, findings[0].Code)
+	require.Equal(t, codeDoctorBGPSelectedOutput, findings[0].Code)
 	require.Contains(t, findings[0].Message, peer.String())
 	require.Contains(t, findings[0].Message, "controlled source release failure")
 	_, err = f.r.advertiseSnapshot()

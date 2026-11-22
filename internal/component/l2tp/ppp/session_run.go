@@ -21,7 +21,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
@@ -620,13 +619,13 @@ func (s *pppSession) prepareSessionDown(event EventSessionDown) EventSessionDown
 	if err := s.stopIPv6Writers(); err != nil {
 		s.reportIPv6ChildCleanupFailure(err)
 		s.logger.Warn("ppp: IPv6 cleanup before session-down failed; resource removal is unconfirmed",
-			"code", diagnostic.CodeDoctorPPPCleanup, "error", err, "fix", CleanupFailureFix)
+			"code", CodeDoctorPPPCleanup, "error", err, "fix", CleanupFailureFix)
 	}
 	event.NetworkLifetime, event.TerminalCounters = s.captureNetworkTerminal()
 	if err := s.stopIPv6Service(); err != nil {
 		s.reportIPv6ChildCleanupFailure(err)
 		s.logger.Warn("ppp: IPv6 resource cleanup after terminal counters failed",
-			"code", diagnostic.CodeDoctorPPPCleanup, "error", err, "fix", CleanupFailureFix)
+			"code", CodeDoctorPPPCleanup, "error", err, "fix", CleanupFailureFix)
 	}
 	return event
 }
@@ -690,13 +689,13 @@ func (s *pppSession) closeFilesLocked() error {
 	if err := s.stopIPv6Writers(); err != nil {
 		s.reportIPv6ChildCleanupFailure(err)
 		s.logger.Warn("ppp: IPv6 writers before terminal counters failed",
-			"code", diagnostic.CodeDoctorPPPCleanup, "error", err, "fix", CleanupFailureFix)
+			"code", CodeDoctorPPPCleanup, "error", err, "fix", CleanupFailureFix)
 	}
 	s.captureNetworkTerminal()
 	if err := s.teardownNCPResources(); err != nil {
 		ReportCleanupFailure(s.dataplane.Identity(), CleanupNetwork, err)
 		s.logger.Warn("ppp: final network cleanup failed; resource removal is unconfirmed",
-			"code", diagnostic.CodeDoctorPPPCleanup, "error", err, "fix", CleanupFailureFix)
+			"code", CodeDoctorPPPCleanup, "error", err, "fix", CleanupFailureFix)
 	}
 	if owner == nil {
 		return nil
@@ -714,7 +713,7 @@ func (s *pppSession) closeFilesLocked() error {
 	if err := owner.Close(); err != nil {
 		s.reportSessionCleanupFailure(owner, err)
 		s.logger.Warn("ppp: session release failed; resource removal is unconfirmed",
-			"code", diagnostic.CodeDoctorPPPCleanup, "error", err, "fix", CleanupFailureFix)
+			"code", CodeDoctorPPPCleanup, "error", err, "fix", CleanupFailureFix)
 		return err
 	}
 	return nil
@@ -870,7 +869,7 @@ func (s *pppSession) afterLCPOpenIPv6Service() error {
 	if svc != nil {
 		s.reportIPv6ChildCleanupFailure(err)
 		s.logger.Warn("ppp: IPv6 service startup cleanup remains unconfirmed",
-			"code", diagnostic.CodeDoctorPPPCleanup, "error", err, "fix", CleanupFailureFix)
+			"code", CodeDoctorPPPCleanup, "error", err, "fix", CleanupFailureFix)
 	}
 	if errors.Is(err, errFramedRouteRefused) {
 		return err

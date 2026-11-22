@@ -15,7 +15,6 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 // VALIDATES: owner decision 2026-11-20 (5c), the start-up rule of decision 3 (a)
@@ -63,7 +62,7 @@ func TestUnmatchedInstallFailureAtStartIsReportedByDoctor(t *testing.T) {
 			if !strings.Contains(out, "level=ERROR") || !strings.Contains(out, "NOT in force") {
 				t.Fatalf("the start did not log the missing catch-all at Error:\n%s", out)
 			}
-			if !strings.Contains(out, "code="+diagnostic.CodeDoctorIPsecSPDCatchAllMissing) {
+			if !strings.Contains(out, "code="+codeDoctorIPsecSPDCatchAllMissing) {
 				t.Fatalf("the start's Error line does not name its doctor code:\n%s", out)
 			}
 			if strings.Contains(out, "catch-all DISCARD is in force") {
@@ -75,9 +74,9 @@ func TestUnmatchedInstallFailureAtStartIsReportedByDoctor(t *testing.T) {
 				t.Fatalf("the doctor check answered %d findings, want 1 for the catch-all: %+v", len(findings), findings)
 			}
 			finding := findings[0]
-			if finding.Code != diagnostic.CodeDoctorIPsecSPDCatchAllMissing || finding.Severity != severityError {
+			if finding.Code != codeDoctorIPsecSPDCatchAllMissing || finding.Severity != severityError {
 				t.Fatalf("the finding is %s/%s, want %s/%s",
-					finding.Severity, finding.Code, severityError, diagnostic.CodeDoctorIPsecSPDCatchAllMissing)
+					finding.Severity, finding.Code, severityError, codeDoctorIPsecSPDCatchAllMissing)
 			}
 			wantText := "`vpn ipsec unmatched bypass` is NOT in force"
 			if action == dataplane.SPActionDiscard {
@@ -181,7 +180,7 @@ func TestInterfaceSPDCatchAllInstallFailureAtStartIsReportedByDoctor(t *testing.
 	if !strings.Contains(out, "level=ERROR") || !strings.Contains(out, "XFRM interface vti0 is NOT in force") {
 		t.Fatalf("the start did not log the interface's missing catch-all at Error:\n%s", out)
 	}
-	if !strings.Contains(out, "code="+diagnostic.CodeDoctorIPsecSPDCatchAllMissing) {
+	if !strings.Contains(out, "code="+codeDoctorIPsecSPDCatchAllMissing) {
 		t.Fatalf("the start's Error line does not name its doctor code:\n%s", out)
 	}
 
@@ -190,9 +189,9 @@ func TestInterfaceSPDCatchAllInstallFailureAtStartIsReportedByDoctor(t *testing.
 		t.Fatalf("the doctor check answered %d findings, want 1 for vti0: %+v", len(findings), findings)
 	}
 	finding := findings[0]
-	if finding.Code != diagnostic.CodeDoctorIPsecSPDCatchAllMissing || finding.Severity != severityError {
+	if finding.Code != codeDoctorIPsecSPDCatchAllMissing || finding.Severity != severityError {
 		t.Fatalf("the finding is %s/%s, want %s/%s",
-			finding.Severity, finding.Code, severityError, diagnostic.CodeDoctorIPsecSPDCatchAllMissing)
+			finding.Severity, finding.Code, severityError, codeDoctorIPsecSPDCatchAllMissing)
 	}
 	if !strings.Contains(finding.Message, "The default discard of XFRM interface vti0 is NOT in force") {
 		t.Fatalf("the finding does not say vti0's default discard is not in force: %q", finding.Message)
@@ -313,7 +312,7 @@ func TestInterfaceSPDExemptionInstallFailureIsReportedByDoctor(t *testing.T) {
 	if got := liveExemptions(&dp.catchAllDP); len(got) != 0 {
 		t.Fatalf("exemptions live although the backend refused them: %q", got)
 	}
-	if out := logged.String(); !strings.Contains(out, "code="+diagnostic.CodeDoctorIPsecSPDExemptionMissing) {
+	if out := logged.String(); !strings.Contains(out, "code="+codeDoctorIPsecSPDExemptionMissing) {
 		t.Fatalf("the refused exemption was not logged under its doctor code:\n%s", out)
 	}
 	findings := answerSPDInstall(state)
@@ -321,9 +320,9 @@ func TestInterfaceSPDExemptionInstallFailureIsReportedByDoctor(t *testing.T) {
 		t.Fatalf("the doctor check answered %d findings, want 1 for vti0's exemption: %+v", len(findings), findings)
 	}
 	finding := findings[0]
-	if finding.Code != diagnostic.CodeDoctorIPsecSPDExemptionMissing || finding.Severity != severityError {
+	if finding.Code != codeDoctorIPsecSPDExemptionMissing || finding.Severity != severityError {
 		t.Fatalf("the finding is %s/%s, want %s/%s",
-			finding.Severity, finding.Code, severityError, diagnostic.CodeDoctorIPsecSPDExemptionMissing)
+			finding.Severity, finding.Code, severityError, codeDoctorIPsecSPDExemptionMissing)
 	}
 	if !strings.Contains(finding.Message, "XFRM interface vti0") || !strings.Contains(finding.Message, "operation not permitted") {
 		t.Fatalf("the finding does not name vti0 and the dataplane's answer: %q", finding.Message)

@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
-	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/core/statestore"
 )
 
@@ -63,12 +63,12 @@ func TestLastStopRecordWrittenAndCleared(t *testing.T) {
 	if first.Time.Before(before) || first.Time.After(time.Now().Add(time.Second)) {
 		t.Errorf("first entry time %v is not the moment of the stop", first.Time)
 	}
-	if first.Reason.Code() != diagnostic.CodeDoctorPluginFatalStop {
-		t.Errorf("fatal stop code = %q, want %q", first.Reason.Code(), diagnostic.CodeDoctorPluginFatalStop)
+	if first.Reason.Code() != CodeDoctorPluginFatalStop {
+		t.Errorf("fatal stop code = %q, want %q", first.Reason.Code(), CodeDoctorPluginFatalStop)
 	}
 	second := record.Entries[1]
 	if second.Reason != LastStopCleanupLate || second.Plugin != "bgp" ||
-		second.Reason.Code() != diagnostic.CodeDoctorPluginStopCleanupLate {
+		second.Reason.Code() != process.CodeDoctorPluginStopCleanupLate {
 		t.Errorf("second entry = %+v (code %q), want the late cleanup of bgp", second, second.Reason.Code())
 	}
 

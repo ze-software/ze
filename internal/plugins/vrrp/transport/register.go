@@ -24,7 +24,7 @@ func init() {
 		Component:    "vrrp",
 		Dependencies: []string{"external-binary"},
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
-		Codes:        []string{"doctor-vrrp-raw-socket"},
+		Codes:        []string{codeDoctorVRRPRawSocket},
 		Check:        checkVRRPRawSocket,
 	}
 	if err := diagnostic.RegisterDoctorCheck(check); err != nil {

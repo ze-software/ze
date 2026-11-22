@@ -52,21 +52,24 @@ func selectedNetDevice(name string, entry *config.Tree) (string, *diagnostic.Dia
 			case 0:
 				if !macSelectorsReadable {
 					return "", &diagnostic.Diagnostic{
-						Code:     diagnostic.CodeDoctorIfaceSelectorUnmatched,
+						Code:     codeDoctorIfaceSelectorUnmatched,
+						Fix:      "ze doctor",
 						Severity: diagnostic.SeverityWarning,
 						Message: tb.Reset().Str("ethernet ").Str(name).Str(": MAC ").Str(match).
 							Str(" was not checked, because MAC selectors are only checked on Linux").String(),
 					}
 				}
 				return "", &diagnostic.Diagnostic{
-					Code:     diagnostic.CodeDoctorIfaceSelectorUnmatched,
+					Code:     codeDoctorIfaceSelectorUnmatched,
+					Fix:      "ze show interface",
 					Severity: diagnostic.SeverityWarning,
 					Message: tb.Reset().Str("ethernet ").Str(name).Str(": no device carries MAC ").Str(match).
 						Str("; the binding stays deferred until one appears").String(),
 				}
 			default:
 				return "", &diagnostic.Diagnostic{
-					Code:     diagnostic.CodeDoctorIfaceSelectorAmbiguous,
+					Code:     codeDoctorIfaceSelectorAmbiguous,
+					Fix:      "set interface ethernet " + name + " os-name <device>",
 					Severity: diagnostic.SeverityError,
 					Message: tb.Reset().Str("ethernet ").Str(name).Str(": MAC ").Str(match).Str(" is carried by ").
 						Str(strings.Join(devices, ", ")).Str("; a hardware MAC selects at most one device").String(),

@@ -17,7 +17,7 @@ func init() {
 		Component:    "ospfv3",
 		Dependencies: []string{"external-binary"},
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
-		Codes:        []string{"doctor-ospfv3-raw-socket"},
+		Codes:        []string{codeDoctorOSPFv3RawSocket},
 		Check:        checkOSPFv3RawSocket,
 	}
 	if err := diagnostic.RegisterDoctorCheck(check); err != nil {

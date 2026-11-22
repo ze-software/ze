@@ -10,7 +10,6 @@ import (
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/managed"
 	"github.com/ze-software/ze/internal/core/audit"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/zefs"
 )
@@ -80,6 +79,6 @@ func recordPushBaseline(store storage.Storage) {
 	if _, err := managed.RecordActiveAsBaseline(store); err != nil {
 		slogutil.Logger("hub.managed").Warn("the hub's configuration is active and its baseline could not be recorded, "+
 			"so this device holds at the next hub change unless it reconnects to its hub first; check the store with: ze show data check",
-			"code", diagnostic.CodeDoctorManagedDiverged, "key", zefs.KeyManagedBaseVersion.Pattern, "error", err)
+			"code", managed.CodeDoctorManagedDiverged, "key", zefs.KeyManagedBaseVersion.Pattern, "error", err)
 	}
 }

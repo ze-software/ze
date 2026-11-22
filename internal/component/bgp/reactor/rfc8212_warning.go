@@ -83,7 +83,7 @@ func (p *Peer) warnRFC8212AbsentPolicy() {
 			"peer", settings.Name,
 			"address", settings.Address,
 			"direction", absence.Direction,
-			"code", diagnostic.CodeDoctorBGPRFC8212NoPolicy,
+			"code", CodeDoctorBGPRFC8212NoPolicy,
 			"fix", absence.Fix,
 			"then", "commit now")
 	}

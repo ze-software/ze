@@ -12,7 +12,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -52,8 +51,8 @@ func wantOneDivergence(t *testing.T, findings []rpc.DoctorCheckDiagnostic, prefi
 		t.Fatalf("the doctor check answered %d findings, want 1 for the divergence: %+v", len(findings), findings)
 	}
 	f := findings[0]
-	if f.Code != diagnostic.CodeDoctorIPsecSPDUndoIncomplete || f.Severity != severityError {
-		t.Fatalf("the finding is %s/%s, want %s/%s", f.Severity, f.Code, severityError, diagnostic.CodeDoctorIPsecSPDUndoIncomplete)
+	if f.Code != codeDoctorIPsecSPDUndoIncomplete || f.Severity != severityError {
+		t.Fatalf("the finding is %s/%s, want %s/%s", f.Severity, f.Code, severityError, codeDoctorIPsecSPDUndoIncomplete)
 	}
 	if !strings.Contains(f.Message, prefix) || !strings.Contains(f.Message, cause.Error()) || !strings.Contains(f.Message, "dir out") {
 		t.Fatalf("the finding does not name the direction, the selector %s and the dataplane's answer: %q", prefix, f.Message)

@@ -9,7 +9,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/component/radius"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -88,11 +87,11 @@ func reportFramedMTU(subscriber string, number uint64, lead, outcome string) {
 	problem.Uint(number).Byte(' ').Str(outcome)
 	text := problem.String()
 	logger().Warn("l2tp-auth-radius: "+text+". Correct the subscriber's RADIUS profile",
-		"code", diagnostic.CodeDoctorRADIUSFramedMTU, "subscriber", subscriber)
+		"code", ppp.CodeDoctorRADIUSFramedMTU, "subscriber", subscriber)
 	subject := subscriber
 	if subject == "" {
 		subject = framedRouteNoUserName
 	}
-	report.RaiseErrorFixOnce(Name, diagnostic.CodeDoctorRADIUSFramedMTU, subject,
+	report.RaiseErrorFixOnce(Name, ppp.CodeDoctorRADIUSFramedMTU, subject,
 		report.FitMessage(text), framedMTUFix, framedRouteEventWindow)
 }

@@ -11,6 +11,7 @@ import "github.com/ze-software/ze/internal/core/diagnostic"
 // bus, so it declares their codes to the recent-events
 // doctor check, which then reports each event under its code in `show doctor`.
 func init() {
+	registerDoctorCodes()
 	if err := diagnostic.Register(diagnostic.CodeMeta{
 		Code:        codePendingRefusalUndelivered,
 		Title:       "BGP rejection preparation or delivery failed",
@@ -22,13 +23,13 @@ func init() {
 	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codePendingRefusalUndelivered}); err != nil {
 		panic("BUG: bgp reactor: pending refusal event registration failed: " + err.Error())
 	}
-	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: diagnostic.CodeDoctorBGPPeerNotReading}); err != nil {
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorBGPPeerNotReading}); err != nil {
 		panic("BUG: bgp reactor: write budget expiry event code registration failed: " + err.Error())
 	}
-	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: diagnostic.CodeDoctorBGPWritePathHeld}); err != nil {
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorBGPWritePathHeld}); err != nil {
 		panic("BUG: bgp reactor: held write path event code registration failed: " + err.Error())
 	}
-	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: diagnostic.CodeDoctorBGPASZeroOutbound}); err != nil {
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorBGPASZeroOutbound}); err != nil {
 		panic("BUG: bgp reactor: outbound AS zero event code registration failed: " + err.Error())
 	}
 }

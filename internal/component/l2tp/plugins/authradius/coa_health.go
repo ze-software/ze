@@ -7,7 +7,6 @@ import (
 	"github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	subevents "github.com/ze-software/ze/internal/component/l2tp/subscriber/events"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -20,7 +19,7 @@ const coaHealthFix = "show l2tp shaper"
 func coaHealthDeclaration() rpc.DoctorCheckDecl {
 	return rpc.DoctorCheckDecl{
 		Name: coaHealthCheckName, Phase: rpc.DoctorPhaseRuntime, Order: 711,
-		Codes: []string{diagnostic.CodeDoctorRADIUSCoAApply},
+		Codes: []string{codeDoctorRADIUSCoAApply},
 	}
 }
 
@@ -38,10 +37,10 @@ func coaHealthSubject(session *subscriber.Session) string {
 func recordCoAHealth(session *subscriber.Session, err error) {
 	subject := coaHealthSubject(session)
 	if err == nil {
-		report.ClearWarning(Name, diagnostic.CodeDoctorRADIUSCoAApply, subject)
+		report.ClearWarning(Name, codeDoctorRADIUSCoAApply, subject)
 		return
 	}
-	report.RaiseWarningFix(Name, diagnostic.CodeDoctorRADIUSCoAApply, subject,
+	report.RaiseWarningFix(Name, codeDoctorRADIUSCoAApply, subject,
 		"Subscriber authorization was not confirmed; inspect shaping and repair the backend before retrying the request",
 		coaHealthFix, map[string]any{"error": err.Error()})
 }
@@ -49,7 +48,7 @@ func recordCoAHealth(session *subscriber.Session, err error) {
 // checkCoAHealth answers the runtime check coaHealthDeclaration declares;
 // checkRuntimeHealth routes the callback to it.
 func checkCoAHealth() []rpc.DoctorCheckDiagnostic {
-	return retainedFindings(diagnostic.CodeDoctorRADIUSCoAApply)
+	return retainedFindings(codeDoctorRADIUSCoAApply)
 }
 
 func subscribeCoAHealth(bus ze.EventBus) func() {

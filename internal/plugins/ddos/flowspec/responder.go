@@ -15,7 +15,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/core/ddosevent"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -125,19 +124,19 @@ func withdrawRecordedAnnouncement(d routeDispatcher) {
 		return
 	case recordUnreadable:
 		logger().Warn("ddos-flowspec: could not read the record of an announced FlowSpec rule, so nothing is withdrawn from it",
-			"error", reading.err, "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+			"error", reading.err, "code", codeDoctorDDoSFlowspecOrphanAnnouncement)
 		return
 	case recordCorrupt:
 		logger().Warn("ddos-flowspec: the record of an announced FlowSpec rule is corrupt, so nothing is withdrawn from it",
-			"error", reading.err, "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+			"error", reading.err, "code", codeDoctorDDoSFlowspecOrphanAnnouncement)
 		return
 	case recordedRule:
 		logger().Warn("ddos-flowspec: a previous run left a FlowSpec rule announced, withdrawing it",
-			"target", reading.rule.DstPrefix, "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+			"target", reading.rule.DstPrefix, "code", codeDoctorDDoSFlowspecOrphanAnnouncement)
 		if err := withdrawRecordedRule(d, reading.rule); err != nil {
 			logger().Warn("ddos-flowspec: the withdrawal of a FlowSpec rule a previous run announced failed, so the rule may still be at the BGP peers and stays recorded; ze doctor reports it, and the restart in fix tries again once the cause in error is fixed",
 				"target", reading.rule.DstPrefix, "error", err, "fix", process.RestartCommand(Name),
-				"code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+				"code", codeDoctorDDoSFlowspecOrphanAnnouncement)
 		}
 		return
 	}
@@ -222,7 +221,7 @@ func withdrawRecordedRule(d routeDispatcher, m flowspecMatch) error {
 	}
 	if err := d.Forget(); err != nil {
 		logger().Warn("ddos-flowspec: the recorded FlowSpec rule was withdrawn, but its record could not be removed",
-			"target", m.DstPrefix, "error", err, "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+			"target", m.DstPrefix, "error", err, "code", codeDoctorDDoSFlowspecOrphanAnnouncement)
 	}
 	return nil
 }
@@ -706,7 +705,7 @@ func (r *responder) announce(target ddosevent.VectorTuple, action, reason string
 	if err != nil {
 		logger().Warn("ddos-flowspec: not announcing, because an earlier FlowSpec rule is still recorded and its withdrawal failed, so it may still be at the BGP peers and one record holds one rule; the next attack event tries again",
 			"target", target.DstPrefix, "reason", reason, "error", err,
-			"code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+			"code", codeDoctorDDoSFlowspecOrphanAnnouncement)
 		return
 	}
 	if !r.limiter.allow(r.clock()) {
@@ -754,7 +753,7 @@ func (r *responder) announce(target ddosevent.VectorTuple, action, reason string
 		}
 		logger().Warn("ddos-flowspec: the announced FlowSpec rule could not be recorded, so a crash or daemon stop before its withdrawal may leave it at the peers unknown to the next start; if the plugin ends before it withdraws the rule, send the command under fix to withdraw it by hand",
 			"target", target.DstPrefix, "error", err, "fix", withdrawalCommand(r.match),
-			"code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+			"code", codeDoctorDDoSFlowspecOrphanAnnouncement)
 		return
 	}
 	r.recorded = true
@@ -799,12 +798,12 @@ func (r *responder) withdrawEarlierRecord(next flowspecMatch) (recordsNext bool,
 	case recordUnreadable:
 		logger().Warn("ddos-flowspec: could not read the record of an earlier FlowSpec rule, announcing anyway; if the record names a rule still at the BGP peers, this announcement is recorded over it and that rule can no longer be withdrawn from its record, so withdraw it by hand with the command in fix; ze doctor reported the unreadable record until now",
 			"target", next.DstPrefix, "error", reading.err, "fix", manualWithdrawalCommand(),
-			"code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+			"code", codeDoctorDDoSFlowspecOrphanAnnouncement)
 		return false, nil
 	case recordCorrupt:
 		logger().Warn("ddos-flowspec: the record of an earlier FlowSpec rule is corrupt, announcing anyway; this announcement is recorded over it, so the earlier rule, if it is still at the BGP peers, can no longer be withdrawn from its record: the stored bytes are in record, and the command in fix withdraws that rule by hand; ze doctor reported the corrupt record until now",
 			"target", next.DstPrefix, "error", reading.err, "record", string(reading.stored),
-			"fix", manualWithdrawalCommand(), "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+			"fix", manualWithdrawalCommand(), "code", codeDoctorDDoSFlowspecOrphanAnnouncement)
 		return false, nil
 	case recordedRule:
 		if reading.rule == next {
@@ -812,7 +811,7 @@ func (r *responder) withdrawEarlierRecord(next flowspecMatch) (recordsNext bool,
 		}
 		logger().Warn("ddos-flowspec: an earlier FlowSpec rule is still recorded, withdrawing it before announcing",
 			"recorded", reading.rule.DstPrefix, "target", next.DstPrefix,
-			"code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+			"code", codeDoctorDDoSFlowspecOrphanAnnouncement)
 		return false, withdrawRecordedRule(r.dispatcher, reading.rule)
 	}
 	panic("BUG: ddos-flowspec: withdrawEarlierRecord met a record reading of no known kind")
@@ -918,11 +917,11 @@ func (r *responder) withdraw() {
 	if !recorded {
 		logger().Error("ddos-flowspec: withdraw failed for the FlowSpec rule, and the plugin could not confirm a record of it, because its record write failed when it was announced; it may stay at the BGP peers, a start of the plugin may not withdraw it and ze doctor may not report it, so withdraw it by hand with the command in fix",
 			"target", r.target.DstPrefix, "error", err, "fix", withdrawalCommand(r.match),
-			"code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+			"code", codeDoctorDDoSFlowspecOrphanAnnouncement)
 		return
 	}
 	logger().Error("ddos-flowspec: withdraw failed; the rule stays recorded and ze doctor reports it",
-		"target", r.target.DstPrefix, "error", err, "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+		"target", r.target.DstPrefix, "error", err, "code", codeDoctorDDoSFlowspecOrphanAnnouncement)
 }
 
 // withdrawThrough sends the withdrawal through d, ends the announcement either
@@ -959,7 +958,7 @@ func (r *responder) withdrawThrough(d routeDispatcher) error {
 	logger().Info("ddos-flowspec: withdrawn", "target", r.target.DstPrefix)
 	if forgetErr := d.Forget(); forgetErr != nil {
 		logger().Warn("ddos-flowspec: the FlowSpec rule was withdrawn, but its record could not be removed; ze doctor reports it until the next start removes it",
-			"target", r.target.DstPrefix, "error", forgetErr, "code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+			"target", r.target.DstPrefix, "error", forgetErr, "code", codeDoctorDDoSFlowspecOrphanAnnouncement)
 	}
 	r.endAnnouncement()
 	return nil

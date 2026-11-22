@@ -66,3 +66,21 @@ func ResetForTest() {
 	defer mu.Unlock()
 	codes = map[string]*CodeMeta{}
 }
+
+// SnapshotForTest returns a restore function that puts the code registry back
+// to its current entries. A test that calls ResetForTest MUST register the
+// returned restore with t.Cleanup so init()-registered codes from imported
+// packages are not lost to later tests in the same binary.
+func SnapshotForTest() func() {
+	mu.Lock()
+	saved := make(map[string]*CodeMeta, len(codes))
+	for k, v := range codes {
+		saved[k] = v
+	}
+	mu.Unlock()
+	return func() {
+		mu.Lock()
+		defer mu.Unlock()
+		codes = saved
+	}
+}

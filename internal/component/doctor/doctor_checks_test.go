@@ -111,8 +111,8 @@ func TestDoctorPlatformCheckFunctional(t *testing.T) {
 	t.Cleanup(func() { _ = env.Set(doctorPlatformEnv, "") })
 
 	codes := doctorCodesFor(t, minimalConfig)
-	if !slices.Contains(codes, diagnostic.CodeDoctorPlatformUnknown) {
-		t.Fatalf("codes = %v, want %q among them", codes, diagnostic.CodeDoctorPlatformUnknown)
+	if !slices.Contains(codes, codeDoctorPlatformUnknown) {
+		t.Fatalf("codes = %v, want %q among them", codes, codeDoctorPlatformUnknown)
 	}
 }
 
@@ -124,14 +124,14 @@ func TestDoctorPlatformCheckFunctional(t *testing.T) {
 // reaches.
 // PREVENTS: a listener check declared in the table and never run.
 func TestDoctorListenersCheckFunctional(t *testing.T) {
-	if err := env.Set(doctorListenerFailEnv, diagnostic.CodeDoctorListenUnavailable); err != nil {
+	if err := env.Set(doctorListenerFailEnv, codeDoctorListenUnavailable); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = env.Set(doctorListenerFailEnv, "") })
 
 	codes := doctorCodesFor(t, "environment {\n\tssh {\n\t\tenabled true\n\t}\n}\n")
-	if !slices.Contains(codes, diagnostic.CodeDoctorListenUnavailable) {
-		t.Fatalf("codes = %v, want %q among them", codes, diagnostic.CodeDoctorListenUnavailable)
+	if !slices.Contains(codes, codeDoctorListenUnavailable) {
+		t.Fatalf("codes = %v, want %q among them", codes, codeDoctorListenUnavailable)
 	}
 }
 

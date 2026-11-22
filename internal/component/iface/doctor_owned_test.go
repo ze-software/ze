@@ -41,7 +41,7 @@ func TestOwnedDeviceDoctorCheckIsRegistered(t *testing.T) {
 		if check.Name != "iface-owned-devices" {
 			continue
 		}
-		for _, code := range []string{diagnostic.CodeDoctorIfaceOwnedDeviceCleanup, diagnostic.CodeDoctorIfaceOwnedDeviceReconcile} {
+		for _, code := range []string{CodeDoctorIfaceOwnedDeviceCleanup, CodeDoctorIfaceOwnedDeviceReconcile} {
 			if !slices.Contains(check.Codes, code) {
 				t.Errorf("the iface-owned-devices check declares %v, want it to declare %s", check.Codes, code)
 			}
@@ -75,8 +75,8 @@ func TestWithdrawFailureIsReportedUntilACleanPass(t *testing.T) {
 	if len(findings) != 1 {
 		t.Fatalf("findings %v after a failed withdrawal, want exactly one", findings)
 	}
-	if findings[0].Code != diagnostic.CodeDoctorIfaceOwnedDeviceCleanup {
-		t.Errorf("finding code %q, want %q", findings[0].Code, diagnostic.CodeDoctorIfaceOwnedDeviceCleanup)
+	if findings[0].Code != CodeDoctorIfaceOwnedDeviceCleanup {
+		t.Errorf("finding code %q, want %q", findings[0].Code, CodeDoctorIfaceOwnedDeviceCleanup)
 	}
 	if want := "ze request plugin restart " + ownedTestOwner; findings[0].Fix != want {
 		t.Errorf("finding fix %q, want %q", findings[0].Fix, want)
@@ -102,14 +102,14 @@ func TestHalfMadeDeviceWarningClearsOnlyOnceTheDeviceIsGone(t *testing.T) {
 	useOwnedFakeBackend(t, fb)
 	const halfMade = ownedTestPrefix + "-half"
 	fb.ifaces[halfMade] = fakeIface{name: halfMade, linkType: TypeBridge, index: 50}
-	report.RaiseWarningFix(OwnedDeviceReportSource, diagnostic.CodeDoctorIfaceOwnedDeviceReconcile,
+	report.RaiseWarningFix(OwnedDeviceReportSource, CodeDoctorIfaceOwnedDeviceReconcile,
 		OwnedDeviceSubjectDevice+halfMade, "half-made owned bridge left", "ip link delete "+halfMade)
 
 	if err := runOwnedPass(fb); err != nil {
 		t.Fatalf("owned pass with the device present: %v", err)
 	}
 	findings := ownedFindings()
-	if len(findings) != 1 || findings[0].Code != diagnostic.CodeDoctorIfaceOwnedDeviceReconcile {
+	if len(findings) != 1 || findings[0].Code != CodeDoctorIfaceOwnedDeviceReconcile {
 		t.Fatalf("findings %v while the device is listed, want the one reconcile finding", findings)
 	}
 

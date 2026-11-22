@@ -17,7 +17,6 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/audit"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -675,11 +674,11 @@ func handleArgComplete(ctx *CommandContext, cmdName string, completedArgs []stri
 	if err := ctx.Dispatcher().Pending().Complete(serial, completion); err != nil {
 		slog.Warn("plugin completion: answer not delivered",
 			"command", cmd.Name, "serial", serial, "error", err,
-			"code", diagnostic.CodeDoctorPluginAnswerUndelivered)
+			"code", CodeDoctorPluginAnswerUndelivered)
 		// deliver raised an answer the caller did not take; a serial the timeout
 		// already removed reached no raise.
 		if !errors.Is(err, ErrPendingUndeliverable) {
-			raiseServerEvent(diagnostic.CodeDoctorPluginAnswerUndelivered, cmd.Name, "plugin completion: answer not delivered: "+err.Error())
+			raiseServerEvent(CodeDoctorPluginAnswerUndelivered, cmd.Name, "plugin completion: answer not delivered: "+err.Error())
 		}
 	}
 

@@ -20,7 +20,6 @@ import (
 	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -509,7 +508,7 @@ func (r *espFormReceiver) serveLocked(spi uint32, local netip.Addr) {
 			"ends this; the listing shows each peer's inbound SPI",
 			"spi", spi, "local", local, "fast-path-local", served.local,
 			"datagrams-per-second-max", espFormRate, "fix", ESPFormFixListSAs,
-			"code", diagnostic.CodeDoctorIPsecESPFormFastPath)
+			"code", CodeDoctorIPsecESPFormFastPath)
 	}
 	r.syncFastPath(spi)
 }
@@ -637,7 +636,7 @@ func (r *espFormReceiver) watchFastPath(spi uint32, target espFormTarget) {
 	r.logger().Warn("esp-form: the fast path could not watch an SPI, so its bare ESP is re-presented through "+
 		espFormTUNName+" by the complete path, rate-bounded",
 		"spi", spi, "error", err, "datagrams-per-second-max", espFormRate,
-		"code", diagnostic.CodeDoctorIPsecESPFormFastPath)
+		"code", CodeDoctorIPsecESPFormFastPath)
 }
 
 // fastPathState answers the fast path's state, with the SAs it does not serve because
@@ -892,7 +891,7 @@ func (r *espFormReceiver) run(conn espFormPacketReader, inj espFormInjector) err
 				r.logger().Warn("esp-form: cannot re-present refused ESP into "+espFormTUNName+
 					", the bare ESP form is not received until a write succeeds", "spi", spi, "error", err,
 					"fix", "ip link set "+espFormTUNName+" up",
-					"code", diagnostic.CodeDoctorIPsecESPFormTUN)
+					"code", CodeDoctorIPsecESPFormTUN)
 			}
 			failing = true
 			continue

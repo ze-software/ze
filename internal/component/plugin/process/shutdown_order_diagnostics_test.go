@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/plugin"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 )
 
@@ -68,7 +67,7 @@ func TestShutdownWithoutResolverReportsOrderFailure(t *testing.T) {
 	if len(issues) != 1 {
 		t.Fatalf("ordering events = %v, want one retained first failure", issues)
 	}
-	if issues[0].Code != diagnostic.CodeDoctorPluginShutdownOrder {
+	if issues[0].Code != CodeDoctorPluginShutdownOrder {
 		t.Fatalf("ordering event code = %s", issues[0].Code)
 	}
 	if issues[0].Subject != "plugin-shutdown" {
@@ -114,7 +113,7 @@ func (h *shutdownOrderAdmissionHandler) Handle(_ context.Context, record slog.Re
 		if attr.Key != "code" {
 			return true
 		}
-		if attr.Value.String() != diagnostic.CodeDoctorPluginShutdownOrder {
+		if attr.Value.String() != CodeDoctorPluginShutdownOrder {
 			return true
 		}
 		h.seen.Store(true)
@@ -191,7 +190,7 @@ func TestTerminalShutdownWithoutResolverRecordsFailureDuringReusableStop(t *test
 	if len(issues) != 1 {
 		t.Fatalf("terminal ordering events = %+v", issues)
 	}
-	if issues[0].Code != diagnostic.CodeDoctorPluginShutdownOrder {
+	if issues[0].Code != CodeDoctorPluginShutdownOrder {
 		t.Fatalf("terminal ordering code = %s", issues[0].Code)
 	}
 	select {

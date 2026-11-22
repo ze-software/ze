@@ -24,7 +24,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/events"
 )
 
@@ -106,7 +105,7 @@ func registerProcessCommands(r *CommandRegistry, model commandModelHelp, proc *p
 		}
 		logger().Warn("command registration rejected", "plugin", proc.Name(), "command", result.Name,
 			"owner", result.Owner, "error", result.Error,
-			"code", diagnostic.CodeDoctorPluginCommandNotRegistered)
+			"code", CodeDoctorPluginCommandNotRegistered)
 		proc.RecordCommandRefusal(process.CommandRefusal{Command: result.Name, Owner: result.Owner, Reason: result.Error})
 	}
 	for canonicalName, oldNames := range reg.CommandDeprecatedNames {
@@ -121,7 +120,7 @@ func registerProcessCommands(r *CommandRegistry, model commandModelHelp, proc *p
 				owner = owned.owner
 			}
 			logger().Warn("deprecated alias rejected", "plugin", proc.Name(), "old", oldName, "new", canonicalName,
-				"owner", owner, "error", err, "code", diagnostic.CodeDoctorPluginCommandNotRegistered)
+				"owner", owner, "error", err, "code", CodeDoctorPluginCommandNotRegistered)
 			proc.RecordCommandRefusal(process.CommandRefusal{Command: oldName, Alias: true, Owner: owner, Reason: err.Error()})
 		}
 	}

@@ -17,7 +17,6 @@ import (
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/radius"
 	coreCos "github.com/ze-software/ze/internal/core/cos"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 )
 
@@ -171,7 +170,7 @@ func appendFramedRoutes(routes []l2tp.FramedRoute, resp *radius.Packet, attr uin
 		r, err := parseFramedRoute(string(raw))
 		if err != nil {
 			logger().Warn("l2tp-auth-radius: skipped a framed route Ze cannot parse; the other routes of the Access-Accept still apply. Correct the subscriber's RADIUS profile",
-				"code", diagnostic.CodeDoctorRADIUSFramedRouteSkipped, "subscriber", subscriber,
+				"code", codeDoctorRADIUSFramedRouteSkipped, "subscriber", subscriber,
 				"attribute", attrName, "value", string(raw), "reason", err.Error())
 			reportFramedRouteSkipped(subscriber, attrName, err)
 			continue
@@ -268,6 +267,6 @@ func reportFramedRouteSkipped(subscriber, attrName string, cause error) {
 	if subject == "" {
 		subject = framedRouteNoUserName
 	}
-	report.RaiseErrorFixOnce(Name, diagnostic.CodeDoctorRADIUSFramedRouteSkipped, subject,
+	report.RaiseErrorFixOnce(Name, codeDoctorRADIUSFramedRouteSkipped, subject,
 		report.FitMessage(attrName+": "+cause.Error()), framedRouteSkippedFix, framedRouteEventWindow)
 }

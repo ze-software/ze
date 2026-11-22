@@ -13,7 +13,6 @@ import (
 	"time"
 
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -35,8 +34,8 @@ func notifyDropped(client, cause string) {
 		Str(", so it runs its previous config until it fetches again")
 	fix.Str("restart ze on managed client ").Str(client).Str(": a client fetches its config each time it connects")
 	managedLogger().Warn("config-changed notify dropped",
-		"code", diagnostic.CodeDoctorManagedClientNotifyDropped, "name", client, "cause", cause)
-	report.RaiseErrorFix(managedReportSource, diagnostic.CodeDoctorManagedClientNotifyDropped, client,
+		"code", CodeDoctorManagedClientNotifyDropped, "name", client, "cause", cause)
+	report.RaiseErrorFix(managedReportSource, CodeDoctorManagedClientNotifyDropped, client,
 		message.String(), fix.String())
 }
 
@@ -52,7 +51,7 @@ func (s *ManagedServer) authRefused(remote string, err error, lookup func(name s
 	refusal, named := errors.AsType[*pluginipc.AuthRefusal](err)
 	if !named {
 		managedLogger().Warn("managed connection refused before it named a client",
-			"code", diagnostic.CodeDoctorManagedClientRejected, "remote", remote, "error", err)
+			"code", CodeDoctorManagedClientRejected, "remote", remote, "error", err)
 		return
 	}
 	claimed := refusal.ShownClaim()
@@ -61,7 +60,7 @@ func (s *ManagedServer) authRefused(remote string, err error, lookup func(name s
 	} else {
 		s.doctor.recordUnknown(claimed, refusal.Error())
 	}
-	managedLogger().Warn("managed client rejected", "code", diagnostic.CodeDoctorManagedClientRejected,
+	managedLogger().Warn("managed client rejected", "code", CodeDoctorManagedClientRejected,
 		"name", claimed, "remote", remote, "error", err)
 }
 

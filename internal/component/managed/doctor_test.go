@@ -9,6 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -16,9 +19,6 @@ import (
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/pkg/fleet"
 	"github.com/ze-software/ze/pkg/zefs"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // restoreHubProbe captures and restores the hub probe seam so an override does
@@ -129,7 +129,7 @@ func TestHubClientDoctorCheck(t *testing.T) {
 	t.Run("managed with no hub block warns", func(t *testing.T) {
 		diags := diagnoseHubClientDeclared(true, 0)
 		require.Len(t, diags, 1)
-		assert.Equal(t, diagnostic.CodeDoctorHubClientMissing, diags[0].Code)
+		assert.Equal(t, codeDoctorHubClientMissing, diags[0].Code)
 		assert.Equal(t, diagnostic.SeverityWarning, diags[0].Severity)
 		assert.Equal(t, hubClientMissingFix, diags[0].Fix)
 	})
@@ -173,7 +173,7 @@ func TestDivergedDoctorCheck(t *testing.T) {
 		diags := managedDivergedDoctorCheck.Check(diagnostic.DoctorCheckContext{Store: store})
 
 		require.Len(t, diags, 1)
-		assert.Equal(t, diagnostic.CodeDoctorManagedDiverged, diags[0].Code)
+		assert.Equal(t, CodeDoctorManagedDiverged, diags[0].Code)
 		assert.Contains(t, managedDivergedDoctorCheck.Codes, diags[0].Code, "the check reports a code it does not declare")
 		assert.Equal(t, diagnostic.SeverityWarning, diags[0].Severity)
 		assert.Equal(t, managedDivergedFix("", versionOf([]byte(holdDeviceConfig)).Hash()), diags[0].Fix,
@@ -310,7 +310,7 @@ func TestHubDivergedCheckDeclared(t *testing.T) {
 	diags := hubDivergedDoctorCheck.Check(diagnostic.DoctorCheckContext{Store: store, Tree: hubServingTree(t, "edge-01")})
 
 	require.Len(t, diags, 1)
-	assert.Equal(t, diagnostic.CodeDoctorManagedClientDiverged, diags[0].Code)
+	assert.Equal(t, codeDoctorManagedClientDiverged, diags[0].Code)
 	assert.Contains(t, hubDivergedDoctorCheck.Codes, diags[0].Code, "the check reports a code it does not declare")
 	assert.Equal(t, diagnostic.DoctorPhasePostConfig, hubDivergedDoctorCheck.Phase)
 	assert.Equal(t, diagnostic.SeverityWarning, diags[0].Severity)
@@ -348,7 +348,7 @@ func TestHubDivergedCheckOrphan(t *testing.T) {
 		diags := hubDivergedDoctorCheck.Check(diagnostic.DoctorCheckContext{Store: store, Tree: hubServingTree(t, "edge-02")})
 
 		require.Len(t, diags, 1)
-		assert.Equal(t, diagnostic.CodeDoctorManagedClientDiverged, diags[0].Code)
+		assert.Equal(t, codeDoctorManagedClientDiverged, diags[0].Code)
 		assert.Contains(t, diags[0].Message, "orphaned")
 		assert.Contains(t, diags[0].Message, "edge-01")
 		assert.Contains(t, diags[0].Fix, "declare client edge-01 again")
@@ -361,7 +361,7 @@ func TestHubDivergedCheckOrphan(t *testing.T) {
 		diags := hubDivergedDoctorCheck.Check(diagnostic.DoctorCheckContext{Store: store, Tree: hubServingTree(t, "edge-01")})
 
 		require.Len(t, diags, 1)
-		assert.Equal(t, diagnostic.CodeDoctorManagedClientDiverged, diags[0].Code)
+		assert.Equal(t, codeDoctorManagedClientDiverged, diags[0].Code)
 		assert.Contains(t, diags[0].Message, "could not be read")
 		assert.Equal(t, fixCheckStore, diags[0].Fix)
 	})
@@ -393,7 +393,7 @@ func TestDivergedDoctorReportsWhatItCannotCompare(t *testing.T) {
 	diags := diagnoseManagedUncompared("the baseline", errors.New("the key did not decode"))
 
 	require.Len(t, diags, 1)
-	assert.Equal(t, diagnostic.CodeDoctorManagedDiverged, diags[0].Code)
+	assert.Equal(t, CodeDoctorManagedDiverged, diags[0].Code)
 	assert.Equal(t, diagnostic.SeverityWarning, diags[0].Severity)
 	assert.Equal(t, fixCheckStore, diags[0].Fix)
 	assert.Contains(t, diags[0].Message, "the key did not decode")

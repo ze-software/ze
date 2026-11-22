@@ -9,7 +9,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -45,7 +44,7 @@ func TestRefusedReloadRaisesEvent(t *testing.T) {
 		if err := s.ReloadConfig(context.Background(), newTree); err == nil {
 			t.Fatal("a reload a plugin's verify refused answered no error")
 		}
-		event := serverEventOf(diagnostic.CodeDoctorConfigReloadRefused)
+		event := serverEventOf(CodeDoctorConfigReloadRefused)
 		if event == nil {
 			t.Fatalf("no reload-refused event on the bus: %v", report.Errors(0))
 		}
@@ -92,7 +91,7 @@ func TestRefusedReloadRaisesEvent(t *testing.T) {
 		if err == nil {
 			t.Fatal("a reload whose plugin has a missing dependency answered no error")
 		}
-		event := serverEventOf(diagnostic.CodeDoctorConfigReloadRefused)
+		event := serverEventOf(CodeDoctorConfigReloadRefused)
 		if event == nil {
 			t.Fatalf("no reload-refused event on the bus: %v", report.Errors(0))
 		}
@@ -149,7 +148,7 @@ func registerAutoLoadOwner(t *testing.T, name, root string, run func(net.Conn) i
 // when its message lacks one of the fragments in want.
 func requireReloadRefusedEvent(t *testing.T, want ...string) {
 	t.Helper()
-	event := serverEventOf(diagnostic.CodeDoctorConfigReloadRefused)
+	event := serverEventOf(CodeDoctorConfigReloadRefused)
 	if event == nil {
 		t.Fatalf("no reload-refused event on the bus: %v", report.Errors(0))
 	}
@@ -224,7 +223,7 @@ func TestRefusedAutoLoadStartRaisesEvent(t *testing.T) {
 		}
 		requireReloadRefusedEvent(t, name, "to restore the configuration it was running",
 			"the restore did not complete")
-		if event := serverEventOf(diagnostic.CodeDoctorConfigReloadRefused); event != nil &&
+		if event := serverEventOf(CodeDoctorConfigReloadRefused); event != nil &&
 			strings.Contains(event.Message, "keeps the configuration it was running") {
 			t.Errorf("message %q claims ze kept its configuration while the restore failed", event.Message)
 		}

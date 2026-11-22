@@ -28,6 +28,7 @@ const (
 	bgpPolicyDiagnosticsRFC                    = "RFC 8212"
 	bgpPolicyDiagnosticsPeerC                  = "peer C:"
 	bgpPolicyDiagnosticsExternalControlAddress = "127.0.0.6"
+	codeDoctorBGPRFC8212NoPolicy               = "doctor-bgp-rfc8212-no-policy"
 )
 
 func init() {
@@ -252,7 +253,7 @@ func bgpPolicyDiagnosticsDoctor(report diagnostic.DoctorResult, absent bool) err
 			if strings.Contains(row.Message, bgpPolicyDiagnosticsRFC) {
 				return fmt.Errorf("peer C doctor finding borrowed external wording: %+v", row)
 			}
-		case diagnostic.CodeDoctorBGPRFC8212NoPolicy:
+		case codeDoctorBGPRFC8212NoPolicy:
 			name = "E"
 			if !strings.HasPrefix(row.Message, "peer E:") {
 				return fmt.Errorf("external doctor policy finding names another peer: %+v", row)

@@ -232,7 +232,7 @@ func registerLDP() {
 			Order:        720,
 			Dependencies: []string{pluginName},
 			Platforms:    []string{"any"},
-			Codes:        []string{"doctor-ldp-port-unavailable"},
+			Codes:        []string{codeDoctorLDPPortUnavailable},
 			Check:        checkLDPPort,
 		}},
 	}

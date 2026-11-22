@@ -21,7 +21,7 @@ import (
 // raised on the report bus under its own event code, which the recent-events check
 // reports (ai/rules/user-facing-errors.md).
 func init() {
-	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: diagnostic.CodeDoctorIPsecESPFormReaderStopped}); err != nil {
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: dataplane.CodeDoctorIPsecESPFormReaderStopped}); err != nil {
 		panic("BUG: ike: the ESP form reader's event code registration was refused: " + err.Error())
 	}
 }
@@ -52,7 +52,7 @@ func espFormReaderStoppedSink(p espFormIssueRaiser, log *slog.Logger) dataplane.
 		if err := p.RaiseIssue(ctx, espFormReaderStoppedIssue(stopped)); err != nil {
 			log.Warn("ike: Ze could not raise the stop of its own receiver for bare ESP on the report bus, "+
 				"so only the log records it", "error", err, "fix", dataplane.ESPFormFixLog,
-				"code", diagnostic.CodeDoctorIPsecESPFormReaderStopped)
+				"code", dataplane.CodeDoctorIPsecESPFormReaderStopped)
 		}
 	}
 }
@@ -68,7 +68,7 @@ func espFormReaderStoppedIssue(stopped dataplane.ESPFormReaderStopped) sdk.Issue
 			"warnings the command below lists show the stop and each attempt to open it again.")
 	return sdk.Issue{
 		Severity: rpc.ReportError,
-		Code:     diagnostic.CodeDoctorIPsecESPFormReaderStopped,
+		Code:     dataplane.CodeDoctorIPsecESPFormReaderStopped,
 		Subject:  espFormDevice,
 		Message:  tb.String(),
 		Fix:      dataplane.ESPFormFixLog,

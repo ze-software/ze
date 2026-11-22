@@ -43,8 +43,8 @@ var mplsTTLPropagateDoctorCheck = diagnostic.DoctorCheck{
 	Dependencies: []string{"kernel", "sysctl"},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
 	Codes: []string{
-		diagnostic.CodeDoctorMPLSTTLPropagateOff,
-		diagnostic.CodeDoctorMPLSTTLPropagateUnknown,
+		codeDoctorMPLSTTLPropagateOff,
+		codeDoctorMPLSTTLPropagateUnknown,
 	},
 	Check: checkMPLSTTLPropagate,
 }
@@ -81,7 +81,7 @@ func checkMPLSTTLPropagate(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagn
 // mplsTTLPropagateOff is the finding for a kernel holding 0.
 func mplsTTLPropagateOff() diagnostic.Diagnostic {
 	return diagnostic.Diagnostic{
-		Code:     diagnostic.CodeDoctorMPLSTTLPropagateOff,
+		Code:     codeDoctorMPLSTTLPropagateOff,
 		Severity: diagnostic.SeverityError,
 		Message: "the kernel holds net.mpls.ip_ttl_propagate 0, written outside ze, so every label ze pushes " +
 			"carries net.mpls.default_ttl instead of the packet's IP TTL; " +
@@ -102,7 +102,7 @@ func mplsTTLPropagateUnreadable(err error) diagnostic.Diagnostic {
 	tb.Str("cannot tell whether the labels ze pushes carry the IP TTL that RFC 3032 Section 2.4.3 requires: ").
 		Str(mplsTTLPropagateKey).Str(" could not be read: ").Err(err)
 	return diagnostic.Diagnostic{
-		Code:     diagnostic.CodeDoctorMPLSTTLPropagateUnknown,
+		Code:     codeDoctorMPLSTTLPropagateUnknown,
 		Severity: diagnostic.SeverityWarning,
 		Message:  tb.String(),
 		Fix:      fix,
@@ -115,7 +115,7 @@ func mplsTTLPropagateUnexpected(value string) diagnostic.Diagnostic {
 	tb.Str("cannot tell whether the labels ze pushes carry the IP TTL that RFC 3032 Section 2.4.3 requires: ").
 		Str(mplsTTLPropagateKey).Str(" holds ").Quoted(value).Str(", not 0 or 1")
 	return diagnostic.Diagnostic{
-		Code:     diagnostic.CodeDoctorMPLSTTLPropagateUnknown,
+		Code:     codeDoctorMPLSTTLPropagateUnknown,
 		Severity: diagnostic.SeverityWarning,
 		Message:  tb.String(),
 		Fix:      "sysctl -w net.mpls.ip_ttl_propagate=1",

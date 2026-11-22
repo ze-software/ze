@@ -15,7 +15,6 @@ import (
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 // encoderJSON is the wire encoder every auto-loaded internal plugin speaks.
@@ -297,7 +296,7 @@ func (s *Server) selectAutoLoad(newTree map[string]any, addedRoots []string) ([]
 	resolved, err := registry.ResolveDependencies(needed, nil, needHolds)
 	if err != nil {
 		logger().Error("config reload: dependency resolution failed, aborting auto-load",
-			"plugins", needed, "error", err, "code", diagnostic.CodeDoctorConfigReloadRefused)
+			"plugins", needed, "error", err, "code", CodeDoctorConfigReloadRefused)
 		// Reload compensation also selects here, to restore what a refused
 		// reload removed, so the event claims only what both callers make
 		// true: nothing was started.
@@ -347,7 +346,7 @@ func (s *Server) startAutoLoaded(ctx context.Context, plugins []plugin.PluginCon
 
 	if startErr != nil {
 		logger().Error("config reload: auto-load plugin startup failed", "error", startErr,
-			"code", diagnostic.CodeDoctorConfigReloadRefused)
+			"code", CodeDoctorConfigReloadRefused)
 		if s.reactor != nil {
 			s.reactor.AddAPIProcessCount(-len(plugins))
 		}
@@ -366,7 +365,7 @@ func (s *Server) startAutoLoaded(ctx context.Context, plugins []plugin.PluginCon
 	if s.reactor != nil {
 		if err := s.reactor.SignalPluginStartupComplete(); err != nil {
 			logger().Error("config reload: the reactor refused the config after the auto-loaded plugins started", "error", err,
-				"code", diagnostic.CodeDoctorConfigReloadRefused)
+				"code", CodeDoctorConfigReloadRefused)
 			stopErr := s.autoStopPluginNames(started)
 			refusal := errors.Join(fmt.Errorf("config-path auto-load post-startup: %w", err), stopErr)
 			raiseReloadRefused(reloadRefusalMessage(autoLoadRefusalProblem(recovery,

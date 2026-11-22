@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -24,7 +23,7 @@ func (d *selectedDispatch) doctorFailures() []rpc.DoctorCheckDiagnostic {
 		if destination.failure == nil {
 			continue
 		}
-		findings = append(findings, rpc.DoctorCheckDiagnostic{Code: diagnostic.CodeDoctorBGPSelectedOutput,
+		findings = append(findings, rpc.DoctorCheckDiagnostic{Code: codeDoctorBGPSelectedOutput,
 			Severity: "error", Message: selectedDestinationFailure(selectedDestinationID{peer: destination.peer, session: destination.session}, destination.failure), Fix: "ze show bgp peers"})
 	}
 	return findings
@@ -38,9 +37,9 @@ const selectedReportSubject = "selected destinations"
 
 func (r *RIBManager) reportSelectedDestinations(ctx context.Context, cause error) error {
 	if cause == nil {
-		return r.plugin.ClearIssue(ctx, diagnostic.CodeDoctorBGPSelectedOutput, selectedReportSubject)
+		return r.plugin.ClearIssue(ctx, codeDoctorBGPSelectedOutput, selectedReportSubject)
 	}
-	return r.plugin.RaiseIssue(ctx, sdk.Issue{Severity: rpc.ReportWarning, Code: diagnostic.CodeDoctorBGPSelectedOutput,
+	return r.plugin.RaiseIssue(ctx, sdk.Issue{Severity: rpc.ReportWarning, Code: codeDoctorBGPSelectedOutput,
 		Subject: selectedReportSubject, Message: report.FitMessage(cause.Error()), Fix: "ze show bgp peers"})
 }
 
@@ -161,7 +160,7 @@ func (r *selectedReporter) run() {
 					clearAfter = time.Now().Add(delay)
 				}
 				logger().Warn("BGP selected destination finding was not acknowledged", "error", err,
-					"code", diagnostic.CodeDoctorBGPSelectedOutput, "fix", "ze show bgp peers")
+					"code", codeDoctorBGPSelectedOutput, "fix", "ze show bgp peers")
 				timer.Reset(delay)
 				tick = timer.C
 				break

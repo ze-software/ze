@@ -140,8 +140,8 @@ func TestCheckEthernetInterfacesFollowsMACMatch(t *testing.T) {
 		tree := ethernetTree("wan", nil, map[string]string{"match": wanted})
 		diags := ethernetDiags(tree)
 		assertNoDiagCode(t, diags, codeIfaceMissing)
-		assertNoDiagCode(t, diags, diagnostic.CodeDoctorIfaceSelectorUnmatched)
-		assertNoDiagCode(t, diags, diagnostic.CodeDoctorIfaceSelectorAmbiguous)
+		assertNoDiagCode(t, diags, codeDoctorIfaceSelectorUnmatched)
+		assertNoDiagCode(t, diags, codeDoctorIfaceSelectorAmbiguous)
 	})
 
 	t.Run("no device carries it", func(t *testing.T) {
@@ -149,13 +149,13 @@ func TestCheckEthernetInterfacesFollowsMACMatch(t *testing.T) {
 		// report nothing at all while the interface stays unconfigured.
 		fakeSysClassNet(t, map[string]string{"wan": "aa:bb:cc:00:00:02"})
 		tree := ethernetTree("wan", nil, map[string]string{"match": wanted})
-		requireDiag(t, ethernetDiags(tree), diagnostic.CodeDoctorIfaceSelectorUnmatched, diagnostic.SeverityWarning)
+		requireDiag(t, ethernetDiags(tree), codeDoctorIfaceSelectorUnmatched, diagnostic.SeverityWarning)
 	})
 
 	t.Run("two devices carry it", func(t *testing.T) {
 		fakeSysClassNet(t, map[string]string{"enp1s0": wanted, "enp2s0": wanted})
 		tree := ethernetTree("wan", nil, map[string]string{"match": wanted})
-		requireDiag(t, ethernetDiags(tree), diagnostic.CodeDoctorIfaceSelectorAmbiguous, diagnostic.SeverityError)
+		requireDiag(t, ethernetDiags(tree), codeDoctorIfaceSelectorAmbiguous, diagnostic.SeverityError)
 	})
 
 	t.Run("a bridge wears its member's address", func(t *testing.T) {
@@ -170,8 +170,8 @@ func TestCheckEthernetInterfacesFollowsMACMatch(t *testing.T) {
 		tree := ethernetTree("wan", nil, map[string]string{"match": wanted})
 
 		diags := ethernetDiags(tree)
-		assertNoDiagCode(t, diags, diagnostic.CodeDoctorIfaceSelectorAmbiguous)
-		assertNoDiagCode(t, diags, diagnostic.CodeDoctorIfaceSelectorUnmatched)
+		assertNoDiagCode(t, diags, codeDoctorIfaceSelectorAmbiguous)
+		assertNoDiagCode(t, diags, codeDoctorIfaceSelectorUnmatched)
 		assertNoDiagCode(t, diags, codeIfaceMissing)
 	})
 
@@ -185,8 +185,8 @@ func TestCheckEthernetInterfacesFollowsMACMatch(t *testing.T) {
 		tree := ethernetTree("wan", nil, map[string]string{"match": wanted})
 
 		diags := ethernetDiags(tree)
-		assertNoDiagCode(t, diags, diagnostic.CodeDoctorIfaceSelectorAmbiguous)
-		assertNoDiagCode(t, diags, diagnostic.CodeDoctorIfaceSelectorUnmatched)
+		assertNoDiagCode(t, diags, codeDoctorIfaceSelectorAmbiguous)
+		assertNoDiagCode(t, diags, codeDoctorIfaceSelectorUnmatched)
 		assertNoDiagCode(t, diags, codeIfaceMissing)
 	})
 }

@@ -15,7 +15,6 @@ package pppoe
 import (
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/kernelcap"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 // pppoeKernelCapability is the one capability the PPPoE subsystem enrolls.
@@ -25,8 +24,8 @@ func pppoeKernelCapability() kernelcap.Capability {
 		Component:   SubsystemName,
 		Kernel:      "CONFIG_PPPOE",
 		ConfigLeaf:  configRoot,
-		CodeAbsent:  diagnostic.CodeDoctorPPPoEUnavailable,
-		CodeUnknown: diagnostic.CodeDoctorPPPoEUnknown,
+		CodeAbsent:  codeDoctorPPPoEUnavailable,
+		CodeUnknown: codeDoctorPPPoEUnknown,
 		Order:       749,
 		InUse:       PPPoEInUse,
 		Probe:       pppoeSessionProbe,

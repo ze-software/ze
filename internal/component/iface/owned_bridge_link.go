@@ -25,7 +25,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -467,7 +466,7 @@ func reconcileOwnedLocked(b Backend, journal *sdk.Journal) error {
 	}
 	var errs []error
 	record := func(msg string, err error) {
-		loggerPtr.Load().Warn(msg, "err", err, "code", diagnostic.CodeDoctorIfaceOwnedDeviceReconcile)
+		loggerPtr.Load().Warn(msg, "err", err, "code", CodeDoctorIfaceOwnedDeviceReconcile)
 		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
 	}
 	reconcileOwnedDevices(b, journal, currentInfos, record)

@@ -13,7 +13,6 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/transport"
 	"github.com/ze-software/ze/internal/component/ike/wire"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 // ownedOutcome reports state changes the maintainSA loop must apply after a
@@ -127,7 +126,7 @@ func (ps *PeerSession) handleOwnedInbound(sa *SA, pkt transport.Packet, tr *tran
 				sa.countPeerMalformedMessage()
 				log.Warn("ike: MOBIKE retransmission authenticated but its payloads do not parse, not answered",
 					"peer", ps.peerName, "msgid", msg.Header.MessageID, "error", err,
-					"code", diagnostic.CodeDoctorIPsecPeerMalformedMessage)
+					"code", codeDoctorIPsecPeerMalformedMessage)
 				return ownedOutcome{}
 			}
 			if sa.lastResponseSet {
@@ -159,7 +158,7 @@ func (ps *PeerSession) handleOwnedInbound(sa *SA, pkt transport.Packet, tr *tran
 				sa.countPeerMalformedMessage()
 				log.Warn("ike: INFORMATIONAL response authenticated but its payloads do not parse, dropped",
 					"peer", ps.peerName, "msgid", msg.Header.MessageID, "error", err,
-					"code", diagnostic.CodeDoctorIPsecPeerMalformedMessage)
+					"code", codeDoctorIPsecPeerMalformedMessage)
 				return ownedOutcome{}
 			}
 			if sa.mobike.pending != nil && sa.mobike.pending.msgID == msg.Header.MessageID {
@@ -228,7 +227,7 @@ func (ps *PeerSession) handleOwnedInbound(sa *SA, pkt transport.Packet, tr *tran
 			sa.countPeerMalformedMessage()
 			log.Warn("ike: response authenticated but its payloads do not parse, dropped",
 				"peer", ps.peerName, "exchange", msg.Header.ExchangeType, "msgid", msg.Header.MessageID, "error", err,
-				"code", diagnostic.CodeDoctorIPsecPeerMalformedMessage)
+				"code", codeDoctorIPsecPeerMalformedMessage)
 			return ownedOutcome{}
 		}
 		// RFC 7296 Section 3.10.1 lets INVALID_SYNTAX go out only "in an encrypted packet

@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/privilege"
 )
@@ -34,8 +33,8 @@ func TestDoctorESPFormCompletePathFailure(t *testing.T) {
 	failed := &dataplane.ESPFormCompletePathFailure{Err: refusal, At: at}
 	plain := &dataplane.ESPFormCompletePathFailure{Err: errors.New("test: a defect's error"), At: at}
 	consequence := "no Child SA that must receive both ESP forms can be installed, or moved onto the ESP-in-UDP form, until it opens"
-	tunCode := "error:" + diagnostic.CodeDoctorIPsecESPFormTUN
-	fastPath := "warning:" + diagnostic.CodeDoctorIPsecESPFormFastPath
+	tunCode := "error:" + dataplane.CodeDoctorIPsecESPFormTUN
+	fastPath := "warning:" + dataplane.CodeDoctorIPsecESPFormFastPath
 
 	for _, tc := range []struct {
 		name  string
@@ -118,7 +117,7 @@ func TestDoctorESPFormDeviceFindingsReportOneCauseOnce(t *testing.T) {
 	other := opererr.Wrap(errors.New("listen ip4:50 0.0.0.0: socket: operation not permitted"), socketProblem,
 		"a raw socket needs CAP_NET_RAW", privilege.DaemonCapabilitiesFix)
 	at := time.Date(2026, 11, 12, 9, 30, 0, 0, time.UTC)
-	tunCode := "error:" + diagnostic.CodeDoctorIPsecESPFormTUN
+	tunCode := "error:" + dataplane.CodeDoctorIPsecESPFormTUN
 
 	for _, tc := range []struct {
 		name    string

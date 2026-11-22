@@ -268,15 +268,15 @@ func TestBackupHTTPStorageFailureReachesDoctor(t *testing.T) {
 	report.ResetForTest()
 	t.Cleanup(report.ResetForTest)
 	diagnostic.RegisterBuiltinCodes()
-	require.NotNil(t, diagnostic.Lookup(diagnostic.CodeDoctorBackupWorkspaceStorage))
+	require.NotNil(t, diagnostic.Lookup(artifact.CodeDoctorBackupWorkspaceStorage))
 	fixture := newPolicyHTTP(t, nil, false)
 	fixture.owner.FixtureParent(filepath.Join(t.TempDir(), "missing-parent"))
 	response := fixture.upload(t, fixture.source, "private-account", "https://example.com")
 	assert.Equal(t, http.StatusInternalServerError, response.Code, response.Body.String())
-	require.Contains(t, diagnostic.EventCodes(), diagnostic.CodeDoctorBackupWorkspaceStorage)
+	require.Contains(t, diagnostic.EventCodes(), artifact.CodeDoctorBackupWorkspaceStorage)
 	events := report.Errors(0)
 	require.Len(t, events, 1)
-	assert.Equal(t, diagnostic.CodeDoctorBackupWorkspaceStorage, events[0].Code)
+	assert.Equal(t, artifact.CodeDoctorBackupWorkspaceStorage, events[0].Code)
 	assert.NotContains(t, events[0].Message, "private-account")
 	assert.NotContains(t, events[0].Message, "original.zefs")
 	assert.NotEmpty(t, events[0].Fix)
@@ -284,10 +284,10 @@ func TestBackupHTTPStorageFailureReachesDoctor(t *testing.T) {
 		if check.Name != "recent-events" {
 			continue
 		}
-		require.Contains(t, check.Codes, diagnostic.CodeDoctorBackupWorkspaceStorage)
+		require.Contains(t, check.Codes, artifact.CodeDoctorBackupWorkspaceStorage)
 		rows := check.Check(diagnostic.DoctorCheckContext{})
 		require.Len(t, rows, 1)
-		assert.Equal(t, diagnostic.CodeDoctorBackupWorkspaceStorage, rows[0].Code)
+		assert.Equal(t, artifact.CodeDoctorBackupWorkspaceStorage, rows[0].Code)
 		assert.Equal(t, events[0].Fix, rows[0].Fix)
 		assert.Equal(t, diagnostic.SeverityWarning, rows[0].Severity)
 		assert.Contains(t, rows[0].Message, events[0].Message)
@@ -352,7 +352,7 @@ func TestBackupHTTPCloseFailureReportsPossibleRetention(t *testing.T) {
 	require.ErrorIs(t, owner.Close(), failure)
 	events := report.Errors(0)
 	require.Len(t, events, 1)
-	assert.Equal(t, diagnostic.CodeDoctorBackupWorkspaceStorage, events[0].Code)
+	assert.Equal(t, artifact.CodeDoctorBackupWorkspaceStorage, events[0].Code)
 }
 
 // TestBackupHTTPRefusals proves every original authorization/origin/integrity

@@ -62,8 +62,8 @@ func TestXFRMAbsentIsAStartupError(t *testing.T) {
 	if len(diags) != 1 {
 		t.Fatalf("an absent XFRM dataplane produced %d diagnostics, want 1", len(diags))
 	}
-	if diags[0].Code != diagnostic.CodeDoctorIPsecXFRMUnavailable {
-		t.Errorf("code is %q, want %q", diags[0].Code, diagnostic.CodeDoctorIPsecXFRMUnavailable)
+	if diags[0].Code != codeDoctorIPsecXFRMUnavailable {
+		t.Errorf("code is %q, want %q", diags[0].Code, codeDoctorIPsecXFRMUnavailable)
 	}
 	// Error, not warning: this severity is what refuses the start, and the probe
 	// used here reports absence only for the errno that means the kernel carries
@@ -89,8 +89,8 @@ func TestXFRMUnknownWarnsRatherThanRefusing(t *testing.T) {
 	if len(diags) != 1 {
 		t.Fatalf("an undetermined XFRM dataplane produced %d diagnostics, want 1", len(diags))
 	}
-	if diags[0].Code != diagnostic.CodeDoctorIPsecXFRMUnknown {
-		t.Errorf("code is %q, want %q", diags[0].Code, diagnostic.CodeDoctorIPsecXFRMUnknown)
+	if diags[0].Code != codeDoctorIPsecXFRMUnknown {
+		t.Errorf("code is %q, want %q", diags[0].Code, codeDoctorIPsecXFRMUnknown)
 	}
 	if diags[0].Severity != diagnostic.SeverityWarning {
 		t.Errorf("severity is %q, want warning", diags[0].Severity)
@@ -114,7 +114,7 @@ func TestXFRMCapabilitySilentWhenNothingIsWrong(t *testing.T) {
 		// allowed here is the forced warning, never an IPsec fault.
 		withXFRMState(t, "present")
 		diags := check.Check(diagnostic.DoctorCheckContext{Tree: ipsecPeerTree()})
-		if len(diags) != 1 || diags[0].Code != diagnostic.CodeDoctorKernelCapabilityForced {
+		if len(diags) != 1 || diags[0].Code != kernelcap.CodeDoctorKernelCapabilityForced {
 			t.Errorf("a present dataplane produced %d diagnostics, want only the forced warning: %+v", len(diags), diags)
 		}
 	})
@@ -157,8 +157,8 @@ func TestIPsecCapabilityEnrolled(t *testing.T) {
 		t.Fatal("kernel-capability-ipsec has a nil Check function")
 	}
 	wanted := map[string]bool{
-		diagnostic.CodeDoctorIPsecXFRMUnavailable: false,
-		diagnostic.CodeDoctorIPsecXFRMUnknown:     false,
+		codeDoctorIPsecXFRMUnavailable: false,
+		codeDoctorIPsecXFRMUnknown:     false,
 	}
 	for _, code := range check.Codes {
 		if _, ok := wanted[code]; ok {

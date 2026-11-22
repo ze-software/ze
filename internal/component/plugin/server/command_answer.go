@@ -8,7 +8,6 @@ import (
 	"slices"
 
 	"github.com/ze-software/ze/internal/component/plugin"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -71,6 +70,6 @@ func interruptedDocumentResponse(command string, document json.RawMessage, cause
 func reportTruncatedPluginAnswer(command string, produced uint64, cause error) {
 	logger().Warn("plugin answer ended before its terminator",
 		"command", command, "records", produced, "error", cause,
-		"code", diagnostic.CodeDoctorPluginAnswerUndelivered)
-	raiseServerEvent(diagnostic.CodeDoctorPluginAnswerUndelivered, command, "plugin answer ended before its terminator: "+cause.Error())
+		"code", CodeDoctorPluginAnswerUndelivered)
+	raiseServerEvent(CodeDoctorPluginAnswerUndelivered, command, "plugin answer ended before its terminator: "+cause.Error())
 }

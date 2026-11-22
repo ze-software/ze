@@ -27,7 +27,7 @@ func PolicyAbsences(settings *PeerSettings, owner pluginserver.DisseminationOwne
 	absences := make([]PolicyAbsence, 0, len(rfcAbsences))
 	for _, absent := range rfcAbsences {
 		absences = append(absences, PolicyAbsence{Direction: absent.Direction, Message: absent.Message, Fix: absent.Fix,
-			Code: diagnostic.CodeDoctorBGPRFC8212NoPolicy})
+			Code: CodeDoctorBGPRFC8212NoPolicy})
 	}
 	absences = append(absences, learnedExportAbsences(settings, owner)...)
 

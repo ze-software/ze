@@ -344,7 +344,7 @@ func (s *Server) stopDaemonForPlugin(name string, cause pluginStopCause, reason 
 	recorded := s.recordStop(LastStopEntry{Reason: LastStopFatalPolicy, Plugin: name, Detail: reason})
 	s.recordStopFailure(pluginStopFailure(name, cause, reason, recorded))
 	logger().Error("stopping ze because a plugin failed; run ze doctor after the restart for the recorded cause",
-		"plugin", name, "reason", reason, "code", diagnostic.CodeDoctorPluginFatalStop)
+		"plugin", name, "reason", reason, "code", CodeDoctorPluginFatalStop)
 	if s.shutdownFunc != nil {
 		s.shutdownFunc()
 	}

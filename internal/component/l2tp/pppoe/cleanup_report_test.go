@@ -12,7 +12,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 )
 
@@ -72,7 +71,7 @@ func TestAccessCleanupFailureReachesOperator(t *testing.T) {
 				t.Fatalf("cleanup warnings = %+v, want one", warnings)
 			}
 			issue := warnings[0]
-			if issue.Code != diagnostic.CodeDoctorPPPCleanup {
+			if issue.Code != ppp.CodeDoctorPPPCleanup {
 				t.Errorf("warning code = %q", issue.Code)
 			}
 			if issue.Detail["interface"] != identity.InterfaceName {
@@ -91,7 +90,7 @@ func TestAccessCleanupFailureReachesOperator(t *testing.T) {
 			if err := json.Unmarshal(log.Bytes(), &entry); err != nil {
 				t.Fatal(err)
 			}
-			if entry["code"] != diagnostic.CodeDoctorPPPCleanup {
+			if entry["code"] != ppp.CodeDoctorPPPCleanup {
 				t.Errorf("log doctor code = %v", entry["code"])
 			}
 			if entry["fix"] != ppp.CleanupFailureFix {

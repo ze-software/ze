@@ -19,7 +19,6 @@ import (
 	"github.com/cilium/ebpf"
 	"github.com/vishvananda/netns"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -353,7 +352,7 @@ func (f *espFormFastPath) closeFirewall(view espFormFirewallView) {
 	}
 	if err := view.closeReader(); err != nil {
 		f.logger().Warn("esp-form: release the fast path's nftables reader",
-			"error", err, "code", diagnostic.CodeDoctorIPsecESPFormFirewall)
+			"error", err, "code", CodeDoctorIPsecESPFormFirewall)
 	}
 }
 
@@ -645,7 +644,7 @@ func (f *espFormFastPath) blockGateLocked(site, how, fix string) {
 		"it lets through via "+espFormTUNName+", rate-bounded; only if that ESP should be "+
 		"accepted, change that rule as how says",
 		"site", site, "datagrams-per-second-max", espFormRate, "how", how,
-		"fix", fix, "code", diagnostic.CodeDoctorIPsecESPFormFirewall)
+		"fix", fix, "code", CodeDoctorIPsecESPFormFirewall)
 }
 
 // shutGateLocked writes 0 into the gate because the ruleset could not be read or
@@ -668,7 +667,7 @@ func (f *espFormFastPath) shutGateLocked(reading ESPFormFirewallReading, cause, 
 		"leaves bare ESP as it arrived, and the complete path re-presents it via "+espFormTUNName+
 		", rate-bounded",
 		"cause", cause, "reread", espFormFirewallRereadWhen(reading), "datagrams-per-second-max", espFormRate,
-		"fix", fix, "code", diagnostic.CodeDoctorIPsecESPFormFirewall)
+		"fix", fix, "code", CodeDoctorIPsecESPFormFirewall)
 }
 
 // clearFirewallLocked records a judgment that read the ruleset and found no rule that
@@ -724,7 +723,7 @@ func (f *espFormFastPath) writeGateLocked(value uint32) {
 	f.logger().Warn("esp-form: the fast path could not open its firewall gate, so bare ESP stays on "+
 		"the complete path through "+espFormTUNName+", rate-bounded",
 		"value", value, "error", err, "fix", ESPFormFixRestart(),
-		"code", diagnostic.CodeDoctorIPsecESPFormFirewall)
+		"code", CodeDoctorIPsecESPFormFirewall)
 }
 
 // detachLocked answers a gate the fast path could not shut: it detaches the program
@@ -740,7 +739,7 @@ func (f *espFormFastPath) detachLocked(err error) {
 	for ifindex, attached := range f.links {
 		if closeErr := attached.tcx.Close(); closeErr != nil {
 			f.logger().Warn("esp-form: detach the fast path from a link after its firewall gate could not shut",
-				"link", attached.name, "error", closeErr, "code", diagnostic.CodeDoctorIPsecESPFormFastPath)
+				"link", attached.name, "error", closeErr, "code", CodeDoctorIPsecESPFormFastPath)
 		}
 		delete(f.links, ifindex)
 	}
@@ -752,7 +751,7 @@ func (f *espFormFastPath) detachLocked(err error) {
 	f.logger().Warn("esp-form: the fast path could not shut its firewall gate, so it detached from every "+
 		"link, and all bare ESP is re-presented through "+espFormTUNName+" by the complete path, rate-bounded",
 		"cause", f.cause, "datagrams-per-second-max", espFormRate, "fix", ESPFormFixRestart(),
-		"code", diagnostic.CodeDoctorIPsecESPFormFastPath)
+		"code", CodeDoctorIPsecESPFormFastPath)
 }
 
 // hold shuts the gate for the length of a firewall commit. Before it returns it has

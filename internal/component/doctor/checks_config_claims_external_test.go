@@ -14,7 +14,7 @@ func unclaimedRoots(diags []diagnostic.Diagnostic, roots ...string) []string {
 	for _, root := range roots {
 		for index := range diags {
 			d := &diags[index]
-			if d.Code == diagnostic.CodeDoctorConfigRootUnclaimed && strings.Contains(d.Message, "config under "+root+" ") {
+			if d.Code == codeDoctorConfigRootUnclaimed && strings.Contains(d.Message, "config under "+root+" ") {
 				reported = append(reported, root)
 			}
 		}

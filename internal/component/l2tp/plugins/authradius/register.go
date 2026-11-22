@@ -43,6 +43,7 @@ var (
 const configRootL2TP = "l2tp"
 
 func init() {
+	registerDoctorCodes()
 	reg := registry.Registration{
 		Name:                    Name,
 		Description:             "RADIUS authentication and accounting for L2TP PPP sessions",
@@ -70,7 +71,7 @@ func init() {
 			Order:        710,
 			Dependencies: []string{"radius-server"},
 			Platforms:    []string{"any"},
-			Codes:        []string{"doctor-radius-unreachable", "doctor-radius-unsigned-response", "doctor-radius-invalid"},
+			Codes:        []string{codeDoctorRADIUSUnreachable, codeDoctorRADIUSUnsignedResponse, codeDoctorRADIUSInvalid},
 			Check:        checkRADIUSServers,
 		}},
 	}
@@ -87,13 +88,13 @@ func init() {
 	}
 	// A skipped framed route is raised on the report bus (extract.go
 	// reportFramedRouteSkipped), so recent-events declares and reports it.
-	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: diagnostic.CodeDoctorRADIUSFramedRouteSkipped}); err != nil {
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorRADIUSFramedRouteSkipped}); err != nil {
 		panic("BUG: RADIUS framed-route event registration failed: " + err.Error())
 	}
 	// A Framed-MTU Ze did not apply as sent is raised on the report bus, by
 	// extractFramedMTU here and by the PPP session when the value keeps IPv6CP
 	// from starting; only this plugin stages the value, so it declares the code.
-	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: diagnostic.CodeDoctorRADIUSFramedMTU}); err != nil {
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: ppp.CodeDoctorRADIUSFramedMTU}); err != nil {
 		panic("BUG: RADIUS Framed-MTU event registration failed: " + err.Error())
 	}
 }

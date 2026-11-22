@@ -21,7 +21,6 @@ import (
 	"github.com/ze-software/ze/internal/component/radius"
 	"github.com/ze-software/ze/internal/component/traffic"
 	coreCos "github.com/ze-software/ze/internal/core/cos"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/subscriberid"
 	"github.com/ze-software/ze/internal/core/taskguard"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -500,7 +499,7 @@ func (cl *coaListener) handleCoA(pkt *radius.Packet, from *net.UDPAddr) {
 		TunnelID: sess.TunnelLocalTID, SessionID: sid, PppInterface: sess.PppInterface,
 	}, &change, from.IP.String()); err != nil {
 		logger().Warn("Subscriber authorization failed; inspect shaping and repair the backend before retrying the request",
-			"code", diagnostic.CodeDoctorRADIUSCoAApply, "error", err, "from", from, "fix", coaHealthFix)
+			"code", codeDoctorRADIUSCoAApply, "error", err, "from", from, "fix", coaHealthFix)
 		cl.sendResponse(from, pkt, radius.CodeCoANAK, radius.ErrorCauseResourcesUnavailable)
 		return
 	}
@@ -550,7 +549,7 @@ func (cl *coaListener) applySubscriberCoA(pkt *radius.Packet, from *net.UDPAddr,
 	// RFC 5176 Section 2.3.
 	if err := cl.confirmCoA(sub, change, from.IP.String()); err != nil {
 		logger().Warn("Subscriber authorization failed; inspect shaping and repair the backend before retrying the request",
-			"code", diagnostic.CodeDoctorRADIUSCoAApply, "error", err, "from", from, "fix", coaHealthFix)
+			"code", codeDoctorRADIUSCoAApply, "error", err, "from", from, "fix", coaHealthFix)
 		cl.sendResponse(from, pkt, radius.CodeCoANAK, radius.ErrorCauseResourcesUnavailable)
 		return
 	}

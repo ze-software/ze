@@ -15,7 +15,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/ike/transport"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 // doctorForgeAuthResponses runs a Ze-to-Ze pre-shared-secret handshake to the
@@ -57,8 +56,8 @@ func TestDoctorReportsHandshakeReceivingUnprotectedMessages(t *testing.T) {
 		t.Fatalf("three forgeries on one handshake drew %d diagnostics, want one: %v", len(diags), diags)
 	}
 	d := diags[0]
-	if d.Code != diagnostic.CodeDoctorIPsecUnauthenticatedInput {
-		t.Fatalf("code %q, want %q", d.Code, diagnostic.CodeDoctorIPsecUnauthenticatedInput)
+	if d.Code != codeDoctorIPsecUnauthenticatedInput {
+		t.Fatalf("code %q, want %q", d.Code, codeDoctorIPsecUnauthenticatedInput)
 	}
 	if d.Severity != severityWarning {
 		t.Fatalf("severity %q, want %q", d.Severity, severityWarning)

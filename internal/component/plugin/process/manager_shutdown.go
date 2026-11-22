@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/plugin"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/syncutil"
@@ -43,8 +42,8 @@ func (pm *ProcessManager) RecordShutdownOrderFailure(cause error) {
 	pm.shutdownOrderFailure = failure
 	pm.mu.Unlock()
 	logger().Warn("plugin shutdown cannot preserve dependency order; stopping every plugin together",
-		"error", failure, "fix", ShutdownOrderFix, "code", diagnostic.CodeDoctorPluginShutdownOrder)
-	report.RaiseErrorFix(reportSourcePlugin, diagnostic.CodeDoctorPluginShutdownOrder, "plugin-shutdown",
+		"error", failure, "fix", ShutdownOrderFix, "code", CodeDoctorPluginShutdownOrder)
+	report.RaiseErrorFix(reportSourcePlugin, CodeDoctorPluginShutdownOrder, "plugin-shutdown",
 		report.FitMessage(failure.Error()), ShutdownOrderFix)
 }
 

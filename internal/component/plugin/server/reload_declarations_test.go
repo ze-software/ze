@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	plugin "github.com/ze-software/ze/internal/component/plugin"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/report"
 )
@@ -93,7 +92,7 @@ func TestRefuseChangedDeclarationsRefusesTheReload(t *testing.T) {
 
 	var raised []report.Issue
 	for _, issue := range report.Errors(0) {
-		if issue.Code == diagnostic.CodeDoctorConfigReloadRefused {
+		if issue.Code == CodeDoctorConfigReloadRefused {
 			raised = append(raised, issue)
 		}
 	}

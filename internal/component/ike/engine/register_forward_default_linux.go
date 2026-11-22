@@ -6,14 +6,13 @@
 package engine
 
 import (
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 func init() {
 	engineDoctorChecks = append(engineDoctorChecks, engineDoctorCheck{
 		decl: rpc.DoctorCheckDecl{Name: "ipsec-forward-default", Phase: rpc.DoctorPhaseRuntime, Order: 744,
-			Codes: []string{diagnostic.CodeDoctorIPsecForwardDefault}},
+			Codes: []string{codeDoctorIPsecForwardDefault}},
 		answer: answerForwardDefault,
 	})
 }

@@ -13,7 +13,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
+	configsystem "github.com/ze-software/ze/internal/component/config/system"
 	"github.com/ze-software/ze/internal/core/dnssource"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -145,10 +145,10 @@ type doctorDNSSourceWant struct {
 // out the pool gateway with no LAN resolver listening there (self-unserved).
 func doctorDNSSourceFindings(ctx context.Context, p *sdk.Plugin) error {
 	wants := []doctorDNSSourceWant{
-		{code: diagnostic.CodeDoctorDNSSourceEmpty, path: showDNSPoolPath, fix: "show system dns"},
-		{code: diagnostic.CodeDoctorDNSSourceInterfaceSilent, path: showDNSPoolPath, fix: "show system dns"},
+		{code: configsystem.CodeDoctorDNSSourceEmpty, path: showDNSPoolPath, fix: "show system dns"},
+		{code: configsystem.CodeDoctorDNSSourceInterfaceSilent, path: showDNSPoolPath, fix: "show system dns"},
 		// The named pool's gateway, which its self list hands out.
-		{code: diagnostic.CodeDoctorDNSSourceSelfUnserved, path: doctorDNSNamedPoolPath, fix: "set service dns-resolver listener <name> ip 10.99.8.1"},
+		{code: configsystem.CodeDoctorDNSSourceSelfUnserved, path: doctorDNSNamedPoolPath, fix: "set service dns-resolver listener <name> ip 10.99.8.1"},
 	}
 	var missing []doctorDNSSourceWant
 	var last map[string]any

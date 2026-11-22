@@ -10,7 +10,6 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 )
 
@@ -68,10 +67,10 @@ func (s *Session) writeASZeroAsWithdrawal(body []byte, code uint8, raw bool) err
 		sessionLogger().Warn("route withdrawn instead of advertised: RFC 7607 Section 2 forbids AS zero",
 			"peer", s.settings.Address, "attribute", code,
 			"suppressed-since-last", suppressed, "fix", asZeroOutboundFix,
-			"code", diagnostic.CodeDoctorBGPASZeroOutbound)
+			"code", codeDoctorBGPASZeroOutbound)
 		// As with a write-budget event, this bounded report-bus append waits
 		// on no peer or plugin while writeMu is held.
-		report.RaiseErrorFix(reportSourceBGP, diagnostic.CodeDoctorBGPASZeroOutbound,
+		report.RaiseErrorFix(reportSourceBGP, codeDoctorBGPASZeroOutbound,
 			s.settings.Address.String(), "BGP route withheld because an AS attribute contains zero; any older advertised version is withdrawn",
 			asZeroOutboundFix, map[string]any{"attribute": code, "suppressed-since-last": suppressed})
 	}

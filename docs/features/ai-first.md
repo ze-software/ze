@@ -89,7 +89,7 @@ package owning each dependency declares: the DNS resolver's
 `doctor-dns-resolver-port-unavailable` (a listener port the system will not let ze
 bind) and `doctor-dns-resolver-upstream-unreachable` (no forward server answers a
 probe), for example.
-<!-- source: internal/core/diagnostic/codes.go -- CodeDoctorDNSResolverPortUnavailable, CodeDoctorDNSResolverUpstreamUnreachable -->
+<!-- source: internal/plugins/dnsresolver/register_doctor_codes.go -- codeDoctorDNSResolverPortUnavailable, codeDoctorDNSResolverUpstreamUnreachable -->
 <!-- source: internal/plugins/dnsresolver/doctor.go -- doctorChecks -->
 
 

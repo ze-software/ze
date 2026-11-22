@@ -41,8 +41,8 @@ reference, TCP-MD5, role and capture directory checks live in
 | `doctor-as112-watchdog-missing-withdraw` | a BGP `update` block announces an AS112 covering prefix with no `watchdog { withdraw true }` marker |
 | `doctor-as112-global-origin-uncoordinated` | `asn.local 112` plus `replace-as` targets an eBGP session whose remote ASN is outside the RFC 6996 private-use ranges |
 
-Codes are registered in `internal/core/diagnostic/codes.go`.
-<!-- source: internal/core/diagnostic/codes.go -- diagnostic code registration -->
+Codes are registered by `internal/component/doctor/register_doctor_codes.go` via `diagnostic.Register`.
+<!-- source: internal/component/doctor/register_doctor_codes.go -- diagnostic code registration -->
 
 ## Two traps this feature exposed
 

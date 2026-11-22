@@ -13,7 +13,6 @@ import (
 
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 )
 
@@ -82,7 +81,7 @@ func requireHeldSlotsWarning(t *testing.T, subject string, want bool) {
 		if issue.Source != ppp.CleanupReportSource {
 			continue
 		}
-		if issue.Code != diagnostic.CodeDoctorPPPCleanup {
+		if issue.Code != ppp.CodeDoctorPPPCleanup {
 			continue
 		}
 		if issue.Subject == subject {

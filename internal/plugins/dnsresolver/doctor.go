@@ -39,7 +39,7 @@ func doctorChecks() []registry.DoctorCheckDef {
 			Order:        727,
 			Dependencies: []string{pluginName},
 			Platforms:    []string{"any"},
-			Codes:        []string{diagnostic.CodeDoctorDNSResolverPortUnavailable},
+			Codes:        []string{codeDoctorDNSResolverPortUnavailable},
 			Check:        checkResolverListeners,
 		},
 		{
@@ -48,7 +48,7 @@ func doctorChecks() []registry.DoctorCheckDef {
 			Order:        728,
 			Dependencies: []string{pluginName},
 			Platforms:    []string{"any"},
-			Codes:        []string{diagnostic.CodeDoctorDNSResolverUpstreamUnreachable},
+			Codes:        []string{codeDoctorDNSResolverUpstreamUnreachable},
 			Check:        checkResolverUpstreams,
 		},
 	}
@@ -123,7 +123,8 @@ func listenerDiagnostics(listeners []listenerEndpoint, bind func(netip.AddrPort)
 		msg.WriteString(l.Name)
 		msg.WriteString(" port` to 1024 or above")
 		out = append(out, rpc.DoctorCheckDiagnostic{
-			Code:     diagnostic.CodeDoctorDNSResolverPortUnavailable,
+			Code:     codeDoctorDNSResolverPortUnavailable,
+			Fix:      "sudo setcap cap_net_bind_service+ep /usr/local/bin/ze",
 			Severity: "warning",
 			Message:  msg.String(),
 		})
@@ -194,7 +195,8 @@ func upstreamDiagnostics(forward []upstream, timeout time.Duration) []rpc.Doctor
 	msg.WriteString("), so every client query would get SERVFAIL; check `service dns-resolver forward server` " +
 		"and the route and firewall towards each upstream")
 	return []rpc.DoctorCheckDiagnostic{{
-		Code:     diagnostic.CodeDoctorDNSResolverUpstreamUnreachable,
+		Code:     codeDoctorDNSResolverUpstreamUnreachable,
+		Fix:      "ze show system dns",
 		Severity: "warning",
 		Message:  msg.String(),
 	}}

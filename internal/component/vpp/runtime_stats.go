@@ -14,7 +14,6 @@ import (
 	"go.fd.io/govpp/api"
 
 	"github.com/ze-software/ze/internal/core/clock"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 	vppevents "github.com/ze-software/ze/internal/core/vpp/events"
 )
@@ -97,7 +96,7 @@ func (m *VPPManager) activateRuntimeStatsGeneration(ctx context.Context, generat
 			return nil, err
 		}
 		logger().Warn("vpp: statistics unavailable; consumers requiring counters will refuse",
-			"code", diagnostic.CodeDoctorVPPStats, "fix", runtimeStatsFix, "error", err)
+			"code", codeDoctorVPPStats, "fix", runtimeStatsFix, "error", err)
 	}
 	if err := m.settings.checkStartupRuntime(ctx, m.connector); err != nil {
 		if lease != nil {
@@ -170,7 +169,7 @@ func (m *VPPManager) connectRuntimeStatsGeneration(ctx context.Context, generati
 		lease.Close()
 		return nil, err
 	}
-	report.ClearWarning(runtimeStatsReportSource, diagnostic.CodeDoctorVPPStats, "connection")
+	report.ClearWarning(runtimeStatsReportSource, codeDoctorVPPStats, "connection")
 	if reg := getMetricsRegistry(); reg != nil {
 		pollerCtx, cancel := context.WithCancel(ctx)
 		lease.cancel = cancel
@@ -247,7 +246,7 @@ func (s *runtimeStats) readLocked(subject string, read func() error) error {
 	}
 	// This exact category was read successfully from the same live owner;
 	// success from another category or API generation cannot clear it.
-	report.ClearWarning(runtimeStatsReportSource, diagnostic.CodeDoctorVPPStats, subject)
+	report.ClearWarning(runtimeStatsReportSource, codeDoctorVPPStats, subject)
 	return nil
 }
 

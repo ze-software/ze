@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -165,7 +165,7 @@ func TestExitCleanupOrdinaryDisabledRelayKeepsDiscardPolicy(t *testing.T) {
 	exitCleanupExternalJoin(t, handler)
 	exitCleanupEvidenceZero(t, handler)
 	for _, issue := range report.Errors(0) {
-		if issue.Code == diagnostic.CodeDoctorPluginStderrRelayStopped {
+		if issue.Code == process.CodeDoctorPluginStderrRelayStopped {
 			t.Fatalf("disabled ordinary relay gained an error event: %+v", issue)
 		}
 	}

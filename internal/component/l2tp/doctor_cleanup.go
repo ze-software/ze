@@ -18,11 +18,11 @@ func init() {
 		Name: pppCleanupCheckName, Phase: diagnostic.DoctorPhaseRuntime,
 		Order: 720, Component: SubsystemName, Dependencies: []string{"ppp-session-resources"},
 		Platforms: []string{diagnostic.DoctorPlatformAny},
-		Codes:     []string{diagnostic.CodeDoctorPPPCleanup}, Check: checkPPPCleanup,
+		Codes:     []string{ppp.CodeDoctorPPPCleanup}, Check: checkPPPCleanup,
 	}); err != nil {
 		panic("BUG: PPP cleanup doctor registration failed: " + err.Error())
 	}
-	health.Register(pppCleanupHealthName, report.HealthProbeDegraded(diagnostic.CodeDoctorPPPCleanup))
+	health.Register(pppCleanupHealthName, report.HealthProbeDegraded(ppp.CodeDoctorPPPCleanup))
 }
 
 // checkPPPCleanup reads the daemon's retained cleanup failures. Its result does
@@ -34,7 +34,7 @@ func checkPPPCleanup(diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 		if issue.Source != ppp.CleanupReportSource {
 			continue
 		}
-		if issue.Code != diagnostic.CodeDoctorPPPCleanup {
+		if issue.Code != ppp.CodeDoctorPPPCleanup {
 			continue
 		}
 		message := issue.Message
@@ -42,7 +42,7 @@ func checkPPPCleanup(diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 			message += ": " + cause
 		}
 		findings = append(findings, diagnostic.Diagnostic{
-			Code: diagnostic.CodeDoctorPPPCleanup, Severity: diagnostic.SeverityWarning,
+			Code: ppp.CodeDoctorPPPCleanup, Severity: diagnostic.SeverityWarning,
 			Message: message, Fix: ppp.CleanupFailureFix,
 		})
 	}
@@ -50,10 +50,10 @@ func checkPPPCleanup(diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 		return findings
 	}
 	// Evicted state is unknown, never evidence that removal succeeded.
-	status, reason := report.HealthProbeDegraded(diagnostic.CodeDoctorPPPCleanup)()
+	status, reason := report.HealthProbeDegraded(ppp.CodeDoctorPPPCleanup)()
 	if status != health.StatusHealthy {
 		return []diagnostic.Diagnostic{{
-			Code: diagnostic.CodeDoctorPPPCleanup, Severity: diagnostic.SeverityWarning,
+			Code: ppp.CodeDoctorPPPCleanup, Severity: diagnostic.SeverityWarning,
 			Message: reason, Fix: ppp.CleanupFailureFix,
 		}}
 	}

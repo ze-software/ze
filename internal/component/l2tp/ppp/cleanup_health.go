@@ -7,7 +7,6 @@ import (
 	"crypto/sha256"
 	"fmt"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 )
 
@@ -77,7 +76,7 @@ func ReportCleanupFailure(identity SessionIdentity, operation CleanupOperation, 
 	}
 	message := fmt.Sprintf("PPP %s cleanup failed for interface %s (index %d); removal is unconfirmed",
 		step, identity.InterfaceName, identity.NativeIndex)
-	report.RaiseWarningFix(CleanupReportSource, diagnostic.CodeDoctorPPPCleanup, subject,
+	report.RaiseWarningFix(CleanupReportSource, CodeDoctorPPPCleanup, subject,
 		report.FitMessage(message), CleanupFailureFix, map[string]any{
 			reportFieldInterface: identity.InterfaceName, reportFieldNativeIndex: identity.NativeIndex,
 			reportFieldOperation: step, reportFieldError: err.Error(),

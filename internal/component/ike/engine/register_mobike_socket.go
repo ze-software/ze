@@ -15,7 +15,7 @@ import (
 )
 
 func init() {
-	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: diagnostic.CodeDoctorIPsecMOBIKESocketNotShared}); err != nil {
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorIPsecMOBIKESocketNotShared}); err != nil {
 		panic("BUG: ike: MOBIKE shared-socket event code registration failed: " + err.Error())
 	}
 }
@@ -42,7 +42,7 @@ func mobikeSocketNotSharedFailure(peer, host string) *opererr.Error {
 // log line is then the record.
 func reportMobikeSocketNotShared(log *slog.Logger, failure *opererr.Error, raiser espFormIssueRaiser, peer string) {
 	log.LogAttrs(context.Background(), slog.LevelError, "ike: "+failure.Problem(),
-		failure.LogAttrs(slog.String("code", diagnostic.CodeDoctorIPsecMOBIKESocketNotShared))...)
+		failure.LogAttrs(slog.String("code", codeDoctorIPsecMOBIKESocketNotShared))...)
 	// refuse-by-default: guards repointSessions -- a test state holds no report connection.
 	if raiser == nil {
 		return
@@ -50,10 +50,10 @@ func reportMobikeSocketNotShared(log *slog.Logger, failure *opererr.Error, raise
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	if err := raiser.RaiseIssue(ctx, sdk.Issue{Severity: rpc.ReportError,
-		Code: diagnostic.CodeDoctorIPsecMOBIKESocketNotShared, Subject: "peer-" + peer,
+		Code: codeDoctorIPsecMOBIKESocketNotShared, Subject: "peer-" + peer,
 		Message: failure.Problem() + " " + failure.Why(), Fix: failure.Fix()}); err != nil {
 		log.Warn("ike: could not record a MOBIKE peer restart on the report bus; the error log keeps it",
-			"code", diagnostic.CodeDoctorIPsecMOBIKESocketNotShared, "peer", peer, "error", err,
+			"code", codeDoctorIPsecMOBIKESocketNotShared, "peer", peer, "error", err,
 			"fix", "ze show log recent level error")
 	}
 }

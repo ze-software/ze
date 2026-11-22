@@ -18,7 +18,6 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -39,7 +38,7 @@ var applicationOverrideCheckDecl = rpc.DoctorCheckDecl{
 	Name:  "ipsec-application-override",
 	Phase: rpc.DoctorPhaseRuntime,
 	Order: 736,
-	Codes: []string{diagnostic.CodeDoctorIPsecOverrideGuard, diagnostic.CodeDoctorIPsecSocketPolicy},
+	Codes: []string{codeDoctorIPsecOverrideGuard, codeDoctorIPsecSocketPolicy},
 }
 
 // socketPolicyFixList is the fix line of a foreign per-socket policy: it lists every
@@ -70,7 +69,7 @@ func answerApplicationOverride(_ *ikeEngineState) []rpc.DoctorCheckDiagnostic {
 func checkIPsecApplicationOverride(_ registry.DoctorCheckContext) []rpc.DoctorCheckDiagnostic {
 	if refusal := overrideRefusal.Load(); refusal != nil {
 		return []rpc.DoctorCheckDiagnostic{{
-			Code:     diagnostic.CodeDoctorIPsecOverrideGuard,
+			Code:     codeDoctorIPsecOverrideGuard,
 			Severity: severityError,
 			Message:  "The last IPsec apply was refused: " + refusal.text,
 			Fix:      refusal.fix,
@@ -110,7 +109,7 @@ func checkIPsecApplicationOverride(_ registry.DoctorCheckContext) []rpc.DoctorCh
 // overrideGuardDiagnostic is the error a guard that does not hold under deny raises.
 func overrideGuardDiagnostic(why string) rpc.DoctorCheckDiagnostic {
 	return rpc.DoctorCheckDiagnostic{
-		Code:     diagnostic.CodeDoctorIPsecOverrideGuard,
+		Code:     codeDoctorIPsecOverrideGuard,
 		Severity: severityError,
 		Message: "The IPsec application-override guard is not attached (" + why + "), so applications can " +
 			"override the SPD. Something detached it or Ze's load failed. Restart ze with the command below; " +
@@ -129,7 +128,7 @@ func socketPolicyDiagnostics(dp dataplane.Dataplane) []rpc.DoctorCheckDiagnostic
 	policies, err := dp.ListPolicies()
 	if err != nil {
 		return []rpc.DoctorCheckDiagnostic{{
-			Code:     diagnostic.CodeDoctorIPsecSocketPolicy,
+			Code:     codeDoctorIPsecSocketPolicy,
 			Severity: severityWarning,
 			Message: "Ze could not list the IPsec policies (" + err.Error() + "), so it cannot tell whether a " +
 				"process holds a per-socket policy that overrides the SPD. The command below lists them.",
@@ -165,7 +164,7 @@ func socketPolicyDiagnostics(dp dataplane.Dataplane) []rpc.DoctorCheckDiagnostic
 				"attached a restarted application cannot set it again. The command below lists the policies, so " +
 				"you can match this one to the application that set it.")
 		out = append(out, rpc.DoctorCheckDiagnostic{
-			Code:     diagnostic.CodeDoctorIPsecSocketPolicy,
+			Code:     codeDoctorIPsecSocketPolicy,
 			Severity: severityWarning,
 			Message:  tb.String(),
 			Fix:      socketPolicyFixList,
@@ -249,7 +248,8 @@ func spdWritersDiagnostic(writers []spdWriter) rpc.DoctorCheckDiagnostic {
 	tb.Str(" hold CAP_NET_ADMIN in Ze's network namespace, so Linux lets them write the IPsec SPD directly. " +
 		"Remove the capability from them or stop them.")
 	return rpc.DoctorCheckDiagnostic{
-		Code:     diagnostic.CodeDoctorIPsecSPDWriter,
+		Code:     codeDoctorIPsecSPDWriter,
+		Fix:      "ze show diagnostic doctor-ipsec-spd-writer",
 		Severity: severityWarning,
 		Message:  tb.String(),
 	}
@@ -259,7 +259,8 @@ func spdWritersDiagnostic(writers []spdWriter) rpc.DoctorCheckDiagnostic {
 // process, so it cannot say whether another one can write the SPD.
 func spdWritersUnknownDiagnostic(why string) rpc.DoctorCheckDiagnostic {
 	return rpc.DoctorCheckDiagnostic{
-		Code:     diagnostic.CodeDoctorIPsecSPDWriterUnknown,
+		Code:     codeDoctorIPsecSPDWriterUnknown,
+		Fix:      "mount -o remount,hidepid=0 /proc",
 		Severity: severityWarning,
 		Message: "Ze could not see which processes hold CAP_NET_ADMIN in its network namespace (" + why +
 			"), so it cannot tell whether another process can write the IPsec SPD directly. Mount /proc " +

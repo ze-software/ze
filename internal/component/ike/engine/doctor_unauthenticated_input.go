@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -111,7 +110,7 @@ func checkIPsecUnauthenticatedInput(_ registry.DoctorCheckContext) []rpc.DoctorC
 				"handshake, or the path to the peer damages them: check that path on UDP 500 and 4500. " +
 				"Each drop is counted in the handshake-unauthenticated series.")
 		out = append(out, rpc.DoctorCheckDiagnostic{
-			Code:     diagnostic.CodeDoctorIPsecUnauthenticatedInput,
+			Code:     codeDoctorIPsecUnauthenticatedInput,
 			Severity: severityWarning,
 			Message:  tb.String(),
 			Fix:      "show metrics values | match handshake-unauthenticated",

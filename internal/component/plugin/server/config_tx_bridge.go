@@ -865,7 +865,7 @@ func (b *configTxBridge) dispatchCommitted(ctx context.Context, txID, name strin
 		proc.RecordConfigCommit(txID, errConfigCommittedNoConn)
 		logger().Error("config tx bridge: config-committed",
 			"plugin", name, "transaction-id", txID, "error", errConfigCommittedNoConn,
-			"code", diagnostic.CodeDoctorPluginConfigUnapplied)
+			"code", CodeDoctorPluginConfigUnapplied)
 		return
 	}
 	ctx, cancel := context.WithTimeout(ctx, configCommittedTimeout)
@@ -877,7 +877,7 @@ func (b *configTxBridge) dispatchCommitted(ctx context.Context, txID, name strin
 	if err != nil {
 		logger().Error("config tx bridge: config-committed",
 			"plugin", name, "transaction-id", txID, "error", err,
-			"code", diagnostic.CodeDoctorPluginConfigUnapplied)
+			"code", CodeDoctorPluginConfigUnapplied)
 	}
 }
 

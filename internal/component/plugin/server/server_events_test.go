@@ -72,7 +72,7 @@ func TestNotProblemSitesRaiseEvents(t *testing.T) {
 		if err := deliver(req, &plugin.Response{Status: plugin.StatusDone}); err == nil {
 			t.Fatal("deliver to a caller that is not reading answered no error")
 		}
-		event := serverEventOf(diagnostic.CodeDoctorPluginAnswerUndelivered)
+		event := serverEventOf(CodeDoctorPluginAnswerUndelivered)
 		if event == nil {
 			t.Fatalf("no answer-undelivered event on the bus: %v", report.Errors(0))
 		}
@@ -92,7 +92,7 @@ func TestNotProblemSitesRaiseEvents(t *testing.T) {
 		defer cancel()
 		// Red: the raiseServerEvent call after the first "drain failed" line in Run.
 		round.Run(ctx, stopInput(deadline))
-		event := serverEventOf(diagnostic.CodeDoctorPluginDrainIncomplete)
+		event := serverEventOf(CodeDoctorPluginDrainIncomplete)
 		if event == nil {
 			t.Fatalf("no drain-incomplete event on the bus: %v", report.Errors(0))
 		}

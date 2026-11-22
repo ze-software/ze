@@ -35,13 +35,8 @@ func TestISISConfigSanityCodesOwnedByComponent(t *testing.T) {
 // NOT carried by the central diagnostic.builtinCodes slice; they belong to the
 // component. RegisterBuiltinCodes must not be what makes them explainable.
 func TestISISConfigSanityCodesNotInBuiltins(t *testing.T) {
+	t.Cleanup(diagnostic.SnapshotForTest())
 	diagnostic.ResetForTest()
-	t.Cleanup(func() {
-		// Restore the global registry for other tests: the builtins plus the
-		// component-owned IS-IS codes (which the init() registered once already).
-		diagnostic.RegisterBuiltinCodes()
-		registerISISDiagnosticCodes()
-	})
 
 	diagnostic.RegisterBuiltinCodes()
 	builtins := diagnostic.AllCodes()
@@ -50,9 +45,9 @@ func TestISISConfigSanityCodesNotInBuiltins(t *testing.T) {
 			t.Errorf("%s is in the central builtinCodes slice; it must be owned by the IS-IS component (plugin-self-containment)", code)
 		}
 	}
-	// The raw-socket code stays centrally listed (owned by isis-3 transport), so
-	// this guard targets ONLY the two config-sanity codes, not all isis codes.
-	if !slices.Contains(builtins, "doctor-isis-raw-socket") {
-		t.Error("doctor-isis-raw-socket should remain a builtin code (transport owns its listing)")
+	// The raw-socket code is owned by internal/plugins/isis/transport too, so
+	// no IS-IS doctor code remains in the central builtinCodes table.
+	if slices.Contains(builtins, "doctor-isis-raw-socket") {
+		t.Error("doctor-isis-raw-socket is in the central builtinCodes slice; it belongs to internal/plugins/isis/transport")
 	}
 }

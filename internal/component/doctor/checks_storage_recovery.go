@@ -19,7 +19,7 @@ func doctorCheckRecoveryPending(ctx diagnostic.DoctorCheckContext) []diagnostic.
 	var message textbuf.Buffer
 	if err != nil && stage == "" {
 		return []diagnostic.Diagnostic{{
-			Code:     diagnostic.CodeDoctorStorageRecoveryPending,
+			Code:     codeDoctorStorageRecoveryPending,
 			Severity: diagnostic.SeverityError,
 			Message:  message.Str("retained full-store recovery sources could not be inspected: ").Err(err).String(),
 			Path:     ctx.ConfigDir,
@@ -38,7 +38,7 @@ func doctorCheckRecoveryPending(ctx diagnostic.DoctorCheckContext) []diagnostic.
 		command = fix.String()
 	}
 	return []diagnostic.Diagnostic{{
-		Code:     diagnostic.CodeDoctorStorageRecoveryPending,
+		Code:     codeDoctorStorageRecoveryPending,
 		Severity: diagnostic.SeverityWarning,
 		Message: message.Str("an unresolved full-store recovery source remains at ").Str(stage).
 			Str("; another source cannot be accepted until it is resolved").String(),

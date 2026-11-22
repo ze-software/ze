@@ -6,7 +6,6 @@
 package engine
 
 import (
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -19,8 +18,8 @@ func init() {
 			Phase: rpc.DoctorPhaseRuntime,
 			Order: 743,
 			Codes: []string{
-				diagnostic.CodeDoctorIPsecESPFormOffload,
-				diagnostic.CodeDoctorIPsecESPFormOffloadUnknown,
+				codeDoctorIPsecESPFormOffload,
+				codeDoctorIPsecESPFormOffloadUnknown,
 			},
 		},
 		answer: answerESPFormOffload,

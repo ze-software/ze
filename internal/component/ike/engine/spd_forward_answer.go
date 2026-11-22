@@ -9,7 +9,6 @@ package engine
 import (
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 )
 
@@ -121,7 +120,7 @@ func (s *ikeEngineState) moveSPDForwardAnswer(dp dataplane.Dataplane, next spdFo
 		sp := &gone[i]
 		if err := removeZePolicy(dp, *sp); !policyGone(err) {
 			s.log.Warn("ike: could not remove a forward entry of an operator bypass that this kernel's fragment answer no longer projects; it still acts on its traffic",
-				"code", diagnostic.CodeDoctorIPsecSPDUndoIncomplete,
+				"code", codeDoctorIPsecSPDUndoIncomplete,
 				"dir", dirLabel(sp.Dir), "src", sp.Src, "dst", sp.Dst, "error", err)
 		}
 	}
@@ -138,7 +137,7 @@ func (s *ikeEngineState) takeBackForwardAnswerInstalls(dp dataplane.Dataplane, w
 		sp := &written[i]
 		if err := removeZePolicy(dp, *sp); !policyGone(err) {
 			s.log.Error("ike: could not remove a forward entry of an operator bypass after a refused install",
-				"code", diagnostic.CodeDoctorIPsecSPDUndoIncomplete,
+				"code", codeDoctorIPsecSPDUndoIncomplete,
 				"dir", dirLabel(sp.Dir), "src", sp.Src, "dst", sp.Dst, "priority", sp.Priority, "error", err)
 		}
 	}

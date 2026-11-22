@@ -369,20 +369,20 @@ func stopResponder(r *responder, end exitKind) {
 	if !recorded {
 		logger().Warn(unrecordedExitMessage,
 			"target", r.target.DstPrefix, "error", err, "fix", withdrawalCommand(r.match),
-			"code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+			"code", codeDoctorDDoSFlowspecOrphanAnnouncement)
 		return
 	}
 	switch end {
 	case exitRemoved:
 		logger().Warn(removedExitMessage,
 			"target", r.target.DstPrefix, "error", err, "fix", withdrawalCommand(r.match),
-			"code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+			"code", codeDoctorDDoSFlowspecOrphanAnnouncement)
 		return
 	case exitFailed:
 		if transportClosed(err) {
 			logger().Warn(closedTransportMessage,
 				"target", r.target.DstPrefix, "fix", process.RestartCommand(Name),
-				"code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+				"code", codeDoctorDDoSFlowspecOrphanAnnouncement)
 			return
 		}
 	case exitStopped:
@@ -410,7 +410,7 @@ func stopResponder(r *responder, end exitKind) {
 	// orphanRecordCheck reports the record with the withdrawal by hand.
 	logger().Warn("ddos-flowspec: the FlowSpec rule could not be withdrawn on the way out; it stays recorded and may still be at the BGP peers. The next start of the plugin withdraws it. While ddos flowspec is configured and the plugin is not running, ze doctor reports the plugin as stopped and the command under fix starts it; once the section is removed, ze doctor reports the recorded rule and prints the withdrawal to send by hand",
 		"target", r.target.DstPrefix, "error", err, "fix", process.RestartCommand(Name),
-		"code", diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+		"code", codeDoctorDDoSFlowspecOrphanAnnouncement)
 }
 
 // transportClosed reports whether err says the connection to the engine is

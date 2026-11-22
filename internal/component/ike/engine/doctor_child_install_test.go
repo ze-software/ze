@@ -111,7 +111,7 @@ func TestChildInstallFindings(t *testing.T) {
 	}
 
 	diags := childInstallFindings(peers)
-	code := "error:" + diagnostic.CodeDoctorIPsecChildInstallRefused
+	code := "error:" + codeDoctorIPsecChildInstallRefused
 	if got, want := diagnosticCodes(diags), code+","+code+","+code; got != want {
 		t.Fatalf("diagnostics = %q, want %q (%v)", got, want, diags)
 	}
@@ -187,11 +187,11 @@ func TestChildCreateRefusalIsRecordedForTheDoctor(t *testing.T) {
 	if len(lines) != 1 {
 		t.Fatalf("%d refusal lines, want 1:\n%s", len(lines), logged.String())
 	}
-	if !strings.Contains(lines[0], "code="+diagnostic.CodeDoctorIPsecChildInstallRefused) {
+	if !strings.Contains(lines[0], "code="+codeDoctorIPsecChildInstallRefused) {
 		t.Errorf("the refusal line carries no doctor code: %s", lines[0])
 	}
 	diags := childInstallFindings(map[string]*PeerSession{r.ps.peerName: r.ps})
-	if got, want := diagnosticCodes(diags), "error:"+diagnostic.CodeDoctorIPsecChildInstallRefused; got != want {
+	if got, want := diagnosticCodes(diags), "error:"+codeDoctorIPsecChildInstallRefused; got != want {
 		t.Fatalf("after the refusal: diagnostics = %q, want %q", got, want)
 	}
 	assertChildInstallFinding(t, diags[0], []string{r.ps.peerName, "/dev/net/tun does not exist"}, cirTUNFix)
@@ -268,7 +268,7 @@ func TestFirstChildSARefusalIsRecordedForTheDoctor(t *testing.T) {
 	if len(lines) != 1 {
 		t.Fatalf("%d refusal lines, want 1:\n%s", len(lines), logged.String())
 	}
-	if !strings.Contains(lines[0], "code="+diagnostic.CodeDoctorIPsecChildInstallRefused) {
+	if !strings.Contains(lines[0], "code="+codeDoctorIPsecChildInstallRefused) {
 		t.Errorf("the refusal line carries no doctor code: %s", lines[0])
 	}
 }
@@ -288,8 +288,8 @@ func TestChildInstallCheckRegistered(t *testing.T) {
 		if decl.Phase != rpc.DoctorPhaseRuntime {
 			t.Errorf("phase = %q, want %q", decl.Phase, rpc.DoctorPhaseRuntime)
 		}
-		if got := strings.Join(decl.Codes, ","); got != diagnostic.CodeDoctorIPsecChildInstallRefused {
-			t.Errorf("codes = %q, want %q", got, diagnostic.CodeDoctorIPsecChildInstallRefused)
+		if got := strings.Join(decl.Codes, ","); got != codeDoctorIPsecChildInstallRefused {
+			t.Errorf("codes = %q, want %q", got, codeDoctorIPsecChildInstallRefused)
 		}
 	}
 	if !found {
@@ -299,7 +299,7 @@ func TestChildInstallCheckRegistered(t *testing.T) {
 	// lookup below finds the entry only after this call, as TestIPsecDoctorCodesRegistered
 	// makes it.
 	diagnostic.RegisterBuiltinCodes()
-	if diagnostic.Lookup(diagnostic.CodeDoctorIPsecChildInstallRefused) == nil {
-		t.Errorf("%s has no explanation entry", diagnostic.CodeDoctorIPsecChildInstallRefused)
+	if diagnostic.Lookup(codeDoctorIPsecChildInstallRefused) == nil {
+		t.Errorf("%s has no explanation entry", codeDoctorIPsecChildInstallRefused)
 	}
 }

@@ -52,8 +52,8 @@ func TestDoctorRecentEventsRowsFromReportRing(t *testing.T) {
 	// carries answer for the host, so the test compares, never assumes ready.
 	readyBefore := readyOf(RunRuntimeChecks(nil, nil))
 
-	errorCode := diagnostic.CodeDoctorDiskSpace
-	warningCode := diagnostic.CodeDoctorClockSkew
+	errorCode := codeDoctorDiskSpace
+	warningCode := codeDoctorClockSkew
 	report.RaiseError(recentEventsFixtureSource, errorCode, "peer-a", "first failure")
 	report.RaiseError(recentEventsFixtureSource, errorCode, "peer-a", "second failure")
 	report.RaiseWarning(recentEventsFixtureSource, warningCode, "clock", "clock drifts")
@@ -106,7 +106,7 @@ func TestDoctorRecentEventsSubjectsAreSeparateRows(t *testing.T) {
 	diagnostic.RegisterBuiltinCodes()
 	resetReportBus(t)
 
-	code := diagnostic.CodeDoctorDiskSpace
+	code := codeDoctorDiskSpace
 	report.RaiseError(recentEventsFixtureSource, code, "peer-a", "reset")
 	report.RaiseError(recentEventsFixtureSource, code, "peer-b", "reset")
 	report.RaiseError(recentEventsFixtureSource, code, "peer-b", "reset")
@@ -275,15 +275,15 @@ func TestRecentEventsRendersRaiseFix(t *testing.T) {
 
 	const errorFix = "ze config edit plugin"
 	const warningFix = "ze show plugin list"
-	report.RaiseErrorFix(recentEventsFixtureSource, diagnostic.CodeDoctorDiskSpace, "disk", "full", errorFix)
-	report.RaiseWarningFix(recentEventsFixtureSource, diagnostic.CodeDoctorClockSkew, "clock", "drifts", warningFix)
-	report.RaiseWarning(recentEventsFixtureSource, diagnostic.CodeDoctorRandomSeed, "seed", "low entropy")
+	report.RaiseErrorFix(recentEventsFixtureSource, codeDoctorDiskSpace, "disk", "full", errorFix)
+	report.RaiseWarningFix(recentEventsFixtureSource, codeDoctorClockSkew, "clock", "drifts", warningFix)
+	report.RaiseWarning(recentEventsFixtureSource, codeDoctorRandomSeed, "seed", "low entropy")
 
 	diags := checkRecentEvents(diagnostic.DoctorCheckContext{})
 	for _, want := range []struct{ code, fix string }{
-		{diagnostic.CodeDoctorDiskSpace, errorFix},
-		{diagnostic.CodeDoctorClockSkew, warningFix},
-		{diagnostic.CodeDoctorRandomSeed, recentEventsFixWarnings},
+		{codeDoctorDiskSpace, errorFix},
+		{codeDoctorClockSkew, warningFix},
+		{codeDoctorRandomSeed, recentEventsFixWarnings},
 	} {
 		rows := rowsWithCode(diags, want.code)
 		if len(rows) != 1 {

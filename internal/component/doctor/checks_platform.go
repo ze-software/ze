@@ -44,14 +44,16 @@ func resolveDoctorPlatform() (*host.PlatformInfo, []diagnostic.Diagnostic) {
 	p, err := detectDoctorPlatform()
 	if err != nil {
 		return nil, []diagnostic.Diagnostic{{
-			Code:     diagnostic.CodeDoctorPlatformDetect,
+			Code:     codeDoctorPlatformDetect,
+			Fix:      "ze show host platform",
 			Severity: diagnostic.SeverityWarning,
 			Message:  tb.Str("platform detection failed: ").Err(err).String(),
 		}}
 	}
 	if p == nil {
 		return nil, []diagnostic.Diagnostic{{
-			Code:     diagnostic.CodeDoctorPlatformDetect,
+			Code:     codeDoctorPlatformDetect,
+			Fix:      "ze show host platform",
 			Severity: diagnostic.SeverityWarning,
 			Message:  "platform detection returned no platform information",
 		}}
@@ -72,21 +74,24 @@ func checkPlatform(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	var diags []diagnostic.Diagnostic
 	if p.Type == host.PlatformUnknown {
 		diags = append(diags, diagnostic.Diagnostic{
-			Code:     diagnostic.CodeDoctorPlatformUnknown,
+			Code:     codeDoctorPlatformUnknown,
+			Fix:      "ze show host platform",
 			Severity: diagnostic.SeverityWarning,
 			Message:  "could not identify runtime platform",
 		})
 	}
 	if p.Type == host.PlatformGokrazy && !p.PersistentStorageWritable {
 		diags = append(diags, diagnostic.Diagnostic{
-			Code:     diagnostic.CodeDoctorPlatformPerm,
+			Code:     codeDoctorPlatformPerm,
+			Fix:      "mount -o remount,rw /perm",
 			Severity: diagnostic.SeverityError,
 			Message:  "gokrazy /perm partition is not writable; config and state persistence will fail",
 		})
 	}
 	if p.Type == host.PlatformContainer && p.ReadOnlyRoot {
 		diags = append(diags, diagnostic.Diagnostic{
-			Code:     diagnostic.CodeDoctorPlatformContainerRO,
+			Code:     codeDoctorPlatformContainerRO,
+			Fix:      "ze show host platform",
 			Severity: diagnostic.SeverityWarning,
 			Message:  "running in container with read-only root filesystem; ensure writable volumes are mounted for config and state",
 		})

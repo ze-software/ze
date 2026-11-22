@@ -19,7 +19,6 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -129,7 +128,7 @@ func ownedDevicesCleanup(_ *pluginserver.Server, proc *process.Process) {
 		slogutil.Logger("iface").LogAttrs(context.Background(), slog.LevelError,
 			"owned interface devices of an ended plugin were not all deleted",
 			slog.String("plugin", proc.Name()), slog.String("error", err.Error()),
-			slog.String("code", diagnostic.CodeDoctorIfaceOwnedDeviceCleanup),
+			slog.String("code", iface.CodeDoctorIfaceOwnedDeviceCleanup),
 			slog.String("fix", "ip -d link show lists what remains with alias ze:owned:"+proc.Name()+"; the next interface commit deletes it"))
 	}
 }

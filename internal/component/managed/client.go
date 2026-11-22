@@ -335,7 +335,7 @@ func RunManagedClient(ctx context.Context, cfg ClientConfig) {
 		}
 		if errors.Is(err, errHubClientRemoved) {
 			logger().Warn("the config the hub sent has no plugin hub client block, so this node no longer follows its hub",
-				"code", diagnostic.CodeDoctorHubClientMissing, "name", cfg.Name, "fix", hubClientMissingFix)
+				"code", codeDoctorHubClientMissing, "name", cfg.Name, "fix", hubClientMissingFix)
 			return
 		}
 		if errors.Is(err, errEndpointChanged) {
@@ -706,7 +706,7 @@ func settleBaseline(cfg *ClientConfig, access *BaselineAccess, active, baseline 
 	if err := access.store(active); err != nil {
 		logger().Warn("the hub holds the configuration this device runs, and the device could not record that as its baseline, "+
 			"so it holds at the next hub change if the two still differ then; check the store with: "+fixCheckStore,
-			"code", diagnostic.CodeDoctorManagedDiverged, "name", cfg.Name, "version", active.Hash(), "error", err)
+			"code", CodeDoctorManagedDiverged, "name", cfg.Name, "version", active.Hash(), "error", err)
 		return
 	}
 	logger().Info("the hub holds the configuration this device runs, recorded as the baseline",
@@ -734,7 +734,7 @@ func holdFetched(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, access
 			", and ze doctor on the device names the two ways to resolve it",
 	})
 	logger().Warn("this device holds: the configuration it runs differs from the last one its hub sent, so it applied nothing from the hub",
-		"code", diagnostic.CodeDoctorManagedDiverged, "name", cfg.Name,
+		"code", CodeDoctorManagedDiverged, "name", cfg.Name,
 		"active", active.Hash(), "baseline", baseline.Hash(), "offered", resp.Version, "fix", heldFix(cfg.Name, active, kept))
 }
 
@@ -777,14 +777,14 @@ func uploadHeld(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, access 
 	held, err := access.held()
 	if err != nil {
 		logger().Warn("this device holds and could not read the configuration it runs, so it sent its hub no copy; check the store with: "+fixCheckStore,
-			"code", diagnostic.CodeDoctorManagedDiverged, "name", cfg.Name, "error", err)
+			"code", CodeDoctorManagedDiverged, "name", cfg.Name, "error", err)
 		return "no copy was sent: the device could not read the configuration it runs", false
 	}
 	if len(held.content) > fleet.HeldConfigMax {
 		refusal := heldTooLarge(len(held.content))
 		cfg.held.failed, cfg.held.failure = held.version, refusal.Problem()
 		logger().Warn("this device holds a configuration too large to send its hub, so the hub cannot show or resolve the hold",
-			"code", diagnostic.CodeDoctorManagedDiverged, "name", cfg.Name, "version", held.version.Hash(),
+			"code", CodeDoctorManagedDiverged, "name", cfg.Name, "version", held.version.Hash(),
 			"size", len(held.content), "error", refusal, "fix", managedDivergedManualFix(cfg.Name))
 		return "no copy was sent: " + cfg.held.failure, false
 	}
@@ -813,7 +813,7 @@ func uploadHeld(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, access 
 	}
 	cfg.held.failed, cfg.held.failure = held.version, "the copy failed: "+err.Error()
 	logger().Warn("this device holds, and the copy of the configuration it runs did not reach its hub, so it sends none of this version again until its client restarts",
-		"code", diagnostic.CodeDoctorManagedDiverged, "name", cfg.Name, "version", held.version.Hash(),
+		"code", CodeDoctorManagedDiverged, "name", cfg.Name, "version", held.version.Hash(),
 		"error", err, "fix", managedDivergedManualFix(cfg.Name))
 	return "no copy was sent: " + cfg.held.failure, false
 }
@@ -842,7 +842,7 @@ func refuseUncompared(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, c
 	})
 	logger().Warn("this device could not compare the configuration it runs with the last one its hub sent, "+
 		"so it fetched and applied nothing from the hub; check the store with: "+fixCheckStore,
-		"code", diagnostic.CodeDoctorManagedDiverged, "name", cfg.Name, "error", cause)
+		"code", CodeDoctorManagedDiverged, "name", cfg.Name, "error", cause)
 }
 
 // sendAck sends ack to the hub. An ack that cannot be sent is logged: the

@@ -27,7 +27,8 @@ func checkOSPFv3RawSocket(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagno
 		return nil
 	}
 	return []diagnostic.Diagnostic{{
-		Code:     "doctor-ospfv3-raw-socket",
+		Code:     codeDoctorOSPFv3RawSocket,
+		Fix:      "sudo setcap cap_net_raw+ep /usr/local/bin/ze",
 		Severity: diagnostic.SeverityWarning,
 		Message:  err.Error(),
 	}}

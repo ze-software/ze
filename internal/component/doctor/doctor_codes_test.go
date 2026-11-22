@@ -18,23 +18,20 @@ import (
 func TestDoctorCheckCodesRegistered(t *testing.T) {
 	diagnostic.RegisterBuiltinCodes()
 
-	// The last four are emitted by the Linux-only checks (checks_linux.go). The
-	// registry answers for them on every platform, and `ze show diagnostic` is asked on
-	// every platform too.
+	// Platform-specific codes (such as random-seed) are still registered on
+	// every platform so `ze show diagnostic` answers everywhere.
 	codes := []string{
 		diagnostic.CodeDoctorStoreIntegrity,
-		diagnostic.CodeDoctorStorePermissions,
-		diagnostic.CodeDoctorDiskSpace,
-		diagnostic.CodeDoctorStorageNotGrown,
-		diagnostic.CodeDoctorWriteDestination,
+		codeDoctorStorePermissions,
+		codeDoctorDiskSpace,
+		codeDoctorStorageNotGrown,
+		codeDoctorWriteDestination,
+		codeDoctorRuntimeNotChecked,
 		diagnostic.CodeDoctorTLSMissing,
 		diagnostic.CodeDoctorTLSInvalid,
 		diagnostic.CodeDoctorTLSExpired,
-		diagnostic.CodeDoctorPKICert,
 		diagnostic.CodeDoctorModuleMissing,
-		diagnostic.CodeDoctorRandomSeed,
-		diagnostic.CodeDoctorIfaceSelectorUnmatched,
-		diagnostic.CodeDoctorIfaceSelectorAmbiguous,
+		codeDoctorRandomSeed,
 	}
 	for _, code := range codes {
 		if diagnostic.Lookup(code) == nil {

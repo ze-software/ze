@@ -27,13 +27,13 @@ func TestReloadRecordRows(t *testing.T) {
 		}},
 	}
 	removal := removalUnrecoveredRows(&records)
-	if len(removal) != 1 || removal[0].Code != diagnostic.CodeDoctorPluginRemovalUnrecovered ||
+	if len(removal) != 1 || removal[0].Code != server.CodeDoctorPluginRemovalUnrecovered ||
 		removal[0].Severity != diagnostic.SeverityError || removal[0].Fix != reloadRetryCommand ||
 		!strings.Contains(removal[0].Message, "p1") || !strings.Contains(removal[0].Message, "restart refused") {
 		t.Fatalf("removal rows = %+v; want one error naming p1 and its cause, fix %q", removal, reloadRetryCommand)
 	}
 	restore := capabilitiesNotRestoredRows(&records)
-	if len(restore) != 1 || restore[0].Code != diagnostic.CodeDoctorPluginCapabilitiesNotRestored ||
+	if len(restore) != 1 || restore[0].Code != server.CodeDoctorPluginCapabilitiesNotRestored ||
 		restore[0].Severity != diagnostic.SeverityError || restore[0].Fix != reloadRetryCommand ||
 		!strings.Contains(restore[0].Message, "2026-11-11T09:00:00Z") {
 		t.Fatalf("restore rows = %+v; want one error naming the time, fix %q", restore, reloadRetryCommand)
@@ -84,7 +84,7 @@ func TestDataPlaneWriterRowMatchesRefusal(t *testing.T) {
 	if !errors.As(refusal, &operr) {
 		t.Fatalf("refusal %v is no operator error", refusal)
 	}
-	if rows[0].Code != diagnostic.CodeDoctorPluginNoDataPlaneWriter || rows[0].Severity != diagnostic.SeverityError ||
+	if rows[0].Code != codeDoctorPluginNoDataPlaneWriter || rows[0].Severity != diagnostic.SeverityError ||
 		!strings.Contains(rows[0].Message, refusal.Error()) || !strings.Contains(rows[0].Message, "producer-fixture") ||
 		rows[0].Fix != operr.Fix() {
 		t.Fatalf("row = %+v; want an error carrying the refusal %q and its fix", rows[0], refusal)

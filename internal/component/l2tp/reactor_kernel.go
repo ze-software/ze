@@ -308,7 +308,7 @@ func (r *l2tpReactor) closeUntransferredPPPAttempt(attempt ppp.SessionAttempt, o
 	if err := attempt.RecordUntransferredClose(owner, cleanupErr); err != nil {
 		ppp.ReportCleanupFailure(owner.Identity(), ppp.CleanupSession, err)
 		r.logger.Warn("l2tp: unused PPP handoff cleanup could not be recorded", "error", err,
-			"code", diagnostic.CodeDoctorPPPCleanup, "fix", ppp.CleanupFailureFix)
+			"code", ppp.CodeDoctorPPPCleanup, "fix", ppp.CleanupFailureFix)
 		return errors.Join(cleanupErr, err)
 	}
 	return cleanupErr
@@ -334,7 +334,7 @@ func (r *l2tpReactor) closeUntransferredPPPSession(owner ppp.SessionHandle) erro
 	if err != nil {
 		ppp.ReportCleanupFailure(owner.Identity(), ppp.CleanupSession, err)
 		r.logger.Warn("l2tp: untransferred PPP session cleanup failed", "error", err,
-			"code", diagnostic.CodeDoctorPPPCleanup, "fix", ppp.CleanupFailureFix)
+			"code", ppp.CodeDoctorPPPCleanup, "fix", ppp.CleanupFailureFix)
 	}
 	return err
 }

@@ -129,7 +129,7 @@ func (ps *PeerSession) runEstablished(
 			ps.sendDeleteESP(sa, tr, sa.ChildInboundSPI, log)
 			log.Warn("ike: child SA refused, no UDP encapsulation port, deleting the pair and keeping the IKE SA",
 				"peer", ps.peerName, "error", err, "fix", childResponseFixEncapPort,
-				"code", diagnostic.CodeDoctorIPsecChildInstallRefused)
+				"code", codeDoctorIPsecChildInstallRefused)
 			child = nil
 			now := time.Now()
 			ps.childCreate.start(now)
@@ -146,7 +146,7 @@ func (ps *PeerSession) runEstablished(
 			ps.sendDeleteESP(sa, tr, sa.ChildInboundSPI, log)
 			log.Warn("ike: child SA refused, another peer holds an overlapping tunnel, deleting the pair and keeping the IKE SA",
 				"peer", ps.peerName, "error", err, "fix", childResponseRefusedFix(err),
-				"code", diagnostic.CodeDoctorIPsecChildInstallRefused)
+				"code", codeDoctorIPsecChildInstallRefused)
 			child = nil
 			now := time.Now()
 			ps.childCreate.start(now)
@@ -186,7 +186,7 @@ func (ps *PeerSession) runEstablished(
 			ps.recordChildRefused(err, now)
 			log.Warn("ike: child SA refused, this node could not install it, deleting the pair and keeping the IKE SA",
 				"peer", ps.peerName, "error", err, "retry-after", ps.childCreate.wait,
-				"fix", childInstallRefusedFix(err), "code", diagnostic.CodeDoctorIPsecChildInstallRefused)
+				"fix", childInstallRefusedFix(err), "code", codeDoctorIPsecChildInstallRefused)
 		case errors.Is(err, errChildNoIKEKeys):
 			// The one failure of the IKE SA itself: with no SK_* keys it can protect no
 			// message, so it can neither delete the peer's half nor ask again, and
@@ -219,7 +219,7 @@ func (ps *PeerSession) runEstablished(
 			ps.recordChildRefused(err, now)
 			log.Warn("ike: child SA refused, this node could not build it, deleting the pair and keeping the IKE SA",
 				"peer", ps.peerName, "error", err, "retry-after", ps.childCreate.wait,
-				"fix", childInstallRefusedFix(err), "code", diagnostic.CodeDoctorIPsecChildInstallRefused)
+				"fix", childInstallRefusedFix(err), "code", codeDoctorIPsecChildInstallRefused)
 		default:
 			ps.setChildSA(child)
 		}

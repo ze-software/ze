@@ -43,7 +43,7 @@ func localAnswer(t *testing.T, ask daemonAsk, tokens ...string) diagnostic.Docto
 func notCheckedRows(result diagnostic.DoctorResult) []diagnostic.Diagnostic {
 	var rows []diagnostic.Diagnostic
 	for i := range result.Diagnostics {
-		if result.Diagnostics[i].Code == diagnostic.CodeDoctorRuntimeNotChecked {
+		if result.Diagnostics[i].Code == codeDoctorRuntimeNotChecked {
 			rows = append(rows, result.Diagnostics[i])
 		}
 	}

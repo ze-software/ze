@@ -413,7 +413,7 @@ func (s *ManagedServer) bindFailed(addr string, err error) {
 	}
 	s.doctor.recordUnbound(addr, err)
 	managedLogger().Error("managed listener disabled: address unavailable",
-		"code", diagnostic.CodeDoctorManagedListenerUnbound, "addr", addr, "error", err)
+		"code", CodeDoctorManagedListenerUnbound, "addr", addr, "error", err)
 }
 
 // collidesWithAcceptor reports whether addr asks for the socket the plugin
@@ -495,7 +495,7 @@ func (s *ManagedServer) handleConn(conn net.Conn, clients map[string]string) {
 	// shadow the first (RegisterClient tracks the connected set).
 	if regErr := s.svc.RegisterClient(name); regErr != nil {
 		s.doctor.recordRejected(name, ManagedRejectNameConnected, regErr.Error())
-		managedLogger().Warn("managed client rejected", "code", diagnostic.CodeDoctorManagedClientRejected,
+		managedLogger().Warn("managed client rejected", "code", CodeDoctorManagedClientRejected,
 			"name", name, "error", regErr)
 		conn.Close() //nolint:errcheck,gosec // duplicate name; refuse the second connection
 		return
@@ -628,7 +628,7 @@ func (s *ManagedServer) handleConfigAck(name string, ack fleet.ConfigAck, fetche
 		return
 	}
 	s.doctor.recordRejected(name, ManagedRejectConfigRejected, ack.Error)
-	managedLogger().Warn("managed client rejected config", "code", diagnostic.CodeDoctorManagedClientRejected,
+	managedLogger().Warn("managed client rejected config", "code", CodeDoctorManagedClientRejected,
 		"name", name, "error", ack.Error)
 }
 

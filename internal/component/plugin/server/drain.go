@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/plugin/process"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -193,8 +192,8 @@ func (r *DrainRound) Run(ctx context.Context, input rpc.DrainInput) DrainResult 
 			logger().Info("drain started", "plugin", caller.plugin, "kind", input.Kind.String())
 		case <-caller.done:
 			result.Failed = append(result.Failed, caller.plugin)
-			logger().Warn("drain failed", "plugin", caller.plugin, "error", "plugin connection closed", "code", diagnostic.CodeDoctorPluginDrainIncomplete)
-			raiseServerEvent(diagnostic.CodeDoctorPluginDrainIncomplete, caller.plugin, "drain failed: plugin connection closed")
+			logger().Warn("drain failed", "plugin", caller.plugin, "error", "plugin connection closed", "code", CodeDoctorPluginDrainIncomplete)
+			raiseServerEvent(CodeDoctorPluginDrainIncomplete, caller.plugin, "drain failed: plugin connection closed")
 		case <-ctx.Done():
 			result.Late = append(result.Late, caller.plugin)
 		}
@@ -212,8 +211,8 @@ func (r *DrainRound) Run(ctx context.Context, input rpc.DrainInput) DrainResult 
 		case err := <-replies[i]:
 			if err != nil {
 				result.Failed = append(result.Failed, caller.plugin)
-				logger().Warn("drain failed", "plugin", caller.plugin, "error", err, "code", diagnostic.CodeDoctorPluginDrainIncomplete)
-				raiseServerEvent(diagnostic.CodeDoctorPluginDrainIncomplete, caller.plugin, "drain failed: "+err.Error())
+				logger().Warn("drain failed", "plugin", caller.plugin, "error", err, "code", CodeDoctorPluginDrainIncomplete)
+				raiseServerEvent(CodeDoctorPluginDrainIncomplete, caller.plugin, "drain failed: "+err.Error())
 				continue
 			}
 			result.Answered = append(result.Answered, caller.plugin)
@@ -222,8 +221,8 @@ func (r *DrainRound) Run(ctx context.Context, input rpc.DrainInput) DrainResult 
 			// A request can land in the stop slot of a caller that has
 			// already returned; nobody will answer it.
 			result.Failed = append(result.Failed, caller.plugin)
-			logger().Warn("drain failed", "plugin", caller.plugin, "error", "plugin connection closed", "code", diagnostic.CodeDoctorPluginDrainIncomplete)
-			raiseServerEvent(diagnostic.CodeDoctorPluginDrainIncomplete, caller.plugin, "drain failed: plugin connection closed")
+			logger().Warn("drain failed", "plugin", caller.plugin, "error", "plugin connection closed", "code", CodeDoctorPluginDrainIncomplete)
+			raiseServerEvent(CodeDoctorPluginDrainIncomplete, caller.plugin, "drain failed: plugin connection closed")
 		case <-ctx.Done():
 			result.Late = append(result.Late, caller.plugin)
 		}
@@ -231,14 +230,14 @@ func (r *DrainRound) Run(ctx context.Context, input rpc.DrainInput) DrainResult 
 
 	if errors.Is(ctx.Err(), context.Canceled) {
 		result.Aborted = true
-		logger().Warn("drain aborted by signal", "elapsed", drainElapsed(start), "code", diagnostic.CodeDoctorPluginDrainIncomplete)
-		raiseServerEvent(diagnostic.CodeDoctorPluginDrainIncomplete, drainSubject, "drain aborted by signal")
+		logger().Warn("drain aborted by signal", "elapsed", drainElapsed(start), "code", CodeDoctorPluginDrainIncomplete)
+		raiseServerEvent(CodeDoctorPluginDrainIncomplete, drainSubject, "drain aborted by signal")
 		return result
 	}
 	if len(result.Late) > 0 {
 		logger().Warn("drain deadline passed with no answer", "plugins", strings.Join(result.Late, ","),
-			"elapsed", drainElapsed(start), "code", diagnostic.CodeDoctorPluginDrainIncomplete)
-		raiseServerEvent(diagnostic.CodeDoctorPluginDrainIncomplete, drainSubject, "drain deadline passed with no answer: "+strings.Join(result.Late, ","))
+			"elapsed", drainElapsed(start), "code", CodeDoctorPluginDrainIncomplete)
+		raiseServerEvent(CodeDoctorPluginDrainIncomplete, drainSubject, "drain deadline passed with no answer: "+strings.Join(result.Late, ","))
 	}
 	return result
 }

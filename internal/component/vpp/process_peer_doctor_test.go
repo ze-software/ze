@@ -23,7 +23,7 @@ func TestVPPProcessDoctorReportsUnsupportedHost(t *testing.T) {
 	if len(findings) != 1 {
 		t.Fatalf("host findings=%d", len(findings))
 	}
-	if findings[0].Code != diagnostic.CodeDoctorVPPProcess {
+	if findings[0].Code != codeDoctorVPPProcess {
 		t.Fatal("wrong physical-process doctor code")
 	}
 	if !strings.Contains(findings[0].Message, cause.Error()) {
@@ -60,7 +60,7 @@ func TestVPPProcessDoctorRetainsExactRuntimeFailure(t *testing.T) {
 			continue
 		}
 		found = true
-		if finding.Code != diagnostic.CodeDoctorVPPProcess {
+		if finding.Code != codeDoctorVPPProcess {
 			t.Fatal("wrong retained-process doctor code")
 		}
 		if finding.Fix != processReportFix {

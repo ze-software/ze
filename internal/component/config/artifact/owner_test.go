@@ -187,10 +187,10 @@ func TestArtifactStorageFailureReachesDoctor(t *testing.T) {
 	owner.parentTemp = filepath.Join(t.TempDir(), "missing-parent")
 	_, err := ownerUpload(t, owner, "private-account", content)
 	require.Error(t, err)
-	require.Contains(t, diagnostic.EventCodes(), diagnostic.CodeDoctorBackupWorkspaceStorage)
+	require.Contains(t, diagnostic.EventCodes(), CodeDoctorBackupWorkspaceStorage)
 	events := report.Errors(0)
 	require.Len(t, events, 1)
-	assert.Equal(t, diagnostic.CodeDoctorBackupWorkspaceStorage, events[0].Code)
+	assert.Equal(t, CodeDoctorBackupWorkspaceStorage, events[0].Code)
 	assert.NotContains(t, events[0].Message, "private-account")
 	assert.NotContains(t, events[0].Message, "original.zefs")
 	assert.NotEmpty(t, events[0].Fix)
@@ -198,10 +198,10 @@ func TestArtifactStorageFailureReachesDoctor(t *testing.T) {
 		if check.Name != "recent-events" {
 			continue
 		}
-		require.Contains(t, check.Codes, diagnostic.CodeDoctorBackupWorkspaceStorage)
+		require.Contains(t, check.Codes, CodeDoctorBackupWorkspaceStorage)
 		rows := check.Check(diagnostic.DoctorCheckContext{})
 		require.Len(t, rows, 1)
-		assert.Equal(t, diagnostic.CodeDoctorBackupWorkspaceStorage, rows[0].Code)
+		assert.Equal(t, CodeDoctorBackupWorkspaceStorage, rows[0].Code)
 		assert.Equal(t, events[0].Fix, rows[0].Fix)
 		assert.Equal(t, diagnostic.SeverityWarning, rows[0].Severity)
 		assert.Contains(t, rows[0].Message, events[0].Message)
@@ -271,5 +271,5 @@ func TestArtifactCloseFailureReportsPossibleRetention(t *testing.T) {
 	require.ErrorIs(t, owner.Close(), failure)
 	events := report.Errors(0)
 	require.Len(t, events, 1)
-	assert.Equal(t, diagnostic.CodeDoctorBackupWorkspaceStorage, events[0].Code)
+	assert.Equal(t, CodeDoctorBackupWorkspaceStorage, events[0].Code)
 }

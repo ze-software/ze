@@ -62,7 +62,7 @@ const orphanRuntimeCheck = "ddos-flowspec-orphan-announcement"
 var orphanRuntimeCheckDecl = rpc.DoctorCheckDecl{
 	Name:  orphanRuntimeCheck,
 	Phase: rpc.DoctorPhaseRuntime,
-	Codes: []string{diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement},
+	Codes: []string{codeDoctorDDoSFlowspecOrphanAnnouncement},
 }
 
 // orphanRecordCheck is the registered check for the record while ddos flowspec
@@ -77,7 +77,7 @@ var orphanRecordCheck = diagnostic.DoctorCheck{
 	Dependencies: []string{"config-loaded"},
 	Platforms:    []string{"any"},
 	Codes: []string{
-		diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement,
+		codeDoctorDDoSFlowspecOrphanAnnouncement,
 		diagnostic.CodeDoctorStorageUnavailable,
 	},
 	Check: checkOrphanRecord,
@@ -184,11 +184,11 @@ func unownedOrphanDiagnostic(m flowspecMatch) rpc.DoctorCheckDiagnostic {
 	var msg textbuf.Buffer
 	msg.Str("ddos-flowspec holds the record of a FlowSpec rule it announced for ").Str(victim).
 		Str(", and no running responder holds that rule as its live announcement. Either no withdrawal of the rule is known to have reached the BGP peers (none was sent, the BGP engine did not take it or refused to send it, or its answer did not come back), or the BGP engine sent the withdrawal and the plugin could not remove the record after it. The plugin logged why under the code ").
-		Str(diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement).
+		Str(codeDoctorDDoSFlowspecOrphanAnnouncement).
 		Str(". Every BGP peer that took the rule may still discard or rate-limit traffic to ").Str(victim).
 		Str(". A restart of the plugin withdraws the recorded rule and removes the record; a second withdrawal of a rule the peers no longer hold changes nothing. If the cause of the failed withdrawal or removal remains, the restart fails the same way, the plugin logs the cause again, and this report stays")
 	return rpc.DoctorCheckDiagnostic{
-		Code:     diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement,
+		Code:     codeDoctorDDoSFlowspecOrphanAnnouncement,
 		Severity: string(diagnostic.SeverityWarning),
 		Message:  msg.String(),
 		Fix:      process.RestartCommand(Name),
@@ -211,7 +211,7 @@ func unconfiguredOrphanDiagnostic(m flowspecMatch) rpc.DoctorCheckDiagnostic {
 		Str(". The command below withdraws the rule at the peers. It does not remove the record, so this report stays: the plugin removes the record when it next starts (configure ddos flowspec again, and its start withdraws the rule and removes the record). ")
 	recordRemoval(&msg, "withdraw the rule with the command below")
 	return rpc.DoctorCheckDiagnostic{
-		Code:     diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement,
+		Code:     codeDoctorDDoSFlowspecOrphanAnnouncement,
 		Severity: string(diagnostic.SeverityWarning),
 		Message:  msg.String(),
 		Fix:      withdrawalCommand(m),
@@ -236,7 +236,7 @@ func corruptRecordDiagnostic(err error) rpc.DoctorCheckDiagnostic {
 		Str(", which works while ze runs when no ").Str(Name).
 		Str(" plugin runs. While one runs, ze refuses the removal, and the plugin's next announcement replaces the record")
 	return rpc.DoctorCheckDiagnostic{
-		Code:     diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement,
+		Code:     codeDoctorDDoSFlowspecOrphanAnnouncement,
 		Severity: string(diagnostic.SeverityWarning),
 		Message:  msg.String(),
 		Fix:      recordReadCommand(),
@@ -269,7 +269,7 @@ func checkOrphanRecord(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 	tree, ok := ctx.Tree.(*config.Tree)
 	if !ok {
 		return []diagnostic.Diagnostic{{
-			Code:     diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement,
+			Code:     codeDoctorDDoSFlowspecOrphanAnnouncement,
 			Severity: diagnostic.SeverityWarning,
 			Message:  "ddos-flowspec: this doctor run holds no parsed configuration, so it cannot say whether a recorded FlowSpec rule has a running plugin to withdraw it; the command below prints the record, if one is stored",
 			Fix:      recordReadCommand(),
@@ -304,7 +304,7 @@ func storedRecordFindings(reading recordReading, report orphanReport) []diagnost
 		msg.Str("ddos-flowspec: the announcement record could not be read (").Err(reading.err).
 			Str("), so doctor cannot say whether a FlowSpec rule a stopped plugin announced is still at the BGP peers")
 		return []diagnostic.Diagnostic{{
-			Code:     diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement,
+			Code:     codeDoctorDDoSFlowspecOrphanAnnouncement,
 			Severity: diagnostic.SeverityWarning,
 			Message:  msg.String(),
 			Fix:      "ze data check",
@@ -335,7 +335,7 @@ var stoppedRecordCheck = diagnostic.DoctorCheck{
 	Dependencies: []string{"plugin-state"},
 	Platforms:    []string{"any"},
 	Codes: []string{
-		diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement,
+		codeDoctorDDoSFlowspecOrphanAnnouncement,
 		diagnostic.CodeDoctorStorageUnavailable,
 	},
 	Check: checkStoppedRecord,
@@ -586,7 +586,7 @@ func unrunCases(msg *textbuf.Buffer, m flowspecMatch) {
 // running configuration and changes nothing.
 func unrunDiagnostic(msg *textbuf.Buffer) rpc.DoctorCheckDiagnostic {
 	return rpc.DoctorCheckDiagnostic{
-		Code:     diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement,
+		Code:     codeDoctorDDoSFlowspecOrphanAnnouncement,
 		Severity: string(diagnostic.SeverityWarning),
 		Message:  msg.String(),
 		Fix:      runningConfigCommand,
@@ -615,7 +615,7 @@ func stoppedOrphanReport(run pluginNotRunning) orphanReport {
 			Str(", and no running plugin holds that rule: ").Str(run.why).
 			Str(". Nothing withdraws the rule until the plugin runs again. Every BGP peer that took the rule may still discard or rate-limit traffic to ").Str(victim).
 			Str(". A restart of the plugin withdraws the recorded rule and removes the record; a second withdrawal of a rule the peers no longer hold changes nothing. If that withdrawal fails, the plugin logs the cause under the code ").
-			Str(diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement).
+			Str(codeDoctorDDoSFlowspecOrphanAnnouncement).
 			Str(", and the running plugin's own check reports the record")
 		if run.cleanupOwed {
 			msg.Str(". ").Str(restartRefusedSentence).
@@ -624,7 +624,7 @@ func stoppedOrphanReport(run pluginNotRunning) orphanReport {
 				Str(" row says whether the cleanup is still owed, and names the last resort if it never finishes")
 		}
 		return rpc.DoctorCheckDiagnostic{
-			Code:     diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement,
+			Code:     codeDoctorDDoSFlowspecOrphanAnnouncement,
 			Severity: string(diagnostic.SeverityWarning),
 			Message:  msg.String(),
 			Fix:      process.RestartCommand(Name),
@@ -646,7 +646,7 @@ func unknownRunOrphanReport(err error) orphanReport {
 			Str(", and the daemon cannot tell yet whether the plugin runs and holds the rule as its live announcement (").Err(err).
 			Str("). A running mitigation keeps this record, so the record alone is not a fault, and a start of the plugin withdraws the recorded rule and removes the record. Once the daemon has started its plugins, the command below asks again and can tell")
 		return rpc.DoctorCheckDiagnostic{
-			Code:     diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement,
+			Code:     codeDoctorDDoSFlowspecOrphanAnnouncement,
 			Severity: string(diagnostic.SeverityWarning),
 			Message:  msg.String(),
 			Fix:      daemonDoctorCommand,

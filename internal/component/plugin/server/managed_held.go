@@ -412,7 +412,7 @@ func (s *ManagedServer) handleConfigHeld(name string, mc *rpc.MuxConn, req *rpc.
 	if refusal != nil {
 		s.mHeld.With("refused").Inc()
 		managedLogger().Warn("managed client sent a copy of its held configuration that the hub refused",
-			"code", diagnostic.CodeDoctorManagedClientRejected, "name", name, "error", refusal)
+			"code", CodeDoctorManagedClientRejected, "name", name, "error", refusal)
 		_ = mc.SendCodedError(s.ctx, req.ID, fleet.HeldRefusedCode, refusal.Error())
 		return
 	}

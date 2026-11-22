@@ -61,7 +61,7 @@ func checkExternalPluginNames(ctx diagnostic.DoctorCheckContext) []diagnostic.Di
 // tree: it judged no external name, and says so.
 func externalNameUnreadRow() diagnostic.Diagnostic {
 	return diagnostic.Diagnostic{
-		Code:     diagnostic.CodeDoctorPluginConnectBackRefused,
+		Code:     ipc.ConnectBackRefusedCode,
 		Severity: diagnostic.SeverityError,
 		Message: "plugin external names were not checked: the doctor run gave this check no parsed config tree, " +
 			"so a name the connect-back refuses would go unreported",
@@ -77,7 +77,7 @@ func externalNameRow(name string) diagnostic.Diagnostic {
 		Str(ipc.PluginNameForm).Str("; ze refuses the config, and the plugin never attaches")
 	fix.Str("rename the block to a name of that form, then run ze config validate")
 	return diagnostic.Diagnostic{
-		Code:     diagnostic.CodeDoctorPluginConnectBackRefused,
+		Code:     ipc.ConnectBackRefusedCode,
 		Severity: diagnostic.SeverityError,
 		Message:  message.String(),
 		Fix:      fix.String(),

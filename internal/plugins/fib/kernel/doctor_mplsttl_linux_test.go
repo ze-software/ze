@@ -59,8 +59,8 @@ func TestCheckMPLSTTLPropagateReportsZero(t *testing.T) {
 		t.Fatalf("diagnostics = %d, want 1: %+v", len(diags), diags)
 	}
 	d := diags[0]
-	if d.Code != diagnostic.CodeDoctorMPLSTTLPropagateOff || d.Severity != diagnostic.SeverityError {
-		t.Fatalf("diagnostic = %s/%s, want %s at error", d.Code, d.Severity, diagnostic.CodeDoctorMPLSTTLPropagateOff)
+	if d.Code != codeDoctorMPLSTTLPropagateOff || d.Severity != diagnostic.SeverityError {
+		t.Fatalf("diagnostic = %s/%s, want %s at error", d.Code, d.Severity, codeDoctorMPLSTTLPropagateOff)
 	}
 	for _, want := range []string{mplsTTLPropagateKey, "net.mpls.default_ttl", "RFC 3032 Section 2.4.3"} {
 		if !strings.Contains(d.Message, want) {
@@ -115,8 +115,8 @@ func TestCheckMPLSTTLPropagateReportsUnreadable(t *testing.T) {
 				t.Fatalf("diagnostics = %d, want 1: %+v", len(diags), diags)
 			}
 			d := diags[0]
-			if d.Code != diagnostic.CodeDoctorMPLSTTLPropagateUnknown || d.Severity != diagnostic.SeverityWarning {
-				t.Fatalf("diagnostic = %s/%s, want %s at warning", d.Code, d.Severity, diagnostic.CodeDoctorMPLSTTLPropagateUnknown)
+			if d.Code != codeDoctorMPLSTTLPropagateUnknown || d.Severity != diagnostic.SeverityWarning {
+				t.Fatalf("diagnostic = %s/%s, want %s at warning", d.Code, d.Severity, codeDoctorMPLSTTLPropagateUnknown)
 			}
 			if !strings.Contains(d.Message, tc.cause) {
 				t.Errorf("message %q does not carry the cause %q", d.Message, tc.cause)

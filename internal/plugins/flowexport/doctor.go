@@ -59,7 +59,8 @@ func checkConntrackTracking(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDi
 		return nil
 	}
 	return []rpc.DoctorCheckDiagnostic{{
-		Code:     "doctor-flowexport-conntrack-unavailable",
+		Code:     codeDoctorFlowexportConntrackUnavailable,
+		Fix:      "sudo modprobe nf_conntrack",
 		Severity: "warning",
 		Message:  "flow-export conntrack export is enabled but the kernel nf_conntrack table is unavailable (module not loaded -- e.g. no firewall/NAT rule pulled it in); the recent-flow ring stays empty and DDoS characterization degrades to generic-flood with no target vector",
 	}}

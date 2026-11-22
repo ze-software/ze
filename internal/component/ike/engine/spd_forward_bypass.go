@@ -18,7 +18,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -34,7 +33,7 @@ var spdForwardBypassCheckDecl = rpc.DoctorCheckDecl{
 	Name:  spdForwardBypassCheckName,
 	Phase: rpc.DoctorPhaseRuntime,
 	Order: 747,
-	Codes: []string{diagnostic.CodeDoctorIPsecSPDForwardBypass},
+	Codes: []string{codeDoctorIPsecSPDForwardBypass},
 }
 
 // spdSideLocal and spdSideRemote name the two sides of a `vpn ipsec policy` entry as the
@@ -219,7 +218,7 @@ func verifyForwardBypass(dp dataplane.Dataplane, cfg *ipsec.IPsecConfig) error {
 func warnForwardBypassAtStart(dp dataplane.Dataplane, cfg *ipsec.IPsecConfig, log *slog.Logger) {
 	for _, refusal := range spdForwardBypassRefusals(dp, cfg.Policies) {
 		log.LogAttrs(context.Background(), slog.LevelError, "ike: "+refusal.Problem(),
-			refusal.LogAttrs(slog.String("code", diagnostic.CodeDoctorIPsecSPDForwardBypass))...)
+			refusal.LogAttrs(slog.String("code", codeDoctorIPsecSPDForwardBypass))...)
 	}
 }
 
@@ -247,7 +246,7 @@ func answerSPDForwardBypass(s *ikeEngineState) []rpc.DoctorCheckDiagnostic {
 			message += " The read answered: " + cause.Error() + "."
 		}
 		out = append(out, rpc.DoctorCheckDiagnostic{
-			Code:     diagnostic.CodeDoctorIPsecSPDForwardBypass,
+			Code:     codeDoctorIPsecSPDForwardBypass,
 			Severity: severityError,
 			Message:  message,
 			Fix:      refusal.Fix(),

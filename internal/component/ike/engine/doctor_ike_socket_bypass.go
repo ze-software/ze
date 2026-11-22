@@ -10,7 +10,6 @@ import (
 	"slices"
 
 	"github.com/ze-software/ze/internal/component/ike/transport"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -25,7 +24,7 @@ var ikeSocketBypassCheckDecl = rpc.DoctorCheckDecl{
 	Name:  ikeSocketBypassCheckName,
 	Phase: rpc.DoctorPhaseRuntime,
 	Order: 753,
-	Codes: []string{diagnostic.CodeDoctorIPsecIKESocketBypass},
+	Codes: []string{transport.CodeDoctorIPsecIKESocketBypass},
 }
 
 // ikeSocketBypassFailure is one open IKE socket the kernel refused its per-socket
@@ -103,7 +102,7 @@ func checkIKESocketBypass(failures []ikeSocketBypassFailure) []rpc.DoctorCheckDi
 			socket = "NAT-T IKE socket"
 		}
 		out = append(out, rpc.DoctorCheckDiagnostic{
-			Code:     diagnostic.CodeDoctorIPsecIKESocketBypass,
+			Code:     transport.CodeDoctorIPsecIKESocketBypass,
 			Severity: severityError,
 			Message: "The " + socket + " at " + f.address + " is not exempt from IPsec: the kernel refused its " +
 				"per-socket bypass (" + f.cause + "). Under `vpn ipsec unmatched discard`, or a traffic " +

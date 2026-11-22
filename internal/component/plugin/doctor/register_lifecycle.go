@@ -8,7 +8,11 @@
 
 package doctor
 
-import "github.com/ze-software/ze/internal/core/diagnostic"
+import (
+	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+)
 
 // The lifecycle check names.
 const (
@@ -42,7 +46,7 @@ func init() {
 			Component:    componentPlugin,
 			Dependencies: []string{"plugin-registry"},
 			Platforms:    []string{diagnostic.DoctorPlatformAny},
-			Codes:        []string{diagnostic.CodeDoctorPluginSetupFailed},
+			Codes:        []string{codeDoctorPluginSetupFailed},
 			Check:        checkPluginSetup,
 		},
 		{
@@ -54,9 +58,9 @@ func init() {
 			Dependencies: []string{"store"},
 			Platforms:    []string{diagnostic.DoctorPlatformAny},
 			Codes: []string{
-				diagnostic.CodeDoctorPluginFatalStop, diagnostic.CodeDoctorPluginStopCleanupLate,
-				diagnostic.CodeDoctorPluginSchemaRefused, diagnostic.CodeDoctorPluginSchemaUndeclared,
-				diagnostic.CodeDoctorPluginShutdownOrder,
+				server.CodeDoctorPluginFatalStop, process.CodeDoctorPluginStopCleanupLate,
+				server.CodeDoctorPluginSchemaRefused, server.CodeDoctorPluginSchemaUndeclared,
+				process.CodeDoctorPluginShutdownOrder,
 				diagnostic.CodeDoctorBuildRegistrationUnheld,
 			},
 			Check: checkPluginFatalStop,
@@ -69,7 +73,7 @@ func init() {
 			Component:    componentPlugin,
 			Dependencies: []string{doctorDependencyConfigTree},
 			Platforms:    []string{diagnostic.DoctorPlatformAny},
-			Codes:        []string{diagnostic.CodeDoctorPluginAutoloadUnresolved},
+			Codes:        []string{codeDoctorPluginAutoloadUnresolved},
 			Check:        checkPluginAutoload,
 		},
 	}

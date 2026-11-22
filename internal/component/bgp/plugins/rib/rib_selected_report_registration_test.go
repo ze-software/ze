@@ -43,13 +43,13 @@ func TestSelectedOutputReportRegistrationBothTransports(t *testing.T) {
 			warnings := report.Warnings()
 			require.Len(t, warnings, 1)
 			require.Equal(t, owner, warnings[0].Source)
-			require.Equal(t, diagnostic.CodeDoctorBGPSelectedOutput, warnings[0].Code)
+			require.Equal(t, codeDoctorBGPSelectedOutput, warnings[0].Code)
 			require.Equal(t, "selected destinations", warnings[0].Subject)
 			require.Contains(t, warnings[0].Message, "destination 192.0.2.1 Session 7")
 			require.LessOrEqual(t, len(warnings[0].Message), rpc.ReportMessageMax)
 			require.Equal(t, "ze show bgp peers", warnings[0].Fix)
-			require.Contains(t, diagnostic.EventCodes(), diagnostic.CodeDoctorBGPSelectedOutput)
-			require.NotNil(t, diagnostic.Lookup(diagnostic.CodeDoctorBGPSelectedOutput))
+			require.Contains(t, diagnostic.EventCodes(), codeDoctorBGPSelectedOutput)
+			require.NotNil(t, diagnostic.Lookup(codeDoctorBGPSelectedOutput))
 
 			// Neither an invented code nor an unrelated config-only catalog code
 			// may use the selected-output registration to bypass admission.

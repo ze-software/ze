@@ -77,8 +77,8 @@ func TestStoppedRecordCheckReportsARecordWhileTheConfiguredPluginIsStopped(t *te
 	if len(diags) != 1 {
 		t.Fatalf("findings = %v, want one", diags)
 	}
-	if diags[0].Code != diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement {
-		t.Errorf("code = %q, want %q", diags[0].Code, diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+	if diags[0].Code != codeDoctorDDoSFlowspecOrphanAnnouncement {
+		t.Errorf("code = %q, want %q", diags[0].Code, codeDoctorDDoSFlowspecOrphanAnnouncement)
 	}
 	if !strings.Contains(diags[0].Message, exitTestVictim) {
 		t.Errorf("message %q does not name the victim %s", diags[0].Message, exitTestVictim)
@@ -323,8 +323,8 @@ func TestStoppedRecordCheckWithTheSectionUnrunOffersNoWithdrawal(t *testing.T) {
 	if len(diags) != 1 {
 		t.Fatalf("findings = %v, want one", diags)
 	}
-	if diags[0].Code != diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement {
-		t.Errorf("code = %q, want %q", diags[0].Code, diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement)
+	if diags[0].Code != codeDoctorDDoSFlowspecOrphanAnnouncement {
+		t.Errorf("code = %q, want %q", diags[0].Code, codeDoctorDDoSFlowspecOrphanAnnouncement)
 	}
 	if !strings.Contains(diags[0].Message, exitTestVictim) {
 		t.Errorf("message %q does not name the victim %s", diags[0].Message, exitTestVictim)

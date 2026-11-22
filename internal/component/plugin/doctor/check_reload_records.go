@@ -22,7 +22,7 @@ const reloadRetryCommand = "ze request reload"
 func checkRemovalUnrecovered(diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	records, err := server.PluginReloadRecords()
 	if err != nil {
-		return []diagnostic.Diagnostic{reloadRecordsUnread(diagnostic.CodeDoctorPluginRemovalUnrecovered, err)}
+		return []diagnostic.Diagnostic{reloadRecordsUnread(server.CodeDoctorPluginRemovalUnrecovered, err)}
 	}
 	return removalUnrecoveredRows(&records)
 }
@@ -32,7 +32,7 @@ func checkRemovalUnrecovered(diagnostic.DoctorCheckContext) []diagnostic.Diagnos
 func checkCapabilitiesNotRestored(diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	records, err := server.PluginReloadRecords()
 	if err != nil {
-		return []diagnostic.Diagnostic{reloadRecordsUnread(diagnostic.CodeDoctorPluginCapabilitiesNotRestored, err)}
+		return []diagnostic.Diagnostic{reloadRecordsUnread(server.CodeDoctorPluginCapabilitiesNotRestored, err)}
 	}
 	return capabilitiesNotRestoredRows(&records)
 }
@@ -54,7 +54,7 @@ func removalUnrecoveredRows(records *server.ReloadDoctorRecords) []diagnostic.Di
 			Str(" was removed by a reload that was then refused, and restoring it failed, so it stays removed: ").
 			Str(removal.Err)
 		rows = append(rows, diagnostic.Diagnostic{
-			Code:     diagnostic.CodeDoctorPluginRemovalUnrecovered,
+			Code:     server.CodeDoctorPluginRemovalUnrecovered,
 			Severity: diagnostic.SeverityError,
 			Message:  message.String(),
 			Fix:      reloadRetryCommand,
@@ -72,7 +72,7 @@ func capabilitiesNotRestoredRows(records *server.ReloadDoctorRecords) []diagnost
 			Str(" could not restore the plugins' capability declarations, so a BGP OPEN built since may carry ").
 			Str("what the refused configuration declared: ").Str(failure.Err)
 		rows = append(rows, diagnostic.Diagnostic{
-			Code:     diagnostic.CodeDoctorPluginCapabilitiesNotRestored,
+			Code:     server.CodeDoctorPluginCapabilitiesNotRestored,
 			Severity: diagnostic.SeverityError,
 			Message:  message.String(),
 			Fix:      reloadRetryCommand,

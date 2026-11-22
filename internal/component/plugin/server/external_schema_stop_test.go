@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	plugin "github.com/ze-software/ze/internal/component/plugin"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 )
 
@@ -45,7 +44,7 @@ func TestSchemaStopSurvivesTheRefusedStart(t *testing.T) {
 
 	first := record.Entries[0]
 	assert.Equal(t, LastStopSchemaRefused, first.Reason)
-	assert.Equal(t, diagnostic.CodeDoctorPluginSchemaRefused, first.Reason.Code())
+	assert.Equal(t, CodeDoctorPluginSchemaRefused, first.Reason.Code())
 	assert.Empty(t, first.Plugin, "the join's refusal names its plugins in its own text")
 	assert.Equal(t, `plugin "broken-module" declared YANG module "acme-broken-conf", which does not compile. `+
 		"ze cannot parse a config against a module with no schema", first.Detail)
@@ -54,7 +53,7 @@ func TestSchemaStopSurvivesTheRefusedStart(t *testing.T) {
 
 	second := record.Entries[1]
 	assert.Equal(t, LastStopSchemaUndeclared, second.Reason)
-	assert.Equal(t, diagnostic.CodeDoctorPluginSchemaUndeclared, second.Reason.Code())
+	assert.Equal(t, CodeDoctorPluginSchemaUndeclared, second.Reason.Code())
 	assert.Equal(t, "no-schema", second.Plugin)
 	assert.Contains(t, second.Detail, `external plugin "no-schema" declared no YANG module`)
 	assert.Equal(t, `ze show plugin conformance run "./no-schema-plugin"`, second.Fix)

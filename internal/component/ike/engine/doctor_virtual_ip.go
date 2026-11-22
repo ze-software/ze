@@ -10,7 +10,6 @@ import (
 	"slices"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/eap"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -88,7 +87,8 @@ func checkIPsecVirtualIPPool(_ registry.DoctorCheckContext) []rpc.DoctorCheckDia
 			Str(" under vpn ipsec remote-access pool ").Str(u.pool).
 			Str(", or bind some peers to another pool with virtual-ip-pool.")
 		out = append(out, rpc.DoctorCheckDiagnostic{
-			Code:     diagnostic.CodeDoctorIPsecVirtualIPPool,
+			Code:     codeDoctorIPsecVirtualIPPool,
+			Fix:      "ze show diagnostic doctor-ipsec-virtual-ip-pool",
 			Severity: severityWarning,
 			Message:  tb.String(),
 		})

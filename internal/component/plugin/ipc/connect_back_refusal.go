@@ -16,7 +16,7 @@ import (
 
 // ConnectBackRefusedCode is the doctor code a refused connect-back carries on
 // its log line and its report-bus event. It MUST equal
-// diagnostic.CodeDoctorPluginConnectBackRefused: diagnostic imports this
+// CodeDoctorPluginConnectBackRefused: diagnostic imports this
 // package, so this package cannot import diagnostic, and
 // TestConnectBackCodeMatchesDiagnostic compares the two.
 const ConnectBackRefusedCode = "doctor-plugin-connect-back-refused"

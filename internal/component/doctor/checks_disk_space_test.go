@@ -45,7 +45,7 @@ func TestCheckDiskSpaceBlocks(t *testing.T) {
 			if got[0].Severity != tc.severity || got[0].Actual != tc.actual {
 				t.Errorf("diagnostic = %+v, want severity %v and actual %v", got[0], tc.severity, tc.actual)
 			}
-			if got[0].Code != diagnostic.CodeDoctorDiskSpace || got[0].Path != "config" {
+			if got[0].Code != codeDoctorDiskSpace || got[0].Path != "config" {
 				t.Errorf("diagnostic lost identity: %+v", got[0])
 			}
 		})

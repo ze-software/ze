@@ -103,9 +103,9 @@ func (s *webService) Shutdown(ctx context.Context) error {
 		return s.stopError
 	case <-timer.C:
 		message := "Web cleanup is still waiting for an active request, an owned route resource or a command-history write; the configuration store remains owned until cleanup finishes. Inspect recent web.server errors to locate the blocked work."
-		report.RaiseErrorFixOnce(webCleanupEventSource, diagnostic.CodeDoctorWebCleanupOverdue, webCleanupEventSubject,
+		report.RaiseErrorFixOnce(webCleanupEventSource, codeDoctorWebCleanupOverdue, webCleanupEventSubject,
 			message, webCleanupEventFix, webCleanupEventWindow)
-		slogutil.Logger("web.server").Error(message, "code", diagnostic.CodeDoctorWebCleanupOverdue, "fix", webCleanupEventFix, "limit", allowance)
+		slogutil.Logger("web.server").Error(message, "code", codeDoctorWebCleanupOverdue, "fix", webCleanupEventFix, "limit", allowance)
 		<-s.stopped
 		return errors.Join(errWebHistoryDrainOverdue, s.stopError)
 	}

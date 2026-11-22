@@ -8,7 +8,6 @@ import (
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -45,7 +44,8 @@ func checkIPsecInterfaceAddress(_ registry.DoctorCheckContext) []rpc.DoctorCheck
 				"It starts when the address appears. Bring the interface up, or give the peer an address with: " +
 				"set vpn ipsec site-to-site peer ").Str(peer).Str(" local-address <ipv4>")
 		out = append(out, rpc.DoctorCheckDiagnostic{
-			Code:     diagnostic.CodeDoctorIPsecInterfaceAddress,
+			Code:     codeDoctorIPsecInterfaceAddress,
+			Fix:      "set vpn ipsec site-to-site peer " + peer + " local-address <ipv4>",
 			Severity: severityWarning,
 			Message:  tb.String(),
 		})

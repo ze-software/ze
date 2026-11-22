@@ -22,7 +22,6 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/wire"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/ikeprobe"
 	"github.com/ze-software/ze/internal/core/ipsecinventory"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -327,7 +326,7 @@ func init() {
 			Order:        730,
 			Dependencies: []string{doctorDepConfigLoaded, "interface"},
 			Platforms:    []string{doctorPlatformAny},
-			Codes:        []string{diagnostic.CodeDoctorIPsecIface},
+			Codes:        []string{codeDoctorIPsecIface},
 			Check:        checkIPsecInterface,
 		}, {
 			// RFC 7296 Section 2.23 makes receiving UDP-encapsulated ESP a MUST. The
@@ -338,7 +337,7 @@ func init() {
 			Order:        731,
 			Dependencies: []string{doctorDepConfigLoaded},
 			Platforms:    []string{doctorPlatformAny},
-			Codes:        []string{diagnostic.CodeDoctorIPsecUDPEncap},
+			Codes:        []string{codeDoctorIPsecUDPEncap},
 			Check:        checkIPsecUDPEncap,
 		}, {
 			// RFC 7296 Section 3.6's hash-and-url is an outbound network dependency:
@@ -350,7 +349,7 @@ func init() {
 			Order:        732,
 			Dependencies: []string{doctorDepConfigLoaded},
 			Platforms:    []string{doctorPlatformAny},
-			Codes:        []string{diagnostic.CodeDoctorIPsecCertURL, diagnostic.CodeDoctorIPsecCertURLDenied},
+			Codes:        []string{codeDoctorIPsecCertURL, codeDoctorIPsecCertURLDenied},
 			Check:        checkIPsecCertURL,
 		}, {
 			// RFC 7296 Section 2.6's COOKIE challenge is gated on a count whose
@@ -361,7 +360,7 @@ func init() {
 			Order:        733,
 			Dependencies: []string{doctorDepConfigLoaded},
 			Platforms:    []string{doctorPlatformAny},
-			Codes:        []string{diagnostic.CodeDoctorIPsecCookieThreshold},
+			Codes:        []string{codeDoctorIPsecCookieThreshold},
 			Check:        checkIPsecCookieThreshold,
 		}, {
 			// RFC 7296 Section 3.15.4: a full remote-access pool refuses the next client
@@ -372,7 +371,7 @@ func init() {
 			Order:        734,
 			Dependencies: []string{doctorDepConfigLoaded},
 			Platforms:    []string{doctorPlatformAny},
-			Codes:        []string{diagnostic.CodeDoctorIPsecVirtualIPPool},
+			Codes:        []string{codeDoctorIPsecVirtualIPPool},
 			Check:        checkIPsecVirtualIPPool,
 		}, {
 			// A peer whose `interface` has no IPv4 address is not started, and nothing
@@ -382,7 +381,7 @@ func init() {
 			Order:        735,
 			Dependencies: []string{doctorDepConfigLoaded},
 			Platforms:    []string{doctorPlatformAny},
-			Codes:        []string{diagnostic.CodeDoctorIPsecInterfaceAddress},
+			Codes:        []string{codeDoctorIPsecInterfaceAddress},
 			Check:        checkIPsecInterfaceAddress,
 		}, {
 			// RFC 4301 Section 4.4.1: a direct SPD write is outside the guard; Linux
@@ -392,7 +391,7 @@ func init() {
 			Order:        737,
 			Dependencies: []string{doctorDepConfigLoaded},
 			Platforms:    []string{doctorPlatformAny},
-			Codes:        []string{diagnostic.CodeDoctorIPsecSPDWriter, diagnostic.CodeDoctorIPsecSPDWriterUnknown},
+			Codes:        []string{codeDoctorIPsecSPDWriter, codeDoctorIPsecSPDWriterUnknown},
 			Check:        checkIPsecSPDWriters,
 		}, {
 			// RFC 4301 Section 8.1: net.ipv4.ip_no_pmtu_disc makes the kernel clear the
@@ -403,7 +402,7 @@ func init() {
 			Order:        738,
 			Dependencies: []string{doctorDepConfigLoaded},
 			Platforms:    []string{doctorPlatformAny},
-			Codes:        []string{diagnostic.CodeDoctorIPsecNoPMTUDisc},
+			Codes:        []string{codeDoctorIPsecNoPMTUDisc},
 			Check:        checkIPsecNoPMTUDisc,
 		}, {
 			// RFC 7296 Section 2.4: a handshake drops a message that fails its integrity
@@ -414,7 +413,7 @@ func init() {
 			Order:        739,
 			Dependencies: []string{doctorDepConfigLoaded},
 			Platforms:    []string{doctorPlatformAny},
-			Codes:        []string{diagnostic.CodeDoctorIPsecUnauthenticatedInput},
+			Codes:        []string{codeDoctorIPsecUnauthenticatedInput},
 			Check:        checkIPsecUnauthenticatedInput,
 		}, {
 			// RFC 7296 Section 3.1: an authenticated response that does not parse draws no
@@ -425,7 +424,7 @@ func init() {
 			Order:        740,
 			Dependencies: []string{doctorDepConfigLoaded},
 			Platforms:    []string{doctorPlatformAny},
-			Codes:        []string{diagnostic.CodeDoctorIPsecPeerMalformedMessage},
+			Codes:        []string{codeDoctorIPsecPeerMalformedMessage},
 			Check:        checkIPsecPeerMalformedMessage,
 		}, {
 			// RFC 4301 Section 4.4.1: the discard catch-all in force only because
@@ -437,7 +436,7 @@ func init() {
 			Order:        741,
 			Dependencies: []string{doctorDepConfigLoaded},
 			Platforms:    []string{doctorPlatformAny},
-			Codes:        []string{diagnostic.CodeDoctorIPsecImplicitDiscard},
+			Codes:        []string{codeDoctorIPsecImplicitDiscard},
 			Check:        checkIPsecImplicitDiscard,
 		}},
 	}

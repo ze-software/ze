@@ -279,7 +279,7 @@ func TestDoctorCheckBGPCaptureDirectoryNotWritable(t *testing.T) {
 
 	diags := doctorCheckBGPCaptureDirectory(diagnosticContext(newCaptureTree("true", filepath.Join(blocker, "sub"))))
 	require.Len(t, diags, 1)
-	assert.Equal(t, diagnosticBGPCaptureDirectory, diags[0].Code)
+	assert.Equal(t, reactor.CodeDoctorBGPCaptureDirectory, diags[0].Code)
 	assert.Equal(t, diagnostic.SeverityWarning, diags[0].Severity)
 	assert.Contains(t, diags[0].Message, "192.0.2.1")
 	assert.Contains(t, diags[0].Path, "sub")
@@ -297,7 +297,7 @@ func TestDoctorCheckBGPCaptureDirectoryUsesDefault(t *testing.T) {
 	// absent and unwritable, on a deployed box it is writable. Either verdict is
 	// correct; what must not happen is the check silently doing nothing.
 	for _, d := range diags {
-		assert.Equal(t, diagnosticBGPCaptureDirectory, d.Code)
+		assert.Equal(t, reactor.CodeDoctorBGPCaptureDirectory, d.Code)
 		assert.Contains(t, d.Path, reactor.DefaultCaptureDirectory)
 	}
 	assert.LessOrEqual(t, len(diags), 1)

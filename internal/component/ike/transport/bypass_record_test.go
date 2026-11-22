@@ -11,7 +11,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/privilege"
 )
 
@@ -36,7 +35,7 @@ func TestRefusedIKESocketBypassIsRecorded(t *testing.T) {
 		t.Fatalf("BypassError answered %v, want the kernel's refusal", tr.BypassError())
 	}
 	out := logged.String()
-	if !strings.Contains(out, "level=WARN") || !strings.Contains(out, "code="+diagnostic.CodeDoctorIPsecIKESocketBypass) {
+	if !strings.Contains(out, "level=WARN") || !strings.Contains(out, "code="+CodeDoctorIPsecIKESocketBypass) {
 		t.Fatalf("the refusal was not logged at Warn with its doctor code:\n%s", out)
 	}
 

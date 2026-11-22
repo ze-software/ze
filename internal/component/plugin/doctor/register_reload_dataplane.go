@@ -7,7 +7,10 @@
 
 package doctor
 
-import "github.com/ze-software/ze/internal/core/diagnostic"
+import (
+	"github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+)
 
 // The check names and their place in the order.
 const (
@@ -28,7 +31,7 @@ func init() {
 			Component:    componentPlugin,
 			Dependencies: []string{pluginStateDependency},
 			Platforms:    []string{diagnostic.DoctorPlatformAny},
-			Codes:        []string{diagnostic.CodeDoctorPluginRemovalUnrecovered},
+			Codes:        []string{server.CodeDoctorPluginRemovalUnrecovered},
 			Check:        checkRemovalUnrecovered,
 		},
 		{
@@ -38,7 +41,7 @@ func init() {
 			Component:    componentPlugin,
 			Dependencies: []string{pluginStateDependency},
 			Platforms:    []string{diagnostic.DoctorPlatformAny},
-			Codes:        []string{diagnostic.CodeDoctorPluginCapabilitiesNotRestored},
+			Codes:        []string{server.CodeDoctorPluginCapabilitiesNotRestored},
 			Check:        checkCapabilitiesNotRestored,
 		},
 		{
@@ -50,7 +53,7 @@ func init() {
 			Component:    componentPlugin,
 			Dependencies: []string{doctorDependencyConfigTree},
 			Platforms:    []string{diagnostic.DoctorPlatformAny},
-			Codes:        []string{diagnostic.CodeDoctorPluginNoDataPlaneWriter},
+			Codes:        []string{codeDoctorPluginNoDataPlaneWriter},
 			Check:        checkDataPlaneWriter,
 		},
 	}

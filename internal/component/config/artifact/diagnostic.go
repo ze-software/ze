@@ -12,7 +12,8 @@ import (
 var artifactLog = slogutil.Logger("config.artifact")
 
 func init() {
-	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: diagnostic.CodeDoctorBackupWorkspaceStorage}); err != nil {
+	registerDoctorCodes()
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: CodeDoctorBackupWorkspaceStorage}); err != nil {
 		panic("BUG: backup workspace event registration refused: " + err.Error())
 	}
 }
@@ -23,7 +24,7 @@ func init() {
 func ReportStorageFailure() {
 	const fix = "Run ze show doctor, check free space and backup-folder permissions, then retry /backups/"
 	const message = "A private backup workspace storage operation did not finish. Live configuration was not changed."
-	report.RaiseErrorFixOnce("backup-workspace", diagnostic.CodeDoctorBackupWorkspaceStorage, "private-artifact",
+	report.RaiseErrorFixOnce("backup-workspace", CodeDoctorBackupWorkspaceStorage, "private-artifact",
 		message, fix, time.Minute)
-	artifactLog.Warn(message, "code", diagnostic.CodeDoctorBackupWorkspaceStorage, "fix", fix)
+	artifactLog.Warn(message, "code", CodeDoctorBackupWorkspaceStorage, "fix", fix)
 }

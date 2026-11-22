@@ -17,7 +17,6 @@ package fibkernel
 
 import (
 	"github.com/ze-software/ze/internal/component/kernelcap"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 func init() {
@@ -26,8 +25,8 @@ func init() {
 		Component:   pluginName,
 		Kernel:      "CONFIG_MPLS_ROUTING",
 		ConfigLeaf:  "a labeled BGP family, ldp, rsvp-te or an interface mpls block on the kernel FIB",
-		CodeAbsent:  diagnostic.CodeDoctorMPLSUnavailable,
-		CodeUnknown: diagnostic.CodeDoctorMPLSUnknown,
+		CodeAbsent:  codeDoctorMPLSUnavailable,
+		CodeUnknown: codeDoctorMPLSUnknown,
 		Order:       735,
 		InUse:       kernelcap.MPLSInUse,
 		Probe:       kernelcap.MPLS,
@@ -47,8 +46,8 @@ var transitMTUCapability = kernelcap.Capability{
 	Kernel:      "CONFIG_MPLS_IP_MTU",
 	ConfigLeaf:  "rsvp-te on the kernel FIB",
 	Degrades:    "RSVP-TE transit routes install without the path MTU, so an oversized labeled packet is dropped instead of fragmented or answered with ICMP",
-	CodeAbsent:  diagnostic.CodeDoctorMPLSTransitMTUUnenforced,
-	CodeUnknown: diagnostic.CodeDoctorMPLSTransitMTUUnknown,
+	CodeAbsent:  codeDoctorMPLSTransitMTUUnenforced,
+	CodeUnknown: codeDoctorMPLSTransitMTUUnknown,
 	Order:       739,
 	InUse:       kernelcap.MPLSTransitMTUInUse,
 	Probe:       kernelcap.MPLSIPMTU,

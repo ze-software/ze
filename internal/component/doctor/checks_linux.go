@@ -146,7 +146,8 @@ func checkMachineID(platform *host.PlatformInfo, store storage.Storage) []diagno
 
 	var tb textbuf.Buffer
 	return []diagnostic.Diagnostic{{
-		Code:     diagnostic.CodeDoctorMachineIDMissing,
+		Code:     codeDoctorMachineIDMissing,
+		Fix:      "systemd-machine-id-setup",
 		Severity: diagnostic.SeverityWarning,
 		Message:  tb.Str("machine-id is missing or empty on ").Str(platform.Type.String()).String(),
 		Path:     path,
@@ -176,7 +177,8 @@ func checkRandomSeed(platform *host.PlatformInfo) []diagnostic.Diagnostic {
 			return nil
 		}
 		return []diagnostic.Diagnostic{{
-			Code:     diagnostic.CodeDoctorRandomSeed,
+			Code:     codeDoctorRandomSeed,
+			Fix:      "ze show host platform",
 			Severity: diagnostic.SeverityWarning,
 			Message:  "gokrazy random seed not found at " + path + "; verify randomd is included in the gokrazy image",
 			Path:     path,
@@ -190,7 +192,8 @@ func checkRandomSeed(platform *host.PlatformInfo) []diagnostic.Diagnostic {
 			return nil
 		}
 		return []diagnostic.Diagnostic{{
-			Code:     diagnostic.CodeDoctorRandomSeed,
+			Code:     codeDoctorRandomSeed,
+			Fix:      "sudo systemctl enable --now systemd-random-seed.service",
 			Severity: diagnostic.SeverityWarning,
 			Message:  "systemd random seed not found at " + path + "; systemd-random-seed.service may not be enabled",
 			Path:     path,
@@ -200,7 +203,8 @@ func checkRandomSeed(platform *host.PlatformInfo) []diagnostic.Diagnostic {
 
 	case host.PlatformPlainLinux:
 		return []diagnostic.Diagnostic{{
-			Code:     diagnostic.CodeDoctorRandomSeed,
+			Code:     codeDoctorRandomSeed,
+			Fix:      "ze show diagnostic doctor-random-seed",
 			Severity: diagnostic.SeverityWarning,
 			Message:  "non-systemd Linux without a known random-seed service; early-boot entropy may be insufficient for cryptographic operations",
 		}}

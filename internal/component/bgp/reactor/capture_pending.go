@@ -351,14 +351,12 @@ func (selected captureSelection) run() {
 	active.run()
 }
 
-const codeCaptureDirectory = "doctor-bgp-capture-directory"
-
 func reportCaptureStartFailure(peer, path string, cause error) {
 	err := opererr.Wrap(cause, "BGP protocol capture cannot open its configured file",
 		"The BGP session continues without a protocol trace.", "ze doctor")
 	slogutil.LazyLogger(captureLogSubsystem)().Error(err.Error(),
-		"code", codeCaptureDirectory, "peer", peer, "file", path, "fix", "ze doctor")
-	report.RaiseErrorFix(reportSourceBGP, codeCaptureDirectory, peer,
+		"code", CodeDoctorBGPCaptureDirectory, "peer", peer, "file", path, "fix", "ze doctor")
+	report.RaiseErrorFix(reportSourceBGP, CodeDoctorBGPCaptureDirectory, peer,
 		report.FitMessage(err.Error()), "ze doctor", map[string]any{"file": path})
 }
 

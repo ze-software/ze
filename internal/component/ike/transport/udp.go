@@ -15,7 +15,6 @@ import (
 	"golang.org/x/net/ipv4"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/probe"
 )
@@ -192,7 +191,7 @@ func (t *UDPTransport) exemptFromIPsec(localAddr string, bypass func(*net.UDPCon
 	t.logger.Warn("ike: could not exempt the IKE socket from IPsec; under `vpn ipsec unmatched discard`, "+
 		"or a traffic selector covering the peer's IKE address, the SPD captures ze's own IKE and the "+
 		"tunnel cannot be rekeyed or torn down. "+BypassFix(),
-		"code", diagnostic.CodeDoctorIPsecIKESocketBypass, "address", localAddr, "error", t.bypassErr)
+		"code", CodeDoctorIPsecIKESocketBypass, "address", localAddr, "error", t.bypassErr)
 }
 
 // BypassFix answers the fix for a socket whose BypassError is not nil. The bypass is

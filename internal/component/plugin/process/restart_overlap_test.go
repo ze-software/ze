@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/plugin"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 )
 
@@ -23,7 +22,7 @@ import (
 func restartOverlapEvents() []report.Issue {
 	var events []report.Issue
 	for _, issue := range report.Errors(0) {
-		if issue.Code == diagnostic.CodeDoctorPluginRestartOverlap {
+		if issue.Code == CodeDoctorPluginRestartOverlap {
 			events = append(events, issue)
 		}
 	}

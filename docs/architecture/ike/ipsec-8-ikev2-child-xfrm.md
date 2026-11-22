@@ -41,7 +41,7 @@ sudo systemctl restart ze
 <!-- source: internal/component/ike/engine/child.go -- redistributeInstance -->
 <!-- source: internal/component/ike/engine/redistribute.go -- childRouteSourceAllocator, emitRouteAdd, emitRouteRemove, rekeyTunnelRoutes, answerRedistributionSource -->
 <!-- source: internal/component/ike/engine/doctor_runtime.go -- engineDoctorChecks -->
-<!-- source: internal/core/diagnostic/codes.go -- CodeDoctorIPsecRedistributionSource -->
+<!-- source: internal/component/ike/engine/register_doctor_codes.go -- codeDoctorIPsecRedistributionSource -->
 
 ## Decisions
 

@@ -12,7 +12,6 @@ import (
 	"slices"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -29,7 +28,7 @@ var childInstallCheckDecl = rpc.DoctorCheckDecl{
 	Name:  childInstallCheckName,
 	Phase: rpc.DoctorPhaseRuntime,
 	Order: 743,
-	Codes: []string{diagnostic.CodeDoctorIPsecChildInstallRefused},
+	Codes: []string{codeDoctorIPsecChildInstallRefused},
 }
 
 // Fix lines of a refused Child SA whose cause carries no operator error of its own.
@@ -130,7 +129,7 @@ func childInstallRefused(peer string, refusal *childRefusal) rpc.DoctorCheckDiag
 			Str("; the first attempt after the cause is removed installs the Child SA with no restart.")
 	}
 	return rpc.DoctorCheckDiagnostic{
-		Code:     diagnostic.CodeDoctorIPsecChildInstallRefused,
+		Code:     codeDoctorIPsecChildInstallRefused,
 		Severity: severityError,
 		Message:  tb.String(),
 		Fix:      fix,

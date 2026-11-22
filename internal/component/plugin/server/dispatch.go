@@ -267,7 +267,7 @@ func (s *Server) resolveSubscriptionNamespace(proc *process.Process, requested s
 			valid := events.ValidNamespaceNames()
 			logger().Warn("rpc event subscription: unknown namespace, skipping subscriptions",
 				"plugin", proc.Name(), "namespace", requested, "valid", valid,
-				"code", diagnostic.CodeDoctorPluginSubscriptionDropped)
+				"code", CodeDoctorPluginSubscriptionDropped)
 			proc.RecordSubscriptionDrop(process.SubscriptionDrop{
 				Cause: process.SubscriptionDropUnknownNamespace, Namespace: requested,
 				Detail: "valid namespaces: " + valid,
@@ -280,7 +280,7 @@ func (s *Server) resolveSubscriptionNamespace(proc *process.Process, requested s
 	namespace := defaultEventNamespace()
 	if namespace == "" {
 		logger().Warn("rpc event subscription: no default event namespace registered, subscriptions will not match (call plugin.RegisterDefaultEventNamespace from the protocol component's register.go)",
-			"plugin", proc.Name(), "code", diagnostic.CodeDoctorPluginSubscriptionDropped)
+			"plugin", proc.Name(), "code", CodeDoctorPluginSubscriptionDropped)
 		proc.RecordSubscriptionDrop(process.SubscriptionDrop{Cause: process.SubscriptionDropNoDefaultNamespace})
 	}
 	return events.LookupNamespaceID(namespace), namespace, true

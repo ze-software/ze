@@ -8,7 +8,6 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/subscriberid"
@@ -171,7 +170,7 @@ func (s *StartSession) closeFiles() {
 			"Removal remains unconfirmed; inspect the recorded owner error and repair it before retrying service", CleanupFailureFix)
 		slogutil.Logger("ppp").Warn(failure.Problem(), "error", err,
 			"tunnel-id", s.TunnelID, "session-id", s.SessionID,
-			"why", failure.Why(), "code", diagnostic.CodeDoctorPPPCleanup, "fix", failure.Fix())
+			"why", failure.Why(), "code", CodeDoctorPPPCleanup, "fix", failure.Fix())
 	}
 	s.Dataplane = nil
 	s.Frames = nil

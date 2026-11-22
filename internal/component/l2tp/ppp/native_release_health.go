@@ -8,7 +8,6 @@ import (
 	"crypto/sha256"
 	"fmt"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 )
 
@@ -30,7 +29,7 @@ func (session *pppSession) reportSessionCleanupFailure(owner SessionHandle, err 
 	identity := session.nativeIdentity
 	message := fmt.Sprintf("PPP session cleanup failed for interface %s (index %d); removal is unconfirmed",
 		identity.InterfaceName, identity.NativeIndex)
-	report.RaiseWarningFix(CleanupReportSource, diagnostic.CodeDoctorPPPCleanup,
+	report.RaiseWarningFix(CleanupReportSource, CodeDoctorPPPCleanup,
 		nativeSessionCleanupSubject(session.nativeBirthTag), report.FitMessage(message), CleanupFailureFix,
 		map[string]any{
 			reportFieldInterface: identity.InterfaceName, reportFieldNativeIndex: identity.NativeIndex,
@@ -46,7 +45,7 @@ func (session *pppSession) clearNativeSessionCleanupFailure() {
 	if session.nativeBirthTag == "" {
 		return
 	}
-	report.ClearWarning(CleanupReportSource, diagnostic.CodeDoctorPPPCleanup,
+	report.ClearWarning(CleanupReportSource, CodeDoctorPPPCleanup,
 		nativeSessionCleanupSubject(session.nativeBirthTag))
 }
 
@@ -69,7 +68,7 @@ func (s *pppSession) reportIPv6ChildCleanupFailure(cause error) {
 		return
 	}
 	message := fmt.Sprintf("PPP IPv6 cleanup failed for interface %s (index %d); removal is unconfirmed", identity.InterfaceName, identity.NativeIndex)
-	report.RaiseWarningFix(CleanupReportSource, diagnostic.CodeDoctorPPPCleanup,
+	report.RaiseWarningFix(CleanupReportSource, CodeDoctorPPPCleanup,
 		nativeIPv6ChildCleanupSubject(s.nativeBirthTag), report.FitMessage(message), CleanupFailureFix, map[string]any{
 			reportFieldInterface: identity.InterfaceName, reportFieldNativeIndex: identity.NativeIndex,
 			reportFieldOperation: CleanupIPv6.String(), "native-birth": s.nativeBirthTag, reportFieldError: cause.Error(),
@@ -79,5 +78,5 @@ func (s *pppSession) clearIPv6ChildCleanupFailure() {
 	if s.nativeBirthTag == "" {
 		return
 	} // historical generic warnings never gain a recovery claim
-	report.ClearWarning(CleanupReportSource, diagnostic.CodeDoctorPPPCleanup, nativeIPv6ChildCleanupSubject(s.nativeBirthTag))
+	report.ClearWarning(CleanupReportSource, CodeDoctorPPPCleanup, nativeIPv6ChildCleanupSubject(s.nativeBirthTag))
 }

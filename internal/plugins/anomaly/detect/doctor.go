@@ -37,7 +37,8 @@ func checkFeatureSource(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagno
 		return nil
 	}
 	return []rpc.DoctorCheckDiagnostic{{
-		Code:     "doctor-anomaly-detect-no-feature-source",
+		Code:     codeDoctorAnomalyDetectNoFeatureSource,
+		Fix:      "set traffic-usage enabled true",
 		Severity: "warning",
 		Message:  "anomaly-detect is enabled but neither traffic-usage nor flow-export is configured; the trafficfeature layer receives no flow data, so the detector will observe no per-source features",
 	}}

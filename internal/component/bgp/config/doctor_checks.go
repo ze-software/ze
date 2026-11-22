@@ -50,9 +50,6 @@ const diagnosticBGPPeerConfig = "doctor-config-bgp-peer"
 // `ze doctor` output.
 const diagnosticBGPMD5 = "doctor-bgp-md5"
 
-// diagnosticBGPCaptureDirectory names a capture directory the daemon cannot use.
-const diagnosticBGPCaptureDirectory = "doctor-bgp-capture-directory"
-
 // captureDirPerm mirrors the mode the reactor uses (reactor/capture_replay.go,
 // captureDirPerm): a capture file holds a peer's routing data, so the directory
 // is not world-readable. The probe below creates the directory exactly as the
@@ -67,7 +64,7 @@ var bgpDoctorChecks = []diagnostic.DoctorCheck{{
 	Order: 112, Component: doctorComponentBGP,
 	Dependencies: []string{doctorDependencyConfigTree},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{diagnostic.CodeDoctorBGPLearnedExportNoPolicy, diagnostic.CodeDoctorBGPRFC8212NoPolicy},
+	Codes:        []string{diagnostic.CodeDoctorBGPLearnedExportNoPolicy, reactor.CodeDoctorBGPRFC8212NoPolicy},
 	Check:        doctorCheckBGPPolicyAbsences,
 }, {
 	Name:         "bgp-peer-config",
@@ -94,7 +91,7 @@ var bgpDoctorChecks = []diagnostic.DoctorCheck{{
 	Component:    doctorComponentBGP,
 	Dependencies: []string{"filesystem"},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{diagnosticBGPCaptureDirectory},
+	Codes:        []string{reactor.CodeDoctorBGPCaptureDirectory},
 	Check:        doctorCheckBGPCaptureDirectory,
 }}
 
@@ -264,7 +261,8 @@ func doctorCheckBGPCaptureDirectory(ctx diagnostic.DoctorCheckContext) []diagnos
 		if err := probeCaptureDirectory(dir); err != nil {
 			var tb textbuf.Buffer
 			diags = append(diags, diagnostic.Diagnostic{
-				Code:     diagnosticBGPCaptureDirectory,
+				Code:     reactor.CodeDoctorBGPCaptureDirectory,
+				Fix:      "set bgp peer " + peerName + " capture directory <writable-path>",
 				Severity: diagnostic.SeverityWarning,
 				Message: tb.Str("bgp peer ").Str(peerName).
 					Str(" enables protocol event capture but its directory is not usable: ").

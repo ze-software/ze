@@ -77,7 +77,8 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic, judged *config
 	configData, configName, err := loadDoctorConfig(store, configPath)
 	if err != nil {
 		diags = append(diags, diagnostic.Diagnostic{
-			Code:     "doctor-config-missing",
+			Code:     codeDoctorConfigMissing,
+			Fix:      "ze init",
 			Severity: diagnostic.SeverityError,
 			Message:  err.Error(),
 		})
@@ -192,7 +193,7 @@ func resolveStorageWithDiag(configPath string) (storage.Storage, []diagnostic.Di
 		severity = diagnostic.SeverityWarning
 	}
 	if errors.Is(err, storage.ErrPermissions) {
-		code = diagnostic.CodeDoctorStorePermissions
+		code = codeDoctorStorePermissions
 	}
 	return nil, []diagnostic.Diagnostic{{
 		Code: code, Severity: severity, Message: err.Error(),

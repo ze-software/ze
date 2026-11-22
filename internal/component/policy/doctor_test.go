@@ -91,8 +91,8 @@ func TestDoctorIGPImportHidesNextHop(t *testing.T) {
 		t.Fatalf("got %d findings, want 1: %+v", len(diags), diags)
 	}
 	d := diags[0]
-	if d.Code != diagnostic.CodeDoctorPolicyIGPImportHidesNextHop || d.Severity != diagnostic.SeverityWarning {
-		t.Fatalf("finding %s/%v, want %s warning", d.Code, d.Severity, diagnostic.CodeDoctorPolicyIGPImportHidesNextHop)
+	if d.Code != codeDoctorPolicyIGPImportHidesNextHop || d.Severity != diagnostic.SeverityWarning {
+		t.Fatalf("finding %s/%v, want %s warning", d.Code, d.Severity, codeDoctorPolicyIGPImportHidesNextHop)
 	}
 	for _, want := range []string{"10.1.0.0/24", "test-doctor-igp import", "10.1.0.5", "203.0.113.0/24"} {
 		if !strings.Contains(d.Message, want) {
@@ -125,10 +125,10 @@ func TestDoctorIGPImportRegistered(t *testing.T) {
 		if c.Name != igpImportDoctorCheck.Name {
 			continue
 		}
-		if slices.Contains(c.Codes, diagnostic.CodeDoctorPolicyIGPImportHidesNextHop) {
+		if slices.Contains(c.Codes, codeDoctorPolicyIGPImportHidesNextHop) {
 			return
 		}
-		t.Fatalf("check %s does not list %s", c.Name, diagnostic.CodeDoctorPolicyIGPImportHidesNextHop)
+		t.Fatalf("check %s does not list %s", c.Name, codeDoctorPolicyIGPImportHidesNextHop)
 	}
 	t.Fatalf("doctor check %s is not registered", igpImportDoctorCheck.Name)
 }

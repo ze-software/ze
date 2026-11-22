@@ -37,12 +37,12 @@ func TestVPPRuntimeStatsDoctorEntry(t *testing.T) {
 	report.ResetForTest()
 	t.Cleanup(report.ResetForTest)
 	diagnostic.RegisterBuiltinCodes()
-	if diagnostic.Lookup(diagnostic.CodeDoctorVPPStats) == nil {
+	if diagnostic.Lookup(codeDoctorVPPStats) == nil {
 		t.Fatal("stats code has no explanation")
 	}
 	reportRuntimeStatsFailure("connection", errors.New("stats socket denied"))
 	for _, finding := range doctor.RunRuntimeChecks(nil, nil) {
-		if finding.Code != diagnostic.CodeDoctorVPPStats {
+		if finding.Code != codeDoctorVPPStats {
 			continue
 		}
 		if !strings.Contains(finding.Message, "stats socket denied") {

@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 )
 
@@ -28,7 +27,7 @@ func TestCleanupFailureRetainsIdentityAndCause(t *testing.T) {
 	if issue.Source != CleanupReportSource {
 		t.Fatalf("source = %q", issue.Source)
 	}
-	if issue.Code != diagnostic.CodeDoctorPPPCleanup {
+	if issue.Code != CodeDoctorPPPCleanup {
 		t.Fatalf("code = %q", issue.Code)
 	}
 	if issue.Fix != CleanupFailureFix {

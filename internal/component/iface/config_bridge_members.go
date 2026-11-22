@@ -5,7 +5,6 @@
 package iface
 
 import (
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -37,7 +36,7 @@ func enslaveBridgeMembers(cfg *ifaceConfig, targets interfaceTargets, units bool
 			port, bound := targets.device(member)
 			if !bound {
 				log.Warn("iface config: no present device answers this bridge member's hardware selector, enslaving deferred",
-					"bridge", e.Name, "member", member, "code", diagnostic.CodeDoctorIfaceSelectorUnmatched)
+					"bridge", e.Name, "member", member, "code", codeDoctorIfaceSelectorUnmatched)
 				continue
 			}
 			bridge := e.Name

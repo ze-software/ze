@@ -18,7 +18,6 @@ import (
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
 	"github.com/ze-software/ze/internal/core/callsink"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 // InterfaceServer owns the PPPoE state for one access interface.
@@ -582,7 +581,7 @@ func (s *InterfaceServer) closeAdmitted(expected *Session) {
 			cleanupErr = errors.Join(cleanupErr, err)
 			ppp.ReportCleanupFailure(removed.unusedLease.handle.Identity(), ppp.CleanupSession, err)
 			s.logger.Warn("pppoe: unused local PPP lease cleanup failed", "sid", admission.SID, "error", err,
-				"code", diagnostic.CodeDoctorPPPCleanup, "fix", ppp.CleanupFailureFix)
+				"code", ppp.CodeDoctorPPPCleanup, "fix", ppp.CleanupFailureFix)
 		}
 	}
 }
@@ -597,7 +596,7 @@ func (s *InterfaceServer) closeSession(opened dataplane.OpenedSession) {
 	if err := opened.Dataplane().Close(); err != nil {
 		ppp.ReportCleanupFailure(opened.Dataplane().Identity(), ppp.CleanupSession, err)
 		s.logger.Warn("pppoe: session resource cleanup failed", "error", err,
-			"code", diagnostic.CodeDoctorPPPCleanup, "fix", ppp.CleanupFailureFix)
+			"code", ppp.CodeDoctorPPPCleanup, "fix", ppp.CleanupFailureFix)
 	}
 }
 
@@ -616,7 +615,7 @@ func (s *InterfaceServer) closeTransportRetained(opened dataplane.OpenedSession)
 	if err := opened.CloseTransport(); err != nil {
 		ppp.ReportCleanupFailure(opened.Dataplane().Identity(), ppp.CleanupTransport, err)
 		s.logger.Warn("pppoe: session transport cleanup failed", "error", err,
-			"code", diagnostic.CodeDoctorPPPCleanup, "fix", ppp.CleanupFailureFix)
+			"code", ppp.CodeDoctorPPPCleanup, "fix", ppp.CleanupFailureFix)
 		return err
 	}
 	return nil

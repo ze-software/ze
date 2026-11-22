@@ -14,7 +14,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
@@ -216,8 +215,8 @@ func TestSPDInstallRefusedAtStartIsReportedByDoctor(t *testing.T) {
 		t.Fatalf("the doctor check answered %d findings, want 1 for the refused entry: %+v", len(findings), findings)
 	}
 	finding := findings[0]
-	if finding.Code != diagnostic.CodeDoctorIPsecSPDInstallRefused || finding.Severity != severityError {
-		t.Fatalf("the finding is %s/%s, want %s/%s", finding.Severity, finding.Code, severityError, diagnostic.CodeDoctorIPsecSPDInstallRefused)
+	if finding.Code != codeDoctorIPsecSPDInstallRefused || finding.Severity != severityError {
+		t.Fatalf("the finding is %s/%s, want %s/%s", finding.Severity, finding.Code, severityError, codeDoctorIPsecSPDInstallRefused)
 	}
 	if !strings.Contains(finding.Message, "drop") || !strings.Contains(finding.Message, errSPDRefusedByTest.Error()) {
 		t.Fatalf("the finding does not name the entry and the dataplane's answer: %q", finding.Message)

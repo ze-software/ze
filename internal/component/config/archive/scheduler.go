@@ -11,7 +11,6 @@ import (
 
 	iconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/system"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 )
 
@@ -217,8 +216,8 @@ func (s *Scheduler) readFailure(run string) scheduledFailure {
 // declares the code as an event code. Safe for concurrent use.
 func reportScheduled(f scheduledFailure, err error) {
 	slog.Warn(f.problem, "subject", f.subject, "run", f.run, "error", err,
-		"why", f.why, "fix", f.fix, "code", diagnostic.CodeDoctorArchiveScheduledFailed)
-	report.RaiseErrorFix(reportSourceArchive, diagnostic.CodeDoctorArchiveScheduledFailed, f.subject,
+		"why", f.why, "fix", f.fix, "code", CodeDoctorArchiveScheduledFailed)
+	report.RaiseErrorFix(reportSourceArchive, CodeDoctorArchiveScheduledFailed, f.subject,
 		report.FitMessage(f.problem+": "+err.Error()), f.fix, map[string]any{"run": f.run})
 }
 

@@ -176,6 +176,7 @@ func GetEventBus() ze.EventBus {
 }
 
 func init() {
+	registerDoctorCodes()
 	health.Register("iface", checkHealth)
 
 	// RFC 2545 Section 3: BGP reads another router's Link-Local from this table,
@@ -191,7 +192,7 @@ func init() {
 	}
 	// The backend close failure is an event of the stop, raised on the report
 	// bus, so the recent-events check answers for its code.
-	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: diagnostic.CodeDoctorIfaceBackendClose}); err != nil {
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: CodeDoctorIfaceBackendClose}); err != nil {
 		panic("BUG: iface backend-close event code registration refused: " + err.Error())
 	}
 	// A link state the apply could not read is a warning on the report bus,
@@ -1178,14 +1179,14 @@ func runEngine(conn net.Conn) int {
 	ownedErr, closeErr := closeBackendAfterOwnedDevices()
 	if ownedErr != nil {
 		log.Warn("interface stop: owned devices not all deleted", "error", ownedErr,
-			"code", diagnostic.CodeDoctorIfaceOwnedDeviceCleanup,
+			"code", CodeDoctorIfaceOwnedDeviceCleanup,
 			"fix", "ip -d link show lists what remains with alias ze:owned:<owner>; the next ze start deletes it")
 		raiseOwnedStopFailure(ownedErr)
 	}
 	if closeErr != nil {
 		log.Warn("interface backend close failed", "error", closeErr,
-			"code", diagnostic.CodeDoctorIfaceBackendClose, "fix", "ze start")
-		report.RaiseErrorFix("iface", diagnostic.CodeDoctorIfaceBackendClose, "backend",
+			"code", CodeDoctorIfaceBackendClose, "fix", "ze start")
+		report.RaiseErrorFix("iface", CodeDoctorIfaceBackendClose, "backend",
 			report.FitMessage("interface backend close failed: "+closeErr.Error()), "ze start")
 	}
 	log.Info("interface backend closed")

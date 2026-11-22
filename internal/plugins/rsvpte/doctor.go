@@ -32,7 +32,8 @@ func checkRSVPTERawSocket(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiag
 		return nil
 	}
 	return []rpc.DoctorCheckDiagnostic{{
-		Code:     "doctor-rsvpte-rawsock-unavailable",
+		Code:     codeDoctorRSVPTERawsockUnavailable,
+		Fix:      "sudo setcap cap_net_raw+ep /usr/local/bin/ze",
 		Severity: "warning",
 		Message:  "cannot open raw IP socket for protocol 46 (RSVP-TE needs CAP_NET_RAW)",
 	}}

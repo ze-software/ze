@@ -302,7 +302,7 @@ func TestInitiatorKeepsIKESAWhenItCannotBuildTheFirstChildSA(t *testing.T) {
 			for _, want := range []string{
 				"fix=\"" + tc.fix + "\"",
 				"retry-after=" + childCreateFirst.String(),
-				"code=" + diagnostic.CodeDoctorIPsecChildInstallRefused,
+				"code=" + codeDoctorIPsecChildInstallRefused,
 			} {
 				if !strings.Contains(lines[0], want) {
 					t.Errorf("the refusal line does not carry %s: %s", want, lines[0])

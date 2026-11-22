@@ -48,7 +48,7 @@ var daemonCapabilitiesCheck = diagnostic.DoctorCheck{
 	Component:    doctorOwnComponent,
 	Dependencies: []string{daemonCapabilitiesDependency},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{diagnostic.CodeDoctorDaemonCapabilityMissing},
+	Codes:        []string{codeDoctorDaemonCapabilityMissing},
 	Check:        checkDaemonCapabilities,
 }
 
@@ -83,7 +83,7 @@ func daemonCapabilitiesMissing(missing []privilege.Capability) diagnostic.Diagno
 	}
 	tb.Str(". This is not a problem by itself: each configured feature that needs one checks for it and reports its own impact.")
 	return diagnostic.Diagnostic{
-		Code:     diagnostic.CodeDoctorDaemonCapabilityMissing,
+		Code:     codeDoctorDaemonCapabilityMissing,
 		Severity: diagnostic.SeverityInfo,
 		Message:  tb.String(),
 		Fix:      privilege.CapabilityRemedy(names...),
@@ -98,7 +98,7 @@ func daemonCapabilitiesUnknown(err error) diagnostic.Diagnostic {
 	tb.Str("Ze cannot determine the capabilities the ze daemon runs with: ").Err(err).
 		Str(". Each configured feature that needs one checks for it and reports its own impact.")
 	return diagnostic.Diagnostic{
-		Code:     diagnostic.CodeDoctorDaemonCapabilityMissing,
+		Code:     codeDoctorDaemonCapabilityMissing,
 		Severity: diagnostic.SeverityInfo,
 		Message:  tb.String(),
 		Fix:      privilege.CapabilityRemedy(),

@@ -10,7 +10,6 @@ import (
 	"sync"
 
 	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/privilege"
@@ -236,14 +235,14 @@ func (a *childRouteSourceAllocator) refuseLocked(failure *opererr.Error) (uint32
 func logChildRouteSourceRefusal(log *slog.Logger, err error) {
 	log.Warn("IPsec redistribution lost a source publication and cannot reconstruct it in this process",
 		"error", err, "fix", privilege.RestartRemedy(),
-		"code", diagnostic.CodeDoctorIPsecRedistributionSource)
+		"code", codeDoctorIPsecRedistributionSource)
 }
 
 var redistributionSourceCheckDecl = rpc.DoctorCheckDecl{
 	Name:  "ipsec-redistribution-source",
 	Phase: rpc.DoctorPhaseRuntime,
 	Order: 744,
-	Codes: []string{diagnostic.CodeDoctorIPsecRedistributionSource},
+	Codes: []string{codeDoctorIPsecRedistributionSource},
 }
 
 // answerRedistributionSource reads the actual producer's first lost publication.
@@ -259,7 +258,7 @@ func (a *childRouteSourceAllocator) findings() []rpc.DoctorCheckDiagnostic {
 		return nil
 	}
 	return []rpc.DoctorCheckDiagnostic{{
-		Code:     diagnostic.CodeDoctorIPsecRedistributionSource,
+		Code:     codeDoctorIPsecRedistributionSource,
 		Severity: severityError,
 		Message:  a.failure.Problem() + ". " + a.failure.Why(),
 		Fix:      a.failure.Fix(),

@@ -10,7 +10,6 @@ import (
 	"slices"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -70,7 +69,7 @@ func checkIPsecPeerMalformedMessage(_ registry.DoctorCheckContext) []rpc.DoctorC
 				"authentication exchange can fail. " +
 				"Collect the peer's IKE log for the same time and report the defect to its vendor.")
 		out = append(out, rpc.DoctorCheckDiagnostic{
-			Code:     diagnostic.CodeDoctorIPsecPeerMalformedMessage,
+			Code:     codeDoctorIPsecPeerMalformedMessage,
 			Severity: severityWarning,
 			Message:  tb.String(),
 			Fix:      "show vpn ipsec sa",

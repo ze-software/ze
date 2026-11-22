@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	plugin "github.com/ze-software/ze/internal/component/plugin"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/report"
 )
@@ -44,7 +43,7 @@ func TestReportUndeclaredSchemaRaisesTheWarning(t *testing.T) {
 
 	ReportUndeclaredSchema(cfg.Name, notStartedRefusal(cfg, errors.New("fork/exec ./no-such-plugin-program: no such file or directory")))
 
-	issue := issueOf(t, report.Warnings(), diagnostic.CodeDoctorPluginSchemaUndeclared)
+	issue := issueOf(t, report.Warnings(), CodeDoctorPluginSchemaUndeclared)
 	assert.Equal(t, serverEventSource, issue.Source)
 	assert.Equal(t, "absent-plugin", issue.Subject)
 	assert.Contains(t, issue.Message, `external plugin "absent-plugin" could not be started, so it declared nothing`)
@@ -69,7 +68,7 @@ func TestReportUndeclaredSchemaOfASchemalessPlugin(t *testing.T) {
 
 	assert.Equal(t, `external plugin "no-schema" declared no YANG module, so it defines no config section`, refusal.Problem())
 	assert.Equal(t, `ze show plugin conformance run "./no-schema-plugin"`, refusal.Fix())
-	issue := issueOf(t, report.Warnings(), diagnostic.CodeDoctorPluginSchemaUndeclared)
+	issue := issueOf(t, report.Warnings(), CodeDoctorPluginSchemaUndeclared)
 	assert.Equal(t, "no-schema", issue.Subject)
 	assert.Contains(t, issue.Message, "declared no YANG module")
 	assert.Equal(t, refusal.Fix(), issue.Fix)
@@ -92,7 +91,7 @@ func TestReportRefusedSchemaRaisesTheError(t *testing.T) {
 
 	ReportRefusedSchema(refusal)
 
-	issue := issueOf(t, report.Errors(0), diagnostic.CodeDoctorPluginSchemaRefused)
+	issue := issueOf(t, report.Errors(0), CodeDoctorPluginSchemaRefused)
 	assert.Equal(t, serverEventSource, issue.Source)
 	assert.Equal(t, schemaJoinSubject, issue.Subject)
 	assert.Contains(t, issue.Message, `plugin "broken-module" declared YANG module "acme-broken-conf"`)
@@ -100,7 +99,7 @@ func TestReportRefusedSchemaRaisesTheError(t *testing.T) {
 
 	report.ResetForTest()
 	ReportRefusedSchema(errors.New("resolve failed"))
-	plain := issueOf(t, report.Errors(0), diagnostic.CodeDoctorPluginSchemaRefused)
+	plain := issueOf(t, report.Errors(0), CodeDoctorPluginSchemaRefused)
 	assert.Equal(t, "resolve failed", plain.Message)
 	assert.Equal(t, fixShowErrors, plain.Fix)
 }

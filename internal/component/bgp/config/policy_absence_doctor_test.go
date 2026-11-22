@@ -94,7 +94,7 @@ func TestPolicyAbsenceDoctorKeepsRoleAndExternalDefaults(t *testing.T) {
 				return
 			}
 			require.Len(t, findings, 1)
-			require.Equal(t, diagnostic.CodeDoctorBGPRFC8212NoPolicy, findings[0].Code)
+			require.Equal(t, reactor.CodeDoctorBGPRFC8212NoPolicy, findings[0].Code)
 			require.Contains(t, findings[0].Message, "RFC 8212")
 			require.Contains(t, findings[0].Message, "no export policy")
 		})
@@ -108,7 +108,7 @@ func TestPolicyAbsenceDoctorRegistrationMatchesItsCodes(t *testing.T) {
 			continue
 		}
 		found = true
-		require.ElementsMatch(t, []string{diagnostic.CodeDoctorBGPLearnedExportNoPolicy, diagnostic.CodeDoctorBGPRFC8212NoPolicy}, check.Codes)
+		require.ElementsMatch(t, []string{diagnostic.CodeDoctorBGPLearnedExportNoPolicy, reactor.CodeDoctorBGPRFC8212NoPolicy}, check.Codes)
 		require.Equal(t, []string{doctorDependencyConfigTree}, check.Dependencies)
 	}
 	require.True(t, found, "the ordinary ze doctor registry must reach the check")

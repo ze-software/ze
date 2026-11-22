@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/core/privilege"
 )
 
@@ -18,8 +18,8 @@ func TestDoctorESPFormFirewallPermissionCauseRetainsUncertainty(t *testing.T) {
 	t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipZeService, nil))
 	cause := "watch the nftables ruleset for commits: open an nftables connection to watch the ruleset: setns: operation not permitted"
 	finding := espFormFirewallUnread(cause)
-	if finding.Code != diagnostic.CodeDoctorIPsecESPFormFirewall {
-		t.Errorf("finding code = %q, want %q", finding.Code, diagnostic.CodeDoctorIPsecESPFormFirewall)
+	if finding.Code != dataplane.CodeDoctorIPsecESPFormFirewall {
+		t.Errorf("finding code = %q, want %q", finding.Code, dataplane.CodeDoctorIPsecESPFormFirewall)
 	}
 	if finding.Severity != "warning" {
 		t.Errorf("finding severity = %q, want warning", finding.Severity)

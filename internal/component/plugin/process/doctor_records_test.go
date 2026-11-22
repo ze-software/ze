@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/plugin"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 )
 
@@ -103,7 +102,7 @@ func TestRelayStoppedRaisesEvent(t *testing.T) {
 	p.relayStderrFrom(&failingStderr{prefix: []byte("partial"), err: errors.New("pipe broke")})
 
 	for _, issue := range report.Errors(0) {
-		if issue.Code != diagnostic.CodeDoctorPluginStderrRelayStopped {
+		if issue.Code != CodeDoctorPluginStderrRelayStopped {
 			continue
 		}
 		if issue.Subject != "relay-plugin" {
@@ -114,7 +113,7 @@ func TestRelayStoppedRaisesEvent(t *testing.T) {
 		}
 		return
 	}
-	t.Fatalf("no %s event on the bus: %+v", diagnostic.CodeDoctorPluginStderrRelayStopped, report.Errors(0))
+	t.Fatalf("no %s event on the bus: %+v", CodeDoctorPluginStderrRelayStopped, report.Errors(0))
 }
 
 // TestDoctorRecordsBoundedAndCopied covers the per-process records the

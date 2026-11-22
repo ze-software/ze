@@ -19,7 +19,6 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 )
 
@@ -414,7 +413,7 @@ func (s *ikeEngineState) placeXFRMInterfaceEntries(dp dataplane.Dataplane, plan 
 				"the traffic routed into that interface is dropped at the node-wide catch-all; "+
 				"the daemon needs CAP_NET_ADMIN to install it, and the next commit or address change retries it",
 				"interface", entry.iface, "dir", entry.params.Dir, "error", err,
-				"code", diagnostic.CodeDoctorIPsecSPDExemptionMissing)
+				"code", codeDoctorIPsecSPDExemptionMissing)
 			if _, seen := noExemption[entry.iface]; !seen {
 				noExemption[entry.iface] = interfaceExemptionRefusal(entry, err)
 			}
@@ -435,7 +434,7 @@ func (s *ikeEngineState) placeXFRMInterfaceEntries(dp dataplane.Dataplane, plan 
 
 // interfaceExemptionRefusal is the operator error for an if_id 0 exemption of a bound
 // XFRM interface the backend refused, which the ipsec-spd-install doctor check reports
-// under diagnostic.CodeDoctorIPsecSPDExemptionMissing. A reload is not refused for it,
+// under codeDoctorIPsecSPDExemptionMissing. A reload is not refused for it,
 // because the entry fails closed: the traffic it would hand on is dropped, never passed.
 func interfaceExemptionRefusal(entry *xfrmInterfaceEntry, cause error) *opererr.Error {
 	return opererr.Wrap(cause,
@@ -457,7 +456,7 @@ func (s *ikeEngineState) recordInterfaceCatchAllAtStart(noFinalEntry map[string]
 	for _, name := range slices.Sorted(maps.Keys(noFinalEntry)) {
 		refusal := interfaceCatchAllStartRefusal(name, noFinalEntry[name])
 		s.log.LogAttrs(context.Background(), slog.LevelError, "ike: "+refusal.Problem(),
-			refusal.LogAttrs(slog.String("code", diagnostic.CodeDoctorIPsecSPDCatchAllMissing))...)
+			refusal.LogAttrs(slog.String("code", codeDoctorIPsecSPDCatchAllMissing))...)
 		if s.interfaceCatchAllRefused == nil {
 			s.interfaceCatchAllRefused = make(map[string]*opererr.Error)
 		}

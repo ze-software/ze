@@ -11,7 +11,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/kernelcap"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -97,7 +96,7 @@ func espFormOffloadModuleFindings(modules map[string]bool) []rpc.DoctorCheckDiag
 		return nil
 	}
 	return []rpc.DoctorCheckDiagnostic{{
-		Code:     diagnostic.CodeDoctorIPsecESPFormOffload,
+		Code:     codeDoctorIPsecESPFormOffload,
 		Severity: severityWarning,
 		Message: "The loaded kernel module esp4_offload can consume bare ESP during GRO before tc ingress and raw sockets. " +
 			"For an inbound Child SA on UDP port 4500, the kernel can then refuse the bare form before either Ze's " +
@@ -117,7 +116,7 @@ func espFormOffloadModuleFindings(modules map[string]bool) []rpc.DoctorCheckDiag
 // espFormOffloadUnknown keeps an unavailable observation distinct from module absence.
 func espFormOffloadUnknown(message, fix string) []rpc.DoctorCheckDiagnostic {
 	return []rpc.DoctorCheckDiagnostic{{
-		Code:     diagnostic.CodeDoctorIPsecESPFormOffloadUnknown,
+		Code:     codeDoctorIPsecESPFormOffloadUnknown,
 		Severity: severityWarning,
 		Message:  message,
 		Fix:      fix,

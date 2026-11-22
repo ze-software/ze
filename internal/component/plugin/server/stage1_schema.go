@@ -11,7 +11,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config/yang"
 	plugin "github.com/ze-software/ze/internal/component/plugin"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -45,7 +44,7 @@ func refuseChangedSchema(cfg plugin.PluginConfig, schemas []rpc.SchemaDecl) erro
 	}
 	difference, differs := schemaDifference(cfg.Name, schemas)
 	if !differs {
-		report.ClearWarning(serverEventSource, diagnostic.CodeDoctorPluginSchemaChanged, fitSubject(cfg.Name))
+		report.ClearWarning(serverEventSource, CodeDoctorPluginSchemaChanged, fitSubject(cfg.Name))
 		return nil
 	}
 	var problem textbuf.Buffer
@@ -54,10 +53,10 @@ func refuseChangedSchema(cfg plugin.PluginConfig, schemas []rpc.SchemaDecl) erro
 	refusal := opererr.New(problem.String(), schemaFixedWhy, restartDaemonFix)
 
 	logger().Warn("plugin restarted with other YANG modules", "plugin", cfg.Name, "error", refusal,
-		"fix", restartDaemonFix, "code", diagnostic.CodeDoctorPluginSchemaChanged)
+		"fix", restartDaemonFix, "code", CodeDoctorPluginSchemaChanged)
 	var message textbuf.Buffer
 	message.Str(refusal.Problem()).Str(". ").Str(refusal.Why())
-	report.RaiseWarningFix(serverEventSource, diagnostic.CodeDoctorPluginSchemaChanged, fitSubject(cfg.Name),
+	report.RaiseWarningFix(serverEventSource, CodeDoctorPluginSchemaChanged, fitSubject(cfg.Name),
 		report.FitMessage(message.String()), restartDaemonFix)
 	return refusal
 }

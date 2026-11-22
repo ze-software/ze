@@ -17,14 +17,15 @@ import (
 // and a terminal stop that could not resolve plugin dependency order.
 var processEventCodes = []diagnostic.EventCode{
 	{Code: diagnostic.CodeDoctorPluginCrashed},
-	{Code: diagnostic.CodeDoctorPluginCleanup},
-	{Code: diagnostic.CodeDoctorPluginStderrRelayStopped},
-	{Code: diagnostic.CodeDoctorPluginRestartOverlap},
-	{Code: diagnostic.CodeDoctorPluginStopUnfinished},
-	{Code: diagnostic.CodeDoctorPluginShutdownOrder},
+	{Code: codeDoctorPluginCleanup},
+	{Code: CodeDoctorPluginStderrRelayStopped},
+	{Code: CodeDoctorPluginRestartOverlap},
+	{Code: CodeDoctorPluginStopUnfinished},
+	{Code: CodeDoctorPluginShutdownOrder},
 }
 
 func init() {
+	registerDoctorCodes()
 	// recordStoppedLocked (stopped.go) raises doctor-plugin-stopped on every
 	// path that leaves a configured plugin down, the respawn limit, a policy
 	// exit, a failed restart and a failed handshake; the process manager owns

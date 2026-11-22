@@ -13,7 +13,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 )
 
@@ -290,8 +289,8 @@ func TestPortScopedForwardBypassAtStartIsLoggedAndReportedByDoctor(t *testing.T)
 	if !strings.Contains(out, "level=ERROR") || !strings.Contains(out, "vpn ipsec policy ssh-hosts is a bypass with a port") {
 		t.Fatalf("the start did not log the port-scoped bypass at Error:\n%s", out)
 	}
-	if !strings.Contains(out, diagnostic.CodeDoctorIPsecSPDForwardBypass) {
-		t.Fatalf("the start's log line carries no doctor code %s:\n%s", diagnostic.CodeDoctorIPsecSPDForwardBypass, out)
+	if !strings.Contains(out, codeDoctorIPsecSPDForwardBypass) {
+		t.Fatalf("the start's log line carries no doctor code %s:\n%s", codeDoctorIPsecSPDForwardBypass, out)
 	}
 	if strings.Contains(out, "vpn ipsec policy ssh-ze is a bypass") {
 		t.Fatalf("the start logged an entry that names only the host's own address:\n%s", out)
@@ -302,8 +301,8 @@ func TestPortScopedForwardBypassAtStartIsLoggedAndReportedByDoctor(t *testing.T)
 		t.Fatalf("the doctor check answered %d findings, want 1 for ssh-hosts: %+v", len(findings), findings)
 	}
 	finding := findings[0]
-	if finding.Code != diagnostic.CodeDoctorIPsecSPDForwardBypass || finding.Severity != severityError {
-		t.Fatalf("the finding is %s/%s, want %s/%s", finding.Severity, finding.Code, severityError, diagnostic.CodeDoctorIPsecSPDForwardBypass)
+	if finding.Code != codeDoctorIPsecSPDForwardBypass || finding.Severity != severityError {
+		t.Fatalf("the finding is %s/%s, want %s/%s", finding.Severity, finding.Code, severityError, codeDoctorIPsecSPDForwardBypass)
 	}
 	if !strings.Contains(finding.Message, "ssh-hosts") || fixCommand(finding.Fix) != "set vpn ipsec policy ssh-hosts local port any" {
 		t.Fatalf("the finding does not name the entry and its fix: %+v", finding)

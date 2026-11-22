@@ -6,6 +6,7 @@ package hub
 import "github.com/ze-software/ze/internal/core/diagnostic"
 
 func init() {
+	registerDoctorCodes()
 	if err := diagnostic.RegisterDoctorCheck(diagnostic.DoctorCheck{
 		Name:         "hub-local-admin-credentials",
 		Phase:        diagnostic.DoctorPhasePreConfig,
@@ -13,12 +14,12 @@ func init() {
 		Component:    localAdminCredentialSource,
 		Dependencies: []string{"storage"},
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
-		Codes:        []string{diagnostic.CodeDoctorLocalAdminCredentials},
+		Codes:        []string{codeDoctorLocalAdminCredentials},
 		Check:        checkLocalAdminCredentials,
 	}); err != nil {
 		panic("BUG: local credential doctor registration refused: " + err.Error())
 	}
-	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: diagnostic.CodeDoctorLocalAdminCredentials}); err != nil {
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorLocalAdminCredentials}); err != nil {
 		panic("BUG: local credential event registration refused: " + err.Error())
 	}
 }

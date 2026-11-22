@@ -52,8 +52,8 @@ func TestCARootDoctorCheck(t *testing.T) {
 		store, _ := newRootStore(t)
 
 		diag := caRootDiagnostic(t, store)
-		if diag.Code != diagnostic.CodeDoctorPKICARootMissing {
-			t.Fatalf("code = %q, want %q", diag.Code, diagnostic.CodeDoctorPKICARootMissing)
+		if diag.Code != codeDoctorPKICARootMissing {
+			t.Fatalf("code = %q, want %q", diag.Code, codeDoctorPKICARootMissing)
 		}
 		if diag.Severity != diagnostic.SeverityWarning {
 			t.Fatalf("severity = %q, want warning", diag.Severity)
@@ -123,8 +123,8 @@ func TestCARootDoctorCheck(t *testing.T) {
 		if len(diags) != 1 {
 			t.Fatalf("check reported %d diagnostics, want 1: %v", len(diags), diags)
 		}
-		if diags[0].Code != diagnostic.CodeDoctorPKICARootExpiry {
-			t.Fatalf("code = %q, want %q", diags[0].Code, diagnostic.CodeDoctorPKICARootExpiry)
+		if diags[0].Code != codeDoctorPKICARootExpiry {
+			t.Fatalf("code = %q, want %q", diags[0].Code, codeDoctorPKICARootExpiry)
 		}
 		if diags[0].Severity != diagnostic.SeverityWarning {
 			t.Fatalf("severity = %q, want warning", diags[0].Severity)
@@ -138,8 +138,8 @@ func TestCARootDoctorCheck(t *testing.T) {
 		if len(diags) != 1 {
 			t.Fatalf("check reported %d diagnostics, want 1: %v", len(diags), diags)
 		}
-		if diags[0].Code != diagnostic.CodeDoctorPKICARootExpiry {
-			t.Fatalf("code = %q, want %q", diags[0].Code, diagnostic.CodeDoctorPKICARootExpiry)
+		if diags[0].Code != codeDoctorPKICARootExpiry {
+			t.Fatalf("code = %q, want %q", diags[0].Code, codeDoctorPKICARootExpiry)
 		}
 		if diags[0].Severity != diagnostic.SeverityError {
 			t.Fatalf("severity = %q, want error", diags[0].Severity)
@@ -179,8 +179,8 @@ func TestCARootDoctorCheckRegistered(t *testing.T) {
 	// assert they are REGISTERED rather than merely spelled here.
 	diagnostic.RegisterBuiltinCodes()
 	codes := []string{
-		diagnostic.CodeDoctorPKICARootMissing,
-		diagnostic.CodeDoctorPKICARootExpiry,
+		codeDoctorPKICARootMissing,
+		codeDoctorPKICARootExpiry,
 		diagnostic.CodeDoctorTLSInvalid,
 	}
 	for _, code := range codes {

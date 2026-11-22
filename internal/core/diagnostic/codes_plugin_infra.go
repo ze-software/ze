@@ -1,81 +1,36 @@
-// Design: docs/architecture/doctor-and-health-checks.md -- the cross-cutting codes every area child names
+// Design: docs/architecture/doctor-and-health-checks.md -- cross-cutting doctor codes shared across unrelated packages
 // Related: codes.go -- builtinCodes, which appends this table
 // Related: event_codes.go -- RegisterEventCode, which an owner of a bus-raised code calls
 //
-// The plugin infrastructure and core codes. The first ten are the
-// cross-cutting codes every area of the doctor coverage work names, so they
-// exist before the checks and the raises that carry them; the rest are the
-// problem classes of the plugin infrastructure and of core. A code an owner
-// raises on the report bus is also registered as an event code from that
-// owner's init(), so the recent-events check declares it.
+// Cross-cutting doctor codes shared by unrelated packages that cannot import
+// each other without introducing an import cycle. Single-owner plugin-infra
+// codes live and register in their own packages (plugin/ipc, plugin/process,
+// plugin/server, plugin/doctor). A code an owner raises on the report bus is
+// also registered as an event code from that owner's init(), so the
+// recent-events check declares it.
 
 package diagnostic
 
 // The spelling of each code, declared once (see the const block in codes.go).
 const (
-	CodeDoctorInternalDefect                = "doctor-internal-defect"
-	CodeDoctorPluginStopped                 = "doctor-plugin-stopped"
-	CodeDoctorPluginCrashed                 = "doctor-plugin-crashed"
-	CodeDoctorPluginCleanup                 = "doctor-plugin-cleanup"
-	CodeDoctorPluginConfigUnapplied         = "doctor-plugin-config-unapplied"
-	CodeDoctorPluginSetupFailed             = "doctor-plugin-setup-failed"
-	CodeDoctorPluginStartupPhaseFailed      = "doctor-plugin-startup-phase-failed"
-	CodeDoctorPluginExternalUnsupported     = "doctor-plugin-external-unsupported"
-	CodeDoctorAuditRecordFailed             = "doctor-audit-record-failed"
-	CodeDoctorPluginRequestRefused          = "doctor-plugin-request-refused"
-	CodeDoctorPluginStopCleanupLate         = "doctor-plugin-stop-cleanup-late"
-	CodeDoctorPluginShutdownOrder           = "doctor-plugin-shutdown-order"
-	CodeDoctorPluginAnswerUndelivered       = "doctor-plugin-answer-undelivered"
-	CodeDoctorPluginDrainIncomplete         = "doctor-plugin-drain-incomplete"
-	CodeDoctorReportBusFull                 = "doctor-report-bus-full"
-	CodeDoctorPluginFatalStop               = "doctor-plugin-fatal-stop"
-	CodeDoctorPluginAutoloadUnresolved      = "doctor-plugin-autoload-unresolved"
-	CodeDoctorPluginCommandNotRegistered    = "doctor-plugin-command-not-registered"
-	CodeDoctorPluginSubscriptionDropped     = "doctor-plugin-subscription-dropped"
-	CodeDoctorPluginDeliveryDisagreement    = "doctor-plugin-delivery-disagreement"
-	CodeDoctorPluginClaimUnbacked           = "doctor-plugin-claim-unbacked"
-	CodeDoctorPluginPostStartupUndelivered  = "doctor-plugin-poststartup-undelivered"
-	CodeDoctorPluginPanic                   = "doctor-plugin-panic"
-	CodeDoctorPluginDeliveryFailed          = "doctor-plugin-delivery-failed"
-	CodeDoctorPluginStderrRelayStopped      = "doctor-plugin-stderr-relay-stopped"
-	CodeDoctorPluginRestartOverlap          = "doctor-plugin-restart-overlap"
-	CodeDoctorPluginStopUnfinished          = "doctor-plugin-stop-unfinished"
-	CodeDoctorPluginSchemaChanged           = "doctor-plugin-schema-changed"
-	CodeDoctorPluginSchemaUndeclared        = "doctor-plugin-schema-undeclared"
-	CodeDoctorPluginSchemaRefused           = "doctor-plugin-schema-refused"
-	CodeDoctorBuildRegistrationUnheld       = "doctor-build-registration-unheld"
-	CodeDoctorPluginEnricherUnavailable     = "doctor-plugin-enricher-unavailable"
-	CodeDoctorPluginConnectBackRefused      = "doctor-plugin-connect-back-refused"
-	CodeDoctorManagedListenerUnbound        = "doctor-managed-listener-unbound"
-	CodeDoctorManagedClientRejected         = "doctor-managed-client-rejected"
-	CodeDoctorManagedClientNotifyDropped    = "doctor-managed-client-notify-dropped"
-	CodeDoctorHubClientMissing              = "doctor-hub-client-missing"
-	CodeDoctorManagedDiverged               = "doctor-managed-diverged"
-	CodeDoctorManagedClientDiverged         = "doctor-managed-client-diverged"
-	CodeDoctorPluginRemovalUnrecovered      = "doctor-plugin-removal-unrecovered"
-	CodeDoctorPluginCapabilitiesNotRestored = "doctor-plugin-capabilities-not-restored"
-	CodeDoctorCommandEnsureRollbackFailed   = "doctor-command-ensure-rollback-failed"
-	CodeDoctorCommandDeprecatedUsed         = "doctor-command-deprecated-used"
-	CodeDoctorPluginNoDataPlaneWriter       = "doctor-plugin-no-dataplane-writer"
-	CodeDoctorEnvInvalidValue               = "doctor-env-invalid-value"
-	CodeDoctorConfigReloadRefused           = "doctor-config-reload-refused"
+	CodeDoctorInternalDefect            = "doctor-internal-defect"
+	CodeDoctorPluginStopped             = "doctor-plugin-stopped"
+	CodeDoctorPluginCrashed             = "doctor-plugin-crashed"
+	CodeDoctorPluginStartupPhaseFailed  = "doctor-plugin-startup-phase-failed"
+	CodeDoctorPluginExternalUnsupported = "doctor-plugin-external-unsupported"
+	CodeDoctorAuditRecordFailed         = "doctor-audit-record-failed"
+	CodeDoctorPluginRequestRefused      = "doctor-plugin-request-refused"
+	CodeDoctorReportBusFull             = "doctor-report-bus-full"
+	CodeDoctorPluginPanic               = "doctor-plugin-panic"
+	CodeDoctorBuildRegistrationUnheld   = "doctor-build-registration-unheld"
+	CodeDoctorEnvInvalidValue           = "doctor-env-invalid-value"
 )
 
 // exampleShowErrors lists the report bus's recent error events, the record
 // behind every event code in this table.
 const exampleShowErrors = "ze show errors"
 
-// codeDoctorHubManagedCollision is the managed listener's collision code,
-// named here for a RelatedCodes cross-reference.
-const codeDoctorHubManagedCollision = "doctor-hub-managed-collision"
-
 var pluginInfraCodes = []CodeMeta{
-	{
-		Code:        CodeDoctorPluginCleanup,
-		Title:       "Plugin resource cleanup is unconfirmed",
-		Description: "A plugin that declares terminal cleanup ownership ended without confirming resource release. The daemon retains the original process's failure cause and exit outcome after its RPC connection ends. A healthy replacement cannot clear that warning. Inspect the retained cause and confirm the original resources are released before restarting service.",
-		Examples:    []string{exampleShowDoctor, exampleShowWarnings},
-	},
 	// The cross-cutting codes.
 	{
 		Code:  CodeDoctorInternalDefect,
@@ -104,30 +59,13 @@ var pluginInfraCodes = []CodeMeta{
 		RelatedCodes: []string{CodeDoctorPluginStopped},
 	},
 	{
-		Code:  CodeDoctorPluginConfigUnapplied,
-		Title: "Plugin was not told a config change committed",
-		Description: "The daemon committed a config transaction and the commit notice did not reach a plugin, so the plugin still runs the configuration it had before. " +
-			"The row names the plugin, the last transaction it was told of and the daemon's. Restart the plugin (ze request plugin restart <name>), which starts it again with the running configuration; " +
-			"a reload does not clear the row, because a reload of an unchanged configuration starts no transaction.",
-		Examples: []string{exampleShowDoctor, "ze show diagnostic doctor-plugin-config-unapplied"},
-	},
-	{
-		Code:  CodeDoctorPluginSetupFailed,
-		Title: "Plugin registration or setup failed",
-		Description: "A plugin's registration or setup, which runs when the binary starts and before any config is read, failed and recorded why. " +
-			"A hard failure stops the daemon from starting; a soft one leaves the plugin without the part that failed. " +
-			"The row names the plugin and the recorded reason, and the reason names its fix.",
-		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-plugin-setup-failed"},
-		RelatedCodes: []string{CodeDoctorPluginStartupPhaseFailed},
-	},
-	{
 		Code:  CodeDoctorPluginStartupPhaseFailed,
 		Title: "Plugin failed its startup",
 		Description: "A plugin failed one of the five startup stages it runs with the daemon, or its run returned before it reported ready. " +
 			"One plugin failure stops the startup tier it belongs to, so the plugins after it in that tier did not start either. " +
 			"The row names the plugin and the stage; the plugin's log lines give the cause.",
 		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-plugin-startup-phase-failed"},
-		RelatedCodes: []string{CodeDoctorPluginSetupFailed},
+		RelatedCodes: []string{"doctor-plugin-setup-failed"},
 	},
 	{
 		Code:  CodeDoctorPluginExternalUnsupported,
@@ -152,38 +90,8 @@ var pluginInfraCodes = []CodeMeta{
 			"it is raised at most once per plugin in a minute, so a plugin that repeats a bad request cannot fill the error ring.",
 		Examples: []string{exampleShowDoctor, exampleShowErrors, "ze show diagnostic doctor-plugin-request-refused"},
 	},
-	{
-		Code:  CodeDoctorPluginStopCleanupLate,
-		Title: "Cleanup at stop did not finish",
-		Description: "When ze last stopped, a plugin engine or the config transaction did not finish its cleanup in time, so state it installed may still be present. " +
-			"The reason is recorded before the stop and reported on the next run. Each owner's own doctor check reports the state that was left behind.",
-		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-plugin-stop-cleanup-late"},
-	},
-
-	{
-		Code:  CodeDoctorPluginShutdownOrder,
-		Title: "Shutdown dependency order could not be preserved",
-		Description: "The stop could not resolve the selected plugins' dependency order, or was given no resolver, so it stopped the remaining plugins together. " +
-			"A provider may therefore have stopped before its consumers finished cleanup. This does not mean cleanup ran late or installed state was left behind. " +
-			"The report event names the cause, and the daemon writes it to its last-stop record so local doctor can report it after the stop. Read journalctl -u ze before correcting the plugin declarations or server wiring.",
-		Examples: []string{exampleDoctorJSON, exampleShowErrors, "ze show diagnostic doctor-plugin-shutdown-order"},
-	},
 
 	// The plugin infrastructure classes.
-	{
-		Code:  CodeDoctorPluginAnswerUndelivered,
-		Title: "Answer to a plugin not delivered",
-		Description: "The daemon could not deliver its answer to a plugin's request, so the plugin waits for it until its timeout or goes on without it. " +
-			"The event names the plugin and the request.",
-		Examples: []string{exampleShowDoctor, exampleShowErrors, "ze show diagnostic doctor-plugin-answer-undelivered"},
-	},
-	{
-		Code:  CodeDoctorPluginDrainIncomplete,
-		Title: "Plugin work not drained",
-		Description: "At a stop or a reload the daemon did not finish draining the work queued for a plugin before it went on, so what was still queued was dropped. " +
-			"The event names the plugin and what was left.",
-		Examples: []string{exampleShowDoctor, exampleShowErrors, "ze show diagnostic doctor-plugin-drain-incomplete"},
-	},
 	{
 		Code:  CodeDoctorReportBusFull,
 		Title: "Report bus dropped entries",
@@ -191,57 +99,6 @@ var pluginInfraCodes = []CodeMeta{
 			"show warnings, show errors and the health rows that read the bus no longer see what was dropped. " +
 			"Raise ze.report.warnings.max or ze.report.errors.max, both clamped to 10000.",
 		Examples: []string{exampleShowDoctor, exampleShowWarnings, "ze show diagnostic doctor-report-bus-full"},
-	},
-	{
-		Code:  CodeDoctorPluginFatalStop,
-		Title: "Ze stopped because a plugin failed",
-		Description: "When ze last ran, a plugin whose failure policy is fatal failed, or the boot refused a plugin, and ze stopped itself. " +
-			"The record written before the stop names the plugin, the reason and the time. Read that plugin's log lines, then change its configuration or its failure policy.",
-		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-plugin-fatal-stop"},
-		RelatedCodes: []string{CodeDoctorPluginStopCleanupLate},
-	},
-	{
-		Code:  CodeDoctorPluginAutoloadUnresolved,
-		Title: "Plugin dependencies missing from this build",
-		Description: "The configuration selects a plugin that depends on another plugin this binary does not carry, because its build tag compiled it out. " +
-			"The daemon refuses to start with this configuration. The row names the plugin, the dependency and the build tag: " +
-			"use a build that carries the dependency, or remove the configuration that selects the plugin.",
-		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-plugin-autoload-unresolved"},
-	},
-	{
-		Code:  CodeDoctorPluginCommandNotRegistered,
-		Title: "Plugin command not registered",
-		Description: "A running plugin declared a command, or a deprecated alias of one, whose name another plugin already owns, so the command was refused and its name reaches the other plugin's handler. " +
-			"The row names both plugins and the command. Remove or rename the command in one of them.",
-		Examples: []string{exampleShowDoctor, "ze show diagnostic doctor-plugin-command-not-registered"},
-	},
-	{
-		Code:  CodeDoctorPluginSubscriptionDropped,
-		Title: "Plugin event subscription dropped",
-		Description: "A plugin asked for events in a namespace the daemon does not know, gave no default namespace, or sent ready parameters that did not parse, " +
-			"so the daemon dropped the subscription and the plugin receives none of those events. The row names the plugin and the cause.",
-		Examples: []string{exampleShowDoctor, "ze show diagnostic doctor-plugin-subscription-dropped"},
-	},
-	{
-		Code:  CodeDoctorPluginDeliveryDisagreement,
-		Title: "Event delivery and attach process disagree",
-		Description: "The `attach process` configuration and the events the plugins declare disagree, so some events are sent to a plugin that does not handle them, or never reach the plugin that does. " +
-			"The row names each disagreement. Change the attach process configuration to match the plugin.",
-		Examples: []string{exampleShowDoctor, "ze show diagnostic doctor-plugin-delivery-disagreement"},
-	},
-	{
-		Code:  CodeDoctorPluginClaimUnbacked,
-		Title: "Exclusive role claimed and nobody performs it",
-		Description: "The configuration needs an exclusive role that a plugin claims, and no plugin holding that claim is running, so nothing performs the role. " +
-			"The row names the role and the plugin that claims it. Start that plugin, or remove the configuration that needs the role.",
-		Examples: []string{exampleShowDoctor, "ze show diagnostic doctor-plugin-claim-unbacked"},
-	},
-	{
-		Code:  CodeDoctorPluginPostStartupUndelivered,
-		Title: "Plugin never got its post-startup callback",
-		Description: "A running plugin finished its startup, and the callback that tells it every plugin is running never reached it, " +
-			"so the work a plugin starts at that point, such as a command to another plugin, never ran. The row names the plugin.",
-		Examples: []string{exampleShowDoctor, "ze show diagnostic doctor-plugin-poststartup-undelivered"},
 	},
 	{
 		Code:  CodeDoctorPluginPanic,
@@ -252,73 +109,6 @@ var pluginInfraCodes = []CodeMeta{
 		RelatedCodes: []string{CodeDoctorInternalDefect},
 	},
 	{
-		Code:  CodeDoctorPluginDeliveryFailed,
-		Title: "Event delivery to a plugin failing or slow",
-		Description: "Batches of events sent to a plugin failed, or took more than 500 ms to deliver, in the recent window, so the plugin runs behind or without those events. " +
-			"The row names the plugin, the failures and the slowest delivery.",
-		Examples: []string{exampleShowDoctor, "ze show diagnostic doctor-plugin-delivery-failed"},
-	},
-	{
-		Code:  CodeDoctorPluginStderrRelayStopped,
-		Title: "Plugin error output no longer logged",
-		Description: "The relay that copies a plugin's standard error into ze's log stopped while the plugin was running, so what the plugin writes there is lost. " +
-			"The event names the plugin and the cause.",
-		Examples: []string{exampleShowDoctor, exampleShowErrors, "ze show diagnostic doctor-plugin-stderr-relay-stopped"},
-	},
-	{
-		Code:  CodeDoctorPluginRestartOverlap,
-		Title: "Plugin restarted beside its previous process",
-		Description: "When ze restarted a plugin, the process it replaced had not finished stopping within its bound (2s after the stop for a forked plugin, 1s for one that runs in the daemon), so the replacement started anyway. " +
-			"The event says what was left. An engine that had not returned, or a forked process that had not exited, may hold the same resources as the replacement, such as sockets, routes or kernel state. " +
-			"When the engine or the process had ended, only its event delivery or the relay of its stderr was left, and a process the plugin started may hold that stderr open. " +
-			"ze takes no further step to end what is left. The fix is the command that shows it: the goroutine dump for a plugin that runs in the daemon, and the relayed plugin output for a forked plugin. A second restart replaces the new process, not the previous one.",
-		Examples: []string{exampleShowDoctor, exampleShowErrors, "ze show diagnostic doctor-plugin-restart-overlap"},
-	},
-	{
-		Code:  CodeDoctorPluginStopUnfinished,
-		Title: "Plugin stopped at boot had not finished stopping",
-		Description: "At boot ze starts each external plugin the configuration declares before it parses the whole configuration, to read the plugin's own config schema. " +
-			"It stops one that sent no declaration, one the parsed configuration no longer names, and the others of a startup phase that was refused. " +
-			"This plugin had not finished stopping within its bound (2s after the stop for a forked plugin, 1s for one that runs in the daemon), and ze went on and removed it from the plugins it runs. " +
-			"The event says what was left. A forked process that had not exited was sent the kill for its process group and may still be running; " +
-			"when the process had ended, only its event delivery or the relay of its stderr was left, and a process the plugin started may hold that stderr open. " +
-			"ze takes no further step to end what is left. The fix is the command that shows it: the relayed plugin output for a forked plugin, and the goroutine dump for a plugin that runs in the daemon.",
-		Examples: []string{exampleShowDoctor, exampleShowErrors, "ze show diagnostic doctor-plugin-stop-unfinished"},
-	},
-	{
-		Code:  CodeDoctorPluginSchemaChanged,
-		Title: "Restarted plugin declared other YANG modules",
-		Description: "ze reads the YANG modules of an external plugin (its config, command and rpc modules) once, when ze starts, joins them to the schema of the whole configuration and to the command tree, and every reader of the configuration and of the commands keeps them. " +
-			"This plugin was started again while ze ran, after it ended or by `request plugin restart`, and its new declaration carries other modules: another module text, name or namespace, a module where it declared none, or none where it declared one. " +
-			"ze refused the plugin at its first startup stage and does not run it. The running configuration, the modules ze holds and every other plugin are unchanged. " +
-			"The warning says what differs. Restart ze to load the new modules, or put back the program that declares the modules ze started with and restart the plugin.",
-		Examples: []string{exampleShowDoctor, "ze show warnings", "ze show diagnostic doctor-plugin-schema-changed"},
-	},
-	{
-		Code:  CodeDoctorPluginSchemaUndeclared,
-		Title: "External plugin gave ze no config schema",
-		Description: "At start ze runs each external plugin the configuration declares before it parses the whole configuration, and reads the plugin's config schema (its YANG module) from the plugin's declaration. " +
-			"ze holds no schema of this plugin: its program could not be started, it sent no declaration within its bound, its connection ended first, or its declaration carries no YANG module. " +
-			"A configuration section that only this plugin's schema defines is then an unknown keyword, and ze refuses to start with it; the refusal names this code beside the unknown keyword, and `ze doctor` reports the plugin from the record that refusal leaves, until ze next starts cleanly. " +
-			"A configuration with no such section starts, the plugin that sent no declaration does not run, and the warning stays until ze restarts. " +
-			"The fix is the conformance check of the plugin's run line, which starts the program the way ze does and shows what its declaration lacks. Correct the program or the run line, then restart ze.",
-		Examples:     []string{exampleShowDoctor, "ze show warnings", "ze show diagnostic doctor-plugin-schema-undeclared"},
-		RelatedCodes: []string{CodeDoctorPluginStopped, CodeDoctorPluginSchemaRefused},
-	},
-	{
-		Code:  CodeDoctorPluginSchemaRefused,
-		Title: "External plugin's YANG module refused at start",
-		Description: "At start ze joins the YANG modules each external plugin declares (its config, command and rpc modules) to the modules compiled into ze, before it parses the configuration. " +
-			"ze refused a module: it does not compile, its name or namespace is held by another module, it defines a top-level node another module already defines, " +
-			"it names a validator or a reference source ze does not hold, the name or namespace the plugin declared is not the one in the text, " +
-			"it declares a command path or a wire method another module declares, a ze:rpc names an rpc no module defines, " +
-			"or it declares definitions ze reads nowhere (config outside a -conf module, commands outside a -cmd module, a typedef no module imports). " +
-			"ze does not start with a module it refused: the refusal ends the start, on the terminal and in the log, and names the plugin, the module, the cause and the command that shows it. " +
-			"No daemon runs afterwards. ze records the refusal before it exits, and `ze doctor` reports it from that record, with the time, until ze next starts cleanly. Correct the plugin's module, then start ze again.",
-		Examples:     []string{"ze doctor", "ze show diagnostic doctor-plugin-schema-refused", "ze show plugin conformance run \"./my-plugin\""},
-		RelatedCodes: []string{CodeDoctorPluginSchemaUndeclared, CodeDoctorPluginSchemaChanged, CodeDoctorBuildRegistrationUnheld},
-	},
-	{
 		Code:  CodeDoctorBuildRegistrationUnheld,
 		Title: "This ze was built without a validator its YANG names",
 		Description: "A YANG module compiled into ze names, with ze:validate or ze:reference, a validator function or a reference source that no package linked into this ze registers. " +
@@ -327,119 +117,7 @@ var pluginInfraCodes = []CodeMeta{
 			"ze records the refusal before it exits, and `ze doctor` reports it from that record until ze next starts cleanly. " +
 			"A command that runs with no daemon logs the same names under this code and goes on. Rebuild ze with the package that registers the name linked wherever the module is.",
 		Examples:     []string{"ze doctor", "ze show diagnostic doctor-build-registration-unheld"},
-		RelatedCodes: []string{CodeDoctorPluginSchemaRefused},
-	},
-	{
-		Code:  CodeDoctorPluginEnricherUnavailable,
-		Title: "Show command answers without a plugin's fields",
-		Description: "A plugin's enricher, which adds the plugin's fields to a show command's answer, failed to register or failed when it was called, " +
-			"so that command answers without them. The row names the plugin, the command and the field.",
-		Examples: []string{exampleShowDoctor, "ze show diagnostic doctor-plugin-enricher-unavailable"},
-	},
-	{
-		Code:  CodeDoctorPluginConnectBackRefused,
-		Title: "External plugin connection refused",
-		Description: "An external plugin connected back to the daemon and was refused, because its name is not a valid plugin name, it is not a plugin the daemon started, or its token did not match. " +
-			"The plugin does not start, and its start waits until it times out. Correct the name in the plugin's `external` block.",
-		Examples: []string{exampleDoctorJSON, exampleShowErrors, "ze show diagnostic doctor-plugin-connect-back-refused"},
-	},
-	{
-		Code:  CodeDoctorManagedListenerUnbound,
-		Title: "Managed client listener did not bind",
-		Description: "A hub server block declares managed clients, and its address could not be bound for a reason other than the plugin acceptor holding it, " +
-			"so managed clients that dial that address are not served. The row names the address and the kernel's error.",
-		Examples:     []string{exampleShowDoctor, "ze show diagnostic doctor-managed-listener-unbound"},
-		RelatedCodes: []string{codeDoctorHubManagedCollision},
-	},
-	{
-		Code:  CodeDoctorManagedClientRejected,
-		Title: "Managed client refused or rejected its config",
-		Description: "A managed client was refused because a client of the same name is already connected, or the client rejected the configuration the daemon sent it, " +
-			"so it runs without its current configuration. The row names the client and its last answer.",
-		Examples: []string{exampleShowDoctor, "ze show diagnostic doctor-managed-client-rejected"},
-	},
-	{
-		Code:  CodeDoctorHubClientMissing,
-		Title: "Managed client follows no hub",
-		Description: "This node is a managed client (meta/instance/managed is true) and its configuration has no plugin hub client block, so it connects to no hub and receives no configuration change. " +
-			"A hub can no longer correct this node: the configuration it serves for this node lost the block, and the node applied it.",
-		Examples: []string{exampleShowDoctor, "ze show diagnostic doctor-hub-client-missing"},
-	},
-	{
-		Code:  CodeDoctorManagedDiverged,
-		Title: "Managed client configuration differs from the hub's last one",
-		Description: "This node is a managed client (meta/instance/managed is true) and the configuration it runs differs from the last one its hub gave it: " +
-			"the hash of the active configuration is not the baseline in meta/managed/base-version. " +
-			"The difference can come from a local change or from a recovery that replaced the configuration. " +
-			"`show fleet status` shows both hashes.",
-		Examples:     []string{exampleShowDoctor, "ze show fleet status", "ze show diagnostic doctor-managed-diverged"},
-		RelatedCodes: []string{CodeDoctorHubClientMissing},
-	},
-	{
-		Code:  CodeDoctorManagedClientDiverged,
-		Title: "Hub holds the configuration a managed client kept",
-		Description: "This hub holds a copy of the configuration a managed client runs in place of the one the hub serves it, " +
-			"under meta/config/client-<name>.conf/held: the client holds and applies nothing the hub sends until an operator resolves it. " +
-			"`show fleet divergence name <client>` shows what differs, `update fleet divergence name <client> adopt version <hash>` makes the client's configuration the hub's, " +
-			"and `request fleet divergence name <client> revert version <hash> hub-version <hash>` makes the client take the hub's, both hashes as the show answers them. " +
-			"A copy for a client no hub server block declares is orphaned: the client cannot connect, so declare it again or remove the copy with the hub stopped.",
-		Examples:     []string{exampleShowDoctor, "ze show fleet divergence list", "ze show diagnostic doctor-managed-client-diverged"},
-		RelatedCodes: []string{CodeDoctorManagedDiverged, CodeDoctorManagedClientRejected},
-	},
-	{
-		Code:  CodeDoctorManagedClientNotifyDropped,
-		Title: "Managed client not told of a config change",
-		Description: "The daemon could not tell a connected managed client that its configuration changed, because the notice could not be built or the client did not accept it, " +
-			"so the client keeps the configuration it had until it fetches again. A client that did not accept the notice is disconnected, and it fetches when it reconnects. " +
-			"The event names the client and the cause.",
-		Examples: []string{exampleShowDoctor, exampleShowErrors, "ze show diagnostic doctor-managed-client-notify-dropped"},
-	},
-	{
-		Code:  CodeDoctorPluginRemovalUnrecovered,
-		Title: "Plugin stopped by a refused reload was not restored",
-		Description: "A reload that removed a plugin was refused, and the daemon could not start again the plugin it had stopped, so the plugin stays stopped while the configuration still names it. " +
-			"Reload the configuration to retry.",
-		Examples:     []string{exampleShowDoctor, "ze show diagnostic doctor-plugin-removal-unrecovered"},
-		RelatedCodes: []string{CodeDoctorPluginStopped},
-	},
-	{
-		Code:  CodeDoctorPluginCapabilitiesNotRestored,
-		Title: "Plugin capabilities not restored after a refused reload",
-		Description: "A reload was refused and the daemon could not restore the capabilities the plugins had declared before it, " +
-			"so what the daemon advertises may not match the running configuration until the next reload commits.",
-		Examples: []string{exampleShowDoctor, "ze show diagnostic doctor-plugin-capabilities-not-restored"},
-	},
-	{
-		Code:  CodeDoctorCommandEnsureRollbackFailed,
-		Title: "Config parent created for a command was not removed",
-		Description: "A command created a missing config parent before it ran, the command failed, and removing that parent again failed, so an empty parent stays in the configuration. " +
-			"The event names its path; delete it with the delete command for that path.",
-		Examples: []string{exampleShowDoctor, exampleShowErrors, "ze show diagnostic doctor-command-ensure-rollback-failed"},
-	},
-	{
-		Code:  CodeDoctorCommandDeprecatedUsed,
-		Title: "Deprecated command name used",
-		Description: "A client ran a command by a deprecated name. It still runs, as an alias of the current name, which the event names. " +
-			"Change the script or client to use the current name.",
-		Examples: []string{exampleShowDoctor, exampleShowErrors, "ze show diagnostic doctor-command-deprecated-used"},
-	},
-	{
-		Code:  CodeDoctorPluginNoDataPlaneWriter,
-		Title: "Data plane has no writer",
-		Description: "A configured plugin produces routes for a data plane, and no plugin in the configuration programs that data plane, or its writer is compiled out of this build. " +
-			"The daemon refuses to start or reload with this configuration. The row names the producer and the data plane: add a fib block, or configure the writer for that data plane.",
-		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-plugin-no-dataplane-writer"},
-	},
-	{
-		Code:  CodeDoctorConfigReloadRefused,
-		Title: "Configuration reload refused",
-		Description: "The daemon refused a configuration reload: the configuration transaction did not commit (a plugin refused the change or did not answer its verify or apply step), " +
-			"a plugin the new configuration needs could not be resolved or did not start, the daemon refused the configuration once those plugins had started, " +
-			"or the new configuration declares other external plugins than the ones the daemon started with, which change only when ze restarts. " +
-			"The daemon stops the plugins the reload started and keeps the configuration it was running; an event raised while it restored that configuration says the restore did not complete. " +
-			"The event says what refused the change and why: correct the configuration and reload again.",
-		Examples:     []string{exampleShowDoctor, exampleShowErrors, "ze show diagnostic doctor-config-reload-refused"},
-		RelatedCodes: []string{CodeConfigPluginVerify, CodeDoctorPluginStopped},
+		RelatedCodes: []string{"doctor-plugin-schema-refused"},
 	},
 
 	// The core class.

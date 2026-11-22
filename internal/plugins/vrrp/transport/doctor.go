@@ -36,7 +36,8 @@ func checkVRRPRawSocket(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnost
 		return nil
 	}
 	return []diagnostic.Diagnostic{{
-		Code:     "doctor-vrrp-raw-socket",
+		Code:     codeDoctorVRRPRawSocket,
+		Fix:      "sudo setcap cap_net_raw+ep /usr/local/bin/ze",
 		Severity: diagnostic.SeverityWarning,
 		Message:  err.Error(),
 	}}

@@ -10,7 +10,6 @@ import (
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/plugin/process"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -190,10 +189,10 @@ func raiseContributionFailure(owner, what string, err error) {
 	if log := loggerPtr.Load(); log != nil {
 		log.Warn("contributed firewall tables "+what,
 			"plugin", owner, "error", err,
-			"code", diagnostic.CodeDoctorFirewallContributedTables,
+			"code", codeDoctorFirewallContributedTables,
 			"fix", fix+owner)
 	}
-	report.RaiseWarningFix(contributionReportSource, diagnostic.CodeDoctorFirewallContributedTables,
+	report.RaiseWarningFix(contributionReportSource, codeDoctorFirewallContributedTables,
 		contributionSubjectPlugin+owner,
 		report.FitMessage("firewall tables contributed by plugin "+owner+" "+what+": "+err.Error()),
 		fix+owner)

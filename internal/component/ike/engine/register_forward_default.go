@@ -15,7 +15,7 @@ import (
 )
 
 func init() {
-	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: diagnostic.CodeDoctorIPsecForwardDefault}); err != nil {
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorIPsecForwardDefault}); err != nil {
 		panic("BUG: ike: forwarding-default event code registration failed: " + err.Error())
 	}
 }
@@ -27,7 +27,7 @@ func init() {
 // may meet weaker protection than the configuration states.
 func logForwardDefaultRefusal(log *slog.Logger, failure *opererr.Error) {
 	log.LogAttrs(context.Background(), slog.LevelError, failure.Problem(),
-		failure.LogAttrs(slog.String("code", diagnostic.CodeDoctorIPsecForwardDefault))...)
+		failure.LogAttrs(slog.String("code", codeDoctorIPsecForwardDefault))...)
 }
 
 // One issue covers a removal pass, even if several final entries remained. The
@@ -45,7 +45,7 @@ func raiseForwardDefaultRefusal(log *slog.Logger, failure *opererr.Error, raiser
 		message += " (" + cause.Error() + ")"
 	}
 	if err := raiser.RaiseIssue(ctx, sdk.Issue{Severity: rpc.ReportError,
-		Code: diagnostic.CodeDoctorIPsecForwardDefault, Subject: "namespace-forward-default",
+		Code: codeDoctorIPsecForwardDefault, Subject: "namespace-forward-default",
 		Message: message, Fix: failure.Fix()}); err != nil {
 		logForwardDefaultRefusal(log, opererr.Wrap(err, "Ze could not record its IPsec forwarding-default failure on the report bus",
 			"The daemon connection may already be closed during shutdown. The forwarding-default failure remains in the error log; the command below lists it.",

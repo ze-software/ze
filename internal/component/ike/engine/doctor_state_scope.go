@@ -8,7 +8,6 @@ import (
 	"errors"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -19,7 +18,7 @@ var stateScopeCheckDecl = rpc.DoctorCheckDecl{
 	Name:  stateScopeCheckName,
 	Phase: rpc.DoctorPhaseRuntime,
 	Order: 745,
-	Codes: []string{diagnostic.CodeDoctorIPsecStateScope},
+	Codes: []string{codeDoctorIPsecStateScope},
 }
 
 // answerStateScope reads the loaded backend in the engine's own process, even
@@ -58,6 +57,6 @@ func answerStateScope(s *ikeEngineState) []rpc.DoctorCheckDiagnostic {
 	if cause := failure.Unwrap(); cause != nil {
 		message += " (" + cause.Error() + ")"
 	}
-	return []rpc.DoctorCheckDiagnostic{{Code: diagnostic.CodeDoctorIPsecStateScope,
+	return []rpc.DoctorCheckDiagnostic{{Code: codeDoctorIPsecStateScope,
 		Severity: severityError, Message: message, Fix: failure.Fix()}}
 }

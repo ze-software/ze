@@ -244,7 +244,7 @@ func requireScheduledFailure(t *testing.T, capture *warnCapture, problem, subjec
 	require.Len(t, records, 1, "one failed step logs one Warn")
 	record := records[0]
 	assert.Equal(t, problem, record["msg"])
-	assert.Equal(t, diagnostic.CodeDoctorArchiveScheduledFailed, record["code"],
+	assert.Equal(t, archive.CodeDoctorArchiveScheduledFailed, record["code"],
 		"the Warn names the doctor code ze show diagnostic describes")
 	assert.NotEmpty(t, record["why"], "the Warn says why the failure matters")
 	assert.Equal(t, fix, record["fix"], "the Warn names the command that fixes it")
@@ -254,7 +254,7 @@ func requireScheduledFailure(t *testing.T, capture *warnCapture, problem, subjec
 	events := report.Errors(0)
 	require.Len(t, events, 1, "a scheduled failure is an event on the report bus too")
 	assert.Equal(t, "archive", events[0].Source)
-	assert.Equal(t, diagnostic.CodeDoctorArchiveScheduledFailed, events[0].Code)
+	assert.Equal(t, archive.CodeDoctorArchiveScheduledFailed, events[0].Code)
 	assert.Equal(t, subject, events[0].Subject)
 	assert.Equal(t, fix, events[0].Fix)
 	assert.Contains(t, events[0].Message, problem)
@@ -275,7 +275,7 @@ func requireScheduledFailure(t *testing.T, capture *warnCapture, problem, subjec
 // PREVENTS: a scheduled archive failing with a log line no doctor code
 // explains, which `ze show errors` and `show doctor` never list.
 func TestSchedulerFailuresNameTheirDoctorCode(t *testing.T) {
-	assert.Contains(t, diagnostic.EventCodes(), diagnostic.CodeDoctorArchiveScheduledFailed,
+	assert.Contains(t, diagnostic.EventCodes(), archive.CodeDoctorArchiveScheduledFailed,
 		"register.go declares the code for the recent-events check")
 
 	t.Run("read", func(t *testing.T) {

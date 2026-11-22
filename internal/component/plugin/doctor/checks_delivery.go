@@ -78,7 +78,7 @@ func commandRefusalRows(snapshot *server.DoctorSnapshot) []diagnostic.Diagnostic
 			message.Str("plugin ").Str(state.Name).Str(" had ").Int(int64(dropped)).
 				Str(" more refused commands than the doctor keeps").Str(loggedPastBound)
 			rows = append(rows, diagnostic.Diagnostic{
-				Code: diagnostic.CodeDoctorPluginCommandNotRegistered, Severity: diagnostic.SeverityWarning,
+				Code: server.CodeDoctorPluginCommandNotRegistered, Severity: diagnostic.SeverityWarning,
 				Message: message.String(), Fix: fixLoggedWarnings,
 			})
 		}
@@ -107,7 +107,7 @@ func commandRefusalRow(name string, refusal *process.CommandRefusal) diagnostic.
 			Str(" in the config, so one plugin owns `").Str(refusal.Command).Str("`")
 	}
 	return diagnostic.Diagnostic{
-		Code: diagnostic.CodeDoctorPluginCommandNotRegistered, Severity: diagnostic.SeverityWarning,
+		Code: server.CodeDoctorPluginCommandNotRegistered, Severity: diagnostic.SeverityWarning,
 		Message: message.String(), Fix: fix.String(),
 	}
 }
@@ -129,7 +129,7 @@ func subscriptionDropRows(snapshot *server.DoctorSnapshot) []diagnostic.Diagnost
 				message.Str(" (").Str(drop.Detail).Str(")")
 			}
 			rows = append(rows, diagnostic.Diagnostic{
-				Code: diagnostic.CodeDoctorPluginSubscriptionDropped, Severity: diagnostic.SeverityError,
+				Code: server.CodeDoctorPluginSubscriptionDropped, Severity: diagnostic.SeverityError,
 				Message: message.String(), Fix: subscriptionDropFix(state.Name, drop.Cause),
 			})
 		}
@@ -138,7 +138,7 @@ func subscriptionDropRows(snapshot *server.DoctorSnapshot) []diagnostic.Diagnost
 			message.Str("plugin ").Str(state.Name).Str(" had ").Int(int64(dropped)).
 				Str(" more dropped subscriptions than the doctor keeps, and receives none of their events").Str(loggedPastBound)
 			rows = append(rows, diagnostic.Diagnostic{
-				Code: diagnostic.CodeDoctorPluginSubscriptionDropped, Severity: diagnostic.SeverityError,
+				Code: server.CodeDoctorPluginSubscriptionDropped, Severity: diagnostic.SeverityError,
 				Message: message.String(), Fix: fixLoggedWarnings,
 			})
 		}
@@ -177,7 +177,7 @@ func deliveryDisagreementRows(snapshot *server.DoctorSnapshot) []diagnostic.Diag
 			message.Str(", declared ").Str(d.Declared)
 		}
 		rows = append(rows, diagnostic.Diagnostic{
-			Code: diagnostic.CodeDoctorPluginDeliveryDisagreement, Severity: diagnostic.SeverityWarning,
+			Code: server.CodeDoctorPluginDeliveryDisagreement, Severity: diagnostic.SeverityWarning,
 			Message: message.String(), Fix: d.Fix(),
 		})
 	}
@@ -198,7 +198,7 @@ func unbackedClaimRows(snapshot *server.DoctorSnapshot) []diagnostic.Diagnostic 
 			fix = process.RestartCommand(claim.Claimants[0])
 		}
 		rows = append(rows, diagnostic.Diagnostic{
-			Code: diagnostic.CodeDoctorPluginClaimUnbacked, Severity: diagnostic.SeverityError,
+			Code: server.CodeDoctorPluginClaimUnbacked, Severity: diagnostic.SeverityError,
 			Message: message.String(), Fix: fix,
 		})
 	}
@@ -222,7 +222,7 @@ func postStartupRows(snapshot *server.DoctorSnapshot) []diagnostic.Diagnostic {
 			Str(" never received its post-startup callback, so the work it starts after startup is not running: ").
 			Str(state.Records.PostStartupError)
 		rows = append(rows, diagnostic.Diagnostic{
-			Code: diagnostic.CodeDoctorPluginPostStartupUndelivered, Severity: diagnostic.SeverityError,
+			Code: server.CodeDoctorPluginPostStartupUndelivered, Severity: diagnostic.SeverityError,
 			Message: message.String(), Fix: process.RestartCommand(state.Name),
 		})
 	})
@@ -295,7 +295,7 @@ func deliveryFailedRows(snapshot *server.DoctorSnapshot) []diagnostic.Diagnostic
 			message.Str("; last error: ").Str(window.LastError)
 		}
 		rows = append(rows, diagnostic.Diagnostic{
-			Code: diagnostic.CodeDoctorPluginDeliveryFailed, Severity: diagnostic.SeverityWarning,
+			Code: process.CodeDoctorPluginDeliveryFailed, Severity: diagnostic.SeverityWarning,
 			Message: message.String(), Fix: process.RestartCommand(state.Name),
 		})
 	})
@@ -314,7 +314,7 @@ func enricherRows(snapshot *server.DoctorSnapshot) []diagnostic.Diagnostic {
 			message.Str("plugin ").Str(state.Name).Str(" has ").Int(int64(dropped)).
 				Str(" more failing `show` enrichers than the doctor lists, so those commands answer without their fields").Str(loggedPastBound)
 			rows = append(rows, diagnostic.Diagnostic{
-				Code: diagnostic.CodeDoctorPluginEnricherUnavailable, Severity: diagnostic.SeverityWarning,
+				Code: server.CodeDoctorPluginEnricherUnavailable, Severity: diagnostic.SeverityWarning,
 				Message: message.String(), Fix: fixLoggedWarnings,
 			})
 		}
@@ -331,7 +331,7 @@ func enricherRows(snapshot *server.DoctorSnapshot) []diagnostic.Diagnostic {
 			}
 			message.Str(failure.Error)
 			rows = append(rows, diagnostic.Diagnostic{
-				Code: diagnostic.CodeDoctorPluginEnricherUnavailable, Severity: diagnostic.SeverityWarning,
+				Code: server.CodeDoctorPluginEnricherUnavailable, Severity: diagnostic.SeverityWarning,
 				Message: message.String(), Fix: fix,
 			})
 		}
@@ -361,7 +361,7 @@ func configUnappliedRows(snapshot *server.DoctorSnapshot) []diagnostic.Diagnosti
 			Str(snapshot.LastCommittedTransaction).
 			Str(", and the plugin keeps the undo set of the one it missed")
 		rows = append(rows, diagnostic.Diagnostic{
-			Code: diagnostic.CodeDoctorPluginConfigUnapplied, Severity: diagnostic.SeverityWarning,
+			Code: server.CodeDoctorPluginConfigUnapplied, Severity: diagnostic.SeverityWarning,
 			Message: message.String(), Fix: process.RestartCommand(state.Name),
 		})
 	})

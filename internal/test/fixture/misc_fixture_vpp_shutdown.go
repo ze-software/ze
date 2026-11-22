@@ -12,7 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/plugin/process"
 )
 
 func init() {
@@ -164,11 +165,11 @@ func vppShutdownStopZe(daemon *fixtureProcess) error {
 		return errors.New("daemon exited without its normal shutdown completion")
 	}
 	for _, code := range []string{
-		diagnostic.CodeDoctorPluginShutdownOrder,
-		diagnostic.CodeDoctorPluginStopCleanupLate,
-		diagnostic.CodeDoctorPluginStopUnfinished,
-		diagnostic.CodeDoctorIfaceOwnedDeviceCleanup,
-		diagnostic.CodeDoctorIfaceBackendClose,
+		process.CodeDoctorPluginShutdownOrder,
+		process.CodeDoctorPluginStopCleanupLate,
+		process.CodeDoctorPluginStopUnfinished,
+		iface.CodeDoctorIfaceOwnedDeviceCleanup,
+		iface.CodeDoctorIfaceBackendClose,
 	} {
 		if strings.Contains(output, code) {
 			return fmt.Errorf("daemon shutdown reported %s", code)

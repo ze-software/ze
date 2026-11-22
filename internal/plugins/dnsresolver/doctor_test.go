@@ -87,8 +87,8 @@ func TestDoctorListenerPortUnavailable(t *testing.T) {
 	if len(diags) != 1 {
 		t.Fatalf("refused bind: %d diagnostics %v, want 1", len(diags), diags)
 	}
-	if diags[0].Code != diagnostic.CodeDoctorDNSResolverPortUnavailable {
-		t.Errorf("code %q, want %q", diags[0].Code, diagnostic.CodeDoctorDNSResolverPortUnavailable)
+	if diags[0].Code != codeDoctorDNSResolverPortUnavailable {
+		t.Errorf("code %q, want %q", diags[0].Code, codeDoctorDNSResolverPortUnavailable)
 	}
 	for _, want := range []string{"listener lan", endpoint, "CAP_NET_BIND_SERVICE", "service dns-resolver listener lan port"} {
 		if !strings.Contains(diags[0].Message, want) {
@@ -132,8 +132,8 @@ func TestDoctorUpstreamUnreachable(t *testing.T) {
 	if len(diags) != 1 {
 		t.Fatalf("silent upstream: %d diagnostics %v, want 1", len(diags), diags)
 	}
-	if diags[0].Code != diagnostic.CodeDoctorDNSResolverUpstreamUnreachable {
-		t.Errorf("code %q, want %q", diags[0].Code, diagnostic.CodeDoctorDNSResolverUpstreamUnreachable)
+	if diags[0].Code != codeDoctorDNSResolverUpstreamUnreachable {
+		t.Errorf("code %q, want %q", diags[0].Code, codeDoctorDNSResolverUpstreamUnreachable)
 	}
 	if want := silent.upstream().addrPort().String(); !strings.Contains(diags[0].Message, want) {
 		t.Errorf("message %q does not name the upstream %s", diags[0].Message, want)

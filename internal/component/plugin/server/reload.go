@@ -544,7 +544,7 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (resu
 		// rolled back: each reaches here as text. So the line carries the
 		// reload code, never config-plugin-verify.
 		logger().Warn("config reload: transaction failed", "error", err,
-			"code", diagnostic.CodeDoctorConfigReloadRefused)
+			"code", CodeDoctorConfigReloadRefused)
 		if len(autoLoaded) > 0 {
 			logger().Info("config reload: stopping auto-loaded plugins after failed transaction", "plugins", autoLoaded)
 			err = errors.Join(err, s.autoStopPluginNames(autoLoaded))

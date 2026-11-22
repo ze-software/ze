@@ -21,7 +21,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/privilege"
 )
@@ -565,7 +564,7 @@ func installSPDPoliciesAtStart(dp dataplane.Dataplane, next map[string]ipsec.SPD
 		}
 		outcome.add(undoSPDInstall(dp, nil, written, log))
 		log.LogAttrs(context.Background(), slog.LevelError, "ike: "+refusal.Problem(),
-			refusal.LogAttrs(slog.String("code", diagnostic.CodeDoctorIPsecSPDInstallRefused))...)
+			refusal.LogAttrs(slog.String("code", codeDoctorIPsecSPDInstallRefused))...)
 		if refused == nil {
 			refused = make(map[string]*opererr.Error)
 		}
@@ -621,7 +620,7 @@ func undoSPDInstall(dp dataplane.Dataplane, previous map[string]ipsec.SPDPolicy,
 		if old, ok := held[selectorOf(sp)]; ok {
 			if err := dp.InstallPolicy(old); err != nil {
 				log.Error("ike: could not restore an operator SPD entry after a refused install",
-					"code", diagnostic.CodeDoctorIPsecSPDUndoIncomplete,
+					"code", codeDoctorIPsecSPDUndoIncomplete,
 					"dir", dirLabel(old.Dir), "src", old.Src, "dst", old.Dst, "priority", old.Priority, "error", err)
 				outcome.diverged = append(outcome.diverged, newSPDDivergence(spdDivergenceNotRestored, &old, err))
 				continue
@@ -631,7 +630,7 @@ func undoSPDInstall(dp dataplane.Dataplane, previous map[string]ipsec.SPDPolicy,
 		}
 		if err := removeZePolicy(dp, *sp); !policyGone(err) {
 			log.Error("ike: could not remove an operator SPD entry after a refused install",
-				"code", diagnostic.CodeDoctorIPsecSPDUndoIncomplete,
+				"code", codeDoctorIPsecSPDUndoIncomplete,
 				"dir", dirLabel(sp.Dir), "src", sp.Src, "dst", sp.Dst, "priority", sp.Priority, "error", err)
 			outcome.diverged = append(outcome.diverged, newSPDDivergence(spdDivergenceNotTakenBack, sp, err))
 			continue
@@ -668,7 +667,7 @@ func removeReplacedSPDPolicies(dp dataplane.Dataplane, previous, next map[string
 			}
 			if err := removeZePolicy(dp, *sp); !policyGone(err) {
 				log.Warn("ike: could not remove the previous form of an operator SPD entry; it still acts on its traffic",
-					"code", diagnostic.CodeDoctorIPsecSPDUndoIncomplete,
+					"code", codeDoctorIPsecSPDUndoIncomplete,
 					"policy", name, "dir", dirLabel(sp.Dir), "error", err)
 				outcome.diverged = append(outcome.diverged, newSPDDivergence(spdDivergencePreviousKept, sp, err))
 				continue

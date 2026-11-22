@@ -9,7 +9,6 @@ import (
 	"errors"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -46,6 +45,6 @@ func forwardDefaultFinding(failure *opererr.Error) []rpc.DoctorCheckDiagnostic {
 	if cause := failure.Unwrap(); cause != nil {
 		message += " (" + cause.Error() + ")"
 	}
-	return []rpc.DoctorCheckDiagnostic{{Code: diagnostic.CodeDoctorIPsecForwardDefault,
+	return []rpc.DoctorCheckDiagnostic{{Code: codeDoctorIPsecForwardDefault,
 		Severity: severityError, Message: message, Fix: failure.Fix()}}
 }

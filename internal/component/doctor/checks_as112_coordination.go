@@ -79,7 +79,8 @@ func checkAS112WatchdogWithdraw(tree *config.Tree) []diagnostic.Diagnostic {
 			return
 		}
 		diags = append(diags, diagnostic.Diagnostic{
-			Code:     diagnostic.CodeDoctorAS112WatchdogMissingWithdraw,
+			Code:     codeDoctorAS112WatchdogMissingWithdraw,
+			Fix:      "set " + path + " watchdog withdraw true",
 			Severity: diagnostic.SeverityWarning,
 			Message: tb.Reset().Str(path).
 				Str(": update block announces an AS112 covering prefix without watchdog{withdraw true} -- the route will be announced at startup before AS112 health is confirmed (RFC 7534 Section 3.3)").
@@ -210,7 +211,8 @@ func checkAS112GlobalOriginCoordination(tree *config.Tree) []diagnostic.Diagnost
 			return
 		}
 		diags = append(diags, diagnostic.Diagnostic{
-			Code:     diagnostic.CodeDoctorAS112GlobalOriginUncoordinated,
+			Code:     codeDoctorAS112GlobalOriginUncoordinated,
+			Fix:      "delete " + path + " session asn local-options replace-as",
 			Severity: diagnostic.SeverityWarning,
 			Message: tb.Reset().Str(path).
 				Str(": asn.local 112 with replace-as is set on an eBGP session to non-private ASN ").Str(remoteStr).
@@ -332,7 +334,8 @@ func checkAS112RedistributeOriginCoordination(tree *config.Tree) []diagnostic.Di
 			return
 		}
 		diags = append(diags, diagnostic.Diagnostic{
-			Code:     diagnostic.CodeDoctorAS112RedistributeOriginUncoordinated,
+			Code:     codeDoctorAS112RedistributeOriginUncoordinated,
+			Fix:      "set " + path + " policy export <filter>",
 			Severity: diagnostic.SeverityWarning,
 			Message: tb.Reset().Str(path).
 				Str(": service as112 originates AS112 (asn 112) via 'import as112' toward the eBGP non-private ASN ").Str(remoteStr).
@@ -385,7 +388,8 @@ func checkAS112RedistributeNotImported(tree *config.Tree) []diagnostic.Diagnosti
 
 	var tb textbuf.Buffer
 	return []diagnostic.Diagnostic{{
-		Code:     diagnostic.CodeDoctorAS112RedistributeNotImported,
+		Code:     codeDoctorAS112RedistributeNotImported,
+		Fix:      "set redistribute destination bgp import as112",
 		Severity: diagnostic.SeverityWarning,
 		Message: tb.Reset().
 			Str("service as112 sets a redistribute knob (asn/community) but 'redistribute { destination bgp { import as112 } }' is absent -- the AS112 covering prefixes will NOT be originated into BGP (the knob is ignored without the import); add the import, or remove the knob if this node serves DNS only").

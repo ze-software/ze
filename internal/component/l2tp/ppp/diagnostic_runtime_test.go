@@ -12,7 +12,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 )
 
@@ -207,7 +206,7 @@ func TestRefusedSessionReleaseReportsCleanup(t *testing.T) {
 			}
 			continue
 		}
-		if len(entries) != 1 || entries[0].Code != diagnostic.CodeDoctorPPPCleanup || entries[0].Detail["error"] != handle.closeErr.Error() {
+		if len(entries) != 1 || entries[0].Code != CodeDoctorPPPCleanup || entries[0].Detail["error"] != handle.closeErr.Error() {
 			t.Fatalf("missing refused-owner cleanup: %+v", entries)
 		}
 	}

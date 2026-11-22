@@ -475,7 +475,7 @@ func (pm *ProcessManager) stop(order func([]plugin.PluginConfig) [][]string, ter
 		slices.Sort(late)
 		late = slices.Compact(late)
 		logger().Warn("plugin engine did not finish its shutdown cleanup in time, resources it installed may be left behind",
-			"code", diagnostic.CodeDoctorPluginStopCleanupLate, "plugins", strings.Join(late, ","), "grace", pluginStopGrace)
+			"code", CodeDoctorPluginStopCleanupLate, "plugins", strings.Join(late, ","), "grace", pluginStopGrace)
 	}
 	pm.mu.Lock()
 	pm.cleanupLate = late

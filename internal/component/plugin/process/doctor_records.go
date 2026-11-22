@@ -16,7 +16,6 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -332,7 +331,7 @@ func (p *Process) noteBatch(elapsed time.Duration, events int, err error, unwait
 		logger().Warn("event delivery batch slow",
 			"plugin", p.config.Name, "events", events, "elapsed", elapsed,
 			"threshold", DeliverySlowThreshold, "error", err,
-			"code", diagnostic.CodeDoctorPluginDeliveryFailed)
+			"code", CodeDoctorPluginDeliveryFailed)
 		p.noteDeliverySlow()
 	}
 	if failed {
@@ -387,8 +386,8 @@ func recordRestartOverlap(proc *Process, bound time.Duration, cause error) {
 	messageLine, fixLine := restartOverlapText(proc, bound)
 	logger().Warn("plugin restarted before ze finished stopping its previous process",
 		"plugin", name, "detail", messageLine, "bound", bound, "error", cause,
-		"fix", fixLine, "code", diagnostic.CodeDoctorPluginRestartOverlap)
-	report.RaiseErrorFix(reportSourcePlugin, diagnostic.CodeDoctorPluginRestartOverlap, name,
+		"fix", fixLine, "code", CodeDoctorPluginRestartOverlap)
+	report.RaiseErrorFix(reportSourcePlugin, CodeDoctorPluginRestartOverlap, name,
 		messageLine, fixLine)
 }
 
@@ -456,8 +455,8 @@ func RecordStopUnfinished(proc *Process, bound time.Duration, cause error) {
 	messageLine, fixLine := stopUnfinishedText(proc, bound)
 	logger().Warn("plugin stopped at boot had not finished stopping when ze went on",
 		"plugin", name, "detail", messageLine, "bound", bound, "error", cause,
-		"fix", fixLine, "code", diagnostic.CodeDoctorPluginStopUnfinished)
-	report.RaiseErrorFix(reportSourcePlugin, diagnostic.CodeDoctorPluginStopUnfinished, name,
+		"fix", fixLine, "code", CodeDoctorPluginStopUnfinished)
+	report.RaiseErrorFix(reportSourcePlugin, CodeDoctorPluginStopUnfinished, name,
 		messageLine, fixLine)
 }
 
@@ -509,7 +508,7 @@ func raiseRelayStopped(name string, cause error) {
 	// The cause is an error's text of any length, so the message is fitted to
 	// the bus bound rather than refused; the subject and the fix carry only
 	// the plugin name, at most 64 characters (ipc.PluginNameForm).
-	report.RaiseErrorFix(reportSourcePlugin, diagnostic.CodeDoctorPluginStderrRelayStopped, name,
+	report.RaiseErrorFix(reportSourcePlugin, CodeDoctorPluginStderrRelayStopped, name,
 		report.FitMessage(message.String()), RestartCommand(name))
 }
 

@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/command"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -41,7 +40,7 @@ func ensureRollbackFailed(ctx *CommandContext, step *EnsureStep, err error) {
 	// each event field is fitted to the bus, which drops the whole event over
 	// a field too long; the log line keeps them whole.
 	fixLine := fix.String()
-	logger().Warn("ensure-exists rollback failed", "code", diagnostic.CodeDoctorCommandEnsureRollbackFailed,
+	logger().Warn("ensure-exists rollback failed", "code", CodeDoctorCommandEnsureRollbackFailed,
 		"parent", parent, "fix", fixLine, "error", err)
 	// A fix past the bus's fix bound is replaced by the errors list, which
 	// is where the operator already reads this event, so the message carries
@@ -54,7 +53,7 @@ func ensureRollbackFailed(ctx *CommandContext, step *EnsureStep, err error) {
 		message.Str(carriedFixLead).Str(fixLine).Byte('`')
 	}
 	message.Str(": ").Err(err)
-	report.RaiseErrorFix(commandEventSource, diagnostic.CodeDoctorCommandEnsureRollbackFailed, fitSubject(parent),
+	report.RaiseErrorFix(commandEventSource, CodeDoctorCommandEnsureRollbackFailed, fitSubject(parent),
 		report.FitMessage(message.String()), busFix(fixLine, fixShowErrors))
 }
 
@@ -96,8 +95,8 @@ func deprecatedUsed(oldName, newName string) {
 	var message textbuf.Buffer
 	message.Str("a client ran the deprecated command `").Str(oldName).
 		Str("`, which a later release removes; scripts using it must move to `").Str(newName).Str("`")
-	logger().Warn("deprecated command used", "code", diagnostic.CodeDoctorCommandDeprecatedUsed,
+	logger().Warn("deprecated command used", "code", CodeDoctorCommandDeprecatedUsed,
 		"old", oldName, "new", newName, "hint", "use '"+newName+"' instead; old form will be removed in a future release")
-	report.RaiseWarningFix(commandEventSource, diagnostic.CodeDoctorCommandDeprecatedUsed, fitSubject(oldName),
+	report.RaiseWarningFix(commandEventSource, CodeDoctorCommandDeprecatedUsed, fitSubject(oldName),
 		report.FitMessage(message.String()), busFix(newName, fixShowWarnings))
 }

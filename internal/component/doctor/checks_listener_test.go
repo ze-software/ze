@@ -41,16 +41,16 @@ func TestDoctorRefusesUnderivableListenerSet(t *testing.T) {
 	diags := checkListeners(tree)
 	var refusal *diagnostic.Diagnostic
 	for i := range diags {
-		if diags[i].Code == diagnostic.CodeDoctorListenerSetUnknown {
+		if diags[i].Code == codeDoctorListenerSetUnknown {
 			refusal = &diags[i]
 		}
 	}
-	require.NotNil(t, refusal, "checkListeners must report %s, got %v", diagnostic.CodeDoctorListenerSetUnknown, diags)
+	require.NotNil(t, refusal, "checkListeners must report %s, got %v", codeDoctorListenerSetUnknown, diags)
 	assert.Equal(t, diagnostic.SeverityError, refusal.Severity)
 	assert.Contains(t, refusal.Message, cause, "the finding must name the cause")
 	assert.True(t, strings.HasSuffix(refusal.Message, "then run: ze doctor"), "the finding must end with the command that confirms the fix: %q", refusal.Message)
 	assert.NotContains(t, *probed, "ssh", "no schema-declared listener may be probed when the set is unknown")
-	assert.NotNil(t, diagnostic.Lookup(diagnostic.CodeDoctorListenerSetUnknown), "the refusal code must be registered")
+	assert.NotNil(t, diagnostic.Lookup(codeDoctorListenerSetUnknown), "the refusal code must be registered")
 }
 
 // TestDoctorSchemaWithNoListenerServiceIsAnAnswer gives doctor a schema that
@@ -71,7 +71,7 @@ func TestDoctorSchemaWithNoListenerServiceIsAnAnswer(t *testing.T) {
 	assert.Empty(t, listeners)
 
 	for _, d := range checkListeners(tree) {
-		assert.NotEqual(t, diagnostic.CodeDoctorListenerSetUnknown, d.Code, "a loaded schema must not be refused: %v", d)
+		assert.NotEqual(t, codeDoctorListenerSetUnknown, d.Code, "a loaded schema must not be refused: %v", d)
 	}
 	assert.NotContains(t, *probed, "ssh", "a schema without the ssh service yields no ssh probe")
 }

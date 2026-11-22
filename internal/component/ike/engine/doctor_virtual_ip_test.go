@@ -14,7 +14,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/eap"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
@@ -59,8 +58,8 @@ func TestDoctorVirtualIPPoolUtilization(t *testing.T) {
 		if len(diags) != 1 {
 			t.Fatalf("13 of 14 held drew %d diagnostics, want one", len(diags))
 		}
-		if diags[0].Code != diagnostic.CodeDoctorIPsecVirtualIPPool {
-			t.Fatalf("code %q, want %q", diags[0].Code, diagnostic.CodeDoctorIPsecVirtualIPPool)
+		if diags[0].Code != codeDoctorIPsecVirtualIPPool {
+			t.Fatalf("code %q, want %q", diags[0].Code, codeDoctorIPsecVirtualIPPool)
 		}
 		for _, want := range []string{"pool rw", "holds 13 of the 14", "Widen range under vpn ipsec remote-access pool rw"} {
 			if !strings.Contains(diags[0].Message, want) {

@@ -37,7 +37,6 @@ import (
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -268,7 +267,7 @@ func TestESPFormFastPathWarnsOfASharedSPIWhileAttached(t *testing.T) {
 	}
 	for key, want := range map[string]string{
 		"local": localB.String(), "fast-path-local": localA.String(),
-		"fix": ESPFormFixListSAs, "code": diagnostic.CodeDoctorIPsecESPFormFastPath,
+		"fix": ESPFormFixListSAs, "code": CodeDoctorIPsecESPFormFastPath,
 	} {
 		if got[0][key] != want {
 			t.Errorf("the warning's %s is %q, want %q", key, got[0][key], want)

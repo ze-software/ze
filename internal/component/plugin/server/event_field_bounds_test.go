@@ -11,7 +11,6 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/report"
 )
@@ -63,7 +62,7 @@ func TestEnsureRollbackLongErrorStillRaises(t *testing.T) {
 
 	var found *report.Issue
 	for _, issue := range report.Errors(0) {
-		if issue.Code == diagnostic.CodeDoctorCommandEnsureRollbackFailed {
+		if issue.Code == CodeDoctorCommandEnsureRollbackFailed {
 			found = &issue
 		}
 	}
@@ -93,7 +92,7 @@ func TestReloadRefusedLongFixStillRaises(t *testing.T) {
 
 	raiseReloadRefused(reloadRefusalMessage("ze could not resolve the plugins the configuration needs", []string{"x"}, refusal), refusal)
 
-	event := serverEventOf(diagnostic.CodeDoctorConfigReloadRefused)
+	event := serverEventOf(CodeDoctorConfigReloadRefused)
 	require.NotNil(t, event, "a refusal with a long fix lost the reload-refused event: %v", report.Errors(0))
 	require.Equal(t, fixShowErrors, event.Fix, "the event's fix is not a whole command")
 	require.Contains(t, event.Message, longFix, "the message no longer carries the refusal's whole fix")
@@ -124,8 +123,8 @@ func TestEventFieldFitHelpers(t *testing.T) {
 	require.Equal(t, fixShowErrors, busFix(fits+"f", fixShowErrors))
 	require.Equal(t, fixShowWarnings, busFix(fits+"f", fixShowWarnings), "a warning's fallback is not the warnings list")
 
-	report.RaiseErrorFix(serverEventSource, diagnostic.CodeDoctorConfigReloadRefused, subject, "probe", busFix(fits, fixShowErrors))
-	event := serverEventOf(diagnostic.CodeDoctorConfigReloadRefused)
+	report.RaiseErrorFix(serverEventSource, CodeDoctorConfigReloadRefused, subject, "probe", busFix(fits, fixShowErrors))
+	event := serverEventOf(CodeDoctorConfigReloadRefused)
 	require.NotNil(t, event, "the bus refused a fitted subject or fix")
 	require.Equal(t, subject, event.Subject)
 }
@@ -153,7 +152,7 @@ func TestLongFixFallsBackToItsOwnList(t *testing.T) {
 	ensureRollbackFailed(nil, step, errors.New("netlink: device busy"))
 	var rollback *report.Issue
 	for _, issue := range report.Errors(0) {
-		if issue.Code == diagnostic.CodeDoctorCommandEnsureRollbackFailed {
+		if issue.Code == CodeDoctorCommandEnsureRollbackFailed {
 			rollback = &issue
 		}
 	}
@@ -167,7 +166,7 @@ func TestLongFixFallsBackToItsOwnList(t *testing.T) {
 	deprecatedUsed("show old", newName)
 	var deprecated *report.Issue
 	for _, issue := range report.Warnings() {
-		if issue.Code == diagnostic.CodeDoctorCommandDeprecatedUsed {
+		if issue.Code == CodeDoctorCommandDeprecatedUsed {
 			deprecated = &issue
 		}
 	}

@@ -52,8 +52,8 @@ var caRootDoctorCheck = diagnostic.DoctorCheck{
 	// operator answer differs: a missing root is regenerated at the next start
 	// and then redistributed, where an expiring one is still serving.
 	Codes: []string{
-		diagnostic.CodeDoctorPKICARootMissing,
-		diagnostic.CodeDoctorPKICARootExpiry,
+		codeDoctorPKICARootMissing,
+		codeDoctorPKICARootExpiry,
 		diagnostic.CodeDoctorTLSInvalid,
 	},
 	Check: checkCARoot,
@@ -81,7 +81,8 @@ func checkCARoot(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 
 	if !certStored && !keyStored {
 		return []diagnostic.Diagnostic{{
-			Code:     diagnostic.CodeDoctorPKICARootMissing,
+			Code:     codeDoctorPKICARootMissing,
+			Fix:      "ze start",
 			Severity: diagnostic.SeverityWarning,
 			Message:  "no local certificate authority root is stored",
 			Help:     "the daemon generates one at its next start. Every copy of the previous root stops working, so export the new one with `show pki local-ca pem` and give it to each client that trusts this node",
@@ -138,7 +139,8 @@ func caRootExpiry(notAfter time.Time) []diagnostic.Diagnostic {
 	if remaining <= 0 {
 		var tb textbuf.Buffer
 		return []diagnostic.Diagnostic{{
-			Code:     diagnostic.CodeDoctorPKICARootExpiry,
+			Code:     codeDoctorPKICARootExpiry,
+			Fix:      "ze show pki local-ca pem",
 			Severity: diagnostic.SeverityError,
 			Message: tb.Str("the local certificate authority root expired on ").
 				Str(notAfter.UTC().Format(time.RFC3339)).String(),
@@ -151,7 +153,8 @@ func caRootExpiry(notAfter time.Time) []diagnostic.Diagnostic {
 
 	var tb textbuf.Buffer
 	return []diagnostic.Diagnostic{{
-		Code:     diagnostic.CodeDoctorPKICARootExpiry,
+		Code:     codeDoctorPKICARootExpiry,
+		Fix:      "ze show pki local-ca pem",
 		Severity: diagnostic.SeverityWarning,
 		Message: tb.Str("the local certificate authority root expires in ").
 			Int(int64(daysUntil(now, notAfter))).Str(" days").String(),

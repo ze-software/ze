@@ -61,7 +61,7 @@ func pluginSetupRow(result *registry.SetupResult, severity diagnostic.Severity, 
 		message.Str(": ").Str(cause)
 	}
 	return diagnostic.Diagnostic{
-		Code:     diagnostic.CodeDoctorPluginSetupFailed,
+		Code:     codeDoctorPluginSetupFailed,
 		Severity: severity,
 		Message:  message.String(),
 		Fix:      fix,

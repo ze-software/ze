@@ -12,7 +12,6 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	vppyang "github.com/ze-software/ze/internal/component/vpp/yang"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/report"
@@ -102,9 +101,9 @@ func runVPPEngine(conn net.Conn) int {
 	}
 
 	if err := runtime.Stop(); err != nil {
-		report.RaiseWarningFix(processReportSource, diagnostic.CodeDoctorVPPProcess, "manager-stop",
+		report.RaiseWarningFix(processReportSource, codeDoctorVPPProcess, "manager-stop",
 			"VPP manager cleanup failed", processReportFix, map[string]any{reportDetailErrorKey: err.Error()})
-		lg.Error("vpp manager stopped with an error", "code", diagnostic.CodeDoctorVPPProcess,
+		lg.Error("vpp manager stopped with an error", "code", codeDoctorVPPProcess,
 			"fix", processReportFix, "error", err)
 		rc = 1
 	}

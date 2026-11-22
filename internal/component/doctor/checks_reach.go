@@ -69,7 +69,8 @@ func checkClockSkew() []diagnostic.Diagnostic {
 	if skew > clockSkewThreshold {
 		var b textbuf.Buffer
 		return []diagnostic.Diagnostic{{
-			Code:     diagnostic.CodeDoctorClockSkew,
+			Code:     codeDoctorClockSkew,
+			Fix:      "set environment ntp enabled true",
 			Severity: diagnostic.SeverityWarning,
 			Message:  b.Reset().Str("system clock skewed by ").Int(int64(skew / time.Second)).Str("s (threshold ").Int(int64(clockSkewThreshold / time.Second)).Str("s)").String(),
 		}}

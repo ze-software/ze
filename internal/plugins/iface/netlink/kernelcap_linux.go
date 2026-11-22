@@ -35,7 +35,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/kernelcap"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 const (
@@ -58,8 +57,8 @@ func ifaceKernelCapabilities() []kernelcap.Capability {
 			Component:   kernelcapComponent,
 			Kernel:      "CONFIG_WIREGUARD",
 			ConfigLeaf:  "interface wireguard",
-			CodeAbsent:  diagnostic.CodeDoctorWireGuardUnavailable,
-			CodeUnknown: diagnostic.CodeDoctorWireGuardUnknown,
+			CodeAbsent:  codeDoctorWireGuardUnavailable,
+			CodeUnknown: codeDoctorWireGuardUnknown,
 			Order:       751,
 			InUse:       interfaceKindInUse("wireguard"),
 			Probe:       wireguardProbe,
@@ -69,8 +68,8 @@ func ifaceKernelCapabilities() []kernelcap.Capability {
 			Component:   kernelcapComponent,
 			Kernel:      "CONFIG_XFRM_INTERFACE",
 			ConfigLeaf:  "interface xfrm",
-			CodeAbsent:  diagnostic.CodeDoctorXFRMInterfaceUnavailable,
-			CodeUnknown: diagnostic.CodeDoctorXFRMInterfaceUnknown,
+			CodeAbsent:  codeDoctorXFRMInterfaceUnavailable,
+			CodeUnknown: codeDoctorXFRMInterfaceUnknown,
 			Order:       752,
 			InUse:       interfaceKindInUse("xfrm"),
 			Probe:       xfrmInterfaceProbe,

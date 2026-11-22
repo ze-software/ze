@@ -22,7 +22,7 @@ func TestMPLSCapabilityCodesRegistered(t *testing.T) {
 	if !slices.Contains(kernelcap.Enrolled(), "mpls") {
 		t.Fatal("the mpls kernel capability is not enrolled, so its codes are unreachable")
 	}
-	for _, code := range []string{diagnostic.CodeDoctorMPLSUnavailable, diagnostic.CodeDoctorMPLSUnknown} {
+	for _, code := range []string{codeDoctorMPLSUnavailable, codeDoctorMPLSUnknown} {
 		if diagnostic.Lookup(code) == nil {
 			t.Errorf("diagnostic code %q is declared by the mpls capability but not registered", code)
 		}
@@ -41,7 +41,7 @@ func TestMPLSTransitMTUCapabilityDegrades(t *testing.T) {
 	if !slices.Contains(kernelcap.Enrolled(), "mpls-transit-mtu") {
 		t.Fatal("the mpls-transit-mtu kernel capability is not enrolled")
 	}
-	for _, code := range []string{diagnostic.CodeDoctorMPLSTransitMTUUnenforced, diagnostic.CodeDoctorMPLSTransitMTUUnknown} {
+	for _, code := range []string{codeDoctorMPLSTransitMTUUnenforced, codeDoctorMPLSTransitMTUUnknown} {
 		if diagnostic.Lookup(code) == nil {
 			t.Errorf("diagnostic code %q is declared by the mpls-transit-mtu capability but not registered", code)
 		}

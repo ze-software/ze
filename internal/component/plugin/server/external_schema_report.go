@@ -12,7 +12,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config/yang"
 	plugin "github.com/ze-software/ze/internal/component/plugin"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -81,8 +80,8 @@ const commandsOnlyWhy = "an external plugin brings its config section to ze as a
 func ReportUndeclaredSchema(name string, refusal error) {
 	message, fix := refusalParts(refusal, fixShowWarnings)
 	logger().Warn("external plugin gave ze no config schema", "plugin", name, "error", refusal,
-		"fix", fix, "code", diagnostic.CodeDoctorPluginSchemaUndeclared)
-	report.RaiseWarningFix(serverEventSource, diagnostic.CodeDoctorPluginSchemaUndeclared, fitSubject(name),
+		"fix", fix, "code", CodeDoctorPluginSchemaUndeclared)
+	report.RaiseWarningFix(serverEventSource, CodeDoctorPluginSchemaUndeclared, fitSubject(name),
 		report.FitMessage(message), busFix(fix, fixShowWarnings))
 }
 
@@ -93,8 +92,8 @@ func ReportUndeclaredSchema(name string, refusal error) {
 func ReportRefusedSchema(refusal error) {
 	message, fix := refusalParts(refusal, fixShowErrors)
 	logger().Error("external plugin YANG module refused, ze does not start", "error", refusal,
-		"fix", fix, "code", diagnostic.CodeDoctorPluginSchemaRefused)
-	report.RaiseErrorFix(serverEventSource, diagnostic.CodeDoctorPluginSchemaRefused, schemaJoinSubject,
+		"fix", fix, "code", CodeDoctorPluginSchemaRefused)
+	report.RaiseErrorFix(serverEventSource, CodeDoctorPluginSchemaRefused, schemaJoinSubject,
 		report.FitMessage(message), busFix(fix, fixShowErrors))
 }
 

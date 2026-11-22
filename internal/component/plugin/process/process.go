@@ -1107,7 +1107,7 @@ func (p *Process) relayStderrFrom(stderr io.Reader) {
 	}
 	if err != nil {
 		stderrLogger().Error("plugin stderr relay stopped, later plugin output is not relayed",
-			"plugin", p.config.Name, "err", err, "code", diagnostic.CodeDoctorPluginStderrRelayStopped)
+			"plugin", p.config.Name, "err", err, "code", CodeDoctorPluginStderrRelayStopped)
 		raiseRelayStopped(p.config.Name, err)
 	}
 }

@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/ike/transport"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -34,8 +33,8 @@ func TestIKESocketBypassRefusalIsReportedByDoctor(t *testing.T) {
 		{"The NAT-T IKE socket", "0.0.0.0:4500", "protocol not available"},
 	} {
 		f := findings[i]
-		if f.Code != diagnostic.CodeDoctorIPsecIKESocketBypass || f.Severity != severityError {
-			t.Fatalf("finding %d is %s/%s, want %s/%s", i, f.Severity, f.Code, severityError, diagnostic.CodeDoctorIPsecIKESocketBypass)
+		if f.Code != transport.CodeDoctorIPsecIKESocketBypass || f.Severity != severityError {
+			t.Fatalf("finding %d is %s/%s, want %s/%s", i, f.Severity, f.Code, severityError, transport.CodeDoctorIPsecIKESocketBypass)
 		}
 		if !strings.HasPrefix(f.Message, want.socket+" at "+want.address) || !strings.Contains(f.Message, want.cause) {
 			t.Fatalf("finding %d does not name the socket, its address and the kernel's answer: %q", i, f.Message)

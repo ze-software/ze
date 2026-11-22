@@ -43,7 +43,7 @@ func TestSchemaStopRowsNameTheCodeTheCauseAndTheFix(t *testing.T) {
 	require.Len(t, rows, 3)
 
 	refused := rows[0]
-	assert.Equal(t, diagnostic.CodeDoctorPluginSchemaRefused, refused.Code)
+	assert.Equal(t, server.CodeDoctorPluginSchemaRefused, refused.Code)
 	assert.Equal(t, diagnostic.SeverityError, refused.Severity)
 	assert.Equal(t, "ze refused to start at 2026-11-17T09:30:00Z because it refused a YANG module an external plugin declared: "+
 		`plugin "broken-module" declared YANG module "acme-broken-conf", which does not compile. ze cannot parse a config against it`,
@@ -51,13 +51,13 @@ func TestSchemaStopRowsNameTheCodeTheCauseAndTheFix(t *testing.T) {
 	assert.Equal(t, `ze show plugin conformance run "./broken"`, refused.Fix)
 
 	undeclared := rows[1]
-	assert.Equal(t, diagnostic.CodeDoctorPluginSchemaUndeclared, undeclared.Code)
+	assert.Equal(t, server.CodeDoctorPluginSchemaUndeclared, undeclared.Code)
 	assert.Equal(t, diagnostic.SeverityError, undeclared.Severity)
 	assert.Equal(t, "ze refused to start at 2026-11-17T09:30:00Z on a configuration name no schema defines, "+
 		`and it held no config schema of external plugin "no-schema", so a section written for that plugin is such a name: `+
 		`external plugin "no-schema" declared no YANG module, so it defines no config section`, undeclared.Message)
 	assert.Equal(t, `ze show plugin conformance run "./no-schema-plugin"`, undeclared.Fix)
 
-	assert.Equal(t, diagnostic.CodeDoctorPluginSchemaRefused, rows[2].Code)
+	assert.Equal(t, server.CodeDoctorPluginSchemaRefused, rows[2].Code)
 	assert.Equal(t, "journalctl -u ze --until 2026-11-17T09:30:00Z", rows[2].Fix)
 }

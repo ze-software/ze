@@ -82,8 +82,8 @@ func TestDoctorUnitStopTimeoutBelowCeiling(t *testing.T) {
 				t.Fatalf("diagnostics = %d, want %d: %v", len(diags), tc.want, diags)
 			}
 			for i := range diags {
-				if diags[i].Code != diagnostic.CodeDoctorServiceStop {
-					t.Errorf("code = %q, want %q", diags[i].Code, diagnostic.CodeDoctorServiceStop)
+				if diags[i].Code != codeDoctorServiceStop {
+					t.Errorf("code = %q, want %q", diags[i].Code, codeDoctorServiceStop)
 				}
 				if diags[i].Severity != diagnostic.SeverityWarning {
 					t.Errorf("severity = %v, want warning", diags[i].Severity)
@@ -228,9 +228,9 @@ func TestStopDrainLiteralsMatchTheConstants(t *testing.T) {
 	total := strconv.Itoa(stopTimeoutSeconds) + " s"
 
 	diagnostic.RegisterBuiltinCodes()
-	meta := diagnostic.Lookup(diagnostic.CodeDoctorServiceStop)
+	meta := diagnostic.Lookup(codeDoctorServiceStop)
 	if meta == nil {
-		t.Fatalf("%s is not in the catalog", diagnostic.CodeDoctorServiceStop)
+		t.Fatalf("%s is not in the catalog", codeDoctorServiceStop)
 	}
 	for _, want := range []string{"up to " + ceiling, "up to " + margin, "at least " + total, "below " + total} {
 		if !strings.Contains(meta.Description, want) {
@@ -263,8 +263,8 @@ func TestCheckServiceInstallReportsServiceStop(t *testing.T) {
 	withServiceStop(t, "TimeoutStopUSec=1min\nKillMode=mixed\n", nil)
 
 	codes := codesOf(checkServiceInstall(diagnostic.DoctorCheckContext{}))
-	if _, ok := codes[diagnostic.CodeDoctorServiceStop]; !ok {
-		t.Fatalf("diagnostics carry no %q: %v", diagnostic.CodeDoctorServiceStop, codes)
+	if _, ok := codes[codeDoctorServiceStop]; !ok {
+		t.Fatalf("diagnostics carry no %q: %v", codeDoctorServiceStop, codes)
 	}
 }
 
@@ -313,9 +313,9 @@ func TestCheckServiceInstallMissingAccountAndExecutable(t *testing.T) {
 	}
 	codes := codesOf(diags)
 	for _, code := range []string{
-		diagnostic.CodeDoctorServiceExecutable,
-		diagnostic.CodeDoctorServiceUser,
-		diagnostic.CodeDoctorServiceGroup,
+		codeDoctorServiceExecutable,
+		codeDoctorServiceUser,
+		codeDoctorServiceGroup,
 	} {
 		if _, ok := codes[code]; !ok {
 			t.Errorf("diagnostics carry no %q: %v", code, diags)
@@ -454,9 +454,9 @@ func TestCheckServiceInstallRunsOnSystemd(t *testing.T) {
 	withMissingServiceExecutable(t)
 
 	diags := checkServiceInstall(platformContext(host.PlatformSystemd))
-	severity, ok := codesOf(diags)[diagnostic.CodeDoctorServiceExecutable]
+	severity, ok := codesOf(diags)[codeDoctorServiceExecutable]
 	if !ok {
-		t.Fatalf("diagnostics carry no %q: %v", diagnostic.CodeDoctorServiceExecutable, diags)
+		t.Fatalf("diagnostics carry no %q: %v", codeDoctorServiceExecutable, diags)
 	}
 	if severity != diagnostic.SeverityError {
 		t.Fatalf("severity = %q, want error", severity)
@@ -518,8 +518,8 @@ func TestCheckServiceInstallMissingReloadExecutable(t *testing.T) {
 	if len(diags) != 1 {
 		t.Fatalf("diagnostics = %d, want 1: %v", len(diags), diags)
 	}
-	if diags[0].Code != diagnostic.CodeDoctorServiceExecutable {
-		t.Fatalf("code = %q, want %q", diags[0].Code, diagnostic.CodeDoctorServiceExecutable)
+	if diags[0].Code != codeDoctorServiceExecutable {
+		t.Fatalf("code = %q, want %q", diags[0].Code, codeDoctorServiceExecutable)
 	}
 	for _, want := range []string{"ExecReload", "/missing/kill", "ze install systemd --force"} {
 		if !strings.Contains(diags[0].Message, want) {

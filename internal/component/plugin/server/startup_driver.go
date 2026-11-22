@@ -19,7 +19,6 @@ import (
 
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -265,7 +264,7 @@ func runStartupHandshake(ctx context.Context, sink startupSink) error {
 		if perr := json.Unmarshal(req.Params, &decoded); perr != nil {
 			logger().Warn("rpc startup: invalid ready params, the plugin's startup subscriptions are dropped",
 				"plugin", sink.pluginName(), "error", perr,
-				"code", diagnostic.CodeDoctorPluginSubscriptionDropped)
+				"code", CodeDoctorPluginSubscriptionDropped)
 			sink.readyParamsRefused(perr)
 		} else {
 			readyInput = decoded

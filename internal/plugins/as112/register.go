@@ -154,7 +154,7 @@ func init() {
 			Order:        723,
 			Dependencies: []string{pluginName},
 			Platforms:    []string{"any"},
-			Codes:        []string{"doctor-as112-port-unavailable"},
+			Codes:        []string{codeDoctorAS112PortUnavailable},
 			Check:        checkAS112ListenCapability,
 		},
 		{

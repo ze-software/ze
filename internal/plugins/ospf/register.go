@@ -41,7 +41,10 @@ var (
 	routeInstallPtr atomic.Pointer[sdk.Plugin]
 )
 
-func init() { loggerPtr.Store(slogutil.DiscardLogger()) }
+func init() {
+	registerDoctorCodes()
+	loggerPtr.Store(slogutil.DiscardLogger())
+}
 
 func logger() *slog.Logger { return loggerPtr.Load() }
 

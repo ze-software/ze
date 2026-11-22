@@ -63,7 +63,7 @@ func TestDoctorChecksAddEventCodes(t *testing.T) {
 	noop := func(DoctorCheckContext) []Diagnostic { return nil }
 	for _, check := range []DoctorCheck{
 		{Name: declaring, Phase: DoctorPhaseRuntime, Component: "test", Dependencies: []string{"report-bus"}, Platforms: []string{DoctorPlatformAny}, Codes: []string{CodeDoctorRecentEvents}, DeclaresEventCodes: true, Check: noop},
-		{Name: plain, Phase: DoctorPhaseRuntime, Component: "test", Dependencies: []string{"report-bus"}, Platforms: []string{DoctorPlatformAny}, Codes: []string{CodeDoctorDiskSpace}, Check: noop},
+		{Name: plain, Phase: DoctorPhaseRuntime, Component: "test", Dependencies: []string{"report-bus"}, Platforms: []string{DoctorPlatformAny}, Codes: []string{CodeDoctorStoreIntegrity}, Check: noop},
 	} {
 		if err := RegisterDoctorCheck(check); err != nil {
 			t.Fatalf("register %s: %v", check.Name, err)
@@ -90,7 +90,7 @@ func TestDoctorChecksAddEventCodes(t *testing.T) {
 				}
 			case plain:
 				found++
-				if !slices.Equal(check.Codes, []string{CodeDoctorDiskSpace}) {
+				if !slices.Equal(check.Codes, []string{CodeDoctorStoreIntegrity}) {
 					t.Errorf("%s: plain check codes %v, want only its own", route, check.Codes)
 				}
 			}

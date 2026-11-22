@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 // espFormRetainedFailureDP keeps the receiver's last open failure across applies, as
@@ -47,7 +46,7 @@ func TestDoctorESPFormPeerRemovalHidesRetainedFailure(t *testing.T) {
 		{
 			name:    "unread counters",
 			readErr: errors.New("test: fast-path counters cannot be read"),
-			warning: "warning:" + diagnostic.CodeDoctorIPsecESPFormFastPath,
+			warning: "warning:" + dataplane.CodeDoctorIPsecESPFormFastPath,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -68,7 +67,7 @@ func TestDoctorESPFormPeerRemovalHidesRetainedFailure(t *testing.T) {
 			calls := stubESPFormTUN(t, nil)
 			stubESPFormFastPathReady(t, dataplane.ESPFormFastPathFaultUnspecified, nil)
 			configured := testIPsecConfig(applyTestPeer("127.0.0.1"))
-			wantFailure := "error:" + diagnostic.CodeDoctorIPsecESPFormTUN
+			wantFailure := "error:" + dataplane.CodeDoctorIPsecESPFormTUN
 			if tc.warning != "" {
 				wantFailure = tc.warning + "," + wantFailure
 			}

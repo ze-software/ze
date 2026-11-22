@@ -9,7 +9,6 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 )
 
@@ -58,7 +57,7 @@ func TestEnsureRollbackFailureRaisesEvent(t *testing.T) {
 
 	var found *report.Issue
 	for _, issue := range report.Errors(0) {
-		if issue.Code == diagnostic.CodeDoctorCommandEnsureRollbackFailed {
+		if issue.Code == CodeDoctorCommandEnsureRollbackFailed {
 			found = &issue
 		}
 	}
@@ -85,7 +84,7 @@ func TestDeprecatedCommandRaisesEventOnce(t *testing.T) {
 
 	var raised []report.Issue
 	for _, issue := range report.Warnings() {
-		if issue.Code == diagnostic.CodeDoctorCommandDeprecatedUsed {
+		if issue.Code == CodeDoctorCommandDeprecatedUsed {
 			raised = append(raised, issue)
 		}
 	}

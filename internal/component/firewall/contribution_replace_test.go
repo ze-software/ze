@@ -10,7 +10,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 )
 
@@ -180,7 +179,7 @@ func TestGenerationCleanupWithdrawsOwner(t *testing.T) {
 		t.Fatal("the end of the contributing process left its tables registered")
 	}
 	if !contributionWarningRaised() {
-		t.Fatalf("a refused withdrawal raised no %s warning", diagnostic.CodeDoctorFirewallContributedTables)
+		t.Fatalf("a refused withdrawal raised no %s warning", codeDoctorFirewallContributedTables)
 	}
 
 	lab.backend.applyErr = nil
@@ -200,7 +199,7 @@ func contributionWarningRaised() bool {
 		if issue.Source != contributionReportSource {
 			continue
 		}
-		if issue.Code == diagnostic.CodeDoctorFirewallContributedTables {
+		if issue.Code == codeDoctorFirewallContributedTables {
 			return true
 		}
 	}

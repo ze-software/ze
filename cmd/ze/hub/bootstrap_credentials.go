@@ -35,7 +35,7 @@ func localAdminCredentialFailure(err error) *opererr.Error {
 func localAdminCredentialDiagnostic(failure *opererr.Error) diagnostic.Diagnostic {
 	var message textbuf.Buffer
 	diag := diagnostic.Diagnostic{
-		Code:     diagnostic.CodeDoctorLocalAdminCredentials,
+		Code:     codeDoctorLocalAdminCredentials,
 		Severity: diagnostic.SeverityWarning,
 		Message:  message.Str(failure.Problem()).Str(". ").Str(failure.Why()).String(),
 		Fix:      failure.Fix(),
@@ -70,12 +70,12 @@ func checkLocalAdminCredentials(ctx diagnostic.DoctorCheckContext) []diagnostic.
 func reportLocalAdminCredentialRead(log *slog.Logger, err error) {
 	failure := localAdminCredentialFailure(err)
 	if failure == nil {
-		report.ClearWarning(localAdminCredentialSource, diagnostic.CodeDoctorLocalAdminCredentials, localAdminCredentialSubject)
+		report.ClearWarning(localAdminCredentialSource, codeDoctorLocalAdminCredentials, localAdminCredentialSubject)
 		return
 	}
 	diag := localAdminCredentialDiagnostic(failure)
-	report.RaiseWarningFix(localAdminCredentialSource, diagnostic.CodeDoctorLocalAdminCredentials, localAdminCredentialSubject, diag.Message, diag.Fix, map[string]any{"cause": err.Error()})
+	report.RaiseWarningFix(localAdminCredentialSource, codeDoctorLocalAdminCredentials, localAdminCredentialSubject, diag.Message, diag.Fix, map[string]any{"cause": err.Error()})
 	if log != nil {
-		log.LogAttrs(context.Background(), slog.LevelWarn, failure.Problem(), failure.LogAttrs(slog.String("code", diagnostic.CodeDoctorLocalAdminCredentials))...)
+		log.LogAttrs(context.Background(), slog.LevelWarn, failure.Problem(), failure.LogAttrs(slog.String("code", codeDoctorLocalAdminCredentials))...)
 	}
 }

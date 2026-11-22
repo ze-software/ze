@@ -25,7 +25,7 @@ func init() {
 		Component:    "isis",
 		Dependencies: []string{"external-binary"},
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
-		Codes:        []string{"doctor-isis-raw-socket"},
+		Codes:        []string{codeDoctorISISRawSocket},
 		Check:        checkISISRawSocket,
 	}
 	if err := diagnostic.RegisterDoctorCheck(check); err != nil {

@@ -64,7 +64,7 @@ func TestCheckConfiguredCertificates_MissingCA(t *testing.T) {
 	tree := config.NewTree()
 	tree.GetOrCreateContainer("pki").AddListEntry("ca", "root", config.NewTree())
 
-	diag := configCertDiagnostic(t, tree, diagnostic.CodeDoctorPKICert)
+	diag := configCertDiagnostic(t, tree, codeDoctorPKICert)
 	if diag.Severity != diagnostic.SeverityError {
 		t.Fatalf("severity = %q, want error", diag.Severity)
 	}
@@ -78,7 +78,7 @@ func TestCheckConfiguredCertificates_ExpiredCA(t *testing.T) {
 	ca.Set("certificate", base64.StdEncoding.EncodeToString(configCertDER(t, time.Now().Add(-48*time.Hour), time.Now().Add(-time.Hour))))
 	tree.GetOrCreateContainer("pki").AddListEntry("ca", "root", ca)
 
-	diag := configCertDiagnostic(t, tree, diagnostic.CodeDoctorPKICert)
+	diag := configCertDiagnostic(t, tree, codeDoctorPKICert)
 	if diag.Severity != diagnostic.SeverityError {
 		t.Fatalf("severity = %q, want error", diag.Severity)
 	}
@@ -110,7 +110,7 @@ func TestConfigCertDoctorCheckRegistered(t *testing.T) {
 	}
 
 	diagnostic.RegisterBuiltinCodes()
-	if diagnostic.Lookup(diagnostic.CodeDoctorPKICert) == nil {
-		t.Fatalf("diagnostic code %q is not registered", diagnostic.CodeDoctorPKICert)
+	if diagnostic.Lookup(codeDoctorPKICert) == nil {
+		t.Fatalf("diagnostic code %q is not registered", codeDoctorPKICert)
 	}
 }

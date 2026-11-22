@@ -17,7 +17,6 @@ import (
 	"time"
 
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/pkg/fleet"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -560,7 +559,7 @@ func TestManagedServeNotifyBurstDoesNotStarve(t *testing.T) {
 	default:
 	}
 	for _, issue := range report.Errors(0) {
-		if issue.Code == diagnostic.CodeDoctorManagedClientNotifyDropped {
+		if issue.Code == CodeDoctorManagedClientNotifyDropped {
 			t.Errorf("a change was dropped: %+v", issue)
 		}
 	}

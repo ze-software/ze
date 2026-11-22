@@ -18,10 +18,11 @@ const (
 )
 
 func init() {
-	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: diagnostic.CodeDoctorWebHistoryUnavailable}); err != nil {
+	registerDoctorCodes()
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorWebHistoryUnavailable}); err != nil {
 		panic("BUG: browser recall admission event registration refused: " + err.Error())
 	}
-	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: diagnostic.CodeDoctorWebHistoryResponse}); err != nil {
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorWebHistoryResponse}); err != nil {
 		panic("BUG: browser recall response event registration refused: " + err.Error())
 	}
 }
@@ -32,9 +33,9 @@ func init() {
 // content. Safe for concurrent use.
 func reportBrowserHistoryUnavailable() {
 	const message = "Command recall was unavailable for a browser submission. Command execution remains available. Open /cli and reconnect to restore command recall."
-	report.RaiseErrorFixOnce(browserHistoryEventSource, diagnostic.CodeDoctorWebHistoryUnavailable, browserHistoryEventSubject,
+	report.RaiseErrorFixOnce(browserHistoryEventSource, codeDoctorWebHistoryUnavailable, browserHistoryEventSubject,
 		message, browserHistoryEventFix, browserHistoryEventWindow)
-	serverLogger.Warn(message, "code", diagnostic.CodeDoctorWebHistoryUnavailable, "fix", browserHistoryEventFix)
+	serverLogger.Warn(message, "code", codeDoctorWebHistoryUnavailable, "fix", browserHistoryEventFix)
 }
 
 // reportBrowserHistoryResponseFailure records only actual JSON delivery
@@ -42,7 +43,7 @@ func reportBrowserHistoryUnavailable() {
 // its response cannot reach the browser. Safe for concurrent use.
 func reportBrowserHistoryResponseFailure() {
 	const message = "Command recall could not be sent to the browser. Saved recall was not changed. Open /cli and reconnect to restore command recall."
-	report.RaiseErrorFixOnce(browserHistoryEventSource, diagnostic.CodeDoctorWebHistoryResponse, browserHistoryResponseEventSubject,
+	report.RaiseErrorFixOnce(browserHistoryEventSource, codeDoctorWebHistoryResponse, browserHistoryResponseEventSubject,
 		message, browserHistoryEventFix, browserHistoryEventWindow)
-	serverLogger.Warn(message, "code", diagnostic.CodeDoctorWebHistoryResponse, "fix", browserHistoryEventFix)
+	serverLogger.Warn(message, "code", codeDoctorWebHistoryResponse, "fix", browserHistoryEventFix)
 }

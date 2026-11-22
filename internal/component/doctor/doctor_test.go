@@ -600,7 +600,7 @@ func TestResolveDoctorPlatformReportsDetectionFailure(t *testing.T) {
 	platform, diags := resolveDoctorPlatform()
 
 	assert.Nil(t, platform)
-	requireDiag(t, diags, diagnostic.CodeDoctorPlatformDetect, diagnostic.SeverityWarning)
+	requireDiag(t, diags, codeDoctorPlatformDetect, diagnostic.SeverityWarning)
 }
 
 func TestCheckPlatformJudgesTheResolvedPlatform(t *testing.T) {
@@ -617,9 +617,9 @@ func TestCheckPlatformJudgesTheResolvedPlatform(t *testing.T) {
 		code     string
 		severity diagnostic.Severity
 	}{
-		{"unknown", &host.PlatformInfo{Type: host.PlatformUnknown}, diagnostic.CodeDoctorPlatformUnknown, diagnostic.SeverityWarning},
-		{"gokrazy perm", &host.PlatformInfo{Type: host.PlatformGokrazy}, diagnostic.CodeDoctorPlatformPerm, diagnostic.SeverityError},
-		{"container ro", &host.PlatformInfo{Type: host.PlatformContainer, ReadOnlyRoot: true}, diagnostic.CodeDoctorPlatformContainerRO, diagnostic.SeverityWarning},
+		{"unknown", &host.PlatformInfo{Type: host.PlatformUnknown}, codeDoctorPlatformUnknown, diagnostic.SeverityWarning},
+		{"gokrazy perm", &host.PlatformInfo{Type: host.PlatformGokrazy}, codeDoctorPlatformPerm, diagnostic.SeverityError},
+		{"container ro", &host.PlatformInfo{Type: host.PlatformContainer, ReadOnlyRoot: true}, codeDoctorPlatformContainerRO, diagnostic.SeverityWarning},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -797,7 +797,7 @@ func TestStorageOpenDiagnostics(t *testing.T) {
 	store, diags = resolveStorageWithDiag(configPath)
 	require.Nil(t, store)
 	require.Len(t, diags, 1)
-	assert.Equal(t, diagnostic.CodeDoctorStorePermissions, diags[0].Code)
+	assert.Equal(t, codeDoctorStorePermissions, diags[0].Code)
 	assert.Contains(t, diags[0].Message, filepath.Join(dir, "database"))
 	assert.Contains(t, diags[0].Message, "755")
 }

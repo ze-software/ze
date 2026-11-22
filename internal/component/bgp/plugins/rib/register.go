@@ -19,6 +19,7 @@ import (
 const pluginName = "bgp-rib"
 
 func init() {
+	registerDoctorCodes()
 	if err := diagnostic.Register(diagnostic.CodeMeta{
 		Code:        codeRemoteMetricFailure,
 		Title:       "BGP next-hop reachability lookup failed",
@@ -30,7 +31,7 @@ func init() {
 	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeRemoteMetricFailure}); err != nil {
 		panic("BUG: bgp rib: next-hop metric event registration failed: " + err.Error())
 	}
-	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: diagnostic.CodeDoctorBGPSelectedOutput}); err != nil {
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorBGPSelectedOutput}); err != nil {
 		panic("BUG: bgp rib: selected output event registration failed: " + err.Error())
 	}
 	// Publish the TABLE_DUMP_V2 snapshot provider through the leaf registry

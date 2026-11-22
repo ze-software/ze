@@ -12,7 +12,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -29,10 +28,10 @@ var spdInstallCheckDecl = rpc.DoctorCheckDecl{
 	Phase: rpc.DoctorPhaseRuntime,
 	Order: 746,
 	Codes: []string{
-		diagnostic.CodeDoctorIPsecSPDCatchAllMissing,
-		diagnostic.CodeDoctorIPsecSPDExemptionMissing,
-		diagnostic.CodeDoctorIPsecSPDInstallRefused,
-		diagnostic.CodeDoctorIPsecSPDUndoIncomplete,
+		codeDoctorIPsecSPDCatchAllMissing,
+		codeDoctorIPsecSPDExemptionMissing,
+		codeDoctorIPsecSPDInstallRefused,
+		codeDoctorIPsecSPDUndoIncomplete,
 	},
 }
 
@@ -94,7 +93,7 @@ func answerSPDInstall(s *ikeEngineState) []rpc.DoctorCheckDiagnostic {
 	}
 	for _, refusal := range missing {
 		out = append(out, rpc.DoctorCheckDiagnostic{
-			Code:     diagnostic.CodeDoctorIPsecSPDCatchAllMissing,
+			Code:     codeDoctorIPsecSPDCatchAllMissing,
 			Severity: severityError,
 			Message:  spdRefusalMessage(refusal),
 			Fix:      refusal.Fix(),
@@ -103,7 +102,7 @@ func answerSPDInstall(s *ikeEngineState) []rpc.DoctorCheckDiagnostic {
 	for _, name := range slices.Sorted(maps.Keys(s.interfaceExemptionRefused)) {
 		refusal := s.interfaceExemptionRefused[name]
 		out = append(out, rpc.DoctorCheckDiagnostic{
-			Code:     diagnostic.CodeDoctorIPsecSPDExemptionMissing,
+			Code:     codeDoctorIPsecSPDExemptionMissing,
 			Severity: severityError,
 			Message:  spdRefusalMessage(refusal),
 			Fix:      refusal.Fix(),
@@ -112,7 +111,7 @@ func answerSPDInstall(s *ikeEngineState) []rpc.DoctorCheckDiagnostic {
 	for _, name := range slices.Sorted(maps.Keys(s.spdRefused)) {
 		refusal := s.spdRefused[name]
 		out = append(out, rpc.DoctorCheckDiagnostic{
-			Code:     diagnostic.CodeDoctorIPsecSPDInstallRefused,
+			Code:     codeDoctorIPsecSPDInstallRefused,
 			Severity: severityError,
 			Message:  spdRefusalMessage(refusal),
 			Fix:      refusal.Fix(),
@@ -125,7 +124,7 @@ func answerSPDInstall(s *ikeEngineState) []rpc.DoctorCheckDiagnostic {
 	slices.Sort(diverged)
 	for _, message := range diverged {
 		out = append(out, rpc.DoctorCheckDiagnostic{
-			Code:     diagnostic.CodeDoctorIPsecSPDUndoIncomplete,
+			Code:     codeDoctorIPsecSPDUndoIncomplete,
 			Severity: severityError,
 			Message:  message,
 			Fix:      spdInstallFixRestart(),

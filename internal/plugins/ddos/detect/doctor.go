@@ -15,7 +15,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -31,7 +30,7 @@ const rateFeedCheck = "ddos-detect-rate-feed"
 var rateFeedCheckDecl = rpc.DoctorCheckDecl{
 	Name:  rateFeedCheck,
 	Phase: rpc.DoctorPhasePostConfig,
-	Codes: []string{diagnostic.CodeDoctorDDoSDetectBlind},
+	Codes: []string{codeDoctorDDoSDetectBlind},
 }
 
 // checkRateFeed answers the plugin doctor callback. det is the armed detector,
@@ -52,7 +51,8 @@ func checkRateFeed(name string, det *detector) ([]rpc.DoctorCheckDiagnostic, err
 		return nil, nil
 	case feedStateExternal, feedStateNoSample, feedStateZeroTraffic, feedStateNoInterface:
 		return []rpc.DoctorCheckDiagnostic{{
-			Code:     diagnostic.CodeDoctorDDoSDetectBlind,
+			Code:     codeDoctorDDoSDetectBlind,
+			Fix:      "ze show ddos status",
 			Severity: "warning",
 			Message:  blindMessage(f),
 		}}, nil
@@ -87,7 +87,8 @@ func checkFlowSource(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagnosti
 		return nil
 	}
 	return []rpc.DoctorCheckDiagnostic{{
-		Code:     "doctor-ddos-detect-no-flow-source",
+		Code:     codeDoctorDDoSDetectNoFlowSource,
+		Fix:      "set traffic-usage enabled true",
 		Severity: "warning",
 		Message:  "ddos-detect characterization is enabled but neither traffic-usage (track-ip) nor flow-export (conntrack) is configured; mitigation falls back to generic-flood with no target",
 	}}

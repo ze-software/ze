@@ -19,7 +19,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
@@ -112,11 +113,11 @@ func TestVPPShutdownRequiresCompletionMessage(t *testing.T) {
 // output contains a producer-declared cleanup failure beside normal completion.
 func TestVPPShutdownRejectsCleanupDiagnostics(t *testing.T) {
 	for _, failure := range []string{
-		diagnostic.CodeDoctorPluginShutdownOrder,
-		diagnostic.CodeDoctorPluginStopCleanupLate,
-		diagnostic.CodeDoctorPluginStopUnfinished,
-		diagnostic.CodeDoctorIfaceOwnedDeviceCleanup,
-		diagnostic.CodeDoctorIfaceBackendClose,
+		process.CodeDoctorPluginShutdownOrder,
+		process.CodeDoctorPluginStopCleanupLate,
+		process.CodeDoctorPluginStopUnfinished,
+		iface.CodeDoctorIfaceOwnedDeviceCleanup,
+		iface.CodeDoctorIfaceBackendClose,
 		"warning: shutdown timeout:",
 		"vpp manager stopped with an error",
 	} {
@@ -140,8 +141,8 @@ func TestVPPShutdownOwnsDiagnosticCapture(t *testing.T) {
 		subsystem string
 		failure   string
 	}{
-		{"interface", diagnostic.CodeDoctorIfaceOwnedDeviceCleanup},
-		{"plugin", diagnostic.CodeDoctorPluginStopCleanupLate},
+		{"interface", iface.CodeDoctorIfaceOwnedDeviceCleanup},
+		{"plugin", process.CodeDoctorPluginStopCleanupLate},
 		{"vpp", "vpp manager stopped with an error"},
 	} {
 		t.Run(question.subsystem, func(t *testing.T) {
@@ -402,10 +403,10 @@ func TestVPPShutdownChild(t *testing.T) {
 		switch args[1] {
 		case "interface":
 			slogutil.Logger("interface").Warn("VPP shutdown interface cleanup control",
-				"code", diagnostic.CodeDoctorIfaceOwnedDeviceCleanup)
+				"code", iface.CodeDoctorIfaceOwnedDeviceCleanup)
 		case "plugin":
 			slogutil.Logger("plugin").Warn("VPP shutdown plugin cleanup control",
-				"code", diagnostic.CodeDoctorPluginStopCleanupLate)
+				"code", process.CodeDoctorPluginStopCleanupLate)
 		case "vpp":
 			slogutil.Logger("vpp").Error("vpp manager stopped with an error")
 		default:

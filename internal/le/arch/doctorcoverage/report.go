@@ -62,10 +62,10 @@ func (r CheckReport) Text() string {
 		tb.Str("doctor-coverage: ").Int(int64(len(calls))).Str(" problem site(s) name no doctor code a doctor check declares:\n")
 		refusedLines(&tb, calls)
 		tb.Str("Why: a Warn or Error log line, or a report-bus raise, is a problem the operator can hit, and ze doctor reports every problem with its cause and fix. A site whose code no registered doctor check declares has no check that answers for it. No marker comment exempts a site.\n")
-		tb.Str("Fix: give the call a code attribute naming a code a registered doctor check declares (internal/core/diagnostic/codes.go):\n")
-		tb.Str("  \"code\", diagnostic.CodeDoctor<Name>\n")
+		tb.Str("Fix: give the call a code attribute naming a code a registered doctor check declares (registered by the owning package with diagnostic.Register):\n")
+		tb.Str("  \"code\", codeDoctor<Name>\n")
 		tb.Str("For a transient class, also raise the event on the report bus under that code, so it is reported, not only logged:\n")
-		tb.Str("  report.RaiseError(source, diagnostic.CodeDoctor<Name>, subject, message)\n")
+		tb.Str("  report.RaiseError(source, codeDoctor<Name>, subject, message)\n")
 	}
 	if len(findings) > 0 {
 		tb.Str("doctor-coverage: ").Int(int64(len(findings))).Str(" doctor finding(s) carry no Fix:\n")

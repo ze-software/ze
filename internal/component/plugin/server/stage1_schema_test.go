@@ -10,7 +10,6 @@ import (
 	"github.com/ze-software/ze/internal/component/config/yang"
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -62,7 +61,7 @@ func publishSchemaSubject(t *testing.T) []yang.ExternalModule {
 // the plugin named name.
 func schemaChangedWarning(name string) (report.Issue, bool) {
 	for _, issue := range report.Warnings() {
-		if issue.Code != diagnostic.CodeDoctorPluginSchemaChanged {
+		if issue.Code != CodeDoctorPluginSchemaChanged {
 			continue
 		}
 		if issue.Subject == name {

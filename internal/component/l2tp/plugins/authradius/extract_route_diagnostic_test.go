@@ -43,8 +43,8 @@ func TestFramedRouteSkippedCarriesCodeAndRaisesEventForSubscriber(t *testing.T) 
 	if err := json.Unmarshal(bytes.TrimSpace(logs.Bytes()), &warning); err != nil {
 		t.Fatalf("decode the warning line: %v\n%s", err, logs.Bytes())
 	}
-	if warning["code"] != diagnostic.CodeDoctorRADIUSFramedRouteSkipped {
-		t.Fatalf("the warning carries code %v, want %s", warning["code"], diagnostic.CodeDoctorRADIUSFramedRouteSkipped)
+	if warning["code"] != codeDoctorRADIUSFramedRouteSkipped {
+		t.Fatalf("the warning carries code %v, want %s", warning["code"], codeDoctorRADIUSFramedRouteSkipped)
 	}
 	if warning["subscriber"] != subscriber {
 		t.Fatalf("the warning names subscriber %v, want %s", warning["subscriber"], subscriber)
@@ -54,7 +54,7 @@ func TestFramedRouteSkippedCarriesCodeAndRaisesEventForSubscriber(t *testing.T) 
 		t.Fatalf("one skipped route retained %d events, want one: %+v", len(entries), entries)
 	}
 	entry := entries[0]
-	if entry.Source != Name || entry.Code != diagnostic.CodeDoctorRADIUSFramedRouteSkipped || entry.Subject != subscriber {
+	if entry.Source != Name || entry.Code != codeDoctorRADIUSFramedRouteSkipped || entry.Subject != subscriber {
 		t.Fatalf("the event lost its source, code or subscriber: %+v", entry)
 	}
 	if !strings.HasPrefix(entry.Message, "Framed-Route: ") || !strings.Contains(entry.Message, `prefix "not-a-prefix"`) {

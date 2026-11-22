@@ -142,7 +142,8 @@ func checkDiskSpace() []diagnostic.Diagnostic {
 		}
 		var tb textbuf.Buffer
 		return []diagnostic.Diagnostic{{
-			Code:     diagnostic.CodeDoctorDiskSpace,
+			Code:     codeDoctorDiskSpace,
+			Fix:      "df -h " + configDir,
 			Severity: diagnostic.SeverityError,
 			Message:  tb.Str("config partition unreadable at ").Str(configDir).Str(": ").Err(err).String(),
 			Path:     configDir,
@@ -157,7 +158,8 @@ func checkDiskSpaceBlocks(configDir string, total, available uint64) []diagnosti
 	if total == 0 {
 		var tb textbuf.Buffer
 		return []diagnostic.Diagnostic{{
-			Code:     diagnostic.CodeDoctorDiskSpace,
+			Code:     codeDoctorDiskSpace,
+			Fix:      "df -h " + configDir,
 			Severity: diagnostic.SeverityError,
 			Message:  tb.Str("config partition reports zero total blocks at ").Str(configDir).String(),
 			Path:     configDir,
@@ -167,7 +169,8 @@ func checkDiskSpaceBlocks(configDir string, total, available uint64) []diagnosti
 	if pctFree < 5 {
 		pctStr := textbuf.UintStr(pctFree, "%")
 		return []diagnostic.Diagnostic{{
-			Code:     diagnostic.CodeDoctorDiskSpace,
+			Code:     codeDoctorDiskSpace,
+			Fix:      "df -h " + configDir,
 			Severity: diagnostic.SeverityWarning,
 			Message:  textbuf.StrUintStr("config partition has ", pctFree, "% free space"),
 			Path:     configDir,
@@ -208,7 +211,7 @@ func checkStorageGrown() []diagnostic.Diagnostic {
 	var tb textbuf.Buffer
 	if err != nil {
 		return []diagnostic.Diagnostic{{
-			Code:     diagnostic.CodeDoctorStorageNotGrown,
+			Code:     codeDoctorStorageNotGrown,
 			Severity: diagnostic.SeverityWarning,
 			Message:  tb.Str("cannot read the size of the persistent storage, so it may be smaller than its disk: ").Err(err).String(),
 			Fix:      fixStorageShow,
@@ -218,7 +221,7 @@ func checkStorageGrown() []diagnostic.Diagnostic {
 		return nil
 	}
 	return []diagnostic.Diagnostic{{
-		Code:     diagnostic.CodeDoctorStorageNotGrown,
+		Code:     codeDoctorStorageNotGrown,
 		Severity: diagnostic.SeverityWarning,
 		Message: tb.Str("persistent storage ").Str(storage.Device).
 			Str(" uses ").Str(binarySize(storage.FilesystemBytes)).
@@ -277,7 +280,8 @@ func checkWritableDestinations(tree *config.Tree, platform *host.PlatformInfo) [
 			dir := filepath.Dir(persistPath)
 			if err := probeWritable(dir); err != nil {
 				diags = append(diags, diagnostic.Diagnostic{
-					Code:     diagnostic.CodeDoctorWriteDestination,
+					Code:     codeDoctorWriteDestination,
+					Fix:      "chmod u+w " + dir,
 					Severity: diagnostic.SeverityWarning,
 					Message:  tb.Reset().Str("NTP persist-path parent not writable: ").Str(dir).String(),
 					Path:     persistPath,
@@ -290,7 +294,8 @@ func checkWritableDestinations(tree *config.Tree, platform *host.PlatformInfo) [
 		if persistDir, ok := bfd.Get("persist-dir"); ok && persistDir != "" {
 			if err := probeWritable(persistDir); err != nil {
 				diags = append(diags, diagnostic.Diagnostic{
-					Code:     diagnostic.CodeDoctorWriteDestination,
+					Code:     codeDoctorWriteDestination,
+					Fix:      "chmod u+w " + persistDir,
 					Severity: diagnostic.SeverityWarning,
 					Message:  tb.Reset().Str("BFD persist-dir not writable: ").Str(persistDir).String(),
 					Path:     persistDir,
@@ -304,7 +309,8 @@ func checkWritableDestinations(tree *config.Tree, platform *host.PlatformInfo) [
 			dir := filepath.Dir(rcPath)
 			if err := probeWritable(dir); err != nil {
 				diags = append(diags, diagnostic.Diagnostic{
-					Code:     diagnostic.CodeDoctorWriteDestination,
+					Code:     codeDoctorWriteDestination,
+					Fix:      "chmod u+w " + dir,
 					Severity: diagnostic.SeverityWarning,
 					Message:  tb.Reset().Str("DNS resolv-conf-path parent not writable: ").Str(dir).String(),
 					Path:     rcPath,
@@ -328,7 +334,8 @@ func checkWritableDestinations(tree *config.Tree, platform *host.PlatformInfo) [
 			}
 			if err := probeWritable(path); err != nil {
 				diags = append(diags, diagnostic.Diagnostic{
-					Code:     diagnostic.CodeDoctorWriteDestination,
+					Code:     codeDoctorWriteDestination,
+					Fix:      "chmod u+w " + path,
 					Severity: diagnostic.SeverityWarning,
 					Message:  tb.Reset().Str("archive ").Str(a.Key).Str(": file location not writable: ").Str(path).String(),
 					Path:     path,
@@ -347,7 +354,8 @@ func checkWritableDestinations(tree *config.Tree, platform *host.PlatformInfo) [
 				dir := filepath.Dir(exe)
 				if writeErr := probeWritable(dir); writeErr != nil {
 					diags = append(diags, diagnostic.Diagnostic{
-						Code:     diagnostic.CodeDoctorWriteDestination,
+						Code:     codeDoctorWriteDestination,
+						Fix:      "chmod u+w " + dir,
 						Severity: diagnostic.SeverityWarning,
 						Message:  tb.Reset().Str("self-update auto-apply: binary parent not writable: ").Str(dir).String(),
 						Path:     exe,

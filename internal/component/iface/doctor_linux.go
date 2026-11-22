@@ -68,8 +68,8 @@ var ethernetDoctorCheck = diagnostic.DoctorCheck{
 		codeIfaceMissing,
 		codeIfaceDown,
 		codeIfaceMACOverrideByName,
-		diagnostic.CodeDoctorIfaceSelectorUnmatched,
-		diagnostic.CodeDoctorIfaceSelectorAmbiguous,
+		codeDoctorIfaceSelectorUnmatched,
+		codeDoctorIfaceSelectorAmbiguous,
 	},
 	Check: checkEthernetInterfaces,
 }

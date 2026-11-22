@@ -488,7 +488,7 @@ func registerRSVPTE() {
 			Order:        721,
 			Dependencies: []string{Namespace},
 			Platforms:    []string{"any"},
-			Codes:        []string{"doctor-rsvpte-rawsock-unavailable"},
+			Codes:        []string{codeDoctorRSVPTERawsockUnavailable},
 			Check:        checkRSVPTERawSocket,
 		}},
 	}

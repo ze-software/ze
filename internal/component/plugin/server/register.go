@@ -9,7 +9,10 @@
 
 package server
 
-import "github.com/ze-software/ze/internal/core/diagnostic"
+import (
+	"github.com/ze-software/ze/internal/component/plugin/ipc"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+)
 
 // serverEventCodes are the report-bus codes the plugin server raises as
 // events, which the recent-events doctor check reports (see
@@ -24,22 +27,23 @@ import "github.com/ze-software/ze/internal/core/diagnostic"
 // the acceptor the server starts (plugin/ipc tls.go; ipc cannot import
 // diagnostic without a cycle).
 var serverEventCodes = []diagnostic.EventCode{
-	{Code: diagnostic.CodeDoctorPluginConnectBackRefused},
+	{Code: ipc.ConnectBackRefusedCode},
 	{Code: diagnostic.CodeDoctorInternalDefect},
 	{Code: diagnostic.CodeDoctorPluginRequestRefused},
-	{Code: diagnostic.CodeDoctorPluginAnswerUndelivered},
-	{Code: diagnostic.CodeDoctorPluginDrainIncomplete},
-	{Code: diagnostic.CodeDoctorCommandEnsureRollbackFailed},
-	{Code: diagnostic.CodeDoctorCommandDeprecatedUsed},
-	{Code: diagnostic.CodeDoctorManagedClientNotifyDropped},
-	{Code: diagnostic.CodeDoctorConfigReloadRefused},
-	{Code: diagnostic.CodeDoctorPluginSchemaChanged},
-	{Code: diagnostic.CodeDoctorPluginSchemaUndeclared},
-	{Code: diagnostic.CodeDoctorPluginSchemaRefused},
+	{Code: CodeDoctorPluginAnswerUndelivered},
+	{Code: CodeDoctorPluginDrainIncomplete},
+	{Code: CodeDoctorCommandEnsureRollbackFailed},
+	{Code: CodeDoctorCommandDeprecatedUsed},
+	{Code: CodeDoctorManagedClientNotifyDropped},
+	{Code: CodeDoctorConfigReloadRefused},
+	{Code: CodeDoctorPluginSchemaChanged},
+	{Code: CodeDoctorPluginSchemaUndeclared},
+	{Code: CodeDoctorPluginSchemaRefused},
 	{Code: diagnostic.CodeDoctorBuildRegistrationUnheld},
 }
 
 func init() {
+	registerDoctorCodes()
 	for _, event := range serverEventCodes {
 		if err := diagnostic.RegisterEventCode(event); err != nil {
 			panic("BUG: plugin server event code registration refused: " + err.Error())

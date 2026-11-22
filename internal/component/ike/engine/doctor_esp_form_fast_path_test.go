@@ -13,7 +13,6 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -56,8 +55,8 @@ func TestDoctorESPFormFastPath(t *testing.T) {
 	// The capability fix pinned below is the remedy for a ze under ze.service: fix the
 	// membership, so the answer does not depend on how the test process was started.
 	t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipZeService, nil))
-	fastPath := "warning:" + diagnostic.CodeDoctorIPsecESPFormFastPath
-	link := "warning:" + diagnostic.CodeDoctorIPsecESPFormLink
+	fastPath := "warning:" + dataplane.CodeDoctorIPsecESPFormFastPath
+	link := "warning:" + dataplane.CodeDoctorIPsecESPFormLink
 	unavailableCause := "load the ESP form rewrite program: operation not permitted; give ze the " +
 		"CAP_BPF and CAP_NET_ADMIN capabilities, or run it on a kernel with TCX (Linux 6.6 or later)"
 	bound := "at most " + strconv.Itoa(dataplane.ESPFormCompletePathRate) + " datagrams per second"
@@ -69,7 +68,7 @@ func TestDoctorESPFormFastPath(t *testing.T) {
 	// peerStep is the peer's own step the link finding names in its message, never as
 	// its fix line: the fix line is a command run on this box.
 	peerStep := []string{"set " + espFormFastPathPeerEncap + " in the connection", "run " + espFormFastPathPeerLoad + " there"}
-	firewallCode := "warning:" + diagnostic.CodeDoctorIPsecESPFormFirewall
+	firewallCode := "warning:" + dataplane.CodeDoctorIPsecESPFormFirewall
 	firewallSite := "inet ze_wan input (hook input) rule 7 \"block-all\": drop"
 	dropped := "drops every datagram above that rate before XFRM sees it"
 	// acceptFix is the command the dataplane chose for the site, and acceptHow the
@@ -287,8 +286,8 @@ func TestDoctorESPFormFastPath(t *testing.T) {
 // PREVENTS: the doctor telling the operator to restart ze while Ze is already watching
 // the ruleset again by itself, and a fix chosen by matching the cause's text.
 func TestDoctorESPFormFirewallReading(t *testing.T) {
-	fastPath := "warning:" + diagnostic.CodeDoctorIPsecESPFormFastPath
-	firewall := "warning:" + diagnostic.CodeDoctorIPsecESPFormFirewall
+	fastPath := "warning:" + dataplane.CodeDoctorIPsecESPFormFastPath
+	firewall := "warning:" + dataplane.CodeDoctorIPsecESPFormFirewall
 	cause := "the nftables watch failed (recvmsg: no buffer space available)"
 	site := "inet ze_wan input (hook input) rule 7 \"block-all\": drop"
 	restart := "Restart ze with the command below"
@@ -580,7 +579,7 @@ func TestDoctorESPFormFastPathDetached(t *testing.T) {
 	// The capability fix pinned below is the remedy for a ze under ze.service: fix the
 	// membership, so the answer does not depend on how the test process was started.
 	t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipZeService, nil))
-	fastPath := "warning:" + diagnostic.CodeDoctorIPsecESPFormFastPath
+	fastPath := "warning:" + dataplane.CodeDoctorIPsecESPFormFastPath
 	detachCause := "the firewall gate could not be shut (map update: bad file descriptor), so the program " +
 		"was detached from every link rather than rewrite bare ESP an nftables rule should see"
 	loadCause := "load the rewrite program: operation not permitted"
@@ -702,7 +701,7 @@ func TestDoctorESPFormSharedSPI(t *testing.T) {
 	// membership, so the answer does not depend on how the test process was started.
 	t.Cleanup(privilege.SetServiceMembershipForTest(privilege.MembershipZeService, nil))
 	const spi = 0x1234
-	fastPath := "warning:" + diagnostic.CodeDoctorIPsecESPFormFastPath
+	fastPath := "warning:" + dataplane.CodeDoctorIPsecESPFormFastPath
 	served, unserved := netip.MustParseAddr("203.0.113.9"), netip.MustParseAddr("203.0.113.10")
 	shared := []dataplane.ESPFormSharedSPI{{SPI: spi, Served: served, Unserved: unserved}}
 	attached := func(sharedSPIs []dataplane.ESPFormSharedSPI) dataplane.ESPFormFastPathState {
@@ -1062,9 +1061,9 @@ func espFormTUNTestRefusal() *opererr.Error {
 // a doctor check that creates /dev/net/tun, because a runtime check only reads; a
 // stale refusal reported for a device the receiver holds.
 func TestDoctorESPFormTUN(t *testing.T) {
-	tunCode := "error:" + diagnostic.CodeDoctorIPsecESPFormTUN
-	tunUnread := "warning:" + diagnostic.CodeDoctorIPsecESPFormTUN
-	fastPath := "warning:" + diagnostic.CodeDoctorIPsecESPFormFastPath
+	tunCode := "error:" + dataplane.CodeDoctorIPsecESPFormTUN
+	tunUnread := "warning:" + dataplane.CodeDoctorIPsecESPFormTUN
+	fastPath := "warning:" + dataplane.CodeDoctorIPsecESPFormFastPath
 	refusal := espFormTUNTestRefusal()
 	refused := newESPFormTUNRecord(refusal)
 	idle := dataplane.ESPFormFastPathState{Status: dataplane.ESPFormFastPathIdle}
@@ -1169,7 +1168,7 @@ func TestRecordESPFormTUN(t *testing.T) {
 			t.Fatalf("%d WARN lines name the device, want 1:\n%s", len(lines), logged.String())
 		}
 		for _, want := range []string{
-			"code=" + diagnostic.CodeDoctorIPsecESPFormTUN,
+			"code=" + dataplane.CodeDoctorIPsecESPFormTUN,
 			"fix=\"" + refusal.Fix() + "\"",
 			refusal.Problem(),
 		} {
@@ -1222,7 +1221,7 @@ func TestRecordESPFormTUN(t *testing.T) {
 					t.Fatalf("%d WARN lines, want %d:\n%s", len(lines), tc.warns, logged.String())
 				}
 				for _, line := range lines {
-					if !strings.Contains(line, "code="+diagnostic.CodeDoctorIPsecESPFormTUN) {
+					if !strings.Contains(line, "code="+dataplane.CodeDoctorIPsecESPFormTUN) {
 						t.Errorf("the WARN line carries no doctor code: %s", line)
 					}
 				}
@@ -1279,10 +1278,10 @@ func TestDoctorESPFormFastPathRegistered(t *testing.T) {
 			t.Errorf("phase = %q, want %q", decl.Phase, rpc.DoctorPhaseRuntime)
 		}
 		want := []string{
-			diagnostic.CodeDoctorIPsecESPFormFastPath,
-			diagnostic.CodeDoctorIPsecESPFormLink,
-			diagnostic.CodeDoctorIPsecESPFormTUN,
-			diagnostic.CodeDoctorIPsecESPFormFirewall,
+			dataplane.CodeDoctorIPsecESPFormFastPath,
+			dataplane.CodeDoctorIPsecESPFormLink,
+			dataplane.CodeDoctorIPsecESPFormTUN,
+			dataplane.CodeDoctorIPsecESPFormFirewall,
 		}
 		if strings.Join(decl.Codes, ",") != strings.Join(want, ",") {
 			t.Errorf("codes = %v, want %v", decl.Codes, want)
@@ -1326,7 +1325,7 @@ func TestEngineDoctorCheckDispatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("answer: %v", err)
 	}
-	if got, want := diagnosticCodes(diags), "error:"+diagnostic.CodeDoctorIPsecESPFormTUN; got != want {
+	if got, want := diagnosticCodes(diags), "error:"+dataplane.CodeDoctorIPsecESPFormTUN; got != want {
 		t.Fatalf("with a refusal recorded: diagnostics = %q, want %q", got, want)
 	}
 	if *calls != 0 {
@@ -1340,7 +1339,7 @@ func TestEngineDoctorCheckDispatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("answer with fast-path readiness refusal: %v", err)
 	}
-	if got, want := diagnosticCodes(diags), "warning:"+diagnostic.CodeDoctorIPsecESPFormFastPath; got != want {
+	if got, want := diagnosticCodes(diags), "warning:"+dataplane.CodeDoctorIPsecESPFormFastPath; got != want {
 		t.Fatalf("idle with will-not-load record: diagnostics = %q, want %q", got, want)
 	}
 	if strings.Contains(diags[0].Fix, "systemctl") {
@@ -1354,7 +1353,7 @@ func TestEngineDoctorCheckDispatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("answer %s: %v", childInstallCheckName, err)
 	}
-	if got, want := diagnosticCodes(diags), "error:"+diagnostic.CodeDoctorIPsecChildInstallRefused; got != want {
+	if got, want := diagnosticCodes(diags), "error:"+codeDoctorIPsecChildInstallRefused; got != want {
 		t.Fatalf("%s: diagnostics = %q, want %q", childInstallCheckName, got, want)
 	}
 
@@ -1428,7 +1427,7 @@ func TestNewESPFormFastPathRecord(t *testing.T) {
 // PREVENTS: an idle receiver hiding a missing CAP_BPF or absent TCX kernel, or
 // offering a systemd repair outside ze.service.
 func TestDoctorESPFormFastPathReadinessIdle(t *testing.T) {
-	fastPath := "warning:" + diagnostic.CodeDoctorIPsecESPFormFastPath
+	fastPath := "warning:" + dataplane.CodeDoctorIPsecESPFormFastPath
 	idle := dataplane.ESPFormFastPathState{Status: dataplane.ESPFormFastPathIdle}
 
 	for _, tc := range []struct {
@@ -1555,7 +1554,7 @@ func TestRecordESPFormFastPath(t *testing.T) {
 		if len(lines) != 1 {
 			t.Fatalf("%d WARN lines, want 1:\n%s", len(lines), logged.String())
 		}
-		if !strings.Contains(lines[0], "code="+diagnostic.CodeDoctorIPsecESPFormFastPath) {
+		if !strings.Contains(lines[0], "code="+dataplane.CodeDoctorIPsecESPFormFastPath) {
 			t.Errorf("WARN line carries no doctor code: %s", lines[0])
 		}
 		if strings.Contains(lines[0], "systemctl") {
@@ -1612,7 +1611,7 @@ func TestRecordESPFormFastPath(t *testing.T) {
 				if len(lines) != tc.warns {
 					t.Fatalf("%d WARN lines, want %d:\n%s", len(lines), tc.warns, logged.String())
 				}
-				if !strings.Contains(lines[0], "code="+diagnostic.CodeDoctorIPsecESPFormFastPath) {
+				if !strings.Contains(lines[0], "code="+dataplane.CodeDoctorIPsecESPFormFastPath) {
 					t.Errorf("WARN line carries no doctor code: %s", lines[0])
 				}
 			})
@@ -1641,7 +1640,7 @@ func TestIPsecEngineStateChecksAreRuntimePhase(t *testing.T) {
 		if decl.Phase != rpc.DoctorPhaseRuntime {
 			t.Errorf("%s phase = %q, want %q", name, decl.Phase, rpc.DoctorPhaseRuntime)
 		}
-		wantCodes := []string{diagnostic.CodeDoctorIPsecOverrideGuard, diagnostic.CodeDoctorIPsecSocketPolicy}
+		wantCodes := []string{codeDoctorIPsecOverrideGuard, codeDoctorIPsecSocketPolicy}
 		if !slices.Equal(decl.Codes, wantCodes) {
 			t.Errorf("%s codes = %v, want %v", name, decl.Codes, wantCodes)
 		}

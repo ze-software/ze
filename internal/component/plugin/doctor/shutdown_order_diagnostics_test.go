@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 )
@@ -24,7 +25,7 @@ func TestShutdownOrderDoctorRowNamesTheDistinctFailure(t *testing.T) {
 		t.Fatalf("rows = %+v", rows)
 	}
 	row := rows[0]
-	if row.Code != diagnostic.CodeDoctorPluginShutdownOrder {
+	if row.Code != process.CodeDoctorPluginShutdownOrder {
 		t.Fatalf("row code = %s", row.Code)
 	}
 	if row.Severity != diagnostic.SeverityWarning {

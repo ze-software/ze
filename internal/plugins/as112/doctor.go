@@ -59,7 +59,8 @@ func as112ListenDiagnostic(enabled bool, family string, bindable func(host strin
 	for _, host := range wildcardHostsForFamily(family) {
 		if !bindable(host, as112Port) {
 			return []rpc.DoctorCheckDiagnostic{{
-				Code:     "doctor-as112-port-unavailable",
+				Code:     codeDoctorAS112PortUnavailable,
+				Fix:      "sudo setcap cap_net_bind_service+ep /usr/local/bin/ze",
 				Severity: "warning",
 				Message:  "cannot bind AS112's fixed UDP/TCP port 53; needs CAP_NET_BIND_SERVICE or root, or the port is already in use",
 			}}

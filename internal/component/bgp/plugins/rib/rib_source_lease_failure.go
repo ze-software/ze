@@ -11,7 +11,6 @@ import (
 	"slices"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -100,7 +99,7 @@ func (s *ribSourceLeases) doctorFailures() []rpc.DoctorCheckDiagnostic {
 	}
 	findings := make([]rpc.DoctorCheckDiagnostic, 0, len(failures))
 	for _, failure := range failures {
-		findings = append(findings, rpc.DoctorCheckDiagnostic{Code: diagnostic.CodeDoctorBGPSelectedOutput,
+		findings = append(findings, rpc.DoctorCheckDiagnostic{Code: codeDoctorBGPSelectedOutput,
 			Severity: "warning", Message: failure.Error(), Fix: s.manager.advertiseRepair()})
 	}
 	return findings
@@ -141,15 +140,15 @@ func (s *ribSourceLeases) reportFailures(ctx context.Context) bool {
 		}
 		fix := s.manager.advertiseRepair()
 		logger().Warn("BGP source authorization has not settled", "peer", peer, "error", failure,
-			"code", diagnostic.CodeDoctorBGPSelectedOutput, "fix", fix)
+			"code", codeDoctorBGPSelectedOutput, "fix", fix)
 		work, cancel := context.WithTimeout(ctx, advertiseReportBudget)
 		err := s.manager.plugin.RaiseIssue(work, sdk.Issue{Severity: rpc.ReportWarning,
-			Code: diagnostic.CodeDoctorBGPSelectedOutput, Subject: sourceLeaseSubject(peer), Message: message, Fix: fix})
+			Code: codeDoctorBGPSelectedOutput, Subject: sourceLeaseSubject(peer), Message: message, Fix: fix})
 		cancel()
 		if err != nil {
 			s.reportAfter[peer] = time.Now().Add(rpc.ReportRaiseWindow)
 			logger().Warn("BGP source authorization warning was not acknowledged", "peer", peer, "error", err,
-				"code", diagnostic.CodeDoctorBGPSelectedOutput, "fix", fix)
+				"code", codeDoctorBGPSelectedOutput, "fix", fix)
 			retry = true
 			continue
 		}
@@ -165,12 +164,12 @@ func (s *ribSourceLeases) reportFailures(ctx context.Context) bool {
 			continue
 		}
 		work, cancel := context.WithTimeout(ctx, advertiseReportBudget)
-		err := s.manager.plugin.ClearIssue(work, diagnostic.CodeDoctorBGPSelectedOutput, sourceLeaseSubject(peer))
+		err := s.manager.plugin.ClearIssue(work, codeDoctorBGPSelectedOutput, sourceLeaseSubject(peer))
 		cancel()
 		if err != nil {
 			s.reportAfter[peer] = time.Now().Add(rpc.ReportRaiseWindow)
 			logger().Warn("BGP source authorization warning could not be cleared", "peer", peer, "error", err,
-				"code", diagnostic.CodeDoctorBGPSelectedOutput, "fix", s.manager.advertiseRepair())
+				"code", codeDoctorBGPSelectedOutput, "fix", s.manager.advertiseRepair())
 			retry = true
 			continue
 		}

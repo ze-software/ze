@@ -17,7 +17,6 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -256,7 +255,7 @@ func (r *espFormReceiver) revive(life *espFormReaderLife) {
 	r.logger().Warn("esp-form: Ze's own receiver for bare ESP stopped reading its raw ESP socket, so the bare "+
 		"ESP of every Child SA that receives both ESP forms is received only where the fast path rewrites it "+
 		"until Ze opens the receiver again; Ze opens it again by itself",
-		"error", life.err, "code", diagnostic.CodeDoctorIPsecESPFormReaderStopped)
+		"error", life.err, "code", CodeDoctorIPsecESPFormReaderStopped)
 	r.reportReaderStopped(life)
 
 	r.mu.Lock()
@@ -290,7 +289,7 @@ func (r *espFormReceiver) revive(life *espFormReaderLife) {
 				"esp-form: Ze cannot open its own receiver for bare ESP again, and tries again by itself at most "+
 					espFormReopenBound()+" apart; until it opens, no Child SA that must receive both ESP forms "+
 					"can be installed or moved onto the ESP-in-UDP form",
-				espFormFailureAttrs(err, slog.String("code", diagnostic.CodeDoctorIPsecESPFormTUN))...)
+				espFormFailureAttrs(err, slog.String("code", CodeDoctorIPsecESPFormTUN))...)
 		}
 		failing = true
 	}

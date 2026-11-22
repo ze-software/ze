@@ -83,7 +83,8 @@ func geodnsListenDiagnostic(enabled bool, targets []probeTarget, bindable func(h
 		}
 		if !bindable(t.host, t.port) {
 			return []rpc.DoctorCheckDiagnostic{{
-				Code:     "doctor-geodns-port-unavailable",
+				Code:     codeDoctorGeoDNSPortUnavailable,
+				Fix:      "sudo setcap cap_net_bind_service+ep /usr/local/bin/ze",
 				Severity: "warning",
 				Message:  "cannot bind a configured privileged geodns listener (UDP/TCP); needs CAP_NET_BIND_SERVICE or root, or the address/port is already in use",
 			}}

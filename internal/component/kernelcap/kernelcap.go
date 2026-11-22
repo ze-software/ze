@@ -168,7 +168,7 @@ func MustRegister(capability Capability) {
 		Component:    capability.Component,
 		Dependencies: []string{"config-tree", "kernel"},
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
-		Codes:        []string{capability.CodeAbsent, capability.CodeUnknown, diagnostic.CodeDoctorKernelCapabilityForced},
+		Codes:        []string{capability.CodeAbsent, capability.CodeUnknown, CodeDoctorKernelCapabilityForced},
 		Check:        checkFor(capability.Subsystem),
 	}
 	if err := diagnostic.RegisterDoctorCheck(check); err != nil {
@@ -392,7 +392,8 @@ func deniedDiagnostic(capability *Capability, reason error) diagnostic.Diagnosti
 		text.Str(", and without it ").Str(capability.Degrades)
 	}
 	return diagnostic.Diagnostic{
-		Code:     diagnostic.CodeDoctorKernelCapabilityDenied,
+		Code:     codeDoctorKernelCapabilityDenied,
+		Fix:      "ze doctor kernel-capabilities",
 		Severity: diagnostic.SeverityWarning,
 		Message:  text.String(),
 	}
@@ -410,7 +411,8 @@ func forcedPresent(capability *Capability, result Result) (diagnostic.Diagnostic
 	text.Str(capability.Subsystem).Str(": the kernel is taken to hold ").Str(capability.Kernel).
 		Str(" without probing it: ").Err(result.Reason)
 	return diagnostic.Diagnostic{
-		Code:     diagnostic.CodeDoctorKernelCapabilityForced,
+		Code:     CodeDoctorKernelCapabilityForced,
+		Fix:      "ze doctor kernel-capabilities",
 		Severity: diagnostic.SeverityWarning,
 		Message:  text.String(),
 	}, true

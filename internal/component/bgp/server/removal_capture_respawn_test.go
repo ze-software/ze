@@ -20,7 +20,6 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -146,7 +145,7 @@ func removalCaptureProcess(t *testing.T, srv *pluginserver.Server, name string) 
 func restartOverlapRaised() []report.Issue {
 	var raised []report.Issue
 	for _, issue := range report.Errors(0) {
-		if issue.Code == diagnostic.CodeDoctorPluginRestartOverlap {
+		if issue.Code == process.CodeDoctorPluginRestartOverlap {
 			raised = append(raised, issue)
 		}
 	}

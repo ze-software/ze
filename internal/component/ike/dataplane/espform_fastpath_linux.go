@@ -30,7 +30,6 @@ import (
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -318,7 +317,7 @@ func (f *espFormFastPath) unavailable(err error) {
 		espFormTUNName+" by the complete path, rate-bounded",
 		"cause", cause, "datagrams-per-second-max", espFormRate,
 		"fix", ESPFormFastPathFix(fault),
-		"code", diagnostic.CodeDoctorIPsecESPFormFastPath)
+		"code", CodeDoctorIPsecESPFormFastPath)
 }
 
 // subscriptionError is the subscription's error callback. The library calls it from
@@ -333,7 +332,7 @@ func (f *espFormFastPath) subscriptionError(done <-chan struct{}) func(error) {
 		}
 		f.logger().Warn("esp-form: the fast path's link subscription reported an error, "+
 			"so a link created now may be served only by the complete path through "+espFormTUNName,
-			"error", err, "code", diagnostic.CodeDoctorIPsecESPFormFastPath)
+			"error", err, "code", CodeDoctorIPsecESPFormFastPath)
 	}
 }
 
@@ -457,7 +456,7 @@ func (f *espFormFastPath) followEnded(err error) {
 	}
 	f.mu.Unlock()
 	f.logger().Warn("esp-form: the fast path stopped following link creation",
-		"cause", cause, "code", diagnostic.CodeDoctorIPsecESPFormFastPath)
+		"cause", cause, "code", CodeDoctorIPsecESPFormFastPath)
 }
 
 // apply handles one link update under mu.
@@ -539,7 +538,7 @@ func (f *espFormFastPath) refuse(ifindex int, name, reason string) {
 	f.refused[ifindex] = ESPFormLinkRefusal{Link: name, Reason: reason}
 	f.logger().Warn("esp-form: the fast path does not serve link "+name+
 		", so its bare ESP is re-presented through "+espFormTUNName+" by the complete path, rate-bounded",
-		"link", name, "reason", reason, "code", diagnostic.CodeDoctorIPsecESPFormLink)
+		"link", name, "reason", reason, "code", CodeDoctorIPsecESPFormLink)
 }
 
 // linkRemoved forgets a deleted link. The kernel detached the program with the
@@ -553,7 +552,7 @@ func (f *espFormFastPath) linkRemoved(ifindex int) {
 	delete(f.links, ifindex)
 	if err := attached.tcx.Close(); err != nil {
 		f.logger().Warn("esp-form: release the fast path's TCX link of a deleted interface",
-			"link", attached.name, "error", err, "code", diagnostic.CodeDoctorIPsecESPFormFastPath)
+			"link", attached.name, "error", err, "code", CodeDoctorIPsecESPFormFastPath)
 	}
 }
 
@@ -660,7 +659,7 @@ func (f *espFormFastPath) remove(spi uint32) {
 	for _, watched := range []*ebpf.Map{f.watched4, f.watched6} {
 		if err := espFormFastPathForget(watched, key, spi); err != nil {
 			f.logger().Warn("esp-form: the fast path could not forget an SPI",
-				"error", err, "code", diagnostic.CodeDoctorIPsecESPFormFastPath)
+				"error", err, "code", CodeDoctorIPsecESPFormFastPath)
 		}
 	}
 }
@@ -710,7 +709,7 @@ func (f *espFormFastPath) stop() {
 	for _, attached := range f.links {
 		if err := attached.tcx.Close(); err != nil {
 			f.logger().Warn("esp-form: detach the fast path from a link",
-				"link", attached.name, "error", err, "code", diagnostic.CodeDoctorIPsecESPFormFastPath)
+				"link", attached.name, "error", err, "code", CodeDoctorIPsecESPFormFastPath)
 		}
 	}
 	f.links = nil

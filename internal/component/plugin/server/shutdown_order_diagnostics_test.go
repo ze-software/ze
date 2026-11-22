@@ -12,7 +12,6 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/statestore"
 )
@@ -95,14 +94,14 @@ func TestShutdownCyclePersistsOrderFailure(t *testing.T) {
 	if entry.Fix != failure.Fix() {
 		t.Fatalf("persisted fix = %q, want %q", entry.Fix, failure.Fix())
 	}
-	if entry.Reason.Code() != diagnostic.CodeDoctorPluginShutdownOrder {
+	if entry.Reason.Code() != process.CodeDoctorPluginShutdownOrder {
 		t.Fatalf("reason code = %s", entry.Reason.Code())
 	}
 	issues := report.Errors(0)
 	if len(issues) != 1 {
 		t.Fatalf("cycle report = %+v", issues)
 	}
-	if issues[0].Code != diagnostic.CodeDoctorPluginShutdownOrder {
+	if issues[0].Code != process.CodeDoctorPluginShutdownOrder {
 		t.Fatalf("cycle report code = %s", issues[0].Code)
 	}
 }
@@ -156,7 +155,7 @@ func TestShutdownOrderRecordWriteFailureRaisesAnEvent(t *testing.T) {
 		t.Fatalf("record failure events = %+v", issues)
 	}
 	issue := issues[0]
-	if issue.Code != diagnostic.CodeDoctorPluginShutdownOrder {
+	if issue.Code != process.CodeDoctorPluginShutdownOrder {
 		t.Fatalf("record event code = %s", issue.Code)
 	}
 	if issue.Subject != "last-stop-record" {

@@ -9,7 +9,6 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -32,7 +31,7 @@ func checkIPsecImplicitDiscard(ctx registry.DoctorCheckContext) []rpc.DoctorChec
 		// rather than read as "no discard in force", the convention of the ddos
 		// flowspec orphan-record check.
 		return []rpc.DoctorCheckDiagnostic{{
-			Code:     diagnostic.CodeDoctorIPsecImplicitDiscard,
+			Code:     codeDoctorIPsecImplicitDiscard,
 			Severity: severityWarning,
 			Message:  "vpn ipsec: this doctor run holds no parsed configuration, so it cannot say whether the SPD catch-all DISCARD is in force because `vpn ipsec unmatched` is not set; the command below prints the running configuration, whose `vpn ipsec unmatched` leaf answers it",
 			Fix:      "show config running",
@@ -55,7 +54,7 @@ func checkIPsecImplicitDiscard(ctx registry.DoctorCheckContext) []rpc.DoctorChec
 		return nil
 	}
 	return []rpc.DoctorCheckDiagnostic{{
-		Code:     diagnostic.CodeDoctorIPsecImplicitDiscard,
+		Code:     codeDoctorIPsecImplicitDiscard,
 		Severity: severityError,
 		Message:  implicitDiscardInForceText,
 		// The confirming command: the RFC default stays, now written. The message names

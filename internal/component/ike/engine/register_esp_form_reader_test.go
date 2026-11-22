@@ -49,8 +49,8 @@ func TestESPFormReaderStoppedSinkRaisesEachStopOnce(t *testing.T) {
 	if issue.Severity != rpc.ReportError {
 		t.Errorf("the stop is raised as %q, want the error event %q", issue.Severity, rpc.ReportError)
 	}
-	if issue.Code != diagnostic.CodeDoctorIPsecESPFormReaderStopped {
-		t.Errorf("the stop is raised under %q, want %q", issue.Code, diagnostic.CodeDoctorIPsecESPFormReaderStopped)
+	if issue.Code != dataplane.CodeDoctorIPsecESPFormReaderStopped {
+		t.Errorf("the stop is raised under %q, want %q", issue.Code, dataplane.CodeDoctorIPsecESPFormReaderStopped)
 	}
 	if issue.Fix != dataplane.ESPFormFixLog {
 		t.Errorf("the stop's fix is %q, want %q", issue.Fix, dataplane.ESPFormFixLog)
@@ -60,7 +60,7 @@ func TestESPFormReaderStoppedSinkRaisesEachStopOnce(t *testing.T) {
 			t.Errorf("the stop's message does not carry %q:\n%s", want, issue.Message)
 		}
 	}
-	if !slices.Contains(diagnostic.EventCodes(), diagnostic.CodeDoctorIPsecESPFormReaderStopped) {
+	if !slices.Contains(diagnostic.EventCodes(), dataplane.CodeDoctorIPsecESPFormReaderStopped) {
 		t.Error("the stop's code is not a registered event code, so the daemon refuses the raise")
 	}
 }

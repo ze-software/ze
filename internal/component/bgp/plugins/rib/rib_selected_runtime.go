@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -34,7 +33,7 @@ func (r *RIBManager) stopSelectedDispatch() {
 		return
 	}
 	logger().Warn("BGP selected destination workers did not retire within their shutdown budget", "error", err,
-		"code", diagnostic.CodeDoctorBGPSelectedOutput, "fix", "ze request restart")
+		"code", codeDoctorBGPSelectedOutput, "fix", "ze request restart")
 	// Stop has no refusal channel. Its canceled workers must finish before
 	// their shared capture/source owners can be released by later defers.
 	ctx, cancel = context.WithCancel(context.Background())

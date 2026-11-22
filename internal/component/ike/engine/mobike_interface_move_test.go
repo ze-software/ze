@@ -18,7 +18,6 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/transport"
 	"github.com/ze-software/ze/internal/component/ike/wire"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -202,12 +201,12 @@ func TestInterfaceMoveWithoutTheSharedSocketReportsTheCause(t *testing.T) {
 		t.Fatal("a MOBIKE session survived a move whose reopened pair lacks the shared NAT-T socket")
 	}
 	out := logged.String()
-	code := diagnostic.CodeDoctorIPsecMOBIKESocketNotShared
+	code := codeDoctorIPsecMOBIKESocketNotShared
 	if !strings.Contains(out, "level=ERROR") || !strings.Contains(out, "code="+code) ||
 		!strings.Contains(out, "test-peer") || !strings.Contains(out, "ze.test.ike.port") {
 		t.Fatalf("the restart is not logged at Error with its code, peer and cause:\n%s", out)
 	}
-	if strings.Contains(out, diagnostic.CodeDoctorIPsecMOBIKEUnavailable) || strings.Contains(out, "CONFIG_XFRM_MIGRATE") {
+	if strings.Contains(out, dataplane.CodeDoctorIPsecMOBIKEUnavailable) || strings.Contains(out, "CONFIG_XFRM_MIGRATE") {
 		t.Fatalf("the restart is reported as missing kernel migration support:\n%s", out)
 	}
 	if len(raiser.issues) != 1 {

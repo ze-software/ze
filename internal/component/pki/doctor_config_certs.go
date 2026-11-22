@@ -42,7 +42,7 @@ var configCertDoctorCheck = diagnostic.DoctorCheck{
 	Component:    "pki",
 	Dependencies: []string{"config-tree"},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{diagnostic.CodeDoctorPKICert},
+	Codes:        []string{codeDoctorPKICert},
 	Check:        checkConfiguredCertificates,
 }
 
@@ -74,7 +74,8 @@ func configCertEntries(pki *config.Tree, list, label string) []diagnostic.Diagno
 		material, ok := entry.Value.Get("certificate")
 		if !ok || material == "" {
 			diags = append(diags, diagnostic.Diagnostic{
-				Code:     diagnostic.CodeDoctorPKICert,
+				Code:     codeDoctorPKICert,
+				Fix:      "ze show pki certificates",
 				Severity: diagnostic.SeverityError,
 				Message:  tb.Reset().Str(label).Byte(' ').Str(entry.Key).Str(": certificate missing").String(),
 				Path:     path,
@@ -99,7 +100,8 @@ func checkBase64DERCert(service, path, value string) []diagnostic.Diagnostic {
 	der, err := base64.StdEncoding.DecodeString(value)
 	if err != nil {
 		return []diagnostic.Diagnostic{{
-			Code:     diagnostic.CodeDoctorPKICert,
+			Code:     codeDoctorPKICert,
+			Fix:      "ze show pki certificates",
 			Severity: diagnostic.SeverityError,
 			Message:  tb.Str(service).Str(": certificate is not base64 DER: ").Err(err).String(),
 			Path:     path,
@@ -109,7 +111,8 @@ func checkBase64DERCert(service, path, value string) []diagnostic.Diagnostic {
 	cert, err := x509.ParseCertificate(der)
 	if err != nil {
 		return []diagnostic.Diagnostic{{
-			Code:     diagnostic.CodeDoctorPKICert,
+			Code:     codeDoctorPKICert,
+			Fix:      "ze show pki certificates",
 			Severity: diagnostic.SeverityError,
 			Message:  tb.Reset().Str(service).Str(": cannot parse certificate: ").Err(err).String(),
 			Path:     path,
@@ -120,7 +123,8 @@ func checkBase64DERCert(service, path, value string) []diagnostic.Diagnostic {
 	notAfter := cert.NotAfter.Format(time.RFC3339)
 	if now.After(cert.NotAfter) {
 		return []diagnostic.Diagnostic{{
-			Code:     diagnostic.CodeDoctorPKICert,
+			Code:     codeDoctorPKICert,
+			Fix:      "ze show pki certificates",
 			Severity: diagnostic.SeverityError,
 			Message:  tb.Reset().Str(service).Str(": certificate expired on ").Str(notAfter).String(),
 			Path:     path,
@@ -131,7 +135,8 @@ func checkBase64DERCert(service, path, value string) []diagnostic.Diagnostic {
 	if now.Before(cert.NotBefore) {
 		notBefore := cert.NotBefore.Format(time.RFC3339)
 		return []diagnostic.Diagnostic{{
-			Code:     diagnostic.CodeDoctorPKICert,
+			Code:     codeDoctorPKICert,
+			Fix:      "ze show pki certificates",
 			Severity: diagnostic.SeverityError,
 			Message:  tb.Reset().Str(service).Str(": certificate not yet valid (starts ").Str(notBefore).Byte(')').String(),
 			Path:     path,
@@ -141,7 +146,8 @@ func checkBase64DERCert(service, path, value string) []diagnostic.Diagnostic {
 	daysLeft := int(time.Until(cert.NotAfter).Hours() / 24)
 	if daysLeft < configCertExpiryWarnDays {
 		return []diagnostic.Diagnostic{{
-			Code:     diagnostic.CodeDoctorPKICert,
+			Code:     codeDoctorPKICert,
+			Fix:      "ze show pki certificates",
 			Severity: diagnostic.SeverityWarning,
 			Message: tb.Reset().Str(service).Str(": certificate expires in ").Int(int64(daysLeft)).
 				Str(" days (").Str(notAfter).Byte(')').String(),

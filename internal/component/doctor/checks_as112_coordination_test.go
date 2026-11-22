@@ -309,6 +309,9 @@ bgp {
 	router-id 10.0.0.1
 	peer peer1 {
 		connection {
+			local {
+				ip auto
+			}
 			remote {
 				ip 127.0.0.1
 			}
@@ -332,10 +335,11 @@ bgp {
 }
 `
 	cfgPath := writeTestConfig(t, cfg)
+	var code int
 	out := captureStdout(t, func() {
-		code := Run(commandtest.Args("--json", "config", cfgPath))
-		assert.Equal(t, 0, code, "advisory warnings must not fail readiness")
+		code = Run(commandtest.Args("--json", "config", cfgPath))
 	})
+	assert.Equal(t, 0, code, "advisory warnings must not fail readiness: %s", out)
 
 	var result diagnostic.DoctorResult
 	require.NoError(t, json.Unmarshal([]byte(out), &result))

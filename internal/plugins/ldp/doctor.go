@@ -36,7 +36,8 @@ func checkLDPPort(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagnostic {
 		return nil
 	}
 	return []rpc.DoctorCheckDiagnostic{{
-		Code:     "doctor-ldp-port-unavailable",
+		Code:     codeDoctorLDPPortUnavailable,
+		Fix:      "sudo setcap cap_net_bind_service+ep /usr/local/bin/ze",
 		Severity: "warning",
 		Message:  "cannot bind LDP port 646 (UDP/TCP); needs CAP_NET_BIND_SERVICE or root, or the port is already in use",
 	}}

@@ -14,7 +14,6 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/transport"
 	"github.com/ze-software/ze/internal/component/ike/wire"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -74,8 +73,8 @@ func TestDoctorReportsPeerSendingMalformedMessages(t *testing.T) {
 		t.Fatalf("two malformed responses drew %d diagnostics, want one: %v", len(diags), diags)
 	}
 	d := diags[0]
-	if d.Code != diagnostic.CodeDoctorIPsecPeerMalformedMessage {
-		t.Fatalf("code %q, want %q", d.Code, diagnostic.CodeDoctorIPsecPeerMalformedMessage)
+	if d.Code != codeDoctorIPsecPeerMalformedMessage {
+		t.Fatalf("code %q, want %q", d.Code, codeDoctorIPsecPeerMalformedMessage)
 	}
 	if d.Severity != severityWarning {
 		t.Fatalf("severity %q, want %q", d.Severity, severityWarning)

@@ -13,7 +13,6 @@ import (
 	parent "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 )
 
@@ -194,7 +193,7 @@ func TestFailDeclaredRaisesAStopThatOutlivedItsBound(t *testing.T) {
 
 	var events []report.Issue
 	for _, issue := range report.Errors(0) {
-		if issue.Code == diagnostic.CodeDoctorPluginStopUnfinished {
+		if issue.Code == process.CodeDoctorPluginStopUnfinished {
 			events = append(events, issue)
 		}
 	}

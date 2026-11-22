@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"testing"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 )
 
@@ -104,7 +103,7 @@ func TestIPv6ServiceStartFailureRetainedUntilNCPReset(t *testing.T) {
 	if len(warnings) != 1 {
 		t.Fatalf("failed startup rollback reports = %+v", warnings)
 	}
-	if warnings[0].Code != diagnostic.CodeDoctorPPPCleanup {
+	if warnings[0].Code != CodeDoctorPPPCleanup {
 		t.Fatalf("failed startup rollback code = %q", warnings[0].Code)
 	}
 	if warnings[0].Detail["interface"] != handle.Identity().InterfaceName {

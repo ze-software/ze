@@ -19,7 +19,6 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/transport"
 	"github.com/ze-software/ze/internal/component/ike/wire"
 	"github.com/ze-software/ze/internal/component/pki"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/eap"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -922,7 +921,7 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 	// in the first exchange the SA ends, and its WARN line is the record.
 	if err != nil && !errors.Is(err, errInnerChain) {
 		log.Warn("ike: AUTH response decryption failed", "peer", sa.PeerName, "error", err,
-			"code", diagnostic.CodeDoctorIPsecPeerMalformedMessage)
+			"code", codeDoctorIPsecPeerMalformedMessage)
 		if sa.secondAuthExchange {
 			sa.countPeerMalformedMessage()
 			return

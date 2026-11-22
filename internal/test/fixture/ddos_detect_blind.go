@@ -12,9 +12,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
+
+// codeDDoSDetectBlind is the doctor code the ddos-detect plugin owns and
+// reports when it sees no traffic. The fixture package is always-on and does
+// not import the gated ddos-detect plugin.
+const codeDDoSDetectBlind = "doctor-ddos-detect-blind"
 
 // ddosBlindExternalText is the part of the blind-detector warning that names
 // the external-process cause. A finding without it (the no-interface text an
@@ -58,7 +62,7 @@ func doctorDDoSDetectBlind(ctx context.Context, p *sdk.Plugin) error {
 	})
 	if !found {
 		return fmt.Errorf("show doctor lacks %s naming %q; last answer %v",
-			diagnostic.CodeDoctorDDoSDetectBlind, ddosBlindExternalText, last)
+			codeDDoSDetectBlind, ddosBlindExternalText, last)
 	}
 	_, err := fmt.Fprintln(os.Stderr, "OK: show doctor reports doctor-ddos-detect-blind for an external ddos-detect")
 	return err
@@ -85,7 +89,7 @@ func doctorDDoSDetectBlindZero(ctx context.Context, p *sdk.Plugin) error {
 		}
 	}
 	return fmt.Errorf("show doctor lacks %s naming %q after %d reads, each after %s of silence; last answer %v",
-		diagnostic.CodeDoctorDDoSDetectBlind, ddosBlindZeroText, ddosBlindQuietReads, ddosBlindQuiet, last)
+		codeDDoSDetectBlind, ddosBlindZeroText, ddosBlindQuietReads, ddosBlindQuiet, last)
 }
 
 // ddosBlindWaitQuiet holds the observer silent for ddosBlindQuiet, or answers
@@ -113,7 +117,10 @@ func ddosBlindReported(data map[string]any, text string) bool {
 	}
 	for _, raw := range diagnostics {
 		entry, isMap := raw.(map[string]any)
-		if !isMap || entry["code"] != diagnostic.CodeDoctorDDoSDetectBlind {
+		if !isMap {
+			continue
+		}
+		if entry["code"] != codeDDoSDetectBlind {
 			continue
 		}
 		if message, isString := entry["message"].(string); isString && strings.Contains(message, text) {

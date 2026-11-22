@@ -22,7 +22,6 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -159,7 +158,7 @@ func startControlSocketThread(ctx context.Context, request dataplane.Request,
 func releaseUnusedSocketWarning(owner *report.ResourceWarning) {
 	if err := owner.Close(); err != nil {
 		slog.Default().Warn("pppoe-vpp: release unused socket cleanup reservation failed",
-			"code", diagnostic.CodeDoctorPPPoEVPPSocketCleanup, "fix", reconciliationFix, "error", err)
+			"code", codeDoctorPPPoEVPPSocketCleanup, "fix", reconciliationFix, "error", err)
 	}
 }
 
@@ -223,19 +222,19 @@ func publishSocketCleanupWarning(owner *report.ResourceWarning, request dataplan
 		"client-mac":           clientMAC,
 		reconciliationErrorKey: failure.Error(),
 	}
-	episode, err := owner.NewEpisode(diagnostic.CodeDoctorPPPoEVPPSocketCleanup, message, reconciliationFix, detail)
+	episode, err := owner.NewEpisode(codeDoctorPPPoEVPPSocketCleanup, message, reconciliationFix, detail)
 	if err != nil {
 		slog.Default().Warn("pppoe-vpp: retain canceled control socket cleanup episode failed",
-			"code", diagnostic.CodeDoctorPPPoEVPPSocketCleanup, "fix", reconciliationFix, "error", err, "cause", failure)
+			"code", codeDoctorPPPoEVPPSocketCleanup, "fix", reconciliationFix, "error", err, "cause", failure)
 		return
 	}
 	if err := episode.Publish(); err != nil {
 		slog.Default().Warn("pppoe-vpp: publish canceled control socket cleanup episode failed",
-			"code", diagnostic.CodeDoctorPPPoEVPPSocketCleanup, "fix", reconciliationFix, "error", err, "cause", failure)
+			"code", codeDoctorPPPoEVPPSocketCleanup, "fix", reconciliationFix, "error", err, "cause", failure)
 		return
 	}
 	slog.Default().Warn("pppoe-vpp: canceled control socket cleanup failed",
-		"code", diagnostic.CodeDoctorPPPoEVPPSocketCleanup, "fix", reconciliationFix, "error", failure)
+		"code", codeDoctorPPPoEVPPSocketCleanup, "fix", reconciliationFix, "error", failure)
 }
 
 func openSocketInNamespace(ctx context.Context, request dataplane.Request, restored *bool) (socket *controlSocket, err error) {

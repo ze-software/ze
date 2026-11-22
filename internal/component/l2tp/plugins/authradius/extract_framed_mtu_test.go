@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/component/radius"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
@@ -106,8 +107,8 @@ func TestFramedMTUAdjustedCarriesCodeAndRaisesEventForSubscriber(t *testing.T) {
 	if err := json.Unmarshal(bytes.TrimSpace(logs.Bytes()), &warning); err != nil {
 		t.Fatalf("decode the warning line: %v\n%s", err, logs.Bytes())
 	}
-	if warning["code"] != diagnostic.CodeDoctorRADIUSFramedMTU {
-		t.Fatalf("the warning carries code %v, want %s", warning["code"], diagnostic.CodeDoctorRADIUSFramedMTU)
+	if warning["code"] != ppp.CodeDoctorRADIUSFramedMTU {
+		t.Fatalf("the warning carries code %v, want %s", warning["code"], ppp.CodeDoctorRADIUSFramedMTU)
 	}
 	if warning["subscriber"] != subscriber {
 		t.Fatalf("the warning names subscriber %v, want %s", warning["subscriber"], subscriber)
@@ -117,7 +118,7 @@ func TestFramedMTUAdjustedCarriesCodeAndRaisesEventForSubscriber(t *testing.T) {
 		t.Fatalf("one raised Framed-MTU retained %d events, want one: %+v", len(entries), entries)
 	}
 	entry := entries[0]
-	if entry.Source != Name || entry.Code != diagnostic.CodeDoctorRADIUSFramedMTU || entry.Subject != subscriber {
+	if entry.Source != Name || entry.Code != ppp.CodeDoctorRADIUSFramedMTU || entry.Subject != subscriber {
 		t.Fatalf("the event lost its source, code or subscriber: %+v", entry)
 	}
 	if !strings.Contains(entry.Message, "Framed-MTU 66") || !strings.Contains(entry.Message, "raised to 68") {

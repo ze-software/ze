@@ -38,7 +38,8 @@ func checkCrashCaptureArmed(ctx diagnostic.DoctorCheckContext) []diagnostic.Diag
 		return nil
 	}
 	return []diagnostic.Diagnostic{{
-		Code:     "doctor-crash-capture-unarmed",
+		Code:     codeDoctorCrashCaptureUnarmed,
+		Fix:      "ze show crashes",
 		Severity: diagnostic.SeverityWarning,
 		Message:  readiness.Reason,
 	}}
@@ -53,7 +54,8 @@ func checkCrashCapturePstore(ctx diagnostic.DoctorCheckContext) []diagnostic.Dia
 		return nil
 	}
 	return []diagnostic.Diagnostic{{
-		Code:     "doctor-crash-capture-pstore",
+		Code:     codeDoctorCrashCapturePstore,
+		Fix:      "ze show crashes",
 		Severity: diagnostic.SeverityWarning,
 		Message:  readiness.Reason,
 	}}
@@ -69,7 +71,8 @@ func checkCrashDirectory(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnos
 	}
 	var tb textbuf.Buffer
 	return []diagnostic.Diagnostic{{
-		Code:     "doctor-crash-directory-unwritable",
+		Code:     codeDoctorCrashDirectoryUnwritable,
+		Fix:      "ze show diagnostic doctor-crash-directory-unwritable",
 		Severity: diagnostic.SeverityWarning,
 		Message: tb.Str("no crash directory could be created and written, so a crash report has nowhere to go; ").
 			Str("set ze.crash.dir to a writable path").String(),

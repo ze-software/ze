@@ -12,7 +12,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/firewall"
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -32,10 +31,10 @@ var espFormFastPathCheckDecl = rpc.DoctorCheckDecl{
 	Phase: rpc.DoctorPhaseRuntime,
 	Order: 742,
 	Codes: []string{
-		diagnostic.CodeDoctorIPsecESPFormFastPath,
-		diagnostic.CodeDoctorIPsecESPFormLink,
-		diagnostic.CodeDoctorIPsecESPFormTUN,
-		diagnostic.CodeDoctorIPsecESPFormFirewall,
+		dataplane.CodeDoctorIPsecESPFormFastPath,
+		dataplane.CodeDoctorIPsecESPFormLink,
+		dataplane.CodeDoctorIPsecESPFormTUN,
+		dataplane.CodeDoctorIPsecESPFormFirewall,
 	},
 }
 
@@ -283,7 +282,7 @@ func espFormFastPathWillNotLoadFinding(fast *espFormFastPathRecord) rpc.DoctorCh
 	espFormCompletePathCost(&tb, "the link it arrived on")
 	espFormFastPathFaultSentence(&tb, fast.fault, espFormFastPathFixEngineLog)
 	return rpc.DoctorCheckDiagnostic{
-		Code:     diagnostic.CodeDoctorIPsecESPFormFastPath,
+		Code:     dataplane.CodeDoctorIPsecESPFormFastPath,
 		Severity: severityWarning,
 		Message:  tb.String(),
 		Fix:      espFormFastPathFaultFix(fast.fault, espFormFastPathFixEngineLog),
@@ -302,7 +301,7 @@ func espFormFastPathUndeterminedFinding(fast *espFormFastPathRecord) rpc.DoctorC
 	espFormCompletePathCost(&tb, "the link it arrived on")
 	tb.Str(" The warnings the command below lists carry the kernel's answer.")
 	return rpc.DoctorCheckDiagnostic{
-		Code:     diagnostic.CodeDoctorIPsecESPFormFastPath,
+		Code:     dataplane.CodeDoctorIPsecESPFormFastPath,
 		Severity: severityWarning,
 		Message:  tb.String(),
 		Fix:      espFormFastPathFixEngineLog,
@@ -375,7 +374,7 @@ func espFormCompletePathFindings(failure *dataplane.ESPFormCompletePathFailure) 
 		Int(int64(dataplane.ESPFormCompletePathReopenMax / time.Second)).
 		Str(" seconds apart, while such an SA is installed.")
 	return []rpc.DoctorCheckDiagnostic{{
-		Code:     diagnostic.CodeDoctorIPsecESPFormTUN,
+		Code:     dataplane.CodeDoctorIPsecESPFormTUN,
 		Severity: severityError,
 		Message:  tb.String(),
 		Fix:      fix,
@@ -450,7 +449,7 @@ func espFormTUNFindings(tun *espFormTUNRecord, watching bool) []rpc.DoctorCheckD
 // Ze defect produces: the check cannot say whether Child SAs on UDP port 4500 install.
 func espFormTUNUnread() rpc.DoctorCheckDiagnostic {
 	return rpc.DoctorCheckDiagnostic{
-		Code:     diagnostic.CodeDoctorIPsecESPFormTUN,
+		Code:     dataplane.CodeDoctorIPsecESPFormTUN,
 		Severity: severityWarning,
 		Message: "Ze could not read the outcome of its last attempt to open the TUN device /dev/net/tun " +
 			"(the record names no outcome, which is a Ze defect), so it cannot tell whether Child SAs on " +
@@ -485,7 +484,7 @@ func espFormTUNUnavailable(err error) rpc.DoctorCheckDiagnostic {
 		"(fragments, IPv4 options, a link it does not serve) reaches the SA only through ").
 		Str(espFormDevice).Str(", so Ze installs none rather than one that receives a single ESP form.")
 	return rpc.DoctorCheckDiagnostic{
-		Code:     diagnostic.CodeDoctorIPsecESPFormTUN,
+		Code:     dataplane.CodeDoctorIPsecESPFormTUN,
 		Severity: severityError,
 		Message:  tb.String(),
 		Fix:      fix,
@@ -536,7 +535,7 @@ func espFormSharedSPI(shared *dataplane.ESPFormSharedSPI) rpc.DoctorCheckDiagnos
 			Str(", which holds it, and negotiates them again, so the new Child SA draws a new SPI. " +
 				"That peer's tunnel carries no traffic until its new IKE SA and Child SA are up.")
 		return rpc.DoctorCheckDiagnostic{
-			Code:     diagnostic.CodeDoctorIPsecESPFormFastPath,
+			Code:     dataplane.CodeDoctorIPsecESPFormFastPath,
 			Severity: severityWarning,
 			Message:  tb.String(),
 			Fix:      espFormSharedSPIFixPeer + peer,
@@ -554,7 +553,7 @@ func espFormSharedSPI(shared *dataplane.ESPFormSharedSPI) rpc.DoctorCheckDiagnos
 			"other SA then holds the SPI alone. The cleared peer's tunnel carries no traffic until its " +
 			"new SAs are up.")
 	return rpc.DoctorCheckDiagnostic{
-		Code:     diagnostic.CodeDoctorIPsecESPFormFastPath,
+		Code:     dataplane.CodeDoctorIPsecESPFormFastPath,
 		Severity: severityWarning,
 		Message:  tb.String(),
 		Fix:      espFormSharedSPIFixPeers,
@@ -693,7 +692,7 @@ func espFormFirewallBlocked(site, how, fix string) rpc.DoctorCheckDiagnostic {
 		fix = espFormFastPathFixLog
 	}
 	return rpc.DoctorCheckDiagnostic{
-		Code:     diagnostic.CodeDoctorIPsecESPFormFirewall,
+		Code:     dataplane.CodeDoctorIPsecESPFormFirewall,
 		Severity: severityWarning,
 		Message:  tb.String(),
 		Fix:      fix,
@@ -825,7 +824,7 @@ func espFormFirewallUnread(cause string) rpc.DoctorCheckDiagnostic {
 		"a permission error alone does not identify a missing capability. If this " +
 		"finding returns, ").Str(espFormFastPathFixLog).Str(" lists why the ruleset could not be read.")
 	return rpc.DoctorCheckDiagnostic{
-		Code:     diagnostic.CodeDoctorIPsecESPFormFirewall,
+		Code:     dataplane.CodeDoctorIPsecESPFormFirewall,
 		Severity: severityWarning,
 		Message:  tb.String(),
 		Fix:      dataplane.ESPFormFixRestart(),
@@ -849,7 +848,7 @@ func espFormFirewallDumpFailed(cause string) rpc.DoctorCheckDiagnostic {
 		"finding returns after a commit, ").Str(espFormFastPathFixLog).
 		Str(" lists why the dump failed.")
 	return rpc.DoctorCheckDiagnostic{
-		Code:     diagnostic.CodeDoctorIPsecESPFormFirewall,
+		Code:     dataplane.CodeDoctorIPsecESPFormFirewall,
 		Severity: severityWarning,
 		Message:  tb.String(),
 		Fix:      dataplane.ESPFormFixRestart(),
@@ -871,7 +870,7 @@ func espFormFirewallRewatching(cause string) rpc.DoctorCheckDiagnostic {
 			"finds no rule that can drop ESP. If this finding stays, the command below lists why " +
 			"the watch keeps failing, most often a missing CAP_NET_ADMIN capability.")
 	return rpc.DoctorCheckDiagnostic{
-		Code:     diagnostic.CodeDoctorIPsecESPFormFirewall,
+		Code:     dataplane.CodeDoctorIPsecESPFormFirewall,
 		Severity: severityWarning,
 		Message:  tb.String(),
 		Fix:      espFormFastPathFixLog,
@@ -917,7 +916,7 @@ func espFormFirewallMoving(since, now time.Time) []rpc.DoctorCheckDiagnostic {
 		"tool keeps committing, then make that tool batch its changes, or stop it. fail2ban, for " +
 		"example, commits each ban on its own.")
 	return []rpc.DoctorCheckDiagnostic{{
-		Code:     diagnostic.CodeDoctorIPsecESPFormFirewall,
+		Code:     dataplane.CodeDoctorIPsecESPFormFirewall,
 		Severity: severityWarning,
 		Message:  tb.String(),
 		Fix:      dataplane.ESPFormFixMoving,
@@ -937,7 +936,7 @@ func espFormFirewallReadingUnknown(reading dataplane.ESPFormFirewallReading) rpc
 			"receiver for bare ESP through ").Str(espFormDevice).
 		Str(". The warnings the command below lists name the cause.")
 	return rpc.DoctorCheckDiagnostic{
-		Code:     diagnostic.CodeDoctorIPsecESPFormFirewall,
+		Code:     dataplane.CodeDoctorIPsecESPFormFirewall,
 		Severity: severityWarning,
 		Message:  tb.String(),
 		Fix:      espFormFastPathFixLog,
@@ -959,7 +958,7 @@ func espFormFastPathUnavailable(cause string, fault dataplane.ESPFormFastPathFau
 	espFormCompletePathCost(&tb, "the link it arrived on")
 	espFormFastPathFaultSentence(&tb, fault, espFormFastPathFixLog)
 	return rpc.DoctorCheckDiagnostic{
-		Code:     diagnostic.CodeDoctorIPsecESPFormFastPath,
+		Code:     dataplane.CodeDoctorIPsecESPFormFastPath,
 		Severity: severityWarning,
 		Message:  tb.String(),
 		Fix:      espFormFastPathFaultFix(fault, espFormFastPathFixLog),
@@ -1019,7 +1018,7 @@ func espFormFastPathDetached(cause string) rpc.DoctorCheckDiagnostic {
 		"ESP forms and one is installed again. Restart ze with the command below to load it again. If " +
 		"this finding returns, ").Str(espFormFastPathFixLog).Str(" lists why the gate could not be shut.")
 	return rpc.DoctorCheckDiagnostic{
-		Code:     diagnostic.CodeDoctorIPsecESPFormFastPath,
+		Code:     dataplane.CodeDoctorIPsecESPFormFastPath,
 		Severity: severityWarning,
 		Message:  tb.String(),
 		Fix:      dataplane.ESPFormFixRestart(),
@@ -1036,7 +1035,7 @@ func espFormFastPathStoppedFollowing(state *dataplane.ESPFormFastPathState) rpc.
 	espFormCompletePathCost(&tb, "that link")
 	tb.Str(" Restart ze to follow links again.")
 	return rpc.DoctorCheckDiagnostic{
-		Code:     diagnostic.CodeDoctorIPsecESPFormFastPath,
+		Code:     dataplane.CodeDoctorIPsecESPFormFastPath,
 		Severity: severityWarning,
 		Message:  tb.String(),
 		Fix:      dataplane.ESPFormFixRestart(),
@@ -1062,7 +1061,7 @@ func espFormLinkRefused(refusal *dataplane.ESPFormLinkRefusal) rpc.DoctorCheckDi
 			"lists every interface, so you can find it there.")
 	}
 	return rpc.DoctorCheckDiagnostic{
-		Code:     diagnostic.CodeDoctorIPsecESPFormLink,
+		Code:     dataplane.CodeDoctorIPsecESPFormLink,
 		Severity: severityWarning,
 		Message:  tb.String(),
 		Fix:      fix,
@@ -1124,7 +1123,7 @@ func espFormFastPathUnread(why, fix string) rpc.DoctorCheckDiagnostic {
 			"the kernel or re-presented through ").Str(espFormDevice).
 		Str(" at a bounded rate. The warnings the command below lists name the cause.")
 	return rpc.DoctorCheckDiagnostic{
-		Code:     diagnostic.CodeDoctorIPsecESPFormFastPath,
+		Code:     dataplane.CodeDoctorIPsecESPFormFastPath,
 		Severity: severityWarning,
 		Message:  tb.String(),
 		Fix:      fix,

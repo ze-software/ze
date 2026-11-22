@@ -51,8 +51,8 @@ var ownedDeviceDoctorCheck = diagnostic.DoctorCheck{
 	Dependencies: []string{"plugin-owned-devices"},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
 	Codes: []string{
-		diagnostic.CodeDoctorIfaceOwnedDeviceCleanup,
-		diagnostic.CodeDoctorIfaceOwnedDeviceReconcile,
+		CodeDoctorIfaceOwnedDeviceCleanup,
+		CodeDoctorIfaceOwnedDeviceReconcile,
 	},
 	Check: checkOwnedDevices,
 }
@@ -77,12 +77,12 @@ func checkOwnedDevices(diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	// An evicted warning is unknown state, never evidence the devices are
 	// right.
 	status, reason := report.HealthProbeDegraded(
-		diagnostic.CodeDoctorIfaceOwnedDeviceCleanup,
-		diagnostic.CodeDoctorIfaceOwnedDeviceReconcile,
+		CodeDoctorIfaceOwnedDeviceCleanup,
+		CodeDoctorIfaceOwnedDeviceReconcile,
 	)()
 	if status != health.StatusHealthy {
 		return []diagnostic.Diagnostic{{
-			Code: diagnostic.CodeDoctorIfaceOwnedDeviceCleanup, Severity: diagnostic.SeverityWarning,
+			Code: CodeDoctorIfaceOwnedDeviceCleanup, Severity: diagnostic.SeverityWarning,
 			Message: "the state of the plugin-owned interface devices is unknown: " + reason,
 			Fix:     ownedDeviceInspect,
 		}}
@@ -94,7 +94,7 @@ func checkOwnedDevices(diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 // after the plugin ended. Restarting the plugin declares its set again, and
 // that pass deletes what it no longer names.
 func raiseOwnedCleanupFailure(owner string, err error) {
-	report.RaiseWarningFix(OwnedDeviceReportSource, diagnostic.CodeDoctorIfaceOwnedDeviceCleanup,
+	report.RaiseWarningFix(OwnedDeviceReportSource, CodeDoctorIfaceOwnedDeviceCleanup,
 		ownedSubjectPlugin+owner,
 		report.FitMessage("owned interface devices of ended plugin "+owner+" were not all deleted: "+err.Error()),
 		"ze request plugin restart "+owner)
@@ -104,7 +104,7 @@ func raiseOwnedCleanupFailure(owner string, err error) {
 // owned device. The next start deletes every marked device no registration
 // names.
 func raiseOwnedStopFailure(err error) {
-	report.RaiseWarningFix(OwnedDeviceReportSource, diagnostic.CodeDoctorIfaceOwnedDeviceCleanup,
+	report.RaiseWarningFix(OwnedDeviceReportSource, CodeDoctorIfaceOwnedDeviceCleanup,
 		ownedSubjectStop,
 		report.FitMessage("interface stop: owned devices not all deleted: "+err.Error()),
 		"ze start")
@@ -114,7 +114,7 @@ func raiseOwnedStopFailure(err error) {
 // not be made again after a refused replacement, so the kernel no longer holds
 // what the plugin counts on.
 func raiseOwnedReconcileFailure(owner string, err error) {
-	report.RaiseWarningFix(OwnedDeviceReportSource, diagnostic.CodeDoctorIfaceOwnedDeviceReconcile,
+	report.RaiseWarningFix(OwnedDeviceReportSource, CodeDoctorIfaceOwnedDeviceReconcile,
 		ownedSubjectPlugin+owner,
 		report.FitMessage("owned bridges of plugin "+owner+" do not match its last accepted set: "+err.Error()),
 		"ze request plugin restart "+owner)

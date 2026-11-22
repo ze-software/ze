@@ -19,7 +19,6 @@ import (
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
@@ -712,7 +711,7 @@ func espFormNFTWatchBuffer(conn *netlink.Conn) error {
 			"watches the ruleset again",
 			"error", err, "octets", espFormNFTWatchBufferOctets,
 			"fix", privilege.CapabilityRemedy("CAP_NET_ADMIN"),
-			"code", diagnostic.CodeDoctorIPsecESPFormFirewall)
+			"code", CodeDoctorIPsecESPFormFirewall)
 	}
 	return nil
 }
@@ -820,7 +819,7 @@ func (w *espFormNFTWatch) Close() {
 	})
 	if err != nil {
 		slogutil.Logger("ike.dataplane").Warn("esp-form: the nftables watch did not close its socket, so its worker may outlive it",
-			"error", err, "code", diagnostic.CodeDoctorIPsecESPFormFirewall)
+			"error", err, "code", CodeDoctorIPsecESPFormFirewall)
 		return
 	}
 	<-w.done

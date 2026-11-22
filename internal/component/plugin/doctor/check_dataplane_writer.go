@@ -31,7 +31,7 @@ func checkDataPlaneWriter(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagno
 	tree, _ := ctx.Tree.(*config.Tree)
 	if tree == nil {
 		return []diagnostic.Diagnostic{{
-			Code:     diagnostic.CodeDoctorPluginNoDataPlaneWriter,
+			Code:     codeDoctorPluginNoDataPlaneWriter,
 			Severity: diagnostic.SeverityWarning,
 			Message:  "the config was not parsed, so whether its routes have a data-plane writer was not checked",
 			Fix:      "ze config validate",
@@ -72,7 +72,7 @@ func dataPlaneWriterRows(selected, configured []string, dataPlane string) []diag
 		fix = refusal.Fix()
 	}
 	return []diagnostic.Diagnostic{{
-		Code:     diagnostic.CodeDoctorPluginNoDataPlaneWriter,
+		Code:     codeDoctorPluginNoDataPlaneWriter,
 		Severity: diagnostic.SeverityError,
 		Message:  message.String(),
 		Fix:      fix,

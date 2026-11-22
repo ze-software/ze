@@ -13,7 +13,6 @@ import (
 	"github.com/vishvananda/netlink"
 
 	"github.com/ze-software/ze/internal/component/iface"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 )
 
@@ -25,8 +24,8 @@ import (
 func reportOwnedRollbackFailure(name, kind, stage string, delErr error) {
 	logger().Warn("iface: rollback delete after create failure",
 		"name", name, "kind", kind, "stage", stage, "err", delErr,
-		"code", diagnostic.CodeDoctorIfaceOwnedDeviceReconcile, "fix", "ip link delete "+name)
-	report.RaiseWarningFix(iface.OwnedDeviceReportSource, diagnostic.CodeDoctorIfaceOwnedDeviceReconcile,
+		"code", iface.CodeDoctorIfaceOwnedDeviceReconcile, "fix", "ip link delete "+name)
+	report.RaiseWarningFix(iface.OwnedDeviceReportSource, iface.CodeDoctorIfaceOwnedDeviceReconcile,
 		iface.OwnedDeviceSubjectDevice+name,
 		report.FitMessage("half-made owned "+kind+" "+name+" left after a failed "+stage+": "+delErr.Error()),
 		"ip link delete "+name)

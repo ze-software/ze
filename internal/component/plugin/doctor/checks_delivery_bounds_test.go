@@ -30,7 +30,7 @@ func TestBoundedRecordsNameWhatTheyDropped(t *testing.T) {
 	t.Run("enrichers", func(t *testing.T) {
 		state := server.PluginDoctorState{Name: "rich", Configured: true, EnrichersDropped: 3}
 		row := oneRow(t, enricherRows(&server.DoctorSnapshot{Plugins: []server.PluginDoctorState{state}}),
-			diagnostic.CodeDoctorPluginEnricherUnavailable, diagnostic.SeverityWarning, "rich", "3 more", "logged")
+			server.CodeDoctorPluginEnricherUnavailable, diagnostic.SeverityWarning, "rich", "3 more", "logged")
 		if row.Fix != loggedWarnings {
 			t.Fatalf("the dropped-enricher row's fix %q does not list the logged warnings", row.Fix)
 		}
@@ -38,7 +38,7 @@ func TestBoundedRecordsNameWhatTheyDropped(t *testing.T) {
 	t.Run("subscriptions", func(t *testing.T) {
 		state := runningState("subscriber", process.DoctorRecord{SubscriptionDropsDropped: 4})
 		row := oneRow(t, subscriptionDropRows(&server.DoctorSnapshot{Plugins: []server.PluginDoctorState{state}}),
-			diagnostic.CodeDoctorPluginSubscriptionDropped, diagnostic.SeverityError, "subscriber", "4 more", "logged")
+			server.CodeDoctorPluginSubscriptionDropped, diagnostic.SeverityError, "subscriber", "4 more", "logged")
 		if row.Fix != loggedWarnings {
 			t.Fatalf("the dropped-subscription row's fix %q does not list the logged warnings", row.Fix)
 		}
@@ -53,7 +53,7 @@ func TestBoundedRecordsNameWhatTheyDropped(t *testing.T) {
 	t.Run("command refusals", func(t *testing.T) {
 		state := runningState("commander", process.DoctorRecord{CommandRefusalsDropped: 2})
 		row := oneRow(t, commandRefusalRows(&server.DoctorSnapshot{Plugins: []server.PluginDoctorState{state}}),
-			diagnostic.CodeDoctorPluginCommandNotRegistered, diagnostic.SeverityWarning, "commander", "2 more", "logged")
+			server.CodeDoctorPluginCommandNotRegistered, diagnostic.SeverityWarning, "commander", "2 more", "logged")
 		if row.Fix != loggedWarnings {
 			t.Fatalf("the dropped command refusal row's fix %q does not list the logged warnings", row.Fix)
 		}
@@ -64,11 +64,11 @@ func TestBoundedRecordsNameWhatTheyDropped(t *testing.T) {
 		}}
 		state := runningState("busy", records)
 		oneRow(t, deliveryFailedRows(&server.DoctorSnapshot{Plugins: []server.PluginDoctorState{state}}),
-			diagnostic.CodeDoctorPluginDeliveryFailed, diagnostic.SeverityWarning, "busy", "at least")
+			process.CodeDoctorPluginDeliveryFailed, diagnostic.SeverityWarning, "busy", "at least")
 		records.Delivery.Truncated = false
 		state = runningState("busy", records)
 		row := oneRow(t, deliveryFailedRows(&server.DoctorSnapshot{Plugins: []server.PluginDoctorState{state}}),
-			diagnostic.CodeDoctorPluginDeliveryFailed, diagnostic.SeverityWarning, "busy")
+			process.CodeDoctorPluginDeliveryFailed, diagnostic.SeverityWarning, "busy")
 		if strings.Contains(row.Message, "at least") {
 			t.Fatalf("a window that kept every problem reads as a lower bound: %s", row.Message)
 		}
@@ -89,7 +89,7 @@ func TestConfigUnappliedFixRestartsThePlugin(t *testing.T) {
 	}})
 	row := oneRow(t, configUnappliedRows(&server.DoctorSnapshot{
 		Plugins: []server.PluginDoctorState{state}, LastCommittedTransaction: "tx-2",
-	}), diagnostic.CodeDoctorPluginConfigUnapplied, diagnostic.SeverityWarning, "rib", "tx-1", "tx-2")
+	}), server.CodeDoctorPluginConfigUnapplied, diagnostic.SeverityWarning, "rib", "tx-1", "tx-2")
 	if row.Fix != process.RestartCommand("rib") {
 		t.Fatalf("fix %q, want %q", row.Fix, process.RestartCommand("rib"))
 	}

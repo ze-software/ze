@@ -25,8 +25,11 @@ import (
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
-const credentialDoctorInputMarker = "INVALID-PRIVATE-PAYLOAD"
-const doctorLocalDNSConfig = "set system dns resolv-conf-path \"\"\n"
+const (
+	credentialDoctorInputMarker     = "INVALID-PRIVATE-PAYLOAD"
+	doctorLocalDNSConfig            = "set system dns resolv-conf-path \"\"\n"
+	codeDoctorLocalAdminCredentials = "doctor-local-admin-credentials"
+)
 
 func init() {
 	Register("storage/bootstrap-credential-doctor", bootstrapCredentialDoctorScenario)
@@ -141,7 +144,7 @@ func bootstrapCredentialDoctorJSON(ctx context.Context, want bool) error {
 	found := 0
 	for index := range result.Diagnostics {
 		diag := &result.Diagnostics[index]
-		if diag.Code != diagnostic.CodeDoctorLocalAdminCredentials {
+		if diag.Code != codeDoctorLocalAdminCredentials {
 			continue
 		}
 		found++

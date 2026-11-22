@@ -119,5 +119,5 @@ func TestDoctorCannotReadRecoveryState(t *testing.T) {
 // operator-readable description through the shared diagnostic registry.
 func TestDoctorRecoveryCodeRegistered(t *testing.T) {
 	diagnostic.RegisterBuiltinCodes()
-	require.NotNil(t, diagnostic.Lookup(diagnostic.CodeDoctorStorageRecoveryPending))
+	require.NotNil(t, diagnostic.Lookup(codeDoctorStorageRecoveryPending))
 }

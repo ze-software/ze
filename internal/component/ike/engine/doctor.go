@@ -11,7 +11,6 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -85,7 +84,8 @@ func checkIPsecInterface(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagn
 		// remove.
 		var tb textbuf.Buffer
 		return []rpc.DoctorCheckDiagnostic{{
-			Code:     diagnostic.CodeDoctorIPsecIface,
+			Code:     codeDoctorIPsecIface,
+			Fix:      "ze config validate",
 			Severity: severityError,
 			Message:  tb.Str("vpn ipsec config could not be parsed, so its interface reference was not checked: ").Err(err).String(),
 		}}
@@ -109,7 +109,8 @@ func checkIPsecInterface(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagn
 		}
 		var tb textbuf.Buffer
 		return []rpc.DoctorCheckDiagnostic{{
-			Code:     diagnostic.CodeDoctorIPsecIface,
+			Code:     codeDoctorIPsecIface,
+			Fix:      "delete vpn ipsec interface",
 			Severity: severityError,
 			Message:  tb.Str("vpn ipsec interface is set to the empty name; IPsec SAs will not bind to any interface").String(),
 		}}
@@ -129,7 +130,8 @@ func checkIPsecInterface(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagn
 	// so 15 usable). A name like "br..0" is LEGAL and must reach the resolver.
 	if invalidInterfaceName(cfg.Interface) {
 		return []rpc.DoctorCheckDiagnostic{{
-			Code:     diagnostic.CodeDoctorIPsecIface,
+			Code:     codeDoctorIPsecIface,
+			Fix:      "set vpn ipsec interface <interface>",
 			Severity: severityError,
 			Message:  tb.Str("vpn ipsec interface has an invalid name: ").Str(cfg.Interface).String(),
 		}}
@@ -137,7 +139,8 @@ func checkIPsecInterface(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagn
 
 	if err := cfg.ValidateInterfaceRef(ipsecInterfaceExists); err != nil {
 		return []rpc.DoctorCheckDiagnostic{{
-			Code:     diagnostic.CodeDoctorIPsecIface,
+			Code:     codeDoctorIPsecIface,
+			Fix:      "set vpn ipsec interface <interface>",
 			Severity: severityError,
 			Message: tb.Str("vpn ipsec interface not found: ").Str(cfg.Interface).
 				Str(" (peers without an explicit local-address wait until it exists and holds an IPv4 address; create the interface, or give each peer one with: set vpn ipsec site-to-site peer <name> local-address <ipv4>)").String(),

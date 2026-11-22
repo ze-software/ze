@@ -36,8 +36,8 @@ func TestPluginSetupFailedReportsRecordedOutcome(t *testing.T) {
 	if !ok {
 		t.Fatal("no row for the hard setup failure")
 	}
-	if hard.Code != diagnostic.CodeDoctorPluginSetupFailed || hard.Severity != diagnostic.SeverityError {
-		t.Errorf("hard row %s/%s, want error %s", hard.Severity, hard.Code, diagnostic.CodeDoctorPluginSetupFailed)
+	if hard.Code != codeDoctorPluginSetupFailed || hard.Severity != diagnostic.SeverityError {
+		t.Errorf("hard row %s/%s, want error %s", hard.Severity, hard.Code, codeDoctorPluginSetupFailed)
 	}
 	if !strings.Contains(hard.Message, "open /dev/x: no such file") {
 		t.Errorf("hard row %q does not carry the recorded reason", hard.Message)

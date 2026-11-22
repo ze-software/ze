@@ -208,7 +208,7 @@ func runtimeNotChecked(err error) diagnostic.Diagnostic {
 	message.Str("runtime checks did not run: they need the running daemon, and none answered: ").Str(why).
 		Str("; this answer holds only the checks ze doctor runs in its own process")
 	return diagnostic.Diagnostic{
-		Code:     diagnostic.CodeDoctorRuntimeNotChecked,
+		Code:     codeDoctorRuntimeNotChecked,
 		Severity: diagnostic.SeverityWarning,
 		Message:  message.String(),
 		Fix:      fix,

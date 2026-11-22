@@ -93,8 +93,8 @@ func TestDataPlaneWriterCheckFromTree(t *testing.T) {
 		if len(rows) != 1 {
 			t.Fatalf("%s: rows = %+v; want exactly one", name, rows)
 		}
-		if rows[0].Code != diagnostic.CodeDoctorPluginNoDataPlaneWriter {
-			t.Errorf("%s: code = %q; want %q", name, rows[0].Code, diagnostic.CodeDoctorPluginNoDataPlaneWriter)
+		if rows[0].Code != codeDoctorPluginNoDataPlaneWriter {
+			t.Errorf("%s: code = %q; want %q", name, rows[0].Code, codeDoctorPluginNoDataPlaneWriter)
 		}
 		if rows[0].Severity != diagnostic.SeverityError {
 			t.Errorf("%s: severity = %q; want %q", name, rows[0].Severity, diagnostic.SeverityError)

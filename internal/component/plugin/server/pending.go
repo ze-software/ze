@@ -11,7 +11,6 @@ import (
 
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 // MaxPendingPerProcess limits pending requests to prevent memory exhaustion.
@@ -72,8 +71,8 @@ func (p *PendingRequests) Add(req *PendingRequest) string {
 			}) {
 				slog.Warn("plugin pending: refusal undelivered, caller is not reading",
 					"command", req.Command, "limit", MaxPendingPerProcess,
-					"code", diagnostic.CodeDoctorPluginAnswerUndelivered)
-				raiseServerEvent(diagnostic.CodeDoctorPluginAnswerUndelivered, req.Command, "plugin pending: refusal undelivered, caller is not reading")
+					"code", CodeDoctorPluginAnswerUndelivered)
+				raiseServerEvent(CodeDoctorPluginAnswerUndelivered, req.Command, "plugin pending: refusal undelivered, caller is not reading")
 			}
 			return ""
 		}
@@ -188,8 +187,8 @@ func deliver(req *PendingRequest, resp *plugin.Response) error {
 	case <-wait.C:
 		slog.Warn("plugin pending: response undelivered, caller is not reading",
 			"serial", req.Serial, "command", req.Command, "timeout", req.Timeout,
-			"code", diagnostic.CodeDoctorPluginAnswerUndelivered)
-		raiseServerEvent(diagnostic.CodeDoctorPluginAnswerUndelivered, req.Command, "plugin pending: response undelivered, caller is not reading")
+			"code", CodeDoctorPluginAnswerUndelivered)
+		raiseServerEvent(CodeDoctorPluginAnswerUndelivered, req.Command, "plugin pending: response undelivered, caller is not reading")
 		return ErrPendingUndeliverable
 	}
 }
@@ -235,7 +234,7 @@ func (p *PendingRequests) timeout(serial string) {
 	}); err != nil {
 		slog.Warn("plugin pending: timeout notice undelivered",
 			"serial", serial, "command", req.Command, "error", err,
-			"code", diagnostic.CodeDoctorPluginAnswerUndelivered)
+			"code", CodeDoctorPluginAnswerUndelivered)
 		// deliver raised the undelivered answer itself; this line names the notice.
 	}
 }
@@ -276,7 +275,7 @@ func (p *PendingRequests) CancelAll(proc *process.Process) {
 		}); err != nil {
 			slog.Warn("plugin pending: process-death notice undelivered",
 				"serial", req.Serial, "command", req.Command, "error", err,
-				"code", diagnostic.CodeDoctorPluginAnswerUndelivered)
+				"code", CodeDoctorPluginAnswerUndelivered)
 			// deliver raised the undelivered answer itself; this line names the notice.
 		}
 	}

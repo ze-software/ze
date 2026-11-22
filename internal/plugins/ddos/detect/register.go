@@ -78,7 +78,7 @@ func init() {
 			Order:        760,
 			Dependencies: []string{"config-loaded"},
 			Platforms:    []string{"any"},
-			Codes:        []string{"doctor-ddos-detect-no-flow-source"},
+			Codes:        []string{codeDoctorDDoSDetectNoFlowSource},
 			Check:        checkFlowSource,
 		}},
 	}

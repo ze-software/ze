@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/plugin/process"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -24,7 +23,7 @@ const (
 // plugin's capture state, including when the plugin runs in another process.
 func advertiseDoctorDeclaration() rpc.DoctorCheckDecl {
 	return rpc.DoctorCheckDecl{Name: advertiseDoctorName, Phase: rpc.DoctorPhaseRuntime,
-		Codes: []string{diagnostic.CodeDoctorBGPSelectedOutput}}
+		Codes: []string{codeDoctorBGPSelectedOutput}}
 }
 
 // advertiseDoctorCheck reads the latched failure without applying a repair or
@@ -40,7 +39,7 @@ func (r *RIBManager) advertiseDoctorCheck(name string) ([]rpc.DoctorCheckDiagnos
 	findings := r.sourceLeases.doctorFailures()
 	findings = append(findings, r.selectedDispatch.doctorFailures()...)
 	if failure != nil {
-		findings = append(findings, rpc.DoctorCheckDiagnostic{Code: diagnostic.CodeDoctorBGPSelectedOutput,
+		findings = append(findings, rpc.DoctorCheckDiagnostic{Code: codeDoctorBGPSelectedOutput,
 			Severity: "error", Message: advertiseFailureMessage(failure), Fix: r.advertiseRepair()})
 	}
 	return findings, nil
@@ -103,10 +102,10 @@ func (r *RIBManager) reportAdvertiseIssue(ctx context.Context) {
 
 	message, fix := advertiseFailureMessage(failure), r.advertiseRepair()
 	logger().Warn("BGP selected routes are unavailable", "cause", failure,
-		"code", diagnostic.CodeDoctorBGPSelectedOutput, "fix", fix)
+		"code", codeDoctorBGPSelectedOutput, "fix", fix)
 	ctx, cancel := context.WithTimeout(ctx, advertiseReportBudget)
 	err := r.plugin.RaiseIssue(ctx, sdk.Issue{Severity: rpc.ReportError,
-		Code: diagnostic.CodeDoctorBGPSelectedOutput, Subject: "selected routes", Message: message, Fix: fix})
+		Code: codeDoctorBGPSelectedOutput, Subject: "selected routes", Message: message, Fix: fix})
 	cancel()
 	r.advertise.mu.Lock()
 	r.advertise.reporting = false
@@ -119,6 +118,6 @@ func (r *RIBManager) reportAdvertiseIssue(ctx context.Context) {
 	r.advertise.mu.Unlock()
 	if err != nil {
 		logger().Warn("BGP selected-route failure was not acknowledged by the daemon", "error", err,
-			"code", diagnostic.CodeDoctorBGPSelectedOutput, "fix", fix)
+			"code", codeDoctorBGPSelectedOutput, "fix", fix)
 	}
 }

@@ -56,7 +56,7 @@ func RegisterEventCode(event EventCode) error {
 		var tb textbuf.Buffer
 		return errors.New(tb.Str("diagnostic event code: ").Str(event.Code).
 			Str(" has no metadata, so ze show diagnostic cannot describe it. ").
-			Str("Add its CodeMeta entry to builtinCodes in internal/core/diagnostic/codes.go").String())
+			Str("Register its CodeMeta with diagnostic.Register in its owning package before calling RegisterEventCode").String())
 	}
 	eventCodeRegistry.Lock()
 	defer eventCodeRegistry.Unlock()

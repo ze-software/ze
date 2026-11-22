@@ -17,8 +17,8 @@ func TestPKICodesRegistered(t *testing.T) {
 	diagnostic.RegisterBuiltinCodes()
 
 	codes := []string{
-		diagnostic.CodeDoctorPKICARootMissing,
-		diagnostic.CodeDoctorPKICARootExpiry,
+		codeDoctorPKICARootMissing,
+		codeDoctorPKICARootExpiry,
 		diagnostic.CodeDoctorTLSInvalid,
 		diagnostic.CodeDoctorTLSReference,
 		diagnostic.CodeDoctorTLSExpired,

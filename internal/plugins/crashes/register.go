@@ -40,7 +40,7 @@ func init() {
 		Component:    componentName,
 		Dependencies: []string{doctorConfigLoaded},
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
-		Codes:        []string{"doctor-crash-capture-unarmed"},
+		Codes:        []string{codeDoctorCrashCaptureUnarmed},
 		Check:        checkCrashCaptureArmed,
 	})
 	registerDoctorCheck(diagnostic.DoctorCheck{
@@ -50,7 +50,7 @@ func init() {
 		Component:    componentName,
 		Dependencies: []string{doctorConfigLoaded},
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
-		Codes:        []string{"doctor-crash-capture-pstore"},
+		Codes:        []string{codeDoctorCrashCapturePstore},
 		Check:        checkCrashCapturePstore,
 	})
 	registerDoctorCheck(diagnostic.DoctorCheck{
@@ -60,7 +60,7 @@ func init() {
 		Component:    componentName,
 		Dependencies: []string{doctorConfigLoaded},
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
-		Codes:        []string{"doctor-crash-directory-unwritable"},
+		Codes:        []string{codeDoctorCrashDirectoryUnwritable},
 		Check:        checkCrashDirectory,
 	})
 

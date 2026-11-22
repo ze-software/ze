@@ -7,6 +7,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	zeplugin "github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/diagnostic"
@@ -26,7 +27,7 @@ func TestExternalPluginNameCheck(t *testing.T) {
 		t.Fatalf("rows = %+v, want one for a_b", rows)
 	}
 	row := rows[0]
-	if row.Code != diagnostic.CodeDoctorPluginConnectBackRefused || row.Severity != diagnostic.SeverityError {
+	if row.Code != ipc.ConnectBackRefusedCode || row.Severity != diagnostic.SeverityError {
 		t.Errorf("row = %+v", row)
 	}
 	if !strings.Contains(row.Message, `"a_b"`) || row.Fix == "" {
@@ -100,7 +101,7 @@ func TestManagedClientRejectedRow(t *testing.T) {
 	}
 	for _, cause := range causes {
 		row := managedRejectedRow(server.ManagedClientRejection{Client: "edge-1", Cause: cause, Detail: "the detail"})
-		if row.Code != diagnostic.CodeDoctorManagedClientRejected || row.Severity != diagnostic.SeverityWarning {
+		if row.Code != server.CodeDoctorManagedClientRejected || row.Severity != diagnostic.SeverityWarning {
 			t.Errorf("cause %d: row = %+v", cause, row)
 		}
 		if !strings.Contains(row.Message, `"edge-1"`) || !strings.Contains(row.Message, "the detail") || row.Fix == "" {

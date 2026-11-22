@@ -12,7 +12,6 @@ import (
 
 	plugipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 // postStartupTimeout bounds the wait for a plugin to process the post-startup
@@ -144,5 +143,5 @@ func (s *Server) recordPostStartupOutcome(proc *process.Process, err error) {
 	proc.SetPostStartup(process.PostStartupUndelivered, err)
 	logger().Warn("plugin did not receive its post-startup callback, so work it starts after "+
 		"startup is not running; check it is running with `ze show plugin list` and read its log",
-		"plugin", proc.Name(), "error", err, "code", diagnostic.CodeDoctorPluginPostStartupUndelivered)
+		"plugin", proc.Name(), "error", err, "code", CodeDoctorPluginPostStartupUndelivered)
 }

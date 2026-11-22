@@ -22,7 +22,7 @@ func init() {
 		Order: 752, Component: componentVPP,
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
 		Dependencies: []string{dependencyKernel},
-		Codes:        []string{diagnostic.CodeDoctorVPPProcess},
+		Codes:        []string{codeDoctorVPPProcess},
 		Check:        checkProcessPeer,
 	}); err != nil {
 		panic("BUG: VPP process doctor registration failed: " + err.Error())
@@ -36,16 +36,16 @@ func processFailureKey(peer *processWitness, subject string) string {
 
 func reportProcessFailure(peer *processWitness, subject string, cause error) {
 	key := processFailureKey(peer, subject)
-	report.RaiseWarningFix(processReportSource, diagnostic.CodeDoctorVPPProcess, key,
+	report.RaiseWarningFix(processReportSource, codeDoctorVPPProcess, key,
 		"VPP process ownership could not be confirmed", processReportFix,
 		map[string]any{reportDetailErrorKey: cause.Error(), "operation": subject})
 	logger().Warn("vpp: process ownership could not be confirmed",
-		"code", diagnostic.CodeDoctorVPPProcess, "fix", processReportFix,
+		"code", codeDoctorVPPProcess, "fix", processReportFix,
 		"operation", subject, "error", cause)
 }
 
 func clearProcessObservationFailure(peer *processWitness) {
-	report.ClearWarning(processReportSource, diagnostic.CodeDoctorVPPProcess,
+	report.ClearWarning(processReportSource, codeDoctorVPPProcess,
 		processFailureKey(peer, "observation"))
 }
 
@@ -61,14 +61,14 @@ func checkProcessPeerWithProbe(input diagnostic.DoctorCheckContext, probe func()
 		if issue.Source != processReportSource {
 			continue
 		}
-		if issue.Code != diagnostic.CodeDoctorVPPProcess {
+		if issue.Code != codeDoctorVPPProcess {
 			continue
 		}
 		message := issue.Message
 		if cause, ok := issue.Detail[reportDetailErrorKey].(string); ok {
 			message += ": " + cause
 		}
-		findings = append(findings, diagnostic.Diagnostic{Code: diagnostic.CodeDoctorVPPProcess,
+		findings = append(findings, diagnostic.Diagnostic{Code: codeDoctorVPPProcess,
 			Severity: diagnostic.SeverityWarning, Message: message, Fix: processReportFix})
 	}
 	if len(findings) != 0 {
@@ -90,7 +90,7 @@ func checkProcessPeerWithProbe(input diagnostic.DoctorCheckContext, probe func()
 		return nil
 	}
 	if err := probe(); err != nil {
-		return []diagnostic.Diagnostic{{Code: diagnostic.CodeDoctorVPPProcess,
+		return []diagnostic.Diagnostic{{Code: codeDoctorVPPProcess,
 			Severity: diagnostic.SeverityError,
 			Message:  "VPP cannot retain its actual peer process: " + err.Error(), Fix: processReportFix}}
 	}

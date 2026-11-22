@@ -16,7 +16,6 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/transport"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 )
 
@@ -657,7 +656,7 @@ func (s *ikeEngineState) assertUnmatched(action dataplane.SPAction, phase applyP
 	}
 	refusal := unmatchedStartRefusal(action, err)
 	s.log.LogAttrs(context.Background(), slog.LevelError, "ike: "+refusal.Problem(),
-		refusal.LogAttrs(slog.String("code", diagnostic.CodeDoctorIPsecSPDCatchAllMissing))...)
+		refusal.LogAttrs(slog.String("code", codeDoctorIPsecSPDCatchAllMissing))...)
 	s.unmatchedRefused = refusal
 	return false, nil
 }
@@ -699,11 +698,11 @@ func (s *ikeEngineState) recordESPFormTUN(cfg *ipsec.IPsecConfig) {
 		s.log.LogAttrs(context.Background(), slog.LevelWarn, refusedText,
 			refusal.LogAttrs(
 				slog.String("problem", refusal.Problem()),
-				slog.String("code", diagnostic.CodeDoctorIPsecESPFormTUN))...)
+				slog.String("code", dataplane.CodeDoctorIPsecESPFormTUN))...)
 		return
 	}
 	s.log.Warn(refusedText, "error", record.err, "fix", "ze show doctor",
-		"code", diagnostic.CodeDoctorIPsecESPFormTUN)
+		"code", dataplane.CodeDoctorIPsecESPFormTUN)
 }
 
 // recordESPFormFastPath asks whether the ESP form fast path's program would load
@@ -743,14 +742,14 @@ func (s *ikeEngineState) recordESPFormFastPath(cfg *ipsec.IPsecConfig) {
 		s.log.Warn("ike: the IPsec ESP form fast path will not load, so bare ESP for a Child SA on UDP port 4500 "+
 			"will be re-presented through ze-espform, rate-bounded",
 			"cause", record.err, "fix", dataplane.ESPFormFastPathFix(record.fault),
-			"code", diagnostic.CodeDoctorIPsecESPFormFastPath)
+			"code", dataplane.CodeDoctorIPsecESPFormFastPath)
 		return
 	case espFormFastPathUndetermined, espFormFastPathReadinessUnspecified:
 	}
 	s.log.Warn("ike: Ze cannot tell whether the IPsec ESP form fast path will load: loading it to check failed "+
 		"for a cause that is neither a missing capability nor a kernel without TCX",
 		"error", record.err, "fix", "ze show doctor",
-		"code", diagnostic.CodeDoctorIPsecESPFormFastPath)
+		"code", dataplane.CodeDoctorIPsecESPFormFastPath)
 }
 
 // reconcile starts, stops and restarts peer sessions so the running set matches plan,

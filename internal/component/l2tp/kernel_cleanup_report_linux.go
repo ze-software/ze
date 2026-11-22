@@ -11,7 +11,6 @@ import (
 	"log/slog"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/subscriberid"
@@ -34,7 +33,7 @@ const (
 func (w *kernelWorker) reportKernelCleanupFailure(operation string, tid, sid uint16, birth subscriberid.L2TPBirth, fd int, cause error) {
 	failure := opererr.Wrap(cause, "L2TP "+operation+" is unconfirmed", kernelCleanupWhy, kernelCleanupFix)
 	w.logger.LogAttrs(context.Background(), slog.LevelWarn, failure.Problem(),
-		failure.LogAttrs(slog.String("code", diagnostic.CodeDoctorPPPCleanup),
+		failure.LogAttrs(slog.String("code", ppp.CodeDoctorPPPCleanup),
 			slog.Uint64(reportFieldTunnelID, uint64(tid)), slog.Uint64(reportFieldSessionID, uint64(sid)),
 			slog.Int("fd", fd), slog.String("birth", birth.String()))...)
 	detail := map[string]any{reportFieldTunnelID: tid, "operation": operation, "error": cause.Error()}
@@ -47,7 +46,7 @@ func (w *kernelWorker) reportKernelCleanupFailure(operation string, tid, sid uin
 	if birth.IsValid() {
 		detail["birth"] = birth.String()
 	}
-	report.RaiseWarningFix(ppp.CleanupReportSource, diagnostic.CodeDoctorPPPCleanup,
+	report.RaiseWarningFix(ppp.CleanupReportSource, ppp.CodeDoctorPPPCleanup,
 		kernelCleanupWarningSubject(operation, tid, sid, birth, fd),
 		report.FitMessage(failure.Problem()+". "+failure.Why()+": "+cause.Error()), failure.Fix(), detail)
 }
@@ -55,21 +54,21 @@ func (w *kernelWorker) reportKernelCleanupFailure(operation string, tid, sid uin
 // clearKernelSessionDeleteWarning MUST be called under worker.mu only after
 // the same original session's Delete confirms removal. Close warnings remain.
 func clearKernelSessionDeleteWarning(key sessionKey, owner *pppSessionFDs) {
-	report.ClearWarning(ppp.CleanupReportSource, diagnostic.CodeDoctorPPPCleanup,
+	report.ClearWarning(ppp.CleanupReportSource, ppp.CodeDoctorPPPCleanup,
 		kernelCleanupWarningSubject(kernelCleanupSessionDelete, key.tunnelID, key.sessionID, kernelCleanupBirth(owner), -1))
 }
 
 // clearKernelBridgeWarning clears only the exact settled original bridge.
 // Caller MUST hold worker.mu after ClosePending became false.
 func clearKernelBridgeWarning(key sessionKey, owner *pppSessionFDs, fd int) {
-	report.ClearWarning(ppp.CleanupReportSource, diagnostic.CodeDoctorPPPCleanup,
+	report.ClearWarning(ppp.CleanupReportSource, ppp.CodeDoctorPPPCleanup,
 		kernelCleanupWarningSubject(kernelCleanupChannelRelease, key.tunnelID, key.sessionID, kernelCleanupBirth(owner), fd))
 }
 
 // clearKernelTunnelDeleteWarning MUST be called under worker.mu only after
 // this original tunnel's Delete confirms removal. Close warnings remain.
 func clearKernelTunnelDeleteWarning(owner *kernelTunnelState) {
-	report.ClearWarning(ppp.CleanupReportSource, diagnostic.CodeDoctorPPPCleanup,
+	report.ClearWarning(ppp.CleanupReportSource, ppp.CodeDoctorPPPCleanup,
 		kernelCleanupWarningSubject(kernelCleanupTunnelDelete, owner.localTID, 0, owner.birth, -1))
 }
 

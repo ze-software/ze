@@ -18,7 +18,7 @@ import (
 // riding a key an API client reads as a repair grade.
 func TestDiagnosticFixKey(t *testing.T) {
 	d := Diagnostic{
-		Code:     CodeDoctorRuntimeNotChecked,
+		Code:     "doctor-runtime-not-checked",
 		Severity: SeverityWarning,
 		Message:  "runtime checks did not run",
 		Fix:      "ze start",
@@ -39,16 +39,17 @@ func TestDiagnosticFixKey(t *testing.T) {
 	assert.NotContains(t, raw, "fix")
 }
 
-// TestBuiltinCodesExplainRuntimeCodes checks that the two codes the runtime
-// phase adds are explained, so ze show diagnostic answers for them.
+// TestBuiltinCodesExplainRuntimeCodes checks that the cross-cutting runtime
+// code this package owns is explained, so ze show diagnostic answers for it.
 //
-// VALIDATES: doctor-runtime-not-checked and doctor-recent-events resolve through Lookup.
+// VALIDATES: doctor-recent-events resolves through Lookup.
 // PREVENTS: a doctor row whose code ze show diagnostic does not know.
 func TestBuiltinCodesExplainRuntimeCodes(t *testing.T) {
+	t.Cleanup(SnapshotForTest())
 	ResetForTest()
 	RegisterBuiltinCodes()
 
-	for _, code := range []string{CodeDoctorRuntimeNotChecked, CodeDoctorRecentEvents} {
+	for _, code := range []string{CodeDoctorRecentEvents} {
 		assert.NotNil(t, Lookup(code), "code %s has no explanation", code)
 	}
 }

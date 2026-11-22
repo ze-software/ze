@@ -25,7 +25,6 @@ import (
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/core/audit"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -2006,8 +2005,8 @@ func pluginAnswerRows(command string, answer *rpc.Answer, release func(), respon
 				"The plugin returned inconsistent record metadata, so completion cannot be confirmed",
 				"ze show errors").Error()
 			logger().Warn("plugin answer outcome is invalid",
-				"command", command, "error", err, "code", diagnostic.CodeDoctorPluginAnswerUndelivered)
-			raiseServerEvent(diagnostic.CodeDoctorPluginAnswerUndelivered, command, "plugin answer outcome is invalid: "+err.Error())
+				"command", command, "error", err, "code", CodeDoctorPluginAnswerUndelivered)
+			raiseServerEvent(CodeDoctorPluginAnswerUndelivered, command, "plugin answer outcome is invalid: "+err.Error())
 		}
 	}
 }

@@ -12,7 +12,6 @@ import (
 
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/report"
 )
@@ -186,17 +185,17 @@ func reportCleanupHeldSessionSlots(logger *slog.Logger, refusal string, localTID
 		" session slots are held by removed sessions whose cleanup is unconfirmed",
 		cleanupHeldSlotsWhy, cleanupHeldSlotsFix)
 	logger.LogAttrs(context.Background(), slog.LevelWarn, failure.Problem(),
-		failure.LogAttrs(slog.String("code", diagnostic.CodeDoctorPPPCleanup),
+		failure.LogAttrs(slog.String("code", ppp.CodeDoctorPPPCleanup),
 			slog.Uint64(reportFieldTunnelID, uint64(localTID)), slog.Int("max", limit),
 			slog.Int("current", live), slog.Int("cleanup-pending", held))...)
-	report.RaiseWarningFix(ppp.CleanupReportSource, diagnostic.CodeDoctorPPPCleanup,
+	report.RaiseWarningFix(ppp.CleanupReportSource, ppp.CodeDoctorPPPCleanup,
 		cleanupHeldSessionSlotsSubject(localTID),
 		report.FitMessage(failure.Problem()+". "+failure.Why()), failure.Fix(),
 		map[string]any{reportFieldTunnelID: localTID, "max": limit, "current": live, "cleanup-pending": held})
 }
 
 func clearCleanupHeldSessionSlots(localTID uint16) {
-	report.ClearWarning(ppp.CleanupReportSource, diagnostic.CodeDoctorPPPCleanup,
+	report.ClearWarning(ppp.CleanupReportSource, ppp.CodeDoctorPPPCleanup,
 		cleanupHeldSessionSlotsSubject(localTID))
 }
 
@@ -208,16 +207,16 @@ func reportCleanupHeldTunnelSlots(logger *slog.Logger, refusal string, peer slog
 		" tunnel slots are held by closed tunnels whose session cleanup is unconfirmed",
 		cleanupHeldSlotsWhy, cleanupHeldSlotsFix)
 	logger.LogAttrs(context.Background(), slog.LevelWarn, failure.Problem(),
-		failure.LogAttrs(slog.String("code", diagnostic.CodeDoctorPPPCleanup), peer,
+		failure.LogAttrs(slog.String("code", ppp.CodeDoctorPPPCleanup), peer,
 			slog.Int("limit", limit), slog.Int("current", live), slog.Int("cleanup-pending", held))...)
-	report.RaiseWarningFix(ppp.CleanupReportSource, diagnostic.CodeDoctorPPPCleanup,
+	report.RaiseWarningFix(ppp.CleanupReportSource, ppp.CodeDoctorPPPCleanup,
 		cleanupHeldTunnelSlotsSubject,
 		report.FitMessage(failure.Problem()+". "+failure.Why()), failure.Fix(),
 		map[string]any{"limit": limit, "current": live, "cleanup-pending": held})
 }
 
 func clearCleanupHeldTunnelSlots() {
-	report.ClearWarning(ppp.CleanupReportSource, diagnostic.CodeDoctorPPPCleanup, cleanupHeldTunnelSlotsSubject)
+	report.ClearWarning(ppp.CleanupReportSource, ppp.CodeDoctorPPPCleanup, cleanupHeldTunnelSlotsSubject)
 }
 
 // cleanupCapturedOriginal ends only resources retained by the original row.

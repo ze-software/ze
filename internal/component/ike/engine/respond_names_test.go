@@ -12,7 +12,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 // respondByName is a `respond` peer whose remote-address is a DNS name.
@@ -133,7 +132,7 @@ func TestDoctorIPsecInterfaceAddressWaiting(t *testing.T) {
 	if len(got) != 1 {
 		t.Fatalf("diagnostics %+v, want one", got)
 	}
-	if got[0].Code != diagnostic.CodeDoctorIPsecInterfaceAddress {
+	if got[0].Code != codeDoctorIPsecInterfaceAddress {
 		t.Fatalf("code %q", got[0].Code)
 	}
 	for _, want := range []string{"office", "pppoe0", "local-address", "Bring the interface up"} {

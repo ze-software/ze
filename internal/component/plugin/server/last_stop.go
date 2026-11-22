@@ -22,6 +22,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
@@ -76,15 +77,15 @@ var lastStopRun = time.Now().UTC()
 func (r LastStopReason) Code() string {
 	switch r {
 	case LastStopFatalPolicy, LastStopBootRefused:
-		return diagnostic.CodeDoctorPluginFatalStop
+		return CodeDoctorPluginFatalStop
 	case LastStopCleanupLate:
-		return diagnostic.CodeDoctorPluginStopCleanupLate
+		return process.CodeDoctorPluginStopCleanupLate
 	case LastStopSchemaRefused:
-		return diagnostic.CodeDoctorPluginSchemaRefused
+		return CodeDoctorPluginSchemaRefused
 	case LastStopSchemaUndeclared:
-		return diagnostic.CodeDoctorPluginSchemaUndeclared
+		return CodeDoctorPluginSchemaUndeclared
 	case LastStopShutdownOrder:
-		return diagnostic.CodeDoctorPluginShutdownOrder
+		return process.CodeDoctorPluginShutdownOrder
 	case LastStopBuildRegistrationUnheld:
 		return diagnostic.CodeDoctorBuildRegistrationUnheld
 	case LastStopUnspecified:
@@ -284,26 +285,26 @@ func recordLastStopLogged(entry LastStopEntry) bool {
 	}
 	if entry.Reason == LastStopCleanupLate {
 		logger().Warn("could not record why ze is stopping, so the next ze doctor cannot name it; run ze init if this daemon has no store",
-			"plugin", entry.Plugin, "detail", entry.Detail, "error", err, "code", diagnostic.CodeDoctorPluginStopCleanupLate)
+			"plugin", entry.Plugin, "detail", entry.Detail, "error", err, "code", process.CodeDoctorPluginStopCleanupLate)
 		return false
 	}
 	if entry.Reason == LastStopShutdownOrder {
 		logger().Warn("could not record the shutdown ordering failure, so local doctor cannot name it after the stop; inspect the store with ze data list",
 			"plugin", entry.Plugin, "detail", entry.Detail, "error", err,
-			"fix", "ze data list", "code", diagnostic.CodeDoctorPluginShutdownOrder)
-		report.RaiseErrorFix(serverEventSource, diagnostic.CodeDoctorPluginShutdownOrder, "last-stop-record",
+			"fix", "ze data list", "code", process.CodeDoctorPluginShutdownOrder)
+		report.RaiseErrorFix(serverEventSource, process.CodeDoctorPluginShutdownOrder, "last-stop-record",
 			report.FitMessage("shutdown ordering failure could not be recorded, so local doctor cannot report it after the stop: "+err.Error()),
 			"ze data list")
 		return false
 	}
 	if entry.Reason == LastStopSchemaRefused {
 		logger().Warn("could not record why ze is stopping, so the next ze doctor cannot name it; run ze init if this daemon has no store",
-			"plugin", entry.Plugin, "detail", entry.Detail, "error", err, "code", diagnostic.CodeDoctorPluginSchemaRefused)
+			"plugin", entry.Plugin, "detail", entry.Detail, "error", err, "code", CodeDoctorPluginSchemaRefused)
 		return false
 	}
 	if entry.Reason == LastStopSchemaUndeclared {
 		logger().Warn("could not record why ze is stopping, so the next ze doctor cannot name it; run ze init if this daemon has no store",
-			"plugin", entry.Plugin, "detail", entry.Detail, "error", err, "code", diagnostic.CodeDoctorPluginSchemaUndeclared)
+			"plugin", entry.Plugin, "detail", entry.Detail, "error", err, "code", CodeDoctorPluginSchemaUndeclared)
 		return false
 	}
 	if entry.Reason == LastStopBuildRegistrationUnheld {
@@ -312,7 +313,7 @@ func recordLastStopLogged(entry LastStopEntry) bool {
 		return false
 	}
 	logger().Warn("could not record why ze is stopping, so the next ze doctor cannot name it; run ze init if this daemon has no store",
-		"plugin", entry.Plugin, "detail", entry.Detail, "error", err, "code", diagnostic.CodeDoctorPluginFatalStop)
+		"plugin", entry.Plugin, "detail", entry.Detail, "error", err, "code", CodeDoctorPluginFatalStop)
 	return false
 }
 
@@ -348,6 +349,6 @@ func (s *Server) settleLastStop() {
 			return
 		}
 		logger().Warn("could not delete the record of why ze last stopped, so ze doctor may name a stale cause; check the store with ze data registered",
-			"error", err, "code", diagnostic.CodeDoctorPluginFatalStop)
+			"error", err, "code", CodeDoctorPluginFatalStop)
 	}
 }

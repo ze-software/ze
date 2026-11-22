@@ -10,7 +10,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/ike/transport"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -92,7 +91,8 @@ func checkIPsecUDPEncap(_ registry.DoctorCheckContext) []rpc.DoctorCheckDiagnost
 		Str("), so a NAT-traversing tunnel will establish and carry no traffic: ").
 		Err(r.err)
 	return []rpc.DoctorCheckDiagnostic{{
-		Code:     diagnostic.CodeDoctorIPsecUDPEncap,
+		Code:     codeDoctorIPsecUDPEncap,
+		Fix:      "ze show diagnostic doctor-ipsec-udp-encap",
 		Severity: severityError,
 		Message:  tb.String(),
 	}}

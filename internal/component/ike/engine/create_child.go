@@ -16,7 +16,6 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/transport"
 	"github.com/ze-software/ze/internal/component/ike/wire"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 )
 
@@ -1013,7 +1012,7 @@ func (ps *PeerSession) finishChildCreate(sa *SA, p *pendingRekey, inner []wire.P
 		ps.recordChildRefused(err, now)
 		log.Warn("child-sa: creation response refused, deleting the pair", "peer", ps.peerName,
 			"error", err, "retry-after", ps.childCreate.wait, "fix", childInstallRefusedFix(err),
-			"code", diagnostic.CodeDoctorIPsecChildInstallRefused)
+			"code", codeDoctorIPsecChildInstallRefused)
 	}
 	return ownedOutcome{}
 }

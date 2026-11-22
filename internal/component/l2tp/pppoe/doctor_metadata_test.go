@@ -12,7 +12,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/core/callsink"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 )
 
@@ -81,7 +80,7 @@ func TestRealmAdmissionReleaseFailureReachesDoctor(t *testing.T) {
 			if issue.Source != ppp.CleanupReportSource {
 				t.Fatalf("handback warning has the wrong source: %+v", issue)
 			}
-			if issue.Code != diagnostic.CodeDoctorPPPCleanup {
+			if issue.Code != ppp.CodeDoctorPPPCleanup {
 				t.Fatalf("handback warning does not name the PPP cleanup doctor: %+v", issue)
 			}
 			if issue.Fix != ppp.CleanupFailureFix {
@@ -111,7 +110,7 @@ func TestRealmAdmissionReleaseFailureReachesDoctor(t *testing.T) {
 			if err := json.Unmarshal(log.Bytes(), &entry); err != nil {
 				t.Fatal(err)
 			}
-			if entry["code"] != diagnostic.CodeDoctorPPPCleanup {
+			if entry["code"] != ppp.CodeDoctorPPPCleanup {
 				t.Errorf("log doctor code lost: %+v", entry)
 			}
 			if entry["fix"] != ppp.CleanupFailureFix {

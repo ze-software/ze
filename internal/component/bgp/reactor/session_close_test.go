@@ -25,7 +25,6 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/test/sim"
 )
@@ -80,7 +79,7 @@ func closeRecordsWith(records []map[string]any, key, value string) []map[string]
 func closeHeldPathEvents() []report.Issue {
 	var events []report.Issue
 	for _, event := range report.Errors(0) {
-		if event.Code == diagnostic.CodeDoctorBGPWritePathHeld {
+		if event.Code == codeDoctorBGPWritePathHeld {
 			events = append(events, event)
 		}
 	}
@@ -624,7 +623,7 @@ func TestTwoClosesBehindHeldPathReportOnce(t *testing.T) {
 	requireConnClosed(t, ended)
 
 	require.Len(t, closeHeldPathEvents(), 1, "one connection closed behind a held write path raises one event")
-	coded := closeRecordsWith(closeLogRecords(t, sink), "code", diagnostic.CodeDoctorBGPWritePathHeld)
+	coded := closeRecordsWith(closeLogRecords(t, sink), "code", codeDoctorBGPWritePathHeld)
 	require.Len(t, coded, 1, "one connection closed behind a held write path logs one line; log:\n%s", sink.String())
 	require.Equal(t, "ERROR", coded[0]["level"])
 	require.LessOrEqual(t, len(writePathHeldFix), report.FixMax, "the bus refuses a longer fix")
@@ -690,7 +689,7 @@ func TestCloseBehindAGracefulCloseReportsNothing(t *testing.T) {
 	requirePeerEndClosed(t, client)
 
 	require.Empty(t, closeHeldPathEvents(), "a close in its final flush is no stuck writer: nothing to report")
-	require.Empty(t, closeRecordsWith(closeLogRecords(t, sink), "code", diagnostic.CodeDoctorBGPWritePathHeld),
+	require.Empty(t, closeRecordsWith(closeLogRecords(t, sink), "code", codeDoctorBGPWritePathHeld),
 		"log:\n%s", sink.String())
 }
 
@@ -799,7 +798,7 @@ func TestSecondCloseWaitsForTheClaimant(t *testing.T) {
 	require.Nil(t, session.Conn(), "a close returned with the connection still installed")
 
 	require.Empty(t, closeHeldPathEvents(), "a close behind another close has nothing to report")
-	require.Empty(t, closeRecordsWith(closeLogRecords(t, sink), "code", diagnostic.CodeDoctorBGPWritePathHeld),
+	require.Empty(t, closeRecordsWith(closeLogRecords(t, sink), "code", codeDoctorBGPWritePathHeld),
 		"log:\n%s", sink.String())
 }
 
@@ -955,7 +954,7 @@ func TestBusyNotificationIsLoggedOnceByTheClose(t *testing.T) {
 	records := closeLogRecords(t, sink)
 	require.Empty(t, closeRecordsWith(records, "msg", "notification send failed"),
 		"the sender must leave a busy write path to the close's line; log:\n%s", sink.String())
-	coded := closeRecordsWith(records, "code", diagnostic.CodeDoctorBGPWritePathHeld)
+	coded := closeRecordsWith(records, "code", codeDoctorBGPWritePathHeld)
 	require.Len(t, coded, 1, "log:\n%s", sink.String())
 	require.Equal(t, "ERROR", coded[0]["level"])
 	require.Contains(t, coded[0]["msg"], "no NOTIFICATION was sent to the peer")
@@ -1094,7 +1093,7 @@ func TestBusyNotificationBehindAnotherCloseIsLoggedOnce(t *testing.T) {
 			records := closeLogRecords(t, sink)
 			require.Empty(t, closeRecordsWith(records, "msg", "notification send failed"),
 				"the sender must leave a busy write path to the close's line; log:\n%s", sink.String())
-			coded := closeRecordsWith(records, "code", diagnostic.CodeDoctorBGPWritePathHeld)
+			coded := closeRecordsWith(records, "code", codeDoctorBGPWritePathHeld)
 			require.Len(t, coded, 1, "one NOTIFICATION that was not sent is one line; log:\n%s", sink.String())
 			require.Equal(t, "ERROR", coded[0]["level"])
 			require.Contains(t, coded[0]["msg"], "no NOTIFICATION was sent to the peer")

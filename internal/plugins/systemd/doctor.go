@@ -84,12 +84,12 @@ func serviceDoctorCheck() diagnostic.DoctorCheck {
 		Dependencies: []string{"filesystem"},
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
 		Codes: []string{
-			diagnostic.CodeDoctorServiceUnit,
-			diagnostic.CodeDoctorServiceExecutable,
-			diagnostic.CodeDoctorServiceUser,
-			diagnostic.CodeDoctorServiceGroup,
-			diagnostic.CodeDoctorServiceStop,
-			diagnostic.CodeDoctorServiceRestart,
+			codeDoctorServiceUnit,
+			codeDoctorServiceExecutable,
+			codeDoctorServiceUser,
+			codeDoctorServiceGroup,
+			codeDoctorServiceStop,
+			codeDoctorServiceRestart,
 		},
 		Check: checkServiceInstall,
 	}
@@ -130,7 +130,8 @@ func checkServiceInstall(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnos
 		}
 		var tb textbuf.Buffer
 		return []diagnostic.Diagnostic{{
-			Code:     diagnostic.CodeDoctorServiceUnit,
+			Code:     codeDoctorServiceUnit,
+			Fix:      "sudo ze install systemd",
 			Severity: diagnostic.SeverityWarning,
 			Message:  tb.Str("systemd service unit cannot be read: ").Str(unitPath).Str(": ").Err(err).String(),
 			Path:     unitPath,
@@ -250,7 +251,8 @@ func checkServiceExecutable(unitPath, directive, executable string) []diagnostic
 	var tb textbuf.Buffer
 	if executable == "" {
 		return []diagnostic.Diagnostic{{
-			Code:     diagnostic.CodeDoctorServiceExecutable,
+			Code:     codeDoctorServiceExecutable,
+			Fix:      "sudo ze install systemd",
 			Severity: diagnostic.SeverityError,
 			Message: tb.Str("systemd service unit has no ").Str(directive).Str(" command: ").Str(unitPath).
 				Str(serviceReinstallFix).String(),
@@ -259,7 +261,8 @@ func checkServiceExecutable(unitPath, directive, executable string) []diagnostic
 	}
 	if !filepath.IsAbs(executable) {
 		return []diagnostic.Diagnostic{{
-			Code:     diagnostic.CodeDoctorServiceExecutable,
+			Code:     codeDoctorServiceExecutable,
+			Fix:      "sudo ze install systemd",
 			Severity: diagnostic.SeverityError,
 			Message: tb.Reset().Str("systemd service ").Str(directive).Str(" is not an absolute path: ").Str(executable).
 				Str(serviceReinstallFix).String(),
@@ -271,7 +274,8 @@ func checkServiceExecutable(unitPath, directive, executable string) []diagnostic
 	info, err := statServiceExecutable(executable)
 	if err != nil {
 		return []diagnostic.Diagnostic{{
-			Code:     diagnostic.CodeDoctorServiceExecutable,
+			Code:     codeDoctorServiceExecutable,
+			Fix:      "sudo ze install systemd",
 			Severity: diagnostic.SeverityError,
 			Message: tb.Reset().Str("systemd service ").Str(directive).Str(" runs ").Str(executable).
 				Str(", which cannot be found, so systemd refuses the command: ").Err(err).Str(serviceReinstallFix).String(),
@@ -280,7 +284,8 @@ func checkServiceExecutable(unitPath, directive, executable string) []diagnostic
 	}
 	if info.IsDir() || info.Mode().Perm()&0o111 == 0 {
 		return []diagnostic.Diagnostic{{
-			Code:     diagnostic.CodeDoctorServiceExecutable,
+			Code:     codeDoctorServiceExecutable,
+			Fix:      "sudo chmod 0755 " + executable,
 			Severity: diagnostic.SeverityError,
 			Message: tb.Reset().Str("systemd service ").Str(directive).Str(" runs ").Str(executable).
 				Str(", which is not an executable file; run `sudo chmod 0755 ").Str(executable).Str("`").String(),
@@ -337,7 +342,8 @@ func stopQueryFailure(unitPath string, err error) diagnostic.Diagnostic {
 	var tb textbuf.Buffer
 	if errors.Is(err, exec.ErrNotFound) {
 		return diagnostic.Diagnostic{
-			Code:     diagnostic.CodeDoctorServiceStop,
+			Code:     codeDoctorServiceStop,
+			Fix:      "sudo rm " + unitPath,
 			Severity: diagnostic.SeverityWarning,
 			Message: tb.Str("systemctl not found: this host does not run systemd, so the unit at ").Str(unitPath).
 				Str(" is never used and its stop settings cannot be read; remove it with `sudo rm ").Str(unitPath).
@@ -353,7 +359,8 @@ func stopQueryFailure(unitPath string, err error) diagnostic.Diagnostic {
 		}
 	}
 	return diagnostic.Diagnostic{
-		Code:     diagnostic.CodeDoctorServiceStop,
+		Code:     codeDoctorServiceStop,
+		Fix:      "systemctl show -p TimeoutStopUSec -p KillMode " + serviceName,
 		Severity: diagnostic.SeverityWarning,
 		Message:  tb.Str("; run `systemctl show -p TimeoutStopUSec -p KillMode ").Str(serviceName).Str("` to see why").String(),
 		Path:     unitPath,
@@ -396,7 +403,8 @@ func checkServiceStopOutput(unitPath string, output []byte) []diagnostic.Diagnos
 	}
 	if killMode != stopKillMode {
 		diags = append(diags, diagnostic.Diagnostic{
-			Code:     diagnostic.CodeDoctorServiceStop,
+			Code:     codeDoctorServiceStop,
+			Fix:      "sudo ze install systemd",
 			Severity: diagnostic.SeverityWarning,
 			Message: tb.Reset().Str("systemd stops ").Str(serviceName).Str(" with KillMode=").Str(killMode).
 				Str(", which sends the stop SIGTERM to every external plugin before ze can drain it").
@@ -419,7 +427,7 @@ func checkServicePolicy(unitPath string) []diagnostic.Diagnostic {
 		return []diagnostic.Diagnostic{
 			stopQueryFailure(unitPath, err),
 			{
-				Code: diagnostic.CodeDoctorServiceRestart, Severity: diagnostic.SeverityWarning,
+				Code: codeDoctorServiceRestart, Severity: diagnostic.SeverityWarning,
 				Message: tb.Str("systemd restart policy cannot be read, so an accepted daemon restart may leave ze stopped: ").
 					Err(err).Str("; run `systemctl show -p Restart -p SuccessExitStatus -p RestartForceExitStatus -p RestartPreventExitStatus ze.service`").String(),
 				Path: unitPath,
@@ -456,7 +464,7 @@ func checkServiceRestartOutput(unitPath string, output []byte) []diagnostic.Diag
 	const fix = "sudo ze install systemd --force; sudo systemctl daemon-reload; systemctl cat ze.service"
 	var tb textbuf.Buffer
 	return []diagnostic.Diagnostic{{
-		Code: diagnostic.CodeDoctorServiceRestart, Severity: diagnostic.SeverityWarning,
+		Code: codeDoctorServiceRestart, Severity: diagnostic.SeverityWarning,
 		Message: tb.Str("systemd restart policy does not preserve clean stop, intentional restart and failure recovery; ").
 			Str("run `sudo ze install systemd --force` and `sudo systemctl daemon-reload`, then remove overriding drop-ins shown by `systemctl cat ze.service`").String(),
 		Path: unitPath, Fix: fix,
@@ -473,7 +481,8 @@ func judgeStopTimeout(unitPath, value string) (diagnostic.Diagnostic, bool) {
 	stop, unlimited, err := parseSystemdTimespan(value)
 	if err != nil {
 		return diagnostic.Diagnostic{
-			Code:     diagnostic.CodeDoctorServiceStop,
+			Code:     codeDoctorServiceStop,
+			Fix:      "systemctl show -p TimeoutStopUSec " + serviceName,
 			Severity: diagnostic.SeverityWarning,
 			Message: tb.Str("systemd reported a stop timeout for ").Str(serviceName).Str(" doctor cannot read (TimeoutStopUSec=").
 				Str(value).Str("): ").Err(err).Str("; run `systemctl show -p TimeoutStopUSec ").Str(serviceName).
@@ -489,7 +498,8 @@ func judgeStopTimeout(unitPath, value string) (diagnostic.Diagnostic, bool) {
 		return diagnostic.Diagnostic{}, false
 	}
 	return diagnostic.Diagnostic{
-		Code:     diagnostic.CodeDoctorServiceStop,
+		Code:     codeDoctorServiceStop,
+		Fix:      "sudo ze install systemd",
 		Severity: diagnostic.SeverityWarning,
 		Message: tb.Str("systemd kills ").Str(serviceName).Str(" ").Str(value).Str(" after the stop signal, below the ").
 			Int(stopTimeoutSeconds).Str(" s ze needs to drain (").Int(rpc.DrainCeilingSeconds).Str(" s) and tear down (").
@@ -566,7 +576,8 @@ func checkServiceUser(unitPath, name string) []diagnostic.Diagnostic {
 	if _, err := lookupServiceUser(name); err != nil {
 		var tb textbuf.Buffer
 		return []diagnostic.Diagnostic{{
-			Code:     diagnostic.CodeDoctorServiceUser,
+			Code:     codeDoctorServiceUser,
+			Fix:      "sudo useradd --system --no-create-home " + name,
 			Severity: diagnostic.SeverityError,
 			Message:  tb.Str("systemd service user not found: ").Str(name).String(),
 			Path:     unitPath,
@@ -581,7 +592,8 @@ func checkServiceGroup(unitPath, name string) []diagnostic.Diagnostic {
 	if _, err := lookupServiceGroup(name); err != nil {
 		var tb textbuf.Buffer
 		return []diagnostic.Diagnostic{{
-			Code:     diagnostic.CodeDoctorServiceGroup,
+			Code:     codeDoctorServiceGroup,
+			Fix:      "sudo groupadd --system " + name,
 			Severity: diagnostic.SeverityError,
 			Message:  tb.Str("systemd service group not found: ").Str(name).String(),
 			Path:     unitPath,

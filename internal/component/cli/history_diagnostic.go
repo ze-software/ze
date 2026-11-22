@@ -17,7 +17,8 @@ const (
 )
 
 func init() {
-	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: diagnostic.CodeDoctorCLIHistoryRead}); err != nil {
+	registerDoctorCodes()
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorCLIHistoryRead}); err != nil {
 		panic("BUG: command-history read event registration refused: " + err.Error())
 	}
 	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: diagnostic.CodeDoctorCLIHistoryWrite}); err != nil {
@@ -31,7 +32,7 @@ func init() {
 // ledger bound all user-driven failures to one class event per minute.
 // Safe for concurrent use.
 func reportHistoryReadFailure(mode string) {
-	report.RaiseErrorFixOnce(historyEventSource, diagnostic.CodeDoctorCLIHistoryRead, historyEventSubject,
+	report.RaiseErrorFixOnce(historyEventSource, codeDoctorCLIHistoryRead, historyEventSubject,
 		"Command history read unavailable for "+mode+" mode; saved recall could not be read and will not be overwritten. Restore configuration-store access, then reconnect.",
 		historyEventFix, historyEventWindow)
 }

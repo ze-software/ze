@@ -14,7 +14,6 @@ import (
 	"errors"
 	"unicode/utf8"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -87,7 +86,7 @@ const configReloadSubject = "config-reload"
 // the change, what ze kept and why, from refusal. The caller logs the same
 // code on the line beside the call.
 func raiseReloadRefused(message string, refusal error) {
-	report.RaiseErrorFix(serverEventSource, diagnostic.CodeDoctorConfigReloadRefused, configReloadSubject,
+	report.RaiseErrorFix(serverEventSource, CodeDoctorConfigReloadRefused, configReloadSubject,
 		report.FitMessage(message), reloadRefusalFix(refusal))
 }
 

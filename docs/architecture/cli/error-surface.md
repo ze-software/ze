@@ -174,12 +174,17 @@ These are the forms that fail, and what to write instead.
 | Returning `nil` or skipping when a check cannot run | Return an error; fail closed |
 | A user-facing failure with no diagnostic code or remediation | Register a `doctor-*` code and make it `ze show diagnostic`-able |
 
-A machine-facing failure carries a registered code from
-`internal/core/diagnostic/codes.go`, holding a title, a description, examples
-and remediation, and `ze show diagnostic <code>` prints it. The code is declared once,
-as an exported constant beside the table, and every surface that emits it
-references that constant rather than the string. The handler returns the code
-and structured fields rather than a finished sentence, which is what makes the
+A machine-facing failure carries a registered code holding a title, a
+description, examples and remediation, and `ze show diagnostic <code>` prints
+it. Each feature or plugin owns its `doctor-*` codes and registers them via
+`diagnostic.Register` from its own package `init()` (`register_doctor_codes.go`
+or `register.go`), so
+compiling out an optional feature drops its codes with it; cross-cutting
+codes shared across unrelated packages and built-in `config-*` codes stay in
+`internal/core/diagnostic/codes.go`. Each code is declared once as a constant
+beside its metadata table, and every surface that emits it references that
+constant rather than repeating the string. The handler returns the code and
+structured fields rather than a finished sentence, which is what makes the
 corrective action machine-readable.
 
 ## The operator error

@@ -30,7 +30,6 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/kernelcap"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -100,8 +99,8 @@ func xfrmKernelCapabilities() []kernelcap.Capability {
 			Kernel:      "CONFIG_XFRM_MIGRATE",
 			ConfigLeaf:  "vpn ipsec",
 			Degrades:    "MOBIKE is not offered, so a peer whose address changes must renegotiate its IKE SA",
-			CodeAbsent:  diagnostic.CodeDoctorIPsecMOBIKEUnavailable,
-			CodeUnknown: diagnostic.CodeDoctorIPsecMOBIKEUnknown,
+			CodeAbsent:  CodeDoctorIPsecMOBIKEUnavailable,
+			CodeUnknown: codeDoctorIPsecMOBIKEUnknown,
 			Order:       736,
 			InUse:       kernelcap.IPsecInUse,
 			Probe:       xfrmMigrationProbe,
@@ -119,8 +118,8 @@ func xfrmESPCapability(subsystem, kernel, degrades string, source, target net.IP
 		Kernel:      kernel,
 		ConfigLeaf:  "vpn ipsec",
 		Degrades:    degrades,
-		CodeAbsent:  diagnostic.CodeDoctorIPsecESPUnavailable,
-		CodeUnknown: diagnostic.CodeDoctorIPsecESPUnknown,
+		CodeAbsent:  codeDoctorIPsecESPUnavailable,
+		CodeUnknown: codeDoctorIPsecESPUnknown,
 		Order:       737,
 		InUse:       kernelcap.IPsecInUse,
 		Probe: func() kernelcap.Result {
@@ -178,8 +177,8 @@ func xfrmTransformCapability(transform, kernel string, role xfrmTransformRole, w
 		Kernel:      kernel,
 		ConfigLeaf:  leaf.String(),
 		Degrades:    loss.String(),
-		CodeAbsent:  diagnostic.CodeDoctorIPsecTransformUnavailable,
-		CodeUnknown: diagnostic.CodeDoctorIPsecTransformUnknown,
+		CodeAbsent:  codeDoctorIPsecTransformUnavailable,
+		CodeUnknown: codeDoctorIPsecTransformUnknown,
 		Order:       738,
 		InUse:       kernelcap.IPsecInUse,
 		Probe: func() kernelcap.Result {

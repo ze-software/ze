@@ -20,7 +20,6 @@ import (
 	txevents "github.com/ze-software/ze/internal/component/config/transaction/events"
 	"github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -774,7 +773,7 @@ func trySendDecomposeAck(done <-chan struct{}, ch chan<- transaction.ConfigOpera
 	default:
 		logger().Warn("operation decompose ack channel full, dropping ack",
 			"tx", txID, "plugin", ack.Plugin, "root", ack.Root, "event-type", eventType,
-			"code", diagnostic.CodeDoctorPluginSubscriptionDropped)
+			"code", CodeDoctorPluginSubscriptionDropped)
 	}
 }
 

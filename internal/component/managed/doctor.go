@@ -73,7 +73,7 @@ var hubClientDoctorCheck = diagnostic.DoctorCheck{
 	Component:    doctorComponent,
 	Dependencies: []string{doctorNeedsConfigTree},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{diagnostic.CodeDoctorHubClientMissing},
+	Codes:        []string{codeDoctorHubClientMissing},
 	Check:        checkHubClientDeclared,
 }
 
@@ -89,7 +89,7 @@ var managedDivergedDoctorCheck = diagnostic.DoctorCheck{
 	Component:    doctorComponent,
 	Dependencies: []string{doctorNeedsConfigTree},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{diagnostic.CodeDoctorManagedDiverged},
+	Codes:        []string{CodeDoctorManagedDiverged},
 	Check:        checkManagedDiverged,
 }
 
@@ -107,7 +107,7 @@ var hubDivergedDoctorCheck = diagnostic.DoctorCheck{
 	Component:    doctorComponent,
 	Dependencies: []string{doctorNeedsConfigTree},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{diagnostic.CodeDoctorManagedClientDiverged},
+	Codes:        []string{codeDoctorManagedClientDiverged},
 	Check:        checkHubClientsDiverged,
 }
 
@@ -209,7 +209,7 @@ func diagnoseHeldClient(name string, record pluginserver.HeldRecord, hub, hubVer
 			"), so the difference cannot be shown; adopt and revert still work"
 	}
 	return diagnostic.Diagnostic{
-		Code:     diagnostic.CodeDoctorManagedClientDiverged,
+		Code:     codeDoctorManagedClientDiverged,
 		Severity: diagnostic.SeverityWarning,
 		Message: "the managed client " + name + " holds: it runs version " + record.Version() + ", edited " + heldTimePhrase(record.EditedAt()) +
 			", and " + hub + ", so it applies nothing this hub sends; this hub keeps a copy of its configuration, received at " +
@@ -225,7 +225,7 @@ func diagnoseHeldClient(name string, record pluginserver.HeldRecord, hub, hubVer
 // it is the only copy of what the client runs.
 func diagnoseHeldOrphan(name string, record pluginserver.HeldRecord) diagnostic.Diagnostic {
 	return diagnostic.Diagnostic{
-		Code:     diagnostic.CodeDoctorManagedClientDiverged,
+		Code:     codeDoctorManagedClientDiverged,
 		Severity: diagnostic.SeverityWarning,
 		Message: "this hub keeps a copy of the configuration client " + name + " holds (version " + record.Version() +
 			"), and no plugin hub server block declares " + name + ", so the copy is orphaned: the client cannot connect and the hold cannot be resolved",
@@ -239,7 +239,7 @@ func diagnoseHeldOrphan(name string, record pluginserver.HeldRecord) diagnostic.
 // the store.
 func diagnoseHeldUnread(what string, cause error) diagnostic.Diagnostic {
 	return diagnostic.Diagnostic{
-		Code:     diagnostic.CodeDoctorManagedClientDiverged,
+		Code:     codeDoctorManagedClientDiverged,
 		Severity: diagnostic.SeverityWarning,
 		Message:  what + " could not be read from the store, so whether a managed client holds is unknown: " + cause.Error(),
 		Fix:      fixCheckStore,
@@ -355,7 +355,7 @@ func diagnoseManagedDiverged(active, baseline ConfigVersion, client string, over
 		fix = managedDivergedManualFix(client)
 	}
 	return []diagnostic.Diagnostic{{
-		Code:     diagnostic.CodeDoctorManagedDiverged,
+		Code:     CodeDoctorManagedDiverged,
 		Severity: diagnostic.SeverityWarning,
 		Message: "the configuration this managed client runs (version " + active.Hash() + ") differs from the last one its hub sent (version " +
 			baseline.Hash() + "), so it holds: it applies nothing the hub sends",
@@ -369,7 +369,7 @@ func diagnoseManagedDiverged(active, baseline ConfigVersion, client string, over
 // answer what, one of the two values the hold compares.
 func diagnoseManagedUncompared(what string, cause error) []diagnostic.Diagnostic {
 	return []diagnostic.Diagnostic{{
-		Code:     diagnostic.CodeDoctorManagedDiverged,
+		Code:     CodeDoctorManagedDiverged,
 		Severity: diagnostic.SeverityWarning,
 		Message: what + " could not be read from the store, so this managed client cannot compare it with the last configuration its hub sent " +
 			"and applies nothing the hub sends: " + cause.Error(),
@@ -419,7 +419,7 @@ func diagnoseHubClientDeclared(managed bool, clientBlocks int) []diagnostic.Diag
 		return nil
 	}
 	return []diagnostic.Diagnostic{{
-		Code:     diagnostic.CodeDoctorHubClientMissing,
+		Code:     codeDoctorHubClientMissing,
 		Severity: diagnostic.SeverityWarning,
 		Message: "this node is a managed client and its configuration has no plugin hub client block, " +
 			"so it follows no hub and receives no configuration change",

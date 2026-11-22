@@ -57,7 +57,8 @@ func checkRADIUSServers(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagno
 			// operator to the network. The fault is the leaf, and so is the fix.
 			row := "l2tp auth radius server " + s.Key
 			return []rpc.DoctorCheckDiagnostic{{
-				Code:     "doctor-radius-invalid",
+				Code:     codeDoctorRADIUSInvalid,
+				Fix:      "set " + row + " require-message-authenticator true",
 				Severity: string(diagnostic.SeverityWarning),
 				Message: "RADIUS server " + s.Key + " was not probed: " + err.Error() +
 					"; set it with 'set " + row + " require-message-authenticator true', " +
@@ -77,7 +78,8 @@ func checkRADIUSServers(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagno
 		}
 		if errors.Is(probeErr, radius.ErrUnsignedResponse) {
 			unsigned = append(unsigned, rpc.DoctorCheckDiagnostic{
-				Code:     "doctor-radius-unsigned-response",
+				Code:     codeDoctorRADIUSUnsignedResponse,
+				Fix:      "set " + srv.ConfigPath + " require-message-authenticator false",
 				Severity: string(diagnostic.SeverityWarning),
 				Message: "RADIUS server " + srv.Address + " answers without a Message-Authenticator, " +
 					"which Ze discards (BlastRADIUS, CVE-2024-3596); configure it to sign its answers, " +
@@ -92,7 +94,8 @@ func checkRADIUSServers(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagno
 		return unsigned
 	}
 	return []rpc.DoctorCheckDiagnostic{{
-		Code:     "doctor-radius-unreachable",
+		Code:     codeDoctorRADIUSUnreachable,
+		Fix:      "ze show diagnostic doctor-radius-unreachable",
 		Severity: string(diagnostic.SeverityWarning),
 		Message:  "none of the configured RADIUS servers are reachable",
 	}}

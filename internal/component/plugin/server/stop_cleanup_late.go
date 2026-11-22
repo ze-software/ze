@@ -9,7 +9,7 @@ package server
 import (
 	"time"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -22,7 +22,7 @@ const stopOwnerConfigTransaction = "config transaction"
 // (doctor-plugin-stop-cleanup-late) after ze is down.
 func stopTransactionLate(grace time.Duration) {
 	logger().Warn("shutdown: config transaction did not unwind in time, closing plugin connections anyway",
-		"code", diagnostic.CodeDoctorPluginStopCleanupLate, "grace", grace)
+		"code", process.CodeDoctorPluginStopCleanupLate, "grace", grace)
 	var detail textbuf.Buffer
 	detail.Str("the in-flight config transaction did not unwind within ").Str(grace.String()).
 		Str(", so plugin connections were closed under it and a plugin may hold a half-applied change")

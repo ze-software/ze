@@ -17,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -67,12 +68,16 @@ func Run(validated command.ValidatedArgs) command.LocalAnswer {
 
 	meta := diagnostic.Lookup(code)
 	if meta == nil {
-		var tb textbuf.Buffer
-		tb.Str("error: unknown diagnostic code: ").Str(code).Byte('\n')
+		var why textbuf.Buffer
+		why.Str("If this code belongs to an optional feature, that feature is not in this build.")
 		if all := diagnostic.AllCodes(); len(all) > 0 {
-			tb.Str("valid codes: ").Join(all, ", ").Byte('\n')
+			why.Str("\nvalid codes: ").Join(all, ", ")
 		}
-		return command.LocalRefusal(1, tb.String())
+		return command.LocalRefusal(1, command.LocalErrorLine(opererr.New(
+			"unknown diagnostic code: "+code,
+			why.String(),
+			"ze show diagnostic config-parse",
+		)))
 	}
 
 	return command.LocalAnswer{Payload: answer{

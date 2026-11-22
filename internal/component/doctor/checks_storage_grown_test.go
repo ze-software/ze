@@ -55,8 +55,8 @@ func TestStorageDoctorReportsStorageSmallerThanDisk(t *testing.T) {
 			t.Fatalf("diagnostics = %+v, want one", diags)
 		}
 		got := diags[0]
-		if got.Code != diagnostic.CodeDoctorStorageNotGrown || got.Severity != diagnostic.SeverityWarning {
-			t.Errorf("finding is %s %s, want a %s warning", got.Severity, got.Code, diagnostic.CodeDoctorStorageNotGrown)
+		if got.Code != codeDoctorStorageNotGrown || got.Severity != diagnostic.SeverityWarning {
+			t.Errorf("finding is %s %s, want a %s warning", got.Severity, got.Code, codeDoctorStorageNotGrown)
 		}
 		const message = "persistent storage /dev/sda4 uses 944 MiB of a 238 GiB disk, " +
 			"because it was not grown to the disk when this system was installed"
@@ -114,8 +114,8 @@ func TestStorageDoctorReportsStorageSmallerThanDisk(t *testing.T) {
 			t.Fatalf("diagnostics = %+v, want one: an unread state is not a healthy one", diags)
 		}
 		got := diags[0]
-		if got.Code != diagnostic.CodeDoctorStorageNotGrown || got.Severity != diagnostic.SeverityWarning {
-			t.Errorf("finding is %s %s, want a %s warning", got.Severity, got.Code, diagnostic.CodeDoctorStorageNotGrown)
+		if got.Code != codeDoctorStorageNotGrown || got.Severity != diagnostic.SeverityWarning {
+			t.Errorf("finding is %s %s, want a %s warning", got.Severity, got.Code, codeDoctorStorageNotGrown)
 		}
 		const message = "cannot read the size of the persistent storage, so it may be smaller than its disk: " +
 			"read /sys/class/block/sda4/size: permission denied"
@@ -234,7 +234,7 @@ func TestInstallerSpellsTheStorageDoctorCode(t *testing.T) {
 		}
 	}
 	for name, want := range map[string]string{
-		"codeStorageNotGrown": diagnostic.CodeDoctorStorageNotGrown,
+		"codeStorageNotGrown": codeDoctorStorageNotGrown,
 		"fixStorageGrow":      fixStorageGrow,
 	} {
 		got, ok := spelled[name]
@@ -270,15 +270,15 @@ func TestDoctorStorageGrownCheckFunctional(t *testing.T) {
 		t.Fatal(err)
 	}
 	codes := doctorCodesFor(t, minimalConfig)
-	if !slices.Contains(codes, diagnostic.CodeDoctorStorageNotGrown) {
-		t.Fatalf("codes on the appliance = %v, want %q among them", codes, diagnostic.CodeDoctorStorageNotGrown)
+	if !slices.Contains(codes, codeDoctorStorageNotGrown) {
+		t.Fatalf("codes on the appliance = %v, want %q among them", codes, codeDoctorStorageNotGrown)
 	}
 
 	if err := env.Set(doctorPlatformEnv, "plain-linux"); err != nil {
 		t.Fatal(err)
 	}
 	codes = doctorCodesFor(t, minimalConfig)
-	if slices.Contains(codes, diagnostic.CodeDoctorStorageNotGrown) {
-		t.Fatalf("codes on a plain Linux host = %v, want no %q", codes, diagnostic.CodeDoctorStorageNotGrown)
+	if slices.Contains(codes, codeDoctorStorageNotGrown) {
+		t.Fatalf("codes on a plain Linux host = %v, want no %q", codes, codeDoctorStorageNotGrown)
 	}
 }

@@ -57,7 +57,7 @@ func init() {
 			Order:        780,
 			Dependencies: []string{"config-loaded"},
 			Platforms:    []string{"any"},
-			Codes:        []string{"doctor-anomaly-shape-armed-no-firewall"},
+			Codes:        []string{codeDoctorAnomalyShapeArmedNoFirewall},
 			Check:        checkFirewall,
 		}},
 	}

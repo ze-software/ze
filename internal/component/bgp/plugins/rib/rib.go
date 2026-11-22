@@ -45,7 +45,6 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/clock"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/redistevents"
@@ -765,13 +764,13 @@ func runRIBPlugin(conn net.Conn) int {
 	selected, err := newSelectedDispatch(ctx, p.SelectRoutes, r.signalSelectedReady, r.reportSelectedDestinations)
 	if err != nil {
 		logger().Error("BGP selected output could not start", "error", err,
-			"code", diagnostic.CodeDoctorBGPSelectedOutput, "fix", "ze request restart")
+			"code", codeDoctorBGPSelectedOutput, "fix", "ze request restart")
 		return 1
 	}
 	// Both final refresh writers must be bound before the first UP.
 	if err := selected.setRefreshWriters(p.SelectRefresh, r.replayConfiguredRefresh); err != nil {
 		logger().Error("BGP selected refresh could not start", "error", err,
-			"code", diagnostic.CodeDoctorBGPSelectedOutput, "fix", "ze request restart")
+			"code", codeDoctorBGPSelectedOutput, "fix", "ze request restart")
 		return 1
 	}
 	r.selectedDispatch = selected

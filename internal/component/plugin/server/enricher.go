@@ -12,7 +12,6 @@ import (
 
 	plugipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/show"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -90,7 +89,7 @@ func registerProxyEnrichers(pluginName string, enrichers []rpc.EnricherDecl, con
 		if err := show.Register(decl.Command, decl.Key, show.Enricher{Detail: detail, Brief: brief}); err != nil {
 			logger().Warn("proxy enricher registration failed",
 				"plugin", pluginName, "command", decl.Command, "key", decl.Key, "error", err,
-				"code", diagnostic.CodeDoctorPluginEnricherUnavailable)
+				"code", CodeDoctorPluginEnricherUnavailable)
 			recordEnricherFailure(pluginName, EnricherFailure{
 				Command: decl.Command, Key: decl.Key, Registration: true, Error: err.Error(),
 			})
@@ -166,7 +165,7 @@ func makeProxyCall(pluginName, command, key, mode string, conn *plugipc.PluginCo
 		if err != nil {
 			logger().Warn("proxy enricher call failed",
 				"plugin", pluginName, "command", command, "key", key, "error", err,
-				"code", diagnostic.CodeDoctorPluginEnricherUnavailable)
+				"code", CodeDoctorPluginEnricherUnavailable)
 			recordProxyCallFailure(pluginName, conn, EnricherFailure{Command: command, Key: key, Error: err.Error()})
 			return
 		}

@@ -9,7 +9,6 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -64,7 +63,8 @@ func checkIPsecCookieThreshold(ctx registry.DoctorCheckContext) []rpc.DoctorChec
 		Int(int64(reachable)).
 		Str(" or below, or leave it at 0 to challenge every initiation.")
 	return []rpc.DoctorCheckDiagnostic{{
-		Code:     diagnostic.CodeDoctorIPsecCookieThreshold,
+		Code:     codeDoctorIPsecCookieThreshold,
+		Fix:      "set vpn ipsec cookie-threshold 0",
 		Severity: severityWarning,
 		Message:  tb.String(),
 	}}

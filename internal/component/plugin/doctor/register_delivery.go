@@ -8,7 +8,11 @@
 
 package doctor
 
-import "github.com/ze-software/ze/internal/core/diagnostic"
+import (
+	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+)
 
 // The registration and delivery check names.
 const (
@@ -31,36 +35,36 @@ func init() {
 			Name: pluginCommandsCheckName, Phase: diagnostic.DoctorPhaseRuntime, Order: pluginDeliveryOrderFirst,
 			Component: componentPlugin, Dependencies: []string{pluginStateDependency},
 			Platforms: []string{diagnostic.DoctorPlatformAny},
-			Codes:     []string{diagnostic.CodeDoctorPluginCommandNotRegistered},
-			Check:     snapshotCheck(diagnostic.CodeDoctorPluginCommandNotRegistered, commandRefusalRows),
+			Codes:     []string{server.CodeDoctorPluginCommandNotRegistered},
+			Check:     snapshotCheck(server.CodeDoctorPluginCommandNotRegistered, commandRefusalRows),
 		},
 		{
 			Name: pluginSubscriptionsCheckName, Phase: diagnostic.DoctorPhaseRuntime, Order: pluginDeliveryOrderFirst + 1,
 			Component: componentPlugin, Dependencies: []string{pluginStateDependency},
 			Platforms: []string{diagnostic.DoctorPlatformAny},
-			Codes:     []string{diagnostic.CodeDoctorPluginSubscriptionDropped},
-			Check:     snapshotCheck(diagnostic.CodeDoctorPluginSubscriptionDropped, subscriptionDropRows),
+			Codes:     []string{server.CodeDoctorPluginSubscriptionDropped},
+			Check:     snapshotCheck(server.CodeDoctorPluginSubscriptionDropped, subscriptionDropRows),
 		},
 		{
 			Name: pluginDeliveryGrantCheckName, Phase: diagnostic.DoctorPhaseRuntime, Order: pluginDeliveryOrderFirst + 2,
 			Component: componentPlugin, Dependencies: []string{pluginStateDependency},
 			Platforms: []string{diagnostic.DoctorPlatformAny},
-			Codes:     []string{diagnostic.CodeDoctorPluginDeliveryDisagreement},
-			Check:     snapshotCheck(diagnostic.CodeDoctorPluginDeliveryDisagreement, deliveryDisagreementRows),
+			Codes:     []string{server.CodeDoctorPluginDeliveryDisagreement},
+			Check:     snapshotCheck(server.CodeDoctorPluginDeliveryDisagreement, deliveryDisagreementRows),
 		},
 		{
 			Name: pluginClaimsCheckName, Phase: diagnostic.DoctorPhaseRuntime, Order: pluginDeliveryOrderFirst + 3,
 			Component: componentPlugin, Dependencies: []string{pluginStateDependency},
 			Platforms: []string{diagnostic.DoctorPlatformAny},
-			Codes:     []string{diagnostic.CodeDoctorPluginClaimUnbacked},
-			Check:     snapshotCheck(diagnostic.CodeDoctorPluginClaimUnbacked, unbackedClaimRows),
+			Codes:     []string{server.CodeDoctorPluginClaimUnbacked},
+			Check:     snapshotCheck(server.CodeDoctorPluginClaimUnbacked, unbackedClaimRows),
 		},
 		{
 			Name: pluginPostStartupCheckName, Phase: diagnostic.DoctorPhaseRuntime, Order: pluginDeliveryOrderFirst + 4,
 			Component: componentPlugin, Dependencies: []string{pluginStateDependency},
 			Platforms: []string{diagnostic.DoctorPlatformAny},
-			Codes:     []string{diagnostic.CodeDoctorPluginPostStartupUndelivered},
-			Check:     snapshotCheck(diagnostic.CodeDoctorPluginPostStartupUndelivered, postStartupRows),
+			Codes:     []string{server.CodeDoctorPluginPostStartupUndelivered},
+			Check:     snapshotCheck(server.CodeDoctorPluginPostStartupUndelivered, postStartupRows),
 		},
 		{
 			Name: pluginPanicCheckName, Phase: diagnostic.DoctorPhaseRuntime, Order: pluginDeliveryOrderFirst + 5,
@@ -73,22 +77,22 @@ func init() {
 			Name: pluginDeliveryCheckName, Phase: diagnostic.DoctorPhaseRuntime, Order: pluginDeliveryOrderFirst + 6,
 			Component: componentPlugin, Dependencies: []string{pluginStateDependency},
 			Platforms: []string{diagnostic.DoctorPlatformAny},
-			Codes:     []string{diagnostic.CodeDoctorPluginDeliveryFailed},
-			Check:     snapshotCheck(diagnostic.CodeDoctorPluginDeliveryFailed, deliveryFailedRows),
+			Codes:     []string{process.CodeDoctorPluginDeliveryFailed},
+			Check:     snapshotCheck(process.CodeDoctorPluginDeliveryFailed, deliveryFailedRows),
 		},
 		{
 			Name: pluginEnricherCheckName, Phase: diagnostic.DoctorPhaseRuntime, Order: pluginDeliveryOrderFirst + 7,
 			Component: componentPlugin, Dependencies: []string{pluginStateDependency},
 			Platforms: []string{diagnostic.DoctorPlatformAny},
-			Codes:     []string{diagnostic.CodeDoctorPluginEnricherUnavailable},
-			Check:     snapshotCheck(diagnostic.CodeDoctorPluginEnricherUnavailable, enricherRows),
+			Codes:     []string{server.CodeDoctorPluginEnricherUnavailable},
+			Check:     snapshotCheck(server.CodeDoctorPluginEnricherUnavailable, enricherRows),
 		},
 		{
 			Name: pluginConfigCommitCheckName, Phase: diagnostic.DoctorPhaseRuntime, Order: pluginDeliveryOrderFirst + 8,
 			Component: componentPlugin, Dependencies: []string{pluginStateDependency},
 			Platforms: []string{diagnostic.DoctorPlatformAny},
-			Codes:     []string{diagnostic.CodeDoctorPluginConfigUnapplied},
-			Check:     snapshotCheck(diagnostic.CodeDoctorPluginConfigUnapplied, configUnappliedRows),
+			Codes:     []string{server.CodeDoctorPluginConfigUnapplied},
+			Check:     snapshotCheck(server.CodeDoctorPluginConfigUnapplied, configUnappliedRows),
 		},
 	}
 	for i := range checks {

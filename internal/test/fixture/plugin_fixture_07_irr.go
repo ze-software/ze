@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -493,7 +493,7 @@ func firewallIRRRefusedCommit07(table, expectedRefusal string) ObserverScenario 
 			if entry["source"] != "plugin-server" {
 				return false
 			}
-			if entry["code"] != diagnostic.CodeDoctorConfigReloadRefused {
+			if entry["code"] != pluginserver.CodeDoctorConfigReloadRefused {
 				return false
 			}
 			if entry["subject"] != "config-reload" {

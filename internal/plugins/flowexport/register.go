@@ -101,7 +101,7 @@ func init() {
 			Order:        761,
 			Dependencies: []string{"config-loaded"},
 			Platforms:    []string{"any"},
-			Codes:        []string{"doctor-flowexport-conntrack-unavailable"},
+			Codes:        []string{codeDoctorFlowexportConntrackUnavailable},
 			Check:        checkConntrackTracking,
 		}},
 	}

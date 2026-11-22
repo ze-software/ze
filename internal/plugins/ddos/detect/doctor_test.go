@@ -132,7 +132,7 @@ func TestRateFeedZeroTrafficReportedAtWindow(t *testing.T) {
 	diags, err = checkRateFeed(rateFeedCheck, d)
 	require.NoError(t, err)
 	require.Len(t, diags, 1)
-	assert.Equal(t, diagnostic.CodeDoctorDDoSDetectBlind, diags[0].Code)
+	assert.Equal(t, codeDoctorDDoSDetectBlind, diags[0].Code)
 	assert.Equal(t, "warning", diags[0].Severity)
 	assert.Contains(t, diags[0].Message, "zero received packets and bytes")
 	assert.Contains(t, diags[0].Message, feedTrafficstat)
@@ -196,7 +196,7 @@ func TestRateFeedNoInterface(t *testing.T) {
 	diags, err := checkRateFeed(rateFeedCheck, d)
 	require.NoError(t, err)
 	require.Len(t, diags, 1)
-	assert.Equal(t, diagnostic.CodeDoctorDDoSDetectBlind, diags[0].Code)
+	assert.Equal(t, codeDoctorDDoSDetectBlind, diags[0].Code)
 	assert.Contains(t, diags[0].Message, "reported no interface")
 	assert.Contains(t, diags[0].Message, "ze show interface")
 }
@@ -214,7 +214,7 @@ func TestRateFeedNoSample(t *testing.T) {
 	diags, err = checkRateFeed(rateFeedCheck, d)
 	require.NoError(t, err)
 	require.Len(t, diags, 1)
-	assert.Equal(t, diagnostic.CodeDoctorDDoSDetectBlind, diags[0].Code)
+	assert.Equal(t, codeDoctorDDoSDetectBlind, diags[0].Code)
 	assert.Contains(t, diags[0].Message, "received no sample")
 
 	// A feed that stops after delivering traffic is reported the same way.
@@ -241,7 +241,7 @@ func TestRateFeedExternalReportsCause(t *testing.T) {
 	diags, err := checkRateFeed(rateFeedCheck, d)
 	require.NoError(t, err)
 	require.Len(t, diags, 1)
-	assert.Equal(t, diagnostic.CodeDoctorDDoSDetectBlind, diags[0].Code)
+	assert.Equal(t, codeDoctorDDoSDetectBlind, diags[0].Code)
 	assert.Equal(t, "warning", diags[0].Severity)
 	assert.Contains(t, diags[0].Message, "runs as an external plugin process")
 	assert.Contains(t, diags[0].Message, "plugin { external ddos-detect { ... } }")
@@ -294,9 +294,9 @@ func TestRateFeedCheckDeclaration(t *testing.T) {
 	// post-config, and lists a code `ze show diagnostic` explains.
 	assert.Equal(t, rateFeedCheck, rateFeedCheckDecl.Name)
 	assert.Equal(t, rpc.DoctorPhasePostConfig, rateFeedCheckDecl.Phase)
-	assert.Equal(t, []string{diagnostic.CodeDoctorDDoSDetectBlind}, rateFeedCheckDecl.Codes)
+	assert.Equal(t, []string{codeDoctorDDoSDetectBlind}, rateFeedCheckDecl.Codes)
 	diagnostic.RegisterBuiltinCodes()
-	meta := diagnostic.Lookup(diagnostic.CodeDoctorDDoSDetectBlind)
+	meta := diagnostic.Lookup(codeDoctorDDoSDetectBlind)
 	require.NotNil(t, meta)
 	assert.Contains(t, meta.Description, "ze show interface rate")
 }

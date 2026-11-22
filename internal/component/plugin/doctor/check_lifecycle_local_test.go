@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
@@ -29,7 +30,7 @@ func TestPluginFatalStopRowsNameRecord(t *testing.T) {
 		t.Fatalf("rows = %d, want 3 (fatal, cleanup-late, boot refusal): %+v", len(rows), rows)
 	}
 	late := rows[1]
-	if late.Code != diagnostic.CodeDoctorPluginStopCleanupLate || late.Severity != diagnostic.SeverityWarning {
+	if late.Code != process.CodeDoctorPluginStopCleanupLate || late.Severity != diagnostic.SeverityWarning {
 		t.Errorf("cleanup-late row %s/%s", late.Severity, late.Code)
 	}
 	if !strings.Contains(late.Message, "late") || !strings.Contains(late.Message, "cleanup ran late") {
@@ -41,7 +42,7 @@ func TestPluginFatalStopRowsNameRecord(t *testing.T) {
 			t.Errorf("fatal row %q does not name %q", rows[0].Message, want)
 		}
 	}
-	if rows[0].Code != diagnostic.CodeDoctorPluginFatalStop || rows[0].Severity != diagnostic.SeverityError {
+	if rows[0].Code != server.CodeDoctorPluginFatalStop || rows[0].Severity != diagnostic.SeverityError {
 		t.Errorf("fatal row %s/%s", rows[0].Severity, rows[0].Code)
 	}
 	if !strings.Contains(rows[0].Fix, "grep fatal-one") || !strings.Contains(rows[0].Fix, "configuration") {
@@ -59,7 +60,7 @@ func TestPluginAutoloadRowCarriesRefusal(t *testing.T) {
 		"a cannot run without b", "rebuild ze with the ze_b tag")
 	err := errors.Join(errors.New("missing dependency"), refusal)
 	row := autoloadRow(err)
-	if row.Code != diagnostic.CodeDoctorPluginAutoloadUnresolved || row.Severity != diagnostic.SeverityError {
+	if row.Code != codeDoctorPluginAutoloadUnresolved || row.Severity != diagnostic.SeverityError {
 		t.Errorf("row %s/%s", row.Severity, row.Code)
 	}
 	if !strings.Contains(row.Message, err.Error()) {

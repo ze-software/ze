@@ -10,7 +10,6 @@ import (
 	"slices"
 
 	plugin "github.com/ze-software/ze/internal/component/plugin"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -46,7 +45,7 @@ func RefuseChangedDeclarations(started, candidate []plugin.PluginConfig) error {
 		return nil
 	}
 	logger().Warn("config reload: the external plugin declarations changed", "error", refusal,
-		"fix", restartDaemonFix, "code", diagnostic.CodeDoctorConfigReloadRefused)
+		"fix", restartDaemonFix, "code", CodeDoctorConfigReloadRefused)
 	raiseReloadRefused(reloadRefusalMessage(
 		"the new configuration changes the external plugins ze runs, so ze keeps the configuration it was running",
 		nil, refusal), refusal)

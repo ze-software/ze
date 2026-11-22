@@ -18,7 +18,6 @@ package l2tp
 import (
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/kernelcap"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 const kernelcapComponent = SubsystemName
@@ -31,8 +30,8 @@ func l2tpKernelCapabilities() []kernelcap.Capability {
 			Component:   kernelcapComponent,
 			Kernel:      "CONFIG_L2TP",
 			ConfigLeaf:  SubsystemName,
-			CodeAbsent:  diagnostic.CodeDoctorL2TPUnavailable,
-			CodeUnknown: diagnostic.CodeDoctorL2TPUnknown,
+			CodeAbsent:  codeDoctorL2TPUnavailable,
+			CodeUnknown: codeDoctorL2TPUnknown,
 			Order:       747,
 			InUse:       L2TPInUse,
 			Probe:       l2tpControlProbe,
@@ -42,8 +41,8 @@ func l2tpKernelCapabilities() []kernelcap.Capability {
 			Component:   kernelcapComponent,
 			Kernel:      "CONFIG_PPPOL2TP",
 			ConfigLeaf:  SubsystemName,
-			CodeAbsent:  diagnostic.CodeDoctorL2TPPPPUnavailable,
-			CodeUnknown: diagnostic.CodeDoctorL2TPPPPUnknown,
+			CodeAbsent:  codeDoctorL2TPPPPUnavailable,
+			CodeUnknown: codeDoctorL2TPPPPUnknown,
 			Order:       748,
 			InUse:       L2TPInUse,
 			Probe:       l2tpSessionProbe,

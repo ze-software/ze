@@ -36,7 +36,8 @@ func checkISISRawSocket(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnost
 		return nil
 	}
 	return []diagnostic.Diagnostic{{
-		Code:     "doctor-isis-raw-socket",
+		Code:     codeDoctorISISRawSocket,
+		Fix:      "sudo setcap cap_net_raw+ep /usr/local/bin/ze",
 		Severity: diagnostic.SeverityWarning,
 		Message:  err.Error(),
 	}}

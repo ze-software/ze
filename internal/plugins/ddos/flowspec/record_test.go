@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/ddosevent"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -233,7 +232,7 @@ func orphanCodeWarnings(logs string) []string {
 		if !strings.Contains(line, "level=WARN") {
 			continue
 		}
-		if strings.Contains(line, "code="+diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement) {
+		if strings.Contains(line, "code="+codeDoctorDDoSFlowspecOrphanAnnouncement) {
 			out = append(out, line)
 		}
 	}
