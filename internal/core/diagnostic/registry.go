@@ -4,6 +4,7 @@ package diagnostic
 
 import (
 	"errors"
+	"maps"
 	"slices"
 	"sync"
 )
@@ -74,9 +75,7 @@ func ResetForTest() {
 func SnapshotForTest() func() {
 	mu.Lock()
 	saved := make(map[string]*CodeMeta, len(codes))
-	for k, v := range codes {
-		saved[k] = v
-	}
+	maps.Copy(saved, codes)
 	mu.Unlock()
 	return func() {
 		mu.Lock()

@@ -9,9 +9,6 @@
 package vpp
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
@@ -28,12 +25,11 @@ func vppLinuxDoctorChecks() []diagnostic.DoctorCheck {
 func init() {
 	// A refusal is a programmer error in the table beside it -- a duplicate
 	// name, a phase that does not exist, a code without the doctor prefix --
-	// and none of them can be reached from a config, so it stops the process
-	// rather than leaving `ze doctor` quietly short of a check.
+	// and none of them can be reached from a config, so it panics as a Ze
+	// defect rather than leaving `ze doctor` quietly short of a check.
 	for _, check := range vppLinuxDoctorChecks() {
 		if err := diagnostic.RegisterDoctorCheck(check); err != nil {
-			fmt.Fprintf(os.Stderr, "vpp: doctor check registration failed: %v\n", err)
-			os.Exit(1)
+			panic("BUG: vpp: doctor check registration failed: " + err.Error())
 		}
 	}
 }

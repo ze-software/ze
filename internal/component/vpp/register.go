@@ -5,9 +5,7 @@ package vpp
 
 import (
 	"context"
-	"fmt"
 	"net"
-	"os"
 
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -60,9 +58,10 @@ func init() {
 		}
 		return cli.RunPlugin(cfg, args)
 	}
+	// The registration is a compile-time value, so a refusal (a duplicate
+	// name, a missing handler) is a Ze defect no config can reach.
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "vpp: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: vpp: registration failed: " + err.Error())
 	}
 }
 

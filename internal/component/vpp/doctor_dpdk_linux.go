@@ -121,14 +121,12 @@ func checkVPPDPDK(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 
 func dpdkOriginalStateDiagnostic(pci string, cause error) diagnostic.Diagnostic {
 	path := filepath.Join(sysfsDevDir, pci)
-	var native *os.PathError
-	if errors.As(cause, &native) {
+	if native, ok := errors.AsType[*os.PathError](cause); ok {
 		path = native.Path
 	}
 	message := cause.Error()
 	fix := "Restore read access to " + path + " before binding this NIC"
-	var problem *opererr.Error
-	if errors.As(cause, &problem) {
+	if problem, ok := errors.AsType[*opererr.Error](cause); ok {
 		message = problem.Problem() + ": " + problem.Why()
 		if evidence := problem.Unwrap(); evidence != nil {
 			message += ": " + evidence.Error()

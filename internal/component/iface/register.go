@@ -246,9 +246,10 @@ func init() {
 	reg.CLIHandler = func(_ []string) int {
 		return 1
 	}
+	// The registration is a compile-time value, so a refusal (a duplicate
+	// name, a missing handler) is a Ze defect no config can reach.
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "interface: registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: interface: registration failed: " + err.Error())
 	}
 }
 

@@ -52,6 +52,28 @@ func validLCPReply() *lcp.LcpItfPairGetV2Reply {
 	return &lcp.LcpItfPairGetV2Reply{Cursor: ^uint32(0)}
 }
 
+// streamLCPDetails returns the details message a valid readback carries
+// first, so a case can corrupt one of its fields.
+func streamLCPDetails(t *testing.T, s *lcpQueryStream) *lcp.LcpItfPairDetails {
+	t.Helper()
+	details, ok := s.messages[0].(*lcp.LcpItfPairDetails)
+	if !ok {
+		t.Fatalf("message 0 is %T, not the details a valid readback starts with", s.messages[0])
+	}
+	return details
+}
+
+// streamLCPReply returns the final reply a valid readback carries second, so
+// a case can corrupt one of its fields.
+func streamLCPReply(t *testing.T, s *lcpQueryStream) *lcp.LcpItfPairGetV2Reply {
+	t.Helper()
+	reply, ok := s.messages[1].(*lcp.LcpItfPairGetV2Reply)
+	if !ok {
+		t.Fatalf("message 1 is %T, not the final reply a valid readback ends with", s.messages[1])
+	}
+	return reply
+}
+
 // TestGetLCPPairUsesActualIdentity proves the name resolver's DP index selects
 // exactly one actual pair, without reconstructing the Linux name from it.
 func TestGetLCPPairUsesActualIdentity(t *testing.T) {
@@ -98,32 +120,32 @@ func TestGetLCPPairUsesActualIdentity(t *testing.T) {
 // TestLCPPairReadRefusesIncompleteReadback changes every actual pair identity
 // or completion property independently; no refusal publishes a guessed pair.
 func TestLCPPairReadRefusesIncompleteReadback(t *testing.T) {
-	cases := map[string]func(*lcpQueryStream){
-		"missing details":   func(s *lcpQueryStream) { s.messages = []api.Message{validLCPReply()} },
-		"missing final":     func(s *lcpQueryStream) { s.messages = s.messages[:1] },
-		"duplicate details": func(s *lcpQueryStream) { s.messages[1] = validLCPDetails() },
-		"wrong DP":          func(s *lcpQueryStream) { s.messages[0].(*lcp.LcpItfPairDetails).PhySwIfIndex = 6 },
-		"invalid CP": func(s *lcpQueryStream) {
-			s.messages[0].(*lcp.LcpItfPairDetails).HostSwIfIndex = ^interface_types.InterfaceIndex(0)
+	cases := map[string]func(*testing.T, *lcpQueryStream){
+		"missing details":   func(_ *testing.T, s *lcpQueryStream) { s.messages = []api.Message{validLCPReply()} },
+		"missing final":     func(_ *testing.T, s *lcpQueryStream) { s.messages = s.messages[:1] },
+		"duplicate details": func(_ *testing.T, s *lcpQueryStream) { s.messages[1] = validLCPDetails() },
+		"wrong DP":          func(t *testing.T, s *lcpQueryStream) { streamLCPDetails(t, s).PhySwIfIndex = 6 },
+		"invalid CP": func(t *testing.T, s *lcpQueryStream) {
+			streamLCPDetails(t, s).HostSwIfIndex = ^interface_types.InterfaceIndex(0)
 		},
-		"zero CP":             func(s *lcpQueryStream) { s.messages[0].(*lcp.LcpItfPairDetails).HostSwIfIndex = 0 },
-		"same indices":        func(s *lcpQueryStream) { s.messages[0].(*lcp.LcpItfPairDetails).HostSwIfIndex = 5 },
-		"zero Linux index":    func(s *lcpQueryStream) { s.messages[0].(*lcp.LcpItfPairDetails).VifIndex = 0 },
-		"invalid Linux index": func(s *lcpQueryStream) { s.messages[0].(*lcp.LcpItfPairDetails).VifIndex = ^uint32(0) },
-		"wrong namespace":     func(s *lcpQueryStream) { s.messages[0].(*lcp.LcpItfPairDetails).Netns = "other" },
-		"no device":           func(s *lcpQueryStream) { s.messages[0].(*lcp.LcpItfPairDetails).HostIfName = "" },
-		"long device":         func(s *lcpQueryStream) { s.messages[0].(*lcp.LcpItfPairDetails).HostIfName = "sixteencharacter" },
-		"TUN":                 func(s *lcpQueryStream) { s.messages[0].(*lcp.LcpItfPairDetails).HostIfType = lcp.LCP_API_ITF_HOST_TUN },
-		"retval":              func(s *lcpQueryStream) { s.messages[1].(*lcp.LcpItfPairGetV2Reply).Retval = -1 },
-		"cursor":              func(s *lcpQueryStream) { s.messages[1].(*lcp.LcpItfPairGetV2Reply).Cursor = 1 },
-		"unexpected reply":    func(s *lcpQueryStream) { s.messages[1] = &lcp.LcpDefaultNsGetReply{} },
-		"typed nil details":   func(s *lcpQueryStream) { var d *lcp.LcpItfPairDetails; s.messages[0] = d },
-		"typed nil final":     func(s *lcpQueryStream) { var r *lcp.LcpItfPairGetV2Reply; s.messages[1] = r },
+		"zero CP":             func(t *testing.T, s *lcpQueryStream) { streamLCPDetails(t, s).HostSwIfIndex = 0 },
+		"same indices":        func(t *testing.T, s *lcpQueryStream) { streamLCPDetails(t, s).HostSwIfIndex = 5 },
+		"zero Linux index":    func(t *testing.T, s *lcpQueryStream) { streamLCPDetails(t, s).VifIndex = 0 },
+		"invalid Linux index": func(t *testing.T, s *lcpQueryStream) { streamLCPDetails(t, s).VifIndex = ^uint32(0) },
+		"wrong namespace":     func(t *testing.T, s *lcpQueryStream) { streamLCPDetails(t, s).Netns = "other" },
+		"no device":           func(t *testing.T, s *lcpQueryStream) { streamLCPDetails(t, s).HostIfName = "" },
+		"long device":         func(t *testing.T, s *lcpQueryStream) { streamLCPDetails(t, s).HostIfName = "sixteencharacter" },
+		"TUN":                 func(t *testing.T, s *lcpQueryStream) { streamLCPDetails(t, s).HostIfType = lcp.LCP_API_ITF_HOST_TUN },
+		"retval":              func(t *testing.T, s *lcpQueryStream) { streamLCPReply(t, s).Retval = -1 },
+		"cursor":              func(t *testing.T, s *lcpQueryStream) { streamLCPReply(t, s).Cursor = 1 },
+		"unexpected reply":    func(_ *testing.T, s *lcpQueryStream) { s.messages[1] = &lcp.LcpDefaultNsGetReply{} },
+		"typed nil details":   func(_ *testing.T, s *lcpQueryStream) { var d *lcp.LcpItfPairDetails; s.messages[0] = d },
+		"typed nil final":     func(_ *testing.T, s *lcpQueryStream) { var r *lcp.LcpItfPairGetV2Reply; s.messages[1] = r },
 	}
 	for name, change := range cases {
 		t.Run(name, func(t *testing.T) {
 			stream := &lcpQueryStream{messages: []api.Message{validLCPDetails(), validLCPReply()}}
-			change(stream)
+			change(t, stream)
 			pair, err := readLCPPair(context.Background(), 5, "dataplane", func(context.Context) (api.Stream, error) { return stream, nil })
 			if err == nil {
 				t.Fatal("accepted invalid pair readback")
@@ -193,7 +215,7 @@ func TestGetLCPPairRefusesUnavailableAccess(t *testing.T) {
 			b := newLCPBackend(&progChannel{})
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			var queryContext context.Context = ctx
+			queryContext := ctx
 			name := "loop0"
 			switch stage {
 			case "nil context":

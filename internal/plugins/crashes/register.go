@@ -83,11 +83,10 @@ func init() {
 		HideFromSelection: true,
 	}); err != nil {
 		// A lost registration loses the boot harvest, and a kernel crash
-		// record nobody recovers is gone at the next fault. Fail loudly, as
-		// every other plugin registration does.
-		var tb textbuf.Buffer
-		_ = tb.Str("crashes: registration failed: ").Err(err).Byte('\n').StdErr()
-		os.Exit(1)
+		// record nobody recovers is gone at the next fault. The registration
+		// is a compile-time value, so a refusal (a duplicate name) is a Ze
+		// defect no config can reach: fail loudly.
+		panic("BUG: crashes: registration failed: " + err.Error())
 	}
 }
 

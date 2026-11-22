@@ -499,6 +499,9 @@ func (b *vppBackendImpl) disableVLANQoSMark(ifaceName string, subIdx interface_t
 // qosMarkAlreadyDisabled reports whether VPP refused a mark disable because
 // no mark was enabled on the index.
 func qosMarkAlreadyDisabled(code api.VPPApiError) bool {
+	// A predicate over VPP's open retval set: only these two refusals mean no
+	// mark is enabled, and every other code stays a real failure (false).
+	//exhaustive:ignore
 	switch code {
 	case api.NO_MATCHING_INTERFACE: // index past the config vector: no mark was ever enabled
 		return true

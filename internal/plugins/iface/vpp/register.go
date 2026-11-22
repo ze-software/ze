@@ -4,9 +4,6 @@
 package ifacevpp
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/ze-software/ze/internal/component/iface"
 )
 
@@ -15,14 +12,14 @@ import (
 // check reports under.
 const backendVPP = "vpp"
 
+// init registers compile-time values only, so a refusal (a duplicate backend
+// or check name, a malformed check) is a Ze defect no config can reach.
 func init() {
 	if err := iface.RegisterBackend(backendVPP, newVPPBackend); err != nil {
-		fmt.Fprintf(os.Stderr, "iface-vpp: backend registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: iface-vpp: backend registration failed: " + err.Error())
 	}
 	RegisterHealthCheck()
 	if err := registerDoctorChecks(); err != nil {
-		fmt.Fprintf(os.Stderr, "iface-vpp: doctor check registration failed: %v\n", err)
-		os.Exit(1)
+		panic("BUG: iface-vpp: doctor check registration failed: " + err.Error())
 	}
 }

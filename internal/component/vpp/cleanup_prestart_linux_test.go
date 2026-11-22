@@ -25,7 +25,7 @@ func TestVPPManagerCleanupRunOnceCanceledBeforeStart(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 	err = manager.runOnce(ctx, filepath.Join(t.TempDir(), "startup.conf"))
-	if err != ctx.Err() {
+	if err != ctx.Err() { //nolint:errorlint // runOnce returns ctx.Err itself for a clean pre-start cancellation (vpp.go); errors.Is would also pass a wrapped startup cause.
 		t.Fatalf("no-child cancellation lost its exact cause: %v", err)
 	}
 	if manager.IsConnected() || manager.ready {
@@ -43,8 +43,7 @@ func TestVPPManagerCleanupRunOnceRefusedStartKeepsCause(t *testing.T) {
 	if !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("ordinary no-child startup refusal lost its cause: %v", err)
 	}
-	var cleanup nativeCleanupError
-	if errors.As(err, &cleanup) {
+	if _, ok := errors.AsType[nativeCleanupError](err); ok {
 		t.Fatalf("ordinary refused Start became a native cleanup failure: %v", err)
 	}
 }

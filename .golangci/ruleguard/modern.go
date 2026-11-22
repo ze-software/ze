@@ -106,10 +106,16 @@ func noFakeBufHandle(m dsl.Matcher) {
 }
 
 // noHandlerOsExit refuses os.Exit() outside entrypoints, registration files,
-// crash/env aborts, and test fixtures so handlers return errors cleanly.
+// crash/env aborts, and test fixtures so handlers return errors cleanly. It
+// mirrors osExitAllowed in internal/le/go/style. File().Name is the file's
+// base name (ruleguard matches filepath.Base), so a file is exempted by its
+// name alone, and a file exempted only in one directory pairs its name with
+// that package's path.
 func noHandlerOsExit(m dsl.Matcher) {
 	m.Match(`os.Exit($*_)`).
-		Where(!m.File().Name.Matches(`(_test\.go|/main\.go|/register[^/]*\.go|/cmd/ze/pprof[^/]*\.go|/internal/component/config/doctor\.go)$`) &&
+		Where(!m.File().Name.Matches(`(_test\.go|^main\.go|^register[^/]*\.go)$`) &&
+			!(m.File().PkgPath.Matches(`/cmd/ze$`) && m.File().Name.Matches(`^pprof[^/]*\.go$`)) &&
+			!(m.File().PkgPath.Matches(`/internal/component/config$`) && m.File().Name.Matches(`^doctor\.go$`)) &&
 			!m.File().PkgPath.Matches(`/internal/core/(env|crashlog)$`) &&
 			!m.File().PkgPath.Matches(`/internal/test/fixture`)).
 		Report(`os.Exit() in handler -- return an error instead (ai/rules/go-standards.md)`)

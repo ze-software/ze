@@ -141,7 +141,8 @@ func newStatsCustodyFile(t *testing.T) *os.File {
 // Unrelated descriptor churn is permitted; no pathname grants close authority.
 func requireStatsCustodyFiles(t *testing.T, files ...*os.File) {
 	t.Helper()
-	entries, err := os.ReadDir("/proc/self/fd")
+	const fdDir = "/proc/self/fd"
+	entries, err := os.ReadDir(fdDir)
 	if err != nil {
 		t.Fatal("cannot observe actual descriptor custody:", err)
 	}
@@ -152,7 +153,7 @@ func requireStatsCustodyFiles(t *testing.T, files ...*os.File) {
 		}
 		count := 0
 		for _, entry := range entries {
-			actual, err := os.Stat(filepath.Join("/proc", "self", "fd", entry.Name()))
+			actual, err := os.Stat(filepath.Join(fdDir, entry.Name()))
 			if errors.Is(err, os.ErrNotExist) {
 				continue // an unrelated descriptor closed after the directory snapshot
 			}

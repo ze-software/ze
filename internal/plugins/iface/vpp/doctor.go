@@ -221,10 +221,10 @@ func lcpNetnsMarkerDiagnostic(netns string) diagnostic.Diagnostic {
 		Str(" is not the host network namespace. VPP resolves the leaf as a namespace name under ").Str(lcpNetnsPathPrefix).
 		Str(", so the LCP TAPs land in ").Str(lcpNetnsPathPrefix).Str(netns).
 		Str(" and ze cannot bind on them from its own namespace. Leave vpp.lcp.netns empty to keep the TAPs in VPP's own network namespace, where ze runs; the other remedy is to run ze in the ").Quoted(netns).
-		Str(" namespace so BGP binds where the TAPs are, or see ze show diagnostic doctor-vpp-lcp-netns").String()
+		Str(" namespace so BGP binds where the TAPs are, or see ").Str(fixShowLCPNetns).String()
 	return diagnostic.Diagnostic{
 		Code:     codeDoctorVPPLCPNetns,
-		Fix:      "ze show diagnostic doctor-vpp-lcp-netns",
+		Fix:      fixShowLCPNetns,
 		Severity: diagnostic.SeverityWarning,
 		Message:  msg,
 	}
@@ -251,10 +251,10 @@ func lcpNetnsConfigDiagnostic(tree *config.Tree, netns string) (diagnostic.Diagn
 	var tb textbuf.Buffer
 	msg := tb.Str("bgp is enabled and vpp.lcp.netns=").Quoted(netns).
 		Str(" is not root-reachable; BGP cannot bind on an LCP-shadowed interface in a separate namespace. VPP resolves the leaf as a namespace name under /var/run/netns/, so no name puts the TAPs where a root-netns ze binds. Leave vpp.lcp.netns empty to keep the TAPs in VPP's own network namespace, or run ze in the ").Quoted(netns).
-		Str(" namespace so BGP binds where the TAPs are; see ze show diagnostic doctor-vpp-lcp-netns").String()
+		Str(" namespace so BGP binds where the TAPs are; see ").Str(fixShowLCPNetns).String()
 	return diagnostic.Diagnostic{
 		Code:     codeDoctorVPPLCPNetns,
-		Fix:      "ze show diagnostic doctor-vpp-lcp-netns",
+		Fix:      fixShowLCPNetns,
 		Severity: diagnostic.SeverityWarning,
 		Message:  msg,
 	}, true
@@ -278,10 +278,10 @@ func lcpNetnsHostDiagnostic(netns string) (diagnostic.Diagnostic, bool) {
 	case err != nil:
 		msg := tb.Str("vpp.lcp.netns=").Quoted(netns).Str(" could not be checked against ").Str(lcpNetnsPathPrefix).Str(": ").Err(err).
 			Str(". VPP opens that path for the LCP TAPs, so a missing namespace fails LCP pair creation at apply. Leave vpp.lcp.netns empty to keep the TAPs in VPP's own network namespace, or run ze in the ").Quoted(netns).
-			Str(" namespace so BGP binds where the TAPs are; see ze show diagnostic doctor-vpp-lcp-netns").String()
+			Str(" namespace so BGP binds where the TAPs are; see ").Str(fixShowLCPNetns).String()
 		return diagnostic.Diagnostic{
 			Code:     codeDoctorVPPLCPNetns,
-			Fix:      "ze show diagnostic doctor-vpp-lcp-netns",
+			Fix:      fixShowLCPNetns,
 			Severity: diagnostic.SeverityWarning,
 			Message:  msg,
 		}, true
@@ -379,6 +379,10 @@ func lcpNetnsIsRootMarker(netns string) bool {
 // plugins` output rather than probed on the filesystem: what matters is whether
 // the RUNNING VPP loaded it, not whether some copy exists on disk.
 const lcpPluginSO = "linux_cp_plugin.so"
+
+// fixVPPShowPlugins is the command every lcp-plugin finding names as its fix:
+// it lists the plugins the running VPP loaded, which is what the check reads.
+const fixVPPShowPlugins = "vppctl show plugins"
 
 // vppctlPluginsHeader is the first line `vppctl show plugins` prints, ahead of
 // the column titles and the numbered plugin rows. The check requires it before
@@ -483,7 +487,7 @@ func checkVPPLCPPlugin(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 	if err != nil {
 		return []diagnostic.Diagnostic{{
 			Code:     codeDoctorVPPLCPPlugin,
-			Fix:      "vppctl show plugins",
+			Fix:      fixVPPShowPlugins,
 			Severity: diagnostic.SeverityWarning,
 			Message: tb.Str("vpp.lcp is enabled but the running VPP could not be probed for ").
 				Str(lcpPluginSO).Str(": ").Err(err).String(),
@@ -492,7 +496,7 @@ func checkVPPLCPPlugin(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 	if !strings.Contains(out, vppctlPluginsHeader) {
 		return []diagnostic.Diagnostic{{
 			Code:     codeDoctorVPPLCPPlugin,
-			Fix:      "vppctl show plugins",
+			Fix:      fixVPPShowPlugins,
 			Severity: diagnostic.SeverityWarning,
 			Message: tb.Str("vpp.lcp is enabled but the running VPP could not be probed for ").
 				Str(lcpPluginSO).Str(": the probe exited zero without the \"").Str(vppctlPluginsHeader).
@@ -504,7 +508,7 @@ func checkVPPLCPPlugin(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 	}
 	return []diagnostic.Diagnostic{{
 		Code:     codeDoctorVPPLCPPlugin,
-		Fix:      "vppctl show plugins",
+		Fix:      fixVPPShowPlugins,
 		Severity: diagnostic.SeverityError,
 		Message: tb.Reset().Str("vpp.lcp is enabled but the running VPP does not load ").Str(lcpPluginSO).
 			Str("; the linux_cp API is unavailable and the config apply will fail at the binapi layer").String(),

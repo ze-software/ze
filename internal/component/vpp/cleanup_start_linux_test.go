@@ -88,8 +88,7 @@ func newCleanupStartCopyFixture(t *testing.T, copyCause error) (*exec.Cmd, *clea
 				killErr = nil
 			}
 			waitErr := command.Wait()
-			var exit *exec.ExitError
-			if errors.As(waitErr, &exit) {
+			if exit, ok := errors.AsType[*exec.ExitError](waitErr); ok {
 				if status, ok := exit.Sys().(syscall.WaitStatus); ok && status.Signaled() && status.Signal() == syscall.SIGKILL {
 					waitErr = nil // this teardown deliberately killed its own child
 				}
@@ -196,12 +195,10 @@ func TestVPPManagedStartCleanupNormalizesOnlyOwnedKill(t *testing.T) {
 	if !errors.Is(err, primary) {
 		t.Fatalf("healthy cleanup lost the primary startup refusal: %v", err)
 	}
-	var exit *exec.ExitError
-	if errors.As(err, &exit) {
+	if _, ok := errors.AsType[*exec.ExitError](err); ok {
 		t.Fatalf("healthy owned kill retained its expected exit error: %v", err)
 	}
-	var cleanup nativeCleanupError
-	if errors.As(err, &cleanup) {
+	if _, ok := errors.AsType[nativeCleanupError](err); ok {
 		t.Fatalf("healthy owned kill became a native cleanup failure: %v", err)
 	}
 }

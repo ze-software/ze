@@ -7,8 +7,12 @@ import "github.com/ze-software/ze/internal/core/diagnostic"
 const (
 	codeDoctorVPPLCPNetns  = "doctor-vpp-lcp-netns"
 	codeDoctorVPPLCPPlugin = "doctor-vpp-lcp-plugin"
-	codeDoctorVPPWireguard = "doctor-vpp-wireguard"
+	codeDoctorVPPWireguard = "doctor-vpp-wireguard" //nolint:gosec // G101: a doctor code name; the credential pattern matched "PW" in VPPWireguard
 	exampleDoctorJSON      = "ze doctor --json"
+
+	// fixShowLCPNetns is the command that prints the long explanation of
+	// codeDoctorVPPLCPNetns: every lcp-netns finding names it as its fix.
+	fixShowLCPNetns = "ze show diagnostic " + codeDoctorVPPLCPNetns
 )
 
 // doctorDiagnosticCodes is the explanation metadata for the doctor codes this package owns.
@@ -17,7 +21,7 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 		Code:        codeDoctorVPPLCPNetns,
 		Title:       "LCP netns will not carry the TAPs ze needs",
 		Description: "vpp.lcp.netns carries a value, so VPP resolves it as a network namespace NAME and opens /var/run/netns/<name> for the Linux Control Plane TAPs. ze also passes the same leaf as VPP's global default netns. Three outcomes follow, and this code reports whichever applies. The TAPs land outside the namespace ze runs in, so BGP cannot bind on an LCP-shadowed interface: ze has no netns-aware listener, and netns-aware BGP binding is specced but not implemented. ze's own markers host and root are not exempt, because to VPP they are ordinary names: netns=host asks for a namespace literally called host. And when the namespace is absent from this host, LCP pair creation fails at apply with a raw VPP error; a probe that cannot answer is reported as a probe failure and never as absence. Remedy: leave vpp.lcp.netns empty, which clears VPP's global default and leaves the TAPs in VPP's own namespace where ze runs, or run ze in the namespace the leaf names so BGP binds where the TAPs are.",
-		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-vpp-lcp-netns"},
+		Examples:    []string{exampleDoctorJSON, fixShowLCPNetns},
 	},
 	{
 		Code:        codeDoctorVPPLCPPlugin,
