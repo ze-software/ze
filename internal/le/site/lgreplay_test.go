@@ -66,7 +66,7 @@ func lgReplayCheckout(t *testing.T, recorded bool) Paths {
 			t.Fatal(err)
 		}
 	}
-	write("website/"+lgReplayScriptSource, []byte("/* the player */\n"))
+	write("website/"+lgReplayScriptSource, []byte("/* the player */\nwindow.lgReplayPlayer = true;\n"))
 	// The two files every asset render requires of a checkout.
 	write("website/assets/js/site.js", []byte("/* the site */\n"))
 	write("website/assets/css/site.css", []byte(".lg-replay__frame { width: 100%; }\n"))

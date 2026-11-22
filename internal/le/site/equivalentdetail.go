@@ -347,7 +347,7 @@ func equivalentDetailMirror(mapping *equivalentMapping, row *equivalentRow, vend
 	out.Str("- Mode: ").Str(markdownProse(commandModeLabel(command.Mode))).Byte('\n')
 	out.Str("- Wire method: ").Str(markdownCode(orNotListed(command.WireMethod))).Byte('\n')
 	out.Str("- Backends: ").Str(backendsMirror(command)).Byte('\n')
-	out.Str("- Task support: ").Str(markdownProse(commandTaskSupportLabel(command.TaskSupport))).Byte('\n')
+	out.Str("- Task support: ").Str(taskSupportMirror(command)).Byte('\n')
 	out.Str("- Subcommands: ").Str(subcommandsMirror(command)).Byte('\n')
 	out.Str("- Answer shape: ").Str(markdownProse(orNotDeclared(command.AnswerShape))).Byte('\n')
 	out.Str("- Address fields: ").Str(markdownProse(orNone(strings.Join(command.AddressFields, ", ")))).Byte('\n')
@@ -402,6 +402,23 @@ func backendsMirror(command *catalogCommand) string {
 		return backendsUnrestricted
 	}
 	return markdownCodeList(command.Backend, markdownCode)
+}
+
+// taskSupportMirror writes what one command's MCP task-support level means.
+// The site's own wording (taskSupportLabels, taskSupportDefault) is written as
+// it stands, the way backendsMirror and subcommandsMirror write theirs: it
+// holds no Markdown syntax, and a backslash before each colon and comma would
+// leave the mirror's reader a sentence the page does not say. A level the site
+// has no wording for is the catalog's own text, so markdownProse keeps it
+// literal.
+func taskSupportMirror(command *catalogCommand) string {
+	if command.TaskSupport == "" {
+		return taskSupportDefault
+	}
+	if label, known := taskSupportLabels[command.TaskSupport]; known {
+		return label
+	}
+	return markdownProse(command.TaskSupport)
 }
 
 // subcommandsMirror writes what an operator can type after one command.
