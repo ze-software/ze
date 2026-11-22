@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8671-5.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671PostPolicyConveysTransmittedBytes",
+    "unit-sha": "d503fe22d1023270",
+    "claim-sha": "6ab3908eaf94dd35",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/bmp_events.go::BMPPlugin.handleStructuredEvent",
+    "producer-sha": "b55cdcca9f9bb8cd",
+    "break": "body of BMPPlugin.handleStructuredEvent replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8671-5.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671PostPolicyConveysUnknownAttributeUnchanged",
+    "unit-sha": "f91e2235eca31307",
+    "claim-sha": "acb2c0effdb43e1a",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/bmp_events.go::BMPPlugin.handleStructuredEvent",
+    "producer-sha": "b55cdcca9f9bb8cd",
+    "break": "body of BMPPlugin.handleStructuredEvent replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

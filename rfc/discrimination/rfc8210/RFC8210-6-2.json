@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8210-6-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rpki/rfc8210_rtr_expire_test.go::TestRTRDataExpiryAndRenewal",
+    "unit-sha": "c9d644a5d236ea02",
+    "claim-sha": "a3debbbb7a87ba37",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_expire.go::rtrDataLease.expireData",
+    "producer-sha": "27d5ccf486878bfa",
+    "break": "body of rtrDataLease.expireData replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8210-6-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rpki/rfc8210_rtr_expire_test.go::TestRTRDataExpiryAndRenewal",
+    "unit-sha": "c9d644a5d236ea02",
+    "claim-sha": "3f1c7d63e700e3b8",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_expire.go::rtrDataLease.expireData",
+    "producer-sha": "27d5ccf486878bfa",
+    "break": "body of rtrDataLease.expireData replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

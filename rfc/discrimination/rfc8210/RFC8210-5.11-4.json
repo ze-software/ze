@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC8210-5.11-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestASPAProviderListErrorOnWire",
+    "unit-sha": "569dcc484c18ac54",
+    "claim-sha": "43d84e75c2cd896c",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_pdu.go::writeErrorReport",
+    "producer-sha": "6b4cc2e59c972d06",
+    "break": "body of writeErrorReport replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

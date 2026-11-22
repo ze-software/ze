@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-5.1.4-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/forward_med_test.go::TestForwardSuppressesReceivedMEDToAnotherAS",
+    "unit-sha": "1d4b524adc60867b",
+    "claim-sha": "2a20ea4ddd784fc8",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_med.go::applyFactsMED",
+    "producer-sha": "7a8d013aec5b5395",
+    "break": "body of applyFactsMED replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-5.1.4-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/forward_med_test.go::TestForwardSuppressesReceivedMEDToAnotherAS",
+    "unit-sha": "1d4b524adc60867b",
+    "claim-sha": "45355047b58fb864",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_med.go::applyFactsMED",
+    "producer-sha": "7a8d013aec5b5395",
+    "break": "body of applyFactsMED replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

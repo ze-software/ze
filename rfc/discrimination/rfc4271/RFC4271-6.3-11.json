@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-6.3-11",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_session_next_hop_test.go::TestSessionRFC4271NextHopMixedUpdateAndAddressChange",
+    "unit-sha": "9e9687d245c96d57",
+    "claim-sha": "e219dc31890802be",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_next_hop.go::Session.invalidReceiveNextHop",
+    "producer-sha": "745716a752c5e3a5",
+    "break": "body of Session.invalidReceiveNextHop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-6.3-11",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_session_next_hop_test.go::TestSessionRFC4271NextHopMixedUpdateAndAddressChange",
+    "unit-sha": "9e9687d245c96d57",
+    "claim-sha": "d1b6a3c639cd392c",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_next_hop.go::Session.invalidReceiveNextHop",
+    "producer-sha": "745716a752c5e3a5",
+    "break": "body of Session.invalidReceiveNextHop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

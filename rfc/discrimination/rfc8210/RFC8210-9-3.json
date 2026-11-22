@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8210-9-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSAuthenticatedCache",
+    "unit-sha": "f052abf09ce4c5b9",
+    "claim-sha": "40674b770bf1b7d4",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_tls.go::RTRSession.startTLS",
+    "producer-sha": "ff2eb9f60025b130",
+    "break": "body of RTRSession.startTLS replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8210-9-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSNoPlaintextFallback",
+    "unit-sha": "9ecb8b817b5eada8",
+    "claim-sha": "ddd53a799b49e4ba",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_tls.go::RTRSession.startTLS",
+    "producer-sha": "ff2eb9f60025b130",
+    "break": "body of RTRSession.startTLS replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8671-x-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/header_test.go::TestRFC8671OFlagBit4",
+    "unit-sha": "3f9e9441f6f4f62e",
+    "claim-sha": "0e9bdabbeaff1b20",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/header.go::PeerHeader.isAdjRIBOut",
+    "producer-sha": "c3028890eba1f0d8",
+    "break": "body of PeerHeader.isAdjRIBOut replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8671-x-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/bmp/header_test.go::TestRFC8671OFlagBit4",
+    "unit-sha": "3f9e9441f6f4f62e",
+    "claim-sha": "804b0f2d99358c4c",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/header.go::PeerHeader.isAdjRIBOut",
+    "producer-sha": "c3028890eba1f0d8",
+    "break": "body of PeerHeader.isAdjRIBOut replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

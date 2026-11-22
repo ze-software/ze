@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-8.2.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PerPeerFSMDoesNotShareTimers",
+    "unit-sha": "a11b903233f7c333",
+    "claim-sha": "412ee5142ec5d5c6",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session.go::NewSession",
+    "producer-sha": "51a8573136123b71",
+    "break": "body of NewSession replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271SeparateFSMPerPeer",
+    "unit-sha": "bc3516bcb1d5ab88",
+    "claim-sha": "636d45956bfa4681",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session.go::NewSession",
+    "producer-sha": "51a8573136123b71",
+    "break": "body of NewSession replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

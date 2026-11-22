@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC8210-8.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rpki/rfc8210_rtr_poll_test.go::TestRunPollsOnRefreshAfterSuccessRetryAfterFailure",
+    "unit-sha": "ddaea36200e26792",
+    "claim-sha": "9316ef6287a873a9",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.pollDelay",
+    "producer-sha": "0c3ecba43bf2ed62",
+    "break": "body of RTRSession.pollDelay replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

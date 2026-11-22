@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9234-5-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressFilter",
+    "unit-sha": "f6a4d0e3332d5f55",
+    "claim-sha": "32705cddd8836160",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/role/otc.go::checkOTCIngress",
+    "producer-sha": "a2326791096ae4c7",
+    "break": "body of checkOTCIngress replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9234-5-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressFilter",
+    "unit-sha": "f6a4d0e3332d5f55",
+    "claim-sha": "9eb44e125c5b089a",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/role/otc.go::checkOTCIngress",
+    "producer-sha": "a2326791096ae4c7",
+    "break": "body of checkOTCIngress replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8210-5.11-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestASPAProviderListErrorOnWire",
+    "unit-sha": "569dcc484c18ac54",
+    "claim-sha": "4d2973649727807e",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.readLoop",
+    "producer-sha": "34c9af4700941da7",
+    "break": "body of RTRSession.readLoop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8210-5.11-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestRTRErrorReportIsNotAnswered",
+    "unit-sha": "52271d47d3b599aa",
+    "claim-sha": "cf03ebe4d75f3d48",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.readLoop",
+    "producer-sha": "34c9af4700941da7",
+    "break": "body of RTRSession.readLoop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8671-6.3.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671AdminLabelOrderPreserved",
+    "unit-sha": "e6f44b2d88a8e06b",
+    "claim-sha": "6a0c0d042c3505a1",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/msg.go::decodePeerUp",
+    "producer-sha": "176021763cbf357a",
+    "break": "body of decodePeerUp replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8671-6.3.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671AdminLabelReversedOrderPreserved",
+    "unit-sha": "3742fa9b7c8973f4",
+    "claim-sha": "1b7f1ffca912f47e",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/msg.go::decodePeerUp",
+    "producer-sha": "176021763cbf357a",
+    "break": "body of decodePeerUp replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

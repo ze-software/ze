@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7606-2-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestApplyAttrDiscardEmptyEntries",
+    "unit-sha": "d113b4568b8f9e05",
+    "claim-sha": "b0a5bb71c9a38e6e",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/attr_discard.go::ApplyAttrDiscard",
+    "producer-sha": "def8ce77be70c41e",
+    "break": "body of ApplyAttrDiscard replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7606-2-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestApplyAttrDiscardMultipleEntries",
+    "unit-sha": "4a0676ba4b85aaa9",
+    "claim-sha": "7853996e93617258",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/attr_discard.go::ApplyAttrDiscard",
+    "producer-sha": "def8ce77be70c41e",
+    "break": "body of ApplyAttrDiscard replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

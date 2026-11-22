@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7606-7.15-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606IPv6ExtCommunityUnrecognizedType",
+    "unit-sha": "b63443d77f6aeab5",
+    "claim-sha": "5af26196996a7ee3",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606_optional_attrs.go::validateIPv6ExtCommunityAttr",
+    "producer-sha": "9c106990e7f0944f",
+    "break": "body of validateIPv6ExtCommunityAttr replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

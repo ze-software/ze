@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7606-3.b-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7606_session_structural_test.go::TestEnforceRFC7606_SectionLengthsExactlyFitAccepted",
+    "unit-sha": "792cfc0f0050aee5",
+    "claim-sha": "7960affe77a8fc10",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_validation.go::Session.enforceRFC7606",
+    "producer-sha": "757d76df896768ce",
+    "break": "body of Session.enforceRFC7606 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7606-3.b-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc7606_session_structural_test.go::TestSessionRFC7606SectionLengthConflictNotification",
+    "unit-sha": "f03c246c8204bb4c",
+    "claim-sha": "d1b74178423a1bb3",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_validation_receive.go::Session.classifyRFC7606",
+    "producer-sha": "d6082bf91215a6f9",
+    "break": "body of Session.classifyRFC7606 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

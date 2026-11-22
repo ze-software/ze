@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC6396-4.3.1-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/mrt/rfc6396_dump_test.go::TestDumpV2PeerIndexBeforeFirstRIBEntry",
+    "unit-sha": "555db09ec6f177b4",
+    "claim-sha": "791e55055bd98ece",
+    "route": "revert",
+    "producer": "internal/plugins/mrt/dump.go::writeTableDumpV2",
+    "producer-sha": "c36d65611ec8ad5d",
+    "break": "body of writeTableDumpV2 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

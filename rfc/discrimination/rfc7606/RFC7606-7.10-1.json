@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7606-7.10-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ClusterListEBGPDiscard",
+    "unit-sha": "d0bd02af20f113a2",
+    "claim-sha": "663b98b1a31f058c",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateClusterListAttr",
+    "producer-sha": "eae65e6709db9991",
+    "break": "body of validateClusterListAttr replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7606-7.10-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ClusterListIBGPValid",
+    "unit-sha": "b3a78a32469e45be",
+    "claim-sha": "5059971300d76a91",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateClusterListAttr",
+    "producer-sha": "eae65e6709db9991",
+    "break": "body of validateClusterListAttr replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

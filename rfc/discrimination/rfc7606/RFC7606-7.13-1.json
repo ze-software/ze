@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7606-7.13-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606TrafficEngineeringTooShort",
+    "unit-sha": "b9d454dd6ff9a6c0",
+    "claim-sha": "71e596c57c768dde",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606_optional_attrs.go::validateTrafficEngineeringAttr",
+    "producer-sha": "a34d0be000ae50ef",
+    "break": "body of validateTrafficEngineeringAttr replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7606-7.13-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606TrafficEngineeringValid",
+    "unit-sha": "9ea56d3fe360f938",
+    "claim-sha": "1b86d9ac243e1cc5",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606_optional_attrs.go::validateTrafficEngineeringAttr",
+    "producer-sha": "a34d0be000ae50ef",
+    "break": "body of validateTrafficEngineeringAttr replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

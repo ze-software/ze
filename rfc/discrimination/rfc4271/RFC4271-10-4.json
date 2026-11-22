@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-10-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/fsm/rfc4271_timer_jitter_test.go::TestTimersRFC4271Jitter",
+    "unit-sha": "7bad0654c7d6ab94",
+    "claim-sha": "65ff3b6fa3a17bc9",
+    "route": "revert",
+    "producer": "internal/component/bgp/fsm/timer.go::jitter",
+    "producer-sha": "30f144ac2003f2f7",
+    "break": "body of jitter replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-10-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/fsm/rfc4271_timer_jitter_test.go::TestTimersRFC4271Jitter",
+    "unit-sha": "7bad0654c7d6ab94",
+    "claim-sha": "0527dbf5d924e5bd",
+    "route": "revert",
+    "producer": "internal/component/bgp/fsm/timer.go::jitter",
+    "producer-sha": "30f144ac2003f2f7",
+    "break": "body of jitter replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

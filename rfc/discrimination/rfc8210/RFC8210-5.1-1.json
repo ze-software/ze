@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8210-5.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParsePrefixPDUFlagsHighBitsIgnored",
+    "unit-sha": "3edc5137705b3f6c",
+    "claim-sha": "ae4af6eda93841eb",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU",
+    "producer-sha": "6c2e382d0d538dd2",
+    "break": "body of parsePrefixPDU replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8210-5.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParsePrefixPDUFlagsHighBitsIgnored",
+    "unit-sha": "3edc5137705b3f6c",
+    "claim-sha": "b82826147c684977",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU",
+    "producer-sha": "6c2e382d0d538dd2",
+    "break": "body of parsePrefixPDU replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

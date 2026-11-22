@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7606-3.h-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MultipleErrorsStrongest",
+    "unit-sha": "038ca69fbdb844da",
+    "claim-sha": "bf963ee0c71ea30f",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
+    "producer-sha": "56a82251688aac11",
+    "break": "body of ValidateUpdateRFC7606Peer replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8210-9.2-8",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSDNSAddressIsTheReference",
+    "unit-sha": "1649a163f61bbccc",
+    "claim-sha": "9c470f45661151b3",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_tls.go::buildRTRTLSConfig",
+    "producer-sha": "5d8934442709ebe3",
+    "break": "body of buildRTRTLSConfig replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8210-9.2-8",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSRejectsUnauthenticatedCaches",
+    "unit-sha": "c464d7ccdb756408",
+    "claim-sha": "d8ae2d64986d2738",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_tls.go::buildRTRTLSConfig",
+    "producer-sha": "5d8934442709ebe3",
+    "break": "body of buildRTRTLSConfig replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

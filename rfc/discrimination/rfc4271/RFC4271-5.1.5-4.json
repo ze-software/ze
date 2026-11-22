@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-5.1.5-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_LocalPref",
+    "unit-sha": "2a890da645c2f9c8",
+    "claim-sha": "5eb6a9b0e760c2b6",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/bestpath.go::compareBeforeMED",
+    "producer-sha": "998e7a9aab5fe43c",
+    "break": "body of compareBeforeMED replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-5.1.5-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_LocalPref",
+    "unit-sha": "2a890da645c2f9c8",
+    "claim-sha": "d920112e1b481d95",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/bestpath.go::compareBeforeMED",
+    "producer-sha": "998e7a9aab5fe43c",
+    "break": "body of compareBeforeMED replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

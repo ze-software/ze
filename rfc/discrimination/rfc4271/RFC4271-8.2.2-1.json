@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-8.2.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldTimerExpirySendsNotification",
+    "unit-sha": "20f536908a65f6b9",
+    "claim-sha": "f3976d83470eda2c",
+    "route": "revert",
+    "producer": "internal/component/bgp/fsm/timer.go::Timers.StartHoldTimer",
+    "producer-sha": "7fdeb1977fd7c79b",
+    "break": "body of Timers.StartHoldTimer replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldTimerNotYetExpiredSendsNoNotification",
+    "unit-sha": "b269e0b063146b6f",
+    "claim-sha": "fd4a43c824ba2528",
+    "route": "revert",
+    "producer": "internal/component/bgp/fsm/timer.go::Timers.StartHoldTimer",
+    "producer-sha": "7fdeb1977fd7c79b",
+    "break": "body of Timers.StartHoldTimer replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

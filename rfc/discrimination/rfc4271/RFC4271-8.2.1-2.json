@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-8.2.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271DefaultBGPPortIs179",
+    "unit-sha": "ee9319d06f196d8e",
+    "claim-sha": "1b2acb9de0f3e630",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer_settings.go::PeerSettings.PeerKey",
+    "producer-sha": "6092b854e41ba04b",
+    "break": "body of PeerSettings.PeerKey replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ExplicitPortOverridesDefault",
+    "unit-sha": "e9269296ee46e702",
+    "claim-sha": "8c9cb84360c90360",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer_settings.go::PeerSettings.PeerKey",
+    "producer-sha": "6092b854e41ba04b",
+    "break": "body of PeerSettings.PeerKey replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

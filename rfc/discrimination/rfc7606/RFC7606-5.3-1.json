@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7606-5.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606NLRIMaxPrefixLengthAccepted",
+    "unit-sha": "9e9a4d4fc53d8850",
+    "claim-sha": "69ab74c3a34a830f",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606.go::ValidateNLRISyntax",
+    "producer-sha": "d8b9f06a686fc7b7",
+    "break": "body of ValidateNLRISyntax replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7606-5.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIPrefixLengthTooLongIPv4",
+    "unit-sha": "cda4a8fe8c3820c8",
+    "claim-sha": "606ef1d21d2d37aa",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606.go::ValidateNLRISyntax",
+    "producer-sha": "d8b9f06a686fc7b7",
+    "break": "body of ValidateNLRISyntax replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]
