@@ -643,7 +643,7 @@ func (b *configTxBridge) subscribeOperationRollback(parentCtx context.Context, n
 			return
 		}
 
-		rpcCtx, cancel := deadlineCtx(context.WithoutCancel(parentCtx), ev.DeadlineMS)
+		rpcCtx, cancel := rollbackRPCCtx(parentCtx, ev.DeadlineMS)
 		defer cancel()
 
 		out, err := conn.SendConfigOperationRollback(rpcCtx, &rpc.ConfigOperationRollbackInput{
@@ -750,6 +750,24 @@ func deadlineCtx(parent context.Context, deadlineMS int64) (context.Context, con
 	return context.WithDeadline(parent, time.UnixMilli(deadlineMS))
 }
 
+// rollbackRPCBudget bounds a rollback RPC whose event carries no deadline,
+// which only a caller other than the orchestrator and the executor produces.
+// It is the rollback budget of a transaction with no apply deadline.
+const rollbackRPCBudget = 90 * time.Second
+
+// rollbackRPCCtx derives the context rollback RPCs run under. An ordinary end
+// of parent does not end it, because a rollback follows exactly such an end
+// and the plugin must still be told to undo; it ends at the instant the event
+// carries, and at once when a shutdown stands the transaction down
+// (transaction.RollbackContext). The caller MUST call the returned function.
+func rollbackRPCCtx(parent context.Context, deadlineMS int64) (context.Context, context.CancelFunc) {
+	budget := rollbackRPCBudget
+	if deadlineMS > 0 {
+		budget = time.Until(time.UnixMilli(deadlineMS))
+	}
+	return transaction.RollbackContext(parent, budget)
+}
+
 func callbackDeadlineMS(ctx context.Context) int64 {
 	deadline, bounded := ctx.Deadline()
 	if bounded {
@@ -780,10 +798,12 @@ func (b *configTxBridge) subscribeRollback(parentCtx context.Context) {
 			return
 		}
 		// Fan out to every participant. Each plugin dispatches in the
-		rollbackCtx, cancel := context.WithTimeout(context.WithoutCancel(parentCtx), 90*time.Second)
+		// calling goroutine, so the orchestrator's publish returns only after
+		// the last config-rollback RPC has: the bound that holds is this
+		// context's, which ends at the instant the event carries (the
+		// orchestrator's rollback deadline) and at once on shutdown.
+		rollbackCtx, cancel := rollbackRPCCtx(parentCtx, ev.DeadlineMS)
 		defer cancel()
-		// calling goroutine; the orchestrator waits for rollback-ok acks
-		// with its own deadline so a slow plugin only delays its own tier.
 		for _, name := range b.participantNames {
 			b.dispatchRollback(rollbackCtx, ev.TransactionID, name)
 		}

@@ -54,10 +54,13 @@ type ConfigOperationCommitEvent struct {
 	DeadlineMS    int64  `json:"deadline-ms,omitempty"`
 }
 
-// RollbackEvent is published by the engine to all participants.
+// RollbackEvent is published by the engine to all participants. DeadlineMS is
+// the instant the whole rollback ends, as Unix milliseconds: the bound the
+// acknowledgement wait uses, so the calls the event turns into end with it.
 type RollbackEvent struct {
 	TransactionID string `json:"transaction-id"`
 	Reason        string `json:"reason"`
+	DeadlineMS    int64  `json:"deadline-ms,omitempty"`
 }
 
 // AbortEvent is published by the engine when verify fails.

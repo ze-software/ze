@@ -34,6 +34,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/storage"
 	storagecli "github.com/ze-software/ze/internal/component/config/storage/cli"
 	"github.com/ze-software/ze/internal/component/config/system"
+	"github.com/ze-software/ze/internal/component/config/transaction"
 	"github.com/ze-software/ze/internal/component/engine"
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/kernelcap"
@@ -1651,7 +1652,13 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// daemon is asked to stop, so its verdict is not lost with the process
 	// (awaitReloadWorker, main_reload.go).
 	reloadDone := make(chan struct{})
-	reloadCtx, reloadCancel := context.WithCancel(context.Background())
+	// Every use of reloadCancel is a daemon stop, so it cancels with the
+	// shutdown cause: a reload it interrupts stands down without a rollback,
+	// and one already rolling back stops waiting for a silent plugin and
+	// restarts none (transaction.ErrShutdown). A plain cancel would read as an
+	// ordinary caller deadline, which a rollback deliberately outlives.
+	reloadCtx, endReloads := transaction.WithShutdownScope(context.Background())
+	reloadCancel := func() { endReloads(transaction.ErrShutdown) }
 	defer reloadCancel()
 	go handleSIGHUPReload(reloadCtx, reloadCh, reloadDone, signalReloads, apiServer, eng, configProvider, store, configPath, loadBoth, lm, auditLog)
 

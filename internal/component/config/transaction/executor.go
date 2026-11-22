@@ -38,6 +38,7 @@ func NewOperationExecutor(gateway EventGateway, txID string) *OperationExecutor 
 func (e *OperationExecutor) SetDeadlineMS(ms int64) { e.deadlineMS = ms }
 
 // SetRollbackBudget reserves a fresh interval for undo, independent of apply.
+// The operation undo and the section restore that follows it share it.
 func (e *OperationExecutor) SetRollbackBudget(budget time.Duration) { e.rollbackBudget = budget }
 
 // SetSectionDiffs installs the source of a coarse node's diff sections. A
@@ -349,10 +350,17 @@ func (e *OperationExecutor) rollbackApplied(ctx context.Context, executed []Conf
 	if budget <= 0 {
 		budget = 90 * time.Second
 	}
-	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), budget)
+	// One rollback context bounds the operation undo AND the section restore
+	// afterRollback runs: the restore gets what the undo left of the budget.
+	ctx, cancel := RollbackContext(ctx, budget)
 	defer cancel()
 	deadline, _ := ctx.Deadline()
 	for i := len(executed) - 1; i >= 0; i-- {
+		// A shutdown that arrives mid-undo ends it: every owner is about to
+		// be stopped, and an inverse sent now waits on a closing connection.
+		if canceledByShutdown(ctx) {
+			return cause
+		}
 		op := &executed[i]
 		// Coarse sections have no per-operation inverse. The coordinator MUST
 		// restore them after original operation undo: an installer may bind
@@ -365,6 +373,9 @@ func (e *OperationExecutor) rollbackApplied(ctx context.Context, executed []Conf
 		if _, err := e.rollbackOne(ctx, op, deadline, okCh, failedCh, filter); err != nil {
 			cause = errors.Join(cause, err)
 		}
+	}
+	if canceledByShutdown(ctx) {
+		return cause
 	}
 	if e.afterRollback != nil {
 		return e.afterRollback(ctx, cause)

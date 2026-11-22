@@ -277,8 +277,24 @@ restarted before its dependencies start tearing down state. Within a tier, acks
 are processed in arrival order (same-tier plugins are independent).
 
 Rollback deadline is 3x the apply deadline (90 seconds when no apply deadline
-was computed). A plugin that has not acked by then is not restarted: the engine
-stops waiting and names it in the rollback outcome below.
+was computed). It is ONE bound for the whole rollback. On the operation path the
+undo of the decomposed operations and the section restore that follows it share
+it, so the restore gets what the undo left and never a fresh interval. The
+`rollback` event carries the instant it ends (`deadline-ms`), and the bridge
+ends its `config-rollback` RPCs at that instant, because the publish returns
+only after those RPCs have. A plugin whose RPC ended that way is acked
+`CodeBroken` by the bridge and restarted; a plugin with no ack at all when the
+bound ends is not restarted: the engine stops waiting and names it in the
+rollback outcome below.
+
+A rollback runs detached from the context that started it. An ordinary end of
+that context, a caller's cancel or its own expired deadline, is often the very
+reason the rollback runs, and the daemon that keeps running must still be told
+to undo the change. A shutdown is the one cancellation that ends a rollback
+("Shutdown while a transaction runs").
+<!-- source: internal/component/config/transaction/rollback_context.go -- RollbackContext, canceledByShutdown -->
+<!-- source: internal/component/config/transaction/orchestrator.go -- rollBackWithin, restoreSectionsAfterOperationUndo, drainArrivedRollbackAcks -->
+<!-- source: internal/component/plugin/server/config_tx_bridge.go -- rollbackRPCCtx -->
 
 The engine then tells the operator what the rollback left running. The error a
 rolled-back reload answers is the apply failure followed by one line per
@@ -408,7 +424,8 @@ epochs and pins through both infrastructure undo and section restoration, and
 MUST restore source eligibility only after old-filter restoration is
 acknowledged; generic operation undo does not provide that source barrier.
 Its budget is fresh (three times the transaction apply budget, or
-90 seconds without one), not the expired apply deadline. Whole-reload
+90 seconds without one), not the expired apply deadline, and the operation undo
+and the section restore after it share that one budget. Whole-reload
 compensation and completion use bounded 90-second intervals tied to the captured
 server lifetime. A session-bound source transaction MUST cap the whole reload,
 including later participants and publication, by its reserved work deadline,
@@ -471,7 +488,9 @@ A store-only boot reads the active pointer.
 
 ## 3. Timeout
 
-Both verify and apply deadlines are computed from plugin estimates.
+Both verify and apply deadlines are computed from plugin estimates. The commit
+phase of the operation path has a bound of its own, described under "The commit
+bound" below.
 
 ### Estimate Lifecycle
 
@@ -528,6 +547,24 @@ Until 2026-09-11 the engine took the max budget within each dependency tier
 from `registry.TopologicalTiers` and summed the tiers, on the premise that a
 tier applied concurrently. No tier ever did. Tiers still decide the order
 rollback acks are drained in, which is a different question.
+
+### The commit bound
+
+On the operation path the per-owner `operation-commit` round runs after the
+last apply was acknowledged, and it gets an interval of its own: as long as the
+apply deadline, starting when the commit round starts. The `operation-commit`
+event carries that instant as its `deadline-ms`.
+
+No plugin declares a commit budget. The apply budget is each owner's own
+estimate of its heaviest step, and the commit round reaches the same owners one
+at a time, so the same sum bounds it. The commit round does not run under the
+apply deadline itself: it then had only what apply left over, and an apply that
+finished just inside its budget timed out its commit acknowledgements, which
+rolled back a transaction every participant had applied. A transaction on the
+operation path can therefore take the verify deadline, then the apply deadline
+twice, and on a failure the rollback deadline after that. The caller's own
+context still caps the verify, apply and commit phases.
+<!-- source: internal/component/config/transaction/orchestrator.go -- runOperationPath -->
 
 ### Self-Correcting Feedback
 
@@ -659,6 +696,7 @@ The Go types for these payloads live in
 |-------|----------|------|-------------|
 | TransactionID | `transaction-id` | string | Transaction ID |
 | Reason | `reason` | string | What triggered rollback (plugin failure or timeout) |
+| DeadlineMS | `deadline-ms` | int64 | The instant the whole rollback ends, as Unix milliseconds. The bridge ends its `config-rollback` RPCs at it |
 
 **`(config, rollback-ok)`**
 
@@ -743,7 +781,18 @@ run after shutdown began.
 Live plugin removal is also provisional until the outer reload accepts it.
 `OnBye` must return successful cleanup before a dependency can stop. A callback
 refusal or the 500 ms acknowledgement deadline rejects the reload without closing
-a live pending callback or its dependencies. If other participants already
+a live pending callback or its dependencies. A plugin's `OnBye` therefore does
+only what fits inside that deadline: it bounds any state write below it and
+waits for no worker. `ntp` saves the last-known time under a 400 ms budget,
+signals its sync worker and joins it after `Run` returns; `ddos-detect` cancels
+its detector, which ends a periodic baseline save still waiting on the store,
+and saves the final baseline under the same budget. A state write issued from
+the bye callback does not wait on the SDK's callback loop: its answer arrives
+on the connection's own read loop, or is the return of a direct call for a
+plugin in the daemon.
+<!-- source: internal/plugins/ntp/register.go -- leaveNTPWorker, byeSaveBudget -->
+<!-- source: internal/plugins/ddos/detect/register.go -- byeSaveBudget -->
+<!-- source: internal/plugins/ddos/detect/detector.go -- savePeriodicBaseline, stopContext --> If other participants already
 committed, the server runs an inverse transaction and restores reactor state under
 the existing exclusion before returning the removal error. An outer rejection
 also compensates its applied tree; it does not replay a candidate the hub already
@@ -820,6 +869,34 @@ removes.
 Any OTHER cancellation still rolls back. A reload that exceeds its own
 30-second deadline leaves participants half-applied inside a daemon that keeps
 running, and that daemon must be told to undo the change.
+
+A shutdown also ends a rollback that is already running. The rollback event is
+out by then, so the transaction cannot take it back, and what stops is the rest:
+the wait for acknowledgements, the `config-rollback` and operation-rollback
+RPCs still in flight, the inverses not yet sent, and the section restore. No
+plugin that answered `CodeBroken` is restarted, including one whose answer and
+the shutdown arrive together, because the daemon is about to stop it. The
+transaction then ends as a shutdown abort (`ErrShutdown`), not as a rollback
+with an outcome, and its completion owners get `config-complete(false)` as
+above. Without this a stop waited the whole rollback bound, three times the
+apply budget, on a plugin that never acknowledged.
+
+A context keeps the cause of its FIRST cancellation, so the cause alone cannot
+carry a shutdown to a rollback that an expired reload deadline started. The
+owner of a transaction therefore opens a shutdown scope
+(`transaction.WithShutdownScope`), a second context carried as a value that
+only its cancel function ends, and the rollback context watches both. Two
+owners open one: the server for each reload, whose cancel function `Stop`
+calls with `ErrShutdown`, and the hub for its SIGHUP reload worker. The hub
+cancels that worker with `ErrShutdown` when its 3-second stop wait runs out,
+because every cancel of that worker is a daemon stop. A commit-driven reload
+has no such owner in the hub: the stop waits for it at the commit gate before
+the server stops, so a rollback under it still runs to its own bound.
+<!-- source: internal/component/config/transaction/rollback_context.go -- WithShutdownScope, RollbackContext -->
+<!-- source: internal/component/config/transaction/orchestrator.go -- handleRollbackAck, collectRollbackAcks -->
+<!-- source: internal/component/config/transaction/executor.go -- rollbackApplied -->
+<!-- source: internal/component/plugin/server/reload.go -- reloadConfig, stopTransaction -->
+<!-- source: cmd/ze/hub/main_reload.go -- awaitReloadWorker -->
 
 ---
 
@@ -1183,7 +1260,8 @@ a sibling aborted at the barrier.
 | Candidate promotion fails (after apply) | The hub attempts to restore the previous runtime and returns an error. Durable explicit-file publication intent is retained for recovery. |
 | Concurrent commit attempted | Rejected with error. SIGHUP queued instead of rejected. |
 | Engine crashes during transaction | Boot recovers durable explicit-file publication intent before selecting the source. Stale candidate cleanup preserves referenced versions. Plugins reconcile stale apply journals at startup. |
-| Plugin exceeds rollback deadline (3x apply) | Treated as `broken`. Engine restarts plugin. |
+| Plugin exceeds rollback deadline (3x apply) | Its rollback RPC ends at the deadline and the bridge acks it `broken`, so the engine restarts it. A plugin with no ack at all is named in the rollback outcome and not restarted. |
+| Daemon stops during a rollback | The rollback ends at once: no further wait, inverse or section restore, and no `broken` plugin is restarted. The transaction ends as a shutdown abort. |
 | Plugin reports `broken` | Engine restarts plugin once via 5-stage protocol between rollback tiers. Second `broken` stops the plugin. |
 
 ---

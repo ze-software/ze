@@ -322,9 +322,15 @@ const txShutdownGrace = 3 * time.Second
 // connections, because the transaction is still using them.
 //
 // The cause is transaction.ErrShutdown, which is what makes the orchestrator
-// skip its rollback and its broken-plugin restart (orchestrator.go,
+// skip its rollback and its broken-plugin restart (rollback_context.go,
 // canceledByShutdown). Cancellation alone would not: an apply interrupted for
 // any other reason must still roll back.
+//
+// A transaction already rolling back is stood down too, including one whose
+// context an ordinary deadline ended first: the cancel function ends the
+// transaction's shutdown scope (transaction.WithShutdownScope), which the
+// rollback context watches, so the acknowledgement wait and the rollback RPCs
+// end and no CodeBroken plugin is restarted.
 func (s *Server) stopTransaction(grace time.Duration) {
 	cancel, done := s.txLock.closeAdmission()
 	if done == nil {
@@ -353,8 +359,10 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (resu
 	// scope that keeps this transaction pending through its later steps.
 	ctx, acceptReload := s.DeferReloadAcceptance(ctx)
 	// Publish the cancel handle so Stop can stand this transaction down
-	// instead of pulling the plugin connections out from under it.
-	ctx, cancelTx := context.WithCancelCause(ctx)
+	// instead of pulling the plugin connections out from under it. The scope
+	// keeps that true after ctx itself has ended: a rollback runs detached
+	// from a caller deadline, and a later ErrShutdown still reaches it.
+	ctx, cancelTx := transaction.WithShutdownScope(ctx)
 	acceptance, _ := ctx.Value(reloadAcceptanceKey{}).(*reloadAcceptance)
 	s.txLock.setCancel(cancelTx, acceptance)
 	var prepared []configPrepared

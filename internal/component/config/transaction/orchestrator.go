@@ -78,14 +78,13 @@ var errConfigWriteFailed = errors.New("config write failed")
 // An ordinary cancellation still rolls back. A reload whose own deadline
 // expires mid-apply leaves participants half-applied inside a daemon that
 // keeps running, and that daemon must be told to undo it.
+//
+// A shutdown that arrives while a rollback already runs ends that rollback:
+// the wait for its acknowledgements stops, no further inverse is sent, and no
+// CodeBroken plugin is restarted (RollbackContext, rollback_context.go). The
+// rollback event is already out by then, so "no rollback" holds only for a
+// shutdown that arrives before one started.
 var ErrShutdown = errors.New("config transaction canceled by shutdown")
-
-// canceledByShutdown reports whether ctx carries ErrShutdown as its
-// cancellation cause. context.Cause returns the ctx error itself when no
-// cause was set, so a plain cancel and a deadline both answer false here.
-func canceledByShutdown(ctx context.Context) bool {
-	return errors.Is(context.Cause(ctx), ErrShutdown)
-}
 
 // Participant describes a plugin participating in a config transaction.
 type Participant struct {
@@ -359,7 +358,7 @@ func (o *TxCoordinator) subscribeAcks() {
 			if !isKnownParticipant(ack.Plugin) {
 				logger().Warn("ignoring verify ack from unknown plugin",
 					"tx", o.txID, "plugin", ack.Plugin, "event-type", eventType,
-					"code", diagnostic.CodeDoctorInternalDefect)
+					"code", diagnostic.CodeDoctorPluginRequestRefused)
 				return
 			}
 			seenMu.Lock()
@@ -367,7 +366,7 @@ func (o *TxCoordinator) subscribeAcks() {
 				seenMu.Unlock()
 				logger().Warn("ignoring duplicate verify ack",
 					"tx", o.txID, "plugin", ack.Plugin, "event-type", eventType,
-					"code", diagnostic.CodeDoctorInternalDefect)
+					"code", diagnostic.CodeDoctorPluginRequestRefused)
 				return
 			}
 			seen[ack.Plugin] = struct{}{}
@@ -391,7 +390,7 @@ func (o *TxCoordinator) subscribeAcks() {
 			if !isKnownParticipant(ack.Plugin) {
 				logger().Warn("ignoring apply ack from unknown plugin",
 					"tx", o.txID, "plugin", ack.Plugin, "event-type", eventType,
-					"code", diagnostic.CodeDoctorInternalDefect)
+					"code", diagnostic.CodeDoctorPluginRequestRefused)
 				return
 			}
 			seenMu.Lock()
@@ -399,7 +398,7 @@ func (o *TxCoordinator) subscribeAcks() {
 				seenMu.Unlock()
 				logger().Warn("ignoring duplicate apply ack",
 					"tx", o.txID, "plugin", ack.Plugin, "event-type", eventType,
-					"code", diagnostic.CodeDoctorInternalDefect)
+					"code", diagnostic.CodeDoctorPluginRequestRefused)
 				return
 			}
 			seen[ack.Plugin] = struct{}{}
@@ -427,7 +426,7 @@ func (o *TxCoordinator) subscribeAcks() {
 		if !isKnownParticipant(ack.Plugin) {
 			logger().Warn("ignoring rollback ack from unknown plugin",
 				"tx", o.txID, "plugin", ack.Plugin, "event-type", EventRollbackOK,
-				"code", diagnostic.CodeDoctorInternalDefect)
+				"code", diagnostic.CodeDoctorPluginRequestRefused)
 			return
 		}
 		rollbackSeenMu.Lock()
@@ -435,7 +434,7 @@ func (o *TxCoordinator) subscribeAcks() {
 			rollbackSeenMu.Unlock()
 			logger().Warn("ignoring duplicate rollback ack",
 				"tx", o.txID, "plugin", ack.Plugin, "event-type", EventRollbackOK,
-				"code", diagnostic.CodeDoctorInternalDefect)
+				"code", diagnostic.CodeDoctorPluginRequestRefused)
 			return
 		}
 		rollbackSeen[ack.Plugin] = struct{}{}
@@ -505,7 +504,7 @@ func (o *TxCoordinator) runVerify(ctx context.Context, diffs map[string][]DiffSe
 			if _, ok := expected[ack.Plugin]; !ok {
 				logger().Warn("ignoring unexpected or duplicate verify ack",
 					"tx", o.txID, "plugin", ack.Plugin,
-					"code", diagnostic.CodeDoctorInternalDefect)
+					"code", diagnostic.CodeDoctorPluginRequestRefused)
 				continue
 			}
 			delete(expected, ack.Plugin)
@@ -519,7 +518,7 @@ func (o *TxCoordinator) runVerify(ctx context.Context, diffs map[string][]DiffSe
 			if _, ok := expected[ack.Plugin]; !ok {
 				logger().Warn("ignoring unexpected verify-failed ack",
 					"tx", o.txID, "plugin", ack.Plugin,
-					"code", diagnostic.CodeDoctorInternalDefect)
+					"code", diagnostic.CodeDoctorPluginRequestRefused)
 				continue
 			}
 			o.mu.Lock()
@@ -565,7 +564,7 @@ func (o *TxCoordinator) runApply(ctx context.Context, diffs map[string][]DiffSec
 			if _, ok := expected[ack.Plugin]; !ok {
 				logger().Warn("ignoring unexpected or duplicate apply ack",
 					"tx", o.txID, "plugin", ack.Plugin,
-					"code", diagnostic.CodeDoctorInternalDefect)
+					"code", diagnostic.CodeDoctorPluginRequestRefused)
 				continue
 			}
 			delete(expected, ack.Plugin)
@@ -582,7 +581,7 @@ func (o *TxCoordinator) runApply(ctx context.Context, diffs map[string][]DiffSec
 			if _, ok := expected[ack.Plugin]; !ok {
 				logger().Warn("ignoring unexpected apply-failed ack",
 					"tx", o.txID, "plugin", ack.Plugin,
-					"code", diagnostic.CodeDoctorInternalDefect)
+					"code", diagnostic.CodeDoctorPluginRequestRefused)
 				continue
 			}
 			o.mu.Lock()
@@ -700,20 +699,37 @@ func (o *TxCoordinator) runOperationPath(ctx context.Context, ops []ConfigOperat
 	}
 
 	applyCtx, applyCancel := context.WithTimeout(ctx, deadline)
-	defer applyCancel()
 	applyDeadlineAt, _ := applyCtx.Deadline()
 	executor.SetDeadlineMS(applyDeadlineAt.UnixMilli())
-	if err := executor.Execute(applyCtx, sorted); err != nil {
+	applyErr := executor.Execute(applyCtx, sorted)
+	applyCancel()
+	if applyErr != nil {
 		if canceledByShutdown(ctx) {
-			return o.abortForShutdown("operation apply", err)
+			return o.abortForShutdown("operation apply", applyErr)
 		}
-		return &TxResult{State: StateRolledBack, Err: err}
+		return &TxResult{State: StateRolledBack, Err: applyErr}
 	}
-	if err := executor.Commit(applyCtx, sorted); err != nil {
+
+	// The commit phase gets an interval of its own, as long as the apply
+	// deadline, starting when the last apply was acknowledged. Under the apply
+	// context it had only what apply left over, so an apply that finished just
+	// inside its budget timed out its commit acks and a fully applied
+	// transaction was rolled back. No plugin declares a commit budget; the
+	// apply budget is each owner's own estimate of its heaviest step, and a
+	// commit reaches the same owners one at a time, so the same sum bounds it.
+	commitCtx, commitCancel := context.WithTimeout(ctx, deadline)
+	defer commitCancel()
+	commitDeadlineAt, _ := commitCtx.Deadline()
+	executor.SetDeadlineMS(commitDeadlineAt.UnixMilli())
+	if err := executor.Commit(commitCtx, sorted); err != nil {
 		if canceledByShutdown(ctx) {
 			return o.abortForShutdown("operation commit", err)
 		}
-		return &TxResult{State: StateRolledBack, Err: executor.Rollback(ctx, sorted, err)}
+		rollbackErr := executor.Rollback(ctx, sorted, err)
+		if canceledByShutdown(ctx) {
+			return o.abortForShutdown("operation rollback", rollbackErr)
+		}
+		return &TxResult{State: StateRolledBack, Err: rollbackErr}
 	}
 	o.publishCommitted()
 	saved := o.writeConfigFile()
@@ -926,19 +942,31 @@ func (o *TxCoordinator) abortForShutdown(phase string, err error) *TxResult {
 	}
 }
 
-// rollBack ends a transaction whose apply failed with err: it emits the
-// rollback, waits for every participant's answer under a detached context
-// bounded by computeRollbackDeadline (so an apply timeout or caller
-// cancellation still completes rollback ack collection and restarts CodeBroken
-// plugins), and returns a result whose error carries err and, after it, what
-// the rollback left running. The operator reads that second part to know
-// whether each plugin put its running config back, was restarted, or still
-// needs them.
+// rollBack ends a transaction whose apply failed with err, under a rollback
+// context of its own bounded by computeRollbackDeadline (RollbackContext): an
+// apply timeout or an ordinary caller cancellation still completes the
+// rollback and restarts CodeBroken plugins, and a shutdown ends it.
 func (o *TxCoordinator) rollBack(ctx context.Context, err error) *TxResult {
-	rollbackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), o.computeRollbackDeadline())
+	rollbackCtx, cancel := RollbackContext(ctx, o.computeRollbackDeadline())
 	defer cancel()
-	o.publishRollback(err.Error())
-	o.collectRollbackAcks(rollbackCtx)
+	return o.rollBackWithin(rollbackCtx, err)
+}
+
+// rollBackWithin emits the rollback, waits for every participant's answer
+// until ctx ends, and returns a result whose error carries err and, after it,
+// what the rollback left running. The operator reads that second part to know
+// whether each plugin put its running config back, was restarted, or still
+// needs them. ctx MUST be a rollback context (RollbackContext): its deadline
+// is the whole bound, and this function adds none.
+//
+// A shutdown that ended ctx leaves no running system to describe, so the
+// result is the shutdown abort and names no rollback outcome.
+func (o *TxCoordinator) rollBackWithin(ctx context.Context, err error) *TxResult {
+	o.publishRollback(ctx, err.Error())
+	o.collectRollbackAcks(ctx)
+	if canceledByShutdown(ctx) {
+		return o.abortForShutdown("rollback", err)
+	}
 	return &TxResult{State: StateRolledBack, Err: fmt.Errorf("%w\n%s", err, o.rollbackOutcome())}
 }
 
@@ -946,8 +974,12 @@ func (o *TxCoordinator) rollBack(ctx context.Context, err error) *TxResult {
 // whose installers may require infrastructure recreated by those inverses.
 // Source eligibility is a separate lifecycle obligation: its owner MUST keep
 // visibility fenced until old filters have been restored and acknowledged.
+//
+// ctx is the executor's rollback context, and the section restore runs under
+// it as it is: the operation undo and the section restore share ONE rollback
+// bound, so the restore gets what the undo left and never a fresh interval.
 func (o *TxCoordinator) restoreSectionsAfterOperationUndo(ctx context.Context, cause error) error {
-	return o.rollBack(ctx, cause).Err
+	return o.rollBackWithin(ctx, cause).Err
 }
 
 // rollbackOutcome says, in the participants' order, what the rollback did
@@ -1008,8 +1040,14 @@ func brokenRollbackLine(plugin, reason string, restarts map[string]error) string
 		"a listener whose address or port is still in use stays down until the plugin starts again"
 }
 
-func (o *TxCoordinator) publishRollback(reason string) {
+// publishRollback emits the rollback event with the instant the rollback
+// context ends, so whoever turns the event into plugin calls bounds them by
+// the same deadline the acknowledgement wait uses.
+func (o *TxCoordinator) publishRollback(ctx context.Context, reason string) {
 	ev := RollbackEvent{TransactionID: o.txID, Reason: reason}
+	if deadline, bounded := ctx.Deadline(); bounded {
+		ev.DeadlineMS = deadline.UnixMilli()
+	}
 	payload, err := json.Marshal(ev)
 	if err != nil {
 		logger().Error("marshal rollback event", "error", err)
@@ -1064,11 +1102,12 @@ func (o *TxCoordinator) publishApplied(saved bool) {
 // When plugins are unregistered (as in most unit tests), tierFn returns a
 // single tier containing all participants; the loop degenerates to a single
 // drain equivalent to the pre-tier behavior.
+//
+// ctx MUST be a rollback context (RollbackContext). Its deadline is the only
+// bound on the wait: a second timer here would restart the budget for a
+// caller that already spent part of it on the operation undo. A shutdown ends
+// the wait at once and restarts nothing.
 func (o *TxCoordinator) collectRollbackAcks(ctx context.Context) {
-	deadline := o.computeRollbackDeadline()
-	timer := time.NewTimer(deadline)
-	defer timer.Stop()
-
 	participantNames := make([]string, 0, len(o.participants))
 	nameToIndex := make(map[string]int, len(o.participants))
 	for i, p := range o.participants {
@@ -1098,7 +1137,7 @@ func (o *TxCoordinator) collectRollbackAcks(ctx context.Context) {
 
 		for name, ack := range pending {
 			if _, ok := expected[name]; ok {
-				o.handleRollbackAck(ack)
+				o.handleRollbackAck(ctx, ack)
 				delete(pending, name)
 				delete(expected, name)
 			}
@@ -1108,18 +1147,40 @@ func (o *TxCoordinator) collectRollbackAcks(ctx context.Context) {
 			select {
 			case ack := <-o.rollbackOKCh:
 				if _, ok := expected[ack.Plugin]; ok {
-					o.handleRollbackAck(ack)
+					o.handleRollbackAck(ctx, ack)
 					delete(expected, ack.Plugin)
 				} else {
 					pending[ack.Plugin] = ack
 				}
-			case <-timer.C:
+			case <-ctx.Done():
+				if canceledByShutdown(ctx) {
+					logger().Info("rollback ack wait ended by shutdown",
+						"tx", o.txID, "tier", i, "remaining", len(expected))
+					return
+				}
+				o.drainArrivedRollbackAcks(ctx)
 				logger().Warn("rollback ack timeout",
 					"tier", i, "remaining", len(expected))
 				return
-			case <-ctx.Done():
-				return
 			}
+		}
+	}
+}
+
+// drainArrivedRollbackAcks handles every rollback ack already delivered when
+// the rollback deadline ended the wait, whatever its tier. The rollback RPCs
+// end at that same deadline, so the ack of a plugin that never answered
+// (CodeBroken, from the bridge) is delivered at the instant the wait ends, and
+// a select between the two picks either: without this drain a plugin that
+// exceeded the deadline was restarted on one run and left broken on the next.
+// MUST NOT be called for a wait a shutdown ended.
+func (o *TxCoordinator) drainArrivedRollbackAcks(ctx context.Context) {
+	for {
+		select {
+		case ack := <-o.rollbackOKCh:
+			o.handleRollbackAck(ctx, ack)
+		default:
+			return
 		}
 	}
 }
@@ -1127,20 +1188,35 @@ func (o *TxCoordinator) collectRollbackAcks(ctx context.Context) {
 // handleRollbackAck records a single rollback ack and restarts the plugin
 // if the ack reports CodeBroken. Extracted from the tiered drain loop so
 // the loop stays readable.
-func (o *TxCoordinator) handleRollbackAck(ack RollbackAck) {
+//
+// It restarts nothing once a shutdown stood the rollback down: the select in
+// collectRollbackAcks can take a buffered ack over the ended context, and a
+// plugin whose connection the shutdown is closing answers CodeBroken, so
+// without this guard the stopping daemon forks the plugin it is about to
+// stop. The ack is still recorded.
+func (o *TxCoordinator) handleRollbackAck(ctx context.Context, ack RollbackAck) {
 	o.mu.Lock()
 	o.rollbackAcks[ack.Plugin] = ack
 	o.mu.Unlock()
-	if ack.Code == CodeBroken && o.restartFn != nil {
-		logger().Warn("plugin broken during rollback, restarting", "plugin", ack.Plugin)
-		err := o.restartFn(ack.Plugin)
-		if err != nil {
-			logger().Error("failed to restart broken plugin", "plugin", ack.Plugin, "error", err)
-		}
-		o.mu.Lock()
-		o.rollbackRestarts[ack.Plugin] = err
-		o.mu.Unlock()
+	if ack.Code != CodeBroken {
+		return
 	}
+	if o.restartFn == nil {
+		return
+	}
+	if canceledByShutdown(ctx) {
+		logger().Info("plugin broken during rollback, not restarted: the daemon is stopping",
+			"tx", o.txID, "plugin", ack.Plugin)
+		return
+	}
+	logger().Warn("plugin broken during rollback, restarting", "plugin", ack.Plugin)
+	err := o.restartFn(ack.Plugin)
+	if err != nil {
+		logger().Error("failed to restart broken plugin", "plugin", ack.Plugin, "error", err)
+	}
+	o.mu.Lock()
+	o.rollbackRestarts[ack.Plugin] = err
+	o.mu.Unlock()
 }
 
 func (o *TxCoordinator) writeConfigFile() bool {
