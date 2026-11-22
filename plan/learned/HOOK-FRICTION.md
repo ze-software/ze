@@ -61,7 +61,7 @@ native owner of each hook family is listed in `.claude/hooks/README.md`.
 | design-source gate locks a spec over `cache/go-cache`; daemon-proof refusal names no path | 1 (2026-11-14) | Fixed at the source 2026-11-14 | [entry](#a-cache-directory-locked-a-spec-and-the-proof-refusal-named-no-path-2026-11-14) |
 | design-source gate judges a historical `### Current Behavior` and refuses a check name under the `ze` file; the daemon-proof gate refuses the same name | 1 (2026-11-15) | Fixed at the source 2026-11-15 | [entry](#the-design-gate-read-a-github-check-name-as-a-producer-path-2026-11-15) |
 | `pretool-bash` identity rewrite (`updatedInput`) voided by auto mode | about 490 (three weeks to 2026-11-11) | Rewrite removed 2026-11-11; live probe passed the same day, retired | [entry](#the-bash-hook-rewrote-every-subagent-command-and-auto-mode-voided-the-call-2026-11-11) |
-| `pretool-bash` `bashSystemTmp` and `bashSubagentHeavy` read a here-document body a reader writes to a file as commands | 2 (2026-11-14, 2026-11-16) | Open | [entry](#the-bash-hook-read-a-report-saved-through-a-here-document-as-commands-2026-11-16) |
+| `pretool-bash` `bashSystemTmp` and `bashSubagentHeavy` read a here-document body a reader writes to a file as commands | 2 (2026-11-14, 2026-11-16) | Fixed at the source 2026-11-22 | [entry](#the-bash-hook-read-a-report-saved-through-a-here-document-as-commands-2026-11-16) |
 
 ### Renamed checks
 

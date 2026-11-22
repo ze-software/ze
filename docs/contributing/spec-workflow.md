@@ -86,7 +86,7 @@ it on return.
 | `## Design documents` | after `## Existing Mechanisms` | One row per design page the spec's files link, and one row per decision row on those pages. Columns: `Document`, `Section`, `Derived from`, `Binding statement`, `Verdict`, `How this design stands against it`. The verdict is `agrees`, `departs` or `silent` |
 | `## Design presentation` | before `## Implementation Steps` | Five subsections, each with content: `### What changes`, `### Before and after`, `### Alternatives set aside`, `### Documents departed from` (it may state `none` when no row departs), `### Choices for Thomas` |
 
-`plan/templates/TEMPLATE.md` carries both sections.
+`plan/templates/TEMPLATE.md` carries both sections, and `plan/templates/TEMPLATE-FIX.md` carries the compact form with both sections for narrow single-phase `plan/release/fixes/` work.
 
 <!-- source: internal/le/spec/design/documents.go -- derive, designPage, addDecisions -->
 <!-- source: internal/le/spec/citation/anchors.go -- BulletPaths, SpecSourceFiles -->

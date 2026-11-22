@@ -517,7 +517,7 @@ func writeGoPatterns(ctx context) *verdict {
 			"\n  A call the file already holds may stay; a call with new text, or another copy, is refused."}
 	}
 	patterns := []editPattern{
-		{regexp.MustCompile(`(?m)^func[ \t]+(?:\([^)]+\)[ \t]+)?[A-Z][A-Za-z]*And[A-Z]`), 1, red + bold + "❌ BLOCKED: Single responsibility violation" + reset + " (function with 'And' in name)", nil},
+		{regexp.MustCompile(`(?m)^func[ \t]+(?:\([^)]+\)[ \t]+)?[A-Z][A-Za-z]*And[A-Z]`), 1, yellow + bold + "WARN: Single responsibility violation" + reset + " (function with 'And' in name)", nil},
 		{regexp.MustCompile(`os\.Exit\(`), 2, red + bold + "❌ BLOCKED: os.Exit() in handler" + reset + "\n  Return an error instead.", func(c context) bool {
 			return strings.HasSuffix(c.path, "/main.go") || strings.HasSuffix(c.path, "/register.go")
 		}},
@@ -568,10 +568,10 @@ func writeFilePatterns(ctx context) *verdict {
 		}
 		if _, err := os.Stat(absolutePath(ctx)); os.IsNotExist(err) {
 			if strings.HasSuffix(base, ".md") && (strings.Contains(base, "_") || regexp.MustCompile(`[A-Z]`).MatchString(base)) && !regexp.MustCompile(`^(README|INDEX|CLAUDE|LICENSE|CONTRIBUTING|CHANGELOG)\.md$`).MatchString(base) {
-				return &verdict{1, red + bold + "❌ BLOCKED: Naming convention violation" + reset + "\n  File: " + base}
+				return &verdict{1, yellow + bold + "WARN: Naming convention violation" + reset + "\n  File: " + base}
 			}
 			if strings.HasSuffix(base, ".go") && (strings.Contains(base, "-") || regexp.MustCompile(`^[A-Z]`).MatchString(base)) {
-				return &verdict{1, red + bold + "❌ BLOCKED: Naming convention violation" + reset + "\n  File: " + base}
+				return &verdict{1, yellow + bold + "WARN: Naming convention violation" + reset + "\n  File: " + base}
 			}
 		}
 	}
@@ -584,7 +584,7 @@ func writeFilePatterns(ctx context) *verdict {
 	if strings.HasSuffix(path, ".ci") && strings.Contains(ctx.content, "sys.exit(1)") && !strings.Contains(ctx.content, "runtime_fail") && !regexp.MustCompile(`(?m)^(expect|reject)=stderr`).MatchString(ctx.content) {
 		return &verdict{1, yellow + bold + "WARN: observer-exit antipattern in " + path + reset}
 	}
-	if oneOf(ctx.tool, toolWrite, "Edit") && (strings.Contains(path, ".golangci") || strings.Contains(path, "golangci.yml") || strings.Contains(path, "golangci.yaml")) && regexp.MustCompile(`exclude-rules:|issues-exclude:|skip-files:|skip-dirs:`).MatchString(ctx.content) {
+	if oneOf(ctx.tool, toolWrite, "Edit") && (strings.HasSuffix(base, "golangci.yml") || strings.HasSuffix(base, "golangci.yaml")) && regexp.MustCompile(`(?m)^\s*(?:exclusions:|exclude-rules:|issues-exclude:|skip-files:|skip-dirs:)`).MatchString(ctx.content) {
 		return &verdict{2, red + bold + "❌ BLOCKED: Adding linter exclusions" + reset}
 	}
 	if oneOf(ctx.tool, toolWrite, "Edit") && (strings.Contains(path, "/config/") || strings.HasSuffix(path, ".conf") || strings.Contains(base, "config")) && regexp.MustCompile(`(?i)(config.?version|schema.?version|"version"[ \t]*:|version[ \t]*[=:][ \t]*[0-9])`).MatchString(ctx.content) {

@@ -96,3 +96,21 @@ func commandtestInTestsOnly(m dsl.Matcher) {
 			!m.File().PkgPath.Matches(`/internal/component/command/commandtest$`)).
 		Report(`commandtest builds a validated value the model never judged -- call it from a _test.go file only; product code judges arguments through command.ValidateArgs`)
 }
+
+// noFakeBufHandle refuses constructing a BufHandle backed by a fresh make()
+// slice instead of acquiring a pooled buffer.
+func noFakeBufHandle(m dsl.Matcher) {
+	m.Match(`BufHandle{$*_, Buf: make($*_), $*_}`).
+		Where(!m.File().Name.Matches(`_test\.go$`)).
+		Report(`fake BufHandle backed by make() -- acquire a pooled buffer instead (ai/rules/performance.md)`)
+}
+
+// noHandlerOsExit refuses os.Exit() outside entrypoints, registration files,
+// crash/env aborts, and test fixtures so handlers return errors cleanly.
+func noHandlerOsExit(m dsl.Matcher) {
+	m.Match(`os.Exit($*_)`).
+		Where(!m.File().Name.Matches(`(_test\.go|/main\.go|/register[^/]*\.go|/cmd/ze/pprof[^/]*\.go|/internal/component/config/doctor\.go)$`) &&
+			!m.File().PkgPath.Matches(`/internal/core/(env|crashlog)$`) &&
+			!m.File().PkgPath.Matches(`/internal/test/fixture`)).
+		Report(`os.Exit() in handler -- return an error instead (ai/rules/go-standards.md)`)
+}

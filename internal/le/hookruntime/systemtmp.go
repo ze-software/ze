@@ -10,8 +10,12 @@ import "strings"
 // its text otherwise. On a reader line every word the walk judged counts:
 // arguments, loop lists, case words, assignment values, `[[` operands and
 // redirection targets, while a here-document body and a here-string are data
-// (AC-17). A word the shell expands is judged by its value and by its source
-// with the quotes removed, because the value drops each expansion
+// (AC-17). A reader line whose only non-reader feature is a file write
+// (`cat > tmp/session/.../report.md <<'EOF'`) blanks its non-expanding
+// here-document body first (withoutReaderData), so prose citing `/tmp` passes
+// while redirection targets (`> /tmp/x`) and non-reader lines (`bash <<'EOF'`)
+// stay refused. A word the shell expands is judged by its value and by its
+// source with the quotes removed, because the value drops each expansion
 // (`foo$D/tmp/x` reads `foo/tmp/x`, a literal parent) while the shell may
 // expand it to nothing. The text pattern (systemTmp) takes `}` as a boundary
 // before /tmp, because a braced parameter the shell expands to nothing
@@ -20,7 +24,8 @@ func namesSystemTmp(ctx context) bool {
 	command := stringInput(ctx.input, "command")
 	line, outside := ctxReaderLine(ctx)
 	if outside != "" {
-		return systemTmp.MatchString(command)
+		scanned := withoutReaderData(command, ctx.commandParse(), commandIdentityPrefix(ctx))
+		return systemTmp.MatchString(scanned)
 	}
 	for _, word := range line.words {
 		if systemTmpWord(word.value.text) {

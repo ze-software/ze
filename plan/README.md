@@ -91,7 +91,8 @@ release. Optional specs can remain open when the release ships.
 |------|---------|
 | `<work-folder>/spec-<name>.md` | One spec per work item, with lifecycle, release priority, rationale and dependencies in its header |
 | `release/roadmap.md` | Generated committed-tree inventory; regenerate with `./le spec roadmap update` |
-| `templates/TEMPLATE.md` | Design-time spec format: everything that must exist before code |
+| `templates/TEMPLATE.md` | Full design-time spec format: for new features, protocol work, and architectural changes |
+| `templates/TEMPLATE-FIX.md` | Compact fix spec format: for focused bug fixes and single-component repairs without wire or architecture changes |
 | `templates/TEMPLATE-CLOSURE.md` | Closure sections, appended by `/ze-close` at step 1 |
 | `records/` | Historical reports and analysis formerly mixed with root work items |
 | `journal/` | One file per problem class, one row per occurrence (`plan/journal/README.md`) |

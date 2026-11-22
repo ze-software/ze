@@ -184,7 +184,7 @@ func handBackOf(command string, parse commandParse, identity string) (refusal ha
 			}
 		}
 	}()
-	if what := heavyWork(command, parse, ""); what != "" {
+	if what := heavyWork(command, parse, "", identity); what != "" {
 		return handBack{what: what, command: typed}
 	}
 	return handBack{}
@@ -199,9 +199,12 @@ func handBackOf(command string, parse commandParse, identity string) (refusal ha
 // judged here as a line of its own), or that the hook cannot read before it
 // runs (unreadHandedLine); and else the
 // first such segment of the split that cuts only outside the tree's quoted
-// parts (unquotedSegments), which reads a here-document's lines. On a line
-// that does not parse it is the first such segment of the quote-blind split
-// (commandSegments), there being nothing else to read.
+// parts (unquotedSegments), which reads a here-document's lines after
+// blanking non-expanding here-document bodies of reader-write lines
+// (withoutReaderData) so reports written via `cat > ... <<'EOF'` are not
+// misread as commands. On a line that does not parse it is the first such
+// segment of the quote-blind split (commandSegments), there being nothing
+// else to read.
 //
 // A quoted argument of another program is data, never a command: the
 // quote-blind split cut `grep "le exec\|/le exec"` at its quoted bars and
@@ -212,7 +215,7 @@ func handBackOf(command string, parse commandParse, identity string) (refusal ha
 //
 // The recursion into a shell's line is bounded by the line's length: the
 // line handed to the shell is one word of the command, shorter than it.
-func heavyWork(command string, parse commandParse, within string) string {
+func heavyWork(command string, parse commandParse, within, identity string) string {
 	if !parse.parsed() {
 		for _, segment := range commandSegments(command) {
 			if what := heavyTool(shellWords(segment)); what != "" {
@@ -236,11 +239,14 @@ func heavyWork(command string, parse commandParse, within string) string {
 			return what
 		}
 		line, _ := heavytool.ShellCommand(parsed.tokens)
-		if what := heavyWork(line, parseCommandLine(line), launcher); what != "" {
+		if what := heavyWork(line, parseCommandLine(line), launcher, ""); what != "" {
 			return what
 		}
 	}
-	for _, segment := range unquotedSegments(command, parse.file) {
+	// withoutReaderData preserves byte offsets by replacing blanked bytes with
+	// spaces, so parse.file's offsets remain valid for unquotedSegments.
+	scanned := withoutReaderData(command, parse, identity)
+	for _, segment := range unquotedSegments(scanned, parse.file) {
 		if what := heavyTool(shellWords(segment)); what != "" {
 			return what
 		}

@@ -689,7 +689,7 @@ func hookSubagentContext(ctx context, out io.Writer) int {
 			Str("\" section, ").Str(ruleset.CoreFile).Str(", ").Str(ruleset.TriggersFile).Str(" and ").Str(ruleset.DecisionsFile).
 			Str(" before acting.\n")
 	case start.Omits():
-		agentRuleSet(&text, ctx.root)
+		agentRuleSet(&text, ctx.root, ctx.payload.AgentType)
 	}
 	response := map[string]any{"hookSpecificOutput": map[string]any{"hookEventName": "SubagentStart", "additionalContext": text.String()}}
 	_ = json.NewEncoder(out).Encode(response)
@@ -738,7 +738,13 @@ const startTextErrorMax = 240
 // ones that name an agent's work, so a list past the bound sends the whole
 // decisions file instead, and a longer list never pushes the bans past the
 // harness cap.
-const startTextSectionsMax = 1600
+const startTextSectionsMax = 2350
+
+// agentInlineHardBansMarker identifies an agent definition that already embeds
+// the verified `# Hard Bans` block (checked by
+// TestAgentDefinitionsCarryTheHardBansOfTheInstructions), so SubagentStart
+// does not inject a second verbatim copy into additionalContext.
+const agentInlineHardBansMarker = "<!-- hard-bans: begin"
 
 // startTextOneLine answers value with each carriage return and line feed
 // replaced by a space, so a value the checkout chooses adds no line to the
@@ -775,15 +781,20 @@ func startTextBounded(value string) string {
 // at 10,000 characters and replaces a longer one with a file path it never
 // asks the agent to read, and the core, the trigger index and the decisions
 // are several times that.
-func agentRuleSet(text *textbuf.Buffer, root string) {
+func agentRuleSet(text *textbuf.Buffer, root, agentType string) {
 	text.Str("\n# ").Str(agentRuleSetHeading).
 		Str("\nYour definition omits the project instruction files, so this start text carries the hard bans and names the rules to read.\n\n")
-	bans, err := ruleset.HardBans(root)
-	if err != nil {
-		text.Str("Cannot read the hard bans: ").Str(startTextBounded(err.Error())).
-			Str("\nRead the \"# ").Str(ruleset.HardBansHeading).Str("\" section of ").Str(ruleset.InstructionsFile).Str(" before acting.\n")
+	if agentDefinitionCarriesHardBans(root, agentType) {
+		text.Str("Your agent definition already carries the verified \"# ").Str(ruleset.HardBansHeading).
+			Str("\" section of ").Str(ruleset.InstructionsFile).Str(".\n")
 	} else {
-		text.Str(strings.TrimSpace(bans.Text)).Byte('\n')
+		bans, err := ruleset.HardBans(root)
+		if err != nil {
+			text.Str("Cannot read the hard bans: ").Str(startTextBounded(err.Error())).
+				Str("\nRead the \"# ").Str(ruleset.HardBansHeading).Str("\" section of ").Str(ruleset.InstructionsFile).Str(" before acting.\n")
+		} else {
+			text.Str(strings.TrimSpace(bans.Text)).Byte('\n')
+		}
 	}
 	text.Str("\nBefore any other action, read with the Read tool ").Str(ruleset.CoreFile).Str(" and ").Str(ruleset.TriggersFile).Str(" whole, and ")
 	part, err := ruleset.AgentDecisions(root)
@@ -817,6 +828,20 @@ func agentRuleSet(text *textbuf.Buffer, root string) {
 		Str("\".\nBefore work one of these situations names, read that section of ").Str(ruleset.DecisionsFile).Str(" too:\n").
 		Str(list).
 		Str("The rest of that file binds the main session only.\n")
+}
+
+// agentDefinitionCarriesHardBans reports whether the mirrored agent definition
+// for agentType already embeds the verified hard-bans block, so SubagentStart
+// avoids sending a duplicate 2.9 KB copy on every subagent spawn.
+func agentDefinitionCarriesHardBans(root, agentType string) bool {
+	if !lepath.ValidAgentID(agentType) {
+		return false
+	}
+	body, err := os.ReadFile(filepath.Join(root, ruleset.AgentDefinitionsDir, agentType+".md")) //nolint:gosec // validated agent type name under checkout mirror dir
+	if err != nil {
+		return false
+	}
+	return bytes.Contains(body, []byte(agentInlineHardBansMarker))
 }
 
 // readToolLineCap is how many lines the Read tool returns when a call names no

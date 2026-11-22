@@ -124,7 +124,7 @@ feature type:
   codes, never a queue of writing for closure (`ai/rules/documentation.md`). `/ze-close`
   verifies those edits and finds the gaps.
 
-`plan/templates/TEMPLATE.md` is design-time only. The closure sections live in
+`plan/templates/TEMPLATE.md` is design-time only. Narrow single-phase `plan/release/fixes/` bug fixes that add no new config, CLI, API, or wire surface may use `plan/templates/TEMPLATE-FIX.md` instead; it keeps every gated section (`## Existing Mechanisms`, `## Design documents`, `## Design presentation`, `## Wiring Test`, `## Acceptance Criteria`, `## Review Gate`) without the feature-only checklists. The closure sections live in
 `plan/templates/TEMPLATE-CLOSURE.md` and are appended by `/ze-close` at step 1. Do not
 copy them into a new spec.
 
