@@ -7,10 +7,8 @@ package trafficusage
 import (
 	"errors"
 	"fmt"
-	"math"
 
 	"github.com/cilium/ebpf"
-	"github.com/cilium/ebpf/asm"
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/rlimit"
 )
@@ -22,47 +20,11 @@ type tcxAttacher struct{}
 
 func newAttacher() attacher { return tcxAttacher{} }
 
-// probeTCX asks this kernel whether it attaches eBPF TCX programs: it loads a
-// two-instruction sched_cls program and attaches it to an interface index no
-// device holds. Nothing stays attached and the memlock rlimit is untouched, so
-// the doctor check stays read-only. The answer is about this process's
-// privileges and this kernel, and classifyTCXProbe reads it.
-func probeTCX() tcxReadinessResult {
-	prog, err := ebpf.NewProgram(&ebpf.ProgramSpec{
-		Type:    ebpf.SchedCLS,
-		License: bpfLicense,
-		Instructions: asm.Instructions{
-			asm.Mov.Imm(asm.R0, 0),
-			asm.Return(),
-		},
-	})
-	if err != nil {
-		return classifyTCXProbe(fmt.Errorf("load the probe program: %w", err))
-	}
-	defer prog.Close() //nolint:errcheck // the probe program holds nothing to flush
-
-	probeLink, err := link.AttachTCX(link.TCXOptions{
-		Interface: tcxProbeIfindex,
-		Program:   prog,
-		Attach:    ebpf.AttachTCXIngress,
-	})
-	if err == nil {
-		closeAll(nil, probeLink)
-		return classifyTCXProbe(nil)
-	}
-	if errors.Is(err, ebpf.ErrNotSupported) {
-		err = fmt.Errorf("%w: %w", errNoTCX, err)
-	}
-	return classifyTCXProbe(err)
-}
-
-// tcxProbeIfindex is an interface index no device holds, so the kernel answers
-// the probe's attach with ENODEV once it has parsed a TCX request.
-const tcxProbeIfindex = math.MaxInt32
-
-// Available reports whether eBPF accounting can run here. Removing the memlock
-// rlimit is the one privileged step needed before loading; on a kernel without
-// CAP_BPF/CAP_SYS_RESOURCE this fails and the plugin degrades to a no-op.
+// Available prepares this process to load eBPF programs. Removing the memlock
+// rlimit is the one step needed before loading on a kernel older than 5.11;
+// on a later kernel it costs a probe map, and a process without CAP_BPF is
+// refused that map and then the rlimit, so the error carries the kernel's
+// EPERM and the monitor classifies it as a permission refusal.
 func (tcxAttacher) Available() error {
 	if err := rlimit.RemoveMemlock(); err != nil {
 		return fmt.Errorf("remove memlock rlimit (need CAP_BPF/CAP_SYS_RESOURCE): %w", err)
@@ -71,10 +33,12 @@ func (tcxAttacher) Available() error {
 }
 
 // Attach builds, loads, and attaches the ingress+egress programs to ifindex.
+// Its error carries the kernel's answer, marked for classifyAttachError by
+// markAttachError.
 func (tcxAttacher) Attach(ifindex int, _ string, maxEntries uint32, trackIP bool) (attachment, error) {
 	coll, err := ebpf.NewCollection(buildCollectionSpec(maxEntries, trackIP))
 	if err != nil {
-		return nil, fmt.Errorf("load eBPF collection: %w", err)
+		return nil, markAttachError("load eBPF collection", err)
 	}
 
 	ingressLink, err := link.AttachTCX(link.TCXOptions{
@@ -84,7 +48,7 @@ func (tcxAttacher) Attach(ifindex int, _ string, maxEntries uint32, trackIP bool
 	})
 	if err != nil {
 		closeAll(coll)
-		return nil, fmt.Errorf("attach TCX ingress: %w", err)
+		return nil, markAttachError("attach TCX ingress", err)
 	}
 
 	egressLink, err := link.AttachTCX(link.TCXOptions{
@@ -94,7 +58,7 @@ func (tcxAttacher) Attach(ifindex int, _ string, maxEntries uint32, trackIP bool
 	})
 	if err != nil {
 		closeAll(coll, ingressLink)
-		return nil, fmt.Errorf("attach TCX egress: %w", err)
+		return nil, markAttachError("attach TCX egress", err)
 	}
 
 	return &tcxAttachment{
@@ -102,6 +66,22 @@ func (tcxAttacher) Attach(ifindex int, _ string, maxEntries uint32, trackIP bool
 		links:   []link.Link{ingressLink, egressLink},
 		trackIP: trackIP,
 	}, nil
+}
+
+// markAttachError wraps a failed step's error with the marker the monitor
+// classifies by. cilium/ebpf answers ErrNotSupported for a kernel without
+// the TCX attach point or a feature the programs need, which is errNoTCX. A
+// VerifierError is the verifier judging the program, whose EACCES is no
+// permission refusal, which is errProgramRejected. Every other error keeps
+// the kernel's errno for classifyAttachError to read.
+func markAttachError(step string, err error) error {
+	if errors.Is(err, ebpf.ErrNotSupported) {
+		return fmt.Errorf("%s: %w: %w", step, errNoTCX, err)
+	}
+	if _, ok := errors.AsType[*ebpf.VerifierError](err); ok {
+		return fmt.Errorf("%s: %w: %w", step, errProgramRejected, err)
+	}
+	return fmt.Errorf("%s: %w", step, err)
 }
 
 // tcxAttachment holds one interface's loaded collection and TCX links.

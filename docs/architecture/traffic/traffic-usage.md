@@ -82,36 +82,53 @@ shape stays consistent and each interface has its own enable.
 `track-ip` is off by default for cardinality. Per-(port, proto) is always on. LRU
 caps and a stale timeout bound the `/metrics` output.
 
-## Readiness: the doctor asks the kernel
+## Readiness: the outcome of the daemon's own attach
 
-The `traffic-usage-ebpf` doctor check is a `post-config` check, so it runs in
-whichever process answers doctor (`doctor.Answer`, `runChecks`): the daemon on
-`show doctor` and on a `ze doctor` the daemon answers, and the operator's own
-`ze doctor` process only when no daemon answers. Either way it does not read
-what the plugin's attach achieved. It asks the kernel instead: it loads a two-instruction `sched_cls` program and
-attaches it with `link.AttachTCX` to an interface index no device holds. A
-kernel that parses the TCX request answers `ENODEV` for the missing device,
-which proves TCX is there. Nothing stays attached, and the memlock rlimit is
-not touched, so the check stays read-only.
+Readiness is what the daemon's attach met, never a probe in another process.
+`Monitor.reconcileLocked` records an outcome for each configured interface:
+attached, down, missing (no device resolves the name), or the failure
+`classifyAttachError` reads from the kernel's answer. It asks the attacher's
+`Available` only once an interface is to be attached, so a disabled
+`traffic-usage` probes nothing and records nothing. `Reconcile` runs on
+`OnConfigure` and `OnConfigApply`, which makes it the startup and reload check,
+and the 1 Hz snapshot tick runs the same pass.
 
-| The kernel answers | Verdict | Doctor code |
-|--------------------|---------|-------------|
-| `ENODEV` for the probe interface | ready | none |
-| `ErrNotSupported` (no TCX attach point), or a non-Linux build | absent | `doctor-traffic-usage-ebpf` |
-| `EPERM`, `EACCES` or any other error | unknown: the process that ran the check was not allowed to ask | `doctor-traffic-usage-ebpf-unknown`, with `sudo systemctl stop ze && sudo ze install systemd --force --start` as its fix |
+| The kernel answers | Outcome | Doctor code | Fix |
+|--------------------|---------|-------------|-----|
+| `ErrNotSupported` (no TCX attach point), or a non-Linux build | absent: the plugin runs inert | `doctor-traffic-usage-tcx-absent` | `set traffic usage enabled false` |
+| A `VerifierError`, whatever its errno | unknown: the verifier judged the program, which is no permission question | `doctor-traffic-usage-attach-unknown` | `ze show log recent level error component traffic.usage` |
+| `EPERM` or `EACCES` | refused: the daemon lacks `CAP_BPF` or `CAP_NET_ADMIN` | `doctor-traffic-usage-attach-refused` | `privilege.CapabilityRemedy("CAP_BPF", "CAP_NET_ADMIN")` |
+| Any other error | unknown | `doctor-traffic-usage-attach-unknown` | as above |
+| No device for the configured name | missing | `doctor-traffic-usage-interface-missing` | `delete traffic usage interfaces interface <name>` |
 
-The probe measures this kernel and the privileges of the process that ran it.
-On the daemon route that is the daemon, the process that loads the programs, so
-the unknown finding tells an operator under systemd to stop ze and rewrite the
-unit, and one without systemd to start ze with `CAP_BPF` and `CAP_NET_ADMIN`.
-On the local fallback it is the operator's own process, so the same finding
-names `sudo ze doctor`, and the answer also carries `doctor-runtime-not-checked`
-(`docs/architecture/doctor-and-health-checks.md`, "The local route asks the
-running daemon first"). A daemon that fails its own attach logs the failure from
-the engine run.
-<!-- source: internal/plugins/trafficusage/attach_linux.go -- probeTCX -->
-<!-- source: internal/plugins/trafficusage/doctor.go -- checkTrafficUsageBPF, classifyTCXProbe, trafficUsageDiagnostic -->
-<!-- source: internal/component/doctor/answer.go -- Answer -->
+`markAttachError` in `attach_linux.go` marks the first two rows on the error
+before the monitor classifies it, so the verifier's `EACCES` never reads as a
+refusal. A refusal's fix is `privilege.CapabilityRemedy`'s answer: the systemd
+repair only when ze established that the daemon runs as the ze service, and the
+capabilities to start ze with otherwise.
+
+An outcome is logged when it changes, under the code the check reports it
+with, so a failure the snapshot tick meets again is not logged once a second.
+A refusal and an absent attach point are settled (`attachOutcome.settled`): the
+process's capabilities and the kernel do not change while it runs, so the tick
+skips them on the same interface and program, and a configuration apply
+retries them. An unknown failure is retried every tick.
+
+The `traffic-usage-attach` check is a `runtime` check the plugin declares in
+its Stage 1 registration and answers from its doctor callback, because the
+outcomes live in the monitor's memory
+(`docs/architecture/doctor-and-health-checks.md`, "The runtime phase: checks
+only the daemon runs"). It runs on `show doctor` and on a `ze doctor` the
+daemon answers; a `ze doctor` that no daemon answers carries
+`doctor-runtime-not-checked` instead. Before the plugin received its
+configuration the callback answers an error rather than an empty list.
+<!-- source: internal/plugins/trafficusage/monitor.go -- reconcileLocked, failedOutcome, recordLocked, attachOutcome.settled -->
+<!-- source: internal/plugins/trafficusage/doctor.go -- attachCheckDecl, classifyAttachError, doctorFindings, attachOutcome.finding -->
+<!-- source: internal/plugins/trafficusage/attach_linux.go -- markAttachError -->
+<!-- source: internal/plugins/trafficusage/register.go -- runEngine, OnDoctorCheck -->
+<!-- test: internal/plugins/trafficusage/doctor_test.go TestAttachOutcomesReportedPerInterface -->
+<!-- test: internal/plugins/trafficusage/doctor_test.go TestAttachRefusalLoggedOncePerChange -->
+<!-- test: internal/plugins/trafficusage/doctor_test.go TestDisabledTrafficUsageProbesAndReportsNothing -->
 
 ## The capabilities the daemon loads under
 

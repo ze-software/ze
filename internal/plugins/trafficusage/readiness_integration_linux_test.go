@@ -1,5 +1,6 @@
-// Design: docs/architecture/traffic/traffic-usage.md -- Readiness: the doctor asks the kernel.
-// Related: attach_linux.go -- probeTCX performs the real load and attach.
+// Design: docs/architecture/traffic/traffic-usage.md -- Readiness: the outcome of the daemon's own attach.
+// Related: attach_linux.go -- Available, Attach and markAttachError meet the real kernel.
+// Related: monitor.go -- reconcileLocked records the outcome the doctor check reports.
 
 //go:build integration && linux
 
@@ -11,51 +12,73 @@ import (
 	"os"
 	"syscall"
 	"testing"
+	"time"
 )
 
-var tcxProbeExpected = flag.String("tcx-probe-expect", "", "Manual runtime proof: ready as root, unknown without BPF privileges")
+var tcxAttachExpected = flag.String("tcx-attach-expect", "", "Manual runtime proof: attached as root, refused without BPF privileges")
 
-// TestTCXProbeRuntimeReadiness asks the real kernel and checks the verdict and
-// original errno against an expectation selected before the probe. Run the same
-// host-built binary in Ze's system with -tcx-probe-expect=ready as root and
-// -tcx-probe-expect=unknown as its ordinary user. A requested proof never skips.
-func TestTCXProbeRuntimeReadiness(t *testing.T) {
-	var want tcxReadiness
-	switch *tcxProbeExpected {
+// loopbackIndex is the ifindex the kernel gives lo in every network namespace.
+const loopbackIndex = 1
+
+// TestTCXAttachRuntimeOutcome attaches the accounting programs to lo through
+// the plugin's own path (Available, then Attach, from the monitor) on the real
+// kernel, and checks the recorded outcome, the doctor finding and the kernel's
+// errno against an expectation selected before the attach. Run the same
+// host-built binary in Ze's system with -tcx-attach-expect=attached as root
+// and -tcx-attach-expect=refused as its ordinary user. A requested proof never
+// skips. The root run attaches to lo and detaches before it returns.
+func TestTCXAttachRuntimeOutcome(t *testing.T) {
+	var want attachState
+	switch *tcxAttachExpected {
 	case "":
-		t.Skip("manual runtime proof: supply -tcx-probe-expect=ready as root or =unknown without BPF privileges in Ze's system")
-	case "ready":
+		t.Skip("manual runtime proof: supply -tcx-attach-expect=attached as root or =refused without BPF privileges in Ze's system")
+	case "attached":
 		if os.Geteuid() != 0 {
-			t.Fatal("the ready proof requires root in Ze's system")
+			t.Fatal("the attached proof requires root in Ze's system")
 		}
-		want = tcxReady
-	case "unknown":
+		want = attachStateAttached
+	case "refused":
 		if os.Geteuid() == 0 {
-			t.Fatal("the unknown proof requires Ze's ordinary user without BPF privileges")
+			t.Fatal("the refused proof requires Ze's ordinary user without BPF privileges")
 		}
-		want = tcxUnknown
+		want = attachStateRefused
 	default:
-		t.Fatalf("invalid -tcx-probe-expect=%q; use ready or unknown", *tcxProbeExpected)
+		t.Fatalf("invalid -tcx-attach-expect=%q; use attached or refused", *tcxAttachExpected)
 	}
 
-	got := probeTCX()
-	t.Logf("uid=%d expected=%v measured=%v reason=%v", os.Geteuid(), want, got.state, got.reason)
+	m := newMonitor(newAttacher(), stubResolver(map[string]int{"lo": loopbackIndex}))
+	defer m.Stop()
+	_ = m.Reconcile(&Config{Enabled: true, Interval: time.Second, Interfaces: ifcList(defaultMaxEntries, false, "lo")})
+
+	m.mu.Lock()
+	got := m.outcomes["lo"]
+	m.mu.Unlock()
+	t.Logf("uid=%d expected=%v measured=%v cause=%q fix=%q", os.Geteuid(), want, got.state, got.cause, got.remedy)
 	if got.state != want {
-		t.Fatalf("probeTCX readiness = %v, want %v; reason: %v", got.state, want, got.reason)
+		t.Fatalf("attach outcome = %v, want %v; cause: %s", got.state, want, got.cause)
 	}
-	if got.reason == nil {
-		t.Fatal("probeTCX lost the kernel's evidence")
+	findings, err := m.doctorFindings()
+	if err != nil {
+		t.Fatalf("doctorFindings: %v", err)
 	}
-	if want == tcxReady {
-		if !errors.Is(got.reason, syscall.ENODEV) {
-			t.Fatalf("the ready probe did not preserve the absent-interface ENODEV: %v", got.reason)
+	if want == attachStateAttached {
+		if len(findings) != 0 {
+			t.Fatalf("an attached interface reports %v", findings)
 		}
 		return
 	}
-	if errors.Is(got.reason, syscall.EPERM) {
-		return
+	if len(findings) != 1 || findings[0].Code != codeAttachRefused || findings[0].Fix == "" {
+		t.Fatalf("a refused attach reports %v, want one %s finding with a fix", findings, codeAttachRefused)
 	}
-	if !errors.Is(got.reason, syscall.EACCES) {
-		t.Fatalf("the unknown probe did not preserve a permission refusal: %v", got.reason)
+
+	// The recorded cause is text; the errno is read from the attacher's own
+	// error, through the same two steps the monitor takes.
+	att := newAttacher()
+	kernelErr := att.Available()
+	if kernelErr == nil {
+		_, kernelErr = att.Attach(loopbackIndex, "lo", defaultMaxEntries, false)
+	}
+	if !errors.Is(kernelErr, syscall.EPERM) && !errors.Is(kernelErr, syscall.EACCES) {
+		t.Fatalf("the refusal did not preserve the kernel's permission errno: %v", kernelErr)
 	}
 }

@@ -20,14 +20,12 @@ type unsupportedAttacher struct{}
 
 func newAttacher() attacher { return unsupportedAttacher{} }
 
-// probeTCX reports that eBPF TCX accounting is absent on non-Linux: the build
-// holds no attacher, so there is nothing to ask a kernel.
-func probeTCX() tcxReadinessResult {
-	return classifyTCXProbe(fmt.Errorf("%w: %w", errNoTCX, errUnsupportedPlatform))
-}
+// errNoTCXHere is every answer of this attacher: the build holds no TCX
+// attach point, which classifyAttachError reads as absent.
+var errNoTCXHere = fmt.Errorf("%w: %w", errNoTCX, errUnsupportedPlatform)
 
-func (unsupportedAttacher) Available() error { return errUnsupportedPlatform }
+func (unsupportedAttacher) Available() error { return errNoTCXHere }
 
 func (unsupportedAttacher) Attach(int, string, uint32, bool) (attachment, error) {
-	return nil, errUnsupportedPlatform
+	return nil, errNoTCXHere
 }

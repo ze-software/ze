@@ -11,6 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/observation"
+	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -47,8 +48,10 @@ type attachment interface {
 // The production implementation is platform-specific (attach_linux.go /
 // attach_other.go); tests inject a fake.
 type attacher interface {
-	// Available reports whether eBPF/TCX accounting is supported on this build
-	// and kernel. A non-nil error means the plugin degrades to a no-op.
+	// Available prepares this process to load eBPF programs and reports whether
+	// it can. The monitor asks it only before attaching a configured interface,
+	// and a non-nil error is that interface's outcome, classified like an
+	// Attach error.
 	Available() error
 	// Attach builds, loads, and attaches ingress+egress programs to the given
 	// ifindex, returning the live attachment.
@@ -67,9 +70,14 @@ type Monitor struct {
 	att     attacher
 	resolve ifaceResolver
 
+	// remedy names the fix for a permission refusal. Production binds
+	// privilege.CapabilityRemedy; a test stands in its own.
+	remedy func(missing ...string) string
+
 	mu       sync.Mutex
 	cfg      *Config
 	attached map[string]attachedIface // by interface name
+	outcomes map[string]attachOutcome // by configured interface name: what the last attempt established
 	lastSeen map[seriesID]seriesEntry // published series -> last-seen + deleter
 
 	// poller lifecycle
@@ -87,6 +95,33 @@ type attachedIface struct {
 	maxEntries uint32
 }
 
+// attachOutcome is what the last attempt established about one configured
+// interface: the state, the ifindex and program parameters it was reached
+// with, and for a failure the kernel's answer and, for a permission refusal,
+// the remedy. The doctor check reads it; a change of it is logged once.
+type attachOutcome struct {
+	state      attachState
+	ifindex    int
+	trackIP    bool
+	maxEntries uint32
+	cause      string
+	remedy     string
+}
+
+// settled reports whether a failure is one a retry on the same interface and
+// program cannot change: the process's capabilities and the kernel's TCX
+// support are fixed for the life of the process. A snapshot tick skips such an
+// interface; a configuration apply retries it.
+func (o attachOutcome) settled(ifindex int, ifc InterfaceConfig) bool {
+	if o.state != attachStateRefused && o.state != attachStateAbsent {
+		return false
+	}
+	if o.ifindex != ifindex {
+		return false
+	}
+	return o.trackIP == ifc.TrackIP && o.maxEntries == ifc.MaxEntries
+}
+
 // seriesID identifies one published metric series for stale tracking: a metric
 // family and up to three label values.
 type seriesID struct {
@@ -101,11 +136,14 @@ type seriesEntry struct {
 }
 
 // newMonitor creates a monitor bound to an attacher and an ifindex resolver.
+// A permission refusal's fix comes from privilege.CapabilityRemedy.
 func newMonitor(att attacher, resolve ifaceResolver) *Monitor {
 	return &Monitor{
 		att:      att,
 		resolve:  resolve,
+		remedy:   privilege.CapabilityRemedy,
 		attached: make(map[string]attachedIface),
+		outcomes: make(map[string]attachOutcome),
 		lastSeen: make(map[seriesID]seriesEntry),
 	}
 }
@@ -113,31 +151,40 @@ func newMonitor(att attacher, resolve ifaceResolver) *Monitor {
 // Reconcile records a new configuration and immediately drives the attached set
 // toward it, resolving each configured interface to an ifindex. It is idempotent
 // and degrades gracefully -- an interface that cannot be resolved or attached is
-// logged and skipped, leaving the others unaffected (AC-12).
+// recorded, logged once, and skipped, leaving the others unaffected (AC-12). It
+// runs on OnConfigure and OnConfigApply, so it is the startup and reload check:
+// it retries every failure, a settled one included. The outcomes are what the
+// traffic-usage-attach doctor check reports; it always returns nil.
 func (m *Monitor) Reconcile(cfg *Config) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.cfg = cfg
-	m.reconcileLocked(m.resolve)
+	m.reconcileLocked(m.resolve, true)
 	return nil
 }
 
 // onSnapshot is the iface rate-tracker callback (~1 Hz). It is a periodic tick
 // that re-resolves every configured interface through the shared resolver, so an
 // interface going down or disappearing is detached and one coming back up is
-// re-attached (AC-11). The snapshot slice is unused: resolution goes through
+// re-attached (AC-11). It does not retry a settled failure (attachOutcome.settled):
+// a refusal or a missing TCX attach point would answer the same every second.
+// The snapshot slice is unused: resolution goes through
 // iface.Resolve to honor the os-name / mac-match selectors, and the resolver's
 // cache is invalidated by the same link events that drive this callback.
 func (m *Monitor) onSnapshot(_ []iface.InterfaceInfo) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.reconcileLocked(m.resolve)
+	m.reconcileLocked(m.resolve, false)
 }
 
 // reconcileLocked attaches configured interfaces that are present and up, and
 // detaches interfaces that are unconfigured, absent, or down. lookup reports an
-// interface's (ifindex, up, present). Caller must hold m.mu.
-func (m *Monitor) reconcileLocked(lookup func(name string) (idx int, up, present bool)) {
+// interface's (ifindex, up, present). retrySettled retries a failure a retry on
+// the same interface cannot change. It records each configured interface's
+// outcome, and asks the attacher whether eBPF can run here only when an
+// interface is to be attached, so a disabled traffic-usage probes nothing.
+// Caller must hold m.mu.
+func (m *Monitor) reconcileLocked(lookup func(name string) (idx int, up, present bool), retrySettled bool) {
 	desired := make(map[string]InterfaceConfig)
 	if m.cfg != nil && m.cfg.Enabled {
 		for _, ifc := range m.cfg.Interfaces {
@@ -167,25 +214,94 @@ func (m *Monitor) reconcileLocked(lookup func(name string) (idx int, up, present
 		m.deleteInterfaceSeriesLocked(name)
 	}
 
+	// An interface no longer configured has no outcome to report.
+	for name := range m.outcomes {
+		if _, want := desired[name]; !want {
+			delete(m.outcomes, name)
+		}
+	}
+
+	// availability is asked once per pass, and only once an interface is to
+	// be attached; availabilityAsked guards it, because a nil availability is
+	// also the answer "eBPF can run here".
+	var availability error
+	availabilityAsked := false
 	for name, ifc := range desired {
 		if _, ok := m.attached[name]; ok {
 			continue
 		}
 		idx, up, present := lookup(name)
 		if !present {
-			logger().Warn("traffic-usage: interface not found, skipping", "interface", name)
+			m.recordLocked(name, attachOutcome{state: attachStateMissing})
 			continue
 		}
 		if !up {
+			m.recordLocked(name, attachOutcome{state: attachStateDown, ifindex: idx})
 			continue
 		}
-		att, err := m.att.Attach(idx, name, ifc.MaxEntries, ifc.TrackIP)
+		if previous, ok := m.outcomes[name]; ok && !retrySettled && previous.settled(idx, ifc) {
+			continue
+		}
+		if !availabilityAsked {
+			availability = m.att.Available()
+			availabilityAsked = true
+		}
+		err := availability
+		var att attachment
+		if err == nil {
+			att, err = m.att.Attach(idx, name, ifc.MaxEntries, ifc.TrackIP)
+		}
 		if err != nil {
-			logger().Error("traffic-usage: attach failed", "interface", name, "ifindex", idx, "error", err)
+			m.recordLocked(name, m.failedOutcome(idx, ifc, err))
 			continue
 		}
 		m.attached[name] = attachedIface{att: att, trackIP: ifc.TrackIP, maxEntries: ifc.MaxEntries}
+		m.recordLocked(name, attachOutcome{state: attachStateAttached, ifindex: idx, trackIP: ifc.TrackIP, maxEntries: ifc.MaxEntries})
 		logger().Info("traffic-usage: attached", "interface", name, "ifindex", idx, "track-ip", ifc.TrackIP)
+	}
+}
+
+// failedOutcome builds the outcome of a failed attach from the kernel's answer.
+// Only a permission refusal carries a remedy: it is the one failure a change
+// of the daemon's capabilities clears.
+func (m *Monitor) failedOutcome(idx int, ifc InterfaceConfig, err error) attachOutcome {
+	outcome := attachOutcome{
+		state:      classifyAttachError(err),
+		ifindex:    idx,
+		trackIP:    ifc.TrackIP,
+		maxEntries: ifc.MaxEntries,
+		cause:      err.Error(),
+	}
+	if outcome.state == attachStateRefused {
+		outcome.remedy = m.remedy("CAP_BPF", "CAP_NET_ADMIN")
+	}
+	return outcome
+}
+
+// recordLocked stores an interface's outcome and logs it when it differs from
+// the one recorded before, so a failure that repeats every snapshot is logged
+// once per change rather than once a second. Each failure line carries the
+// code the doctor check reports it under. Caller must hold m.mu.
+func (m *Monitor) recordLocked(name string, outcome attachOutcome) {
+	previous, known := m.outcomes[name]
+	m.outcomes[name] = outcome
+	if known && previous == outcome {
+		return
+	}
+	switch outcome.state {
+	case attachStateAttached, attachStateDown:
+	case attachStateMissing:
+		logger().Warn("traffic-usage: configured interface not found; it is not accounted until it appears",
+			"interface", name, "code", codeInterfaceMissing)
+	case attachStateRefused:
+		logger().Error("traffic-usage: the kernel refused permission to load or attach the accounting programs; the interface is not accounted",
+			"interface", name, "ifindex", outcome.ifindex, "error", outcome.cause, "fix", outcome.remedy, "code", codeAttachRefused)
+	case attachStateAbsent:
+		logger().Warn("traffic-usage: this kernel cannot attach eBPF TCX programs; the interface is not accounted",
+			"interface", name, "ifindex", outcome.ifindex, "error", outcome.cause, "code", codeTCXAbsent)
+	case attachStateUnknown, attachStateUnspecified:
+		logger().Error("traffic-usage: attach failed",
+			"interface", name, "ifindex", outcome.ifindex, "error", outcome.cause, "code", codeAttachUnknown)
 	}
 }
 

@@ -1,111 +1,279 @@
-// VALIDATES: the doctor check warns when traffic-usage is enabled and the host
-// cannot attach eBPF TCX programs, says Unknown with the measuring command when
-// the probe could not ask the kernel, and stays silent otherwise.
-// PREVENTS: a readiness check that cannot fail: the Linux probe used to be a
-// constant nil, so the one platform where TCX can be missing always read ready.
+// VALIDATES: the traffic-usage-attach runtime check reports, per configured
+// interface, what the monitor's last attach established: a permission refusal
+// with the remedy privilege.CapabilityRemedy names, a kernel without TCX, an
+// attach whose answer names no cause, and a configured interface that does not
+// exist; an attached or down interface reports nothing, and a disabled
+// traffic-usage probes nothing and reports nothing. A failure is logged once
+// per change of outcome, with the code the check reports it under.
+// PREVENTS: a readiness verdict measured in a process that does not load the
+// programs; a systemd repair offered where ze never established it runs under
+// the service; an attach refusal logged once a second with no doctor code; a
+// disabled feature probed for eBPF capabilities.
 package trafficusage
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"log/slog"
+	"slices"
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/privilege"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-func TestTrafficUsageDiagnostic(t *testing.T) {
-	absent := tcxReadinessResult{state: tcxAbsent, reason: errors.New("unsupported")}
-	if d := trafficUsageDiagnostic(false, absent); d != nil {
-		t.Errorf("disabled -> no diagnostic, got %v", d)
-	}
-	if d := trafficUsageDiagnostic(true, tcxReadinessResult{state: tcxReady}); d != nil {
-		t.Errorf("ready -> no diagnostic, got %v", d)
-	}
-	d := trafficUsageDiagnostic(true, tcxReadinessResult{state: tcxAbsent, reason: errNoTCX})
-	if len(d) != 1 {
-		t.Fatalf("enabled + absent -> 1 diagnostic, got %d", len(d))
-	}
-	if d[0].Code != "doctor-traffic-usage-ebpf" {
-		t.Errorf("code = %q, want doctor-traffic-usage-ebpf", d[0].Code)
-	}
-	if d[0].Severity != "warning" {
-		t.Errorf("severity = %q, want warning", d[0].Severity)
+// fakeRemedy stands in privilege.CapabilityRemedy, naming the capabilities it
+// was asked for so a test sees what the monitor asked.
+func fakeRemedy(missing ...string) string {
+	return "remedy for " + strings.Join(missing, "+")
+}
+
+// captureLog routes the package logger into a buffer for one test.
+func captureLog(t *testing.T) *bytes.Buffer {
+	t.Helper()
+	var buf bytes.Buffer
+	previous := logger()
+	setLogger(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	t.Cleanup(func() { setLogger(previous) })
+	return &buf
+}
+
+// presence is a resolver answer for one interface.
+type presence struct {
+	index int
+	up    bool
+}
+
+// presenceResolver resolves the mapped names, up or down; any other name is
+// absent.
+func presenceResolver(m map[string]presence) ifaceResolver {
+	return func(name string) (int, bool, bool) {
+		p, ok := m[name]
+		return p.index, p.up, ok
 	}
 }
 
-// TestTrafficUsageReadinessCanFail checks that the readiness answer is read from
-// what the kernel said to the probe, and that each kernel answer reaches a
-// distinct verdict: the kernel's "no such device" for the probe's absent
-// interface means TCX exists, "not supported" means it does not, and a refused
-// probe means nobody knows yet, so the operator is told how to measure it.
-func TestTrafficUsageReadinessCanFail(t *testing.T) {
-	cases := []struct {
-		name  string
-		probe error
-		want  tcxReadiness
+// TestAttachOutcomesReportedPerInterface drives one reconcile over six
+// configured interfaces, each reaching a different outcome, and reads the
+// runtime check's answer.
+func TestAttachOutcomesReportedPerInterface(t *testing.T) {
+	captureLog(t)
+	fa := newFakeAttacher()
+	fa.failWith["eth0"] = fmt.Errorf("load eBPF collection: %w", syscall.EPERM)
+	fa.failWith["eth1"] = fmt.Errorf("attach TCX ingress: %w", errNoTCX)
+	fa.failWith["eth2"] = fmt.Errorf("attach TCX ingress: %w", syscall.EINVAL)
+	m := newMonitor(fa, presenceResolver(map[string]presence{
+		"eth0": {10, true}, "eth1": {11, true}, "eth2": {12, true},
+		"eth4": {14, true}, "eth5": {15, false},
+	}))
+	m.remedy = fakeRemedy
+	cfg := &Config{Enabled: true, Interval: time.Second,
+		Interfaces: ifcList(1024, false, "eth0", "eth1", "eth2", "eth3", "eth4", "eth5")}
+	if err := m.Reconcile(cfg); err != nil {
+		t.Fatalf("Reconcile: %v", err)
+	}
+
+	findings, err := m.doctorFindings()
+	if err != nil {
+		t.Fatalf("doctorFindings: %v", err)
+	}
+	want := []struct {
+		iface, code, fix string
 	}{
-		{"kernel answered ENODEV for the probe interface", fmt.Errorf("attach tcx link: %w", syscall.ENODEV), tcxReady},
-		{"kernel has no TCX attach", fmt.Errorf("attach: %w", errNoTCX), tcxAbsent},
-		{"process may not load a program", fmt.Errorf("load program: %w", syscall.EPERM), tcxUnknown},
-		{"process may not attach", syscall.EACCES, tcxUnknown},
-		{"any other errno", syscall.EINVAL, tcxUnknown},
+		{"eth0", codeAttachRefused, "remedy for CAP_BPF+CAP_NET_ADMIN"},
+		{"eth1", codeTCXAbsent, "set traffic usage enabled false"},
+		{"eth2", codeAttachUnknown, "ze show log recent level error component traffic.usage"},
+		{"eth3", codeInterfaceMissing, "delete traffic usage interfaces interface eth3"},
 	}
-	for _, tc := range cases {
-		got := classifyTCXProbe(tc.probe)
-		if got.state != tc.want {
-			t.Errorf("%s: state = %v, want %v", tc.name, got.state, tc.want)
+	if len(findings) != len(want) {
+		t.Fatalf("findings = %d (%v), want %d: attached eth4 and down eth5 report nothing", len(findings), findings, len(want))
+	}
+	declared := attachCheckDecl().Codes
+	for i, w := range want {
+		got := findings[i]
+		if got.Code != w.code {
+			t.Errorf("finding %d: code = %q, want %q", i, got.Code, w.code)
 		}
-		if got.reason == nil {
-			t.Errorf("%s: no reason carried", tc.name)
+		if !strings.Contains(got.Message, w.iface) {
+			t.Errorf("finding %d: message does not name %s: %q", i, w.iface, got.Message)
+		}
+		if got.Fix != w.fix {
+			t.Errorf("finding %d: fix = %q, want %q", i, got.Fix, w.fix)
+		}
+		if got.Severity != "warning" {
+			t.Errorf("finding %d: severity = %q, want warning", i, got.Severity)
+		}
+		if !slices.Contains(declared, got.Code) {
+			t.Errorf("finding %d: code %q is not declared by the check", i, got.Code)
 		}
 	}
-
-	unknown := trafficUsageDiagnostic(true, classifyTCXProbe(syscall.EPERM))
-	if len(unknown) != 1 {
-		t.Fatalf("enabled + unknown -> 1 diagnostic, got %d", len(unknown))
+	if !strings.Contains(findings[0].Message, syscall.EPERM.Error()) {
+		t.Errorf("the refusal does not carry the kernel's answer: %q", findings[0].Message)
 	}
-	if unknown[0].Code != "doctor-traffic-usage-ebpf-unknown" {
-		t.Errorf("code = %q, want doctor-traffic-usage-ebpf-unknown", unknown[0].Code)
-	}
-	if !strings.Contains(unknown[0].Message, "sudo ze doctor") {
-		t.Errorf("unknown message names no measuring command: %q", unknown[0].Message)
-	}
-
-	unset := trafficUsageDiagnostic(true, tcxReadinessResult{})
-	if len(unset) != 1 || unset[0].Code != "doctor-traffic-usage-ebpf-unknown" {
-		t.Errorf("a probe with no verdict must read unknown, got %v", unset)
+	if _, ok := fa.attached[14]; !ok {
+		t.Error("eth4 should attach beside the failing interfaces")
 	}
 }
 
-// TestTrafficUsageUnknownCarriesTheCapabilitiesFix checks that every unknown finding
-// carries, as its fix line, the one command that grants a systemd-run daemon its whole
-// capability set (privilege.DaemonCapabilitiesFix), and that its message says to stop
-// ze first, because the install refuses while the daemon holds the store. It drives
-// both routes to the unknown finding: a probe the kernel refused, and a probe that
-// returned no verdict.
-func TestTrafficUsageUnknownCarriesTheCapabilitiesFix(t *testing.T) {
-	cases := []struct {
-		name      string
-		readiness tcxReadinessResult
-	}{
-		{"probe refused", classifyTCXProbe(syscall.EPERM)},
-		{"probe returned no verdict", tcxReadinessResult{}},
+// TestRefusalRemedyIsPrivilegeCapabilityRemedy checks that the production
+// monitor takes its fix from privilege.CapabilityRemedy, which decides whether
+// the systemd repair applies, and that only a permission refusal carries it.
+func TestRefusalRemedyIsPrivilegeCapabilityRemedy(t *testing.T) {
+	captureLog(t)
+	fa := newFakeAttacher()
+	fa.failWith["eth0"] = syscall.EACCES
+	fa.failWith["eth1"] = syscall.EINVAL
+	m := newMonitor(fa, stubResolver(map[string]int{"eth0": 10, "eth1": 11}))
+	_ = m.Reconcile(&Config{Enabled: true, Interval: time.Second, Interfaces: ifcList(1024, false, "eth0", "eth1")})
+
+	findings, err := m.doctorFindings()
+	if err != nil {
+		t.Fatalf("doctorFindings: %v", err)
 	}
-	for _, tc := range cases {
-		got := trafficUsageDiagnostic(true, tc.readiness)
-		if len(got) != 1 {
-			t.Fatalf("%s: want 1 diagnostic, got %d", tc.name, len(got))
-		}
-		if got[0].Code != "doctor-traffic-usage-ebpf-unknown" {
-			t.Errorf("%s: code = %q, want doctor-traffic-usage-ebpf-unknown", tc.name, got[0].Code)
-		}
-		if got[0].Fix != privilege.DaemonCapabilitiesFix {
-			t.Errorf("%s: fix = %q, want %q", tc.name, got[0].Fix, privilege.DaemonCapabilitiesFix)
-		}
-		if !strings.Contains(got[0].Message, "sudo systemctl stop ze") {
-			t.Errorf("%s: message does not say to stop ze before the install: %q", tc.name, got[0].Message)
+	if len(findings) != 2 {
+		t.Fatalf("findings = %d, want 2", len(findings))
+	}
+	if want := privilege.CapabilityRemedy("CAP_BPF", "CAP_NET_ADMIN"); findings[0].Fix != want {
+		t.Errorf("refusal fix = %q, want privilege.CapabilityRemedy's %q", findings[0].Fix, want)
+	}
+	if findings[1].Fix == findings[0].Fix {
+		t.Errorf("an unknown failure carries the capability remedy %q", findings[1].Fix)
+	}
+}
+
+// TestAttachRefusalLoggedOncePerChange runs the snapshot tick over a refused
+// interface and checks the refusal is logged once and not retried, that a
+// configuration apply retries it without logging an unchanged outcome, and
+// that a changed outcome is logged once more.
+func TestAttachRefusalLoggedOncePerChange(t *testing.T) {
+	logs := captureLog(t)
+	fa := newFakeAttacher()
+	fa.failWith["eth0"] = fmt.Errorf("attach TCX ingress: %w", syscall.EPERM)
+	m := newMonitor(fa, stubResolver(map[string]int{"eth0": 10}))
+	m.remedy = fakeRemedy
+	cfg := &Config{Enabled: true, Interval: time.Second, Interfaces: ifcList(1024, false, "eth0")}
+
+	_ = m.Reconcile(cfg)
+	for range 3 {
+		m.onSnapshot(nil)
+	}
+	if n := strings.Count(logs.String(), codeAttachRefused); n != 1 {
+		t.Fatalf("refusal logged %d times over a reconcile and three snapshots, want 1:\n%s", n, logs)
+	}
+	if fa.attempts != 1 {
+		t.Fatalf("attach attempts = %d, want 1: a snapshot must not retry a settled refusal", fa.attempts)
+	}
+
+	_ = m.Reconcile(cfg)
+	if fa.attempts != 2 {
+		t.Fatalf("attach attempts = %d after a configuration apply, want 2", fa.attempts)
+	}
+	if n := strings.Count(logs.String(), codeAttachRefused); n != 1 {
+		t.Fatalf("an unchanged refusal was logged again on reload: %d lines", n)
+	}
+
+	fa.failWith["eth0"] = fmt.Errorf("attach TCX ingress: %w", syscall.EINVAL)
+	_ = m.Reconcile(cfg)
+	m.onSnapshot(nil)
+	m.onSnapshot(nil)
+	if fa.attempts != 5 {
+		t.Fatalf("attach attempts = %d, want 5: an unknown failure is retried every snapshot", fa.attempts)
+	}
+	if n := strings.Count(logs.String(), codeAttachUnknown); n != 1 {
+		t.Fatalf("unknown failure logged %d times, want 1 for one change of outcome", n)
+	}
+
+	delete(fa.failWith, "eth0")
+	m.onSnapshot(nil)
+	if _, ok := fa.attached[10]; !ok {
+		t.Fatal("eth0 not attached once the kernel accepted it")
+	}
+	if findings, err := m.doctorFindings(); err != nil || len(findings) != 0 {
+		t.Fatalf("an attached interface reports %v (%v), want nothing", findings, err)
+	}
+}
+
+// TestAvailabilityFailureIsTheOutcome checks that the attacher's availability
+// is asked once per pass, only when an interface is to be attached, and that
+// its refusal is each interface's outcome without an attach attempt.
+func TestAvailabilityFailureIsTheOutcome(t *testing.T) {
+	captureLog(t)
+	fa := newFakeAttacher()
+	fa.available = fmt.Errorf("remove memlock rlimit: %w", syscall.EPERM)
+	m := newMonitor(fa, stubResolver(map[string]int{"eth0": 10, "eth1": 11}))
+	m.remedy = fakeRemedy
+	_ = m.Reconcile(&Config{Enabled: true, Interval: time.Second, Interfaces: ifcList(1024, false, "eth0", "eth1")})
+
+	if fa.availableCalls != 1 {
+		t.Errorf("Available calls = %d, want 1 per pass", fa.availableCalls)
+	}
+	if fa.attempts != 0 {
+		t.Errorf("attach attempts = %d after availability refused, want 0", fa.attempts)
+	}
+	findings, err := m.doctorFindings()
+	if err != nil {
+		t.Fatalf("doctorFindings: %v", err)
+	}
+	if len(findings) != 2 || findings[0].Code != codeAttachRefused || findings[1].Code != codeAttachRefused {
+		t.Fatalf("findings = %v, want two refusals", findings)
+	}
+}
+
+// TestDisabledTrafficUsageProbesAndReportsNothing is the negative half: with
+// traffic-usage disabled, configured interfaces are neither probed nor
+// reported, and disabling it clears the outcomes an enabled run recorded.
+func TestDisabledTrafficUsageProbesAndReportsNothing(t *testing.T) {
+	captureLog(t)
+	fa := newFakeAttacher()
+	fa.available = syscall.EPERM
+	m := newMonitor(fa, stubResolver(map[string]int{"eth0": 10}))
+	m.remedy = fakeRemedy
+
+	_ = m.Reconcile(&Config{Enabled: false, Interfaces: ifcList(1024, false, "eth0")})
+	m.onSnapshot(nil)
+	if fa.availableCalls != 0 || fa.attempts != 0 {
+		t.Fatalf("disabled: Available called %d times, Attach %d, want neither", fa.availableCalls, fa.attempts)
+	}
+	if findings, err := m.doctorFindings(); err != nil || len(findings) != 0 {
+		t.Fatalf("disabled: findings %v (%v), want none", findings, err)
+	}
+
+	_ = m.Reconcile(&Config{Enabled: true, Interval: time.Second, Interfaces: ifcList(1024, false, "eth0")})
+	if findings, _ := m.doctorFindings(); len(findings) != 1 {
+		t.Fatalf("enabled and refused: findings %v, want one", findings)
+	}
+	_ = m.Reconcile(&Config{Enabled: false})
+	if findings, err := m.doctorFindings(); err != nil || len(findings) != 0 {
+		t.Fatalf("disabled again: findings %v (%v), want none", findings, err)
+	}
+}
+
+// TestDoctorFindingsBeforeConfiguration checks that the check says it cannot
+// answer before the plugin received its configuration, rather than reading an
+// empty outcome set as every interface being accounted.
+func TestDoctorFindingsBeforeConfiguration(t *testing.T) {
+	m := newMonitor(newFakeAttacher(), stubResolver(nil))
+	findings, err := m.doctorFindings()
+	if !errors.Is(err, errNotConfigured) {
+		t.Fatalf("before configuration: findings %v, err %v, want errNotConfigured", findings, err)
+	}
+}
+
+// TestAttachCheckCodesAreExplained checks the check is declared in the runtime
+// phase and that init registered an explanation for every code it declares.
+func TestAttachCheckCodesAreExplained(t *testing.T) {
+	decl := attachCheckDecl()
+	if decl.Phase != rpc.DoctorPhaseRuntime {
+		t.Errorf("phase = %q, want runtime: the outcomes live in the plugin's process", decl.Phase)
+	}
+	for _, code := range decl.Codes {
+		if diagnostic.Lookup(code) == nil {
+			t.Errorf("code %s has no registered explanation", code)
 		}
 	}
 }

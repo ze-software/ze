@@ -1,156 +1,247 @@
-// Design: docs/architecture/traffic/traffic-usage.md -- traffic-usage doctor check (kernel eBPF/TCX + CAP_BPF)
+// Design: docs/architecture/traffic/traffic-usage.md -- traffic-usage runtime doctor check: the attach outcome per configured interface
+// Related: monitor.go -- reconcileLocked records the outcomes this check reads
 
 package trafficusage
 
 import (
 	"errors"
+	"slices"
 	"syscall"
 
-	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/core/privilege"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// doctorChecks registers the readiness check for traffic-usage. The plugin owns
-// the traffic-usage config block, so it owns the eBPF availability check (see
-// ai/rules/repo-maintenance.md).
-func doctorChecks() []registry.DoctorCheckDef {
-	return []registry.DoctorCheckDef{{
-		Name:         "traffic-usage-ebpf",
-		Phase:        rpc.DoctorPhasePostConfig,
-		Order:        720,
-		Dependencies: []string{dependencyInterface},
-		Platforms:    []string{"any"},
-		Codes:        []string{"doctor-traffic-usage-ebpf", "doctor-traffic-usage-ebpf-unknown"},
-		Check:        checkTrafficUsageBPF,
-	}}
-}
+// attachCheckName is the runtime doctor check this plugin declares at Stage 1
+// and answers from its doctor callback.
+const attachCheckName = "traffic-usage-attach"
 
-// checkTrafficUsageBPF warns when traffic-usage is enabled but this host cannot
-// attach the eBPF TCX programs, and says Unknown when the probe could not ask
-// the kernel. It is a post-config check, so it runs in whichever process answers
-// doctor (doctor.Answer, runChecks): the daemon when a daemon answers, on show doctor
-// and on a ze doctor the daemon answered, and the operator's own ze doctor process
-// when none does. The probe measures this kernel and that process's privileges, so on
-// the daemon route it measures the daemon, the process that loads the programs.
-func checkTrafficUsageBPF(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagnostic {
-	tree, ok := ctx.Tree.(*config.Tree)
-	if !ok || tree == nil {
-		return nil
-	}
-	tu := tree.GetContainerPath(configRoot)
-	if tu == nil {
-		return nil
-	}
-	enabled := false
-	if v, ok := tu.Get("enabled"); ok && v == "true" {
-		enabled = true
-	}
-	if !enabled {
-		return nil
-	}
-	return trafficUsageDiagnostic(enabled, probeTCX())
-}
-
-// tcxReadiness is what the readiness probe established about eBPF TCX on this
-// host. The zero value is no verdict, never a pass.
-type tcxReadiness uint8
-
+// The codes the attach check reports. The log line that records the same
+// outcome, when it changes, carries the same code.
 const (
-	// tcxReadinessUnspecified is the zero value: no probe answered.
-	tcxReadinessUnspecified tcxReadiness = iota
-	// tcxReady means the kernel accepted a TCX attach request.
-	tcxReady
-	// tcxAbsent means the kernel or the build cannot attach TCX programs.
-	tcxAbsent
-	// tcxUnknown means the probe could not ask the kernel, so neither answer
-	// was established.
-	tcxUnknown
+	// codeAttachRefused names an interface whose programs the kernel refused
+	// to load or attach for lack of permission.
+	codeAttachRefused = "doctor-traffic-usage-attach-refused"
+	// codeTCXAbsent names an interface left unaccounted because this kernel or
+	// build has no eBPF TCX attach point.
+	codeTCXAbsent = "doctor-traffic-usage-tcx-absent"
+	// codeAttachUnknown names an interface whose attach failed with an answer
+	// that establishes no cause.
+	codeAttachUnknown = "doctor-traffic-usage-attach-unknown"
+	// codeInterfaceMissing names a configured interface no device resolves to.
+	codeInterfaceMissing = "doctor-traffic-usage-interface-missing"
 )
 
-// String names the readiness for a test failure.
-func (r tcxReadiness) String() string {
-	switch r {
-	case tcxReady:
-		return "ready"
-	case tcxAbsent:
+// attachCheckDecl declares the runtime check. It runs only where the plugin
+// runs, through its doctor callback, because the outcomes live in the
+// monitor's memory (docs/architecture/doctor-and-health-checks.md, "The
+// runtime phase: checks only the daemon runs").
+func attachCheckDecl() rpc.DoctorCheckDecl {
+	return rpc.DoctorCheckDecl{
+		Name:  attachCheckName,
+		Phase: rpc.DoctorPhaseRuntime,
+		Codes: []string{codeAttachRefused, codeTCXAbsent, codeAttachUnknown, codeInterfaceMissing},
+	}
+}
+
+// exampleDoctorJSON is the doctor run every traffic-usage code's explanation shows first.
+const exampleDoctorJSON = "ze doctor --json"
+
+// trafficUsageDiagnosticCodes is the explanation metadata of the codes this
+// plugin owns. register.go registers it from this plugin's init rather than
+// from the always-on code table, so a build without the plugin holds none of
+// them.
+var trafficUsageDiagnosticCodes = []diagnostic.CodeMeta{
+	{
+		Code:  codeAttachRefused,
+		Title: "traffic-usage eBPF attach refused",
+		Description: "traffic-usage is enabled and the kernel refused, for lack of permission, to load or attach " +
+			"its eBPF TCX programs on a configured interface, so that interface is not accounted. The process " +
+			"that loads them is the ze daemon, which needs CAP_BPF and CAP_NET_ADMIN. The finding's fix names " +
+			"the systemd repair only when ze established that the daemon runs as the ze service, and otherwise " +
+			"the capabilities to start ze with.",
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic " + codeAttachRefused},
+		HostVerdict: true,
+	},
+	{
+		Code:  codeTCXAbsent,
+		Title: "traffic-usage eBPF TCX unavailable",
+		Description: "traffic-usage is enabled but this kernel or build cannot attach eBPF TCX programs (Linux " +
+			"6.6 or later built with CONFIG_NET_XGRESS is required), so the plugin runs inert and no interface " +
+			"is accounted. Run ze on such a kernel, or disable traffic-usage.",
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic " + codeTCXAbsent},
+		HostVerdict: true,
+	},
+	{
+		Code:  codeAttachUnknown,
+		Title: "traffic-usage eBPF attach failed",
+		Description: "traffic-usage is enabled and attaching its eBPF TCX programs to a configured interface " +
+			"failed with an answer that does not say why: neither a permission refusal nor a missing TCX " +
+			"attach point. The finding carries the kernel's answer; a program the verifier refused is a Ze " +
+			"defect to report. ze retries the attach every second.",
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic " + codeAttachUnknown},
+	},
+	{
+		Code:  codeInterfaceMissing,
+		Title: "traffic-usage interface not found",
+		Description: "traffic-usage is configured to account an interface that no device resolves to, so it is " +
+			"not accounted. ze attaches as soon as the interface appears; correct or delete the name otherwise.",
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic " + codeInterfaceMissing},
+	},
+}
+
+// errNoTCX marks an attach error that means the kernel or the build has no
+// eBPF TCX attach point. The attacher wraps it around the kernel's answer.
+var errNoTCX = errors.New("the kernel has no eBPF TCX attach point (Linux 6.6 or later required)")
+
+// errProgramRejected marks an attach error that is the verifier refusing the
+// program. The verifier answers EACCES for a program it judges unsafe, which
+// is not a permission refusal, so the attacher marks it before classification.
+var errProgramRejected = errors.New("the kernel's verifier refused the accounting program")
+
+// attachState is what the last attempt established about one configured
+// interface. The zero value is no outcome, never a pass.
+type attachState uint8
+
+const (
+	// attachStateUnspecified is the zero value: nothing was recorded.
+	attachStateUnspecified attachState = iota
+	// attachStateAttached means both programs are attached.
+	attachStateAttached
+	// attachStateDown means the interface is present and down: it carries no
+	// traffic, so nothing was attempted.
+	attachStateDown
+	// attachStateMissing means no device resolves the configured name.
+	attachStateMissing
+	// attachStateRefused means the kernel refused permission to load or attach.
+	attachStateRefused
+	// attachStateAbsent means the kernel or build has no TCX attach point.
+	attachStateAbsent
+	// attachStateUnknown means the attach failed and its answer names no cause.
+	attachStateUnknown
+)
+
+// String names the state for a test failure.
+func (s attachState) String() string {
+	switch s {
+	case attachStateAttached:
+		return "attached"
+	case attachStateDown:
+		return "down"
+	case attachStateMissing:
+		return "missing"
+	case attachStateRefused:
+		return "refused"
+	case attachStateAbsent:
 		return "absent"
-	case tcxUnknown:
+	case attachStateUnknown:
 		return "unknown"
-	case tcxReadinessUnspecified:
+	case attachStateUnspecified:
 		return "unspecified"
 	}
 	return "invalid"
 }
 
-// tcxReadinessResult is one probe's verdict and the evidence behind it.
-type tcxReadinessResult struct {
-	state  tcxReadiness
-	reason error
-}
-
-// errNoTCX is the kernel's answer that it has no TCX attach point.
-var errNoTCX = errors.New("the kernel has no eBPF TCX attach point (Linux 6.6 or later required)")
-
-// classifyTCXProbe turns the probe's attach error into a verdict. The probe
-// attaches to an interface index no device holds, so the kernel's ENODEV means
-// it parsed a TCX request and looked for the device: TCX is there. A refused
-// load or attach (EPERM, EACCES) means this process was not allowed to ask,
-// which is Unknown; reporting absence there would send the operator after a
-// kernel that is fine.
-func classifyTCXProbe(err error) tcxReadinessResult {
-	if err == nil {
-		return tcxReadinessResult{state: tcxReady, reason: errors.New("the probe attach succeeded")}
-	}
-	if errors.Is(err, syscall.ENODEV) {
-		return tcxReadinessResult{state: tcxReady, reason: err}
-	}
+// classifyAttachError reads the kernel's answer to a failed attach. A missing
+// TCX attach point is checked first, and a verifier refusal before the
+// permission errnos, because the verifier answers EACCES for an unsafe program.
+// Anything else establishes no cause, which is Unknown and never a guess.
+func classifyAttachError(err error) attachState {
 	if errors.Is(err, errNoTCX) {
-		return tcxReadinessResult{state: tcxAbsent, reason: err}
+		return attachStateAbsent
 	}
-	return tcxReadinessResult{state: tcxUnknown, reason: err}
+	if errors.Is(err, errProgramRejected) {
+		return attachStateUnknown
+	}
+	if errors.Is(err, syscall.EPERM) {
+		return attachStateRefused
+	}
+	if errors.Is(err, syscall.EACCES) {
+		return attachStateRefused
+	}
+	return attachStateUnknown
 }
 
-// trafficUsageDiagnostic builds the diagnostic for an (enabled, readiness)
-// pair: nothing when accounting is off or the host is ready, a warning when the
-// host cannot attach, and an Unknown warning naming the measuring command when
-// the probe could not tell.
-func trafficUsageDiagnostic(enabled bool, readiness tcxReadinessResult) []rpc.DoctorCheckDiagnostic {
-	if !enabled {
-		return nil
+// errNotConfigured is the doctor callback's answer before the plugin received
+// its configuration: no attach was attempted yet, so no outcome can be read.
+var errNotConfigured = errors.New("traffic-usage has not received its configuration yet, so no attach outcome exists to report")
+
+// doctorFindings answers the runtime check from the recorded outcomes: one
+// finding per configured interface that is not accounted for a reason an
+// operator can act on. A down interface carries no traffic, so it reports
+// nothing. With traffic-usage disabled nothing is configured, so nothing is
+// recorded and nothing is reported. Safe for concurrent use.
+func (m *Monitor) doctorFindings() ([]rpc.DoctorCheckDiagnostic, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.cfg == nil {
+		return nil, errNotConfigured
 	}
+	names := make([]string, 0, len(m.outcomes))
+	for name := range m.outcomes {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	var findings []rpc.DoctorCheckDiagnostic
+	for _, name := range names {
+		outcome := m.outcomes[name]
+		switch outcome.state {
+		case attachStateAttached, attachStateDown:
+			continue
+		case attachStateMissing, attachStateRefused, attachStateAbsent, attachStateUnknown:
+			findings = append(findings, outcome.finding(name))
+		case attachStateUnspecified:
+			return nil, errors.New("traffic-usage recorded no attach outcome for interface " + name)
+		}
+	}
+	return findings, nil
+}
+
+// finding builds the doctor finding for one failed outcome. doctorFindings
+// passes only the four failed states; the unknown finding is the answer for
+// any other.
+func (o attachOutcome) finding(name string) rpc.DoctorCheckDiagnostic {
 	var tb textbuf.Buffer
-	switch readiness.state {
-	case tcxReady:
-		return nil
-	case tcxAbsent:
-		tb.Str("traffic-usage is enabled but eBPF TCX accounting is unavailable: ").Err(readiness.reason).
-			Str("; byte accounting will not run. Use a Linux 6.6 or later kernel built with CONFIG_NET_XGRESS")
-		return []rpc.DoctorCheckDiagnostic{{
-			Code:     "doctor-traffic-usage-ebpf",
-			Severity: "warning",
+	switch o.state {
+	case attachStateMissing:
+		tb.Str("traffic-usage is configured to account interface ").Str(name).
+			Str(", but no interface by that name exists, so it is not accounted; ze attaches when it appears")
+		return rpc.DoctorCheckDiagnostic{
+			Code:     codeInterfaceMissing,
+			Severity: string(diagnostic.SeverityWarning),
 			Message:  tb.String(),
-		}}
-	case tcxUnknown:
-		tb.Str("traffic-usage is enabled but eBPF TCX readiness could not be measured: ").Err(readiness.reason)
-	case tcxReadinessUnspecified:
-		tb.Str("traffic-usage is enabled but the eBPF TCX readiness probe returned no verdict")
+			Fix:      "delete traffic usage interfaces interface " + name,
+		}
+	case attachStateRefused:
+		tb.Str("traffic-usage cannot account interface ").Str(name).
+			Str(": the kernel refused the ze daemon permission to load or attach the eBPF programs (").
+			Str(o.cause).Str("); the daemon needs CAP_BPF and CAP_NET_ADMIN")
+		return rpc.DoctorCheckDiagnostic{
+			Code:     codeAttachRefused,
+			Severity: string(diagnostic.SeverityWarning),
+			Message:  tb.String(),
+			Fix:      o.remedy,
+		}
+	case attachStateAbsent:
+		tb.Str("traffic-usage cannot account interface ").Str(name).
+			Str(": this kernel cannot attach eBPF TCX programs (").Str(o.cause).
+			Str("), so the plugin runs inert; run ze on Linux 6.6 or later built with CONFIG_NET_XGRESS")
+		return rpc.DoctorCheckDiagnostic{
+			Code:     codeTCXAbsent,
+			Severity: string(diagnostic.SeverityWarning),
+			Message:  tb.String(),
+			Fix:      "set traffic usage enabled false",
+		}
+	case attachStateUnknown, attachStateAttached, attachStateDown, attachStateUnspecified:
 	}
-	tb.Str("; the process that ran this check usually lacks CAP_BPF or CAP_NET_ADMIN. " +
-		"When the daemon answered doctor, that process is the daemon: under systemd, a ze unit " +
-		"written by an older ze does not grant CAP_BPF, so the command below stops ze with " +
-		"`sudo systemctl stop ze`, because the install refuses while ze runs, then rewrites the " +
-		"unit (add the --config <dir> the unit was first installed with to the install) and " +
-		"starts ze again; without systemd, start ze with CAP_BPF and " +
-		"CAP_NET_ADMIN. When no daemon answered (the answer then also carries " +
-		"doctor-runtime-not-checked), the check measured your own ze doctor process: run " +
-		"`sudo ze doctor` to measure it as root")
-	return []rpc.DoctorCheckDiagnostic{{
-		Code:     "doctor-traffic-usage-ebpf-unknown",
-		Severity: "warning",
+	tb.Str("traffic-usage cannot account interface ").Str(name).
+		Str(": attaching the eBPF programs failed (").Str(o.cause).
+		Str("), and that answer does not say whether the kernel, the program or the daemon's privileges refused it; ze retries every second")
+	return rpc.DoctorCheckDiagnostic{
+		Code:     codeAttachUnknown,
+		Severity: string(diagnostic.SeverityWarning),
 		Message:  tb.String(),
-		Fix:      privilege.DaemonCapabilitiesFix,
-	}}
+		Fix:      "ze show log recent level error component traffic.usage",
+	}
 }

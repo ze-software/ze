@@ -158,28 +158,26 @@ other packets with no L4 port aggregate under `dst_port`/`src_port` `0`.
 
 ## Doctor Check
 
-The `doctor-traffic-usage-ebpf` check warns when `traffic-usage` is enabled in
-the config but eBPF/TCX is unavailable on the running kernel, so the operator
-learns that accounting is configured but inert rather than silently producing no
-metrics.
-<!-- source: internal/plugins/trafficusage/doctor.go -- checkTrafficUsageBPF, doctor-traffic-usage-ebpf -->
+`show doctor` reports, for each interface `traffic-usage` is configured to
+account, what the daemon's own attach established. The daemon attaches when it
+starts and on every reload that touches `traffic usage`, and again each second
+for an interface that comes up. Nothing is checked while `traffic-usage` is
+disabled, and an attached or down interface reports nothing.
 
-The check probes TCX only when `traffic-usage` is enabled. It runs in the
-process that answers doctor: the running daemon when one answers `ze doctor`
-or `show doctor`, and your own `ze doctor` process only when no daemon answers.
-When the probe cannot measure readiness (that process lacks CAP_BPF or
-CAP_NET_ADMIN), it does not guess: it warns under
-`doctor-traffic-usage-ebpf-unknown` with the reason, and its fix is
-`sudo systemctl stop ze && sudo ze install systemd --force --start`. When the
-daemon answered, the daemon is what lacks the capability: under systemd a ze
-unit written by an older ze does not grant `CAP_BPF`, and that one line stops
-ze, which the install needs, rewrites the unit and starts ze again; without
-systemd, start ze with `CAP_BPF` and
-`CAP_NET_ADMIN`. When no daemon answered, the answer also carries
-`doctor-runtime-not-checked`, and `sudo ze doctor` measures the host as root.
-`doctor-traffic-usage-ebpf` is kept for a kernel that lacks TCX, and names the
-Linux 6.6 and `CONFIG_NET_XGRESS` requirement.
-<!-- source: internal/plugins/trafficusage/doctor.go -- checkTrafficUsageBPF, trafficUsageDiagnostic, probeTCX -->
+| Code | What the daemon met | Fix |
+|------|---------------------|-----|
+| `doctor-traffic-usage-attach-refused` | the kernel refused it permission to load or attach the programs: the daemon lacks `CAP_BPF` or `CAP_NET_ADMIN` | the systemd repair when ze established that the daemon runs as the ze service, otherwise the capabilities to start ze with |
+| `doctor-traffic-usage-tcx-absent` | the kernel or build has no TCX attach point (Linux 6.6 or later with `CONFIG_NET_XGRESS` is needed), so the plugin runs inert | `set traffic usage enabled false` |
+| `doctor-traffic-usage-attach-unknown` | the attach failed with an answer that does not say why; the finding carries it | `ze show log recent level error component traffic.usage` |
+| `doctor-traffic-usage-interface-missing` | no interface by the configured name exists; ze attaches when it appears | `delete traffic usage interfaces interface <name>` |
+
+The daemon logs each of these once, when the outcome changes, under the same
+code. It does not retry a refusal or a missing TCX attach point each second,
+because neither changes while the daemon runs; a reload retries them. The
+check reads the daemon's memory, so a `ze doctor` that no daemon answers
+cannot run it, and says so with `doctor-runtime-not-checked`.
+<!-- source: internal/plugins/trafficusage/doctor.go -- attachCheckDecl, classifyAttachError, doctorFindings -->
+<!-- source: internal/plugins/trafficusage/monitor.go -- reconcileLocked, recordLocked, attachOutcome.settled -->
 
 ## Limitations
 
@@ -192,8 +190,8 @@ Linux 6.6 and `CONFIG_NET_XGRESS` requirement.
   `ze_traffic_usage_egress_bytes_total` series are only produced when `track-ip`
   is enabled. Per-port accounting is always on.
 - **Linux >= 6.6, no-op elsewhere.** TCX attach requires Linux 6.6 or later, plus
-  `CAP_BPF` and `CAP_NET_ADMIN`. On other platforms the plugin is a no-op. The
-  `doctor-traffic-usage-ebpf` check reports when the kernel cannot support the
+  `CAP_BPF` and `CAP_NET_ADMIN`. On other platforms the plugin is a no-op. `show doctor` reports
+  `doctor-traffic-usage-tcx-absent` when the kernel cannot support the
   feature.
 - **Bounded cardinality.** Stale metric series (unseen within `stale-timeout`)
   are deleted, and each map is an LRU capped at `max-entries`; under high key

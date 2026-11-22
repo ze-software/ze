@@ -3837,9 +3837,8 @@ ingress/egress port totals (and per-IP totals when `track-ip` is on) plus map
 fill levels. Prometheus metrics use the `ze_traffic_usage_*` prefix.
 
 **Note:** accounting is IPv4 only and monitoring only (never drops or modifies
-traffic). TCX requires Linux >= 6.6 with `CAP_BPF` and `CAP_NET_ADMIN`; a
-`ze doctor` check (`doctor-traffic-usage-ebpf`) warns when enabled but eBPF/TCX
-is unavailable.
+traffic). TCX requires Linux >= 6.6 with `CAP_BPF` and `CAP_NET_ADMIN`; `show doctor` reports each configured interface the daemon could not attach
+(`doctor-traffic-usage-attach-refused`, `doctor-traffic-usage-tcx-absent`).
 <!-- source: internal/plugins/trafficusage/yang/ze-traffic-usage-conf.yang -- traffic-usage -->
 <!-- source: internal/plugins/trafficusage/show.go -- ze-trafficusage:show-traffic-usage RPC -->
 

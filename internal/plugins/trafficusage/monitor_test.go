@@ -44,21 +44,31 @@ type fakeAttachCall struct {
 }
 
 type fakeAttacher struct {
-	attached  map[int]string   // ifindex -> ifname (currently attached)
-	closed    []int            // ifindexes closed, in order
-	attaches  []fakeAttachCall // every Attach call, in order
-	failOn    map[string]bool
-	available error
-	result    counts // counts every attachment reports from Counts()
+	attached       map[int]string   // ifindex -> ifname (currently attached)
+	closed         []int            // ifindexes closed, in order
+	attaches       []fakeAttachCall // every successful Attach call, in order
+	attempts       int              // every Attach call, failed ones included
+	availableCalls int              // every Available call
+	failOn         map[string]bool
+	failWith       map[string]error // the error Attach answers for an interface
+	available      error
+	result         counts // counts every attachment reports from Counts()
 }
 
 func newFakeAttacher() *fakeAttacher {
-	return &fakeAttacher{attached: map[int]string{}, failOn: map[string]bool{}}
+	return &fakeAttacher{attached: map[int]string{}, failOn: map[string]bool{}, failWith: map[string]error{}}
 }
 
-func (f *fakeAttacher) Available() error { return f.available }
+func (f *fakeAttacher) Available() error {
+	f.availableCalls++
+	return f.available
+}
 
 func (f *fakeAttacher) Attach(ifindex int, ifname string, maxEntries uint32, trackIP bool) (attachment, error) {
+	f.attempts++
+	if err, ok := f.failWith[ifname]; ok {
+		return nil, err
+	}
 	if f.failOn[ifname] {
 		return nil, errors.New("attach failed")
 	}

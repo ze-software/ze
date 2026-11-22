@@ -7,9 +7,12 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	trafficusageyang "github.com/ze-software/ze/internal/plugins/trafficusage/yang"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -32,14 +35,29 @@ func init() {
 		ConfigureMetrics: func(reg metrics.Registry) {
 			BindMetrics(reg)
 		},
-		DoctorChecks: doctorChecks(),
 	}
 	reg.CLIHandler = func(_ []string) int {
 		return 1
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "traffic-usage: registration failed: %v\n", err)
+		var tb textbuf.Buffer
+		tb.Str("traffic-usage: registration failed: ").Str(err.Error()).Byte('\n').StdErr() //nolint:errcheck // the process exits next; stderr is the only channel left
 		os.Exit(1)
+	}
+	registerTrafficUsageDiagnosticCodes()
+}
+
+// registerTrafficUsageDiagnosticCodes publishes the codes doctor.go declares,
+// so `ze show diagnostic <code>` explains them. They register from here and
+// never from the always-on code table: a build without the plugin holds none
+// of them. It runs once, from init, so a refusal is a Ze defect.
+func registerTrafficUsageDiagnosticCodes() {
+	for _, meta := range trafficUsageDiagnosticCodes {
+		if err := diagnostic.Register(meta); err != nil {
+			var tb textbuf.Buffer
+			tb.Str("traffic-usage: diagnostic code ").Str(meta.Code).Str(" registration failed: ").Str(err.Error()).Byte('\n').StdErr() //nolint:errcheck // the process exits next; stderr is the only channel left
+			os.Exit(1)
+		}
 	}
 }
 
@@ -47,10 +65,10 @@ func runEngine(conn net.Conn) int {
 	log := loggerPtr.Load()
 	log.Debug("traffic-usage plugin starting")
 
+	// Nothing is probed here: whether eBPF can run is asked by the monitor
+	// only when the configuration enables an interface to attach
+	// (Monitor.reconcileLocked), so a disabled traffic-usage checks nothing.
 	att := newAttacher()
-	if err := att.Available(); err != nil {
-		log.Warn("traffic-usage: eBPF accounting unavailable; plugin will run inert", "error", err)
-	}
 
 	p := sdk.NewWithConn(Name, conn)
 	defer func() { _ = p.Close() }()
@@ -140,12 +158,23 @@ func runEngine(conn net.Conn) int {
 		return nil
 	})
 
+	// The traffic-usage-attach check reads the outcomes this process's monitor
+	// recorded at startup, on reload and on each snapshot, so it is answered
+	// here, through the doctor callback the daemon asks on show doctor.
+	p.OnDoctorCheck(func(name string) ([]rpc.DoctorCheckDiagnostic, error) {
+		if name != attachCheckName {
+			return nil, fmt.Errorf("unknown traffic-usage doctor check %s", name)
+		}
+		return mon.doctorFindings()
+	})
+
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, &sdk.Registration{
 		WantsConfig:  []string{configRoot},
 		VerifyBudget: 2,
 		ApplyBudget:  10,
+		DoctorChecks: []rpc.DoctorCheckDecl{attachCheckDecl()},
 	}); err != nil {
 		log.Error("traffic-usage plugin failed", "error", err)
 		iface.UnsubscribeCollectNotify(collectSubID)
