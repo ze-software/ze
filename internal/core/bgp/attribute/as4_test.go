@@ -7,8 +7,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/wire"
 )
 
 func TestAS4Path_WriteTo(t *testing.T) {
@@ -728,6 +730,99 @@ func TestAS4AggregatorWriteToStaysWithinLen(t *testing.T) {
 				assert.Equal(t, 8, ctxN, "%s", tc.name)
 				assertOnlyRegionWritten(t, ctxBuf, 7, want)
 			}
+		})
+	}
+}
+
+// TestAS4Path_SegmentSplitting verifies that AS4Path.Len and AS4Path.WriteTo
+// split segments exceeding MaxASPathSegmentLength (255) instead of truncating
+// the 1-octet segment count modulo 256.
+//
+// VALIDATES: 255, 256, and 512 ASNs in a single segment encode with exact Len()
+// agreement, obey CheckedWriteTo bounds, and round-trip through ParseAS4Path
+// preserving every ASN in order.
+// PREVENTS: byte(len(seg.ASNs)) wrapping 256 to 0 (malformed zero-count segment)
+// or 512 to 0, corrupting AS4_PATH wire output and disagreeing with Len().
+func TestAS4Path_SegmentSplitting(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name           string
+		segType        ASPathSegmentType
+		numASNs        int
+		wantSegLengths []int
+		wantWireLen    int
+	}{
+		{
+			name:           "255 ASNs fits in one segment",
+			segType:        ASSequence,
+			numASNs:        255,
+			wantSegLengths: []int{255},
+			wantWireLen:    2 + 255*4,
+		},
+		{
+			name:           "256 ASNs splits into 255 + 1",
+			segType:        ASSequence,
+			numASNs:        256,
+			wantSegLengths: []int{255, 1},
+			wantWireLen:    2*2 + 256*4,
+		},
+		{
+			name:           "512 ASNs splits into 255 + 255 + 2",
+			segType:        ASSequence,
+			numASNs:        512,
+			wantSegLengths: []int{255, 255, 2},
+			wantWireLen:    3*2 + 512*4,
+		},
+		{
+			name:           "256 ASNs in AS_SET splits into 255 + 1",
+			segType:        ASSet,
+			numASNs:        256,
+			wantSegLengths: []int{255, 1},
+			wantWireLen:    2*2 + 256*4,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			asns := make([]uint32, tt.numASNs)
+			for i := range asns {
+				asns[i] = 4200000000 + uint32(i) //nolint:gosec // bounded by 512
+			}
+			path := &AS4Path{
+				Segments: []ASPathSegment{
+					{Type: tt.segType, ASNs: asns},
+				},
+			}
+
+			require.Equal(t, tt.wantWireLen, path.Len(), "Len must account for split segment headers")
+
+			buf := make([]byte, path.Len())
+			n := path.WriteTo(buf, 0)
+			require.Equal(t, path.Len(), n, "WriteTo bytes written must equal Len()")
+
+			// CheckedWriteTo must accept exact capacity and reject one byte short.
+			exactBuf := make([]byte, path.Len())
+			checkedN, err := path.CheckedWriteTo(exactBuf, 0)
+			require.NoError(t, err)
+			require.Equal(t, path.Len(), checkedN)
+			assert.Equal(t, buf, exactBuf)
+
+			_, err = path.CheckedWriteTo(make([]byte, path.Len()-1), 0)
+			require.ErrorIs(t, err, wire.ErrBufferTooSmall)
+
+			// Round-trip through ParseAS4Path and verify segment split & ASN order.
+			parsed, err := ParseAS4Path(buf[:n])
+			require.NoError(t, err)
+			require.Len(t, parsed.Segments, len(tt.wantSegLengths))
+
+			flattened := make([]uint32, 0, tt.numASNs)
+			for i, wantLen := range tt.wantSegLengths {
+				assert.Equal(t, tt.segType, parsed.Segments[i].Type)
+				assert.Len(t, parsed.Segments[i].ASNs, wantLen)
+				flattened = append(flattened, parsed.Segments[i].ASNs...)
+			}
+			assert.Equal(t, asns, flattened)
 		})
 	}
 }

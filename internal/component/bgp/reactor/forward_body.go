@@ -451,11 +451,10 @@ func fwdUpdateForDestination(update *message.Update, srcCtxID, destCtxID bgpctx.
 			payload = fwdPackUpdateBody(update)
 		}
 
-		// wireu.TranscodeASPath does not bounds-check dst: it copies and writes at
-		// computed offsets, so an undersized destination truncates or panics rather
-		// than reporting. Keep the size this call site has always asked for -- twice
-		// the payload plus slack, which covers the 2->4 ASN widening plus a new
-		// AS4_PATH and AS4_AGGREGATOR -- and take the smallest pool class holding it.
+		// wireu.TranscodeASPath bounds-checks dst and refuses an undersized buffer.
+		// Size dst to twice the payload plus slack, which leaves headroom for
+		// appending AS4_PATH and AS4_AGGREGATOR, and take the smallest pool class
+		// holding it.
 		need := len(payload)*2 + 1024
 		var handle BufHandle
 		switch {

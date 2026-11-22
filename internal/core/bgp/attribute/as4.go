@@ -49,21 +49,32 @@ func (p *AS4Path) Flags() AttributeFlags { return FlagOptional | FlagTransitive 
 // Len returns the packed length in bytes (always 4-byte ASN format).
 //
 // RFC 6793 Section 3: AS4_PATH "carries four-octet AS numbers" (4 bytes each).
+// Accounts for segment splitting when segments exceed MaxASPathSegmentLength (255),
+// matching ASPath.LenWithASN4.
 // Note: Confed segments are excluded per RFC 6793 Section 3.
 func (p *AS4Path) Len() int {
 	length := 0
 	for _, seg := range p.Segments {
-		// RFC 6793 Section 3: confed segments MUST NOT be included
-		if seg.Type == ASConfedSequence || seg.Type == ASConfedSet {
+		// RFC 6793 Section 3: confed segments MUST NOT be included.
+		if isConfedSegment(seg.Type) {
 			continue
 		}
-		// type(1) + count(1) + ASNs(4 each)
-		length += 2 + len(seg.ASNs)*4
+		numASNs := len(seg.ASNs)
+		if numASNs == 0 {
+			continue
+		}
+		// Calculate number of segments needed after splitting.
+		numSegments := (numASNs + MaxASPathSegmentLength - 1) / MaxASPathSegmentLength
+		// Each segment: type(1) + count(1) + ASNs(4 each).
+		length += numSegments*2 + numASNs*4
 	}
 	return length
 }
 
 // WriteTo writes the AS4 path (always 4-byte ASN format) into buf at offset.
+// Segments exceeding MaxASPathSegmentLength (255) are split across multiple
+// segments via writeSegmentWithSplit, matching ASPath encoding so the 1-octet
+// segment count never wraps modulo 256.
 func (p *AS4Path) WriteTo(buf []byte, off int) int {
 	if len(p.Segments) == 0 {
 		return 0
@@ -71,19 +82,11 @@ func (p *AS4Path) WriteTo(buf []byte, off int) int {
 
 	start := off
 	for _, seg := range p.Segments {
-		// RFC 6793 Section 3: confed segments MUST NOT be included
-		if seg.Type == ASConfedSequence || seg.Type == ASConfedSet {
+		// RFC 6793 Section 3: confed segments MUST NOT be included.
+		if isConfedSegment(seg.Type) {
 			continue
 		}
-
-		buf[off] = byte(seg.Type)
-		buf[off+1] = byte(len(seg.ASNs))
-		off += 2
-
-		for _, asn := range seg.ASNs {
-			binary.BigEndian.PutUint32(buf[off:], asn)
-			off += 4
-		}
+		off = writeSegmentWithSplit(buf, off, seg.Type, seg.ASNs, true)
 	}
 	return off - start
 }

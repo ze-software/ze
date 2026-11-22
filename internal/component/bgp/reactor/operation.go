@@ -319,7 +319,9 @@ func (a *reactorAPIAdapter) reloadCandidatePeer(txID string, op *rpc.ConfigOpera
 // and has one caller, because it reads the config LEAVES alone: a peer this
 // parser builds carries no route, no filter chain and no redistribution
 // binding, which the full loader adds and the reload route above therefore
-// answers with. It stands for the peer that the loaded candidate does not name.
+// answers with. It stands for the peer that the loaded candidate does not name,
+// and resolves runtime output ownership against the running peer set and
+// dynamic groups just as reloadCandidatePeer does.
 func (a *reactorAPIAdapter) peerSettingsFromOperationConfig(op *rpc.ConfigOperation) (*PeerSettings, error) {
 	raw := op.Params.Config
 	if len(raw) == 0 {
@@ -360,10 +362,52 @@ func (a *reactorAPIAdapter) peerSettingsFromOperationConfig(op *rpc.ConfigOperat
 	if err != nil {
 		return nil, err
 	}
-	if !explicitPort && a != nil && a.r != nil && a.r.config.Port > 0 && a.r.config.Port <= 65535 {
-		settings.Port = uint16(a.r.config.Port)
+	if a == nil {
+		return settings, nil
+	}
+	if a.r == nil {
+		return settings, nil
+	}
+	if !explicitPort && a.r.config != nil {
+		if port := a.r.config.Port; port > 0 && port <= 65535 {
+			settings.Port = uint16(port)
+		}
+	}
+	peers := a.operationConfigDisseminationPeers(peerName, settings)
+	if err := a.r.resolveDisseminationSettings(peers, dynamicGroupsNotRead); err != nil {
+		return nil, fmt.Errorf("bgp operation %s resolve candidate output ownership: %w", op.Type, err)
 	}
 	return settings, nil
+}
+
+// operationConfigDisseminationPeers assembles the static peer population with
+// candidate replacing any running static peer of the same name or endpoint, so
+// resolveDisseminationSettings evaluates the candidate beside the surviving
+// peers when no full reload config was read.
+func (a *reactorAPIAdapter) operationConfigDisseminationPeers(peerName string, candidate *PeerSettings) []*PeerSettings {
+	a.r.mu.RLock()
+	running := make([]*Peer, 0, len(a.r.peers))
+	for _, peer := range a.r.peers {
+		running = append(running, peer)
+	}
+	a.r.mu.RUnlock()
+
+	candidateKey := candidate.PeerKey()
+	peers := make([]*PeerSettings, 0, len(running)+1)
+	for _, peer := range running {
+		snapshot := peer.settingsSnapshot()
+		if snapshot.IsDynamic {
+			continue
+		}
+		if snapshot.Name == peerName {
+			continue
+		}
+		if snapshot.PeerKey() == candidateKey {
+			continue
+		}
+		peers = append(peers, snapshot)
+	}
+	return append(peers, candidate)
 }
 
 // operationPeerRemotePortExplicit reports whether the operation's peer config

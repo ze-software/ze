@@ -139,3 +139,117 @@ func TestReconcilePeersVerifyRuntimeOwnerPreflight(t *testing.T) {
 		})
 	}
 }
+
+// TestOperationConfigFallbackResolvesRuntimeOwner proves the
+// peerSettingsFromOperationConfig fallback (used when no reloadFunc or
+// ConfigPath is available) resolves DisseminationOwner against the running
+// static peers and dynamic groups, and rejects incomplete destination grants.
+//
+// VALIDATES: resolveOperationCandidate fallback sets DisseminationOwner equal
+// to the live owner for both static-peer and dynamic-group sources, installs
+// that owner on AddPeer apply, and rejects incomplete grants on verify.
+// PREVENTS: Fallback operations producing zero DisseminationOwner and causing
+// spurious restarts or bypassing dissemination validation.
+func TestOperationConfigFallbackResolvesRuntimeOwner(t *testing.T) {
+	destinationConfig := json.RawMessage(`{
+		"connection": {"remote": {"ip": "192.0.2.80"}, "local": {"ip": "192.0.2.254"}},
+		"session": {"asn": {"local": "65000", "remote": "65001"}, "router-id": "1.2.3.80"},
+		"attach": {"process": {"` + selectedWriterProcess + `": {"receive": "state refresh update-sent", "send": "update"}}}
+	}`)
+
+	for _, dynamic := range []bool{false, true} {
+		name := "static source"
+		if dynamic {
+			name = "dynamic group source"
+		}
+		t.Run(name, func(t *testing.T) {
+			f := newSelectedWriterFixture(t, false)
+			f.peer.settings.Name = "destination"
+			live := f.peer.selectedOwnerSnapshot()
+			require.NotNil(t, live)
+			require.NoError(t, live.err)
+			require.True(t, live.owner.IsSet())
+
+			sourceSettings := NewPeerSettings(netip.MustParseAddr("192.0.2.79"), 65000, 65002, 0x0102034F)
+			sourceSettings.Name = "source"
+			sourceSettings.ProcessBindings = []ProcessBinding{{
+				PluginName: selectedWriterProcess,
+				Explicit:   true,
+				Receive:    map[string]events.Direction{"update": events.DirReceived, "state": events.DirBoth},
+			}}
+			if dynamic {
+				sourceSettings.Address = netip.Addr{}
+				f.api.r.dynamicGroups = []*DynamicGroupConfig{{GroupName: "sources", Settings: sourceSettings}}
+			} else {
+				sourcePeer := NewPeer(sourceSettings)
+				f.api.r.peers[sourceSettings.PeerKey()] = sourcePeer
+			}
+
+			// No reloadFunc / ConfigPath configured -> resolveOperationCandidate
+			// must fall back to peerSettingsFromOperationConfig.
+			modifyOp := &rpc.ConfigOperation{
+				ID:     "bgp-modify-peer-destination",
+				Root:   "bgp",
+				Owner:  "bgp",
+				Type:   configop.ModifyPeer,
+				Target: rpc.ResourceRef{Kind: rpc.ResourcePeer, Peer: "destination"},
+				Params: rpc.ConfigOperationParams{Peer: "destination", Config: destinationConfig},
+			}
+			resolved, policyResolved, err := f.api.resolveOperationCandidate("", modifyOp)
+			require.NoError(t, err)
+			require.False(t, policyResolved, "must exercise peerSettingsFromOperationConfig fallback")
+			require.Equal(t, live.owner, resolved.DisseminationOwner)
+			require.False(t, sourceSettings.DisseminationOwner.IsSet(), "resolution must not mutate running source settings")
+			require.NoError(t, f.api.r.VerifyConfigOperation("", modifyOp))
+
+			// AddPeer through the same fallback installs a peer with resolved DisseminationOwner.
+			addConfig := json.RawMessage(`{
+				"connection": {"remote": {"ip": "192.0.2.81"}, "local": {"ip": "192.0.2.254"}},
+				"session": {"asn": {"local": "65000", "remote": "65003"}, "router-id": "1.2.3.81"},
+				"attach": {"process": {"` + selectedWriterProcess + `": {"receive": "state refresh update-sent", "send": "update"}}}
+			}`)
+			addOp := &rpc.ConfigOperation{
+				ID:     "bgp-add-peer-destination2",
+				Root:   "bgp",
+				Owner:  "bgp",
+				Type:   configop.AddPeer,
+				Target: rpc.ResourceRef{Kind: rpc.ResourcePeer, Peer: "destination2"},
+				Params: rpc.ConfigOperationParams{Peer: "destination2", Config: addConfig},
+			}
+			j := &testJournal{}
+			_, err = f.api.r.ApplyConfigOperation(addOp, j)
+			require.NoError(t, err)
+			added := f.api.r.peers[netip.MustParseAddrPort("192.0.2.81:179")]
+			require.NotNil(t, added)
+			require.Equal(t, live.owner, added.settingsSnapshot().DisseminationOwner)
+		})
+	}
+
+	t.Run("incomplete destination grants refused on fallback", func(t *testing.T) {
+		f := newSelectedWriterFixture(t, false)
+		f.peer.settings.Name = "destination"
+		sourceSettings := NewPeerSettings(netip.MustParseAddr("192.0.2.79"), 65000, 65002, 0x0102034F)
+		sourceSettings.Name = "source"
+		sourceSettings.ProcessBindings = []ProcessBinding{{
+			PluginName: selectedWriterProcess,
+			Explicit:   true,
+			Receive:    map[string]events.Direction{"update": events.DirReceived, "state": events.DirBoth},
+		}}
+		f.api.r.peers[sourceSettings.PeerKey()] = NewPeer(sourceSettings)
+		incompleteConfig := json.RawMessage(`{
+			"connection": {"remote": {"ip": "192.0.2.81"}, "local": {"ip": "192.0.2.254"}},
+			"session": {"asn": {"local": "65000", "remote": "65003"}, "router-id": "1.2.3.81"},
+			"attach": {"process": {"` + selectedWriterProcess + `": {"receive": "state update-sent", "send": "update"}}}
+		}`)
+		addOp := &rpc.ConfigOperation{
+			ID:     "bgp-add-peer-incomplete",
+			Root:   "bgp",
+			Owner:  "bgp",
+			Type:   configop.AddPeer,
+			Target: rpc.ResourceRef{Kind: rpc.ResourcePeer, Peer: "incomplete"},
+			Params: rpc.ConfigOperationParams{Peer: "incomplete", Config: incompleteConfig},
+		}
+		err := f.api.r.VerifyConfigOperation("", addOp)
+		require.ErrorContains(t, err, "incomplete destination grants")
+	})
+}

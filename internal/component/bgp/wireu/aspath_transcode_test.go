@@ -2,6 +2,7 @@ package wireu
 
 import (
 	"encoding/binary"
+	"math"
 	"net/netip"
 	"testing"
 
@@ -824,4 +825,120 @@ func TestTranscodeASPath_4to2_MalformedAggregatorTinyValue(t *testing.T) {
 
 	assert.NotContains(t, string(result), string(malformedAgg),
 		"RFC 7606 Section 2: a discarded attribute does not reach the destination")
+}
+
+// TestTranscodeASPathRefusesExpandedAttributesExceedingUint16 verifies that
+// narrowing a large RFC 8654 extended UPDATE fails closed when appending
+// AS4_PATH or AS4_AGGREGATOR would push the path-attributes length past
+// math.MaxUint16 (RFC 4271 Section 4.3).
+//
+// VALIDATES: TranscodeASPath rejects newAttrLen > math.MaxUint16 before writing
+// into dst.
+// PREVENTS: Silent uint16 wrap-around corrupting the UPDATE attribute length
+// field on extended messages.
+func TestTranscodeASPathRefusesExpandedAttributesExceedingUint16(t *testing.T) {
+	makeOpaqueAttr := func(valueLen int) []byte {
+		buf := make([]byte, 4+valueLen)
+		attribute.WriteHeaderTo(buf, 0, attribute.FlagOptional|attribute.FlagTransitive,
+			attribute.AttributeCode(200), uint16(valueLen)) //nolint:gosec // test data <= 65535
+		return buf
+	}
+
+	tests := []struct {
+		name      string
+		buildBody func() []byte
+	}{
+		{
+			name: "appended AS4_PATH pushes total attributes over uint16",
+			buildBody: func() []byte {
+				// 500 non-mappable ASNs: 4-byte AS_PATH is 4 + 2*(2) + 500*4 = 2008 bytes.
+				// Narrowed AS_PATH is 1008 bytes (-1000), appended AS4_PATH is 2008 bytes (+2008),
+				// net growth = +1008 bytes. With a 63,500-byte opaque attribute, input attrs
+				// fit in uint16 (~65,512) while output attrs exceed 65,535 (~66,520).
+				asns := make([]uint32, 500)
+				for i := range asns {
+					asns[i] = 4200000000 + uint32(i) //nolint:gosec // bounded by 500
+				}
+				aspath := buildASPathAttr([]attribute.ASPathSegment{
+					{Type: attribute.ASSequence, ASNs: asns},
+				}, true)
+				attrs := concatAttrs(buildOriginAttr(), makeOpaqueAttr(63500), aspath)
+				require.LessOrEqual(t, len(attrs), math.MaxUint16)
+				return buildPayload(nil, attrs, []byte{24, 10, 0, 0})
+			},
+		},
+		{
+			name: "appended AS4_AGGREGATOR pushes total attributes over uint16",
+			buildBody: func() []byte {
+				// AGGREGATOR shrinks by 2 bytes (11 -> 9) and AS4_AGGREGATOR adds 11 bytes,
+				// net growth = +9 bytes. Input attrs = 4 + (4+65512) + 11 = 65,531 <= 65,535;
+				// output attrs = 65,540 > 65,535.
+				agg := buildAggregatorAttr(4200000000, netip.MustParseAddr("192.0.2.1"), true)
+				attrs := concatAttrs(buildOriginAttr(), makeOpaqueAttr(65512), agg)
+				require.LessOrEqual(t, len(attrs), math.MaxUint16)
+				return buildPayload(nil, attrs, []byte{24, 10, 0, 0})
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			payload := tt.buildBody()
+			dst := make([]byte, len(payload)*2+1024)
+
+			n, err := TranscodeASPath(dst, payload, true, false)
+			require.Error(t, err, "expanded attribute section > 65535 must return an error")
+			assert.Zero(t, n, "refused transcode must write zero bytes")
+			assert.Equal(t, make([]byte, len(dst)), dst, "refused transcode must not modify dst")
+		})
+	}
+}
+
+// TestTranscodeASPathRefusesShortDestinationBuffer verifies that TranscodeASPath
+// checks dst capacity against the required output size before writing.
+//
+// VALIDATES: An undersized dst returns an error with 0 bytes written and leaves
+// dst unmodified, both on the transcode path and on the no-AS_PATH passthrough
+// path; an exact-sized dst succeeds.
+// PREVENTS: Slice-bounds panics or silent payload truncation when a caller
+// passes a short destination buffer.
+func TestTranscodeASPathRefusesShortDestinationBuffer(t *testing.T) {
+	t.Run("transcode path", func(t *testing.T) {
+		attrs := concatAttrs(
+			buildOriginAttr(),
+			buildASPathAttr([]attribute.ASPathSegment{
+				{Type: attribute.ASSequence, ASNs: []uint32{64512, 200000, 300000}},
+			}, true),
+		)
+		payload := buildPayload(nil, attrs, []byte{24, 10, 0, 0})
+
+		fullDst := make([]byte, len(payload)*2+128)
+		exactLen, err := TranscodeASPath(fullDst, payload, true, false)
+		require.NoError(t, err)
+		require.Positive(t, exactLen)
+
+		// One byte short must fail cleanly without touching dst.
+		shortDst := make([]byte, exactLen-1)
+		n, err := TranscodeASPath(shortDst, payload, true, false)
+		require.Error(t, err)
+		assert.Zero(t, n)
+		assert.Equal(t, make([]byte, len(shortDst)), shortDst)
+
+		// Exact length must succeed and match the oversized run.
+		exactDst := make([]byte, exactLen)
+		n, err = TranscodeASPath(exactDst, payload, true, false)
+		require.NoError(t, err)
+		assert.Equal(t, exactLen, n)
+		assert.Equal(t, fullDst[:exactLen], exactDst[:n])
+	})
+
+	t.Run("no AS_PATH or AGGREGATOR passthrough", func(t *testing.T) {
+		payload := buildPayload(nil, buildOriginAttr(), []byte{24, 10, 0, 0})
+
+		shortDst := make([]byte, len(payload)-1)
+		n, err := TranscodeASPath(shortDst, payload, true, false)
+		require.Error(t, err)
+		assert.Zero(t, n)
+		assert.Equal(t, make([]byte, len(shortDst)), shortDst)
+	})
 }

@@ -71,18 +71,22 @@ func ApplyAttrDiscard(pathAttrs []byte, entries []DiscardEntry) ([]byte, bool) {
 		return pathAttrs, false
 	}
 
-	// Check for upstream ATTR_TOMBSTONE that needs merging.
-	upstreamEntries := ExtractUpstreamAttrDiscard(pathAttrs)
-	needsMerge := len(upstreamEntries) > 0
+	// Check for any upstream ATTR_TOMBSTONE on the wire. Even a marker with
+	// zero valid entries (empty, 1-byte, or all-zero-padded) occupies code 252
+	// and MUST be replaced via rebuild rather than left beside an in-place
+	// marker, which would produce duplicate code 252 (RFC 4271 Section 5).
+	upstreamEntries, hasUpstream := extractUpstreamAttrDiscard(pathAttrs)
 
-	// Single entry, no upstream merge needed, try in-place overwrite.
-	if len(entries) == 1 && !needsMerge {
-		if applyInPlace(pathAttrs, entries[0]) {
-			return pathAttrs, false
+	// Single entry, no upstream ATTR_TOMBSTONE present: try in-place overwrite.
+	if !hasUpstream {
+		if len(entries) == 1 {
+			if applyInPlace(pathAttrs, entries[0]) {
+				return pathAttrs, false
+			}
 		}
 	}
 
-	// Rebuild: multiple entries, value too short, or upstream merge needed.
+	// Rebuild: multiple entries, value too short, or upstream ATTR_TOMBSTONE present.
 	// Merge upstream + local entries into a single list for the rebuilt ATTR_TOMBSTONE.
 	merged := make([]DiscardEntry, 0, len(upstreamEntries)+len(entries))
 	merged = append(merged, upstreamEntries...)
@@ -151,12 +155,22 @@ func applyInPlace(pathAttrs []byte, entry DiscardEntry) bool {
 }
 
 // ExtractUpstreamAttrDiscard finds an existing ATTR_TOMBSTONE and extracts its (code, reason) pairs.
-// Returns nil if no upstream ATTR_TOMBSTONE is present.
+// Returns nil if no upstream ATTR_TOMBSTONE is present or if it carries no valid entries.
 // Uses AttrFind (zero allocation when no upstream present — the happy path).
 func ExtractUpstreamAttrDiscard(pathAttrs []byte) []DiscardEntry {
+	entries, _ := extractUpstreamAttrDiscard(pathAttrs)
+	return entries
+}
+
+// extractUpstreamAttrDiscard finds an upstream ATTR_TOMBSTONE on the wire,
+// returning its parsed (code, reason) pairs and whether the attribute is
+// present at all. Tracking presence separately from len(entries) lets
+// ApplyAttrDiscard force a rebuild whenever an empty, 1-byte, or all-zero-padded
+// upstream marker is on the wire, while staying allocation-free when absent.
+func extractUpstreamAttrDiscard(pathAttrs []byte) ([]DiscardEntry, bool) {
 	_, _, value, found := attribute.AttrFind(pathAttrs, attribute.AttrTombstone)
 	if !found {
-		return nil
+		return nil, false
 	}
 	// Parse (code, reason) pairs from value.
 	//
@@ -179,7 +193,7 @@ func ExtractUpstreamAttrDiscard(pathAttrs []byte) []DiscardEntry {
 			Reason: value[i+1],
 		})
 	}
-	return entries
+	return entries, true
 }
 
 // rebuildWithAttrDiscard rebuilds the path attributes section, removing discarded
@@ -234,8 +248,7 @@ func rebuildWithAttrDiscard(pathAttrs []byte, localEntries, allEntries []Discard
 	mergedFlags := uint8(0x80) // Default: optional non-transitive.
 
 	// Determine transitivity from upstream ATTR_TOMBSTONE (if present).
-	upstreamFlags := findAttrFlags(pathAttrs, uint8(attribute.AttrTombstone))
-	hasUpstream := upstreamFlags != 0
+	upstreamFlags, hasUpstream := findAttrFlags(pathAttrs, uint8(attribute.AttrTombstone))
 	upstreamTransitive := upstreamFlags&0x40 != 0
 
 	// Determine transitivity from the local entries' original attributes, over
@@ -349,19 +362,18 @@ func localSetTransitive(pathAttrs []byte, localEntries []DiscardEntry, removeCod
 	return allTransitive
 }
 
-// findAttrFlags finds the flags byte for an attribute by its type code.
-// Returns 0 if the attribute is not found (e.g., upstream ATTR_TOMBSTONE entry
-// whose original attribute is no longer in the path attributes section).
+// findAttrFlags finds the flags byte for an attribute by its type code,
+// reporting whether the attribute was found separately from the flags byte.
 // Uses AttrFind (zero allocation).
 //
 // Only the upstream ATTR_TOMBSTONE lookup uses this. The local discarded set
 // needs every occurrence, not the first: see localSetTransitive.
-func findAttrFlags(pathAttrs []byte, code uint8) uint8 {
+func findAttrFlags(pathAttrs []byte, code uint8) (uint8, bool) {
 	_, flags, _, found := attribute.AttrFind(pathAttrs, attribute.AttributeCode(code))
 	if !found {
-		return 0
+		return 0, false
 	}
-	return uint8(flags)
+	return uint8(flags), true
 }
 
 // StripAttrRanges returns a copy of pathAttrs with the given byte ranges removed.

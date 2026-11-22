@@ -12,6 +12,7 @@ package wireu
 
 import (
 	"encoding/binary"
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -811,6 +812,82 @@ func TestAS4FamilyPlanRebindsPayload(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, want, dst[:n])
 			require.Equal(t, wantDiscards, discards)
+		})
+	}
+}
+
+// TestCollapseAS4RefusesExpandedAttributesExceedingUint16 verifies that widening
+// a large RFC 8654 extended UPDATE from an OLD speaker fails closed when the
+// collapsed AS_PATH or total path-attributes section would overflow the 2-octet
+// wire length field (RFC 4271 Section 4.3).
+//
+// VALIDATES: AS4FamilyPlan.WriteTo returns a descriptive error and writes nothing
+// when either the reconciled AS_PATH value or the total collapsed attribute
+// section exceeds math.MaxUint16.
+// PREVENTS: Silent uint16 truncation wrapping a >65,535-octet attribute section
+// into a bogus small length and corrupting downstream framing.
+func TestCollapseAS4RefusesExpandedAttributesExceedingUint16(t *testing.T) {
+	makeTwoOctetSegments := func(segCount int) []collapseSeg {
+		segs := make([]collapseSeg, 0, segCount)
+		for seg := range segCount {
+			asns := make([]uint32, attribute.MaxASPathSegmentLength)
+			for i := range asns {
+				asns[i] = uint32(1000 + seg) //nolint:gosec // small test ASN
+			}
+			segs = append(segs, collapseSeq(asns...))
+		}
+		return segs
+	}
+
+	tests := []struct {
+		name      string
+		buildBody func() []byte
+	}{
+		{
+			name: "widened AS_PATH alone exceeds uint16",
+			buildBody: func() []byte {
+				// 65 segments * (2 + 255*2) = 33,280 bytes in -> 65 * (2 + 255*4) = 66,430 bytes out (> 65,535).
+				attrs := collapseWellKnown()
+				attrs = append(attrs, collapseAttrWire(attribute.FlagTransitive, attribute.AttrASPath,
+					collapsePathValue(2, makeTwoOctetSegments(65)...))...)
+				require.LessOrEqual(t, len(attrs), math.MaxUint16)
+				return baseTestBody(attrs, collapseNLRI)
+			},
+		},
+		{
+			name: "widened AS_PATH plus opaque attribute exceeds uint16",
+			buildBody: func() []byte {
+				// 40 segments: 20,480 bytes in -> 40,880 bytes out (<= 65,535 on its own),
+				// plus 25,000-byte optional attribute -> total collapsed attrs > 65,535.
+				attrs := collapseWellKnown()
+				attrs = append(attrs, collapseAttrWire(attribute.FlagTransitive, attribute.AttrASPath,
+					collapsePathValue(2, makeTwoOctetSegments(40)...))...)
+				attrs = append(attrs, collapseAttrWire(attribute.FlagOptional|attribute.FlagTransitive,
+					attribute.AttributeCode(200), make([]byte, 25000))...)
+				require.LessOrEqual(t, len(attrs), math.MaxUint16)
+				return baseTestBody(attrs, collapseNLRI)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			payload := tt.buildBody()
+			dst := make([]byte, CollapseAS4FamilySize(payload))
+
+			n, discards, err := CollapseAS4Family(dst, payload, false)
+			require.Error(t, err, "expanded attribute section > 65535 must return an error")
+			assert.Zero(t, n, "refused collapse must write zero bytes")
+			assert.Nil(t, discards)
+			assert.Equal(t, make([]byte, len(dst)), dst, "refused collapse must not modify dst")
+
+			// Exercise PrepareAS4Family + WriteTo directly as well.
+			plan, err := PrepareAS4Family(payload, false)
+			require.NoError(t, err)
+			n, discards, err = plan.WriteTo(dst, payload)
+			require.Error(t, err)
+			assert.Zero(t, n)
+			assert.Nil(t, discards)
 		})
 	}
 }

@@ -14,6 +14,7 @@ package wireu
 import (
 	"encoding/binary"
 	"fmt"
+	"math"
 
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
@@ -190,6 +191,44 @@ func (p *AS4FamilyPlan) WriteTo(dst, payload []byte) (int, []attribute.ASPathDis
 		canonical.Aggregator = aggregator.value(payload)
 	}
 
+	if len(canonical.ASPath) > math.MaxUint16 {
+		return 0, nil, fmt.Errorf("collapse AS4 family: reconciled AS_PATH length %d exceeds max %d",
+			len(canonical.ASPath), math.MaxUint16)
+	}
+	if len(canonical.Aggregator) > math.MaxUint16 {
+		return 0, nil, fmt.Errorf("collapse AS4 family: reconciled AGGREGATOR length %d exceeds max %d",
+			len(canonical.Aggregator), math.MaxUint16)
+	}
+
+	// Measure the collapsed attribute section before writing so an expanded
+	// section exceeding the 2-octet wire limit (RFC 4271 Section 4.3) or an
+	// undersized destination buffer is refused before touching dst.
+	collapsedAttrLen := 0
+	for off := attrsStart; off < attrsStart+attrLen; {
+		span := attrSpanAt(payload, off)
+		// Measure only the AS-path family rewrite; unrelated attributes keep their wire length.
+		//exhaustive:ignore
+		switch span.code {
+		case attribute.AttrASPath:
+			if canonical.ASPath != nil {
+				collapsedAttrLen += collapseAttrWireLen(len(canonical.ASPath))
+			}
+		case attribute.AttrAggregator:
+			if canonical.Aggregator != nil {
+				collapsedAttrLen += collapseAttrWireLen(len(canonical.Aggregator))
+			}
+		case attribute.AttrAS4Path, attribute.AttrAS4Aggregator:
+			// Dropped during collapse.
+		default:
+			collapsedAttrLen += span.hdrLen + span.length
+		}
+		off += span.hdrLen + span.length
+	}
+	if collapsedAttrLen > math.MaxUint16 {
+		return 0, nil, fmt.Errorf("collapse AS4 family: collapsed path attributes length %d exceeds max %d",
+			collapsedAttrLen, math.MaxUint16)
+	}
+
 	// The writes below are sized from the reconciled values rather than from the
 	// received ones, so a caller that sized dst by any other arithmetic would
 	// have its buffer overrun. A refusal here is a dropped UPDATE; the overrun
@@ -198,6 +237,11 @@ func (p *AS4FamilyPlan) WriteTo(dst, payload []byte) (int, []attribute.ASPathDis
 	if len(dst) < CollapseAS4FamilySize(payload) {
 		return 0, nil, fmt.Errorf("collapse AS4 family: buffer holds %d octets and the collapse needs up to %d",
 			len(dst), CollapseAS4FamilySize(payload))
+	}
+	needed := attrsStart + collapsedAttrLen + (len(payload) - (attrsStart + attrLen))
+	if len(dst) < needed {
+		return 0, nil, fmt.Errorf("collapse AS4 family: buffer holds %d octets and the collapse needs %d",
+			len(dst), needed)
 	}
 
 	n := copy(dst, payload[:attrsStart])
@@ -241,16 +285,29 @@ func (p *AS4FamilyPlan) WriteTo(dst, payload []byte) (int, []attribute.ASPathDis
 		off += span.hdrLen + span.length
 	}
 
-	binary.BigEndian.PutUint16(dst[attrLenOff:attrLenOff+2], uint16(written)) //nolint:gosec // bounded by BGP max
+	if written > math.MaxUint16 {
+		return 0, nil, fmt.Errorf("collapse AS4 family: collapsed path attributes length %d exceeds max %d",
+			written, math.MaxUint16)
+	}
+	binary.BigEndian.PutUint16(dst[attrLenOff:attrLenOff+2], uint16(written)) //nolint:gosec // checked <= math.MaxUint16 above
 	n += written
 	n += copy(dst[n:], payload[attrsStart+attrLen:])
 	return n, canonical.Discards, nil
 }
 
+// collapseAttrWireLen returns the wire size (header + value) writeAttrValue
+// writes for a value of valueLen octets.
+func collapseAttrWireLen(valueLen int) int {
+	if valueLen > 255 {
+		return 4 + valueLen
+	}
+	return 3 + valueLen
+}
+
 // writeAttrValue writes one attribute header and value at off, and answers the
-// bytes written.
+// bytes written. Callers MUST bound len(value) <= math.MaxUint16 beforehand.
 func writeAttrValue(dst []byte, off int, flags attribute.AttributeFlags, code attribute.AttributeCode, value []byte) int {
-	n := attribute.WriteHeaderTo(dst, off, flags, code, uint16(len(value))) //nolint:gosec // bounded by BGP max
+	n := attribute.WriteHeaderTo(dst, off, flags, code, uint16(len(value))) //nolint:gosec // caller bounds len(value) <= math.MaxUint16
 	n += copy(dst[off+n:], value)
 	return n
 }

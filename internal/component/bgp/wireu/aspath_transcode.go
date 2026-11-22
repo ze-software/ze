@@ -11,6 +11,7 @@ package wireu
 import (
 	"encoding/binary"
 	"fmt"
+	"math"
 
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
@@ -144,6 +145,10 @@ func TranscodeASPath(dst, payload []byte, srcASN4, dstASN4 bool) (int, error) {
 	}
 
 	if aspAttrOff == -1 && aggAttrOff == -1 {
+		if len(dst) < len(payload) {
+			return 0, fmt.Errorf("transcode AS_PATH: destination buffer holds %d octets, need %d",
+				len(dst), len(payload))
+		}
 		return copy(dst, payload), nil
 	}
 
@@ -212,11 +217,26 @@ func TranscodeASPath(dst, payload []byte, srcASN4, dstASN4 bool) (int, error) {
 
 	// An AGGREGATOR value under two octets is discarded below and marked by a
 	// REBUILT tombstone rather than an in-place one, because the space it
-	// occupies cannot hold the (code, reason) pair. The marker's own size is
-	// fixed, so the attribute section grows or shrinks by the difference.
+	// occupies cannot hold the (code, reason) pair. The marker's header preserves
+	// the original Extended Length bit (0x50 mask), so only the value length
+	// changes from aggValueLen to TombstoneMinValueLen.
 	rebuiltTombstone := aggAttrOff != -1 && aggValueLen < TombstoneMinValueLen
 	if rebuiltTombstone {
-		newAttrLen += (3 + TombstoneMinValueLen) - (aggHdrLen + aggValueLen)
+		newAttrLen += TombstoneMinValueLen - aggValueLen
+	}
+
+	if newAttrLen < 0 {
+		return 0, fmt.Errorf("transcode AS_PATH: computed negative path attributes length %d: %w",
+			newAttrLen, ErrUpdateMalformed)
+	}
+	if newAttrLen > math.MaxUint16 {
+		return 0, fmt.Errorf("transcode AS_PATH: transcoded path attributes length %d exceeds max %d",
+			newAttrLen, math.MaxUint16)
+	}
+	requiredSize := attrsStart + newAttrLen + (len(payload) - attrsEnd)
+	if len(dst) < requiredSize {
+		return 0, fmt.Errorf("transcode AS_PATH: destination buffer holds %d octets, need %d",
+			len(dst), requiredSize)
 	}
 
 	// --- Build output: iterate attributes, replace/skip special ones ---
@@ -237,21 +257,30 @@ func TranscodeASPath(dst, payload []byte, srcASN4, dstASN4 bool) (int, error) {
 		}
 
 		// Transcode only AS-path-family attributes; copy all other codes unchanged.
+		// Matching by offset keeps the written byte count identical to newAttrLen
+		// even if a malformed input carried a duplicate attribute code.
 		//exhaustive:ignore
 		switch code {
 		case attribute.AttrASPath:
-			if existingPath != nil {
+			if off == aspAttrOff {
 				n += attribute.WriteHeaderTo(dst, n, attribute.FlagTransitive,
-					attribute.AttrASPath, uint16(newASPValueLen)) //nolint:gosec // bounded by BGP max
+					attribute.AttrASPath, uint16(newASPValueLen)) //nolint:gosec // bounded by newAttrLen <= math.MaxUint16
 				n += existingPath.WriteToWithASN4(dst, n, dstASN4)
 			} else {
 				n += copy(dst[n:], payload[off:off+hdrLen+length])
 			}
 
 		case attribute.AttrAS4Path:
-			// Skip: replaced by new AS4_PATH appended at end.
+			if off != as4AttrOff {
+				n += copy(dst[n:], payload[off:off+hdrLen+length])
+			}
+			// Otherwise skip: replaced by new AS4_PATH appended at end.
 
 		case attribute.AttrAggregator:
+			if off != aggAttrOff {
+				n += copy(dst[n:], payload[off:off+hdrLen+length])
+				break
+			}
 			switch {
 			case newAggValueLen != 0:
 				n += attribute.WriteHeaderTo(dst, n,
@@ -303,10 +332,13 @@ func TranscodeASPath(dst, payload []byte, srcASN4, dstASN4 bool) (int, error) {
 			}
 
 		case attribute.AttrAS4Aggregator:
-			if newAggValueLen == 0 {
-				n += copy(dst[n:], payload[off:off+hdrLen+length])
+			if off == as4AggAttrOff {
+				if newAggValueLen != 0 {
+					// Skip: replaced by new AS4_AGGREGATOR appended at end.
+					break
+				}
 			}
-			// Otherwise skip: replaced by new AS4_AGGREGATOR appended at end.
+			n += copy(dst[n:], payload[off:off+hdrLen+length])
 
 		default:
 			n += copy(dst[n:], payload[off:off+hdrLen+length])
@@ -332,7 +364,7 @@ func TranscodeASPath(dst, payload []byte, srcASN4, dstASN4 bool) (int, error) {
 	n += copy(dst[n:], payload[attrsEnd:])
 
 	// Update attrLen.
-	binary.BigEndian.PutUint16(dst[attrLenOff:attrLenOff+2], uint16(newAttrLen)) //nolint:gosec // bounded by BGP max
+	binary.BigEndian.PutUint16(dst[attrLenOff:attrLenOff+2], uint16(newAttrLen)) //nolint:gosec // checked <= math.MaxUint16 above
 
 	return n, nil
 }
