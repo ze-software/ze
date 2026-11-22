@@ -55,7 +55,13 @@ subscription until `OnStarted` (when SDK state RPCs are live) and registers
 transport is still open. `Stop()` saves after unsubscribing and draining
 in-flight work, which covers reconfiguration and shutdown, and a periodic save
 runs every 300 rate-feed ticks. `saveMu` serialises that periodic save against
-the save on stop.
+the save on stop. The periodic save runs under the detector's own context, so
+a stop ends one that is still waiting on the store and then performs the final
+save itself. On `OnBye` that final save is bounded at 400 ms (`byeSaveBudget`),
+below the 500 ms the engine waits for the answer before it refuses the reload
+that removed the plugin.
+<!-- source: internal/plugins/ddos/detect/detector.go -- savePeriodicBaseline, stopContext -->
+<!-- source: internal/plugins/ddos/detect/register.go -- byeSaveBudget -->
 
 The restart fixture waits for the periodic save to contain a complete
 ten-sample window from the production rate collector. It stops that daemon and

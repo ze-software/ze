@@ -207,8 +207,11 @@ func runNTPPlugin(conn net.Conn) int {
 		worker       *syncWorker
 		unsubscribe  func()
 		drainRefusal *opererr.Error
-		startedOnce  sync.Once
-		started      atomic.Bool
+		// leaving is the worker a bye told to stop and did not wait for. The
+		// shutdown below joins it after Run returns.
+		leaving     *syncWorker
+		startedOnce sync.Once
+		started     atomic.Bool
 	)
 	startedCh := make(chan struct{})
 
@@ -329,6 +332,13 @@ func runNTPPlugin(conn net.Conn) int {
 		return nil
 	})
 
+	// The engine waits pluginRemovalGrace (500 ms) for this answer and refuses
+	// the reload when it is late, so the bye does only what fits: it saves the
+	// last-known time under byeSaveBudget, while the connection is still open,
+	// and tells the worker to stop. It does not wait for the worker, which can
+	// be inside an ntp.Query for about 5 seconds: Run returns once the bye is
+	// answered, and the join below runs then. A save that did not land is the
+	// plugin's refusal at exit, never the removal's.
 	p.OnBye(func(_ string) error {
 		if !started.Load() {
 			return nil
@@ -337,11 +347,13 @@ func runNTPPlugin(conn net.Conn) int {
 		if unsub != nil {
 			unsub()
 		}
-		if refusal := finishNTPWorkerContext(context.Background(), w); refusal != nil {
-			workerMu.Lock()
+		refusal := leaveNTPWorker(context.Background(), w)
+		workerMu.Lock()
+		leaving = w
+		if refusal != nil {
 			drainRefusal = refusal
-			workerMu.Unlock()
 		}
+		workerMu.Unlock()
 		return nil
 	})
 
@@ -361,7 +373,8 @@ func runNTPPlugin(conn net.Conn) int {
 		DrainBudget: 5,
 	})
 
-	// Shutdown: save time (when not already saved during OnDrain/OnBye) and stop worker.
+	// Shutdown: save time (when not already saved during OnDrain/OnBye), stop
+	// the worker, and join the worker a bye signaled.
 	w, unsub := takeWorker()
 	if unsub != nil {
 		unsub()
@@ -374,6 +387,14 @@ func runNTPPlugin(conn net.Conn) int {
 		}
 	}
 	shutdownErr := finishNTPWorkerContext(context.Background(), w)
+	workerMu.Lock()
+	left := leaving
+	workerMu.Unlock()
+	if left != nil {
+		// The bye saved the time and signaled this worker; its in-flight query
+		// is waited out here, where no answer is owed to the engine.
+		left.stopAndWait()
+	}
 	workerMu.Lock()
 	if shutdownErr == nil {
 		shutdownErr = drainRefusal
@@ -409,13 +430,45 @@ func finishNTPWorkerContext(ctx context.Context, worker *syncWorker) *opererr.Er
 		return nil
 	}
 	defer worker.stopAndWait()
-	// persist-path enables the final save; the managed store owns its location.
-	if worker.cfg.PersistPath != "" {
-		if err := saveTime(ctx, worker.state, currentTime()); err != nil {
-			return opererr.Wrap(err, "NTP shutdown could not save the last-known time",
-				"The managed state store refused the write, so the next boot cannot rely on a fresh saved clock. Inspect the store and restore write access before restarting NTP.",
-				"ze show doctor")
-		}
+	return saveFinalTime(ctx, worker)
+}
+
+// byeSaveBudget bounds the last-known-time save a bye performs. It sits below
+// pluginRemovalGrace, the 500 ms the engine waits for the bye answer before it
+// refuses the reload (internal/component/plugin/server/startup_removal.go), so
+// a slow store costs the saved time, reported at exit, and never the removal.
+const byeSaveBudget = 400 * time.Millisecond
+
+// leaveNTPWorker is the body of the plugin's OnBye handler for a running
+// worker: it saves the last-known time within byeSaveBudget and signals the
+// worker to stop, without waiting for it. The caller MUST join the worker
+// with stopAndWait once the bye is answered. A nil worker has nothing to
+// leave.
+//
+// The state put is issued from the SDK's callback loop, and it does not wait
+// on that loop: its answer arrives on the connection's own read loop
+// (rpc.MuxConn) or, for a plugin in the daemon, is the return of a direct
+// call (DirectBridge).
+func leaveNTPWorker(ctx context.Context, worker *syncWorker) *opererr.Error {
+	if worker == nil {
+		return nil
+	}
+	defer worker.requestStop()
+	saveCtx, cancel := context.WithTimeout(ctx, byeSaveBudget)
+	defer cancel()
+	return saveFinalTime(saveCtx, worker)
+}
+
+// saveFinalTime writes the last-known time for a worker that is ending.
+// persist-path enables the final save; the managed store owns its location.
+func saveFinalTime(ctx context.Context, worker *syncWorker) *opererr.Error {
+	if worker.cfg.PersistPath == "" {
+		return nil
+	}
+	if err := saveTime(ctx, worker.state, currentTime()); err != nil {
+		return opererr.Wrap(err, "NTP shutdown could not save the last-known time",
+			"The managed state store refused the write, so the next boot cannot rely on a fresh saved clock. Inspect the store and restore write access before restarting NTP.",
+			"ze show doctor")
 	}
 	return nil
 }

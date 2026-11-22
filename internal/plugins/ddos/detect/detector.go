@@ -248,6 +248,15 @@ func (d *detector) saveBaseline() {
 	d.saveBaselineContext(context.Background())
 }
 
+// savePeriodicBaseline is the crash-safety save a tick spawns. It runs under
+// the detector's own context, so stopContext's cancel ends a put that waits on
+// a slow store, where it used to hold stopContext's wg.Wait for the whole
+// state call timeout. Nothing is lost by ending it: the final save stopContext
+// performs next carries the same baselines.
+func (d *detector) savePeriodicBaseline() {
+	d.saveBaselineContext(d.ctx)
+}
+
 func (d *detector) saveBaselineContext(ctx context.Context) {
 	d.mu.Lock()
 	pps := d.baseline.snapshot()
@@ -325,7 +334,7 @@ func (d *detector) tick(maxPps, maxBps float64, maxPpsIface, maxBpsIface string)
 	// released it, so file I/O never runs under the lock (R-4). Guarded by
 	// d.stopped (mirrors onAttackStart) so it never races Stop's wg.Wait.
 	if d.tickNum%baselineSaveInterval == 0 && !d.stopped {
-		d.wg.Go(d.saveBaseline)
+		d.wg.Go(d.savePeriodicBaseline)
 	}
 
 	d.interval.add(maxPps, maxBps, maxPpsIface, maxBpsIface)

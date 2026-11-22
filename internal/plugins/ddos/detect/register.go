@@ -7,6 +7,7 @@ import (
 	"os"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/trafficstat"
@@ -110,6 +111,13 @@ func warnIfExternal(isInternal bool) {
 	}
 	logger().Warn("ddos-detect: running as an external plugin process -- the trafficstat subscription is a same-process call that cannot reach the engine's real background tracker, so the detector will never receive a rate signal; remove the `plugin { external ddos-detect { ... } }` block so ze runs ddos-detect internal")
 }
+
+// byeSaveBudget bounds the baseline save a bye performs. It sits below
+// pluginRemovalGrace, the 500 ms the engine waits for the bye answer before it
+// refuses the reload (internal/component/plugin/server/startup_removal.go), so
+// a slow store costs the newest baseline samples, which the last periodic save
+// already holds up to its interval, and never the removal.
+const byeSaveBudget = 400 * time.Millisecond
 
 func runEngine(conn net.Conn) int {
 	log := logger()
@@ -284,8 +292,18 @@ func runEngine(conn net.Conn) int {
 		return nil
 	})
 
+	// The engine waits pluginRemovalGrace (500 ms) for this answer and refuses
+	// the reload when it is late, so the final baseline save runs under
+	// byeSaveBudget. The stop before it is prompt: it cancels the detector's
+	// context, which ends its source queries and a periodic save still waiting
+	// on the store (savePeriodicBaseline). The put is issued from the SDK's
+	// callback loop and does not wait on it: its answer arrives on the
+	// connection's own read loop, or is the return of a direct call for a
+	// plugin in the daemon.
 	p.OnBye(func(_ string) error {
-		stopCurrent(context.Background(), !started.Load())
+		byeCtx, cancelBye := context.WithTimeout(context.Background(), byeSaveBudget)
+		defer cancelBye()
+		stopCurrent(byeCtx, !started.Load())
 		return nil
 	})
 

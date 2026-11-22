@@ -80,6 +80,7 @@ func defaultConfig() ntpConfig {
 type syncWorker struct {
 	cfg      ntpConfig
 	stop     chan struct{}
+	stopOnce sync.Once // requestStop closes stop once
 	done     chan struct{}
 	ready    <-chan struct{} // closed on SDK OnStarted; nil in direct unit tests
 	state    stateClient     // daemon state RPC client (*sdk.Plugin); nil in unit tests without state
@@ -130,9 +131,18 @@ func (w *syncWorker) start() {
 	go w.run()
 }
 
-// stopAndWait signals the worker to stop and waits for completion.
+// requestStop signals the worker to stop and does not wait for it. The worker
+// ends within one in-flight ntp.Query (about 5 seconds). It is safe to call
+// more than once; the caller MUST call stopAndWait afterwards to join the
+// worker.
+func (w *syncWorker) requestStop() {
+	w.stopOnce.Do(func() { close(w.stop) })
+}
+
+// stopAndWait signals the worker to stop and waits for completion. It MAY
+// follow requestStop: the signal is sent once.
 func (w *syncWorker) stopAndWait() {
-	close(w.stop)
+	w.requestStop()
 	<-w.done
 }
 
