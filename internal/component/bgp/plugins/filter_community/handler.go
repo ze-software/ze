@@ -31,6 +31,26 @@ func extCommunityAttrModHandler(p *filterapi.AttrPlan) {
 	genericCommunityHandler(attribute.AttrExtCommunity, 8, p)
 }
 
+// llgrStaleWire is the RFC 9494 Section 3.2 LLGR_STALE community (0xFFFF0006)
+// in 4-octet big-endian wire order.
+// RFC 9494 Section 4.3: "The LLGR_STALE community MUST NOT be removed when the
+// route is further advertised."
+var llgrStaleWire = [4]byte{0xFF, 0xFF, 0x00, 0x06}
+
+// findCommunityOffset returns the byte offset of target (a 4-octet community)
+// within val, or -1 if absent or val is not a whole number of 4-octet values.
+func findCommunityOffset(val, target []byte) int {
+	if !wholeValues(val, 4) {
+		return -1
+	}
+	for i := 0; i+4 <= len(val); i += 4 {
+		if bytes.Equal(val[i:i+4], target) {
+			return i
+		}
+	}
+	return -1
+}
+
 // genericCommunityHandler implements Add/Remove/Set for any community attribute type.
 //
 // A community value is a fixed-width entry in a list, so the values a removal
@@ -64,6 +84,17 @@ func genericCommunityHandler(code attribute.AttributeCode, valueSize int, p *fil
 	// file registers handlers for them.
 	setIdx, suppress := filterapi.LastSetOrSuppress(ops)
 	if setIdx >= 0 && suppress {
+		// RFC 9494 Section 4.3: "The LLGR_STALE community MUST NOT be removed
+		// when the route is further advertised." Even when send-community
+		// suppresses standard communities (e.g. `send none` or `send extended`),
+		// a source route carrying LLGR_STALE retains that community on egress.
+		if code == attribute.AttrCommunity {
+			if off := findCommunityOffset(p.Value(), llgrStaleWire[:]); off >= 0 {
+				p.Keep(off, 4)
+				emitCommunity(p, code)
+				return
+			}
+		}
 		// Unconditional, and deliberately ahead of the empty-buffer check
 		// below. Every producer today records Suppress with a nil Buf, which
 		// would ALSO reach the empty-Set drop, so relying on that would make
@@ -74,11 +105,24 @@ func genericCommunityHandler(code attribute.AttributeCode, valueSize int, p *fil
 		return
 	}
 	if setIdx >= 0 {
-		if len(ops[setIdx].Buf) == 0 {
+		keepLLGROff := -1
+		if code == attribute.AttrCommunity {
+			if off := findCommunityOffset(p.Value(), llgrStaleWire[:]); off >= 0 {
+				if findCommunityOffset(ops[setIdx].Buf, llgrStaleWire[:]) < 0 {
+					keepLLGROff = off
+				}
+			}
+		}
+		if len(ops[setIdx].Buf) == 0 && keepLLGROff < 0 {
 			p.Drop() // Attribute omitted entirely.
 			return
 		}
-		p.Op(setIdx)
+		if len(ops[setIdx].Buf) > 0 {
+			p.Op(setIdx)
+		}
+		if keepLLGROff >= 0 {
+			p.Keep(keepLLGROff, 4)
+		}
 		emitCommunity(p, code)
 		return
 	}
@@ -150,7 +194,10 @@ func genericCommunityHandler(code attribute.AttributeCode, valueSize int, p *fil
 	if valueSize > 0 {
 		set := newRemovalSet(ops, valueSize, len(val)/valueSize)
 		for i := 0; i+valueSize <= len(val); i += valueSize {
-			if !set.has(val[i : i+valueSize]) {
+			v := val[i : i+valueSize]
+			// RFC 9494 Section 4.3: "The LLGR_STALE community MUST NOT be
+			// removed when the route is further advertised."
+			if !set.has(v) || (code == attribute.AttrCommunity && bytes.Equal(v, llgrStaleWire[:])) {
 				p.Keep(i, valueSize)
 			}
 		}
