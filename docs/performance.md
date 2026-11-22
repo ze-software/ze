@@ -34,8 +34,10 @@ rule does not retrospectively establish the provenance of historical figures.
 | Field | Value |
 |-------|-------|
 | Platform | darwin/arm64 |
-| Virtualization | Docker (Colima VM) |
-| Date | 2026-06-05 |
+| Virtualization | Docker (Colima VM, 8 GB RAM / 4 vCPU) |
+| Date | 2026-11-22 |
+| Commit | `6803c60c8a` |
+| Pass | `live-forwarding` |
 | Routes | 100,000 |
 | Seed | 42 |
 | Iterations | 3 measured, 1 warmup |
@@ -75,6 +77,19 @@ the receiver.
 Config files: `test/perf/configs/`
 
 ## Results
+
+### ipv4/unicast (2026-11-22, 8 GB VM, commit `6803c60c8a`, `live-forwarding`)
+
+Measured on `main` commit `6803c60c8a` (`2026-11-22`, `darwin/arm64`, Docker Colima 8 GB / 4 vCPU). All six DUTs below completed the `live-forwarding` pass with 0 routes lost (`100,000` sent, `100,000` received, `3` measured iterations kept). `rustbgpd` (out of memory during `cargo build` inside the 8 GB VM) and `freertr` (external `../rtr` checkout not present beside the detached worktree) were not built in this run; Ze's separate `rib-propagation` pass lost routes (`0/100,000` received) and is excluded under the zero-loss comparison rule.
+
+| DUT | Convergence | +/- | Throughput (r/s) | +/- | p99 | +/- | Withdrawal | +/- |
+|-----|-------------|-----|------------------|-----|-----|-----|------------|-----|
+| bird | 101ms | 3ms | 990,099 | 29,408 | 67ms | 2ms | 545ms | 1ms |
+| ze | 103ms | 3ms | 970,873 | 28,277 | 63ms | 2ms | 592ms | 1ms |
+| rustybgp | 129ms | 5ms | 775,193 | 30,046 | 106ms | 3ms | 571ms | 0ms |
+| gobgp | 635ms | 8ms | 157,480 | 1,984 | 599ms | 9ms | 1,146ms | 31ms |
+| openbgpd | 645ms | 46ms | 155,038 | 11,056 | 616ms | 46ms | 1,037ms | 21ms |
+| frr | 847ms | 12ms | 118,063 | 1,672 | 826ms | 12ms | 663ms | 2ms |
 
 ### ipv4/unicast (2026-06-05, 4 GB VM)
 

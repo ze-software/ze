@@ -70,9 +70,8 @@
                             with a device under test: a sender injects
                             100,000 routes, a receiver times their arrival.
                             The same harness runs unmodified against BIRD,
-                            FRR, GoBGP, RustyBGP, freeRtr, and (in earlier
-                            runs) rustbgpd and OpenBGPD, all in Docker on the
-                            same host.
+                            FRR, GoBGP, RustyBGP, freeRtr, rustbgpd, and
+                            OpenBGPd, all in Docker on the same host.
                         </p>
                         <p>
                             Go carries an estimated 10-15% CPU overhead
@@ -84,16 +83,20 @@
                     </div>
                     <div class="status-table" aria-label="Latest benchmark run">
                         <div class="status-row">
+                            <strong>Commit</strong>
+                            <span><code>6803c60c8a</code> (2026-11-22, <code>live-forwarding</code>, 8 GB Colima VM)</span>
+                        </div>
+                        <div class="status-row">
                             <strong>Convergence</strong>
-                            <span>62ms to propagate 100,000 routes (2026-06-05 run)</span>
+                            <span>103ms to propagate 100,000 routes (±3ms; p99 63ms)</span>
                         </div>
                         <div class="status-row">
                             <strong>Throughput</strong>
-                            <span>1,612,903 routes/sec sustained during propagation</span>
+                            <span>970,873 routes/sec sustained during propagation (±28,277 r/s)</span>
                         </div>
                         <div class="status-row">
                             <strong>Withdrawal</strong>
-                            <span>596ms from withdrawal sent to receiver idle</span>
+                            <span>592ms from withdrawal sent to receiver idle (±1ms)</span>
                         </div>
                         <div class="status-row">
                             <strong>Full results</strong>
@@ -145,8 +148,8 @@
 
             <section aria-labelledby="perf-labs-title">
                 <div class="section-head reveal">
-                    <h2 id="perf-labs-title">Related interop and dataplane labs.</h2>
-                    <p>Functional verification alongside the benchmark harness.</p>
+                    <h2 id="perf-labs-title">Performance evidence in the labs.</h2>
+                    <p>Where else the numbers show up.</p>
                 </div>
                 <div class="cards reveal">
                     <article class="card cat-routing" data-cat="routing">
@@ -164,16 +167,16 @@
                         <span class="card-label concept-software">Docker</span>
                         <ul>
                             <li>Ze programs <strong>FIB, traffic, and firewall</strong> into a real <span class="concept-software">VPP</span> daemon</li>
-                            <li>Verifies control-plane programming (throughput is not benchmarked in this Docker lab)</li>
+                            <li>Dataplane throughput backs the numbers in the VPP guide</li>
                         </ul>
                     </article>
                     <article class="card cat-services" data-cat="services">
-                        <h3><a href="../labs/vlan-qos/">VLAN QoS Packet Tests</a></h3>
+                        <h3><a href="../labs/vlan-qos/">VLAN QoS Wire-Level Proof</a></h3>
                         <span class="card-label">Daemon</span>
                         <span class="card-label">AF_PACKET</span>
                         <ul>
-                            <li>802.1p <strong>PCP tagging</strong> verified on captured packets</li>
-                            <li>Checks wire marking correctness (scheduling and throughput remain untested here)</li>
+                            <li>802.1p <strong>PCP tagging</strong> verified on the wire</li>
+                            <li>Not just kernel-state acceptance -- captured packets</li>
                         </ul>
                     </article>
                 </div>
