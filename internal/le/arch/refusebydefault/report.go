@@ -75,6 +75,10 @@ func judgeFile(fset *token.FileSet, tree, path string, keep func(Hit) bool) (jud
 	if err != nil {
 		return judgedFile{}, err
 	}
+	return judgeHits(path, hits, found, keep), nil
+}
+
+func judgeHits(path string, hits []Hit, found []Annotation, keep func(Hit) bool) judgedFile {
 	byLine := make(map[int]Annotation, len(found))
 	answer := judgedFile{}
 	for _, annotation := range found {
@@ -112,7 +116,7 @@ func judgeFile(fset *token.FileSet, tree, path string, keep func(Hit) bool) (jud
 		}
 		answer.refused = append(answer.refused, finding)
 	}
-	return answer, nil
+	return answer
 }
 
 // refuseSelfNamed answers the finding for an annotation whose guard names the

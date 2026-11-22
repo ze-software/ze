@@ -93,6 +93,21 @@ func ScanFile(fset *token.FileSet, path string) ([]Hit, []Annotation, error) {
 	if err != nil {
 		return nil, nil, err
 	}
+	return scanParsedFile(fset, file, path)
+}
+
+// ScanSource answers every hit and every annotation in source parsed as path.
+// diskPath names the file on disk (when present) so annotations can resolve
+// sibling package declarations.
+func ScanSource(fset *token.FileSet, path, source, diskPath string) ([]Hit, []Annotation, error) {
+	file, err := parser.ParseFile(fset, path, source, parser.ParseComments)
+	if err != nil {
+		return nil, nil, err
+	}
+	return scanParsedFile(fset, file, diskPath)
+}
+
+func scanParsedFile(fset *token.FileSet, file *ast.File, diskPath string) ([]Hit, []Annotation, error) {
 	if ast.IsGenerated(file) {
 		return nil, nil, nil
 	}
@@ -111,7 +126,7 @@ func ScanFile(fset *token.FileSet, path string) ([]Hit, []Annotation, error) {
 		scan.checkConstantCheck(funcDecl, name)
 		scan.function(name, funcDecl.Type, funcDecl.Body, false)
 	}
-	found, err := annotations(fset, file, path)
+	found, err := annotations(fset, file, diskPath)
 	if err != nil {
 		return nil, nil, err
 	}

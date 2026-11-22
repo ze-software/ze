@@ -390,3 +390,33 @@ func TestWeakeningPassesAFileOutsideTheCheckout(t *testing.T) {
 		}
 	}
 }
+
+// VALIDATES: writeGoPatterns uses AST analysis on complete Go files so
+// comments and string literals naming forbidden calls never false-positive,
+// while real newly added calls report the exact file:line location.
+// PREVENTS: regex false positives blocking edits that mention fmt.Sprintf or
+// go func in comments/strings, and opaque refusals with no line number.
+func TestWriteGoPatternsIgnoresCommentsAndReportsLineNumber(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "internal", "demo", "demo.go")
+	commentOnly := "package demo\n\n// Never use fmt.Sprintf or go func() or log.Printf here.\nconst doc = \"fmt.Sprintf os.Exit(1)\"\n"
+	code, msg, found := Probe("writeGoPatterns", Payload{
+		ToolName:  toolWrite,
+		ToolInput: map[string]any{"file_path": path, "content": commentOnly},
+	}, root)
+	if !found || code != 0 {
+		t.Fatalf("comments/strings were blocked: code=%d found=%v msg=%q", code, found, msg)
+	}
+
+	realCall := "package demo\n\nimport \"fmt\"\n\nfunc label(n int) string {\n\treturn fmt.Sprintf(\"%d\", n)\n}\n"
+	code, msg, found = Probe("writeGoPatterns", Payload{
+		ToolName:  toolWrite,
+		ToolInput: map[string]any{"file_path": path, "content": realCall},
+	}, root)
+	if !found || code != 2 {
+		t.Fatalf("real fmt.Sprintf was not blocked: code=%d found=%v msg=%q", code, found, msg)
+	}
+	if !strings.Contains(msg, "internal/demo/demo.go:6:") {
+		t.Errorf("refusal missing exact file:line location:\n%s", msg)
+	}
+}

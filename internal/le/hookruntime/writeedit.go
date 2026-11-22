@@ -17,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/doc/doorindex"
 	docste "github.com/ze-software/ze/internal/le/doc/ste"
+	gostyle "github.com/ze-software/ze/internal/le/go/style"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	specpath "github.com/ze-software/ze/internal/le/spec/path"
 	specstatus "github.com/ze-software/ze/internal/le/spec/status"
@@ -35,13 +36,6 @@ var (
 // .claude/ (ai/META-DECISIONS.md), and plan/drafts/ holds no specs, so the spec
 // inventory never reads a ze-plan-<name> file as a work item.
 const claudePlanDir = "plan/drafts/"
-
-type editPattern struct {
-	pattern *regexp.Regexp
-	code    int
-	message string
-	exempt  func(context) bool
-}
 
 func absolutePath(ctx context) string {
 	if filepath.IsAbs(ctx.path) {
@@ -516,33 +510,24 @@ func writeGoPatterns(ctx context) *verdict {
 			"\n  Each panic call this edit adds must name its own programmer invariant. Return operating errors instead." +
 			"\n  A call the file already holds may stay; a call with new text, or another copy, is refused."}
 	}
-	patterns := []editPattern{
-		{regexp.MustCompile(`(?m)^func[ \t]+(?:\([^)]+\)[ \t]+)?[A-Z][A-Za-z]*And[A-Z]`), 1, yellow + bold + "WARN: Single responsibility violation" + reset + " (function with 'And' in name)", nil},
-		{regexp.MustCompile(`os\.Exit\(`), 2, red + bold + "❌ BLOCKED: os.Exit() in handler" + reset + "\n  Return an error instead.", func(c context) bool {
-			return strings.HasSuffix(c.path, "/main.go") || strings.HasSuffix(c.path, "/register.go")
-		}},
-		{regexp.MustCompile(`(?m)(^|[^A-Za-z0-9_])log\.(Print|Printf|Println|Fatal|Fatalf|Fatalln|Panic|Panicf|Panicln)`), 2, red + "❌ Use slog, not log package" + reset, nil},
-		{regexp.MustCompile(`fmt\.(Sprintf|Fprintf|Printf)\(|strconv\.Format(Uint|Int)\(`), 2, red + bold + "✘ BLOCKED: allocation-heavy string formatting" + reset + "\n  Build the text with textbuf.Buffer, then print it with .StdOut() or .StdErr().\n  Neither .String() nor .Slice() is needed: the write consumes the buffer.", nil},
-		// Two bad shapes, matched positively because RE2 has no negative lookahead.
-		// First: a BARE nolint, with or without prose after it, which suppresses
-		// every linter. Second: a nolint that names its linters and then states no
-		// reason, either at end of line or with an empty trailing comment.
-		// `//nolint:gosec // <reason>` matches neither and is the form the style
-		// guide requires; the previous pattern refused it along with the rest, so
-		// the only spelling this rule exists to ALLOW was the one it blocked.
-		{regexp.MustCompile(`(?m)//nolint(?:[^:\n]|$)|//nolint:[A-Za-z0-9_,-]*[ \t]*(?://[ \t]*)?$`), 2, red + bold + "❌ BLOCKED: nolint without a specific linter and reason" + reset + "\n  Write //nolint:<linter> // <why the discard is correct>", nil},
-		{regexp.MustCompile(`(?m)^func init\(\)[\s\S]{0,500}(Register|Subscribe|Add[A-Za-z]*Handler|Hook)`), 2, red + bold + "❌ BLOCKED: Implicit behavior in init()" + reset, func(c context) bool { return strings.HasPrefix(filepath.Base(c.path), "register") }},
-		{regexp.MustCompile(`switch\s+args\[0\]`), 2, red + bold + "❌ BLOCKED: switch-based command dispatch in " + path + reset, nil},
-		{regexp.MustCompile(`(?m)^\s*go\s+func\s*\(`), 2, red + bold + "❌ BLOCKED: anonymous goroutine" + reset, nil},
-		{regexp.MustCompile(`BufHandle\{[^}]*Buf:[ \t]*make`), 2, red + bold + "BLOCKED: fake BufHandle construction in " + path + reset, nil},
+	// Delegate the rest of Ze's banned Go patterns to the shared diff-scoped
+	// AST/token engine (internal/le/go/style) so comments, strings and
+	// untouched legacy lines never false-positive and edit hooks agree with
+	// `./le commit create` and `./le go style check`.
+	rel := relativePath(ctx)
+	findings := gostyle.CheckAdded(rel, string(current), content, gostyle.Options{CheckWarnNames: true})
+	var firstWarn *gostyle.Finding
+	for i := range findings {
+		hit := &findings[i]
+		if hit.Severity == gostyle.SeverityBlock {
+			return &verdict{2, red + bold + "❌ BLOCKED: " + hit.Err.Error() + reset}
+		}
+		if hit.Severity == gostyle.SeverityWarn && firstWarn == nil {
+			firstWarn = hit
+		}
 	}
-	for _, candidate := range patterns {
-		if candidate.exempt != nil && candidate.exempt(ctx) {
-			continue
-		}
-		if candidate.pattern.MatchString(ctx.content) {
-			return &verdict{candidate.code, candidate.message}
-		}
+	if firstWarn != nil {
+		return &verdict{1, yellow + bold + "WARN: " + firstWarn.Err.Error() + reset}
 	}
 	return nil
 }

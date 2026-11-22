@@ -8,6 +8,7 @@ package archerrorwrap
 import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/le/commit/changecheck"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
@@ -28,4 +29,7 @@ func init() {
 	// The check answers the findings AND the scope that produced them, so a
 	// reader of an empty row set still sees what was judged.
 	leroot.RegisterShape(area, command.ShapeDoc)
+
+	// `./le commit create` judges newly added duplicate error-wrap prefixes.
+	changecheck.Register(changecheck.Check{Name: area + " check", Judge: judgeChange})
 }

@@ -504,3 +504,53 @@ func TestMainThreadLintSkipsTheShim(t *testing.T) {
 		t.Errorf("the real linter's issue in the edited file did not block (code %d): %q", code, message)
 	}
 }
+
+// VALIDATES: MultiEdit Go edits are formatted by postFormatGo just like Write
+// and Edit.
+// PREVENTS: MultiEdit silently leaving unformatted Go on disk.
+func TestMultiEditFormatsGoFile(t *testing.T) {
+	root, edited, _ := lintProbeFixture(t)
+	payload := Payload{
+		ToolName:  toolMultiEdit,
+		ToolInput: map[string]any{"file_path": edited},
+		AgentID:   "agent-1",
+	}
+	code, message, found := Probe("postFormatGo", payload, root)
+	if !found {
+		t.Fatal("postFormatGo is not registered in nativeHookActions")
+	}
+	if code != 0 || message != "" {
+		t.Fatalf("subagent MultiEdit got unexpected verdict (code %d): %q", code, message)
+	}
+	body, err := os.ReadFile(edited) //nolint:gosec // the fixture file this test wrote
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "package sample\n\nvar misaligned = 1\n"; string(body) != want {
+		t.Fatalf("MultiEdit did not format the Go file:\n got %q\nwant %q", body, want)
+	}
+}
+
+// VALIDATES: postLintVerdict reports up to 15 issues in the edited file in one
+// turn rather than truncating at 3, and reports how many remain.
+// PREVENTS: forcing 3-4 repeated slow lint cycles when a file has >3 findings.
+func TestPostLintShowsUpToFifteenIssues(t *testing.T) {
+	const file = "internal/le/x/x.go"
+	var out strings.Builder
+	for line := 1; line <= 17; line++ {
+		out.WriteString(file + ":" + strconv.Itoa(line) + ":1: issue number " + strconv.Itoa(line) + " (godot)\n")
+	}
+	verdict := postLintVerdict("./internal/le/x/...", file, out.String(), exitWith(t, lintIssuesFound), false)
+	if verdict == nil || verdict.code != 2 {
+		t.Fatalf("postLintVerdict = %+v, want blocking verdict", verdict)
+	}
+	if !strings.Contains(verdict.message, "issue number 15") {
+		t.Errorf("verdict truncated before 15 issues:\n%s", verdict.message)
+	}
+	if strings.Contains(verdict.message, "issue number 16") {
+		t.Errorf("verdict exceeded 15 displayed issues:\n%s", verdict.message)
+	}
+	if !strings.Contains(verdict.message, "2 more issue(s)") {
+		t.Errorf("verdict did not report remaining count:\n%s", verdict.message)
+	}
+}

@@ -156,7 +156,7 @@ var nativeHookActions = map[string]hookAction{
 		checks: []hookCheck{postBashGofmt},
 	},
 	"posttool-writeedit": {
-		tools: []string{toolWrite, "Edit"},
+		tools: []string{toolWrite, toolEdit, toolMultiEdit},
 		checks: []hookCheck{
 			postFormatGo, postFileSize, postDeferral, postJournal, postRFCHeader,
 			postTestDocs, postFuzz, postVague, postBoundary, postInvalidateDerived,

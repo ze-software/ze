@@ -23,7 +23,13 @@ import (
 )
 
 func existingGo(ctx context, skipTest bool) bool {
-	if !oneOf(ctx.tool, toolWrite, "Edit") || !strings.HasSuffix(ctx.path, ".go") || skipTest && strings.HasSuffix(ctx.path, "_test.go") {
+	if !oneOf(ctx.tool, toolWrite, toolEdit, toolMultiEdit) {
+		return false
+	}
+	if !strings.HasSuffix(ctx.path, ".go") {
+		return false
+	}
+	if skipTest && strings.HasSuffix(ctx.path, "_test.go") {
 		return false
 	}
 	info, err := os.Stat(absolutePath(ctx))
@@ -206,10 +212,15 @@ func postLintVerdict(pkg, file, output string, runErr error, expired bool) *verd
 		// Code 0 reaches the person watching, never the agent's context.
 		return &verdict{0, dim + "lint: " + file + " is clean; " + strconv.Itoa(foreign) + " issue(s) in other changed files of " + pkg + reset}
 	}
-	lines := make([]string, 0, 4)
+	const maxDisplayedLintIssues = 15
+	shown := min(maxDisplayedLintIssues, len(owned))
+	lines := make([]string, 0, shown+2)
 	lines = append(lines, yellow+"⚠ lint: "+strconv.Itoa(len(owned))+" issue(s) in "+file+reset)
-	for _, header := range owned[:min(3, len(owned))] {
+	for _, header := range owned[:shown] {
 		lines = append(lines, "  "+dim+header+reset)
+	}
+	if len(owned) > shown {
+		lines = append(lines, "  "+dim+"... and "+strconv.Itoa(len(owned)-shown)+" more issue(s)"+reset)
 	}
 	return &verdict{2, strings.Join(lines, "\n")}
 }
@@ -435,7 +446,10 @@ func tracked(root, path string) bool {
 // never left silent: with code 2, the one post-tool code that reaches the
 // agent that made the edit.
 func postInvalidateDerived(ctx context) *verdict {
-	if !oneOf(ctx.tool, toolWrite, "Edit") || ctx.path == "" {
+	if !oneOf(ctx.tool, toolWrite, toolEdit, toolMultiEdit) {
+		return nil
+	}
+	if ctx.path == "" {
 		return nil
 	}
 	written := relativePath(ctx)

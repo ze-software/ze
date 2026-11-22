@@ -71,8 +71,10 @@ func annotations(fset *token.FileSet, file *ast.File, path string) ([]Annotation
 		return nil, nil
 	}
 	visible := visibleNames(file)
-	if err := addPackageNames(visible, path, file.Name.Name); err != nil {
-		return nil, err
+	if path != "" {
+		if err := addPackageNames(visible, path, file.Name.Name); err != nil {
+			return nil, err
+		}
 	}
 	for index := range found {
 		found[index].Guard, found[index].Problem = parseGuard(texts[index], visible)

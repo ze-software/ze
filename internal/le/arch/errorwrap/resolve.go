@@ -13,6 +13,7 @@
 package archerrorwrap
 
 import (
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -20,6 +21,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -109,12 +111,20 @@ const (
 	importModule
 )
 
+// overlayFile holds one carried file's in-memory contents for commit-time
+// judging. present == false hides a removed file from disk reads.
+type overlayFile struct {
+	text    string
+	present bool
+}
+
 // index holds every package the trace has read, what each function's errors
 // carry once it has been traced, and the bodies each followed parameter can
 // hold (funcvalue.go). It is not safe for concurrent use.
 type index struct {
 	tree      string
 	module    string
+	overlay   map[string]overlayFile
 	fset      *token.FileSet
 	packages  map[string]*goPackage
 	memo      map[*ast.BlockStmt]carried
@@ -127,9 +137,14 @@ type index struct {
 
 // newIndex answers an empty index over tree, whose module path is module.
 func newIndex(tree, module string) *index {
+	return newIndexWithOverlay(tree, module, nil)
+}
+
+func newIndexWithOverlay(tree, module string, overlay map[string]overlayFile) *index {
 	return &index{
 		tree:      tree,
 		module:    module,
+		overlay:   overlay,
 		fset:      token.NewFileSet(),
 		packages:  map[string]*goPackage{},
 		memo:      map[*ast.BlockStmt]carried{},
@@ -141,7 +156,7 @@ func newIndex(tree, module string) *index {
 
 // modulePath reads the module path from tree's go.mod.
 func modulePath(tree string) (string, error) {
-	data, err := os.ReadFile(filepath.Join(tree, "go.mod"))
+	data, err := os.ReadFile(filepath.Join(tree, "go.mod")) //nolint:gosec // go.mod inside the repository tree being checked
 	if err != nil {
 		return "", fmt.Errorf("read the module path from go.mod: %w", err)
 	}
@@ -169,28 +184,70 @@ func (ix *index) packageAt(rel string) (*goPackage, error) {
 	if pkg, read := ix.packages[rel]; read {
 		return pkg, nil
 	}
-	entries, err := os.ReadDir(filepath.Join(ix.tree, filepath.FromSlash(rel)))
-	if err != nil {
-		return nil, fmt.Errorf("read package %s: %w", rel, err)
+	fileNames := make(map[string]bool)
+	if ix.tree != "" {
+		entries, err := os.ReadDir(filepath.Join(ix.tree, filepath.FromSlash(rel)))
+		if err != nil {
+			if len(ix.overlay) == 0 {
+				return nil, fmt.Errorf("read package %s: %w", rel, err)
+			}
+			if !errors.Is(err, os.ErrNotExist) {
+				return nil, fmt.Errorf("read package %s: %w", rel, err)
+			}
+		} else {
+			for _, entry := range entries {
+				name := entry.Name()
+				if entry.IsDir() {
+					continue
+				}
+				if !strings.HasSuffix(name, ".go") {
+					continue
+				}
+				if strings.HasSuffix(name, "_test.go") {
+					continue
+				}
+				fileNames[path.Join(rel, name)] = true
+			}
+		}
 	}
+	for ovPath, ov := range ix.overlay {
+		if path.Dir(ovPath) != rel {
+			continue
+		}
+		if !strings.HasSuffix(ovPath, ".go") {
+			continue
+		}
+		if strings.HasSuffix(ovPath, "_test.go") {
+			continue
+		}
+		if ov.present {
+			fileNames[ovPath] = true
+			continue
+		}
+		delete(fileNames, ovPath)
+	}
+	sortedFiles := make([]string, 0, len(fileNames))
+	for relFile := range fileNames {
+		sortedFiles = append(sortedFiles, relFile)
+	}
+	slices.Sort(sortedFiles)
+
 	pkg := &goPackage{
 		funcs:   map[string]*funcRef{},
 		methods: map[string][]*funcRef{},
 		vars:    map[string]packageVar{},
 	}
-	for _, entry := range entries {
-		name := entry.Name()
-		if entry.IsDir() {
-			continue
+	for _, relFile := range sortedFiles {
+		var syntax *ast.File
+		var parseErr error
+		if ov, inOverlay := ix.overlay[relFile]; inOverlay {
+			if !ov.present {
+				continue
+			}
+			syntax, parseErr = parser.ParseFile(ix.fset, relFile, ov.text, parser.SkipObjectResolution)
+		} else {
+			syntax, parseErr = parser.ParseFile(ix.fset, filepath.Join(ix.tree, filepath.FromSlash(relFile)), nil, parser.SkipObjectResolution)
 		}
-		if !strings.HasSuffix(name, ".go") {
-			continue
-		}
-		if strings.HasSuffix(name, "_test.go") {
-			continue
-		}
-		relFile := path.Join(rel, name)
-		syntax, parseErr := parser.ParseFile(ix.fset, filepath.Join(ix.tree, filepath.FromSlash(relFile)), nil, parser.SkipObjectResolution)
 		if parseErr != nil {
 			return nil, parseErr
 		}

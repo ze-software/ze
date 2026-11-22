@@ -114,3 +114,17 @@ func noHandlerOsExit(m dsl.Matcher) {
 			!m.File().PkgPath.Matches(`/internal/test/fixture`)).
 		Report(`os.Exit() in handler -- return an error instead (ai/rules/go-standards.md)`)
 }
+
+// zeEnvAccess keeps Ze environment variables behind internal/core/env in
+// shipped product packages. Direct os.Getenv/LookupEnv/Setenv on a ZE_* or
+// ze.* key bypasses registration, caching, dot/underscore normalization, and
+// secret clearing.
+func zeEnvAccess(m dsl.Matcher) {
+	m.Match(`os.Getenv($k)`, `os.LookupEnv($k)`, `os.Setenv($k, $_)`).
+		Where(m["k"].Text.Matches(`(?i)^"ze[._]`) &&
+			!m["k"].Text.Matches(`^"ZE_PLUGIN_HUB_TOKEN"$`) &&
+			!m.File().Name.Matches(`_test\.go$`) &&
+			m.File().PkgPath.Matches(`/(cmd/ze|internal/component|internal/core|internal/plugins|pkg)(/|$)`) &&
+			!m.File().PkgPath.Matches(`/internal/core/env$`)).
+		Report(`Ze environment variable $k accessed directly via os -- register with env.MustRegister and use internal/core/env (ai/rules/go-standards.md)`)
+}

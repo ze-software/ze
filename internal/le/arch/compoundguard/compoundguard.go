@@ -62,8 +62,21 @@ func ScanFile(fset *token.FileSet, path string) ([]Guard, error) {
 	if err != nil {
 		return nil, err
 	}
+	return scanAST(fset, file), nil
+}
+
+// ScanSource answers every splittable `||` guard in source parsed as path.
+func ScanSource(fset *token.FileSet, path, source string) ([]Guard, error) {
+	file, err := parser.ParseFile(fset, path, source, parser.SkipObjectResolution)
+	if err != nil {
+		return nil, err
+	}
+	return scanAST(fset, file), nil
+}
+
+func scanAST(fset *token.FileSet, file *ast.File) []Guard {
 	if ast.IsGenerated(file) {
-		return nil, nil
+		return nil
 	}
 	var guards []Guard
 	for _, decl := range file.Decls {
@@ -87,7 +100,7 @@ func ScanFile(fset *token.FileSet, path string) ([]Guard, error) {
 			return true
 		})
 	}
-	return guards, nil
+	return guards
 }
 
 // splittable reports whether an if statement is a guard of the one shape this
