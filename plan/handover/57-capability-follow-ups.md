@@ -33,3 +33,29 @@ commit by the main thread (no journal row: neither is open).
   its one `expect=exit:code=0` delegates every check to the compiled fixture
   `pluginSHACryptPasswordAtBoot`, which exits non-zero on any failed check. Fixed:
   the file carries the `# accept-only:` annotation naming that fixture.
+
+## Three defects fixed on 2026-11-22, and what they leave
+
+Fixed and committed, unpushed: 65dfcaa062 (an offline fallback learns why the
+daemon did not answer; AC-32 of the host trend alerts spec), 5eb1b39c6e (the
+interface apply writes a link setting only when the device differs; new doctor
+code `doctor-iface-state-unread`), 6c12d53958 (`ze init`'s default profile
+writes the SSH listener the CLI connects to).
+
+| # | Left | State | First action |
+|---|------|-------|--------------|
+| 5 | Scoped lint of the three fixes | Never ran: refused while another session edited `internal/component/bgp/plugins/gr` | `./le go lint run scope "./internal/plugins/init/... ./internal/component/command/... ./internal/component/cli/client/... ./internal/component/cli/sshclient/... ./internal/plugins/host/... ./internal/plugins/crashes/... ./internal/component/iface/... ./internal/plugins/iface/netlink/... ./internal/plugins/iface/vpp/... ./internal/core/diagnostic/..."` when the tree is quiet; fix what it reports |
+| 6 | Red phase of `test/ui/init-start-cli-answers.ci` | Not walked: the test passed in the QEMU guest with the fix, and was never run with the fix reverted | Revert the populate step of `internal/plugins/init/main.go`, run `./le test qemu ci test test/ui/init-start-cli-answers.ci`, expect "connection refused" at the `ze cli` step, restore |
+| 7 | WireGuard keys and peers are still written on the first apply after start | Open: the write needs privilege even when the device already holds them; comparing needs a read of the device's keys and peers | Read the device's keys and peers and skip `ConfigureWireguardDevice` when they match, as 5eb1b39c6e does for link settings |
+| 8 | The parse and ui suites for `cli-host-*-show` and `cli-crashes-*` | Not run after 65dfcaa062, which adds a stderr note after a local answer; they assert stdout and exit only | Run those tests by pattern |
+| 9 | Two stale texts | The header comment of `test/plugin/cli-refused-login-not-offline.ci` says `runBGP` prints the refusal (now `endFailedAsk`); `docs/contributing/ze-go-style.md` names `./le go style check path <file>`, which `./le` does not have | Correct both |
+
+Open for Thomas: `ze init` writes every discovered bridge, veth, dummy,
+WireGuard and xfrm device into the config, with nothing that excludes a device
+another program owns (docker0, `br-*`, virbr0, container veths). A root ze
+then brings each up, manages it, and creates a missing one. Keeping all needs
+no change. Skipping foreign devices needs an ownership signal discovery does
+not read today (the `ze:owned:` alias, the master index, or a kind rule such as
+ethernet and loopback only, which `EmitBootstrapConfig` already applies), in
+`ze init` alone or in `iface.EmitConfig`, which also changes
+`ze interface scan --config`.
