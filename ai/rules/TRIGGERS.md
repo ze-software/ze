@@ -37,6 +37,7 @@ body is one Read away at the path in its row.
 | `ai/rules/quality.md` | blocking | before presenting any work as complete |
 | `ai/rules/repo-maintenance.md` | blocking | adding or changing a feature, tool, gate, or generated file, or editing a canonical source whose generated files need a resync |
 | `ai/rules/rfc-compliance.md` | blocking, always-on | writing, changing, reviewing, or testing any protocol-implementing code, for any RFC Ze implements |
+| `ai/rules/rfc-conformance.md` | blocking | writing, changing, reviewing, or testing protocol code, RFC summaries under rfc/short/, or RFC-tagged tests |
 | `ai/rules/rule-format.md` | blocking | authoring or editing any rule: a point file under `ai/rules/points/`, its manifest, or a check's binding comment |
 | `ai/rules/rule-precedence.md` | blocking, always-on | when two rules point in different directions, or you are deciding whether to stop, ask, delegate, or continue |
 | `ai/rules/simplicity.md` | blocking | choosing how to fix a defect or build a feature, and whenever a change adds an abstraction, an option, or a layer the problem in hand does not need |

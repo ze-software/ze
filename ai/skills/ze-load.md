@@ -38,6 +38,7 @@ ai/rules/protocol.md
 ai/rules/quality.md
 ai/rules/repo-maintenance.md
 ai/rules/rfc-compliance.md
+ai/rules/rfc-conformance.md
 ai/rules/rule-format.md
 ai/rules/rule-precedence.md
 ai/rules/simplicity.md
