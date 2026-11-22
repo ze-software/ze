@@ -432,9 +432,7 @@ func (s *terminalScreen) eraseInDisplay(mode int) {
 			}
 		}
 	default:
-		for _, row := range candidates {
-			rows = append(rows, row)
-		}
+		rows = append(rows, candidates...)
 	}
 	s.eraseRows(rows)
 }

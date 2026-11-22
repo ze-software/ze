@@ -89,66 +89,10 @@ func TestRunToolAnswersADeathBySignal(t *testing.T) {
 func TestRunToolForwardsEverySignalUntilTheChildExits(t *testing.T) {
 	if args := flag.Args(); len(args) == 4 {
 		if args[0] == "job-signal-child" {
-			deadline, err := time.Parse(time.RFC3339Nano, args[3])
-			if err != nil {
-				t.Fatal(err)
+			if code, exit := runJobSignalChild(t, args[1], args[2], args[3]); exit {
+				os.Exit(code)
 			}
-			dialer := net.Dialer{Deadline: deadline}
-			control, err := dialer.DialContext(t.Context(), "tcp4", args[1])
-			if err != nil {
-				t.Fatal(err)
-			}
-			if err := control.SetReadDeadline(deadline); err != nil {
-				if closeErr := control.Close(); closeErr != nil {
-					t.Errorf("close child control: %v", closeErr)
-				}
-				t.Fatal(err)
-			}
-			signals := make(chan os.Signal, 8)
-			signal.Notify(signals, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)
-			defer signal.Stop(signals)
-			disconnected := make(chan struct{})
-			go func() {
-				defer close(disconnected)
-				var input [1]byte
-				// Every read completion stops the fixture: EOF, the original
-				// deadline, or unexpected control data.
-				if _, err := control.Read(input[:]); err == nil {
-					t.Error("unexpected child control data")
-				}
-			}()
-			defer func() {
-				if err := control.Close(); err != nil {
-					t.Errorf("close child control: %v", err)
-				}
-				<-disconnected
-			}()
-			if err := os.WriteFile(args[2]+".ready", nil, 0o600); err != nil {
-				t.Fatal(err)
-			}
-			for {
-				select {
-				case <-disconnected:
-					return
-				case got := <-signals:
-					switch got {
-					case syscall.SIGTERM:
-						if err := os.WriteFile(args[2]+".term", nil, 0o600); err != nil {
-							t.Fatal(err)
-						}
-					case syscall.SIGHUP:
-						if _, err := os.Stat(args[2] + ".term"); err == nil {
-							if err := os.WriteFile(args[2]+".hup", nil, 0o600); err != nil {
-								t.Fatal(err)
-							}
-						}
-					case syscall.SIGQUIT:
-						if _, err := os.Stat(args[2] + ".hup"); err == nil {
-							os.Exit(42)
-						}
-					}
-				}
-			}
+			return
 		}
 	}
 	own := make(chan os.Signal, 8)
@@ -283,5 +227,69 @@ func TestRunToolForwardsEverySignalUntilTheChildExits(t *testing.T) {
 			t.Fatalf("send SIGQUIT: %v", err)
 		}
 		time.Sleep(50 * time.Millisecond)
+	}
+}
+
+func runJobSignalChild(t *testing.T, addr, marks, deadlineArg string) (int, bool) {
+	t.Helper()
+	deadline, err := time.Parse(time.RFC3339Nano, deadlineArg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dialer := net.Dialer{Deadline: deadline}
+	control, err := dialer.DialContext(t.Context(), "tcp4", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := control.SetReadDeadline(deadline); err != nil {
+		if closeErr := control.Close(); closeErr != nil {
+			t.Errorf("close child control: %v", closeErr)
+		}
+		t.Fatal(err)
+	}
+	signals := make(chan os.Signal, 8)
+	signal.Notify(signals, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)
+	defer signal.Stop(signals)
+	disconnected := make(chan struct{})
+	go func() {
+		defer close(disconnected)
+		var input [1]byte
+		// Every read completion stops the fixture: EOF, the original
+		// deadline, or unexpected control data.
+		if _, err := control.Read(input[:]); err == nil {
+			t.Error("unexpected child control data")
+		}
+	}()
+	defer func() {
+		if err := control.Close(); err != nil {
+			t.Errorf("close child control: %v", err)
+		}
+		<-disconnected
+	}()
+	if err := os.WriteFile(marks+".ready", nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for {
+		select {
+		case <-disconnected:
+			return 0, false
+		case got := <-signals:
+			switch got {
+			case syscall.SIGTERM:
+				if err := os.WriteFile(marks+".term", nil, 0o600); err != nil {
+					t.Fatal(err)
+				}
+			case syscall.SIGHUP:
+				if _, err := os.Stat(marks + ".term"); err == nil {
+					if err := os.WriteFile(marks+".hup", nil, 0o600); err != nil {
+						t.Fatal(err)
+					}
+				}
+			case syscall.SIGQUIT:
+				if _, err := os.Stat(marks + ".hup"); err == nil {
+					return 42, true
+				}
+			}
+		}
 	}
 }

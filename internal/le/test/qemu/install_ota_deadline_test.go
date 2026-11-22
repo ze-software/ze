@@ -87,8 +87,8 @@ func TestApplianceOTASSHCancellation(t *testing.T) {
 			case <-time.After(2 * time.Second):
 				cancel()
 				stop()
-				<-result
-				t.Fatal("SSH fixture did not reach the selected phase")
+				resultErr := <-result
+				t.Fatalf("SSH fixture did not reach the selected phase (ssh=%v)", resultErr)
 			}
 			cancel()
 			select {
@@ -99,8 +99,8 @@ func TestApplianceOTASSHCancellation(t *testing.T) {
 				}
 			case <-time.After(time.Second):
 				stop()
-				<-result
-				t.Fatalf("canceled %s continued waiting on its transport", phase)
+				resultErr := <-result
+				t.Fatalf("canceled %s continued waiting on its transport (ssh=%v)", phase, resultErr)
 			}
 		})
 	}

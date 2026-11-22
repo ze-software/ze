@@ -21,7 +21,7 @@ type claimedSessionPair struct {
 	unit          sessionUnitLease
 	info          sessionUnitDescription
 	cfg           SessionConfig
-	original      *originalPairReceipt
+	original      *originalPairReceipt //nolint:unused // Minted and checked on Linux by original_pair_abi_linux.go and session_pair_linux.go.
 	channelStream io.ReadWriteCloser
 	unitStream    io.ReadWriteCloser
 	closers       sessionPairClosers
@@ -37,18 +37,24 @@ type sessionPairClosers struct {
 }
 
 // Both independent claims run before either error or panic is reported. Each
-// caller MUST defer finishConstruction until it transfers the complete pair.
+// caller MUST defer finishFailedConstruction until it transfers the complete pair.
 func newClaimedSessionPair(cfg SessionConfig, preflight func(SessionConfig) error,
 	prepare func(*claimedSessionPair) error, closers sessionPairClosers,
 ) (pair *claimedSessionPair, err error) {
 	pair = &claimedSessionPair{cfg: cfg, closers: closers}
 	owned := pair
 	transferred := false
-	defer owned.finishConstruction(&transferred, &err)
+	defer func() {
+		if transferred {
+			return
+		}
+		failure := recover()
+		err = owned.finishFailedConstruction(failure, err)
+	}()
 	var channelErr, unitErr error
 	var channelPanic, unitPanic any
-	owned.channel, channelErr, channelPanic = claimSessionChannel(cfg.Channel)
-	owned.unit, unitErr, unitPanic = claimSessionUnit(cfg.Unit)
+	owned.channel, channelPanic, channelErr = claimSessionChannel(cfg.Channel)
+	owned.unit, unitPanic, unitErr = claimSessionUnit(cfg.Unit)
 	if failure := sessionClaimPanic(channelPanic, unitPanic); failure != nil {
 		panic(failure)
 	}
@@ -86,13 +92,10 @@ func newClaimedSessionPair(cfg SessionConfig, preflight func(SessionConfig) erro
 	return owned, nil
 }
 
-// This is a direct deferred call so recover observes the original panic. Both
-// resource closes are panic-safe through the existing Stage-B close helpers.
-func (pair *claimedSessionPair) finishConstruction(transferred *bool, err *error) {
-	if *transferred {
-		return
-	}
-	failure := recover()
+// finishFailedConstruction runs from a caller's deferred closure after recover
+// observes any panic. Both resource closes are panic-safe through the existing
+// Stage-B close helpers.
+func (pair *claimedSessionPair) finishFailedConstruction(failure any, err error) error {
 	cleanupErr := pair.closeAll()
 	cleanupErr = errors.Join(cleanupErr, closeClaimedPairNativeOperations(pair.unit))
 	if failure != nil {
@@ -101,7 +104,7 @@ func (pair *claimedSessionPair) finishConstruction(transferred *bool, err *error
 		}
 		panic(failure)
 	}
-	*err = RecordSetupCleanup(*err, cleanupErr)
+	return RecordSetupCleanup(err, cleanupErr)
 }
 
 func (pair *claimedSessionPair) closeChannel() error {

@@ -126,7 +126,7 @@ func (l *scenarioLab) discardInnerAddresses(ctx context.Context) error {
 // (the echo was never carried there).
 func (l *scenarioLab) requireDiscarded(ctx context.Context, probe pingProbe, block string, moved, still []espDirection) error {
 	observed := slices.Concat(moved, still)
-	blockedBefore, err := l.xfrmStat(ctx, zePeer, block)
+	blockedBefore, err := l.xfrmStat(ctx, block)
 	if err != nil {
 		return err
 	}
@@ -143,7 +143,7 @@ func (l *scenarioLab) requireDiscarded(ctx context.Context, probe pingProbe, blo
 		return fmt.Errorf("ping from %s %s to %s, inside the discard entry, lost %g%%, want every echo dropped by it: %s",
 			probe.peer, probe.source, probe.target, loss, output)
 	}
-	blockedAfter, err := l.xfrmStat(ctx, zePeer, block)
+	blockedAfter, err := l.xfrmStat(ctx, block)
 	if err != nil {
 		return err
 	}
@@ -195,7 +195,7 @@ func (l *scenarioLab) requireTunnelStayedUp(ctx context.Context, kept pingProbe,
 	if !strings.Contains(sas, "ESTABLISHED") {
 		return fmt.Errorf("strongSwan lists no established IKE SA after the discarded probes: %s", sas)
 	}
-	if err := l.requireZeIKEEstablished(ctx, swanConfigPeer); err != nil {
+	if err := l.requireZeIKEEstablished(ctx); err != nil {
 		return err
 	}
 	for _, peer := range []string{zePeer, swanPeer} {

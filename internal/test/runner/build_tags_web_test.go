@@ -47,7 +47,7 @@ func TestParseDUTOptionAcceptsADevelopmentTag(t *testing.T) {
 	}
 }
 
-// TestParseDUTOptionRefusesAnUnknownTag pins that a misspelt tag is a parse
+// TestParseDUTOptionRefusesAnUnknownTag pins that a misspelled tag is a parse
 // error, never a case skipped forever.
 func TestParseDUTOptionRefusesAnUnknownTag(t *testing.T) {
 	_, err := ParseDUTOption(&Record{}, "needs-build-tag:value=ze_fleet_ui_sampel:state=present")

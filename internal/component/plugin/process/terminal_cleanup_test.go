@@ -32,10 +32,10 @@ func TestExitCleanupInternalStopRetainsOriginalFailure(t *testing.T) {
 	})
 	proc.Stop()
 	exitCleanupJoin(t, proc)
-	before := exitCleanupIssue(t, exitCleanupCause)
+	before := exitCleanupIssue(t)
 	report.ClearSource(proc.Name())
 	report.ClearSource(before.Source)
-	if after := exitCleanupIssue(t, exitCleanupCause); !reflect.DeepEqual(after, before) {
+	if after := exitCleanupIssue(t); !reflect.DeepEqual(after, before) {
 		t.Fatalf("ordinary cleanup changed original episode: before=%+v after=%+v", before, after)
 	}
 }
@@ -56,11 +56,11 @@ func TestExitCleanupReplacementKeepsOriginalFailure(t *testing.T) {
 	})
 	first.Stop()
 	exitCleanupJoin(t, first)
-	before := exitCleanupIssue(t, exitCleanupCause)
+	before := exitCleanupIssue(t)
 	second := exitCleanupStartRegistered(t, name, true)
 	second.Stop()
 	exitCleanupJoin(t, second)
-	if after := exitCleanupIssue(t, exitCleanupCause); !reflect.DeepEqual(after, before) {
+	if after := exitCleanupIssue(t); !reflect.DeepEqual(after, before) {
 		t.Fatalf("replacement rewrote original failure: before=%+v after=%+v", before, after)
 	}
 }
@@ -238,13 +238,13 @@ func exitCleanupRecord(t *testing.T, conn net.Conn, cause string) {
 	}
 }
 
-func exitCleanupIssue(t *testing.T, cause string) report.Issue {
+func exitCleanupIssue(t *testing.T) report.Issue {
 	t.Helper()
 	for _, issue := range report.Warnings() {
 		if issue.Code != exitCleanupCode {
 			continue
 		}
-		if !strings.Contains(issue.Message, cause) {
+		if !strings.Contains(issue.Message, exitCleanupCause) {
 			continue
 		}
 		if issue.Subject == "" {
@@ -255,6 +255,6 @@ func exitCleanupIssue(t *testing.T, cause string) report.Issue {
 		}
 		return issue
 	}
-	t.Fatalf("no retained original cleanup warning contains %q: %+v", cause, report.Warnings())
+	t.Fatalf("no retained original cleanup warning contains %q: %+v", exitCleanupCause, report.Warnings())
 	return report.Issue{}
 }

@@ -123,7 +123,7 @@ func prepareAccess(ctx context.Context, name string, ops accessPreparationOps,
 		return nil, fmt.Errorf("VPP reports MTU %d for data-plane interface %q", binding.MTU, binding.OsName)
 	}
 	if control.mtu <= 0 {
-		return nil, fmt.Errorf("Linux reports MTU %d for LCP control device %q", control.mtu, control.name)
+		return nil, fmt.Errorf("pppoe-vpp: Linux reports MTU %d for LCP control device %q", control.mtu, control.name)
 	}
 	lease, err := maps.acquire(ctx, connection, indices)
 	if err != nil {

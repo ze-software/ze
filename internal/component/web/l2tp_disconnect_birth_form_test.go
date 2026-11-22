@@ -26,7 +26,7 @@ func TestL2TPDetailFormCarriesItsSnapshotBirth(t *testing.T) {
 			if guarded {
 				snapshot.Birth = birth
 			}
-			view := l2tpDetailViewOf(l2tpDetailBody{Session: snapshot})
+			view := l2tpDetailViewOf(&l2tpDetailBody{Session: snapshot})
 			var output bytes.Buffer
 			require.NoError(t, l2tpDetail(view).Render(t.Context(), &output))
 			document := parseFinderHTML(t, output.String())

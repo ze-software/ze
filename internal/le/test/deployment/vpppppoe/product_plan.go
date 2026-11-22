@@ -248,7 +248,7 @@ func productInterfaces(access string) string {
 // the PPPoE sessions and interfaces VPP holds, and the trace of the API
 // messages Ze sent (startupConfig turns api-trace on).
 var productVPPDiagnostics = [][]string{
-	{"vppctl", "-s", vppCLIPath, "show", "pppoe", "session"},
-	{"vppctl", "-s", vppCLIPath, "show", "interface"},
-	{"vppctl", "-s", vppCLIPath, "api", "trace", "dump"},
+	{vppctlCommand, "-s", vppCLIPath, showCommand, "pppoe", "session"},
+	{vppctlCommand, "-s", vppCLIPath, showCommand, interfaceKeyword},
+	{vppctlCommand, "-s", vppCLIPath, "api", "trace", "dump"},
 }

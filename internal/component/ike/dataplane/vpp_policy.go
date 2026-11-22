@@ -325,7 +325,7 @@ func vppIKEEndpoint(p SPParams) (netip.Addr, error) {
 // nothing registers IP protocol 50, so it is punted, to the Linux host under linux-cp.
 // Its discard therefore rests on the ip-local and punt path, and no test proves it.
 // Latent today, because vppPolicyInterface refuses every policy IKE produces. The fix,
-// Ze's VPP patch making inbound BYPASS and DISCARD honour protocol and ports, is owned
+// Ze's VPP patch making inbound BYPASS and DISCARD honor protocol and ports, is owned
 // by plan/post-release/features/spec-ipsec-vpp-policy-interface.md (AC-10).
 func vppIKEBypassEntries(spdID uint32, local netip.Addr) []ipsec_types.IpsecSpdEntryV2 {
 	host := ip_types.NewAddress(local.AsSlice())

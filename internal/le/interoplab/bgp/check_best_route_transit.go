@@ -211,7 +211,7 @@ func (bestRouteTransitBIRDNative) withdraw(ctx context.Context, lab interoplab.C
 }
 
 func (bestRouteTransitBIRDNative) version(ctx context.Context, lab interoplab.CheckerLab, peer string) error {
-	output, err := lab.Query(ctx, peer, []string{cmdBirdc, "show status"}, nil)
+	output, err := lab.Query(ctx, peer, []string{cmdBirdc, cmdShowStatus}, nil)
 	if err != nil {
 		return err
 	}

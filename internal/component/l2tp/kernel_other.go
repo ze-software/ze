@@ -21,6 +21,9 @@ type kernelWorker struct{}
 // Enqueue is a no-op on non-Linux. Satisfies the reactor's call site.
 func (w *kernelWorker) Enqueue(_ any) {}
 
+// kernelPPPTransfer is empty on non-Linux, where no native pair is prepared.
+type kernelPPPTransfer struct{}
+
 // No native pair can be prepared or transferred on this platform.
 func (w *kernelWorker) preparePPPTransfer(_ kernelSetupSucceeded, _ pppkernel.InterfaceOperations) (kernelPPPTransfer, bool, error) {
 	return kernelPPPTransfer{}, false, nil

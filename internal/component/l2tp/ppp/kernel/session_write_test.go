@@ -49,9 +49,9 @@ func TestKernelSessionCloseInterruptsBlockedControlWrite(t *testing.T) {
 		if err := control.Close(); err != nil {
 			t.Error(err)
 		}
-		<-writeDone
-		<-closeDone
-		t.Fatal("session close waited for a blocked write instead of interrupting it")
+		writeErr := <-writeDone
+		closeErr := <-closeDone
+		t.Fatalf("session close waited for a blocked write instead of interrupting it (write=%v, close=%v)", writeErr, closeErr)
 	}
 	if err := <-writeDone; !errors.Is(err, io.ErrClosedPipe) {
 		t.Fatalf("blocked write returned %v, want the close error", err)

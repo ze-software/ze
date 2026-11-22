@@ -149,7 +149,7 @@ func (proof *gobgpReloadProof) identify(ctx context.Context) error {
 		{peerGoBGP, "read-observer-package-version", []string{"apk", "info", "-v", "inotify-tools", "inotify-tools-libs"}},
 		{peerFRR, "frr-version", []string{cmdVtysh, "-c", frrShowVersion}},
 		{peerFRRSink, "sink-version", []string{cmdVtysh, "-c", frrShowVersion}},
-		{peerBIRD, "bird-version", []string{cmdBirdc, "show status"}},
+		{peerBIRD, "bird-version", []string{cmdBirdc, cmdShowStatus}},
 		{"ze", "ze-version", []string{"ze", flagVersion}},
 		{"ze", evidenceZeBinarySHA256, []string{cmdSha256sum, zeBinaryPath}},
 	} {

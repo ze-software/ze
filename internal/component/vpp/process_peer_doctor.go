@@ -10,8 +10,11 @@ import (
 	"github.com/ze-software/ze/internal/core/report"
 )
 
-const processReportSource = "vpp-process"
-const processReportFix = "ze show diagnostic doctor-vpp-process"
+const (
+	processReportSource  = "vpp-process"
+	processReportFix     = "ze show diagnostic doctor-vpp-process"
+	reportDetailErrorKey = "error"
+)
 
 func init() {
 	if err := diagnostic.RegisterDoctorCheck(diagnostic.DoctorCheck{
@@ -35,7 +38,7 @@ func reportProcessFailure(peer *processWitness, subject string, cause error) {
 	key := processFailureKey(peer, subject)
 	report.RaiseWarningFix(processReportSource, diagnostic.CodeDoctorVPPProcess, key,
 		"VPP process ownership could not be confirmed", processReportFix,
-		map[string]any{"error": cause.Error(), "operation": subject})
+		map[string]any{reportDetailErrorKey: cause.Error(), "operation": subject})
 	logger().Warn("vpp: process ownership could not be confirmed",
 		"code", diagnostic.CodeDoctorVPPProcess, "fix", processReportFix,
 		"operation", subject, "error", cause)
@@ -62,7 +65,7 @@ func checkProcessPeerWithProbe(input diagnostic.DoctorCheckContext, probe func()
 			continue
 		}
 		message := issue.Message
-		if cause, ok := issue.Detail["error"].(string); ok {
+		if cause, ok := issue.Detail[reportDetailErrorKey].(string); ok {
 			message += ": " + cause
 		}
 		findings = append(findings, diagnostic.Diagnostic{Code: diagnostic.CodeDoctorVPPProcess,

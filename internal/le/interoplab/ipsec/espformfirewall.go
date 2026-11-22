@@ -110,7 +110,7 @@ func checkESPFormFirewallDrop(ctx context.Context, lab *scenarioLab) error {
 	if err != nil {
 		return err
 	}
-	mismatch, err := xfrmStat(ctx, lab, zePeer, "XfrmInStateMismatch")
+	mismatch, err := zeXFRMStateMismatch(ctx, lab)
 	if err != nil {
 		return err
 	}
@@ -145,7 +145,7 @@ func checkESPFormFirewallDrop(ctx context.Context, lab *scenarioLab) error {
 		return fmt.Errorf("ze's %s term counted %d packets during strongSwan's %d echo requests, want at least %d: the rule did not judge strongSwan's ESP",
 			espFirewallTerm, droppedAfter-dropped, espFirewallPingCount, espFirewallPingCount)
 	}
-	mismatchAfter, err := xfrmStat(ctx, lab, zePeer, "XfrmInStateMismatch")
+	mismatchAfter, err := zeXFRMStateMismatch(ctx, lab)
 	if err != nil {
 		return err
 	}

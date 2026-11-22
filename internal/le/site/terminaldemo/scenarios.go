@@ -565,6 +565,8 @@ const (
 	tapeSourceCommand   = "Source"
 	tapeHideCommand     = "Hide"
 	tapeShowCommand     = "Show"
+	tapeEnterCommand    = "Enter"
+	jsonNull            = "null"
 	showPeerListRaw     = "show bgp peer list | raw"
 )
 

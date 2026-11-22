@@ -103,7 +103,7 @@ func runVPPEngine(conn net.Conn) int {
 
 	if err := runtime.Stop(); err != nil {
 		report.RaiseWarningFix(processReportSource, diagnostic.CodeDoctorVPPProcess, "manager-stop",
-			"VPP manager cleanup failed", processReportFix, map[string]any{"error": err.Error()})
+			"VPP manager cleanup failed", processReportFix, map[string]any{reportDetailErrorKey: err.Error()})
 		lg.Error("vpp manager stopped with an error", "code", diagnostic.CodeDoctorVPPProcess,
 			"fix", processReportFix, "error", err)
 		rc = 1

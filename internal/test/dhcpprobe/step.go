@@ -26,7 +26,7 @@ const (
 	// StepRoute routes a prefix through the server's end, so a reply to a
 	// relay address (giaddr) leaves on the link.
 	StepRoute
-	// StepNeigh writes a permanent neighbour entry for an address on the
+	// StepNeigh writes a permanent neighbor entry for an address on the
 	// server's end, naming the probe's end, so a reply unicast to that
 	// address (giaddr, ciaddr) reaches the probe without ARP.
 	StepNeigh
@@ -136,7 +136,7 @@ func parsePrefixStep(fields []string) (Step, error) {
 // required; every other key is optional.
 func parseExchange(fields []string) (Step, error) {
 	if len(fields) < 2 {
-		return Step{}, errors.New("dhcpprobe: an exchange needs a label: x,<label>,type=...,mac=...,expect=...")
+		return Step{}, errors.New("dhcpprobe: an exchange needs a label: x,<label>,type=<type>,mac=<mac>,expect=<expect>")
 	}
 	ex := Exchange{Label: fields[1], Attempts: exchangeAttempts}
 	broadcastSet := false

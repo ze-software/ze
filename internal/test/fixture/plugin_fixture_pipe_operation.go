@@ -40,7 +40,7 @@ func pipeOperationProvider(ctx context.Context, _ []string) error {
 		Pipes: []sdk.PipeDecl{{
 			Command:     cmdShowFixturePipeOp,
 			Name:        pipeOpHistogram,
-			Argument:    "none",
+			Argument:    valueNone,
 			Description: "Count the rows of each length.",
 		}},
 	}

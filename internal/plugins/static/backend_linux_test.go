@@ -49,7 +49,7 @@ func TestStaticRemoveRouteToleratesESRCH(t *testing.T) {
 		b := &netlinkStaticBackend{handle: h}
 
 		const dev = "zeesrch0" // unique: no iface backend resolves it
-		dummy := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: dev}}
+		dummy := &netlink.Dummy{Name: dev}
 		if err := h.LinkAdd(dummy); err != nil {
 			t.Fatalf("create dummy %s: %v", dev, err)
 		}

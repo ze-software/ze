@@ -293,7 +293,7 @@ func maskDiffComposite(value reflect.Value, secretKeys map[string]bool) {
 	//exhaustive:ignore
 	switch value.Kind() {
 	case reflect.Map:
-		if subtree, ok := value.Interface().(map[string]any); ok {
+		if subtree, ok := reflect.TypeAssert[map[string]any](value); ok {
 			maskDiffSubtree(subtree, secretKeys)
 		}
 	case reflect.Slice, reflect.Array:

@@ -194,6 +194,12 @@ func init() {
 	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: diagnostic.CodeDoctorIfaceBackendClose}); err != nil {
 		panic("BUG: iface backend-close event code registration refused: " + err.Error())
 	}
+	// A link state the apply could not read is a warning on the report bus,
+	// cleared by a later read of that device, so the recent-events check
+	// answers for its code (config_apply_held.go).
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: diagnostic.CodeDoctorIfaceStateUnread}); err != nil {
+		panic("BUG: iface state-unread event code registration refused: " + err.Error())
+	}
 
 	_ = events.RegisterNamespace(ifaceevents.Namespace,
 		ifaceevents.EventCreated, ifaceevents.EventUp, ifaceevents.EventDown,
@@ -1117,9 +1123,7 @@ func runEngine(conn net.Conn) int {
 	// Join outside the map lock; pending originals stay in this same registry.
 	pppoeMu.Lock()
 	stoppingPPPoE := make(map[string]*PPPoEClient, len(activePPPoE))
-	for name, client := range activePPPoE {
-		stoppingPPPoE[name] = client
-	}
+	maps.Copy(stoppingPPPoE, activePPPoE)
 	pppoeMu.Unlock()
 	for name, client := range stoppingPPPoE {
 		err := client.Stop()
@@ -1377,10 +1381,14 @@ func reconcileDHCP(cfg *ifaceConfig, eb ze.EventBus, active map[dhcpUnitKey]dhcp
 	if cfg.DHCPAuto && !dhcpDeclared(cfg) {
 		if name := discoverPrimaryEthernet(log); name != "" {
 			// Bring the interface administratively UP before DHCP.
-			// Without this, the kernel cannot send DHCP packets.
+			// Without this, the kernel cannot send DHCP packets. An
+			// interface read as up already gets no write, which would need
+			// CAP_NET_ADMIN for a change that changes nothing.
 			if b := GetBackend(); b != nil {
-				if err := b.SetAdminUp(name); err != nil {
-					log.Warn("interface: dhcp-auto: failed to bring up", "iface", name, "err", err)
+				if !adminUpHeld(b, name) {
+					if err := b.SetAdminUp(name); err != nil {
+						log.Warn("interface: dhcp-auto: failed to bring up", "iface", name, "err", err)
+					}
 				}
 			}
 			key := dhcpUnitKey{ifaceName: name, unit: "default"}

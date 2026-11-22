@@ -111,7 +111,7 @@ func newOSPFRuntimeRollbackFixture(t *testing.T, mode string) *ospfRuntimeRollba
 	pluginEnd, engineEnd := net.Pipe()
 	e := &ospfRollbackEngine{mux: rpc.NewMuxConn(rpc.NewConn(engineEnd, engineEnd)), seen: make(chan string, 64)}
 	f := &ospfRuntimeRollbackFixture{ctx: ctx, engine: e}
-	var conn net.Conn = pluginEnd
+	conn := pluginEnd
 	if mode == "direct" {
 		f.bridge = rpc.NewDirectBridge()
 		f.bridge.SetDispatchRPC(runtimeRollbackEngineReply)

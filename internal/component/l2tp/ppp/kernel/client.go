@@ -72,7 +72,13 @@ func newClientSession(cfg SessionConfig, ops clientPairOps, closers sessionPairC
 		return nil, err
 	}
 	transferred := false
-	defer pair.finishConstruction(&transferred, &err)
+	defer func() {
+		if transferred {
+			return
+		}
+		failure := recover()
+		err = pair.finishFailedConstruction(failure, err)
+	}()
 	if ops.prepare == nil {
 		return nil, errors.New("ppp: client has no original-file preparation")
 	}

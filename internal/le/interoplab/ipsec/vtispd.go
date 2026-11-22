@@ -158,7 +158,7 @@ func (l *scenarioLab) spdDropsOutsideSelectors(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	blockedBefore, err := l.xfrmStat(ctx, zePeer, xfrmStatOutPolBlock)
+	blockedBefore, err := l.xfrmStat(ctx, xfrmStatOutPolBlock)
 	if err != nil {
 		return err
 	}
@@ -181,7 +181,7 @@ func (l *scenarioLab) spdDropsOutsideSelectors(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	blockedAfter, err := l.xfrmStat(ctx, zePeer, xfrmStatOutPolBlock)
+	blockedAfter, err := l.xfrmStat(ctx, xfrmStatOutPolBlock)
 	if err != nil {
 		return err
 	}
@@ -210,11 +210,11 @@ func (l *scenarioLab) vtiTXErrors(ctx context.Context) (uint64, error) {
 	return value, nil
 }
 
-// xfrmStat answers one counter of the peer's /proc/net/xfrm_stat.
-func (l *scenarioLab) xfrmStat(ctx context.Context, peer, name string) (uint64, error) {
-	output, err := l.exec(ctx, peer, "cat", "/proc/net/xfrm_stat")
+// xfrmStat answers one counter of Ze's /proc/net/xfrm_stat.
+func (l *scenarioLab) xfrmStat(ctx context.Context, name string) (uint64, error) {
+	output, err := l.exec(ctx, zePeer, "cat", "/proc/net/xfrm_stat")
 	if err != nil {
-		return 0, fmt.Errorf("read %s's /proc/net/xfrm_stat: %w", peer, err)
+		return 0, fmt.Errorf("read %s's /proc/net/xfrm_stat: %w", zePeer, err)
 	}
 	return parseXFRMStat(output, name)
 }

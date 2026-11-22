@@ -178,7 +178,13 @@ func newSession(cfg SessionConfig, ops sessionOps) (frames ppp.FrameChannel, han
 		return nil, nil, err
 	}
 	transferred := false
-	defer pair.finishConstruction(&transferred, &err)
+	defer func() {
+		if transferred {
+			return
+		}
+		failure := recover()
+		err = pair.finishFailedConstruction(failure, err)
+	}()
 	pair.channelStream, err = ops.wrapChannel(pair.channel)
 	if err != nil {
 		return nil, nil, err

@@ -106,7 +106,10 @@ func TestWebViewBindingRetainsCallerForPollAndDetail(t *testing.T) {
 		cancel()
 		if !joined {
 			select {
-			case <-done:
+			case err := <-done:
+				if err != nil {
+					t.Logf("browser driver exited during cleanup: %v", err)
+				}
 			case <-time.After(time.Second):
 				t.Error("browser driver did not join")
 			}

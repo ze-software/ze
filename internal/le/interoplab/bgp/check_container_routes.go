@@ -20,7 +20,7 @@ const ipRouteDelete = "del"
 // and returns the command's streams with it; a container with no default
 // route answers "No such process", which is already the state wanted.
 func removeContainerDefaultRoute(ctx context.Context, lab interoplab.CheckerLab, peer string) error {
-	result, err := lab.Exec(ctx, peer, []string{"ip", "route", ipRouteDelete, "default"}, nil)
+	result, err := lab.Exec(ctx, peer, []string{"ip", ipObjectRoute, ipRouteDelete, "default"}, nil)
 	if err == nil {
 		return nil
 	}
@@ -46,6 +46,6 @@ func nssaDefaultDiagnostic(ctx context.Context, lab interoplab.CheckerLab, cause
 		return strings.TrimSpace(result.Stdout)
 	}
 	frrDefault := answer([]string{cmdVtysh, "-c", "show ip route 0.0.0.0/0 json"})
-	kernel := answer([]string{"ip", "route", ipActionShow})
+	kernel := answer([]string{"ip", ipObjectRoute, ipActionShow})
 	return fmt.Errorf("%w; FRR default routes: %s; kernel routes: %s", cause, frrDefault, kernel)
 }

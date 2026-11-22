@@ -47,3 +47,18 @@ func zePassiveListenPorts(tree *config.Tree, name string) ([]string, error) {
 	slices.Sort(ports)
 	return slices.Compact(ports), nil
 }
+
+// zeListenPort is the port Ze listens on for a resolved peer or dynamic group
+// template: its `connection local port`, or the YANG default where the
+// resolved block sets none.
+func zeListenPort(peer map[string]any) string {
+	port := zeDefaultListenPort
+	if connection, ok := peer["connection"].(map[string]any); ok {
+		if local, hasLocal := connection["local"].(map[string]any); hasLocal {
+			if value, hasPort := local["port"].(string); hasPort {
+				port = value
+			}
+		}
+	}
+	return port
+}

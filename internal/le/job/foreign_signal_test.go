@@ -78,7 +78,7 @@ func TestAForeignQuietHolderIsNeverSignalled(t *testing.T) {
 	waitForBarrier(t, received)
 	waitForSettled(t, received)
 	if got := read(t, received); got != "USR2\n" {
-		t.Errorf("the waiter signalled the foreign quiet holder; it recorded %q, want only the test's barrier %q", got, "USR2\n")
+		t.Errorf("the waiter signaled the foreign quiet holder; it recorded %q, want only the test's barrier %q", got, "USR2\n")
 	}
 	if foreign := recordedBesidesBarrier(read(t, received)); len(foreign) != 0 {
 		t.Errorf("the waiter sent the foreign quiet holder %v", foreign)

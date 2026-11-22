@@ -278,7 +278,8 @@ func absentNativeCapability(capability any) bool {
 		return true
 	}
 	value := reflect.ValueOf(capability)
-	//exhaustive:ignore -- only nil-capable implementation kinds can hold typed nil.
+	// Only nil-capable implementation kinds can hold typed nil.
+	//exhaustive:ignore
 	switch value.Kind() {
 	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
 		return value.IsNil()

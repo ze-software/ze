@@ -36,7 +36,7 @@ func (s *Server) createSessionModel(sessionCtx context.Context, username, remote
 
 func parseSessionRequest(environ []string) (SessionRequest, error) {
 	var request SessionRequest
-	// The interactive session honours no rendering key, but a value of it
+	// The interactive session honors no rendering key, but a value of it
 	// this daemon does not define is refused here as on the exec channel.
 	if _, err := clientPresents(environ, "interactive SSH"); err != nil {
 		return SessionRequest{}, err

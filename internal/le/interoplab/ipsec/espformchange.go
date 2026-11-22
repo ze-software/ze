@@ -49,7 +49,7 @@ func runESPFormPhases(ctx context.Context, lab *scenarioLab, zeBefore, swanBefor
 	if err != nil {
 		return err
 	}
-	mismatchBefore, err := xfrmStat(ctx, lab, zePeer, "XfrmInStateMismatch")
+	mismatchBefore, err := zeXFRMStateMismatch(ctx, lab)
 	if err != nil {
 		return err
 	}
@@ -94,7 +94,7 @@ func runESPFormPhases(ctx context.Context, lab *scenarioLab, zeBefore, swanBefor
 		if err := requireESPFormIdentities(ctx, lab, zeBefore, swanBefore); err != nil {
 			return err
 		}
-		mismatchAfter, err := xfrmStat(ctx, lab, zePeer, "XfrmInStateMismatch")
+		mismatchAfter, err := zeXFRMStateMismatch(ctx, lab)
 		if err != nil {
 			return err
 		}

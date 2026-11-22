@@ -379,8 +379,10 @@ const (
 	descriptionCountersAlone        = "The counters alone"
 	dirBuilder                      = "builder"
 	dirCommon                       = "common"
+	dirOut                          = "out"
 	dirPlan                         = "plan"
 	dirSource                       = "src" // The kernel source directory.
+	valueNone                       = "none"
 	expansionVRPCount               = "display kind vrp-count"
 	fileBGPConf                     = "ze-bgp.conf"
 	fileConfig2Conf                 = "config2.conf"

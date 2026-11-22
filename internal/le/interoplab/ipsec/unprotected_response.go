@@ -344,9 +344,10 @@ func (l *scenarioLab) holdAuthResponses(ctx context.Context) error {
 // charon installed. Priority 1 wins over charon's policy, since a lower value takes
 // precedence. extra follows the selector: the priority on add, nothing on delete.
 func authInjectBypassCommand(verb string, extra ...string) []string {
-	command := []string{"ip", xfrmCommand, ipWordPolicy, verb,
-		ipWordSrc, swanIP + "/32", xfrmHeaderTarget, zeIP + "/32",
-		"proto", protocolUDP, xfrmWordDir, "out"}
+	command := make([]string, 0, 12+len(extra))
+	command = append(command, "ip", xfrmCommand, ipWordPolicy, verb,
+		ipWordSrc, swanIP+"/32", xfrmHeaderTarget, zeIP+"/32",
+		"proto", protocolUDP, xfrmWordDir, xfrmDirOut)
 	return append(command, extra...)
 }
 

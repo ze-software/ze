@@ -176,7 +176,7 @@ func (l *scenarioLab) carryErrorSourceOverSA(ctx context.Context) (func(context.
 	if err != nil {
 		return nil, fmt.Errorf("strongSwan's outbound state toward ze: %w", err)
 	}
-	selector := []string{ipWordSrc, icmpErrorSource + "/32", xfrmHeaderTarget, icmpZePrefix, "dir", "out"}
+	selector := []string{ipWordSrc, icmpErrorSource + "/32", xfrmHeaderTarget, icmpZePrefix, "dir", xfrmDirOut}
 	add := append([]string{"ip", xfrmCommand, ipWordPolicy, wordAdd}, selector...)
 	add = append(add, "tmpl", ipWordSrc, swanIP, xfrmHeaderTarget, zeIP, "proto", "esp", "reqid", reqid, "mode", "tunnel")
 	if output, err := l.exec(ctx, swanPeer, add...); err != nil {

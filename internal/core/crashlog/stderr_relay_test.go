@@ -15,11 +15,15 @@ import (
 
 // VALIDATES: The stderr relay preserves terminal styling and forwards plain syslog.
 func TestStderrRelayKeepsColorOutOfSyslog(t *testing.T) {
-	receiver, err := net.ListenPacket("udp4", "127.0.0.1:0")
+	receiver, err := (&net.ListenConfig{}).ListenPacket(t.Context(), "udp4", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer receiver.Close()
+	t.Cleanup(func() {
+		if err := receiver.Close(); err != nil {
+			t.Errorf("close receiver: %v", err)
+		}
+	})
 	if err := receiver.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
 		t.Fatal(err)
 	}
@@ -27,7 +31,11 @@ func TestStderrRelayKeepsColorOutOfSyslog(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer sender.Close()
+	t.Cleanup(func() {
+		if err := sender.Close(); err != nil {
+			t.Errorf("close sender: %v", err)
+		}
+	})
 
 	const colored = "level=\x1b[33mWARN\x1b[0m msg=hello\n"
 	var terminal bytes.Buffer

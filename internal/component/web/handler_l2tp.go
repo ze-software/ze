@@ -164,7 +164,7 @@ func (h *l2TPHandlers) handleL2TPDetail() http.HandlerFunc {
 			return
 		}
 
-		if err := writeComponent(w, "l2tp detail", l2tpDetail(l2tpDetailViewOf(body))); err != nil {
+		if err := writeComponent(w, "l2tp detail", l2tpDetail(l2tpDetailViewOf(&body))); err != nil {
 			serverLogger.Warn("l2tp detail render", "error", err)
 		}
 	}
@@ -229,7 +229,7 @@ func handleL2TPSamplesCSV() http.HandlerFunc {
 			if err := cw.Write([]string{
 				strconv.FormatInt(b.Start.Unix(), 10),
 				b.State.String(),
-				strconv.FormatUint(uint64(b.EchoCount), 10),
+				textbuf.StringUint(b.EchoCount),
 				strconv.FormatInt(b.MinRTT.Microseconds(), 10),
 				strconv.FormatInt(b.AvgRTT().Microseconds(), 10),
 				strconv.FormatInt(b.MaxRTT.Microseconds(), 10),
@@ -535,7 +535,7 @@ type l2tpDetailBody struct {
 // renders. It is the only place the l2tp package's types meet the view models.
 // That is what keeps view_l2tp.go free of the import, and its generated
 // components free of the ze_l2tp build tag.
-func l2tpDetailViewOf(body l2tpDetailBody) l2tpDetailView {
+func l2tpDetailViewOf(body *l2tpDetailBody) l2tpDetailView {
 	ss := body.Session
 
 	view := l2tpDetailView{

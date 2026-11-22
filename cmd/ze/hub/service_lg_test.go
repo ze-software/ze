@@ -77,7 +77,11 @@ func TestBuildLGService_NamesASThroughTheDispatcher(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = svc.Shutdown(context.Background()) })
 
-	addresses := svc.(lgService).Addresses()
+	lg, ok := svc.(lgService)
+	if !ok {
+		t.Fatalf("service = %T, want lgService", svc)
+	}
+	addresses := lg.Addresses()
 	if len(addresses) == 0 {
 		t.Fatal("the looking glass bound no address")
 	}

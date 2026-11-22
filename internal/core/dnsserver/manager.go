@@ -107,15 +107,6 @@ type Options struct {
 	Signed *SignedQueries
 }
 
-// decorateReader is the reader decorator the plain listeners run: the one
-// that keeps signed queries when Options.Signed is set, else none.
-func (m *Manager) decorateReader() dns.DecorateReader {
-	if m.opts.Signed == nil {
-		return nil
-	}
-	return m.opts.Signed.decorate
-}
-
 // Manager owns the bound UDP+TCP listeners for a dns.Handler. The handler is
 // expected to be state-independent (reading its own snapshot per request), so
 // only an endpoint-set change triggers a rebind.
@@ -167,6 +158,15 @@ type secureAddr struct {
 // New creates a Manager serving handler for every endpoint ApplyWithSecure binds.
 func New(log *slog.Logger, handler dns.Handler, opts Options) *Manager {
 	return &Manager{log: log, handler: handler, opts: opts, applied: unappliedSig}
+}
+
+// decorateReader is the reader decorator the plain listeners run: the one
+// that keeps signed queries when Options.Signed is set, else none.
+func (m *Manager) decorateReader() dns.DecorateReader {
+	if m.opts.Signed == nil {
+		return nil
+	}
+	return m.opts.Signed.decorate
 }
 
 // endpointSig is the signature of the desired bound-listener set; Apply

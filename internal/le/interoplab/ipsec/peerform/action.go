@@ -59,7 +59,7 @@ type state struct {
 	reqid         uint32
 	sequence      uint64
 	selector      [56]byte
-	encapsulation encapsulation
+	encapsulation encapsulation //nolint:unused // Populated and verified on Linux by socket_linux.go.
 }
 
 type encapsulation struct {

@@ -94,7 +94,7 @@ func checkPADSubtreeIdentity(ctx context.Context, lab *scenarioLab) error {
 	if _, err := lab.waitXFRM(ctx, zePeer); err != nil {
 		return fail(1, err)
 	}
-	if err := lab.requireZeIKEEstablished(ctx, swanConfigPeer); err != nil {
+	if err := lab.requireZeIKEEstablished(ctx); err != nil {
 		return fail(1, err)
 	}
 	if err := lab.waitLog(ctx, swanPeer, swanAuthenticatesAs(padInsideIdentity), lab.timeout); err != nil {

@@ -117,7 +117,7 @@ func observeTopicBFD(stage string) error {
 		if err != nil {
 			return err
 		}
-		if strings.TrimSpace(answer) != "[]" && strings.TrimSpace(answer) != "null" {
+		if strings.TrimSpace(answer) != "[]" && strings.TrimSpace(answer) != jsonNull {
 			return fmt.Errorf("BFD sessions exist before opt-in: %s", answer)
 		}
 		return nil

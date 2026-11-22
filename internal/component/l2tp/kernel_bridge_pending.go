@@ -1,4 +1,7 @@
 // Design: docs/architecture/l2tp/followup-l2tp-call.md -- exact bridge cleanup receipt.
+
+//go:build linux
+
 package l2tp
 
 // kernelPPPBridgePending is true only while the exact handle still owns its

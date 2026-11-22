@@ -163,7 +163,7 @@ func checkOSPFImportCentral(ctx context.Context, check *interoplab.CheckContext)
 	if _, err := check.Lab.PeerImage(ctx, peerBIRD); err != nil {
 		return err
 	}
-	output, err := check.Lab.Query(ctx, peerBIRD, []string{cmdBirdc, "show status"}, nil)
+	output, err := check.Lab.Query(ctx, peerBIRD, []string{cmdBirdc, cmdShowStatus}, nil)
 	if err != nil {
 		return err
 	}

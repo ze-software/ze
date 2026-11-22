@@ -50,21 +50,21 @@ src 172.28.0.3 dst 172.28.0.2
 // IPv4 policy on the if_id, a missing direction, and a duplicated one.
 // PREVENTS: a checker that reads a dump it cannot parse as "no IPv4 policy".
 func TestRequireIPv6PoliciesOnIfID(t *testing.T) {
-	if err := requireIPv6PoliciesOnIfID(parseXFRMBlocks(vtiIPv6PolicyDump), vtiIPv6IfID); err != nil {
+	if err := requireIPv6PoliciesOnIfID(parseXFRMBlocks(vtiIPv6PolicyDump)); err != nil {
 		t.Fatalf("the narrowed policy set was refused: %v", err)
 	}
 
 	ipv4 := vtiIPv6PolicyDump + "src 0.0.0.0/0 dst 0.0.0.0/0\n\tdir out priority 2000 ptype main\n\tif_id 0x7\n"
-	if err := requireIPv6PoliciesOnIfID(parseXFRMBlocks(ipv4), vtiIPv6IfID); err == nil {
+	if err := requireIPv6PoliciesOnIfID(parseXFRMBlocks(ipv4)); err == nil {
 		t.Error("an IPv4 policy on the if_id was accepted")
 	}
 
 	withoutFwd := strings.Replace(vtiIPv6PolicyDump, "dir fwd", "dir out", 1)
-	if err := requireIPv6PoliciesOnIfID(parseXFRMBlocks(withoutFwd), vtiIPv6IfID); err == nil {
+	if err := requireIPv6PoliciesOnIfID(parseXFRMBlocks(withoutFwd)); err == nil {
 		t.Error("a set with two out policies and no fwd policy was accepted")
 	}
 
-	if err := requireIPv6PoliciesOnIfID(parseXFRMBlocks(""), vtiIPv6IfID); err == nil {
+	if err := requireIPv6PoliciesOnIfID(parseXFRMBlocks("")); err == nil {
 		t.Error("an empty dump was accepted")
 	}
 }
@@ -101,7 +101,7 @@ src ::/0 dst ::/0
 // IPv4 selector, and an IPv4 allow policy hiding behind the catch-all's exemption.
 func TestRequireIPv6PoliciesOnIfIDBesideTheInterfaceCatchAll(t *testing.T) {
 	withCatchAll := vtiIPv6PolicyDump + vtiInterfaceCatchAllDump
-	if err := requireIPv6PoliciesOnIfID(parseXFRMBlocks(withCatchAll), vtiIPv6IfID); err != nil {
+	if err := requireIPv6PoliciesOnIfID(parseXFRMBlocks(withCatchAll)); err != nil {
 		t.Fatalf("the narrowed policy set beside the interface catch-all was refused: %v", err)
 	}
 	if err := requireInterfaceSPDCatchAll(parseXFRMBlocks(withCatchAll), vtiIPv6IfID); err != nil {
@@ -109,17 +109,17 @@ func TestRequireIPv6PoliciesOnIfIDBesideTheInterfaceCatchAll(t *testing.T) {
 	}
 
 	allowAtLast := withCatchAll + "src 0.0.0.0/0 dst 0.0.0.0/0\n\tdir out priority 4294967295\n\tif_id 0x7\n"
-	if err := requireIPv6PoliciesOnIfID(parseXFRMBlocks(allowAtLast), vtiIPv6IfID); err == nil {
+	if err := requireIPv6PoliciesOnIfID(parseXFRMBlocks(allowAtLast)); err == nil {
 		t.Error("an IPv4 allow policy at the last priority on the if_id was accepted")
 	}
 
 	blockElsewhere := withCatchAll + "src 0.0.0.0/0 dst 0.0.0.0/0\n\tdir out action block priority 2000\n\tif_id 0x7\n"
-	if err := requireIPv6PoliciesOnIfID(parseXFRMBlocks(blockElsewhere), vtiIPv6IfID); err == nil {
+	if err := requireIPv6PoliciesOnIfID(parseXFRMBlocks(blockElsewhere)); err == nil {
 		t.Error("an IPv4 policy at the Child SA priority on the if_id was accepted because it blocks")
 	}
 
 	ipv4Child := withCatchAll + "src 0.0.0.0/0 dst 0.0.0.0/0\n\tdir out priority 2000 ptype main\n\tif_id 0x7\n"
-	if err := requireIPv6PoliciesOnIfID(parseXFRMBlocks(ipv4Child), vtiIPv6IfID); err == nil {
+	if err := requireIPv6PoliciesOnIfID(parseXFRMBlocks(ipv4Child)); err == nil {
 		t.Error("an IPv4 Child SA policy beside the catch-all was accepted")
 	}
 }
@@ -147,12 +147,12 @@ func TestLeakWANAddressesAreOnTheLabNetwork(t *testing.T) {
 // a state without the flag and a dump holding fewer than two bound states.
 // PREVENTS: AC-6's red walk going green because the flag check read the wrong line.
 func TestRequireAFUnspecStates(t *testing.T) {
-	if err := requireAFUnspecStates(parseXFRMBlocks(vtiIPv6StateDump), vtiIPv6IfID); err != nil {
+	if err := requireAFUnspecStates(parseXFRMBlocks(vtiIPv6StateDump)); err != nil {
 		t.Fatalf("two af-unspec states were refused: %v", err)
 	}
 
 	unflagged := strings.Replace(vtiIPv6StateDump, "replay-window 32 flag af-unspec", "replay-window 32", 1)
-	if err := requireAFUnspecStates(parseXFRMBlocks(unflagged), vtiIPv6IfID); err == nil {
+	if err := requireAFUnspecStates(parseXFRMBlocks(unflagged)); err == nil {
 		t.Error("a state without af-unspec was accepted")
 	}
 
@@ -160,7 +160,7 @@ func TestRequireAFUnspecStates(t *testing.T) {
 	if !found {
 		t.Fatal("the fixture lost its second state")
 	}
-	if err := requireAFUnspecStates(parseXFRMBlocks(first), vtiIPv6IfID); err == nil {
+	if err := requireAFUnspecStates(parseXFRMBlocks(first)); err == nil {
 		t.Error("one bound state was accepted as a Child SA")
 	}
 }

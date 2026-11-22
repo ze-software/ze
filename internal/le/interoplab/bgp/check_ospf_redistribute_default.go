@@ -39,13 +39,13 @@ func checkOSPFRedistributeDefault(ctx context.Context, check *interoplab.CheckCo
 		return checkerFailure(ctx, check.Lab, ospfRedistributeDefaultScenario, assertion, cause)
 	}
 	prerequisites := []operation{
-		{kind: opWaitContains, peer: peerFRR, command: []string{"ip", "-o", "-4", "address", "show", "dev", "ze-redist0"}, contains: []string{ospfRedistributeDefaultAddress}, timeout: 30 * time.Second},
+		{kind: opWaitContains, peer: peerFRR, command: []string{"ip", "-o", "-4", ipObjectAddress, ipActionShow, ipOptionDevice, "ze-redist0"}, contains: []string{ospfRedistributeDefaultAddress}, timeout: 30 * time.Second},
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show ip ospf interface ze-redist0"}, contains: []string{"Internet Address " + ospfRedistributeDefaultAddress, "Network Type POINTOPOINT"}, timeout: 30 * time.Second},
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, timeout: 90 * time.Second},
 		// proto 250 and the exact prefix exclude Docker's connected/default
 		// routes. FRR has no BGP network or redistribute statement that could
 		// originate this prefix: its source is the OSPF point-to-point stub link.
-		{kind: opWaitContains, peer: "ze", command: []string{"ip", "-N", "-4", "route", "show", "exact", ospfRedistributeDefaultPrefix, "proto", "250"}, contains: []string{ospfRedistributeDefaultPrefix, "via " + frrHop + " dev eth0"}, timeout: 90 * time.Second},
+		{kind: opWaitContains, peer: "ze", command: []string{"ip", "-N", "-4", ipObjectRoute, ipActionShow, ipOptionExact, ospfRedistributeDefaultPrefix, "proto", "250"}, contains: []string{ospfRedistributeDefaultPrefix, "via " + frrHop + " dev eth0"}, timeout: 90 * time.Second},
 		{kind: opFRRSession, argument: zeHop, timeout: 90 * time.Second},
 	}
 	for index := range prerequisites {

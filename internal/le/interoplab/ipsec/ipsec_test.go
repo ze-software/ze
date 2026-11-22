@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -1060,14 +1061,7 @@ func TestESPFormChangeClaimsEveryDirection(t *testing.T) {
 		t.Fatalf("esp-form-change claims %d directions, want %d", len(espFormChangeDirections), len(wanted))
 	}
 	for _, want := range wanted {
-		found := false
-		for _, got := range espFormChangeDirections {
-			if got == want {
-				found = true
-				break
-			}
-		}
-		if !found {
+		if !slices.Contains(espFormChangeDirections, want) {
 			t.Fatalf("esp-form-change omits %s", want.summary)
 		}
 	}

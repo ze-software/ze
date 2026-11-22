@@ -118,7 +118,7 @@ func checkRealNATPortTranslatedResponderReauthsZeInitiator(ctx context.Context, 
 	if err := lab.assertNATVerdict(ctx); err != nil {
 		return err
 	}
-	if _, err := lab.waitEncapSPI(ctx, swanPeer, swanIP, zePublicIP, natFirstPort, nil); err != nil {
+	if err := lab.waitEncapSPI(ctx, swanPeer, swanIP, zePublicIP, natFirstPort, nil); err != nil {
 		return err
 	}
 	if err := lab.natInnerAddress(ctx, zePeer, natTunnelZeInner, natTunnelSwanInner); err != nil {
@@ -152,10 +152,10 @@ func checkRealNATPortTranslatedResponderReauthsZeInitiator(ctx context.Context, 
 	// The successor's Child SA, read on both sides: strongSwan's outbound state
 	// encapsulates to Ze's public port, Ze's to strongSwan's 4500, each with an SPI
 	// the old Child SA did not hold.
-	if _, err := lab.waitEncapSPI(ctx, swanPeer, swanIP, zePublicIP, natFirstPort, before); err != nil {
+	if err := lab.waitEncapSPI(ctx, swanPeer, swanIP, zePublicIP, natFirstPort, before); err != nil {
 		return err
 	}
-	if _, err := lab.waitEncapSPI(ctx, zePeer, zeIP, swanPublicIP, 4500, before); err != nil {
+	if err := lab.waitEncapSPI(ctx, zePeer, zeIP, swanPublicIP, 4500, before); err != nil {
 		return err
 	}
 	if err := lab.requireReauthPingLoss(ctx); err != nil {
@@ -175,21 +175,19 @@ func checkRealNATPortTranslatedResponderReauthsZeInitiator(ctx context.Context, 
 }
 
 // waitEncapSPI waits for an `ip xfrm state` entry on peer from source to target that
-// encapsulates from UDP 4500 to dport, with an SPI outside old, and answers that SPI.
+// encapsulates from UDP 4500 to dport, with an SPI outside old.
 // A nil old accepts any SPI.
-func (l *scenarioLab) waitEncapSPI(ctx context.Context, peer, source, target string, dport uint16, old map[string]struct{}) (string, error) {
+func (l *scenarioLab) waitEncapSPI(ctx context.Context, peer, source, target string, dport uint16, old map[string]struct{}) error {
 	var tb textbuf.Buffer
 	want := tb.Str("encap type espinudp sport 4500 dport ").Int(int64(dport)).String()
-	var spi string
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout: l.timeout, Interval: 2 * time.Second, Description: peer + " outbound " + source + " to " + target + " " + want,
 	}, func(probe context.Context) (string, error) {
 		return l.xfrmState(probe, peer)
 	}, func(state string) bool {
-		spi = newEncapSPI(state, source, target, want, old)
-		return spi != ""
+		return newEncapSPI(state, source, target, want, old) != ""
 	})
-	return spi, err
+	return err
 }
 
 // newEncapSPI finds the state entry from source to target carrying encap whose SPI

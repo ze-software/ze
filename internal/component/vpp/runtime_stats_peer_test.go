@@ -4,6 +4,7 @@
 package vpp
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -125,4 +126,16 @@ func TestVPPStatsProcessDeathDuringReadRefusesSnapshot(t *testing.T) {
 	if err := lease.GetInterfaceStats(&snapshot); err == nil {
 		t.Fatal("dead owner's populated snapshot was accepted")
 	}
+}
+
+func (m *VPPManager) connectRuntimeStats(ctx context.Context,
+	connect func(string) (runtimeStatsClient, error)) (*runtimeStats, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	generation, err := m.connector.ConnectionGeneration()
+	if err != nil {
+		return nil, err
+	}
+	return m.connectRuntimeStatsGeneration(ctx, generation, connect)
 }

@@ -13,6 +13,8 @@ import (
 	"github.com/ze-software/ze/internal/core/opererr"
 )
 
+const dpdkVFIODriver = "vfio-pci"
+
 var errLoadmoduleNotImplementedOnThisPlatform = errors.New("loadModule not implemented on this platform")
 
 // DPDKBinder manages DPDK NIC driver binding and unbinding.
@@ -118,7 +120,7 @@ func restoreDPDKDevice(pci string, original dpdkDriverRestore, ops dpdkBindOps) 
 		return fmt.Errorf("read current driver: %w", err)
 	}
 	if driver != "" && driver != original.driver {
-		if driver != "vfio-pci" {
+		if driver != dpdkVFIODriver {
 			return fmt.Errorf("current driver %q differs from owned vfio-pci and original %q", driver, original.driver)
 		}
 		if err := ops.unbindFromVFIO(pci); err != nil {
@@ -173,11 +175,6 @@ func setDPDKOverride(pci, wanted string, ops dpdkBindOps) error {
 	return nil
 }
 
-// bindPCI binds a single PCI device to vfio-pci.
-func (d *DPDKBinder) bindPCI(pci string) error {
-	return d.bindPCIWithOps(pci, nativeDPDKBindOps())
-}
-
 // bindPCIWithOps binds one device through the caller's captured operations.
 func (d *DPDKBinder) bindPCIWithOps(pci string, ops dpdkBindOps) error {
 	if _, pending := d.savedDrivers[pci]; pending {
@@ -187,7 +184,7 @@ func (d *DPDKBinder) bindPCIWithOps(pci string, ops dpdkBindOps) error {
 	if err != nil {
 		return err
 	}
-	if original.driver == "vfio-pci" {
+	if original.driver == dpdkVFIODriver {
 		return nil // already bound; existing native state remains borrowed
 	}
 	// Take custody before the first native mutation, including driverless NICs.
@@ -199,17 +196,17 @@ func (d *DPDKBinder) bindPCIWithOps(pci string, ops dpdkBindOps) error {
 		}
 	}
 
-	if err := setDPDKOverride(pci, "vfio-pci", ops); err != nil {
+	if err := setDPDKOverride(pci, dpdkVFIODriver, ops); err != nil {
 		return err
 	}
-	if err := ops.rebindDriver(pci, "vfio-pci"); err != nil {
+	if err := ops.rebindDriver(pci, dpdkVFIODriver); err != nil {
 		return fmt.Errorf("bind to vfio-pci: %w", err)
 	}
 	actual, err := ops.currentDriver(pci)
 	if err != nil {
 		return fmt.Errorf("verify vfio-pci binding: %w", err)
 	}
-	if actual != "vfio-pci" {
+	if actual != dpdkVFIODriver {
 		return fmt.Errorf("vfio-pci did not bind: current driver %q", actual)
 	}
 	return nil
@@ -222,7 +219,7 @@ func readDPDKOriginalState(pci string, ops dpdkBindOps) (dpdkDriverRestore, erro
 	if err != nil {
 		return dpdkDriverRestore{}, fmt.Errorf("read current driver: %w", err)
 	}
-	if driver == "vfio-pci" {
+	if driver == dpdkVFIODriver {
 		return dpdkDriverRestore{driver: driver}, nil
 	}
 	override, err := ops.readDriverOverride(pci)

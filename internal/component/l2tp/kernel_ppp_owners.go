@@ -1,6 +1,8 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- worker custody of original PPP files
 // Related: kernel_ppp_owners_linux.go -- native role preparation and cleanup
 
+//go:build linux
+
 package l2tp
 
 import (
@@ -35,3 +37,12 @@ type kernelPPPBridge interface {
 // Execution may allocate resources; preparation performs no native allocation.
 // A missing plan is a refusal, never permission to run an unprepared setup.
 type kernelPPPSetup func() (pppSessionFDs, error)
+
+// kernelPPPTransfer is the exact worker's non-consuming preparation. A later
+// take rechecks both original pointers under the same worker mutex before
+// releasing custody; the configuration's numeric fields grant no ownership.
+type kernelPPPTransfer struct {
+	owner     *pppSessionFDs
+	resources *kernelPPPOwners
+	config    pppkernel.SessionConfig
+}

@@ -33,7 +33,7 @@ func innerOutPolicyTunnels(output, inner string) []string {
 		}
 		fields := strings.Fields(line)
 		if len(fields) >= 2 && fields[0] == "dir" {
-			outbound = fields[1] == "out"
+			outbound = fields[1] == xfrmDirOut
 			continue
 		}
 		if !matched {

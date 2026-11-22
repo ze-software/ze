@@ -40,6 +40,8 @@ var ipv6ForwardingReader = readIPv6Forwarding
 // force_forwarding is 1. A test replaces it.
 var ipv6KernelForwardingReader = readIPv6KernelForwarding
 
+const doctorCodeRAForwarding = "doctor-iface-ra-forwarding"
+
 // raForwardingDoctorCheck is the registration, installed from register.go.
 var raForwardingDoctorCheck = diagnostic.DoctorCheck{
 	Name:         "iface-ra-forwarding",
@@ -50,7 +52,7 @@ var raForwardingDoctorCheck = diagnostic.DoctorCheck{
 	// The check runs anywhere; on a platform with no forwarding sysctl the
 	// reader says "unknown" and the check stays silent.
 	Platforms: []string{diagnostic.DoctorPlatformAny},
-	Codes:     []string{"doctor-iface-ra-forwarding"},
+	Codes:     []string{doctorCodeRAForwarding},
 	Check:     checkRAForwarding,
 }
 
@@ -95,13 +97,14 @@ func checkRAForwarding(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 			}
 			if !on {
 				diags = append(diags, diagnostic.Diagnostic{
-					Code:     "doctor-iface-ra-forwarding",
+					Code:     doctorCodeRAForwarding,
 					Severity: diagnostic.SeverityWarning,
 					Message: tb.Reset().
 						Str("interface ").Str(name).
 						Str(" sends Router Advertisements while net.ipv6.conf.").Str(device).
 						Str(".forwarding is 0; hosts will install a default route through Ze and their off-link traffic will be dropped").
 						String(),
+					Fix: "set ipv6 forwarding true on the unit",
 				})
 				continue
 			}
@@ -113,7 +116,7 @@ func checkRAForwarding(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 				continue
 			}
 			diags = append(diags, diagnostic.Diagnostic{
-				Code:     "doctor-iface-ra-forwarding",
+				Code:     doctorCodeRAForwarding,
 				Severity: diagnostic.SeverityWarning,
 				Message: tb.Reset().
 					Str("interface ").Str(name).
@@ -121,6 +124,7 @@ func checkRAForwarding(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 					Str(".force_forwarding is not 1, so Linux forwards no IPv6 packet and hosts' off-link traffic is dropped; ").
 					Str("set ipv6 forwarding true on the unit, and remove any sysctl setting that holds net.ipv6.conf.all.forwarding at 0 (ze show sysctl names it)").
 					String(),
+				Fix: "set ipv6 forwarding true on the unit; run ze show sysctl to check net.ipv6.conf.all.forwarding",
 			})
 		}
 	}

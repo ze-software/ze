@@ -117,7 +117,7 @@ func clearOutSentScenarioOutcome(t *testing.T, mode string, held, cancelHeld boo
 		t.Fatal(err)
 	}
 	gate := process.GateRecoveryDelivery(t, ctx, proc, func(item process.EventDelivery) bool {
-		return recoverySentFrom(item, "127.0.0.1", "")
+		return recoverySentFrom(item, "")
 	})
 	var completed chan error
 	joined := false

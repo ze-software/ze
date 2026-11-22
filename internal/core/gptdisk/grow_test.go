@@ -164,8 +164,9 @@ func TestGrowIsIdempotent(t *testing.T) {
 func TestGrowLeavesValidTableAtEveryWrite(t *testing.T) {
 	layout := gptfixture.Appliance(1024)
 	old := layout.Partitions[3]
-	full := &stoppingDisk{inner: grownImage(layout, 4096), budget: -1}
-	growth, err := Grow(full, geometry(uint64(len(full.inner.(memDisk)))))
+	fullDisk := grownImage(layout, 4096)
+	full := &stoppingDisk{inner: fullDisk, budget: -1}
+	growth, err := Grow(full, geometry(uint64(len(fullDisk))))
 	if err != nil {
 		t.Fatal(err)
 	}

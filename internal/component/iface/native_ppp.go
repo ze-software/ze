@@ -43,7 +43,7 @@ type NativePPPUnitOwner interface {
 // actual original file Close, every short borrow and every library-retained
 // duplicate Close have completed successfully. Failure grants no retirement.
 // Wait is passive and MUST NOT initiate Close. It checks completed retirement
-// BEFORE selecting ctx.Done, including when ctx is already cancelled. Otherwise
+// BEFORE selecting ctx.Done, including when ctx is already canceled. Otherwise
 // it waits only within ctx. Copied, unminted, nil and zero owners refuse proof.
 // Names, indices, raw fds, absence observations and caller booleans never grant
 // this capability. Primary MUST finish accounting/disconnect and arrange the

@@ -322,7 +322,8 @@ func (r *l2tpReactor) closeUntransferredPPPSession(owner ppp.SessionHandle) erro
 		return nil
 	}
 	value := reflect.ValueOf(owner)
-	//exhaustive:ignore // Only nil-capable kinds need the typed-nil check.
+	// Only nil-capable kinds need the typed-nil check.
+	//exhaustive:ignore
 	switch value.Kind() {
 	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
 		if value.IsNil() {

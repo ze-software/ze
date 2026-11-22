@@ -64,7 +64,7 @@ func waitVirtualLinkKernelRoute(ctx context.Context, lab interoplab.CheckerLab, 
 	var last string
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: 90 * time.Second, Interval: time.Second, Description: "Ze kernel transit route via intermediate router"},
 		func(ctx context.Context) (bool, error) {
-			answer, err := lab.Query(ctx, "ze", []string{"ip", "-j", family, ipObjectRoute, ipActionShow, "exact", prefix}, nil)
+			answer, err := lab.Query(ctx, "ze", []string{"ip", "-j", family, ipObjectRoute, ipActionShow, ipOptionExact, prefix}, nil)
 			last = answer
 			if err != nil {
 				return false, err

@@ -34,7 +34,7 @@ const (
 	framedLinuxDropPriority = "100"
 	// radiusSecret is a fixture value published in this repository. It never
 	// protects anything, and it must not resemble an operator secret.
-	radiusSecret = "ze-vpp-framed-fixture-secret"
+	radiusSecret = "ze-vpp-framed-fixture-secret" //nolint:gosec // G101: a fixture secret published in clients.conf, protecting nothing.
 
 	// framedDestination, framedGateway and framedMetric are the one
 	// Framed-Route FreeRADIUS returns for alice. The gateway is neither

@@ -74,13 +74,13 @@ func TestRecoverySentObserverPayload(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			if got := recoverySentFrom(process.EventDelivery{Output: string(payload)}, "127.0.0.1", "127.0.0.4"); got != tc.want {
+			if got := recoverySentFrom(process.EventDelivery{Output: string(payload)}, "127.0.0.4"); got != tc.want {
 				t.Fatalf("sent observer match = %v, want %v", got, tc.want)
 			}
 		})
 	}
 	for _, output := range []string{"{", `{"namespace":"bgp","event":"update","payload":"not an object"}`} {
-		if recoverySentFrom(process.EventDelivery{Output: output}, "127.0.0.1", "127.0.0.4") {
+		if recoverySentFrom(process.EventDelivery{Output: output}, "127.0.0.4") {
 			t.Fatalf("malformed event matched: %s", output)
 		}
 	}

@@ -202,7 +202,7 @@ func (v *CLIViewTransport) run(w http.ResponseWriter, handle string, request *cl
 	defer func() {
 		request.cancel()
 		if !joined {
-			<-done
+			logCLIViewWorkerErr(<-done)
 		}
 	}()
 	var last cli.BrowserViewFrame
@@ -234,7 +234,7 @@ func (v *CLIViewTransport) run(w http.ResponseWriter, handle string, request *cl
 			}
 			return runErr
 		case <-request.ctx.Done():
-			<-done
+			logCLIViewWorkerErr(<-done)
 			joined = true
 			if request.stopRequested.Load() {
 				last.Sequence = 0
@@ -245,6 +245,19 @@ func (v *CLIViewTransport) run(w http.ResponseWriter, handle string, request *cl
 			return request.ctx.Err()
 		}
 	}
+}
+
+func logCLIViewWorkerErr(err error) {
+	if err == nil {
+		return
+	}
+	if errors.Is(err, context.Canceled) {
+		return
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return
+	}
+	serverLogger.Debug("browser view worker exited with error after cancel", "error", err)
 }
 
 func (v *CLIViewTransport) write(w http.ResponseWriter, request *cliViewRequest, frame cliViewFrame, started *bool) error {

@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"maps"
 	"net/netip"
 	"slices"
 	"sync"
@@ -717,19 +718,17 @@ func reconcilePPPoEClients(cfg *ifaceConfig, active map[string]*PPPoEClient, act
 		return
 	}
 
-	desired := make(map[string]pppoeClientEntry, len(cfg.PPPoEClient))
+	desired := make(map[string]*pppoeClientEntry, len(cfg.PPPoEClient))
 	for index := range cfg.PPPoEClient {
 		e := &cfg.PPPoEClient[index]
 		if !e.Disable {
-			desired[e.Name] = *e
+			desired[e.Name] = e
 		}
 	}
 
 	activeMu.Lock()
 	snapshot := make(map[string]*PPPoEClient, len(active))
-	for name, client := range active {
-		snapshot[name] = client
-	}
+	maps.Copy(snapshot, active)
 	activeMu.Unlock()
 	for name, client := range snapshot {
 		entry, wanted := desired[name]
@@ -740,8 +739,10 @@ func reconcilePPPoEClients(cfg *ifaceConfig, active map[string]*PPPoEClient, act
 		if client.stopped() {
 			stop = true
 		}
-		if pppoeClientConfigChanged(&running, &entry) {
-			stop = true
+		if wanted {
+			if pppoeClientConfigChanged(&running, entry) {
+				stop = true
+			}
 		}
 		if stop {
 			err := client.Stop()
@@ -768,7 +769,7 @@ func reconcilePPPoEClients(cfg *ifaceConfig, active map[string]*PPPoEClient, act
 	// Dial takes a fresh synchronized admission check; transient native work
 	// cannot drop a desired config entry or require another config event.
 	for name, entry := range desired {
-		client := NewPPPoEClient(pppoeClientConfigFrom(&entry), pppoeDialerVar, log)
+		client := NewPPPoEClient(pppoeClientConfigFrom(entry), pppoeDialerVar, log)
 		client.sessionEnded = sessionEnded
 		client.registry = pppoeRegistryFor(active, activeMu)
 		activeMu.Lock()

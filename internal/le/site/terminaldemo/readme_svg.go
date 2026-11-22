@@ -96,7 +96,7 @@ func readmeSVGFrames(decoder *json.Decoder, screen *terminalScreen) ([]readmeSVG
 		}
 		var at float64
 		var kind, text string
-		if string(raw[0]) == "null" {
+		if string(raw[0]) == jsonNull {
 			return nil, 0, errors.New("README cast event time must be a number")
 		}
 		if err := json.Unmarshal(raw[0], &at); err != nil {
@@ -111,7 +111,7 @@ func readmeSVGFrames(decoder *json.Decoder, screen *terminalScreen) ([]readmeSVG
 		if err := json.Unmarshal(raw[1], &kind); err != nil {
 			return nil, 0, fmt.Errorf("README cast event kind: %w", err)
 		}
-		if string(raw[2]) == "null" {
+		if string(raw[2]) == jsonNull {
 			return nil, 0, errors.New("README cast event text must be a string")
 		}
 		if err := json.Unmarshal(raw[2], &text); err != nil {

@@ -200,7 +200,10 @@ func TestOrderedStopJoinsStartFrameAfterItsCurrentWorkersFinish(t *testing.T) {
 			}
 		}
 		select {
-		case <-started:
+		case err := <-started:
+			if err != nil {
+				t.Logf("StartMore exited during cleanup: %v", err)
+			}
 		case <-time.After(pluginStopGrace + time.Second):
 			t.Error("Start caller did not finish after gate release")
 		}

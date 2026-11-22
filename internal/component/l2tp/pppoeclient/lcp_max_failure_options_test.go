@@ -152,7 +152,12 @@ func TestClientLCPMaxFailureDoesNotSpendSuppressedReplies(t *testing.T) {
 			_, err := negotiateLCP(w, reader, make([]byte, 10), clientMaxFailureConfig(1), clientMagic, nil, stop, slog.New(slog.NewTextHandler(io.Discard, nil)), new(uint8))
 			done <- err
 		}()
-		defer func() { close(stop); <-done }()
+		defer func() {
+			close(stop)
+			if err := <-done; err != nil {
+				t.Logf("negotiateLCP stopped during cleanup: %v", err)
+			}
+		}()
 		synctest.Wait()
 		for id := uint8(20); id < 22; id++ {
 			frames <- serverFrame(ppp.LCPConfigureRequest, id, []byte{ppp.LCPOptMagic, 6, 0, 0, 0, 0})

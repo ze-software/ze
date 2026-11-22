@@ -129,7 +129,7 @@ func checkMOBIKE(ctx context.Context, lab *scenarioLab, moving, moved string) er
 func (l *scenarioLab) mobikeMove(ctx context.Context, peer, old, moved, fixed string) error {
 	commands := [][]string{
 		{"ip", ipObjectAddress, "add", moved + "/32", ipArgDev, containerInterface},
-		{"ip", "route", "replace", fixed + "/32", ipArgDev, containerInterface, "src", moved},
+		{"ip", ipWordRoute, "replace", fixed + "/32", ipArgDev, containerInterface, "src", moved},
 		{"ip", ipObjectAddress, "del", old + "/24", ipArgDev, containerInterface},
 	}
 	for _, command := range commands {
@@ -137,7 +137,7 @@ func (l *scenarioLab) mobikeMove(ctx context.Context, peer, old, moved, fixed st
 			return fmt.Errorf("move %s from %s to %s: %w", peer, old, moved, err)
 		}
 	}
-	answer, err := l.exec(ctx, peer, "ip", "-j", "route", "get", fixed)
+	answer, err := l.exec(ctx, peer, "ip", "-j", ipWordRoute, "get", fixed)
 	if err != nil {
 		return err
 	}

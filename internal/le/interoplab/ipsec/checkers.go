@@ -1548,8 +1548,9 @@ func checkESPFormChange(ctx context.Context, lab *scenarioLab) error {
 	return runESPFormPhases(ctx, lab, zeStates, swanStates)
 }
 
-func xfrmStat(ctx context.Context, lab *scenarioLab, peer, name string) (uint64, error) {
-	output, err := lab.query(ctx, peer, "cat", "/proc/net/xfrm_stat")
+func zeXFRMStateMismatch(ctx context.Context, lab *scenarioLab) (uint64, error) {
+	const name = "XfrmInStateMismatch"
+	output, err := lab.query(ctx, zePeer, "cat", "/proc/net/xfrm_stat")
 	if err != nil {
 		return 0, err
 	}
@@ -1563,7 +1564,7 @@ func xfrmStat(ctx context.Context, lab *scenarioLab, peer, name string) (uint64,
 		}
 		return strconv.ParseUint(fields[1], 10, 64)
 	}
-	return 0, fmt.Errorf("%s absent from /proc/net/xfrm_stat in %s", name, peer)
+	return 0, fmt.Errorf("%s absent from /proc/net/xfrm_stat in %s", name, zePeer)
 }
 
 func rawESPDrops(ctx context.Context, lab *scenarioLab) (uint64, error) {
@@ -2751,7 +2752,7 @@ func requireProbeSurvivedRekey(row map[string]any, pathMTU int) error {
 // lists the IKE SA before it installs the Child SA (waitZeSelectors), and a ping
 // sent in between meets no XFRM state and reads as tunnel loss.
 func (l *scenarioLab) requirePaddedProbeSAAlive(ctx context.Context) error {
-	if err := l.requireZeIKEEstablished(ctx, swanConfigPeer); err != nil {
+	if err := l.requireZeIKEEstablished(ctx); err != nil {
 		return err
 	}
 	sas, err := l.listSAs(ctx)
@@ -2777,7 +2778,7 @@ func (l *scenarioLab) waitZeIKEEstablished(ctx context.Context) error {
 	}, func(probe context.Context) (bool, error) {
 		// A missing SA is a transient Wait absorbs until the timeout; the last
 		// error names what ze listed instead.
-		if err := l.requireZeIKEEstablished(probe, swanConfigPeer); err != nil {
+		if err := l.requireZeIKEEstablished(probe); err != nil {
 			return false, err
 		}
 		return true, nil

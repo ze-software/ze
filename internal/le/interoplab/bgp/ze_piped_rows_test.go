@@ -14,7 +14,7 @@ func zePipedRowsDocument(envelope, operation, rows string) string {
 }
 
 // TestDecodeZePipedRows proves the reader takes the one document a piped row
-// query prints and refuses every neighbouring shape: the argument form's bare
+// query prints and refuses every neighboring shape: the argument form's bare
 // array, the RPC envelope with no chain, a chain that lacks the operation the
 // caller relies on, and rows that are absent or null. Each refusal is a case a
 // checker would otherwise read as "no rows".

@@ -164,7 +164,7 @@ func newFollowDeviceRig(t *testing.T) *followDeviceRig {
 // addDummy creates the dummy device name, sets it up and returns its ifindex.
 func (r *followDeviceRig) addDummy(t *testing.T, name string) int {
 	t.Helper()
-	if err := r.h.LinkAdd(&netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: name}}); err != nil {
+	if err := r.h.LinkAdd(&netlink.Dummy{Name: name}); err != nil {
 		t.Fatalf("create dummy %s: %v", name, err)
 	}
 	link, err := r.h.LinkByName(name)

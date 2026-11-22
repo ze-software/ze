@@ -47,7 +47,8 @@ func TestL2TPDetailHonorsReadableQualifiersAndOriginalGuard(t *testing.T) {
 			require.Zero(t, service.unsafeReads)
 			var answer map[string]any
 			require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &answer))
-			snapshot := answer["Session"].(map[string]any)
+			snapshot, ok := answer["Session"].(map[string]any)
+			require.True(t, ok)
 			require.Equal(t, "original", snapshot["Username"])
 			require.Equal(t, birth.String(), snapshot["subscriber-id"])
 		})
@@ -107,10 +108,12 @@ func TestL2TPSessionListsKeepDistinctOriginalNavigation(t *testing.T) {
 	require.Equal(t, http.StatusOK, recorder.Code)
 	var answer map[string]any
 	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &answer))
-	rows := answer["Sessions"].([]any)
+	rows, ok := answer["Sessions"].([]any)
+	require.True(t, ok)
 	require.Len(t, rows, 2)
 	for index, row := range rows {
-		fields := row.(map[string]any)
+		fields, ok := row.(map[string]any)
+		require.True(t, ok)
 		link, ok := fields["detail-url"].(string)
 		require.True(t, ok)
 		checkL2TPOriginalLink(t, link, sessions[index])

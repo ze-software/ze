@@ -322,10 +322,10 @@ func validateSessionPreflight(cfg SessionConfig, ops sessionOps) error {
 
 // Both independent claims are attempted before reporting either failure.
 // Even an internal claim panic cannot strand the other newly supplied owner.
-func claimSessionUnit(source sessionUnitSource) (lease sessionUnitLease, err error, failure any) {
+func claimSessionUnit(source sessionUnitSource) (lease sessionUnitLease, failure any, err error) {
 	defer func() { failure = recover() }()
 	if nilSessionDependency(source) {
-		return nil, errors.New("ppp: no captured unit owner"), nil
+		return nil, nil, errors.New("ppp: no captured unit owner")
 	}
 	lease, err = source.claimSession()
 	if nilSessionDependency(lease) {
@@ -334,12 +334,12 @@ func claimSessionUnit(source sessionUnitSource) (lease sessionUnitLease, err err
 			err = errors.New("ppp: unit supplied no owned lease")
 		}
 	}
-	return lease, err, nil
+	return lease, nil, err
 }
-func claimSessionChannel(source sessionChannelSource) (lease sessionChannelLease, err error, failure any) {
+func claimSessionChannel(source sessionChannelSource) (lease sessionChannelLease, failure any, err error) {
 	defer func() { failure = recover() }()
 	if nilSessionDependency(source) {
-		return nil, errors.New("ppp: no captured channel owner"), nil
+		return nil, nil, errors.New("ppp: no captured channel owner")
 	}
 	lease, err = source.claimSessionChannel()
 	if nilSessionDependency(lease) {
@@ -348,7 +348,7 @@ func claimSessionChannel(source sessionChannelSource) (lease sessionChannelLease
 			err = errors.New("ppp: channel supplied no owned lease")
 		}
 	}
-	return lease, err, nil
+	return lease, nil, err
 }
 
 func sessionClaimPanic(channel, unit any) any {

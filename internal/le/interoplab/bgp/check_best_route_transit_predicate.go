@@ -46,14 +46,14 @@ func requireBestRouteTransitSelected(output string, source netip.Addr) error {
 		return errors.New("denied native prefix has no unique elected Ze route")
 	}
 	if paths[0].Prefix != bestRouteTransitDenied {
-		return errors.New("Ze's denied-route answer names another prefix")
+		return errors.New("denied-route answer from Ze names another prefix")
 	}
 	peer, err := netip.ParseAddr(paths[0].Peer)
 	if err != nil {
 		return err
 	}
 	if peer != source {
-		return errors.New("Ze elected another source for the denied native prefix")
+		return errors.New("denied native prefix elected another source on Ze")
 	}
 	return nil
 }

@@ -116,8 +116,12 @@ func TestSessionNativeACKCannotBlockPhysicalClose(t *testing.T) {
 		t.Error("physical session Close blocked behind native ACK")
 	}
 	close(release)
-	<-mutation
+	if err := <-mutation; err != nil {
+		t.Logf("concurrent SetMTU returned: %v", err)
+	}
 	if !joined {
-		<-closed
+		if err := <-closed; err != nil {
+			t.Error(err)
+		}
 	}
 }

@@ -25,7 +25,7 @@ func init() {
 
 func reportRuntimeStatsFailure(subject string, err error) {
 	report.RaiseWarningFix(runtimeStatsReportSource, diagnostic.CodeDoctorVPPStats, subject,
-		"VPP statistics are unavailable", runtimeStatsFix, map[string]any{"error": err.Error()})
+		"VPP statistics are unavailable", runtimeStatsFix, map[string]any{reportDetailErrorKey: err.Error()})
 }
 
 func checkRuntimeStats(diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
@@ -38,7 +38,7 @@ func checkRuntimeStats(diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 			continue
 		}
 		message := issue.Message
-		if cause, ok := issue.Detail["error"].(string); ok {
+		if cause, ok := issue.Detail[reportDetailErrorKey].(string); ok {
 			message += ": " + cause
 		}
 		findings = append(findings, diagnostic.Diagnostic{Code: diagnostic.CodeDoctorVPPStats,

@@ -117,7 +117,7 @@ func requestStopAfterSettle(plugin *sdk.Plugin, command string) {
 // errorText is the error's text, or "none".
 func errorText(err error) string {
 	if err == nil {
-		return "none"
+		return valueNone
 	}
 	return err.Error()
 }

@@ -1583,7 +1583,7 @@ func kernelQEMUArchAliasFixture(_ context.Context, _ []string) error {
 	defer os.RemoveAll(root) //nolint:errcheck // fixture cleanup
 	err = buildKernel(context.Background(), kernelbuilder.Request{
 		Root: root, Version: versionKernelPinned, Arch: "aarch64", Profile: targetRuntime, Builder: builderQEMU,
-		Target: targetRuntime, SourceDir: "../bad", OutputDir: "out", BuilderDir: dirBuilder,
+		Target: targetRuntime, SourceDir: "../bad", OutputDir: dirOut, BuilderDir: dirBuilder,
 		CommonDir: dirCommon, Modules: valueYes, Fragments: []string{"fragment.config"},
 	})
 	if err == nil {
@@ -2085,7 +2085,7 @@ func syntheticBuildRequest() (string, kernelbuilder.Request, func(), error) {
 	arch, _ := hostKernelArch()
 	req := kernelbuilder.Request{
 		Root: root, Version: versionKernelPinned, Arch: arch, Profile: targetRuntime, Target: targetRuntime,
-		SourceDir: dirSource, OutputDir: "out", BuilderDir: dirBuilder, CommonDir: dirCommon,
+		SourceDir: dirSource, OutputDir: dirOut, BuilderDir: dirBuilder, CommonDir: dirCommon,
 		Modules: valueYes, Fragments: []string{"src/runtime.config"}, Image: "fixture-builder",
 	}
 	return root, req, cleanup, nil

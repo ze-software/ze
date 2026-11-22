@@ -40,7 +40,7 @@ type CreatedUnit struct {
 	closed               bool
 	closeErr             error
 	nativeOperations     *nativeUnitOperationsBinding
-	nativeNamespaceStart func() error // integration-only setter; nil on production owners
+	nativeNamespaceStart func() error //nolint:unused // Used on Linux by created_unit_operations_linux.go and integration tests; nil on production owners.
 	retirement           nativePPPUnitRetirement
 	ready                bool
 	attempted            bool

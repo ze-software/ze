@@ -172,8 +172,7 @@ func (r *vppLifecycle) stop() error {
 	}
 	active.cancel()
 	<-active.done
-	var cleanup nativeCleanupError
-	if errors.As(active.result, &cleanup) {
+	if cleanup, ok := errors.AsType[nativeCleanupError](active.result); ok {
 		active.cleanup = &cleanup
 		return active.result
 	}

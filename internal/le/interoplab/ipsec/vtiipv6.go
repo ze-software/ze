@@ -166,14 +166,14 @@ func (l *scenarioLab) vtiIPv6Negotiated(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := requireIPv6PoliciesOnIfID(parseXFRMBlocks(policies), vtiIPv6IfID); err != nil {
+	if err := requireIPv6PoliciesOnIfID(parseXFRMBlocks(policies)); err != nil {
 		return fmt.Errorf("ze: %w; ip xfrm policy:\n%s", err, interoplab.OutputExcerpt(policies))
 	}
 	states, err := l.xfrmState(ctx, zePeer)
 	if err != nil {
 		return err
 	}
-	if err := requireAFUnspecStates(parseXFRMBlocks(states), vtiIPv6IfID); err != nil {
+	if err := requireAFUnspecStates(parseXFRMBlocks(states)); err != nil {
 		return fmt.Errorf("ze: %w; ip xfrm state:\n%s", err, interoplab.OutputExcerpt(states))
 	}
 	return nil
@@ -185,7 +185,7 @@ func (l *scenarioLab) vtiIPv6Carries(ctx context.Context, message string) error 
 	var tb textbuf.Buffer
 	viaVTI := tb.Str("dev ").Str(vtiIPv6Interface).Byte(' ').String()
 	description := tb.Reset().Str("ze route to ").Str(vtiIPv6SwanInner).Str(" through ").Str(vtiIPv6Interface).String()
-	command := []string{"ip", "-6", "route", "get", vtiIPv6SwanInner}
+	command := []string{"ip", "-6", ipWordRoute, "get", vtiIPv6SwanInner}
 	if _, err := l.waitOutput(ctx, zePeer, command, xfrmWaitTimeout, description, func(output string) bool {
 		return strings.Contains(output+" ", viaVTI)
 	}); err != nil {
@@ -247,7 +247,7 @@ func vtiIPv6PeerReads(peer, device string) []vtiIPv6Read {
 		{peer, []string{"ip", xfrmCommand, ipWordPolicy}},
 		{peer, []string{"ip", "-s", xfrmCommand, ipWordState}},
 		{peer, []string{"cat", "/proc/net/xfrm_stat"}},
-		{peer, []string{"ip", "-6", "route", ipWordShow, "table", "all"}},
+		{peer, []string{"ip", "-6", ipWordRoute, ipWordShow, "table", "all"}},
 		{peer, []string{"ip", "-6", "rule", ipWordShow}},
 		{peer, []string{"ip", "-6", ipObjectAddress, ipWordShow}},
 		{peer, []string{"sysctl", "net.ipv6.conf.all.disable_ipv6", "net.ipv6.conf." + device + ".disable_ipv6"}},
@@ -338,7 +338,7 @@ func parseXFRMBlocks(output string) []xfrmBlock {
 // it discards what no Child SA policy matched, so its IPv4 wildcard admits no IPv4
 // traffic. Any other policy at ifID, a BLOCK at another priority included, is judged
 // against the negotiated ::/0.
-func requireIPv6PoliciesOnIfID(blocks []xfrmBlock, ifID string) error {
+func requireIPv6PoliciesOnIfID(blocks []xfrmBlock) error {
 	directions := map[string]int{xfrmDirOut: 0, xfrmDirIn: 0, xfrmDirFwd: 0}
 	for i := range blocks {
 		block := &blocks[i]
@@ -346,7 +346,7 @@ func requireIPv6PoliciesOnIfID(blocks []xfrmBlock, ifID string) error {
 		if !ok {
 			continue
 		}
-		if bound != ifID {
+		if bound != vtiIPv6IfID {
 			continue
 		}
 		if isInterfaceSPDCatchAll(block) {
@@ -355,24 +355,24 @@ func requireIPv6PoliciesOnIfID(blocks []xfrmBlock, ifID string) error {
 		}
 		direction, ok := block.field("dir")
 		if !ok {
-			return fmt.Errorf("a policy on if_id %s prints no direction", ifID)
+			return fmt.Errorf("a policy on if_id %s prints no direction", vtiIPv6IfID)
 		}
 		if block.source != vtiIPv6Wildcard {
 			return fmt.Errorf("a %s policy on if_id %s selects src %s dst %s; only %s was negotiated",
-				direction, ifID, block.source, block.target, vtiIPv6Wildcard)
+				direction, vtiIPv6IfID, block.source, block.target, vtiIPv6Wildcard)
 		}
 		if block.target != vtiIPv6Wildcard {
 			return fmt.Errorf("a %s policy on if_id %s selects src %s dst %s; only %s was negotiated",
-				direction, ifID, block.source, block.target, vtiIPv6Wildcard)
+				direction, vtiIPv6IfID, block.source, block.target, vtiIPv6Wildcard)
 		}
 		if _, known := directions[direction]; !known {
-			return fmt.Errorf("a policy on if_id %s has direction %q", ifID, direction)
+			return fmt.Errorf("a policy on if_id %s has direction %q", vtiIPv6IfID, direction)
 		}
 		directions[direction]++
 	}
 	for _, direction := range []string{xfrmDirOut, xfrmDirIn, xfrmDirFwd} {
 		if directions[direction] != 1 {
-			return fmt.Errorf("if_id %s holds %d %s policies for %s, want 1", ifID, directions[direction], direction, vtiIPv6Wildcard)
+			return fmt.Errorf("if_id %s holds %d %s policies for %s, want 1", vtiIPv6IfID, directions[direction], direction, vtiIPv6Wildcard)
 		}
 	}
 	return nil
@@ -392,8 +392,8 @@ func isInterfaceSPDCatchAll(block *xfrmBlock) bool {
 }
 
 // requireAFUnspecStates refuses unless at least the two states of one Child SA are bound
-// to ifID, and every state bound to it carries af-unspec in its flag list.
-func requireAFUnspecStates(blocks []xfrmBlock, ifID string) error {
+// to vtiIPv6IfID, and every state bound to it carries af-unspec in its flag list.
+func requireAFUnspecStates(blocks []xfrmBlock) error {
 	bound := 0
 	for i := range blocks {
 		block := &blocks[i]
@@ -401,17 +401,17 @@ func requireAFUnspecStates(blocks []xfrmBlock, ifID string) error {
 		if !ok {
 			continue
 		}
-		if value != ifID {
+		if value != vtiIPv6IfID {
 			continue
 		}
 		bound++
 		if !blockHasFlag(block, vtiIPv6AFUnspec) {
 			return fmt.Errorf("the state %s -> %s on if_id %s lacks %s, so the kernel gives its selector the outer family and no IPv6 flow finds it",
-				block.source, block.target, ifID, vtiIPv6AFUnspec)
+				block.source, block.target, vtiIPv6IfID, vtiIPv6AFUnspec)
 		}
 	}
 	if bound < 2 {
-		return fmt.Errorf("%d states are bound to if_id %s, want the two of the Child SA", bound, ifID)
+		return fmt.Errorf("%d states are bound to if_id %s, want the two of the Child SA", bound, vtiIPv6IfID)
 	}
 	return nil
 }

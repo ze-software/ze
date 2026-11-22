@@ -133,13 +133,13 @@ func thirdPartyIdentity(ctx context.Context, lab interoplab.CheckerLab, device s
 // which makes Ze's kernel resolve both by Neighbor Discovery, then requires
 // Ze's neighbor table to bind both to frr-sink's MAC.
 func resolveThirdParty(ctx context.Context, lab interoplab.CheckerLab, device string, global, linkLocal netip.Addr, mac net.HardwareAddr) error {
-	if _, err := lab.Query(ctx, "ze", []string{"ping", "-c", "1", "-W", "2", global.String()}, nil); err != nil {
+	if _, err := lab.Query(ctx, "ze", []string{cmdPing, "-c", "1", "-W", "2", global.String()}, nil); err != nil {
 		return fmt.Errorf("ping %s from ze: %w", global, err)
 	}
-	if _, err := lab.Query(ctx, "ze", []string{"ping", "-c", "1", "-W", "2", "-I", device, linkLocal.String()}, nil); err != nil {
+	if _, err := lab.Query(ctx, "ze", []string{cmdPing, "-c", "1", "-W", "2", "-I", device, linkLocal.String()}, nil); err != nil {
 		return fmt.Errorf("ping %s from ze: %w", linkLocal, err)
 	}
-	table, err := lab.Query(ctx, "ze", []string{"ip", "-j", "-6", "neigh", "show", "dev", device}, nil)
+	table, err := lab.Query(ctx, "ze", []string{"ip", "-j", "-6", "neigh", ipActionShow, ipOptionDevice, device}, nil)
 	if err != nil {
 		return err
 	}

@@ -4,9 +4,10 @@ package plugin
 import (
 	"context"
 	"errors"
+	"net/netip"
+
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
-	"net/netip"
 )
 
 func (c *Coordinator) boundForwardReactor() (ReactorBoundForwardCoordinator, error) {

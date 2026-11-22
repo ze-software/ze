@@ -25,12 +25,12 @@ func protocolSelectorPayloads(t *testing.T, proto uint8, port uint16) (*wire.Pay
 		local, remote = "2001:db8:1::/64", "2001:db8:2::/64"
 	}
 	return &wire.PayloadTS{
-			TSPayloadType:    wire.PayloadTypeTSi,
-			TrafficSelectors: []wire.TrafficSelector{wireSel(t, local, port, port, proto)},
-		}, &wire.PayloadTS{
-			TSPayloadType:    wire.PayloadTypeTSr,
-			TrafficSelectors: []wire.TrafficSelector{wireSel(t, remote, 0, 65535, proto)},
-		}
+		TSPayloadType:    wire.PayloadTypeTSi,
+		TrafficSelectors: []wire.TrafficSelector{wireSel(t, local, port, port, proto)},
+	}, &wire.PayloadTS{
+		TSPayloadType:    wire.PayloadTypeTSr,
+		TrafficSelectors: []wire.TrafficSelector{wireSel(t, remote, 0, 65535, proto)},
+	}
 }
 
 // TestTSProtocolRequestsRefuseUndefinedPorts drives the actual responder

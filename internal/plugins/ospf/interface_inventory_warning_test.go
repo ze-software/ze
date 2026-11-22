@@ -145,7 +145,7 @@ func openInventoryWarningInstance(t *testing.T, manager *instanceManager) *engin
 	return eng
 }
 
-func requireInventoryReports(t *testing.T, requests <-chan rpc.ReportIssueInput, action rpc.ReportAction) map[string]rpc.ReportIssueInput {
+func requireInventoryReports(t *testing.T, requests <-chan rpc.ReportIssueInput, action rpc.ReportAction) {
 	t.Helper()
 	want := map[string]bool{"lan0 instance 7": true, "lo instance 7": true}
 	got := make(map[string]rpc.ReportIssueInput)
@@ -167,7 +167,6 @@ func requireInventoryReports(t *testing.T, requests <-chan rpc.ReportIssueInput,
 			t.Fatalf("maintenance did not send both %s identities; got %+v", action, got)
 		}
 	}
-	return got
 }
 
 // VALIDATES: removing instance 7 leaves failed clears with the base publisher,

@@ -29,7 +29,7 @@ func TestExitCleanupInternalKeepsCompleteUnicodeProcessIdentity(t *testing.T) {
 	t.Cleanup(func() { proc.Stop(); exitCleanupJoin(t, proc) })
 	proc.Stop()
 	exitCleanupJoin(t, proc)
-	issue := exitCleanupIssue(t, exitCleanupCause)
+	issue := exitCleanupIssue(t)
 	if got := issue.Detail["process"]; got != name {
 		t.Fatalf("original full process identity changed: got=%q want=%q", got, name)
 	}

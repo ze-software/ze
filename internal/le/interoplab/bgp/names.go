@@ -171,11 +171,18 @@ const (
 	ipObjectRoute      = "route"
 	ipObjectXfrm       = "xfrm"
 	ipOptionDevice     = "dev"
+	ipOptionExact      = "exact"
 	// ipLinkAddress is the link-layer (MAC) address attribute of
 	// `ip link add` and `ip link set`, not the address object.
 	ipLinkAddress = "address"
 	ipScopeLink   = "link"
 	linkDown      = "down"
+)
+
+const (
+	cmdShowStatus          = "show status"
+	zeOSPFv3IPv4AF         = `"address-family": "ipv4-unicast"`
+	zeOSPFv3IPv4InstanceID = `"instance-id": 64`
 )
 
 // nft(8) words. The GTSM scenario counts a rejected segment with them, the

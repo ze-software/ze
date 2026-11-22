@@ -317,7 +317,7 @@ func parseTape(path, root string) (terminalTape, error) {
 		word, argument, _ := strings.Cut(line.text, " ")
 		name, modifier, _ := strings.Cut(word, "+")
 		requiresArgument := name == "Output" || name == "Screenshot" || name == "Set" || name == tapeCardCommand || name == tapeSleepCommand || name == tapeSourceCommand || name == tapeTypeCommand || name == tapeWaitCommand
-		known := name == "Down" || name == "Enter" || name == "Escape" || name == tapeHideCommand || name == "Left" || requiresArgument || name == tapeShowCommand
+		known := name == "Down" || name == tapeEnterCommand || name == "Escape" || name == tapeHideCommand || name == "Left" || requiresArgument || name == tapeShowCommand
 		if !known {
 			return terminalTape{}, fmt.Errorf("%s: unknown directive %q", line.where, word)
 		}
@@ -926,7 +926,7 @@ func driveTape(tape terminalTape, output string, columns, rows int) (*castWriter
 			}
 		}
 		// Only an Enter directly after a Type ends a typed command line.
-		if action.name != tapeTypeCommand && action.name != "Enter" {
+		if action.name != tapeTypeCommand && action.name != tapeEnterCommand {
 			session.typed = false
 		}
 		switch action.name {
@@ -947,7 +947,7 @@ func driveTape(tape terminalTape, output string, columns, rows int) (*castWriter
 			session.cardHold = action.duration
 			err = session.typeText(action.text)
 			session.typed = true
-		case "Enter":
+		case tapeEnterCommand:
 			err = session.pauseBeforeEnter()
 			if err == nil {
 				err = session.send(ptyKeys[keyEnter])

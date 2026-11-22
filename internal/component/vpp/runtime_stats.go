@@ -131,18 +131,6 @@ func (m *VPPManager) activateRuntimeStatsGeneration(ctx context.Context, generat
 	return lease, nil
 }
 
-func (m *VPPManager) connectRuntimeStats(ctx context.Context,
-	connect func(string) (runtimeStatsClient, error)) (*runtimeStats, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	generation, err := m.connector.ConnectionGeneration()
-	if err != nil {
-		return nil, err
-	}
-	return m.connectRuntimeStatsGeneration(ctx, generation, connect)
-}
-
 // connectRuntimeStatsGeneration MUST retain the supplied original epoch rather
 // than select a replacement between the caller's entry check and this helper.
 func (m *VPPManager) connectRuntimeStatsGeneration(ctx context.Context, generation uint64,

@@ -29,7 +29,7 @@ const (
 
 func checkISISDefaultLevelLoopbacks(ctx context.Context, check *interoplab.CheckContext) error {
 	prerequisites := []operation{
-		{kind: opWaitContains, peer: "ze", command: []string{"ip", "-o", "-4", "address", "show", "dev", "lo"}, contains: []string{"127.0.0.1/8", "10.80.0.2/32"}, timeout: 30 * time.Second},
+		{kind: opWaitContains, peer: "ze", command: []string{"ip", "-o", "-4", ipObjectAddress, ipActionShow, ipOptionDevice, "lo"}, contains: []string{"127.0.0.1/8", "10.80.0.2/32"}, timeout: 30 * time.Second},
 		// FRR 10.7.1 isis_adj_print_vty emits these fields together for one adjacency.
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show isis neighbor detail"}, contains: []string{"Interface: eth0, Level: 2, State: Up"}, timeout: 90 * time.Second},
 	}
@@ -45,7 +45,7 @@ func checkISISDefaultLevelLoopbacks(ctx context.Context, check *interoplab.Check
 
 func checkOSPFLoopbackPrefixes(ctx context.Context, check *interoplab.CheckContext) error {
 	prerequisites := []operation{
-		{kind: opWaitContains, peer: "ze", command: []string{"ip", "-o", "-4", "address", "show", "dev", "lo"}, contains: []string{"127.0.0.1/8", "10.81.0.2/32", "10.81.1.2/32"}, timeout: 30 * time.Second},
+		{kind: opWaitContains, peer: "ze", command: []string{"ip", "-o", "-4", ipObjectAddress, ipActionShow, ipOptionDevice, "lo"}, contains: []string{"127.0.0.1/8", "10.81.0.2/32", "10.81.1.2/32"}, timeout: 30 * time.Second},
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, timeout: 90 * time.Second},
 	}
 	for index := range prerequisites {
@@ -81,19 +81,19 @@ func checkIGPLoopbackRoutes(ctx context.Context, check *interoplab.CheckContext,
 	// redundant protocol field when that filter is explicit.
 	route := operation{
 		kind: opWaitContains, peer: "ze",
-		command:  []string{"ip", "-N", "-4", "route", "show", "exact", frrPrefix.String(), "proto", "250"},
+		command:  []string{"ip", "-N", "-4", ipObjectRoute, ipActionShow, ipOptionExact, frrPrefix.String(), "proto", "250"},
 		contains: []string{frrPrefix.Addr().String(), "via " + frrHop + " dev eth0"},
 		timeout:  90 * time.Second,
 	}
 	if err := runOperation(ctx, check.Network, check.Lab, &route); err != nil {
-		return fmt.Errorf("Ze reciprocal kernel route: %w", err)
+		return fmt.Errorf("reciprocal kernel route on Ze: %w", err)
 	}
 	for _, prefix := range zePrefixes {
-		toFRR := operation{kind: opExec, peer: "ze", command: []string{"ping", "-n", "-c", "1", "-W", "2", "-I", prefix.Addr().String(), frrPrefix.Addr().String()}}
+		toFRR := operation{kind: opExec, peer: "ze", command: []string{cmdPing, "-n", "-c", "1", "-W", "2", "-I", prefix.Addr().String(), frrPrefix.Addr().String()}}
 		if err := runOperation(ctx, check.Network, check.Lab, &toFRR); err != nil {
-			return fmt.Errorf("Ze loopback %s to FRR %s: %w", prefix, frrPrefix, err)
+			return fmt.Errorf("loopback %s on Ze to FRR %s: %w", prefix, frrPrefix, err)
 		}
-		toZe := operation{kind: opExec, peer: peerFRR, command: []string{"ping", "-n", "-c", "1", "-W", "2", "-I", frrPrefix.Addr().String(), prefix.Addr().String()}}
+		toZe := operation{kind: opExec, peer: peerFRR, command: []string{cmdPing, "-n", "-c", "1", "-W", "2", "-I", frrPrefix.Addr().String(), prefix.Addr().String()}}
 		if err := runOperation(ctx, check.Network, check.Lab, &toZe); err != nil {
 			return fmt.Errorf("FRR loopback %s to Ze %s: %w", frrPrefix, prefix, err)
 		}

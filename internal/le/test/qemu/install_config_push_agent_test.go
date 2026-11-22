@@ -97,8 +97,8 @@ func TestApplianceConfigPushAgentOwnsWorkers(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		_ = connection.Close()
-		<-stopped
-		t.Fatal("agent cleanup did not close and join its accepted idle connection")
+		stopErr := <-stopped
+		t.Fatalf("agent cleanup did not close and join its accepted idle connection (stop=%v)", stopErr)
 	}
 	if _, err := client.List(); err == nil {
 		t.Fatal("agent connection survived cleanup")

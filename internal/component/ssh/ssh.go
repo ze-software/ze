@@ -924,7 +924,7 @@ func (s *Server) execMiddleware() wish.Middleware {
 			// The exec channel reads the rendering key alone, before any
 			// command runs, so a value of it this daemon does not define is
 			// refused by name rather than ignored (execStreamRendering). Only
-			// the stream route below honours it. The interactive keys
+			// the stream route below honors it. The interactive keys
 			// (ZE_CONFIG_NAME, ZE_CLI_MODE) select a terminal, and a one-shot
 			// exec has none, so it still ignores them.
 			rendering, renderingErr := execStreamRendering(sess.Environ())

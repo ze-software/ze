@@ -74,7 +74,7 @@ func (s *managedChildStop) confirmed() bool { return s != nil && s.killed.Load()
 // expectedVPPKill classifies only the actual result of this original command's
 // Wait. A wrapped/joined error or another command's ProcessState is not proof.
 func expectedVPPKill(cmd *exec.Cmd, err error) bool {
-	exit, ok := err.(*exec.ExitError)
+	exit, ok := err.(*exec.ExitError) //nolint:errorlint // Only the direct original Wait exit error proves this child's kill; wrapped or joined errors keep their other causes.
 	if !ok || cmd.ProcessState == nil || exit.ProcessState != cmd.ProcessState {
 		return false
 	}
@@ -93,7 +93,7 @@ func managedChildCleanup(ctx context.Context, cmd *exec.Cmd, killErr, waitErr er
 	if (ownedKill || automaticKill) && expectedVPPKill(cmd, waitErr) {
 		waitErr = nil
 	}
-	if waitErr != nil && waitErr == ctx.Err() && cmd.ProcessState != nil && cmd.ProcessState.Success() {
+	if waitErr != nil && waitErr == ctx.Err() && cmd.ProcessState != nil && cmd.ProcessState.Success() { //nolint:errorlint // Only exact ctx.Err identity proves clean cancellation; a joined cleanup error must survive.
 		waitErr = nil // exact cancellation plus an actual successful reap is clean
 	}
 	result := managedVPPWaitResult(ctx, cmd, waitErr)
@@ -109,18 +109,14 @@ func managedVPPWaitResult(ctx context.Context, cmd *exec.Cmd, waitErr error) err
 	if waitErr == nil {
 		return nil
 	}
-	exit, reapedExit := waitErr.(*exec.ExitError)
+	exit, reapedExit := waitErr.(*exec.ExitError) //nolint:errorlint // Only the direct original Wait exit error is a normal reaped crash; a joined error keeps its cleanup classification.
 	if reapedExit && exit.ProcessState == cmd.ProcessState && cmd.ProcessState != nil {
 		return waitErr
 	}
-	if waitErr == ctx.Err() && cmd.ProcessState != nil && cmd.ProcessState.Success() {
+	if waitErr == ctx.Err() && cmd.ProcessState != nil && cmd.ProcessState.Success() { //nolint:errorlint // Only exact ctx.Err identity proves clean cancellation; a joined cleanup error must survive.
 		return waitErr
 	}
 	return nativeCleanupError{cause: waitErr}
-}
-
-func stopVPPChild(ctx context.Context, cmd *exec.Cmd) error {
-	return stopVPPChildWithStop(ctx, cmd, nil)
 }
 
 func stopVPPChildWithStop(ctx context.Context, cmd *exec.Cmd, stop *managedChildStop) error {

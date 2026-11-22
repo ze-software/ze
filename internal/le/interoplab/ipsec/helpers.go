@@ -2172,15 +2172,15 @@ func requireCharonParsedProbes(logs string) error {
 
 // requireZeIKEEstablished refuses unless `show vpn ipsec sa` lists an established
 // IKE SA for the configured peer.
-func (l *scenarioLab) requireZeIKEEstablished(ctx context.Context, peer string) error {
+func (l *scenarioLab) requireZeIKEEstablished(ctx context.Context) error {
 	records, answer, err := l.zeIKESAs(ctx)
 	if err != nil {
 		return err
 	}
 	for _, record := range records {
-		if record["peer-name"] == peer && record["state"] == "established" {
+		if record["peer-name"] == swanConfigPeer && record["state"] == "established" {
 			return nil
 		}
 	}
-	return fmt.Errorf("ze lists no established IKE SA for %s; answer: %s", peer, answer)
+	return fmt.Errorf("ze lists no established IKE SA for %s; answer: %s", swanConfigPeer, answer)
 }

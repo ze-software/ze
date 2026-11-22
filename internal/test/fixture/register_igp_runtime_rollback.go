@@ -53,7 +53,7 @@ func runIGPRuntimeRollback(ctx context.Context) error {
 		if err := igpRuntimeRollbackDispatch(ctx, plugin, "show reload-status", &before); err != nil {
 			return err
 		}
-		if before.Outcome != "none" {
+		if before.Outcome != valueNone {
 			return fmt.Errorf("initial reload status = %+v, want no processed reload", before)
 		}
 		// Plugin readiness can precede the parent runner's marker publication.

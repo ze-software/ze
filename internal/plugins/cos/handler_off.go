@@ -30,13 +30,6 @@ type updateQoSFunc func(ifaceName string, ingress, egress map[uint32]uint32) err
 
 type cosHandler struct{}
 
-// newCosHandler is the ze_l2tp-off no-op constructor: no event subscriptions,
-// no session state. register.go still stores and stops the handle, so both
-// paths stay identical in shape.
-func newCosHandler(ze.EventBus, updateQoSFunc, func(rpc.ReportIssueInput) error) *cosHandler {
-	return &cosHandler{}
-}
-
 func (h *cosHandler) stop() {}
 
 func sessionCommandDecls() []sdk.CommandDecl { return nil }

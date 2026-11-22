@@ -3,9 +3,10 @@ package plugin
 
 import (
 	"context"
+	"net/netip"
+
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
-	"net/netip"
 )
 
 // ReactorBoundForwardCoordinator is the captured variant of the existing cache

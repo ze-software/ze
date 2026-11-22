@@ -346,7 +346,10 @@ func TestDoReloadRadiusRemovalLateBindFailurePreservesAccounting(t *testing.T) {
 			release()
 			if !newerJoined {
 				select {
-				case <-newerDone:
+				case err := <-newerDone:
+					if err != nil {
+						t.Logf("rejecting reload exited during cleanup: %v", err)
+					}
 				case <-time.After(5 * time.Second):
 					t.Error("rejecting reload did not unwind during cleanup")
 				}

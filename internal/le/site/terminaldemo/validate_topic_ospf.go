@@ -51,7 +51,7 @@ func observeTopicOSPF(stage string) error {
 		if err != nil {
 			return err
 		}
-		if strings.TrimSpace(answer) == "[]" || strings.TrimSpace(answer) == "null" {
+		if strings.TrimSpace(answer) == "[]" || strings.TrimSpace(answer) == jsonNull {
 			return nil
 		}
 		return fmt.Errorf("OSPF neighbors exist before live commit: %s", answer)

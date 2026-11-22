@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -262,7 +263,7 @@ func readmeSVGTestFrames(t *testing.T, content []byte) []readmeSVGTestFrame {
 	frameDepth, depth := 0, 0
 	for {
 		token, err := decoder.Token()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return frames
 		}
 		if err != nil {

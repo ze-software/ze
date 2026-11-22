@@ -172,7 +172,7 @@ func recoveryDeliveryScenario(t *testing.T, mode string, target, delayed bool) {
 		if id, ok := recoveryReceivedFrom(delivery, "127.0.0.2"); ok {
 			receivedCut.Store(id)
 		}
-		return recoverySentFrom(delivery, "127.0.0.1", "127.0.0.4")
+		return recoverySentFrom(delivery, "127.0.0.4")
 	})
 	deliveryGates = append(deliveryGates, gate)
 	// The socket close also delivers a real DOWN event to RS, whose normal
@@ -607,7 +607,8 @@ func recoveryReceivedFrom(delivery process.EventDelivery, source string) (uint64
 		envelope.BGP.Peer.Remote.Address == source
 }
 
-func recoverySentFrom(delivery process.EventDelivery, destination, source string) bool {
+func recoverySentFrom(delivery process.EventDelivery, source string) bool {
+	const destination = "127.0.0.1"
 	if event, ok := delivery.Event.(*rpc.StructuredEvent); ok {
 		if event.Direction != rpc.DirectionSent || event.PeerAddress != destination {
 			return false

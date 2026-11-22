@@ -85,7 +85,9 @@ func TestOSPFDeferredExternalOriginatesWithNoInterface(t *testing.T) {
 	if !eng.advertises(t, ctx, prefix.Addr().String()) {
 		t.Fatal("the offered route was not originated")
 	}
-	consumer.WithdrawRoute(ctx, family.IPv4Unicast, configredist.RouteRemoval{Prefix: prefix.String()})
+	if err := consumer.WithdrawRoute(ctx, family.IPv4Unicast, configredist.RouteRemoval{Prefix: prefix.String()}); err != nil {
+		t.Fatalf("WithdrawRoute: %v", err)
+	}
 	if eng.advertises(t, ctx, prefix.Addr().String()) {
 		t.Fatal("the withdrawn route is still advertised")
 	}

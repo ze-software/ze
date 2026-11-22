@@ -100,8 +100,12 @@ func TestStaticStartupRoutesWaitForAllPluginsReady(t *testing.T) {
 		cancel()
 		_ = p.Close()
 		_ = mux.Close()
-		<-run
-		<-served
+		if err := <-run; err != nil {
+			t.Logf("plugin run exited during cleanup: %v", err)
+		}
+		if err := <-served; err != nil {
+			t.Logf("fake engine exited during cleanup: %v", err)
+		}
 		rm.shutdown()
 	})
 

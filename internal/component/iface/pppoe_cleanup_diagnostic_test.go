@@ -47,15 +47,15 @@ func TestPPPoECleanupDiagnosticUsesOwningSDK(t *testing.T) {
 				if method != rpc.MethodReportIssue {
 					return nil, pluginengine.ErrUnhandledRPC
 				}
-				if !set.mu.TryLock() {
-					t.Error("cleanup report held the registry mutex across SDK I/O")
-				} else {
+				if set.mu.TryLock() {
 					set.mu.Unlock()
-				}
-				if !original.mu.TryLock() {
-					t.Error("cleanup report held the original client mutex across SDK I/O")
 				} else {
+					t.Error("cleanup report held the registry mutex across SDK I/O")
+				}
+				if original.mu.TryLock() {
 					original.mu.Unlock()
+				} else {
+					t.Error("cleanup report held the original client mutex across SDK I/O")
 				}
 				var in rpc.ReportIssueInput
 				if err := json.Unmarshal(raw, &in); err != nil {

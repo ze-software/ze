@@ -48,5 +48,5 @@ func startManagedProcess(cmd *exec.Cmd) (*processWitness, error) {
 
 // Every failure after Start owns the child and joins it before returning.
 func reapManagedStart(cmd *exec.Cmd, failure error) error {
-	return errors.Join(failure, stopVPPChild(context.Background(), cmd))
+	return errors.Join(failure, stopVPPChildWithStop(context.Background(), cmd, nil))
 }

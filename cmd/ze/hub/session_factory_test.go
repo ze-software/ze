@@ -292,7 +292,7 @@ func TestSessionEditorOpensDeclaredClient(t *testing.T) {
 
 // typeSessionLine types line into a session model, presses Enter, and runs
 // the command the key answered with, as the bubbletea program would.
-func typeSessionLine(t *testing.T, model cli.Model, line string) cli.Model {
+func typeSessionLine(t *testing.T, model *cli.Model, line string) cli.Model {
 	t.Helper()
 	model.SetInput(line)
 	updated, cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
@@ -327,7 +327,7 @@ func TestSessionFactoryFailsClosedWithoutAuthorizer(t *testing.T) {
 	require.True(t, ok, "session model type = %T, want cli.Model", created)
 	t.Cleanup(func() { _ = model.Close() })
 
-	model = typeSessionLine(t, model, "set system host denied-host")
+	model = typeSessionLine(t, &model, "set system host denied-host")
 	assert.Contains(t, model.View().Content, plugin.UnauthorizedMessage+": "+plugin.ConfigAuthSet)
 	for _, key := range []string{cli.ChangePath("router.conf", "operator"), cli.DraftPath("router.conf")} {
 		if !store.Exists(key) {
@@ -338,7 +338,7 @@ func TestSessionFactoryFailsClosedWithoutAuthorizer(t *testing.T) {
 		assert.NotContains(t, string(data), "denied-host", "a refused set reached the candidate in %s", key)
 	}
 
-	model = typeSessionLine(t, model, "show system")
+	model = typeSessionLine(t, &model, "show system")
 	assert.Contains(t, model.View().Content, authzSeedHost, "display must keep answering without an authorizer")
 }
 

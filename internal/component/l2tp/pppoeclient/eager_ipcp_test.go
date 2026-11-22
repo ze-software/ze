@@ -72,7 +72,9 @@ func TestClientEagerIPCPReaders(t *testing.T) {
 						close(gate.release)
 					}
 					close(stop)
-					<-result
+					if err := <-result; err != nil {
+						t.Logf("negotiatePhases stopped during cleanup: %v", err)
+					}
 				}()
 				go func() {
 					var ipcpID, lcpID, papID, rejectID uint8

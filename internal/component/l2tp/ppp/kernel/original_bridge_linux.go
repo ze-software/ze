@@ -46,11 +46,17 @@ func newOriginalChannelBridge(first, second sessionChannelSource, prepare func(*
 	bridge = &OriginalChannelBridge{}
 	owned := bridge
 	transferred := false
-	defer owned.finishConstruction(&transferred, &err)
+	defer func() {
+		if transferred {
+			return
+		}
+		failure := recover()
+		err = owned.finishFailedConstruction(failure, err)
+	}()
 	var firstErr, secondErr error
 	var firstPanic, secondPanic any
-	owned.first, firstErr, firstPanic = claimSessionChannel(first)
-	owned.second, secondErr, secondPanic = claimSessionChannel(second)
+	owned.first, firstPanic, firstErr = claimSessionChannel(first)
+	owned.second, secondPanic, secondErr = claimSessionChannel(second)
 	if failure := sessionClaimPanic(firstPanic, secondPanic); failure != nil {
 		panic(failure)
 	}
@@ -68,11 +74,7 @@ func newOriginalChannelBridge(first, second sessionChannelSource, prepare func(*
 	return owned, nil
 }
 
-func (bridge *OriginalChannelBridge) finishConstruction(transferred *bool, err *error) {
-	if *transferred {
-		return
-	}
-	failure := recover()
+func (bridge *OriginalChannelBridge) finishFailedConstruction(failure any, err error) error {
 	var firstErr, secondErr error
 	if bridge.first != nil {
 		firstErr = closeOriginalSessionFile(func() error { return closeOwnedSessionChannel(bridge.first, nil, nil) })
@@ -89,7 +91,7 @@ func (bridge *OriginalChannelBridge) finishConstruction(transferred *bool, err *
 		}
 		panic(failure)
 	}
-	*err = RecordSetupCleanup(*err, cleanupErr)
+	return RecordSetupCleanup(err, cleanupErr)
 }
 
 func prepareOriginalChannelBridge(bridge *OriginalChannelBridge) error {
