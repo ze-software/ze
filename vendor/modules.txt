@@ -4,8 +4,8 @@
 # 4d63.com/gochecknoglobals v0.2.2
 ## explicit; go 1.18
 4d63.com/gochecknoglobals/checknoglobals
-# charm.land/bubbles/v2 v2.2.1
-## explicit; go 1.25.0
+# charm.land/bubbles/v2 v2.2.2
+## explicit; go 1.26.0
 charm.land/bubbles/v2/cursor
 charm.land/bubbles/v2/internal/runeutil
 charm.land/bubbles/v2/key
@@ -1233,8 +1233,8 @@ github.com/quasilyte/stdinfo
 # github.com/raeperd/recvcheck v0.3.2
 ## explicit; go 1.26.0
 github.com/raeperd/recvcheck
-# github.com/rivo/uniseg v0.4.7
-## explicit; go 1.18
+# github.com/rivo/uniseg v0.4.8-0.20261110175422-3a370411ca06
+## explicit; go 1.23
 github.com/rivo/uniseg
 # github.com/rogpeppe/go-internal v1.16.0
 ## explicit; go 1.25
