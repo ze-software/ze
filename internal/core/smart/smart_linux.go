@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"os"
+	"runtime"
 	"strings"
 	"unsafe"
 
@@ -88,6 +89,7 @@ func detectATA(deviceName string) *Info {
 		hdioDriveCmd,
 		uintptr(unsafe.Pointer(&statusBuf[0])), //nolint:gosec // HDIO_DRIVE_CMD requires raw buffer pointer
 	)
+	runtime.KeepAlive(&statusBuf)
 	if errno != 0 {
 		if isPermissionErrno(errno) {
 			return permissionDenied()
@@ -112,6 +114,7 @@ func detectATA(deviceName string) *Info {
 		hdioDriveCmd,
 		uintptr(unsafe.Pointer(&dataBuf[0])), //nolint:gosec // HDIO_DRIVE_CMD requires raw buffer pointer
 	)
+	runtime.KeepAlive(&dataBuf)
 	if errno != 0 {
 		return info
 	}
@@ -171,6 +174,8 @@ func detectNVMe(deviceName string) *Info {
 		nvmeIoctlAdminCmd,
 		uintptr(unsafe.Pointer(&cmd)), //nolint:gosec // NVMe admin passthrough requires raw struct pointer
 	)
+	runtime.KeepAlive(&buf)
+	runtime.KeepAlive(&cmd)
 	if errno != 0 {
 		if isPermissionErrno(errno) {
 			return permissionDenied()
@@ -208,6 +213,7 @@ func enableATA(deviceName string) error {
 		hdioDriveCmd,
 		uintptr(unsafe.Pointer(&buf[0])), //nolint:gosec // HDIO_DRIVE_CMD requires raw buffer pointer
 	)
+	runtime.KeepAlive(&buf)
 	if errno != 0 {
 		return errno
 	}
@@ -233,6 +239,7 @@ func enableNVMe(deviceName string) error {
 		nvmeIoctlAdminCmd,
 		uintptr(unsafe.Pointer(&cmd)), //nolint:gosec // NVMe admin passthrough requires raw struct pointer
 	)
+	runtime.KeepAlive(&cmd)
 	if errno != 0 {
 		return errno
 	}
@@ -265,6 +272,7 @@ func startSelfTestATA(deviceName string, testType SelfTestType) error {
 		hdioDriveCmd,
 		uintptr(unsafe.Pointer(&buf[0])), //nolint:gosec // HDIO_DRIVE_CMD requires raw buffer pointer
 	)
+	runtime.KeepAlive(&buf)
 	if errno != 0 {
 		return errno
 	}
@@ -289,6 +297,7 @@ func startSelfTestNVMe(deviceName string, testType SelfTestType) error {
 		nvmeIoctlAdminCmd,
 		uintptr(unsafe.Pointer(&cmd)), //nolint:gosec // NVMe admin passthrough requires raw struct pointer
 	)
+	runtime.KeepAlive(&cmd)
 	if errno != 0 {
 		return errno
 	}
@@ -321,6 +330,7 @@ func isSelfTestInProgressATA(deviceName string) bool {
 		hdioDriveCmd,
 		uintptr(unsafe.Pointer(&dataBuf[0])), //nolint:gosec // HDIO_DRIVE_CMD requires raw buffer pointer
 	)
+	runtime.KeepAlive(&dataBuf)
 	if errno != 0 {
 		return false
 	}
@@ -353,6 +363,8 @@ func isSelfTestInProgressNVMe(deviceName string) bool {
 		nvmeIoctlAdminCmd,
 		uintptr(unsafe.Pointer(&cmd)), //nolint:gosec // NVMe admin passthrough requires raw struct pointer
 	)
+	runtime.KeepAlive(&buf)
+	runtime.KeepAlive(&cmd)
 	if errno != 0 {
 		return false
 	}

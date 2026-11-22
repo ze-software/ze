@@ -6,6 +6,7 @@ package host
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 	"unsafe"
 
@@ -22,11 +23,9 @@ import (
 //	                          kernel's ifr_ifru union (24 bytes on 64-bit)
 //
 // The `data` field being a uintptr gives the struct 8-byte alignment,
-// guaranteeing `data` itself is aligned when Go places the value on
-// the stack. Keeping the pointer in a uintptr field (rather than
-// unsafe.Pointer) is fine because `ethtoolIoctl` receives the live
-// unsafe.Pointer as an argument: the caller's stack frame holds the
-// target object until Syscall returns, which pins it for GC purposes.
+// guaranteeing `data` itself is aligned. Because the Go garbage collector
+// does not trace pointers stored in uintptr fields, ethtoolIoctl calls
+// runtime.KeepAlive on both `data` and `&ifr` immediately after unix.Syscall.
 type ifreqEthtool struct {
 	name [unix.IFNAMSIZ]byte
 	data uintptr
@@ -99,15 +98,15 @@ func ethtoolRingparam(fd int, ifname string) (rx, tx int, ok bool) {
 // ETHTOOL data pointer and fire SIOCETHTOOL via unix.Syscall. Returns
 // false on any errno.
 //
-// The caller MUST keep `data` alive until this function returns.
-// In practice every caller passes `unsafe.Pointer(&local)` where
-// `local` is a stack variable in the immediate caller — that stack
-// frame is live for the duration of this call, so `local` is pinned.
+// Because ifr.data stores a uintptr invisible to the Go GC, both data and &ifr
+// are kept alive explicitly via runtime.KeepAlive until unix.Syscall returns.
 func ethtoolIoctl(fd int, ifname string, data unsafe.Pointer) bool {
 	var ifr ifreqEthtool
 	copy(ifr.name[:], ifname)
 	ifr.data = uintptr(data)
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), uintptr(unix.SIOCETHTOOL), uintptr(unsafe.Pointer(&ifr))) //nolint:gosec // SIOCETHTOOL requires raw ifreq pointer
+	runtime.KeepAlive(data)
+	runtime.KeepAlive(&ifr)
 	return errno == 0
 }
 
@@ -151,7 +150,9 @@ func getEthtoolRingParam(fd int, ifname string) (ringparam, error) {
 func setEthtoolRingParam(fd int, ifname string, r ringparam) error {
 	r.cmd = ethtoolSRingparam
 	if !ethtoolIoctl(fd, ifname, unsafe.Pointer(&r)) { //nolint:gosec // ETHTOOL ioctl requires raw struct pointer
+		runtime.KeepAlive(&r)
 		return fmt.Errorf("ETHTOOL_SRINGPARAM failed for %s", ifname)
 	}
+	runtime.KeepAlive(&r)
 	return nil
 }

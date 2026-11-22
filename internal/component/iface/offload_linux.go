@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"unsafe"
@@ -169,6 +170,8 @@ func setEthtoolFeature(fd int, ifaceName string, cmd, val uint32) error {
 
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL,
 		uintptr(fd), uintptr(unix.SIOCETHTOOL), uintptr(unsafe.Pointer(&ifr))) //nolint:gosec // ethtool SIOCETHTOOL ioctl requires a raw ifreq pointer
+	runtime.KeepAlive(&ev)
+	runtime.KeepAlive(&ifr)
 	if errno != 0 {
 		return fmt.Errorf("ethtool cmd 0x%x on %s: %w", cmd, ifaceName, errno)
 	}
@@ -201,6 +204,8 @@ func ethtoolIoctl(fd int, ifaceName string, data unsafe.Pointer) error {
 	ifr.data = uintptr(data)
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL,
 		uintptr(fd), uintptr(unix.SIOCETHTOOL), uintptr(unsafe.Pointer(&ifr))) //nolint:gosec // ethtool SIOCETHTOOL ioctl requires a raw ifreq pointer
+	runtime.KeepAlive(data)
+	runtime.KeepAlive(&ifr)
 	if errno != 0 {
 		return errno
 	}
@@ -267,8 +272,10 @@ func setSFeature(fd int, ifaceName string, idx uint32, enable bool) error {
 	}
 
 	if err := ethtoolIoctl(fd, ifaceName, unsafe.Pointer(&buf[0])); err != nil { //nolint:gosec // ethtool struct pointer
+		runtime.KeepAlive(buf)
 		return fmt.Errorf("SFEATURES idx=%d on %s: %w", idx, ifaceName, err)
 	}
+	runtime.KeepAlive(buf)
 	return nil
 }
 
