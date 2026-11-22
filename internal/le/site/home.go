@@ -155,9 +155,11 @@ func renderHome(paths Paths) ([]string, error) {
 		SocialDescription: "Open-source configuration and protocol engine with a " +
 			"protocol-agnostic core, YANG-modeled subsystems, operator " +
 			"interfaces, runnable labs, and an ExaBGP migration path.",
-		Root:      homeRoot,
-		Path:      homeDest,
-		ExtraHead: demoPlayerHead(homeRoot),
+		Root: homeRoot,
+		Path: homeDest,
+		ExtraHead: demoPlayerHead(homeRoot) +
+			"        <link rel=\"alternate\" type=\"application/rss+xml\" title=\"Ze Updates\" href=\"project/changes/feed.xml\" />\n" +
+			"        <link rel=\"alternate\" type=\"application/rss+xml\" title=\"Ze Blog\" href=\"blog/feed.xml\" />\n",
 	}
 	page := shell.render(body)
 	mirror, err := homeMirror(page)

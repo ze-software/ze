@@ -31,7 +31,7 @@ A practical deployment uses:
 - RPKI and IRR policy where the IXP requires them;
 - the Looking Glass for member-facing visibility.
 
-Use the generated [plugin catalogue](../../reference/plugins/) to confirm current dependencies and configuration roots. Build peer groups with the [BGP peering guide](../../guides/bgp-peering/) and policy chains with the [BGP policy guide](../../guides/bgp-policy/).
+Use the generated [plugin catalog](../../reference/plugins/) to confirm current dependencies and configuration roots. Build peer groups with the [BGP peering guide](../../guides/bgp-peering/) and policy chains with the [BGP policy guide](../../guides/bgp-policy/).
 
 ## Complete lab configuration
 
@@ -225,7 +225,7 @@ An IXP policy normally rejects:
 - RPKI Invalid announcements where the IXP policy drops them;
 - default routes and over-specific prefixes;
 - malformed or prohibited AS paths;
-- control communities owned by the IXP when a member is not authorised to set them.
+- control communities owned by the IXP when a member is not authorized to set them.
 
 The exact policy is an IXP decision. Keep policy objects named and reviewable rather than embedding unrelated actions in one chain.
 
@@ -262,8 +262,8 @@ See the [Looking Glass guide](../../guides/looking-glass/) for the browser and B
 - A prefix limit that is too low tears down a valid member when their route count grows.
 - A limit that is too high weakens protection against a leak.
 - Missing ADD-PATH can reduce the paths sent to a member.
-- RPKI or IRR cache failure behaviour must match the IXP's written policy.
+- RPKI or IRR cache failure behavior must match the IXP's written policy.
 - A slow member can create backpressure during churn.
 - Route-server role compatibility must be checked before enabling strict enforcement.
 
-Monitor peer state, route counts, policy failures, forwarding-pool utilisation, and replay duration during every maintenance window.
+Monitor peer state, route counts, policy failures, forwarding-pool utilization, and replay duration during every maintenance window.

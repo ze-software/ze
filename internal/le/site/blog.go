@@ -270,12 +270,17 @@ func renderBlogArticle(output string, article *blogArticle, tokens siteFactSnaps
 	if description == "" {
 		description = article.Title
 	}
+	extraHead := metaTag("name", "author", article.Author)
+	if article.Date != "" {
+		extraHead += metaTag("property", "article:published_time", article.Date)
+	}
 	shell := pageShell{
 		Title:       title,
 		Description: description,
+		OGType:      "article",
 		Root:        blogArticleRoot,
 		Path:        dest,
-		ExtraHead:   metaTag("name", "author", article.Author),
+		ExtraHead:   extraHead,
 		Wide:        true,
 	}
 	page := shell.render(blogArticleBody(article, body, headings))
@@ -347,15 +352,15 @@ func blogImage(article *blogArticle, root, loading, tag, classes string) string 
 	light := html.EscapeString(articleAsset(root, article.Image))
 	if article.ImageDark == "" {
 		return "<" + tag + ` class="` + classes + `"><img src="` + light + `" alt="` +
-			html.EscapeString(article.altText()) + `" loading="` + loading +
+			html.EscapeString(article.altText()) + `" width="1200" height="675" loading="` + loading +
 			`" decoding="async" /></` + tag + ">"
 	}
 	dark := html.EscapeString(articleAsset(root, article.ImageDark))
 	return "<" + tag + ` class="blog-theme-image has-dark ` + classes + `" role="img" aria-label="` +
 		html.EscapeString(article.altText()) + `">` +
-		`<img class="blog-theme-image-light" src="` + light + `" alt="" loading="` + loading +
+		`<img class="blog-theme-image-light" src="` + light + `" alt="" width="1200" height="675" loading="` + loading +
 		`" decoding="async" />` +
-		`<img class="blog-theme-image-dark" src="` + dark + `" alt="" loading="` + loading +
+		`<img class="blog-theme-image-dark" src="` + dark + `" alt="" width="1200" height="675" loading="` + loading +
 		`" decoding="async" /></` + tag + ">"
 }
 
@@ -456,6 +461,7 @@ func blogIndexBody(articles []blogArticle) string {
 	page.Str(`            <section class="blog-index" aria-labelledby="blog-title">`).Byte('\n')
 	page.Str(pageHero("The Ze blog.", blogIndexLead(`<a href="../project/changes/">changelog</a>`),
 		"Blog", ` id="blog-title"`, "journey-hero blog-index-hero reveal")).Byte('\n')
+	page.Str("                <h2 class=\"sr-only\">Articles</h2>\n")
 	page.Str(`                <div class="blog-list reveal">`).Byte('\n')
 	for index := range articles {
 		page.Str(blogIndexCard(&articles[index]))

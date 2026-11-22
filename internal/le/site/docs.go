@@ -199,12 +199,14 @@ func (renderer *docsRenderer) renderSource(page sitePage, source []byte) error {
 
 	// The number tokens resolve twice: plain for the Markdown mirror, and as
 	// data-ze-stat spans for the HTML, which is what lets a build check a
-	// published number against the facts snapshot.
+	// published number against the facts snapshot. Internal source-anchor
+	// comments are stripped from the rendered HTML so repository-maintenance
+	// annotations do not leak into published pages.
 	plain, err := renderer.tokens.substitute(string(body), false)
 	if err != nil {
 		return err
 	}
-	marked, err := renderer.tokens.substitute(string(body), true)
+	marked, err := renderer.tokens.substitute(stripSourceComments(string(body)), true)
 	if err != nil {
 		return err
 	}

@@ -82,11 +82,13 @@ func writeLLMSIntro(out *textbuf.Buffer) {
 		Str("supervisor, message bus, config provider, and plugin manager; protocols and services arrive ").
 		Str("as subsystems or plugins.\n\n")
 	out.Str("Pre-release: no tagged versions yet, built continuously from the main branch. ").
-		Str("AGPLv3 open source. See the ExaBGP [migration path](use-cases/exabgp-migration/index.md).\n\n")
+		Str("AGPLv3 open source. See the ExaBGP [migration path](").Str(siteBase).
+		Str("use-cases/exabgp-migration/index.md).\n\n")
 	out.Str("This file collects information for AI tools in one place. It describes the product ").
 		Str("and lists the website pages, so common questions should not require ").
 		Str("fetching many separate pages. Page links still point at Markdown `index.md` files first, ").
-		Str("with rendered web URLs beside them for humans.\n\n")
+		Str("with rendered web URLs beside them for humans. Full combined Markdown archive: [llms-full.txt](").
+		Str(siteBase).Str("llms-full.txt); XML sitemap: [sitemap.xml](").Str(siteBase).Str("sitemap.xml).\n\n")
 }
 
 // writeLLMSProductSnapshot states what Ze is, in numbers this build derived.

@@ -368,7 +368,7 @@ root, kernel modules, or Docker.
 ## Where Ze is behind today
 
 The detail tables above are useful. The gaps also need to be visible without
-reading thirteen tables.
+reading ten tables.
 
 - **OSPF as PE/CE (RFC 4577) is absent.** No DN-bit originator, no VRF, and no sham link. FRR has none of it either; BIRD has the DN bit alone.
 - **OSPFv3 Extended LSAs (RFC 8362) are partial.** Ze builds 3 of the 7 LSA types. They carry the U-bit and their assigned scope since 2026-09-17, so a router that does not understand them floods them on. Neither FRR nor BIRD implements RFC 8362 at all.

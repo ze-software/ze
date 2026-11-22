@@ -6,6 +6,10 @@ description: Ze aims to meet every applicable mandatory RFC requirement. Interop
 
 deck: Tests can pass while the router still does the wrong thing.
 
+image: assets/blog/the-proof-is-the-expensive-part.svg
+image-dark: assets/blog/the-proof-is-the-expensive-part-dark.svg
+image-alt: Protocol requirements are verified against running routers, interoperability labs, and recorded fault-injection proofs.
+
 ---
 
 AI can write a feature and get its first tests passing quickly. If the code and its tests have both been written and reviewed by agents, someone considering the software still needs a reason to trust it. Establishing that the running router does what the protocol requires takes much longer.

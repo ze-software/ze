@@ -80,7 +80,6 @@ website/
                                               category, blurb, and the source report
     topics.json                           -- controlled tag vocabulary for Changes chips
     audience.json                         -- homepage audience cards
-    whats-new.json                        -- retired news-band input; the homepage no longer reads it
     dependencies.json                     -- the third-party credits declaration: direct Go
                                               dependency explanations with licence and copyright,
                                               the other modules and works the shipped binary

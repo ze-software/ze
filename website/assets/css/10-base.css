@@ -100,6 +100,10 @@ main[tabindex="-1"]:focus {
     transition: transform 220ms ease;
 }
 
+#site-header-mount {
+    min-height: calc(4rem + 0.85rem + 2px);
+}
+
 .site-header.hidden {
     transform: translateY(calc(-100% - var(--header-offset)));
 }
@@ -305,18 +309,18 @@ main[tabindex="-1"]:focus {
 
 .nav-dropdown-trigger:hover,
 .nav-dropdown:hover .nav-dropdown-trigger,
-.nav-dropdown:focus-within .nav-dropdown-trigger {
+.nav-dropdown.is-open .nav-dropdown-trigger {
     color: var(--sky-deep);
     background: var(--sky-tint);
 }
 
 .nav-dropdown:hover .nav-dropdown-trigger svg,
-.nav-dropdown:focus-within .nav-dropdown-trigger svg {
+.nav-dropdown.is-open .nav-dropdown-trigger svg {
     transform: rotate(180deg);
 }
 
 /* A transparent bridge keeps the hover path open across the visible gap
- * between the trigger and the dropdown panel. Click and focus also open it. */
+ * between the trigger and the dropdown panel. Click/Enter opens it for keyboard users. */
 .nav-dropdown-panel {
     position: absolute;
     top: calc(100% + 0.75rem);
@@ -346,7 +350,6 @@ main[tabindex="-1"]:focus {
 }
 
 .nav-dropdown:hover .nav-dropdown-panel,
-.nav-dropdown:focus-within .nav-dropdown-panel,
 .nav-dropdown.is-open .nav-dropdown-panel {
     display: flex;
 }
@@ -763,87 +766,6 @@ main.has-page-sidebar > :not(.page-sidebar) {
     white-space: nowrap;
 }
 
-.tagline-carousel [data-tagline-text] {
-    display: block;
-    min-height: 3.92em;
-    transition:
-        opacity 180ms ease,
-        transform 180ms ease;
-}
-
-.tagline-carousel.is-changing [data-tagline-text] {
-    opacity: 0;
-    transform: translateY(0.3rem);
-}
-
-.tagline-carousel-controls {
-    display: none;
-    align-items: center;
-    gap: 0.35rem;
-    width: fit-content;
-    margin-top: 0.72rem;
-}
-
-.js .tagline-carousel-controls {
-    display: flex;
-}
-
-.tagline-carousel-arrow,
-.tagline-carousel-dot {
-    display: grid;
-    place-items: center;
-    border: 0;
-    color: var(--muted);
-    background: transparent;
-    cursor: pointer;
-}
-
-.tagline-carousel-arrow {
-    width: 1.85rem;
-    height: 1.85rem;
-    border: 1px solid var(--control-border);
-    border-radius: 999px;
-    font-size: 0.95rem;
-    transition:
-        border-color 160ms ease,
-        color 160ms ease,
-        transform 160ms ease;
-}
-
-.tagline-carousel-arrow:hover {
-    border-color: var(--pink-mid);
-    color: var(--pink-deep);
-    transform: translateY(-1px);
-}
-
-.tagline-carousel-dots {
-    display: flex;
-    align-items: center;
-    gap: 0.12rem;
-}
-
-.tagline-carousel-dot {
-    width: 1.15rem;
-    height: 1.15rem;
-    padding: 0;
-}
-
-.tagline-carousel-dot::before {
-    width: 0.42rem;
-    height: 0.42rem;
-    border-radius: 999px;
-    background: var(--control-border);
-    content: "";
-    transition:
-        width 160ms ease,
-        background 160ms ease;
-}
-
-.tagline-carousel-dot[aria-current="true"]::before {
-    width: 0.9rem;
-    background: var(--sky-deep);
-}
-
 .hero-start-kicker::before {
     width: 0.55rem;
     height: 0.55rem;
@@ -1044,7 +966,6 @@ h2 {
 #features-title,
 #perf-title,
 #proof-title,
-#whats-new-title,
 .section-head > :is(h1, h2):first-child,
 .md-content[class*="cat-"] > h1:first-child {
     display: inline-block;
@@ -1079,7 +1000,6 @@ h2 {
 #features-title::selection,
 #perf-title::selection,
 #proof-title::selection,
-#whats-new-title::selection,
 .section-head > :is(h1, h2):first-child::selection,
 .md-content[class*="cat-"] > h1:first-child::selection,
 .journey-hero :is(h1, h2)::selection,
@@ -1258,7 +1178,7 @@ a.hl:hover {
 }
 
 /* Unclassified and cross-topic cards make no subject claim. */
-:where(.card, .proof, .audience-card, .capability, .whats-new-item,
+:where(.card, .proof, .audience-card, .capability,
     .contribute-route, .contribute-contract, .contribute-funding,
     .contribute-action, .faq-card, .faq-index a),
 .cat-meta {
@@ -5834,9 +5754,9 @@ body.search-open {
 }
 
 #plugin-search:focus {
-    outline: none;
-    border-color: var(--acc-deep);
-    box-shadow: 0 0 0 3px var(--line);
+    outline: 2px solid var(--blue);
+    outline-offset: 2px;
+    border-color: var(--blue);
 }
 
 .plugin-filter-controls {
@@ -5866,9 +5786,9 @@ body.search-open {
 }
 
 .plugin-filter-controls select:focus {
-    outline: none;
-    border-color: var(--acc-deep);
-    box-shadow: 0 0 0 3px var(--line);
+    outline: 2px solid var(--blue);
+    outline-offset: 2px;
+    border-color: var(--blue);
 }
 
 .plugin-status {

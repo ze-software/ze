@@ -94,14 +94,15 @@ func pathWithin(parent, child string) bool {
 // it with every other source file and this entry trims it before deployment.
 var sourceOnlyDirectories = []string{
 	".claude", ".github", "assets/css", "assets/js", "blog/posts",
-	"changes/fragments", "changes/posts", "presentations/tools", "tools",
+	"changes/discord", "changes/fragments", "changes/posts", "presentations/tools", "tools",
 }
 
 var sourceOnlyFiles = map[string]bool{
 	".gitignore": true, "AI.md": true, "assets/vendor/README.md": true,
 	"assets/vendor/fonts/README.md": true, "CACHEDIR.TAG": true,
 	"compare/bgp.md": true, "compare/comparison.md": true, "compare/nos.md": true,
-	"contribute/contribute.md": true, "contribute/guide.md": true, "data/plain-figure-ratchet.json": true,
+	"contribute/contribute.md": true, "contribute/guide.md": true,
+	"data/plain-figure-ratchet.json": true, "data/whats-new.json": true,
 	"docs/docs.md": true, "faq/faq.md": true, "legal/legal.md": true, "license/license.md": true,
 	"quality/browser-editor.md": true, "quality/functional-ci.md": true,
 	"quality/qemu-interop-release.md": true, "quality/quality.md": true,

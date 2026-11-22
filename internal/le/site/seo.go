@@ -18,20 +18,24 @@ func init() {
 	registerDerivedProducer(Producer{Name: "seo", Render: renderSEO})
 }
 
-// The two files a crawler reads before it reads a page.
+// The files a crawler or visitor reaches at the site root.
 const (
-	sitemapFile = "sitemap.xml"
-	robotsFile  = "robots.txt"
+	sitemapFile  = "sitemap.xml"
+	robotsFile   = "robots.txt"
+	notFoundFile = "404.html"
 )
 
-// renderSEO publishes the sitemap and the robots file. Neither is a route, so
-// this producer answers none.
+// renderSEO publishes the sitemap, robots file, and custom 404 page. None is a
+// content route, so this producer answers none.
 func renderSEO(paths Paths) ([]string, error) {
 	urls, err := sitemapURLs(paths.Output)
 	if err != nil {
 		return nil, err
 	}
 	if err := writeNamedArtifact(paths.Output, sitemapFile, sitemapXML(urls)); err != nil {
+		return nil, err
+	}
+	if err := writeNamedArtifact(paths.Output, notFoundFile, notFoundHTML()); err != nil {
 		return nil, err
 	}
 	return nil, writeNamedArtifact(paths.Output, robotsFile, robotsTXT())
@@ -64,6 +68,9 @@ func sitemapURLs(output string) ([]string, error) {
 			return nil
 		}
 		directory := strings.TrimSuffix(strings.TrimSuffix(name, pageIndexFile), "/")
+		if directory == searchDirectory || directory == "style-guide" {
+			return nil
+		}
 		url := siteBase
 		if directory != "" {
 			url += directory + "/"
@@ -102,4 +109,33 @@ func sitemapXML(urls []string) string {
 // robotsTXT answers the robots file: everything is public, and here is the map.
 func robotsTXT() string {
 	return "User-agent: *\nAllow: /\n\nSitemap: " + siteBase + sitemapFile + "\n"
+}
+
+// notFoundHTML answers the branded 404 page GitHub Pages serves for missing
+// URLs, using root-relative links so it works from any path depth.
+func notFoundHTML() string {
+	const body = `            <section class="md-content reveal" aria-labelledby="not-found-title">
+                <div class="journey-hero reveal">
+                    <span class="journey-eyebrow">404</span>
+                    <h1 id="not-found-title">Page not found.</h1>
+                    <p>The page you asked for does not exist or has moved. Use site search or start from one of the hubs below.</p>
+                </div>
+                <div class="link-list">
+                    <a href="/">Home <span>overview, demos, and quickstart</span></a>
+                    <a href="/search/">Search <span>find guides, commands, and configuration options</span></a>
+                    <a href="/docs/">Documentation <span>guides organized by task</span></a>
+                    <a href="/features/">Features <span>capabilities and maturity status</span></a>
+                    <a href="/reference/">Reference <span>CLI, YANG tree, plugins, and RFC status</span></a>
+                    <a href="/project/changes/">Changes <span>update reports and changelog</span></a>
+                    <a href="/project/roadmap/">Roadmap <span>planned release work</span></a>
+                </div>
+            </section>
+`
+	shell := pageShell{
+		Title:       "Page Not Found - Ze",
+		Description: "The requested page could not be found on ze-software.net.",
+		Root:        "/",
+		Path:        notFoundFile,
+	}
+	return shell.render(body)
 }

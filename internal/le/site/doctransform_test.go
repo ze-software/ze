@@ -146,13 +146,15 @@ func TestACrossDocumentLinkResolvesToThePublishedPage(t *testing.T) {
 	const docRel = "guide/anomaly.md"
 
 	body := map[string]string{
-		`<a href="rpki.md">RPKI</a>`:              `<a href="../rpki/">RPKI</a>`,
-		`<a href="rpki.md#caches">caches</a>`:     `<a href="../rpki/#caches">caches</a>`,
-		`<a href="../features/srv6.md">SRv6</a>`:  `<a href="../../features/srv6/">SRv6</a>`,
-		`<a href="unpublished.md">gone</a>`:       `<a href="` + codeHostBlob + `docs/guide/unpublished.md" target="_blank" rel="noopener">gone</a>`, // <!-- doc-links: ignore (the page this case needs the manifest NOT to publish, so a link to it must reach the code host; a resolvable path would test nothing) -->
-		`<a href="mcp/">MCP</a>`:                  `<a href="` + codeHostTree + `docs/guide/mcp" target="_blank" rel="noopener">MCP</a>`,
-		`<a href="https://example.test/">out</a>`: `<a href="https://example.test/">out</a>`,
-		`<a href="#section">here</a>`:             `<a href="#section">here</a>`,
+		`<a href="rpki.md">RPKI</a>`:                                 `<a href="../rpki/">RPKI</a>`,
+		`<a href="rpki.md#caches">caches</a>`:                        `<a href="../rpki/#caches">caches</a>`,
+		`<a href="../features/srv6.md">SRv6</a>`:                     `<a href="../../features/srv6/">SRv6</a>`,
+		`<a href="../../docs/guide/rpki.md">RPKI via root</a>`:       `<a href="../rpki/">RPKI via root</a>`,
+		`<a href="../../third_party/vpp-patches/README.md">VPP</a>`:  `<a href="` + codeHostBlob + `third_party/vpp-patches/README.md" target="_blank" rel="noopener">VPP</a>`,
+		`<a href="unpublished.md">gone</a>`:                          `<a href="` + codeHostBlob + `docs/guide/unpublished.md" target="_blank" rel="noopener">gone</a>`, // <!-- doc-links: ignore (the page this case needs the manifest NOT to publish, so a link to it must reach the code host; a resolvable path would test nothing) -->
+		`<a href="mcp/">MCP</a>`:                                     `<a href="` + codeHostTree + `docs/guide/mcp" target="_blank" rel="noopener">MCP</a>`,
+		`<a href="https://example.test/">out</a>`:                    `<a href="https://example.test/">out</a>`,
+		`<a href="#section">here</a>`:                                `<a href="#section">here</a>`,
 	}
 	for link, want := range body {
 		if got := rewriteDocLinks(link, docRel, manifest, from); got != want {
@@ -316,5 +318,20 @@ func TestPageMetadataIsRefusedRatherThanGuessed(t *testing.T) {
 	fallback, err := tableColumnsEnabled(map[string]string{})
 	if err != nil || !fallback {
 		t.Errorf("a source that states nothing keeps the column controls: %v %v", fallback, err)
+	}
+}
+
+// VALIDATES: internal source-anchor comments are stripped from published docs
+// while build directives (terminal-demo, table-columns, site-block) survive.
+func TestStripSourceCommentsPreservesDirectives(t *testing.T) {
+	input := "Intro line.\n<!-- source: internal/foo.go -- bar -->\n<!-- terminal-demo: bgp -->\n<!-- table-columns: off -->\nBody.\n"
+	got := stripSourceComments(input)
+	if strings.Contains(got, "internal/foo.go") {
+		t.Errorf("source comment leaked into output: %q", got)
+	}
+	for _, keep := range []string{"<!-- terminal-demo: bgp -->", "<!-- table-columns: off -->", "Intro line.", "Body."} {
+		if !strings.Contains(got, keep) {
+			t.Errorf("directive or prose lost from output: missing %q in %q", keep, got)
+		}
 	}
 }

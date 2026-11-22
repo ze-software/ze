@@ -1,6 +1,6 @@
 {
   "schema-version": 1,
-  "updated": "2026-07-04",
+  "updated": "2026-11-22",
   "title": "Command equivalents",
   "summary": "Curated vendor command equivalents joined with the live Ze command catalog generated from ze help command --json. Ze paths are exact join keys; vendor commands are migration hints with provenance and confidence.",
   "vendors": {
@@ -442,17 +442,46 @@
       "category": "BGP",
       "intent": "RPKI cache and validation session state",
       "ze": [
-        "show bgp irr",
-        "show bgp irr check",
-        "show bgp irr prefix"
+        "show bgp rpki",
+        "show bgp rpki status",
+        "show bgp rpki summary",
+        "show bgp rpki cache",
+        "show bgp rpki roa",
+        "show bgp rpki aspa"
       ],
       "vendors": {
-        "junos-mx": [],
-        "cisco-ios-xr": [],
+        "junos-mx": [
+          {
+            "command": "show validation session",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "junos-bgp"
+            ]
+          }
+        ],
+        "cisco-ios-xr": [
+          {
+            "command": "show bgp rpki server summary",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "iosxr-bgp"
+            ]
+          }
+        ],
         "nokia-sros": [],
-        "vyos": []
-      },
-      "notes": "Current Ze commands are IRR-focused. RPKI-specific show paths can be added to this entry when present in the live command catalog."
+        "vyos": [
+          {
+            "command": "show rpki cache-connection",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "vyos-cli"
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "route-table",
@@ -620,10 +649,9 @@
     {
       "id": "arp-neighbor",
       "category": "Neighbors",
-      "intent": "ARP and neighbor cache",
+      "intent": "IPv4 ARP table",
       "ze": [
-        "show arp",
-        "show neighbor"
+        "show arp"
       ],
       "vendors": {
         "junos-mx": [],
@@ -632,6 +660,29 @@
         "vyos": [
           {
             "command": "show arp",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "vyos-cli"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ipv6-neighbor",
+      "category": "Neighbors",
+      "intent": "IPv6 neighbor discovery cache",
+      "ze": [
+        "show neighbor"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": [
+          {
+            "command": "show ipv6 neighbors",
             "mode": "operational",
             "confidence": "verified",
             "source-refs": [
@@ -869,13 +920,11 @@
     {
       "id": "system-resources",
       "category": "System",
-      "intent": "CPU, memory, platform, and host health",
+      "intent": "CPU and memory usage",
       "ze": [
         "show system cpu",
         "show system memory",
-        "show system platform",
-        "show health",
-        "show doctor"
+        "show system platform"
       ],
       "vendors": {
         "junos-mx": [],
@@ -900,6 +949,22 @@
           }
         ]
       }
+    },
+    {
+      "id": "system-health",
+      "category": "System",
+      "intent": "Subsystem health and doctor diagnostics",
+      "ze": [
+        "show health",
+        "show doctor"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": []
+      },
+      "notes": "Ze's doctor and health registry aggregate subsystem checks and repair commands directly in the CLI."
     },
     {
       "id": "system-time-ntp",
@@ -977,14 +1042,12 @@
       "notes": "Ze exposes Prometheus-style metric names and values directly; vendor telemetry is usually a separate subsystem."
     },
     {
-      "id": "diagnostic-ping-trace",
+      "id": "diagnostic-ping",
       "category": "Diagnostics",
-      "intent": "Ping and traceroute diagnostics",
+      "intent": "Ping reachability check",
       "ze": [
         "show ping",
-        "show traceroute",
-        "resolve ping",
-        "resolve traceroute"
+        "resolve ping"
       ],
       "vendors": {
         "junos-mx": [],
@@ -1007,7 +1070,23 @@
             "source-refs": [
               "vyos-cli"
             ]
-          },
+          }
+        ]
+      }
+    },
+    {
+      "id": "diagnostic-traceroute",
+      "category": "Diagnostics",
+      "intent": "Traceroute path diagnostic",
+      "ze": [
+        "show traceroute",
+        "resolve traceroute"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": [
           {
             "command": "traceroute <target>",
             "mode": "operational",
@@ -1051,12 +1130,9 @@
     {
       "id": "config-show-diff",
       "category": "Configuration",
-      "intent": "Show running, candidate, and diffed configuration",
+      "intent": "Show running configuration",
       "ze": [
-        "show config dump",
-        "show config diff",
-        "show config history",
-        "show config fmt"
+        "show config dump"
       ],
       "vendors": {
         "junos-mx": [],
@@ -1070,7 +1146,22 @@
             "source-refs": [
               "vyos-cli"
             ]
-          },
+          }
+        ]
+      }
+    },
+    {
+      "id": "config-diff",
+      "category": "Configuration",
+      "intent": "Compare candidate and running configuration",
+      "ze": [
+        "show config diff"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": [
           {
             "command": "compare",
             "mode": "configuration",
@@ -1108,12 +1199,24 @@
     {
       "id": "lifecycle-reload",
       "category": "Lifecycle",
-      "intent": "Reload, reboot, halt, or shut down",
+      "intent": "Reload configuration without rebooting",
       "ze": [
-        "request reload",
-        "request reboot",
-        "request halt",
-        "request shutdown"
+        "request reload"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": []
+      },
+      "notes": "Reapplies the active configuration in place without rebooting or powering off the system."
+    },
+    {
+      "id": "lifecycle-reboot",
+      "category": "Lifecycle",
+      "intent": "Reboot the system",
+      "ze": [
+        "request reboot"
       ],
       "vendors": {
         "junos-mx": [],
@@ -1127,7 +1230,23 @@
             "source-refs": [
               "vyos-cli"
             ]
-          },
+          }
+        ]
+      }
+    },
+    {
+      "id": "lifecycle-shutdown",
+      "category": "Lifecycle",
+      "intent": "Halt or power off the system",
+      "ze": [
+        "request halt",
+        "request shutdown"
+      ],
+      "vendors": {
+        "junos-mx": [],
+        "cisco-ios-xr": [],
+        "nokia-sros": [],
+        "vyos": [
           {
             "command": "poweroff",
             "mode": "operational",
@@ -1160,10 +1279,37 @@
       "intent": "LLDP neighbor discovery",
       "ze": [],
       "vendors": {
-        "junos-mx": [],
-        "cisco-ios-xr": [],
+        "junos-mx": [
+          {
+            "command": "show lldp neighbors",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "junos-route"
+            ]
+          }
+        ],
+        "cisco-ios-xr": [
+          {
+            "command": "show lldp neighbors",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "iosxr-bgp"
+            ]
+          }
+        ],
         "nokia-sros": [],
-        "vyos": []
+        "vyos": [
+          {
+            "command": "show lldp neighbors",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "vyos-cli"
+            ]
+          }
+        ]
       },
       "notes": "No Ze LLDP subsystem is present in the live command catalog."
     },
@@ -1176,9 +1322,18 @@
         "junos-mx": [],
         "cisco-ios-xr": [],
         "nokia-sros": [],
-        "vyos": []
+        "vyos": [
+          {
+            "command": "show nat source translations",
+            "mode": "operational",
+            "confidence": "verified",
+            "source-refs": [
+              "vyos-cli"
+            ]
+          }
+        ]
       },
-      "notes": "No Ze NAT command is present in the live command catalog."
+      "notes": "No dedicated Ze NAT translation inspection command is present in the live command catalog; NAT rules live in firewall chains."
     }
   ]
 }

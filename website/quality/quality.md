@@ -125,4 +125,4 @@ go run github.com/sivchari/gomu/cmd/gomu run --incremental --base-branch=main --
 
 ## File formats
 
-Ze currently has three functional formats. Use `.ci` for process, protocol, command, HTTP, syslog, file, and daemon behavior. Use `.wb` for rendered browser behavior. Use `.et` for the headless interactive editor. There is no `.wt` parser in the current tree; notes using that extension should be read as web tests only if a new parser is later added.
+Ze currently has three functional formats. Use `.ci` for process, protocol, command, HTTP, syslog, file, and daemon behavior. Use `.wb` for rendered browser behavior. Use `.et` for the headless interactive editor.

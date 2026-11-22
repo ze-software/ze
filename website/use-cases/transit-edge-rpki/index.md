@@ -202,7 +202,7 @@ RPKI is one input to policy, not a replacement for prefix and AS-path controls. 
 
 Use [BGP policy](../../guides/bgp-policy/) to keep these filters ordered and independently testable.
 
-## Failure behaviour
+## Failure behavior
 
 After a cache disconnects, Ze retains its last complete payload set until the
 original RTR expiration deadline. Expiry removes that set and revalidates retained
@@ -240,7 +240,7 @@ preference returns without stale paths.
 
 - RTR session state and serial updates
 - Valid, Invalid, and NotFound route counts
-- Prefix-limit utilisation per peer and family
+- Prefix-limit utilization per peer and family
 - Best-path changes and installed next hops
 - Policy timeout or fail-open warnings
 - Session resets during large validation updates

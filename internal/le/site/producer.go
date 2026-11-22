@@ -116,6 +116,7 @@ func writeNamedArtifact(output, name, content string) error {
 // producer is missing or the name is wrong.
 var namedArtifacts = []string{
 	artifactIgnoreFile,
+	notFoundFile,
 	"assets/header.html",
 	blogFeedDest,
 	catalogFile,

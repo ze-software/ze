@@ -50,6 +50,11 @@ bgp {
         }
     }
 
+    filter {
+        import { final accept; }
+        export { final accept; }
+    }
+
     peer core-v4 {
         connection {
             remote {

@@ -155,13 +155,13 @@
             "category": "automate",
             "chips": [
                 "MCP",
-                "CLI catalogue"
+                "CLI catalog"
             ],
             "body": "MCP exposes Ze commands and structured output to AI tools without a separate command set.",
             "link": {
                 "href": "features/ai-first/",
                 "label": "AI via MCP",
-                "sublabel": "same command catalogue"
+                "sublabel": "same command catalog"
             }
         }
     ]

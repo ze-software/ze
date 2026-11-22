@@ -52,8 +52,23 @@ const (
 // only ever trims trailing prose and never a setting name.
 const (
 	searchBodyCap       = 8000
+	searchBulkBodyCap   = 1600
 	searchConfigBodyCap = 12000
 )
+
+// searchBodyLimit answers the body rune cap for one published directory.
+// Generated per-RFC and per-command detail pages make up over 70% of all
+// records, so capping their body excerpts keeps data/search-index.json fast to
+// download without trimming guides, features, or articles.
+func searchBodyLimit(directory string) int {
+	if strings.HasPrefix(directory, "quality/rfc-compliance/") && directory != "quality/rfc-compliance/profiles" {
+		return searchBulkBodyCap
+	}
+	if strings.HasPrefix(directory, "reference/command-equivalents/") {
+		return searchBulkBodyCap
+	}
+	return searchBodyCap
+}
 
 // configurationReferenceDirectory is the one page indexed section by section
 // rather than as one record.
@@ -245,7 +260,7 @@ func pageSearchRecords(output string) ([]searchRecord, error) {
 			Title: title, DisplayTitle: title,
 			URL:     searchURLOf(directory),
 			Section: section, DisplaySection: section,
-			Text: capRunes(body, searchBodyCap),
+			Text: capRunes(body, searchBodyLimit(directory)),
 		})
 	}
 	return records, nil

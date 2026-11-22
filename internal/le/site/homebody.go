@@ -46,8 +46,8 @@ const homeTemplate = `        <div class="site-home">
                                 <p class="hero-intro">Ze is built on a <a href="architecture/">configuration and plugin engine</a>, with <a href="reference/plugins/">pre-installed plugins</a> for <a href="guides/bgp-peering/">BGP</a>, <a href="guides/ospf/">OSPF</a>, <a href="guides/isis/">IS-IS</a>, <a href="guides/ipsec/">VPNs</a>, <a href="features/interfaces/">interfaces</a>, <a href="features/dns-resolver/">DNS</a>, <a href="reference/plugins/dhcpserver/">DHCP</a> and <a href="features/">other network functions</a>. Its single <a href="reference/configuration/">YANG-defined configuration</a> can be managed through Ze’s own <a href="features/cli-commands/">SSH server, CLI</a>, <a href="features/web-interface/">web interface</a>, <a href="features/mcp-integration/">MCP</a> and <a href="features/api-commands/">APIs</a>. You can <a href="developers/plugins/">develop your own plugins in any programming language</a> and run Ze as a <a href="guides/ubuntu-build-install/">Linux daemon</a> or an <a href="guides/appliance/">immutable OS</a>.</p>
                                 <p class="hero-project-intro"><a href="project/why-ze/">Why Ze exists →</a> · Ask questions and follow development on <a href="https://discord.gg/T8s7CjPDne" target="_blank" rel="noopener">Discord</a>.</p>
                                 <div class="hero-actions">
-                                    <a class="button primary" href="guides/quickstart/">Try the BGP quickstart <span aria-hidden="true">↗</span></a>
-                                    <a class="button ghost" href="demos/terminal/">Watch the demos <span aria-hidden="true">↗</span></a>
+                                    <a class="button primary" href="guides/quickstart/">Try the BGP quickstart <span aria-hidden="true">→</span></a>
+                                    <a class="button ghost" href="demos/terminal/">Watch the demos <span aria-hidden="true">→</span></a>
                                 </div>
                                 <p class="hero-status">Linux service or immutable appliance. <span>No stable release yet.</span></p>
                             </div>
@@ -72,11 +72,11 @@ const homeTemplate = `        <div class="site-home">
                                 </figure>
                                 <figure class="screen product-screen" id="product-routes" data-product-panel>
                                     <div class="screen-toolbar"><strong>Ze / Looking glass</strong><a href="assets/product-routes.webp" target="_blank" rel="noopener">Open full size ↗</a></div>
-                                    <a href="assets/product-routes.webp" target="_blank" rel="noopener"><img src="assets/product-routes.webp" alt="Ze looking glass with prefix, AS path and community filters, a route graph and route table" width="2820" height="1848" /></a>
+                                    <a href="assets/product-routes.webp" target="_blank" rel="noopener"><img src="assets/product-routes.webp" alt="Ze looking glass with prefix, AS path and community filters, a route graph and route table" width="2820" height="1848" loading="lazy" /></a>
                                     <figcaption class="screen-description">
                                         <strong>Follow a route through the network.</strong>
                                         <p>Inspect prefixes, AS paths and peers through a read-only BGP interface.</p>
-                                        <a href="features/looking-glass/">Explore the looking glass →</a>
+                                        <a href="labs/looking-glass-graph/">Try the live browser replay →</a> · <a href="features/looking-glass/">Explore the looking glass →</a>
                                         <p class="capture-caption">Captured for the June 2026 LINX talk.</p>
                                     </figcaption>
                                 </figure>
@@ -156,7 +156,7 @@ const homeTemplate = `        <div class="site-home">
                             <a href="architecture/">Core shared by all protocols</a>
                             <a href="reference/configuration/">Configuration models in YANG</a>
                             <a href="features/#routing">BGP, interfaces, FIB</a>
-                            <a href="features/ai-first/">CLI, SSH, web, API, MCP</a>
+                            <a href="features/cli-commands/">CLI, SSH, web, API, MCP</a>
                             <a href="reference/plugins/">Compiled or external plugins</a>
                             <a href="license/">AGPLv3 source</a>
                         </div>
@@ -167,7 +167,7 @@ const homeTemplate = `        <div class="site-home">
             <section id="try" class="home-section-panel home-section-panel-try" aria-labelledby="try-title">
                 <div class="section-head reveal cat-meta">
                     <h2 id="try-title">Getting started with Ze.</h2>
-                    <p>Run the two-peer BGP lab by hand, or ask Claude Code or Codex to run it with Ze’s bundled skill. Both paths start on a Linux lab host with Go and Git.</p>
+                    <p>Run the <a href="guides/quickstart/">two-peer BGP quickstart</a> by hand, or ask Claude Code or Codex to run it with Ze’s bundled skill. Works on a Linux or macOS development host with Go and Git.</p>
                 </div>
                 <div class="terminal-panel reveal">
                     <div class="terminal" aria-label="Quick start commands">
@@ -176,9 +176,9 @@ const homeTemplate = `        <div class="site-home">
                             <h3 class="terminal-title">By hand</h3>
                         </div>
                         <div class="terminal-body">
-                            <pre><span class="term-comment"># build from source</span>
+                            <pre><code><span class="term-comment"># build from source (first run compiles bin/ze)</span>
 <span class="term-prompt">$</span> <span class="term-cmd">git clone</span> https://github.com/ze-software/ze.git
-<span class="term-prompt">$</span> <span class="term-cmd">cd</span> ze && ./ze version
+<span class="term-prompt">$</span> <span class="term-cmd">cd</span> ze &amp;&amp; ./ze version
 
 <span class="term-comment"># copy the supplied local lab configuration</span>
 <span class="term-prompt">$</span> mkdir -p lab/r1 lab/r2
@@ -189,8 +189,8 @@ const homeTemplate = `        <div class="site-home">
 <span class="term-prompt">$</span> ./ze <span class="term-cmd">start</span> lab/r1/ze.conf
 <span class="term-prompt">$</span> ./ze <span class="term-cmd">start</span> lab/r2/ze.conf
 
-<span class="term-comment"># inspect received routes from a third terminal</span>
-<span class="term-prompt">$</span> ZE_SSH_PASSWORD=lab ./ze <span class="term-cmd">cli</span> --remote 127.0.0.1:2221 --user lab -c "show bgp rib | received"</pre>
+<span class="term-comment"># inspect received routes (expects 198.51.100.0/24 on r1)</span>
+<span class="term-prompt">$</span> ZE_SSH_PASSWORD=lab ./ze <span class="term-cmd">cli</span> --remote 127.0.0.1:2221 --user lab -c "show bgp rib | received"</code></pre>
                         </div>
                     </div>
                     <div class="terminal" aria-label="AI setup and lab prompt">
@@ -199,7 +199,7 @@ const homeTemplate = `        <div class="site-home">
                             <h3 class="terminal-title">With AI</h3>
                         </div>
                         <div class="terminal-body">
-                            <pre><span class="term-comment"># build from source</span>
+                            <pre><code><span class="term-comment"># build from source</span>
 <span class="term-prompt">$</span> <span class="term-cmd">git clone</span> https://github.com/ze-software/ze.git
 <span class="term-prompt">$</span> <span class="term-cmd">cd</span> ze &amp;&amp; ./ze version
 
@@ -209,13 +209,13 @@ const homeTemplate = `        <div class="site-home">
 <span class="term-prompt">$</span> ze <span class="term-cmd">show agent skill</span>
 
 <span class="term-comment"># start Claude Code or Codex from this shell</span>
-<span class="term-comment"># in Codex, trust Ze's hook with /hooks</span></pre>
+<span class="term-comment"># in Codex, trust Ze's hook with /hooks</span></code></pre>
                         </div>
                         <div class="terminal-dots">
                             <span class="terminal-title">Then ask your agent</span>
                         </div>
                         <div class="terminal-body">
-                            <pre>Use the ze skill and docs/guide/quickstart.md
+                            <pre><code>Use the ze skill and docs/guide/quickstart.md
 to run the local two-peer lab.
 
 Validate both configurations, start both peers,
@@ -224,7 +224,7 @@ Check that r1 receives 198.51.100.0/24 and
 r2 receives 192.0.2.0/24. Show me the results.
 
 Stop only the lab processes you started.
-Keep the logs if a check fails.</pre>
+Keep the logs if a check fails.</code></pre>
                         </div>
                     </div>
                 </div>
@@ -367,7 +367,7 @@ Keep the logs if a check fails.</pre>
                     <div><span class="index4-badge">By use case</span><h3>Start with the role you have in mind.</h3>
                         <p>Inspect the requirements and remaining gaps for your network role, alongside the feature maturity information.</p></div>
                     <div class="index4-role-actions"><a class="button" href="quality/rfc-compliance/profiles/">See completion by use case →</a>
-                        <a href="quality/">How Ze is tested</a><a href="#why-ze">Watch the configuration demo</a></div>
+                        <a href="compare/">Compare with BIRD, FRR and VyOS</a><a href="performance/">BGP benchmarks</a><a href="quality/">How Ze is tested</a></div>
                 </div>
                 <div class="index4-evidence-top">
                     <article class="index4-metric-panel" aria-labelledby="index4-rfc-title">
@@ -390,7 +390,7 @@ Keep the logs if a check fails.</pre>
                             <div><b>{{ze:interop.target_display}}</b><span>test images listed</span></div></div>
                         <div class="index4-image-list" aria-label="Listed test images">
                             <span>BIRD</span><span>FRR</span><span>GoBGP</span><span>OpenBGPD</span>
-                            <span>freeRouter</span><span>RustyBGP</span><span>rustbgpd</span><span>StayRTR</span>
+                            <span>freeRtr</span><span>RustyBGP</span><span>rustbgpd</span><span>StayRTR</span>
                             <span>keepalived</span><span>dnsmasq</span><span>Kea</span><span>Knot DNS</span><span>Unbound</span>
                         </div>
                         <p class="index4-image-scope">These test images are reused across many scenarios.
@@ -448,10 +448,10 @@ Keep the logs if a check fails.</pre>
                 <div class="interop-strip" aria-label="Implementations Ze is tested against">
                     <span class="interop-strip-label concept-evidence">Tested against</span>
                     <div class="interop-groups">
-                        <span class="interop-group"><b>BGP</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">FRR</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">BIRD</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">GoBGP</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">OpenBGPd</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">FreeRtr</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">RustyBGP</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">rustbgpd</a><a class="concept-software" href="features/exabgp-compatibility/">ExaBGP</a></span>
+                        <span class="interop-group"><b>BGP</b><a class="concept-software" href="labs/bgp-interop/">FRR</a><a class="concept-software" href="labs/bgp-interop/">BIRD</a><a class="concept-software" href="labs/bgp-interop/">GoBGP</a><a class="concept-software" href="labs/bgp-interop/">OpenBGPd</a><a class="concept-software" href="labs/bgp-interop/">FreeRtr</a><a class="concept-software" href="labs/bgp-interop/">RustyBGP</a><a class="concept-software" href="labs/bgp-interop/">rustbgpd</a><a class="concept-software" href="features/exabgp-compatibility/">ExaBGP</a></span>
                         <span class="interop-group"><b>BGP support</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">StayRTR</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">pmacct</a></span>
-                        <span class="interop-group"><b>VPN</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">strongSwan</a></span>
-                        <span class="interop-group"><b>Access</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">accel-ppp</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">xl2tpd</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">kl2tpd</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">FreeRADIUS</a></span>
+                        <span class="interop-group"><b>VPN</b><a class="concept-software" href="labs/ipsec-interop/">strongSwan</a></span>
+                        <span class="interop-group"><b>Access</b><a class="concept-software" href="labs/pppoe-interop/">accel-ppp</a><a class="concept-software" href="labs/l2tp-interop/">xl2tpd</a><a class="concept-software" href="labs/l2tp-interop/">kl2tpd</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">FreeRADIUS</a></span>
                         <span class="interop-group"><b>Redundancy</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">keepalived</a></span>
                     </div>
                 </div>
@@ -492,9 +492,9 @@ Keep the logs if a check fails.</pre>
                         <div class="capability-guide-card">
                             <span class="cat">Find the right page</span>
                             <h3>Keep the reference close.</h3>
-                            <p>The documentation index groups guides by the job you want to do. The feature catalogue includes maturity filters.</p>
+                            <p>The documentation index groups guides by the job you want to do. The feature catalog includes maturity filters.</p>
                             <a href="docs/">Open documentation →</a>
-                            <a href="features/">Browse the feature catalogue →</a>
+                            <a href="features/">Browse the feature catalog →</a>
                         </div>
                     </aside>
                 </div>
@@ -502,7 +502,7 @@ Keep the logs if a check fails.</pre>
 
             <section class="home-section-panel home-section-panel-momentum" aria-labelledby="blog-teaser-title">
                 <div class="section-head reveal">
-                    <h2 id="blog-teaser-title">Recent engineering notes.</h2>
+                    <h2 id="blog-teaser-title">Recent development updates.</h2>
                     <p>
                         The update reports describe changes recorded in git
                         and shared in Discord's <code>ze-news</code> channel.
@@ -513,6 +513,8 @@ Keep the logs if a check fails.</pre>
                 </div>
                 <div class="link-list reveal">
                     <a href="project/changes/">See all updates</a>
+                    <a href="blog/">Read the engineering blog</a>
+                    <a href="project/roadmap/">View the release roadmap</a>
                 </div>
             </section>
 

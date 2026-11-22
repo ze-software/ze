@@ -261,11 +261,12 @@ var useCasePages = []sitePage{
 }
 
 // labDetailPages publish two docs/ sources that the manifest does not name,
-// under the lab whose architecture they describe. They take no link manifest,
-// so a cross-document link in them resolves to the code host.
+// under the lab whose architecture they describe. Setting DocRel lets
+// rewriteDocLinks resolve relative repository links to published site pages
+// or the code host instead of leaving broken relative paths.
 var labDetailPages = []sitePage{
-	{Source: "docs/labs/l2tp-interop.md", Dest: "labs/l2tp-interop/architecture/index.html", Desc: "Peer-isolated Docker lab details for L2TP, PPP, NCP, and kernel dataplane checks.", Category: categoryServices, Journey: "Lab details"},
-	{Source: "docs/labs/pppoe-interop.md", Dest: "labs/pppoe-interop/architecture/index.html", Desc: "Peer-isolated Docker lab details for Ze PPPoE client interop with accel-ppp.", Category: categoryServices, Journey: "Lab details"},
+	{Source: "docs/labs/l2tp-interop.md", Dest: "labs/l2tp-interop/architecture/index.html", Desc: "Peer-isolated Docker lab details for L2TP, PPP, NCP, and kernel dataplane checks.", Category: categoryServices, Journey: "Lab details", DocRel: "labs/l2tp-interop.md"},
+	{Source: "docs/labs/pppoe-interop.md", Dest: "labs/pppoe-interop/architecture/index.html", Desc: "Peer-isolated Docker lab details for Ze PPPoE client interop with accel-ppp.", Category: categoryServices, Journey: "Lab details", DocRel: "labs/pppoe-interop.md"},
 }
 
 // comparePages are the comparison pages, whose evidence tables carry the

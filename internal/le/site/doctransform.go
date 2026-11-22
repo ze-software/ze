@@ -48,8 +48,11 @@ func rewriteDocLinks(body, docRel string, manifest map[string]string, destinatio
 			return attribute
 		}
 		resolved := path.Join(sourceDirectory, target)
+		if strings.HasPrefix(resolved, "../docs/") {
+			resolved = strings.TrimPrefix(resolved, "../docs/")
+		}
 		if strings.HasSuffix(target, "/") {
-			return `href="` + codeHostTree + "docs/" + resolved + `" target="_blank" rel="noopener"`
+			return `href="` + codeHostTree + docHostPath(resolved) + `" target="_blank" rel="noopener"`
 		}
 		if directory, published := manifest[resolved]; published {
 			relative := relativeRoute(directory, destination) + "/"
@@ -58,7 +61,7 @@ func rewriteDocLinks(body, docRel string, manifest map[string]string, destinatio
 			}
 			return `href="` + relative + `"`
 		}
-		away := repositoryBlobURL("docs/" + resolved)
+		away := repositoryBlobURL(docHostPath(resolved))
 		if hasFragment {
 			away += "#" + fragment
 		}
@@ -89,8 +92,11 @@ func rewriteDocLinksMarkdown(source, docRel string, manifest map[string]string, 
 			return link
 		}
 		resolved := path.Join(sourceDirectory, target)
+		if strings.HasPrefix(resolved, "../docs/") {
+			resolved = strings.TrimPrefix(resolved, "../docs/")
+		}
 		if strings.HasSuffix(target, "/") {
-			return "[" + label + "](" + codeHostTree + "docs/" + resolved + ")"
+			return "[" + label + "](" + codeHostTree + docHostPath(resolved) + ")"
 		}
 		isMarkdown := strings.HasSuffix(target, ".md")
 		if directory, published := manifest[resolved]; published {
@@ -106,12 +112,33 @@ func rewriteDocLinksMarkdown(source, docRel string, manifest map[string]string, 
 		if !isMarkdown {
 			return link
 		}
-		away := repositoryBlobURL("docs/" + resolved)
+		away := repositoryBlobURL(docHostPath(resolved))
 		if hasFragment {
 			away += "#" + fragment
 		}
 		return "[" + label + "](" + away + ")"
 	})
+}
+
+// docHostPath maps a resolved path relative to docs/ to its repository path on
+// the code host, cleaning escapes outside docs/ (such as ../third_party/...)
+// while keeping ../website/ links as TestADocLinkToAnAuthoredPageStaysOnTheSite expects.
+func docHostPath(resolved string) string {
+	if strings.HasPrefix(resolved, "../") && !strings.HasPrefix(resolved, "../website/") {
+		return path.Clean("docs/" + resolved)
+	}
+	return "docs/" + resolved
+}
+
+// sourceAnchorComment matches internal doc-anchor comments (`<!-- source: ... -->`)
+// that verify claims against repository files and must not leak into published pages.
+var sourceAnchorComment = regexp.MustCompile(`(?m)[ \t]*<!--\s*source:[^>]*-->[ \t]*\n?`)
+
+// stripSourceComments removes internal `<!-- source: ... -->` anchor comments
+// while preserving directive comments such as `terminal-demo`, `table-columns`,
+// and `site-block`.
+func stripSourceComments(text string) string {
+	return sourceAnchorComment.ReplaceAllString(text, "")
 }
 
 // keepsItsOwnHref reports whether a link target is already final: it leaves

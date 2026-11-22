@@ -4,7 +4,7 @@ A route-server performance test is simple in outline: create a route source, con
 
 **RFC completion:** the [BGP core coverage page](../../quality/rfc-compliance/profiles/bgp-core/) shows which requirements have passed the recorded test checks for this use case.
 
-AMS-IX used ExaBGP as a lightweight BGP route source. bgperf formalised the same idea with tester, target, and monitor containers. Ze can run that setup with `le perf`: Ze supplies the sender and receiver, the target is any BGP speaker you want to test, and the output is a repeatable report instead of a stopwatch and screenshots.
+AMS-IX used ExaBGP as a lightweight BGP route source. bgperf formalized the same idea with tester, target, and monitor containers. Ze can run that setup with `le perf`: Ze supplies the sender and receiver, the target is any BGP speaker you want to test, and the output is a repeatable report instead of a stopwatch and screenshots.
 
 This page shows Ze in the tester role. The device under test can be FRR, BIRD, GoBGP, OpenBGPD, a route-server appliance, or Ze itself.
 

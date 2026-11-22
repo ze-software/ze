@@ -4,6 +4,7 @@ package site
 import (
 	"encoding/xml"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -122,5 +123,11 @@ func TestTheRobotsFileSendsACrawlerToTheSitemap(t *testing.T) {
 	want := "User-agent: *\nAllow: /\n\nSitemap: " + siteBase + sitemapFile + "\n"
 	if got := readArtifact(t, paths.Output, robotsFile); got != want {
 		t.Errorf("the robots file states\n%q\nwant\n%q", got, want)
+	}
+	notFound := readArtifact(t, paths.Output, notFoundFile)
+	for _, wantText := range []string{"Page not found.", `href="/search/"`, `href="/docs/"`} {
+		if !strings.Contains(notFound, wantText) {
+			t.Errorf("404.html lacks %q", wantText)
+		}
 	}
 }

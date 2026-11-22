@@ -51,6 +51,8 @@ type pageShell struct {
 	// Open Graph and Twitter tags. An empty field takes the page's own.
 	SocialTitle       string
 	SocialDescription string
+	// OGType overrides the Open Graph og:type meta tag (defaults to "website").
+	OGType string
 	// Root is the relative prefix that reaches the site root from this page,
 	// empty for the site root itself.
 	Root string
@@ -134,7 +136,11 @@ func (shell pageShell) render(body string) string {
 	page.Str(metaTag("name", "description", shell.Description))
 	page.Str(metaTag("property", "og:title", shell.socialTitle()))
 	page.Str(metaTag("property", "og:description", shell.socialDescription()))
-	page.Str(metaTag("property", "og:type", "website"))
+	ogType := shell.OGType
+	if ogType == "" {
+		ogType = "website"
+	}
+	page.Str(metaTag("property", "og:type", ogType))
 	page.Str(metaTag("property", "og:image", socialImage))
 	page.Str(metaTag("property", "og:image:width", "1200"))
 	page.Str(metaTag("property", "og:image:height", "630"))
