@@ -46,4 +46,6 @@
 
 **You MUST finish the explicitly agreed work and report its result without asking permission to start it.** Ask only when the scope stays ambiguous after `ai/META-DECISIONS.md`, the RFC text and the agreed design are read, when a destructive action requires authorization under `ai/rules/never-destroy-work.md`, or when an agreed acceptance criterion needs to change. A logic bug or misbehavior is fixed and MUST NOT be turned into a question.
 
+**When the work a session finishes was handed over by a file in `plan/handover/`, the session MUST remove that handover file through `./le commit create ... remove <path>` once every item in it has landed, and MUST remove its own unused leftover temporary artifacts (session scratch under `tmp/session/<id>/scratch/`, spent `tmp/commit-*.sh` and `tmp/commit-msg-*.txt`, and empty or superseded `tmp/commit-*-approved-*.md` files) before claiming done.** Leave files another session owns, uncommitted user-requested files, and any artifact still in use untouched.
+
 **Before you offer more work, ask who asked for it.** When the user asked for it, you MUST finish it and MUST NOT ask permission again. When you thought of it yourself, you MUST drop it, and you MUST NOT start it, size it, or offer it a second time.

@@ -9,7 +9,7 @@
 **You MUST NOT leave a file undeleted only because deletion needs permission. Ask for the permission instead.**
 
 **You MUST treat each of these as work the user paid for: any file the user asked you to write, any file you wrote at the user's direction in this session, any in-progress implementation even when it does not compile or pass lint, and any scratchpad the user might be reading (`to-check`, `Stub/`, notes).**
-**You MAY act without asking on a build artifact that `make`, `go mod vendor` or codegen regenerates, on a cache under `~/.cache/` or similar, and on a file the user explicitly marked disposable. Care is still owed.**
+**You MAY act without asking on a build artifact that `make`, `go mod vendor` or codegen regenerates, on a cache under `~/.cache/` or similar, on a file the user explicitly marked disposable, on an unused leftover temporary artifact you created yourself (your own `tmp/session/<id>/scratch/` files, spent `tmp/commit-*.sh` and `tmp/commit-msg-*.txt`, and spent or superseded `tmp/commit-*-approved-*.md`), and on removing a completed `plan/handover/` file through `./le commit create ... remove <path>` once all its items have landed. Care is still owed.**
 
 **You MUST NOT destroy work on any of this reasoning: "lint is blocking", "it will be rewritten anyway", "I just wrote it one turn ago", "it is clearly an error, dead code, or scaffolding", "I am reverting my own mistake", or "the tree is in a broken state".** A hook is advisory, the user might want to diff what is there, you wrote it at their direction so it is theirs now, "clearly" is often wrong, and a broken tree is preferable to lost work.
 
@@ -19,7 +19,7 @@
 ## Forbidden Without Explicit Permission
 
 **Each operation below MUST NOT be performed without explicit permission:**
-- `rm <path>` on any user-visible file, meaning any path that is not already untracked trash. Ask before deleting it, and never leave the file behind as a workaround when deletion is the correct fix.
+- `rm <path>` on any user-visible file, meaning any path that is not already untracked trash or an unused leftover temporary artifact you created yourself. Ask before deleting it, and never leave the file behind as a workaround when deletion is the correct fix.
 - `git restore <path>` on a modified working-tree file, and `git reset --hard` or `git clean -f` anywhere. `ai/rules/git-safety.md` forbids these outright.
 - Overwriting an existing file with content that drops user edits. Read the current file, then merge or ask.
-- Truncating or overwriting a log file, session state, or a `tmp/` artifact the user might be inspecting. Leave it.
+- Truncating or overwriting a log file, session state, or a `tmp/` artifact another session or the user might be inspecting. Leave those; remove only your own unused leftover temporary artifacts.

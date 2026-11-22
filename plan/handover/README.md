@@ -1,8 +1,9 @@
 # Handover Documents
 
-Live home for handovers, per `ai/rules/planning.md` ("Handover Documents
-(`plan/handover/`)"): a handoff that must survive beyond the chat is written
-here as `NN-<slug>.md`, `NN` being the highest existing number plus one.
+Live home for handovers: a handoff that must survive beyond the chat is written
+here as `NN-<slug>.md`, `NN` being the highest existing number plus one, and
+removed through `./le commit create ... remove <path>` once every item in it has
+landed (`ai/rules/completion.md`).
 
 **This file exists so the directory does.** Git does not track empty
 directories, so when the last handover is closed the directory disappears from

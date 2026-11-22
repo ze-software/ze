@@ -16,4 +16,5 @@ directives ## Directives
   the-answer-to-an-exemption-argument-is-always-no
   verification-debt-is-not-defect-debt
   finish-the-task-then-report-what-was-done
+  clean-up-after-completed-work
   finish-what-was-asked-drop-what-you-offered

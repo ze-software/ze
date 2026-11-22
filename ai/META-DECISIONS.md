@@ -374,6 +374,12 @@ in the spec or commit it applies to.
   are in `ai/rules/git-safety.md`, "Never edit behind the upstream".
 - Before your first Go edit in a session, read `docs/contributing/ze-go-style.md`
   in full; the pre-write hook refuses a Go edit until you have.
+- After completing work, clean up leftover temporary artifacts you created
+  yourself that nothing else uses (your session scratch files, spent commit
+  scripts and messages, and spent approval ledgers) and remove any completed
+  `plan/handover/` file whose items have all landed via `./le commit create
+  ... remove`. After fixing lint findings, re-run lint on the fixed packages
+  before claiming done.
 
 ## Delegate to subagents
 
