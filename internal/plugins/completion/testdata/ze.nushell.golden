@@ -22,6 +22,7 @@ def "nu-complete ze commands" [] {
         { value: "status ", description: "Check if daemon is running" }
         { value: "sysctl ", description: "Kernel sysctl helpers" }
         { value: "tacacs ", description: "TACACS+ client helpers" }
+        { value: "thanks ", description: "List the third-party works Ze is built on, with their licences" }
     ]
 }
 

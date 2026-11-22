@@ -294,6 +294,7 @@ complete -c ze -n __ze_needs_command -a signal -d 'Send signals to the daemon vi
 complete -c ze -n __ze_needs_command -a status -d 'Check if daemon is running'
 complete -c ze -n __ze_needs_command -a sysctl -d 'Kernel sysctl helpers'
 complete -c ze -n __ze_needs_command -a tacacs -d 'TACACS+ client helpers'
+complete -c ze -n __ze_needs_command -a thanks -d 'List the third-party works Ze is built on, with their licences'
 
 # --- bgp (depth 1 only) ---
 complete -c ze -n 'test (__ze_depth bgp) = 0' -a decode -d 'Decode BGP message from hex to JSON'
@@ -372,3 +373,4 @@ complete -c ze -n '__ze_under_command schema' -a '(__ze_complete_dynamic schema)
 complete -c ze -n '__ze_under_command secret' -a '(__ze_complete_dynamic secret)'
 complete -c ze -n '__ze_under_command signal' -a '(__ze_complete_dynamic signal)'
 complete -c ze -n '__ze_under_command tacacs' -a '(__ze_complete_dynamic tacacs)'
+complete -c ze -n '__ze_under_command thanks' -a '(__ze_complete_dynamic thanks)'

@@ -21,6 +21,7 @@ _ze() {
         'status:Check if daemon is running'
         'sysctl:Kernel sysctl helpers'
         'tacacs:TACACS+ client helpers'
+        'thanks:List the third-party works Ze is built on, with their licences'
     )
 
     _arguments -C \
