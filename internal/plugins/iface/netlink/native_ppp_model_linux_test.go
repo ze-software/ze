@@ -54,7 +54,7 @@ func TestNativePPPModelLinkRequests(t *testing.T) {
 			attributes := nativePPPModelAttributes(t, header[unix.SizeofIfInfomsg:])
 			nativePPPModelOwnerLast(t, wire, nativePPPLinkOwnerAttribute)
 			if entry.attribute != nil {
-				if !bytes.Equal(attributes[uint16(entry.attribute.Type)], entry.attribute.Data) {
+				if !bytes.Equal(attributes[entry.attribute.Type], entry.attribute.Data) {
 					t.Fatal("link mutation lost its actual requested value")
 				}
 			}

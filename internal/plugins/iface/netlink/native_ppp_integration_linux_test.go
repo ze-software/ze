@@ -69,7 +69,7 @@ func TestNativePPPProviderUsefulRenamedOriginal(t *testing.T) {
 	if err := netlink.LinkSetName(fixture.link, "zppporiginal"); err != nil {
 		t.Fatal(err)
 	}
-	survivor := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: oldName, MTU: 1701}}
+	survivor := &netlink.Dummy{Name: oldName, MTU: 1701}
 	if err := netlink.LinkAdd(survivor); err != nil {
 		t.Fatal(err)
 	}
@@ -166,73 +166,77 @@ func TestNativePPPProviderAddressRouteFamilies(t *testing.T) {
 		{"IPv4 non-host", "198.51.100.1/24", "198.51.100.2/24", "198.51.100.3/24", "198.51.100.4/24", "198.51.100.99/24", "192.0.2.0/24"},
 		{"IPv6 link-local", "fe80::1/64", "fe80::2/64", "fe80::3/64", "fe80::4/64", "fe80::99/64", "2001:db8:1234::/48"},
 	} {
-		t.Logf("actual native family: %s", entry.name)
-		fixture := nativePPPProviderFixtureNew(t)
-		backend := &netlinkBackend{}
-		t.Cleanup(func() {
-			if err := backend.Close(); err != nil {
-				t.Errorf("close family backend: %v", err)
+		// One closure per family, so each family's context is canceled when
+		// that family ends rather than when the whole test returns.
+		func() {
+			t.Logf("actual native family: %s", entry.name)
+			fixture := nativePPPProviderFixtureNew(t)
+			backend := &netlinkBackend{}
+			t.Cleanup(func() {
+				if err := backend.Close(); err != nil {
+					t.Errorf("close family backend: %v", err)
+				}
+			})
+			writer, err := backend.BindNativePPPUnit(fixture, fixture.link.Attrs().Index, fixture.unit)
+			if err != nil {
+				t.Fatal(err)
 			}
-		})
-		writer, err := backend.BindNativePPPUnit(fixture, fixture.link.Attrs().Index, fixture.unit)
-		if err != nil {
-			t.Fatal(err)
-		}
-		t.Cleanup(func() {
-			if err := writer.Close(); err != nil {
-				t.Errorf("close family writer: %v", err)
+			t.Cleanup(func() {
+				if err := writer.Close(); err != nil {
+					t.Errorf("close family writer: %v", err)
+				}
+			})
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			defer cancel()
+			if err := writer.SetAdminUp(ctx); err != nil {
+				t.Fatal(err)
 			}
-		})
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-		defer cancel()
-		if err := writer.SetAdminUp(ctx); err != nil {
-			t.Fatal(err)
-		}
-		local := netip.MustParsePrefix(entry.local)
-		peer := netip.MustParsePrefix(entry.peer)
-		otherLocal := netip.MustParsePrefix(entry.otherLocal)
-		otherPeer := netip.MustParsePrefix(entry.otherPeer)
-		if err := writer.AddAddressP2P(ctx, local, peer); err != nil {
-			t.Fatal(err)
-		}
-		if err := writer.AddAddressP2P(ctx, otherLocal, otherPeer); err != nil {
-			t.Fatal(err)
-		}
-		nativePPPProviderRequirePair(t, fixture.link, local, peer, true)
-		nativePPPProviderRequirePair(t, fixture.link, otherLocal, otherPeer, true)
-		destination := netip.MustParsePrefix(entry.destination)
-		width := 128
-		if destination.Addr().Is4() {
-			width = 32
-		}
-		oldRoute := &netlink.Route{LinkIndex: fixture.link.Attrs().Index,
-			Dst: &net.IPNet{IP: net.IP(destination.Addr().AsSlice()), Mask: net.CIDRMask(destination.Bits(), width)},
-			Gw:  net.IP(peer.Addr().AsSlice()), Priority: 19, Protocol: netlink.RouteProtocol(rtproto.Static), MTU: 1301}
-		if err := netlink.RouteReplace(oldRoute); err != nil {
-			t.Fatal(err)
-		}
-		if err := writer.AddRoute(ctx, destination, peer.Addr(), 19, rtproto.Iface); err != nil {
-			t.Fatalf("actual guarded RouteReplace must replace an existing key: %v", err)
-		}
-		nativePPPProviderRequireRoute(t, fixture.link, destination, peer.Addr(), true)
-		if err := writer.RemoveRoute(ctx, destination, peer.Addr(), 19, rtproto.Iface); err != nil {
-			t.Fatal(err)
-		}
-		nativePPPProviderRequireRoute(t, fixture.link, destination, peer.Addr(), false)
-		if err := writer.RemoveAddressP2P(ctx, local, netip.MustParsePrefix(entry.wrongPeer)); err == nil {
-			t.Fatal("same-subnet foreign peer matched an exact original pair delete")
-		}
-		nativePPPProviderRequirePair(t, fixture.link, local, peer, true)
-		nativePPPProviderRequirePair(t, fixture.link, otherLocal, otherPeer, true)
-		if err := writer.RemoveAddressP2P(ctx, local, peer); err != nil {
-			t.Fatal(err)
-		}
-		nativePPPProviderRequirePair(t, fixture.link, local, peer, false)
-		nativePPPProviderRequirePair(t, fixture.link, otherLocal, otherPeer, true)
-		if err := writer.RemoveAddressP2P(ctx, otherLocal, otherPeer); err != nil {
-			t.Fatal(err)
-		}
-		nativePPPProviderRequirePair(t, fixture.link, otherLocal, otherPeer, false)
+			local := netip.MustParsePrefix(entry.local)
+			peer := netip.MustParsePrefix(entry.peer)
+			otherLocal := netip.MustParsePrefix(entry.otherLocal)
+			otherPeer := netip.MustParsePrefix(entry.otherPeer)
+			if err := writer.AddAddressP2P(ctx, local, peer); err != nil {
+				t.Fatal(err)
+			}
+			if err := writer.AddAddressP2P(ctx, otherLocal, otherPeer); err != nil {
+				t.Fatal(err)
+			}
+			nativePPPProviderRequirePair(t, fixture.link, local, peer, true)
+			nativePPPProviderRequirePair(t, fixture.link, otherLocal, otherPeer, true)
+			destination := netip.MustParsePrefix(entry.destination)
+			width := 128
+			if destination.Addr().Is4() {
+				width = 32
+			}
+			oldRoute := &netlink.Route{LinkIndex: fixture.link.Attrs().Index,
+				Dst: &net.IPNet{IP: net.IP(destination.Addr().AsSlice()), Mask: net.CIDRMask(destination.Bits(), width)},
+				Gw:  net.IP(peer.Addr().AsSlice()), Priority: 19, Protocol: netlink.RouteProtocol(rtproto.Static), MTU: 1301}
+			if err := netlink.RouteReplace(oldRoute); err != nil {
+				t.Fatal(err)
+			}
+			if err := writer.AddRoute(ctx, destination, peer.Addr(), 19, rtproto.Iface); err != nil {
+				t.Fatalf("actual guarded RouteReplace must replace an existing key: %v", err)
+			}
+			nativePPPProviderRequireRoute(t, fixture.link, destination, peer.Addr(), true)
+			if err := writer.RemoveRoute(ctx, destination, peer.Addr(), 19, rtproto.Iface); err != nil {
+				t.Fatal(err)
+			}
+			nativePPPProviderRequireRoute(t, fixture.link, destination, peer.Addr(), false)
+			if err := writer.RemoveAddressP2P(ctx, local, netip.MustParsePrefix(entry.wrongPeer)); err == nil {
+				t.Fatal("same-subnet foreign peer matched an exact original pair delete")
+			}
+			nativePPPProviderRequirePair(t, fixture.link, local, peer, true)
+			nativePPPProviderRequirePair(t, fixture.link, otherLocal, otherPeer, true)
+			if err := writer.RemoveAddressP2P(ctx, local, peer); err != nil {
+				t.Fatal(err)
+			}
+			nativePPPProviderRequirePair(t, fixture.link, local, peer, false)
+			nativePPPProviderRequirePair(t, fixture.link, otherLocal, otherPeer, true)
+			if err := writer.RemoveAddressP2P(ctx, otherLocal, otherPeer); err != nil {
+				t.Fatal(err)
+			}
+			nativePPPProviderRequirePair(t, fixture.link, otherLocal, otherPeer, false)
+		}()
 	}
 }
 
@@ -286,7 +290,8 @@ func nativePPPProviderRequireRoute(t *testing.T, link netlink.Link, destination 
 		t.Fatal(err)
 	}
 	present := false
-	for _, route := range routes {
+	for i := range routes {
+		route := &routes[i]
 		if route.Dst == nil {
 			continue
 		}

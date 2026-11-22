@@ -80,13 +80,13 @@ func nativePPPSettlementHistory(t *testing.T, negative bool) {
 	}
 	writer.beforeRead = nil
 	if !errors.Is(err, context.Canceled) {
-		t.Fatalf("cancelled original wait lost its cause: %v", err)
+		t.Fatalf("canceled original wait lost its cause: %v", err)
 	}
 	if !errors.Is(err, iface.ErrNativePPPPending) {
-		t.Fatalf("cancelled read did not retain original ACK custody: %v", err)
+		t.Fatalf("canceled read did not retain original ACK custody: %v", err)
 	}
 	if writer.pending == nil {
-		t.Fatal("cancelled read discarded its actually submitted original transaction")
+		t.Fatal("canceled read discarded its actually submitted original transaction")
 	}
 	if !writer.pending.entered {
 		t.Fatal("uncertain original transaction did not reach native Sendto")
@@ -94,7 +94,7 @@ func nativePPPSettlementHistory(t *testing.T, negative bool) {
 	sequence := writer.sequence
 	settleErr := writer.Settle(ctx)
 	if !errors.Is(settleErr, context.Canceled) {
-		t.Fatalf("matched settlement lost the original cancelled wait: %v", settleErr)
+		t.Fatalf("matched settlement lost the original canceled wait: %v", settleErr)
 	}
 	if errors.Is(settleErr, iface.ErrNativePPPPending) {
 		t.Fatalf("matched original response retained unresolved transport: %v", settleErr)

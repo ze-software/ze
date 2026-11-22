@@ -30,7 +30,7 @@ type nativePPPRetirementModelOwner struct {
 func (owner *nativePPPRetirementModelOwner) WaitNativePPPUnitRetired(ctx context.Context) error {
 	owner.waits++
 	if ctx.Err() != context.Canceled {
-		return errors.New("model observation was not already cancelled")
+		return errors.New("model observation was not already canceled")
 	}
 	if owner.retired {
 		return owner.retirement
@@ -216,7 +216,7 @@ func TestNativePPPModelUnavailableFacet(t *testing.T) {
 		})
 	}
 	writer := &nativePPPWriter{owner: owner, parent: &nativePPPResources{}, features: nativePPPSetlink}
-	cancelled, cancel := context.WithCancel(context.Background())
+	canceled, cancel := context.WithCancel(context.Background())
 	cancel()
 	for _, entry := range []struct {
 		name string
@@ -226,7 +226,7 @@ func TestNativePPPModelUnavailableFacet(t *testing.T) {
 			return writer.AddRoute(context.Background(), netip.Prefix{}, netip.Addr{}, 1, rtproto.Iface)
 		}},
 		{"alias validation", func() error { return writer.SetAlias(context.Background(), "bad\x00alias") }},
-		{"context cancellation", func() error { return writer.SetAdminUp(cancelled) }},
+		{"context cancellation", func() error { return writer.SetAdminUp(canceled) }},
 		{"ordinary borrow refusal", func() error { return writer.SetAdminUp(context.Background()) }},
 		{"settled native route NACK model", func() error { return &nativePPPRejected{cause: unix.ESRCH} }},
 	} {

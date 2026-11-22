@@ -135,7 +135,7 @@ func TestNativePPPProviderLiveSettleReadsOriginalACK(t *testing.T) {
 	initial, cancel := context.WithCancel(t.Context())
 	writer.beforeRead = cancel
 	require.ErrorIs(t, writer.SetMTU(initial, 1434), context.Canceled)
-	require.NotNil(t, writer.pending, "actual send must precede the cancelled wait")
+	require.NotNil(t, writer.pending, "actual send must precede the canceled wait")
 	writer.beforeRead = nil
 	wait, stop := context.WithTimeout(t.Context(), 3*time.Second)
 	defer stop()
@@ -239,7 +239,7 @@ func TestNativePPPProviderRetirementJoinsHeldOriginal(t *testing.T) {
 	wait, stop := context.WithTimeout(t.Context(), 3*time.Second)
 	defer stop()
 	require.NoError(t, unit.WaitNativePPPUnitRetired(wait))
-	err := writer.Settle(ctx) // Already-cancelled caller still observes completed join.
+	err := writer.Settle(ctx) // Already-canceled caller still observes completed join.
 	require.Error(t, err)
 	require.ErrorIs(t, err, context.Canceled)
 	require.NotErrorIs(t, err, iface.ErrNativePPPPending)
@@ -334,7 +334,7 @@ func TestNativePPPProviderSettledRouteNACKIsNotUnavailable(t *testing.T) {
 
 func nativePPPRetirementChannel(t *testing.T) *pppkernel.CreatedChannel {
 	t.Helper()
-	link := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "zpretaccess"}}
+	link := &netlink.Dummy{Name: "zpretaccess"}
 	require.NoError(t, netlink.LinkAdd(link))
 	t.Cleanup(func() { require.NoError(t, netlink.LinkDel(link)) })
 	require.NoError(t, netlink.LinkSetUp(link))

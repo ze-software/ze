@@ -14,7 +14,7 @@ import (
 
 // observeUnitRetirementLocked never starts Close or waits for a live unit. The
 // actual SAME owner checks completed retirement BEFORE selecting ctx.Done, so
-// an already-cancelled passive observation can return nil only after that join.
+// an already-canceled passive observation can return nil only after that join.
 // All negative observations retain custody; their absence is never a receipt.
 // The writer mutex is held, but no unit descriptor borrow is held here.
 func (w *nativePPPWriter) observeUnitRetirementLocked() bool {
@@ -28,10 +28,10 @@ func (w *nativePPPWriter) observeUnitRetirementLocked() bool {
 	if err == nil {
 		return true
 	}
-	// The cancelled observation is a non-result, not an operation failure.
+	// The canceled observation is a non-result, not an operation failure.
 	// Preserve an actual original/duplicate Close error once, without growing
 	// history on repeated observation of the same immutable terminal result.
-	if err != context.Canceled && w.pending.retirementErr == nil {
+	if !errors.Is(err, context.Canceled) && w.pending.retirementErr == nil {
 		w.pending.retirementErr = err
 	}
 	return false

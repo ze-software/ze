@@ -377,7 +377,7 @@ func TestNativeAccessLateCreateKeepsOriginalOutcomeAndForwardingSurvivor(t *test
 		return
 	}
 	withVLANQoSNetNS(t, func() {
-		pair := &netlink.Veth{LinkAttrs: netlink.LinkAttrs{Name: "nativel0"}, PeerName: "nativer0"}
+		pair := &netlink.Veth{Name: "nativel0", PeerName: "nativer0"}
 		if err := netlink.LinkAdd(pair); err != nil {
 			t.Fatal(err)
 		}
@@ -687,7 +687,7 @@ func TestNativeAccessLateRollbackPreservesForeignChild(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		child := &netlink.Vlan{LinkAttrs: netlink.LinkAttrs{Name: "foreign317", ParentIndex: root.Attrs().Index}, VlanId: 318}
+		child := &netlink.Vlan{Name: "foreign317", ParentIndex: root.Attrs().Index, VlanId: 318}
 		if err := netlink.LinkAdd(child); err != nil {
 			t.Fatal(err)
 		}

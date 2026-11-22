@@ -39,7 +39,10 @@ func TestNativePPPProviderReplacementAtActualSend(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	writer := bound.(*nativePPPWriter)
+	writer, ok := bound.(*nativePPPWriter)
+	if !ok {
+		t.Fatalf("native PPP binding returned %T, want *nativePPPWriter", bound)
+	}
 	t.Cleanup(func() {
 		if err := writer.Close(); err != nil {
 			t.Errorf("close replacement writer: %v", err)

@@ -238,7 +238,7 @@ func TestNativeAccessCreatorStampsAfterKernelIgnoresCreateAlias(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		probe := &netlink.Vlan{LinkAttrs: netlink.LinkAttrs{Name: "accalias0.314", ParentIndex: parent.Attrs().Index, Alias: "ze:alias-create-probe"}, VlanId: 314}
+		probe := &netlink.Vlan{Name: "accalias0.314", ParentIndex: parent.Attrs().Index, Alias: "ze:alias-create-probe", VlanId: 314}
 		if err := netlink.LinkAdd(probe); err != nil {
 			t.Fatal(err)
 		}

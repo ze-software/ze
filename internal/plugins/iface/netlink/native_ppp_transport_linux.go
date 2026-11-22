@@ -164,7 +164,7 @@ func (transaction *nativePPPTransaction) receive(ctx context.Context) error {
 // nativePPPParseACK validates the whole datagram, including trailing bytes and
 // every message after a nominal ACK. Only a nil parse error establishes a final
 // outcome; nativeErr is independently retained when a later message is invalid.
-func nativePPPParseACK(original unix.NlMsghdr, digest [sha256.Size]byte, wire []byte) (nativeErr error, parseErr error) {
+func nativePPPParseACK(original unix.NlMsghdr, digest [sha256.Size]byte, wire []byte) (nativeErr, parseErr error) {
 	acknowledgments := 0
 	for offset := 0; offset < len(wire); {
 		remaining := wire[offset:]

@@ -49,7 +49,7 @@ func cloneNativeAccessLink(link netlink.Link) netlink.Link {
 }
 func newNativeAccessRig(t *testing.T) *nativeAccessRig {
 	t.Helper()
-	rig := &nativeAccessRig{backend: &netlinkBackend{}, links: map[string]netlink.Link{"p0": &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "p0", Index: 2}}}, aliases: make(map[string]int)}
+	rig := &nativeAccessRig{backend: &netlinkBackend{}, links: map[string]netlink.Link{"p0": &netlink.Dummy{Name: "p0", Index: 2}}, aliases: make(map[string]int)}
 	ops := &nativeVLANOps{}
 	ops.byName = func(name string) (netlink.Link, error) {
 		link := rig.links[name]
@@ -577,7 +577,7 @@ func TestNativeAccessPersistentTimeoutStillVisitsOtherResources(t *testing.T) {
 func TestNativeAccessCreationCapacityRefusesBeforeMutation(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		rig := newNativeAccessRig(t)
-		rig.links["p1"] = &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "p1", Index: 3}}
+		rig.links["p1"] = &netlink.Dummy{Name: "p1", Index: 3}
 		for i := range nativeVLANResourceLimit {
 			parent, id := "p0", i+1
 			if id > maxVLANID {

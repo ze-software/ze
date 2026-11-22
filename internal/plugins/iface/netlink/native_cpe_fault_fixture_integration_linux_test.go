@@ -128,7 +128,7 @@ func (b *cpeNativeFaultBackend) BindNativePPPUnit(owner iface.NativePPPUnitOwner
 		faultErr = connection.Control(func(fd uintptr) { installErr = pppcpefault.DenyOriginalClose(int(fd)) })
 		faultErr = errors.Join(faultErr, installErr)
 	case cpeUnitClose:
-		faultErr = unit.WithDescriptor(func(fd int) error { return pppcpefault.DenyOriginalClose(fd) })
+		faultErr = unit.WithDescriptor(pppcpefault.DenyOriginalClose)
 	case cpeFaultUnspecified:
 		return b.facet, errors.New("CPE native fault is unspecified")
 	case cpeProbeSocketClose:
@@ -250,7 +250,7 @@ func (w *cpeNativeFaultWriter) RemoveRoute(ctx context.Context, destination neti
 }
 func (w *cpeNativeFaultWriter) Settle(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
-		w.backend.t.Errorf("cleanup reused cancelled context: %v", err)
+		w.backend.t.Errorf("cleanup reused canceled context: %v", err)
 	}
 	if _, bounded := ctx.Deadline(); !bounded {
 		w.backend.t.Error("cleanup settlement has no bound")
@@ -437,10 +437,8 @@ func newCPENativeFault(t *testing.T, fault cpeNativeFault, expectedPending, stan
 				if !errors.Is(err, unix.EPERM) {
 					t.Errorf("real failed Close lost syscall cause: %v", err)
 				}
-			} else {
-				if err != nil {
-					t.Error(err)
-				}
+			} else if err != nil {
+				t.Error(err)
 			}
 		}
 		cancel()
@@ -566,7 +564,8 @@ func cpeFaultWaitInstalled(t *testing.T, h *cpeNativeFaultFixture) *pppoeac.Sess
 				addressReady = true
 			}
 		}
-		for _, route := range routes {
+		for i := range routes {
+			route := &routes[i]
 			if route.Dst == nil {
 				if route.Gw.String() == "192.0.2.1" {
 					if route.Priority == 73 {

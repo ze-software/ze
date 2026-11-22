@@ -171,6 +171,8 @@ func nativePPPProbe(owner iface.NativePPPUnitOwner, index int, unit int32) (nati
 			// These query51 outcomes name a missing kernel capability or a
 			// missing/mismatched exact original. Other ioctl failures stay
 			// ordinary errors; native write NACKs never use this branch.
+			// Only the unavailable subset of the kernel's open errno set is mapped.
+			//exhaustive:ignore
 			switch errno {
 			case unix.ENOTTY, unix.EOPNOTSUPP, unix.ESTALE, unix.EBADF, unix.ENODEV, unix.ENXIO:
 				probeErr = errors.Join(iface.ErrNativePPPUnavailable, errno)

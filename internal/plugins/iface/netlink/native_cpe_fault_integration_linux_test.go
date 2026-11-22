@@ -210,7 +210,7 @@ func TestNativeCPEUncertainACKSettlesOriginalWithoutResend(t *testing.T) {
 	if err := netlink.LinkSetName(original, "heldfault"); err != nil {
 		t.Fatal(err)
 	}
-	replacement := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "faultwan", MTU: 9000}}
+	replacement := &netlink.Dummy{Name: "faultwan", MTU: 9000}
 	if err := netlink.LinkAdd(replacement); err != nil {
 		t.Fatal(err)
 	}
@@ -222,7 +222,7 @@ func TestNativeCPEUncertainACKSettlesOriginalWithoutResend(t *testing.T) {
 	h.releaseACK()
 	err = cpeFaultWaitResult(t, h, h.backend.writeResult)
 	if !errors.Is(err, iface.ErrNativePPPPending) {
-		t.Fatalf("actual cancelled receive was not Pending: %v", err)
+		t.Fatalf("actual canceled receive was not Pending: %v", err)
 	}
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("actual receive cancellation lost: %v", err)
@@ -319,7 +319,7 @@ func TestNativeCPEChangedResultUncertaintyNeverAcknowledgesSequence(t *testing.T
 	if err := netlink.LinkSetName(original, "heldchange"); err != nil {
 		t.Fatal(err)
 	}
-	replacement := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "faultwan", MTU: 9000}}
+	replacement := &netlink.Dummy{Name: "faultwan", MTU: 9000}
 	if err := netlink.LinkAdd(replacement); err != nil {
 		t.Fatal(err)
 	}
