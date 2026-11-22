@@ -184,7 +184,7 @@ func stateUnreadWarnings() []report.Issue {
 		if issue.Source != reportSourceIface {
 			continue
 		}
-		if issue.Code != diagnostic.CodeDoctorIfaceStateUnread {
+		if issue.Code != codeDoctorIfaceStateUnread {
 			continue
 		}
 		found = append(found, issue)
@@ -206,7 +206,7 @@ func TestApplyReportsAStateItCannotRead(t *testing.T) {
 	resetAddressOwners(t)
 	report.ResetForTest()
 	t.Cleanup(report.ResetForTest)
-	require.True(t, slices.Contains(diagnostic.EventCodes(), diagnostic.CodeDoctorIfaceStateUnread),
+	require.True(t, slices.Contains(diagnostic.EventCodes(), codeDoctorIfaceStateUnread),
 		"the recent-events check declares only a registered event code")
 
 	b := hostBridgeBackend()

@@ -51,10 +51,8 @@ const (
 	CodeConfigYANGRange                = "config-yang-range"
 	CodeConfigYANGType                 = "config-yang-type"
 	CodeDoctorRecentEvents             = "doctor-recent-events"
-	CodeDoctorIfaceStateUnread         = "doctor-iface-state-unread"
 	CodeDoctorModuleMissing            = "doctor-module-missing"
 	CodeDoctorStoreIntegrity           = "doctor-store-integrity"
-	CodeDoctorGNMITLSMaterial          = "doctor-gnmi-tls-material"
 	CodeDoctorTLSExpired               = "doctor-tls-expired"
 	CodeDoctorTLSInvalid               = "doctor-tls-invalid"
 	CodeDoctorStorageUnavailable       = "doctor-storage-unavailable"
@@ -248,19 +246,6 @@ var builtinCodes = append([]CodeMeta{
 		Examples:    []string{exampleDoctorJSON},
 	},
 	{
-		Code:  CodeDoctorGNMITLSMaterial,
-		Title: "gNMI TLS material cannot serve",
-		Description: "gNMI is set to start and its TLS settings (environment gnmi tls cert and key, or the " +
-			"ze.gnmi.tls.cert and ze.gnmi.tls.key overrides) name material it cannot serve: only one of " +
-			"the two files is set, a file cannot be read, the pair does not load, or the certificate is " +
-			"expired, not yet valid or near expiry. gNMI refuses to start rather than serve its token " +
-			"and config in clear text, and the daemon logs the refusal under this code. The finding " +
-			"names the file and the fix: restore the file or point the setting at a readable PEM pair, " +
-			"then restart Ze. The fix gives the restart for this process: a systemd command only when ze runs " +
-			"under ze.service, otherwise the steps for a ze started another way.",
-		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-gnmi-tls-material"},
-	},
-	{
 		Code:  CodeDoctorTLSReference,
 		Title: "TLS certificate reference cannot serve",
 		Description: "A listener names a certificate in the PKI store that cannot serve TLS. " +
@@ -281,12 +266,6 @@ var builtinCodes = append([]CodeMeta{
 		Title:       "No DNS resolver responding",
 		Description: "None of the name servers configured under system/name-server responded to a query.",
 		Examples:    []string{exampleDoctorJSON},
-	},
-	{
-		Code:        CodeDoctorIfaceStateUnread,
-		Title:       "Interface state not read before its configuration was applied",
-		Description: "Before it writes a link setting (MTU, admin state, bridge STP, bridge membership, VLAN QoS maps), ze reads the device's current state and writes only what differs. For this interface the read failed, so ze wrote the configured values without knowing whether they were already in place. The warning names the interface and the backend's answer, which is the cause. The apply itself reports any write that fails, so a configuration that applied is in place. Run `ze show interface name <interface> detail` to read the device's state again; the warning clears when a later apply reads that interface's state, and at the next ze start. A backend that is not ready yet, or a device the read does not find by its name, raises no warning.",
-		Examples:    []string{exampleShowDoctor, exampleShowWarnings, "ze show interface name eth0 detail", "ze show diagnostic doctor-iface-state-unread"},
 	},
 	// doctor-isis-net-missing and doctor-isis-system-id-mismatch are NOT listed
 	// here: they are owned and registered by the IS-IS component

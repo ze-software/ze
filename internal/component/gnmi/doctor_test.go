@@ -210,8 +210,8 @@ func TestGNMIExposureFromEnvironment(t *testing.T) {
 		if len(diags) != 1 {
 			t.Fatalf("got %d findings, want the TLS refusal alone: %+v", len(diags), diags)
 		}
-		if diags[0].Code != diagnostic.CodeDoctorGNMITLSMaterial {
-			t.Errorf("code = %q, want %q", diags[0].Code, diagnostic.CodeDoctorGNMITLSMaterial)
+		if diags[0].Code != CodeDoctorGNMITLSMaterial {
+			t.Errorf("code = %q, want %q", diags[0].Code, CodeDoctorGNMITLSMaterial)
 		}
 		if !strings.Contains(diags[0].Message, `"0.0.0.0:9339" without TLS`) {
 			t.Errorf("message = %q, want the boot refusal's problem", diags[0].Message)
@@ -254,8 +254,8 @@ func TestGNMITLSMaterialCheckRegistered(t *testing.T) {
 		if check.Name != "gnmi-tls-material" {
 			continue
 		}
-		if !slices.Contains(check.Codes, diagnostic.CodeDoctorGNMITLSMaterial) {
-			t.Errorf("gnmi-tls-material Codes = %v, want %s", check.Codes, diagnostic.CodeDoctorGNMITLSMaterial)
+		if !slices.Contains(check.Codes, CodeDoctorGNMITLSMaterial) {
+			t.Errorf("gnmi-tls-material Codes = %v, want %s", check.Codes, CodeDoctorGNMITLSMaterial)
 		}
 		return
 	}
@@ -269,8 +269,8 @@ func requireOneGNMITLSFinding(t *testing.T, diags []diagnostic.Diagnostic, sever
 	if len(diags) != 1 {
 		t.Fatalf("got %d findings, want 1: %+v", len(diags), diags)
 	}
-	if diags[0].Code != diagnostic.CodeDoctorGNMITLSMaterial {
-		t.Errorf("code = %q, want %q", diags[0].Code, diagnostic.CodeDoctorGNMITLSMaterial)
+	if diags[0].Code != CodeDoctorGNMITLSMaterial {
+		t.Errorf("code = %q, want %q", diags[0].Code, CodeDoctorGNMITLSMaterial)
 	}
 	if diags[0].Severity != severity {
 		t.Errorf("severity = %v, want %v", diags[0].Severity, severity)

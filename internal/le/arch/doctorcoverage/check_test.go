@@ -23,6 +23,7 @@ import (
 	// it: the gate itself reads the source.
 	_ "github.com/ze-software/ze/internal/component/plugin/all"
 
+	"github.com/ze-software/ze/internal/component/gnmi"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/le/commit/changecheck"
@@ -352,8 +353,8 @@ func TestDoctorCoverageSourceHoldsEveryRegisteredCode(t *testing.T) {
 	if declarers == 0 {
 		t.Error("no linked in-tree check declares the event codes, so no registered event code is reported by doctor")
 	}
-	if !slices.Contains(covered[diagnostic.CodeDoctorGNMITLSMaterial], "gnmi-tls-material") {
-		t.Errorf("%s is covered by %v, want the gnmi-tls-material check", diagnostic.CodeDoctorGNMITLSMaterial, covered[diagnostic.CodeDoctorGNMITLSMaterial])
+	if !slices.Contains(covered[gnmi.CodeDoctorGNMITLSMaterial], "gnmi-tls-material") {
+		t.Errorf("%s is covered by %v, want the gnmi-tls-material check", gnmi.CodeDoctorGNMITLSMaterial, covered[gnmi.CodeDoctorGNMITLSMaterial])
 	}
 	if err := checkCodesFloor(covered, coveredCodesFloor); err != nil {
 		t.Error(err)

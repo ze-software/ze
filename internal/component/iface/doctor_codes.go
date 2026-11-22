@@ -13,8 +13,10 @@ const (
 	CodeDoctorIfaceOwnedDeviceCleanup = "doctor-iface-owned-device-cleanup"
 	// CodeDoctorIfaceOwnedDeviceReconcile is the doctor diagnostic code "doctor-iface-owned-device-reconcile".
 	CodeDoctorIfaceOwnedDeviceReconcile = "doctor-iface-owned-device-reconcile"
+	codeDoctorIfaceStateUnread          = "doctor-iface-state-unread"
 	exampleDoctorJSON                   = "ze doctor --json"
 	exampleShowDoctor                   = "ze show doctor"
+	exampleShowWarnings                 = "ze show warnings"
 )
 
 // doctorDiagnosticCodes is the explanation metadata for the doctor codes this package owns.
@@ -66,6 +68,12 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 		Title:       "Owned interface devices do not match what their plugins asked for",
 		Description: "A kernel step for a plugin-owned bridge or link failed and could not be undone. Either a bridge set a plugin declared was refused and the previous set could not be made again, so a bridge the plugin still counts on is missing or wrong, or a device created half-way could not be deleted, so it holds a name the plugin asked for. The finding names the plugin or the device and the kernel's answer. Restarting the plugin declares its set again, which reconciles it; a half-made device is deleted by name. The finding clears when an owned pass succeeds and the device is gone.",
 		Examples:    []string{exampleShowDoctor, "ip -d link show", "ze show diagnostic doctor-iface-owned-device-reconcile"},
+	},
+	{
+		Code:        codeDoctorIfaceStateUnread,
+		Title:       "Interface state not read before its configuration was applied",
+		Description: "Before it writes a link setting (MTU, admin state, bridge STP, bridge membership, VLAN QoS maps), ze reads the device's current state and writes only what differs. For this interface the read failed, so ze wrote the configured values without knowing whether they were already in place. The warning names the interface and the backend's answer, which is the cause. The apply itself reports any write that fails, so a configuration that applied is in place. Run `ze show interface name <interface> detail` to read the device's state again; the warning clears when a later apply reads that interface's state, and at the next ze start. A backend that is not ready yet, or a device the read does not find by its name, raises no warning.",
+		Examples:    []string{exampleShowDoctor, exampleShowWarnings, "ze show interface name eth0 detail", "ze show diagnostic doctor-iface-state-unread"},
 	},
 }
 

@@ -198,7 +198,7 @@ func init() {
 	// A link state the apply could not read is a warning on the report bus,
 	// cleared by a later read of that device, so the recent-events check
 	// answers for its code (config_apply_held.go).
-	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: diagnostic.CodeDoctorIfaceStateUnread}); err != nil {
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorIfaceStateUnread}); err != nil {
 		panic("BUG: iface state-unread event code registration refused: " + err.Error())
 	}
 

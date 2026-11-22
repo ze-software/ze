@@ -92,7 +92,7 @@ phase itself.
     | Env var | `env.MustRegister()` call exists, `env.Get*()` call exists |
     | Metrics | Metric created AND updated somewhere reachable |
     | Event / send type | Listed in plugin `Registration.EventTypes`/`SendTypes`, at least one subscriber/caller |
-    | Runtime dependency (file path, socket, listen port, kernel module, external binary, cert, procfs/sysctl, netlink) | A registered `ze doctor` check exists (plugin `Registration.DoctorChecks` or owning-package registration) AND a diagnostic code is registered in `internal/core/diagnostic/codes.go`. A new dependency with no doctor check is a BLOCKER: agents cannot verify host readiness before starting the daemon. See `ai/rules/repo-maintenance.md`. This surface is verified nowhere else in the pipeline. |
+    | Runtime dependency (file path, socket, listen port, kernel module, external binary, cert, procfs/sysctl, netlink) | A registered `ze doctor` check exists (plugin `Registration.DoctorChecks` or owning-package registration) AND its diagnostic code is registered via `diagnostic.Register` in the owning package (`register_doctor_codes.go` or `register.go`). A new dependency with no doctor check is a BLOCKER: agents cannot verify host readiness before starting the daemon. See `ai/rules/repo-maintenance.md`. This surface is verified nowhere else in the pipeline. |
 
     **Do not skip this step.** "The code compiles" and "tests pass" do not prove wiring. A function with zero callers outside tests is dead code in production. Report every unwired symbol as a BLOCKER finding.
 

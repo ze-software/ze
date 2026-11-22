@@ -37,7 +37,7 @@ var gnmiTLSDoctorCheck = diagnostic.DoctorCheck{
 	Component:    "gnmi",
 	Dependencies: []string{"filesystem"},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{diagnostic.CodeDoctorGNMITLSMaterial},
+	Codes:        []string{CodeDoctorGNMITLSMaterial},
 	Check:        checkGNMITLSMaterial,
 }
 
@@ -91,7 +91,7 @@ func gnmiExposureFindings(tree *zeconfig.Tree, tlsNamed bool) []diagnostic.Diagn
 	diags := make([]diagnostic.Diagnostic, 0, len(refusals))
 	for _, r := range refusals {
 		diags = append(diags, diagnostic.Diagnostic{
-			Code:     diagnostic.CodeDoctorGNMITLSMaterial,
+			Code:     CodeDoctorGNMITLSMaterial,
 			Severity: diagnostic.SeverityError,
 			Message:  r.Problem(),
 			Help:     r.Why(),
@@ -109,7 +109,7 @@ func gnmiTLSRefusalFinding(err error) diagnostic.Diagnostic {
 	refusal, ok := errors.AsType[*opererr.Error](err)
 	if !ok {
 		return diagnostic.Diagnostic{
-			Code:     diagnostic.CodeDoctorGNMITLSMaterial,
+			Code:     CodeDoctorGNMITLSMaterial,
 			Severity: diagnostic.SeverityError,
 			Message:  "gNMI not started: its TLS material does not load: " + err.Error(),
 			Fix:      "point " + tlsCertSetting + " and " + tlsKeySetting + " at a readable PEM pair" + tlsRestart(),
@@ -121,7 +121,7 @@ func gnmiTLSRefusalFinding(err error) diagnostic.Diagnostic {
 		help.Str(": ").Err(cause)
 	}
 	return diagnostic.Diagnostic{
-		Code:     diagnostic.CodeDoctorGNMITLSMaterial,
+		Code:     CodeDoctorGNMITLSMaterial,
 		Severity: diagnostic.SeverityError,
 		Message:  refusal.Problem(),
 		Help:     help.String(),
@@ -139,7 +139,7 @@ func gnmiTLSExpiryFindings(certFile string) []diagnostic.Diagnostic {
 		// The pair loaded a moment ago, so the file went away since: the same
 		// unreadable case loadTLSCredentials refuses, reported the same way.
 		return []diagnostic.Diagnostic{{
-			Code:     diagnostic.CodeDoctorGNMITLSMaterial,
+			Code:     CodeDoctorGNMITLSMaterial,
 			Severity: diagnostic.SeverityError,
 			Message:  "gNMI TLS certificate file " + certFile + " cannot be read",
 			Help:     tlsNoClearText + ": " + err.Error(),
@@ -149,7 +149,7 @@ func gnmiTLSExpiryFindings(certFile string) []diagnostic.Diagnostic {
 	}
 	diags := diagnostic.DoctorCertExpiry(gnmiDoctorService, certFile, certPEM)
 	for i := range diags {
-		diags[i].Code = diagnostic.CodeDoctorGNMITLSMaterial
+		diags[i].Code = CodeDoctorGNMITLSMaterial
 		diags[i].Fix = "replace " + certFile + " with a certificate inside its validity window, or point " +
 			tlsCertSetting + " at one" + tlsRestart()
 	}

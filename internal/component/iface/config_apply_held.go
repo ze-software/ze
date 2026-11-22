@@ -9,7 +9,6 @@ import (
 	"errors"
 	"net"
 
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 )
 
@@ -33,7 +32,7 @@ func linkFacts(b Backend, device string) *InterfaceInfo {
 		logUnreadState(device, err)
 		return nil
 	}
-	report.ClearWarning(reportSourceIface, diagnostic.CodeDoctorIfaceStateUnread, device)
+	report.ClearWarning(reportSourceIface, codeDoctorIfaceStateUnread, device)
 	return held
 }
 
@@ -57,8 +56,8 @@ func logUnreadState(device string, err error) {
 	}
 	fix := stateUnreadFix(device)
 	log.Warn("iface config: could not read the current state of the interface, so its configured values are written without knowing whether they were already in place",
-		"iface", device, "err", err, "code", diagnostic.CodeDoctorIfaceStateUnread, "fix", fix)
-	report.RaiseWarningFix(reportSourceIface, diagnostic.CodeDoctorIfaceStateUnread, device,
+		"iface", device, "err", err, "code", codeDoctorIfaceStateUnread, "fix", fix)
+	report.RaiseWarningFix(reportSourceIface, codeDoctorIfaceStateUnread, device,
 		report.FitMessage(stateUnreadMessage(device, err)), fix)
 }
 
