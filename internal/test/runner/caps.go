@@ -34,6 +34,8 @@ const (
 )
 
 // Values `option=needs-linux:caps=` accepts, as a comma-separated list.
+// `lacks-caps=` takes the same tokens for the opposite question: capabilities
+// the daemon MUST NOT hold (applyLacksCapsGate, record_parse_option.go).
 //
 //   - net-admin: privileged network configuration -- creating interfaces,
 //     bringing links up, programming netlink and nftables.
@@ -261,6 +263,58 @@ func netnsDaemonMissing(tokens []string) ([]string, error) {
 	return missing, nil
 }
 
+// daemonHeldCaps answers, in declaration order and once each, the setcap names
+// of the capabilities the lacks-caps= tokens name that the process which will
+// run ze holds. An empty answer means ze will hold none of them. An unknown
+// token is an error, never an empty answer.
+//
+// The credential judged is the one the caps= gate judges. In the per-test
+// netns mode ze is dropped to ZE_TEST_UID and holds exactly netnsDaemonCapBits,
+// whatever the root runner holds, so a token is held when the grant carries
+// its bits. Off netns mode the runner and ze share one credential, so a token
+// is held when hasCaps answers present for it alone: the mirror of caps=, which
+// runs a test only when every token is held.
+func daemonHeldCaps(tokens []string) ([]string, error) {
+	var held []string
+	for _, token := range tokens {
+		bits, ok := capsRequired[token]
+		if !ok {
+			return nil, fmt.Errorf("unknown capability token %q (supported: %s)", token, capsAccepted())
+		}
+		holds, err := daemonHoldsToken(token, bits)
+		if err != nil {
+			return nil, err
+		}
+		if !holds {
+			continue
+		}
+		for _, bit := range bits {
+			name, nameErr := setcapName(bit)
+			if nameErr != nil {
+				return nil, nameErr
+			}
+			if !slices.Contains(held, name) {
+				held = append(held, name)
+			}
+		}
+	}
+	return held, nil
+}
+
+// daemonHoldsToken reports whether the process that will run ze holds every
+// capability bit of one token (see daemonHeldCaps for which credential).
+func daemonHoldsToken(token string, bits []int) (bool, error) {
+	if netnsActive() {
+		for _, bit := range bits {
+			if !slices.Contains(netnsDaemonCapBits, bit) {
+				return false, nil
+			}
+		}
+		return true, nil
+	}
+	return hasCaps([]string{token})
+}
+
 // capsAccepted lists the accepted tokens for an error message, derived from the
 // table so a new capability cannot be added without the diagnostic naming it
 // (ai/rules/evidence.md).
@@ -353,6 +407,9 @@ func applyNetnsLinkGate(r *Record) {
 // capability. Such a test's home is the QEMU guest (`le test qemu all`),
 // and the answer is this parser's own skip decision, so a caller routing the
 // test there never restates the gate.
+// A test declaring lacks-caps= answers false: the guest's runner is root and
+// its netns-mode daemon is granted the systemd unit's set, so the guest skips
+// it too, and its only home is an unprivileged Linux host.
 // A probe failure returns an error, not a placement decision.
 func NeedsGuest(path string) (bool, error) {
 	record, err := NewEncodingTests(filepath.Dir(path)).parseAndAdd(path)
@@ -360,6 +417,9 @@ func NeedsGuest(path string) (bool, error) {
 		return false, err
 	}
 	if !record.NeedsLinux {
+		return false, nil
+	}
+	if len(record.LacksCaps) > 0 {
 		return false, nil
 	}
 	return record.SkipReason != "", nil

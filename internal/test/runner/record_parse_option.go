@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -226,13 +227,13 @@ func parseOptionNeedsLinux(r *Record, ciFile string, kv map[string]string) error
 	// the test HANGS until the suite timeout. Declaring the capability turns
 	// that hang into an honest skip that names the QEMU runner, where the
 	// test does have the capability and therefore really runs.
+	//
+	// An optional `lacks-caps=net-bind` declares the opposite: the test
+	// asserts what a daemon WITHOUT the capability meets (a privileged port
+	// refused), so it skips where ze would hold it (applyLacksCapsGate).
 	r.NeedsLinux = true
-	if raw, present := kv["caps"]; present && strings.TrimSpace(raw) == "" {
-		return fmt.Errorf("option=needs-linux: caps= is empty; name each capability the test needs "+
-			"(supported: %s), e.g. option=needs-linux:caps=net-admin, or drop caps=", capsAccepted())
-	}
 
-	// Validate the declared capability BEFORE the GOOS early-return. A typo
+	// Validate the declared capabilities BEFORE the GOOS early-return. A typo
 	// is a property of the .ci file, not of the host, so it must be rejected
 	// everywhere: validating after the return would silently accept
 	// `caps=net-admn` on macOS, leaving the author who wrote it with no
@@ -242,37 +243,126 @@ func parseOptionNeedsLinux(r *Record, ciFile string, kv map[string]string) error
 	// Declaring only one of a pair a test really needs makes the gate fail
 	// OPEN -- a host holding just that one passes a check it cannot satisfy,
 	// and the test then fails or hangs exactly as it did before the marker
-	// existed (ai/rules/evidence.md).
-	var caps []string
-	if raw := kv["caps"]; raw != "" {
-		for c := range strings.SplitSeq(raw, ",") {
-			c = strings.TrimSpace(c)
-			if _, ok := capsRequired[c]; !ok {
-				return fmt.Errorf("option=needs-linux: unknown caps %q (supported: %s)", c, capsAccepted())
-			}
-			caps = append(caps, c)
+	// existed (ai/rules/evidence.md). lacks-caps takes the same tokens and the
+	// same validation, for the opposite question (applyLacksCapsGate).
+	caps, err := parseCapsTokens(kv, keyCaps, "the test needs")
+	if err != nil {
+		return err
+	}
+	lacks, err := parseCapsTokens(kv, keyLacksCaps, "the daemon must not hold")
+	if err != nil {
+		return err
+	}
+	for _, token := range lacks {
+		if slices.Contains(caps, token) {
+			return fmt.Errorf("option=needs-linux: %q is in both caps= and lacks-caps=; a test cannot need "+
+				"a capability and its absence, so drop it from the list it does not belong to", token)
 		}
 	}
+	r.LacksCaps = lacks
 	if runtime.GOOS != goosLinux {
 		var tb textbuf.Buffer
 		r.SkipReason = tb.Str("needs-linux: this host is GOOS=").Str(runtime.GOOS).
-			Str(", which has no Linux kernel to run the test on; ").Str(guestRouteAdvice(ciFile)).String()
+			Str(", which has no Linux kernel to run the test on; ").Str(needsLinuxRunAdvice(ciFile, caps, lacks)).String()
 		return nil
 	}
 	if len(caps) > 0 {
-		present, err := hasCaps(caps)
-		if err != nil {
-			return fmt.Errorf("option=needs-linux caps=%s: admission failed: %w", strings.Join(caps, ","), err)
+		present, probeErr := hasCaps(caps)
+		if probeErr != nil {
+			return fmt.Errorf("option=needs-linux caps=%s: admission failed: %w", strings.Join(caps, ","), probeErr)
 		}
 		if !present {
 			var tb textbuf.Buffer
 			r.SkipReason = tb.Str("needs-linux caps=").Str(strings.Join(caps, ",")).
 				Str(": this process does not hold the capability, so the test cannot run here; ").
-				Str(guestRouteAdvice(ciFile)).String()
+				Str(needsLinuxRunAdvice(ciFile, caps, lacks)).String()
 			return nil
 		}
-		return applyNetnsDaemonCapsGate(r, caps)
+		if gateErr := applyNetnsDaemonCapsGate(r, caps); gateErr != nil {
+			return gateErr
+		}
+		if r.SkipReason != "" {
+			return nil
+		}
 	}
+	return applyLacksCapsGate(r, caps, lacks)
+}
+
+// parseCapsTokens reads the comma-separated capability tokens of one
+// option=needs-linux key. An absent key answers nil; a present but empty key,
+// or a token capsRequired does not hold, is refused on every host. need says
+// what the list names, for the empty-key refusal.
+func parseCapsTokens(kv map[string]string, key, need string) ([]string, error) {
+	raw, present := kv[key]
+	if !present {
+		return nil, nil
+	}
+	if strings.TrimSpace(raw) == "" {
+		return nil, fmt.Errorf("option=needs-linux: %s= is empty; name each capability %s "+
+			"(supported: %s), e.g. option=needs-linux:%s=net-admin, or drop %s=", key, need, capsAccepted(), key, key)
+	}
+	var tokens []string
+	for token := range strings.SplitSeq(raw, ",") {
+		token = strings.TrimSpace(token)
+		if _, ok := capsRequired[token]; !ok {
+			return nil, fmt.Errorf("option=needs-linux: unknown %s %q (supported: %s)", key, token, capsAccepted())
+		}
+		tokens = append(tokens, token)
+	}
+	return tokens, nil
+}
+
+// needsLinuxRunAdvice answers the tail of a needs-linux skip reason: where the
+// test does run. A test with lacks-caps= runs only on a Linux host whose ze
+// lacks those capabilities, which the QEMU guest never is (its runner is root,
+// and its netns-mode daemon is granted the systemd unit's set), so it is told
+// that instead of the guest route.
+func needsLinuxRunAdvice(ciFile string, caps, lacks []string) string {
+	if len(lacks) == 0 {
+		return guestRouteAdvice(ciFile)
+	}
+	return lacksCapsAdvice(caps, lacks)
+}
+
+// lacksCapsAdvice names where a lacks-caps= test runs: a Linux host, outside
+// the guest, whose ze holds every caps= token and none of the lacks-caps= ones.
+func lacksCapsAdvice(caps, lacks []string) string {
+	var tb textbuf.Buffer
+	tb.Str("run its suite on a Linux host, outside ./le test qemu, as a user that is not root, so the ze it starts holds ")
+	if len(caps) > 0 {
+		tb.Str("caps=").Str(strings.Join(caps, ",")).Str(" alone, by file capability, and ")
+	}
+	return tb.Str("none of lacks-caps=").Str(strings.Join(lacks, ",")).String()
+}
+
+// applyLacksCapsGate skips a record whose lacks-caps= names a capability the
+// process that will run ze holds. Such a test asserts what an unprivileged
+// daemon meets (a privileged port refused for CAP_NET_BIND_SERVICE), so a ze
+// holding the capability does the privileged thing and the test goes red for
+// the host, not for ze. The judge is the daemon's credential, the same one
+// the caps= gate reads (daemonHeldCaps). Applied after the caps= gate, so a
+// test already skipped for a missing capability keeps that reason.
+func applyLacksCapsGate(r *Record, caps, lacks []string) error {
+	if len(lacks) == 0 {
+		return nil
+	}
+	held, err := daemonHeldCaps(lacks)
+	if err != nil {
+		return fmt.Errorf("option=needs-linux lacks-caps=%s: admission failed: %w", strings.Join(lacks, ","), err)
+	}
+	if len(held) == 0 {
+		return nil
+	}
+	var tb textbuf.Buffer
+	tb.Str("needs-linux lacks-caps=").Str(strings.Join(lacks, ",")).Str(": ")
+	if netnsActive() {
+		tb.Str("the netns-mode ze daemon is granted ").Str(strings.Join(held, ",")).
+			Str(" (netnsDaemonCapBits in internal/test/runner/caps.go)")
+	} else {
+		tb.Str("this process holds ").Str(strings.Join(held, ",")).Str(", and the ze it starts inherits it")
+	}
+	r.SkipReason = tb.Str(", so ze would do what the test proves an unprivileged daemon cannot; ").
+		Str(lacksCapsAdvice(caps, lacks)).String()
 	return nil
 }
 

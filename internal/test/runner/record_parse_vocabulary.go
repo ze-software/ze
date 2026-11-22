@@ -51,6 +51,14 @@ const (
 	keyVar   = "var"
 )
 
+// The keys of option=needs-linux, named once so the entry's key list and
+// parseOptionNeedsLinux's reads are the same declaration: caps= names the
+// capabilities the test needs, lacks-caps= the ones the daemon must not hold.
+const (
+	keyCaps      = "caps"
+	keyLacksCaps = "lacks-caps"
+)
+
 // The vocabulary of the .ci directives record_parse.go reads, declared once per
 // switch. Each list GATES its parser: a word the list does not carry is refused
 // before the switch runs, and the refusal prints the same slice the gate read.
@@ -121,7 +129,7 @@ var (
 		directiveTypeFile:   {keys: []string{"path"}, parse: parseOptionFile},
 		"needs-arch":        {keys: []string{keyValue}, parse: parseOptionNeedsArch},
 		optionNeedsBuildTag: {keys: []string{keyValue, "state"}, parse: parseOptionNeedsBuildTag, selectedDUT: true},
-		"needs-linux":       {keys: []string{"caps"}, parse: parseOptionNeedsLinux, resource: true},
+		"needs-linux":       {keys: []string{keyCaps, keyLacksCaps}, parse: parseOptionNeedsLinux, resource: true},
 		"needs-path":        {keys: []string{keyValue, "hint"}, parse: parseOptionNeedsPath},
 		"netns-link":        {keys: []string{"name", keyPeer, "address", "vlan"}, parse: parseOptionNetnsLink},
 		directiveTypeOpen:   {keys: []string{keyValue}, parse: parseOptionOpen},

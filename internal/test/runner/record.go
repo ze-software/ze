@@ -282,6 +282,13 @@ type Record struct {
 	// run ONLY these tests and skip everything else.
 	NeedsLinux bool
 
+	// LacksCaps holds the option=needs-linux:lacks-caps= tokens: capabilities
+	// the process that runs ze MUST NOT hold, because the test asserts what an
+	// unprivileged daemon meets (applyLacksCapsGate). A test declaring any has
+	// no home in the QEMU guest, whose runner is root, so NeedsGuest never
+	// routes it there.
+	LacksCaps []string
+
 	// NetnsLinks are interfaces the runner provisions inside this test's per-test
 	// network namespace (option=netns-link) before spawning ze. Populated at parse
 	// time; consumed only under netns mode (ZE_TEST_NETNS), so the option is inert

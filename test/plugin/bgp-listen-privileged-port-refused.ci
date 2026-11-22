@@ -1,0 +1,67 @@
+# Test: a BGP listener on a privileged port the daemon may not bind names the capability
+#
+# Question: when ze, run as an unprivileged user, starts with a BGP peer whose
+# listener is on a port below the kernel's unprivileged port start, does the
+# operator read the configured address and port, the peer, CAP_NET_BIND_SERVICE
+# and the fix? A unit test proves the reactor's error
+# (internal/component/bgp/reactor/listen_refusal_test.go); only the real
+# daemon proves that error reaches the operator's terminal through the plugin
+# start and the hub, with nothing dropping its why or its fix line.
+#
+# VALIDATES: the start refusal of a BGP listener refused for the capability
+# names 127.0.0.1:178, peer1, CAP_NET_BIND_SERVICE, and a fix line.
+# PREVENTS: "bgp: start reactor: listen on 127.0.0.1:178: listen tcp
+# 127.0.0.1:178: bind: permission denied" with no capability and no fix,
+# now that the generic start-up capability warning is a Debug line.
+#
+# Host requirement: ze MUST run without CAP_NET_BIND_SERVICE, as it does on
+# GitHub's ubuntu runners and the development machines. With it (root, a file
+# capability, or the netns-mode grant of ./le test qemu), ze binds the port and
+# starts, so the option below skips the test there, naming the capability. The
+# QEMU guest is never this test's home. Linux only: the refusal and its
+# wording are the Linux kernel's.
+#
+# Sysctl assumption: net.ipv4.ip_unprivileged_port_start keeps its default,
+# 1024. At 178 or below, ze binds the port and this test fails. The runner has
+# no option for a sysctl condition, so the default is assumed rather than gated.
+#
+# Port: 178 is below 1024 and is not the BGP port, so the peer's own `local
+# port` is the listen port (listenPortFor) whatever the daemon's port is. The
+# bind is refused before anything listens, so no other test can collide with
+# it, and $PORT cannot be used: the runner's range is above 1024.
+
+option=needs-linux:lacks-caps=net-bind
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			local {
+				ip 127.0.0.1
+				port 178
+			}
+			remote {
+				ip 127.0.0.254
+			}
+		}
+		session {
+			asn {
+				local 65001
+				remote 65002
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=30s
+expect=exit:code=1
+expect=stderr:contains=cannot listen on 127.0.0.1:178 for bgp peer peer1
+expect=stderr:contains=port 178 is below the kernel's unprivileged port start
+expect=stderr:contains=CAP_NET_BIND_SERVICE
+expect=stderr:contains=fix:
+reject=stderr:contains=bgp peers started
