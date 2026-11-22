@@ -6,4 +6,5 @@ package fixture
 // steps that assert on it over SSH. Its body is daemon_await_answer_fixture.go.
 func init() {
 	Register("daemon/await-answer", daemonAwaitAnswer)
+	Register("daemon/await-answer-all", daemonAwaitAnswerAll)
 }

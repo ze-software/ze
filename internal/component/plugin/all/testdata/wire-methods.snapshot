@@ -47,6 +47,7 @@ ze-bgp:rib-best-status
 ze-bgp:rib-clear-advertised
 ze-bgp:rib-clear-in
 ze-bgp:rib-clear-out
+ze-bgp:rib-clear-out-excluding-owner
 ze-bgp:rib-fastpath
 ze-bgp:rib-inject
 ze-bgp:rib-protocol
@@ -176,6 +177,7 @@ ze-container:show-store
 ze-container:show-volume-list
 ze-container:update-image
 ze-container:update-image-rollback
+ze-cos:cleanup
 ze-crashes:show-crashes
 ze-ddos:show-flowspec
 ze-ddos:show-incidents

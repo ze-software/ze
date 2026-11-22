@@ -32,6 +32,17 @@ module ze-l2tp-cmd {
         description "Initial revision (spec-l2tp-7-subsystem).";
     }
 
+    grouping session-read-cli-qualifiers {
+        description "CLI string qualifiers for selecting one original session without numeric-identifier ambiguity.";
+        leaf tunnel-id {
+            type string;
+            description "Restrict selection to the local tunnel carrying the original session.
+A session ID shared by several tunnels requires this qualifier.";
+            ze:help "Original local tunnel ID.";
+        }
+        uses l2tpapi:session-read-common-qualifiers;
+    }
+
     // -----------------------------------------------------------------
     // Read tree: `show l2tp ...`
     // -----------------------------------------------------------------
@@ -120,14 +131,14 @@ subscriber login, and uptime.";
 qualifiers when the ID is shared. Returns its PPP state and assigned addresses.";
                     ze:help "Show full detail for one L2TP session.";
                     leaf id {
-                        type uint16 { range "1..65535"; }
+                        type string;
                         mandatory true;
                         description "The decimal local session ID from the show l2tp session table. Zero is
 refused because RFC 2661 reserves it, and an unknown ID is refused with 'no session with
 local-sid'.";
                         ze:help "Local session ID.";
                     }
-                    uses l2tpapi:session-read-qualifiers;
+                    uses session-read-cli-qualifiers;
                 }
 
                 container history {
@@ -143,12 +154,12 @@ Use this when a subscriber's session fails to come up.";
 Qualify an ambiguous session ID with tunnel-id and listener.";
                         ze:help "Select one original session's transitions.";
                         leaf id {
-                            type uint16 { range "1..65535"; }
+                            type string;
                             mandatory true;
                             description "The local session ID whose original FSM history is wanted.";
                             ze:help "Local session ID.";
                         }
-                        uses l2tpapi:session-read-qualifiers;
+                        uses session-read-cli-qualifiers;
                     }
                 }
 
@@ -168,12 +179,12 @@ health.";
 Qualify an ambiguous session ID with tunnel-id and listener.";
                         ze:help "Select one original session's traffic counters.";
                         leaf id {
-                            type uint16 { range "1..65535"; }
+                            type string;
                             mandatory true;
                             description "The local session ID whose original counters are wanted.";
                             ze:help "Local session ID.";
                         }
-                        uses l2tpapi:session-read-qualifiers;
+                        uses session-read-cli-qualifiers;
                     }
                 }
             }
@@ -221,12 +232,12 @@ overrides. Confirms what the daemon uses.";
 Qualify a shared session ID with tunnel-id and listener.";
                     ze:help "Select one original session's event history.";
                     leaf id {
-                        type uint16 { range "1..65535"; }
+                        type string;
                         mandatory true;
                         description "The local session ID whose original event ring is wanted.";
                         ze:help "Local session ID.";
                     }
-                    uses l2tpapi:session-read-qualifiers;
+                    uses session-read-cli-qualifiers;
                 }
                 container all {
                     config false;

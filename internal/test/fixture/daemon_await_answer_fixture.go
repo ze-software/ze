@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -65,6 +66,52 @@ func daemonAwaitAnswer(ctx context.Context, args []string) error {
 		return awaitAnswerFailure(needle, command, last)
 	}
 	fmt.Fprintln(os.Stderr, "OK: `ze cli -c "+command+"` answered with "+needle)
+	return nil
+}
+
+// daemonAwaitAnswerAll polls `ze cli -c <command>` until it exits zero and its
+// stdout contains every given needle. Arguments: <command> <needle> [<needle>...].
+func daemonAwaitAnswerAll(ctx context.Context, args []string) error {
+	if len(args) < 2 {
+		return errors.New("usage: daemon/await-answer-all <command> <needle> [<needle>...]")
+	}
+	command := args[0]
+	needles := args[1:]
+	for _, needle := range needles {
+		if needle == "" {
+			return errors.New("daemon/await-answer-all: an empty needle matches any answer")
+		}
+	}
+	waitCtx, cancel := context.WithTimeout(ctx, WaitBudget(50, 30*time.Second))
+	defer cancel()
+
+	attempts := WaitAttempts(50, awaitAnswerDelay, 120)
+	environment := os.Environ()
+	var last *awaitAnswerRun
+	held := Poll(waitCtx, attempts, awaitAnswerDelay, func() bool {
+		var run awaitAnswerRun
+		run.code, run.stdout, run.stderr, run.err = runCaptured(waitCtx, environment, "", "ze", "cli", "-c", command)
+		if waitCtx.Err() != nil {
+			return false
+		}
+		last = &run
+		if run.err != nil {
+			return false
+		}
+		if run.code != 0 {
+			return false
+		}
+		for _, needle := range needles {
+			if !strings.Contains(run.stdout, needle) {
+				return false
+			}
+		}
+		return true
+	})
+	if !held {
+		return awaitAnswerFailure(strings.Join(needles, ", "), command, last)
+	}
+	fmt.Println("OK: `ze cli -c " + command + "` answered with all " + strconv.Itoa(len(needles)) + " expected entries")
 	return nil
 }
 

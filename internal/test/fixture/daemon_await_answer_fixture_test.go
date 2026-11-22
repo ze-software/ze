@@ -89,3 +89,19 @@ echo '{"warnings": [{"code": "doctor-plugin-stopped"}]}'`)
 		require.Error(t, daemonAwaitAnswer(t.Context(), []string{"", "show warnings"}))
 	})
 }
+
+func TestDaemonAwaitAnswerAll(t *testing.T) {
+	t.Run("waits until every needle appears", func(t *testing.T) {
+		argv := installAwaitAnswerZe(t, `if [ "$count" -eq 1 ]; then echo "10.1.0.0/24"; exit 0; fi
+echo "10.1.0.0/24 10.2.0.0/24"`)
+		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+		defer cancel()
+		require.NoError(t, daemonAwaitAnswerAll(ctx, []string{"show bgp rib", "10.1.0.0/24", "10.2.0.0/24"}))
+		calls := awaitAnswerCalls(t, argv)
+		assert.Len(t, calls, 2)
+	})
+	t.Run("usage", func(t *testing.T) {
+		require.Error(t, daemonAwaitAnswerAll(t.Context(), []string{"show bgp rib"}))
+		require.Error(t, daemonAwaitAnswerAll(t.Context(), []string{"show bgp rib", "10.1.0.0/24", ""}))
+	})
+}

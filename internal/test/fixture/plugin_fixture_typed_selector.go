@@ -47,8 +47,9 @@ func typedSelectorProvider(ctx context.Context, args []string) error {
 			Module: module.Name, Namespace: module.Namespace, YANGText: module.Text,
 		})
 	}
-	for _, path := range []string{externalyang.TypedSelectorCommand, externalyang.TypedSelectorState} {
-		registration.Commands = append(registration.Commands, sdk.CommandDecl{Name: path, ShortHelp: "Exercise typed selection.", Shape: "doc"})
+	registration.Commands = []sdk.CommandDecl{
+		{Name: externalyang.TypedSelectorCommand, ShortHelp: "Exercise typed selection.", Shape: "doc"},
+		{Name: externalyang.TypedSelectorState, ShortHelp: "Exercise typed selection.", Shape: "doc"},
 	}
 	var serveErr error
 	code := sdk.RunOrDeclare(registration, func() int {

@@ -536,17 +536,27 @@ func TestCmdMethods(t *testing.T) {
 		t.Fatalf("failed to build registry: %v", err)
 	}
 
-	// Every rpc the four modules declare is published under at least one
-	// method, which is the method of a command node that points at it. The
-	// expectation is read from the modules themselves, so a new rpc is
-	// covered the day it is written, and an rpc no node points at is named.
+	// Every rpc the four modules declare is published either under the wire
+	// method of a command node that points at it (operator command) or under
+	// its own ze:method in PublishedRPCs.Protocol (plugin IPC protocol, which
+	// must not leak into operator ListRPCs). The expectation is read from the
+	// modules themselves, so a new rpc is covered the day it is written, and
+	// an rpc no node points at and no ze:method names is flagged.
 	loader, err := yang.DefaultLoader()
 	if err != nil {
 		t.Fatalf("load YANG: %v", err)
 	}
+	pub, err := yang.PublishedRPCs(loader)
+	if err != nil {
+		t.Fatalf("publish RPCs: %v", err)
+	}
 	published := make(map[string]bool)
 	for _, rpc := range registry.ListRPCs("") {
 		published[rpc.Module+":"+rpc.Name] = true
+	}
+	protocol := make(map[string]bool)
+	for _, rpc := range pub.Protocol {
+		protocol[rpc.Module+":"+rpc.Name] = true
 	}
 	for _, module := range []string{"ze-bgp-api", "ze-system-api", "ze-plugin-api", "ze-rib-api"} {
 		declared := yang.ExtractRPCs(loader, module)
@@ -554,7 +564,17 @@ func TestCmdMethods(t *testing.T) {
 			t.Errorf("%s declares no rpc in this binary, so this test proves nothing about it", module)
 		}
 		for _, rpc := range declared {
-			if !published[module+":"+rpc.Name] {
+			key := module + ":" + rpc.Name
+			if rpc.WireMethod != "" {
+				if !protocol[key] {
+					t.Errorf("protocol rpc %s in %s declares ze:method %s but is absent from PublishedRPCs.Protocol", rpc.Name, module, rpc.WireMethod)
+				}
+				if published[key] {
+					t.Errorf("protocol rpc %s in %s leaked into operator ListRPCs", rpc.Name, module)
+				}
+				continue
+			}
+			if !published[key] {
 				t.Errorf("rpc %s in %s is published under no method", rpc.Name, module)
 			}
 		}

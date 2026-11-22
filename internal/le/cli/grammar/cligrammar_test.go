@@ -304,14 +304,17 @@ func TestTheLeFeederFlagsAHyphenatedObjectRoot(t *testing.T) {
 	}
 }
 
-// VALIDATES: spec-le-subject-first-command-tree AC-19. The exemption list is
-// empty, so the two hyphenated roots that were its last entries are findings
-// again, and the run counts no exemption.
-// PREVENTS: an exemption that silently survives the split, which would read as
-// a clean surface for the wrong reason.
+// VALIDATES: spec-le-subject-first-command-tree AC-19. The retired hyphenated
+// roots (`test-unit`, `test-chaos`) remain absent from leNamespaceExempt and
+// are flagged with zero exemptions counted, while the closed set of indivisible
+// compounds in leNamespaceExempt is honoured and counted.
+// PREVENTS: an exemption that silently excuses a retired split, or an
+// exemption valve that stops counting what it excuses.
 func TestTheLeExemptionIsHonouredAndCounted(t *testing.T) {
-	if len(leNamespaceExempt) != 0 {
-		t.Fatalf("leNamespaceExempt holds %d entries, want none: every le command is subject first", len(leNamespaceExempt))
+	for _, retired := range []string{"test-unit", "test-chaos"} {
+		if leNamespaceExempt[retired] {
+			t.Fatalf("leNamespaceExempt still holds retired root %q", retired)
+		}
 	}
 	roots := append(leProbeRoots(), "test-unit", "test-chaos")
 
@@ -325,7 +328,21 @@ func TestTheLeExemptionIsHonouredAndCounted(t *testing.T) {
 		}
 	}
 	if result.LeExempt != 0 {
-		t.Errorf("the run counted %d le exemptions, want 0: nothing is on the list to excuse", result.LeExempt)
+		t.Errorf("the run counted %d le exemptions, want 0 for retired roots", result.LeExempt)
+	}
+
+	exemptRoots := append(leProbeRoots(), "arch error-inventory", "arch error-wrap", "test container", "test container-seed")
+	exemptResult, err := Check(writeTree(t, cleanFixture(t)), Floor{}, exemptRoots)
+	if err != nil {
+		t.Fatalf("the gate failed over the exempt fixture: %v", err)
+	}
+	if exemptResult.LeExempt != len(leNamespaceExempt) {
+		t.Errorf("the run counted %d le exemptions, want %d:\n%s", exemptResult.LeExempt, len(leNamespaceExempt), exemptResult.Text())
+	}
+	for exempt := range leNamespaceExempt {
+		if namesLeFinding(exemptResult, exempt) {
+			t.Errorf("exempt le compound %q was flagged:\n%s", exempt, exemptResult.Text())
+		}
 	}
 }
 

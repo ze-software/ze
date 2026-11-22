@@ -538,5 +538,5 @@ policy rules.
 
 Use `bgp-rs` for an explicit route-server role or `bgp-rr` for a reflector
 role. Those roles retain their own route population and replay behavior.
-<!-- source: internal/component/bgp/plugins/rib/rib_selected_dispatch.go -- runDestination -->
+<!-- source: internal/component/bgp/plugins/rib/rib_selected_dispatch.go -- selectedDispatch.run -->
 <!-- source: internal/component/bgp/reactor/peer_selected_state.go -- selectedDestinationForSession -->

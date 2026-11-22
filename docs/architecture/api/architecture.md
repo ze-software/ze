@@ -59,7 +59,7 @@ definitions. The API's private definitions are excluded from JSON metadata.
 <!-- source: internal/component/api/requests.go -- ValidateParams -->
 <!-- source: internal/component/api/rest/convert.go -- fromRESTExecuteRequest -->
 <!-- source: internal/component/api/grpc/convert.go -- fromProtoExecuteRequest, fromProtoStreamRequest -->
-<!-- source: internal/component/mcp/tools.go -- dispatchGenerated -->
+<!-- source: internal/component/mcp/tools.go -- generatedCommand -->
 <!-- source: internal/component/web/handler_admin.go -- commandArguments -->
 
 ## TL;DR (Read This First)
@@ -519,7 +519,7 @@ re-evaluate existing routes.
 <!-- source: internal/component/bgp/reactor/policy_reload.go -- reconcileExportFinalKinds, policyReplayOwner, flushPolicyReplay -->
 <!-- source: internal/component/bgp/reactor/policy_final_kinds.go -- reconcileSelectedExport -->
 <!-- source: internal/component/bgp/server/export_policy_event.go -- OnPeerExportPolicy -->
-<!-- source: internal/component/bgp/reactor/forward_pool.go -- requeuePolicyReplay -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- requeueForwardHold -->
 <!-- source: internal/core/bgp/ribevents/replay.go -- ReplayRoutesCommand, RelayReplay, ReplayPathCommand, RelayReplayPath -->
 <!-- source: internal/component/bgp/plugins/adj_rib_in/replay_page.go -- replayRoutesCommand, buildReplayPage -->
 <!-- source: internal/component/bgp/plugins/rr/rr.go -- replayForPeer -->

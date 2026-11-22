@@ -50,7 +50,8 @@ func TestVPPAPIGenerationPublishesPatchedBindings(t *testing.T) {
 		if !slices.Contains(command.Environment, "CGO_ENABLED=0") {
 			t.Fatal("generator has no explicit CGO policy")
 		}
-		if !slices.Equal(command.Arguments[:4], []string{"go", "run", "-mod=mod", "go.fd.io/govpp/cmd/binapi-generator@v0.13.0"}) {
+		wantPrefix := []string{"go", "run", "-mod=mod", "go.fd.io/govpp/cmd/binapi-generator@v0.13.0"}
+		if !slices.Equal(command.Arguments[:4], wantPrefix) {
 			t.Fatalf("generator command = %v", command.Arguments)
 		}
 		if command.Timeout <= 0 {

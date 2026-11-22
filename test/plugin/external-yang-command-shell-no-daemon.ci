@@ -39,7 +39,6 @@ option=env:var=ze.ssh.password:value=testpass
 option=env:var=ze.ssh.port:value=$PORT
 
 tmpfs=marker.run:terminator=EOF_RUN
-#!/bin/sh
 echo started > started-by-ze.marker
 exec le test fixture plugin/external-yang commands
 EOF_RUN

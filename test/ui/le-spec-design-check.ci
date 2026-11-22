@@ -24,32 +24,28 @@
 
 option=timeout:value=120s
 
-tmpfs=design.sh:terminator=EOF_SCRIPT
-ZE_REPO_ROOT="$PWD" exec le spec design "$@"
-EOF_SCRIPT
-
-tmpfs=go.mod:terminator=EOF_GOMOD
+tmpfs=repo/go.mod:terminator=EOF_GOMOD
 module example.com/design-fixture
 EOF_GOMOD
 
-tmpfs=feature-gates.txt:terminator=EOF_GATES
+tmpfs=repo/feature-gates.txt:terminator=EOF_GATES
 # the second root marker le looks for
 EOF_GATES
 
-tmpfs=ai/doors/system.md:terminator=EOF_DOOR
+tmpfs=repo/ai/doors/system.md:terminator=EOF_DOOR
 # System door
 
 <!-- door-base: pkg cmd/ze internal -->
 EOF_DOOR
 
-tmpfs=internal/component/widget/widget.yang:terminator=EOF_YANG
+tmpfs=repo/internal/component/widget/widget.yang:terminator=EOF_YANG
 // Design: docs/architecture/widget.md -- the widget
 
 module widget {
 }
 EOF_YANG
 
-tmpfs=docs/architecture/widget.md:terminator=EOF_PAGE
+tmpfs=repo/docs/architecture/widget.md:terminator=EOF_PAGE
 # Widget
 
 How the widget answers.
@@ -61,18 +57,18 @@ How the widget answers.
 | The widget answers data and the surface renders it | Rendering text in the widget | plan/records/widget.md | 2026-08-21 |
 EOF_PAGE
 
-tmpfs=docs/architecture/widget-flow.md:terminator=EOF_FLOW
+tmpfs=repo/docs/architecture/widget-flow.md:terminator=EOF_FLOW
 # Widget flow
 
 The answer travels from the widget to the surface.
 <!-- source: internal/component/widget/widget.yang -- widget -->
 EOF_FLOW
 
-tmpfs=plan/records/widget.md:terminator=EOF_RECORD
+tmpfs=repo/plan/records/widget.md:terminator=EOF_RECORD
 # Widget record
 EOF_RECORD
 
-tmpfs=plan/release/fixes/spec-widget.md:terminator=EOF_SPEC
+tmpfs=repo/plan/release/fixes/spec-widget.md:terminator=EOF_SPEC
 # Spec: widget
 
 | Field | Value |
@@ -128,7 +124,7 @@ None.
 1. Render.
 EOF_SPEC
 
-tmpfs=plan/release/fixes/spec-widget-whole.md:terminator=EOF_WHOLE
+tmpfs=repo/plan/release/fixes/spec-widget-whole.md:terminator=EOF_WHOLE
 # Spec: widget whole
 
 | Field | Value |
@@ -186,7 +182,7 @@ None.
 EOF_WHOLE
 
 # The derivation: the system door, the header page, the anchored page, and the decision row.
-cmd=foreground:seq=1:exec=sh design.sh documents spec plan/release/fixes/spec-widget.md:exit=0
+cmd=foreground:seq=1:exec=le test fixture spec/design-in-dir repo 0 documents spec plan/release/fixes/spec-widget.md:exit=0
 expect=stdout:contains=plan/release/fixes/spec-widget.md: 3 design pages, 1 decision rows owe a verdict in ## Design documents
 expect=stdout:contains=  ai/doors/system.md  (the door every change reads
 expect=stdout:contains=  docs/architecture/widget.md  (the // Design: page of internal/component/widget/widget.yang)
@@ -194,7 +190,7 @@ expect=stdout:contains=  docs/architecture/widget-flow.md  (anchored to internal
 expect=stdout:contains=  docs/architecture/widget.md, Design decisions, decision of 2026-08-21: "The widget answers data and the surface renders it"
 
 # A table that omits the header page and its decision row owes both, then the judge.
-cmd=foreground:seq=2:exec=sh design.sh check spec plan/release/fixes/spec-widget.md:exit=1
+cmd=foreground:seq=2:exec=le test fixture spec/design-in-dir repo 1 check spec plan/release/fixes/spec-widget.md:exit=1
 expect=stdout:contains=spec-widget.md: ## Design documents is missing 2 rows owed by its files
 expect=stdout:contains=  - docs/architecture/widget.md  (the // Design: page of internal/component/widget/widget.yang)
 expect=stdout:contains=  - docs/architecture/widget.md, Design decisions, decision of 2026-08-21: "The widget answers data and the surface renders it"
@@ -202,7 +198,7 @@ expect=stdout:contains=spec-widget.md: no judge has judged this design; fix: hav
 expect=stdout:contains=run ./le spec design documents spec plan/release/fixes/spec-widget.md to list the owed rows
 
 # The whole table owes only the judge.
-cmd=foreground:seq=3:exec=sh design.sh check spec plan/release/fixes/spec-widget-whole.md:exit=1
+cmd=foreground:seq=3:exec=le test fixture spec/design-in-dir repo 1 check spec plan/release/fixes/spec-widget-whole.md:exit=1
 expect=stdout:contains=spec-widget-whole.md: no judge has judged this design; fix: have ze-design-judge judge it
 expect=stdout:contains=run ./le spec design documents spec plan/release/fixes/spec-widget-whole.md to list the owed rows
 reject=stdout:contains=is missing

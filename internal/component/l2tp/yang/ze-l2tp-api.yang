@@ -24,15 +24,8 @@ module ze-l2tp-api {
     // carrying the JSON payload; the CLI handler renders it directly.
     // -----------------------------------------------------------------
 
-    grouping session-read-qualifiers {
-        description "Optional filters select one original session before its snapshot,
-history or counters are read. They never authorize a second numeric lookup.";
-        leaf tunnel-id {
-            type uint16 { range "1..65535"; }
-            description "Restrict selection to the local tunnel carrying the original session.
-A session ID shared by several tunnels requires this qualifier.";
-            ze:help "Original local tunnel ID.";
-        }
+    grouping session-read-common-qualifiers {
+        description "Optional string qualifiers shared by L2TP session read RPCs and CLI commands.";
         leaf listener {
             type string { length "1..253"; }
             description "Configured listener name or bound IP:port from the listener inventory.
@@ -45,6 +38,18 @@ Equal session and tunnel IDs on different listeners require this qualifier.";
 original refuses instead of selecting a replacement with the same numeric IDs.";
             ze:help "Require the displayed immutable session reference.";
         }
+    }
+
+    grouping session-read-qualifiers {
+        description "Optional filters select one original session before its snapshot,
+history or counters are read. They never authorize a second numeric lookup.";
+        leaf tunnel-id {
+            type uint16 { range "1..65535"; }
+            description "Restrict selection to the local tunnel carrying the original session.
+A session ID shared by several tunnels requires this qualifier.";
+            ze:help "Original local tunnel ID.";
+        }
+        uses session-read-common-qualifiers;
     }
 
     rpc summary {

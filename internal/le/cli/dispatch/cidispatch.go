@@ -59,9 +59,9 @@ var goEmitters = []*regexp.Regexp{
 	regexp.MustCompile(`\b(commandExecutor)\s*\(\s*(.+?)\s*\)`),
 }
 
-// quotedLiteral matches a whole-argument single-quoted or double-quoted
-// literal.
-var quotedLiteral = regexp.MustCompile(`^(?:'([^'\\]*)'|"([^"\\]*)")$`)
+// quotedLiteral matches a whole-argument single-quoted, double-quoted, or Go
+// raw (backtick) string literal.
+var quotedLiteral = regexp.MustCompile("^(?:'([^'\\\\]*)'|\"([^\"\\\\]*)\"|`([^`]*)`)$")
 
 // passThrough matches an argument that is a bare variable or field: the command
 // was decided elsewhere and this call only forwards it (`SendCommand(input)` in
@@ -72,8 +72,9 @@ var quotedLiteral = regexp.MustCompile(`^(?:'([^'\\]*)'|"([^"\\]*)")$`)
 // the shape every defect this check exists for took.
 var passThrough = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$`)
 
-// firstLiteral finds the first quoted run in a computed command argument.
-var firstLiteral = regexp.MustCompile(`'([^'\\]*)'|"([^"\\]*)"`)
+// firstLiteral finds the first quoted run in a computed command argument,
+// including Go raw (backtick) string literals.
+var firstLiteral = regexp.MustCompile("'([^'\\\\]*)'|\"([^\"\\\\]*)\"|`([^`]*)`")
 
 // Check walks tree's native emitters and answers every one that does not
 // resolve.
@@ -281,7 +282,10 @@ func literal(arg string) (string, bool) {
 	if match[1] != "" {
 		return match[1], true
 	}
-	return match[2], true
+	if match[2] != "" {
+		return match[2], true
+	}
+	return match[3], true
 }
 
 // leadingLiteral answers the static text at the start of a computed command
@@ -289,9 +293,8 @@ func literal(arg string) (string, bool) {
 // `tb.Str("show bgp peer ").Str(addr)` yields "show bgp peer".
 //
 // The static prefix is the part a command-tree migration breaks. Checking it
-// Checking the static prefix catches command-tree migrations while permitting
-// computed suffixes. A computed command with no static prefix is unverifiable
-// and fails.
+// catches command-tree migrations while permitting computed suffixes. A
+// computed command with no static prefix is unverifiable and fails.
 func leadingLiteral(arg string) string {
 	match := firstLiteral.FindStringSubmatch(arg)
 	if match == nil {
@@ -301,7 +304,26 @@ func leadingLiteral(arg string) string {
 	if lit == "" {
 		lit = match[2]
 	}
-	return strings.TrimSpace(lit)
+	if lit == "" {
+		lit = match[3]
+	}
+	lit = strings.TrimSpace(lit)
+	// A raw-string prefix that opens a quoted argument value (such as
+	// `` `system command help name "`+name+`"` ``) leaves a single trailing quote
+	// when truncated at the concatenation; strip that opening quote so the
+	// dispatcher judges the command prefix rather than rejecting an unclosed
+	// quote.
+	if strings.HasSuffix(lit, "\"") {
+		if strings.Count(lit, "\"")%2 == 1 {
+			lit = strings.TrimSpace(strings.TrimSuffix(lit, "\""))
+		}
+	}
+	if strings.HasSuffix(lit, "'") {
+		if strings.Count(lit, "'")%2 == 1 {
+			lit = strings.TrimSpace(strings.TrimSuffix(lit, "'"))
+		}
+	}
+	return lit
 }
 
 // skipCommand reports strings that are not dispatcher command paths: the

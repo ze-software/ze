@@ -117,7 +117,7 @@ func TestNoPythonLeRemains(t *testing.T) {
 		if strings.HasPrefix(slash, "scripts/") && isScriptCode(slash) {
 			t.Errorf("tracked script code remains: %s", slash)
 		}
-		if firstPartySource(slash) && !isExamplePluginSource(slash) {
+		if isDisallowedScriptSource(slash) {
 			switch filepath.Ext(slash) {
 			case ".py", ".pyc", ".sh", ".bash", ".mk":
 				t.Errorf("tracked interpreted or Make source remains: %s", slash)
@@ -315,6 +315,97 @@ func TestPythonExamplePluginsRemainPluginContractSubjects(t *testing.T) {
 		}
 		if filepath.Base(slash) == "Makefile" {
 			t.Errorf("%s is a Makefile in the example directory", slash)
+		}
+	}
+}
+
+// contribNotifierDir holds the host-side systemd installer and leaf-guard
+// shell scripts for the optional GitHub push notification unit.
+const contribNotifierDir = "contrib/github-notifier/"
+
+// contribNotifierScripts is the closed list of shell scripts under
+// contrib/github-notifier/ that TestNoPythonLeRemains does not refuse. They
+// install and exercise a Linux host systemd user unit rather than acting as le
+// development tooling. Adding another script is a deliberate edit of this
+// list, in a reviewed commit.
+var contribNotifierScripts = []string{
+	contribNotifierDir + "install.sh",
+	contribNotifierDir + "leaf-guards.sh",
+	contribNotifierDir + "test-leaf-guards.sh",
+}
+
+// isContribNotifierScript reports whether path is exactly one of the files in
+// contribNotifierScripts. It matches nothing else.
+func isContribNotifierScript(path string) bool {
+	return slices.Contains(contribNotifierScripts, path)
+}
+
+// isDisallowedScriptSource reports whether path is subject to
+// TestNoPythonLeRemains's ban on tracked interpreted and Make sources.
+func isDisallowedScriptSource(path string) bool {
+	if !firstPartySource(path) {
+		return false
+	}
+	if isExamplePluginSource(path) {
+		return false
+	}
+	if isContribNotifierScript(path) {
+		return false
+	}
+	return true
+}
+
+// TestContribNotifierScriptsRemainHostInstallerSubjects pins the exemption
+// TestNoPythonLeRemains gives the host systemd notifier scripts.
+//
+// VALIDATES: the exemption is exactly the three listed files (a sibling `.sh`,
+// a nested `.sh`, a `.py` or Makefile there, and an `install.sh` elsewhere are
+// each not exempt); all three listed files remain tracked; and the directory
+// holds, at any depth, no other `.py`, `.pyc`, `.sh`, `.bash`, `.mk`, or
+// Makefile.
+// PREVENTS: interpreted development tooling creeping into contrib/ or the
+// exemption widening without an explicit edit of contribNotifierScripts.
+func TestContribNotifierScriptsRemainHostInstallerSubjects(t *testing.T) {
+	for path, want := range map[string]bool{
+		contribNotifierDir + "install.sh":            true,
+		contribNotifierDir + "leaf-guards.sh":        true,
+		contribNotifierDir + "test-leaf-guards.sh":   true,
+		contribNotifierDir + "other.sh":              false,
+		contribNotifierDir + "sub/install.sh":        false,
+		contribNotifierDir + "notify.py":             false,
+		contribNotifierDir + "Makefile":              false,
+		"contrib/install.sh":                         false,
+		"contrib/other-tool/install.sh":              false,
+		"internal/le/" + contribNotifierDir + "a.sh": false,
+		"scripts/install.sh":                         false,
+	} {
+		if got := isContribNotifierScript(path); got != want {
+			t.Errorf("isContribNotifierScript(%q) = %v, want %v", path, got, want)
+		}
+	}
+
+	root := checkoutRoot(t)
+	tracked := trackedExistingFiles(t, root)
+	for _, listed := range contribNotifierScripts {
+		if !slices.Contains(tracked, filepath.FromSlash(listed)) {
+			t.Errorf("%s is listed in contribNotifierScripts and is not a tracked file: remove it from the list", listed)
+		}
+	}
+
+	for _, rel := range tracked {
+		slash := filepath.ToSlash(rel)
+		if !strings.HasPrefix(slash, contribNotifierDir) {
+			continue
+		}
+		if isContribNotifierScript(slash) {
+			continue
+		}
+		switch filepath.Ext(slash) {
+		case ".py", ".pyc", ".sh", ".bash", ".mk":
+			t.Errorf("%s is interpreted or Make source in %s and is not in contribNotifierScripts", slash, contribNotifierDir)
+		}
+		if filepath.Base(slash) == "Makefile" {
+			t.Errorf("%s is a Makefile in %s", slash, contribNotifierDir)
 		}
 	}
 }

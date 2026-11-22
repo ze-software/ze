@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"slices"
 	"strconv"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -56,6 +58,22 @@ func sourceCommandRefused(problem string) error {
 	return opererr.New(problem, "No other peer or physical connection may complete this GR operation", "ze request reload")
 }
 
+const (
+	cmdRIBSourceRetainRoutes        = "request bgp rib source retain-routes"
+	cmdRIBSourceReleaseRoutes       = "request bgp rib source release-routes"
+	cmdRIBSourceMarkStale           = "request bgp rib source mark-stale"
+	cmdRIBSourcePurgeStale          = "request bgp rib source purge-stale"
+	cmdRIBSourceAttachCommunity     = "request bgp rib source attach-community"
+	cmdRIBSourceDeleteWithCommunity = "request bgp rib source delete-with-community"
+
+	helpRIBSourceRetainRoutes        = "Retain one original received connection"
+	helpRIBSourceReleaseRoutes       = "Release one original retained connection"
+	helpRIBSourceMarkStale           = "Mark one original connection stale"
+	helpRIBSourcePurgeStale          = "Purge stale routes of one original connection"
+	helpRIBSourceAttachCommunity     = "Decorate stale routes of one original connection"
+	helpRIBSourceDeleteWithCommunity = "Remove matching stale routes of one original connection"
+)
+
 type ribSourceCommandDefinition struct {
 	name    string
 	help    string
@@ -65,12 +83,12 @@ type ribSourceCommandDefinition struct {
 // This one declaration feeds both actual dispatch and both startup inventories.
 func ribSourceCommands() []ribSourceCommandDefinition {
 	return []ribSourceCommandDefinition{
-		{"request bgp rib source retain-routes", "Retain one original received connection", (*RIBManager).retainPhysicalSourceCommand},
-		{"request bgp rib source release-routes", "Release one original retained connection", (*RIBManager).releasePhysicalSourceCommand},
-		{"request bgp rib source mark-stale", "Mark one original connection stale", (*RIBManager).markPhysicalSourceCommand},
-		{"request bgp rib source purge-stale", "Purge stale routes of one original connection", (*RIBManager).purgePhysicalSourceCommand},
-		{"request bgp rib source attach-community", "Decorate stale routes of one original connection", (*RIBManager).attachPhysicalSourceCommunityCommand},
-		{"request bgp rib source delete-with-community", "Remove matching stale routes of one original connection", (*RIBManager).deletePhysicalSourceCommunityCommand},
+		{cmdRIBSourceRetainRoutes, helpRIBSourceRetainRoutes, (*RIBManager).retainPhysicalSourceCommand},
+		{cmdRIBSourceReleaseRoutes, helpRIBSourceReleaseRoutes, (*RIBManager).releasePhysicalSourceCommand},
+		{cmdRIBSourceMarkStale, helpRIBSourceMarkStale, (*RIBManager).markPhysicalSourceCommand},
+		{cmdRIBSourcePurgeStale, helpRIBSourcePurgeStale, (*RIBManager).purgePhysicalSourceCommand},
+		{cmdRIBSourceAttachCommunity, helpRIBSourceAttachCommunity, (*RIBManager).attachPhysicalSourceCommunityCommand},
+		{cmdRIBSourceDeleteWithCommunity, helpRIBSourceDeleteWithCommunity, (*RIBManager).deletePhysicalSourceCommunityCommand},
 	}
 }
 
@@ -83,12 +101,14 @@ func registerSourceCommands() {
 }
 
 func sourceCommandDecls() []sdk.CommandDecl {
-	definitions := ribSourceCommands()
-	declarations := make([]sdk.CommandDecl, 0, len(definitions))
-	for _, definition := range definitions {
-		declarations = append(declarations, sdk.CommandDecl{Name: definition.name, ShortHelp: definition.help, Hidden: true, Shape: shapeMap})
+	return []sdk.CommandDecl{
+		{Name: cmdRIBSourceRetainRoutes, ShortHelp: helpRIBSourceRetainRoutes, Hidden: true, Shape: shapeMap},
+		{Name: cmdRIBSourceReleaseRoutes, ShortHelp: helpRIBSourceReleaseRoutes, Hidden: true, Shape: shapeMap},
+		{Name: cmdRIBSourceMarkStale, ShortHelp: helpRIBSourceMarkStale, Hidden: true, Shape: shapeMap},
+		{Name: cmdRIBSourcePurgeStale, ShortHelp: helpRIBSourcePurgeStale, Hidden: true, Shape: shapeMap},
+		{Name: cmdRIBSourceAttachCommunity, ShortHelp: helpRIBSourceAttachCommunity, Hidden: true, Shape: shapeMap},
+		{Name: cmdRIBSourceDeleteWithCommunity, ShortHelp: helpRIBSourceDeleteWithCommunity, Hidden: true, Shape: shapeMap},
 	}
-	return declarations
 }
 
 func physicalSourceAnswer(source ribPhysicalSource, key string, count int) (string, any, error) {
@@ -129,11 +149,12 @@ func (r *RIBManager) retainPhysicalSourceCommand(_ string, args []string) (strin
 		return statusError, nil, err
 	}
 	r.peerMu.Lock()
-	_, err = r.retainPhysicalStateLocked(source)
+	state, err := r.retainPhysicalStateLocked(source)
 	if err != nil {
 		r.peerMu.Unlock()
 		return statusError, nil, err
 	}
+	earlier := slices.Clone(state.earlier)
 	r.retainedPeers[source.owner] = true
 	removed := r.removePhysicalEntriesLocked(source, func(fam family.Family) bool {
 		for _, kept := range families {
@@ -148,7 +169,28 @@ func (r *RIBManager) retainPhysicalSourceCommand(_ string, args []string) (strin
 	// DOWN owner; the current keys are still reconciled for ordinary selection.
 	r.reconcileSourceKeys(removed.keys)
 	r.settleSourceLeases(source.owner)
-	return physicalSourceAnswer(source, "retained-peers", 1)
+	return retainedSourceAnswer(source, earlier)
+}
+
+// answerKeyEarlierConnections names, in the retain-routes answer, the earlier
+// connections of this peer whose routes stay retained beside the named one.
+// The GR plugin reads it to address each of them at expiry and End-of-RIB.
+const answerKeyEarlierConnections = "earlier-connections"
+
+// retainedSourceAnswer always carries the earlier-connection list, empty for a
+// first restart, so a reader tells "none" from an answer it could not read.
+// The ids are decimal strings, as connection-id is, to keep the full 64 bits.
+func retainedSourceAnswer(source ribPhysicalSource, earlier []uint64) (string, any, error) {
+	connections := make([]string, 0, len(earlier))
+	for _, connection := range earlier {
+		connections = append(connections, textbuf.StringUint(connection))
+	}
+	return statusDone, map[string]any{
+		"peer-owner":                textbuf.StringUint(source.owner),
+		"connection-id":             textbuf.StringUint(source.connection),
+		"retained-peers":            1,
+		answerKeyEarlierConnections: connections,
+	}, nil
 }
 
 func (r *RIBManager) releasePhysicalSourceCommand(_ string, args []string) (string, any, error) {
@@ -250,7 +292,8 @@ func (r *RIBManager) markPhysicalSourceCommand(_ string, args []string) (string,
 	}
 	r.stopGRExpiryLocked(state)
 	now := time.Now()
-	replacement := &peerGRState{source: &source, StaleAt: now, RestartTime: uint16(restart), ExpiresAt: now.Add(time.Duration(restart) * time.Second)}
+	// Marking replaces the timer's identity, never the cycle's membership.
+	replacement := &peerGRState{source: &source, earlier: state.earlier, StaleAt: now, RestartTime: uint16(restart), ExpiresAt: now.Add(time.Duration(restart) * time.Second)}
 	r.grState[source.owner] = replacement
 	if restart > 0 {
 		r.startGRExpiryLocked(replacement, time.Duration(restart)*time.Second+grTimerMargin, func() { r.autoExpireStale(source.owner, replacement) })

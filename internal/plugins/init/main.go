@@ -226,7 +226,7 @@ func managedInitFromFlags(managed bool, hubCAPath string, trustFirstUse bool) (m
 			"a hub root that is given is the one to trust, so there is nothing left to take from the first connection",
 			"ze init --managed --hub-ca "+hubCAPath)
 	}
-	data, err := os.ReadFile(hubCAPath) //nolint:gosec // The operator names the file on the command line.
+	data, err := os.ReadFile(hubCAPath) //nolint:gosec // cliio:allow ze init reads credentials on stdin, so --hub-ca must name a file
 	if err != nil {
 		return managedInit{}, opererr.New("the hub root "+hubCAPath+" could not be read",
 			"ze init stores the root so the first start can authenticate the hub",

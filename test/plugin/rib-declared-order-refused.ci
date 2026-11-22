@@ -44,27 +44,6 @@ option=update:value=send-route:prefix=10.5.0.0/24:next-hop=10.0.0.1
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Polls state, never time: each attempt is a full `ze cli -c` round trip; the
-# 0.2s pause is only the poll interval of a loop that exits on the condition.
-tmpfs=wait-routes.sh:terminator=EOF_WAIT
-i=0
-while [ $i -lt 100 ]; do
-	out=$(ze cli -c "show bgp rib" 2>/dev/null)
-	n=0
-	for p in 10.1.0.0/24 10.2.0.0/24 10.3.0.0/24 10.4.0.0/24 10.5.0.0/24; do
-		case "$out" in *"$p"*) n=$((n+1)) ;; esac
-	done
-	if [ $n -eq 5 ]; then
-		echo "wait-routes: five received routes listed"
-		exit 0
-	fi
-	i=$((i+1))
-	sleep 0.2
-done
-echo "wait-routes: the RIB never listed the five routes; last answer: $out" >&2
-exit 1
-EOF_WAIT
-
 tmpfs=rib.conf:terminator=EOF_CONF
 system {
 	authentication {
@@ -120,8 +99,8 @@ EOF_CONF
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze init:stdin=init-answers:exit=0
 cmd=background:seq=3:exec=ze start rib.conf:name=daemon:ready=Ze running.
-cmd=foreground:seq=4:exec=sh wait-routes.sh:timeout=40s:exit=0
-expect=stdout:contains=wait-routes: five received routes listed
+cmd=foreground:seq=4:exec=le test fixture daemon/await-answer-all "show bgp rib" 10.1.0.0/24 10.2.0.0/24 10.3.0.0/24 10.4.0.0/24 10.5.0.0/24:timeout=40s:exit=0
+expect=stdout:contains=OK:
 
 # An own-named declared operation after a residual one: refused by name, with
 # the operator's line reordered as the fix.

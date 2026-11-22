@@ -127,7 +127,8 @@ A device that a lab, a container or a test fixture creates is declared as a
 bare `ethernet <name> { }` entry. With no unit the entry adds no address to
 reconcile, so none of the device's addresses is removed, and with no `mtu` or
 offload leaf ze makes no kernel call for them: the entry claims the device's
-admin state only.
+admin state only, and a device already administratively up gets no call at
+all (`docs/features/interfaces.md`, "Writing only what differs").
 
 Every reference leaf binds its name through one binder
 (`interfaceTargets`): an ethernet entry through its selector, and a VLAN unit
@@ -342,7 +343,8 @@ resolves only while a session is up. The static plugin learns from the
 candidate `interface` section that the name is declared and may be absent
 (`iface.DeclaredDynamicNames`). A route through it then waits for the device
 instead of being skipped.
-<!-- source: internal/component/l2tp/ppp/kernel/devppp_linux.go -- DevPPPSetup, createPPPLink -->
+<!-- source: internal/component/l2tp/ppp/kernel/devppp_linux.go -- DevPPPSetup -->
+<!-- source: internal/component/l2tp/ppp/kernel/created_unit_linux.go -- createOriginalPPPUnit, originalPPPUnitRequest -->
 <!-- source: internal/component/iface/declared_dynamic.go -- DeclaredDynamicNames -->
 
 ## Cache invalidation rides the monitor events

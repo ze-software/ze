@@ -151,11 +151,16 @@ func drive(store, name, config, action, removed string) bool {
 	stopDaemon := func() bool {
 		daemon.Process.Signal(syscall.SIGTERM) //nolint:errcheck,gosec // an exited daemon is what is waited for
 		select {
-		case <-exited:
+		case err := <-exited:
+			if err != nil {
+				os.Stderr.WriteString("probe: daemon exited with error: " + err.Error() + "\n") //nolint:errcheck // stderr is diagnostic only
+			}
 			return true
 		case <-time.After(recordWaitStep * recordWaitSteps):
 			daemon.Process.Kill() //nolint:errcheck,gosec // the bound passed: the verdict is the failure below
-			<-exited
+			if err := <-exited; err != nil {
+				os.Stderr.WriteString("probe: daemon killed: " + err.Error() + "\n") //nolint:errcheck // stderr is diagnostic only
+			}
 			return judge("the daemon exits after its stop", false, "still running")
 		}
 	}
@@ -177,12 +182,12 @@ func drive(store, name, config, action, removed string) bool {
 		}
 		return gone(testStoreUpper(store, name), name, []string{"less-than", "20"})
 	case "remove":
-		data, err := os.ReadFile(removed) //nolint:gosec // the test's own config file
+		data, err := os.ReadFile(removed) //nolint:gosec // cliio:allow containerprobe reads test fixture config files, never stdin
 		if err != nil {
 			stopDaemon()
 			return judge("the config without the container is read", false, err.Error())
 		}
-		if err := os.WriteFile(config, data, 0o644); err != nil { //nolint:gosec // the daemon reads it
+		if err := os.WriteFile(config, data, 0o644); err != nil { //nolint:gosec // cliio:allow containerprobe overwrites the daemon config file on disk
 			stopDaemon()
 			return judge("the config without the container is written", false, err.Error())
 		}
@@ -819,7 +824,7 @@ func starts(store, name string, count int) bool {
 
 // readLines answers the non-empty lines of the file at path.
 func readLines(path string) ([]string, error) {
-	data, err := os.ReadFile(path) //nolint:gosec // a record of the test's own container
+	data, err := os.ReadFile(path) //nolint:gosec // cliio:allow containerprobe reads kernel cgroup and test record files
 	if err != nil {
 		return nil, err
 	}

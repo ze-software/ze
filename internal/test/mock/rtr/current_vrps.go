@@ -17,7 +17,7 @@ const rtrMockSnapshotBytes = 64 * 1024
 // nonzero uint32 serial; each following nonempty line is prefix,maxlen,asn.
 // There is no snapshot history or mutable cache shared across connections.
 func rtrMockReadVRPs(path string) (uint32, vrpList, error) {
-	file, err := os.Open(path)
+	file, err := os.Open(path) //nolint:gosec // cliio:allow mock RTR server re-reads the VRP snapshot file on every connection
 	if err != nil {
 		return 0, nil, err
 	}

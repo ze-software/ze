@@ -61,11 +61,11 @@ func blocked(address, port string) bool {
 // the daemon to reload it and requires the daemon's reloaded answer, which
 // the daemon gives once every plugin applied the new configuration.
 func adopt(config, replacement string) bool {
-	data, err := os.ReadFile(replacement) //nolint:gosec // the test's own config file
+	data, err := os.ReadFile(replacement) //nolint:gosec // cliio:allow containerprobe reads the replacement config file on disk
 	if err != nil {
 		return judge("the replacement configuration is read", false, err.Error())
 	}
-	if err := os.WriteFile(config, data, 0o644); err != nil { //nolint:gosec // the daemon reads it
+	if err := os.WriteFile(config, data, 0o644); err != nil { //nolint:gosec // cliio:allow containerprobe overwrites the daemon config file on disk
 		return judge("the replacement configuration is written", false, err.Error())
 	}
 	answer, err := zeCLI(commandReload)

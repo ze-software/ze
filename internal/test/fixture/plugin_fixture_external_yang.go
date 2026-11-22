@@ -80,7 +80,7 @@ type externalYANGVariant struct {
 	// commands are the commands the plugin declares at Stage 1 and answers.
 	// Each answer is printed, so a .ci tells a command that reached the plugin
 	// from one the daemon refused before asking it.
-	commands []string
+	commands []sdk.CommandDecl
 	// redeclaredExtra, when not empty, are the modules declared after schema
 	// on every start after the first, in place of extra; the first start then
 	// exits once the daemon is ready, so the daemon starts the plugin again.
@@ -128,10 +128,13 @@ var externalYANGVariants = map[string]externalYANGVariant{
 		wants:  []string{"service/chrony"},
 	},
 	"commands": {
-		schema:   externalyang.Valid(),
-		wants:    []string{externalYANGRoot},
-		extra:    []externalyang.Module{externalyang.Commands(), externalyang.API()},
-		commands: []string{externalyang.CommandStatus, externalyang.CommandTarget},
+		schema: externalyang.Valid(),
+		wants:  []string{externalYANGRoot},
+		extra:  []externalyang.Module{externalyang.Commands(), externalyang.API()},
+		commands: []sdk.CommandDecl{
+			{Name: externalyang.CommandStatus, ShortHelp: externalyang.DeclaredSummary, Description: externalyang.DeclaredExplanation},
+			{Name: externalyang.CommandTarget, ShortHelp: externalyang.DeclaredSummary, Description: externalyang.DeclaredExplanation},
+		},
 	},
 	// The second start brings the command module with the target bound cut to
 	// 1..8, which the daemon refuses. A refused restart leaves the plugin down
@@ -139,18 +142,23 @@ var externalYANGVariants = map[string]externalYANGVariant{
 	// no third start of its own; one an operator orders brings the first
 	// modules again.
 	"commands-redeclare": {
-		schema:          externalyang.Valid(),
-		wants:           []string{externalYANGRoot},
-		extra:           []externalyang.Module{externalyang.Commands(), externalyang.API()},
-		commands:        []string{externalyang.CommandStatus, externalyang.CommandTarget},
+		schema: externalyang.Valid(),
+		wants:  []string{externalYANGRoot},
+		extra:  []externalyang.Module{externalyang.Commands(), externalyang.API()},
+		commands: []sdk.CommandDecl{
+			{Name: externalyang.CommandStatus, ShortHelp: externalyang.DeclaredSummary, Description: externalyang.DeclaredExplanation},
+			{Name: externalyang.CommandTarget, ShortHelp: externalyang.DeclaredSummary, Description: externalyang.DeclaredExplanation},
+		},
 		redeclaredExtra: []externalyang.Module{externalyang.CommandsNarrowed(), externalyang.API()},
 		revertsAt:       3,
 	},
 	"command-clash": {
-		schema:   externalyang.Valid(),
-		wants:    []string{externalYANGRoot},
-		extra:    []externalyang.Module{externalyang.CommandClash()},
-		commands: []string{externalyang.CommandClashPath},
+		schema: externalyang.Valid(),
+		wants:  []string{externalYANGRoot},
+		extra:  []externalyang.Module{externalyang.CommandClash()},
+		commands: []sdk.CommandDecl{
+			{Name: externalyang.CommandClashPath, ShortHelp: externalyang.DeclaredSummary, Description: externalyang.DeclaredExplanation},
+		},
 	},
 }
 
@@ -223,13 +231,7 @@ func (variant externalYANGVariant) declaration(generation int) *sdk.Registration
 	// the ze:help and description its YANG node declares, so a test can tell
 	// which of the two a surface shows: the YANG one, by the approved decision
 	// of spec plugin-external-yang-at-startup (AC-30).
-	for _, name := range variant.commands {
-		declaration.Commands = append(declaration.Commands, sdk.CommandDecl{
-			Name:        name,
-			ShortHelp:   externalyang.DeclaredSummary,
-			Description: externalyang.DeclaredExplanation,
-		})
-	}
+	declaration.Commands = slices.Clone(variant.commands)
 	if variant.redeclares() {
 		// The first start exits, and only a plugin that declared restart is
 		// started again.

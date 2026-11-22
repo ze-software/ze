@@ -263,3 +263,18 @@ func TestTheAreaDispatchesItsActions(t *testing.T) {
 		t.Errorf("the verbs are %q and %q, want check and selftest", verbs.Actions[0].Verb, verbs.Actions[1].Verb)
 	}
 }
+
+func TestRawStringLiteralsResolveCommandPrefixes(t *testing.T) {
+	got, ok := literal("`show bgp summary`")
+	if !ok {
+		t.Fatal("raw string literal was not recognized as a literal")
+	}
+	if got != "show bgp summary" {
+		t.Errorf("literal(raw) = %q, want %q", got, "show bgp summary")
+	}
+
+	prefix := leadingLiteral("`system command help name \"`+cmd+`\"`")
+	if prefix != "system command help name" {
+		t.Errorf("leadingLiteral(raw concat) = %q, want %q", prefix, "system command help name")
+	}
+}

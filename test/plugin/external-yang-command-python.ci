@@ -45,8 +45,7 @@ testpass
 $PORT
 EOF_INIT
 
-tmpfs=acme-monitor.run:mode=755:terminator=EOF_RUN
-#!/bin/sh
+tmpfs=acme-monitor.run:terminator=EOF_RUN
 # The example as an author has it, from the checkout under test.
 if [ -z "$ZE_REPO_ROOT" ]; then
 	echo "acme-monitor.run: ZE_REPO_ROOT is not set, so the example cannot be found" >&2
@@ -75,7 +74,7 @@ environment {
 }
 plugin {
 	external acme-monitor {
-		run "./acme-monitor.run"
+		run "sh acme-monitor.run"
 		encoder json
 	}
 }

@@ -88,12 +88,19 @@ var rootNamespaceExempt = map[string]bool{}
 // command is one indivisible name even though its left segment looks like an
 // object.
 //
-// EMPTY today: every le command is subject first, and the test-* family that
-// held the last entries is now the `le test` namespace (`le test unit`,
-// `le test health`, ...). The chaos simulator's own tests are
-// `le chaos selftest`. Add an entry (value true) ONLY for a demonstrably
-// indivisible compound, with a one-line reason, as rootNamespaceExempt asks.
-var leNamespaceExempt = map[string]bool{}
+// Add an entry (value true) ONLY for a demonstrably indivisible compound, with
+// a one-line reason, as rootNamespaceExempt asks.
+var leNamespaceExempt = map[string]bool{
+	// Both are standalone architecture gates under `arch` (parallel to
+	// `arch operator-error` and `arch doctor-coverage`); there is no `arch error`
+	// domain, and each gate owns its own `check`/`report` verb surface.
+	"arch error-inventory": true,
+	"arch error-wrap":      true,
+	// `test container` is a GroupSuite that forwards trailing tokens to the CI
+	// runner over test/container/*.ci; `test container-seed` is a separate
+	// GroupTool helper that seeds the pinned Redis OCI image into the cache.
+	"test container-seed": true,
+}
 
 // leNamespaces answers the words that name an object on le's surface, so the
 // root check can tell `verify-lint` (an object and its member) from
@@ -154,6 +161,10 @@ var treeNamespaceExempt = map[string]bool{
 	// `router-information` by name as a keep-the-hyphen LSA name.
 	"show ospf database router-information":      true,
 	"show ospf ipv6 database router-information": true,
+	// `clear bgp rib out` accepts a positional peer selector `<selector> [<family>]`,
+	// so nesting `excluding-owner` under `out` would collide with literal peer
+	// selectors; `out-excluding-owner` is deliberately a distinct sibling.
+	"clear bgp rib out-excluding-owner": true,
 }
 
 // heredocOpen matches a heredoc redirect (`<<EOF`, `<<-'EOF'`, `<< "EOF"`) so

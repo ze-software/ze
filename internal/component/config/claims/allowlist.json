@@ -5,6 +5,11 @@
     "owner": "internal/component/config/loader_extract.go ExtractAPIConfig"
   },
   {
+    "path": "environment/backup",
+    "reason": "The daemon reads the backup workspace directory directly through a config-preparation hook and applies it after commit. No plugin is involved.",
+    "owner": "internal/component/config/cli/register_artifact_directory.go prepareArtifactDirectory"
+  },
+  {
     "path": "environment/bgp",
     "reason": "The config loader pushes this block into the env layer before any plugin runs, so no plugin can claim it. It was hidden until 2b5e29db47 narrowed bgp-bmp's claim from the whole environment section to environment/bmp.",
     "owner": "internal/component/config/environment_extract.go ExtractEnvironment, applied by applyParsedEnvironment in internal/component/config/loader.go (extractSections in internal/component/config/constants.go)"
@@ -88,11 +93,6 @@
     "path": "plugin",
     "reason": "Plugin load configuration is read before any plugin runs, so no plugin can claim it. The config loader turns this subtree into the plugin list that the server then starts.",
     "owner": "internal/component/config/loader.go ExtractPluginsFromTree"
-  },
-  {
-    "path": "pppoe",
-    "reason": "The hub reads this subtree directly and passes it to the PPPoE subsystem at startup. Delivery does not go through the plugin config RPC, so no WantsConfigRoots entry names it.",
-    "owner": "internal/component/l2tp/pppoe/config.go ExtractParameters, called from cmd/ze/hub/register_l2tp.go"
   },
   {
     "path": "storage",

@@ -39,7 +39,7 @@ var actions = leaction.New(area, leaction.Action{
 		Help: "select a proof image (default: baseline)", Requirement: leaction.Optional}},
 	AnswerArgs: answerRun,
 }, leaction.Action{
-	Verb: "deployment", Heavy: true, Writes: true,
+	Verb: "deployment", Does: "build", Heavy: true, Writes: true,
 	Summary: "build the patched VPP image the deployment run boots",
 	Why:     "Build VPP v26.06 from source with Ze's IPsec patch, which judges unprotected inbound traffic against the SPD. `./le test deployment vpp` boots this image from the image cache and never builds it.",
 	Answer:  answerDeployment,

@@ -298,7 +298,7 @@ func hostEnd(bridge, owner, record string) bool {
 		seen = err.Error()
 	}
 	marked := judge("the host end "+names[0]+" carries the mark ze:owned:"+owner, err == nil && seen == "ze:owned:"+owner, seen)
-	if err := os.WriteFile(record, []byte(names[0]+"\n"), 0o644); err != nil { //nolint:gosec // a record the next step reads
+	if err := os.WriteFile(record, []byte(names[0]+"\n"), 0o644); err != nil { //nolint:gosec // cliio:allow containerprobe writes host-end names to a record file for the next step
 		return judge("the host end's name is recorded in "+record, false, err.Error())
 	}
 	fmt.Println("probe: the host end " + names[0] + " is recorded in " + record)

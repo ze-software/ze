@@ -55,13 +55,16 @@ func commandOutcomeProvider(ctx context.Context, args []string) error {
 			Module: declaration.Module.Name, Namespace: declaration.Module.Namespace, YANGText: declaration.Module.Text,
 		}}
 	}
-	for _, outcome := range []string{commandOutcomeHealthy, commandOutcomePartial, outcomeFailed, severityWarning} {
-		for _, size := range []string{commandOutcomeShort, commandOutcomeLong} {
-			registration.Commands = append(registration.Commands, sdk.CommandDecl{
-				Name:      externalyang.OutcomeCommand(outcome, size),
-				ShortHelp: "Show the external command outcome fixture",
-			})
-		}
+	const outcomeShortHelp = "Show the external command outcome fixture"
+	registration.Commands = []sdk.CommandDecl{
+		{Name: "show answer-outcome healthy short", ShortHelp: outcomeShortHelp},
+		{Name: "show answer-outcome healthy long", ShortHelp: outcomeShortHelp},
+		{Name: "show answer-outcome partial short", ShortHelp: outcomeShortHelp},
+		{Name: "show answer-outcome partial long", ShortHelp: outcomeShortHelp},
+		{Name: "show answer-outcome failed short", ShortHelp: outcomeShortHelp},
+		{Name: "show answer-outcome failed long", ShortHelp: outcomeShortHelp},
+		{Name: "show answer-outcome warning short", ShortHelp: outcomeShortHelp},
+		{Name: "show answer-outcome warning long", ShortHelp: outcomeShortHelp},
 	}
 	plugin.OnExecuteCommand(func(_ string, command string, args []string, _ string, _ []sdk.PipeOperation) (string, any, error) {
 		if len(args) != 0 {

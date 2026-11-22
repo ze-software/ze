@@ -3,12 +3,7 @@
 # The synthetic tree contains no source and builds nothing. Its executable
 # tripwire belongs to this fixture and must never run while reporting refusal.
 option=env:var=LE_TEST_NO_BUILD:value=1
-option=env:var=ZE_BIN:value=orphan-tripwire.sh
-tmpfs=orphan-tripwire.sh:mode=755:terminator=EOF_TRIPWIRE
-#!/bin/sh
-printf '%s\n' 'orphan-tripwire-executed' >&2
-exit 97
-EOF_TRIPWIRE
+option=env:var=ZE_BIN:value=orphan-tripwire
 tmpfs=go.mod:terminator=EOF_MOD
 module orphan-refusal-fixture
 EOF_MOD
@@ -25,14 +20,15 @@ expect=bgp:conn=1:seq=1:hex=ffffffffffffffffffffffffffffffff001304
 reject=bgp:conn=1:pattern=deadbeef
 END_PEER
 EOF_NEGATIVE
-cmd=foreground:seq=1:exec=le test bgp plugin --pattern orphan-positive
+cmd=foreground:seq=1:exec=le test fixture parse/write-tripwire orphan-tripwire orphan-tripwire-executed:exit=0
+cmd=foreground:seq=2:exec=le test bgp plugin --pattern orphan-positive
 expect=exit:code=1
 expect=stdout:contains=TYPE:    parse_error
 expect=stdout:contains=stdin=peer block has no peer consumer
 expect=stdout:contains=orphan-positive
 reject=stdout:contains=orphan-tripwire-executed
 reject=stderr:pattern=orphan-tripwire-executed
-cmd=foreground:seq=2:exec=le test bgp plugin --pattern orphan-negative
+cmd=foreground:seq=3:exec=le test bgp plugin --pattern orphan-negative
 expect=exit:code=1
 expect=stdout:contains=TYPE:    parse_error
 expect=stdout:contains=reject=bgp is read by ze-peer

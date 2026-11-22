@@ -93,6 +93,9 @@ var checkDeclarations = []checkDeclaration{
 	// A kernel capability: kernelcap.MustRegister registers the doctor check
 	// kernel-capability-<Subsystem>, which declares the capability's two codes.
 	{dir: "internal/component/kernelcap", name: "Capability", nameField: "Subsystem", namePrefix: "kernel-capability-", codeFields: []string{"CodeAbsent", "CodeUnknown"}, addedCodes: []string{"doctor-kernel-capability-forced"}},
+	// A VPP startup runtime feature: vpp.RegisterStartupFeature registers the
+	// doctor check vpp-startup-<name>, which declares Runtime.Code.
+	{dir: "internal/component/vpp", name: "StartupRuntime", codeFields: []string{"Code"}},
 }
 
 // coveredCodes reads the covered set from every doctor check declaration in

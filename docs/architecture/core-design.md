@@ -1425,7 +1425,7 @@ FlowSpec keys regain their length field, including the RD for VPN FlowSpec.
 <!-- source: internal/component/bgp/reactor/session_write.go -- writeRawUpdateBody, flushWrites -->
 <!-- source: internal/component/bgp/reactor/peer_settings_apply.go -- applyHotSwappableSettings -->
 <!-- source: internal/component/bgp/reactor/policy_reload.go -- reconcileExportFinal, beginPolicyReplay, flushPolicyReplay -->
-<!-- source: internal/component/bgp/reactor/forward_pool.go -- requeuePolicyReplay -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- requeueForwardHold -->
 
 **Batched cache retains (rs-gap-0):** `ForwardUpdate` accumulates per-peer
 dispatch items during the egress loop and calls `retainN(id, peerCount)` once

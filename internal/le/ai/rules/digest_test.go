@@ -1035,8 +1035,10 @@ var mainSessionDecisions = []string{
 	"Some harness builds carry a guard:",
 	"An agent sent to find out how something",
 	"Every spec phase runs in a subagent through",
+	"Every agent is one of the repository's own, chosen",
 	"The main thread supervises: it launches, verifies each",
 	"The main thread schedules heavy work. Before it",
+	"On Thomas's two machines the main thread also",
 	"A serialized run never leaves agents idle. While",
 	"A report to the owner opens with what",
 	"Up to three spec closures may run at",
@@ -1050,9 +1052,9 @@ var mainSessionDecisions = []string{
 // besides them. A rule added or removed changes one of these counts, which is
 // the moment its placement is judged.
 const (
-	decisionBulletsTotal       = 146
-	decisionBulletsAgent       = 105
-	decisionBulletsSituational = 29
+	decisionBulletsTotal       = 161
+	decisionBulletsAgent       = 75
+	decisionBulletsSituational = 72
 )
 
 // decisionBullets answers each bullet of lines whole, its continuation lines

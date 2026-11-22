@@ -34,7 +34,7 @@ var harnessNamespaces = []string{"test", "mock"}
 
 // testTools are the harness commands under `test` that a test runs rather than
 // suites it runs, so they declare GroupTool (D-Q10, D-groups).
-var testTools = []string{"test fixture", "test mcp", "test peer", "test replay"}
+var testTools = []string{"test container-seed", "test fixture", "test mcp", "test peer", "test replay"}
 
 // harnessDirectories answers every directory under internal/le/<word> whose
 // register.go registers a harness command, as the command's name under word

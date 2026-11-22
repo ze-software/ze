@@ -45,24 +45,6 @@ testpass
 $PORT2
 EOF_INIT
 
-# Polls state, never time: the loop exits as soon as the file holds the
-# text; the 0.2s pause is only the poll interval.
-tmpfs=wait-file.sh:terminator=EOF_WAIT
-i=0
-while [ $i -lt 150 ]; do
-	for f in .ze-save-*; do
-		if [ -f "$f" ] && grep -q "$1" "$f"; then
-			echo "wait-file: the save in progress holds $1"
-			exit 0
-		fi
-	done
-	i=$((i+1))
-	sleep 0.2
-done
-echo "wait-file: the save in progress never held $1" >&2
-exit 1
-EOF_WAIT
-
 tmpfs=monitor.conf:terminator=EOF_CONF
 system {
 	authentication {
@@ -121,7 +103,7 @@ cmd=foreground:seq=2:exec=ze init:stdin=init-answers:exit=0
 cmd=background:seq=3:exec=ze start monitor.conf:name=daemon:ready=Ze running.
 
 cmd=background:seq=4:exec=ze cli -c "monitor event include open,state | match state | save events.log":name=client:ready=monitoring
-cmd=foreground:seq=5:exec=sh wait-file.sh monitoring:timeout=40s:exit=0
+cmd=foreground:seq=5:exec=le test fixture ui/await-save-file monitoring:timeout=40s:exit=0
 
 cmd=foreground:seq=6:exec=le test fixture plugin/ssh-exec-line stream $PORT2 $PORT3 'monitor event include state' up -:timeout=45s
 expect=exit:code=0
@@ -130,35 +112,14 @@ expect=exit:code=0
 # (internal/component/cli/client/main.go StreamMonitor, formatMonitorLine in
 # internal/component/bgp/plugins/cmd/monitor/format.go), so the file holds
 # one-liners, never the JSON: a state event is `---- STATE  <peer> <AS> up`.
-cmd=foreground:seq=7:exec=sh wait-file.sh 'STATE.* up':timeout=40s:exit=0
+cmd=foreground:seq=7:exec=le test fixture ui/await-save-file 'STATE.* up':timeout=40s:exit=0
 cmd=stop:seq=8:name=client:signal=term
 
 # Only what `match state` keeps was saved: no OPEN event reached the file. A
 # saved OPEN is formatted `recv OPEN   <peer> ...` (formatOpen); the header
 # names `open` in lower case, so the case-sensitive check reads ` OPEN `.
-tmpfs=no-open.sh:terminator=EOF_NOOPEN
-if [ ! -f events.log ]; then
-	echo "no-open: the stopped stream committed no events.log" >&2
-	exit 1
-fi
-for f in .ze-save-*; do
-	if [ -f "$f" ]; then
-		echo "no-open: the stopped stream left $f behind" >&2
-		exit 1
-	fi
-done
-if ! grep -q 'STATE.* up' events.log; then
-	echo "no-open: events.log lost the state event" >&2
-	exit 1
-fi
-if grep -q ' OPEN ' events.log; then
-	echo "no-open: an OPEN event was saved" >&2
-	exit 1
-fi
-echo "no-open: no OPEN event saved"
-EOF_NOOPEN
-cmd=foreground:seq=9:exec=sh no-open.sh:exit=0
-expect=stdout:contains=no-open: no OPEN event saved
+cmd=foreground:seq=9:exec=le test fixture ui/check-committed-save events.log 'STATE.* up' ' OPEN ':exit=0
+expect=stdout:contains=OK: committed save events.log verified
 
 cmd=stop:seq=10:name=daemon:signal=term
 cmd=stop:seq=11:name=tacacs:signal=term

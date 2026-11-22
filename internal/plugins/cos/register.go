@@ -7,9 +7,12 @@ import (
 	"slices"
 	"sort"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	coreCos "github.com/ze-software/ze/internal/core/cos"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/opererr"
@@ -77,6 +80,9 @@ func init() {
 		fmt.Fprintf(os.Stderr, "%s: registration failed: %v\n", Name, err)
 		os.Exit(1)
 	}
+	pluginserver.RegisterRPCs(
+		pluginserver.RPCRegistration{WireMethod: wireCleanupCommand, Handler: forwardCleanupCommand, PluginCommand: cleanupCommand},
+	)
 }
 
 func showProfiles() any {
@@ -216,7 +222,27 @@ func executeCommand(_, command string, args []string, peer string, _ []sdk.PipeO
 	return handler(args, peer)
 }
 
-const cleanupCommand = "request class-of-service cleanup"
+const (
+	cleanupCommand     = "request class-of-service cleanup"
+	wireCleanupCommand = "ze-cos:cleanup"
+)
+
+func forwardCleanupCommand(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	if len(validated.Tokens()) > 0 {
+		return plugin.OperatorErrorResponse(opererr.New(
+			cleanupCommand+" takes no arguments",
+			"No extra tokens are accepted by the class-of-service cleanup command.",
+			"ze "+cleanupCommand)), nil
+	}
+	d := ctx.Dispatcher()
+	if d == nil {
+		return plugin.OperatorErrorResponse(opererr.New(
+			"class-of-service cleanup cannot run without an active command dispatcher",
+			"The request cannot be forwarded to the running class-of-service plugin.",
+			"ze show plugin list")), nil
+	}
+	return d.ForwardToPlugin(ctx, cleanupCommand, nil, ctx.PeerSelector())
+}
 
 type sharedCoSCleanupResult struct {
 	Attempted int `json:"attempted"`

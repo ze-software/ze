@@ -18,12 +18,13 @@ import (
 	"github.com/ze-software/ze/internal/core/opererr"
 )
 
+const pppoeVPPPluginCode = "doctor-vpp-pppoe-plugin"
+
 func registerStartup() {
-	const pluginCode = "doctor-vpp-pppoe-plugin"
 	if err := diagnostic.Register(diagnostic.CodeMeta{
-		Code: pluginCode, Title: "VPP PPPoE plugin APIs unavailable",
+		Code: pppoeVPPPluginCode, Title: "VPP PPPoE plugin APIs unavailable",
 		Description: "PPPoE forwarding requires the running VPP to load pppoe_plugin.so with Ze's retained patches. The check reads the live API message table and compares every generated PPPoE name and CRC. A missing or stock API is incompatible; an unavailable socket remains unknown. Build the patched VPP artifact with ./le build vpp run, install that artifact, and check again.",
-		Examples:    []string{"ze doctor", "ze show diagnostic " + pluginCode}, HostVerdict: true,
+		Examples:    []string{"ze doctor", "ze show diagnostic " + pppoeVPPPluginCode}, HostVerdict: true,
 	}); err != nil {
 		panic("BUG: cannot register VPP PPPoE diagnostic: " + err.Error())
 	}
@@ -33,8 +34,8 @@ func registerStartup() {
 	if err := vppcomp.RegisterStartupFeature("pppoe", vppcomp.StartupFeature{
 		Plugin: "pppoe_plugin.so", Section: "pppoe", Flags: []string{"enable-pass-nd-and-dhcpv6"},
 		ConfigReads: []string{"interface", "pppoe"}, Enabled: startupRequired,
-		Runtime: &vppcomp.StartupRuntime{Messages: pppoeapi.AllMessages(), Code: pluginCode,
-			Fix: "ze show diagnostic " + pluginCode},
+		Runtime: &vppcomp.StartupRuntime{Messages: pppoeapi.AllMessages(), Code: pppoeVPPPluginCode,
+			Fix: "ze show diagnostic " + pppoeVPPPluginCode},
 	}); err != nil {
 		panic("BUG: cannot register VPP PPPoE startup requirements: " + err.Error())
 	}
