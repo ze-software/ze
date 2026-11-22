@@ -365,6 +365,7 @@ const (
 // This allows commands to run in a tea.Cmd closure without losing state changes.
 type commandResult struct {
 	output            string        // Text to display in viewport (non-config content)
+	clearViewport     bool          // Clear editor viewport when output is intentionally empty
 	configView        *viewportData // Config content to display with line mapping
 	refreshConfig     bool          // Recompute config view from editor state (use when original baseline changed)
 	statusMessage     string        // Temporary status message (shown above viewport, clears on next command)
@@ -733,6 +734,8 @@ func (m Model) handleCommandResult(msg commandResultMsg) (tea.Model, tea.Cmd) {
 			m.setViewportText(m.outputBuf.String())
 			m.viewport.GotoBottom()
 		}
+	case r.clearViewport && m.hasEditor():
+		m.setViewportText("")
 	}
 
 	// Status message (temporary notification)
@@ -1356,6 +1359,8 @@ func (m *Model) applyResult(r commandResult) {
 		m.setViewportData(*r.configView)
 	case r.output != "":
 		m.setViewportText(r.output)
+	case r.clearViewport:
+		m.setViewportText("")
 	}
 	m.statusMessage = r.statusMessage
 	if r.showHelp {

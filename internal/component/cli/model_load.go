@@ -435,7 +435,7 @@ func (m *Model) cmdShowPipe(args []string, filters []PipeFilter) (commandResult,
 			if !opts.FormatExplicit {
 				if m.editor.HasSession() {
 					output, err := m.editor.PendingReview(m.contextPath)
-					return m.applyTextFilters(commandResult{output: output}, err, opts.TextFilters)
+					return m.applyTextFilters(commandResult{output: output, clearViewport: err == nil && output == ""}, err, opts.TextFilters)
 				}
 			}
 		}

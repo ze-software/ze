@@ -154,3 +154,29 @@ firewall {
 		assert.NotEmpty(t, strings.TrimSpace(m.ViewportContent()))
 	})
 }
+
+// TestSSHComparePendingEmptyClearsPriorViewport proves that typing `show | compare`
+// after `show` clears the previous viewport content when PendingReview is empty
+// (for example after an order-only plain-list recreate or on an unchanged config).
+func TestSSHComparePendingEmptyClearsPriorViewport(t *testing.T) {
+	seed := `interface {
+    backend netlink;
+    dummy zulu { description first; }
+    dummy alpha { description second; }
+}`
+	ed, _, _ := newLoadSessionEditor(t, seed)
+	require.True(t, ed.treeValid)
+	require.NoError(t, ed.DeleteByPath([]string{"interface", "dummy", "zulu"}))
+	require.NoError(t, ed.SetValue([]string{"interface", "dummy", "zulu"}, "description", "first"))
+
+	m, err := NewModel(ed, FilesystemAuthorityUnknown)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, m.Close()) })
+	m = enterLine(t, m, "show")
+	require.NoError(t, m.err)
+	require.Contains(t, m.ViewportContent(), "dummy alpha")
+
+	m = enterLine(t, m, "show | compare")
+	require.NoError(t, m.err)
+	assert.Empty(t, strings.TrimSpace(m.ViewportContent()))
+}
