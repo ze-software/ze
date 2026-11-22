@@ -1,3 +1,5 @@
+Captured: 2026-11-22 check internal/le/commit.CheckRefusalAdvice proof internal/le/commit.TestCheckRefusalAdviceReproducesHistoricalViolations
+
 | Date | Spec | Surface | Symptom | Fix |
 |------|------|---------|---------|-----|
 | 2026-11-12 | spec-hook-git-verb-prefix-match (found after closure) | `bashWorktreeCopy` (`internal/le/hookruntime/bash.go`) | The refusal of a copy out of a worktree tells the agent "Use git merge or cherry-pick". Both are banned for a worktree agent, and no guard refuses `git cherry-pick`, so the message steers an agent onto the one the hook lets through | fixed: the refusal names `./le commit create` on the worktree branch and the user's `git rebase <branch>`, and no banned verb (spec hook-worktree-copy-refusal-names-banned-verbs) |
