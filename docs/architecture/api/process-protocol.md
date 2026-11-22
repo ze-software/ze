@@ -947,12 +947,15 @@ processes). Plugin checks cover runtime health; Go-registered checks cover
 pre-start readiness.
 
 The `doctor-check` answer (`DoctorCheckOutput`) lists `diagnostics`, each with
-`code`, `severity` (`error` or `warning`), `message`, and `fix`: the command or
-config statement the operator runs to clear the problem, alone and with no
-label. `fix` is omitted when no command fixes the problem. The daemon carries
-it unchanged into the `show doctor` answer, where the text report draws it on
-a line of its own.
+`code`, `severity` (`error`, `warning` or `info`), `message`, and `fix`: the
+command or config statement the operator runs to clear the problem, alone and
+with no label. `fix` is omitted when no command fixes the problem. The daemon
+carries it unchanged into the `show doctor` answer, where the text report draws
+it on a line of its own. An `error` makes the box not ready, a `warning` does
+not, and an `info` row is a fact that is neither counted as a warning nor fails
+readiness; any other severity is shown as a warning.
 <!-- source: pkg/plugin/rpc/types.go -- DoctorCheckDiagnostic, DoctorPhaseRuntime -->
+<!-- source: internal/component/doctor/cmd/show.go -- normalizeSeverity -->
 
 <!-- source: pkg/plugin/rpc/types.go -- DoctorCheckDecl -->
 <!-- source: internal/component/plugin/server/startup.go -- registrationFromRPC doctor checks, validateDoctorCheckDecls -->

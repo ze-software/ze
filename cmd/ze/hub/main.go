@@ -17,7 +17,6 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -214,7 +213,7 @@ func run(store storage.Storage, configPath string, plugins []string, chaosSeed i
 	defer statestore.SetStore(nil)
 
 	if !skipRootCheck {
-		warnDaemonPrivileges(privilege.CheckPrivileges())
+		logDaemonCapabilities(privilege.CheckPrivileges())
 	}
 
 	// Read config content first (to probe type without parsing).
@@ -300,29 +299,35 @@ func readStdinConfig() (data []byte, stdinOpen bool, err error) {
 // slog mirror; the per-listener detail is on stderr from checkMgmtListeners.
 var errUnauthenticatedMgmtListener = errors.New("refusing unauthenticated non-loopback management listener (detail on stderr)")
 
-// warnDaemonPrivileges logs what privilege.CheckPrivileges reports for the daemon: the
-// capabilities of privilege.DaemonCapabilities it lacks, each with what it serves, or a
-// capability set it could not read. The line goes through the hub logger, which is up
-// from the first statement of run (logStartupFailure logs there too), so it reaches the
-// journal under systemd and carries the doctor code the daemon-capabilities check
-// declares (internal/component/doctor/checks_daemon_capabilities.go). The daemon keeps
-// running: each missing capability disables only what it serves.
-func warnDaemonPrivileges(warnings []string) {
-	if len(warnings) == 0 {
+// logDaemonCapabilities logs the generic capability inventory privilege.CheckPrivileges
+// takes of the daemon, at debug: the capabilities of privilege.DaemonCapabilities it
+// lacks, each with what it serves, or that it cannot determine them. It is information,
+// never a warning: the inventory is taken before the config is read, and a config that
+// uses nothing a missing capability serves (interfaces and SSH need CAP_NET_ADMIN alone)
+// starts and runs correctly. Each configured feature that needs a capability checks for
+// it at start and reload, or when an on-demand operation is invoked, and reports its own
+// impact with its own remedy; the daemon-capabilities doctor row
+// (internal/component/doctor/checks_daemon_capabilities.go) shows the same inventory.
+func logDaemonCapabilities(missing []privilege.Capability, err error) {
+	hubLog := slogutil.Logger("hub")
+	if err != nil {
+		hubLog.Debug("ze cannot determine the capabilities it runs with; each configured feature that needs one checks for it and reports its own impact",
+			"err", err)
 		return
 	}
-	var missing textbuf.Buffer
-	for i, w := range warnings {
-		if i > 0 {
-			missing.Byte(' ')
-		}
-		missing.Str(strings.TrimSpace(w))
+	if len(missing) == 0 {
+		hubLog.Debug("ze holds every capability of the daemon set")
+		return
 	}
-	slogutil.Logger("hub").Warn("ze runs without a capability it needs; each missing one disables the features named beside it",
-		"missing", missing.String(),
-		"why", privilege.DaemonCapabilitiesAdvice,
-		"fix", privilege.DaemonCapabilitiesFix,
-		"code", diagnostic.CodeDoctorDaemonCapabilityMissing)
+	var inventory textbuf.Buffer
+	for i, c := range missing {
+		if i > 0 {
+			inventory.Str(", ")
+		}
+		inventory.Str(c.Name).Str(" (").Str(c.Use).Byte(')')
+	}
+	hubLog.Debug("ze runs without part of the daemon capability set; each configured feature that needs one checks for it and reports its own impact",
+		"missing", inventory.String())
 }
 
 // logStartupFailure mirrors a fatal pre-serve failure onto the slog backend.
@@ -1244,7 +1249,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		fmt.Fprintf(os.Stderr, "error: %v\n", pidErr)
 		logStartupFailure("write pid file", pidErr)
 		stopAPI()
-		retainCleanupFailure("engine shutdown", eng.Stop(startCtx))
+		retainCleanupFailure("engine shutdown", stopEngineBounded(eng))
 		return 1
 	}
 	defer removePIDFile(pidPath)
@@ -1253,7 +1258,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		fmt.Fprintf(os.Stderr, "error: drop privileges: %v\n", err)
 		logStartupFailure("drop privileges", err)
 		stopAPI()
-		retainCleanupFailure("engine shutdown", eng.Stop(startCtx))
+		retainCleanupFailure("engine shutdown", stopEngineBounded(eng))
 		return 1
 	}
 
@@ -1469,13 +1474,8 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		})
 	}
 	if gnmiBuild != nil {
-		if gnmiAddr, gnmiToken, gnmiEnabled := resolveGNMIListeners(loadResult.Tree); gnmiEnabled {
-			mgmtListeners = append(mgmtListeners, mgmtListener{
-				service:       "gNMI",
-				addrs:         []string{gnmiAddr},
-				authenticated: gnmiToken != "",
-				remedy:        "set ze.gnmi.token (or environment.gnmi token), or bind to 127.0.0.1/::1 only",
-			})
+		if decl, ok := gnmiMgmtListener(loadResult.Tree); ok {
+			mgmtListeners = append(mgmtListeners, decl)
 		}
 	}
 	if apiCfgOK && (restBuild != nil || grpcBuild != nil) {
@@ -1494,7 +1494,8 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 
 	// Run the existing precise MCP semantic checks on the boot path too:
-	// bind-remote without auth, bearer without token, and oauth without TLS.
+	// bind-remote without auth, bearer without token, and remote authenticated
+	// listeners without TLS.
 	// They catch config-level inconsistencies that the loopback and auth guard
 	// alone does not find. They print the same messages as `ze config validate`.
 	//
@@ -1599,7 +1600,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 					fmt.Fprintf(os.Stderr, "error: %v\n", apiErr)
 					logStartupFailure("start rest api", apiErr)
 					stopAPI()
-					retainCleanupFailure("engine shutdown", eng.Stop(startCtx))
+					retainCleanupFailure("engine shutdown", stopEngineBounded(eng))
 					return 1
 				}
 				if h.Server != nil {
@@ -1613,7 +1614,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 					fmt.Fprintf(os.Stderr, "error: %v\n", apiErr)
 					logStartupFailure("start grpc api", apiErr)
 					stopAPI()
-					retainCleanupFailure("engine shutdown", eng.Stop(startCtx))
+					retainCleanupFailure("engine shutdown", stopEngineBounded(eng))
 					return 1
 				}
 				if h.Server != nil {
@@ -1634,6 +1635,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			Store:             store,
 			ConfigPath:        configPath,
 			ReloadAfterCommit: reloadAfterCommit,
+			Recorder:          auditLog,
 		})
 	}
 
@@ -1666,11 +1668,14 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		logStartupFailure("plugin startup", err)
 		startupCancel()
+		reloadCancel()
+		close(reloadCh)
+		<-reloadDone
 		if gnmiSrv != nil {
 			gnmiSrv.Stop()
 		}
 		stopAPI()
-		retainCleanupFailure("engine shutdown", eng.Stop(startCtx))
+		retainCleanupFailure("engine shutdown", stopEngineBounded(eng))
 		return 1
 	}
 	startupCancel()
@@ -1881,10 +1886,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// The engine's grace starts after apiServer.Stop returns: created before
 	// it, the context lost up to the server's own two grace periods and
 	// often reached eng.Stop already spent.
-	stopCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	retainCleanupFailure("engine shutdown", eng.Stop(stopCtx))
+	retainCleanupFailure("engine shutdown", stopEngineBounded(eng))
 
 	// The record starts once ze serves; on a slow disk a stop soon after can
 	// arrive before it lands, and "Ze stopped." must not be printed over it.
@@ -1906,6 +1908,15 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 	}
 	return 0
+}
+
+// stopEngineBounded stops the engine under a bounded grace period matching
+// normal shutdown so startup failure exits never block indefinitely on a hung
+// subsystem or plugin stop.
+func stopEngineBounded(eng *engine.Engine) error {
+	stopCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	return eng.Stop(stopCtx)
 }
 
 // waitForServerDone blocks until the plugin server's Wait returns, then closes doneCh.

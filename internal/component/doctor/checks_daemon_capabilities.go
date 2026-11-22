@@ -3,16 +3,14 @@
 // Related: registry.go -- RunRuntimeChecks, the only runner of the runtime phase
 //
 // The capabilities a non-root daemon runs with are declared once, in
-// internal/core/privilege (DaemonCapabilities), and the daemon warns at start for
-// each one it lacks (cmd/ze/hub, run). The privilege package is core and owns no
-// component, so the check that reads the same answer back into show doctor lives
-// here, as the env-values check does for internal/core/env.
+// internal/core/privilege (DaemonCapabilities), and the daemon logs at debug
+// which of them it lacks (cmd/ze/hub, run). The privilege package is core and
+// owns no component, so the check that reads the same inventory back into show
+// doctor lives here, as the env-values check does for internal/core/env.
 
 package doctor
 
 import (
-	"strings"
-
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -27,17 +25,22 @@ const (
 	daemonCapabilitiesDependency = "process-capabilities"
 
 	// daemonCapabilitiesOrder prints the row before the env values (envValuesOrder):
-	// a missing capability explains findings other checks report.
+	// the inventory is context for the per-feature findings other checks report.
 	daemonCapabilitiesOrder = 2800
 )
 
-// daemonPrivilegeWarnings answers the daemon's privilege warnings. A variable so a
-// test answers it without changing the test process's capabilities.
-var daemonPrivilegeWarnings = privilege.CheckPrivileges
+// daemonCapabilityInventory answers the daemon's capability inventory. A
+// variable so a test answers it without changing the test process's
+// capabilities.
+var daemonCapabilityInventory = privilege.CheckPrivileges
 
-// daemonCapabilitiesCheck reports the capabilities the daemon lacks. It runs in the
-// runtime phase only: the set that matters is the daemon's, and the local ze doctor
-// process, started by the operator with other privileges, would measure itself.
+// daemonCapabilitiesCheck reports the daemon's capability inventory as
+// information. A capability of the set the daemon lacks is not a problem by
+// itself: a config that uses nothing it serves runs without it, so each
+// feature that needs one checks for it and reports its own impact. It runs in
+// the runtime phase only: the set that matters is the daemon's, and the local
+// ze doctor process, started by the operator with other privileges, would
+// measure itself.
 var daemonCapabilitiesCheck = diagnostic.DoctorCheck{
 	Name:         daemonCapabilitiesCheckName,
 	Phase:        diagnostic.DoctorPhaseRuntime,
@@ -49,35 +52,55 @@ var daemonCapabilitiesCheck = diagnostic.DoctorCheck{
 	Check:        checkDaemonCapabilities,
 }
 
-// checkDaemonCapabilities answers one warning when privilege.CheckPrivileges reports
-// anything for the daemon's process: a capability of the set it lacks, or a set it
-// could not read. A daemon that runs as root, or holds every capability, reports
-// nothing.
+// checkDaemonCapabilities answers one informational row when the daemon lacks a
+// capability of the set, or could not read its set. A daemon that holds every
+// one reports nothing.
 func checkDaemonCapabilities(diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
-	warnings := daemonPrivilegeWarnings()
-	if len(warnings) == 0 {
+	missing, err := daemonCapabilityInventory()
+	if err != nil {
+		return []diagnostic.Diagnostic{daemonCapabilitiesUnknown(err)}
+	}
+	if len(missing) == 0 {
 		return nil
 	}
-	return []diagnostic.Diagnostic{daemonCapabilitiesDiagnostic(warnings)}
+	return []diagnostic.Diagnostic{daemonCapabilitiesMissing(missing)}
 }
 
-// daemonCapabilitiesDiagnostic writes the warnings as one doctor row: what the daemon
-// lacks, what that costs, and how to grant the set.
-func daemonCapabilitiesDiagnostic(warnings []string) diagnostic.Diagnostic {
+// daemonCapabilitiesMissing writes the row for a set the daemon lacks part of:
+// each capability and what it serves, that the features needing one report
+// their own impact, and the remedy privilege.CapabilityRemedy gives this
+// process, which names a systemd command only under ze.service.
+func daemonCapabilitiesMissing(missing []privilege.Capability) diagnostic.Diagnostic {
+	names := make([]string, 0, len(missing))
 	var tb textbuf.Buffer
-	tb.Str("The ze daemon's capability check reports: ")
-	for i, w := range warnings {
+	tb.Str("The ze daemon runs without ")
+	for i, c := range missing {
 		if i > 0 {
-			tb.Str(" ")
+			tb.Str(", ")
 		}
-		tb.Str(strings.TrimSpace(w))
+		tb.Str(c.Name).Str(" (").Str(c.Use).Byte(')')
+		names = append(names, c.Name)
 	}
-	tb.Str(". Each missing capability disables the features named beside it. ").
-		Str(privilege.DaemonCapabilitiesAdvice)
+	tb.Str(". This is not a problem by itself: each configured feature that needs one checks for it and reports its own impact.")
 	return diagnostic.Diagnostic{
 		Code:     diagnostic.CodeDoctorDaemonCapabilityMissing,
-		Severity: diagnostic.SeverityWarning,
+		Severity: diagnostic.SeverityInfo,
 		Message:  tb.String(),
-		Fix:      privilege.DaemonCapabilitiesFix,
+		Fix:      privilege.CapabilityRemedy(names...),
+	}
+}
+
+// daemonCapabilitiesUnknown writes the row for a capability set the daemon
+// could not read: it says Ze cannot determine them and why. The remedy covers
+// the whole set, the one way to be sure the daemon holds what a feature needs.
+func daemonCapabilitiesUnknown(err error) diagnostic.Diagnostic {
+	var tb textbuf.Buffer
+	tb.Str("Ze cannot determine the capabilities the ze daemon runs with: ").Err(err).
+		Str(". Each configured feature that needs one checks for it and reports its own impact.")
+	return diagnostic.Diagnostic{
+		Code:     diagnostic.CodeDoctorDaemonCapabilityMissing,
+		Severity: diagnostic.SeverityInfo,
+		Message:  tb.String(),
+		Fix:      privilege.CapabilityRemedy(),
 	}
 }

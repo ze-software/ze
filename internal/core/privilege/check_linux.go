@@ -1,6 +1,6 @@
 // Design: docs/architecture/system-architecture.md -- daemon privilege checking
 // Overview: drop.go -- privilege package
-// Related: capabilities.go -- DaemonCapabilities, the set this checks
+// Related: capabilities.go -- DaemonCapabilities, the set this inventories
 
 //go:build linux
 
@@ -11,37 +11,27 @@ import (
 	"os"
 	"strconv"
 	"strings"
-
-	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// CheckPrivileges returns warnings for each capability of DaemonCapabilities
-// this process lacks. Returns nil if running as root or all capabilities are
-// present.
-func CheckPrivileges() []string {
-	if os.Getuid() == 0 {
-		return nil
-	}
-
+// CheckPrivileges answers the generic capability inventory: the capabilities of
+// DaemonCapabilities this process's effective set lacks, in the set's order, or
+// the error that kept it from reading the set. A missing capability is not a
+// problem by itself, since a config that uses nothing it serves runs without
+// it: each feature that needs one checks for it and reports its own impact.
+// A root process is read like any other, because root can run with a reduced
+// set (a container, a unit's CapabilityBoundingSet=).
+func CheckPrivileges() ([]Capability, error) {
 	eff, err := effectiveCapabilities()
 	if err != nil {
-		var tb textbuf.Buffer
-		return []string{tb.Str("running without root; cannot read capabilities: ").Err(err).String()}
+		return nil, err
 	}
-
-	var missing []string
-	for _, c := range DaemonCapabilities() {
+	var missing []Capability
+	for _, c := range daemonCapabilities {
 		if eff&(1<<c.Bit) == 0 {
-			var tb textbuf.Buffer
-			missing = append(missing, tb.Str("  ").Str(c.Name).Str(" (").Str(c.Use).Byte(')').String())
+			missing = append(missing, c)
 		}
 	}
-
-	if len(missing) == 0 {
-		return nil
-	}
-
-	return append([]string{"running without root; missing capabilities:"}, missing...)
+	return missing, nil
 }
 
 // effectiveCapabilities reads this process's effective capability set from

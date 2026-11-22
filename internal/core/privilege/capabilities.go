@@ -1,6 +1,7 @@
 // Design: docs/architecture/system-architecture.md -- the capabilities the daemon runs with
 // Overview: drop.go -- privilege package
-// Related: check_linux.go -- the warning for each capability a non-root daemon lacks
+// Related: check_linux.go -- CheckPrivileges, the inventory of the set this process lacks
+// Related: membership.go -- CapabilityRemedy, the remedy every missing-capability site gives
 
 package privilege
 
@@ -13,14 +14,14 @@ type Capability struct {
 	// include/uapi/linux/capability.h gives it, which /proc/<pid>/status reports
 	// as a bit of CapEff and syscall.SysProcAttr.AmbientCaps takes.
 	Bit uint
-	// Use says what Ze needs it for, in the warning a daemon without it prints.
+	// Use says what Ze needs it for, in the inventory of a process without it.
 	Use string
 }
 
 // daemonCapabilities is the one declaration of the capabilities a non-root
 // daemon runs with. The systemd unit Ze installs grants exactly this set,
 // ambient and bounding alike (internal/plugins/systemd, buildUnitFile);
-// CheckPrivileges warns for each one a non-root daemon lacks; and a unit
+// CheckPrivileges inventories the ones this process lacks; and a unit
 // capability test (unit_capabilities_integration_linux_test.go in the package
 // that owns an eBPF program) loads it from a process holding exactly this set.
 // The order is the order the unit lists them in.
@@ -58,20 +59,15 @@ var daemonCapabilities = [...]Capability{
 	{Name: "CAP_BPF", Bit: 39, Use: "eBPF: IPsec ESP form fast path, IPsec override guard, traffic-usage"},
 }
 
-// DaemonCapabilitiesFix is the one command line that gives a systemd-run daemon the
-// whole set: it stops ze, because the install refuses while the daemon holds the
-// store, then rewrites the ze unit from DaemonCapabilities, reloads systemd and starts
-// ze. The && runs the install only once the stop succeeded, so the line works as it is.
+// DaemonCapabilitiesFix is the one command line that gives a daemon systemd started
+// from ServiceUnit the whole set: it stops ze, because the install refuses while the
+// daemon holds the store, then rewrites the ze unit from DaemonCapabilities, reloads
+// systemd and starts ze. The && runs the install only once the stop succeeded, so the
+// line works as it is. A site that reports a missing capability takes its remedy
+// from CapabilityRemedy, which answers this line only for a process DaemonServiceMembership
+// shows runs under ServiceUnit, since for any other process the unit is not what
+// started it.
 const DaemonCapabilitiesFix = "sudo systemctl stop ze && sudo ze install systemd --force --start"
-
-// DaemonCapabilitiesAdvice says how a daemon that lacks a capability of the set gets
-// it, under systemd and without it. The start warning (cmd/ze/hub) and the
-// daemon-capabilities doctor check both carry it.
-const DaemonCapabilitiesAdvice = "Under systemd, a ze unit written by an older ze does not " +
-	"grant CAP_BPF: " + DaemonCapabilitiesFix + " stops ze with sudo systemctl stop ze, " +
-	"because the install refuses while ze runs, then rewrites the unit (add the --config " +
-	"<dir> the unit was first installed with to the install), reloads systemd and starts ze " +
-	"again. Without systemd, start ze with the capabilities named."
 
 // DaemonCapabilities answers the capabilities a non-root daemon runs with, in
 // the order the systemd unit lists them. The slice is a fresh copy, so a caller

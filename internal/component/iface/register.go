@@ -1195,9 +1195,10 @@ func runEngine(conn net.Conn) int {
 // Interface work is netlink RTM_NEWLINK/RTM_NEWADDR, which the kernel gates on
 // CAP_NET_ADMIN. An unprivileged ze therefore fails EVERY interface operation
 // and aborts startup, so the operator needs the capability named at the point
-// of failure -- the pre-flight "running without root" warning
-// (internal/core/privilege/check_linux.go) scrolls past long before this and
-// does not survive into the error at all.
+// of failure: the generic capability inventory taken at start
+// (internal/core/privilege/check_linux.go, CheckPrivileges) is logged at debug
+// only and shown in show doctor as information, so this error is the one place
+// the interface impact is reported.
 const permissionRemediation = " (interface configuration needs CAP_NET_ADMIN: run ze as root, or grant the binary the capability with `setcap cap_net_admin+ep <path-to-ze>`)"
 
 // lacksPrivilege reports whether any apply error was the kernel refusing the

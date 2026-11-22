@@ -18,8 +18,14 @@ const SchemaVersion = 1
 type Severity string
 
 const (
-	SeverityError   Severity = "error"
+	// SeverityError is a problem that makes the box not ready.
+	SeverityError Severity = "error"
+	// SeverityWarning is a problem the box keeps running with.
 	SeverityWarning Severity = "warning"
+	// SeverityInfo is a fact that is not a problem by itself: it never makes the
+	// box not ready and is never counted as a warning. A check that reports one
+	// leaves the impact to the checks that can judge it.
+	SeverityInfo Severity = "info"
 )
 
 // FixSafety indicates how safe a proposed repair is.

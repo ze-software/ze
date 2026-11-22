@@ -191,7 +191,7 @@ func platformMatches(platforms []string, info *host.PlatformInfo) bool {
 
 func normalizeSeverity(s string) diagnostic.Severity {
 	switch diagnostic.Severity(s) {
-	case diagnostic.SeverityError, diagnostic.SeverityWarning:
+	case diagnostic.SeverityError, diagnostic.SeverityWarning, diagnostic.SeverityInfo:
 		return diagnostic.Severity(s)
 	default:
 		// Plugin severity strings form an open set; keep unknown findings as warnings.

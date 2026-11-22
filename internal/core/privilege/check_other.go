@@ -6,13 +6,19 @@
 
 package privilege
 
-import "os"
+import (
+	"errors"
+	"os"
+	"runtime"
+)
 
-// CheckPrivileges returns warnings when not running as root.
-// On non-Linux platforms there is no capability system to inspect.
-func CheckPrivileges() []string {
+// CheckPrivileges answers the generic capability inventory where no capability
+// set exists to read: nothing missing for root, and for any other user the
+// error that says the set cannot be determined. Each feature that needs a
+// privilege still reports its own impact.
+func CheckPrivileges() ([]Capability, error) {
 	if os.Getuid() == 0 {
-		return nil
+		return nil, nil
 	}
-	return []string{"running without root; privileged operations (port 179, raw sockets, FIB) will fail"}
+	return nil, errors.New("capabilities exist on Linux only, and ze runs without root on " + runtime.GOOS)
 }

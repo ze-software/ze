@@ -49,6 +49,7 @@ func TestNormalizeSeverity(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, diagnostic.SeverityError, normalizeSeverity("error"))
 	assert.Equal(t, diagnostic.SeverityWarning, normalizeSeverity("warning"))
+	assert.Equal(t, diagnostic.SeverityInfo, normalizeSeverity("info"), "a plugin's info finding stays info")
 	assert.Equal(t, diagnostic.SeverityWarning, normalizeSeverity("unknown"))
 	assert.Equal(t, diagnostic.SeverityWarning, normalizeSeverity(""))
 }

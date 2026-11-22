@@ -9,10 +9,13 @@ import (
 )
 
 const (
-	serviceName     = "ze.service"
+	// serviceName is the unit the installer writes. privilege declares it, because
+	// DaemonServiceMembership decides from the same name whether the systemd
+	// repair applies to a running ze.
+	serviceName     = privilege.ServiceUnit
 	serviceUser     = "ze"
 	serviceGroup    = "ze"
-	defaultUnitPath = "/etc/systemd/system/ze.service"
+	defaultUnitPath = "/etc/systemd/system/" + serviceName
 )
 
 // writeCapabilities writes the set the unit grants ze, ambient and bounding

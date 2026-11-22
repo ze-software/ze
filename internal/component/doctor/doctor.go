@@ -283,9 +283,15 @@ func outputText(result diagnostic.DoctorResult) int {
 		case diagnostic.SeverityWarning:
 			warnCount++
 			b.Str("WARN  ")
-		default:
-			// Registered checks can return open plugin severity strings.
+		case diagnostic.SeverityInfo:
+			// A fact, not a problem: never counted, never fails readiness.
 			b.Str("INFO  ")
+		default:
+			// A severity outside the declared three is drawn and counted as a
+			// warning, as normalizeSeverity (doctor/cmd) maps a plugin's, so an
+			// unrecognized finding is never shown as less than a problem.
+			warnCount++
+			b.Str("WARN  ")
 		}
 		b.Str("[").Str(diags[i].Code).Str("] ").Str(diags[i].Message).Byte('\n')
 		// The command that fixes the finding sits on a line of its own, under

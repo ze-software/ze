@@ -566,7 +566,7 @@ type DoctorCheckInput struct {
 // line after the message. It is empty only when no command fixes the problem.
 type DoctorCheckDiagnostic struct {
 	Code     string `json:"code"`          // Diagnostic code (e.g. "doctor-rpki-cache-unreachable")
-	Severity string `json:"severity"`      // "error" or "warning"
+	Severity string `json:"severity"`      // "error", "warning" or "info"; any other value is shown as a warning
 	Message  string `json:"message"`       // Human-readable description
 	Fix      string `json:"fix,omitempty"` // The fixing command alone, drawn on its own line
 }
