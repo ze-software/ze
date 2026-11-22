@@ -84,9 +84,14 @@ func (a bearerAuthenticator) Authenticate(r *http.Request) (Identity, *authError
 // matched (or whether any matched) from response timing. Tokens are compared
 // via SHA-256 hashes so ConstantTimeCompare's length-mismatch shortcut
 // cannot leak token-length information either.
+//
+// It carries no required-scopes list. `environment mcp oauth required-scopes`
+// is an oauth setting (ze-mcp-conf.yang, the oauth container), and a bearer-list
+// identity is gated only by its own `scope` list, on tools/call
+// (checkCommandScope, streamable_tools.go). An identity with an empty list
+// carries no scope restriction, whatever the oauth container holds.
 type bearerListAuthenticator struct {
-	entries        []bearerListEntry
-	requiredScopes []string
+	entries []bearerListEntry
 }
 
 type bearerListEntry struct {
@@ -128,20 +133,7 @@ func (a bearerListAuthenticator) Authenticate(r *http.Request) (Identity, *authE
 		}
 	}
 	entry := a.entries[matchIdx]
-	id := Identity{Name: entry.name, Scopes: entry.scopes}
-	for _, required := range a.requiredScopes {
-		if !id.HasScope(required) {
-			return Identity{}, &authError{
-				Status:           http.StatusForbidden,
-				Scheme:           authSchemeBearer,
-				Realm:            mcpRealm,
-				ErrorCode:        "insufficient_scope",
-				ErrorDescription: "required scope missing",
-				Scope:            joinScopes(a.requiredScopes),
-			}
-		}
-	}
-	return id, nil
+	return Identity{Name: entry.name, Scopes: entry.scopes}, nil
 }
 
 const mcpRealm = "ze-mcp"
@@ -159,10 +151,7 @@ func buildAuthenticator(mode AuthMode, cfg StreamableConfig) authenticator {
 		for i, id := range cfg.BearerList {
 			entries[i] = bearerListEntry{name: id.Name, hash: hashToken(id.Token), scopes: id.Scopes}
 		}
-		return bearerListAuthenticator{
-			entries:        entries,
-			requiredScopes: cfg.OAuth.RequiredScopes,
-		}
+		return bearerListAuthenticator{entries: entries}
 	case AuthNone, AuthUnspecified, AuthOAuth:
 		// OAuth is dispatched separately by buildAuthForMode in production.
 		return noneAuthenticator{}

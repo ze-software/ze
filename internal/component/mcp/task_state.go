@@ -24,7 +24,8 @@ import "errors"
 //
 //   - The `ze:task-support` annotation decides task eligibility
 //     (lookupTaskSupport, streamable_tools.go).
-//   - Every annotated command dispatches through dispatchGenerated.
+//   - Every annotated command runs the command line generatedCommand built
+//     (resolveToolCall, streamable_tools.go), which never elicits.
 //   - The task worker is handed a zero capability set, so an elicitation
 //     degrades to the missing-argument path rather than an interim result
 //     (createTask, streamable_tools.go).

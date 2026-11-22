@@ -14,6 +14,7 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 	"sort"
@@ -100,7 +101,7 @@ type ParamInfo struct {
 	// An empty anchor lets a nonflag own name bind after a matching path word;
 	// other values follow the command as keywords. This is the dispatcher's placement
 	// (command.ArgDef.Anchor, supplied by the hub from the registered
-	// command), and dispatchGenerated writes the value where it says.
+	// command), and generatedCommand writes the value where it says.
 	Anchor string
 	Flag   bool // the keyword alone supplies this argument
 }
@@ -738,11 +739,33 @@ func (s *server) context() context.Context {
 	return s.ctx
 }
 
-// dispatchGenerated handles a tools/call for an auto-generated tool.
-// It builds the command string from the tool group prefix + action + typed params + arguments.
+// dispatchGenerated builds the command line of an auto-generated tool call with
+// generatedCommand and runs it. It holds no scope decision: a tools/call over
+// HTTP reaches the dispatcher through resolveToolCall (streamable_tools.go),
+// which authorizes the line generatedCommand answers and runs that same line.
+func (s *server) dispatchGenerated(prefix string, actionSelector map[string]bool, args json.RawMessage) map[string]any {
+	line, refusal := s.generatedCommand(prefix, actionSelector, args)
+	if refusal != nil {
+		return ErrResult(refusal.Error())
+	}
+	return s.run(line)
+}
+
+// generatedCommand answers the one command line an auto-generated tool call
+// runs: the tool group prefix, the action, the typed params, the free-text
+// arguments and the pipe list. It is the only reader of a generated tool's
+// arguments. The scope check classifies the line it answers and the dispatcher
+// runs that line, so the two cannot disagree on what the call does.
+//
+// Every member is found by its exact key. A struct field would also take
+// `Action` or `PIPE`, the last such key would win, and the typed parameters
+// below would forward the other one as an unknown parameter, so one call would
+// name two actions.
+//
 // actionSelector maps each server-defined action name to whether that command
 // takes a peer selector; membership in the map is what validates the action, so
-// an arbitrary token can never be injected as one.
+// an arbitrary token can never be injected as one. An empty action names the
+// prefix itself, followed by the free-text arguments.
 //
 // Typed YANG params (any JSON field not in reservedParams) are written where
 // the dispatcher binds them, by command.WriteInvocation, the one declaration
@@ -750,49 +773,66 @@ func (s *server) context() context.Context {
 // that keyword, and every other one follows the action as "key value". This
 // lets handlers receive structured params through the standard text command
 // interface.
-func (s *server) dispatchGenerated(prefix string, actionSelector map[string]bool, args json.RawMessage) map[string]any {
+//
+// Every refusal is an operator error naming the corrected call, and no command
+// runs after one.
+func (s *server) generatedCommand(prefix string, actionSelector map[string]bool, args json.RawMessage) (string, *opererr.Error) {
 	// Unmarshal into a generic map to capture typed params alongside standard ones.
 	var all map[string]any
 	if err := json.Unmarshal(args, &all); err != nil {
-		var tb textbuf.Buffer
-		return ErrResult(tb.Str("invalid arguments: ").Err(err).String())
+		return "", opererr.Wrap(err, "invalid arguments: the tool arguments are not one JSON object",
+			"No command ran. A generated tool reads its arguments from one JSON object",
+			`send the arguments as one JSON object, such as {"action": "<an action the tool lists>"}`)
 	}
 
 	action, _ := all["action"].(string)
 	arguments, _ := all["arguments"].(string)
 	peer, _ := all["peer"].(string)
 	// The pipe list is read strictly, from its own bytes: a misspelt element
-	// key is refused rather than dropped (command.DecodePipeList). The member is
-	// found by its exact key, the same match reservedParams makes: a struct
-	// field would also take `Pipe` or `PIPE`, which the typed parameters below
-	// forward as an unknown parameter, so one member would be read twice.
+	// key is refused rather than dropped (command.DecodePipeList).
 	var members map[string]json.RawMessage
 	if err := json.Unmarshal(args, &members); err != nil {
 		var problem textbuf.Buffer
 		problem.Str("The tool arguments cannot be read for their ").Quoted(command.PipeListParameter).Str(" list")
-		return ErrResult(opererr.Wrap(err, problem.String(),
+		return "", opererr.Wrap(err, problem.String(),
 			"No command ran. The arguments are one JSON object, and its \"pipe\" member is an array of pipe operations",
-			`send the arguments as one JSON object, such as {"pipe": [{"name": "count"}]}`).Error())
+			`send the arguments as one JSON object, such as {"pipe": [{"name": "count"}]}`)
 	}
 	chain, err := command.DecodePipeList(members[command.PipeListParameter])
 	if err != nil {
-		return ErrResult(err.Error())
+		// DecodePipeList refuses with an operator error; it is handed on as
+		// it is, and anything else is wrapped into one.
+		if refusal, built := errors.AsType[*opererr.Error](err); built {
+			return "", refusal
+		}
+		return "", opererr.Wrap(err, "The \"pipe\" list cannot be read",
+			"No command ran. The list is an array of objects, each with a name and an optional args array of strings",
+			`send "pipe": [{"name": "count"}]`)
 	}
 
 	if peer != "" {
 		if err := noSpaces("peer", peer); err != nil {
-			return ErrResult(err.Error())
+			return "", opererr.Wrap(err, "the \"peer\" argument holds whitespace",
+				"No command ran. The dispatcher splits a command on spaces, so the selector would become several words",
+				`send "peer" as one word, such as {"peer": "192.0.2.1"}`)
 		}
 	}
 	if _, known := actionSelector[action]; action != "" && !known {
-		var tb textbuf.Buffer
-		return ErrResult(tb.Str("invalid action ").Quoted(action).String())
+		var problem textbuf.Buffer
+		problem.Str("invalid action ").Quoted(action)
+		return "", opererr.New(problem.String(),
+			"No command ran. The action names one command of this tool, and the tool has no command by that name",
+			`send "action" as one of the values the tool lists in tools/list`)
 	}
 	if strings.ContainsAny(action, "\n\r") {
-		return ErrResult("action must not contain newlines")
+		return "", opererr.New("action must not contain newlines",
+			"No command ran. A newline would end the command line inside the action",
+			`send "action" as one of the values the tool lists in tools/list`)
 	}
 	if strings.ContainsAny(arguments, "\n\r\t") {
-		return ErrResult("arguments must not contain newlines or tabs")
+		return "", opererr.New("arguments must not contain newlines or tabs",
+			"No command ran. The arguments are added to one command line of words separated by spaces",
+			`send "arguments" on one line, with its words separated by spaces`)
 	}
 
 	// Resolve the full dispatch path, then place the peer selector where the
@@ -818,16 +858,22 @@ func (s *server) dispatchGenerated(prefix string, actionSelector map[string]bool
 			// collision predates this guard and is not fixed by it; the guard
 			// only makes the refusal explicit instead of emitting a command
 			// string the dispatcher cannot resolve.
-			var tb textbuf.Buffer
-			return ErrResult(tb.Str("command ").Quoted(full).Str(" does not take a peer selector; the \"peer\" argument is not accepted here").String())
+			var problem textbuf.Buffer
+			problem.Str("command ").Quoted(full).Str(" does not take a peer selector; the \"peer\" argument is not accepted here")
+			return "", opererr.New(problem.String(),
+				"No command ran. Only a command with its own \"peer\" keyword reads a peer selector",
+				`send the call again without the "peer" argument`)
 		}
 		spliced, ok := spliceSelector(full, peer)
 		if !ok {
 			// Fail closed: the command was declared selector-taking but has no
 			// `peer` keyword to anchor the value to, so any placement would be a
 			// guess. Say so instead of emitting a command the daemon rejects.
-			var tb textbuf.Buffer
-			return ErrResult(tb.Str("cannot place a peer selector in ").Quoted(full).Str(": the command has no \"peer\" keyword").String())
+			var problem textbuf.Buffer
+			problem.Str("cannot place a peer selector in ").Quoted(full).Str(": the command has no \"peer\" keyword")
+			return "", opererr.New(problem.String(),
+				"No command ran. A selector goes after the command's own \"peer\" keyword, and any other place would be a guess",
+				`send the call again without the "peer" argument`)
 		}
 		full = spliced
 	}
@@ -839,8 +885,12 @@ func (s *server) dispatchGenerated(prefix string, actionSelector map[string]bool
 		}
 		sval := fmt.Sprint(val)
 		if strings.ContainsAny(sval, "\n\r\t") {
-			var tb textbuf.Buffer
-			return ErrResult(tb.Str("parameter ").Quoted(key).Str(" must not contain newlines or tabs").String())
+			var problem, fix textbuf.Buffer
+			problem.Str("parameter ").Quoted(key).Str(" must not contain newlines or tabs")
+			fix.Str("send ").Quoted(key).Str(" on one line, with no tab")
+			return "", opererr.New(problem.String(),
+				"No command ran. Each parameter value becomes words of one command line",
+				fix.String())
 		}
 		values[key] = sval
 	}
@@ -849,12 +899,13 @@ func (s *server) dispatchGenerated(prefix string, actionSelector map[string]bool
 	// that is the name the lister registered its parameters under.
 	defs, err := s.invocationArgs(commandName)
 	if err != nil {
-		var tb textbuf.Buffer
-		return ErrResult(tb.Str("command metadata unavailable: ").Str(err.Error()).String())
+		return "", opererr.Wrap(err, "command metadata unavailable",
+			"MCP could not read the registered command catalog to place the parameters",
+			"ze doctor")
 	}
 	values, err = command.NormalizeInvocationFlags(defs, values)
 	if err != nil {
-		return ErrResult(command.InvocationFlagError(commandName, err).Error())
+		return "", command.InvocationFlagError(commandName, err)
 	}
 	if peer != "" {
 		// The peer selector already sits after the `peer` keyword. A typed
@@ -866,8 +917,12 @@ func (s *server) dispatchGenerated(prefix string, actionSelector map[string]bool
 			if values[defs[i].Name] == "" || !strings.EqualFold(defs[i].Anchor, peerKeyword) {
 				continue
 			}
-			var tb textbuf.Buffer
-			return ErrResult(tb.Str("parameter ").Quoted(defs[i].Name).Str(" and \"peer\" both name the peer; supply one of them").String())
+			var problem, fix textbuf.Buffer
+			problem.Str("parameter ").Quoted(defs[i].Name).Str(" and \"peer\" both name the peer; supply one of them")
+			fix.Str("send the call again with only \"peer\", or only ").Quoted(defs[i].Name)
+			return "", opererr.New(problem.String(),
+				"No command ran. Both values would land in the one selector slot after the \"peer\" keyword",
+				fix.String())
 		}
 	}
 
@@ -880,10 +935,18 @@ func (s *server) dispatchGenerated(prefix string, actionSelector map[string]bool
 	// The pipe list goes last, judged against the operations of the command
 	// the client named: that is the path its operations are registered under.
 	if err := command.WritePipeList(&cmd, commandName, chain); err != nil {
-		return ErrResult(err.Error())
+		// WritePipeList refuses with an operator error naming the valid
+		// operations; it is handed on as it is, and anything else is wrapped.
+		if refusal, built := errors.AsType[*opererr.Error](err); built {
+			return "", refusal
+		}
+		var fix textbuf.Buffer
+		fix.Str("ze help command ").Str(commandName)
+		return "", opererr.Wrap(err, "the \"pipe\" list cannot be written after the command",
+			"No command ran. Each element must name a pipe operation of the command",
+			fix.String())
 	}
-
-	return s.run(cmd.String())
+	return cmd.String(), nil
 }
 
 // --- Shared tool-dispatch primitives (moved from the deleted legacy

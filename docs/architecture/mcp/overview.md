@@ -390,8 +390,27 @@ authorizes read-only tools and commands (`CommandInfo.ReadOnly`, `ze_reference`)
 both. Insufficient scope returns HTTP `403 Forbidden` with an RFC 6750
 `WWW-Authenticate: Bearer ... error="insufficient_scope"` challenge and records
 an audit denial. An identity with an empty `scope` list imposes no per-tool
-scope restriction. When `RequiredScopes` is also configured, authentication
-rejects identities missing any required scope with HTTP `403`.
+scope restriction. `oauth required-scopes` belongs to `oauth` mode alone: a
+bearer-list identity is gated only by its own `scope` list, whatever the
+`oauth` container or `ze.mcp.oauth.required-scopes` holds.
+
+The scope decision is taken on the command line the call runs, never on a
+separate reading of its arguments. A generated tool's arguments are read once,
+by exact key, into that line: the tool prefix, the `action`, the typed
+parameters, the free-text `arguments` and the `pipe` list. The line is
+classified and then dispatched as it is, by the synchronous path or by the task
+worker. `ze_execute` classifies the command it resolves the same way. The
+classifier reads the line with the dispatcher's scanner and compares words
+case-insensitively. A line that matches no registered command, or that may
+resolve to a mutating command whose words all appear in it in order, needs
+`mcp.write`, and so does a `| save` anywhere in its chain. A handcrafted tool
+with no scope rule of its own needs `mcp.admin`, and a provider tool needs
+`mcp.write`.
+
+<!-- source: internal/component/mcp/streamable_tools.go -- resolveToolCall, checkCommandScope, isCommandReadOnly -->
+<!-- source: internal/component/mcp/tools.go -- generatedCommand -->
+<!-- source: internal/component/mcp/bearer.go -- bearerListAuthenticator -->
+
 
 `AuthMode.String` renders every declared mode, including `AuthUnspecified`;
 an unnamed internal value raises a BUG assertion. `NewStreamable` still
@@ -505,7 +524,8 @@ surfaces offer a command".
 <!-- source: cmd/ze/hub/streaming_surface.go -- streamingPathsOff -->
 <!-- source: internal/component/plugin/server/local_bridge.go -- loadLocalData -->
 
-A tool call becomes one text command (`dispatchGenerated`). The reserved
+A tool call becomes one text command (`generatedCommand`), the line the
+scope check classifies and the dispatcher runs. The reserved
 `peer` argument goes after the command's own `peer` keyword
 (`spliceSelector`). Every typed parameter goes where the dispatcher binds it,
 and `command.WriteInvocation` is the one declaration of that placement, shared
@@ -529,7 +549,7 @@ to `peer` names one slot twice and is refused by name.
 
 Every derived tool also takes the reserved `pipe` argument, the ordered pipe
 list REST and gRPC take too: each element an operation name and its `args`
-words. `dispatchGenerated` reads it strictly (`command.DecodePipeList`) and
+words. `generatedCommand` reads it strictly (`command.DecodePipeList`) and
 `command.WritePipeList` writes it last, after the typed parameters and the
 raw `arguments`, judged against the pipe operations of the command the tool
 call names (prefix and action). A name the command does not take is refused
