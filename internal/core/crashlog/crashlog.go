@@ -28,13 +28,36 @@ var (
 )
 
 var (
-	startTime  time.Time
-	crashDir   string
-	crashKeep  int
-	syslogAddr string
-	origStderr *os.File
-	initOnce   sync.Once
+	startTime      time.Time
+	crashDir       string
+	crashKeep      int
+	syslogAddr     string
+	origStderr     *os.File
+	initOnce       sync.Once
+	skipPredicates []func(binary string, args []string) bool
 )
+
+// RegisterSkipInit registers a predicate checked by ShouldSkipInit before Init
+// runs. It lets a short-lived shell callback (such as `le completion words`)
+// avoid crash-directory probing, pending-file harvesting, build-info parsing,
+// and stderr-pipe relay startup on every keystroke. Call from init() only.
+func RegisterSkipInit(fn func(binary string, args []string) bool) {
+	if fn == nil {
+		return
+	}
+	skipPredicates = append(skipPredicates, fn)
+}
+
+// ShouldSkipInit reports whether any registered predicate asks the entry point
+// to skip Init for this invocation.
+func ShouldSkipInit(binary string, args []string) bool {
+	for _, fn := range skipPredicates {
+		if fn(binary, args) {
+			return true
+		}
+	}
+	return false
+}
 
 func Init() {
 	initOnce.Do(func() {

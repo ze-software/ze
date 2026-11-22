@@ -2,9 +2,10 @@
 // Related: complete.go -- the candidates the callback prints
 //
 // A shell callback is an area a shell runs on a keystroke. The le root
-// handler skips the cache-link repair, the patched-GOROOT selection and the
-// before-dispatch hooks for it: each can print, wait or start work, and a
-// keystroke owes nothing but its candidates on stdout.
+// handler skips crashlog initialization, full-registry startup checks, the
+// cache-link repair, the patched-GOROOT selection and the before-dispatch hooks
+// for it: each can print, wait or start work, and a keystroke owes nothing but
+// its candidates on stdout.
 
 package leroot
 

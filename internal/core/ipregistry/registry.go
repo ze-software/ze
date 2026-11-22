@@ -15,6 +15,7 @@ import (
 	"net/netip"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/credits"
@@ -82,20 +83,20 @@ var ipv4XML []byte
 var ipv6XML []byte
 
 var (
-	ipv4Registry = mustParse(ipv4XML, 32)
-	ipv6Registry = mustParse(ipv6XML, 128)
+	ipv4Registry = sync.OnceValue(func() *Registry { return mustParse(ipv4XML, 32) })
+	ipv6Registry = sync.OnceValue(func() *Registry { return mustParse(ipv6XML, 128) })
 )
 
 // Lookup selects the address's family without unmapping IPv4-mapped IPv6.
 // Invalid or zoned input returns MatchInvalid. A valid unlisted address returns
 // MatchUnlisted, which means only that this registry places no restriction on
 // it. It does not imply global reachability or suitability for another policy.
-// Lookup is safe for concurrent use and allocates nothing.
+// Lookup is safe for concurrent use and allocates nothing after first load.
 func Lookup(address netip.Addr) Result {
 	if address.Is4() {
-		return ipv4Registry.Lookup(address)
+		return ipv4Registry().Lookup(address)
 	}
-	return ipv6Registry.Lookup(address)
+	return ipv6Registry().Lookup(address)
 }
 
 // Lookup returns the most-specific record in this registry, retaining blank

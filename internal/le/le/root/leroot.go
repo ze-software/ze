@@ -174,12 +174,22 @@ func requireEveryAreaHasATable(names []string) {
 	}
 }
 
+// actionEntry caches one area's action table after its first read so repeated
+// callers (startup checks, tree builds, help, completion) do not rebuild every
+// area's table on each lookup. setActions installs a fresh entry on
+// re-registration, so tests that replace an area see the new table.
+type actionEntry struct {
+	provider func() leaction.List
+	once     sync.Once
+	list     leaction.List
+}
+
 // actionTables holds the action table of every area that declared one.
 // Registration runs in init() and every read happens after it, but help runs on
 // any goroutine, so the map is guarded. Safe for concurrent use.
 var actionTables struct {
 	sync.RWMutex
-	byName map[string]func() leaction.List
+	byName map[string]*actionEntry
 }
 
 // ActionsOf answers the action table an area registered, and whether it
@@ -191,12 +201,15 @@ var actionTables struct {
 // "what did this area publish" is answered in one place.
 func ActionsOf(name string) (leaction.List, bool) {
 	actionTables.RLock()
-	actions, declared := actionTables.byName[name]
+	entry, declared := actionTables.byName[name]
 	actionTables.RUnlock()
 	if !declared {
 		return leaction.List{}, false
 	}
-	return actions(), true
+	entry.once.Do(func() {
+		entry.list = entry.provider()
+	})
+	return entry.list, true
 }
 
 // setActions records one area's action table. RegisterActions calls it after it
@@ -206,9 +219,9 @@ func setActions(name string, actions func() leaction.List) {
 	actionTables.Lock()
 	defer actionTables.Unlock()
 	if actionTables.byName == nil {
-		actionTables.byName = make(map[string]func() leaction.List, 64)
+		actionTables.byName = make(map[string]*actionEntry, 64)
 	}
-	actionTables.byName[name] = actions
+	actionTables.byName[name] = &actionEntry{provider: actions}
 }
 
 // RegisterForwarding records an area whose every word after its name is the

@@ -131,6 +131,22 @@ func Dispatch(program string, args []string) int {
 	return DispatchWithStartup(program, args, nil)
 }
 
+// DispatchShellCallback dispatches a shell-callback invocation (such as
+// `le completion words`) without running the full-registry startup checks over
+// every registered area. Those invariants are compile-time static and checked
+// on every ordinary le command and by unit tests; skipping them keeps keystroke
+// completion within its latency budget.
+func DispatchShellCallback(program string, args []string) int {
+	if len(args) == 0 {
+		return Dispatch(program, args)
+	}
+	if isHelpArg(args[0]) {
+		return Dispatch(program, args)
+	}
+	leaction.SetProgram(program)
+	return dispatchLine(program, args, false, nil)
+}
+
 // DispatchWithStartup carries process initialization to the selected action.
 // Preparation, when declared, MUST succeed before startup can write. The
 // action's captured answer MUST run only after startup returns.

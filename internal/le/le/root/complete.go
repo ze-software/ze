@@ -1,13 +1,14 @@
 // Design: docs/contributing/running-commands.md -- installing le's completion
-// Related: tree.go -- the derived tree the walk descends
+// Related: tree.go -- the derived tree sharing the same command surface rules
 // Related: shellcallback.go -- why the callback runs no hook
 //
-// Complete answers the candidates for the word a reader is typing. It walks
-// the derived tree for areas and verbs, then reads the action's own table for
-// what follows the verb, because the table, not the tree, knows repeat, pair
-// and retired (D-Q3): a keyword already given is not offered again unless it
-// repeats, a retired keyword is never offered, and an enum's values are
-// offered only after their keyword.
+// Complete answers the candidates for the word a reader is typing. It resolves
+// areas, namespaces and verbs directly along the typed prefix over Commands and
+// ActionsOf (matching the derived tree without materializing unrelated areas),
+// then reads the action's own table for what follows the verb, because the
+// table, not the tree, knows repeat, pair and retired (D-Q3): a keyword already
+// given is not offered again unless it repeats, a retired keyword is never
+// offered, and an enum's values are offered only after their keyword.
 
 package leroot
 
@@ -17,7 +18,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/registry"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
 
@@ -33,6 +34,10 @@ var ErrUnknownWord = errors.New("le has no such command")
 // dispatch gives for the same words. Every word
 // after a pass-through area answers no candidate, because its program reads
 // them.
+//
+// Complete walks only the prefix named by words directly over Commands and
+// ActionsOf rather than building the full Tree for every registered area, so
+// each Tab keystroke avoids allocating argument definitions for unrelated areas.
 func Complete(words []string) ([]leaction.Candidate, error) {
 	if len(words) == 0 {
 		words = []string{""}
@@ -54,53 +59,143 @@ func Complete(words []string) ([]leaction.Candidate, error) {
 	if retired := retiredLine(leaction.Program(), typed); retired != nil {
 		return nil, retired
 	}
+	commands := Commands()
 	if len(typed) == 0 {
-		return withPrefix(append(childrenOf(Tree()), launcherCandidates()...), partial), nil
+		return withPrefix(append(directChildren(commands, nil), launcherCandidates()...), partial), nil
 	}
-	node := Tree()
 	var path []string
 	for index, word := range typed {
 		name := strings.Join(path, " ")
-		if list, declared := ActionsOf(name); declared && name != "" {
-			if list.PassesWords {
-				return nil, nil
+		if name != "" {
+			if !Hidden(name) {
+				if list, declared := ActionsOf(name); declared {
+					if list.PassesWords {
+						return nil, nil
+					}
+					// A verbless area's words are its sole action's grammar, from
+					// the first one on (leaction.List.Verbless).
+					if list.Verbless() {
+						return afterVerb(list.Actions[0], typed[index:], partial)
+					}
+					// An area may also be the first words of other areas (`repo` and
+					// `repo changed`, `setup` and `setup docker host`). Tree refuses a
+					// verb spelled like an area under it, so a word that is no verb of
+					// this area and is a child of its node names the area below.
+					row, held := rowOf(list, word)
+					if held {
+						return afterVerb(row, typed[index+1:], partial)
+					}
+				}
 			}
-			// A verbless area's words are its sole action's grammar, from
-			// the first one on (leaction.List.Verbless).
-			if list.Verbless() {
-				return afterVerb(list.Actions[0], typed[index:], partial)
-			}
-			// An area may also be the first words of other areas (`repo` and
-			// `repo changed`, `setup` and `setup docker host`). Tree refuses a
-			// verb spelled like an area under it, so a word that is no verb of
-			// this area and is a child of its node names the area below.
-			row, held := rowOf(list, word)
-			if held {
-				return afterVerb(row, typed[index+1:], partial)
-			}
-			child, below := node.Children[word]
-			if !below {
-				return nil, unknownWord(path, word)
-			}
-			node = child
-			path = append(path, word)
-			continue
 		}
-		child, held := node.Children[word]
-		if !held {
+		nextPath := append(path, word)
+		if !pathHasVisibleNode(commands, nextPath) {
 			return nil, unknownWord(path, word)
 		}
-		node = child
-		path = append(path, word)
+		path = nextPath
 	}
 	name := strings.Join(path, " ")
-	if list, declared := ActionsOf(name); declared && name != "" && list.PassesWords {
-		return nil, nil
+	if name != "" {
+		if !Hidden(name) {
+			if list, declared := ActionsOf(name); declared {
+				if list.PassesWords {
+					return nil, nil
+				}
+				if list.Verbless() {
+					return afterVerb(list.Actions[0], nil, partial)
+				}
+			}
+		}
 	}
-	if list, declared := ActionsOf(name); declared && name != "" && list.Verbless() {
-		return afterVerb(list.Actions[0], nil, partial)
+	return withPrefix(directChildren(commands, path), partial), nil
+}
+
+// pathHasVisibleNode reports whether path names a non-hidden registered area
+// or a namespace prefix of at least one non-hidden registered area.
+func pathHasVisibleNode(commands []registry.RootCommand, path []string) bool {
+	prefix := strings.Join(path, " ")
+	prefixSpace := prefix + " "
+	for _, area := range commands {
+		if Hidden(area.Name) {
+			continue
+		}
+		if area.Name == prefix {
+			return true
+		}
+		if strings.HasPrefix(area.Name, prefixSpace) {
+			return true
+		}
 	}
-	return withPrefix(childrenOf(node), partial), nil
+	return false
+}
+
+// directChildren answers the sorted direct child words of path (sub-areas,
+// sub-namespaces, and non-verbless actions of the area at path), each with the
+// same ShortHelp that Tree assigns to that node.
+func directChildren(commands []registry.RootCommand, path []string) []leaction.Candidate {
+	summaries := make(map[string]string)
+	isArea := make(map[string]bool)
+	prefix := strings.Join(path, " ")
+	prefixSpace := ""
+	if prefix != "" {
+		prefixSpace = prefix + " "
+	}
+	for _, area := range commands {
+		if Hidden(area.Name) {
+			continue
+		}
+		rest := area.Name
+		if prefix != "" {
+			cut, ok := strings.CutPrefix(area.Name, prefixSpace)
+			if !ok {
+				continue
+			}
+			rest = cut
+		}
+		word, _, hasMore := strings.Cut(rest, " ")
+		if !hasMore {
+			summaries[word] = area.Meta.ShortHelp
+			isArea[word] = true
+			continue
+		}
+		if isArea[word] {
+			continue
+		}
+		if _, exists := summaries[word]; exists {
+			continue
+		}
+		namespace := word
+		if prefix != "" {
+			namespace = prefixSpace + word
+		}
+		summary, _ := NamespaceSummary(namespace)
+		summaries[word] = summary
+	}
+	if prefix != "" {
+		if !Hidden(prefix) {
+			if list, declared := ActionsOf(prefix); declared {
+				if !list.PassesWords {
+					if !list.Verbless() {
+						for _, row := range list.Actions {
+							if _, taken := summaries[row.Verb]; !taken {
+								summaries[row.Verb] = row.Summary
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	names := make([]string, 0, len(summaries))
+	for name := range summaries {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	out := make([]leaction.Candidate, 0, len(names))
+	for _, name := range names {
+		out = append(out, leaction.Candidate{Value: name, Summary: summaries[name]})
+	}
+	return out
 }
 
 // unknownWord is the refusal of word typed after path, naming the page that
@@ -121,21 +216,6 @@ func rowOf(list leaction.List, verb string) (leaction.Row, bool) {
 		}
 	}
 	return leaction.Row{}, false
-}
-
-// childrenOf answers a node's children, by name, each with the first sentence
-// of its summary.
-func childrenOf(node *command.Node) []leaction.Candidate {
-	names := make([]string, 0, len(node.Children))
-	for name := range node.Children {
-		names = append(names, name)
-	}
-	slices.Sort(names)
-	out := make([]leaction.Candidate, 0, len(names))
-	for _, name := range names {
-		out = append(out, leaction.Candidate{Value: name, Summary: node.Children[name].ShortHelp})
-	}
-	return out
 }
 
 // afterVerb reads the complete words after the verb against the action's

@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/core/crashlog"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	_ "github.com/ze-software/ze/internal/le/ai"
 	_ "github.com/ze-software/ze/internal/le/ai/digest"
@@ -78,6 +79,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/go/staticcheck"
 	_ "github.com/ze-software/ze/internal/le/go/stdpatch"
 	"github.com/ze-software/ze/internal/le/go/stdpatch/gen"
+	_ "github.com/ze-software/ze/internal/le/go/style"
 	_ "github.com/ze-software/ze/internal/le/go/versionpin"
 	_ "github.com/ze-software/ze/internal/le/go/vetplatforms"
 	_ "github.com/ze-software/ze/internal/le/job"
@@ -234,6 +236,17 @@ func init() {
 		Mode:      "offline",
 		Section:   registry.SectionTest,
 	})
+	crashlog.RegisterSkipInit(func(binary string, args []string) bool {
+		if binary == "le" {
+			return leroot.ShellCallback(args)
+		}
+		if len(args) > 1 {
+			if args[0] == "le" {
+				return leroot.ShellCallback(args[1:])
+			}
+		}
+		return false
+	})
 }
 
 // run is the le root handler: every le command and native hook enters here.
@@ -246,7 +259,7 @@ func run(_ *registry.RuntimeContext, args []string) int {
 	// A shell callback runs on a keystroke: the repair and the hooks below can
 	// print or start work, and the shell reads stdout as candidates.
 	if leroot.ShellCallback(args) {
-		return leroot.Dispatch(program, args)
+		return leroot.DispatchShellCallback(program, args)
 	}
 	return leroot.DispatchWithStartup(program, args, func() {
 		ensureCacheLink()

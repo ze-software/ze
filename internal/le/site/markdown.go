@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"html"
 	"strings"
+	"sync"
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
@@ -39,15 +40,17 @@ import (
 //   - WithUnsafe passes raw HTML through, which python-markdown also did. Every
 //     source is a file in this repository, so the input is trusted; a page
 //     rendered from a source outside this repository would need this reviewed.
-var markdownEngine = goldmark.New(
-	goldmark.WithExtensions(extension.Table),
-	goldmark.WithParserOptions(parser.WithAutoHeadingID()),
-	goldmark.WithRendererOptions(
-		goldmarkhtml.WithUnsafe(),
-		goldmarkhtml.WithWriter(textWriter{Writer: goldmarkhtml.NewWriter()}),
-		renderer.WithNodeRenderers(util.Prioritized(textNodes{writer: goldmarkhtml.NewWriter()}, 100)),
-	),
-)
+var markdownEngine = sync.OnceValue(func() goldmark.Markdown {
+	return goldmark.New(
+		goldmark.WithExtensions(extension.Table),
+		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
+		goldmark.WithRendererOptions(
+			goldmarkhtml.WithUnsafe(),
+			goldmarkhtml.WithWriter(textWriter{Writer: goldmarkhtml.NewWriter()}),
+			renderer.WithNodeRenderers(util.Prioritized(textNodes{writer: goldmarkhtml.NewWriter()}, 100)),
+		),
+	)
+})
 
 // textWriter writes HTML text content, escaping only what text content owes.
 //
@@ -314,11 +317,12 @@ type docHeading struct {
 // The source is parsed once and rendered from the same tree, so the heading ids
 // in the answer are the ids the body carries.
 func renderMarkdown(source []byte) (string, []docHeading, error) {
+	engine := markdownEngine()
 	context := parser.NewContext(parser.WithIDs(&headingSlugs{taken: map[string]bool{}}))
-	document := markdownEngine.Parser().Parse(text.NewReader(source), parser.WithContext(context))
+	document := engine.Parser().Parse(text.NewReader(source), parser.WithContext(context))
 	headings := documentHeadings(document, source)
 	var body bytes.Buffer
-	if err := markdownEngine.Renderer().Render(&body, source, document); err != nil {
+	if err := engine.Renderer().Render(&body, source, document); err != nil {
 		return "", nil, fmt.Errorf("render markdown: %w", err)
 	}
 	return body.String(), headings, nil

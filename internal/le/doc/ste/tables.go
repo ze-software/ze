@@ -17,6 +17,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -294,51 +295,65 @@ func fixOf(list []wordFix, word string) string {
 }
 
 var (
-	hedgeWordList   = newLiteralList(wordsOf(hedges))
-	hedgePhraseList = newLiteralList(wordsOf(hedgePhrases))
-	marketingList   = newLiteralList(marketing)
-	phrasalList     = newLiteralList(wordsOf(phrasalVerbs))
-	plainList       = newLiteralList(wordsOf(plainWords))
-	rotationList    = map[string]literalList{}
-	canonicalList   = map[string]literalList{}
+	tablesOnce      sync.Once
+	hedgeWordList   literalList
+	hedgePhraseList literalList
+	marketingList   literalList
+	phrasalList     literalList
+	plainList       literalList
+	rotationList    map[string]literalList
+	canonicalList   map[string]literalList
 	lightVerbRe     *regexp.Regexp
 	frozenOfRe      *regexp.Regexp
-	nominalizedVerb = map[string]string{}
+	nominalizedVerb map[string]string
 )
 
-func init() {
-	for _, set := range termSets {
-		canonicalList[set.Canonical] = newLiteralList([]string{set.Canonical})
-		for _, rotation := range set.Rotations {
-			rotationList[rotation] = newLiteralList([]string{rotation})
+// ensureTables builds the sorted word lists and nominalization regexps on
+// first use rather than in init(), keeping startup fast for unrelated le tools.
+func ensureTables() {
+	tablesOnce.Do(func() {
+		hedgeWordList = newLiteralList(wordsOf(hedges))
+		hedgePhraseList = newLiteralList(wordsOf(hedgePhrases))
+		marketingList = newLiteralList(marketing)
+		phrasalList = newLiteralList(wordsOf(phrasalVerbs))
+		plainList = newLiteralList(wordsOf(plainWords))
+		rotationList = make(map[string]literalList)
+		canonicalList = make(map[string]literalList, len(termSets))
+		nominalizedVerb = make(map[string]string, len(nominalizations))
+
+		for _, set := range termSets {
+			canonicalList[set.Canonical] = newLiteralList([]string{set.Canonical})
+			for _, rotation := range set.Rotations {
+				rotationList[rotation] = newLiteralList([]string{rotation})
+			}
 		}
-	}
-	for _, entry := range nominalizations {
-		nominalizedVerb[entry.Word] = entry.Fix
-	}
+		for _, entry := range nominalizations {
+			nominalizedVerb[entry.Word] = entry.Fix
+		}
 
-	// "Do a check of the battery" is STE, because "check" is not an approved
-	// verb (STE Rule 3.7 gives that exact example). So the trigger is never the
-	// light verb alone: it is a light verb, or a preposition, bound to a
-	// nominalization whose verb IS available.
-	nouns := make([]string, 0, len(nominalizations))
-	for _, entry := range nominalizations {
-		nouns = append(nouns, entry.Word)
-	}
-	slices.Sort(nouns)
-	joined := strings.Join(nouns, "|")
+		// "Do a check of the battery" is STE, because "check" is not an approved
+		// verb (STE Rule 3.7 gives that exact example). So the trigger is never the
+		// light verb alone: it is a light verb, or a preposition, bound to a
+		// nominalization whose verb IS available.
+		nouns := make([]string, 0, len(nominalizations))
+		for _, entry := range nominalizations {
+			nouns = append(nouns, entry.Word)
+		}
+		slices.Sort(nouns)
+		joined := strings.Join(nouns, "|")
 
-	var light textbuf.Buffer
-	light.Str(`(?i)(do|does|did|doing|perform|performs|performed|performing|make|makes|made`)
-	light.Str(`|making|conduct|conducts|conducted|carry out|carries out|carried out){SP}+`)
-	light.Str(`(?:a|an|the|any|its|their)?{SP}*(`)
-	light.Str(joined)
-	light.Str(`)`)
-	lightVerbRe = mustPattern(light.String())
+		var light textbuf.Buffer
+		light.Str(`(?i)(do|does|did|doing|perform|performs|performed|performing|make|makes|made`)
+		light.Str(`|making|conduct|conducts|conducted|carry out|carries out|carried out){SP}+`)
+		light.Str(`(?:a|an|the|any|its|their)?{SP}*(`)
+		light.Str(joined)
+		light.Str(`)`)
+		lightVerbRe = mustPattern(light.String())
 
-	var frozen textbuf.Buffer
-	frozen.Str(`(?i)(before|after|during|upon){SP}+the{SP}+(`)
-	frozen.Str(joined)
-	frozen.Str(`){SP}+of`)
-	frozenOfRe = mustPattern(frozen.String())
+		var frozen textbuf.Buffer
+		frozen.Str(`(?i)(before|after|during|upon){SP}+the{SP}+(`)
+		frozen.Str(joined)
+		frozen.Str(`){SP}+of`)
+		frozenOfRe = mustPattern(frozen.String())
+	})
 }

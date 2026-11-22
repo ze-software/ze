@@ -134,3 +134,59 @@ func TestAnAreaWithoutATableStopsLeNamingIt(t *testing.T) {
 	requireEveryAreaHasATable([]string{tabled, missing})
 	t.Fatal("an area with no action table passed the check")
 }
+
+// TestActionsOfCachesProviderUntilReplaced proves ActionsOf invokes an area's
+// action-table provider once and reuses the result on subsequent reads, while
+// re-registering the area via setActions replaces the cached entry.
+func TestActionsOfCachesProviderUntilReplaced(t *testing.T) {
+	const name = "zz-cache-probe"
+	calls := 0
+	setActions(name, func() leaction.List {
+		calls++
+		return leaction.New(name, leaction.Action{
+			Summary: "first", Verb: "first", Why: "first",
+			Answer: func() (any, int) { return nil, 0 },
+		}).Actions()
+	})
+	first, ok := ActionsOf(name)
+	if !ok {
+		t.Fatal("ActionsOf returned !ok for registered area")
+	}
+	second, ok := ActionsOf(name)
+	if !ok {
+		t.Fatal("second ActionsOf returned !ok")
+	}
+	if calls != 1 {
+		t.Fatalf("provider called %d times across two reads, want 1", calls)
+	}
+	if len(first.Actions) != 1 {
+		t.Fatalf("first list length = %d, want 1", len(first.Actions))
+	}
+	if first.Actions[0].Verb != "first" {
+		t.Fatalf("first verb = %q, want first", first.Actions[0].Verb)
+	}
+	if len(second.Actions) != 1 {
+		t.Fatalf("second list length = %d, want 1", len(second.Actions))
+	}
+
+	setActions(name, func() leaction.List {
+		calls++
+		return leaction.New(name, leaction.Action{
+			Summary: "replaced", Verb: "second", Why: "replaced",
+			Answer: func() (any, int) { return nil, 0 },
+		}).Actions()
+	})
+	replaced, ok := ActionsOf(name)
+	if !ok {
+		t.Fatal("ActionsOf returned !ok after replacement")
+	}
+	if calls != 2 {
+		t.Fatalf("provider called %d times after replacement, want 2", calls)
+	}
+	if len(replaced.Actions) != 1 {
+		t.Fatalf("replaced list length = %d, want 1", len(replaced.Actions))
+	}
+	if replaced.Actions[0].Verb != "second" {
+		t.Fatalf("replaced verb = %q, want second", replaced.Actions[0].Verb)
+	}
+}

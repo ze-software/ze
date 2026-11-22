@@ -2,7 +2,11 @@
 
 package portname
 
-import "github.com/ze-software/ze/internal/core/textbuf"
+import (
+	"sync"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
+)
 
 // Info holds the resolved service name for a port and, when applicable,
 // an amplification-vector label for known reflection ports.
@@ -38,7 +42,10 @@ func Lookup(port uint16, proto uint8) Info {
 	}
 }
 
+var servicesOnce sync.Once
+
 func resolve(port uint16, proto uint8) string {
+	servicesOnce.Do(initServiceTables)
 	if proto != 0 {
 		if name, ok := services[serviceKey{port, proto}]; ok {
 			return name

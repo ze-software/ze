@@ -19,25 +19,25 @@ import (
 var (
 	codeSpanRe    = regexp.MustCompile("`[^`]*`")
 	linkTargetRe  = regexp.MustCompile(`\]\([^)]*\)`)
-	autolinkRe    = mustPattern(`<https?://[^>]*>|https?://{NS}+`)
+	autolinkRe    = lazyPattern(`<https?://[^>]*>|https?://{NS}+`)
 	htmlCommentRe = regexp.MustCompile(`(?s)<!--.*?-->`)
-	htmlEntityRe  = mustPattern(`&(?:[a-zA-Z]+|#{D}+);`)
+	htmlEntityRe  = lazyPattern(`&(?:[a-zA-Z]+|#{D}+);`)
 
-	headingRe      = mustPattern(`^{SP}{0,3}#{1,6}{SP}`)
-	fenceRe        = mustPattern("^{SP}*(`{3,}|~{3,})")
-	tableDividerRe = mustPattern(`^{SP}*\|?[{SPB}:|-]+\|[{SPB}:|-]*$`)
-	orderedItemRe  = mustPattern(`^{SP}*{D}+[.)]{SP}+`)
-	bulletItemRe   = mustPattern(`^{SP}*[-*+]{SP}+`)
+	headingRe      = lazyPattern(`^{SP}{0,3}#{1,6}{SP}`)
+	fenceRe        = lazyPattern("^{SP}*(`{3,}|~{3,})")
+	tableDividerRe = lazyPattern(`^{SP}*\|?[{SPB}:|-]+\|[{SPB}:|-]*$`)
+	orderedItemRe  = lazyPattern(`^{SP}*{D}+[.)]{SP}+`)
+	bulletItemRe   = lazyPattern(`^{SP}*[-*+]{SP}+`)
 	// A bold field label starts a unit. Otherwise, a rule's three metadata lines
 	// join into a 28-word "sentence" without a verb.
-	boldFieldRe = mustPattern(`^{SP}*\*\*[^*]+:\*\*`)
+	boldFieldRe = lazyPattern(`^{SP}*\*\*[^*]+:\*\*`)
 	// Two or more spaces inside a line mark column alignment, not wrapped prose.
 	// Markdown joins consecutive lines. Aligned lists and tables then become one
 	// sentence. One handover's 15-line commit list measured 187 words. Two
 	// spaces after punctuation are prose, so punctuation cannot precede the
 	// matched run. Each aligned line remains a unit, and all words stay in the
 	// population.
-	layoutColumnsRe = mustPattern(`[^{SPB}.!?:,;]{SP}{2,}{NS}`)
+	layoutColumnsRe = lazyPattern(`[^{SPB}.!?:,;]{SP}{2,}{NS}`)
 )
 
 // isLayoutRow reports whether a line is column-aligned layout instead of wrapped
@@ -49,17 +49,17 @@ var (
 // prose remains an ordinary wrapped paragraph.
 func isLayoutRow(line string) bool {
 	probe := codeSpanRe.ReplaceAllLiteralString(line, "CODE")
-	probe = autolinkRe.ReplaceAllLiteralString(probe, "URL")
+	probe = autolinkRe().ReplaceAllLiteralString(probe, "URL")
 	probe = htmlCommentRe.ReplaceAllLiteralString(probe, "")
-	return layoutColumnsRe.MatchString(pyStrip(probe))
+	return layoutColumnsRe().MatchString(pyStrip(probe))
 }
 
 // scrub removes data from prose. It first removes a code span, so nested URLs or
 // links are already absent when their patterns run.
 func scrub(text string) string {
 	text = codeSpanRe.ReplaceAllLiteralString(text, " CODE ")
-	text = htmlEntityRe.ReplaceAllLiteralString(text, " ") // `&nbsp;` is not a semicolon
-	text = autolinkRe.ReplaceAllLiteralString(text, " URL ")
+	text = htmlEntityRe().ReplaceAllLiteralString(text, " ") // `&nbsp;` is not a semicolon
+	text = autolinkRe().ReplaceAllLiteralString(text, " URL ")
 	text = linkTargetRe.ReplaceAllLiteralString(text, "] ") // keep the label, drop the target
 	return htmlCommentRe.ReplaceAllLiteralString(text, " ")
 }
@@ -99,7 +99,7 @@ func unitsMarkdown(lines []string) []unit {
 	for index, raw := range lines {
 		number := index + 1
 
-		if marker := fenceRe.FindStringSubmatch(raw); marker != nil {
+		if marker := fenceRe().FindStringSubmatch(raw); marker != nil {
 			run := marker[1]
 			if fence == "" {
 				flush()
@@ -116,7 +116,7 @@ func unitsMarkdown(lines []string) []unit {
 		if fence != "" {
 			continue
 		}
-		if ignoreLineRe.MatchString(raw) {
+		if ignoreLineRe().MatchString(raw) {
 			flush()
 			skipNext = true
 			continue
@@ -135,7 +135,7 @@ func unitsMarkdown(lines []string) []unit {
 			flush()
 			continue
 		}
-		if tableDividerRe.MatchString(line) {
+		if tableDividerRe().MatchString(line) {
 			flush()
 			continue
 		}
@@ -151,27 +151,27 @@ func unitsMarkdown(lines []string) []unit {
 			}
 			continue
 		}
-		if headingRe.MatchString(line) {
+		if headingRe().MatchString(line) {
 			flush()
-			out = append(out, unit{Text: pyStrip(headingRe.ReplaceAllLiteralString(text, "")), Line: number})
+			out = append(out, unit{Text: pyStrip(headingRe().ReplaceAllLiteralString(text, "")), Line: number})
 			continue
 		}
-		if boldFieldRe.MatchString(line) {
+		if boldFieldRe().MatchString(line) {
 			flush()
 			out = append(out, unit{Text: pyStrip(text), Line: number})
 			continue
 		}
-		if orderedItemRe.MatchString(line) {
+		if orderedItemRe().MatchString(line) {
 			flush()
 			out = append(out, unit{
-				Text: pyStrip(orderedItemRe.ReplaceAllLiteralString(text, "")),
+				Text: pyStrip(orderedItemRe().ReplaceAllLiteralString(text, "")),
 				Line: number, Procedural: true,
 			})
 			continue
 		}
-		if bulletItemRe.MatchString(line) {
+		if bulletItemRe().MatchString(line) {
 			flush()
-			out = append(out, unit{Text: pyStrip(bulletItemRe.ReplaceAllLiteralString(text, "")), Line: number})
+			out = append(out, unit{Text: pyStrip(bulletItemRe().ReplaceAllLiteralString(text, "")), Line: number})
 			continue
 		}
 		if isLayoutRow(line) {
@@ -208,7 +208,7 @@ var goMarkers = []string{
 // goCodeLikeRe recognizes a commented-out line of code, which is code rather
 // than prose. The last branch carries the Python `\b`, written as an explicit
 // non-word class because Go's own `\b` is ASCII where Python's is Unicode.
-var goCodeLikeRe = mustPattern(`:=|==|!=|\{{SP}*$|\}{SP}*$|;{SP}*$|\){SP}*\{|^{SP}*(?:if|for|func|return)(?:{NW}|$)`)
+var goCodeLikeRe = lazyPattern(`:=|==|!=|\{{SP}*$|\}{SP}*$|;{SP}*$|\){SP}*\{|^{SP}*(?:if|for|func|return)(?:{NW}|$)`)
 
 // unitsGo extracts prose comment blocks from Go source.
 //
@@ -274,7 +274,7 @@ func unitsGo(lines []string) []unit {
 				flush()
 				continue
 			}
-			if goCodeLikeRe.MatchString(body) {
+			if goCodeLikeRe().MatchString(body) {
 				flush()
 				continue
 			}
@@ -312,14 +312,15 @@ func hasGoMarker(body string) bool {
 // a sentence leave STE scope by moving one statement up. The prefix is
 // literal because every module in the tree imports the extensions module as
 // `prefix ze`.
-var yangDescriptionRe = mustPattern(`(?s)(?:description|error-message|ze:help){SP}+(?:"(?P<body>[^"]*)"|'(?P<body2>[^']*)')`)
+var yangDescriptionRe = lazyPattern(`(?s)(?:description|error-message|ze:help){SP}+(?:"(?P<body>[^"]*)"|'(?P<body2>[^']*)')`)
 
 // unitsYANG extracts `description`, `error-message` and `ze:help` strings from
 // a YANG module.
 func unitsYANG(text string) []unit {
 	var out []unit
-	names := yangDescriptionRe.SubexpNames()
-	for _, loc := range findBounded(yangDescriptionRe, text, edgeNone) {
+	re := yangDescriptionRe()
+	names := re.SubexpNames()
+	for _, loc := range findBounded(re, text, edgeNone) {
 		raw := ""
 		for group, name := range names {
 			if name != "body" && name != "body2" {
@@ -361,7 +362,7 @@ const held = "\x00"
 // and a table cell of "| No. Answer the person who asked" constantly, and it
 // numbers almost nothing: 38 occurrences against 1 when this was split out.
 // Filed as F-ste-2 in `plan/learned/HOOK-FRICTION.md`.
-var numberedAbbreviationRe = mustPattern(`(No|Fig)\.{SP}*{D}`)
+var numberedAbbreviationRe = lazyPattern(`(No|Fig)\.{SP}*{D}`)
 
 // holdNumberedAbbreviations replaces the dot of `No.` and `Fig.` in front of a
 // number, and nowhere else.
@@ -373,7 +374,7 @@ func holdNumberedAbbreviations(text string) string {
 	var out textbuf.Buffer
 	written, search := 0, 0
 	for search <= len(text) {
-		loc := numberedAbbreviationRe.FindStringSubmatchIndex(text[search:])
+		loc := numberedAbbreviationRe().FindStringSubmatchIndex(text[search:])
 		if loc == nil {
 			break
 		}
@@ -487,7 +488,7 @@ var (
 	// applies those, because the trailing one needs the backtracking RE2 will
 	// not do. "3 abc%" is a measurement of "3 abc", and a rejected greedy match
 	// would have lost it.
-	numberUnitRe = mustPattern(`{D}+(?:\.{D}+)?{SP}+[A-Za-z%]+`)
+	numberUnitRe = lazyPattern(`{D}+(?:\.{D}+)?{SP}+[A-Za-z%]+`)
 )
 
 // WordCount counts words the way STE counts them (Rules 8.5 through 8.7).
@@ -525,7 +526,7 @@ func replaceMeasures(text string) string {
 	var out textbuf.Buffer
 	written, search := 0, 0
 	for search <= len(text) {
-		loc := numberUnitRe.FindStringIndex(text[search:])
+		loc := numberUnitRe().FindStringIndex(text[search:])
 		if loc == nil {
 			break
 		}

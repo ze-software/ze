@@ -145,7 +145,9 @@ func dispatchMain(args []string) int {
 	if handled, code := seedinit.Dispatch(args); handled {
 		return code
 	}
-	crashlog.Init()
+	if !crashlog.ShouldSkipInit(binaryName(), args) {
+		crashlog.Init()
+	}
 	zeversion.Stamp(version, buildDate)
 
 	// A binary that is not the build the caller named answers nothing. See

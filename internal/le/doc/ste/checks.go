@@ -120,16 +120,16 @@ type restrictedMeaning struct {
 
 var restrictedMeanings = []restrictedMeaning{
 	{`"above" for a limit`, `write "more than"`, func(text string) bool {
-		return hasBounded(aboveLimitRe, text, edgeNone)
+		return hasBounded(aboveLimitRe(), text, edgeNone)
 	}},
 	{`"below" for a limit`, `write "less than"`, func(text string) bool {
-		return hasBounded(belowLimitRe, text, edgeNone)
+		return hasBounded(belowLimitRe(), text, edgeNone)
 	}},
 }
 
 var (
-	aboveLimitRe = mustPattern(`(?i)above{SP}+{D}`)
-	belowLimitRe = mustPattern(`(?i)below{SP}+{D}`)
+	aboveLimitRe = lazyPattern(`(?i)above{SP}+{D}`)
+	belowLimitRe = lazyPattern(`(?i)below{SP}+{D}`)
 )
 
 // checkRestrictedMeanings reports an approved word used for something it does
@@ -146,11 +146,11 @@ func checkRestrictedMeanings(u unit, path, surface string, found *[]Finding) {
 // alphanumeric identifier. The identifier makes the noun proper, so the article
 // is incorrect. Kept to this repository's own nouns, because a general
 // `the \w+ \d` pattern would flag "the first 3 bytes".
-var articleBeforeIDRe = mustPattern(`(?i)the{SP}+(?:RFC|AS|ASN|table|port|peer|prefix|section|chapter|figure|step|rule){SP}+{D}`)
+var articleBeforeIDRe = lazyPattern(`(?i)the{SP}+(?:RFC|AS|ASN|table|port|peer|prefix|section|chapter|figure|step|rule){SP}+{D}`)
 
 // checkArticles reports the article before a proper noun, under habit 1.
 func checkArticles(u unit, path, surface string, found *[]Finding) {
-	for _, loc := range findBounded(articleBeforeIDRe, u.Text, edgeNone) {
+	for _, loc := range findBounded(articleBeforeIDRe(), u.Text, edgeNone) {
 		detail := quoted(pyJoinFields(u.Text[loc[0]:loc[1]]))
 		add(found, u, path, surface, "synonym-rotation", detail,
 			`an alphanumeric identifier makes the noun proper: drop "the"`)
@@ -160,11 +160,12 @@ func checkArticles(u unit, path, surface string, found *[]Finding) {
 // gerundClauseRe matches a gerund clause. An `-ing` form is permitted only as a
 // technical noun (`routing table`) or its modifier (`switching relay`). A
 // preceding preposition identifies the banned form. It reports frozen-verbs.
-var gerundClauseRe = mustPattern(`(?i)(before|after|while|without|when){SP}+([a-z]+ing)`)
+var gerundClauseRe = lazyPattern(`(?i)(before|after|while|without|when){SP}+([a-z]+ing)`)
 
 // checkFrozenVerbs finds habit 3.
 func checkFrozenVerbs(u unit, path, surface string, found *[]Finding) {
-	for _, loc := range findBounded(gerundClauseRe, u.Text, edgeWord) {
+	ensureTables()
+	for _, loc := range findBounded(gerundClauseRe(), u.Text, edgeWord) {
 		verb := strings.ToLower(u.Text[loc[4]:loc[5]])
 		if isNotGerund(verb) {
 			continue
@@ -344,8 +345,10 @@ func hasReason(reason string) bool {
 // Review answers every finding in one document, and the reason it was skipped
 // when it was skipped.
 func Review(path, text, surface string) (findings []Finding, skipReason string) {
-	if loc := ignoreFileRe.FindStringSubmatchIndex(text); loc != nil {
-		group := ignoreFileRe.SubexpIndex("reason")
+	ensureTables()
+	ignoreFile := ignoreFileRe()
+	if loc := ignoreFile.FindStringSubmatchIndex(text); loc != nil {
+		group := ignoreFile.SubexpIndex("reason")
 		if reason := text[loc[2*group]:loc[2*group+1]]; hasReason(reason) {
 			return nil, reason
 		}

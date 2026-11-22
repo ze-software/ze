@@ -26,6 +26,7 @@ package docste
 import (
 	"regexp"
 	"strings"
+	"sync"
 	"unicode"
 	"unicode/utf8"
 )
@@ -66,10 +67,19 @@ var classes = strings.NewReplacer(
 )
 
 // mustPattern compiles one pattern after the class placeholders are filled in.
-// It panics on a pattern this package spelled wrong, which is a Ze defect at
-// init and reachable from nothing an operator types.
+// It panics on a pattern this package spelled wrong, which is a Ze defect
+// reachable from nothing an operator types.
 func mustPattern(pattern string) *regexp.Regexp {
 	return regexp.MustCompile(classes.Replace(pattern))
+}
+
+// lazyPattern defers compiling a Unicode-class pattern until first use so
+// commands that link this package (such as `le completion words`) do not pay
+// Unicode NFA compilation during package init().
+func lazyPattern(pattern string) func() *regexp.Regexp {
+	return sync.OnceValue(func() *regexp.Regexp {
+		return mustPattern(pattern)
+	})
 }
 
 // pySpace reports whether r is whitespace to Python.
